@@ -30,6 +30,24 @@ export interface ProviderUpdateToastView {
   readonly dismissAfterVisibleMs?: number;
 }
 
+type ProviderUpdateInitialMessageKey =
+  | "providerUpdate.title.single"
+  | "providerUpdate.description.installOrSettings";
+
+export type ProviderUpdateInitialTranslate = (
+  key: ProviderUpdateInitialMessageKey,
+  values?: Readonly<Record<string, string | number>>,
+) => string;
+
+const translateProviderUpdateInitialEnglish: ProviderUpdateInitialTranslate = (key, values) => {
+  switch (key) {
+    case "providerUpdate.title.single":
+      return `Update Available: ${String(values?.provider ?? "")} ${String(values?.version ?? "")}`;
+    case "providerUpdate.description.installOrSettings":
+      return "Install the update now or review provider settings.";
+  }
+};
+
 /**
  * Terminal update phases — outcomes that are safe to persist as a one-shot row
  * result. A non-terminal ("initial"/"running") snapshot never re-polls itself,
@@ -216,17 +234,20 @@ export function formatProviderList(providers: ReadonlyArray<Pick<ServerProvider,
   return `${names.slice(0, -1).join(", ")}, and ${names[names.length - 1]}`;
 }
 
-export function getProviderUpdateInitialToastView(input: {
-  readonly updateProviders: ReadonlyArray<ProviderUpdateCandidate>;
-  readonly oneClickProviders: ReadonlyArray<ProviderUpdateCandidate>;
-}): ProviderUpdateToastView {
+export function getProviderUpdateInitialToastView(
+  input: {
+    readonly updateProviders: ReadonlyArray<ProviderUpdateCandidate>;
+    readonly oneClickProviders: ReadonlyArray<ProviderUpdateCandidate>;
+  },
+  translate: ProviderUpdateInitialTranslate = translateProviderUpdateInitialEnglish,
+): ProviderUpdateToastView {
   return {
     phase: "initial",
     type: "warning",
-    title: getProviderUpdateInitialToastTitle(input.updateProviders),
+    title: getProviderUpdateInitialToastTitle(input.updateProviders, translate),
     description:
       input.oneClickProviders.length > 0
-        ? "Install the update now or review provider settings."
+        ? translate("providerUpdate.description.installOrSettings")
         : `${formatProviderList(input.updateProviders)} can be updated from provider settings.`,
   };
 }
@@ -535,11 +556,15 @@ export function getProviderUpdateSidebarPillView(
 
 function getProviderUpdateInitialToastTitle(
   providers: ReadonlyArray<ProviderUpdateCandidate>,
+  translate: ProviderUpdateInitialTranslate,
 ): string {
   if (providers.length === 1) {
     const provider = providers[0]!;
     const providerName = PROVIDER_DISPLAY_NAMES[provider.driver] ?? provider.driver;
-    return `Update Available: ${providerName} ${formatVersion(provider.versionAdvisory.latestVersion)}`;
+    return translate("providerUpdate.title.single", {
+      provider: providerName,
+      version: formatVersion(provider.versionAdvisory.latestVersion),
+    });
   }
   return `Updates Available: ${providers.length} providers`;
 }

@@ -7,6 +7,7 @@ import { type ProviderDriverKind, type ProviderInstanceId } from "@t3tools/contr
 import { primaryServerProvidersAtom, serverEnvironment } from "../state/server";
 import { usePrimaryEnvironment } from "../state/environments";
 import { useDismissedProviderUpdateNotificationKeys } from "../providerUpdateDismissal";
+import { useI18n } from "../i18n/WebI18nProvider";
 import { PROVIDER_ICON_BY_PROVIDER } from "./chat/providerIconUtils";
 import {
   canOneClickUpdateProviderCandidate,
@@ -27,13 +28,20 @@ const seenProviderUpdateNotificationKeys = new Set<string>();
 type ProviderUpdateToastId = ReturnType<typeof toastManager.add>;
 
 type ActiveProviderUpdateToast =
-  | { readonly kind: "prompt"; readonly key: string; readonly toastId: ProviderUpdateToastId }
+  | {
+      readonly kind: "prompt";
+      readonly key: string;
+      readonly locale: string;
+      readonly toastId: ProviderUpdateToastId;
+    }
   | {
       readonly kind: "update";
       readonly key: string;
+      readonly locale: string;
       readonly toastId: ProviderUpdateToastId;
       readonly providerInstanceIds: ReadonlySet<ProviderInstanceId>;
       readonly providerCount: number;
+      readonly terminalView: ProviderUpdateToastView | null;
     };
 
 function ProviderUpdateToastIcon({ provider }: { provider: ProviderDriverKind }) {
@@ -61,6 +69,8 @@ function updateProviderUpdateToast(input: {
   readonly toastId: ProviderUpdateToastId;
   readonly view: ProviderUpdateToastView;
   readonly openSettings: () => void;
+  readonly onClose: () => void;
+  readonly settingsLabel: string;
 }) {
   if (input.view.type === "loading" || input.view.type === "success") {
     toastManager.update(input.toastId, {
@@ -74,6 +84,7 @@ function updateProviderUpdateToast(input: {
       actionProps: undefined,
       data: {
         hideCopyButton: true,
+        onClose: input.onClose,
         ...(input.view.dismissAfterVisibleMs !== undefined
           ? { dismissAfterVisibleMs: input.view.dismissAfterVisibleMs }
           : {}),
@@ -90,12 +101,13 @@ function updateProviderUpdateToast(input: {
       description: input.view.description,
       timeout: 0,
       actionProps: {
-        children: "Settings",
+        children: input.settingsLabel,
         onClick: input.openSettings,
       },
       actionVariant: "outline",
       data: {
         hideCopyButton: true,
+        onClose: input.onClose,
       },
     }),
   );
@@ -111,6 +123,7 @@ function isTerminalProviderUpdateToastView(view: ProviderUpdateToastView) {
  * per-environment split is gated behind WSL presence.
  */
 export function ProviderUpdatePrimaryNotification() {
+  const { locale, t } = useI18n();
   const navigate = useNavigate();
   const providers = useAtomValue(primaryServerProvidersAtom);
   const primaryEnvironment = usePrimaryEnvironment();
@@ -118,8 +131,18 @@ export function ProviderUpdatePrimaryNotification() {
     reportFailure: false,
   });
   const activeToastRef = useRef<ActiveProviderUpdateToast | null>(null);
+  const localeRef = useRef(locale);
+  const translateRef = useRef(t);
+  localeRef.current = locale;
+  translateRef.current = t;
   const { dismissedNotificationKeys, dismissNotificationKey } =
     useDismissedProviderUpdateNotificationKeys();
+
+  const releaseToast = useCallback((toastId: ProviderUpdateToastId) => {
+    if (activeToastRef.current?.toastId === toastId) {
+      activeToastRef.current = null;
+    }
+  }, []);
 
   // If this flow unmounts (e.g. a WSL backend appears and we switch to the
   // per-environment popover), close any prompt it owns so it does not linger.
@@ -169,46 +192,71 @@ export function ProviderUpdatePrimaryNotification() {
     const activeProviders = providers.filter((provider) =>
       activeToast.providerInstanceIds.has(provider.instanceId),
     );
-    const view = getProviderUpdateProgressToastView({
-      providers: activeProviders,
-      providerCount: activeToast.providerCount,
-    });
+    const view =
+      activeToast.terminalView ??
+      getProviderUpdateProgressToastView({
+        providers: activeProviders,
+        providerCount: activeToast.providerCount,
+      });
     updateProviderUpdateToast({
       toastId: activeToast.toastId,
       view,
       openSettings: () => openProviderSettings(activeToast.toastId),
+      onClose: () => releaseToast(activeToast.toastId),
+      settingsLabel: t("providerUpdate.action.settings"),
     });
 
-    if (isTerminalProviderUpdateToastView(view)) {
+    if (view.phase === "succeeded") {
       activeToastRef.current = null;
+    } else {
+      activeToastRef.current = {
+        ...activeToast,
+        locale,
+        terminalView: isTerminalProviderUpdateToastView(view) ? view : null,
+      };
     }
-  }, [providers, openProviderSettings]);
+  }, [locale, openProviderSettings, providers, releaseToast, t]);
 
   useEffect(() => {
     const activeToast = activeToastRef.current;
-    if (activeToast?.kind === "prompt" && activeToast.key !== notificationKey) {
+    const replacingPromptForLocale =
+      activeToast?.kind === "prompt" &&
+      activeToast.key === notificationKey &&
+      activeToast.locale !== locale;
+    if (
+      activeToast?.kind === "prompt" &&
+      (activeToast.key !== notificationKey || activeToast.locale !== locale)
+    ) {
       toastManager.close(activeToast.toastId);
       activeToastRef.current = null;
     }
 
+    const localizedSeenKey = notificationKey ? `${locale}:${notificationKey}` : null;
+
     if (
       !notificationKey ||
       dismissedNotificationKeys.has(notificationKey) ||
-      seenProviderUpdateNotificationKeys.has(notificationKey) ||
+      (!replacingPromptForLocale &&
+        localizedSeenKey !== null &&
+        seenProviderUpdateNotificationKeys.has(localizedSeenKey)) ||
       activeToastRef.current
     ) {
       return;
     }
 
-    seenProviderUpdateNotificationKeys.add(notificationKey);
+    seenProviderUpdateNotificationKeys.add(localizedSeenKey!);
 
-    const initialView = getProviderUpdateInitialToastView({ updateProviders, oneClickProviders });
+    const initialView = getProviderUpdateInitialToastView(
+      { updateProviders, oneClickProviders },
+      t,
+    );
 
     let toastId!: ProviderUpdateToastId;
     let updateStarted = false;
     const openSettings = () => openProviderSettings(toastId);
     const dismissPrompt = () => {
       dismissNotificationKey(notificationKey);
+      releaseToast(toastId);
     };
 
     const runUpdates = () => {
@@ -222,15 +270,19 @@ export function ProviderUpdatePrimaryNotification() {
       activeToastRef.current = {
         kind: "update",
         key: notificationKey,
+        locale: localeRef.current,
         toastId,
         providerInstanceIds,
         providerCount,
+        terminalView: null,
       };
 
       updateProviderUpdateToast({
         toastId,
         view: getProviderUpdateRunningToastView(providerCount),
         openSettings,
+        onClose: () => releaseToast(toastId),
+        settingsLabel: translateRef.current("providerUpdate.action.settings"),
       });
 
       void (async () => {
@@ -258,8 +310,14 @@ export function ProviderUpdatePrimaryNotification() {
             toastId,
             view: getProviderUpdateRejectedToastView(providerCount, failedMessage),
             openSettings,
+            onClose: () => releaseToast(toastId),
+            settingsLabel: translateRef.current("providerUpdate.action.settings"),
           });
-          activeToastRef.current = null;
+          activeToastRef.current = {
+            ...activeUpdateToast,
+            locale: localeRef.current,
+            terminalView: getProviderUpdateRejectedToastView(providerCount, failedMessage),
+          };
           return;
         }
 
@@ -275,10 +333,18 @@ export function ProviderUpdatePrimaryNotification() {
           toastId,
           view,
           openSettings,
+          onClose: () => releaseToast(toastId),
+          settingsLabel: translateRef.current("providerUpdate.action.settings"),
         });
 
-        if (isTerminalProviderUpdateToastView(view)) {
+        if (view.phase === "succeeded") {
           activeToastRef.current = null;
+        } else if (isTerminalProviderUpdateToastView(view)) {
+          activeToastRef.current = {
+            ...activeUpdateToast,
+            locale: localeRef.current,
+            terminalView: view,
+          };
         }
       })();
     };
@@ -292,11 +358,11 @@ export function ProviderUpdatePrimaryNotification() {
         actionProps:
           oneClickProviders.length > 0
             ? {
-                children: "Update",
+                children: t("providerUpdate.action.update"),
                 onClick: runUpdates,
               }
             : {
-                children: "Settings",
+                children: t("providerUpdate.action.settings"),
                 onClick: openSettings,
               },
         actionVariant: oneClickProviders.length > 0 ? "default" : "outline",
@@ -310,7 +376,7 @@ export function ProviderUpdatePrimaryNotification() {
           ...(oneClickProviders.length > 0
             ? {
                 secondaryActionProps: {
-                  children: "Settings",
+                  children: t("providerUpdate.action.settings"),
                   onClick: openSettings,
                 },
                 secondaryActionVariant: "outline" as const,
@@ -319,15 +385,18 @@ export function ProviderUpdatePrimaryNotification() {
         },
       }),
     );
-    activeToastRef.current = { kind: "prompt", key: notificationKey, toastId };
+    activeToastRef.current = { kind: "prompt", key: notificationKey, locale, toastId };
   }, [
     updateProvider,
     dismissNotificationKey,
     dismissedNotificationKeys,
+    locale,
     notificationKey,
     oneClickProviders,
     openProviderSettings,
     primaryEnvironment,
+    releaseToast,
+    t,
     updateProviders,
   ]);
 

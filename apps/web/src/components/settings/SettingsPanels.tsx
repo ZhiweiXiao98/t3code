@@ -38,7 +38,7 @@ import { createModelSelection } from "@t3tools/shared/model";
 import * as Duration from "effect/Duration";
 import * as Equal from "effect/Equal";
 import * as Schema from "effect/Schema";
-import { APP_VERSION, HOSTED_APP_CHANNEL, HOSTED_APP_CHANNEL_LABEL } from "../../branding";
+import { APP_VERSION, HOSTED_APP_CHANNEL } from "../../branding";
 import {
   canCheckForUpdate,
   getDesktopUpdateButtonTooltip,
@@ -150,10 +150,10 @@ const ENVIRONMENT_IDENTIFICATION_LABELS: Record<EnvironmentIdentificationMode, s
   none: "None",
 };
 
-const TIMESTAMP_FORMAT_LABELS = {
-  locale: "System default",
-  "12-hour": "12-hour",
-  "24-hour": "24-hour",
+const TIMESTAMP_FORMAT_MESSAGE_KEYS = {
+  locale: "settings.general.timeFormat.system",
+  "12-hour": "settings.general.timeFormat.12Hour",
+  "24-hour": "settings.general.timeFormat.24Hour",
 } as const;
 
 const BACKGROUND_ACTIVITY_PROFILE_LABELS: Record<BackgroundActivityProfile, string> = {
@@ -162,22 +162,17 @@ const BACKGROUND_ACTIVITY_PROFILE_LABELS: Record<BackgroundActivityProfile, stri
   "battery-saver": "Battery saver",
 };
 
-type BackgroundActivityProfileOption = BackgroundActivityProfile | "advanced";
+const BACKGROUND_ACTIVITY_PROFILE_MESSAGE_KEYS = {
+  balanced: "settings.general.background.profile.balanced",
+  performance: "settings.general.background.profile.performance",
+  "battery-saver": "settings.general.background.profile.batterySaver",
+} as const;
 
-const BACKGROUND_ACTIVITY_PROFILE_OPTION_LABELS: Record<BackgroundActivityProfileOption, string> = {
-  ...BACKGROUND_ACTIVITY_PROFILE_LABELS,
-  advanced: "Advanced",
-};
-
-const BACKGROUND_ACTIVITY_PROFILE_DESCRIPTIONS: Record<BackgroundActivityProfile, string> = {
-  balanced:
-    "Pauses background probes when clients are idle, the host is locked, or low power mode is active.",
-  performance: "Allows scoped background probes while any subscribed client remains connected.",
-  "battery-saver": "Also pauses background probes when the host or client is on battery.",
-};
-
-const ADVANCED_BACKGROUND_ACTIVITY_DESCRIPTION =
-  "Uses custom background intervals with the selected shared power policy.";
+const BACKGROUND_ACTIVITY_PROFILE_DESCRIPTION_MESSAGE_KEYS = {
+  balanced: "settings.general.background.description.balanced",
+  performance: "settings.general.background.description.performance",
+  "battery-saver": "settings.general.background.description.batterySaver",
+} as const;
 
 const DEFAULT_DRIVER_KIND = ProviderDriverKind.make("codex");
 const BACKGROUND_ACTIVITY_BOOLEAN_OVERRIDES: ReadonlyArray<{
@@ -211,15 +206,18 @@ function backgroundActivityProfileSettings(profile: BackgroundActivityProfile) {
 }
 
 function AboutVersionTitle() {
+  const { t } = useI18n();
+
   return (
     <span className="inline-flex items-center gap-2">
-      <span>Version</span>
+      <span>{t("settings.about.version")}</span>
       <code className="text-[11px] font-medium text-muted-foreground">{APP_VERSION}</code>
     </span>
   );
 }
 
 function AboutVersionSection() {
+  const { t } = useI18n();
   const updateState = useDesktopUpdateState();
   const [isChangingUpdateChannel, setIsChangingUpdateChannel] = useState(false);
   const [isUpdateActionPending, setIsUpdateActionPending] = useState(false);
@@ -351,18 +349,23 @@ function AboutVersionSection() {
       ? !canCheckForUpdate(updateState)
       : isDesktopUpdateButtonDisabled(updateState);
 
-  const actionLabel: Record<string, string> = { download: "Download", install: "Install" };
+  const actionLabel: Record<string, string> = {
+    download: t("settings.about.action.download"),
+    install: t("settings.about.action.install"),
+  };
   const statusLabel: Record<string, string> = {
-    checking: "Checking…",
-    downloading: "Downloading…",
-    "up-to-date": "Up to Date",
+    checking: t("settings.about.action.checking"),
+    downloading: t("settings.about.action.downloading"),
+    "up-to-date": t("settings.about.action.upToDate"),
   };
   const buttonLabel =
-    actionLabel[action] ?? statusLabel[updateState?.status ?? ""] ?? "Check for Updates";
+    actionLabel[action] ??
+    statusLabel[updateState?.status ?? ""] ??
+    t("settings.about.action.checkForUpdates");
   const description =
     action === "download" || action === "install"
-      ? "Update available."
-      : "Current version of the application.";
+      ? t("settings.about.updateAvailable")
+      : t("settings.about.currentVersion");
 
   return (
     <>
@@ -389,8 +392,8 @@ function AboutVersionSection() {
       />
       {hasDesktopBridge ? (
         <SettingsRow
-          title="Update track"
-          description="Stable follows full releases. Nightly follows the nightly desktop channel and can switch back to stable immediately."
+          title={t("settings.about.updateTrack.title")}
+          description={t("settings.about.updateTrack.description.desktop")}
           control={
             <Select
               value={selectedUpdateChannel}
@@ -404,15 +407,17 @@ function AboutVersionSection() {
                 disabled={isChangingUpdateChannel}
               >
                 <SelectValue>
-                  {selectedUpdateChannel === "nightly" ? "Nightly" : "Stable"}
+                  {selectedUpdateChannel === "nightly"
+                    ? t("settings.about.updateTrack.option.nightly")
+                    : t("settings.about.updateTrack.option.stable")}
                 </SelectValue>
               </SelectTrigger>
               <SelectPopup align="end" alignItemWithTrigger={false}>
                 <SelectItem hideIndicator value="latest">
-                  Stable
+                  {t("settings.about.updateTrack.option.stable")}
                 </SelectItem>
                 <SelectItem hideIndicator value="nightly">
-                  Nightly
+                  {t("settings.about.updateTrack.option.nightly")}
                 </SelectItem>
               </SelectPopup>
             </Select>
@@ -420,8 +425,8 @@ function AboutVersionSection() {
         />
       ) : selectedHostedAppChannel ? (
         <SettingsRow
-          title="Update track"
-          description="Switches the hosted app release channel."
+          title={t("settings.about.updateTrack.title")}
+          description={t("settings.about.updateTrack.description.hosted")}
           control={
             <Select
               value={selectedHostedAppChannel}
@@ -433,14 +438,18 @@ function AboutVersionSection() {
               }}
             >
               <SelectTrigger className="w-full sm:w-40" aria-label="Update track">
-                <SelectValue>{HOSTED_APP_CHANNEL_LABEL}</SelectValue>
+                <SelectValue>
+                  {selectedHostedAppChannel === "nightly"
+                    ? t("settings.about.updateTrack.option.nightly")
+                    : t("settings.about.updateTrack.option.latest")}
+                </SelectValue>
               </SelectTrigger>
               <SelectPopup align="end" alignItemWithTrigger={false}>
                 <SelectItem hideIndicator value="latest">
-                  Latest
+                  {t("settings.about.updateTrack.option.latest")}
                 </SelectItem>
                 <SelectItem hideIndicator value="nightly">
-                  Nightly
+                  {t("settings.about.updateTrack.option.nightly")}
                 </SelectItem>
               </SelectPopup>
             </Select>
@@ -1692,7 +1701,7 @@ function LegacyFeaturesSection() {
       <Collapsible open={open} onOpenChange={setOpen}>
         <CollapsibleTrigger className="group flex min-h-8 w-full items-center gap-2 px-3 sm:px-4">
           <h2 className="text-lg font-semibold tracking-[-0.025em] text-muted-foreground transition-colors group-hover:text-foreground">
-            Legacy features
+            {t("settings.legacy.title")}
           </h2>
           <ChevronRightIcon className="size-4 text-muted-foreground transition-transform duration-200 group-data-panel-open:rotate-90" />
         </CollapsibleTrigger>
@@ -1761,7 +1770,7 @@ function LegacyFeaturesSection() {
 }
 
 export function GeneralSettingsPanel() {
-  const { appLocale, setAppLocale, t } = useI18n();
+  const { appLocale, locale, setAppLocale, t } = useI18n();
   const settings = usePrimarySettings();
   const updateSettings = useUpdatePrimarySettings();
   const [backgroundActivityDialogOpen, setBackgroundActivityDialogOpen] = useState(false);
@@ -1770,13 +1779,25 @@ export function GeneralSettingsPanel() {
   );
   const observability = useAtomValue(primaryServerObservabilityAtom);
   const serverProviders = useAtomValue(primaryServerProvidersAtom);
-  const diagnosticsDescription = formatDiagnosticsDescription({
-    localTracingEnabled: observability?.localTracingEnabled ?? false,
-    otlpTracesEnabled: observability?.otlpTracesEnabled ?? false,
-    otlpTracesUrl: observability?.otlpTracesUrl,
-    otlpMetricsEnabled: observability?.otlpMetricsEnabled ?? false,
-    otlpMetricsUrl: observability?.otlpMetricsUrl,
-  });
+  const diagnosticsDescription = formatDiagnosticsDescription(
+    {
+      localTracingEnabled: observability?.localTracingEnabled ?? false,
+      otlpTracesEnabled: observability?.otlpTracesEnabled ?? false,
+      otlpTracesUrl: observability?.otlpTracesUrl,
+      otlpMetricsEnabled: observability?.otlpMetricsEnabled ?? false,
+      otlpMetricsUrl: observability?.otlpMetricsUrl,
+    },
+    {
+      localTraceFile: t("settings.diagnostics.mode.localTrace"),
+      terminalLogsOnly: t("settings.diagnostics.mode.terminalOnly"),
+      modeSentence: (mode) => `${mode}${locale === "zh-CN" ? "。" : "."}`,
+      exportingOtel: (url) => t("settings.diagnostics.export.combined", { url }),
+      exportingSignals: (tracesUrl, metricsUrl) =>
+        t("settings.diagnostics.export.signals", { tracesUrl, metricsUrl }),
+      exportingTraces: (url) => t("settings.diagnostics.export.traces", { url }),
+      exportingMetrics: (url) => t("settings.diagnostics.export.metrics", { url }),
+    },
+  );
 
   const textGenerationModelSelection = resolveAppModelSelectionState(settings, serverProviders);
   const textGenInstanceId = textGenerationModelSelection.instanceId;
@@ -1805,10 +1826,13 @@ export function GeneralSettingsPanel() {
   const backgroundActivityProfileOption = resolveBackgroundActivityProfileOption(settings);
   const backgroundActivityDescription =
     backgroundActivityProfileOption === "advanced"
-      ? `${ADVANCED_BACKGROUND_ACTIVITY_DESCRIPTION} Current shared policy: ${
-          BACKGROUND_ACTIVITY_PROFILE_LABELS[activeBackgroundActivityProfile]
-        }.`
-      : BACKGROUND_ACTIVITY_PROFILE_DESCRIPTIONS[resolvedBackgroundActivity.profile];
+      ? `${t("settings.general.background.description.advanced")} ${t(
+          "settings.general.background.currentPolicy",
+          {
+            profile: t(BACKGROUND_ACTIVITY_PROFILE_MESSAGE_KEYS[activeBackgroundActivityProfile]),
+          },
+        )}`
+      : t(BACKGROUND_ACTIVITY_PROFILE_DESCRIPTION_MESSAGE_KEYS[resolvedBackgroundActivity.profile]);
   const canResetBackgroundActivity = !Equal.equals(
     settings.backgroundActivity,
     DEFAULT_UNIFIED_SETTINGS.backgroundActivity,
@@ -1856,7 +1880,7 @@ export function GeneralSettingsPanel() {
         <SettingsRow
           {...searchableSetting("project-grouping")}
           title={t("settings.item.projectGrouping")}
-          description="Combine matching repositories across environments."
+          description={t("settings.general.description.projectGrouping")}
           resetAction={
             settings.sidebarProjectGroupingMode !==
             DEFAULT_UNIFIED_SETTINGS.sidebarProjectGroupingMode ? (
@@ -1893,7 +1917,7 @@ export function GeneralSettingsPanel() {
         <SettingsRow
           {...searchableSetting("auto-settle-merged-threads")}
           title={t("settings.item.autoSettleMergedThreads")}
-          description="Settle a thread when its pull request merges. Closed pull requests still settle automatically."
+          description={t("settings.general.description.autoSettleMerged")}
           resetAction={
             settings.sidebarAutoSettleOnMerge !==
             DEFAULT_UNIFIED_SETTINGS.sidebarAutoSettleOnMerge ? (
@@ -1921,7 +1945,7 @@ export function GeneralSettingsPanel() {
         <SettingsRow
           {...searchableSetting("auto-settle-inactive-threads")}
           title={t("settings.item.autoSettleInactiveThreads")}
-          description="Sidebar threads with no activity for this long settle automatically."
+          description={t("settings.general.description.autoSettleInactive")}
           resetAction={
             settings.sidebarAutoSettleAfterDays !==
             DEFAULT_UNIFIED_SETTINGS.sidebarAutoSettleAfterDays ? (
@@ -1949,8 +1973,8 @@ export function GeneralSettingsPanel() {
         />
         {settings.sidebarAutoSettleAfterDays !== null ? (
           <SettingsRow
-            title="Days of inactivity before auto-settle"
-            description="Any new activity un-settles a thread automatically."
+            title={t("settings.general.autoSettleDays.title")}
+            description={t("settings.general.description.autoSettleDays")}
             control={
               <AutoSettleDaysInput
                 value={settings.sidebarAutoSettleAfterDays}
@@ -1963,7 +1987,7 @@ export function GeneralSettingsPanel() {
         <SettingsRow
           {...searchableSetting("time-format")}
           title={t("settings.item.timeFormat")}
-          description="System default follows your browser or OS clock preference."
+          description={t("settings.general.description.timeFormat")}
           resetAction={
             settings.timestampFormat !== DEFAULT_UNIFIED_SETTINGS.timestampFormat ? (
               <SettingResetButton
@@ -1986,17 +2010,19 @@ export function GeneralSettingsPanel() {
               }}
             >
               <SelectTrigger className="w-full sm:w-40" aria-label="Timestamp format">
-                <SelectValue>{TIMESTAMP_FORMAT_LABELS[settings.timestampFormat]}</SelectValue>
+                <SelectValue>
+                  {t(TIMESTAMP_FORMAT_MESSAGE_KEYS[settings.timestampFormat])}
+                </SelectValue>
               </SelectTrigger>
               <SelectPopup align="end" alignItemWithTrigger={false}>
                 <SelectItem hideIndicator value="locale">
-                  {TIMESTAMP_FORMAT_LABELS.locale}
+                  {t(TIMESTAMP_FORMAT_MESSAGE_KEYS.locale)}
                 </SelectItem>
                 <SelectItem hideIndicator value="12-hour">
-                  {TIMESTAMP_FORMAT_LABELS["12-hour"]}
+                  {t(TIMESTAMP_FORMAT_MESSAGE_KEYS["12-hour"])}
                 </SelectItem>
                 <SelectItem hideIndicator value="24-hour">
-                  {TIMESTAMP_FORMAT_LABELS["24-hour"]}
+                  {t(TIMESTAMP_FORMAT_MESSAGE_KEYS["24-hour"])}
                 </SelectItem>
               </SelectPopup>
             </Select>
@@ -2006,7 +2032,7 @@ export function GeneralSettingsPanel() {
         <SettingsRow
           {...searchableSetting("hide-whitespace-changes")}
           title={t("settings.item.hideWhitespaceChanges")}
-          description="Set whether the diff panel ignores whitespace-only edits by default."
+          description={t("settings.general.description.hideWhitespace")}
           resetAction={
             settings.diffIgnoreWhitespace !== DEFAULT_UNIFIED_SETTINGS.diffIgnoreWhitespace ? (
               <SettingResetButton
@@ -2033,7 +2059,7 @@ export function GeneralSettingsPanel() {
         <SettingsRow
           {...searchableSetting("provider-update-checks")}
           title={t("settings.item.providerUpdateChecks")}
-          description="Check installed provider CLIs for newer available versions."
+          description={t("settings.general.description.providerUpdateChecks")}
           resetAction={
             settings.enableProviderUpdateChecks !==
             DEFAULT_UNIFIED_SETTINGS.enableProviderUpdateChecks ? (
@@ -2061,7 +2087,7 @@ export function GeneralSettingsPanel() {
         <SettingsRow
           title={
             <span className="inline-flex items-center gap-1.5">
-              Background activity
+              {t("settings.general.background.title")}
               <PolicyTooltip>
                 This shared policy gates background work such as Git refreshes and provider health
                 probes after their individual intervals elapse.
@@ -2097,21 +2123,25 @@ export function GeneralSettingsPanel() {
               >
                 <SelectTrigger className="w-full sm:w-40" aria-label="Background activity profile">
                   <SelectValue>
-                    {BACKGROUND_ACTIVITY_PROFILE_OPTION_LABELS[backgroundActivityProfileOption]}
+                    {backgroundActivityProfileOption === "advanced"
+                      ? t("settings.general.background.profile.advanced")
+                      : t(
+                          BACKGROUND_ACTIVITY_PROFILE_MESSAGE_KEYS[backgroundActivityProfileOption],
+                        )}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectPopup align="end" alignItemWithTrigger={false}>
                   <SelectItem hideIndicator value="balanced">
-                    {BACKGROUND_ACTIVITY_PROFILE_LABELS.balanced}
+                    {t(BACKGROUND_ACTIVITY_PROFILE_MESSAGE_KEYS.balanced)}
                   </SelectItem>
                   <SelectItem hideIndicator value="performance">
-                    {BACKGROUND_ACTIVITY_PROFILE_LABELS.performance}
+                    {t(BACKGROUND_ACTIVITY_PROFILE_MESSAGE_KEYS.performance)}
                   </SelectItem>
                   <SelectItem hideIndicator value="battery-saver">
-                    {BACKGROUND_ACTIVITY_PROFILE_LABELS["battery-saver"]}
+                    {t(BACKGROUND_ACTIVITY_PROFILE_MESSAGE_KEYS["battery-saver"])}
                   </SelectItem>
                   <SelectItem hideIndicator value="advanced">
-                    {BACKGROUND_ACTIVITY_PROFILE_OPTION_LABELS.advanced}
+                    {t("settings.general.background.profile.advanced")}
                   </SelectItem>
                 </SelectPopup>
               </Select>
@@ -2143,7 +2173,7 @@ export function GeneralSettingsPanel() {
         <SettingsRow
           {...searchableSetting("new-threads")}
           title={t("settings.item.newThreads")}
-          description="Pick the default workspace mode for newly created draft threads."
+          description={t("settings.general.description.newThreads")}
           resetAction={
             settings.defaultThreadEnvMode !== DEFAULT_UNIFIED_SETTINGS.defaultThreadEnvMode ||
             settings.newWorktreesStartFromOrigin !==
@@ -2171,15 +2201,17 @@ export function GeneralSettingsPanel() {
             >
               <SelectTrigger className="w-full sm:w-44" aria-label="Default thread mode">
                 <SelectValue>
-                  {settings.defaultThreadEnvMode === "worktree" ? "New worktree" : "Local"}
+                  {settings.defaultThreadEnvMode === "worktree"
+                    ? t("settings.general.threadMode.newWorktree")
+                    : t("settings.general.threadMode.local")}
                 </SelectValue>
               </SelectTrigger>
               <SelectPopup align="end" alignItemWithTrigger={false}>
                 <SelectItem hideIndicator value="local">
-                  Local
+                  {t("settings.general.threadMode.local")}
                 </SelectItem>
                 <SelectItem hideIndicator value="worktree">
-                  New worktree
+                  {t("settings.general.threadMode.newWorktree")}
                 </SelectItem>
               </SelectPopup>
             </Select>
@@ -2190,7 +2222,7 @@ export function GeneralSettingsPanel() {
           <SettingsRow
             className="bg-muted/20 sm:pl-9"
             title={t("settings.item.startFromOrigin")}
-            description="Creates the worktree from the latest matching branch on origin instead of your local branch."
+            description={t("settings.general.description.startFromOrigin")}
             resetAction={
               settings.newWorktreesStartFromOrigin !==
               DEFAULT_UNIFIED_SETTINGS.newWorktreesStartFromOrigin ? (
@@ -2220,7 +2252,7 @@ export function GeneralSettingsPanel() {
         <SettingsRow
           {...searchableSetting("add-project-starts-in")}
           title={t("settings.item.addProjectStartsIn")}
-          description='Leave empty to use "~/" when the Add Project browser opens.'
+          description={t("settings.general.description.addProjectStartsIn")}
           resetAction={
             settings.addProjectBaseDirectory !==
             DEFAULT_UNIFIED_SETTINGS.addProjectBaseDirectory ? (
@@ -2249,7 +2281,7 @@ export function GeneralSettingsPanel() {
         <SettingsRow
           {...searchableSetting("archive-confirmation")}
           title={t("settings.item.archiveConfirmation")}
-          description="Require a second click on the inline archive action before a thread is archived."
+          description={t("settings.general.description.archiveConfirmation")}
           resetAction={
             settings.confirmThreadArchive !== DEFAULT_UNIFIED_SETTINGS.confirmThreadArchive ? (
               <SettingResetButton
@@ -2276,7 +2308,7 @@ export function GeneralSettingsPanel() {
         <SettingsRow
           {...searchableSetting("delete-confirmation")}
           title={t("settings.item.deleteConfirmation")}
-          description="Ask before deleting a thread and its chat history."
+          description={t("settings.general.description.deleteConfirmation")}
           resetAction={
             settings.confirmThreadDelete !== DEFAULT_UNIFIED_SETTINGS.confirmThreadDelete ? (
               <SettingResetButton
@@ -2303,7 +2335,7 @@ export function GeneralSettingsPanel() {
         <SettingsRow
           {...searchableSetting("text-generation-model")}
           title={t("settings.item.textGenerationModel")}
-          description="Default model for generated text like thread titles and source control content. Source control settings can override it with a dedicated source control writer model."
+          description={t("settings.general.description.textGenerationModel")}
           resetAction={
             isTextGenerationModelDirty ? (
               <SettingResetButton
@@ -2376,13 +2408,13 @@ export function GeneralSettingsPanel() {
         />
       </SettingsSection>
 
-      <SettingsSection title="About">
+      <SettingsSection title={t("settings.about.title")}>
         {isElectron || HOSTED_APP_CHANNEL ? (
           <AboutVersionSection />
         ) : (
           <SettingsRow
             title={<AboutVersionTitle />}
-            description="Current version of the application."
+            description={t("settings.about.currentVersion")}
           />
         )}
         <SettingsRow
@@ -2391,7 +2423,7 @@ export function GeneralSettingsPanel() {
           description={diagnosticsDescription}
           control={
             <Button render={<Link to="/settings/diagnostics" />} size="xs" variant="outline">
-              View diagnostics
+              {t("settings.about.viewDiagnostics")}
             </Button>
           }
         />

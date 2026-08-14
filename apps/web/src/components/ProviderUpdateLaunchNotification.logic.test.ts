@@ -35,6 +35,7 @@ import {
   type LocalEnvironmentUpdateGroup,
   type LocalProviderUpdateOutcome,
   type ProviderUpdateCandidate,
+  type ProviderUpdateInitialTranslate,
   type ProviderUpdateSidebarPillView,
   type ProviderUpdateToastView,
 } from "./ProviderUpdateLaunchNotification.logic";
@@ -288,6 +289,31 @@ describe("provider update launch notification logic", () => {
       type: "warning",
       title: "Update Available: Codex v1.1.0",
       description: "Install the update now or review provider settings.",
+    });
+  });
+
+  it("localizes the update prompt without changing the provider name or version", () => {
+    const translateChinese: ProviderUpdateInitialTranslate = (key, values) => {
+      switch (key) {
+        case "providerUpdate.title.single":
+          return `可用更新：${String(values?.provider)} ${String(values?.version)}`;
+        case "providerUpdate.description.installOrSettings":
+          return "立即安装更新，或前往服务提供方设置查看。";
+      }
+    };
+    const candidate = updateCandidate({
+      driver: driver("claudeAgent"),
+      latestVersion: "2.1.232",
+    });
+
+    expect(
+      getProviderUpdateInitialToastView(
+        { updateProviders: [candidate], oneClickProviders: [candidate] },
+        translateChinese,
+      ),
+    ).toMatchObject({
+      title: "可用更新：Claude v2.1.232",
+      description: "立即安装更新，或前往服务提供方设置查看。",
     });
   });
 

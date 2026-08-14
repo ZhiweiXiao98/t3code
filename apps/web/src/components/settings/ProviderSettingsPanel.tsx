@@ -37,6 +37,8 @@ import { isDesktopLocalConnectionTarget } from "../../connection/desktopLocal";
 import { isElectron } from "../../env";
 import { usePrimarySessionState } from "../../environments/primary";
 import { useEnvironmentSettings, useUpdateEnvironmentSettings } from "../../hooks/useSettings";
+import { useI18n, type WebTranslate } from "../../i18n/WebI18nProvider";
+import { translateWebMessage } from "../../i18n/messages";
 import { cn } from "../../lib/utils";
 import { resolveAppModelSelectionState } from "../../modelSelection";
 import {
@@ -98,6 +100,9 @@ import {
   resolveRemoteOperateAccess,
   resolveSelectedProviderEnvironmentId,
 } from "./ProviderSettingsPanel.logic";
+
+const translateProviderSettingsEnglish: WebTranslate = (key, values) =>
+  translateWebMessage("en", key, values);
 
 function withoutProviderInstanceKey<V>(
   record: Readonly<Record<ProviderInstanceId, V>> | undefined,
@@ -164,9 +169,11 @@ function providerEnvironmentDetail(environment: EnvironmentPresentation): string
 function EnvironmentUnavailableRow({
   environment,
   access,
+  t,
 }: {
   readonly environment: EnvironmentPresentation;
   readonly access: Exclude<ProviderEnvironmentAccess, { kind: "editable" | "read-only" }>;
+  readonly t: WebTranslate;
 }) {
   const isLoading = access.kind === "loading";
   const title = isLoading
@@ -182,7 +189,7 @@ function EnvironmentUnavailableRow({
   // No spinner: this state can persist indefinitely for a wedged device, and a
   // continuously repainting animation would run the whole time.
   return (
-    <SettingsSection title="Providers">
+    <SettingsSection title={t("providers.title")}>
       <SettingsRow title={title} description={description} />
     </SettingsSection>
   );
@@ -335,19 +342,21 @@ function AccessGatedProviderSettings({
   readonly environment: EnvironmentPresentation;
   readonly operateAccess: ProviderOperateAccess;
 }) {
+  const { t } = useI18n();
   const access = classifyProviderEnvironmentAccess({
     connectionPhase: environment.connection.phase,
     hasServerConfig: environment.serverConfig !== null,
     operateAccess,
   });
   if (access.kind !== "editable" && access.kind !== "read-only") {
-    return <EnvironmentUnavailableRow environment={environment} access={access} />;
+    return <EnvironmentUnavailableRow environment={environment} access={access} t={t} />;
   }
   return (
     <EnvironmentProviderSettings
       environmentId={environment.environmentId}
       environmentLabel={environment.label}
       readOnly={access.kind === "read-only"}
+      t={t}
     />
   );
 }
@@ -356,6 +365,7 @@ export function EnvironmentProviderSettings({
   environmentId,
   environmentLabel,
   readOnly = false,
+  t = translateProviderSettingsEnglish,
 }: {
   readonly environmentId: EnvironmentId;
   readonly environmentLabel: string;
@@ -366,6 +376,7 @@ export function EnvironmentProviderSettings({
    * every one of its writes from being offered and then rejected.
    */
   readonly readOnly?: boolean;
+  readonly t?: WebTranslate;
 }) {
   const settings = useEnvironmentSettings(environmentId);
   const updateSettings = useUpdateEnvironmentSettings(environmentId);
@@ -661,6 +672,7 @@ export function EnvironmentProviderSettings({
     <>
       <SettingsSection
         {...searchableSetting("providers")}
+        title={t("providers.title")}
         headerAction={
           <div className="flex items-center gap-1.5">
             <ProviderLastChecked lastCheckedAt={lastCheckedAt} />
@@ -725,15 +737,11 @@ export function EnvironmentProviderSettings({
           <SettingsRow
             title={
               <span className="inline-flex items-center gap-1.5">
-                Health check interval
-                <PolicyTooltip>
-                  This interval is configured here, then the shared Background activity policy
-                  decides whether provider probes may run when the timer fires. Custom intervals
-                  appear as Advanced in General settings.
-                </PolicyTooltip>
+                {t("providers.healthCheck.title")}
+                <PolicyTooltip>{t("providers.healthCheck.policyTooltip")}</PolicyTooltip>
               </span>
             }
-            description="Refresh provider availability, versions, auth state, and model metadata in the background. Set this to 0 seconds to rely on manual refreshes."
+            description={t("providers.healthCheck.description")}
             resetAction={
               providerHealthRefreshIntervalSeconds !==
               defaultProviderHealthRefreshIntervalSeconds ? (
@@ -781,7 +789,9 @@ export function EnvironmentProviderSettings({
                     <NumberFieldIncrement aria-label="Increase provider health check interval" />
                   </NumberFieldGroup>
                 </NumberField>
-                <span className="text-xs text-muted-foreground">seconds</span>
+                <span className="text-xs text-muted-foreground">
+                  {t("providers.healthCheck.seconds")}
+                </span>
               </div>
             }
           />

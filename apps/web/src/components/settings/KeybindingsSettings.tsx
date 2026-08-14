@@ -36,6 +36,7 @@ import {
 import { isElectron } from "../../env";
 import { useOpenInPreferredEditor } from "../../editorPreferences";
 import { formatShortcutLabel } from "../../keybindings";
+import { useI18n } from "../../i18n/WebI18nProvider";
 import { cn } from "../../lib/utils";
 import {
   primaryServerAvailableEditorsAtom,
@@ -57,12 +58,13 @@ import {
   buildKeybindingRows,
   buildKeybindingCommandOptions,
   buildWhenVariableOptions,
-  commandLabel,
   DEFAULT_WHEN_VARIABLE,
   isKnownWhenVariable,
   keybindingConflictLabels,
   keybindingFromKeyboardEvent,
+  localizedCommandLabel,
   parseWhenExpressionDraft,
+  type KeybindingCommandLabeler,
   type KeybindingCommandOption,
   type KeybindingRow,
   type WhenVariableOption,
@@ -116,6 +118,8 @@ function ExpandableHeaderSearch({
   inputRef?: RefObject<HTMLInputElement | null>;
   collapsedAccessory?: ReactNode;
 }) {
+  const { t } = useI18n();
+
   if (!isOpen) {
     return (
       <>
@@ -129,13 +133,13 @@ function ExpandableHeaderSearch({
                 variant="ghost"
                 className="size-5 rounded-sm p-0 text-muted-foreground hover:text-foreground"
                 onClick={() => onOpenChange(true)}
-                aria-label="Search keybindings"
+                aria-label={t("keybindings.search")}
               >
                 <SearchIcon className="size-3" />
               </Button>
             }
           />
-          <TooltipPopup side="top">Search keybindings</TooltipPopup>
+          <TooltipPopup side="top">{t("keybindings.search")}</TooltipPopup>
         </Tooltip>
       </>
     );
@@ -160,8 +164,8 @@ function ExpandableHeaderSearch({
             onOpenChange(false);
           }
         }}
-        placeholder="Search keybindings"
-        aria-label="Search keybindings"
+        placeholder={t("keybindings.search")}
+        aria-label={t("keybindings.search")}
         className="h-6 w-44 rounded-md border border-input bg-background pl-7 pr-2 text-[11px] text-foreground outline-none placeholder:text-muted-foreground/72 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/24"
       />
     </div>
@@ -595,6 +599,7 @@ function WhenExpressionBuilder({
   onChange: (value: KeybindingWhenNode | undefined) => void;
   onValidityChange?: (valid: boolean) => void;
 }) {
+  const { t } = useI18n();
   const expression = whenAstToExpression(value);
   const [expressionDraft, setExpressionDraft] = useState(expression);
   const parseResult = useMemo(() => parseWhenExpressionDraft(expressionDraft), [expressionDraft]);
@@ -668,7 +673,7 @@ function WhenExpressionBuilder({
           <Input
             value={expressionDraft}
             onChange={(event) => updateExpressionDraft(event.currentTarget.value)}
-            placeholder="Always"
+            placeholder={t("keybindings.always")}
             aria-invalid={Boolean(parseError)}
             aria-label="When expression"
             className={cn(
@@ -764,6 +769,7 @@ function KeybindingTableRow({
   row,
   allRows,
   variables,
+  labelCommand,
   isSaving,
   onSave,
   onReset,
@@ -772,11 +778,13 @@ function KeybindingTableRow({
   row: KeybindingRow;
   allRows: ReadonlyArray<KeybindingRow>;
   variables: ReadonlyArray<WhenVariableOption>;
+  labelCommand: KeybindingCommandLabeler;
   isSaving: boolean;
   onSave: (input: ServerUpsertKeybindingInput) => void;
   onReset: (row: KeybindingRow) => void;
   onRemove: (row: KeybindingRow) => void;
 }) {
+  const { t } = useI18n();
   const [draft, setDraft] = useReducer(keybindingRowDraftReducer, row, createKeybindingRowDraft);
   const { keyDraft, whenDraft, isRecording, isWhenDraftValid } = draft;
   const whenDraftExpression = whenAstToExpression(whenDraft);
@@ -786,11 +794,16 @@ function KeybindingTableRow({
   const canRemove = row.source !== "Default";
   const hasRowActions = canReset || canRemove;
   const showPill = !isRecording && keyDraft === row.key && row.key.length > 0 && !isDirty;
-  const conflictLabels = keybindingConflictLabels(allRows, {
-    rowId: row.id,
-    key: keyDraft,
-    when: whenDraftExpression,
-  });
+  const commandLabelText = labelCommand(row.command);
+  const conflictLabels = keybindingConflictLabels(
+    allRows,
+    {
+      rowId: row.id,
+      key: keyDraft,
+      when: whenDraftExpression,
+    },
+    labelCommand,
+  );
 
   const save = () => {
     onSave({
@@ -826,7 +839,7 @@ function KeybindingTableRow({
                 />
               }
             >
-              {commandLabel(row.command)}
+              {commandLabelText}
             </TooltipTrigger>
             <TooltipPopup side="top">{row.command}</TooltipPopup>
           </Tooltip>
@@ -837,21 +850,21 @@ function KeybindingTableRow({
           <button
             type="button"
             onClick={() => setDraft({ isRecording: true })}
-            aria-label={`Edit shortcut for ${commandLabel(row.command)}`}
+            aria-label={`${t("keybindings.edit")}: ${commandLabelText}`}
             className="group inline-flex h-7 items-center gap-1.5 rounded-md border border-transparent px-1.5 outline-none transition-colors hover:border-border/70 hover:bg-background focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/24"
           >
             <KeybindingPill value={row.key} />
             <span className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground/0 transition-opacity group-hover:text-muted-foreground/70 group-focus-visible:text-muted-foreground/70">
-              Edit
+              {t("keybindings.edit")}
             </span>
           </button>
         ) : (
           <Input
             data-keybinding-capture=""
             autoFocus={isRecording}
-            aria-label={`Keybinding for ${commandLabel(row.command)}`}
+            aria-label={`${t("keybindings.column.keybinding")}: ${commandLabelText}`}
             value={isRecording ? "" : keyDraft}
-            placeholder={isRecording ? "Press shortcut" : "Unassigned"}
+            placeholder={isRecording ? t("keybindings.pressShortcut") : t("keybindings.unassigned")}
             className={cn(
               "h-7 w-44 rounded-md font-mono text-[12px] sm:h-7",
               isRecording && "border-primary/70 bg-primary/5",
@@ -869,7 +882,7 @@ function KeybindingTableRow({
             disabled={isSaving || keyDraft.trim().length === 0 || !isWhenDraftValid}
             onClick={save}
           >
-            {isSaving ? "Saving" : "Save"}
+            {isSaving ? t("keybindings.saving") : t("keybindings.save")}
           </Button>
         ) : null}
       </div>
@@ -880,9 +893,9 @@ function KeybindingTableRow({
               "inline-flex h-7 w-full items-center justify-between gap-2 rounded-md border border-input bg-background px-2.5 text-left font-mono text-[12px] text-foreground shadow-xs/5 outline-none transition-colors hover:bg-accent focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/24",
               !whenDraftExpression && "text-muted-foreground",
             )}
-            aria-label={`Edit when clause for ${commandLabel(row.command)}`}
+            aria-label={`${t("keybindings.column.when")}: ${commandLabelText}`}
           >
-            <span className="truncate">{whenDraftExpression || "Always"}</span>
+            <span className="truncate">{whenDraftExpression || t("keybindings.always")}</span>
             <ChevronDownIcon className="size-3.5 shrink-0 opacity-60" />
           </PopoverTrigger>
           <PopoverContent align="start" sideOffset={6}>
@@ -907,7 +920,7 @@ function KeybindingTableRow({
                   size="icon-sm"
                   className="size-7 text-muted-foreground hover:text-foreground sm:size-7"
                   disabled={isSaving}
-                  aria-label={`Actions for ${commandLabel(row.command)}`}
+                  aria-label={commandLabelText}
                 />
               }
             >
@@ -916,12 +929,12 @@ function KeybindingTableRow({
             <MenuPopup align="end" className="min-w-36">
               {canReset ? (
                 <MenuItem disabled={isSaving} onClick={() => onReset(row)}>
-                  Reset to default
+                  {t("keybindings.reset")}
                 </MenuItem>
               ) : null}
               {canRemove ? (
                 <MenuItem variant="destructive" disabled={isSaving} onClick={() => onRemove(row)}>
-                  Remove
+                  {t("keybindings.remove")}
                 </MenuItem>
               ) : null}
             </MenuPopup>
@@ -937,6 +950,7 @@ function NewKeybindingTableRow({
   commandOptions,
   allRows,
   variables,
+  labelCommand,
   isSaving,
   onSave,
   onCancel,
@@ -944,10 +958,12 @@ function NewKeybindingTableRow({
   commandOptions: ReadonlyArray<KeybindingCommandOption>;
   allRows: ReadonlyArray<KeybindingRow>;
   variables: ReadonlyArray<WhenVariableOption>;
+  labelCommand: KeybindingCommandLabeler;
   isSaving: boolean;
   onSave: (input: ServerUpsertKeybindingInput) => void;
   onCancel: () => void;
 }) {
+  const { t } = useI18n();
   const [commandDraft, setCommandDraft] = useState<KeybindingCommand | "">("");
   const [draft, setDraft] = useReducer(keybindingRowDraftReducer, {
     keyDraft: "",
@@ -957,12 +973,16 @@ function NewKeybindingTableRow({
   });
   const { keyDraft, whenDraft, isRecording, isWhenDraftValid } = draft;
   const whenDraftExpression = whenAstToExpression(whenDraft);
-  const conflictLabels = keybindingConflictLabels(allRows, {
-    rowId: "new",
-    key: keyDraft,
-    when: whenDraftExpression,
-  });
-  const commandLabelText = commandDraft ? commandLabel(commandDraft) : "new keybinding";
+  const conflictLabels = keybindingConflictLabels(
+    allRows,
+    {
+      rowId: "new",
+      key: keyDraft,
+      when: whenDraftExpression,
+    },
+    labelCommand,
+  );
+  const commandLabelText = commandDraft ? labelCommand(commandDraft) : t("keybindings.add");
 
   const save = () => {
     if (!commandDraft) return;
@@ -996,7 +1016,7 @@ function NewKeybindingTableRow({
             size="xs"
             className="h-7 min-h-7 w-full max-w-60 rounded-md text-xs sm:h-7"
           >
-            <SelectValue placeholder="Command" />
+            <SelectValue placeholder={t("keybindings.column.command")} />
           </SelectTrigger>
           <SelectContent
             alignItemWithTrigger={false}
@@ -1005,7 +1025,7 @@ function NewKeybindingTableRow({
           >
             {commandOptions.map((command) => (
               <SelectItem key={command} value={command} className="min-h-7 w-full py-1 text-[12px]">
-                <span className="truncate">{commandLabel(command)}</span>
+                <span className="truncate">{labelCommand(command)}</span>
               </SelectItem>
             ))}
           </SelectContent>
@@ -1014,9 +1034,9 @@ function NewKeybindingTableRow({
       <div className="flex min-w-0 items-center gap-2 pr-4">
         <Input
           data-keybinding-capture=""
-          aria-label={`Keybinding for ${commandLabelText}`}
+          aria-label={`${t("keybindings.column.keybinding")}: ${commandLabelText}`}
           value={isRecording ? "" : keyDraft}
-          placeholder={isRecording ? "Press shortcut" : "Unassigned"}
+          placeholder={isRecording ? t("keybindings.pressShortcut") : t("keybindings.unassigned")}
           className={cn(
             "h-7 w-44 rounded-md font-mono text-[12px] sm:h-7",
             isRecording && "border-primary/70 bg-primary/5",
@@ -1032,7 +1052,7 @@ function NewKeybindingTableRow({
           disabled={isSaving || !commandDraft || keyDraft.trim().length === 0 || !isWhenDraftValid}
           onClick={save}
         >
-          {isSaving ? "Saving" : "Save"}
+          {isSaving ? t("keybindings.saving") : t("keybindings.save")}
         </Button>
       </div>
       <div className="pr-4">
@@ -1042,9 +1062,9 @@ function NewKeybindingTableRow({
               "inline-flex h-7 w-full items-center justify-between gap-2 rounded-md border border-input bg-background px-2.5 text-left font-mono text-[12px] text-foreground shadow-xs/5 outline-none transition-colors hover:bg-accent focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/24",
               !whenDraftExpression && "text-muted-foreground",
             )}
-            aria-label={`Edit when clause for ${commandLabelText}`}
+            aria-label={`${t("keybindings.column.when")}: ${commandLabelText}`}
           >
-            <span className="truncate">{whenDraftExpression || "Always"}</span>
+            <span className="truncate">{whenDraftExpression || t("keybindings.always")}</span>
             <ChevronDownIcon className="size-3.5 shrink-0 opacity-60" />
           </PopoverTrigger>
           <PopoverContent align="start" sideOffset={6}>
@@ -1068,14 +1088,14 @@ function NewKeybindingTableRow({
                 size="icon-sm"
                 className="size-7 text-muted-foreground hover:text-foreground sm:size-7"
                 disabled={isSaving}
-                aria-label="Cancel new keybinding"
+                aria-label={t("keybindings.cancel")}
                 onClick={onCancel}
               />
             }
           >
             <XIcon className="size-3.5" />
           </TooltipTrigger>
-          <TooltipPopup side="top">Cancel</TooltipPopup>
+          <TooltipPopup side="top">{t("keybindings.cancel")}</TooltipPopup>
         </Tooltip>
       </div>
     </div>
@@ -1083,6 +1103,7 @@ function NewKeybindingTableRow({
 }
 
 export function KeybindingsSettingsPanel() {
+  const { t } = useI18n();
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
   const keybindingsConfigPath = useAtomValue(primaryServerKeybindingsConfigPathAtom);
   const availableEditors = useAtomValue(primaryServerAvailableEditorsAtom);
@@ -1102,8 +1123,18 @@ export function KeybindingsSettingsPanel() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [savingCommand, setSavingCommand] = useState<KeybindingCommand | null>(null);
   const [isAddingBinding, setIsAddingBinding] = useState(false);
-  const rows = useMemo(() => buildKeybindingRows(keybindings, query), [keybindings, query]);
-  const commandOptions = useMemo(() => buildKeybindingCommandOptions(keybindings), [keybindings]);
+  const labelCommand = useCallback(
+    (command: KeybindingCommand) => localizedCommandLabel(command, t),
+    [t],
+  );
+  const rows = useMemo(
+    () => buildKeybindingRows(keybindings, query, labelCommand),
+    [keybindings, labelCommand, query],
+  );
+  const commandOptions = useMemo(
+    () => buildKeybindingCommandOptions(keybindings, labelCommand),
+    [keybindings, labelCommand],
+  );
   const whenVariables = useMemo(() => buildWhenVariableOptions(), []);
 
   useEffect(() => {
@@ -1221,17 +1252,20 @@ export function KeybindingsSettingsPanel() {
     [saveKeybinding],
   );
 
+  const bindingsCountValue = rows.length + (isAddingBinding ? 1 : 0);
   const bindingsCount = (
     <span className="text-[11px] text-muted-foreground">
-      {rows.length + (isAddingBinding ? 1 : 0)}{" "}
-      {rows.length + (isAddingBinding ? 1 : 0) === 1 ? "binding" : "bindings"}
+      {t(bindingsCountValue === 1 ? "keybindings.count.one" : "keybindings.count.many", {
+        count: bindingsCountValue,
+      })}
     </span>
   );
 
   return (
     <SettingsPageContainer className="max-w-5xl">
       <SettingsSection
-        {...searchableSetting("keybindings")}
+        id={searchableSetting("keybindings").id}
+        title={t("settings.section.keybindings")}
         headerAction={
           <div className="flex items-center gap-1.5">
             <ExpandableHeaderSearch
@@ -1251,13 +1285,13 @@ export function KeybindingsSettingsPanel() {
                     variant="ghost"
                     className="size-5 rounded-sm p-0 text-muted-foreground hover:text-foreground"
                     onClick={() => setIsAddingBinding(true)}
-                    aria-label="Add keybinding"
+                    aria-label={t("keybindings.add")}
                   >
                     <PlusIcon className="size-3" />
                   </Button>
                 }
               />
-              <TooltipPopup side="top">Add keybinding</TooltipPopup>
+              <TooltipPopup side="top">{t("keybindings.add")}</TooltipPopup>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger
@@ -1269,13 +1303,13 @@ export function KeybindingsSettingsPanel() {
                     className="size-5 rounded-sm p-0 text-muted-foreground hover:text-foreground"
                     disabled={!keybindingsConfigPath}
                     onClick={openKeybindingsFile}
-                    aria-label="Open keybindings.json"
+                    aria-label={t("keybindings.openConfig")}
                   >
                     <FileJsonIcon className="size-3" />
                   </Button>
                 }
               />
-              <TooltipPopup side="top">Open keybindings.json</TooltipPopup>
+              <TooltipPopup side="top">{t("keybindings.openConfig")}</TooltipPopup>
             </Tooltip>
           </div>
         }
@@ -1283,10 +1317,7 @@ export function KeybindingsSettingsPanel() {
         {!isElectron ? (
           <div className="flex items-start gap-2 border-b border-warning/20 bg-warning/5 px-3 py-2.5 text-[12px] leading-relaxed text-muted-foreground sm:px-4">
             <InfoIcon className="mt-0.5 size-3.5 shrink-0 text-warning" />
-            <p>
-              Some shortcuts may be claimed by the browser before T3 Code sees them. Use the desktop
-              app for better keybinding support.
-            </p>
+            <p>{t("keybindings.browserWarning")}</p>
           </div>
         ) : null}
 
@@ -1297,10 +1328,10 @@ export function KeybindingsSettingsPanel() {
           className="w-full max-w-full rounded-none"
         >
           <div className="grid min-w-[680px] grid-cols-[minmax(190px,1.1fr)_minmax(220px,0.85fr)_minmax(210px,1fr)_60px] border-b border-border/70 bg-muted/25 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
-            <div>Command</div>
-            <div>Keybinding</div>
-            <div>When</div>
-            <div>Status</div>
+            <div>{t("keybindings.column.command")}</div>
+            <div>{t("keybindings.column.keybinding")}</div>
+            <div>{t("keybindings.column.when")}</div>
+            <div>{t("keybindings.column.status")}</div>
           </div>
           <div className="min-w-[680px] divide-y divide-border/60">
             {isAddingBinding ? (
@@ -1308,6 +1339,7 @@ export function KeybindingsSettingsPanel() {
                 commandOptions={commandOptions}
                 allRows={rows}
                 variables={whenVariables}
+                labelCommand={labelCommand}
                 isSaving={savingCommand !== null}
                 onSave={saveKeybinding}
                 onCancel={() => setIsAddingBinding(false)}
@@ -1319,6 +1351,7 @@ export function KeybindingsSettingsPanel() {
                 row={row}
                 allRows={rows}
                 variables={whenVariables}
+                labelCommand={labelCommand}
                 isSaving={savingCommand === row.command}
                 onSave={saveKeybinding}
                 onReset={resetKeybinding}
@@ -1327,7 +1360,7 @@ export function KeybindingsSettingsPanel() {
             ))}
             {rows.length === 0 && !isAddingBinding ? (
               <div className="px-4 py-12 text-center text-sm text-muted-foreground">
-                No keybindings match your search.
+                {t("keybindings.empty")}
               </div>
             ) : null}
           </div>
