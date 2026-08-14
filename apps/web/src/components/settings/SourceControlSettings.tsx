@@ -118,6 +118,7 @@ function backgroundActivityOverrideSettings(
 }
 
 function BackgroundPolicyTooltip({ children }: { readonly children: string }) {
+  const { t } = useI18n();
   return (
     <Tooltip>
       <TooltipTrigger
@@ -125,7 +126,7 @@ function BackgroundPolicyTooltip({ children }: { readonly children: string }) {
           <button
             type="button"
             className="inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground"
-            aria-label="Background policy details"
+            aria-label={t("settings.policyDetails")}
           >
             <InfoIcon className="size-3.5" />
           </button>
@@ -152,26 +153,52 @@ function isVcsNotReady(item: VcsDiscoveryItem | SourceControlProviderDiscoveryIt
   return !isProviderDiscoveryItem(item) && !item.implemented;
 }
 
-function authPresentation(auth: SourceControlProviderAuth): {
+function localizeInstallHint(hint: string, t: ReturnType<typeof useI18n>["t"]): string {
+  if (hint.startsWith("Install Git from")) {
+    return t("sourceControl.hint.git");
+  }
+  if (hint.startsWith("Install Jujutsu with")) {
+    return t("sourceControl.hint.jujutsu");
+  }
+  if (hint.startsWith("Install the GitHub command-line tool")) {
+    return t("sourceControl.hint.github");
+  }
+  if (hint.startsWith("Install the GitLab command-line tool")) {
+    return t("sourceControl.hint.gitlab");
+  }
+  if (hint.startsWith("Install the Azure command-line tools")) {
+    return t("sourceControl.hint.azure");
+  }
+  if (hint.startsWith("Set T3CODE_BITBUCKET_EMAIL")) {
+    return t("sourceControl.hint.bitbucket");
+  }
+  return hint;
+}
+
+function authPresentation(
+  auth: SourceControlProviderAuth,
+  t: ReturnType<typeof useI18n>["t"],
+): {
   readonly label: string;
   readonly badge: "warning" | null;
 } {
   if (auth.status === "authenticated") {
-    return { label: "Authenticated", badge: null };
+    return { label: t("sourceControl.status.authenticated"), badge: null };
   }
   if (auth.status === "unauthenticated") {
-    return { label: "Not authenticated", badge: "warning" };
+    return { label: t("sourceControl.status.notAuthenticated"), badge: "warning" };
   }
-  return { label: "Status unknown", badge: null };
+  return { label: t("sourceControl.status.unknown"), badge: null };
 }
 
 function RedactedAccount(props: { readonly account: string | null }) {
+  const { t } = useI18n();
   return (
     <RedactedSensitiveText
       value={props.account}
-      ariaLabel="Toggle source control account visibility"
-      revealTooltip="Click to reveal account"
-      hideTooltip="Click to hide account"
+      ariaLabel={t("sourceControl.action.accountVisibility")}
+      revealTooltip={t("sourceControl.action.revealAccount")}
+      hideTooltip={t("sourceControl.action.hideAccount")}
     />
   );
 }
@@ -215,27 +242,35 @@ function itemSummary({
   item,
   auth,
   authAccount,
+  t,
 }: {
   readonly item: VcsDiscoveryItem | SourceControlProviderDiscoveryItem;
   readonly auth: SourceControlProviderAuth | null;
   readonly authAccount: string | null;
+  readonly t: ReturnType<typeof useI18n>["t"];
 }) {
   if (isVcsNotReady(item)) {
-    return <span>Support for {item.label} is coming soon.</span>;
+    return <span>{t("sourceControl.summary.comingSoon", { provider: item.label })}</span>;
   }
 
   if (item.status !== "available") {
-    return <span>Not available on this server: {item.installHint}</span>;
+    return (
+      <span>
+        {t("sourceControl.summary.unavailable", {
+          hint: localizeInstallHint(item.installHint, t),
+        })}
+      </span>
+    );
   }
 
   if (auth) {
     if (auth.status === "authenticated") {
       return (
         <>
-          <span>Authenticated</span>
+          <span>{t("sourceControl.status.authenticated")}</span>
           {authAccount ? (
             <>
-              <span aria-hidden>as</span>
+              <span aria-hidden>{t("sourceControl.status.authenticatedAs")}</span>
               <RedactedAccount account={authAccount} />
             </>
           ) : null}
@@ -244,26 +279,36 @@ function itemSummary({
     }
 
     if (!item.executable) {
-      return <span>Available. {item.installHint}</span>;
+      return (
+        <span>
+          {t("sourceControl.summary.availableHint", {
+            hint: localizeInstallHint(item.installHint, t),
+          })}
+        </span>
+      );
     }
 
     if (auth.status === "unauthenticated") {
       return (
         <span>
-          {item.label} is not authenticated on this server. Sign in or configure credentials using
-          the <code className="rounded bg-muted px-1 py-px text-[11px]">{item.executable}</code>{" "}
-          tool on the server host to enable change request features.
+          {t("sourceControl.summary.notAuthenticated", {
+            provider: item.label,
+            command: item.executable,
+          })}
         </span>
       );
     }
     return (
       <span>
-        Could not verify {item.label}. {item.installHint}
+        {t("sourceControl.summary.verifyFailed", {
+          provider: item.label,
+          hint: localizeInstallHint(item.installHint, t),
+        })}
       </span>
     );
   }
 
-  return <span>Available</span>;
+  return <span>{t("sourceControl.status.available")}</span>;
 }
 
 function DiscoveryItemRow({
@@ -273,12 +318,13 @@ function DiscoveryItemRow({
   readonly item: VcsDiscoveryItem | SourceControlProviderDiscoveryItem;
   readonly children?: ReactNode;
 }) {
+  const { t } = useI18n();
   const version = optionLabel(item.version);
   const enabled = isProviderDiscoveryItem(item)
     ? item.status === "available" && item.auth.status === "authenticated"
     : item.status === "available" && item.implemented;
   const auth = isProviderDiscoveryItem(item) ? item.auth : null;
-  const authStatus = auth ? authPresentation(auth) : null;
+  const authStatus = auth ? authPresentation(auth, t) : null;
   const authAccount = auth ? optionLabel(auth.account) : null;
   const [isExpanded, setIsExpanded] = useState(false);
   const hasDetails = children !== undefined;
@@ -301,7 +347,7 @@ function DiscoveryItemRow({
               {version ? <code className="text-xs text-muted-foreground">{version}</code> : null}
               {isVcsNotReady(item) ? (
                 <Badge variant="warning" size="sm">
-                  Coming Soon
+                  {t("sourceControl.status.comingSoon")}
                 </Badge>
               ) : null}
               {authStatus?.badge ? (
@@ -311,7 +357,7 @@ function DiscoveryItemRow({
               ) : null}
             </div>
             <p className="flex min-w-0 flex-wrap items-center gap-x-1 text-[13px] leading-[1.45] text-muted-foreground/80">
-              {itemSummary({ item, auth, authAccount })}
+              {itemSummary({ item, auth, authAccount, t })}
             </p>
           </div>
           <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto sm:justify-end">
@@ -322,7 +368,7 @@ function DiscoveryItemRow({
                 className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
                 onClick={() => setIsExpanded((open) => !open)}
                 aria-expanded={isExpanded}
-                aria-label={`Toggle ${item.label} details`}
+                aria-label={t("sourceControl.action.toggleDetails", { provider: item.label })}
               >
                 <ChevronDownIcon
                   className={cn("size-3.5 transition-transform", isExpanded && "rotate-180")}
@@ -330,7 +376,11 @@ function DiscoveryItemRow({
               </Button>
             ) : null}
             {!isVcsNotReady(item) ? (
-              <Switch checked={enabled} disabled aria-label={`${item.label} availability`} />
+              <Switch
+                checked={enabled}
+                disabled
+                aria-label={t("sourceControl.action.availability", { provider: item.label })}
+              />
             ) : null}
           </div>
         </div>
@@ -348,6 +398,7 @@ function DiscoveryItemRow({
 }
 
 function GitFetchIntervalSettings() {
+  const { t } = useI18n();
   const settings = usePrimarySettings();
   const updateSettings = useUpdatePrimarySettings();
   const resolvedBackgroundActivity = resolveServerBackgroundActivitySettings(settings);
@@ -367,11 +418,11 @@ function GitFetchIntervalSettings() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 space-y-1">
           <div className="flex min-w-0 items-center gap-1">
-            <span className="text-xs font-medium text-foreground">Fetch interval</span>
+            <span className="text-xs font-medium text-foreground">
+              {t("sourceControl.fetch.title")}
+            </span>
             <BackgroundPolicyTooltip>
-              This interval is configured for Git only. The shared Background activity policy still
-              decides whether Git refreshes may run when the timer fires. Custom intervals appear as
-              Advanced in General settings.
+              {t("sourceControl.fetch.policyTooltip")}
             </BackgroundPolicyTooltip>
             <span
               className={cn(
@@ -395,8 +446,7 @@ function GitFetchIntervalSettings() {
             </span>
           </div>
           <p className="max-w-2xl text-xs leading-relaxed text-muted-foreground">
-            Refresh remote branch status in the background. Set this to 0 seconds if Git credentials
-            or security keys should only be prompted by explicit Git actions.
+            {t("sourceControl.fetch.description")}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -415,12 +465,12 @@ function GitFetchIntervalSettings() {
             }
           >
             <NumberFieldGroup>
-              <NumberFieldDecrement aria-label="Decrease fetch interval" />
-              <NumberFieldInput aria-label="Automatic Git fetch interval in seconds" />
-              <NumberFieldIncrement aria-label="Increase fetch interval" />
+              <NumberFieldDecrement aria-label={t("sourceControl.fetch.decrease")} />
+              <NumberFieldInput aria-label={t("sourceControl.fetch.inSeconds")} />
+              <NumberFieldIncrement aria-label={t("sourceControl.fetch.increase")} />
             </NumberFieldGroup>
           </NumberField>
-          <span className="text-xs text-muted-foreground">seconds</span>
+          <span className="text-xs text-muted-foreground">{t("sourceControl.fetch.seconds")}</span>
         </div>
       </div>
     </div>
@@ -473,22 +523,24 @@ function EmptySourceControlDiscovery({
   readonly isPending: boolean;
   readonly onScan: () => void;
 }) {
+  const { t } = useI18n();
   const hasError = error !== null;
 
   return (
-    <SettingsSection id={searchableSetting("source-control").id} title="Server environment">
+    <SettingsSection
+      id={searchableSetting("source-control").id}
+      title={t("sourceControl.empty.section")}
+    >
       <Empty className="min-h-88">
         <EmptyMedia variant="icon">
           <GitPullRequestIcon />
         </EmptyMedia>
         <EmptyHeader>
           <EmptyTitle>
-            {hasError ? "Could not scan the server environment" : "Nothing detected yet"}
+            {hasError ? t("sourceControl.empty.scanFailed") : t("sourceControl.empty.title")}
           </EmptyTitle>
           <EmptyDescription>
-            {hasError
-              ? error
-              : "Install Git on the server, add optional hosting integrations or credentials your workspace needs, then rescan."}
+            {hasError ? error : t("sourceControl.empty.description")}
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
@@ -500,7 +552,7 @@ function EmptySourceControlDiscovery({
             disabled={isPending}
           >
             <RefreshCwIcon className={cn("size-3.5", isPending && "animate-spin")} />
-            Scan
+            {t("sourceControl.empty.scan")}
           </Button>
         </EmptyContent>
       </Empty>
@@ -544,13 +596,13 @@ export function SourceControlSettingsPanel() {
             className="size-5 rounded-sm p-0 text-muted-foreground hover:text-foreground"
             onClick={handleScan}
             disabled={discovery.isPending}
-            aria-label="Rescan server environment"
+            aria-label={t("sourceControl.action.rescan")}
           >
             <RefreshCwIcon className={cn("size-3", discovery.isPending && "animate-spin")} />
           </Button>
         }
       />
-      <TooltipPopup side="top">Rescan Git and hosting integrations</TooltipPopup>
+      <TooltipPopup side="top">{t("sourceControl.action.rescanTooltip")}</TooltipPopup>
     </Tooltip>
   );
 

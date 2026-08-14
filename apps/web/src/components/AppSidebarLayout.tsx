@@ -40,6 +40,7 @@ import {
   useSidebarVisibility,
 } from "./ui/sidebar";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
+import { useI18n } from "../i18n/WebI18nProvider";
 
 const MACOS_TRAFFIC_LIGHTS_LEFT_INSET = "90px";
 
@@ -65,6 +66,7 @@ function readInitialThreadSidebarWidth(): number {
 }
 
 function SidebarControl() {
+  const { t } = useI18n();
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
   const { toggleSidebar } = useSidebar();
   const isSidebarVisible = useSidebarVisibility();
@@ -113,12 +115,13 @@ function SidebarControl() {
                   stageBackdropVariant &&
                   resolveSidebarStageFocusRingOffsetClass(stageBackdropVariant),
               )}
-              aria-label="Toggle main sidebar"
+              aria-label={t("common.sidebar.toggle")}
             />
           }
         />
         <TooltipPopup side="bottom">
-          Toggle main sidebar{shortcutLabel ? ` (${shortcutLabel})` : ""}
+          {t("common.sidebar.toggle")}
+          {shortcutLabel ? ` (${shortcutLabel})` : ""}
         </TooltipPopup>
       </Tooltip>
     </div>

@@ -26,6 +26,7 @@ import {
   type ThemeDefinition,
 } from "../../themePalette";
 import { cn } from "../../lib/utils";
+import { useI18n } from "../../i18n/WebI18nProvider";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Switch } from "../ui/switch";
@@ -162,6 +163,7 @@ export function ThemeEditorPanel({
   /** Reapplies the stored theme once the draft stops being previewed. */
   restoreTheme: () => void;
 }) {
+  const { t } = useI18n();
   const isEditing = editingTheme !== null;
   const [name, setName] = useState("");
   const [activeAppearance, setActiveAppearance] = useState<ThemeAppearance>(initialAppearance);
@@ -769,7 +771,7 @@ export function ThemeEditorPanel({
 
   const renderNameField = () => (
     <label className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] items-center gap-3">
-      <span className="text-sm font-medium">Theme name</span>
+      <span className="text-sm font-medium">{t("appearance.themeEditor.name")}</span>
       <Input
         autoFocus
         onChange={(event) => {
@@ -778,7 +780,9 @@ export function ThemeEditorPanel({
           // the stale message goes with the old name.
           setError(null);
         }}
-        placeholder={isEditing ? "Theme name" : "e.g. Aurora"}
+        placeholder={
+          isEditing ? t("appearance.themeEditor.name") : t("appearance.themeEditor.namePlaceholder")
+        }
         value={name}
       />
     </label>
@@ -800,7 +804,7 @@ export function ThemeEditorPanel({
           if (lockReason === null) setActiveAppearance(appearance);
         }}
       >
-        {appearance === "light" ? "Light" : "Dark"}
+        {t(appearance === "light" ? "appearance.themeEditor.light" : "appearance.themeEditor.dark")}
       </Button>
     );
     if (lockReason === null) return button;
@@ -814,8 +818,12 @@ export function ThemeEditorPanel({
 
   const renderAppearanceButtons = () => (
     <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] items-center gap-3">
-      <span className="text-sm font-medium">Appearance</span>
-      <div aria-label="Theme appearance" className="grid grid-cols-2 gap-2" role="group">
+      <span className="text-sm font-medium">{t("appearance.themeEditor.appearance")}</span>
+      <div
+        aria-label={t("appearance.themeEditor.appearanceGroup")}
+        className="grid grid-cols-2 gap-2"
+        role="group"
+      >
         {renderAppearanceButton("light")}
         {renderAppearanceButton("dark")}
       </div>
@@ -825,26 +833,26 @@ export function ThemeEditorPanel({
   const renderColorsHeader = () => (
     <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] items-start gap-3">
       <div>
-        <h3 className="text-sm font-medium">Colors</h3>
+        <h3 className="text-sm font-medium">{t("appearance.themeEditor.colors")}</h3>
         {isAdvanced ? null : (
-          <p className="text-xs text-muted-foreground">Two colors, rest derived</p>
+          <p className="text-xs text-muted-foreground">{t("appearance.themeEditor.derived")}</p>
         )}
       </div>
       <div className="flex min-w-0 items-start gap-3">
         {isAdvanced ? (
           <Input
-            aria-label="Filter colors"
+            aria-label={t("appearance.themeEditor.filter")}
             className="min-w-0 flex-1"
             onChange={(event) => setRoleQuery(event.currentTarget.value)}
-            placeholder="Filter colors"
+            placeholder={t("appearance.themeEditor.filter")}
             size="sm"
             value={roleQuery}
           />
         ) : null}
         <label className="ml-auto flex shrink-0 cursor-pointer items-center gap-2 pt-0.5 text-sm font-medium">
-          <span>Advanced</span>
+          <span>{t("appearance.themeEditor.advanced")}</span>
           <Switch
-            aria-label="Use advanced theme colors"
+            aria-label={t("appearance.themeEditor.useAdvanced")}
             checked={isAdvanced}
             onCheckedChange={(checked) => handleAdvancedChange(Boolean(checked))}
           />
@@ -884,11 +892,21 @@ export function ThemeEditorPanel({
       <div className="space-y-5">
         {groups.map((group) => (
           <section className="space-y-2" key={group.id}>
-            <h4 className="text-sm font-medium text-foreground">{group.title}</h4>
+            <h4 className="text-sm font-medium text-foreground">
+              {t(
+                group.id === "main"
+                  ? "appearance.themeEditor.mainColors"
+                  : group.id === "status"
+                    ? "appearance.themeEditor.statusColors"
+                    : "appearance.themeEditor.otherColors",
+              )}
+            </h4>
             {renderRoleFields(group.roles, "grid gap-1")}
           </section>
         ))}
-        {groups.length === 0 ? <p className="text-xs text-muted-foreground">No matches.</p> : null}
+        {groups.length === 0 ? (
+          <p className="text-xs text-muted-foreground">{t("appearance.themeEditor.noMatches")}</p>
+        ) : null}
       </div>
     ) : (
       <div className="grid gap-1">
@@ -899,7 +917,11 @@ export function ThemeEditorPanel({
             onSelect={selectThemeRole}
             onToggleSelected={toggleThemeRole}
             role={role}
-            label={role === "canvas" ? "Background" : "Accent"}
+            label={
+              role === "canvas"
+                ? t("appearance.themeEditor.background")
+                : t("appearance.themeEditor.accent")
+            }
             selected={selectedRole === role}
             value={colorsByAppearance[activeAppearance][role]}
           />
@@ -985,7 +1007,9 @@ export function ThemeEditorPanel({
 
   return (
     <div
-      aria-label={isEditing ? "Edit theme" : "Create theme"}
+      aria-label={t(
+        isEditing ? "appearance.themeEditor.editTitle" : "appearance.themeEditor.createTitle",
+      )}
       className={cn(
         "dialog-glass fixed z-[110] flex max-h-[min(42rem,calc(100dvh-6rem))] w-[min(26rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border text-popover-foreground",
         position === null && "bottom-4 right-4",
@@ -1011,15 +1035,30 @@ export function ThemeEditorPanel({
       >
         <div className="flex min-w-0 flex-1 items-baseline gap-2">
           <h2 className="shrink-0 truncate text-sm font-medium">
-            {isEditing ? "Edit theme" : "Create theme"}
+            {t(
+              isEditing ? "appearance.themeEditor.editTitle" : "appearance.themeEditor.createTitle",
+            )}
           </h2>
           {isMinimized ? null : (
             <p className="truncate text-xs text-muted-foreground">
               {isInspecting
-                ? "Select an element · Esc to cancel"
+                ? t("appearance.themeEditor.selectElement")
                 : selectedRole
-                  ? `${getThemeRoleLabel(selectedRole)} · ${usageCount ?? 0} ${usageCount === 1 ? "use" : "uses"}`
-                  : "Select a color below"}
+                  ? t(
+                      usageCount === 1
+                        ? "appearance.themeEditor.usageOne"
+                        : "appearance.themeEditor.usageMany",
+                      {
+                        label:
+                          selectedRole === "canvas"
+                            ? t("appearance.themeEditor.background")
+                            : selectedRole === "accent"
+                              ? t("appearance.themeEditor.accent")
+                              : getThemeRoleLabel(selectedRole),
+                        count: usageCount ?? 0,
+                      },
+                    )
+                  : t("appearance.themeEditor.selectColor")}
             </p>
           )}
         </div>
@@ -1027,7 +1066,11 @@ export function ThemeEditorPanel({
           <TooltipTrigger
             render={
               <Button
-                aria-label={isInspecting ? "Cancel inspecting app colors" : "Inspect app colors"}
+                aria-label={t(
+                  isInspecting
+                    ? "appearance.themeEditor.cancelInspect"
+                    : "appearance.themeEditor.inspectColors",
+                )}
                 aria-pressed={isInspecting}
                 size="xs"
                 variant={isInspecting ? "secondary" : "ghost"}
@@ -1040,16 +1083,22 @@ export function ThemeEditorPanel({
                 }}
               >
                 <MousePointer2Icon />
-                {isInspecting ? "Cancel" : "Inspect"}
+                {isInspecting ? t("common.cancel") : t("appearance.themeEditor.inspect")}
               </Button>
             }
           />
           <TooltipPopup data-theme-editor-panel="">
-            {isInspecting ? "Cancel and clear the selection" : "Pick a color from the app"}
+            {t(
+              isInspecting
+                ? "appearance.themeEditor.cancelSelection"
+                : "appearance.themeEditor.pickColor",
+            )}
           </TooltipPopup>
         </Tooltip>
         <Button
-          aria-label={isMinimized ? "Expand the theme editor" : "Minimize the theme editor"}
+          aria-label={t(
+            isMinimized ? "appearance.themeEditor.expand" : "appearance.themeEditor.minimize",
+          )}
           size="icon-xs"
           variant="ghost"
           onClick={() => setIsMinimized(!isMinimized)}
@@ -1057,7 +1106,7 @@ export function ThemeEditorPanel({
           {isMinimized ? <ChevronUpIcon /> : <ChevronDownIcon />}
         </Button>
         <Button
-          aria-label="Close the theme editor"
+          aria-label={t("appearance.themeEditor.close")}
           size="icon-xs"
           variant="ghost"
           onClick={() => onOpenChange(false)}
@@ -1085,24 +1134,30 @@ export function ThemeEditorPanel({
           </div>
           <div className="flex items-center justify-end gap-2 border-t border-border/70 px-3 py-2">
             <Button size="sm" variant="ghost" onClick={() => onOpenChange(false)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button disabled={!name.trim()} size="sm" onClick={handleSubmit}>
               {isEditing ? (
                 mergeTarget ? (
-                  `Merge into “${mergeTarget.label}”`
+                  t("appearance.themeEditor.merge", { theme: mergeTarget.label })
                 ) : (
-                  "Save changes"
+                  t("appearance.themeEditor.saveChanges")
                 )
               ) : mergeTarget ? (
                 <>
                   <PlusIcon />
-                  {`Add ${activeAppearance} palette`}
+                  {t("appearance.themeEditor.addPalette", {
+                    appearance: t(
+                      activeAppearance === "light"
+                        ? "appearance.themeEditor.light"
+                        : "appearance.themeEditor.dark",
+                    ),
+                  })}
                 </>
               ) : (
                 <>
                   <PlusIcon />
-                  Create theme
+                  {t("appearance.themeEditor.createTitle")}
                 </>
               )}
             </Button>

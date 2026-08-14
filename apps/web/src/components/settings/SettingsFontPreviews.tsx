@@ -4,6 +4,7 @@ import { ComposerPromptEditor, type ComposerPromptEditorHandle } from "../Compos
 import { terminalThemeFromApp } from "../ThreadTerminalDrawer";
 import { useTheme } from "../../hooks/useTheme";
 import { resolveDiffThemeName, type DiffThemeName } from "../../lib/diffRendering";
+import { useI18n } from "../../i18n/WebI18nProvider";
 import { GhosttyTerminalSurface } from "~/terminal/ghostty/surface";
 
 // The font previews are the real surfaces, not lookalikes: the composer's
@@ -15,21 +16,19 @@ import { GhosttyTerminalSurface } from "~/terminal/ghostty/surface";
 const EMPTY_TERMINAL_CONTEXTS: ReadonlyArray<never> = [];
 const EMPTY_SKILLS: ReadonlyArray<never> = [];
 
-// Serialized the way the composer stores inline tokens: the $skill and the
-// markdown-style file links render as chips, so the preview shows prompt
-// text and pills exactly as the real composer draws them.
-const PROMPT_PREVIEW_TEXT =
-  "Use $frontend-design to fix the flaky test in " +
-  "[surface.test.ts](apps/web/src/terminal/ghostty/surface.test.ts) and align the header with " +
-  "[SettingsPanels.tsx](apps/web/src/components/settings/SettingsPanels.tsx) before shipping.";
-
 function noop() {}
 
 /** A live composer editor: type in it to feel the family and size. */
 export function PromptFontPreview() {
+  const { t } = useI18n();
+  const sample = t("appearance.fontPreview.sample");
   const editorRef = useRef<ComposerPromptEditorHandle>(null);
-  const [prompt, setPrompt] = useState(PROMPT_PREVIEW_TEXT);
-  const [cursor, setCursor] = useState(PROMPT_PREVIEW_TEXT.length);
+  const [prompt, setPrompt] = useState(sample);
+  const [cursor, setCursor] = useState(sample.length);
+  useEffect(() => {
+    setPrompt(sample);
+    setCursor(sample.length);
+  }, [sample]);
   const onChange = useCallback((nextValue: string, nextCursor: number) => {
     setPrompt(nextValue);
     setCursor(nextCursor);
@@ -43,7 +42,7 @@ export function PromptFontPreview() {
         terminalContexts={EMPTY_TERMINAL_CONTEXTS}
         skills={EMPTY_SKILLS}
         disabled={false}
-        placeholder="Ask for follow-up changes or attach images"
+        placeholder={t("appearance.fontPreview.placeholder")}
         className="max-h-40 min-h-12"
         onRemoveTerminalContext={noop}
         onChange={onChange}
@@ -178,6 +177,7 @@ function previewTerminalFont(family: string, size: number): { family?: string; s
  * terminal drawer uses.
  */
 export function TerminalFontPreview({ family, size }: { family: string; size: number }) {
+  const { t } = useI18n();
   const mountRef = useRef<HTMLDivElement>(null);
   const surfaceRef = useRef<GhosttyTerminalSurface | null>(null);
   const fontRef = useRef({ family, size });
@@ -266,7 +266,7 @@ export function TerminalFontPreview({ family, size }: { family: string; size: nu
     <div
       ref={mountRef}
       className="relative mt-1 mb-2 h-52 overflow-hidden rounded-lg border border-border"
-      aria-label="Terminal font preview"
+      aria-label={t("appearance.fontPreview.terminal")}
     />
   );
 }

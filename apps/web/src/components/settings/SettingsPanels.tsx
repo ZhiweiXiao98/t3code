@@ -144,23 +144,17 @@ import {
 import { searchableSetting } from "./settingsSearch";
 import { ProjectFavicon } from "../ProjectFavicon";
 
-const ENVIRONMENT_IDENTIFICATION_LABELS: Record<EnvironmentIdentificationMode, string> = {
-  artwork: "Artwork",
-  pill: "Version pill",
-  none: "None",
-};
+const ENVIRONMENT_IDENTIFICATION_MESSAGE_KEYS = {
+  artwork: "appearance.environment.artwork",
+  pill: "appearance.environment.pill",
+  none: "appearance.environment.none",
+} as const;
 
 const TIMESTAMP_FORMAT_MESSAGE_KEYS = {
   locale: "settings.general.timeFormat.system",
   "12-hour": "settings.general.timeFormat.12Hour",
   "24-hour": "settings.general.timeFormat.24Hour",
 } as const;
-
-const BACKGROUND_ACTIVITY_PROFILE_LABELS: Record<BackgroundActivityProfile, string> = {
-  balanced: "Balanced",
-  performance: "Performance",
-  "battery-saver": "Battery saver",
-};
 
 const BACKGROUND_ACTIVITY_PROFILE_MESSAGE_KEYS = {
   balanced: "settings.general.background.profile.balanced",
@@ -181,12 +175,22 @@ const BACKGROUND_ACTIVITY_BOOLEAN_OVERRIDES: ReadonlyArray<{
     | "pauseWhenHostLowPower"
     | "pauseWhenClientLowPower"
     | "pauseWhenOnBattery";
-  readonly label: string;
+  readonly messageKey:
+    | "settings.general.background.pause.hostLocked"
+    | "settings.general.background.pause.hostLowPower"
+    | "settings.general.background.pause.clientLowPower"
+    | "settings.general.background.pause.onBattery";
 }> = [
-  { key: "pauseWhenHostLocked", label: "Pause when host is locked" },
-  { key: "pauseWhenHostLowPower", label: "Pause on host low power" },
-  { key: "pauseWhenClientLowPower", label: "Pause on client low power" },
-  { key: "pauseWhenOnBattery", label: "Pause on battery" },
+  { key: "pauseWhenHostLocked", messageKey: "settings.general.background.pause.hostLocked" },
+  {
+    key: "pauseWhenHostLowPower",
+    messageKey: "settings.general.background.pause.hostLowPower",
+  },
+  {
+    key: "pauseWhenClientLowPower",
+    messageKey: "settings.general.background.pause.clientLowPower",
+  },
+  { key: "pauseWhenOnBattery", messageKey: "settings.general.background.pause.onBattery" },
 ];
 
 function resetBackgroundActivitySettings() {
@@ -403,7 +407,7 @@ function AboutVersionSection() {
             >
               <SelectTrigger
                 className="w-full sm:w-40"
-                aria-label="Update track"
+                aria-label={t("settings.about.updateTrack.title")}
                 disabled={isChangingUpdateChannel}
               >
                 <SelectValue>
@@ -437,7 +441,10 @@ function AboutVersionSection() {
                 );
               }}
             >
-              <SelectTrigger className="w-full sm:w-40" aria-label="Update track">
+              <SelectTrigger
+                className="w-full sm:w-40"
+                aria-label={t("settings.about.updateTrack.title")}
+              >
                 <SelectValue>
                   {selectedHostedAppChannel === "nightly"
                     ? t("settings.about.updateTrack.option.nightly")
@@ -690,6 +697,7 @@ function BackgroundActivityAdvancedDialog({
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
 }) {
+  const { t } = useI18n();
   const settings = usePrimarySettings();
   const updateSettings = useUpdatePrimarySettings();
   const resolvedBackgroundActivity = resolveServerBackgroundActivitySettings(settings);
@@ -711,18 +719,20 @@ function BackgroundActivityAdvancedDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogPopup className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>Background Activity</DialogTitle>
+          <DialogTitle>{t("settings.general.background.dialog.title")}</DialogTitle>
           <DialogDescription>
-            Tune the shared power policy and the background intervals that feed it.
+            {t("settings.general.background.dialog.description")}
           </DialogDescription>
         </DialogHeader>
         <DialogPanel className="space-y-0 px-6 pb-5">
           <div className="overflow-hidden rounded-xl border bg-card text-card-foreground">
             <div className="flex flex-col gap-3 border-b px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0 space-y-1">
-                <div className="text-sm font-medium">Shared policy</div>
+                <div className="text-sm font-medium">
+                  {t("settings.general.background.sharedPolicy.title")}
+                </div>
                 <p className="text-xs leading-relaxed text-muted-foreground">
-                  Controls whether background work may run after a subscribed interval fires.
+                  {t("settings.general.background.sharedPolicy.description")}
                 </p>
               </div>
               <Select
@@ -739,18 +749,23 @@ function BackgroundActivityAdvancedDialog({
                   }
                 }}
               >
-                <SelectTrigger className="w-full sm:w-40" aria-label="Shared background policy">
-                  <SelectValue>{BACKGROUND_ACTIVITY_PROFILE_LABELS[activeProfile]}</SelectValue>
+                <SelectTrigger
+                  className="w-full sm:w-40"
+                  aria-label={t("settings.general.background.sharedPolicy.label")}
+                >
+                  <SelectValue>
+                    {t(BACKGROUND_ACTIVITY_PROFILE_MESSAGE_KEYS[activeProfile])}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectPopup align="end" alignItemWithTrigger={false}>
                   <SelectItem hideIndicator value="balanced">
-                    {BACKGROUND_ACTIVITY_PROFILE_LABELS.balanced}
+                    {t(BACKGROUND_ACTIVITY_PROFILE_MESSAGE_KEYS.balanced)}
                   </SelectItem>
                   <SelectItem hideIndicator value="performance">
-                    {BACKGROUND_ACTIVITY_PROFILE_LABELS.performance}
+                    {t(BACKGROUND_ACTIVITY_PROFILE_MESSAGE_KEYS.performance)}
                   </SelectItem>
                   <SelectItem hideIndicator value="battery-saver">
-                    {BACKGROUND_ACTIVITY_PROFILE_LABELS["battery-saver"]}
+                    {t(BACKGROUND_ACTIVITY_PROFILE_MESSAGE_KEYS["battery-saver"])}
                   </SelectItem>
                 </SelectPopup>
               </Select>
@@ -758,9 +773,11 @@ function BackgroundActivityAdvancedDialog({
 
             <div className="flex flex-col gap-3 border-b px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0 space-y-1">
-                <div className="text-sm font-medium">Git fetch interval</div>
+                <div className="text-sm font-medium">
+                  {t("settings.general.background.gitFetch.title")}
+                </div>
                 <p className="text-xs leading-relaxed text-muted-foreground">
-                  Refresh remote branch status in the background.
+                  {t("settings.general.background.gitFetch.description")}
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
@@ -785,20 +802,36 @@ function BackgroundActivityAdvancedDialog({
                   }
                 >
                   <NumberFieldGroup>
-                    <NumberFieldDecrement aria-label="Decrease Git fetch interval" />
-                    <NumberFieldInput aria-label="Git fetch interval in seconds" />
-                    <NumberFieldIncrement aria-label="Increase Git fetch interval" />
+                    <NumberFieldDecrement
+                      aria-label={t("settings.general.background.interval.decrease", {
+                        name: t("settings.general.background.gitFetch.title"),
+                      })}
+                    />
+                    <NumberFieldInput
+                      aria-label={t("settings.general.background.interval.inSeconds", {
+                        name: t("settings.general.background.gitFetch.title"),
+                      })}
+                    />
+                    <NumberFieldIncrement
+                      aria-label={t("settings.general.background.interval.increase", {
+                        name: t("settings.general.background.gitFetch.title"),
+                      })}
+                    />
                   </NumberFieldGroup>
                 </NumberField>
-                <span className="text-xs text-muted-foreground">seconds</span>
+                <span className="text-xs text-muted-foreground">
+                  {t("settings.general.background.seconds")}
+                </span>
               </div>
             </div>
 
             <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0 space-y-1">
-                <div className="text-sm font-medium">Provider health interval</div>
+                <div className="text-sm font-medium">
+                  {t("settings.general.background.providerHealth.title")}
+                </div>
                 <p className="text-xs leading-relaxed text-muted-foreground">
-                  Refresh provider availability, versions, auth state, and model metadata.
+                  {t("settings.general.background.providerHealth.description")}
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
@@ -823,20 +856,36 @@ function BackgroundActivityAdvancedDialog({
                   }
                 >
                   <NumberFieldGroup>
-                    <NumberFieldDecrement aria-label="Decrease provider health interval" />
-                    <NumberFieldInput aria-label="Provider health interval in seconds" />
-                    <NumberFieldIncrement aria-label="Increase provider health interval" />
+                    <NumberFieldDecrement
+                      aria-label={t("settings.general.background.interval.decrease", {
+                        name: t("settings.general.background.providerHealth.title"),
+                      })}
+                    />
+                    <NumberFieldInput
+                      aria-label={t("settings.general.background.interval.inSeconds", {
+                        name: t("settings.general.background.providerHealth.title"),
+                      })}
+                    />
+                    <NumberFieldIncrement
+                      aria-label={t("settings.general.background.interval.increase", {
+                        name: t("settings.general.background.providerHealth.title"),
+                      })}
+                    />
                   </NumberFieldGroup>
                 </NumberField>
-                <span className="text-xs text-muted-foreground">seconds</span>
+                <span className="text-xs text-muted-foreground">
+                  {t("settings.general.background.seconds")}
+                </span>
               </div>
             </div>
 
             <div className="flex flex-col gap-3 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0 space-y-1">
-                <div className="text-sm font-medium">Host power monitor</div>
+                <div className="text-sm font-medium">
+                  {t("settings.general.background.hostPower.title")}
+                </div>
                 <p className="text-xs leading-relaxed text-muted-foreground">
-                  Poll host power state while clients are active.
+                  {t("settings.general.background.hostPower.description")}
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
@@ -861,20 +910,36 @@ function BackgroundActivityAdvancedDialog({
                   }
                 >
                   <NumberFieldGroup>
-                    <NumberFieldDecrement aria-label="Decrease active host power interval" />
-                    <NumberFieldInput aria-label="Active host power interval in seconds" />
-                    <NumberFieldIncrement aria-label="Increase active host power interval" />
+                    <NumberFieldDecrement
+                      aria-label={t("settings.general.background.interval.decrease", {
+                        name: t("settings.general.background.hostPower.title"),
+                      })}
+                    />
+                    <NumberFieldInput
+                      aria-label={t("settings.general.background.interval.inSeconds", {
+                        name: t("settings.general.background.hostPower.title"),
+                      })}
+                    />
+                    <NumberFieldIncrement
+                      aria-label={t("settings.general.background.interval.increase", {
+                        name: t("settings.general.background.hostPower.title"),
+                      })}
+                    />
                   </NumberFieldGroup>
                 </NumberField>
-                <span className="text-xs text-muted-foreground">seconds</span>
+                <span className="text-xs text-muted-foreground">
+                  {t("settings.general.background.seconds")}
+                </span>
               </div>
             </div>
 
             <div className="flex flex-col gap-3 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0 space-y-1">
-                <div className="text-sm font-medium">Idle host monitor</div>
+                <div className="text-sm font-medium">
+                  {t("settings.general.background.idleHost.title")}
+                </div>
                 <p className="text-xs leading-relaxed text-muted-foreground">
-                  Poll host power state when no foreground client is active.
+                  {t("settings.general.background.idleHost.description")}
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
@@ -899,22 +964,36 @@ function BackgroundActivityAdvancedDialog({
                   }
                 >
                   <NumberFieldGroup>
-                    <NumberFieldDecrement aria-label="Decrease idle host power interval" />
-                    <NumberFieldInput aria-label="Idle host power interval in seconds" />
-                    <NumberFieldIncrement aria-label="Increase idle host power interval" />
+                    <NumberFieldDecrement
+                      aria-label={t("settings.general.background.interval.decrease", {
+                        name: t("settings.general.background.idleHost.title"),
+                      })}
+                    />
+                    <NumberFieldInput
+                      aria-label={t("settings.general.background.interval.inSeconds", {
+                        name: t("settings.general.background.idleHost.title"),
+                      })}
+                    />
+                    <NumberFieldIncrement
+                      aria-label={t("settings.general.background.interval.increase", {
+                        name: t("settings.general.background.idleHost.title"),
+                      })}
+                    />
                   </NumberFieldGroup>
                 </NumberField>
-                <span className="text-xs text-muted-foreground">seconds</span>
+                <span className="text-xs text-muted-foreground">
+                  {t("settings.general.background.seconds")}
+                </span>
               </div>
             </div>
 
             <div className="grid gap-0 border-t sm:grid-cols-2">
-              {BACKGROUND_ACTIVITY_BOOLEAN_OVERRIDES.map(({ key, label }) => (
+              {BACKGROUND_ACTIVITY_BOOLEAN_OVERRIDES.map(({ key, messageKey }) => (
                 <label
                   key={key}
                   className="flex items-center justify-between gap-3 border-b px-4 py-3 last:border-b-0 sm:border-r sm:even:border-r-0"
                 >
-                  <span className="text-sm font-medium">{label}</span>
+                  <span className="text-sm font-medium">{t(messageKey)}</span>
                   <Switch
                     checked={resolvedBackgroundActivity[key]}
                     onCheckedChange={(checked) =>
@@ -928,7 +1007,7 @@ function BackgroundActivityAdvancedDialog({
                         ),
                       )
                     }
-                    aria-label={label}
+                    aria-label={t(messageKey)}
                   />
                 </label>
               ))}
@@ -940,9 +1019,9 @@ function BackgroundActivityAdvancedDialog({
             variant="outline"
             onClick={() => updateSettings(resetBackgroundActivitySettings())}
           >
-            Reset all
+            {t("settings.general.background.resetAll")}
           </Button>
-          <Button onClick={() => onOpenChange(false)}>Done</Button>
+          <Button onClick={() => onOpenChange(false)}>{t("common.done")}</Button>
         </DialogFooter>
       </DialogPopup>
     </Dialog>
@@ -997,7 +1076,7 @@ export function AppearanceSettingsPanel() {
         <SettingsRow
           {...searchableSetting("setting-glass-opacity")}
           title={t("settings.item.glassOpacity")}
-          description="Control how transparent glass surfaces are. Higher values make menus, dialogs, and the composer more solid."
+          description={t("appearance.glassOpacity.description")}
           resetAction={
             settings.glassOpacity !== DEFAULT_UNIFIED_SETTINGS.glassOpacity ? (
               <SettingResetButton
@@ -1017,7 +1096,7 @@ export function AppearanceSettingsPanel() {
                 {settings.glassOpacity}%
               </output>
               <input
-                aria-label="Glass opacity"
+                aria-label={t("appearance.glassOpacity.label")}
                 className="settings-slider min-w-0 flex-1"
                 id="glass-opacity"
                 max={MAX_GLASS_OPACITY}
@@ -1045,7 +1124,7 @@ export function AppearanceSettingsPanel() {
           <SettingsRow
             {...searchableSetting("environment-identification")}
             title={t("settings.item.environmentIdentification")}
-            description="Choose how Dev and Nightly environments are identified."
+            description={t("appearance.environment.description")}
             resetAction={
               settings.environmentIdentificationMode !== DEFAULT_ENVIRONMENT_IDENTIFICATION_MODE ? (
                 <SettingResetButton
@@ -1067,15 +1146,29 @@ export function AppearanceSettingsPanel() {
                   }
                 }}
               >
-                <SelectTrigger className="w-full sm:w-40" aria-label="Environment identification">
+                <SelectTrigger
+                  className="w-full sm:w-40"
+                  aria-label={t("appearance.environment.label")}
+                >
                   <SelectValue>
-                    {ENVIRONMENT_IDENTIFICATION_LABELS[settings.environmentIdentificationMode]}
+                    {t(
+                      ENVIRONMENT_IDENTIFICATION_MESSAGE_KEYS[
+                        settings.environmentIdentificationMode
+                      ],
+                    )}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectPopup align="end" alignItemWithTrigger={false}>
-                  {Object.entries(ENVIRONMENT_IDENTIFICATION_LABELS).map(([value, label]) => (
+                  {(
+                    Object.entries(ENVIRONMENT_IDENTIFICATION_MESSAGE_KEYS) as Array<
+                      [
+                        EnvironmentIdentificationMode,
+                        (typeof ENVIRONMENT_IDENTIFICATION_MESSAGE_KEYS)[EnvironmentIdentificationMode],
+                      ]
+                    >
+                  ).map(([value, messageKey]) => (
                     <SelectItem hideIndicator key={value} value={value}>
-                      {label}
+                      {t(messageKey)}
                     </SelectItem>
                   ))}
                 </SelectPopup>
@@ -1119,7 +1212,7 @@ function InterfaceFontRow({ preview }: { preview?: ReactNode }) {
     <FontFamilySettingsRow
       {...searchableSetting("interface-font")}
       title={t("settings.item.interfaceFont")}
-      description="Everything outside code blocks and the terminal."
+      description={t("appearance.font.interface.description")}
       defaultFamily={defaults.sans}
       defaultValue={DEFAULT_UNIFIED_SETTINGS.fontFamilySans}
       value={settings.fontFamilySans}
@@ -1131,7 +1224,7 @@ function InterfaceFontRow({ preview }: { preview?: ReactNode }) {
         })
       }
       size={{
-        label: "Interface font size",
+        label: t("appearance.font.size.interface"),
         min: MIN_INTERFACE_FONT_SIZE,
         max: MAX_INTERFACE_FONT_SIZE,
         value: settings.fontSizeInterface,
@@ -1152,7 +1245,7 @@ function PromptFontRow() {
     <FontFamilySettingsRow
       {...searchableSetting("prompt-font")}
       title={t("settings.item.promptFont")}
-      description="Only the box you write prompts in. Mono works well here."
+      description={t("appearance.font.prompt.description")}
       defaultFamily={defaults.interfaceFamily}
       defaultValue={DEFAULT_UNIFIED_SETTINGS.fontFamilyComposer}
       value={settings.fontFamilyComposer}
@@ -1164,7 +1257,7 @@ function PromptFontRow() {
         })
       }
       size={{
-        label: "Prompt font size",
+        label: t("appearance.font.size.prompt"),
         min: MIN_PROMPT_FONT_SIZE,
         max: MAX_PROMPT_FONT_SIZE,
         value: settings.fontSizePrompt,
@@ -1178,7 +1271,7 @@ function PromptFontRow() {
 
 function CodeFontRow({
   title,
-  description = "Code blocks, diffs, and file previews.",
+  description,
   preview,
 }: {
   title?: string;
@@ -1193,7 +1286,7 @@ function CodeFontRow({
     <FontFamilySettingsRow
       {...searchableSetting("code-font")}
       title={title ?? t("settings.item.codeFont")}
-      description={description}
+      description={description ?? t("appearance.font.code.description")}
       defaultFamily={defaults.code}
       defaultValue={DEFAULT_UNIFIED_SETTINGS.fontFamilyCode}
       value={settings.fontFamilyCode}
@@ -1206,7 +1299,7 @@ function CodeFontRow({
       }
       requireMonospace
       size={{
-        label: "Code font size",
+        label: t("appearance.font.size.code"),
         min: MIN_CODE_FONT_SIZE,
         max: MAX_CODE_FONT_SIZE,
         value: settings.fontSizeCode,
@@ -1227,7 +1320,7 @@ function TerminalFontRow() {
     <FontFamilySettingsRow
       {...searchableSetting("terminal-font")}
       title={t("settings.item.terminalFont")}
-      description="Terminal output, independent from code blocks and diffs."
+      description={t("appearance.font.terminal.description")}
       defaultFamily={defaults.code}
       defaultValue={DEFAULT_UNIFIED_SETTINGS.fontFamilyTerminal}
       value={settings.fontFamilyTerminal}
@@ -1240,7 +1333,7 @@ function TerminalFontRow() {
       }
       requireMonospace
       size={{
-        label: "Terminal font size",
+        label: t("appearance.font.size.terminal"),
         min: MIN_TERMINAL_FONT_SIZE,
         max: MAX_TERMINAL_FONT_SIZE,
         value: settings.fontSizeTerminal,
@@ -1270,7 +1363,7 @@ function FontSmoothingRow() {
     <SettingsRow
       {...searchableSetting("font-smoothing")}
       title={t("settings.item.fontSmoothing")}
-      description="Render text with thinner grayscale anti-aliasing instead of macOS's heavier default."
+      description={t("appearance.font.smoothing.description")}
       resetAction={
         settings.fontSmoothing !== DEFAULT_UNIFIED_SETTINGS.fontSmoothing ? (
           <SettingResetButton
@@ -1285,7 +1378,7 @@ function FontSmoothingRow() {
         <Switch
           checked={settings.fontSmoothing}
           onCheckedChange={(checked) => updateSettings({ fontSmoothing: Boolean(checked) })}
-          aria-label="Font smoothing"
+          aria-label={t("appearance.font.smoothing.label")}
         />
       }
     />
@@ -1300,7 +1393,7 @@ function WordWrapRow() {
     <SettingsRow
       {...searchableSetting("word-wrap")}
       title={t("settings.item.wordWrap")}
-      description="Wrap long lines in code blocks, tables, diffs, and file previews by default."
+      description={t("appearance.wordWrap.description")}
       resetAction={
         settings.wordWrap !== DEFAULT_UNIFIED_SETTINGS.wordWrap ? (
           <SettingResetButton
@@ -1313,7 +1406,7 @@ function WordWrapRow() {
         <Switch
           checked={settings.wordWrap}
           onCheckedChange={(checked) => updateSettings({ wordWrap: Boolean(checked) })}
-          aria-label="Wrap code, tables, diffs, and file previews by default"
+          aria-label={t("appearance.wordWrap.label")}
         />
       }
     />
@@ -1338,13 +1431,14 @@ function FontSettingsGroup() {
  * under each row show every surface the choice reaches.
  */
 function SimpleFontRows() {
+  const { t } = useI18n();
   const settings = usePrimarySettings();
   return (
     <>
       <InterfaceFontRow preview={<PromptFontPreview />} />
       <CodeFontRow
-        title="Monospace font"
-        description="Code blocks, diffs, file previews, and the terminal."
+        title={t("appearance.font.monospace.title")}
+        description={t("appearance.font.monospace.description")}
         preview={
           <>
             <CodeFontPreview />
@@ -1385,6 +1479,7 @@ const ADVANCED_TYPOGRAPHY_TARGET_IDS: ReadonlySet<string> = new Set([
  * target exists to scroll to.
  */
 function TypographySection() {
+  const { t } = useI18n();
   const [advanced, setAdvanced] = useLocalStorage(
     TYPOGRAPHY_ADVANCED_STORAGE_KEY,
     false,
@@ -1403,14 +1498,14 @@ function TypographySection() {
   }, [searchTargetId, setAdvanced]);
   return (
     <SettingsSection
-      title="Typography"
+      title={t("appearance.typography.title")}
       headerAction={
         <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-muted-foreground">
-          Advanced
+          {t("appearance.typography.advanced")}
           <Switch
             checked={advanced}
             onCheckedChange={(checked) => setAdvanced(Boolean(checked))}
-            aria-label="Show advanced typography settings"
+            aria-label={t("appearance.typography.showAdvanced")}
           />
         </label>
       }
@@ -1627,6 +1722,7 @@ function AutoSettleDaysInput({
   value: number;
   onCommit: (days: number) => void;
 }) {
+  const { t } = useI18n();
   // Local draft so the field can be emptied mid-edit; the setting only moves
   // on valid input and snaps back to the persisted value on blur.
   const [draft, setDraft] = useState(String(value));
@@ -1656,7 +1752,7 @@ function AutoSettleDaysInput({
         }
       }}
       onBlur={() => setDraft(String(value))}
-      aria-label="Days of inactivity before auto-settle"
+      aria-label={t("settings.general.autoSettleDays.title")}
     />
   );
 }
@@ -1909,7 +2005,7 @@ export function GeneralSettingsPanel() {
                   ),
                 });
               }}
-              aria-label="Project grouping"
+              aria-label={t("settings.item.projectGrouping")}
             />
           }
         />
@@ -1937,7 +2033,7 @@ export function GeneralSettingsPanel() {
               onCheckedChange={(checked) =>
                 updateSettings({ sidebarAutoSettleOnMerge: Boolean(checked) })
               }
-              aria-label="Auto-settle merged threads"
+              aria-label={t("settings.item.autoSettleMergedThreads")}
             />
           }
         />
@@ -1967,7 +2063,7 @@ export function GeneralSettingsPanel() {
                   sidebarAutoSettleAfterDays: checked ? AUTO_SETTLE_DEFAULT_DAYS : null,
                 })
               }
-              aria-label="Auto-settle inactive threads"
+              aria-label={t("settings.item.autoSettleInactiveThreads")}
             />
           }
         />
@@ -2009,7 +2105,7 @@ export function GeneralSettingsPanel() {
                 }
               }}
             >
-              <SelectTrigger className="w-full sm:w-40" aria-label="Timestamp format">
+              <SelectTrigger className="w-full sm:w-40" aria-label={t("settings.item.timeFormat")}>
                 <SelectValue>
                   {t(TIMESTAMP_FORMAT_MESSAGE_KEYS[settings.timestampFormat])}
                 </SelectValue>
@@ -2051,7 +2147,7 @@ export function GeneralSettingsPanel() {
               onCheckedChange={(checked) =>
                 updateSettings({ diffIgnoreWhitespace: Boolean(checked) })
               }
-              aria-label="Hide whitespace changes by default"
+              aria-label={t("settings.item.hideWhitespaceChanges")}
             />
           }
         />
@@ -2079,7 +2175,7 @@ export function GeneralSettingsPanel() {
               onCheckedChange={(checked) =>
                 updateSettings({ enableProviderUpdateChecks: Boolean(checked) })
               }
-              aria-label="Check provider versions"
+              aria-label={t("settings.item.providerUpdateChecks")}
             />
           }
         />
@@ -2121,7 +2217,10 @@ export function GeneralSettingsPanel() {
                   }
                 }}
               >
-                <SelectTrigger className="w-full sm:w-40" aria-label="Background activity profile">
+                <SelectTrigger
+                  className="w-full sm:w-40"
+                  aria-label={t("settings.general.background.title")}
+                >
                   <SelectValue>
                     {backgroundActivityProfileOption === "advanced"
                       ? t("settings.general.background.profile.advanced")
@@ -2152,14 +2251,16 @@ export function GeneralSettingsPanel() {
                       <Button
                         size="icon-sm"
                         variant="outline"
-                        aria-label="Configure advanced background activity"
+                        aria-label={t("settings.general.background.configure")}
                         onClick={() => setBackgroundActivityDialogOpen(true)}
                       >
                         <SettingsIcon className="size-4" />
                       </Button>
                     }
                   />
-                  <TooltipPopup side="top">Configure background activity</TooltipPopup>
+                  <TooltipPopup side="top">
+                    {t("settings.general.background.configure")}
+                  </TooltipPopup>
                 </Tooltip>
               ) : null}
               <BackgroundActivityAdvancedDialog
@@ -2199,7 +2300,7 @@ export function GeneralSettingsPanel() {
                 }
               }}
             >
-              <SelectTrigger className="w-full sm:w-44" aria-label="Default thread mode">
+              <SelectTrigger className="w-full sm:w-44" aria-label={t("settings.item.newThreads")}>
                 <SelectValue>
                   {settings.defaultThreadEnvMode === "worktree"
                     ? t("settings.general.threadMode.newWorktree")
@@ -2243,7 +2344,7 @@ export function GeneralSettingsPanel() {
                 onCheckedChange={(checked) =>
                   updateSettings({ newWorktreesStartFromOrigin: Boolean(checked) })
                 }
-                aria-label="Start new worktrees from origin by default"
+                aria-label={t("settings.item.startFromOrigin")}
               />
             }
           />
@@ -2273,7 +2374,7 @@ export function GeneralSettingsPanel() {
               onCommit={(next) => updateSettings({ addProjectBaseDirectory: next })}
               placeholder="~/"
               spellCheck={false}
-              aria-label="Add project base directory"
+              aria-label={t("settings.item.addProjectStartsIn")}
             />
           }
         />
@@ -2300,7 +2401,7 @@ export function GeneralSettingsPanel() {
               onCheckedChange={(checked) =>
                 updateSettings({ confirmThreadArchive: Boolean(checked) })
               }
-              aria-label="Confirm thread archiving"
+              aria-label={t("settings.item.archiveConfirmation")}
             />
           }
         />
@@ -2327,7 +2428,7 @@ export function GeneralSettingsPanel() {
               onCheckedChange={(checked) =>
                 updateSettings({ confirmThreadDelete: Boolean(checked) })
               }
-              aria-label="Confirm thread deletion"
+              aria-label={t("settings.item.deleteConfirmation")}
             />
           }
         />
@@ -2500,14 +2601,23 @@ export function ArchivedThreadsPanel() {
     return groups;
   }, [archivedSnapshots]);
 
+  const formatArchivedRelativeTime = useCallback(
+    (timestamp: string) => {
+      const label = formatRelativeTimeLabel(timestamp);
+      if (label === "just now") return t("archive.justNow");
+      return label.endsWith(" ago") ? t("archive.ago", { time: label.slice(0, -4) }) : label;
+    },
+    [t],
+  );
+
   const handleArchivedThreadContextMenu = useCallback(
     async (threadRef: ScopedThreadRef, position: { x: number; y: number }) => {
       const api = readLocalApi();
       if (!api) return;
       const clicked = await api.contextMenu.show(
         [
-          { id: "unarchive", label: "Unarchive" },
-          { id: "delete", label: "Delete", destructive: true },
+          { id: "unarchive", label: t("archive.unarchive") },
+          { id: "delete", label: t("common.delete"), destructive: true },
         ],
         position,
       );
@@ -2521,8 +2631,8 @@ export function ArchivedThreadsPanel() {
           toastManager.add(
             stackedThreadToast({
               type: "error",
-              title: "Failed to unarchive thread",
-              description: error instanceof Error ? error.message : "An error occurred.",
+              title: t("archive.failedUnarchive"),
+              description: error instanceof Error ? error.message : t("common.error"),
             }),
           );
         }
@@ -2538,14 +2648,14 @@ export function ArchivedThreadsPanel() {
           toastManager.add(
             stackedThreadToast({
               type: "error",
-              title: "Failed to delete thread",
-              description: error instanceof Error ? error.message : "An error occurred.",
+              title: t("archive.failedDelete"),
+              description: error instanceof Error ? error.message : t("common.error"),
             }),
           );
         }
       }
     },
-    [confirmAndDeleteThread, refreshArchivedThreads, unarchiveThread],
+    [confirmAndDeleteThread, refreshArchivedThreads, t, unarchiveThread],
   );
 
   return (
@@ -2564,16 +2674,16 @@ export function ArchivedThreadsPanel() {
                   <ArchiveIcon className="size-3.5 text-muted-foreground" />
                 )}
                 {isLoadingArchive
-                  ? "Loading archived threads"
+                  ? t("archive.loading")
                   : archiveError
-                    ? "Could not load archived threads"
-                    : "No archived threads"}
+                    ? t("archive.loadFailed")
+                    : t("archive.empty")}
               </span>
             }
             description={
               isLoadingArchive
-                ? "Checking connected environments."
-                : (archiveError ?? "Archived threads will appear here.")
+                ? t("archive.checking")
+                : (archiveError ?? t("archive.emptyDescription"))
             }
           />
         </SettingsSection>
@@ -2611,9 +2721,8 @@ export function ArchivedThreadsPanel() {
                       toastManager.add(
                         stackedThreadToast({
                           type: "error",
-                          title: "Archived thread action failed",
-                          description:
-                            error instanceof Error ? error.message : "An error occurred.",
+                          title: t("archive.actionFailed"),
+                          description: error instanceof Error ? error.message : t("common.error"),
                         }),
                       );
                     }
@@ -2622,9 +2731,13 @@ export function ArchivedThreadsPanel() {
                 title={thread.title}
                 description={
                   <>
-                    Archived {formatRelativeTimeLabel(thread.archivedAt ?? thread.createdAt)}
-                    {" \u00b7 Created "}
-                    {formatRelativeTimeLabel(thread.createdAt)}
+                    {t("archive.archivedAgo", {
+                      time: formatArchivedRelativeTime(thread.archivedAt ?? thread.createdAt),
+                    })}
+                    {" \u00b7 "}
+                    {t("archive.createdAgo", {
+                      time: formatArchivedRelativeTime(thread.createdAt),
+                    })}
                   </>
                 }
                 control={
@@ -2647,9 +2760,9 @@ export function ArchivedThreadsPanel() {
                           toastManager.add(
                             stackedThreadToast({
                               type: "error",
-                              title: "Failed to unarchive thread",
+                              title: t("archive.failedUnarchive"),
                               description:
-                                error instanceof Error ? error.message : "An error occurred.",
+                                error instanceof Error ? error.message : t("common.error"),
                             }),
                           );
                         }
@@ -2657,7 +2770,7 @@ export function ArchivedThreadsPanel() {
                     }}
                   >
                     <ArchiveX className="size-3.5" />
-                    <span>Unarchive</span>
+                    <span>{t("archive.unarchive")}</span>
                   </Button>
                 }
               />

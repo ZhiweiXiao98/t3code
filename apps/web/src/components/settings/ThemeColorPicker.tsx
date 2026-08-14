@@ -2,6 +2,7 @@ import type { KeyboardEvent, PointerEvent } from "react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { isThemeColor, themeColorToHex, type ThemeColorRole } from "../../themePalette";
 import { cn } from "../../lib/utils";
+import { useI18n } from "../../i18n/WebI18nProvider";
 import { Input } from "../ui/input";
 import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
 export function getThemeRoleLabel(role: ThemeColorRole): string {
@@ -145,6 +146,7 @@ function ThemeColorPickerPanel({
   value: string;
   onChange: (value: string) => void;
 }) {
+  const { t } = useI18n();
   const normalizedValue = normalizeThemePickerColor(value);
   const alphaSuffix = themePickerAlphaSuffix(value);
   const [hsv, setHsv] = useState(() => themeHexToHsv(normalizedValue));
@@ -296,7 +298,9 @@ function ThemeColorPickerPanel({
       <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
         <div className="min-w-0">
           <p className="truncate text-xs font-semibold text-foreground">{label}</p>
-          <p className="text-[11px] text-muted-foreground">Choose a color</p>
+          <p className="text-[11px] text-muted-foreground">
+            {t("appearance.themeEditor.color.choose")}
+          </p>
         </div>
         <span
           className="size-7 shrink-0 rounded-full shadow-sm"
@@ -432,16 +436,18 @@ function ThemeColorPicker({
   onChange: (value: string) => void;
   onInteract?: () => void;
 }) {
+  const { t } = useI18n();
+  const chooseLabel = t("appearance.themeEditor.color.chooseNamed", { label });
   return (
     <Popover>
       <PopoverTrigger
         render={
           <button
-            aria-label={`Choose ${label} color`}
+            aria-label={chooseLabel}
             className="relative flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full border border-foreground/30 transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             onFocus={onInteract}
             onPointerDown={onInteract}
-            title={`Choose ${label} color`}
+            title={chooseLabel}
             type="button"
           >
             <span
@@ -481,6 +487,7 @@ export const ThemeColorField = memo(function ThemeColorField({
   selected?: boolean;
   label?: string;
 }) {
+  const { t } = useI18n();
   const label = customLabel ?? getThemeRoleLabel(role);
   const isColorValue = isThemeColor(value);
   const swatchValue = isColorValue ? value : "#000000";
@@ -497,7 +504,12 @@ export const ThemeColorField = memo(function ThemeColorField({
       data-theme-color-role={role}
     >
       <button
-        aria-label={`${selected ? "Hide" : "Show"} ${label} usage`}
+        aria-label={t(
+          selected
+            ? "appearance.themeEditor.color.hideUsage"
+            : "appearance.themeEditor.color.showUsage",
+          { label },
+        )}
         aria-pressed={selected}
         className="flex min-w-0 flex-1 cursor-pointer items-center rounded-md text-left text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
         onClick={() => onToggleSelected?.(role)}

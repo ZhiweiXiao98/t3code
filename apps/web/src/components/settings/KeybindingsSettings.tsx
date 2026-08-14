@@ -242,11 +242,12 @@ function UnknownWhenVariableWarning({
   identifiers: ReadonlyArray<string>;
   focusable?: boolean;
 }) {
+  const { t } = useI18n();
   if (identifiers.length === 0) return null;
   const label =
     identifiers.length === 1
-      ? `Unknown condition: ${identifiers[0]}`
-      : `Unknown conditions: ${identifiers.join(", ")}`;
+      ? t("keybindings.when.unknownOne", { condition: identifiers[0]! })
+      : t("keybindings.when.unknownMany", { conditions: identifiers.join(", ") });
 
   return (
     <Tooltip>
@@ -262,19 +263,22 @@ function UnknownWhenVariableWarning({
         }
       />
       <TooltipPopup side="top" className="max-w-72 whitespace-normal leading-relaxed">
-        T3 Code does not recognize this condition yet. It can still be saved, but it may not match
-        unless the runtime provides it.
+        {t("keybindings.when.unknownDescription")}
       </TooltipPopup>
     </Tooltip>
   );
 }
 
 function KeybindingConflictWarning({ labels }: { labels: ReadonlyArray<string> }) {
+  const { t } = useI18n();
   if (labels.length === 0) return null;
   const description =
     labels.length === 1
-      ? `Conflicts with ${labels[0]}.`
-      : `Conflicts with ${labels.slice(0, 3).join(", ")}${labels.length > 3 ? ", and more" : ""}.`;
+      ? t("keybindings.conflict.one", { binding: labels[0]! })
+      : t("keybindings.conflict.many", {
+          bindings: labels.slice(0, 3).join(", "),
+          more: labels.length > 3 ? t("keybindings.conflict.more") : "",
+        });
 
   return (
     <Tooltip>
@@ -290,7 +294,7 @@ function KeybindingConflictWarning({ labels }: { labels: ReadonlyArray<string> }
         }
       />
       <TooltipPopup side="top" className="max-w-72 whitespace-normal leading-relaxed">
-        {description} The most recent matching binding wins when both conditions can apply.
+        {t("keybindings.conflict.description", { conflict: description })}
       </TooltipPopup>
     </Tooltip>
   );
@@ -307,6 +311,7 @@ function WhenVariableSelect({
   unknownIdentifiers?: ReadonlyArray<string>;
   onChange: (value: string) => void;
 }) {
+  const { t } = useI18n();
   const selected = variables.find((option) => option === value);
   const options =
     selected || variables.some((option) => option === value) ? variables : [value, ...variables];
@@ -317,7 +322,7 @@ function WhenVariableSelect({
         size="xs"
         className="h-7 min-h-7 min-w-0 flex-1 rounded-md font-mono text-xs sm:h-7"
       >
-        <SelectValue placeholder="Condition" className="leading-7" />
+        <SelectValue placeholder={t("keybindings.when.condition")} className="leading-7" />
         {unknownIdentifiers && unknownIdentifiers.length > 0 ? (
           <UnknownWhenVariableWarning identifiers={unknownIdentifiers} focusable={false} />
         ) : null}
@@ -355,6 +360,7 @@ function WhenExpressionNodeEditor({
   onChange: (node: KeybindingWhenNode) => void;
   onRemove?: () => void;
 }) {
+  const { t } = useI18n();
   const condition = conditionParts(node);
 
   if (condition) {
@@ -367,12 +373,12 @@ function WhenExpressionNodeEditor({
         <Toggle
           pressed={condition.negated}
           onPressedChange={(pressed) => onChange(setConditionNegated(node, pressed))}
-          aria-label={`Negate ${condition.identifier}`}
+          aria-label={t("keybindings.when.negate", { condition: condition.identifier })}
           variant="outline"
           size="xs"
           className="h-7 min-w-10 px-2 text-[11px] sm:h-7"
         >
-          Not
+          {t("keybindings.when.not")}
         </Toggle>
         <WhenVariableSelect
           value={condition.identifier}
@@ -386,7 +392,7 @@ function WhenExpressionNodeEditor({
             variant="ghost"
             size="icon-sm"
             className="size-7 sm:size-7"
-            aria-label="Remove condition"
+            aria-label={t("keybindings.when.removeCondition")}
             onClick={onRemove}
           >
             <MinusIcon className="size-3.5" />
@@ -408,12 +414,12 @@ function WhenExpressionNodeEditor({
           <Toggle
             pressed
             onPressedChange={(pressed) => onChange(pressed ? node : node.node)}
-            aria-label="Negate group"
+            aria-label={t("keybindings.when.negateGroup")}
             variant="outline"
             size="xs"
             className="h-7 min-w-10 px-2 text-[11px] sm:h-7"
           >
-            Not
+            {t("keybindings.when.not")}
           </Toggle>
           {onRemove ? (
             <Button
@@ -421,7 +427,7 @@ function WhenExpressionNodeEditor({
               variant="ghost"
               size="icon-sm"
               className="ml-auto size-7 sm:size-7"
-              aria-label="Remove negated group"
+              aria-label={t("keybindings.when.removeNegatedGroup")}
               onClick={onRemove}
             >
               <MinusIcon className="size-3.5" />
@@ -523,10 +529,10 @@ function WhenExpressionNodeEditor({
             className="w-fit min-w-24"
           >
             <SelectItem value="and" className="min-h-7 py-1 font-mono text-[12px]">
-              and
+              {t("keybindings.when.and")}
             </SelectItem>
             <SelectItem value="or" className="min-h-7 py-1 font-mono text-[12px]">
-              or
+              {t("keybindings.when.or")}
             </SelectItem>
           </SelectContent>
         </Select>
@@ -538,11 +544,11 @@ function WhenExpressionNodeEditor({
           onClick={addCondition}
         >
           <PlusIcon className="size-3.5" />
-          Condition
+          {t("keybindings.when.condition")}
         </Button>
         <Button type="button" variant="outline" size="xs" className="h-7 sm:h-7" onClick={addGroup}>
           <PlusIcon className="size-3.5" />
-          Group
+          {t("keybindings.when.group")}
         </Button>
         {onRemove ? (
           <Button
@@ -550,7 +556,7 @@ function WhenExpressionNodeEditor({
             variant="ghost"
             size="icon-sm"
             className="ml-auto size-7 sm:size-7"
-            aria-label="Remove group"
+            aria-label={t("keybindings.when.removeGroup")}
             onClick={onRemove}
           >
             <MinusIcon className="size-3.5" />
@@ -642,7 +648,7 @@ function WhenExpressionBuilder({
     <div className="w-[min(34rem,calc(100vw-2rem))] space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-sm font-medium text-foreground">When</div>
+          <div className="text-sm font-medium text-foreground">{t("keybindings.when.title")}</div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <Button
@@ -653,7 +659,7 @@ function WhenExpressionBuilder({
             onClick={addRootCondition}
           >
             <PlusIcon className="size-3.5" />
-            Condition
+            {t("keybindings.when.condition")}
           </Button>
           <Button
             type="button"
@@ -663,7 +669,7 @@ function WhenExpressionBuilder({
             onClick={addRootGroup}
           >
             <PlusIcon className="size-3.5" />
-            Group
+            {t("keybindings.when.group")}
           </Button>
         </div>
       </div>
@@ -675,7 +681,7 @@ function WhenExpressionBuilder({
             onChange={(event) => updateExpressionDraft(event.currentTarget.value)}
             placeholder={t("keybindings.always")}
             aria-invalid={Boolean(parseError)}
-            aria-label="When expression"
+            aria-label={t("keybindings.when.expression")}
             className={cn(
               "h-7 rounded-md font-mono text-[12px] leading-7 sm:h-7 sm:leading-7",
               unknownIdentifiers.length > 0 && "pr-9",
@@ -709,7 +715,7 @@ function WhenExpressionBuilder({
             <div className="flex flex-wrap gap-2">
               <Button type="button" size="xs" className="h-7 sm:h-7" onClick={addRootCondition}>
                 <PlusIcon className="size-3.5" />
-                Condition
+                {t("keybindings.when.condition")}
               </Button>
               <Button
                 type="button"
@@ -719,14 +725,14 @@ function WhenExpressionBuilder({
                 onClick={addRootGroup}
               >
                 <PlusIcon className="size-3.5" />
-                Group
+                {t("keybindings.when.group")}
               </Button>
             </div>
           </div>
         )}
         {parseError ? (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg border border-destructive/30 bg-background/75 p-4 text-center text-xs text-destructive backdrop-blur-[1px]">
-            Fix the expression above to continue editing visually.
+            {t("keybindings.when.fixExpression")}
           </div>
         ) : null}
       </div>

@@ -9,6 +9,7 @@ interface ColorSelectorProps {
   defaultValue: string;
   name?: string;
   onColorSelect?: (color: string) => void;
+  colorAriaLabel?: (color: string) => string;
   className?: string;
 }
 
@@ -56,6 +57,7 @@ export function ColorSelector({
   defaultValue,
   name,
   onColorSelect,
+  colorAriaLabel,
   className,
 }: ColorSelectorProps) {
   const [selectedColor, setSelectedColor] = useState<string>(defaultValue);
@@ -91,7 +93,7 @@ export function ColorSelector({
             }}
             tabIndex={0}
             role="button"
-            aria-label={`Select ${color} color`}
+            aria-label={colorAriaLabel?.(color) ?? `Select ${color} color`}
             aria-pressed={selectedColor === color}
           />
         );

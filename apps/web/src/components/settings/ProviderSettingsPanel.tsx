@@ -125,6 +125,7 @@ const PROVIDER_SETTINGS = DRIVER_OPTIONS.map((definition) => ({
 }));
 
 function ProviderLastChecked({ lastCheckedAt }: { lastCheckedAt: string | null }) {
+  const { t } = useI18n();
   useRelativeTimeTick();
   const lastCheckedRelative = getRelativeTimeState(lastCheckedAt);
 
@@ -133,19 +134,18 @@ function ProviderLastChecked({ lastCheckedAt }: { lastCheckedAt: string | null }
   }
 
   if (lastCheckedRelative.status === "invalid") {
-    return <span className="text-[11px] text-muted-foreground/50">Checked unavailable</span>;
+    return (
+      <span className="text-[11px] text-muted-foreground/50">
+        {t("providers.lastChecked.unavailable")}
+      </span>
+    );
   }
 
   return (
     <span className="text-[11px] text-muted-foreground/60">
-      {lastCheckedRelative.suffix ? (
-        <>
-          Checked <span className="font-mono tabular-nums">{lastCheckedRelative.value}</span>{" "}
-          {lastCheckedRelative.suffix}
-        </>
-      ) : (
-        <>Checked {lastCheckedRelative.value}</>
-      )}
+      {lastCheckedRelative.suffix
+        ? t("providers.lastChecked.ago", { time: lastCheckedRelative.value })
+        : t("providers.lastChecked.justNow")}
     </span>
   );
 }
@@ -166,6 +166,19 @@ function providerEnvironmentDetail(environment: EnvironmentPresentation): string
   return environment.displayUrl ?? "Remote device";
 }
 
+function localizedConnectionStatus(environment: EnvironmentPresentation, t: WebTranslate): string {
+  const status = connectionStatusText(environment.connection);
+  if (status === "Connecting..." || status === "Connecting…") {
+    return t("providers.connection.connecting");
+  }
+  if (status === "Connected") return t("providers.connection.connected");
+  if (status === "Disconnected") return t("providers.connection.disconnected");
+  if (status === "Reconnecting..." || status === "Reconnecting…") {
+    return t("providers.connection.reconnecting");
+  }
+  return status;
+}
+
 function EnvironmentUnavailableRow({
   environment,
   access,
@@ -177,15 +190,15 @@ function EnvironmentUnavailableRow({
 }) {
   const isLoading = access.kind === "loading";
   const title = isLoading
-    ? "Loading provider settings"
+    ? t("providers.unavailable.loading")
     : access.kind === "error"
-      ? "Could not connect to this device"
-      : "Provider settings are unavailable";
+      ? t("providers.unavailable.connectFailed")
+      : t("providers.unavailable.title");
   const description = isLoading
     ? access.reason === "permissions"
-      ? "Checking what this session is allowed to change."
-      : `Waiting for ${environment.label}'s configuration.`
-    : connectionStatusText(environment.connection);
+      ? t("providers.unavailable.checkingPermissions")
+      : t("providers.unavailable.waitingConfiguration", { environment: environment.label })
+    : localizedConnectionStatus(environment, t);
   // No spinner: this state can persist indefinitely for a wedged device, and a
   // continuously repainting animation would run the whole time.
   return (
@@ -196,6 +209,7 @@ function EnvironmentUnavailableRow({
 }
 
 export function ProviderSettingsPanel() {
+  const { t } = useI18n();
   const { environments, isReady } = useEnvironments();
   const primaryEnvironmentId = usePrimaryEnvironmentId();
   const options = useMemo(
@@ -221,16 +235,16 @@ export function ProviderSettingsPanel() {
   return (
     <SettingsPageContainer>
       {!onlyPrimaryDevice ? (
-        <SettingsSection title="Devices">
+        <SettingsSection title={t("providers.devices.title")}>
           {options.length === 0 ? (
             // The catalog hydrates asynchronously, so an empty list before it is
             // ready means "not loaded yet", not "nothing is connected".
             <SettingsRow
-              title={isReady ? "No connected devices" : "Loading devices"}
+              title={isReady ? t("providers.devices.empty") : t("providers.devices.loading")}
               description={
                 isReady
-                  ? "Connect an execution environment before configuring providers."
-                  : "Reading connected execution environments."
+                  ? t("providers.devices.emptyDescription")
+                  : t("providers.devices.loadingDescription")
               }
             />
           ) : (
@@ -686,13 +700,13 @@ export function EnvironmentProviderSettings({
                         variant="ghost"
                         className="size-5 rounded-sm p-0 text-muted-foreground hover:text-foreground"
                         onClick={() => setIsAddInstanceDialogOpen(true)}
-                        aria-label="Add provider instance"
+                        aria-label={t("providers.action.add")}
                       >
                         <PlusIcon className="size-3" />
                       </Button>
                     }
                   />
-                  <TooltipPopup side="top">Add provider instance</TooltipPopup>
+                  <TooltipPopup side="top">{t("providers.action.add")}</TooltipPopup>
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger
@@ -703,7 +717,7 @@ export function EnvironmentProviderSettings({
                         className="size-5 rounded-sm p-0 text-muted-foreground hover:text-foreground"
                         disabled={isRefreshingProviders}
                         onClick={() => void refreshProviders()}
-                        aria-label="Refresh provider status"
+                        aria-label={t("providers.action.refresh")}
                       >
                         {isRefreshingProviders ? (
                           <LoaderIcon className="size-3 animate-spin" />
@@ -713,7 +727,7 @@ export function EnvironmentProviderSettings({
                       </Button>
                     }
                   />
-                  <TooltipPopup side="top">Refresh provider status</TooltipPopup>
+                  <TooltipPopup side="top">{t("providers.action.refresh")}</TooltipPopup>
                 </Tooltip>
               </>
             ) : null}
@@ -722,8 +736,10 @@ export function EnvironmentProviderSettings({
       >
         {readOnly ? (
           <SettingsRow
-            title="Limited permissions"
-            description={`This session can view ${environmentLabel}'s providers, but its credential does not allow changing their configuration.`}
+            title={t("providers.permissions.limited")}
+            description={t("providers.permissions.limitedDescription", {
+              environment: environmentLabel,
+            })}
           />
         ) : null}
         <div
@@ -784,9 +800,21 @@ export function EnvironmentProviderSettings({
                   }
                 >
                   <NumberFieldGroup>
-                    <NumberFieldDecrement aria-label="Decrease provider health check interval" />
-                    <NumberFieldInput aria-label="Provider health check interval in seconds" />
-                    <NumberFieldIncrement aria-label="Increase provider health check interval" />
+                    <NumberFieldDecrement
+                      aria-label={t("settings.general.background.interval.decrease", {
+                        name: t("providers.healthCheck.title"),
+                      })}
+                    />
+                    <NumberFieldInput
+                      aria-label={t("settings.general.background.interval.inSeconds", {
+                        name: t("providers.healthCheck.title"),
+                      })}
+                    />
+                    <NumberFieldIncrement
+                      aria-label={t("settings.general.background.interval.increase", {
+                        name: t("providers.healthCheck.title"),
+                      })}
+                    />
                   </NumberFieldGroup>
                 </NumberField>
                 <span className="text-xs text-muted-foreground">

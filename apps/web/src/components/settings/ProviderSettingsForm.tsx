@@ -10,6 +10,7 @@ import type {
 } from "@t3tools/contracts";
 
 import { cn } from "../../lib/utils";
+import { useI18n, type WebTranslate } from "../../i18n/WebI18nProvider";
 import { DraftInput } from "../ui/draft-input";
 import { Input } from "../ui/input";
 import { Switch } from "../ui/switch";
@@ -154,6 +155,75 @@ export function nextProviderConfigWithFieldValue(
   return Object.keys(base).length > 0 ? base : undefined;
 }
 
+function localizeProviderSettingsField(
+  field: ProviderSettingsFieldModel,
+  definition: ProviderClientDefinition,
+  t: WebTranslate,
+): ProviderSettingsFieldModel {
+  if (field.key === "binaryPath") {
+    return {
+      ...field,
+      label: t("providers.config.binaryPath"),
+      description: t("providers.config.binaryPathDescription", { provider: definition.label }),
+    };
+  }
+  if (field.key === "homePath" && definition.value === "codex") {
+    return {
+      ...field,
+      label: t("providers.config.codexHome"),
+      description: t("providers.config.codexHomeDescription"),
+    };
+  }
+  if (field.key === "homePath" && definition.value === "claudeAgent") {
+    return {
+      ...field,
+      label: t("providers.config.claudeHome"),
+      description: t("providers.config.claudeHomeDescription"),
+    };
+  }
+  if (field.key === "shadowHomePath") {
+    return {
+      ...field,
+      label: t("providers.config.shadowHome"),
+      description: t("providers.config.shadowHomeDescription"),
+    };
+  }
+  if (field.key === "launchArgs") {
+    return {
+      ...field,
+      label: t("providers.config.launchArgs"),
+      description: t(
+        definition.value === "codex"
+          ? "providers.config.codexLaunchArgsDescription"
+          : "providers.config.launchArgsDescription",
+      ),
+    };
+  }
+  if (field.key === "apiEndpoint") {
+    return {
+      ...field,
+      label: t("providers.config.apiEndpoint"),
+      description: t("providers.config.apiEndpointDescription"),
+    };
+  }
+  if (field.key === "serverUrl") {
+    return {
+      ...field,
+      label: t("providers.config.serverUrl"),
+      description: t("providers.config.serverUrlDescription"),
+    };
+  }
+  if (field.key === "serverPassword") {
+    return {
+      ...field,
+      label: t("providers.config.serverPassword"),
+      description: t("providers.config.serverPasswordDescription"),
+      placeholder: t("providers.config.optional"),
+    };
+  }
+  return field;
+}
+
 interface ProviderSettingsFormProps {
   readonly definition: ProviderClientDefinition;
   readonly value: unknown;
@@ -281,7 +351,11 @@ export function ProviderSettingsForm({
   variant,
   onChange,
 }: ProviderSettingsFormProps) {
+  const { t } = useI18n();
   const fields = useMemo(() => deriveProviderSettingsFields(definition), [definition]);
+  const localizedFields = fields.map((field) =>
+    localizeProviderSettingsField(field, definition, t),
+  );
 
   if (fields.length === 0) {
     return null;
@@ -289,7 +363,7 @@ export function ProviderSettingsForm({
 
   return (
     <>
-      {fields.map((field) => (
+      {localizedFields.map((field) => (
         <ProviderSettingsFieldRow
           key={field.key}
           field={field}

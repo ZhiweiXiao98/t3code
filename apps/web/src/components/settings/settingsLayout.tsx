@@ -12,6 +12,7 @@ import {
 } from "react";
 
 import { cn } from "../../lib/utils";
+import { useI18n } from "../../i18n/WebI18nProvider";
 import { Button } from "../ui/button";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 
@@ -85,6 +86,7 @@ function useSettingsSearchTarget<T extends HTMLElement>(id: string | undefined) 
 
 /** Info affordance explaining how a setting interacts with the shared background policy. */
 export function PolicyTooltip({ children }: { readonly children: string }) {
+  const { t } = useI18n();
   return (
     <Tooltip>
       <TooltipTrigger
@@ -92,7 +94,7 @@ export function PolicyTooltip({ children }: { readonly children: string }) {
           <button
             type="button"
             className="inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground"
-            aria-label="Background policy details"
+            aria-label={t("settings.policyDetails")}
           >
             <InfoIcon className="size-3.5" />
           </button>
@@ -210,6 +212,7 @@ export function SettingResetButton({
   disabled?: boolean;
   onClick: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <Tooltip>
       <TooltipTrigger
@@ -217,7 +220,7 @@ export function SettingResetButton({
           <Button
             size="icon-xs"
             variant="ghost"
-            aria-label={`Reset ${label} to default`}
+            aria-label={t("settings.resetSetting", { setting: label })}
             disabled={disabled}
             className="size-5 rounded-sm p-0 text-muted-foreground hover:text-foreground"
             onClick={(event) => {
@@ -229,7 +232,7 @@ export function SettingResetButton({
           </Button>
         }
       />
-      <TooltipPopup side="top">Reset to default</TooltipPopup>
+      <TooltipPopup side="top">{t("settings.resetDefault")}</TooltipPopup>
     </Tooltip>
   );
 }
