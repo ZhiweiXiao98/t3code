@@ -106,6 +106,8 @@ import { buildExpandedImagePreview, type ExpandedImagePreview } from "./Expanded
 import { basenameOfPath } from "../../pierre-icons";
 import { cn, randomUUID } from "~/lib/utils";
 import { Separator } from "../ui/separator";
+import { useI18n } from "../../i18n/WebI18nProvider";
+import type { WebMessageKey } from "../../i18n/messages";
 
 type ComposerCommandMenuPosition = {
   bottom: number;
@@ -229,26 +231,26 @@ import type { ReviewCommentContext } from "../../reviewCommentContext";
 
 const runtimeModeConfig: Record<
   RuntimeMode,
-  { label: string; description: string; icon: LucideIcon }
+  { labelKey: WebMessageKey; descriptionKey: WebMessageKey; icon: LucideIcon }
 > = {
   "approval-required": {
-    label: "Supervised",
-    description: "Ask before commands and file changes.",
+    labelKey: "composer.mode.supervised",
+    descriptionKey: "composer.mode.supervisedDescription",
     icon: LockIcon,
   },
   "auto-accept-edits": {
-    label: "Auto-accept edits",
-    description: "Auto-approve edits, ask before other actions.",
+    labelKey: "composer.mode.autoAcceptEdits",
+    descriptionKey: "composer.mode.autoAcceptEditsDescription",
     icon: PenLineIcon,
   },
   auto: {
-    label: "Auto",
-    description: "Supported providers approve routine actions; others still ask.",
+    labelKey: "composer.mode.auto",
+    descriptionKey: "composer.mode.autoDescription",
     icon: SparklesIcon,
   },
   "full-access": {
-    label: "Full access",
-    description: "Allow commands and edits without prompts.",
+    labelKey: "composer.mode.fullAccess",
+    descriptionKey: "composer.mode.fullAccessDescription",
     icon: LockOpenIcon,
   },
 };
@@ -301,12 +303,13 @@ const ComposerFooterModeControls = memo(function ComposerFooterModeControls(prop
   onToggleInteractionMode: () => void;
   onRuntimeModeChange: (mode: RuntimeMode) => void;
 }) {
+  const { t } = useI18n();
   const runtimeModeOption = runtimeModeConfig[props.runtimeMode];
   const RuntimeModeIcon = runtimeModeOption.icon;
   const interactionModeTooltip =
     props.interactionMode === "plan"
-      ? "Plan mode — click to return to normal build mode"
-      : "Default mode — click to enter plan mode";
+      ? t("composer.mode.switchToBuild")
+      : t("composer.mode.switchToPlan");
 
   const interactionModeToggle = props.showInteractionModeToggle ? (
     <>
@@ -333,7 +336,7 @@ const ComposerFooterModeControls = memo(function ComposerFooterModeControls(prop
             <ComposerControlIcon icon={BotIcon} opticalSize="large" />
           )}
           <span className="sr-only sm:not-sr-only">
-            {props.interactionMode === "plan" ? "Plan" : "Build"}
+            {props.interactionMode === "plan" ? t("composer.mode.plan") : t("composer.mode.build")}
           </span>
         </TooltipTrigger>
         <TooltipPopup side="top">{interactionModeTooltip}</TooltipPopup>
@@ -351,10 +354,15 @@ const ComposerFooterModeControls = memo(function ComposerFooterModeControls(prop
           onValueChange={(value) => props.onRuntimeModeChange(value!)}
         >
           <TooltipTrigger
-            render={<ComposerSelectControl className="font-medium" aria-label="Runtime mode" />}
+            render={
+              <ComposerSelectControl
+                className="font-medium"
+                aria-label={t("composer.runtimeMode")}
+              />
+            }
           >
             <ComposerControlIcon icon={RuntimeModeIcon} />
-            <SelectValue>{runtimeModeOption.label}</SelectValue>
+            <SelectValue>{t(runtimeModeOption.labelKey)}</SelectValue>
           </TooltipTrigger>
           <SelectPopup alignItemWithTrigger={false}>
             {runtimeModeOptions.map((mode) => {
@@ -366,10 +374,10 @@ const ComposerFooterModeControls = memo(function ComposerFooterModeControls(prop
                     <div className="grid min-w-0 flex-1 gap-0.5">
                       <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
                         <OptionIcon className="size-3.5 shrink-0 text-muted-foreground" />
-                        {option.label}
+                        {t(option.labelKey)}
                       </span>
                       <span className="text-muted-foreground text-xs leading-4">
-                        {option.description}
+                        {t(option.descriptionKey)}
                       </span>
                     </div>
                   </div>
@@ -378,7 +386,7 @@ const ComposerFooterModeControls = memo(function ComposerFooterModeControls(prop
             })}
           </SelectPopup>
         </Select>
-        <TooltipPopup side="top">{runtimeModeOption.description}</TooltipPopup>
+        <TooltipPopup side="top">{t(runtimeModeOption.descriptionKey)}</TooltipPopup>
       </Tooltip>
 
       {interactionModeToggle}
@@ -411,6 +419,7 @@ const ComposerFooterPrimaryActions = memo(function ComposerFooterPrimaryActions(
   onInterrupt: () => void;
   onImplementPlanInNewThread: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <>
       {props.activeContextWindow ? (
@@ -420,7 +429,7 @@ const ComposerFooterPrimaryActions = memo(function ComposerFooterPrimaryActions(
         />
       ) : null}
       {props.isPreparingWorktree ? (
-        <span className="text-secondary-label text-xs">Preparing worktree...</span>
+        <span className="text-secondary-label text-xs">{t("composer.preparingWorktree")}</span>
       ) : null}
       <ComposerPrimaryActions
         compact={props.compact}
@@ -601,6 +610,7 @@ export interface ChatComposerProps {
 // --------------------------------------------------------------------------
 
 export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps) {
+  const { t } = useI18n();
   const {
     composerDraftTarget,
     environmentId,
@@ -1240,7 +1250,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     projectSelectionRequired ||
     environmentUnavailable !== null ||
     !composerSendState.hasSendableContent;
-  const collapsedComposerPrimaryActionLabel = "Send message";
+  const collapsedComposerPrimaryActionLabel = t("composer.action.sendMessage");
   const showMobilePendingAnswerActions =
     isMobileViewport && !isComposerCollapsedMobile && pendingPrimaryAction !== null;
 
@@ -2772,9 +2782,9 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                     )}
                     onPointerDown={(event) => event.preventDefault()}
                     onClick={expandMobileComposer}
-                    aria-label="Write custom answer"
+                    aria-label={t("composer.action.writeCustomAnswer")}
                   >
-                    {activePendingProgress?.customAnswer || "Write custom answer"}
+                    {activePendingProgress?.customAnswer || t("composer.action.writeCustomAnswer")}
                   </button>
                   {activePendingProgress?.activeQuestion?.multiSelect ? (
                     <ComposerPrimaryActions
@@ -2816,13 +2826,14 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                 )}
                 onPointerDown={(event) => event.preventDefault()}
                 onClick={expandMobileComposer}
-                aria-label="Expand composer"
+                aria-label={t("composer.action.expand")}
               >
                 {activePendingProgress
-                  ? activePendingProgress.customAnswer ||
-                    "Type your own answer, or leave this blank to use the selected option"
+                  ? activePendingProgress.customAnswer || t("composer.placeholder.customAnswer")
                   : prompt.trim() ||
-                    (noProviderAvailable ? "Enable a provider in Settings" : "Ask anything...")}
+                    (noProviderAvailable
+                      ? t("composer.placeholder.enableProvider")
+                      : t("composer.placeholder.default"))}
               </button>
               <button
                 type="button"
@@ -2986,7 +2997,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                               render={
                                 <span
                                   role="img"
-                                  aria-label="Draft attachment may not persist"
+                                  aria-label={t("composer.attachmentWarningLabel")}
                                   className="absolute left-1 top-1 inline-flex items-center justify-center rounded bg-background/85 p-0.5 text-amber-600"
                                 >
                                   <CircleAlertIcon className="size-3" />
@@ -2997,8 +3008,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                               side="top"
                               className="max-w-64 whitespace-normal leading-tight"
                             >
-                              Draft attachment could not be saved locally and may be lost on
-                              navigation.
+                              {t("composer.attachmentWarningDescription")}
                             </TooltipPopup>
                           </Tooltip>
                         )}
@@ -3040,18 +3050,18 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                 onPaste={onComposerPaste}
                 placeholder={
                   isComposerApprovalState
-                    ? (activePendingApproval?.detail ?? "Resolve this approval request to continue")
+                    ? (activePendingApproval?.detail ?? t("composer.placeholder.approval"))
                     : activePendingProgress
-                      ? "Type your own answer, or leave this blank to use the selected option"
+                      ? t("composer.placeholder.customAnswer")
                       : showPlanFollowUpPrompt && activeProposedPlan
-                        ? "Add feedback to refine the plan, or leave this blank to implement it"
+                        ? t("composer.placeholder.refinePlan")
                         : projectSelectionRequired
-                          ? "Choose a project above to start a thread"
+                          ? t("composer.placeholder.chooseProject")
                           : noProviderAvailable
-                            ? "Enable a provider in Settings to send a message"
+                            ? t("composer.placeholder.enableProvider")
                             : phase === "disconnected"
-                              ? "Ask for follow-up changes or attach images"
-                              : "Ask anything, @tag files/folders, $use skills, or / for commands"
+                              ? t("composer.placeholder.followUp")
+                              : t("composer.placeholder.default")
                 }
                 disabled={isConnecting || isComposerApprovalState || projectSelectionRequired}
               />
@@ -3117,7 +3127,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                     className="shrink-0 gap-2 px-2 text-secondary-label sm:px-3"
                   >
                     <CircleAlertIcon className="size-4" />
-                    No provider available
+                    {t("composer.noProviderAvailable")}
                   </Button>
                 ) : (
                   <ProviderModelPicker

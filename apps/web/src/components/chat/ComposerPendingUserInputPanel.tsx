@@ -6,6 +6,7 @@ import {
   type PendingUserInputDraftAnswer,
 } from "../../pendingUserInput";
 import { CheckIcon } from "lucide-react";
+import { useI18n } from "~/i18n/WebI18nProvider";
 import { cn } from "~/lib/utils";
 
 interface PendingUserInputPanelProps {
@@ -57,6 +58,7 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
   onToggleOption: (questionId: string, optionLabel: string) => void;
   onAdvance: () => void;
 }) {
+  const { t } = useI18n();
   const progress = derivePendingUserInputProgress(prompt.questions, answers, questionIndex);
   const activeQuestion = progress.activeQuestion;
   const autoAdvanceTimerRef = useRef<number | null>(null);
@@ -166,7 +168,7 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
       </div>
       <p className="text-sm text-foreground/90">{activeQuestion.question}</p>
       {activeQuestion.multiSelect ? (
-        <p className="mt-1 text-secondary-label text-xs">Select one or more options.</p>
+        <p className="mt-1 text-secondary-label text-xs">{t("composer.selectMultiple")}</p>
       ) : null}
       <div className="mt-3 space-y-1.5">
         {activeQuestion.options.map((option, index) => {

@@ -62,6 +62,7 @@ import {
   useTheme,
 } from "../../hooks/useTheme";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
+import { useI18n } from "../../i18n/WebI18nProvider";
 import { usePrimarySettings, useUpdatePrimarySettings } from "../../hooks/useSettings";
 import { useThreadActions } from "../../hooks/useThreadActions";
 import { useDesktopUpdateState } from "../../state/desktopUpdate";
@@ -940,6 +941,7 @@ function BackgroundActivityAdvancedDialog({
 }
 
 export function AppearanceSettingsPanel() {
+  const { t } = useI18n();
   const {
     appearanceMode,
     refreshTheme,
@@ -966,7 +968,7 @@ export function AppearanceSettingsPanel() {
 
   return (
     <SettingsPageContainer>
-      <SettingsSection id="appearance" title="Appearance">
+      <SettingsSection id="appearance" title={t("settings.section.appearance")}>
         <div id={searchableSetting("theme").id}>
           <ThemeLibrary
             appearanceMode={appearanceMode}
@@ -985,6 +987,7 @@ export function AppearanceSettingsPanel() {
 
         <SettingsRow
           {...searchableSetting("setting-glass-opacity")}
+          title={t("settings.item.glassOpacity")}
           description="Control how transparent glass surfaces are. Higher values make menus, dialogs, and the composer more solid."
           resetAction={
             settings.glassOpacity !== DEFAULT_UNIFIED_SETTINGS.glassOpacity ? (
@@ -1032,6 +1035,7 @@ export function AppearanceSettingsPanel() {
         {showEnvironmentIdentification ? (
           <SettingsRow
             {...searchableSetting("environment-identification")}
+            title={t("settings.item.environmentIdentification")}
             description="Choose how Dev and Nightly environments are identified."
             resetAction={
               settings.environmentIdentificationMode !== DEFAULT_ENVIRONMENT_IDENTIFICATION_MODE ? (
@@ -1098,12 +1102,14 @@ function useFontDefaultFamilies() {
 }
 
 function InterfaceFontRow({ preview }: { preview?: ReactNode }) {
+  const { t } = useI18n();
   const settings = usePrimarySettings();
   const updateSettings = useUpdatePrimarySettings();
   const defaults = useFontDefaultFamilies();
   return (
     <FontFamilySettingsRow
       {...searchableSetting("interface-font")}
+      title={t("settings.item.interfaceFont")}
       description="Everything outside code blocks and the terminal."
       defaultFamily={defaults.sans}
       defaultValue={DEFAULT_UNIFIED_SETTINGS.fontFamilySans}
@@ -1129,12 +1135,14 @@ function InterfaceFontRow({ preview }: { preview?: ReactNode }) {
 }
 
 function PromptFontRow() {
+  const { t } = useI18n();
   const settings = usePrimarySettings();
   const updateSettings = useUpdatePrimarySettings();
   const defaults = useFontDefaultFamilies();
   return (
     <FontFamilySettingsRow
       {...searchableSetting("prompt-font")}
+      title={t("settings.item.promptFont")}
       description="Only the box you write prompts in. Mono works well here."
       defaultFamily={defaults.interfaceFamily}
       defaultValue={DEFAULT_UNIFIED_SETTINGS.fontFamilyComposer}
@@ -1168,13 +1176,14 @@ function CodeFontRow({
   description?: string;
   preview?: ReactNode;
 }) {
+  const { t } = useI18n();
   const settings = usePrimarySettings();
   const updateSettings = useUpdatePrimarySettings();
   const defaults = useFontDefaultFamilies();
   return (
     <FontFamilySettingsRow
       {...searchableSetting("code-font")}
-      {...(title !== undefined ? { title } : {})}
+      title={title ?? t("settings.item.codeFont")}
       description={description}
       defaultFamily={defaults.code}
       defaultValue={DEFAULT_UNIFIED_SETTINGS.fontFamilyCode}
@@ -1201,12 +1210,14 @@ function CodeFontRow({
 }
 
 function TerminalFontRow() {
+  const { t } = useI18n();
   const settings = usePrimarySettings();
   const updateSettings = useUpdatePrimarySettings();
   const defaults = useFontDefaultFamilies();
   return (
     <FontFamilySettingsRow
       {...searchableSetting("terminal-font")}
+      title={t("settings.item.terminalFont")}
       description="Terminal output, independent from code blocks and diffs."
       defaultFamily={defaults.code}
       defaultValue={DEFAULT_UNIFIED_SETTINGS.fontFamilyTerminal}
@@ -1242,12 +1253,14 @@ function TerminalFontRow() {
 }
 
 function FontSmoothingRow() {
+  const { t } = useI18n();
   const settings = usePrimarySettings();
   const updateSettings = useUpdatePrimarySettings();
   if (!isMacPlatform(navigator.platform)) return null;
   return (
     <SettingsRow
       {...searchableSetting("font-smoothing")}
+      title={t("settings.item.fontSmoothing")}
       description="Render text with thinner grayscale anti-aliasing instead of macOS's heavier default."
       resetAction={
         settings.fontSmoothing !== DEFAULT_UNIFIED_SETTINGS.fontSmoothing ? (
@@ -1271,11 +1284,13 @@ function FontSmoothingRow() {
 }
 
 function WordWrapRow() {
+  const { t } = useI18n();
   const settings = usePrimarySettings();
   const updateSettings = useUpdatePrimarySettings();
   return (
     <SettingsRow
       {...searchableSetting("word-wrap")}
+      title={t("settings.item.wordWrap")}
       description="Wrap long lines in code blocks, tables, diffs, and file previews by default."
       resetAction={
         settings.wordWrap !== DEFAULT_UNIFIED_SETTINGS.wordWrap ? (
@@ -1651,6 +1666,7 @@ const LEGACY_FEATURE_TARGET_IDS: ReadonlySet<string> = new Set([
  * jump to one of the rows unfolds the section.
  */
 function LegacyFeaturesSection() {
+  const { t } = useI18n();
   const settings = usePrimarySettings();
   const updateSettings = useUpdatePrimarySettings();
   const [open, setOpen] = useState(false);
@@ -1684,6 +1700,7 @@ function LegacyFeaturesSection() {
           <div className="relative space-y-1 overflow-visible pt-3 text-foreground">
             <SettingsRow
               {...searchableSetting("legacy-plan-mode")}
+              title={t("settings.item.legacyPlanMode")}
               description="Brings back the Build/Plan toggle in the composer along with the /plan and /default commands and the Shift+Tab shortcut. While off, every thread runs in build mode."
               control={
                 <Switch
@@ -1697,6 +1714,7 @@ function LegacyFeaturesSection() {
             />
             <SettingsRow
               {...searchableSetting("legacy-token-streaming")}
+              title={t("settings.item.legacyTokenStreaming")}
               description="Paints assistant output token by token instead of in complete chunks. Not recommended: it is significantly slower, and long responses become harder to follow. Kept only for compatibility with the old behavior."
               control={
                 <Switch
@@ -1723,6 +1741,7 @@ function LegacyFeaturesSection() {
             />
             <SettingsRow
               {...searchableSetting("legacy-sidebar")}
+              title={t("settings.item.legacySidebar")}
               description="Brings back the original sidebar with per-project thread trees. The default sidebar shows one flat list: active work as rich cards, settled threads as compact rows."
               control={
                 <Switch
@@ -1742,6 +1761,7 @@ function LegacyFeaturesSection() {
 }
 
 export function GeneralSettingsPanel() {
+  const { appLocale, setAppLocale, t } = useI18n();
   const settings = usePrimarySettings();
   const updateSettings = useUpdatePrimarySettings();
   const [backgroundActivityDialogOpen, setBackgroundActivityDialogOpen] = useState(false);
@@ -1796,9 +1816,46 @@ export function GeneralSettingsPanel() {
 
   return (
     <SettingsPageContainer>
-      <SettingsSection title="General">
+      <SettingsSection title={t("settings.section.general")}>
+        <SettingsRow
+          title={t("settings.language.title")}
+          description={t("settings.language.description")}
+          control={
+            <Select
+              value={appLocale}
+              onValueChange={(value) => {
+                if (value === "system" || value === "en" || value === "zh-CN") {
+                  setAppLocale(value);
+                }
+              }}
+            >
+              <SelectTrigger className="w-full sm:w-44" aria-label={t("settings.language.label")}>
+                <SelectValue>
+                  {appLocale === "system"
+                    ? t("settings.language.system")
+                    : appLocale === "zh-CN"
+                      ? t("settings.language.chineseSimplified")
+                      : t("settings.language.english")}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectPopup align="end" alignItemWithTrigger={false}>
+                <SelectItem hideIndicator value="system">
+                  {t("settings.language.system")}
+                </SelectItem>
+                <SelectItem hideIndicator value="en">
+                  {t("settings.language.english")}
+                </SelectItem>
+                <SelectItem hideIndicator value="zh-CN">
+                  {t("settings.language.chineseSimplified")}
+                </SelectItem>
+              </SelectPopup>
+            </Select>
+          }
+        />
+
         <SettingsRow
           {...searchableSetting("project-grouping")}
+          title={t("settings.item.projectGrouping")}
           description="Combine matching repositories across environments."
           resetAction={
             settings.sidebarProjectGroupingMode !==
@@ -1835,6 +1892,7 @@ export function GeneralSettingsPanel() {
 
         <SettingsRow
           {...searchableSetting("auto-settle-merged-threads")}
+          title={t("settings.item.autoSettleMergedThreads")}
           description="Settle a thread when its pull request merges. Closed pull requests still settle automatically."
           resetAction={
             settings.sidebarAutoSettleOnMerge !==
@@ -1862,6 +1920,7 @@ export function GeneralSettingsPanel() {
 
         <SettingsRow
           {...searchableSetting("auto-settle-inactive-threads")}
+          title={t("settings.item.autoSettleInactiveThreads")}
           description="Sidebar threads with no activity for this long settle automatically."
           resetAction={
             settings.sidebarAutoSettleAfterDays !==
@@ -1903,6 +1962,7 @@ export function GeneralSettingsPanel() {
 
         <SettingsRow
           {...searchableSetting("time-format")}
+          title={t("settings.item.timeFormat")}
           description="System default follows your browser or OS clock preference."
           resetAction={
             settings.timestampFormat !== DEFAULT_UNIFIED_SETTINGS.timestampFormat ? (
@@ -1945,6 +2005,7 @@ export function GeneralSettingsPanel() {
 
         <SettingsRow
           {...searchableSetting("hide-whitespace-changes")}
+          title={t("settings.item.hideWhitespaceChanges")}
           description="Set whether the diff panel ignores whitespace-only edits by default."
           resetAction={
             settings.diffIgnoreWhitespace !== DEFAULT_UNIFIED_SETTINGS.diffIgnoreWhitespace ? (
@@ -1971,6 +2032,7 @@ export function GeneralSettingsPanel() {
 
         <SettingsRow
           {...searchableSetting("provider-update-checks")}
+          title={t("settings.item.providerUpdateChecks")}
           description="Check installed provider CLIs for newer available versions."
           resetAction={
             settings.enableProviderUpdateChecks !==
@@ -2080,6 +2142,7 @@ export function GeneralSettingsPanel() {
 
         <SettingsRow
           {...searchableSetting("new-threads")}
+          title={t("settings.item.newThreads")}
           description="Pick the default workspace mode for newly created draft threads."
           resetAction={
             settings.defaultThreadEnvMode !== DEFAULT_UNIFIED_SETTINGS.defaultThreadEnvMode ||
@@ -2126,7 +2189,7 @@ export function GeneralSettingsPanel() {
         {settings.defaultThreadEnvMode === "worktree" ? (
           <SettingsRow
             className="bg-muted/20 sm:pl-9"
-            title={searchableSetting("start-from-origin").title}
+            title={t("settings.item.startFromOrigin")}
             description="Creates the worktree from the latest matching branch on origin instead of your local branch."
             resetAction={
               settings.newWorktreesStartFromOrigin !==
@@ -2156,6 +2219,7 @@ export function GeneralSettingsPanel() {
 
         <SettingsRow
           {...searchableSetting("add-project-starts-in")}
+          title={t("settings.item.addProjectStartsIn")}
           description='Leave empty to use "~/" when the Add Project browser opens.'
           resetAction={
             settings.addProjectBaseDirectory !==
@@ -2184,6 +2248,7 @@ export function GeneralSettingsPanel() {
 
         <SettingsRow
           {...searchableSetting("archive-confirmation")}
+          title={t("settings.item.archiveConfirmation")}
           description="Require a second click on the inline archive action before a thread is archived."
           resetAction={
             settings.confirmThreadArchive !== DEFAULT_UNIFIED_SETTINGS.confirmThreadArchive ? (
@@ -2210,6 +2275,7 @@ export function GeneralSettingsPanel() {
 
         <SettingsRow
           {...searchableSetting("delete-confirmation")}
+          title={t("settings.item.deleteConfirmation")}
           description="Ask before deleting a thread and its chat history."
           resetAction={
             settings.confirmThreadDelete !== DEFAULT_UNIFIED_SETTINGS.confirmThreadDelete ? (
@@ -2236,6 +2302,7 @@ export function GeneralSettingsPanel() {
 
         <SettingsRow
           {...searchableSetting("text-generation-model")}
+          title={t("settings.item.textGenerationModel")}
           description="Default model for generated text like thread titles and source control content. Source control settings can override it with a dedicated source control writer model."
           resetAction={
             isTextGenerationModelDirty ? (
@@ -2320,6 +2387,7 @@ export function GeneralSettingsPanel() {
         )}
         <SettingsRow
           {...searchableSetting("diagnostics")}
+          title={t("settings.item.diagnostics")}
           description={diagnosticsDescription}
           control={
             <Button render={<Link to="/settings/diagnostics" />} size="xs" variant="outline">
@@ -2335,6 +2403,7 @@ export function GeneralSettingsPanel() {
 }
 
 export function ArchivedThreadsPanel() {
+  const { t } = useI18n();
   const projects = useProjects();
   const { unarchiveThread, confirmAndDeleteThread } = useThreadActions();
   const environmentIds = useMemo(
@@ -2452,7 +2521,7 @@ export function ArchivedThreadsPanel() {
       {archivedGroups.length === 0 ? (
         <SettingsSection
           id={isLoadingArchive ? undefined : searchableSetting("archive").id}
-          title={searchableSetting("archive").title}
+          title={t("settings.item.archivedThreads")}
         >
           <SettingsRow
             title={

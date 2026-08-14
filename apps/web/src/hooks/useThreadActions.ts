@@ -38,6 +38,7 @@ import { formatWorktreePathForDisplay, getOrphanedWorktreePathForThread } from "
 import { stackedThreadToast, toastManager } from "../components/ui/toast";
 import { useClientSettings } from "./useSettings";
 import { useAtomCommand } from "../state/use-atom-command";
+import { useI18n } from "../i18n/WebI18nProvider";
 
 export class ThreadArchiveBlockedError extends Schema.TaggedErrorClass<ThreadArchiveBlockedError>()(
   "ThreadArchiveBlockedError",
@@ -136,6 +137,7 @@ export class ThreadPinReorderUnsupportedError extends Schema.TaggedErrorClass<Th
 }
 
 export function useThreadActions() {
+  const { t } = useI18n();
   const closeTerminal = useAtomCommand(terminalEnvironment.close);
   const archiveThreadMutation = useAtomCommand(threadEnvironment.archive, {
     reportFailure: false,
@@ -672,12 +674,12 @@ export function useThreadActions() {
       const resolved = resolveThreadTarget(target);
 
       if (confirmThreadDelete && localApi) {
-        const title = resolved?.thread.title ?? "this thread";
+        const title = resolved?.thread.title ?? t("sidebar.thisThread");
         const confirmationResult = await settlePromise(() =>
           localApi.dialogs.confirm(
             [
-              `Delete thread "${title}"?`,
-              "This permanently clears conversation history for this thread.",
+              t("sidebar.confirmDeleteThread", { title }),
+              t("sidebar.confirmDeleteThreadDescription"),
             ].join("\n"),
             { variant: "destructive" },
           ),
@@ -692,7 +694,7 @@ export function useThreadActions() {
 
       return deleteThread(target);
     },
-    [confirmThreadDelete, deleteThread, resolveThreadTarget],
+    [confirmThreadDelete, deleteThread, resolveThreadTarget, t],
   );
 
   return useMemo(

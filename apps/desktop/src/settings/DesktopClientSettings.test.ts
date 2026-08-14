@@ -13,6 +13,7 @@ import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import * as DesktopClientSettings from "./DesktopClientSettings.ts";
 
 const clientSettings: ClientSettings = {
+  appLocale: "system",
   confirmThreadArchive: true,
   confirmThreadDelete: false,
   dismissedProviderUpdateNotificationKeys: [],

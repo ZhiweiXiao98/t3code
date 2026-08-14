@@ -5,6 +5,7 @@ import { ProviderInstanceId } from "./providerInstance.ts";
 import {
   ClientSettingsSchema,
   ClientSettingsPatch,
+  DEFAULT_APP_LOCALE_PREFERENCE,
   DEFAULT_SERVER_SETTINGS,
   ServerSettings,
   ServerSettingsPatch,
@@ -15,6 +16,25 @@ const decodeClientSettingsPatch = Schema.decodeUnknownSync(ClientSettingsPatch);
 const decodeServerSettings = Schema.decodeUnknownSync(ServerSettings);
 const decodeServerSettingsPatch = Schema.decodeUnknownSync(ServerSettingsPatch);
 const encodeServerSettings = Schema.encodeSync(ServerSettings);
+
+describe("ClientSettings app locale", () => {
+  it("defaults to the system locale for legacy settings", () => {
+    expect(decodeClientSettings({}).appLocale).toBe(DEFAULT_APP_LOCALE_PREFERENCE);
+  });
+
+  it.each(["system", "en", "zh-CN"] as const)(
+    "accepts a supported app locale preference: %s",
+    (appLocale) => {
+      expect(decodeClientSettings({ appLocale }).appLocale).toBe(appLocale);
+      expect(decodeClientSettingsPatch({ appLocale }).appLocale).toBe(appLocale);
+    },
+  );
+
+  it.each(["zh-TW", "fr", "", null])("rejects an unsupported app locale: %s", (appLocale) => {
+    expect(() => decodeClientSettings({ appLocale })).toThrow();
+    expect(() => decodeClientSettingsPatch({ appLocale })).toThrow();
+  });
+});
 
 describe("ClientSettings word wrap", () => {
   it("defaults word wrap on", () => {

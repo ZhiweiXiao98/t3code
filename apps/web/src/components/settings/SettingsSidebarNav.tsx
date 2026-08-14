@@ -21,6 +21,8 @@ import {
 } from "lucide-react";
 import { useCanGoBack, useLocation, useNavigate } from "@tanstack/react-router";
 
+import { useI18n } from "../../i18n/WebI18nProvider";
+import type { WebMessageKey } from "../../i18n/messages";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Kbd } from "../ui/kbd";
@@ -38,8 +40,10 @@ import { scrollToSettingsTarget } from "./settingsLayout";
 import {
   searchSettings,
   SETTINGS_SECTION_LABELS,
+  SETTINGS_SEARCH_ITEMS,
   type SettingsPath,
   type SettingsSearchItem,
+  type SettingsSearchItemId,
 } from "./settingsSearch";
 
 const SETTINGS_SECTION_ICONS: Readonly<
@@ -52,6 +56,50 @@ const SETTINGS_SECTION_ICONS: Readonly<
   "/settings/source-control": GitBranchIcon,
   "/settings/connections": Link2Icon,
   "/settings/archived": ArchiveIcon,
+};
+
+const SETTINGS_SECTION_MESSAGE_KEYS: Readonly<Record<SettingsPath, WebMessageKey>> = {
+  "/settings/general": "settings.section.general",
+  "/settings/appearance": "settings.section.appearance",
+  "/settings/keybindings": "settings.section.keybindings",
+  "/settings/providers": "settings.section.providers",
+  "/settings/source-control": "settings.section.sourceControl",
+  "/settings/connections": "settings.section.connections",
+  "/settings/archived": "settings.section.archive",
+};
+
+const SETTINGS_SEARCH_MESSAGE_KEYS: Readonly<Record<SettingsSearchItemId, WebMessageKey>> = {
+  "color-scheme": "settings.item.colorScheme",
+  theme: "settings.item.themes",
+  "setting-glass-opacity": "settings.item.glassOpacity",
+  "environment-identification": "settings.item.environmentIdentification",
+  "interface-font": "settings.item.interfaceFont",
+  "prompt-font": "settings.item.promptFont",
+  "code-font": "settings.item.codeFont",
+  "terminal-font": "settings.item.terminalFont",
+  "font-smoothing": "settings.item.fontSmoothing",
+  "word-wrap": "settings.item.wordWrap",
+  "project-grouping": "settings.item.projectGrouping",
+  "auto-settle-inactive-threads": "settings.item.autoSettleInactiveThreads",
+  "auto-settle-merged-threads": "settings.item.autoSettleMergedThreads",
+  "time-format": "settings.item.timeFormat",
+  "hide-whitespace-changes": "settings.item.hideWhitespaceChanges",
+  "provider-update-checks": "settings.item.providerUpdateChecks",
+  "new-threads": "settings.item.newThreads",
+  "start-from-origin": "settings.item.startFromOrigin",
+  "add-project-starts-in": "settings.item.addProjectStartsIn",
+  "archive-confirmation": "settings.item.archiveConfirmation",
+  "delete-confirmation": "settings.item.deleteConfirmation",
+  "text-generation-model": "settings.item.textGenerationModel",
+  diagnostics: "settings.item.diagnostics",
+  "legacy-plan-mode": "settings.item.legacyPlanMode",
+  "legacy-token-streaming": "settings.item.legacyTokenStreaming",
+  "legacy-sidebar": "settings.item.legacySidebar",
+  keybindings: "settings.item.keybindings",
+  providers: "settings.item.providers",
+  "source-control": "settings.item.sourceControl",
+  "remote-environments": "settings.item.remoteEnvironments",
+  archive: "settings.item.archivedThreads",
 };
 
 export const SETTINGS_NAV_ITEMS: ReadonlyArray<{
@@ -70,6 +118,7 @@ function SettingsSectionIcon({ to }: { to: SettingsPath }) {
 }
 
 export function SettingsSidebarNav({ pathname }: { pathname: string }) {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const currentHash = useLocation({ select: (location) => location.hash });
   const canGoBack = useCanGoBack();
@@ -77,7 +126,18 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const [activeResultIndex, setActiveResultIndex] = useState(0);
-  const results = useMemo(() => searchSettings(query), [query]);
+  const localizedSearchItems = useMemo<ReadonlyArray<SettingsSearchItem>>(
+    () =>
+      SETTINGS_SEARCH_ITEMS.map((item) => ({
+        ...item,
+        title: t(SETTINGS_SEARCH_MESSAGE_KEYS[item.id]),
+      })),
+    [t],
+  );
+  const results = useMemo(
+    () => searchSettings(query, localizedSearchItems),
+    [localizedSearchItems, query],
+  );
   const isSearching = query.trim().length > 0;
   const hasResults = results.length > 0;
 
@@ -204,8 +264,8 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
                 setActiveResultIndex(0);
               }}
               onKeyDown={handleSearchKeyDown}
-              placeholder="Search"
-              aria-label="Search settings"
+              placeholder={t("settings.search.placeholder")}
+              aria-label={t("settings.search.label")}
               role="combobox"
               aria-autocomplete="list"
               aria-expanded={isSearching && hasResults}
@@ -223,7 +283,7 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
                 size="icon-xs"
                 variant="ghost"
                 className="size-5 shrink-0 rounded-sm text-sidebar-muted-foreground hover:bg-sidebar-control-surface hover:text-sidebar-foreground"
-                aria-label="Clear settings search"
+                aria-label={t("settings.search.clear")}
                 onClick={() => {
                   clearSearch();
                   searchInputRef.current?.focus();
@@ -240,14 +300,14 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
               role="status"
               className="px-2 py-6 text-center text-xs text-sidebar-muted-foreground"
             >
-              No settings found
+              {t("settings.search.empty")}
             </p>
           ) : null}
           <SidebarMenu
             className="ps-px"
             id={isSearching && hasResults ? "settings-search-results" : undefined}
             role={isSearching && hasResults ? "listbox" : undefined}
-            aria-label={isSearching && hasResults ? "Settings search results" : undefined}
+            aria-label={isSearching && hasResults ? t("settings.search.results") : undefined}
           >
             {isSearching
               ? results.map((item, index) => (
@@ -269,7 +329,7 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
                           {item.title}
                         </span>
                         <span className="block truncate text-[11px] text-sidebar-muted-foreground/75">
-                          {SETTINGS_SECTION_LABELS[item.to]}
+                          {t(SETTINGS_SECTION_MESSAGE_KEYS[item.to])}
                         </span>
                       </span>
                     </SidebarMenuButton>
@@ -285,7 +345,9 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
                         onClick={() => handleSectionClick(item.to)}
                       >
                         <Icon />
-                        <span className="truncate">{item.label}</span>
+                        <span className="truncate">
+                          {t(SETTINGS_SECTION_MESSAGE_KEYS[item.to])}
+                        </span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   );
@@ -300,7 +362,7 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
             <SidebarMenuItem>
               <SidebarMenuButton onClick={handleBackClick}>
                 <ArrowLeftIcon />
-                <span>Back</span>
+                <span>{t("common.back")}</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>

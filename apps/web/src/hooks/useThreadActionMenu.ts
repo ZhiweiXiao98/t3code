@@ -17,6 +17,7 @@ import { useCallback } from "react";
 import { resolveSnoozePresets, snoozeWakeDescription } from "../components/Sidebar.snooze";
 import {
   buildThreadActionMenuItems,
+  localizeSnoozePresetLabel,
   type ThreadActionMenuId,
 } from "../components/threadActionMenu.logic";
 import { stackedThreadToast, toastManager } from "../components/ui/toast";
@@ -35,6 +36,7 @@ import { useCopyToClipboard } from "./useCopyToClipboard";
 import { useNewThreadHandler } from "./useHandleNewThread";
 import { useClientSettings } from "./useSettings";
 import { useThreadActions } from "./useThreadActions";
+import { useI18n } from "../i18n/WebI18nProvider";
 
 function failureToast(title: string, error: unknown) {
   toastManager.add(
@@ -65,6 +67,7 @@ export function useThreadActionMenu(input: {
   readonly onStartRename: () => void;
 }) {
   const { threadRef, projectCwd, changeRequestState, onStartRename } = input;
+  const { t } = useI18n();
   const {
     settleThread,
     unsettleThread,
@@ -122,26 +125,33 @@ export function useThreadActionMenu(input: {
         };
         const isRegeneratingTitle = thread.titleRegeneration != null;
         const snoozePresets = resolveSnoozePresets(now, timestampFormat);
-        const items = buildThreadActionMenuItems({
-          branch: thread.branch ?? null,
-          isPinned: thread.pinnedAt != null,
-          isSettled:
-            supports.settlement &&
-            effectiveSettled(thread, {
-              // Minute-quantized like useNowMinute, so this classification
-              // can never disagree with the sidebar partition or ChatView's
-              // parked-thread banner within the same minute.
-              now: `${now.toISOString().slice(0, 16)}:00.000Z`,
-              autoSettleAfterDays,
-              autoSettleOnMerge,
-              changeRequestState,
-            }),
-          isSnoozed: supports.snooze && effectiveSnoozed(thread, { now: now.toISOString() }),
-          canSnoozeNow: canSnooze(thread, { now: now.toISOString() }),
-          isRegeneratingTitle,
-          supports,
-          snoozePresets,
-        });
+        const localizedSnoozePresets = snoozePresets.map((preset) => ({
+          ...preset,
+          label: localizeSnoozePresetLabel(preset, t),
+        }));
+        const items = buildThreadActionMenuItems(
+          {
+            branch: thread.branch ?? null,
+            isPinned: thread.pinnedAt != null,
+            isSettled:
+              supports.settlement &&
+              effectiveSettled(thread, {
+                // Minute-quantized like useNowMinute, so this classification
+                // can never disagree with the sidebar partition or ChatView's
+                // parked-thread banner within the same minute.
+                now: `${now.toISOString().slice(0, 16)}:00.000Z`,
+                autoSettleAfterDays,
+                autoSettleOnMerge,
+                changeRequestState,
+              }),
+            isSnoozed: supports.snooze && effectiveSnoozed(thread, { now: now.toISOString() }),
+            canSnoozeNow: canSnooze(thread, { now: now.toISOString() }),
+            isRegeneratingTitle,
+            supports,
+            snoozePresets: localizedSnoozePresets,
+          },
+          t,
+        );
         const clicked = await settlePromise(() => api.contextMenu.show(items, position));
         if (clicked._tag === "Failure" || clicked.value === null) return;
         const action: ThreadActionMenuId = clicked.value;
@@ -258,8 +268,8 @@ export function useThreadActionMenu(input: {
               const confirmed = await settlePromise(() =>
                 api.dialogs.confirm(
                   [
-                    `Delete thread "${thread.title}"?`,
-                    "This permanently clears conversation history for this thread.",
+                    t("sidebar.confirmDeleteThread", { title: thread.title }),
+                    t("sidebar.confirmDeleteThreadDescription"),
                   ].join("\n"),
                   { variant: "destructive" },
                 ),
@@ -275,7 +285,7 @@ export function useThreadActionMenu(input: {
               // that itself, and "Failed to delete thread" would be a lie.
               readThreadShell(threadRef) !== null
             ) {
-              failureToast("Failed to delete thread", squashAtomCommandFailure(deleted));
+              failureToast(t("sidebar.deleteThreadFailed"), squashAtomCommandFailure(deleted));
             }
             return;
           }
@@ -300,6 +310,7 @@ export function useThreadActionMenu(input: {
       projectCwd,
       settleThread,
       snoozeThread,
+      t,
       threadRef,
       timestampFormat,
       unpinThread,

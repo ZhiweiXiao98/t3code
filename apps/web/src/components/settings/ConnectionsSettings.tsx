@@ -37,6 +37,7 @@ import * as DateTime from "effect/DateTime";
 import * as Option from "effect/Option";
 
 import { useCopyToClipboard } from "../../hooks/useCopyToClipboard";
+import { useI18n } from "../../i18n/WebI18nProvider";
 import { cn } from "../../lib/utils";
 import { formatElapsedDurationLabel, formatExpiresInLabel } from "../../timestampFormat";
 import { resolveDesktopPairingUrl, resolveHostedPairingUrl } from "./pairingUrls";
@@ -1344,6 +1345,7 @@ function SavedBackendListRow({
   onConnect,
   onRemove,
 }: SavedBackendListRowProps) {
+  const { t } = useI18n();
   const environmentId = environment.environmentId;
   const connectionState = environment.connection.phase;
   const isConnected = connectionState === "connected";
@@ -1493,7 +1495,9 @@ function SavedBackendListRow({
                   disabled={removingEnvironmentId === environmentId}
                   onClick={() => void onRemove(environmentId)}
                 >
-                  {removingEnvironmentId === environmentId ? "Removing…" : "Remove"}
+                  {removingEnvironmentId === environmentId
+                    ? t("connections.saved.removing")
+                    : t("connections.saved.remove")}
                 </Button>
               ) : null}
               <Button
@@ -1506,11 +1510,11 @@ function SavedBackendListRow({
               >
                 {isConnected
                   ? removingEnvironmentId === environmentId
-                    ? "Disconnecting…"
-                    : "Disconnect"
+                    ? t("connections.saved.disconnecting")
+                    : t("connections.saved.disconnect")
                   : isConnecting
-                    ? "Connecting…"
-                    : "Connect"}
+                    ? t("connections.saved.connecting")
+                    : t("connections.saved.connect")}
               </Button>
             </>
           )}
@@ -1531,9 +1535,13 @@ const DesktopSshHostRow = memo(function DesktopSshHostRow({
   connectingHostAlias,
   onConnect,
 }: DesktopSshHostRowProps) {
+  const { t } = useI18n();
   const address = formatDesktopSshTarget(target);
   const showAddress = address !== target.alias;
-  const buttonLabel = connectingHostAlias === target.alias ? "Adding…" : "Add environment";
+  const buttonLabel =
+    connectingHostAlias === target.alias
+      ? t("connections.addEnvironment.adding")
+      : t("connections.addEnvironment.action");
 
   return (
     <div className="rounded-xl px-3 py-3 sm:px-4">
@@ -1689,17 +1697,17 @@ function CloudLinkRow({ canManageRelay }: { readonly canManageRelay: boolean }) 
 }
 
 function EmptyRemoteEnvironments({ cloudEnabled = true }: { readonly cloudEnabled?: boolean }) {
+  const { t } = useI18n();
+
   return (
     <Empty className="min-h-52">
       <EmptyMedia variant="icon">
         <ChevronsLeftRightEllipsisIcon />
       </EmptyMedia>
       <EmptyHeader>
-        <EmptyTitle>No saved remote environments</EmptyTitle>
+        <EmptyTitle>{t("connections.empty.title")}</EmptyTitle>
         <EmptyDescription>
-          {cloudEnabled
-            ? "Click “Add environment” to pair another environment, or connect one from T3 Connect."
-            : "Click “Add environment” to pair another environment."}
+          {cloudEnabled ? t("connections.empty.withCloud") : t("connections.empty.withoutCloud")}
         </EmptyDescription>
       </EmptyHeader>
     </Empty>
@@ -1725,6 +1733,7 @@ function CloudRemoteEnvironmentRows({
 }
 
 export function ConnectionsSettings() {
+  const { t } = useI18n();
   const desktopBridge = window.desktopBridge;
   const { environments } = useEnvironments();
   const primaryEnvironment = usePrimaryEnvironment();
@@ -2408,7 +2417,9 @@ export function ConnectionsSettings() {
     <div className="space-y-3">
       <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_10rem]">
         <label className="block">
-          <span className="mb-1.5 block text-xs font-medium text-foreground">Host</span>
+          <span className="mb-1.5 block text-xs font-medium text-foreground">
+            {t("connections.remoteLink.host")}
+          </span>
           <Input
             value={savedBackendHost}
             onChange={(event) => handleSavedBackendHostChange(event.target.value)}
@@ -2418,7 +2429,9 @@ export function ConnectionsSettings() {
           />
         </label>
         <label className="block">
-          <span className="mb-1.5 block text-xs font-medium text-foreground">Pairing code</span>
+          <span className="mb-1.5 block text-xs font-medium text-foreground">
+            {t("connections.remoteLink.pairingCode")}
+          </span>
           <Input
             value={savedBackendPairingCode}
             onChange={(event) => setSavedBackendPairingCode(event.target.value)}
@@ -2430,7 +2443,7 @@ export function ConnectionsSettings() {
       </div>
       <div>
         <span className="mt-1 block text-[11px] text-muted-foreground">
-          Paste a full pairing URL here to fill both fields automatically.
+          {t("connections.remoteLink.pairingUrlHint")}
         </span>
       </div>
     </div>
@@ -2446,7 +2459,9 @@ export function ConnectionsSettings() {
         onClick={() => void handleAddSavedBackend()}
       >
         <PlusIcon className="size-3.5" />
-        {isAddingSavedBackend ? "Adding…" : "Add environment"}
+        {isAddingSavedBackend
+          ? t("connections.addEnvironment.adding")
+          : t("connections.addEnvironment.action")}
       </Button>
     </div>
   );
@@ -2500,7 +2515,9 @@ export function ConnectionsSettings() {
           onClick={() => void handleAddSavedBackend()}
         >
           <PlusIcon className="size-3.5" />
-          {isAddingSavedBackend ? "Adding…" : "Add environment"}
+          {isAddingSavedBackend
+            ? t("connections.addEnvironment.adding")
+            : t("connections.addEnvironment.action")}
         </Button>
       </div>
       <div className="overflow-hidden rounded-lg border border-border/60">
@@ -3355,6 +3372,7 @@ export function ConnectionsSettings() {
 
       <SettingsSection
         {...searchableSetting("remote-environments")}
+        title={t("connections.remoteEnvironments.title")}
         headerAction={
           <Dialog
             open={addBackendDialogOpen}
@@ -3374,29 +3392,29 @@ export function ConnectionsSettings() {
                         size="xs"
                         variant="ghost"
                         className="h-5 gap-1 rounded-sm px-1 text-[11px] font-normal text-muted-foreground/60 hover:text-muted-foreground"
-                        aria-label="Add environment"
+                        aria-label={t("connections.addEnvironment.action")}
                       >
                         <PlusIcon className="size-3" />
-                        <span>Add environment</span>
+                        <span>{t("connections.addEnvironment.action")}</span>
                       </Button>
                     }
                   />
                 }
               />
-              <TooltipPopup side="top">Add environment</TooltipPopup>
+              <TooltipPopup side="top">{t("connections.addEnvironment.action")}</TooltipPopup>
             </Tooltip>
             <DialogPopup className="max-h-[80dvh] sm:max-w-3xl">
               <DialogHeader>
-                <DialogTitle>Add Environment</DialogTitle>
-                <DialogDescription>Pair another environment to this client.</DialogDescription>
+                <DialogTitle>{t("connections.addEnvironment.title")}</DialogTitle>
+                <DialogDescription>{t("connections.addEnvironment.description")}</DialogDescription>
               </DialogHeader>
               <DialogPanel>
                 <div className="space-y-4">
                   <div className="grid gap-3 sm:grid-cols-2">
                     {renderConnectionModeCard({
                       mode: "remote",
-                      title: "Remote link",
-                      description: "Enter a backend host and pairing code.",
+                      title: t("connections.remoteLink.title"),
+                      description: t("connections.remoteLink.description"),
                       icon: <ChevronsLeftRightEllipsisIcon aria-hidden className="size-4" />,
                     })}
                     {desktopBridge

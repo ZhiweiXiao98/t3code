@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { type PendingApproval } from "../../session-logic";
+import { useI18n } from "../../i18n/WebI18nProvider";
 
 interface ComposerPendingApprovalPanelProps {
   approval: PendingApproval;
@@ -10,23 +11,24 @@ export const ComposerPendingApprovalPanel = memo(function ComposerPendingApprova
   approval,
   pendingCount,
 }: ComposerPendingApprovalPanelProps) {
+  const { t } = useI18n();
   const approvalSummary =
     approval.requestKind === "command"
-      ? "Command approval requested"
+      ? t("composer.approval.commandRequested")
       : approval.requestKind === "file-read"
-        ? "File-read approval requested"
-        : "File-change approval requested";
+        ? t("composer.approval.fileReadRequested")
+        : t("composer.approval.fileChangeRequested");
   const detailLabel =
     approval.requestKind === "command"
-      ? "Command"
+      ? t("composer.approval.command")
       : approval.requestKind === "file-read"
-        ? "File to read"
-        : "File change";
+        ? t("composer.approval.fileToRead")
+        : t("composer.approval.fileChange");
 
   return (
     <div className="px-4 py-3.5 sm:px-5 sm:py-4">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="uppercase text-sm tracking-[0.2em]">PENDING APPROVAL</span>
+        <span className="uppercase text-sm tracking-[0.2em]">{t("composer.approval.pending")}</span>
         <span className="text-sm font-medium">{approvalSummary}</span>
         {pendingCount > 1 ? (
           <span className="text-xs text-muted-foreground">1/{pendingCount}</span>

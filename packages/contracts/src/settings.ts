@@ -14,6 +14,10 @@ import { ProviderInstanceConfig, ProviderInstanceId } from "./providerInstance.t
 
 // ── Client Settings (local-only) ───────────────────────────────
 
+export const AppLocalePreference = Schema.Literals(["system", "en", "zh-CN"]);
+export type AppLocalePreference = typeof AppLocalePreference.Type;
+export const DEFAULT_APP_LOCALE_PREFERENCE: AppLocalePreference = "system";
+
 export const TimestampFormat = Schema.Literals(["locale", "12-hour", "24-hour"]);
 export type TimestampFormat = typeof TimestampFormat.Type;
 export const DEFAULT_TIMESTAMP_FORMAT: TimestampFormat = "locale";
@@ -112,6 +116,9 @@ export const FontFamilyPreference = Schema.String.check(Schema.isMaxLength(200))
 export type FontFamilyPreference = typeof FontFamilyPreference.Type;
 
 export const ClientSettingsSchema = Schema.Struct({
+  appLocale: AppLocalePreference.pipe(
+    Schema.withDecodingDefault(Effect.succeed(DEFAULT_APP_LOCALE_PREFERENCE)),
+  ),
   confirmThreadArchive: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
   confirmThreadDelete: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
   dismissedProviderUpdateNotificationKeys: Schema.Array(TrimmedNonEmptyString).pipe(
@@ -756,6 +763,7 @@ export const ServerSettingsPatch = Schema.Struct({
 export type ServerSettingsPatch = typeof ServerSettingsPatch.Type;
 
 export const ClientSettingsPatch = Schema.Struct({
+  appLocale: Schema.optionalKey(AppLocalePreference),
   confirmThreadArchive: Schema.optionalKey(Schema.Boolean),
   confirmThreadDelete: Schema.optionalKey(Schema.Boolean),
   diffIgnoreWhitespace: Schema.optionalKey(Schema.Boolean),

@@ -1,6 +1,8 @@
 import type { ContextMenuItem } from "@t3tools/contracts";
 import type { SnoozePreset } from "@t3tools/client-runtime/state/thread-settled";
 
+import type { WebTranslate } from "../i18n/WebI18nProvider";
+
 /**
  * Ids for the per-thread action menu. Snooze presets are dispatched as
  * `snooze:<presetId>` so the union stays closed while the preset list
@@ -39,6 +41,23 @@ export interface ThreadActionMenuState {
   readonly snoozePresets: ReadonlyArray<SnoozePreset>;
 }
 
+export function localizeSnoozePresetLabel(preset: SnoozePreset, t: WebTranslate): string {
+  switch (preset.id) {
+    case "hour":
+      return t("sidebar.snooze.hour");
+    case "three-hours":
+      return t("sidebar.snooze.threeHours");
+    case "evening":
+      return t("sidebar.snooze.evening");
+    case "tomorrow":
+      return t("sidebar.snooze.tomorrow");
+    case "next-week":
+      return t("sidebar.snooze.nextWeek");
+    default:
+      return preset.label;
+  }
+}
+
 /**
  * Single source for the per-thread action menu: the sidebar row's right-click
  * menu and the chat header menu both render exactly this list, so labels,
@@ -46,21 +65,30 @@ export interface ThreadActionMenuState {
  */
 export function buildThreadActionMenuItems(
   state: ThreadActionMenuState,
+  translate?: WebTranslate,
 ): ReadonlyArray<ContextMenuItem<ThreadActionMenuId>> {
+  const label = (
+    key: Parameters<WebTranslate>[0],
+    fallback: string,
+    values?: Parameters<WebTranslate>[1],
+  ) => translate?.(key, values) ?? fallback;
+
   return [
     ...(state.branch
       ? [
           {
             id: "new-thread-on-branch" as const,
-            label: `New thread on ${state.branch}`,
+            label: label("sidebar.action.newThreadOnBranch", `New thread on ${state.branch}`, {
+              branch: state.branch,
+            }),
           },
         ]
       : []),
     ...(state.supports.pinning
       ? [
           state.isPinned
-            ? { id: "unpin" as const, label: "Unpin thread" }
-            : { id: "pin" as const, label: "Pin thread" },
+            ? { id: "unpin" as const, label: label("sidebar.action.unpin", "Unpin thread") }
+            : { id: "pin" as const, label: label("sidebar.action.pin", "Pin thread") },
         ]
       : []),
     // Both lifecycle actions stay available on pinned threads: settling
@@ -69,17 +97,23 @@ export function buildThreadActionMenuItems(
     ...(state.supports.settlement
       ? [
           state.isSettled
-            ? { id: "unsettle" as const, label: "Un-settle thread" }
-            : { id: "settle" as const, label: "Settle thread" },
+            ? {
+                id: "unsettle" as const,
+                label: label("sidebar.action.unsettle", "Un-settle thread"),
+              }
+            : {
+                id: "settle" as const,
+                label: label("sidebar.action.settle", "Settle thread"),
+              },
         ]
       : []),
     ...(state.supports.snooze
       ? [
           state.isSnoozed
-            ? { id: "unsnooze" as const, label: "Wake thread" }
+            ? { id: "unsnooze" as const, label: label("sidebar.action.wake", "Wake thread") }
             : {
                 id: "snooze" as const,
-                label: "Snooze",
+                label: label("sidebar.action.snooze", "Snooze"),
                 disabled: !state.canSnoozeNow,
                 children: state.snoozePresets.map((preset) => ({
                   id: `snooze:${preset.id}` as const,
@@ -88,20 +122,39 @@ export function buildThreadActionMenuItems(
               },
         ]
       : []),
-    { id: "rename", label: "Rename thread" },
+    { id: "rename", label: label("sidebar.action.rename", "Rename thread") },
     ...(state.supports.titleRegeneration
       ? [
           {
             id: "regenerate-title" as const,
-            label: state.isRegeneratingTitle ? "Regenerating…" : "Regenerate title",
+            label: state.isRegeneratingTitle
+              ? label("sidebar.action.regenerating", "Regenerating…")
+              : label("sidebar.action.regenerateTitle", "Regenerate title"),
             disabled: state.isRegeneratingTitle,
           },
         ]
       : []),
-    { id: "mark-unread", label: "Mark unread" },
-    { id: "copy-path", label: "Copy path", icon: "copy" },
-    ...(state.branch ? [{ id: "copy-branch" as const, label: "Copy branch", icon: "copy" }] : []),
-    { id: "copy-thread-id", label: "Copy thread ID", icon: "copy" },
-    { id: "delete", label: "Delete", destructive: true, icon: "trash" },
+    { id: "mark-unread", label: label("sidebar.action.markUnread", "Mark unread") },
+    { id: "copy-path", label: label("sidebar.action.copyPath", "Copy path"), icon: "copy" },
+    ...(state.branch
+      ? [
+          {
+            id: "copy-branch" as const,
+            label: label("sidebar.action.copyBranch", "Copy branch"),
+            icon: "copy",
+          },
+        ]
+      : []),
+    {
+      id: "copy-thread-id",
+      label: label("sidebar.action.copyThreadId", "Copy thread ID"),
+      icon: "copy",
+    },
+    {
+      id: "delete",
+      label: label("common.delete", "Delete"),
+      destructive: true,
+      icon: "trash",
+    },
   ];
 }

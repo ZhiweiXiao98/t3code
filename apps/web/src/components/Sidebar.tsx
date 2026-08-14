@@ -83,6 +83,7 @@ import {
   threadTraversalDirectionFromCommand,
 } from "../keybindings";
 import { useShortcutModifierState } from "../shortcutModifierState";
+import { useI18n } from "../i18n/WebI18nProvider";
 import { isTerminalFocused } from "../lib/terminalFocus";
 import { isModelPickerOpen } from "../modelPickerVisibility";
 import { selectThreadTerminalUiState, useTerminalUiStateStore } from "../terminalUiStateStore";
@@ -119,7 +120,7 @@ import {
 import { formatRelativeTimeLabel, parseTimestampDate } from "../timestampFormat";
 import type { SidebarThreadSummary } from "../types";
 import { cn } from "~/lib/utils";
-import { buildThreadActionMenuItems } from "./threadActionMenu.logic";
+import { buildThreadActionMenuItems, localizeSnoozePresetLabel } from "./threadActionMenu.logic";
 import {
   buildBulkTitleRegenerationContextMenuItem,
   formatWorkingDurationLabel,
@@ -358,6 +359,7 @@ function SnoozePopoverButton(props: {
   timestampFormat: TimestampFormat;
 }) {
   const { open, onOpenChange, onSnooze, timestampFormat } = props;
+  const { t } = useI18n();
   // Presets resolve at open time so "In 1 hour" is relative to the click,
   // not to when the row mounted.
   const presets = useMemo(
@@ -370,7 +372,7 @@ function SnoozePopoverButton(props: {
         render={
           <button
             type="button"
-            aria-label="Snooze thread"
+            aria-label={t("sidebar.action.snooze")}
             onClick={(event) => event.stopPropagation()}
             onDoubleClick={(event) => event.stopPropagation()}
             className="inline-flex h-full cursor-pointer items-center gap-0.5 rounded-md bg-transparent px-1.5 text-xs text-muted-foreground hover:text-foreground"
@@ -391,7 +393,7 @@ function SnoozePopoverButton(props: {
             }}
             className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-foreground/90 hover:bg-accent hover:text-foreground"
           >
-            <span className="flex-1">{preset.label}</span>
+            <span className="flex-1">{localizeSnoozePresetLabel(preset, t)}</span>
             <span className="font-mono text-[10px] text-muted-foreground/60 tabular-nums">
               {preset.whenLabel}
             </span>
@@ -728,6 +730,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: {
     variant,
     variantAction,
   } = props;
+  const { t } = useI18n();
   const threadRef = useMemo(
     () => scopeThreadRef(thread.environmentId, thread.id),
     [thread.environmentId, thread.id],
@@ -793,7 +796,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: {
   const topStatus =
     status === "working"
       ? {
-          label: "Working",
+          label: t("sidebar.status.working"),
           icon: "working" as const,
           // No shimmer: a label that animates forever is noise in a sidebar
           // full of them (and repaints every vsync on high-refresh displays).
@@ -806,37 +809,37 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: {
         ? {
             // Monitoring is calm background presence, not active progress
             // (monitoring-pill D6), so it keeps the label at full strength.
-            label: "Monitoring",
+            label: t("sidebar.status.monitoring"),
             icon: null,
             className: "text-sky-600 dark:text-sky-400",
           }
         : status === "approval"
           ? {
-              label: "Approval",
+              label: t("sidebar.status.approval"),
               icon: null,
               className: "text-amber-700 dark:text-amber-300",
             }
           : status === "input"
             ? {
-                label: "Input",
+                label: t("sidebar.status.input"),
                 icon: null,
                 className: "text-indigo-600 dark:text-indigo-300",
               }
             : status === "failed"
               ? {
-                  label: "Failed",
+                  label: t("sidebar.status.failed"),
                   icon: null,
                   className: "text-red-700 dark:text-red-300",
                 }
               : isWoke
                 ? {
-                    label: "Woke",
+                    label: t("sidebar.status.woke"),
                     icon: "woke" as const,
                     className: "text-amber-700 dark:text-amber-300",
                   }
                 : isUnread
                   ? {
-                      label: "Done",
+                      label: t("sidebar.status.done"),
                       icon: "done" as const,
                       className: "text-emerald-700 dark:text-emerald-300",
                     }
@@ -1044,7 +1047,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: {
     <input
       autoFocus
       value={renamingTitle}
-      aria-label="Thread title"
+      aria-label={t("sidebar.threadTitle")}
       onChange={(event) => onRenameTitleChange(event.target.value)}
       onFocus={(event) => event.currentTarget.select()}
       onKeyDown={handleRenameKeyDown}
@@ -1163,7 +1166,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: {
             {terminalStatusIcon}
             {isRegeneratingTitle ? (
               <span role="status" className="sr-only">
-                Regenerating title
+                {t("sidebar.action.regenerating")}
               </span>
             ) : null}
             {/* The PR badge stays outside the hover-fading slot: it must
@@ -1188,13 +1191,13 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: {
                   // merged while snoozed); the signal must survive the trip.
                   <button
                     type="button"
-                    aria-label="Dismiss Woke notification"
-                    title="Dismiss Woke notification"
+                    aria-label={t("sidebar.action.dismissWoke")}
+                    title={t("sidebar.action.dismissWoke")}
                     onClick={handleAcknowledgeWokeClick}
                     className="inline-flex cursor-pointer items-center gap-1 rounded-sm text-xs font-medium text-amber-700 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring dark:text-amber-300"
                   >
                     <AlarmClockIcon aria-hidden className="size-3" />
-                    <span role="status">Woke</span>
+                    <span role="status">{t("sidebar.status.woke")}</span>
                   </button>
                 ) : (
                   <span className="text-xs">
@@ -1208,7 +1211,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: {
                 !props.snoozeSupported ? null : (
                   <button
                     type="button"
-                    aria-label="Wake thread now"
+                    aria-label={t("sidebar.action.wake")}
                     onClick={handleUnsnoozeClick}
                     className={cn(
                       "pointer-events-none absolute inset-y-0 right-0 -mr-1 inline-flex cursor-pointer items-center gap-1 rounded-md bg-transparent px-1.5 text-xs text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:pointer-events-auto focus-visible:opacity-100 group-hover/sidebar-row:pointer-events-auto group-hover/sidebar-row:opacity-100",
@@ -1221,7 +1224,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: {
               ) : !props.settlementSupported ? null : variantAction === "unsettle" ? (
                 <button
                   type="button"
-                  aria-label="Un-settle thread"
+                  aria-label={t("sidebar.action.unsettle")}
                   onClick={handleUnsettleClick}
                   className={cn(
                     "pointer-events-none absolute inset-y-0 right-0 -mr-1 inline-flex cursor-pointer items-center gap-1 rounded-md bg-transparent px-1.5 text-xs text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:pointer-events-auto focus-visible:opacity-100 group-hover/sidebar-row:pointer-events-auto group-hover/sidebar-row:opacity-100",
@@ -1233,7 +1236,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: {
               ) : (
                 <button
                   type="button"
-                  aria-label="Settle thread"
+                  aria-label={t("sidebar.action.settle")}
                   onClick={handleSettleClick}
                   className={cn(
                     "pointer-events-none absolute inset-y-0 right-0 inline-flex cursor-pointer items-center gap-1 rounded-md bg-transparent px-2 text-xs text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:pointer-events-auto focus-visible:opacity-100 group-hover/sidebar-row:pointer-events-auto group-hover/sidebar-row:opacity-100",
@@ -1313,8 +1316,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: {
                 props.pinningSupported ? (
                   <button
                     type="button"
-                    aria-label="Unpin thread"
-                    title="Unpin thread"
+                    aria-label={t("sidebar.action.unpin")}
+                    title={t("sidebar.action.unpin")}
                     onClick={handleUnpinClick}
                     className="inline-flex cursor-pointer items-center rounded-sm text-muted-foreground/65 outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
                   >
@@ -1322,7 +1325,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: {
                   </button>
                 ) : (
                   <PinIcon
-                    aria-label="Pinned"
+                    aria-label={t("sidebar.status.pinned")}
                     role="img"
                     className="size-3 shrink-0 text-muted-foreground/65"
                   />
@@ -1349,8 +1352,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: {
                     isWokeStatus ? (
                       <button
                         type="button"
-                        aria-label="Dismiss Woke notification"
-                        title="Dismiss Woke notification"
+                        aria-label={t("sidebar.action.dismissWoke")}
+                        title={t("sidebar.action.dismissWoke")}
                         onClick={handleAcknowledgeWokeClick}
                         className={cn(
                           "inline-flex cursor-pointer items-center gap-1 rounded-sm font-medium outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring",
@@ -1410,12 +1413,12 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: {
                     {props.settlementSupported ? (
                       <button
                         type="button"
-                        aria-label="Settle thread"
+                        aria-label={t("sidebar.action.settle")}
                         onClick={handleSettleClick}
                         className="-mr-1 inline-flex cursor-pointer items-center gap-1 rounded-md bg-transparent px-1.5 text-xs text-muted-foreground hover:text-foreground"
                       >
                         <CheckIcon className="size-3.5" />
-                        Settle
+                        {t("sidebar.action.settle")}
                       </button>
                     ) : null}
                   </span>
@@ -1426,7 +1429,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: {
               {title}
               {isRegeneratingTitle ? (
                 <span role="status" className="sr-only">
-                  Regenerating title
+                  {t("sidebar.action.regenerating")}
                 </span>
               ) : null}
             </div>
@@ -1592,6 +1595,7 @@ const SidebarSearchResultRow = memo(function SidebarSearchResultRow(props: {
 });
 
 export default function Sidebar() {
+  const { t } = useI18n();
   const projects = useProjects();
   const projectOrder = useUiStateStore((store) => store.projectOrder);
   const threads = useThreadShells();
@@ -2732,30 +2736,44 @@ export default function Sidebar() {
       const regeneratableTitleThreads = titleRegenerationThreads.filter(
         (thread) => thread.titleRegeneration == null,
       );
-      const titleRegenerationMenuItem = buildBulkTitleRegenerationContextMenuItem({
+      const titleRegenerationMenuItemEnglish = buildBulkTitleRegenerationContextMenuItem({
         supportedCount: titleRegenerationThreads.length,
         actionableCount: regeneratableTitleThreads.length,
       });
+      const titleRegenerationMenuItem = titleRegenerationMenuItemEnglish
+        ? {
+            ...titleRegenerationMenuItemEnglish,
+            label: `${t(
+              titleRegenerationMenuItemEnglish.disabled
+                ? "sidebar.action.regenerating"
+                : "sidebar.action.regenerateTitle",
+            )} (${
+              titleRegenerationMenuItemEnglish.disabled
+                ? titleRegenerationThreads.length
+                : regeneratableTitleThreads.length
+            })`,
+          }
+        : null;
       const snoozePresets = resolveSnoozePresets(new Date(), timestampFormat);
       const clicked = await settlePromise(() =>
         api.contextMenu.show(
           [
-            { id: "settle", label: `Settle (${count})` },
+            { id: "settle", label: `${t("sidebar.action.settle")} (${count})` },
             ...(canSnoozeSelection
               ? [
                   {
                     id: "snooze",
-                    label: `Snooze (${count})`,
+                    label: `${t("sidebar.action.snooze")} (${count})`,
                     children: snoozePresets.map((preset) => ({
                       id: `snooze:${preset.id}`,
-                      label: `${preset.label} (${preset.whenLabel})`,
+                      label: `${localizeSnoozePresetLabel(preset, t)} (${preset.whenLabel})`,
                     })),
                   },
                 ]
               : []),
             ...(titleRegenerationMenuItem ? [titleRegenerationMenuItem] : []),
-            { id: "mark-unread", label: `Mark unread (${count})` },
-            { id: "delete", label: `Delete (${count})`, destructive: true },
+            { id: "mark-unread", label: `${t("sidebar.action.markUnread")} (${count})` },
+            { id: "delete", label: `${t("common.delete")} (${count})`, destructive: true },
           ],
           position,
         ),
@@ -2871,8 +2889,10 @@ export default function Sidebar() {
         const confirmed = await settlePromise(() =>
           api.dialogs.confirm(
             [
-              `Delete ${count} thread${count === 1 ? "" : "s"}?`,
-              "This permanently clears conversation history for these threads.",
+              count === 1
+                ? t("sidebar.confirmDeleteThreadsOne")
+                : t("sidebar.confirmDeleteThreadsMany", { count }),
+              t("sidebar.confirmDeleteThreadsDescription"),
             ].join("\n"),
             { variant: "destructive" },
           ),
@@ -2896,8 +2916,8 @@ export default function Sidebar() {
             toastManager.add(
               stackedThreadToast({
                 type: "error",
-                title: "Failed to delete threads",
-                description: error instanceof Error ? error.message : "An error occurred.",
+                title: t("sidebar.deleteThreadsFailed"),
+                description: error instanceof Error ? error.message : t("common.error"),
               }),
             );
           }
@@ -2918,6 +2938,7 @@ export default function Sidebar() {
       removeFromSelection,
       serverConfigs,
       attemptUnsnooze,
+      t,
       updateThreadMetadata,
       timestampFormat,
     ],
@@ -2960,23 +2981,30 @@ export default function Sidebar() {
         const isPinned = thread.pinnedAt != null;
         // Presets resolve at menu-open time (same as the popover).
         const snoozePresets = resolveSnoozePresets(new Date(), timestampFormat);
+        const localizedSnoozePresets = snoozePresets.map((preset) => ({
+          ...preset,
+          label: localizeSnoozePresetLabel(preset, t),
+        }));
         const clicked = await settlePromise(() =>
           api.contextMenu.show(
-            buildThreadActionMenuItems({
-              branch: thread.branch ?? null,
-              isPinned,
-              isSettled,
-              isSnoozed,
-              canSnoozeNow: canSnooze(thread, { now: new Date().toISOString() }),
-              isRegeneratingTitle,
-              supports: {
-                settlement: supportsSettlement,
-                snooze: supportsSnooze,
-                pinning: supportsPinning,
-                titleRegeneration: supportsTitleRegeneration,
+            buildThreadActionMenuItems(
+              {
+                branch: thread.branch ?? null,
+                isPinned,
+                isSettled,
+                isSnoozed,
+                canSnoozeNow: canSnooze(thread, { now: new Date().toISOString() }),
+                isRegeneratingTitle,
+                supports: {
+                  settlement: supportsSettlement,
+                  snooze: supportsSnooze,
+                  pinning: supportsPinning,
+                  titleRegeneration: supportsTitleRegeneration,
+                },
+                snoozePresets: localizedSnoozePresets,
               },
-              snoozePresets,
-            }),
+              t,
+            ),
             position,
           ),
         );
@@ -3077,8 +3105,8 @@ export default function Sidebar() {
               const confirmed = await settlePromise(() =>
                 api.dialogs.confirm(
                   [
-                    `Delete thread "${thread.title}"?`,
-                    "This permanently clears conversation history for this thread.",
+                    t("sidebar.confirmDeleteThread", { title: thread.title }),
+                    t("sidebar.confirmDeleteThreadDescription"),
                   ].join("\n"),
                   { variant: "destructive" },
                 ),
@@ -3091,8 +3119,8 @@ export default function Sidebar() {
               toastManager.add(
                 stackedThreadToast({
                   type: "error",
-                  title: "Failed to delete thread",
-                  description: error instanceof Error ? error.message : "An error occurred.",
+                  title: t("sidebar.deleteThreadFailed"),
+                  description: error instanceof Error ? error.message : t("common.error"),
                 }),
               );
               return;
@@ -3121,6 +3149,7 @@ export default function Sidebar() {
       projectCwdByKey,
       serverConfigs,
       startThreadRename,
+      t,
       updateThreadMetadata,
       timestampFormat,
     ],
@@ -3257,8 +3286,8 @@ export default function Sidebar() {
                     setActiveSearchResultIndex(0);
                   }}
                   onKeyDown={handleThreadSearchKeyDown}
-                  placeholder="Search"
-                  aria-label="Search threads"
+                  placeholder={t("common.search")}
+                  aria-label={t("sidebar.searchThreads")}
                   role="combobox"
                   aria-autocomplete="list"
                   aria-expanded={isSearchingThreads && threadSearchResults.length > 0}
@@ -3280,7 +3309,7 @@ export default function Sidebar() {
                     size="icon-xs"
                     variant="ghost"
                     className="size-5 shrink-0 rounded-sm text-sidebar-muted-foreground hover:bg-sidebar-control-surface hover:text-sidebar-foreground"
-                    aria-label="Clear thread search"
+                    aria-label={t("sidebar.clearSearch")}
                     onClick={() => {
                       clearThreadSearch();
                       threadSearchInputRef.current?.focus();
@@ -3300,7 +3329,7 @@ export default function Sidebar() {
                         className="relative focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
                         onClick={handleNewThreadClick}
                         disabled={projects.length === 0}
-                        aria-label="New thread"
+                        aria-label={t("sidebar.newThread")}
                       />
                     }
                   >
@@ -3315,20 +3344,20 @@ export default function Sidebar() {
                       <span className="flex flex-col gap-0.5">
                         <span>
                           {newThreadShortcutLabel
-                            ? `New thread (${newThreadShortcutLabel})`
-                            : "New thread"}
+                            ? `${t("sidebar.newThread")} (${newThreadShortcutLabel})`
+                            : t("sidebar.newThread")}
                         </span>
                         <span className="text-muted-foreground">
-                          New thread in current project: Shift+click
+                          {t("sidebar.newThreadCurrentProject")}
                           {newThreadInProjectShortcutLabel
                             ? ` (${newThreadInProjectShortcutLabel})`
                             : ""}
                         </span>
                       </span>
                     ) : newThreadShortcutLabel ? (
-                      `New thread (${newThreadShortcutLabel})`
+                      `${t("sidebar.newThread")} (${newThreadShortcutLabel})`
                     ) : (
-                      "New thread"
+                      t("sidebar.newThread")
                     )}
                   </TooltipPopup>
                 </Tooltip>
@@ -3340,7 +3369,7 @@ export default function Sidebar() {
                   <MenuTrigger
                     render={
                       <SidebarMenuButton
-                        aria-label="Filter threads by project"
+                        aria-label={t("sidebar.filterByProject")}
                         className="min-w-0 flex-1 ps-[calc(var(--sidebar-row-content-inset)-1px)] focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
                       />
                     }
@@ -3356,7 +3385,7 @@ export default function Sidebar() {
                       <FolderIcon className="size-4 shrink-0" />
                     )}
                     <span className="min-w-0 flex-1 truncate">
-                      {scopedProjectGroup?.displayName ?? "All projects"}
+                      {scopedProjectGroup?.displayName ?? t("sidebar.allProjects")}
                     </span>
                     <ChevronDownIcon className="-mr-px size-4 shrink-0" />
                   </MenuTrigger>
@@ -3373,7 +3402,7 @@ export default function Sidebar() {
                         className="h-8 min-h-8 px-1 py-0 text-sm font-medium [&>span:last-child]:flex [&>span:last-child]:min-w-0 [&>span:last-child]:items-center [&>span:last-child]:gap-2"
                       >
                         <FolderIcon className="size-4 shrink-0" />
-                        <span className="min-w-0 truncate text-sm">All projects</span>
+                        <span className="min-w-0 truncate text-sm">{t("sidebar.allProjects")}</span>
                       </MenuRadioItem>
                       {projectGroups.map((project) => {
                         const scopeKey = project.projectKey;
@@ -3393,8 +3422,12 @@ export default function Sidebar() {
                             <span className="min-w-0 truncate text-sm">{project.displayName}</span>
                             <button
                               type="button"
-                              aria-label={`Project settings for ${project.displayName}`}
-                              title={`Project settings for ${project.displayName}`}
+                              aria-label={t("sidebar.projectSettings", {
+                                project: project.displayName,
+                              })}
+                              title={t("sidebar.projectSettings", {
+                                project: project.displayName,
+                              })}
                               className="ml-auto inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-icon-muted outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:bg-accent focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
                               onPointerDown={(event) => event.stopPropagation()}
                               onClick={(event) => {
@@ -3417,7 +3450,7 @@ export default function Sidebar() {
                         className="relative shrink-0 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
                         onClick={openAddProjectCommandPalette}
                         type="button"
-                        aria-label="New project"
+                        aria-label={t("sidebar.newProject")}
                       />
                     }
                   >
@@ -3427,7 +3460,7 @@ export default function Sidebar() {
                       aria-hidden="true"
                     />
                   </TooltipTrigger>
-                  <TooltipPopup side="right">New project</TooltipPopup>
+                  <TooltipPopup side="right">{t("sidebar.newProject")}</TooltipPopup>
                 </Tooltip>
               </div>
             ) : null}
@@ -3446,7 +3479,7 @@ export default function Sidebar() {
                 <ul
                   id="sidebar-thread-search-results"
                   role="listbox"
-                  aria-label="Thread search results"
+                  aria-label={t("sidebar.searchResults")}
                   className="flex flex-col gap-px"
                 >
                   {threadSearchResults.map((thread, index) => {
@@ -3487,7 +3520,7 @@ export default function Sidebar() {
                 role="status"
                 className="px-2 py-6 text-center text-xs text-sidebar-muted-foreground"
               >
-                No threads found
+                {t("sidebar.noThreadsFound")}
               </p>
             )
           ) : null}
@@ -3683,8 +3716,8 @@ export default function Sidebar() {
                         >
                           <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
                             {snoozedShelfExpanded
-                              ? "Snoozed"
-                              : `Snoozed (${snoozedThreads.length})`}
+                              ? t("sidebar.snoozedTitle")
+                              : t("sidebar.snoozed", { count: snoozedThreads.length })}
                           </span>
                           <span className="h-px flex-1 bg-blue-500/20 dark:bg-blue-400/15" />
                           <ChevronDownIcon
@@ -3717,8 +3750,8 @@ export default function Sidebar() {
                         >
                           <span className="text-xs font-medium text-muted-foreground/50">
                             {settledShelfExpanded
-                              ? "Settled"
-                              : `Settled (${settledThreads.length})`}
+                              ? t("sidebar.settledTitle")
+                              : t("sidebar.settled", { count: settledThreads.length })}
                           </span>
                           <span className="h-px flex-1 bg-sidebar-border/60" />
                           <ChevronDownIcon
@@ -3745,7 +3778,9 @@ export default function Sidebar() {
                       className="flex h-9 w-full cursor-pointer items-center gap-2.5 rounded-md px-2.5 text-left text-sm text-sidebar-muted-foreground/55 hover:bg-sidebar-row-hover hover:text-sidebar-foreground"
                     >
                       <PlusIcon aria-hidden className="size-4 shrink-0" />
-                      Show {Math.min(hiddenSettledCount, SETTLED_TAIL_PAGE_COUNT)} more
+                      {t("sidebar.showMore", {
+                        count: Math.min(hiddenSettledCount, SETTLED_TAIL_PAGE_COUNT),
+                      })}
                     </button>
                   </li>
                 ) : null}
@@ -3762,20 +3797,20 @@ export default function Sidebar() {
             <div className="flex flex-col items-center gap-2 px-2 py-6 text-center text-xs text-muted-foreground/60">
               {projects.length === 0 ? (
                 <>
-                  <span>No projects yet</span>
+                  <span>{t("sidebar.noProjects")}</span>
                   <button
                     type="button"
                     onClick={openAddProjectCommandPalette}
                     className="inline-flex items-center gap-1.5 rounded-md border border-sidebar-border px-2.5 py-1 text-[11px] font-medium text-sidebar-muted-foreground transition-colors hover:bg-sidebar-row-hover hover:text-sidebar-foreground"
                   >
                     <PlusIcon className="-mx-0.5 size-3" />
-                    Add project
+                    {t("sidebar.addProject")}
                   </button>
                 </>
               ) : scopedProjectGroup ? (
-                `No threads in ${scopedProjectGroup.displayName} yet`
+                t("sidebar.noProjectThreads", { project: scopedProjectGroup.displayName })
               ) : (
-                "No threads yet"
+                t("sidebar.noThreads")
               )}
             </div>
           ) : null}

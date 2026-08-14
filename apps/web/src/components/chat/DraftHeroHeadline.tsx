@@ -6,6 +6,7 @@ import { useCallback, useMemo } from "react";
 import { openCommandPalette } from "~/commandPaletteBus";
 import { useNewThreadHandler } from "~/hooks/useHandleNewThread";
 import { useClientSettings } from "~/hooks/useSettings";
+import { useI18n } from "~/i18n/WebI18nProvider";
 import { selectProjectGroupingSettings } from "~/logicalProject";
 import {
   buildSidebarProjectPickerEntries,
@@ -33,6 +34,7 @@ export function DraftHeroHeadline({
   activeProjectRef,
   activeProjectTitle,
 }: DraftHeroHeadlineProps) {
+  const { t } = useI18n();
   const projects = useProjects();
   const threads = useThreadShells();
   const { environments } = useEnvironments();
@@ -96,15 +98,18 @@ export function DraftHeroHeadline({
   const hasResolvedProject = activeProjectTitle !== null;
   const canChooseProject = projectPickerEntries.length > 0;
   const shouldShowProjectMenu = canChooseProject;
+  const chooseProjectToStart = t("draftHero.chooseProjectToStart").split("{project}");
 
   const projectSelector = shouldShowProjectMenu ? (
     <Menu>
       <MenuTrigger
-        aria-label={hasResolvedProject ? "Change project" : "Choose a project"}
+        aria-label={
+          hasResolvedProject ? t("draftHero.changeProject") : t("draftHero.chooseProject")
+        }
         className="pointer-events-auto inline-block max-w-64 truncate border-foreground/60 border-b border-dotted align-baseline text-foreground transition-colors hover:border-foreground/80 focus-visible:rounded-sm focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
         title={activeProjectDisplayName ?? undefined}
       >
-        {activeProjectDisplayName ?? "Choose a project"}
+        {activeProjectDisplayName ?? t("draftHero.chooseProject")}
       </MenuTrigger>
       <MenuPopup align="center" className="max-h-80 min-w-40! w-max max-w-64 overflow-y-auto">
         <MenuRadioGroup
@@ -136,7 +141,7 @@ export function DraftHeroHeadline({
         <MenuSeparator />
         <MenuItem onClick={openAddProject}>
           <FolderPlusIcon />
-          New project
+          {t("draftHero.newProject")}
         </MenuItem>
       </MenuPopup>
     </Menu>
@@ -146,18 +151,26 @@ export function DraftHeroHeadline({
       onClick={openAddProject}
       className="pointer-events-auto inline cursor-pointer border-muted-foreground/35 border-b border-dotted text-muted-foreground/60 transition-colors hover:border-muted-foreground/60 hover:text-muted-foreground/80 focus-visible:rounded-sm focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
     >
-      {activeProjectTitle ?? "Add a project"}
+      {activeProjectTitle ?? t("draftHero.addProject")}
     </button>
   );
 
   return (
     <h1 className="mx-auto w-full max-w-5xl text-center font-normal text-2xl text-foreground tracking-tight sm:text-3xl">
       {hasResolvedProject ? (
-        <>What should we build in {projectSelector}?</>
+        <>
+          {t("draftHero.questionBeforeProject")}
+          {projectSelector}
+          {t("draftHero.questionAfterProject")}
+        </>
       ) : canChooseProject ? (
-        <>{projectSelector} to start</>
+        <>
+          {chooseProjectToStart[0]}
+          {projectSelector}
+          {chooseProjectToStart[1]}
+        </>
       ) : (
-        <>Add a project to start</>
+        <>{t("draftHero.addProjectToStart")}</>
       )}
     </h1>
   );

@@ -2,6 +2,8 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
+import { translateWebMessage } from "../../i18n/messages";
+
 const stageArtworkState = vi.hoisted(() => ({
   mode: "none" as "artwork" | "none",
   variant: null as "nightly" | "dev" | null,
@@ -178,6 +180,20 @@ describe("formatPendingPrimaryActionLabel", () => {
         questionIndex: 5,
       }),
     ).toBe("Submit answers");
+  });
+
+  it("uses the provided translator while keeping English as the default", () => {
+    expect(
+      formatPendingPrimaryActionLabel(
+        {
+          compact: false,
+          isLastQuestion: false,
+          isResponding: true,
+          questionIndex: 0,
+        },
+        (key, values) => translateWebMessage("zh-CN", key, values),
+      ),
+    ).toBe("正在提交...");
   });
 });
 

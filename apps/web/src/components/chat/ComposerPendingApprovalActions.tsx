@@ -1,5 +1,6 @@
 import { type ApprovalRequestId, type ProviderApprovalDecision } from "@t3tools/contracts";
 import { memo } from "react";
+import { useI18n } from "../../i18n/WebI18nProvider";
 import { Button } from "../ui/button";
 
 interface ComposerPendingApprovalActionsProps {
@@ -16,6 +17,8 @@ export const ComposerPendingApprovalActions = memo(function ComposerPendingAppro
   isResponding,
   onRespondToApproval,
 }: ComposerPendingApprovalActionsProps) {
+  const { t } = useI18n();
+
   return (
     <>
       <Button
@@ -24,7 +27,7 @@ export const ComposerPendingApprovalActions = memo(function ComposerPendingAppro
         disabled={isResponding}
         onClick={() => void onRespondToApproval(requestId, "cancel")}
       >
-        Cancel turn
+        {t("composer.approval.cancelTurn")}
       </Button>
       <Button
         size="sm"
@@ -32,7 +35,7 @@ export const ComposerPendingApprovalActions = memo(function ComposerPendingAppro
         disabled={isResponding}
         onClick={() => void onRespondToApproval(requestId, "decline")}
       >
-        Decline
+        {t("composer.approval.decline")}
       </Button>
       <Button
         size="sm"
@@ -40,7 +43,7 @@ export const ComposerPendingApprovalActions = memo(function ComposerPendingAppro
         disabled={isResponding}
         onClick={() => void onRespondToApproval(requestId, "acceptForSession")}
       >
-        Always allow this session
+        {t("composer.approval.allowSession")}
       </Button>
       <Button
         size="sm"
@@ -48,7 +51,7 @@ export const ComposerPendingApprovalActions = memo(function ComposerPendingAppro
         disabled={isResponding}
         onClick={() => void onRespondToApproval(requestId, "accept")}
       >
-        Approve once
+        {t("composer.approval.approveOnce")}
       </Button>
     </>
   );
