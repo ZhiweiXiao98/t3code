@@ -14,11 +14,17 @@ import {
 } from "../files/ProjectFilePicker.logic";
 import { useProjectFilePickerQuery } from "../files/projectFilesQueryState";
 import { CommandDialog, CommandDialogPopup } from "../ui/command";
+import { useI18n, type WebTranslate } from "~/i18n/WebI18nProvider";
 
-function emptyMessage(query: string, error: string | null, isPending: boolean): string {
+function emptyMessage(
+  query: string,
+  error: string | null,
+  isPending: boolean,
+  t: WebTranslate,
+): string {
   if (error) return error;
-  if (isPending) return query.trim() ? "Searching project files…" : "Indexing project files…";
-  return query.trim() ? "No matching image files." : "No image files found.";
+  if (isPending) return t(query.trim() ? "projectIcon.searching" : "projectIcon.indexing");
+  return t(query.trim() ? "projectIcon.noMatches" : "projectIcon.empty");
 }
 
 export function ProjectFaviconPickerDialog(props: {
@@ -29,6 +35,7 @@ export function ProjectFaviconPickerDialog(props: {
   readonly open: boolean;
   readonly projectName: string;
 }) {
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [highlightedItemValue, setHighlightedItemValue] = useState<string | null>(null);
   const result = useProjectFilePickerQuery(
@@ -58,16 +65,16 @@ export function ProjectFaviconPickerDialog(props: {
     <CommandDialog open={props.open} onOpenChange={props.onOpenChange}>
       {props.open ? (
         <CommandDialogPopup
-          aria-label="Choose project icon"
+          aria-label={t("projectIcon.label")}
           className="overflow-hidden p-0"
           onBackdropPointerDown={() => props.onOpenChange(false)}
         >
           <CommandPaletteContent
-            aria-label="Choose project icon"
+            aria-label={t("projectIcon.label")}
             autoHighlight="always"
-            escapeLabel="Close"
-            footerActionLabel="Select icon"
-            inputProps={{ placeholder: "Search image files…" }}
+            escapeLabel={t("common.close")}
+            footerActionLabel={t("projectIcon.select")}
+            inputProps={{ placeholder: t("projectIcon.search") }}
             mode="none"
             onItemHighlighted={(value) => {
               setHighlightedItemValue(typeof value === "string" ? value : null);
@@ -94,7 +101,7 @@ export function ProjectFaviconPickerDialog(props: {
                 props.onOpenChange(false);
                 void item.run();
               }}
-              emptyStateMessage={emptyMessage(query, result.error, result.isPending)}
+              emptyStateMessage={emptyMessage(query, result.error, result.isPending, t)}
             />
           </CommandPaletteContent>
         </CommandDialogPopup>

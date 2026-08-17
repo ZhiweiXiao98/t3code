@@ -61,6 +61,7 @@ import { useLiveRefresh } from "~/hooks/useLiveRefresh";
 import { pullRequestEnvironment } from "~/state/pullRequests";
 import { useAtomCommand } from "~/state/use-atom-command";
 import { formatRelativeTimeLabel } from "~/timestampFormat";
+import { useI18n } from "~/i18n/WebI18nProvider";
 
 import {
   AlertDialog,
@@ -393,6 +394,7 @@ export function PullRequestDetailPanel({
    */
   composerDraftTarget?: ScopedThreadRef | DraftId;
 }) {
+  const { t } = useI18n();
   const pullRequestKey = `${reference.projectId}:${reference.repository}#${reference.number}`;
   const [tab, setTab] = useState<DetailTab>("summary");
   const [timelineOrder, setTimelineOrder] = useState<"newest" | "oldest">("newest");
@@ -1857,25 +1859,31 @@ export function PullRequestDetailPanel({
           <AlertDialogHeader>
             <AlertDialogTitle>
               {confirmAction === "merge"
-                ? "Merge pull request?"
+                ? t("pullRequestConfirm.mergeTitle")
                 : confirmAction === "enable-auto-merge"
-                  ? "Enable auto-merge?"
-                  : "Close pull request?"}
+                  ? t("pullRequestConfirm.autoMergeTitle")
+                  : t("pullRequestConfirm.closeTitle")}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {confirmAction === "merge"
-                ? `This merges #${reference.number} using ${selectedMergeMethod}.`
+                ? t("pullRequestConfirm.mergeDescription", {
+                    number: reference.number,
+                    method: selectedMergeMethod,
+                  })
                 : confirmAction === "enable-auto-merge"
                   ? // The host merges this as soon as it considers the pull request ready, which
                     // may be immediately — there is no telling from here whether anything is
                     // still outstanding.
-                    `This merges #${reference.number} using ${selectedMergeMethod} as soon as the host considers it ready, which may be immediately.`
-                  : `This closes #${reference.number} without merging it.`}
+                    t("pullRequestConfirm.autoMergeDescription", {
+                      number: reference.number,
+                      method: selectedMergeMethod,
+                    })
+                  : t("pullRequestConfirm.closeDescription", { number: reference.number })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogClose render={<Button variant="outline" size="sm" />}>
-              Cancel
+              {t("common.cancel")}
             </AlertDialogClose>
             <Button
               size="sm"
@@ -1891,10 +1899,10 @@ export function PullRequestDetailPanel({
               }}
             >
               {confirmAction === "merge"
-                ? "Merge"
+                ? t("pullRequestConfirm.merge")
                 : confirmAction === "enable-auto-merge"
-                  ? "Enable auto-merge"
-                  : "Close"}
+                  ? t("pullRequestConfirm.enableAutoMerge")
+                  : t("common.close")}
             </Button>
           </AlertDialogFooter>
         </AlertDialogPopup>

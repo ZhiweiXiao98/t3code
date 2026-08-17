@@ -39,4 +39,25 @@ describe("translateWebMessage", () => {
     expect(translateWebMessage("zh-CN", "providers.healthCheck.title")).toBe("健康检查间隔");
     expect(translateWebMessage("zh-CN", "sourceControl.versionControl")).toBe("版本控制");
   });
+
+  it("localizes dialog copy while preserving technical values", () => {
+    expect(translateWebMessage("zh-CN", "projectAction.dialog.addTitle")).toBe("添加操作");
+    expect(
+      translateWebMessage("zh-CN", "sshPassword.description", {
+        target: "dev@192.168.1.8",
+      }),
+    ).toContain("dev@192.168.1.8");
+    expect(
+      translateWebMessage("zh-CN", "gitDialog.publish.publishedDescription", {
+        branch: "feature/i18n-zh-cn",
+        provider: "GitHub",
+      }),
+    ).toBe("feature/i18n-zh-cn 现已发布到 GitHub。");
+    expect(
+      translateWebMessage("zh-CN", "pullRequestConfirm.mergeDescription", {
+        number: 42,
+        method: "squash",
+      }),
+    ).toBe("将使用 squash 合并 #42。");
+  });
 });
