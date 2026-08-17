@@ -91,6 +91,7 @@ import { type DraftId, useComposerDraftStore } from "~/composerDraftStore";
 import { readLocalApi } from "~/localApi";
 import { getSourceControlPresentation } from "~/sourceControlPresentation";
 import { openPullRequestLink } from "~/lib/openPullRequestLink";
+import { useI18n } from "~/i18n/WebI18nProvider";
 
 interface GitActionsControlProps {
   gitCwd: string | null;
@@ -980,6 +981,7 @@ export default function GitActionsControl({
   draftId,
   onOpenPullRequest,
 }: GitActionsControlProps) {
+  const { t } = useI18n();
   const updateThreadMetadata = useAtomCommand(
     threadEnvironment.updateMetadata,
     "thread branch metadata update",
@@ -1162,6 +1164,12 @@ export default function GitActionsControl({
       resolveQuickAction(gitStatusForActions, isGitActionRunning, isDefaultRef, hasPrimaryRemote),
     [gitStatusForActions, hasPrimaryRemote, isDefaultRef, isGitActionRunning],
   );
+  const quickActionLabel =
+    quickAction.label === "Commit"
+      ? t("gitAction.commit")
+      : quickAction.label === "Push"
+        ? t("gitAction.push")
+        : quickAction.label;
   const quickActionDisabledReason = quickAction.disabled
     ? (quickAction.hint ?? "This action is currently unavailable.")
     : null;
@@ -1700,7 +1708,7 @@ export default function GitActionsControl({
           </span>
         </Button>
       ) : (
-        <Group aria-label="Git actions" className="shrink-0">
+        <Group aria-label={t("gitAction.group")} className="shrink-0">
           {quickActionDisabledReason ? (
             <Popover>
               <PopoverTrigger
@@ -1719,7 +1727,7 @@ export default function GitActionsControl({
                   SourceControlIcon={SourceControlIcon}
                 />
                 <span className="sr-only @3xl/header-actions:not-sr-only @3xl/header-actions:ml-0.5">
-                  {quickAction.label}
+                  {quickActionLabel}
                 </span>
               </PopoverTrigger>
               <PopoverPopup tooltipStyle side="bottom" align="start">
@@ -1736,7 +1744,7 @@ export default function GitActionsControl({
             >
               <GitQuickActionIcon quickAction={quickAction} SourceControlIcon={SourceControlIcon} />
               <span className="sr-only @3xl/header-actions:not-sr-only @3xl/header-actions:ml-0.5">
-                {quickAction.label}
+                {quickActionLabel}
               </span>
             </Button>
           )}
@@ -1749,13 +1757,25 @@ export default function GitActionsControl({
             }}
           >
             <MenuTrigger
-              render={<Button aria-label="Git action options" size="icon-xs" variant="outline" />}
+              render={
+                <Button aria-label={t("gitAction.options")} size="icon-xs" variant="outline" />
+              }
               disabled={isGitActionRunning}
             >
               <ChevronDownIcon aria-hidden="true" className="size-4" />
             </MenuTrigger>
             <MenuPopup align="end" className="w-full">
               {gitActionMenuItems.map((item) => {
+                const itemLabel =
+                  item.id === "commit"
+                    ? t("gitAction.commit")
+                    : item.id === "push"
+                      ? t("gitAction.push")
+                      : t(
+                          item.kind === "open_pr"
+                            ? "gitAction.viewChangeRequest"
+                            : "gitAction.createChangeRequest",
+                        );
                 const disabledReason = getMenuActionDisabledReason({
                   item,
                   gitStatus: gitStatusForActions,
@@ -1775,7 +1795,7 @@ export default function GitActionsControl({
                             icon={item.icon}
                             SourceControlIcon={SourceControlIcon}
                           />
-                          {item.label}
+                          {itemLabel}
                         </MenuItem>
                       </PopoverTrigger>
                       <PopoverPopup tooltipStyle side="left" align="center">
@@ -1794,7 +1814,7 @@ export default function GitActionsControl({
                     }}
                   >
                     <GitActionItemIcon icon={item.icon} SourceControlIcon={SourceControlIcon} />
-                    {item.label}
+                    {itemLabel}
                   </MenuItem>
                 );
               })}
@@ -1806,7 +1826,7 @@ export default function GitActionsControl({
                   }}
                 >
                   <CloudUploadIcon />
-                  Publish repository...
+                  {t("gitAction.publishRepository")}
                 </MenuItem>
               ) : null}
               {gitStatusForActions?.refName === null && (

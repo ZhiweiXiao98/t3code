@@ -22,6 +22,8 @@ import {
 import type { ElementType } from "react";
 
 import { cn } from "~/lib/utils";
+import type { WebTranslate } from "~/i18n/WebI18nProvider";
+import { translateWebMessage } from "~/i18n/messages";
 import { getSourceControlPresentationForKind } from "~/sourceControlPresentation";
 import { ProjectFavicon } from "../ProjectFavicon";
 
@@ -72,12 +74,15 @@ export function PullRequestSearchInput({
   value,
   busy,
   onChange,
+  translate,
 }: {
   value: string;
   /** A search is on its way to the hosts, said where the typing is rather than over the list. */
   busy?: boolean;
   onChange: (value: string) => void;
+  translate?: WebTranslate;
 }) {
+  const t: WebTranslate = translate ?? ((key, values) => translateWebMessage("en", key, values));
   return (
     <div className="relative min-w-0 flex-1">
       {busy ? (
@@ -95,8 +100,8 @@ export function PullRequestSearchInput({
         type="text"
         value={value}
         onChange={(event) => onChange(event.currentTarget.value)}
-        placeholder="Search pull requests, or label:bug"
-        aria-label="Search pull requests"
+        placeholder={t("pullRequests.search.placeholder")}
+        aria-label={t("pullRequests.search.label")}
         // Tracks the shared input's height at both widths, so it stays level with the icon
         // button beside it rather than towering over it on wide screens.
         className="h-9 w-full rounded-lg border border-input bg-background pr-3 pl-9 text-sm outline-none placeholder:text-muted-foreground/72 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/24 sm:h-8"
@@ -127,25 +132,39 @@ export const pullRequestProjectKey = (project: {
   readonly environmentId: EnvironmentId;
 }) => JSON.stringify([project.environmentId, project.id]);
 
-const DRAFT_OPTIONS = [
-  { value: UNFILTERED_VALUE, label: "All", Icon: LayersIcon },
-  { value: "only", label: "Drafts only", Icon: GitPullRequestDraftIcon },
-  { value: "hide", label: "Hide drafts", Icon: EyeOffIcon },
-] as const satisfies ReadonlyArray<PullRequestFilterOption<string>>;
+function draftOptions(t: WebTranslate): ReadonlyArray<PullRequestFilterOption<string>> {
+  return [
+    { value: UNFILTERED_VALUE, label: t("pullRequests.filter.all"), Icon: LayersIcon },
+    { value: "only", label: t("pullRequests.filter.draftsOnly"), Icon: GitPullRequestDraftIcon },
+    { value: "hide", label: t("pullRequests.filter.hideDrafts"), Icon: EyeOffIcon },
+  ];
+}
 
-const REVIEW_OPTIONS = [
-  { value: UNFILTERED_VALUE, label: "All", Icon: LayersIcon },
-  { value: "approved", label: "Approved", Icon: CircleCheckIcon },
-  { value: "changes-requested", label: "Changes requested", Icon: CircleXIcon },
-  { value: "review-required", label: "Review required", Icon: CircleDashedIcon },
-  { value: "none", label: "No reviews", Icon: CircleSlashIcon },
-] as const satisfies ReadonlyArray<PullRequestFilterOption<string>>;
+function reviewOptions(t: WebTranslate): ReadonlyArray<PullRequestFilterOption<string>> {
+  return [
+    { value: UNFILTERED_VALUE, label: t("pullRequests.filter.all"), Icon: LayersIcon },
+    { value: "approved", label: t("pullRequests.filter.approved"), Icon: CircleCheckIcon },
+    {
+      value: "changes-requested",
+      label: t("pullRequests.filter.changesRequested"),
+      Icon: CircleXIcon,
+    },
+    {
+      value: "review-required",
+      label: t("pullRequests.filter.reviewRequired"),
+      Icon: CircleDashedIcon,
+    },
+    { value: "none", label: t("pullRequests.filter.noReviews"), Icon: CircleSlashIcon },
+  ];
+}
 
-const CHECKS_OPTIONS = [
-  { value: UNFILTERED_VALUE, label: "All", Icon: LayersIcon },
-  { value: "passing", label: "Passing", Icon: CircleCheckIcon },
-  { value: "failing", label: "Failing", Icon: CircleXIcon },
-] as const satisfies ReadonlyArray<PullRequestFilterOption<string>>;
+function checksOptions(t: WebTranslate): ReadonlyArray<PullRequestFilterOption<string>> {
+  return [
+    { value: UNFILTERED_VALUE, label: t("pullRequests.filter.all"), Icon: LayersIcon },
+    { value: "passing", label: t("pullRequests.filter.passing"), Icon: CircleCheckIcon },
+    { value: "failing", label: t("pullRequests.filter.failing"), Icon: CircleXIcon },
+  ];
+}
 
 function PullRequestFilterRadioGroup<Value extends string>({
   label,
@@ -205,6 +224,7 @@ export function PullRequestFiltersMenu({
   projectEnvironmentId,
   unavailable,
   onProject,
+  translate,
 }: {
   state: PullRequestListState;
   stateOptions: ReadonlyArray<PullRequestFilterOption<PullRequestListState>>;
@@ -250,7 +270,9 @@ export function PullRequestFiltersMenu({
   unavailable: ReadonlyMap<string, string>;
   /** The environment comes with the project id, since picking a row picks a specific server's copy of it. */
   onProject: (projectId: ProjectId | undefined, environmentId: EnvironmentId | undefined) => void;
+  translate?: WebTranslate;
 }) {
+  const t: WebTranslate = translate ?? ((key, values) => translateWebMessage("en", key, values));
   const filtered =
     state !== "open" ||
     involvement !== "all" ||
@@ -276,7 +298,7 @@ export function PullRequestFiltersMenu({
           "relative inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-input text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground sm:size-8",
           filtered && "text-foreground",
         )}
-        aria-label="Filter pull requests"
+        aria-label={t("pullRequests.filter.label")}
       >
         <ListFilterIcon className="size-4" />
         {filtered ? (
@@ -288,44 +310,44 @@ export function PullRequestFiltersMenu({
       </MenuTrigger>
       <MenuPopup align="end" side="bottom" className="min-w-56">
         <PullRequestFilterRadioGroup
-          label="State"
+          label={t("pullRequests.filter.state")}
           value={state}
           options={stateOptions}
           onChange={onState}
         />
         <MenuSeparator />
         <PullRequestFilterRadioGroup
-          label="Involvement"
+          label={t("pullRequests.filter.involvement")}
           value={involvement}
           options={involvementOptions}
           onChange={onInvolvement}
         />
         <MenuSeparator />
         <PullRequestFilterRadioGroup
-          label="Draft"
+          label={t("pullRequests.filter.draft")}
           value={filters.draft ?? UNFILTERED_VALUE}
-          options={DRAFT_OPTIONS}
+          options={draftOptions(t)}
           onChange={(next) => onFilters(withFilter("draft", next))}
         />
         <MenuSeparator />
         <PullRequestFilterRadioGroup
-          label="Review"
+          label={t("pullRequests.filter.review")}
           value={filters.review ?? UNFILTERED_VALUE}
-          options={REVIEW_OPTIONS}
+          options={reviewOptions(t)}
           onChange={(next) => onFilters(withFilter("review", next))}
         />
         <MenuSeparator />
         <PullRequestFilterRadioGroup
-          label="Checks"
+          label={t("pullRequests.filter.checks")}
           value={filters.checks ?? UNFILTERED_VALUE}
-          options={CHECKS_OPTIONS}
+          options={checksOptions(t)}
           onChange={(next) => onFilters(withFilter("checks", next))}
         />
         {hostOptions.length > 2 ? (
           <>
             <MenuSeparator />
             <PullRequestFilterRadioGroup
-              label="Host"
+              label={t("pullRequests.filter.host")}
               value={host ?? ALL_HOSTS_VALUE}
               options={hostOptions}
               onChange={(next) => onHost(next === ALL_HOSTS_VALUE ? undefined : next)}
@@ -336,7 +358,7 @@ export function PullRequestFiltersMenu({
           <>
             <MenuSeparator />
             <PullRequestFilterRadioGroup
-              label="Server"
+              label={t("pullRequests.filter.server")}
               value={server ?? ALL_SERVERS_VALUE}
               options={serverOptions}
               onChange={(next) =>
@@ -368,11 +390,11 @@ export function PullRequestFiltersMenu({
             }
           }}
         >
-          <MenuGroupLabel>Project</MenuGroupLabel>
+          <MenuGroupLabel>{t("pullRequests.filter.project")}</MenuGroupLabel>
           <MenuRadioItem value={ALL_PROJECTS_VALUE}>
             <span className="flex min-w-0 items-center gap-2">
               <LayersIcon aria-hidden className="size-3.5" />
-              All projects
+              {t("pullRequests.filter.allProjects")}
             </span>
           </MenuRadioItem>
           {/* The ones that can be chosen first: a list that opens with three disabled rows reads
@@ -402,7 +424,7 @@ export function PullRequestFiltersMenu({
                     <span className="min-w-0 flex-1 truncate">{project.title}</span>
                     {reason === undefined ? null : (
                       <span className="shrink-0 rounded-full border border-amber-500/40 bg-amber-500/10 px-1.5 py-px text-[10px] font-medium text-amber-600 dark:text-amber-400/90">
-                        Unavailable
+                        {t("pullRequests.filter.unavailable")}
                       </span>
                     )}
                   </span>

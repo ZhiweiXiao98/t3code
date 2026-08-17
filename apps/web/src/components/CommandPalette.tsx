@@ -55,6 +55,7 @@ import {
 import { useAtomValue } from "@effect/atom-react";
 
 import { isDesktopLocalConnectionTarget } from "../connection/desktopLocal";
+import { useI18n } from "../i18n/WebI18nProvider";
 import { useDesktopLocalBootstraps } from "../connection/useDesktopLocalBootstraps";
 import { useHandleNewThread } from "../hooks/useHandleNewThread";
 import { useClientSettings } from "../hooks/useSettings";
@@ -509,6 +510,7 @@ function CommandPaletteDialog(props: {
   readonly openOverlayMode: (mode: SearchOverlayMode) => void;
   readonly clearOpenIntent: () => void;
 }) {
+  const { t } = useI18n();
   const composerHandleRef = useComposerHandleContext();
 
   if (!props.open) {
@@ -519,10 +521,10 @@ function CommandPaletteDialog(props: {
     <CommandDialogPopup
       aria-label={
         props.mode === "files"
-          ? "File picker"
+          ? t("commandPalette.dialog.files")
           : props.mode === "content"
-            ? "Search project contents"
-            : "Command palette"
+            ? t("commandPalette.dialog.content")
+            : t("commandPalette.dialog.command")
       }
       className={cn("overflow-hidden p-0", props.mode === "content" && "h-105")}
       data-command-palette="true"
@@ -558,6 +560,7 @@ function OpenCommandPaletteDialog(props: {
   readonly openOverlayMode: (mode: SearchOverlayMode) => void;
   readonly clearOpenIntent: () => void;
 }) {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const { clearOpenIntent, openIntent, openOverlayMode, setOpen } = props;
   const [query, setQuery] = useState("");
@@ -1185,9 +1188,15 @@ function OpenCommandPaletteDialog(props: {
         {
           kind: "action",
           value: `action:add-project:${environmentId}:local`,
-          searchTerms: ["local", "folder", "directory", "browse"],
-          title: "Local folder",
-          description: "Browse a folder on disk",
+          searchTerms: [
+            "local",
+            "folder",
+            "directory",
+            "browse",
+            t("commandPalette.source.localFolder"),
+          ],
+          title: t("commandPalette.source.localFolder"),
+          description: t("commandPalette.source.localFolderDescription"),
           icon: <FolderPlusIcon className={ITEM_ICON_CLASS} />,
           keepOpen: true,
           run: async () => {
@@ -1203,11 +1212,17 @@ function OpenCommandPaletteDialog(props: {
 
       for (const source of orderedSources) {
         const label = remoteProjectSourceLabel(source);
-        const title = source === "url" ? "Git URL" : `${label} repository`;
+        const title =
+          source === "url"
+            ? t("commandPalette.source.gitUrl")
+            : t("commandPalette.source.repository", { provider: label });
         const description =
           source === "url"
-            ? "Clone from a remote URL"
-            : `Clone ${label} ${remoteProjectSourcePathHint(source)}`;
+            ? t("commandPalette.source.cloneUrl")
+            : t("commandPalette.source.cloneRepository", {
+                provider: label,
+                path: remoteProjectSourcePathHint(source),
+              });
         const readiness = readinessBySource[source];
         const disabledHint = readiness.hint;
 
@@ -1224,12 +1239,12 @@ function OpenCommandPaletteDialog(props: {
                       openSourceControlSettings();
                     }}
                   >
-                    Setup Required
+                    {t("commandPalette.source.setupRequired")}
                   </Button>
                 }
               />
               <TooltipPopup align="end" side="left">
-                {disabledHint ?? "Open Settings -> Source Control to configure this provider."}
+                {disabledHint ?? t("commandPalette.source.configure")}
               </TooltipPopup>
             </Tooltip>
           </span>
@@ -1265,9 +1280,15 @@ function OpenCommandPaletteDialog(props: {
         });
       }
 
-      return [{ value: `sources:${environmentId}`, label: "Sources", items: sourceItems }];
+      return [
+        {
+          value: `sources:${environmentId}`,
+          label: t("commandPalette.group.sources"),
+          items: sourceItems,
+        },
+      ];
     },
-    [openSourceControlSettings, startAddProjectBrowse, startAddProjectClone],
+    [openSourceControlSettings, startAddProjectBrowse, startAddProjectClone, t],
   );
 
   const startAddProjectSourceSelection = useCallback(
@@ -1956,9 +1977,11 @@ function OpenCommandPaletteDialog(props: {
   const cloneDestinationBrowseGroups = useMemo(
     () =>
       browseGroups.map((group) =>
-        group.value === "directories" ? { ...group, label: "Select where to clone" } : group,
+        group.value === "directories"
+          ? { ...group, label: t("commandPalette.group.cloneDestination") }
+          : group,
       ),
-    [browseGroups],
+    [browseGroups, t],
   );
 
   const remoteProjectContext = useMemo(() => {
@@ -1984,7 +2007,7 @@ function OpenCommandPaletteDialog(props: {
 
   const inputPlaceholder =
     remoteProjectInputPlaceholder(addProjectCloneFlow) ??
-    getCommandPaletteInputPlaceholder(paletteMode);
+    (isBrowsing ? getCommandPaletteInputPlaceholder(paletteMode) : t("commandPalette.search"));
   const isSubmenu = paletteMode === "submenu" || paletteMode === "submenu-browse";
   const hasHighlightedBrowseItem = highlightedItemValue?.startsWith("browse:") ?? false;
   const canSubmitBrowsePath =
@@ -2002,16 +2025,16 @@ function OpenCommandPaletteDialog(props: {
   const isCloneDestinationStep = addProjectCloneFlow?.step === "confirm";
   const submitActionLabel = isCloneDestinationStep
     ? willCreateProjectPath
-      ? "Create & Clone"
-      : "Clone"
+      ? t("commandPalette.action.createAndClone")
+      : t("commandPalette.action.clone")
     : willCreateProjectPath
-      ? "Create & Add"
-      : "Add";
+      ? t("commandPalette.action.createAndAdd")
+      : t("home.addProject");
   const addShortcutLabel = hasHighlightedBrowseItem ? `${submitModifierLabel} Enter` : "Enter";
   const remoteProjectButtonLabel = addProjectCloneFlow
     ? addProjectCloneFlow.source === "url"
-      ? "Continue"
-      : "Lookup"
+      ? t("common.continue")
+      : t("commandPalette.action.lookup")
     : null;
   const isRemoteProjectPending = isRemoteProjectLookingUp || isRemoteProjectCloning;
   const canSubmitRemoteProjectFlow =
@@ -2250,7 +2273,7 @@ function OpenCommandPaletteDialog(props: {
               size="xs"
               tabIndex={-1}
               className="absolute inset-e-2.5 top-1/2 gap-1.5 pe-1 ps-2 -translate-y-1/2"
-              aria-label={`${remoteProjectButtonLabel ?? "Continue"} (Enter)`}
+              aria-label={`${remoteProjectButtonLabel ?? t("common.continue")} (Enter)`}
               disabled={!canSubmitRemoteProjectFlow}
               onMouseDown={(event) => {
                 event.preventDefault();
@@ -2261,12 +2284,16 @@ function OpenCommandPaletteDialog(props: {
             />
           }
         >
-          <span>{isRemoteProjectPending ? "Working" : remoteProjectButtonLabel}</span>
+          <span>
+            {isRemoteProjectPending ? t("commandPalette.action.working") : remoteProjectButtonLabel}
+          </span>
           <KbdGroup className="pointer-events-none -me-0.5 items-center gap-1">
             <Kbd>Enter</Kbd>
           </KbdGroup>
         </TooltipTrigger>
-        <TooltipPopup side="top">{remoteProjectButtonLabel ?? "Continue"} (Enter)</TooltipPopup>
+        <TooltipPopup side="top">
+          {remoteProjectButtonLabel ?? t("common.continue")} (Enter)
+        </TooltipPopup>
       </Tooltip>
     ) : isBrowsing ? (
       <Tooltip>
@@ -2303,7 +2330,9 @@ function OpenCommandPaletteDialog(props: {
           }
         >
           <span>
-            {isCloneDestinationStep && isRemoteProjectPending ? "Cloning" : submitActionLabel}
+            {isCloneDestinationStep && isRemoteProjectPending
+              ? t("commandPalette.action.cloning")
+              : submitActionLabel}
           </span>
           <KbdGroup className="pointer-events-none -me-0.5 items-center gap-1">
             <Kbd>{hasHighlightedBrowseItem ? `${submitModifierLabel} Enter` : "Enter"}</Kbd>
@@ -2317,9 +2346,9 @@ function OpenCommandPaletteDialog(props: {
 
   const footerActionLabel =
     addProjectCloneFlow?.step === "repository"
-      ? (remoteProjectButtonLabel ?? "Continue")
+      ? (remoteProjectButtonLabel ?? t("common.continue"))
       : !canSubmitBrowsePath || hasHighlightedBrowseItem
-        ? "Select"
+        ? t("commandPalette.select")
         : undefined;
 
   const footerTrailing = canOpenProjectFromFileManager ? (
@@ -2332,14 +2361,14 @@ function OpenCommandPaletteDialog(props: {
         void handleOpenProjectFromFileManager();
       }}
     >
-      {`Open in ${fileManagerName}`}
+      {t("commandPalette.action.openIn", { fileManager: fileManagerName })}
     </Button>
   ) : null;
 
   return (
     <CommandPaletteContent
       key={`${viewStack.length}-${browseGeneration}-${isBrowsing}-${addProjectCloneFlow?.step ?? "none"}`}
-      aria-label="Command palette"
+      aria-label={t("commandPalette.dialog.command")}
       autoHighlight={isBrowsing || isRemoteProjectCloneFlow ? false : "always"}
       footerActionLabel={footerActionLabel}
       footerTrailing={footerTrailing}
@@ -2363,7 +2392,7 @@ function OpenCommandPaletteDialog(props: {
                 <button
                   type="button"
                   className="flex cursor-pointer items-center"
-                  aria-label="Back"
+                  aria-label={t("common.back")}
                   onClick={popView}
                 >
                   <ArrowLeftIcon />
@@ -2386,7 +2415,9 @@ function OpenCommandPaletteDialog(props: {
     >
       {remoteProjectContext ? (
         <div className="p-2 pb-0">
-          <div className="px-2 py-1.5 font-medium text-muted-foreground text-xs">Repository</div>
+          <div className="px-2 py-1.5 font-medium text-muted-foreground text-xs">
+            {t("commandPalette.group.repository")}
+          </div>
           <div className="flex min-h-8 items-center gap-2 rounded-sm px-2 py-1.5">
             {remoteProjectContext.icon}
             <span className="flex min-w-0 flex-1 flex-col">
@@ -2408,19 +2439,19 @@ function OpenCommandPaletteDialog(props: {
           ? {
               emptyStateMessage:
                 addProjectCloneFlow.source === "url"
-                  ? "Enter a Git clone URL and press Enter to continue."
-                  : "Enter a repository path and press Enter to look it up.",
+                  ? t("commandPalette.empty.enterGitUrl")
+                  : t("commandPalette.empty.enterRepository"),
             }
           : addProjectCloneFlow?.step === "confirm"
-            ? { emptyStateMessage: "Choose a destination path and press Enter to clone." }
+            ? { emptyStateMessage: t("commandPalette.empty.chooseDestination") }
             : relativePathNeedsActiveProject
-              ? { emptyStateMessage: "Relative paths require an active project." }
+              ? { emptyStateMessage: t("commandPalette.empty.relativePath") }
               : willCreateProjectPath
                 ? {
-                    emptyStateMessage: "Press Enter to create this folder and add it as a project.",
+                    emptyStateMessage: t("commandPalette.empty.createFolder"),
                   }
                 : threadSearch.isPending
-                  ? { emptyStateMessage: "Searching thread messages…" }
+                  ? { emptyStateMessage: t("commandPalette.empty.searchingThreads") }
                   : {})}
       />
     </CommandPaletteContent>

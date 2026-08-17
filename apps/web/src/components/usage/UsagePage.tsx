@@ -7,6 +7,7 @@ import type { DailyTotals, HourlyTotals } from "@t3tools/shared/usageMerge";
 import { isElectron } from "../../env";
 import { cn } from "../../lib/utils";
 import { useUsage, type EnvironmentUsageStatus } from "../../state/usage";
+import { useI18n } from "../../i18n/WebI18nProvider";
 import {
   enumerateDays,
   enumerateHourStarts,
@@ -26,14 +27,10 @@ import { COLLAPSED_SIDEBAR_TITLEBAR_INSET_CLASS } from "../../workspaceTitlebar"
 import { UsageChartLegend, UsageProviderChart, type UsageChartMetric } from "./UsageProviderChart";
 import { PROVIDER_COLOR, PROVIDER_LABEL, PROVIDER_MARK, PROVIDER_ORDER } from "./usageProviders";
 
-const WINDOW_OPTIONS = [
-  { days: 1, label: "Past 24h" },
-  { days: 7, label: "7 days" },
-  { days: 30, label: "30 days" },
-  { days: 90, label: "90 days" },
-] as const;
+const WINDOW_OPTIONS = [{ days: 1 }, { days: 7 }, { days: 30 }, { days: 90 }] as const;
 
 export function UsagePage() {
+  const { locale, t } = useI18n();
   const [windowSelection, setWindowSelection] = useState(() => ({
     days: 30,
     window: makeWindow(30),
@@ -110,8 +107,8 @@ export function UsagePage() {
               COLLAPSED_SIDEBAR_TITLEBAR_INSET_CLASS,
             )}
           >
-            <WorkspaceBreadcrumb ariaLabel="Usage breadcrumb">
-              <WorkspaceBreadcrumbItem current>Usage</WorkspaceBreadcrumbItem>
+            <WorkspaceBreadcrumb ariaLabel={t("usage.breadcrumb")}>
+              <WorkspaceBreadcrumbItem current>{t("usage.title")}</WorkspaceBreadcrumbItem>
             </WorkspaceBreadcrumb>
           </header>
         )}
@@ -123,8 +120,8 @@ export function UsagePage() {
               COLLAPSED_SIDEBAR_TITLEBAR_INSET_CLASS,
             )}
           >
-            <WorkspaceBreadcrumb ariaLabel="Usage breadcrumb">
-              <WorkspaceBreadcrumbItem current>Usage</WorkspaceBreadcrumbItem>
+            <WorkspaceBreadcrumb ariaLabel={t("usage.breadcrumb")}>
+              <WorkspaceBreadcrumbItem current>{t("usage.title")}</WorkspaceBreadcrumbItem>
             </WorkspaceBreadcrumb>
           </div>
         )}
@@ -134,8 +131,8 @@ export function UsagePage() {
             <div className="flex flex-wrap items-center justify-between gap-4">
               <p className="text-sm text-muted-foreground">
                 {isPast24Hours && window.sinceTime !== undefined && window.untilTime !== undefined
-                  ? `${formatDateTimeShort(window.sinceTime, window.timeZone)} to ${formatDateTimeShort(window.untilTime, window.timeZone)}`
-                  : `${formatDayShort(window.sinceDay)} to ${formatDayShort(window.untilDay)}`}
+                  ? `${formatDateTimeShort(window.sinceTime, window.timeZone, locale)} ${t("usage.range.separator")} ${formatDateTimeShort(window.untilTime, window.timeZone, locale)}`
+                  : `${formatDayShort(window.sinceDay, locale)} ${t("usage.range.separator")} ${formatDayShort(window.untilDay, locale)}`}
               </p>
               <div className="flex items-center gap-2">
                 <div className="flex rounded-md border border-border">
@@ -152,14 +149,16 @@ export function UsagePage() {
                           : "text-muted-foreground hover:text-foreground",
                       )}
                     >
-                      {option.label}
+                      {option.days === 1
+                        ? t("usage.window.past24h")
+                        : t("usage.window.days", { count: option.days })}
                     </button>
                   ))}
                 </div>
                 <button
                   type="button"
                   onClick={refreshWindow}
-                  aria-label="Refresh usage"
+                  aria-label={t("usage.refresh")}
                   className="cursor-pointer rounded-md border border-border p-2 text-muted-foreground hover:text-foreground"
                 >
                   <RefreshCwIcon className="size-3.5" />
@@ -187,7 +186,7 @@ export function UsagePage() {
                   <div className="flex flex-col gap-5">
                     <div className="flex flex-col gap-1">
                       <span className="text-xs tracking-wide text-muted-foreground uppercase">
-                        {metric === "cost" ? "Raw token cost" : "Processed tokens"}
+                        {t(metric === "cost" ? "usage.rawTokenCost" : "usage.processedTokens")}
                       </span>
                       <span className="text-4xl font-semibold text-foreground tabular-nums">
                         {metric === "cost"
@@ -196,8 +195,8 @@ export function UsagePage() {
                       </span>
                       <span className="text-xs text-muted-foreground">
                         {metric === "cost"
-                          ? "* if billed at full API rate"
-                          : `Input, cache reads and output across ${formatCount(merged.sessions)} sessions.`}
+                          ? t("usage.fullApiRate")
+                          : t("usage.sessionSummary", { count: formatCount(merged.sessions) })}
                       </span>
                     </div>
 
@@ -227,8 +226,14 @@ export function UsagePage() {
                           </div>
                           <span className="text-xs text-muted-foreground">
                             {metric === "cost"
-                              ? `${formatPercent(share)} of cost · ${formatTokens(provider.totalTokens)} tokens`
-                              : `${formatPercent(share)} of tokens · ${formatUsd(provider.costUsd)}`}
+                              ? t("usage.provider.costShare", {
+                                  share: formatPercent(share),
+                                  tokens: formatTokens(provider.totalTokens),
+                                })
+                              : t("usage.provider.tokenShare", {
+                                  share: formatPercent(share),
+                                  cost: formatUsd(provider.costUsd),
+                                })}
                           </span>
                         </div>
                       );
@@ -238,8 +243,15 @@ export function UsagePage() {
                   <div className="flex flex-col gap-3">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <h2 className="text-sm font-medium text-foreground">
-                        {isPast24Hours ? "Hourly" : "Daily"}{" "}
-                        {metric === "tokens" ? "processed tokens" : "cost"}
+                        {t(
+                          isPast24Hours
+                            ? metric === "tokens"
+                              ? "usage.hourlyTokens"
+                              : "usage.hourlyCost"
+                            : metric === "tokens"
+                              ? "usage.dailyTokens"
+                              : "usage.dailyCost",
+                        )}
                       </h2>
                       <div className="flex items-center gap-4">
                         <div className="flex overflow-hidden rounded-md border border-border">
@@ -255,7 +267,7 @@ export function UsagePage() {
                                   : "text-muted-foreground hover:text-foreground",
                               )}
                             >
-                              {option}
+                              {t(option === "cost" ? "usage.metric.cost" : "usage.metric.tokens")}
                             </button>
                           ))}
                         </div>
@@ -277,44 +289,58 @@ export function UsagePage() {
 
                 <section className="grid grid-cols-2 gap-px border-y border-border bg-border md:grid-cols-5">
                   <Metric
-                    label="Processed tokens"
+                    label={t("usage.processedTokens")}
                     value={formatTokens(merged.totalTokens)}
-                    detail={`${formatTokens(periodAverage)} per active ${isPast24Hours ? "hour" : "day"}`}
+                    detail={t("usage.metric.perActive", {
+                      value: formatTokens(periodAverage),
+                      period: t(isPast24Hours ? "usage.period.hour" : "usage.period.day"),
+                    })}
                   />
                   <Metric
-                    label="Cached input"
+                    label={t("usage.metric.cachedInput")}
                     value={formatTokens(merged.cachedInputTokens)}
-                    detail={`${formatPercent(cachedShare)} of observed input`}
+                    detail={t("usage.metric.observedInput", {
+                      share: formatPercent(cachedShare),
+                    })}
                   />
                   <Metric
-                    label="Uncached input"
+                    label={t("usage.metric.uncachedInput")}
                     value={formatTokens(merged.uncachedInputTokens)}
-                    detail={`${formatTokens(merged.cacheCreationTokens)} cache writes`}
+                    detail={t("usage.metric.cacheWrites", {
+                      count: formatTokens(merged.cacheCreationTokens),
+                    })}
                   />
                   <Metric
-                    label="Output"
+                    label={t("usage.metric.output")}
                     value={formatTokens(merged.outputTokens)}
-                    detail={`includes ${formatTokens(merged.reasoningTokens)} reasoning`}
+                    detail={t("usage.metric.reasoning", {
+                      count: formatTokens(merged.reasoningTokens),
+                    })}
                   />
                   <Metric
-                    label="Cache savings"
+                    label={t("usage.metric.cacheSavings")}
                     value={formatUsd(merged.costQuality.cacheSavingsUsd)}
                     detail={
                       merged.costUsd > 0
-                        ? `${(merged.costQuality.cacheSavingsUsd / merged.costUsd).toFixed(1)}x the raw token cost`
-                        : "vs full input rates"
+                        ? t("usage.metric.rawCostMultiple", {
+                            value: (merged.costQuality.cacheSavingsUsd / merged.costUsd).toFixed(1),
+                          })
+                        : t("usage.metric.fullInputRates")
                     }
                   />
                 </section>
 
                 <section className="flex flex-col gap-3">
                   <div className="flex items-center justify-between gap-3">
-                    <h2 className="text-sm font-medium text-foreground">Breakdown</h2>
+                    <h2 className="text-sm font-medium text-foreground">{t("usage.breakdown")}</h2>
                     <div className="flex overflow-hidden rounded-md border border-border">
                       {(
                         [
-                          { value: "model", label: "model" },
-                          { value: "time", label: isPast24Hours ? "hour" : "day" },
+                          { value: "model", label: t("usage.breakdown.model") },
+                          {
+                            value: "time",
+                            label: t(isPast24Hours ? "usage.period.hour" : "usage.period.day"),
+                          },
                         ] as const
                       ).map((option) => (
                         <button
@@ -338,17 +364,23 @@ export function UsagePage() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                          <th className="py-2 font-normal">Model</th>
-                          <th className="py-2 text-right font-normal">Cost</th>
-                          <th className="py-2 text-right font-normal">Share</th>
-                          <th className="py-2 text-right font-normal">Tokens</th>
+                          <th className="py-2 font-normal">{t("usage.breakdown.model")}</th>
+                          <th className="py-2 text-right font-normal">
+                            {t("usage.breakdown.cost")}
+                          </th>
+                          <th className="py-2 text-right font-normal">
+                            {t("usage.breakdown.share")}
+                          </th>
+                          <th className="py-2 text-right font-normal">
+                            {t("usage.breakdown.tokens")}
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
                         {merged.models.length === 0 ? (
                           <tr>
                             <td colSpan={4} className="py-6 text-center text-muted-foreground">
-                              No activity in this window.
+                              {t("usage.noActivity")}
                             </td>
                           </tr>
                         ) : (
@@ -381,21 +413,27 @@ export function UsagePage() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                          <th className="py-2 font-normal">{isPast24Hours ? "Hour" : "Day"}</th>
+                          <th className="py-2 font-normal">
+                            {t(isPast24Hours ? "usage.period.hour" : "usage.period.day")}
+                          </th>
                           {PROVIDER_ORDER.map((provider) => (
                             <th key={provider} className="py-2 text-right font-normal">
                               {PROVIDER_LABEL[provider]}
                             </th>
                           ))}
-                          <th className="py-2 text-right font-normal">Total</th>
-                          <th className="py-2 text-right font-normal">Tokens</th>
+                          <th className="py-2 text-right font-normal">
+                            {t("usage.breakdown.total")}
+                          </th>
+                          <th className="py-2 text-right font-normal">
+                            {t("usage.breakdown.tokens")}
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
                         {recentPeriods.length === 0 ? (
                           <tr>
                             <td colSpan={5} className="py-6 text-center text-muted-foreground">
-                              No activity in this window.
+                              {t("usage.noActivity")}
                             </td>
                           </tr>
                         ) : (
@@ -406,8 +444,8 @@ export function UsagePage() {
                             >
                               <td className="py-2 text-foreground">
                                 {"hourStart" in period
-                                  ? formatHourShort(period.hourStart, window.timeZone)
-                                  : formatDayShort(period.day)}
+                                  ? formatHourShort(period.hourStart, window.timeZone, locale)
+                                  : formatDayShort(period.day, locale)}
                               </td>
                               {PROVIDER_ORDER.map((provider) => (
                                 <td
@@ -484,6 +522,7 @@ function UsageCoverageNotice({
   readonly duplicateSources: readonly string[];
   readonly staleEnvironments: readonly string[];
 }) {
+  const { t } = useI18n();
   const failed = environments.filter((environment) => environment.error !== null);
   const stale = environments.filter((environment) =>
     staleEnvironments.includes(environment.environmentId),
@@ -495,18 +534,17 @@ function UsageCoverageNotice({
   return (
     <div className="flex flex-col gap-1 border border-border px-3 py-2 text-xs text-muted-foreground">
       {failed.map((environment) => (
-        <span key={environment.label}>{environment.label} could not report usage.</span>
+        <span key={environment.label}>
+          {t("usage.coverage.failed", { environment: environment.label })}
+        </span>
       ))}
       {stale.map((environment) => (
         <span key={environment.label}>
-          {environment.label} runs an older server version and is excluded from totals.
+          {t("usage.coverage.stale", { environment: environment.label })}
         </span>
       ))}
       {duplicateSources.length > 0 ? (
-        <span>
-          Counted once across environments sharing a transcript directory:{" "}
-          {duplicateSources.join(", ")}
-        </span>
+        <span>{t("usage.coverage.duplicates", { sources: duplicateSources.join(", ") })}</span>
       ) : null}
     </div>
   );
@@ -522,6 +560,7 @@ function UsageDeviceStrip({
 }: {
   readonly environments: readonly EnvironmentUsageStatus[];
 }) {
+  const { t } = useI18n();
   const scanning = environments.filter(
     (environment) => environment.summary === null && environment.error === null,
   );
@@ -561,8 +600,8 @@ function UsageDeviceStrip({
       })}
       <span className="ms-auto text-muted-foreground">
         {scanning.length === 1
-          ? "1 device still scanning"
-          : `${scanning.length} devices still scanning`}
+          ? t("usage.scanning.one")
+          : t("usage.scanning.many", { count: scanning.length })}
       </span>
     </div>
   );
@@ -577,13 +616,21 @@ const SKELETON_BAR_HEIGHTS = [34, 58, 41, 72, 22, 12, 49, 63, 80, 38, 55, 26, 44
  * last device answers.
  */
 function UsageSkeleton({ resolution }: { readonly resolution: "day" | "hour" }) {
+  const { t } = useI18n();
+  const metricLabels = [
+    t("usage.processedTokens"),
+    t("usage.metric.cachedInput"),
+    t("usage.metric.uncachedInput"),
+    t("usage.metric.output"),
+    t("usage.metric.cacheSavings"),
+  ];
   return (
     <>
       <section className="grid gap-6 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
         <div className="flex flex-col gap-5">
           <div className="flex flex-col gap-1">
             <span className="text-xs tracking-wide text-muted-foreground uppercase">
-              Raw token cost
+              {t("usage.rawTokenCost")}
             </span>
             <div className="my-1.5 h-8 w-36 rounded-sm bg-muted" />
             <div className="h-3 w-28 rounded-sm bg-muted" />
@@ -606,7 +653,7 @@ function UsageSkeleton({ resolution }: { readonly resolution: "day" | "hour" }) 
 
         <div className="flex flex-col gap-3">
           <h2 className="py-1 text-sm font-medium text-foreground">
-            {resolution === "hour" ? "Hourly" : "Daily"} cost
+            {t(resolution === "hour" ? "usage.hourlyCost" : "usage.dailyCost")}
           </h2>
           {/* Mirrors the chart's h-56 body and w-14 axis gutter to avoid a
               relayout when the real chart swaps in. */}
@@ -623,15 +670,13 @@ function UsageSkeleton({ resolution }: { readonly resolution: "day" | "hour" }) 
       </section>
 
       <section className="grid grid-cols-2 gap-px border-y border-border bg-border md:grid-cols-5">
-        {["Processed tokens", "Cached input", "Uncached input", "Output", "Cache savings"].map(
-          (label) => (
-            <div key={label} className="flex flex-col gap-0.5 bg-background px-4 py-3">
-              <span className="text-xs text-muted-foreground">{label}</span>
-              <div className="my-1 h-5 w-16 rounded-sm bg-muted" />
-              <div className="h-3 w-24 rounded-sm bg-muted" />
-            </div>
-          ),
-        )}
+        {metricLabels.map((label) => (
+          <div key={label} className="flex flex-col gap-0.5 bg-background px-4 py-3">
+            <span className="text-xs text-muted-foreground">{label}</span>
+            <div className="my-1 h-5 w-16 rounded-sm bg-muted" />
+            <div className="h-3 w-24 rounded-sm bg-muted" />
+          </div>
+        ))}
       </section>
     </>
   );

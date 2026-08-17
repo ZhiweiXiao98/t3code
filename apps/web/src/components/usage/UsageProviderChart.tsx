@@ -9,6 +9,7 @@ import {
   formatTokens,
   formatUsd,
 } from "@t3tools/shared/usageFormat";
+import { useI18n } from "~/i18n/WebI18nProvider";
 import { PROVIDER_COLOR, PROVIDER_LABEL, PROVIDER_MARK, PROVIDER_ORDER } from "./usageProviders";
 
 const VIEW_WIDTH = 960;
@@ -206,6 +207,7 @@ export function UsageProviderChart({
   resolution,
   timeZone,
 }: UsageProviderChartProps) {
+  const { locale, t } = useI18n();
   const periods = resolution === "hour" ? hours : days;
   const byPeriod = useMemo(
     () =>
@@ -285,10 +287,12 @@ export function UsageProviderChart({
   const hoveredColumn = hoverIndex === null ? undefined : series[hoverIndex];
   const hoverLeft = periods.length <= 1 ? 0 : ((hoverIndex ?? 0) / (periods.length - 1)) * 100;
   const formatPeriod = (period: string) =>
-    resolution === "hour" ? formatHourShort(period, timeZone) : formatDayShort(period);
+    resolution === "hour"
+      ? formatHourShort(period, timeZone, locale)
+      : formatDayShort(period, locale);
   const formatTooltipPeriod = (period: string) =>
     resolution === "hour" && referenceTime !== undefined
-      ? formatRelativeHourShort(period, referenceTime, timeZone)
+      ? formatRelativeHourShort(period, referenceTime, timeZone, locale)
       : formatPeriod(period);
 
   return (
@@ -318,7 +322,10 @@ export function UsageProviderChart({
             viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
             preserveAspectRatio="none"
             role="img"
-            aria-label={`${resolution === "hour" ? "Hourly" : "Daily"} ${metric === "tokens" ? "processed tokens" : "cost"} by provider`}
+            aria-label={t("usage.chart.aria", {
+              period: t(resolution === "hour" ? "usage.period.hourly" : "usage.period.daily"),
+              metric: t(metric === "tokens" ? "usage.processedTokens" : "usage.metric.cost"),
+            })}
           >
             {ticks.map((tick) => {
               const y = toY(tick);
@@ -392,7 +399,7 @@ export function UsageProviderChart({
                 );
               })}
               <div className="mt-1 flex items-center justify-between gap-3 border-t border-border pt-1">
-                <span className="text-muted-foreground">Total</span>
+                <span className="text-muted-foreground">{t("usage.breakdown.total")}</span>
                 <span className="text-foreground tabular-nums">
                   {format(hoveredColumn?.total ?? 0)}
                 </span>

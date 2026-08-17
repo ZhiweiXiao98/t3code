@@ -3,6 +3,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   enumerateHourStarts,
+  formatDayShort,
   formatDateTimeShort,
   formatHourShort,
   formatRelativeHourShort,
@@ -22,6 +23,19 @@ describe("hourly usage formatting", () => {
     expect(formatHourShort("2026-08-11T00:37:00.000Z", "UTC")).toBe("12 AM");
     expect(formatHourShort("2026-08-11T12:37:00.000Z", "UTC")).toBe("12 PM");
     expect(formatDateTimeShort("2026-08-11T17:37:00.000Z", "UTC")).toBe("Aug 11, 5 PM");
+  });
+
+  it("formats visible dates and hours in Simplified Chinese", () => {
+    expect(formatDayShort("2026-08-11", "zh-CN")).toBe("8月11日");
+    expect(formatDateTimeShort("2026-08-11T17:37:00.000Z", "UTC", "zh-CN")).toContain("8月11日");
+    expect(
+      formatRelativeHourShort(
+        "2026-08-10T17:37:00.000Z",
+        "2026-08-11T14:37:00.000Z",
+        "UTC",
+        "zh-CN",
+      ),
+    ).toContain("昨天");
   });
 
   it("disambiguates repeated hours during a fall-back transition", () => {
