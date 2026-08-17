@@ -4448,12 +4448,12 @@ function ChatViewContent(props: ChatViewProps) {
       id: `thread-woke:${activeThread?.id ?? "unknown"}`,
       variant: "info",
       icon: <AlarmClockIcon />,
-      title: "This thread woke from snooze",
-      description: "Dismiss to clear the Woke indicator, or send a message to keep going.",
-      dismissLabel: "Dismiss Woke notification",
+      title: t("composer.banner.wokeTitle"),
+      description: t("composer.banner.wokeDescription"),
+      dismissLabel: t("composer.banner.wokeDismiss"),
       onDismiss: acknowledgeActiveThreadWoke,
     };
-  }, [acknowledgeActiveThreadWoke, activeThread?.id, activeThreadWokeVisible]);
+  }, [acknowledgeActiveThreadWoke, activeThread?.id, activeThreadWokeVisible, t]);
   // The stack renders items[0] front-most and tucks the rest behind hover, so
   // ordering is priority: urgent system banners (error/warning variants plus
   // calm-styled live states flagged `urgent`, like update progress), then
@@ -4470,10 +4470,10 @@ function ChatViewContent(props: ChatViewProps) {
       id: `thread-${isSnoozed ? "snoozed" : "settled"}:${activeThread?.id ?? "unknown"}`,
       variant: "info",
       icon: isSnoozed ? <AlarmClockIcon /> : <CheckCircle2Icon />,
-      title: `This thread is ${isSnoozed ? "snoozed" : "settled"}`,
+      title: t(isSnoozed ? "composer.banner.snoozedTitle" : "composer.banner.settledTitle"),
       description: isSnoozed
-        ? "Sending a message wakes it and moves it back to Active in the sidebar."
-        : "Sending a message moves it back to Active in the sidebar.",
+        ? t("composer.banner.snoozedDescription")
+        : t("composer.banner.settledDescription"),
       actions: (
         <Button
           size="xs"
@@ -4485,11 +4485,11 @@ function ChatViewContent(props: ChatViewProps) {
         >
           {isSnoozed
             ? isUnsnoozing
-              ? "Waking..."
-              : "Wake now"
+              ? t("composer.banner.waking")
+              : t("composer.banner.wakeNow")
             : isUnsettling
-              ? "Un-settling..."
-              : "Un-settle"}
+              ? t("composer.banner.unsettling")
+              : t("composer.banner.unsettle")}
         </Button>
       ),
     };
@@ -4501,6 +4501,7 @@ function ChatViewContent(props: ChatViewProps) {
     handleUnsettleActiveThread,
     isUnsnoozing,
     isUnsettling,
+    t,
   ]);
   const handleRestoreThreadBranch = useCallback(() => {
     if (gitStatusQuery.data?.hasWorkingTreeChanges) {

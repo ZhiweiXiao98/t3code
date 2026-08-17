@@ -59,5 +59,6 @@ describe("translateWebMessage", () => {
         method: "squash",
       }),
     ).toBe("将使用 squash 合并 #42。");
+    expect(translateWebMessage("zh-CN", "composer.banner.settledTitle")).toBe("此任务已收起");
   });
 });
