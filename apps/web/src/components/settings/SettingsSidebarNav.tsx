@@ -10,6 +10,7 @@ import {
 import {
   ArchiveIcon,
   ArrowLeftIcon,
+  BlocksIcon,
   BotIcon,
   GitBranchIcon,
   KeyboardIcon,
@@ -53,6 +54,7 @@ const SETTINGS_SECTION_ICONS: Readonly<
   "/settings/appearance": PaletteIcon,
   "/settings/keybindings": KeyboardIcon,
   "/settings/providers": BotIcon,
+  "/settings/integrations": BlocksIcon,
   "/settings/source-control": GitBranchIcon,
   "/settings/connections": Link2Icon,
   "/settings/archived": ArchiveIcon,
@@ -63,6 +65,7 @@ const SETTINGS_SECTION_MESSAGE_KEYS: Readonly<Record<SettingsPath, WebMessageKey
   "/settings/appearance": "settings.section.appearance",
   "/settings/keybindings": "settings.section.keybindings",
   "/settings/providers": "settings.section.providers",
+  "/settings/integrations": "settings.section.integrations",
   "/settings/source-control": "settings.section.sourceControl",
   "/settings/connections": "settings.section.connections",
   "/settings/archived": "settings.section.archive",
@@ -90,6 +93,7 @@ const SETTINGS_SEARCH_MESSAGE_KEYS: Readonly<Record<SettingsSearchItemId, WebMes
   "add-project-starts-in": "settings.item.addProjectStartsIn",
   "archive-confirmation": "settings.item.archiveConfirmation",
   "delete-confirmation": "settings.item.deleteConfirmation",
+  "quit-confirmation": "settings.item.quitConfirmation",
   "text-generation-model": "settings.item.textGenerationModel",
   diagnostics: "settings.item.diagnostics",
   "legacy-plan-mode": "settings.item.legacyPlanMode",
@@ -97,6 +101,11 @@ const SETTINGS_SEARCH_MESSAGE_KEYS: Readonly<Record<SettingsSearchItemId, WebMes
   "legacy-sidebar": "settings.item.legacySidebar",
   keybindings: "settings.item.keybindings",
   providers: "settings.item.providers",
+  "agent-browser-access": "settings.item.agentBrowserAccess",
+  "browser-default-viewport": "settings.item.browserDefaultViewport",
+  "browser-default-zoom": "settings.item.browserDefaultZoom",
+  "browser-default-appearance": "settings.item.browserDefaultAppearance",
+  "browser-auto-show-floating-preview": "settings.item.browserAutoShowFloatingPreview",
   "source-control": "settings.item.sourceControl",
   "remote-environments": "settings.item.remoteEnvironments",
   archive: "settings.item.archivedThreads",
@@ -280,9 +289,9 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
             {isSearching ? (
               <Button
                 type="button"
-                size="icon-xs"
+                size="icon-micro"
                 variant="ghost"
-                className="size-5 shrink-0 rounded-sm text-sidebar-muted-foreground hover:bg-sidebar-control-surface hover:text-sidebar-foreground"
+                className="shrink-0 text-sidebar-muted-foreground hover:bg-sidebar-control-surface hover:text-sidebar-foreground"
                 aria-label={t("settings.search.clear")}
                 onClick={() => {
                   clearSearch();

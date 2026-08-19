@@ -23,6 +23,7 @@ export type ThreadActionMenuId =
   | "copy-path"
   | "copy-branch"
   | "copy-thread-id"
+  | "archive"
   | "delete";
 
 export interface ThreadActionMenuState {
@@ -32,6 +33,8 @@ export interface ThreadActionMenuState {
   readonly isSnoozed: boolean;
   readonly canSnoozeNow: boolean;
   readonly isRegeneratingTitle: boolean;
+  /** Archive rejects a thread with an active turn, so disable it here rather than let the action fail. */
+  readonly isRunning: boolean;
   readonly supports: {
     readonly settlement: boolean;
     readonly snooze: boolean;
@@ -149,6 +152,16 @@ export function buildThreadActionMenuItems(
       id: "copy-thread-id",
       label: label("sidebar.action.copyThreadId", "Copy thread ID"),
       icon: "copy",
+    },
+    // Archive removes the thread from the sidebar while keeping its
+    // conversation under Settings > Archived threads — distinct from Settle
+    // (stays visible in the Settled shelf) and Delete (clears history for
+    // good), so it sits beside Delete without borrowing its destructive
+    // styling.
+    {
+      id: "archive",
+      label: label("sidebar.action.archive", "Archive thread"),
+      disabled: state.isRunning,
     },
     {
       id: "delete",

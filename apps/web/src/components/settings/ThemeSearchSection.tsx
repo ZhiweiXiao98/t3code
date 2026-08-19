@@ -31,7 +31,7 @@ import {
   AlertDialogTitle,
 } from "../ui/alert-dialog";
 import { Button } from "../ui/button";
-import { Input } from "../ui/input";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "../ui/input-group";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
 import { Spinner } from "../ui/spinner";
 
@@ -207,20 +207,24 @@ export function ThemeSearchSection({
           {t("appearance.theme.search.description")}
         </p>
       </div>
-      <form className="relative flex gap-2" onSubmit={handleSearch}>
-        <SearchIcon className="pointer-events-none absolute left-3 top-1/2 z-10 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          aria-label={t("appearance.theme.search.label")}
-          className="rounded-xl [&_input]:pl-9"
-          autoFocus
-          onChange={(event) => setQuery(event.currentTarget.value)}
-          placeholder={t("appearance.theme.search.placeholder")}
-          size="lg"
-          type="search"
-          value={query}
-        />
+      <form className="flex gap-2" onSubmit={handleSearch}>
+        <InputGroup>
+          <InputGroupAddon>
+            <SearchIcon />
+          </InputGroupAddon>
+          <InputGroupInput
+            aria-label={t("appearance.theme.search.label")}
+            autoFocus
+            onChange={(event) => setQuery(event.currentTarget.value)}
+            placeholder={t("appearance.theme.search.placeholder")}
+            size="lg"
+            type="search"
+            value={query}
+          />
+        </InputGroup>
         <Button
           disabled={!query.trim() || isSearching || installingId !== null}
+          size="lg"
           type="submit"
           variant="outline"
         >

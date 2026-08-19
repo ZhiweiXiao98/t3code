@@ -708,8 +708,13 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
             />
             <h3 className="text-sm font-medium text-foreground">{primaryLabel}</h3>
           </div>
-          <p className="text-xs text-muted-foreground" title={expiresAbsolute}>
-            {formatExpiresInLabel(pairingLink.expiresAt, nowMs)}
+          <p className="text-xs text-muted-foreground">
+            <Tooltip>
+              <TooltipTrigger render={<span />}>
+                {formatExpiresInLabel(pairingLink.expiresAt, nowMs)}
+              </TooltipTrigger>
+              <TooltipPopup side="top">{expiresAbsolute}</TooltipPopup>
+            </Tooltip>
             <span aria-hidden> · </span>
             <AccessScopeSummary
               scopes={pairingLink.scopes}
@@ -865,12 +870,18 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
               </div>
             ) : null}
             <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/30 px-2.5 py-1.5">
-              <code
-                title={qrPairingUrl}
-                className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted-foreground"
-              >
-                {qrPairingUrl}
-              </code>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <code className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted-foreground">
+                      {qrPairingUrl}
+                    </code>
+                  }
+                />
+                <TooltipPopup side="top" className="max-w-80 break-all">
+                  {qrPairingUrl}
+                </TooltipPopup>
+              </Tooltip>
               <Button
                 size="xs"
                 variant="ghost"
@@ -1272,12 +1283,18 @@ const AdvertisedEndpointListRow = memo(function AdvertisedEndpointListRow({
             {endpoint.label}
           </h3>
           {shouldShowEndpointUrl ? (
-            <p
-              className="min-w-0 truncate text-xs leading-5 text-muted-foreground"
-              title={endpoint.httpBaseUrl}
-            >
-              {endpoint.httpBaseUrl}
-            </p>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <p className="min-w-0 truncate text-xs leading-5 text-muted-foreground">
+                    {endpoint.httpBaseUrl}
+                  </p>
+                }
+              />
+              <TooltipPopup side="top" className="max-w-80">
+                {endpoint.httpBaseUrl}
+              </TooltipPopup>
+            </Tooltip>
           ) : null}
           {!isAvailable ? (
             <span className="shrink-0 rounded-md border border-border/70 px-1 py-0.5 text-[10px] text-muted-foreground">
@@ -1700,23 +1717,25 @@ function ConfiguredCloudLinkRow({ canManageRelay }: { readonly canManageRelay: b
 
   return (
     <>
-      <SettingsRow
-        title="T3 Connect"
-        description={
-          managedTunnelActive
-            ? "This environment is available to your other devices through T3 Connect."
-            : "Make this environment available to your other devices through T3 Connect."
-        }
-        status={operationError ?? primaryCloudLinkState.error}
-        control={
-          <CloudLinkSwitch
-            checked={managedTunnelActive}
-            disabled={!canManageRelay || !isSignedIn || primaryCloudLinkState.isPending || isBusy}
-            disabledReason={disabledReason}
-            onCheckedChange={(enabled) => void updateManagedTunnel(enabled)}
-          />
-        }
-      />
+      {window.desktopBridge ? (
+        <SettingsRow
+          title="T3 Connect"
+          description={
+            managedTunnelActive
+              ? "This environment is available to your other devices through T3 Connect."
+              : "Make this environment available to your other devices through T3 Connect."
+          }
+          status={operationError ?? primaryCloudLinkState.error}
+          control={
+            <CloudLinkSwitch
+              checked={managedTunnelActive}
+              disabled={!canManageRelay || !isSignedIn || primaryCloudLinkState.isPending || isBusy}
+              disabledReason={disabledReason}
+              onCheckedChange={(enabled) => void updateManagedTunnel(enabled)}
+            />
+          }
+        />
+      ) : null}
       <SettingsRow
         title="Publish agent activity"
         description="Send activity from this environment to your mobile clients for push notifications and Live Activities. Works without a T3 Connect tunnel."
@@ -3385,12 +3404,21 @@ export function ConnectionsSettings() {
                   <p className="text-xs font-medium text-muted-foreground">
                     {t("connections.tailscale.endpoint")}
                   </p>
-                  <p
-                    className="mt-1 truncate text-sm text-foreground"
-                    title={pendingTailscaleServeBaseUrl ?? undefined}
-                  >
-                    {pendingTailscaleServeBaseUrl ?? t("connections.tailscale.pendingEndpoint")}
-                  </p>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <p className="mt-1 truncate text-sm text-foreground">
+                          {pendingTailscaleServeBaseUrl ??
+                            t("connections.tailscale.pendingEndpoint")}
+                        </p>
+                      }
+                    />
+                    {pendingTailscaleServeBaseUrl ? (
+                      <TooltipPopup side="top" className="max-w-80">
+                        {pendingTailscaleServeBaseUrl}
+                      </TooltipPopup>
+                    ) : null}
+                  </Tooltip>
                 </div>
               </DialogPanel>
               <DialogFooter>

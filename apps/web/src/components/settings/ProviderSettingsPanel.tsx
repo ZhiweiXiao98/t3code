@@ -12,6 +12,7 @@ import {
   ProviderDriverKind,
   type ProviderInstanceConfig,
   type ProviderInstanceId,
+  resolveProviderInstanceEnabled,
 } from "@t3tools/contracts";
 import { DEFAULT_UNIFIED_SETTINGS } from "@t3tools/contracts/settings";
 import {
@@ -554,15 +555,23 @@ export function EnvironmentProviderSettings({
     // instance or a legacy blob there is nothing to render for the slot.
     const legacyConfig = legacyProviders[providerSettings.provider];
     const defaultLegacyConfig = defaultLegacyProviders[providerSettings.provider];
+    // The envelope is the single enabled flag: keep the legacy in-config
+    // flag out of the synthesized blob, or an explicit `enabled: false`
+    // would keep winning over the envelope and the Switch could never
+    // turn a default-off provider on.
+    const synthesizedInstance = (): ProviderInstanceConfig | undefined => {
+      if (legacyConfig === undefined) {
+        return undefined;
+      }
+      const { enabled: legacyEnabled, ...legacyConfigRest } = legacyConfig;
+      return {
+        driver,
+        enabled: legacyEnabled,
+        config: legacyConfigRest,
+      } satisfies ProviderInstanceConfig;
+    };
     const effectiveInstance: ProviderInstanceConfig | undefined =
-      explicitInstance ??
-      (legacyConfig !== undefined
-        ? ({
-            driver,
-            enabled: legacyConfig.enabled,
-            config: legacyConfig,
-          } satisfies ProviderInstanceConfig)
-        : undefined);
+      explicitInstance ?? synthesizedInstance();
     // Only the default slot depends on the legacy blob; custom instances for
     // the driver must still render even when the slot has nothing to show.
     if (effectiveInstance !== undefined) {
@@ -696,9 +705,8 @@ export function EnvironmentProviderSettings({
                   <TooltipTrigger
                     render={
                       <Button
-                        size="icon-xs"
-                        variant="ghost"
-                        className="size-5 rounded-sm p-0 text-muted-foreground hover:text-foreground"
+                        size="icon-micro"
+                        variant="ghost-muted"
                         onClick={() => setIsAddInstanceDialogOpen(true)}
                         aria-label={t("providers.action.add")}
                       >
@@ -712,9 +720,8 @@ export function EnvironmentProviderSettings({
                   <TooltipTrigger
                     render={
                       <Button
-                        size="icon-xs"
-                        variant="ghost"
-                        className="size-5 rounded-sm p-0 text-muted-foreground hover:text-foreground"
+                        size="icon-micro"
+                        variant="ghost-muted"
                         disabled={isRefreshingProviders}
                         onClick={() => void refreshProviders()}
                         aria-label={t("providers.action.refresh")}
@@ -878,7 +885,7 @@ export function EnvironmentProviderSettings({
                   }))
                 }
                 onUpdate={(next) => {
-                  const wasEnabled = row.instance.enabled ?? true;
+                  const wasEnabled = resolveProviderInstanceEnabled(row.instance);
                   const isDisabling = next.enabled === false && wasEnabled;
                   const shouldClearTextGen = isDisabling && textGenInstanceId === row.instanceId;
                   if (shouldClearTextGen) {
