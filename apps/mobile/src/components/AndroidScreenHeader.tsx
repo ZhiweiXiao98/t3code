@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SymbolView, type AppSymbolName } from "./AppSymbol";
 import { AppText as Text } from "./AppText";
 import { cn } from "../lib/cn";
+import { localizeMobileString } from "../i18n/mobileStrings";
 import { useThemeColor } from "../lib/useThemeColor";
 
 export interface AndroidHeaderAction {
@@ -25,7 +26,7 @@ export function AndroidHeaderIconButton(props: {
 
   return (
     <Pressable
-      accessibilityLabel={props.accessibilityLabel}
+      accessibilityLabel={localizeMobileString(props.accessibilityLabel)}
       accessibilityRole="button"
       disabled={props.disabled}
       hitSlop={8}
@@ -66,7 +67,7 @@ export function AndroidScreenHeader(props: {
       <View className="min-h-12 flex-row items-center gap-2">
         {props.onBack ? (
           <Pressable
-            accessibilityLabel="Navigate up"
+            accessibilityLabel={localizeMobileString("Navigate up")}
             accessibilityRole="button"
             hitSlop={8}
             onPress={props.onBack}

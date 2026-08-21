@@ -7,9 +7,12 @@
 
 ## 下载与安装
 
-[前往 Releases 下载最新 Windows x64 安装包](https://github.com/ZhiweiXiao98/t3code/releases/latest)
+- [Windows x64 简体中文安装包](https://github.com/ZhiweiXiao98/t3code/releases/tag/zh-cn-v0.0.33-cn.1)
+- [Android 简体中文 APK](https://github.com/ZhiweiXiao98/t3code/releases/tag/zh-cn-mobile-v1.0.4-cn.1)
 
-当前安装包没有代码签名，Windows SmartScreen 可能显示安全提醒。请只从本仓库 Releases 下载，并在安装前核对发布页提供的 SHA-256。
+两个社区安装包均未使用应用商店或商业代码签名。Windows SmartScreen 或 Android 系统可能显示安全提醒，请只从本仓库 Releases 下载，并在安装前核对发布页提供的 SHA-256。
+
+Android 版使用独立应用标识 `com.zhiweixiao.t3code.zhcn`，可以与官方版同时安装，并已关闭官方 OTA 更新，避免汉化界面被英文更新覆盖。它支持与本地 T3 Code 后端配对；依赖官方应用签名或云端凭据的 T3 Connect 登录、推送通知等功能可能受限。
 
 T3 Code 需要至少一个已安装并完成登录的 Provider CLI：
 
@@ -39,6 +42,8 @@ T3 Code 需要至少一个已安装并完成登录的 Provider CLI：
 - Windows 桌面原生菜单
 
 少量 Provider 返回的动态状态、第三方错误信息和底层技术值会继续显示原文。
+
+Android 社区安装包固定使用简体中文；桌面版仍可在设置中切换语言。
 
 ## 开发状态
 

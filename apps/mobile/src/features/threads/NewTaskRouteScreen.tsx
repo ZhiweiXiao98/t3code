@@ -8,13 +8,14 @@ import {
 import { SymbolView } from "../../components/AppSymbol";
 import type { EnvironmentProject } from "@t3tools/client-runtime/state/shell";
 import { useEffect, useRef } from "react";
-import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, View } from "react-native";
+import { ActivityIndicator, Platform, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useThemeColor } from "../../lib/useThemeColor";
 import { cn } from "../../lib/cn";
 
 import { AndroidScreenHeader } from "../../components/AndroidScreenHeader";
 import { AppText as Text } from "../../components/AppText";
+import { LocalizedAlert as Alert } from "../../i18n/LocalizedAlert";
 import { ProjectFavicon } from "../../components/ProjectFavicon";
 import { useProjects } from "../../state/entities";
 import type { WorkspaceState } from "../../state/workspaceModel";

@@ -8,8 +8,9 @@ import {
   type SharePayload,
 } from "expo-sharing";
 import React, { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
-import { Alert, AppState, Platform } from "react-native";
+import { AppState, Platform } from "react-native";
 
+import { LocalizedAlert as Alert } from "../../i18n/LocalizedAlert";
 import {
   buildIncomingShareDraft,
   type IncomingShareDestination,

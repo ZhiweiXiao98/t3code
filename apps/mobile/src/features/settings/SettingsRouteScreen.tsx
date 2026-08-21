@@ -8,7 +8,7 @@ import { SymbolView } from "../../components/AppSymbol";
 import * as Effect from "effect/Effect";
 import { AsyncResult } from "effect/unstable/reactivity";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { Alert, Linking, Platform, Pressable, ScrollView, View } from "react-native";
+import { Linking, Platform, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
@@ -20,6 +20,7 @@ import {
 } from "@t3tools/client-runtime/state/runtime";
 import { AndroidScreenHeader } from "../../components/AndroidScreenHeader";
 import { AppText as Text } from "../../components/AppText";
+import { LocalizedAlert as Alert } from "../../i18n/LocalizedAlert";
 import { supportsAgentAwarenessPush } from "../agent-awareness/capabilities";
 import { setLiveActivityUpdatesEnabled } from "../agent-awareness/liveActivityPreferences";
 import { requestAgentNotificationPermission } from "../agent-awareness/notificationPermissions";

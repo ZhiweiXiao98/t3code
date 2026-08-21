@@ -10,7 +10,7 @@ import {
 } from "@t3tools/client-runtime/state/thread-settled";
 import type { MenuAction } from "@react-native-menu/menu";
 import { memo, useCallback, useEffect, useMemo, useState, type ComponentProps } from "react";
-import { Alert, Platform, Pressable, useWindowDimensions, View } from "react-native";
+import { Platform, Pressable, useWindowDimensions, View } from "react-native";
 import type { SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
 
 import { SymbolView } from "../../components/AppSymbol";
@@ -18,6 +18,7 @@ import { AppText as Text } from "../../components/AppText";
 import { ControlPillMenu } from "../../components/ControlPill";
 import { ProjectFavicon } from "../../components/ProjectFavicon";
 import { ProviderIcon } from "../../components/ProviderIcon";
+import { LocalizedAlert as Alert } from "../../i18n/LocalizedAlert";
 import { cn } from "../../lib/cn";
 import { relativeTime } from "../../lib/time";
 import { useThemeColor } from "../../lib/useThemeColor";

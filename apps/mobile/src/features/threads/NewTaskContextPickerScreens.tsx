@@ -7,20 +7,14 @@ import {
 import * as Haptics from "expo-haptics";
 import { useNavigation } from "@react-navigation/native";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Platform,
-  Pressable,
-  ScrollView,
-  TextInput,
-  View,
-} from "react-native";
+import { ActivityIndicator, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AndroidScreenHeader } from "../../components/AndroidScreenHeader";
 import { SymbolView } from "../../components/AppSymbol";
 import { AppText as Text } from "../../components/AppText";
+import { LocalizedAlert as Alert } from "../../i18n/LocalizedAlert";
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { ThemedSwitch } from "../../components/ThemedSwitch";
 import { cn } from "../../lib/cn";
 import { useFontFamily } from "../../lib/useFontFamily";
@@ -418,7 +412,7 @@ export function NewTaskBranchPickerRouteScreen() {
             autoCorrect={false}
             className="h-11 rounded-xl bg-card px-4 text-base text-foreground"
             onChangeText={flow.setBranchQuery}
-            placeholder="Find a branch"
+            placeholder={localizeMobileString("Find a branch")}
             placeholderTextColor={placeholderColor}
             style={{ color: foregroundColor, fontFamily }}
             value={flow.branchQuery}

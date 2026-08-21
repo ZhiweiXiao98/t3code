@@ -22,6 +22,7 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import type { SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
 
 import { AppText as Text } from "../../components/AppText";
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { ControlPillMenu } from "../../components/ControlPill";
 import { EmptyState } from "../../components/EmptyState";
 import { ProjectFavicon } from "../../components/ProjectFavicon";
@@ -170,7 +171,7 @@ function ArchivedThreadsHeader(props: {
                 autoCapitalize="none"
                 onChangeText={props.onSearchQueryChange}
                 value={props.searchQuery}
-                placeholder="Search archived threads"
+                placeholder={localizeMobileString("Search archived threads")}
                 placeholderTextColorClassName="accent-placeholder"
                 className="flex-1 py-2 text-base font-sans text-foreground"
               />

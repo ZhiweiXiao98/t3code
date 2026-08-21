@@ -27,6 +27,7 @@ import { AppText as Text } from "../../components/AppText";
 import { ControlPillMenu } from "../../components/ControlPill";
 import { SymbolView } from "../../components/AppSymbol";
 import { NATIVE_LIQUID_GLASS_SUPPORTED } from "../../native/native-glass";
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { NativeStackScreenOptions } from "../../native/StackHeader";
 import { scopedProjectKey, scopedThreadKey } from "../../lib/scopedEntities";
 import { useThemeColor } from "../../lib/useThemeColor";
@@ -1403,7 +1404,7 @@ function ThreadNavigationSidebarPane(
             autoCorrect={false}
             clearButtonMode="while-editing"
             onChangeText={props.onSearchQueryChange}
-            placeholder="Search"
+            placeholder={localizeMobileString("Search")}
             placeholderTextColor={placeholderColor}
             returnKeyType="search"
             className="h-[34px] flex-1 px-0 py-0 font-sans text-base text-foreground"

@@ -5,12 +5,13 @@ import type { EnvironmentId } from "@t3tools/contracts";
 import * as Cause from "effect/Cause";
 import { AsyncResult } from "effect/unstable/reactivity";
 import { useCallback, useState } from "react";
-import { Alert, Pressable, View } from "react-native";
+import { Pressable, View } from "react-native";
 import Animated, { FadeIn, FadeOut, LinearTransition } from "react-native-reanimated";
 import { useThemeColor } from "../../lib/useThemeColor";
 
 import { AppText as Text, AppTextInput as TextInput } from "../../components/AppText";
 import { cn } from "../../lib/cn";
+import { LocalizedAlert as Alert } from "../../i18n/LocalizedAlert";
 import { copyTextWithHaptic } from "../../lib/copyTextWithHaptic";
 import type { ConnectedEnvironmentSummary } from "../../state/remote-runtime-types";
 import { ConnectionStatusDot } from "./ConnectionStatusDot";

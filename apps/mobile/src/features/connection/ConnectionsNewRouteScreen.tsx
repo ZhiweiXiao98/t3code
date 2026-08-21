@@ -3,13 +3,14 @@ import { NativeHeaderToolbar, NativeStackScreenOptions } from "../../native/Stac
 import { StackActions, useNavigation, type StaticScreenProps } from "@react-navigation/native";
 import { AsyncResult } from "effect/unstable/reactivity";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Linking, Platform, ScrollView, View } from "react-native";
+import { Linking, Platform, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useThemeColor } from "../../lib/useThemeColor";
 
 import { AndroidScreenHeader } from "../../components/AndroidScreenHeader";
 import { AppText as Text, AppTextInput as TextInput } from "../../components/AppText";
 import { ErrorBanner } from "../../components/ErrorBanner";
+import { LocalizedAlert as Alert } from "../../i18n/LocalizedAlert";
 import { ConnectionSheetButton } from "./ConnectionSheetButton";
 import { buildPairingUrl, extractPairingUrlFromQrPayload, parsePairingUrl } from "./pairing";
 import { useRemoteConnections } from "../../state/use-remote-environment-registry";

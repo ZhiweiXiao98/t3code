@@ -6,6 +6,7 @@ import { useThemeColor } from "../lib/useThemeColor";
 import { useFontFamily } from "../lib/useFontFamily";
 import { useScaledTextRole } from "../features/settings/appearance/useScaledTextRole";
 import { useNativePaste } from "../lib/useNativePaste";
+import { localizeMobileString } from "../i18n/mobileStrings";
 import type { ComposerEditorProps } from "./T3ComposerEditor.types";
 
 export function ComposerEditor({
@@ -42,6 +43,9 @@ export function ComposerEditor({
       <TextInput
         ref={inputRef}
         {...props}
+        placeholder={
+          props.placeholder === undefined ? undefined : localizeMobileString(props.placeholder)
+        }
         selection={selection}
         onSelectionChange={(event) => props.onSelectionChange?.(event.nativeEvent.selection)}
         multiline={props.multiline ?? true}

@@ -34,6 +34,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SymbolView } from "../../components/AppSymbol";
 import { AppText as Text } from "../../components/AppText";
 import { AndroidScreenHeader } from "../../components/AndroidScreenHeader";
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { ProviderIcon } from "../../components/ProviderIcon";
 import { ThemedSwitch } from "../../components/ThemedSwitch";
 import { cn } from "../../lib/cn";
@@ -823,7 +824,7 @@ function ThreadSettingsMainContent(props: {
                 autoCorrect={false}
                 className="h-11 rounded-xl bg-card px-4 text-base text-foreground"
                 onChangeText={session.setSearchQuery}
-                placeholder="Find a model"
+                placeholder={localizeMobileString("Find a model")}
                 placeholderTextColorClassName="accent-placeholder"
                 value={session.searchQuery}
               />

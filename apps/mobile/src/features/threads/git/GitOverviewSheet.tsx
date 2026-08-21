@@ -13,7 +13,7 @@ import {
 } from "@react-navigation/native";
 import { SymbolView } from "../../../components/AppSymbol";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, Platform, Pressable, RefreshControl, ScrollView, View } from "react-native";
+import { Platform, Pressable, RefreshControl, ScrollView, View } from "react-native";
 
 import { Screen, ScreenStack, ScreenStackHeaderConfig } from "react-native-screens";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -21,6 +21,7 @@ import { useThemeColor } from "../../../lib/useThemeColor";
 
 import { AndroidSheetHeader } from "../../../components/AndroidScreenHeader";
 import { AppText as Text } from "../../../components/AppText";
+import { LocalizedAlert as Alert } from "../../../i18n/LocalizedAlert";
 import { nativeHeaderScrollEdgeEffects } from "../../../native/StackHeader";
 import { tryOpenExternalUrl } from "../../../lib/openExternalUrl";
 import { useEnvironmentQuery } from "../../../state/query";

@@ -13,8 +13,8 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import { NativeHeaderToolbar } from "../../native/StackHeader";
 import { useCallback, useMemo } from "react";
-import { Alert } from "react-native";
 import { tryOpenExternalUrl } from "../../lib/openExternalUrl";
+import { LocalizedAlert as Alert } from "../../i18n/LocalizedAlert";
 import {
   basename,
   getTerminalStatusLabel,

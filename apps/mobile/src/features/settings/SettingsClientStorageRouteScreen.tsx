@@ -2,10 +2,11 @@ import { useAtomSet, useAtomValue } from "@effect/atom-react";
 import { AsyncResult } from "effect/unstable/reactivity";
 import { SymbolView } from "expo-symbols";
 import { useMemo } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppText as Text } from "../../components/AppText";
+import { LocalizedAlert as Alert } from "../../i18n/LocalizedAlert";
 import { useThemeColor } from "../../lib/useThemeColor";
 import {
   clearClientCacheAtom,

@@ -11,6 +11,7 @@ import {
 
 import { AppText as Text } from "../../components/AppText";
 import { MOBILE_TYPOGRAPHY } from "../../lib/typography";
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
 import {
   getNativeTerminalHardwareKeyRevision,
@@ -133,7 +134,7 @@ const FallbackTerminalSurface = memo(function FallbackTerminalSurface(props: Ter
           autoCorrect={false}
           blurOnSubmit={false}
           editable={props.isRunning}
-          placeholder="type and press return"
+          placeholder={localizeMobileString("type and press return")}
           placeholderTextColor={theme.mutedForeground}
           returnKeyType="send"
           className="text-sm"

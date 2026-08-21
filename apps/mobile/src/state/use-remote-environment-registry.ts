@@ -6,8 +6,8 @@ import * as Cause from "effect/Cause";
 import * as Option from "effect/Option";
 import { AsyncResult, Atom } from "effect/unstable/reactivity";
 import { useCallback, useMemo } from "react";
-import { Alert } from "react-native";
 
+import { LocalizedAlert as Alert } from "../i18n/LocalizedAlert";
 import { useEnvironmentServerConfig } from "../state/entities";
 import { useConnectionController } from "../features/connection/useConnectionController";
 import { environmentPresentations, useEnvironmentPresentation } from "./presentation";

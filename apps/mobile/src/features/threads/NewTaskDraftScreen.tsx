@@ -6,7 +6,7 @@ import {
   usePreventRemove,
 } from "@react-navigation/native";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Platform, Pressable, ScrollView, View } from "react-native";
+import { Platform, Pressable, ScrollView, View } from "react-native";
 import {
   KeyboardController,
   KeyboardStickyView,
@@ -34,6 +34,7 @@ import { ComposerAttachmentStrip } from "../../components/ComposerAttachmentStri
 import { ProviderIcon } from "../../components/ProviderIcon";
 import { SymbolView } from "../../components/AppSymbol";
 import { AppText as Text } from "../../components/AppText";
+import { LocalizedAlert as Alert } from "../../i18n/LocalizedAlert";
 import { ComposerSurface } from "./ThreadComposer";
 import {
   useThreadSettingsSheetPresentation,

@@ -12,6 +12,7 @@ import { SymbolView } from "../../components/AppSymbol";
 import { T3Wordmark } from "../../components/T3Wordmark";
 import { HOME_HORIZONTAL_INSET } from "../../lib/layoutMetrics";
 import { resolveMobileStageLabel } from "../../lib/mobileBranding";
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { useThemeColor } from "../../lib/useThemeColor";
 import { useThreadListV2Enabled } from "../threads/use-thread-list-v2-enabled";
 import { useHardwareKeyboardCommand } from "../keyboard/hardwareKeyboardCommands";
@@ -272,7 +273,7 @@ function AndroidHomeHeader(props: HomeHeaderProps) {
               accessibilityLabel="Search threads"
               autoCapitalize="none"
               onChangeText={props.onSearchQueryChange}
-              placeholder="Search threads"
+              placeholder={localizeMobileString("Search threads")}
               placeholderTextColorClassName="accent-placeholder"
               className="flex-1 py-2.5 text-base font-sans text-foreground"
               value={props.searchQuery}
