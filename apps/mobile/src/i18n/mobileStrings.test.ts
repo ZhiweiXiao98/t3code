@@ -12,6 +12,8 @@ describe("mobile strings", () => {
   it("translates fixed messages while preserving surrounding whitespace", () => {
     expect(localizeMobileString("  Settings ", "zh-CN")).toBe("  设置 ");
     expect(localizeMobileString("No conversation yet", "zh-CN")).toBe("还没有对话");
+    expect(localizeMobileString("Add Environment", "zh-CN")).toBe("添加环境");
+    expect(localizeMobileString("Scan QR Code", "zh-CN")).toBe("扫描二维码");
   });
 
   it("translates dynamic thread states", () => {
