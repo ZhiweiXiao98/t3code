@@ -282,11 +282,12 @@ function itemSummary({
         </span>
       );
     }
+    const authDetail = optionLabel(auth.detail);
     return (
       <span>
         {t("sourceControl.summary.verifyFailed", {
           provider: item.label,
-          hint: localizeInstallHint(item.installHint, t),
+          hint: authDetail ?? localizeInstallHint(item.installHint, t),
         })}
       </span>
     );

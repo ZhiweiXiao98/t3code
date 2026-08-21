@@ -27,6 +27,7 @@ import { cn } from "~/lib/utils";
 import { getSourceControlPresentationForKind } from "~/sourceControlPresentation";
 import { ProjectFavicon } from "../ProjectFavicon";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "../ui/input-group";
+import { Button } from "../ui/button";
 
 import {
   Menu,
@@ -295,12 +296,14 @@ export function PullRequestFiltersMenu({
   return (
     <Menu>
       <MenuTrigger
-        className={cn(
-          // The icon-button size that pairs with a full-height input, so the two read as one strip.
-          "relative inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-input text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground sm:size-8",
-          filtered && "text-foreground",
-        )}
-        aria-label={t("pullRequests.filter.label")}
+        render={
+          <Button
+            className={cn("relative", filtered && "[--control-icon-color:currentColor]")}
+            size="icon"
+            variant="outline"
+            aria-label={t("pullRequests.filter.label")}
+          />
+        }
       >
         <ListFilterIcon className="size-4" />
         {filtered ? (

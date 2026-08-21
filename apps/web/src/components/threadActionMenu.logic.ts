@@ -20,6 +20,7 @@ export type ThreadActionMenuId =
   | "rename"
   | "regenerate-title"
   | "mark-unread"
+  | "copy"
   | "copy-path"
   | "copy-branch"
   | "copy-thread-id"
@@ -84,14 +85,23 @@ export function buildThreadActionMenuItems(
             label: label("sidebar.action.newThreadOnBranch", `New thread on ${state.branch}`, {
               branch: state.branch,
             }),
+            icon: "message-square-plus",
           },
         ]
       : []),
     ...(state.supports.pinning
       ? [
           state.isPinned
-            ? { id: "unpin" as const, label: label("sidebar.action.unpin", "Unpin thread") }
-            : { id: "pin" as const, label: label("sidebar.action.pin", "Pin thread") },
+            ? {
+                id: "unpin" as const,
+                label: label("sidebar.action.unpin", "Unpin thread"),
+                icon: "pin-off",
+              }
+            : {
+                id: "pin" as const,
+                label: label("sidebar.action.pin", "Pin thread"),
+                icon: "pin",
+              },
         ]
       : []),
     // Both lifecycle actions stay available on pinned threads: settling
@@ -103,20 +113,27 @@ export function buildThreadActionMenuItems(
             ? {
                 id: "unsettle" as const,
                 label: label("sidebar.action.unsettle", "Un-settle thread"),
+                icon: "circle-check",
               }
             : {
                 id: "settle" as const,
                 label: label("sidebar.action.settle", "Settle thread"),
+                icon: "circle-check",
               },
         ]
       : []),
     ...(state.supports.snooze
       ? [
           state.isSnoozed
-            ? { id: "unsnooze" as const, label: label("sidebar.action.wake", "Wake thread") }
+            ? {
+                id: "unsnooze" as const,
+                label: label("sidebar.action.wake", "Wake thread"),
+                icon: "clock",
+              }
             : {
                 id: "snooze" as const,
                 label: label("sidebar.action.snooze", "Snooze"),
+                icon: "clock",
                 disabled: !state.canSnoozeNow,
                 children: state.snoozePresets.map((preset) => ({
                   id: `snooze:${preset.id}` as const,
@@ -125,7 +142,12 @@ export function buildThreadActionMenuItems(
               },
         ]
       : []),
-    { id: "rename", label: label("sidebar.action.rename", "Rename thread") },
+    {
+      id: "rename",
+      label: label("sidebar.action.rename", "Rename thread"),
+      icon: "pencil",
+      separatorBefore: true,
+    },
     ...(state.supports.titleRegeneration
       ? [
           {
@@ -133,25 +155,38 @@ export function buildThreadActionMenuItems(
             label: state.isRegeneratingTitle
               ? label("sidebar.action.regenerating", "Regenerating…")
               : label("sidebar.action.regenerateTitle", "Regenerate title"),
+            icon: "refresh-cw",
             disabled: state.isRegeneratingTitle,
           },
         ]
       : []),
-    { id: "mark-unread", label: label("sidebar.action.markUnread", "Mark unread") },
-    { id: "copy-path", label: label("sidebar.action.copyPath", "Copy path"), icon: "copy" },
-    ...(state.branch
-      ? [
-          {
-            id: "copy-branch" as const,
-            label: label("sidebar.action.copyBranch", "Copy branch"),
-            icon: "copy",
-          },
-        ]
-      : []),
     {
-      id: "copy-thread-id",
-      label: label("sidebar.action.copyThreadId", "Copy thread ID"),
+      id: "mark-unread",
+      label: label("sidebar.action.markUnread", "Mark unread"),
+      icon: "mail-open",
+    },
+    {
+      id: "copy",
+      label: label("sidebar.action.copy", "Copy"),
       icon: "copy",
+      separatorBefore: true,
+      children: [
+        { id: "copy-path", label: label("sidebar.action.path", "Path"), icon: "folder" },
+        ...(state.branch
+          ? [
+              {
+                id: "copy-branch" as const,
+                label: label("sidebar.action.branch", "Branch"),
+                icon: "git-branch",
+              },
+            ]
+          : []),
+        {
+          id: "copy-thread-id",
+          label: label("sidebar.action.threadId", "Thread ID"),
+          icon: "hash",
+        },
+      ],
     },
     // Archive removes the thread from the sidebar while keeping its
     // conversation under Settings > Archived threads — distinct from Settle
@@ -161,7 +196,9 @@ export function buildThreadActionMenuItems(
     {
       id: "archive",
       label: label("sidebar.action.archive", "Archive thread"),
+      icon: "archive",
       disabled: state.isRunning,
+      separatorBefore: true,
     },
     {
       id: "delete",
