@@ -38,6 +38,15 @@ describe("translateWebMessage", () => {
     );
     expect(translateWebMessage("zh-CN", "providers.healthCheck.title")).toBe("健康检查间隔");
     expect(translateWebMessage("zh-CN", "sourceControl.versionControl")).toBe("版本控制");
+    expect(translateWebMessage("zh-CN", "settings.integrations.browser.title")).toBe("浏览器");
+    expect(translateWebMessage("zh-CN", "settings.integrations.browserDefaultViewport.fill")).toBe(
+      "填满面板",
+    );
+    expect(
+      translateWebMessage("zh-CN", "settings.integrations.browserDefaultViewport.rotateTo", {
+        orientation: "横向",
+      }),
+    ).toBe("旋转为横向");
   });
 
   it("localizes dialog copy while preserving technical values", () => {

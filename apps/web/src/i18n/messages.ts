@@ -91,6 +91,33 @@ export const EN_MESSAGES = {
   "settings.item.remoteEnvironments": "Remote environments",
   "settings.item.archivedThreads": "Archived threads",
 
+  "settings.integrations.browser.title": "Browser",
+  "settings.integrations.agentBrowserAccess.description":
+    "Let agents open and drive the preview browser. When off, the browser tools and the instructions describing them are withheld from agent sessions. Your own browser panel is unaffected.",
+  "settings.integrations.agentBrowserAccess.status":
+    "Applies to sessions started from now on; a running agent keeps the tools it was given.",
+  "settings.integrations.agentBrowserAccess.aria": "Allow agent browser access",
+  "settings.integrations.browserDefaultViewport.description":
+    "The viewport a browser tab opens at, for both you and agents. Fill sizes the page to the panel; any other choice opens the device toolbar at that size.",
+  "settings.integrations.browserDefaultViewport.fill": "Fill panel",
+  "settings.integrations.browserDefaultViewport.responsive": "Responsive",
+  "settings.integrations.browserDefaultViewport.standard": "Standard",
+  "settings.integrations.browserDefaultViewport.width": "Default viewport width",
+  "settings.integrations.browserDefaultViewport.height": "Default viewport height",
+  "settings.integrations.browserDefaultViewport.rotateTo": "Rotate to {orientation}",
+  "settings.integrations.browserDefaultViewport.orientation.landscape": "landscape",
+  "settings.integrations.browserDefaultViewport.orientation.portrait": "portrait",
+  "settings.integrations.browserDefaultViewport.rotate": "Rotate",
+  "settings.integrations.browserDefaultZoom.description": "Page zoom applied to new browser tabs.",
+  "settings.integrations.browserDefaultAppearance.description":
+    "The color scheme pages are told to prefer. System follows your OS setting.",
+  "settings.integrations.browserDefaultAppearance.system": "System",
+  "settings.integrations.browserDefaultAppearance.light": "Light",
+  "settings.integrations.browserDefaultAppearance.dark": "Dark",
+  "settings.integrations.browserAutoShowFloatingPreview.description":
+    "Pop the floating preview into view when an agent opens a browser. An agent that explicitly asks to show or hide its preview still gets what it asked for.",
+  "settings.integrations.desktopOnly": "Only available in the desktop app.",
+
   "settings.restoreDefaults": "Restore defaults",
   "settings.resetSetting": "Reset {setting} to default",
   "settings.resetDefault": "Reset to default",
@@ -1804,6 +1831,33 @@ export const ZH_CN_MESSAGES = {
   "settings.item.sourceControl": "源代码管理",
   "settings.item.remoteEnvironments": "远程环境",
   "settings.item.archivedThreads": "已归档任务",
+
+  "settings.integrations.browser.title": "浏览器",
+  "settings.integrations.agentBrowserAccess.description":
+    "允许 Agent 打开并操作预览浏览器。关闭后，Agent 会话将无法获得浏览器工具及相关说明；你自己的浏览器面板不受影响。",
+  "settings.integrations.agentBrowserAccess.status":
+    "仅对之后启动的会话生效；正在运行的 Agent 会保留已获得的工具。",
+  "settings.integrations.agentBrowserAccess.aria": "允许 Agent 访问浏览器",
+  "settings.integrations.browserDefaultViewport.description":
+    "设置你和 Agent 新建浏览器标签页时使用的视口。填满面板会使页面适应面板大小；选择其他尺寸时，将以该尺寸打开设备工具栏。",
+  "settings.integrations.browserDefaultViewport.fill": "填满面板",
+  "settings.integrations.browserDefaultViewport.responsive": "响应式",
+  "settings.integrations.browserDefaultViewport.standard": "标准设备",
+  "settings.integrations.browserDefaultViewport.width": "默认视口宽度",
+  "settings.integrations.browserDefaultViewport.height": "默认视口高度",
+  "settings.integrations.browserDefaultViewport.rotateTo": "旋转为{orientation}",
+  "settings.integrations.browserDefaultViewport.orientation.landscape": "横向",
+  "settings.integrations.browserDefaultViewport.orientation.portrait": "纵向",
+  "settings.integrations.browserDefaultViewport.rotate": "旋转",
+  "settings.integrations.browserDefaultZoom.description": "应用于新浏览器标签页的页面缩放比例。",
+  "settings.integrations.browserDefaultAppearance.description":
+    "告知网页优先使用的配色方案；跟随系统时，将采用操作系统设置。",
+  "settings.integrations.browserDefaultAppearance.system": "跟随系统",
+  "settings.integrations.browserDefaultAppearance.light": "浅色",
+  "settings.integrations.browserDefaultAppearance.dark": "深色",
+  "settings.integrations.browserAutoShowFloatingPreview.description":
+    "Agent 打开浏览器时自动显示浮动预览。若 Agent 明确要求显示或隐藏预览，仍会按其要求执行。",
+  "settings.integrations.desktopOnly": "仅桌面客户端支持这些设置。",
 
   "settings.restoreDefaults": "恢复默认设置",
   "settings.resetSetting": "将{setting}恢复为默认值",
