@@ -13,6 +13,15 @@ describe("localizeTextChildren", () => {
     );
   });
 
+  it("localizes a pluralized queue notice after joining its React children", () => {
+    expect(
+      localizeTextChildren(
+        [2, " queued message", "s", " will send automatically."],
+        localizeChinese,
+      ),
+    ).toBe("2 条排队消息将在恢复连接后自动发送。");
+  });
+
   it("falls back to localized fragments when the complete text has no catalog entry", () => {
     expect(localizeTextChildren(["+", 3, " more files"], localizeChinese)).toEqual([
       "+",

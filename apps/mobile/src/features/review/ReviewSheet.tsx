@@ -180,6 +180,7 @@ const ReviewFileNavigatorRow = memo(function ReviewFileNavigatorRow(props: {
       onPress={handlePress}
     >
       <Text
+        localize={false}
         className={
           selected
             ? "text-xs font-t3-bold text-foreground"

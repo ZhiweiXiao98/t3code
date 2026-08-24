@@ -87,6 +87,7 @@ const FileTreeRow = memo(function FileTreeRow(props: {
       )}
       <PierreEntryIcon path={node.path} kind={node.kind} size={17} />
       <Text
+        localize={false}
         className={cn(
           "min-w-0 flex-1 text-sm leading-normal",
           props.selected
