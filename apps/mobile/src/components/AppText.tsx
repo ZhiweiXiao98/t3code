@@ -9,7 +9,11 @@ import {
 import { cn } from "../lib/cn";
 import { localizeMobileString } from "../i18n/mobileStrings";
 
-export type AppTextProps = RNTextProps & { readonly className?: string };
+export type AppTextProps = RNTextProps & {
+  readonly className?: string;
+  /** UI copy is localized by default; disable this for user-, server-, or repository-owned text. */
+  readonly localize?: boolean;
+};
 
 /**
  * Thin wrapper around RN Text with default font-family and foreground color.
@@ -21,16 +25,24 @@ function localizeTextChildren(children: ReactNode): ReactNode {
   );
 }
 
-export function AppText({ accessibilityLabel, children, className, ...props }: AppTextProps) {
+export function AppText({
+  accessibilityLabel,
+  children,
+  className,
+  localize = true,
+  ...props
+}: AppTextProps) {
   return (
     <RNText
       accessibilityLabel={
-        accessibilityLabel === undefined ? undefined : localizeMobileString(accessibilityLabel)
+        accessibilityLabel === undefined || !localize
+          ? accessibilityLabel
+          : localizeMobileString(accessibilityLabel)
       }
       className={cn("font-sans text-foreground", className)}
       {...props}
     >
-      {localizeTextChildren(children)}
+      {localize ? localizeTextChildren(children) : children}
     </RNText>
   );
 }

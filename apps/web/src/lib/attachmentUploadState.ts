@@ -22,11 +22,16 @@ export type AttachmentUploadState =
       readonly previous?: ReadyAttachmentUpload;
     };
 
+export type AttachmentUploadBlockReason = {
+  readonly kind: "failed" | "pending";
+  readonly count: number;
+};
+
 export function attachmentUploadBlockReason(input: {
   readonly imageIds: ReadonlyArray<string>;
   readonly uploadsByImageId: Readonly<Record<string, AttachmentUploadState>>;
   readonly environmentId: EnvironmentId;
-}): string | null {
+}): AttachmentUploadBlockReason | null {
   let pending = 0;
   let failed = 0;
 
@@ -40,10 +45,10 @@ export function attachmentUploadBlockReason(input: {
   }
 
   if (failed > 0) {
-    return failed === 1 ? "Retry or remove the failed image" : "Retry or remove the failed images";
+    return { kind: "failed", count: failed };
   }
   if (pending > 0) {
-    return pending === 1 ? "Image still uploading" : "Images still uploading";
+    return { kind: "pending", count: pending };
   }
   return null;
 }

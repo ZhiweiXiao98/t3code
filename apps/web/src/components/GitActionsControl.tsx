@@ -1223,14 +1223,14 @@ export default function GitActionsControl({
             }),
           }
         : {
-            title: t("gitDialog.defaultBranch.createTitle", {
+            title: t("gitDialog.defaultBranch.pushCreateTitle", {
               request: localizedChangeRequestLabel,
             }),
-            description: t("gitDialog.defaultBranch.createDescription", {
+            description: t("gitDialog.defaultBranch.pushCreateDescription", {
               branch: pendingDefaultBranchAction.branchName,
               request: localizedChangeRequestLabel,
             }),
-            continueLabel: t("gitDialog.defaultBranch.createContinue", {
+            continueLabel: t("gitDialog.defaultBranch.pushCreateContinue", {
               branch: pendingDefaultBranchAction.branchName,
               request: localizedChangeRequestLabel,
             }),
@@ -1830,6 +1830,7 @@ export default function GitActionsControl({
                           item.kind === "open_pr"
                             ? "gitAction.viewChangeRequest"
                             : "gitAction.createChangeRequest",
+                          { request: changeRequestTerminology.shortLabel },
                         );
                 const disabledReason = getMenuActionDisabledReason({
                   item,

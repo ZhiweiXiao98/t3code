@@ -374,7 +374,7 @@ import {
 } from "./ui/alert-dialog";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
 import { ServerUpdateAction, ServerUpdateProgress } from "./ServerUpdateAction";
-import { useI18n } from "~/i18n/WebI18nProvider";
+import { splitWebTranslation, useI18n } from "~/i18n/WebI18nProvider";
 import {
   buildVersionMismatchDismissalKey,
   dismissVersionMismatch,
@@ -6963,9 +6963,21 @@ function ChatViewContent(props: ChatViewProps) {
               <AlertDialogPopup>
                 <AlertDialogHeader>
                   <AlertDialogTitle>
-                    {t("chat.branchSwitch.title", {
-                      branch: localCheckoutBranchMismatch?.threadBranch ?? "",
-                    })}
+                    {(() => {
+                      const branch = localCheckoutBranchMismatch?.threadBranch ?? "";
+                      const [beforeBranch, afterBranch] = splitWebTranslation(
+                        t,
+                        "chat.branchSwitch.title",
+                        "branch",
+                      );
+                      return (
+                        <>
+                          {beforeBranch}
+                          <code className="font-medium">{branch}</code>
+                          {afterBranch}
+                        </>
+                      );
+                    })()}
                   </AlertDialogTitle>
                   <AlertDialogDescription>
                     {t("chat.branchSwitch.description")}

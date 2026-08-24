@@ -138,13 +138,12 @@ export const make = Effect.gen(function* () {
 
   const configure = Effect.gen(function* () {
     const settings = yield* clientSettings.get;
+    const systemLocale = yield* electronApp.systemLocale;
     const appLocale = Option.match(settings, {
       onNone: () => DEFAULT_APP_LOCALE_PREFERENCE,
       onSome: (value) => value.appLocale,
     });
-    const messages = resolveDesktopApplicationMenuMessages(appLocale, [
-      Intl.DateTimeFormat().resolvedOptions().locale,
-    ]);
+    const messages = resolveDesktopApplicationMenuMessages(appLocale, [systemLocale]);
     const checkForUpdatesClick = () => {
       runMenuEffect("check-for-updates", handleCheckForUpdatesMenuClick(messages));
     };

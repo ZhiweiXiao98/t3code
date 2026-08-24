@@ -191,7 +191,7 @@ function CacheEnvironmentRow(props: {
         type="monochrome"
         weight="regular"
       />
-      <Text className="min-w-0 flex-1 text-base text-foreground" numberOfLines={1}>
+      <Text localize={false} className="min-w-0 flex-1 text-base text-foreground" numberOfLines={1}>
         {props.environmentLabel}
       </Text>
       <Pressable

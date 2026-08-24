@@ -69,7 +69,13 @@ export function PullRequestThreadDialog({
     [gitStatus?.sourceControlProvider],
   );
   const terminology = sourceControlPresentation.terminology;
-  const requestLabel = t("pullRequestThread.request");
+  const requestLabel = t(
+    terminology.shortLabel === "MR"
+      ? "sourceControl.changeRequest.mergeRequest"
+      : terminology.shortLabel === "PR"
+        ? "sourceControl.changeRequest.pullRequest"
+        : "sourceControl.changeRequest.generic",
+  );
   const SourceControlIcon = sourceControlPresentation.Icon;
 
   useEffect(() => {

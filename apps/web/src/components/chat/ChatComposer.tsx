@@ -747,7 +747,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
   const composerReviewComments = composerDraft.reviewComments;
   const nonPersistedComposerImageIds = composerDraft.nonPersistedImageIds;
   const uploadsByImageId = useAttachmentUploadStore((state) => state.uploadsByImageId);
-  const rawAttachmentBlockReason = supportsAttachmentUploads
+  const attachmentUploadBlock = supportsAttachmentUploads
     ? attachmentUploadBlockReason({
         imageIds: composerImages.map((image) => image.id),
         uploadsByImageId,
@@ -755,15 +755,19 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       })
     : null;
   const attachmentBlockReason =
-    rawAttachmentBlockReason === "Retry or remove the failed image"
-      ? t("composer.attachmentUpload.retryOrRemoveOne")
-      : rawAttachmentBlockReason === "Retry or remove the failed images"
-        ? t("composer.attachmentUpload.retryOrRemoveMany")
-        : rawAttachmentBlockReason === "Image still uploading"
-          ? t("composer.attachmentUpload.uploadingOne")
-          : rawAttachmentBlockReason === "Images still uploading"
-            ? t("composer.attachmentUpload.uploadingMany")
-            : rawAttachmentBlockReason;
+    attachmentUploadBlock === null
+      ? null
+      : attachmentUploadBlock.kind === "failed"
+        ? t(
+            attachmentUploadBlock.count === 1
+              ? "composer.attachmentUpload.retryOrRemoveOne"
+              : "composer.attachmentUpload.retryOrRemoveMany",
+          )
+        : t(
+            attachmentUploadBlock.count === 1
+              ? "composer.attachmentUpload.uploadingOne"
+              : "composer.attachmentUpload.uploadingMany",
+          );
   const sendDisabledReason =
     externalSendDisabledReason ?? (activePendingProgress ? null : attachmentBlockReason);
   const isSendDisabled = sendDisabledReason !== null;

@@ -76,10 +76,14 @@ export function ConnectionEnvironmentRow(props: {
         />
 
         <View className="flex-1 gap-0.5">
-          <Text className="text-base font-t3-bold leading-snug text-foreground" numberOfLines={1}>
+          <Text
+            localize={false}
+            className="text-base font-t3-bold leading-snug text-foreground"
+            numberOfLines={1}
+          >
             {props.environment.environmentLabel}
           </Text>
-          <Text className="text-xs text-foreground-muted" numberOfLines={1}>
+          <Text localize={false} className="text-xs text-foreground-muted" numberOfLines={1}>
             {props.environment.displayUrl}
           </Text>
           {statusLabel ? (

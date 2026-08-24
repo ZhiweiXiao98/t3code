@@ -102,7 +102,11 @@ export function SettingsLegalDocumentRouteScreen({
           <Text className="text-center font-t3-bold text-lg text-foreground">
             Couldn&apos;t load the {documentName.toLowerCase()}
           </Text>
-          <Text selectable className="text-center text-sm leading-normal text-foreground-muted">
+          <Text
+            localize={false}
+            selectable
+            className="text-center text-sm leading-normal text-foreground-muted"
+          >
             {loadError}
           </Text>
         </View>

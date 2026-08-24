@@ -956,8 +956,10 @@ export function AddProjectDestinationScreen(props: {
       {error ? <ErrorBanner message={error} /> : null}
       {repositoryTitle ? (
         <View className="rounded-[24px] bg-card px-4 py-3">
-          <Text className="text-base font-t3-bold">{repositoryTitle}</Text>
-          <Text className="mt-0.5 text-xs text-foreground-muted" numberOfLines={2}>
+          <Text localize={false} className="text-base font-t3-bold">
+            {repositoryTitle}
+          </Text>
+          <Text localize={false} className="mt-0.5 text-xs text-foreground-muted" numberOfLines={2}>
             {remoteUrl}
           </Text>
         </View>

@@ -23,12 +23,16 @@ export function PromptFontPreview() {
   const { t } = useI18n();
   const sample = t("appearance.fontPreview.sample");
   const editorRef = useRef<ComposerPromptEditorHandle>(null);
+  const previousSampleRef = useRef(sample);
   const [prompt, setPrompt] = useState(sample);
   const [cursor, setCursor] = useState(sample.length);
   useEffect(() => {
+    const previousSample = previousSampleRef.current;
+    previousSampleRef.current = sample;
+    if (prompt !== previousSample) return;
     setPrompt(sample);
     setCursor(sample.length);
-  }, [sample]);
+  }, [prompt, sample]);
   const onChange = useCallback((nextValue: string, nextCursor: number) => {
     setPrompt(nextValue);
     setCursor(nextCursor);

@@ -37,28 +37,29 @@ const environmentInput = {
   runningUnderArm64Translation: false,
 } satisfies DesktopEnvironment.MakeDesktopEnvironmentInput;
 
-const electronAppLayer = Layer.succeed(ElectronApp.ElectronApp, {
-  metadata: Effect.die("unexpected metadata read"),
-  name: Effect.succeed("T3 Code"),
-  systemLocale: Effect.succeed("en-US"),
-  whenReady: Effect.void,
-  quit: Effect.void,
-  exit: () => Effect.void,
-  relaunch: () => Effect.void,
-  setPath: () => Effect.void,
-  setName: () => Effect.void,
-  setAboutPanelOptions: () => Effect.void,
-  setAppUserModelId: () => Effect.void,
-  getAppMetrics: Effect.succeed([]),
-  isDefaultProtocolClient: () => Effect.succeed(false),
-  setAsDefaultProtocolClient: () => Effect.succeed(true),
-  setDesktopName: () => Effect.void,
-  setDockIcon: () => Effect.void,
-  appendCommandLineSwitch: () => Effect.void,
-  onBeforeQuitForUpdate: () => Effect.void,
-  removeCommandLineSwitch: () => Effect.void,
-  on: () => Effect.void,
-} satisfies ElectronApp.ElectronApp["Service"]);
+const makeElectronAppLayer = (systemLocale = "en-US") =>
+  Layer.succeed(ElectronApp.ElectronApp, {
+    metadata: Effect.die("unexpected metadata read"),
+    name: Effect.succeed("T3 Code"),
+    systemLocale: Effect.succeed(systemLocale),
+    whenReady: Effect.void,
+    quit: Effect.void,
+    exit: () => Effect.void,
+    relaunch: () => Effect.void,
+    setPath: () => Effect.void,
+    setName: () => Effect.void,
+    setAboutPanelOptions: () => Effect.void,
+    setAppUserModelId: () => Effect.void,
+    getAppMetrics: Effect.succeed([]),
+    isDefaultProtocolClient: () => Effect.succeed(false),
+    setAsDefaultProtocolClient: () => Effect.succeed(true),
+    setDesktopName: () => Effect.void,
+    setDockIcon: () => Effect.void,
+    appendCommandLineSwitch: () => Effect.void,
+    onBeforeQuitForUpdate: () => Effect.void,
+    removeCommandLineSwitch: () => Effect.void,
+    on: () => Effect.void,
+  } satisfies ElectronApp.ElectronApp["Service"]);
 
 const electronDialog = {
   pickFolder: () => Effect.succeed(Option.none()),
@@ -110,6 +111,7 @@ const configureMenu = (
   applicationMenuTemplate: Deferred.Deferred<readonly Electron.MenuItemConstructorOptions[]>,
   options: {
     readonly appLocale?: AppLocalePreference;
+    readonly systemLocale?: string;
     readonly platform?: DesktopEnvironment.MakeDesktopEnvironmentInput["platform"];
     readonly electronDialog?: ElectronDialog.ElectronDialog["Service"];
     readonly desktopUpdates?: DesktopUpdates.DesktopUpdates["Service"];
@@ -129,7 +131,7 @@ const configureMenu = (
         Layer.provideMerge(
           Layer.succeed(ElectronDialog.ElectronDialog, options.electronDialog ?? electronDialog),
         ),
-        Layer.provideMerge(electronAppLayer),
+        Layer.provideMerge(makeElectronAppLayer(options.systemLocale)),
         Layer.provideMerge(
           DesktopClientSettings.layerTest(
             Option.some({
@@ -153,6 +155,22 @@ describe("DesktopApplicationMenu", () => {
     assert.equal(resolveDesktopApplicationMenuMessages("system", ["zh-Hans-CN"]).file, "文件");
     assert.equal(resolveDesktopApplicationMenuMessages("system", ["fr-FR"]).file, "File");
   });
+
+  it.effect("uses Electron's OS locale when the menu follows the system language", () =>
+    Effect.gen(function* () {
+      const selectedAction = yield* Deferred.make<string>();
+      const applicationMenuTemplate =
+        yield* Deferred.make<readonly Electron.MenuItemConstructorOptions[]>();
+
+      yield* configureMenu(selectedAction, applicationMenuTemplate, {
+        appLocale: "system",
+        systemLocale: "zh-Hans-CN",
+      });
+
+      const template = yield* Deferred.await(applicationMenuTemplate);
+      assert.isDefined(template.find((item) => item.label === "文件"));
+    }),
+  );
 
   it.effect("installs the native menu and routes Settings through DesktopWindow", () =>
     Effect.gen(function* () {

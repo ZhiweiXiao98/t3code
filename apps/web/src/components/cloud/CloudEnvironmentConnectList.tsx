@@ -180,19 +180,18 @@ export function CloudEnvironmentConnectRows({
     const savedConnection = savedEnvironment
       ? presentSavedCloudEnvironmentConnection(savedEnvironment.connection)
       : null;
-    const savedConnectionText = savedEnvironment
-      ? savedEnvironment.connection.phase === "connected"
-        ? t("connectEnvironment.connection.connected")
-        : savedEnvironment.connection.phase === "connecting"
-          ? t("connectEnvironment.connecting")
-          : savedEnvironment.connection.phase === "reconnecting"
-            ? t("connectEnvironment.connection.reconnecting")
-            : savedEnvironment.connection.phase === "error"
-              ? t("connectEnvironment.connection.failed")
-              : savedEnvironment.connection.phase === "offline"
-                ? t("connectEnvironment.connection.offline")
-                : t("connectEnvironment.connection.notConnected")
-      : null;
+    const savedConnectionText =
+      savedEnvironment &&
+      savedEnvironment.connection.phase !== "error" &&
+      savedEnvironment.connection.phase !== "reconnecting"
+        ? savedEnvironment.connection.phase === "connected"
+          ? t("connectEnvironment.connection.connected")
+          : savedEnvironment.connection.phase === "connecting"
+            ? t("connectEnvironment.connecting")
+            : savedEnvironment.connection.phase === "offline"
+              ? t("connectEnvironment.connection.offline")
+              : t("connectEnvironment.connection.notConnected")
+        : null;
     const dotClassName = savedConnection
       ? savedConnection.tone === "connected"
         ? "bg-success"

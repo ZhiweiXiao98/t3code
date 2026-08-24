@@ -32,7 +32,7 @@ import { stackedThreadToast, toastManager } from "../ui/toast";
 import { projectEnvironment } from "~/state/projects";
 import { useCopyToClipboard } from "~/hooks/useCopyToClipboard";
 import { useAtomCommand } from "~/state/use-atom-command";
-import { useI18n } from "~/i18n/WebI18nProvider";
+import { splitWebTranslation, useI18n } from "~/i18n/WebI18nProvider";
 
 export const ProposedPlanCard = memo(function ProposedPlanCard({
   planMarkdown,
@@ -218,9 +218,21 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
           <DialogHeader>
             <DialogTitle>{t("plan.dialog.title")}</DialogTitle>
             <DialogDescription>
-              {t("plan.dialog.description", {
-                workspace: workspaceRoot ?? t("plan.dialog.workspaceFallback"),
-              })}
+              {(() => {
+                const workspace = workspaceRoot ?? t("plan.dialog.workspaceFallback");
+                const [beforeWorkspace, afterWorkspace] = splitWebTranslation(
+                  t,
+                  "plan.dialog.description",
+                  "workspace",
+                );
+                return (
+                  <>
+                    {beforeWorkspace}
+                    <code>{workspace}</code>
+                    {afterWorkspace}
+                  </>
+                );
+              })()}
             </DialogDescription>
           </DialogHeader>
           <DialogPanel className="space-y-3">

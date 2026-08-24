@@ -1048,11 +1048,15 @@ export function ThemeEditorPanel({
           <section className="space-y-2" key={group.id}>
             <h4 className="text-sm font-medium text-foreground">
               {t(
-                group.id === "main"
-                  ? "appearance.themeEditor.mainColors"
-                  : group.id === "status"
-                    ? "appearance.themeEditor.statusColors"
-                    : "appearance.themeEditor.otherColors",
+                group.id === "foundation"
+                  ? "appearance.themeEditor.foundationColors"
+                  : group.id === "brand-content"
+                    ? "appearance.themeEditor.brandContentColors"
+                    : group.id === "context"
+                      ? "appearance.themeEditor.contextColors"
+                      : group.id === "status"
+                        ? "appearance.themeEditor.statusColors"
+                        : "appearance.themeEditor.otherColors",
               )}
             </h4>
             {renderRoleFields(group.families, "grid gap-1")}

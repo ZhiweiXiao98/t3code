@@ -228,7 +228,11 @@ export const ThreadTerminalPanel = memo(function ThreadTerminalPanel(
         </View>
         <View className="flex-row items-center gap-2">
           {terminal.error ? (
-            <Text className="max-w-44 text-right text-2xs text-red-300" numberOfLines={1}>
+            <Text
+              localize={false}
+              className="max-w-44 text-right text-2xs text-red-300"
+              numberOfLines={1}
+            >
               {terminal.error}
             </Text>
           ) : null}

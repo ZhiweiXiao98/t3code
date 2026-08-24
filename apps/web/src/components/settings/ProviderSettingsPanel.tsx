@@ -38,7 +38,7 @@ import { isDesktopLocalConnectionTarget } from "../../connection/desktopLocal";
 import { isElectron } from "../../env";
 import { usePrimarySessionState } from "../../environments/primary";
 import { useEnvironmentSettings, useUpdateEnvironmentSettings } from "../../hooks/useSettings";
-import { useI18n, type WebTranslate } from "../../i18n/WebI18nProvider";
+import { splitWebTranslation, useI18n, type WebTranslate } from "../../i18n/WebI18nProvider";
 import { translateWebMessage } from "../../i18n/messages";
 import { cn } from "../../lib/utils";
 import { resolveAppModelSelectionState } from "../../modelSelection";
@@ -142,11 +142,19 @@ function ProviderLastChecked({ lastCheckedAt }: { lastCheckedAt: string | null }
     );
   }
 
+  const [beforeTime, afterTime] = splitWebTranslation(t, "providers.lastChecked.ago", "time");
+
   return (
     <span className="text-[11px] text-muted-foreground/60">
-      {lastCheckedRelative.suffix
-        ? t("providers.lastChecked.ago", { time: lastCheckedRelative.value })
-        : t("providers.lastChecked.justNow")}
+      {lastCheckedRelative.suffix ? (
+        <>
+          {beforeTime}
+          <span className="font-mono tabular-nums">{lastCheckedRelative.value}</span>
+          {afterTime}
+        </>
+      ) : (
+        t("providers.lastChecked.justNow")
+      )}
     </span>
   );
 }

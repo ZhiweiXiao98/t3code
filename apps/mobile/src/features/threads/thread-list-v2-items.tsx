@@ -242,7 +242,11 @@ export const ThreadListV2PendingRow = memo(function ThreadListV2PendingRow(props
             workspaceRoot={props.project.workspaceRoot}
           />
         ) : null}
-        <Text className="flex-1 text-sm font-t3-medium text-foreground-muted" numberOfLines={1}>
+        <Text
+          localize={false}
+          className="flex-1 text-sm font-t3-medium text-foreground-muted"
+          numberOfLines={1}
+        >
           {projectTitle}
         </Text>
         <Text className="text-xs text-foreground-tertiary">Queued</Text>
@@ -250,19 +254,29 @@ export const ThreadListV2PendingRow = memo(function ThreadListV2PendingRow(props
       {/* One line, unlike the two an active row allows: a queued title is
           derived from the whole prompt rather than written as a title, so the
           second line is usually a stray word or emoji rather than meaning. */}
-      <Text className="mt-1 text-base font-t3-medium text-foreground" numberOfLines={1}>
+      <Text
+        localize={false}
+        className="mt-1 text-base font-t3-medium text-foreground"
+        numberOfLines={1}
+      >
         {pendingTask.title}
       </Text>
       {branch || props.environmentLabel ? (
         <Text className="mt-1 text-xs text-foreground-muted" numberOfLines={1}>
           {branch ? (
-            <Text className="text-xs text-foreground-muted" style={{ fontFamily: MONO_FONT }}>
+            <Text
+              localize={false}
+              className="text-xs text-foreground-muted"
+              style={{ fontFamily: MONO_FONT }}
+            >
               {branch}
             </Text>
           ) : null}
           {branch && props.environmentLabel ? "  ·  " : null}
           {props.environmentLabel ? (
-            <Text className="text-xs text-foreground-tertiary">{props.environmentLabel}</Text>
+            <Text localize={false} className="text-xs text-foreground-tertiary">
+              {props.environmentLabel}
+            </Text>
           ) : null}
         </Text>
       ) : null}
@@ -690,6 +704,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
           />
         ) : null}
         <Text
+          localize={false}
           className={cn(
             "flex-1 text-sm font-t3-medium",
             selected ? "text-user-bubble-foreground-muted" : "text-foreground-muted",
@@ -713,6 +728,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
         </Text>
       </View>
       <Text
+        localize={false}
         className={cn(
           "mt-1 text-base font-t3-medium",
           selected ? "text-user-bubble-foreground" : "text-foreground",
@@ -756,6 +772,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
           >
             {thread.branch ? (
               <Text
+                localize={false}
                 className={cn(
                   "text-xs",
                   selected ? "text-user-bubble-foreground-muted" : "text-foreground-muted",
@@ -768,6 +785,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
             {thread.branch && props.environmentLabel ? "  ·  " : null}
             {props.environmentLabel ? (
               <Text
+                localize={false}
                 className={cn(
                   "text-xs",
                   selected ? "text-user-bubble-foreground-muted" : "text-foreground-tertiary",
@@ -883,6 +901,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
           ) : null}
           <View className="min-w-0 flex-1">
             <Text
+              localize={false}
               className={cn(
                 "text-base",
                 selected ? "text-user-bubble-foreground" : "text-foreground-muted",

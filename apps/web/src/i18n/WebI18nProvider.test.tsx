@@ -6,6 +6,7 @@ import { reactHookHarness as hooks } from "../test/reactHookHarness";
 const testState = vi.hoisted(() => ({
   settings: { appLocale: "en" },
   runtimeLanguages: ["en-US"],
+  desktopSystemLocale: null as string | null,
   languageChangeListener: null as (() => void) | null,
   updateClientSettings: vi.fn(),
 }));
@@ -35,7 +36,7 @@ vi.mock("../hooks/useSettings", () => ({
   useUpdateClientSettings: () => testState.updateClientSettings,
 }));
 
-import { type WebI18nContextValue, WebI18nProvider } from "./WebI18nProvider";
+import { splitWebTranslation, type WebI18nContextValue, WebI18nProvider } from "./WebI18nProvider";
 
 type ProviderElement = ReactElement<{
   readonly children: ReactNode;
@@ -52,6 +53,7 @@ describe("WebI18nProvider", () => {
     hooks.reset();
     testState.settings.appLocale = "en";
     testState.runtimeLanguages = ["en-US"];
+    testState.desktopSystemLocale = null;
     testState.languageChangeListener = null;
     testState.updateClientSettings.mockReset();
 
@@ -65,6 +67,9 @@ describe("WebI18nProvider", () => {
     });
     vi.stubGlobal("document", { documentElement: { lang: "" } });
     vi.stubGlobal("window", {
+      desktopBridge: {
+        getSystemLocale: () => testState.desktopSystemLocale,
+      },
       addEventListener: vi.fn((type: string, listener: () => void) => {
         if (type === "languagechange") testState.languageChangeListener = listener;
       }),
@@ -97,6 +102,17 @@ describe("WebI18nProvider", () => {
     expect(document.documentElement.lang).toBe("zh-CN");
   });
 
+  it("prefers the desktop bridge's OS locale over Chromium's packaged locale", () => {
+    testState.settings.appLocale = "system";
+    testState.runtimeLanguages = ["en-US"];
+    testState.desktopSystemLocale = "zh-Hans-CN";
+
+    const provider = renderProvider();
+
+    expect(provider.props.value.locale).toBe("zh-CN");
+    expect(provider.props.value.t("settings.title")).toBe("设置");
+  });
+
   it("updates when the runtime language changes while following the system", () => {
     testState.settings.appLocale = "system";
     const initial = renderProvider();
@@ -118,5 +134,21 @@ describe("WebI18nProvider", () => {
 
     expect(testState.updateClientSettings).toHaveBeenCalledOnce();
     expect(testState.updateClientSettings).toHaveBeenCalledWith({ appLocale: "zh-CN" });
+  });
+
+  it("splits localized copy around a styled placeholder", () => {
+    const provider = renderProvider();
+
+    expect(
+      splitWebTranslation(provider.props.value.t, "chat.branchSwitch.title", "branch", {
+        branch: "ignored",
+      }),
+    ).toEqual(["Switch to ", "?"]);
+
+    testState.settings.appLocale = "zh-CN";
+    const chineseProvider = renderProvider();
+    expect(
+      splitWebTranslation(chineseProvider.props.value.t, "chat.branchSwitch.title", "branch"),
+    ).toEqual(["切换到 ", "？"]);
   });
 });

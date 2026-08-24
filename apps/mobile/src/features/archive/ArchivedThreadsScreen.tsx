@@ -375,13 +375,18 @@ function ProjectGroupLabel(props: {
         workspaceRoot={props.project.workspaceRoot}
       />
       <Text
+        localize={false}
         className="flex-1 text-xs font-t3-medium tracking-[0.5px] uppercase text-foreground-muted"
         numberOfLines={1}
       >
         {props.project.title}
       </Text>
       {props.environmentLabel ? (
-        <Text className="max-w-[42%] text-2xs text-foreground-tertiary" numberOfLines={1}>
+        <Text
+          localize={false}
+          className="max-w-[42%] text-2xs text-foreground-tertiary"
+          numberOfLines={1}
+        >
           {props.environmentLabel}
         </Text>
       ) : null}
@@ -450,6 +455,7 @@ function ArchivedThreadRow(props: {
           <View className="min-w-0 flex-1 gap-1">
             <View className="flex-row items-center gap-2">
               <Text
+                localize={false}
                 className="min-w-0 flex-1 text-base font-t3-bold leading-snug text-foreground"
                 numberOfLines={1}
               >
@@ -488,7 +494,9 @@ function ArchiveError(props: { readonly message: string; readonly onRetry: () =>
       <Text className="text-base font-t3-bold text-danger-foreground">
         Could not load every archive
       </Text>
-      <Text className="mt-1 text-sm text-foreground-muted">{props.message}</Text>
+      <Text localize={false} className="mt-1 text-sm text-foreground-muted">
+        {props.message}
+      </Text>
       <Pressable className="mt-3 self-start active:opacity-60" onPress={props.onRetry}>
         <Text className="text-sm font-t3-bold text-danger-foreground">Try again</Text>
       </Pressable>

@@ -57,7 +57,12 @@ export function MetaCard(props: { readonly label: string; readonly value: string
       <Text className="text-foreground-muted text-2xs font-t3-bold tracking-[0.9px] uppercase">
         {props.label}
       </Text>
-      <Text selectable className="text-foreground text-sm font-medium" numberOfLines={1}>
+      <Text
+        localize={false}
+        selectable
+        className="text-foreground text-sm font-medium"
+        numberOfLines={1}
+      >
         {props.value}
       </Text>
     </View>

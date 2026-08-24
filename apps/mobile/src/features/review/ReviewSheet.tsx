@@ -609,7 +609,9 @@ export function ReviewSheet(props: ReviewSheetProps) {
       children.push(
         <View key="review-error" className="border-b border-border bg-card px-4 py-3">
           <Text className="text-sm font-t3-bold text-foreground">Review unavailable</Text>
-          <Text className="text-xs leading-normal text-foreground-muted">{error}</Text>
+          <Text localize={false} className="text-xs leading-normal text-foreground-muted">
+            {error}
+          </Text>
         </View>,
       );
     }
@@ -851,17 +853,27 @@ export function ReviewSheet(props: ReviewSheetProps) {
             ) : parsedDiff.kind === "empty" ? (
               <View className="border-b border-border bg-card px-4 py-5">
                 <Text className="text-sm font-t3-bold text-foreground">No changes</Text>
-                <Text className="text-xs leading-normal text-foreground-muted">
-                  {selectedSection.subtitle ?? "This diff is empty."}
-                </Text>
+                {selectedSection.subtitle ? (
+                  <Text localize={false} className="text-xs leading-normal text-foreground-muted">
+                    {selectedSection.subtitle}
+                  </Text>
+                ) : (
+                  <Text className="text-xs leading-normal text-foreground-muted">
+                    This diff is empty.
+                  </Text>
+                )}
               </View>
             ) : parsedDiff.kind === "raw" ? (
               <View className="gap-3 border-b border-border bg-card px-4 py-4">
-                <Text className="text-xs leading-normal text-foreground-muted">
+                <Text localize={false} className="text-xs leading-normal text-foreground-muted">
                   {parsedDiff.reason}
                 </Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} bounces={false}>
-                  <Text selectable className="font-mono text-xs leading-relaxed text-foreground">
+                  <Text
+                    localize={false}
+                    selectable
+                    className="font-mono text-xs leading-relaxed text-foreground"
+                  >
                     {parsedDiff.text}
                   </Text>
                 </ScrollView>

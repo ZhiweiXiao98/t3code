@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from "../ui/dialog";
 import { Input } from "../ui/input";
-import { useI18n } from "~/i18n/WebI18nProvider";
+import { splitWebTranslation, useI18n } from "~/i18n/WebI18nProvider";
 
 function describeSshTarget(request: DesktopSshPasswordPromptRequest): string {
   return request.username ? `${request.username}@${request.destination}` : request.destination;
@@ -150,6 +150,7 @@ function ActiveSshPasswordPrompt({
   };
 
   const target = describeSshTarget(request);
+  const [beforeTarget, afterTarget] = splitWebTranslation(t, "sshPassword.description", "target");
   const prompt = /^password:?$/iu.test(request.prompt.trim())
     ? t("sshPassword.password")
     : request.prompt;
@@ -166,7 +167,11 @@ function ActiveSshPasswordPrompt({
       <DialogPopup className="max-w-md" showCloseButton={false}>
         <DialogHeader>
           <DialogTitle>{t("sshPassword.title")}</DialogTitle>
-          <DialogDescription>{t("sshPassword.description", { target })}</DialogDescription>
+          <DialogDescription>
+            {beforeTarget}
+            <code>{target}</code>
+            {afterTarget}
+          </DialogDescription>
         </DialogHeader>
         <DialogPanel className="space-y-3" scrollFade={false}>
           <form

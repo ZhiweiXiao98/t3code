@@ -2051,6 +2051,7 @@ export function GeneralSettingsPanel() {
     <SettingsPageContainer>
       <SettingsSection title={t("settings.section.general")}>
         <SettingsRow
+          {...searchableSetting("language")}
           title={t("settings.language.title")}
           description={t("settings.language.description")}
           control={

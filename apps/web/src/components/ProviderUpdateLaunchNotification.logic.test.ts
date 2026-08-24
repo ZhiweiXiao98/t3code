@@ -298,8 +298,16 @@ describe("provider update launch notification logic", () => {
       switch (key) {
         case "providerUpdate.title.single":
           return `可用更新：${String(values?.provider)} ${String(values?.version)}`;
+        case "providerUpdate.title.multiple":
+          return `有 ${String(values?.count)} 个服务提供方可更新`;
         case "providerUpdate.description.installOrSettings":
           return "立即安装更新，或前往服务提供方设置查看。";
+        case "providerUpdate.description.settingsOnly":
+          return `可前往服务提供方设置更新 ${String(values?.providers)}。`;
+        case "providerUpdate.providerList.two":
+          return `${String(values?.first)} 和 ${String(values?.second)}`;
+        case "providerUpdate.providerList.many":
+          return `${String(values?.leading)} 和 ${String(values?.last)}`;
       }
     };
     const candidate = updateCandidate({
@@ -328,6 +336,39 @@ describe("provider update launch notification logic", () => {
     });
 
     expect(view.description).toBe("Codex and Cursor can be updated from provider settings.");
+  });
+
+  it("localizes multi-provider settings-only updates", () => {
+    const translateChinese: ProviderUpdateInitialTranslate = (key, values) => {
+      switch (key) {
+        case "providerUpdate.title.single":
+          return `可用更新：${String(values?.provider)} ${String(values?.version)}`;
+        case "providerUpdate.title.multiple":
+          return `有 ${String(values?.count)} 个服务提供方可更新`;
+        case "providerUpdate.description.installOrSettings":
+          return "立即安装更新，或前往服务提供方设置查看。";
+        case "providerUpdate.description.settingsOnly":
+          return `可前往服务提供方设置更新 ${String(values?.providers)}。`;
+        case "providerUpdate.providerList.two":
+          return `${String(values?.first)} 和 ${String(values?.second)}`;
+        case "providerUpdate.providerList.many":
+          return `${String(values?.leading)} 和 ${String(values?.last)}`;
+      }
+    };
+    const candidates = [
+      updateCandidate({ driver: driver("codex"), canUpdate: false }),
+      updateCandidate({ driver: driver("cursor"), canUpdate: false }),
+    ];
+
+    expect(
+      getProviderUpdateInitialToastView(
+        { updateProviders: candidates, oneClickProviders: [] },
+        translateChinese,
+      ),
+    ).toMatchObject({
+      title: "有 2 个服务提供方可更新",
+      description: "可前往服务提供方设置更新 Codex 和 Cursor。",
+    });
   });
 
   it("uses server update state for running progress", () => {

@@ -331,6 +331,7 @@ export const EN_MESSAGES = {
   "diagnostics.resource.systemDescription":
     "Live native counters for the server, providers, terminals, desktop processes, and the monitor itself.",
   "diagnostics.resource.samplingEvery": "Sampling every {interval}",
+  "diagnostics.resource.secondValue": "{value} second",
   "diagnostics.resource.secondsValue": "{value} seconds",
   "diagnostics.resource.observedCpuTime": "{value} observed CPU time",
   "diagnostics.resource.combinedPeaks": "{value} combined process peaks",
@@ -546,6 +547,9 @@ export const EN_MESSAGES = {
   "appearance.themeEditor.background": "Background",
   "appearance.themeEditor.accent": "Accent",
   "appearance.themeEditor.mainColors": "Main colors",
+  "appearance.themeEditor.foundationColors": "Foundation",
+  "appearance.themeEditor.brandContentColors": "Brand & content",
+  "appearance.themeEditor.contextColors": "Context",
   "appearance.themeEditor.statusColors": "Status colors",
   "appearance.themeEditor.otherColors": "Other colors",
   "appearance.themeEditor.noMatches": "No matches.",
@@ -979,6 +983,9 @@ export const EN_MESSAGES = {
   "sourceControl.action.hideAccount": "Click to hide account",
   "sourceControl.status.authenticated": "Authenticated",
   "sourceControl.status.authenticatedAs": "Authenticated as",
+  "sourceControl.changeRequest.pullRequest": "Pull request",
+  "sourceControl.changeRequest.mergeRequest": "Merge request",
+  "sourceControl.changeRequest.generic": "Change request",
   "sourceControl.status.notAuthenticated": "Not authenticated",
   "sourceControl.status.unknown": "Status unknown",
   "sourceControl.status.available": "Available",
@@ -1000,7 +1007,7 @@ export const EN_MESSAGES = {
   "sourceControl.hint.gitlab":
     "Install the GitLab command-line tool (`glab`) from https://gitlab.com/gitlab-org/cli or your package manager (for example `brew install glab`).",
   "sourceControl.hint.bitbucket":
-    "Set T3CODE_BITBUCKET_EMAIL and T3CODE_BITBUCKET_API_TOKEN on the server. Use a Bitbucket API token with pull request and repository scopes.",
+    "Set T3CODE_BITBUCKET_EMAIL and T3CODE_BITBUCKET_API_TOKEN on the server. Use a Bitbucket API token with pull request, repository, and user read scopes.",
   "sourceControl.fetch.title": "Fetch interval",
   "sourceControl.fetch.policyTooltip":
     "This interval is configured for Git only. The shared Background activity policy still decides whether Git refreshes may run when the timer fires. Custom intervals appear as Advanced in General settings.",
@@ -1090,8 +1097,12 @@ export const EN_MESSAGES = {
   "keybindings.command.runScript": "Run Script: {name}",
 
   "providerUpdate.title.single": "Update Available: {provider} {version}",
+  "providerUpdate.title.multiple": "Updates Available: {count} providers",
   "providerUpdate.description.installOrSettings":
     "Install the update now or review provider settings.",
+  "providerUpdate.description.settingsOnly": "{providers} can be updated from provider settings.",
+  "providerUpdate.providerList.two": "{first} and {second}",
+  "providerUpdate.providerList.many": "{leading}, and {last}",
   "providerUpdate.action.settings": "Settings",
   "providerUpdate.action.update": "Update",
   "providerUpdate.action.retry": "Retry",
@@ -1369,6 +1380,10 @@ export const EN_MESSAGES = {
   "commandPalette.dialog.files": "File picker",
   "commandPalette.dialog.content": "Search project contents",
   "commandPalette.search": "Search...",
+  "commandPalette.search.root": "Search commands, projects, and threads...",
+  "commandPalette.search.rootBrowse": "Enter project path (e.g. ~/projects/my-app)",
+  "commandPalette.search.submenu": "Search...",
+  "commandPalette.search.submenuBrowse": "Enter path (e.g. ~/projects/my-app)",
   "commandPalette.navigate": "Navigate",
   "commandPalette.select": "Select",
   "commandPalette.group.sources": "Sources",
@@ -1470,7 +1485,9 @@ export const EN_MESSAGES = {
   "usage.processedTokens": "Processed tokens",
   "usage.fullApiRate": "* if billed at full API rate",
   "usage.sessionSummary": "Input, cache reads and output across {count} sessions.",
+  "usage.session": "{count} session",
   "usage.sessions": "{count} sessions",
+  "usage.sessionEstimate": "{count} session · API estimate",
   "usage.sessionsEstimate": "{count} sessions · API estimate",
   "usage.provider.costShare": "{share} of cost · {tokens} tokens",
   "usage.provider.tokenShare": "{share} of tokens · {cost}",
@@ -1522,8 +1539,8 @@ export const EN_MESSAGES = {
   "gitAction.options": "Git action options",
   "gitAction.commit": "Commit",
   "gitAction.push": "Push",
-  "gitAction.createChangeRequest": "Create change request",
-  "gitAction.viewChangeRequest": "View change request",
+  "gitAction.createChangeRequest": "Create {request}",
+  "gitAction.viewChangeRequest": "View {request}",
   "gitAction.publishRepository": "Publish repository...",
 
   "projectAction.dialog.addTitle": "Add Action",
@@ -1542,7 +1559,7 @@ export const EN_MESSAGES = {
   "projectAction.field.command": "Command",
   "projectAction.field.previewUrl": "Preview URL (optional)",
   "projectAction.keybinding.placeholder": "Press shortcut",
-  "projectAction.keybinding.hint": "Press a shortcut. Use Backspace to clear.",
+  "projectAction.keybinding.hint": "Press a shortcut. Use {key} to clear.",
   "projectAction.preview.description": "Open this URL in the in-app preview when this action runs.",
   "projectAction.runOnWorktreeCreate": "Run automatically on worktree creation",
   "projectAction.autoOpenPreview": "Open preview automatically when this action runs",
@@ -1764,6 +1781,10 @@ export const EN_MESSAGES = {
   "gitDialog.defaultBranch.createDescription":
     'This action will create a {request} from "{branch}". You can continue on this branch or create a feature branch and run the same action there.',
   "gitDialog.defaultBranch.createContinue": "Create {request} from {branch}",
+  "gitDialog.defaultBranch.pushCreateTitle": "Push & create {request} from default branch?",
+  "gitDialog.defaultBranch.pushCreateDescription":
+    'This action will push local commits and create a {request} from "{branch}". You can continue on this branch or create a feature branch and run the same action there.',
+  "gitDialog.defaultBranch.pushCreateContinue": "Push & create {request} from {branch}",
   "gitDialog.defaultBranch.commitCreateTitle":
     "Commit, push & create {request} from default branch?",
   "gitDialog.defaultBranch.commitCreateDescription":
@@ -2129,6 +2150,7 @@ export const ZH_CN_MESSAGES = {
   "diagnostics.resource.systemDescription":
     "实时显示服务器、服务提供方、终端、桌面进程及监控器自身的原生资源数据。",
   "diagnostics.resource.samplingEvery": "每 {interval} 采样一次",
+  "diagnostics.resource.secondValue": "{value} 秒",
   "diagnostics.resource.secondsValue": "{value} 秒",
   "diagnostics.resource.observedCpuTime": "已观测 CPU 时间 {value}",
   "diagnostics.resource.combinedPeaks": "各进程峰值合计 {value}",
@@ -2334,6 +2356,9 @@ export const ZH_CN_MESSAGES = {
   "appearance.themeEditor.background": "背景",
   "appearance.themeEditor.accent": "强调色",
   "appearance.themeEditor.mainColors": "主要颜色",
+  "appearance.themeEditor.foundationColors": "基础",
+  "appearance.themeEditor.brandContentColors": "品牌与内容",
+  "appearance.themeEditor.contextColors": "场景",
   "appearance.themeEditor.statusColors": "状态颜色",
   "appearance.themeEditor.otherColors": "其他颜色",
   "appearance.themeEditor.noMatches": "没有匹配的颜色。",
@@ -2744,6 +2769,9 @@ export const ZH_CN_MESSAGES = {
   "sourceControl.action.hideAccount": "点击隐藏账号",
   "sourceControl.status.authenticated": "已认证",
   "sourceControl.status.authenticatedAs": "认证账号",
+  "sourceControl.changeRequest.pullRequest": "拉取请求",
+  "sourceControl.changeRequest.mergeRequest": "合并请求",
+  "sourceControl.changeRequest.generic": "变更请求",
   "sourceControl.status.notAuthenticated": "未认证",
   "sourceControl.status.unknown": "状态未知",
   "sourceControl.status.available": "可用",
@@ -2764,7 +2792,7 @@ export const ZH_CN_MESSAGES = {
   "sourceControl.hint.gitlab":
     "请从 https://gitlab.com/gitlab-org/cli 或使用包管理器安装 GitLab 命令行工具（`glab`），例如运行 `brew install glab`。",
   "sourceControl.hint.bitbucket":
-    "请在服务器上设置 T3CODE_BITBUCKET_EMAIL 和 T3CODE_BITBUCKET_API_TOKEN，并使用具有拉取请求和仓库权限范围的 Bitbucket API Token。",
+    "请在服务器上设置 T3CODE_BITBUCKET_EMAIL 和 T3CODE_BITBUCKET_API_TOKEN，并使用具有拉取请求、仓库及用户读取权限的 Bitbucket API Token。",
   "sourceControl.fetch.title": "拉取间隔",
   "sourceControl.fetch.policyTooltip":
     "此间隔仅用于 Git。计时触发后，共享的“后台活动”策略仍会决定是否允许 Git 刷新。自定义间隔会在常规设置中显示为“高级”。",
@@ -2853,7 +2881,11 @@ export const ZH_CN_MESSAGES = {
   "keybindings.command.runScript": "运行脚本：{name}",
 
   "providerUpdate.title.single": "可用更新：{provider} {version}",
+  "providerUpdate.title.multiple": "有 {count} 个服务提供方可更新",
   "providerUpdate.description.installOrSettings": "立即安装更新，或前往服务提供方设置查看。",
+  "providerUpdate.description.settingsOnly": "可前往服务提供方设置更新 {providers}。",
+  "providerUpdate.providerList.two": "{first} 和 {second}",
+  "providerUpdate.providerList.many": "{leading} 和 {last}",
   "providerUpdate.action.settings": "设置",
   "providerUpdate.action.update": "更新",
   "providerUpdate.action.retry": "重试",
@@ -3117,6 +3149,10 @@ export const ZH_CN_MESSAGES = {
   "commandPalette.dialog.files": "文件选择器",
   "commandPalette.dialog.content": "搜索项目内容",
   "commandPalette.search": "搜索...",
+  "commandPalette.search.root": "搜索命令、项目和任务...",
+  "commandPalette.search.rootBrowse": "输入项目路径（例如 ~/projects/my-app）",
+  "commandPalette.search.submenu": "搜索...",
+  "commandPalette.search.submenuBrowse": "输入路径（例如 ~/projects/my-app）",
   "commandPalette.navigate": "导航",
   "commandPalette.select": "选择",
   "commandPalette.group.sources": "来源",
@@ -3215,7 +3251,9 @@ export const ZH_CN_MESSAGES = {
   "usage.processedTokens": "已处理令牌",
   "usage.fullApiRate": "* 按完整 API 费率估算",
   "usage.sessionSummary": "{count} 个会话的输入、缓存读取和输出总量。",
+  "usage.session": "{count} 个会话",
   "usage.sessions": "{count} 个会话",
+  "usage.sessionEstimate": "{count} 个会话 · API 估算",
   "usage.sessionsEstimate": "{count} 个会话 · API 估算",
   "usage.provider.costShare": "占费用 {share} · {tokens} 令牌",
   "usage.provider.tokenShare": "占令牌 {share} · {cost}",
@@ -3266,8 +3304,8 @@ export const ZH_CN_MESSAGES = {
   "gitAction.options": "Git 操作选项",
   "gitAction.commit": "提交",
   "gitAction.push": "推送",
-  "gitAction.createChangeRequest": "创建变更请求",
-  "gitAction.viewChangeRequest": "查看变更请求",
+  "gitAction.createChangeRequest": "创建{request}",
+  "gitAction.viewChangeRequest": "查看{request}",
   "gitAction.publishRepository": "发布仓库...",
 
   "projectAction.dialog.addTitle": "添加操作",
@@ -3285,7 +3323,7 @@ export const ZH_CN_MESSAGES = {
   "projectAction.field.command": "命令",
   "projectAction.field.previewUrl": "预览 URL（可选）",
   "projectAction.keybinding.placeholder": "按下快捷键",
-  "projectAction.keybinding.hint": "按下快捷键进行设置，按 Backspace 清除。",
+  "projectAction.keybinding.hint": "按下快捷键进行设置，按 {key} 清除。",
   "projectAction.preview.description": "运行此操作时，在应用内预览中打开该 URL。",
   "projectAction.runOnWorktreeCreate": "创建工作树时自动运行",
   "projectAction.autoOpenPreview": "运行此操作时自动打开预览",
@@ -3494,6 +3532,10 @@ export const ZH_CN_MESSAGES = {
   "gitDialog.defaultBranch.createDescription":
     "此操作会从“{branch}”创建{request}。你可以继续使用此分支，也可以创建功能分支后执行相同操作。",
   "gitDialog.defaultBranch.createContinue": "从 {branch} 创建{request}",
+  "gitDialog.defaultBranch.pushCreateTitle": "从默认分支推送并创建{request}？",
+  "gitDialog.defaultBranch.pushCreateDescription":
+    "此操作会推送本地提交，并从“{branch}”创建{request}。你可以继续使用此分支，也可以创建功能分支后执行相同操作。",
+  "gitDialog.defaultBranch.pushCreateContinue": "从 {branch} 推送并创建{request}",
   "gitDialog.defaultBranch.commitCreateTitle": "从默认分支提交、推送并创建{request}？",
   "gitDialog.defaultBranch.commitCreateDescription":
     "此操作会从“{branch}”提交、推送并创建{request}。你可以继续使用此分支，也可以创建功能分支后执行相同操作。",

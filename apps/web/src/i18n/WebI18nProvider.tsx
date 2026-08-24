@@ -33,9 +33,31 @@ const WebI18nContext = createContext<WebI18nContextValue>({
 });
 
 function readRuntimeLocales(): ReadonlyArray<string> {
-  if (typeof navigator === "undefined") return [];
-  if (navigator.languages.length > 0) return [...navigator.languages];
-  return navigator.language ? [navigator.language] : [];
+  const desktopLocale =
+    typeof window === "undefined" ? null : (window.desktopBridge?.getSystemLocale?.() ?? null);
+  const browserLocales =
+    typeof navigator === "undefined"
+      ? []
+      : navigator.languages.length > 0
+        ? [...navigator.languages]
+        : navigator.language
+          ? [navigator.language]
+          : [];
+  return desktopLocale ? [desktopLocale, ...browserLocales] : browserLocales;
+}
+
+export function splitWebTranslation(
+  t: WebTranslate,
+  key: WebMessageKey,
+  placeholder: string,
+  values: WebMessageValues = {},
+): readonly [before: string, after: string] {
+  const marker = `\u0000t3-${placeholder}\u0000`;
+  const message = t(key, { ...values, [placeholder]: marker });
+  const markerIndex = message.indexOf(marker);
+  return markerIndex === -1
+    ? [message, ""]
+    : [message.slice(0, markerIndex), message.slice(markerIndex + marker.length)];
 }
 
 export function WebI18nProvider({ children }: { readonly children: ReactNode }) {

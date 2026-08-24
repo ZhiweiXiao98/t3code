@@ -229,7 +229,9 @@ export function FileTreeBrowser(props: {
     return (
       <View className="flex-1 bg-sheet px-4 py-5">
         <Text className="text-sm font-t3-bold text-foreground">Files unavailable</Text>
-        <Text className="mt-1 text-xs leading-normal text-foreground-muted">{props.error}</Text>
+        <Text localize={false} className="mt-1 text-xs leading-normal text-foreground-muted">
+          {props.error}
+        </Text>
       </View>
     );
   }

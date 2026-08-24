@@ -80,7 +80,7 @@ export function GitCommitSheet(_props: GitCommitSheetProps) {
         <View className="gap-3 rounded-[22px] border border-border bg-card px-4 py-4">
           <View className="flex-row items-center justify-between gap-3">
             <Text className="text-foreground-muted text-sm font-medium">Branch</Text>
-            <Text className="text-foreground text-base font-t3-bold">
+            <Text localize={false} className="text-foreground text-base font-t3-bold">
               {gitStatus.data?.refName ?? "(detached HEAD)"}
             </Text>
           </View>
@@ -127,7 +127,11 @@ export function GitCommitSheet(_props: GitCommitSheetProps) {
             <View className="gap-2">
               {selectedFilePreview.map((file) => (
                 <View key={file.path} className="flex-row items-center justify-between gap-3">
-                  <Text className="text-foreground flex-1 text-sm font-medium" numberOfLines={1}>
+                  <Text
+                    localize={false}
+                    className="text-foreground flex-1 text-sm font-medium"
+                    numberOfLines={1}
+                  >
                     {file.path}
                   </Text>
                   <Text className="text-xs font-t3-bold text-emerald-500">+{file.insertions}</Text>

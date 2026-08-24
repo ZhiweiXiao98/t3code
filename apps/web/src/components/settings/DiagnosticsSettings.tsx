@@ -34,7 +34,7 @@ import {
 import { shellEnvironment } from "../../state/shell";
 import { usePrimaryEnvironment } from "../../state/environments";
 import { useCopyToClipboard } from "../../hooks/useCopyToClipboard";
-import { useI18n } from "../../i18n/WebI18nProvider";
+import { splitWebTranslation, useI18n } from "../../i18n/WebI18nProvider";
 import { Button } from "../ui/button";
 import { ScrollArea } from "../ui/scroll-area";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
@@ -802,16 +802,19 @@ function DiagnosticsLastChecked({ checkedAt }: { checkedAt: DateTime.Utc | null 
     );
   }
 
+  const time =
+    relative.value === "just now"
+      ? t("diagnostics.state.justNow")
+      : locale === "zh-CN" && relative.suffix === "ago"
+        ? `${relative.value}前`
+        : `${relative.value}${relative.suffix ? ` ${relative.suffix}` : ""}`;
+  const [beforeTime, afterTime] = splitWebTranslation(t, "diagnostics.state.checked", "time");
+
   return (
     <span className="text-[11px] text-muted-foreground/60">
-      {t("diagnostics.state.checked", {
-        time:
-          relative.value === "just now"
-            ? t("diagnostics.state.justNow")
-            : locale === "zh-CN" && relative.suffix === "ago"
-              ? `${relative.value}前`
-              : `${relative.value}${relative.suffix ? ` ${relative.suffix}` : ""}`,
-      })}
+      {beforeTime}
+      <span className="font-mono tabular-nums">{time}</span>
+      {afterTime}
     </span>
   );
 }

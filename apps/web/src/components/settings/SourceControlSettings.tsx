@@ -18,7 +18,7 @@ import {
 } from "@t3tools/shared/backgroundActivitySettings";
 
 import { usePrimarySettings, useUpdatePrimarySettings } from "../../hooks/useSettings";
-import { useI18n } from "../../i18n/WebI18nProvider";
+import { splitWebTranslation, useI18n } from "../../i18n/WebI18nProvider";
 import { cn } from "../../lib/utils";
 import { useEnvironments, usePrimaryEnvironment } from "../../state/environments";
 import { useEnvironmentQuery } from "../../state/query";
@@ -251,13 +251,14 @@ function itemSummary({
     if (auth.status === "authenticated") {
       return (
         <>
-          <span>{t("sourceControl.status.authenticated")}</span>
           {authAccount ? (
             <>
-              <span aria-hidden>{t("sourceControl.status.authenticatedAs")}</span>
+              <span>{t("sourceControl.status.authenticatedAs")}</span>
               <RedactedAccount account={authAccount} />
             </>
-          ) : null}
+          ) : (
+            <span>{t("sourceControl.status.authenticated")}</span>
+          )}
         </>
       );
     }
@@ -273,12 +274,17 @@ function itemSummary({
     }
 
     if (auth.status === "unauthenticated") {
+      const [beforeCommand, afterCommand] = splitWebTranslation(
+        t,
+        "sourceControl.summary.notAuthenticated",
+        "command",
+        { provider: item.label },
+      );
       return (
         <span>
-          {t("sourceControl.summary.notAuthenticated", {
-            provider: item.label,
-            command: item.executable,
-          })}
+          {beforeCommand}
+          <code className="rounded bg-muted px-1 py-px text-[11px]">{item.executable}</code>
+          {afterCommand}
         </span>
       );
     }

@@ -43,7 +43,7 @@ import { usePrimaryEnvironment } from "../../state/environments";
 import { serverEnvironment } from "../../state/server";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { formatRelativeTime } from "../../timestampFormat";
-import { useI18n, type WebTranslate } from "../../i18n/WebI18nProvider";
+import { splitWebTranslation, useI18n, type WebTranslate } from "../../i18n/WebI18nProvider";
 import { Button } from "../ui/button";
 import { ScrollArea } from "../ui/scroll-area";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
@@ -96,9 +96,12 @@ function formatDurationMicros(value: number): string {
 function formatSampleInterval(valueMs: number, t: WebTranslate): string {
   if (valueMs < 1_000) return `${Math.max(0, Math.round(valueMs))} ms`;
   const seconds = valueMs / 1_000;
-  return t("diagnostics.resource.secondsValue", {
-    value: seconds.toLocaleString(undefined, { maximumFractionDigits: 1 }),
-  });
+  return t(
+    seconds === 1 ? "diagnostics.resource.secondValue" : "diagnostics.resource.secondsValue",
+    {
+      value: seconds.toLocaleString(undefined, { maximumFractionDigits: 1 }),
+    },
+  );
 }
 
 export function translateDiagnosticsRuntimeMessage(message: string, t: WebTranslate): string {
@@ -251,16 +254,18 @@ function LastSampleLabel({ sampledAt }: { sampledAt: DateTime.Utc | null }) {
       </span>
     );
   }
+  const time =
+    relative.value === "just now"
+      ? t("diagnostics.state.justNow")
+      : locale === "zh-CN" && relative.suffix === "ago"
+        ? `${relative.value}前`
+        : `${relative.value}${relative.suffix ? ` ${relative.suffix}` : ""}`;
+  const [beforeTime, afterTime] = splitWebTranslation(t, "diagnostics.state.updated", "time");
   return (
     <span className="text-[11px] text-muted-foreground/60">
-      {t("diagnostics.state.updated", {
-        time:
-          relative.value === "just now"
-            ? t("diagnostics.state.justNow")
-            : locale === "zh-CN" && relative.suffix === "ago"
-              ? `${relative.value}前`
-              : `${relative.value}${relative.suffix ? ` ${relative.suffix}` : ""}`,
-      })}
+      {beforeTime}
+      <span className="font-mono tabular-nums">{time}</span>
+      {afterTime}
     </span>
   );
 }

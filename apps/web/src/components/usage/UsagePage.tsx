@@ -237,10 +237,17 @@ export function UsagePage() {
                       </span>
                       <span className="text-xs text-muted-foreground">
                         {metric === "cost"
-                          ? t("usage.sessionsEstimate", {
+                          ? t(
+                              merged.sessions === 1
+                                ? "usage.sessionEstimate"
+                                : "usage.sessionsEstimate",
+                              {
+                                count: formatCount(merged.sessions),
+                              },
+                            )
+                          : t(merged.sessions === 1 ? "usage.session" : "usage.sessions", {
                               count: formatCount(merged.sessions),
-                            })
-                          : t("usage.sessions", { count: formatCount(merged.sessions) })}
+                            })}
                       </span>
                     </div>
 
@@ -249,9 +256,12 @@ export function UsagePage() {
                       const share =
                         metric === "cost" ? (totals?.costShare ?? 0) : (totals?.tokenShare ?? 0);
                       const providerSessions = totals?.sessions ?? 0;
-                      const sessionLabel = t("usage.sessions", {
-                        count: formatCount(providerSessions),
-                      });
+                      const sessionLabel = t(
+                        providerSessions === 1 ? "usage.session" : "usage.sessions",
+                        {
+                          count: formatCount(providerSessions),
+                        },
+                      );
                       return (
                         <div key={provider} className="flex flex-col gap-1">
                           <div className="flex items-baseline justify-between gap-4">

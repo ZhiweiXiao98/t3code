@@ -73,6 +73,7 @@ export function ThreadSearchMatchExcerpt(props: {
       </Text>
       {parts.map((part) => (
         <Text
+          localize={false}
           className={cn(
             props.compact ? "text-sm" : "text-xs",
             part.highlighted && "font-t3-bold",

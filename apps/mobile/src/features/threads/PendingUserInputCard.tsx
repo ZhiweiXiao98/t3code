@@ -251,10 +251,16 @@ export function PendingUserInputCard(props: PendingUserInputCardProps) {
           const draft = props.drafts[question.id];
           return (
             <View key={question.id} className="gap-2 pt-1">
-              <Text className="font-t3-bold text-xs uppercase tracking-[1px] text-neutral-500 dark:text-neutral-500">
+              <Text
+                localize={false}
+                className="font-t3-bold text-xs uppercase tracking-[1px] text-neutral-500 dark:text-neutral-500"
+              >
                 {question.header}
               </Text>
-              <Text className="font-sans text-base leading-snug text-neutral-950 dark:text-neutral-50">
+              <Text
+                localize={false}
+                className="font-sans text-base leading-snug text-neutral-950 dark:text-neutral-50"
+              >
                 {question.question}
               </Text>
               <View className="gap-2">
@@ -281,6 +287,7 @@ export function PendingUserInputCard(props: PendingUserInputCardProps) {
                     >
                       <View className="min-w-0 flex-1 gap-0.5">
                         <Text
+                          localize={false}
                           className={cn(
                             "font-t3-bold text-sm",
                             selected
@@ -291,7 +298,10 @@ export function PendingUserInputCard(props: PendingUserInputCardProps) {
                           {option.label}
                         </Text>
                         {description ? (
-                          <Text className="font-sans text-sm leading-5 text-neutral-500 dark:text-neutral-400">
+                          <Text
+                            localize={false}
+                            className="font-sans text-sm leading-5 text-neutral-500 dark:text-neutral-400"
+                          >
                             {description}
                           </Text>
                         ) : null}

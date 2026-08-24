@@ -48,7 +48,7 @@ import { Label } from "./ui/label";
 import { Popover, PopoverPopup, PopoverTrigger } from "./ui/popover";
 import { Switch } from "./ui/switch";
 import { Textarea } from "./ui/textarea";
-import { useI18n } from "~/i18n/WebI18nProvider";
+import { splitWebTranslation, useI18n } from "~/i18n/WebI18nProvider";
 import type { WebMessageKey } from "~/i18n/messages";
 
 export const SCRIPT_ICONS: Array<{ id: ProjectScriptIcon; labelKey: WebMessageKey }> = [
@@ -328,7 +328,20 @@ export function ProjectScriptEditorDialog({
                   onKeyDown={captureKeybinding}
                 />
                 <p className="text-xs text-muted-foreground">
-                  {t("projectAction.keybinding.hint")}
+                  {(() => {
+                    const [beforeKey, afterKey] = splitWebTranslation(
+                      t,
+                      "projectAction.keybinding.hint",
+                      "key",
+                    );
+                    return (
+                      <>
+                        {beforeKey}
+                        <code>Backspace</code>
+                        {afterKey}
+                      </>
+                    );
+                  })()}
                 </p>
               </div>
               <div className="space-y-1.5">

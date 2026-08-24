@@ -67,15 +67,23 @@ vi.mock("../i18n/WebI18nProvider", () => ({
       const copy = {
         en: {
           "providerUpdate.title.single": `Update Available: ${String(values?.provider ?? "")} ${String(values?.version ?? "")}`,
+          "providerUpdate.title.multiple": `Updates Available: ${String(values?.count ?? "")} providers`,
           "providerUpdate.description.installOrSettings":
             "Install the update now or review provider settings.",
+          "providerUpdate.description.settingsOnly": `${String(values?.providers ?? "")} can be updated from provider settings.`,
+          "providerUpdate.providerList.two": `${String(values?.first ?? "")} and ${String(values?.second ?? "")}`,
+          "providerUpdate.providerList.many": `${String(values?.leading ?? "")}, and ${String(values?.last ?? "")}`,
           "providerUpdate.action.settings": "Settings",
           "providerUpdate.action.update": "Update",
         },
         "zh-CN": {
           "providerUpdate.title.single": `可用更新：${String(values?.provider ?? "")} ${String(values?.version ?? "")}`,
+          "providerUpdate.title.multiple": `有 ${String(values?.count ?? "")} 个服务提供方可更新`,
           "providerUpdate.description.installOrSettings":
             "立即安装更新，或前往服务提供方设置查看。",
+          "providerUpdate.description.settingsOnly": `可前往服务提供方设置更新 ${String(values?.providers ?? "")}。`,
+          "providerUpdate.providerList.two": `${String(values?.first ?? "")} 和 ${String(values?.second ?? "")}`,
+          "providerUpdate.providerList.many": `${String(values?.leading ?? "")} 和 ${String(values?.last ?? "")}`,
           "providerUpdate.action.settings": "设置",
           "providerUpdate.action.update": "更新",
         },

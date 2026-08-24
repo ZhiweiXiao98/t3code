@@ -32,11 +32,14 @@ export function PendingApprovalCard(props: PendingApprovalCardProps) {
       <Text className="font-t3-bold text-2xs uppercase tracking-[1.1px] text-sky-700 dark:text-sky-300">
         Approval needed
       </Text>
-      <Text className="font-t3-bold text-lg text-neutral-950 dark:text-neutral-50">
+      <Text localize={false} className="font-t3-bold text-lg text-neutral-950 dark:text-neutral-50">
         {props.approval.appName ?? props.approval.requestKind}
       </Text>
       {props.approval.detail ? (
-        <Text className="font-sans text-sm leading-normal text-neutral-600 dark:text-neutral-400">
+        <Text
+          localize={false}
+          className="font-sans text-sm leading-normal text-neutral-600 dark:text-neutral-400"
+        >
           {props.approval.detail}
         </Text>
       ) : null}

@@ -125,7 +125,6 @@ import {
   type CommandPaletteView,
   filterCommandPaletteGroups,
   filterPinnedBrowseEntries,
-  getCommandPaletteInputPlaceholder,
   getCommandPaletteMode,
   ITEM_ICON_CLASS,
   RECENT_THREAD_LIMIT,
@@ -1324,7 +1323,17 @@ function OpenCommandPaletteDialog(props: {
           sourceItems.push({
             kind: "action",
             value: `action:add-project:${environmentId}:${source}:not-ready`,
-            searchTerms: ["clone", "remote", "repository", "repo", "git", label, "setup required"],
+            searchTerms: [
+              "clone",
+              "remote",
+              "repository",
+              "repo",
+              "git",
+              label,
+              title,
+              description,
+              t("commandPalette.source.setupRequired"),
+            ],
             title,
             description,
             disabled: true,
@@ -1338,7 +1347,7 @@ function OpenCommandPaletteDialog(props: {
         sourceItems.push({
           kind: "action",
           value: `action:add-project:${environmentId}:${source}`,
-          searchTerms: ["clone", "remote", "repository", "repo", "git", label],
+          searchTerms: ["clone", "remote", "repository", "repo", "git", label, title, description],
           title,
           description,
           icon: remoteProjectSourceIcon(source, ITEM_ICON_CLASS),
@@ -2098,7 +2107,15 @@ function OpenCommandPaletteDialog(props: {
 
   const inputPlaceholder =
     remoteProjectInputPlaceholder(addProjectCloneFlow) ??
-    (isBrowsing ? getCommandPaletteInputPlaceholder(paletteMode) : t("commandPalette.search"));
+    t(
+      paletteMode === "root"
+        ? "commandPalette.search.root"
+        : paletteMode === "root-browse"
+          ? "commandPalette.search.rootBrowse"
+          : paletteMode === "submenu"
+            ? "commandPalette.search.submenu"
+            : "commandPalette.search.submenuBrowse",
+    );
   const isSubmenu = paletteMode === "submenu" || paletteMode === "submenu-browse";
   const hasHighlightedBrowseItem = highlightedItemValue?.startsWith("browse:") ?? false;
   const canSubmitBrowsePath =

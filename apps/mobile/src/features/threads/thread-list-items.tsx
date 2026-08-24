@@ -141,6 +141,7 @@ export const ThreadListGroupHeader = memo(function ThreadListGroupHeader(props: 
           workspaceRoot={props.project.workspaceRoot}
         />
         <Text
+          localize={false}
           className={
             compact
               ? "flex-shrink text-base font-t3-bold tracking-[0.2px] text-foreground-muted"
@@ -151,6 +152,7 @@ export const ThreadListGroupHeader = memo(function ThreadListGroupHeader(props: 
           {props.title}
         </Text>
         <Text
+          localize={false}
           className={
             compact
               ? "flex-1 text-sm font-t3-medium text-foreground-tertiary"
@@ -346,7 +348,11 @@ export const PendingTaskListRow = memo(function PendingTaskListRow(props: {
           }}
         >
           <View className="flex-row items-center justify-between gap-2">
-            <Text className="flex-1 text-lg font-t3-bold text-foreground" numberOfLines={1}>
+            <Text
+              localize={false}
+              className="flex-1 text-lg font-t3-bold text-foreground"
+              numberOfLines={1}
+            >
               {pendingTask.title}
             </Text>
             <View className="flex-row items-center gap-2">
@@ -382,7 +388,11 @@ export const PendingTaskListRow = memo(function PendingTaskListRow(props: {
     >
       <View className="gap-[3px]">
         <View className="flex-row items-center justify-between gap-2">
-          <Text className="flex-1 text-base font-t3-medium text-foreground" numberOfLines={1}>
+          <Text
+            localize={false}
+            className="flex-1 text-base font-t3-medium text-foreground"
+            numberOfLines={1}
+          >
             {pendingTask.title}
           </Text>
           <View className="flex-row items-center gap-2">
@@ -528,6 +538,7 @@ export const ThreadListRow = memo(function ThreadListRow(props: {
         {subtitleParts.length > 0 ? (
           <>
             <Text
+              localize={false}
               className={cn(
                 "shrink",
                 compact ? "text-sm text-foreground-muted" : "text-xs",
@@ -591,7 +602,11 @@ export const ThreadListRow = memo(function ThreadListRow(props: {
             }}
           >
             <View className="flex-row items-center justify-between gap-2">
-              <Text className="flex-1 text-lg font-t3-bold text-foreground" numberOfLines={1}>
+              <Text
+                localize={false}
+                className="flex-1 text-lg font-t3-bold text-foreground"
+                numberOfLines={1}
+              >
                 {thread.title}
               </Text>
               <View className="flex-row items-center gap-2">
@@ -645,6 +660,7 @@ export const ThreadListRow = memo(function ThreadListRow(props: {
         <View className="gap-[3px]">
           <View className="flex-row items-center justify-between gap-2">
             <Text
+              localize={false}
               className={cn(
                 "flex-1 text-base font-t3-medium",
                 selected ? "text-user-bubble-foreground" : "text-foreground",

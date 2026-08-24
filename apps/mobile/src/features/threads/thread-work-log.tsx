@@ -204,7 +204,9 @@ export function ThreadWorkLog(props: {
                       {row.summary}
                     </Text>
                     {row.detail ? (
-                      <Text className="text-foreground-muted opacity-60"> {row.detail}</Text>
+                      <Text localize={false} className="text-foreground-muted opacity-60">
+                        {` ${row.detail}`}
+                      </Text>
                     ) : null}
                   </Text>
 

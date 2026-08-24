@@ -72,6 +72,7 @@ const SETTINGS_SECTION_MESSAGE_KEYS: Readonly<Record<SettingsPath, WebMessageKey
 };
 
 const SETTINGS_SEARCH_MESSAGE_KEYS: Readonly<Record<SettingsSearchItemId, WebMessageKey>> = {
+  language: "settings.language.title",
   "color-scheme": "settings.item.colorScheme",
   theme: "settings.item.themes",
   "setting-appearance-contrast": "settings.item.appearanceContrast",
