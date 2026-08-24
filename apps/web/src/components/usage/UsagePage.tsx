@@ -33,7 +33,7 @@ import {
 import { WorkspacePageContainer } from "../WorkspacePageContainer";
 import { WorkspacePageHeader } from "../WorkspacePageHeader";
 import { UsageProviderChart, type UsageChartMetric } from "./UsageProviderChart";
-import { PROVIDER_ORDER, PROVIDER_PRESENTATION } from "./usageProviders";
+import { PROVIDER_ORDER, PROVIDER_PRESENTATION, providersWithUsage } from "./usageProviders";
 
 const WINDOW_OPTIONS = [{ days: 1 }, { days: 7 }, { days: 30 }, { days: 90 }] as const;
 
@@ -71,6 +71,8 @@ export function UsagePage() {
     () => (isPast24Hours ? merged.hourly : merged.daily).toReversed(),
     [isPast24Hours, merged.daily, merged.hourly],
   );
+  const activeProviders = useMemo(() => providersWithUsage(merged.providers), [merged.providers]);
+  const timeValueColumnWidth = `${60 / (activeProviders.length + 2)}%`;
 
   const selectWindow = (days: number) => {
     setWindowSelection({
@@ -242,7 +244,7 @@ export function UsagePage() {
                       </span>
                     </div>
 
-                    {PROVIDER_ORDER.map((provider) => {
+                    {activeProviders.map((provider) => {
                       const totals = merged.providers.find((entry) => entry.provider === provider);
                       const share =
                         metric === "cost" ? (totals?.costShare ?? 0) : (totals?.tokenShare ?? 0);
@@ -306,6 +308,7 @@ export function UsagePage() {
                       )}
                     </h2>
                     <UsageProviderChart
+                      providers={activeProviders}
                       days={days}
                       daily={merged.daily}
                       hours={hours}
@@ -373,7 +376,13 @@ export function UsagePage() {
                   </div>
 
                   {breakdown === "model" ? (
-                    <table className="w-full text-sm">
+                    <table className="w-full table-fixed text-sm">
+                      <colgroup>
+                        <col className="w-2/5" />
+                        <col className="w-1/5" />
+                        <col className="w-1/5" />
+                        <col className="w-1/5" />
+                      </colgroup>
                       <thead>
                         <tr className="border-b border-border text-left text-xs text-muted-foreground">
                           <th className="py-2 font-normal">{t("usage.breakdown.model")}</th>
@@ -422,13 +431,21 @@ export function UsagePage() {
                       </tbody>
                     </table>
                   ) : (
-                    <table className="w-full text-sm">
+                    <table className="w-full table-fixed text-sm">
+                      <colgroup>
+                        <col className="w-2/5" />
+                        {activeProviders.map((provider) => (
+                          <col key={provider} style={{ width: timeValueColumnWidth }} />
+                        ))}
+                        <col style={{ width: timeValueColumnWidth }} />
+                        <col style={{ width: timeValueColumnWidth }} />
+                      </colgroup>
                       <thead>
                         <tr className="border-b border-border text-left text-xs text-muted-foreground">
                           <th className="py-2 font-normal">
                             {t(isPast24Hours ? "usage.period.hour" : "usage.period.day")}
                           </th>
-                          {PROVIDER_ORDER.map((provider) => (
+                          {activeProviders.map((provider) => (
                             <th key={provider} className="py-2 text-right font-normal">
                               {PROVIDER_PRESENTATION[provider].label}
                             </th>
@@ -444,7 +461,10 @@ export function UsagePage() {
                       <tbody>
                         {breakdownPeriods.length === 0 ? (
                           <tr>
-                            <td colSpan={5} className="py-6 text-center text-muted-foreground">
+                            <td
+                              colSpan={activeProviders.length + 3}
+                              className="py-6 text-center text-muted-foreground"
+                            >
                               {t("usage.noActivity")}
                             </td>
                           </tr>
@@ -459,7 +479,7 @@ export function UsagePage() {
                                   ? formatHourShort(period.hourStart, window.timeZone, locale)
                                   : formatDayShort(period.day, locale)}
                               </td>
-                              {PROVIDER_ORDER.map((provider) => (
+                              {activeProviders.map((provider) => (
                                 <td
                                   key={provider}
                                   className="py-2 text-right text-muted-foreground tabular-nums"

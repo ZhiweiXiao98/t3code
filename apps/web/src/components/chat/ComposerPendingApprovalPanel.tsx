@@ -16,17 +16,21 @@ export const ComposerPendingApprovalPanel = memo(function ComposerPendingApprova
 }: ComposerPendingApprovalPanelProps) {
   const { t } = useI18n();
   const fallbackLabel =
-    approval.requestKind === "command"
-      ? t("composer.approval.commandLabel")
-      : approval.requestKind === "file-read"
-        ? t("composer.approval.fileReadLabel")
-        : t("composer.approval.fileChangeLabel");
+    approval.requestKind === "mcp-elicitation"
+      ? t("composer.approval.appAccessLabel")
+      : approval.requestKind === "command"
+        ? t("composer.approval.commandLabel")
+        : approval.requestKind === "file-read"
+          ? t("composer.approval.fileReadLabel")
+          : t("composer.approval.fileChangeLabel");
   const detailAriaLabel =
-    approval.requestKind === "command"
-      ? t("composer.approval.command")
-      : approval.requestKind === "file-read"
-        ? t("composer.approval.fileToRead")
-        : t("composer.approval.fileChange");
+    approval.requestKind === "mcp-elicitation"
+      ? t("composer.approval.appAccessRequest")
+      : approval.requestKind === "command"
+        ? t("composer.approval.command")
+        : approval.requestKind === "file-read"
+          ? t("composer.approval.fileToRead")
+          : t("composer.approval.fileChange");
 
   return (
     <div
@@ -34,6 +38,11 @@ export const ComposerPendingApprovalPanel = memo(function ComposerPendingApprova
       className={cn("flex min-w-0 flex-1 items-center gap-2", className)}
       role="group"
     >
+      {approval.appName ? (
+        <span className="max-w-32 shrink truncate text-[11px] font-medium text-foreground">
+          {approval.appName}
+        </span>
+      ) : null}
       <code
         aria-label={detailAriaLabel}
         className="block max-h-20 min-w-0 flex-1 overflow-auto whitespace-pre font-mono text-[11px] text-foreground/85 [scrollbar-width:thin] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70 [&::-webkit-scrollbar]:h-1.5"
