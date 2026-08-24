@@ -152,7 +152,7 @@ describe("ProviderUpdatePrimaryNotification lifecycle", () => {
     toastState.close.mockClear();
   });
 
-  it("keeps a failed toast owned and uses the latest language when an update settles", async () => {
+  it("uses the latest language when an update settles without duplicating progress", async () => {
     const result = deferred<ReturnType<typeof AsyncResult.failure>>();
     testState.updateProvider.mockReturnValue(result.promise);
 
@@ -167,18 +167,15 @@ describe("ProviderUpdatePrimaryNotification lifecycle", () => {
     result.resolve(AsyncResult.failure(Cause.die(new Error("Update command failed"))));
     await flushPromises();
 
-    const failedUpdate = toastState.update.mock.calls.at(-1)?.[1] as {
+    const failedUpdate = toastState.add.mock.calls.at(-1)?.[0] as {
       actionProps?: { children?: string };
     };
     expect(failedUpdate.actionProps?.children).toBe("设置");
 
     testState.locale = "en";
     renderNotification();
-    const relocalizedUpdate = toastState.update.mock.calls.at(-1)?.[1] as {
-      actionProps?: { children?: string };
-    };
-    expect(relocalizedUpdate.actionProps?.children).toBe("Settings");
-    expect(toastState.add).toHaveBeenCalledOnce();
+    expect(toastState.add).toHaveBeenCalledTimes(2);
+    expect(toastState.update).not.toHaveBeenCalled();
     expect(testState.updateProvider).toHaveBeenCalledOnce();
   });
 });

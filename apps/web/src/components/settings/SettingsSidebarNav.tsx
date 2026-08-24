@@ -74,6 +74,7 @@ const SETTINGS_SECTION_MESSAGE_KEYS: Readonly<Record<SettingsPath, WebMessageKey
 const SETTINGS_SEARCH_MESSAGE_KEYS: Readonly<Record<SettingsSearchItemId, WebMessageKey>> = {
   "color-scheme": "settings.item.colorScheme",
   theme: "settings.item.themes",
+  "setting-appearance-contrast": "settings.item.appearanceContrast",
   "setting-glass-opacity": "settings.item.glassOpacity",
   "environment-identification": "settings.item.environmentIdentification",
   "interface-font": "settings.item.interfaceFont",
@@ -87,6 +88,7 @@ const SETTINGS_SEARCH_MESSAGE_KEYS: Readonly<Record<SettingsSearchItemId, WebMes
   "auto-settle-merged-threads": "settings.item.autoSettleMergedThreads",
   "time-format": "settings.item.timeFormat",
   "hide-whitespace-changes": "settings.item.hideWhitespaceChanges",
+  "skills-in-slash-menu": "settings.item.skillsInSlashMenu",
   "provider-update-checks": "settings.item.providerUpdateChecks",
   "new-threads": "settings.item.newThreads",
   "start-from-origin": "settings.item.startFromOrigin",

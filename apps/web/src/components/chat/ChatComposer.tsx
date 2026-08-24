@@ -36,12 +36,13 @@ import {
 import { createPortal } from "react-dom";
 import {
   clampCollapsedComposerCursor,
+  type ComposerSubmissionIntent,
   type ComposerTrigger,
   collapseExpandedComposerCursor,
+  composerSubmissionIntentForEnter,
   detectComposerTrigger,
   expandCollapsedComposerCursor,
   replaceTextRange,
-  shouldSubmitComposerOnEnter,
 } from "../../composer-logic";
 import { useI18n } from "../../i18n/WebI18nProvider";
 import type { WebMessageKey } from "../../i18n/messages";
@@ -252,7 +253,11 @@ import type { SessionPhase, Thread } from "../../types";
 import type { PendingUserInputDraftAnswer } from "../../pendingUserInput";
 import type { PendingApproval, PendingUserInput } from "../../session-logic";
 import { deriveLatestContextWindowSnapshot } from "../../lib/contextWindow";
-import { formatProviderSkillDisplayName } from "@t3tools/client-runtime/providerSkills";
+import {
+  formatProviderSkillDisplayName,
+  getProviderSlashCommandsForSlashMenu,
+  getProviderSkillsForSlashMenu,
+} from "@t3tools/client-runtime/providerSkills";
 import { searchProviderSkills } from "../../providerSkillSearch";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import type { ReviewCommentContext } from "../../reviewCommentContext";
@@ -612,7 +617,7 @@ export interface ChatComposerProps {
   composerRef: React.RefObject<ChatComposerHandle | null>;
 
   // Callbacks
-  onSend: (e?: { preventDefault: () => void }) => void;
+  onSend: (e?: { preventDefault: () => void }, intent?: ComposerSubmissionIntent) => void;
   onInterrupt: () => void;
   onImplementPlanInNewThread: () => void;
   onRespondToApproval: (
@@ -1094,7 +1099,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
           type: "slash-command",
           command: "model",
           label: "/model",
-          description: "Switch response model for this thread",
+          description: t("composer.command.modelDescription"),
         },
         ...(planModeUiEnabled
           ? ([
@@ -1103,42 +1108,46 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                 type: "slash-command",
                 command: "plan",
                 label: "/plan",
-                description: "Switch this thread into plan mode",
+                description: t("composer.command.planDescription"),
               },
               {
                 id: "slash:default",
                 type: "slash-command",
                 command: "default",
                 label: "/default",
-                description: "Switch this thread back to normal build mode",
+                description: t("composer.command.defaultDescription"),
               },
             ] as const)
           : []),
       ] satisfies ReadonlyArray<Extract<ComposerCommandItem, { type: "slash-command" }>>;
-      const providerSlashCommandItems = (selectedProviderStatus?.slashCommands ?? []).map(
-        (command) => ({
-          id: `provider-slash-command:${selectedProvider}:${command.name}`,
-          type: "provider-slash-command" as const,
-          provider: selectedProvider,
-          command,
-          label: `/${command.name}`,
-          description: command.description ?? command.input?.hint ?? "Run provider command",
-        }),
+      const slashMenuSkills = getProviderSkillsForSlashMenu(
+        selectedProviderStatus?.skills ?? [],
+        settings.showSkillsInSlashMenu,
       );
+      const providerSlashCommandItems = getProviderSlashCommandsForSlashMenu(
+        selectedProviderStatus?.slashCommands ?? [],
+        slashMenuSkills,
+      ).map((command) => ({
+        id: `provider-slash-command:${selectedProvider}:${command.name}`,
+        type: "provider-slash-command" as const,
+        provider: selectedProvider,
+        command,
+        label: `/${command.name}`,
+        description:
+          command.description ?? command.input?.hint ?? t("composer.command.runProviderCommand"),
+      }));
       const query = composerTrigger.query.trim().toLowerCase();
-      const skillItems = (selectedProviderStatus?.skills ?? [])
-        .filter((skill) => skill.enabled)
-        .map((skill) => ({
-          id: `skill:${selectedProvider}:${skill.name}`,
-          type: "skill" as const,
-          provider: selectedProvider,
-          skill,
-          label: `skill:${skill.name}`,
-          description:
-            skill.shortDescription ??
-            skill.description ??
-            (skill.scope ? `${skill.scope} skill` : ""),
-        }));
+      const skillItems = slashMenuSkills.map((skill) => ({
+        id: `skill:${selectedProvider}:${skill.name}`,
+        type: "skill" as const,
+        provider: selectedProvider,
+        skill,
+        label: `/skill:${skill.name}`,
+        description:
+          skill.shortDescription ??
+          skill.description ??
+          (skill.scope ? t("composer.command.scopedSkill", { scope: skill.scope }) : ""),
+      }));
       const slashCommandItems = [
         ...builtInSlashCommandItems,
         ...providerSlashCommandItems,
@@ -1157,7 +1166,9 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
           description:
             skill.shortDescription ??
             skill.description ??
-            (skill.scope ? `${skill.scope} skill` : "Run provider skill"),
+            (skill.scope
+              ? t("composer.command.scopedSkill", { scope: skill.scope })
+              : t("composer.command.runProviderSkill")),
         }),
       );
     }
@@ -1167,6 +1178,8 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     planModeUiEnabled,
     selectedProvider,
     selectedProviderStatus,
+    settings.showSkillsInSlashMenu,
+    t,
     workspaceEntries.entries,
   ]);
 
@@ -1235,12 +1248,12 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     composerTriggerKind === "path" && pathTriggerQuery.length > 0 && workspaceEntries.isPending;
   const composerMenuEmptyState = useMemo(() => {
     if (composerTriggerKind === "skill") {
-      return "No skills found. Try / to browse provider commands.";
+      return t("composer.menu.noSkills");
     }
     return composerTriggerKind === "path"
-      ? "No matching files or folders."
-      : "No matching command.";
-  }, [composerTriggerKind]);
+      ? t("composer.menu.noPaths")
+      : t("composer.menu.noCommands");
+  }, [composerTriggerKind, t]);
 
   // ------------------------------------------------------------------
   // Provider traits UI
@@ -1895,7 +1908,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
   ]);
 
   const submitComposer = useCallback(
-    (event?: { preventDefault: () => void }) => {
+    (event?: { preventDefault: () => void }, intent: ComposerSubmissionIntent = "foreground") => {
       if (noProviderAvailable || isSendDisabled) {
         event?.preventDefault();
         return;
@@ -1921,7 +1934,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
           // ChatView reports its final composed-input preflight through the
           // composer handle before its first asynchronous send step.
           providerInputRejectedRef.current = false;
-          onSend(sendEvent);
+          onSend(sendEvent, intent);
           return !providerInputRejectedRef.current;
         },
       });
@@ -1995,11 +2008,17 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
         return true;
       }
     }
-    if (
-      key === "Enter" &&
-      shouldSubmitComposerOnEnter({ isMobileViewport, shiftKey: event.shiftKey })
-    ) {
-      submitComposer();
+    const submissionIntent =
+      key === "Enter"
+        ? composerSubmissionIntentForEnter({
+            isMobileViewport,
+            shiftKey: event.shiftKey,
+            modifierKey: event.metaKey || event.ctrlKey,
+            isDraftThread: routeKind === "draft",
+          })
+        : null;
+    if (submissionIntent) {
+      submitComposer(undefined, submissionIntent);
       return true;
     }
     return false;

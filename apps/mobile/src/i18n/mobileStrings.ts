@@ -159,6 +159,7 @@ const ZH_CN_MESSAGES = {
   General: "常规",
   Host: "主机",
   "Image unavailable": "图片不可用",
+  "Markdown image": "Markdown 图片",
   Input: "待输入",
   "Inspect turn diffs, worktree changes, and base branch diff":
     "检查轮次差异、工作树更改和基础分支差异",
@@ -179,6 +180,7 @@ const ZH_CN_MESSAGES = {
   "Loading diff…": "正在加载差异…",
   "Loading file...": "正在加载文件…",
   "Loading image...": "正在加载图片…",
+  "Loading image…": "正在加载图片…",
   "Loading linked cloud environments.": "正在加载关联的云端环境。",
   "Loading environments": "正在加载环境",
   "Loading messages...": "正在加载消息…",
@@ -399,6 +401,14 @@ const ZH_CN_MESSAGES = {
   Unpriced: "未计价",
   "Update failed": "更新失败",
   "Update ready": "更新已就绪",
+  "Start a Codex thread first": "请先启动 Codex 任务",
+  "Send a message before you submit feedback.": "发送一条消息后才能提交反馈。",
+  "Could not send feedback to OpenAI": "无法向 OpenAI 发送反馈",
+  "Feedback sent to OpenAI": "反馈已发送给 OpenAI",
+  "Sending feedback to OpenAI...": "正在向 OpenAI 发送反馈...",
+  "An error occurred.": "发生了错误。",
+  "Copy ID": "复制 ID",
+  "Codex feedback thread ID": "Codex 反馈任务 ID",
   "Install Now": "立即安装",
   Later: "稍后",
   Delete: "删除",
@@ -437,6 +447,15 @@ function translateDynamicMessage(value: string): string | null {
   const selectedFiles = /^(\d+) selected · \+(\d+) −(\d+)$/.exec(value);
   if (selectedFiles)
     return `已选择 ${selectedFiles[1]} 个 · +${selectedFiles[2]} −${selectedFiles[3]}`;
+
+  const feedbackThreadId = /^Thread ID: (.+)$/.exec(value);
+  if (feedbackThreadId) return `任务 ID：${feedbackThreadId[1]}`;
+
+  const feedbackSent = /^Feedback sent to OpenAI\.\n\nThread ID: `(.+)`$/.exec(value);
+  if (feedbackSent) return `反馈已发送给 OpenAI。\n\n任务 ID：\`${feedbackSent[1]}\``;
+
+  const feedbackFailed = /^Could not send feedback to OpenAI\.\n\n([\s\S]+)$/.exec(value);
+  if (feedbackFailed) return `无法向 OpenAI 发送反馈。\n\n${feedbackFailed[1]}`;
 
   return null;
 }

@@ -25,6 +25,13 @@ describe("mobile strings", () => {
     );
   });
 
+  it("translates workspace image and Codex feedback states", () => {
+    expect(localizeMobileString("Loading image…", "zh-CN")).toBe("正在加载图片…");
+    expect(
+      localizeMobileString("Feedback sent to OpenAI.\n\nThread ID: `feedback-123`", "zh-CN"),
+    ).toBe("反馈已发送给 OpenAI。\n\n任务 ID：`feedback-123`");
+  });
+
   it("translates alert titles, messages, and button labels", () => {
     expect(
       localizeAlertArguments(
