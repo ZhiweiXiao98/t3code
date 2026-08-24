@@ -35,7 +35,8 @@ import {
   type ThemeDefinition,
 } from "../../themePalette";
 import { cn } from "../../lib/utils";
-import { useI18n } from "../../i18n/WebI18nProvider";
+import { useI18n, type WebTranslate } from "../../i18n/WebI18nProvider";
+import type { WebMessageKey } from "../../i18n/messages";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Switch } from "../ui/switch";
@@ -56,7 +57,7 @@ const THEME_EDITOR_SIMPLE_ROLES: ReadonlyArray<ThemeColorRole> = ["canvas", "acc
 
 type ThemeEditorColorFamily = Readonly<{
   id: string;
-  label: string;
+  labelKey: WebMessageKey;
   role: ThemeColorRole;
   roles: ReadonlyArray<ThemeColorRole>;
 }>;
@@ -72,32 +73,37 @@ const THEME_EDITOR_ROLE_GROUPS: ReadonlyArray<{
     families: [
       {
         id: "background",
-        label: "Background",
+        labelKey: "appearance.themeEditor.family.background",
         role: "canvas",
         roles: ["canvas", "chrome", "toolbar"],
       },
-      { id: "surface", label: "Surface", role: "surface", roles: ["surface"] },
+      {
+        id: "surface",
+        labelKey: "appearance.themeEditor.family.surface",
+        role: "surface",
+        roles: ["surface"],
+      },
       {
         id: "raised-surface",
-        label: "Raised surface",
+        labelKey: "appearance.themeEditor.family.raisedSurface",
         role: "surfaceRaised",
         roles: ["surfaceRaised"],
       },
       {
         id: "overlay",
-        label: "Overlay",
+        labelKey: "appearance.themeEditor.family.overlay",
         role: "surfaceOverlay",
         roles: ["surfaceOverlay"],
       },
       {
         id: "text",
-        label: "Text",
+        labelKey: "appearance.themeEditor.family.text",
         role: "text",
         roles: ["text", "toolbarForeground", "toolbarControlForeground"],
       },
       {
         id: "muted-text",
-        label: "Muted text",
+        labelKey: "appearance.themeEditor.family.mutedText",
         role: "mutedForeground",
         roles: [
           "textMuted",
@@ -110,11 +116,16 @@ const THEME_EDITOR_ROLE_GROUPS: ReadonlyArray<{
       },
       {
         id: "border",
-        label: "Border",
+        labelKey: "appearance.themeEditor.family.border",
         role: "border",
         roles: ["border", "toolbarBorder", "sidebarBorder"],
       },
-      { id: "input", label: "Input", role: "input", roles: ["input"] },
+      {
+        id: "input",
+        labelKey: "appearance.themeEditor.family.input",
+        role: "input",
+        roles: ["input"],
+      },
     ],
   },
   {
@@ -123,19 +134,19 @@ const THEME_EDITOR_ROLE_GROUPS: ReadonlyArray<{
     families: [
       {
         id: "subtle-surface",
-        label: "Subtle surface",
+        labelKey: "appearance.themeEditor.family.subtleSurface",
         role: "secondary",
         roles: ["secondary", "secondaryForeground", "muted", "toolbarControl"],
       },
       {
         id: "highlight-surface",
-        label: "Highlight surface",
+        labelKey: "appearance.themeEditor.family.highlightSurface",
         role: "accentSurface",
         roles: ["accentSurface", "accentSurfaceForeground", "toolbarControlHover"],
       },
       {
         id: "accent",
-        label: "Accent",
+        labelKey: "appearance.themeEditor.family.accent",
         role: "accent",
         roles: [
           "accent",
@@ -149,19 +160,19 @@ const THEME_EDITOR_ROLE_GROUPS: ReadonlyArray<{
       },
       {
         id: "action",
-        label: "Action",
+        labelKey: "appearance.themeEditor.family.action",
         role: "messageAction",
         roles: ["messageAction", "messageActionForeground", "messageActionHover"],
       },
       {
         id: "message-surface",
-        label: "Message surface",
+        labelKey: "appearance.themeEditor.family.messageSurface",
         role: "messageSurface",
         roles: ["messageSurface", "messageForeground"],
       },
       {
         id: "code-surface",
-        label: "Code surface",
+        labelKey: "appearance.themeEditor.family.codeSurface",
         role: "codeBackground",
         roles: ["codeBackground", "codeForeground"],
       },
@@ -173,25 +184,25 @@ const THEME_EDITOR_ROLE_GROUPS: ReadonlyArray<{
     families: [
       {
         id: "sidebar-background",
-        label: "Sidebar background",
+        labelKey: "appearance.themeEditor.family.sidebarBackground",
         role: "sidebar",
         roles: ["sidebar", "sidebarForeground"],
       },
       {
         id: "sidebar-controls",
-        label: "Sidebar controls",
+        labelKey: "appearance.themeEditor.family.sidebarControls",
         role: "sidebarControlSurface",
         roles: ["sidebarControlSurface"],
       },
       {
         id: "sidebar-selection",
-        label: "Sidebar selection",
+        labelKey: "appearance.themeEditor.family.sidebarSelection",
         role: "sidebarRowSelected",
         roles: ["sidebarRowHover", "sidebarRowActive", "sidebarRowSelected"],
       },
       {
         id: "terminal-background",
-        label: "Terminal background",
+        labelKey: "appearance.themeEditor.family.terminalBackground",
         role: "terminalBackground",
         roles: [
           "terminalBackground",
@@ -209,13 +220,13 @@ const THEME_EDITOR_ROLE_GROUPS: ReadonlyArray<{
     families: [
       {
         id: "error",
-        label: "Error",
+        labelKey: "appearance.themeEditor.family.error",
         role: "error",
         roles: ["error", "errorForeground", "errorSurface"],
       },
       {
         id: "warning",
-        label: "Warning",
+        labelKey: "appearance.themeEditor.family.warning",
         role: "warning",
         roles: ["warning", "warningForeground", "warningSurface"],
       },
@@ -232,6 +243,11 @@ const THEME_EDITOR_COLOR_FAMILY_BY_ROLE = new Map(
 
 function getThemeEditorColorFamily(role: ThemeColorRole): ThemeEditorColorFamily | null {
   return THEME_EDITOR_COLOR_FAMILY_BY_ROLE.get(role) ?? null;
+}
+
+function getLocalizedThemeEditorColorLabel(role: ThemeColorRole, t: WebTranslate): string {
+  const family = getThemeEditorColorFamily(role);
+  return family ? t(family.labelKey) : getThemeRoleLabel(role);
 }
 
 type ThemeEditorColors = ThemeColors;
@@ -633,10 +649,7 @@ export function ThemeEditorPanel({
     };
     const showInspection = (inspection: ThemeElementInspection) => {
       hoverInspection = inspection;
-      showThemeInspectorHover(
-        inspection,
-        getThemeEditorColorFamily(inspection.role)?.label ?? getThemeRoleLabel(inspection.role),
-      );
+      showThemeInspectorHover(inspection, getLocalizedThemeEditorColorLabel(inspection.role, t));
     };
     const handlePointerOver = (event: PointerEvent) => {
       const target = event.target;
@@ -701,8 +714,7 @@ export function ThemeEditorPanel({
         if (hoverInspection) {
           showThemeInspectorHover(
             hoverInspection,
-            getThemeEditorColorFamily(hoverInspection.role)?.label ??
-              getThemeRoleLabel(hoverInspection.role),
+            getLocalizedThemeEditorColorLabel(hoverInspection.role, t),
           );
         }
       });
@@ -728,7 +740,7 @@ export function ThemeEditorPanel({
       if (hoverFrame !== null) cancelAnimationFrame(hoverFrame);
       clearThemeInspectorHover();
     };
-  }, [clearInspectorSelection, isInspecting, open, selectThemeRole]);
+  }, [clearInspectorSelection, isInspecting, open, selectThemeRole, t]);
 
   const handleAdvancedChange = useCallback(
     (checked: boolean) => {
@@ -1017,7 +1029,7 @@ export function ThemeEditorPanel({
       {families.map((family) => (
         <ThemeColorField
           key={family.id}
-          label={family.label}
+          label={t(family.labelKey)}
           onChange={updateColor}
           onSelect={selectThemeRole}
           onToggleSelected={toggleThemeRole}
@@ -1036,7 +1048,7 @@ export function ThemeEditorPanel({
       families: group.families.filter(
         (family) =>
           !query ||
-          [family.label, ...family.roles.map((role) => getThemeRoleLabel(role))]
+          [t(family.labelKey), ...family.roles.map((role) => getThemeRoleLabel(role))]
             .join(" ")
             .toLowerCase()
             .includes(query),
@@ -1207,10 +1219,7 @@ export function ThemeEditorPanel({
                         ? "appearance.themeEditor.usageOne"
                         : "appearance.themeEditor.usageMany",
                       {
-                        label: isAdvanced
-                          ? (getThemeEditorColorFamily(selectedRole)?.label ??
-                            getThemeRoleLabel(selectedRole))
-                          : getThemeRoleLabel(selectedRole),
+                        label: getLocalizedThemeEditorColorLabel(selectedRole, t),
                         count: usageCount ?? 0,
                       },
                     )

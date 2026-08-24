@@ -1,4 +1,4 @@
-import { Children, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import {
   Text as RNText,
   TextInput as RNTextInput,
@@ -7,6 +7,7 @@ import {
 } from "react-native";
 
 import { cn } from "../lib/cn";
+import { localizeTextChildren } from "../i18n/localizeTextChildren";
 import { localizeMobileString } from "../i18n/mobileStrings";
 
 export type AppTextProps = RNTextProps & {
@@ -19,12 +20,6 @@ export type AppTextProps = RNTextProps & {
  * Thin wrapper around RN Text with default font-family and foreground color.
  * Uses Uniwind className — no manual style parsing.
  */
-function localizeTextChildren(children: ReactNode): ReactNode {
-  return Children.map(children, (child) =>
-    typeof child === "string" ? localizeMobileString(child) : child,
-  );
-}
-
 export function AppText({
   accessibilityLabel,
   children,
@@ -42,7 +37,7 @@ export function AppText({
       className={cn("font-sans text-foreground", className)}
       {...props}
     >
-      {localize ? localizeTextChildren(children) : children}
+      {localize ? localizeTextChildren(children, localizeMobileString) : children}
     </RNText>
   );
 }

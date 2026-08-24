@@ -1171,7 +1171,7 @@ export function AppearanceSettingsPanel() {
           resetAction={
             settings.glassOpacity !== DEFAULT_UNIFIED_SETTINGS.glassOpacity ? (
               <SettingResetButton
-                label="glass opacity"
+                label={t("settings.item.glassOpacity")}
                 onClick={() =>
                   updateSettings({ glassOpacity: DEFAULT_UNIFIED_SETTINGS.glassOpacity })
                 }
@@ -1219,7 +1219,7 @@ export function AppearanceSettingsPanel() {
             resetAction={
               settings.environmentIdentificationMode !== DEFAULT_ENVIRONMENT_IDENTIFICATION_MODE ? (
                 <SettingResetButton
-                  label="environment identification"
+                  label={t("settings.item.environmentIdentification")}
                   onClick={() =>
                     updateSettings({
                       environmentIdentificationMode: DEFAULT_ENVIRONMENT_IDENTIFICATION_MODE,
@@ -1458,7 +1458,7 @@ function FontSmoothingRow() {
       resetAction={
         settings.fontSmoothing !== DEFAULT_UNIFIED_SETTINGS.fontSmoothing ? (
           <SettingResetButton
-            label="font smoothing"
+            label={t("settings.item.fontSmoothing")}
             onClick={() =>
               updateSettings({ fontSmoothing: DEFAULT_UNIFIED_SETTINGS.fontSmoothing })
             }
@@ -1488,7 +1488,7 @@ function WordWrapRow() {
       resetAction={
         settings.wordWrap !== DEFAULT_UNIFIED_SETTINGS.wordWrap ? (
           <SettingResetButton
-            label="word wrapping"
+            label={t("settings.item.wordWrap")}
             onClick={() => updateSettings({ wordWrap: DEFAULT_UNIFIED_SETTINGS.wordWrap })}
           />
         ) : null
@@ -2095,7 +2095,7 @@ export function GeneralSettingsPanel() {
             settings.sidebarProjectGroupingMode !==
             DEFAULT_UNIFIED_SETTINGS.sidebarProjectGroupingMode ? (
               <SettingResetButton
-                label="project grouping"
+                label={t("settings.item.projectGrouping")}
                 onClick={() =>
                   updateSettings({
                     sidebarProjectGroupingMode: DEFAULT_UNIFIED_SETTINGS.sidebarProjectGroupingMode,
@@ -2132,7 +2132,7 @@ export function GeneralSettingsPanel() {
             settings.sidebarAutoSettleOnMerge !==
             DEFAULT_UNIFIED_SETTINGS.sidebarAutoSettleOnMerge ? (
               <SettingResetButton
-                label="auto-settle on merge"
+                label={t("settings.item.autoSettleMergedThreads")}
                 onClick={() =>
                   updateSettings({
                     sidebarAutoSettleOnMerge: DEFAULT_UNIFIED_SETTINGS.sidebarAutoSettleOnMerge,
@@ -2160,7 +2160,7 @@ export function GeneralSettingsPanel() {
             settings.sidebarAutoSettleAfterDays !==
             DEFAULT_UNIFIED_SETTINGS.sidebarAutoSettleAfterDays ? (
               <SettingResetButton
-                label="auto-settle"
+                label={t("settings.item.autoSettleInactiveThreads")}
                 onClick={() =>
                   updateSettings({
                     sidebarAutoSettleAfterDays: DEFAULT_UNIFIED_SETTINGS.sidebarAutoSettleAfterDays,
@@ -2201,7 +2201,7 @@ export function GeneralSettingsPanel() {
           resetAction={
             settings.timestampFormat !== DEFAULT_UNIFIED_SETTINGS.timestampFormat ? (
               <SettingResetButton
-                label="time format"
+                label={t("settings.item.timeFormat")}
                 onClick={() =>
                   updateSettings({
                     timestampFormat: DEFAULT_UNIFIED_SETTINGS.timestampFormat,
@@ -2246,7 +2246,7 @@ export function GeneralSettingsPanel() {
           resetAction={
             settings.diffIgnoreWhitespace !== DEFAULT_UNIFIED_SETTINGS.diffIgnoreWhitespace ? (
               <SettingResetButton
-                label="diff whitespace changes"
+                label={t("settings.item.hideWhitespaceChanges")}
                 onClick={() =>
                   updateSettings({
                     diffIgnoreWhitespace: DEFAULT_UNIFIED_SETTINGS.diffIgnoreWhitespace,
@@ -2301,7 +2301,7 @@ export function GeneralSettingsPanel() {
             settings.enableProviderUpdateChecks !==
             DEFAULT_UNIFIED_SETTINGS.enableProviderUpdateChecks ? (
               <SettingResetButton
-                label="provider update checks"
+                label={t("settings.item.providerUpdateChecks")}
                 onClick={() =>
                   updateSettings({
                     enableProviderUpdateChecks: DEFAULT_UNIFIED_SETTINGS.enableProviderUpdateChecks,
@@ -2335,7 +2335,7 @@ export function GeneralSettingsPanel() {
           resetAction={
             canResetBackgroundActivity ? (
               <SettingResetButton
-                label="background activity"
+                label={t("settings.general.background.title")}
                 onClick={() => updateSettings(resetBackgroundActivitySettings())}
               />
             ) : null
@@ -2421,7 +2421,7 @@ export function GeneralSettingsPanel() {
             settings.newWorktreesStartFromOrigin !==
               DEFAULT_UNIFIED_SETTINGS.newWorktreesStartFromOrigin ? (
               <SettingResetButton
-                label="new threads"
+                label={t("settings.item.newThreads")}
                 onClick={() =>
                   updateSettings({
                     defaultThreadEnvMode: DEFAULT_UNIFIED_SETTINGS.defaultThreadEnvMode,
@@ -2469,7 +2469,7 @@ export function GeneralSettingsPanel() {
               settings.newWorktreesStartFromOrigin !==
               DEFAULT_UNIFIED_SETTINGS.newWorktreesStartFromOrigin ? (
                 <SettingResetButton
-                  label="new worktrees start from origin"
+                  label={t("settings.item.startFromOrigin")}
                   onClick={() =>
                     updateSettings({
                       newWorktreesStartFromOrigin:
@@ -2499,7 +2499,7 @@ export function GeneralSettingsPanel() {
             settings.addProjectBaseDirectory !==
             DEFAULT_UNIFIED_SETTINGS.addProjectBaseDirectory ? (
               <SettingResetButton
-                label="add project base directory"
+                label={t("settings.item.addProjectStartsIn")}
                 onClick={() =>
                   updateSettings({
                     addProjectBaseDirectory: DEFAULT_UNIFIED_SETTINGS.addProjectBaseDirectory,
@@ -2527,7 +2527,7 @@ export function GeneralSettingsPanel() {
           resetAction={
             settings.confirmThreadArchive !== DEFAULT_UNIFIED_SETTINGS.confirmThreadArchive ? (
               <SettingResetButton
-                label="archive confirmation"
+                label={t("settings.item.archiveConfirmation")}
                 onClick={() =>
                   updateSettings({
                     confirmThreadArchive: DEFAULT_UNIFIED_SETTINGS.confirmThreadArchive,
@@ -2554,7 +2554,7 @@ export function GeneralSettingsPanel() {
           resetAction={
             settings.confirmThreadDelete !== DEFAULT_UNIFIED_SETTINGS.confirmThreadDelete ? (
               <SettingResetButton
-                label="delete confirmation"
+                label={t("settings.item.deleteConfirmation")}
                 onClick={() =>
                   updateSettings({
                     confirmThreadDelete: DEFAULT_UNIFIED_SETTINGS.confirmThreadDelete,
@@ -2581,7 +2581,7 @@ export function GeneralSettingsPanel() {
             resetAction={
               settings.confirmQuit !== DEFAULT_UNIFIED_SETTINGS.confirmQuit ? (
                 <SettingResetButton
-                  label="quit confirmation"
+                  label={t("settings.item.quitConfirmation")}
                   onClick={() =>
                     updateSettings({ confirmQuit: DEFAULT_UNIFIED_SETTINGS.confirmQuit })
                   }
@@ -2605,7 +2605,7 @@ export function GeneralSettingsPanel() {
           resetAction={
             isTextGenerationModelDirty ? (
               <SettingResetButton
-                label="text generation model"
+                label={t("settings.item.textGenerationModel")}
                 onClick={() =>
                   updateSettings({
                     textGenerationModelSelection:

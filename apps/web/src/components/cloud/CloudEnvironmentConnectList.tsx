@@ -180,18 +180,30 @@ export function CloudEnvironmentConnectRows({
     const savedConnection = savedEnvironment
       ? presentSavedCloudEnvironmentConnection(savedEnvironment.connection)
       : null;
-    const savedConnectionText =
-      savedEnvironment &&
-      savedEnvironment.connection.phase !== "error" &&
-      savedEnvironment.connection.phase !== "reconnecting"
-        ? savedEnvironment.connection.phase === "connected"
-          ? t("connectEnvironment.connection.connected")
-          : savedEnvironment.connection.phase === "connecting"
-            ? t("connectEnvironment.connecting")
-            : savedEnvironment.connection.phase === "offline"
-              ? t("connectEnvironment.connection.offline")
-              : t("connectEnvironment.connection.notConnected")
-        : null;
+    const savedConnectionButtonText = savedEnvironment
+      ? savedEnvironment.connection.phase === "connected"
+        ? t("connectEnvironment.connection.connected")
+        : savedEnvironment.connection.phase === "connecting"
+          ? t("connectEnvironment.connecting")
+          : savedEnvironment.connection.phase === "reconnecting"
+            ? t("connectEnvironment.connection.reconnecting")
+            : savedEnvironment.connection.phase === "error"
+              ? t("connectEnvironment.connection.failed")
+              : savedEnvironment.connection.phase === "offline"
+                ? t("connectEnvironment.connection.offline")
+                : t("connectEnvironment.connection.notConnected")
+      : null;
+    const savedConnectionStatusText = savedEnvironment
+      ? savedEnvironment.connection.phase === "error" && savedEnvironment.connection.error
+        ? t("connectEnvironment.connection.failedWithReason", {
+            reason: savedEnvironment.connection.error,
+          })
+        : savedEnvironment.connection.phase === "reconnecting" && savedEnvironment.connection.error
+          ? t("connectEnvironment.connection.reconnectingAfterError", {
+              reason: savedEnvironment.connection.error,
+            })
+          : savedConnectionButtonText
+      : null;
     const dotClassName = savedConnection
       ? savedConnection.tone === "connected"
         ? "bg-success"
@@ -208,7 +220,7 @@ export function CloudEnvironmentConnectRows({
             ? "bg-warning"
             : "bg-muted-foreground/35";
     const statusText = savedConnection
-      ? (savedConnectionText ?? savedConnection.statusText)
+      ? (savedConnectionStatusText ?? savedConnection.statusText)
       : availability === "online"
         ? t("connectEnvironment.status.online")
         : availability === "offline"
@@ -231,7 +243,7 @@ export function CloudEnvironmentConnectRows({
                 }
                 tooltipText={
                   savedConnection
-                    ? (savedConnectionText ?? savedConnection.statusText)
+                    ? (savedConnectionStatusText ?? savedConnection.statusText)
                     : availability === "online"
                       ? t("connectEnvironment.relay.online")
                       : availability === "offline"
@@ -259,7 +271,7 @@ export function CloudEnvironmentConnectRows({
           </div>
           {savedConnection ? (
             <Button size="sm" variant="outline" disabled>
-              {savedConnectionText ?? savedConnection.buttonLabel}
+              {savedConnectionButtonText ?? savedConnection.buttonLabel}
             </Button>
           ) : (
             <Button

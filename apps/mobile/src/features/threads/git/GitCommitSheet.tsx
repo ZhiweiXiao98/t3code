@@ -173,6 +173,7 @@ export function GitCommitSheet(_props: GitCommitSheetProps) {
                     <View className="flex-row items-start justify-between gap-3">
                       <View className="flex-1 gap-1">
                         <Text
+                          localize={false}
                           selectable
                           className={`text-sm font-t3-bold ${included ? "text-foreground" : "text-foreground-muted"}`}
                         >
