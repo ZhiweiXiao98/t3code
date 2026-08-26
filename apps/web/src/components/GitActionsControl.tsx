@@ -385,8 +385,8 @@ function GitQuickActionIcon({
     }
     return <SourceControlIcon className={iconClassName} />;
   }
-  if (quickAction.label === "Commit") return <GitCommitIcon className={iconClassName} />;
-  if (quickAction.label === "Push") return <CloudUploadIcon className={iconClassName} />;
+  if (quickAction.labelId === "commit") return <GitCommitIcon className={iconClassName} />;
+  if (quickAction.labelId === "push") return <CloudUploadIcon className={iconClassName} />;
   return <InfoIcon className={iconClassName} />;
 }
 
@@ -1748,8 +1748,8 @@ export default function GitActionsControl({
     if (quickAction.kind === "show_hint") {
       toastManager.add({
         type: "info",
-        title: quickAction.label,
-        description: quickAction.hint,
+        title: quickActionLabel,
+        description: quickActionDisabledReason ?? t("gitAction.hint.unavailable"),
         data: threadToastData,
       });
       return;

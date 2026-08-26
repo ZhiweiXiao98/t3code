@@ -223,6 +223,7 @@ export const EN_MESSAGES = {
   "settings.about.updateTrack.option.latest": "Latest",
   "settings.diagnostics.mode.localTrace": "Local trace file",
   "settings.diagnostics.mode.terminalOnly": "Terminal logs only",
+  "settings.diagnostics.modeSentence": "{mode}.",
   "settings.diagnostics.export.combined": "Exporting OTEL to {url}.",
   "settings.diagnostics.export.signals":
     "Exporting OTEL traces to {tracesUrl} and metrics to {metricsUrl}.",
@@ -1411,6 +1412,7 @@ export const EN_MESSAGES = {
   "chat.imageUnavailable": "Image unavailable",
   "chat.imageUnavailableWithAlt": "Image unavailable · {alt}",
   "chat.imageLoading": "Loading image",
+  "chat.activity.thinking": "Thinking",
 
   "terminal.splitHorizontal": "Split Terminal Horizontally",
   "terminal.splitHorizontalMax": "Split Terminal Horizontally (max {max} per group)",
@@ -1799,7 +1801,7 @@ export const EN_MESSAGES = {
   "sidebar.projectGrouping.repositoryDescription":
     "Projects from the same repository share one sidebar row.",
   "sidebar.projectGrouping.repositoryPathDescription":
-    "Only projects with the same repository and workspace path share one sidebar row.",
+    "Only projects with the same repository and repo-relative path share one sidebar row.",
   "sidebar.projectGrouping.separateDescription": "Keep this project on its own sidebar row.",
 
   "pullRequestThread.title": "Checkout {request}",
@@ -2178,6 +2180,7 @@ export const ZH_CN_MESSAGES = {
   "settings.about.updateTrack.option.latest": "最新版",
   "settings.diagnostics.mode.localTrace": "本地跟踪文件",
   "settings.diagnostics.mode.terminalOnly": "仅终端日志",
+  "settings.diagnostics.modeSentence": "{mode}。",
   "settings.diagnostics.export.combined": "正在将 OTEL 导出到 {url}。",
   "settings.diagnostics.export.signals":
     "正在将 OTEL 跟踪导出到 {tracesUrl}，并将指标导出到 {metricsUrl}。",
@@ -3315,6 +3318,7 @@ export const ZH_CN_MESSAGES = {
   "chat.imageUnavailable": "图片不可用",
   "chat.imageUnavailableWithAlt": "图片不可用 · {alt}",
   "chat.imageLoading": "正在加载图片",
+  "chat.activity.thinking": "思考中",
 
   "terminal.splitHorizontal": "水平拆分终端",
   "terminal.splitHorizontalMax": "水平拆分终端（每组最多 {max} 个）",
@@ -3685,7 +3689,7 @@ export const ZH_CN_MESSAGES = {
   "sidebar.projectGrouping.separate": "单独显示",
   "sidebar.projectGrouping.repositoryDescription": "同一仓库中的项目共用一个侧栏条目。",
   "sidebar.projectGrouping.repositoryPathDescription":
-    "仓库与工作区路径均相同的项目共用一个侧栏条目。",
+    "仓库与仓库内相对路径均相同的项目共用一个侧栏条目。",
   "sidebar.projectGrouping.separateDescription": "在侧栏中单独显示此项目。",
 
   "pullRequestThread.title": "签出{request}",

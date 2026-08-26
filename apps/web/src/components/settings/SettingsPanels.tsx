@@ -1979,7 +1979,7 @@ function LegacyFeaturesSection() {
 }
 
 export function GeneralSettingsPanel() {
-  const { appLocale, locale, setAppLocale, t } = useI18n();
+  const { appLocale, setAppLocale, t } = useI18n();
   const settings = usePrimarySettings();
   const updateSettings = useUpdatePrimarySettings();
   const [backgroundActivityDialogOpen, setBackgroundActivityDialogOpen] = useState(false);
@@ -1999,7 +1999,7 @@ export function GeneralSettingsPanel() {
     {
       localTraceFile: t("settings.diagnostics.mode.localTrace"),
       terminalLogsOnly: t("settings.diagnostics.mode.terminalOnly"),
-      modeSentence: (mode) => `${mode}${locale === "zh-CN" ? "。" : "."}`,
+      modeSentence: (mode) => t("settings.diagnostics.modeSentence", { mode }),
       exportingOtel: (url) => t("settings.diagnostics.export.combined", { url }),
       exportingSignals: (tracesUrl, metricsUrl) =>
         t("settings.diagnostics.export.signals", { tracesUrl, metricsUrl }),

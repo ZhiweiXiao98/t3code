@@ -1451,7 +1451,7 @@ function LiveActivityRow({
 
 function ThinkingActivityRow() {
   const { t } = useI18n();
-  return <LiveActivityRow label={t("providers.models.thinking")} />;
+  return <LiveActivityRow label={t("chat.activity.thinking")} />;
 }
 
 function LiveActivityContent({

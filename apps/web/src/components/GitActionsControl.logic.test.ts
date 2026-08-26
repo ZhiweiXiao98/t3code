@@ -47,7 +47,11 @@ describe("when: ref is clean and has an open PR", () => {
       }),
       false,
     );
-    assert.deepInclude(quick, { kind: "open_pr", label: "View PR", disabled: false });
+    assert.deepInclude(quick, {
+      kind: "open_pr",
+      labelId: "viewChangeRequest",
+      disabled: false,
+    });
   });
 
   it("buildMenuItems disables commit/push and enables open PR", () => {
@@ -97,9 +101,9 @@ describe("when: actions are busy", () => {
     const quick = resolveQuickAction(status(), true);
     assert.deepInclude(quick, {
       kind: "show_hint",
-      label: "Commit",
+      labelId: "commit",
       disabled: true,
-      hint: "Git action in progress.",
+      hintId: "actionInProgress",
     });
   });
 
@@ -139,9 +143,9 @@ describe("when: git status is unavailable", () => {
     const quick = resolveQuickAction(null, false);
     assert.deepInclude(quick, {
       kind: "show_hint",
-      label: "Commit",
+      labelId: "commit",
       disabled: true,
-      hint: "Git status is unavailable.",
+      hintId: "statusUnavailable",
     });
   });
 
@@ -167,7 +171,7 @@ describe("when: ref is clean, ahead, and has an open PR", () => {
       }),
       false,
     );
-    assert.deepInclude(quick, { kind: "run_action", action: "push", label: "Push" });
+    assert.deepInclude(quick, { kind: "run_action", action: "push", labelId: "push" });
   });
 
   it("buildMenuItems enables push and keeps open PR available", () => {
@@ -219,7 +223,7 @@ describe("when: ref is clean, ahead, and has no open PR", () => {
     assert.deepInclude(quick, {
       kind: "run_action",
       action: "create_pr",
-      label: "Push & create PR",
+      labelId: "pushCreateChangeRequest",
     });
   });
 
@@ -271,7 +275,7 @@ describe("when: source control provider uses merge requests", () => {
     assert.deepInclude(quick, {
       kind: "run_action",
       action: "create_pr",
-      label: "Push & create MR",
+      labelId: "pushCreateChangeRequest",
     });
     assert.deepInclude(items[2], {
       id: "pr",
@@ -291,7 +295,7 @@ describe("when: ref is clean, up to date, and has no open PR", () => {
 
     const quick = resolveQuickAction(syncedFeature, false);
     assert.deepInclude(quick, {
-      label: "Create PR",
+      labelId: "createChangeRequest",
       disabled: false,
       kind: "run_action",
       action: "create_pr",
@@ -306,7 +310,7 @@ describe("when: ref is clean, up to date, and has no open PR", () => {
       status({ aheadCount: 0, behindCount: 0, hasWorkingTreeChanges: false, pr: null }),
       false,
     );
-    assert.deepInclude(quick, { kind: "show_hint", label: "Commit", disabled: true });
+    assert.deepInclude(quick, { kind: "show_hint", labelId: "commit", disabled: true });
   });
 
   it("buildMenuItems disables commit, push, and create PR", () => {
@@ -343,7 +347,7 @@ describe("when: ref is clean, up to date, and has no open PR", () => {
 describe("when: ref is behind upstream", () => {
   it("resolveQuickAction returns pull", () => {
     const quick = resolveQuickAction(status({ behindCount: 2 }), false);
-    assert.deepInclude(quick, { kind: "run_pull", label: "Pull", disabled: false });
+    assert.deepInclude(quick, { kind: "run_pull", labelId: "pull", disabled: false });
   });
 
   it("buildMenuItems disables push and create PR", () => {
@@ -382,10 +386,8 @@ describe("when: ref has diverged from upstream", () => {
     const quick = resolveQuickAction(status({ aheadCount: 2, behindCount: 1 }), false);
     assert.deepEqual(quick, {
       labelId: "syncRef",
-      label: "Sync ref",
       disabled: true,
       kind: "show_hint",
-      hint: "Branch has diverged from upstream. Rebase/merge first.",
       hintId: "branchDiverged",
     });
   });
@@ -397,7 +399,7 @@ describe("when: working tree has local changes", () => {
     assert.deepInclude(quick, {
       kind: "run_action",
       action: "commit_push_pr",
-      label: "Commit, push & PR",
+      labelId: "commitPushCreateChangeRequest",
     });
   });
 
@@ -411,7 +413,7 @@ describe("when: working tree has local changes", () => {
     assert.deepInclude(quick, {
       kind: "run_action",
       action: "commit",
-      label: "Commit",
+      labelId: "commit",
       disabled: false,
     });
   });
@@ -434,7 +436,7 @@ describe("when: working tree has local changes", () => {
     assert.deepInclude(quick, {
       kind: "run_action",
       action: "commit_push",
-      label: "Commit & push",
+      labelId: "commitPush",
     });
   });
 
@@ -521,7 +523,7 @@ describe("when: on default ref without open PR", () => {
     assert.deepInclude(quick, {
       kind: "run_action",
       action: "commit_push",
-      label: "Commit & push",
+      labelId: "commitPush",
       disabled: false,
     });
   });
@@ -535,7 +537,7 @@ describe("when: on default ref without open PR", () => {
     assert.deepInclude(quick, {
       kind: "run_action",
       action: "commit_push",
-      label: "Push",
+      labelId: "push",
       disabled: false,
     });
   });
@@ -550,7 +552,7 @@ describe("when: working tree has local changes and ref is behind upstream", () =
     assert.deepInclude(quick, {
       kind: "run_action",
       action: "commit_push_pr",
-      label: "Commit, push & PR",
+      labelId: "commitPushCreateChangeRequest",
     });
   });
 
@@ -591,7 +593,7 @@ describe("when: HEAD is detached and there are no local changes", () => {
       status({ refName: null, hasWorkingTreeChanges: false, hasUpstream: false }),
       false,
     );
-    assert.deepInclude(quick, { kind: "show_hint", label: "Commit", disabled: true });
+    assert.deepInclude(quick, { kind: "show_hint", labelId: "commit", disabled: true });
   });
 
   it("buildMenuItems keeps commit, push, and PR disabled", () => {
@@ -633,8 +635,8 @@ describe("when: ref has no upstream configured", () => {
     );
     assert.deepInclude(quick, {
       kind: "show_hint",
-      label: "Push",
-      hint: "No local commits to push.",
+      labelId: "push",
+      hintId: "noLocalCommits",
       disabled: true,
     });
   });
@@ -657,7 +659,7 @@ describe("when: ref has no upstream configured", () => {
     );
     assert.deepInclude(quick, {
       kind: "open_pr",
-      label: "View PR",
+      labelId: "viewChangeRequest",
       disabled: false,
     });
   });
@@ -681,7 +683,7 @@ describe("when: ref has no upstream configured", () => {
     assert.deepInclude(quick, {
       kind: "run_action",
       action: "push",
-      label: "Push",
+      labelId: "push",
       disabled: false,
     });
   });
@@ -728,7 +730,7 @@ describe("when: ref has no upstream configured", () => {
     assert.deepInclude(quick, {
       kind: "run_action",
       action: "create_pr",
-      label: "Push & create PR",
+      labelId: "pushCreateChangeRequest",
       disabled: false,
     });
   });
@@ -747,7 +749,6 @@ describe("when: ref has no upstream configured", () => {
     assert.deepEqual(quick, {
       labelId: "publishRepository",
       kind: "open_publish",
-      label: "Publish repository",
       disabled: false,
     });
   });
@@ -813,8 +814,8 @@ describe("when: ref has no upstream configured", () => {
     );
     assert.deepInclude(quick, {
       kind: "show_hint",
-      label: "Push",
-      hint: "No local commits to push.",
+      labelId: "push",
+      hintId: "noLocalCommits",
       disabled: true,
     });
   });
@@ -833,7 +834,7 @@ describe("when: ref has no upstream configured", () => {
     assert.deepInclude(quick, {
       kind: "run_action",
       action: "commit_push",
-      label: "Push",
+      labelId: "push",
       disabled: false,
     });
   });
