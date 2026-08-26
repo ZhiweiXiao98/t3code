@@ -255,6 +255,7 @@ export const EN_MESSAGES = {
   "diagnostics.state.checked": "Checked {time}",
   "diagnostics.state.unknown": "Unknown",
   "diagnostics.state.justNow": "just now",
+  "diagnostics.state.ago": "{time} ago",
   "diagnostics.state.updated": "Updated {time}",
   "diagnostics.state.loadingProcesses": "Loading live processes...",
   "diagnostics.state.noProcesses": "No live descendant processes found.",
@@ -720,6 +721,7 @@ export const EN_MESSAGES = {
   "providers.status.versionTooOld":
     "{provider} {current} is too old for {model}. Upgrade to {required} or newer to access it.",
   "providers.badge.earlyAccess": "Early Access",
+  "providers.badge.new": "New",
   "providers.update.available": "Update available",
   "providers.update.availableDetails": "Update available - view details",
   "providers.update.updating": "Updating",
@@ -2175,6 +2177,7 @@ export const ZH_CN_MESSAGES = {
   "diagnostics.state.checked": "检查于 {time}",
   "diagnostics.state.unknown": "未知",
   "diagnostics.state.justNow": "刚刚",
+  "diagnostics.state.ago": "{time}前",
   "diagnostics.state.updated": "更新于 {time}",
   "diagnostics.state.loadingProcesses": "正在加载实时进程...",
   "diagnostics.state.noProcesses": "未找到实时子进程。",
@@ -2621,6 +2624,7 @@ export const ZH_CN_MESSAGES = {
   "providers.status.versionTooOld":
     "{provider} {current} 版本过旧，无法使用 {model}。请升级到 {required} 或更高版本。",
   "providers.badge.earlyAccess": "抢先体验",
+  "providers.badge.new": "新增",
   "providers.update.available": "有可用更新",
   "providers.update.availableDetails": "有可用更新 - 查看详情",
   "providers.update.updating": "正在更新",

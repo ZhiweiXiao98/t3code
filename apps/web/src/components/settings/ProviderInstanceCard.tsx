@@ -39,7 +39,7 @@ import { Switch } from "../ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { stackedThreadToast, toastManager } from "../ui/toast";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
-import type { DriverOption } from "./providerDriverMeta";
+import { localizeProviderBadgeLabel, type DriverOption } from "./providerDriverMeta";
 import { ProviderSettingsForm } from "./ProviderSettingsForm";
 import { ProviderModelsSection } from "./ProviderModelsSection";
 import { ProviderInstanceIcon } from "../chat/ProviderInstanceIcon";
@@ -550,9 +550,10 @@ export function ProviderInstanceCard({
       ) : null}
       {driverOption?.badgeLabel ? (
         <Badge variant="warning" size="sm" className="shrink-0">
-          {driverOption.badgeLabel === "Early Access"
-            ? t("providers.badge.earlyAccess")
-            : driverOption.badgeLabel}
+          {localizeProviderBadgeLabel(driverOption.badgeLabel, {
+            earlyAccess: t("providers.badge.earlyAccess"),
+            new: t("providers.badge.new"),
+          })}
         </Badge>
       ) : null}
     </>

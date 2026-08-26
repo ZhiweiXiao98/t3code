@@ -237,7 +237,7 @@ function SourceStatusBadge({
 }
 
 function LastSampleLabel({ sampledAt }: { sampledAt: DateTime.Utc | null }) {
-  const { locale, t } = useI18n();
+  const { t } = useI18n();
   useRelativeTimeTick();
   if (!sampledAt) {
     return (
@@ -257,8 +257,8 @@ function LastSampleLabel({ sampledAt }: { sampledAt: DateTime.Utc | null }) {
   const time =
     relative.value === "just now"
       ? t("diagnostics.state.justNow")
-      : locale === "zh-CN" && relative.suffix === "ago"
-        ? `${relative.value}前`
+      : relative.suffix === "ago"
+        ? t("diagnostics.state.ago", { time: relative.value })
         : `${relative.value}${relative.suffix ? ` ${relative.suffix}` : ""}`;
   const [beforeTime, afterTime] = splitWebTranslation(t, "diagnostics.state.updated", "time");
   return (

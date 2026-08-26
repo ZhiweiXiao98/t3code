@@ -28,7 +28,11 @@ import { Badge } from "../ui/badge";
 import { Input } from "../ui/input";
 import { RadioGroup } from "../ui/radio-group";
 import { toastManager } from "../ui/toast";
-import { DRIVER_OPTION_BY_VALUE, DRIVER_OPTIONS } from "./providerDriverMeta";
+import {
+  DRIVER_OPTION_BY_VALUE,
+  DRIVER_OPTIONS,
+  localizeProviderBadgeLabel,
+} from "./providerDriverMeta";
 import { ProviderSettingsForm, deriveProviderSettingsFields } from "./ProviderSettingsForm";
 import { AnimatedHeight } from "../AnimatedHeight";
 import {
@@ -289,7 +293,10 @@ export function AddProviderInstanceDialog({
                         </RadioPrimitive.Indicator>
                         {option.badgeLabel ? (
                           <Badge variant="warning" size="sm">
-                            {t("providers.badge.earlyAccess")}
+                            {localizeProviderBadgeLabel(option.badgeLabel, {
+                              earlyAccess: t("providers.badge.earlyAccess"),
+                              new: t("providers.badge.new"),
+                            })}
                           </Badge>
                         ) : null}
                       </RadioPrimitive.Root>

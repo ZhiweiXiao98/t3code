@@ -79,6 +79,15 @@ export const DRIVER_OPTIONS = PROVIDER_CLIENT_DEFINITIONS;
 export const DRIVER_OPTION_BY_VALUE = PROVIDER_CLIENT_DEFINITION_BY_VALUE;
 export type DriverOption = ProviderClientDefinition;
 
+export function localizeProviderBadgeLabel(
+  badgeLabel: string,
+  labels: { readonly earlyAccess: string; readonly new: string },
+): string {
+  if (badgeLabel === "Early Access") return labels.earlyAccess;
+  if (badgeLabel === "New") return labels.new;
+  return badgeLabel;
+}
+
 /**
  * Look up the driver metadata for an instance's `driver` field. Accepts
  * Returns `undefined` for fork / unknown drivers so callers can decide how
