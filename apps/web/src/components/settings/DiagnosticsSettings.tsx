@@ -802,18 +802,25 @@ function DiagnosticsLastChecked({ checkedAt }: { checkedAt: DateTime.Utc | null 
     );
   }
 
-  const time =
-    relative.value === "just now"
-      ? t("diagnostics.state.justNow")
-      : relative.suffix === "ago"
-        ? t("diagnostics.state.ago", { time: relative.value })
-        : `${relative.value}${relative.suffix ? ` ${relative.suffix}` : ""}`;
   const [beforeTime, afterTime] = splitWebTranslation(t, "diagnostics.state.checked", "time");
+  const isJustNow = relative.value === "just now";
+  const [beforeRelativeValue, afterRelativeValue] =
+    relative.suffix === "ago"
+      ? splitWebTranslation(t, "diagnostics.state.ago", "time")
+      : ["", relative.suffix ? ` ${relative.suffix}` : ""];
 
   return (
     <span className="text-[11px] text-muted-foreground/60">
       {beforeTime}
-      <span className="font-mono tabular-nums">{time}</span>
+      {isJustNow ? (
+        t("diagnostics.state.justNow")
+      ) : (
+        <>
+          {beforeRelativeValue}
+          <span className="font-mono tabular-nums">{relative.value}</span>
+          {afterRelativeValue}
+        </>
+      )}
       {afterTime}
     </span>
   );
