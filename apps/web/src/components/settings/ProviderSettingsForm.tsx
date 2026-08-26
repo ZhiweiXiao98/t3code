@@ -181,6 +181,14 @@ function localizeProviderSettingsField(
       description: t("providers.config.claudeHomeDescription"),
     };
   }
+  if (field.key === "autoCompactWindow" && definition.value === "claudeAgent") {
+    return {
+      ...field,
+      label: t("providers.config.autoCompactWindow"),
+      description: t("providers.config.autoCompactWindowDescription"),
+      placeholder: t("providers.config.autoCompactWindowPlaceholder"),
+    };
+  }
   if (field.key === "shadowHomePath") {
     return {
       ...field,

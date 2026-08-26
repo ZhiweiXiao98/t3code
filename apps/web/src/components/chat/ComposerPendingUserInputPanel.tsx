@@ -7,8 +7,40 @@ import {
 } from "../../pendingUserInput";
 import { CheckIcon, ChevronDownIcon } from "lucide-react";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "../ui/collapsible";
-import { useI18n } from "~/i18n/WebI18nProvider";
+import { useI18n, type WebTranslate } from "~/i18n/WebI18nProvider";
 import { cn } from "~/lib/utils";
+
+const CLAUDE_RESUME_QUESTION_PATTERN =
+  /^This session is (?:(\d+)h (\d+)m|(\d+)m) old and uses (\d{1,3}(?:,\d{3})*) tokens\. Compact it before continuing\?$/u;
+
+function localizePendingUserInputText(value: string, t: WebTranslate): string {
+  const questionMatch = CLAUDE_RESUME_QUESTION_PATTERN.exec(value);
+  if (questionMatch) {
+    const age = questionMatch[3]
+      ? t("composer.compaction.native.ageMinutes", { minutes: questionMatch[3] })
+      : t("composer.compaction.native.ageHoursMinutes", {
+          hours: questionMatch[1] ?? "0",
+          minutes: questionMatch[2] ?? "0",
+        });
+    return t("composer.compaction.native.question", {
+      age,
+      tokens: questionMatch[4] ?? "0",
+    });
+  }
+
+  const messageKey = {
+    "Resume session": "composer.compaction.native.header",
+    "Compact and continue": "composer.compaction.native.compactAndContinue",
+    "Resume with a summary and use fewer tokens.": "composer.compaction.native.compactDescription",
+    "Keep full history": "composer.compaction.keepFullHistory",
+    "Resume without changing the conversation.": "composer.compaction.native.keepDescription",
+    "Don't ask again": "composer.compaction.native.dontAskAgain",
+    "Keep full history and skip future resume prompts.":
+      "composer.compaction.native.dontAskDescription",
+  } as const;
+  const key = messageKey[value as keyof typeof messageKey];
+  return key ? t(key) : value;
+}
 
 interface PendingUserInputPanelProps {
   pendingUserInputs: PendingUserInput[];
@@ -190,7 +222,7 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
           className="group -my-1 flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left outline-none transition-colors duration-150 hover:bg-muted/35 focus-visible:ring-1 focus-visible:ring-primary/25"
         >
           <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground/85">
-            {activeQuestion.header}
+            {localizePendingUserInputText(activeQuestion.header, t)}
           </span>
           {prompt.questions.length > 1 ? (
             <span className="text-[10px] font-medium text-muted-foreground tabular-nums">
@@ -202,7 +234,7 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
               reminder of what is being asked. */}
           {isCollapsed ? (
             <span className="min-w-0 flex-1 truncate text-secondary-label text-xs">
-              {activeQuestion.question}
+              {localizePendingUserInputText(activeQuestion.question, t)}
             </span>
           ) : null}
           {/* The chevron points at the body: down while it is open below the
@@ -221,7 +253,9 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
           that padding or their focus rings get shaved off at the edges. */}
       <CollapsiblePanel className="px-3 sm:px-4">
         <div className="pt-2 pb-0.5">
-          <p className="text-sm text-foreground/85">{activeQuestion.question}</p>
+          <p className="text-sm text-foreground/85">
+            {localizePendingUserInputText(activeQuestion.question, t)}
+          </p>
           {activeQuestion.multiSelect ? (
             <p className="mt-1 text-secondary-label text-xs">{t("composer.selectMultiple")}</p>
           ) : null}
@@ -245,9 +279,13 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
               const content = (
                 <>
                   <div className="min-w-0 flex-1 flex flex-col gap-0.5">
-                    <span className="text-sm font-medium">{option.label}</span>
+                    <span className="text-sm font-medium">
+                      {localizePendingUserInputText(option.label, t)}
+                    </span>
                     {option.description && option.description !== option.label ? (
-                      <span className="text-secondary-label text-[11px]">{option.description}</span>
+                      <span className="text-secondary-label text-[11px]">
+                        {localizePendingUserInputText(option.description, t)}
+                      </span>
                     ) : null}
                   </div>
                   {isSelected ? (

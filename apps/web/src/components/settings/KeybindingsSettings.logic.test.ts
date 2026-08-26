@@ -134,6 +134,7 @@ describe("KeybindingsSettings.logic", () => {
 
   it("localizes static and dynamic command labels while preserving the English fallback", () => {
     expect(localizedChineseCommandLabel("chat.new")).toBe("聊天：新建任务");
+    expect(localizedChineseCommandLabel("thread.settle")).toBe("任务：收起或恢复");
     expect(localizedChineseCommandLabel("thread.jump.3")).toBe("任务：跳转到第 3 个");
     expect(localizedChineseCommandLabel("modelPicker.jump.7")).toBe("模型选择器：选择第 7 个模型");
     expect(localizedChineseCommandLabel("script.setup-db.run")).toBe("运行脚本：Setup Db");

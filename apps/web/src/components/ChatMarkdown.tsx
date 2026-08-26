@@ -54,10 +54,6 @@ import { renderSkillInlineMarkdownChildren } from "./chat/SkillInlineText";
 import { CHAT_FILE_TAG_CHIP_CLASS_NAME, FileTagChipContent } from "./chat/FileTagChip";
 import { PierreEntryIcon } from "./chat/PierreEntryIcon";
 import {
-  revealInFileExplorerLabelForKind,
-  revealInFileExplorerLabelForOs,
-} from "./preview/fileExplorerLabel";
-import {
   resolveExternalWebLinkHost,
   showExternalLinkContextMenu,
 } from "./chat/externalLinkContextMenu";
@@ -1289,6 +1285,7 @@ const MarkdownFileLink = memo(function MarkdownFileLink({
   revealLabel,
   className,
 }: MarkdownFileLinkProps) {
+  const { t } = useI18n();
   const handleOpenInEditor = useCallback(() => {
     if (!onOpen) {
       return;
@@ -1307,8 +1304,8 @@ const MarkdownFileLink = memo(function MarkdownFileLink({
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "Unable to open file",
-            description: error instanceof Error ? error.message : "An error occurred.",
+            title: t("markdownFile.openFailed"),
+            description: error instanceof Error ? error.message : t("common.error"),
           }),
         );
       } catch (cause) {
@@ -1319,13 +1316,13 @@ const MarkdownFileLink = memo(function MarkdownFileLink({
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "Unable to open file",
-            description: cause instanceof Error ? cause.message : "An error occurred.",
+            title: t("markdownFile.openFailed"),
+            description: cause instanceof Error ? cause.message : t("common.error"),
           }),
         );
       }
     })();
-  }, [onOpen, targetPath]);
+  }, [onOpen, t, targetPath]);
 
   const handleOpenInFilePreview = useCallback(() => {
     if (!threadRef || !workspaceRelativePath) {
@@ -1353,8 +1350,8 @@ const MarkdownFileLink = memo(function MarkdownFileLink({
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "Unable to open file in browser",
-            description: error instanceof Error ? error.message : "An error occurred.",
+            title: t("markdownFile.openBrowserFailed"),
+            description: error instanceof Error ? error.message : t("common.error"),
           }),
         );
       } catch (cause) {
@@ -1365,13 +1362,13 @@ const MarkdownFileLink = memo(function MarkdownFileLink({
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "Unable to open file in browser",
-            description: cause instanceof Error ? cause.message : "An error occurred.",
+            title: t("markdownFile.openBrowserFailed"),
+            description: cause instanceof Error ? cause.message : t("common.error"),
           }),
         );
       }
     })();
-  }, [onOpenInBrowser, targetPath]);
+  }, [onOpenInBrowser, t, targetPath]);
 
   const handleRevealInFileManager = useCallback(() => {
     if (!onReveal) {
@@ -1391,8 +1388,8 @@ const MarkdownFileLink = memo(function MarkdownFileLink({
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "Unable to reveal file",
-            description: error instanceof Error ? error.message : "An error occurred.",
+            title: t("markdownFile.revealFailed"),
+            description: error instanceof Error ? error.message : t("common.error"),
           }),
         );
       } catch (cause) {
@@ -1403,13 +1400,13 @@ const MarkdownFileLink = memo(function MarkdownFileLink({
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "Unable to reveal file",
-            description: cause instanceof Error ? cause.message : "An error occurred.",
+            title: t("markdownFile.revealFailed"),
+            description: cause instanceof Error ? cause.message : t("common.error"),
           }),
         );
       }
     })();
-  }, [onReveal, targetPath]);
+  }, [onReveal, t, targetPath]);
 
   const handleCopy = useCallback(
     (value: string, title: string) => {
@@ -1417,8 +1414,8 @@ const MarkdownFileLink = memo(function MarkdownFileLink({
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: `Failed to copy ${title.toLowerCase()}`,
-            description: "Clipboard API unavailable.",
+            title: t("markdownFile.copyFailed", { target: title }),
+            description: t("markdownFile.clipboardUnavailable"),
           }),
         );
         return;
@@ -1428,7 +1425,7 @@ const MarkdownFileLink = memo(function MarkdownFileLink({
         () => {
           toastManager.add({
             type: "success",
-            title: `${title} copied`,
+            title: t("markdownFile.copied", { target: title }),
             description: value,
           });
         },
@@ -1440,14 +1437,14 @@ const MarkdownFileLink = memo(function MarkdownFileLink({
           toastManager.add(
             stackedThreadToast({
               type: "error",
-              title: `Failed to copy ${title.toLowerCase()}`,
-              description: error instanceof Error ? error.message : "An error occurred.",
+              title: t("markdownFile.copyFailed", { target: title }),
+              description: error instanceof Error ? error.message : t("common.error"),
             }),
           );
         },
       );
     },
-    [targetPath],
+    [t, targetPath],
   );
 
   const showFileContextMenu = useCallback(
@@ -1460,11 +1457,16 @@ const MarkdownFileLink = memo(function MarkdownFileLink({
           [
             ...(onOpen ? ([{ id: "open", label: openInEditorMenuLabel }] as const) : []),
             ...(onOpenInBrowser
-              ? ([{ id: "open-in-browser", label: "Open in integrated browser" }] as const)
+              ? ([
+                  {
+                    id: "open-in-browser",
+                    label: t("markdownFile.openInIntegratedBrowser"),
+                  },
+                ] as const)
               : []),
             ...(onReveal && revealLabel ? ([{ id: "reveal", label: revealLabel }] as const) : []),
-            { id: "copy-relative", label: "Copy relative path" },
-            { id: "copy-full", label: "Copy full path" },
+            { id: "copy-relative", label: t("markdownFile.copyRelativePath") },
+            { id: "copy-full", label: t("markdownFile.copyFullPath") },
           ] as const,
           position,
         );
@@ -1482,11 +1484,11 @@ const MarkdownFileLink = memo(function MarkdownFileLink({
           return;
         }
         if (clicked === "copy-relative") {
-          handleCopy(displayPath, "Relative path");
+          handleCopy(displayPath, t("markdownFile.relativePath"));
           return;
         }
         if (clicked === "copy-full") {
-          handleCopy(targetPath, "Full path");
+          handleCopy(targetPath, t("markdownFile.fullPath"));
         }
       } catch (cause) {
         reportMarkdownActionFailure(
@@ -1506,6 +1508,7 @@ const MarkdownFileLink = memo(function MarkdownFileLink({
       onReveal,
       openInEditorMenuLabel,
       revealLabel,
+      t,
       targetPath,
     ],
   );
@@ -1574,7 +1577,7 @@ const MarkdownFileLink = memo(function MarkdownFileLink({
           ) : (
             <button
               type="button"
-              aria-label={`File options for ${label}`}
+              aria-label={t("markdownFile.fileOptions", { file: label })}
               aria-haspopup="menu"
               className={cn(
                 CHAT_FILE_TAG_CHIP_CLASS_NAME,
@@ -1643,6 +1646,7 @@ function ChatMarkdown({
   parseRawHtml = true,
 }: ChatMarkdownProps) {
   const { resolvedTheme } = useTheme();
+  const { t } = useI18n();
   const createAssetUrl = useAtomQueryRunner(assetEnvironment.createUrl, {
     reportFailure: false,
   });
@@ -1670,7 +1674,10 @@ function ChatMarkdown({
   const projects = useProjects();
   const availableEditors = serverConfig?.availableEditors ?? [];
   const [preferredEditor] = usePreferredEditor(availableEditors);
-  const preferredEditorMenuLabel = openInEditorMenuLabel(preferredEditor);
+  const preferredEditorMenuLabel = openInEditorMenuLabel(preferredEditor, {
+    defaultLabel: t("markdownFile.openInEditor"),
+    namedLabel: (editor) => t("markdownFile.openInNamedEditor", { editor }),
+  });
   const openInPreferredEditor = useOpenInPreferredEditor(environmentId, availableEditors);
   const openInEditor = useAtomCommand(shellEnvironment.openInEditor, {
     reportFailure: false,
@@ -1680,8 +1687,16 @@ function ChatMarkdown({
     serverConfig?.shellRevealInFileManager === true &&
     serverConfig.availableEditors.includes("file-manager")
       ? serverConfig.shellRevealInFileManagerKind === undefined
-        ? revealInFileExplorerLabelForOs(serverConfig.environment.platform.os)
-        : revealInFileExplorerLabelForKind(serverConfig.shellRevealInFileManagerKind)
+        ? serverConfig.environment.platform.os === "darwin"
+          ? t("markdownFile.revealInFinder")
+          : serverConfig.environment.platform.os === "windows"
+            ? t("markdownFile.revealInFileExplorer")
+            : t("markdownFile.revealInFiles")
+        : serverConfig.shellRevealInFileManagerKind === "finder"
+          ? t("markdownFile.revealInFinder")
+          : serverConfig.shellRevealInFileManagerKind === "file-explorer"
+            ? t("markdownFile.revealInFileExplorer")
+            : t("markdownFile.revealInFiles")
       : undefined;
   const revealFileInFileManager = useCallback(
     (filePath: string) => {
@@ -1778,7 +1793,7 @@ function ChatMarkdown({
       if (threadRef === undefined) return;
       const linkedPullRequest = linked ? resolveThreadPullRequest(href) : null;
       if (linked && linkedPullRequest === null) {
-        throw new Error("The pull request is not available in this environment.");
+        throw new Error(t("markdownLink.pullRequestUnavailable"));
       }
       if (!linked) {
         const currentPullRequest = readThreadShell(threadRef)?.linkedPullRequest;
@@ -1794,7 +1809,7 @@ function ChatMarkdown({
         throw squashAtomCommandFailure(result);
       }
     },
-    [resolveThreadPullRequest, threadRef, updateThreadMetadata],
+    [resolveThreadPullRequest, t, threadRef, updateThreadMetadata],
   );
   const openExternalLinkInPreview = useCallback(
     (url: string) => {
@@ -2068,6 +2083,13 @@ function ChatMarkdown({
                   href,
                   canOpenInPreview,
                   threadLinkAction,
+                  labels: {
+                    openInPreview: t("markdownFile.openInIntegratedBrowser"),
+                    openExternal: t("markdownFile.openInSystemBrowser"),
+                    copyLink: t("markdownFile.copyLink"),
+                    linkToThread: t("markdownLink.linkThread"),
+                    unlinkFromThread: t("markdownLink.unlinkThread"),
+                  },
                   position: { x: event.clientX, y: event.clientY },
                   showContextMenu: (items, position) => api.contextMenu.show(items, position),
                   openInPreview: async (target) => {
@@ -2093,10 +2115,12 @@ function ChatMarkdown({
                           type: "error",
                           title:
                             operation === "link-pull-request-to-thread"
-                              ? "Unable to link pull request"
-                              : "Unable to unlink pull request",
+                              ? t("markdownLink.linkFailed")
+                              : t("markdownLink.unlinkFailed"),
                           description:
-                            cause instanceof Error ? cause.message : "The request failed.",
+                            cause instanceof Error
+                              ? cause.message
+                              : t("markdownLink.requestFailed"),
                         }),
                       );
                     }
@@ -2232,6 +2256,7 @@ function ChatMarkdown({
     revealMarkdownFileInFileManager,
     revealInFileManagerLabel,
     skills,
+    t,
     text,
     threadRef,
     updateThreadPullRequestLink,

@@ -949,7 +949,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
   );
   const noProviderAvailable = selectedProviderEntry === undefined;
   const resolvedCompactDisabledReason =
-    compactDisabledReason ?? (noProviderAvailable ? "Compacting is unavailable right now" : null);
+    compactDisabledReason ?? (noProviderAvailable ? t("composer.compaction.unavailable") : null);
   // The driver kind follows the instance that will actually run the turn,
   // which can differ from the persisted selection when that selection is
   // disabled.
@@ -1988,8 +1988,8 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
         event?.preventDefault();
         toastManager.add({
           type: "info",
-          title: "Still compressing a pasted image.",
-          description: "Send again once its thumbnail appears.",
+          title: t("composer.imageCompression.inProgress"),
+          description: t("composer.imageCompression.sendAgain"),
         });
         return;
       }
@@ -2020,6 +2020,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       onSend,
       promptRef,
       shouldBlurMobileComposerOnSubmit,
+      t,
     ],
   );
   const compactThreadContext = useCallback(() => {
@@ -2042,8 +2043,8 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     if ((pendingImageCompressionsRef.current.get(activeThreadId) ?? 0) > 0) {
       toastManager.add({
         type: "info",
-        title: "Still compressing a pasted image.",
-        description: "Compact again once its thumbnail appears.",
+        title: t("composer.imageCompression.inProgress"),
+        description: t("composer.imageCompression.compactAgain"),
       });
       return;
     }
@@ -2073,6 +2074,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     promptRef,
     setComposerDraftPrompt,
     submitComposer,
+    t,
   ]);
   const expandMobileComposer = useCallback(() => {
     if (composerBlurFrameRef.current !== null) {
@@ -2631,15 +2633,15 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     for (const file of files) {
       const isHeicImage = isHeicImageFile(file);
       if (!file.type.startsWith("image/") && !isHeicImage) {
-        error = `Unsupported file type for '${file.name}'. Please attach image files only.`;
+        error = t("composer.image.unsupportedFile", { file: file.name });
         continue;
       }
       if (!isHeicImage && !isProviderSendTurnSupportedImageMimeType(file.type)) {
-        error = `'${file.name}' is not a supported image type. Attach GIF, HEIC, HEIF, JPEG, PNG, or WebP images.`;
+        error = t("composer.image.unsupportedType", { file: file.name });
         continue;
       }
       if (reservedCount >= PROVIDER_SEND_TURN_MAX_ATTACHMENTS) {
-        error = `You can attach up to ${PROVIDER_SEND_TURN_MAX_ATTACHMENTS} images per message.`;
+        error = t("composer.image.limit", { count: PROVIDER_SEND_TURN_MAX_ATTACHMENTS });
         break;
       }
       acceptedFiles.push(file);
@@ -2662,8 +2664,8 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
         if (!compressed.ok) {
           compressionError =
             compressed.reason === "unreadable"
-              ? `'${file.name}' could not be read as an image.`
-              : `'${file.name}' is too large to attach, even after compression.`;
+              ? t("composer.image.unreadable", { file: file.name })
+              : t("composer.image.tooLarge", { file: file.name });
           continue;
         }
         const attachmentFile = compressed.file;

@@ -69,5 +69,15 @@ describe("translateWebMessage", () => {
       }),
     ).toBe("将使用 squash 合并 #42。");
     expect(translateWebMessage("zh-CN", "composer.banner.settledTitle")).toBe("此任务已收起");
+    expect(translateWebMessage("zh-CN", "contextWindow.title")).toBe("上下文窗口");
+    expect(
+      translateWebMessage("zh-CN", "composer.compaction.native.question", {
+        age: "2 小时 5 分钟",
+        tokens: "250,000",
+      }),
+    ).toBe("此会话已有 2 小时 5 分钟，当前使用 250,000 个令牌。是否先压缩再继续？");
+    expect(translateWebMessage("zh-CN", "providers.config.autoCompactWindow")).toBe(
+      "达到以下用量后自动压缩",
+    );
   });
 });

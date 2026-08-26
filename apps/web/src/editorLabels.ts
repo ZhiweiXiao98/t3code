@@ -12,8 +12,17 @@ export function editorLabelForPlatform(editorId: EditorId, platform: string): st
   return editorLabels.get(editorId) ?? "Editor";
 }
 
-export function openInEditorMenuLabel(editorId: EditorId | null): string {
+export function openInEditorMenuLabel(
+  editorId: EditorId | null,
+  labels: {
+    readonly defaultLabel: string;
+    readonly namedLabel: (editor: string) => string;
+  } = {
+    defaultLabel: "Open in editor",
+    namedLabel: (editor) => `Open in ${editor}`,
+  },
+): string {
   return editorId === null || editorId === "file-manager"
-    ? "Open in editor"
-    : `Open in ${editorLabels.get(editorId) ?? "Editor"}`;
+    ? labels.defaultLabel
+    : labels.namedLabel(editorLabels.get(editorId) ?? "Editor");
 }

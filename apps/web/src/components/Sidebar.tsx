@@ -2509,8 +2509,8 @@ export default function Sidebar() {
               toastManager.add(
                 stackedThreadToast({
                   type: "error",
-                  title: "Failed to settle thread",
-                  description: error instanceof Error ? error.message : "An error occurred.",
+                  title: t("composer.thread.settleFailed"),
+                  description: error instanceof Error ? error.message : t("common.error"),
                 }),
               );
             }
@@ -2526,7 +2526,7 @@ export default function Sidebar() {
         }
       })();
     },
-    [planForwardNavigation, settleThread],
+    [planForwardNavigation, settleThread, t],
   );
   const attemptUnsettle = useCallback(
     (threadRef: ScopedThreadRef) => {
@@ -2537,14 +2537,14 @@ export default function Sidebar() {
           toastManager.add(
             stackedThreadToast({
               type: "error",
-              title: "Failed to un-settle thread",
-              description: error instanceof Error ? error.message : "An error occurred.",
+              title: t("composer.thread.unsettleFailed"),
+              description: error instanceof Error ? error.message : t("common.error"),
             }),
           );
         }
       })();
     },
-    [unsettleThread],
+    [t, unsettleThread],
   );
   const attemptUnsnooze = useCallback(
     (threadRef: ScopedThreadRef) => {

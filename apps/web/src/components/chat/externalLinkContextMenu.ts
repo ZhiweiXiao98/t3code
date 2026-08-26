@@ -23,11 +23,21 @@ const FAILURE_OPERATION_BY_ACTION = {
   "unlink-from-thread": "unlink-pull-request-from-thread",
 } as const satisfies Record<ExternalLinkContextMenuAction, ExternalLinkContextMenuFailureOperation>;
 
-const EXTERNAL_LINK_CONTEXT_MENU_ITEMS = [
-  { id: "open-in-preview", label: "Open in integrated browser" },
-  { id: "open-external", label: "Open in system browser" },
-  { id: "copy-link", label: "Copy Link" },
-] as const satisfies readonly ContextMenuItem<ExternalLinkContextMenuAction>[];
+export interface ExternalLinkContextMenuLabels {
+  readonly openInPreview: string;
+  readonly openExternal: string;
+  readonly copyLink: string;
+  readonly linkToThread: string;
+  readonly unlinkFromThread: string;
+}
+
+const DEFAULT_EXTERNAL_LINK_CONTEXT_MENU_LABELS: ExternalLinkContextMenuLabels = {
+  openInPreview: "Open in integrated browser",
+  openExternal: "Open in system browser",
+  copyLink: "Copy Link",
+  linkToThread: "Link to thread",
+  unlinkFromThread: "Unlink from thread",
+};
 
 /**
  * The integrated browser is not always there to offer — it needs a thread to open beside and a
@@ -38,16 +48,25 @@ const EXTERNAL_LINK_CONTEXT_MENU_ITEMS = [
 export function externalLinkContextMenuItems(options: {
   readonly canOpenInPreview: boolean;
   readonly threadLinkAction?: "link-to-thread" | "unlink-from-thread" | undefined;
+  readonly labels?: ExternalLinkContextMenuLabels | undefined;
 }): readonly ContextMenuItem<ExternalLinkContextMenuAction>[] {
+  const labels = options.labels ?? DEFAULT_EXTERNAL_LINK_CONTEXT_MENU_LABELS;
+  const baseItems = [
+    { id: "open-in-preview", label: labels.openInPreview },
+    { id: "open-external", label: labels.openExternal },
+    { id: "copy-link", label: labels.copyLink },
+  ] as const satisfies readonly ContextMenuItem<ExternalLinkContextMenuAction>[];
   const items = options.canOpenInPreview
-    ? EXTERNAL_LINK_CONTEXT_MENU_ITEMS
-    : EXTERNAL_LINK_CONTEXT_MENU_ITEMS.filter((item) => item.id !== "open-in-preview");
+    ? baseItems
+    : baseItems.filter((item) => item.id !== "open-in-preview");
   if (options.threadLinkAction === undefined) return items;
   return [
     {
       id: options.threadLinkAction,
       label:
-        options.threadLinkAction === "link-to-thread" ? "Link to thread" : "Unlink from thread",
+        options.threadLinkAction === "link-to-thread"
+          ? labels.linkToThread
+          : labels.unlinkFromThread,
     },
     ...items,
   ];
@@ -59,6 +78,7 @@ interface ShowExternalLinkContextMenuOptions {
   /** Absent means yes, which is what every caller before the browser could be missing meant. */
   readonly canOpenInPreview?: boolean;
   readonly threadLinkAction?: "link-to-thread" | "unlink-from-thread" | undefined;
+  readonly labels?: ExternalLinkContextMenuLabels | undefined;
   readonly showContextMenu: (
     items: readonly ContextMenuItem<ExternalLinkContextMenuAction>[],
     position: { readonly x: number; readonly y: number },
@@ -89,6 +109,7 @@ export async function showExternalLinkContextMenu({
   position,
   canOpenInPreview = true,
   threadLinkAction,
+  labels,
   showContextMenu,
   openInPreview,
   openExternal,
@@ -99,7 +120,7 @@ export async function showExternalLinkContextMenu({
   let action: ExternalLinkContextMenuAction | null;
   try {
     action = await showContextMenu(
-      externalLinkContextMenuItems({ canOpenInPreview, threadLinkAction }),
+      externalLinkContextMenuItems({ canOpenInPreview, threadLinkAction, labels }),
       position,
     );
   } catch (cause) {

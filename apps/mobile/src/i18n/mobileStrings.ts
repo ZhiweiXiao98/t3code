@@ -428,10 +428,28 @@ const ZH_CN_MESSAGES = {
   "Working tree": "工作树",
   Working: "运行中",
   "You are offline": "当前处于离线状态",
+  "Compact and continue": "压缩并继续",
+  "Don't ask again": "不再询问",
+  "Keep full history": "保留完整历史",
+  "Keep full history and skip future resume prompts.": "保留完整历史，并跳过以后继续会话时的提示。",
+  "Resume session": "继续会话",
+  "Resume with a summary and use fewer tokens.": "生成摘要后继续，以减少令牌用量。",
+  "Resume without changing the conversation.": "保留对话不变并继续。",
   Worktree: "工作树",
 } as const satisfies Readonly<Record<string, string>>;
 
 function translateDynamicMessage(value: string): string | null {
+  const claudeResumeQuestion =
+    /^This session is (?:(\d+)h (\d+)m|(\d+)m) old and uses (\d{1,3}(?:,\d{3})*) tokens\. Compact it before continuing\?$/.exec(
+      value,
+    );
+  if (claudeResumeQuestion) {
+    const age = claudeResumeQuestion[3]
+      ? `${claudeResumeQuestion[3]} 分钟`
+      : `${claudeResumeQuestion[1]} 小时 ${claudeResumeQuestion[2]} 分钟`;
+    return `此会话已有 ${age}，当前使用 ${claudeResumeQuestion[4]} 个令牌。是否先压缩再继续？`;
+  }
+
   const noThreads = /^No threads matching "(.+)"\.$/.exec(value);
   if (noThreads) return `没有与“${noThreads[1]}”匹配的任务。`;
 

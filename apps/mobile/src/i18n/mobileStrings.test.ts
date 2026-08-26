@@ -23,6 +23,12 @@ describe("mobile strings", () => {
     expect(localizeMobileString("Show more (3 settled hidden)", "zh-CN")).toBe(
       "显示更多（已隐藏 3 个已收起任务）",
     );
+    expect(
+      localizeMobileString(
+        "This session is 2h 5m old and uses 250,000 tokens. Compact it before continuing?",
+        "zh-CN",
+      ),
+    ).toBe("此会话已有 2 小时 5 分钟，当前使用 250,000 个令牌。是否先压缩再继续？");
   });
 
   it("translates workspace image and Codex feedback states", () => {

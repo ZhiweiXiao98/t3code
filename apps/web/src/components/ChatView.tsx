@@ -4542,15 +4542,15 @@ function ChatViewContent(props: ChatViewProps) {
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "Failed to un-settle thread",
-            description: error instanceof Error ? error.message : "An error occurred.",
+            title: t("composer.thread.unsettleFailed"),
+            description: error instanceof Error ? error.message : t("common.error"),
           }),
         );
       }
     } finally {
       setUnsettlingThreadKey((current) => (current === threadKey ? null : current));
     }
-  }, [activeThreadRef, unsettleThreadMutation]);
+  }, [activeThreadRef, t, unsettleThreadMutation]);
   const unsnoozeThreadMutation = useAtomCommand(threadEnvironment.unsnooze, {
     reportFailure: false,
   });
@@ -4846,12 +4846,12 @@ function ChatViewContent(props: ChatViewProps) {
     composerHasUnsentContent;
   const compactDisabledReason = compactDisabled
     ? composerHasUnsentContent
-      ? "Send or clear your draft before compacting"
+      ? t("composer.compaction.sendOrClearDraft")
       : !activeProject
-        ? "Choose a project before compacting"
+        ? t("composer.compaction.chooseProject")
         : !compactionProviderAvailable
-          ? "Enable a Claude provider before compacting"
-          : "Compacting is unavailable right now"
+          ? t("composer.compaction.enableClaude")
+          : t("composer.compaction.unavailable")
     : null;
   const resumeCompactionBannerItem = useMemo<ComposerBannerStackItem | null>(() => {
     if (
@@ -4885,15 +4885,17 @@ function ChatViewContent(props: ChatViewProps) {
           composerRef.current?.compactContext();
         }}
       >
-        Compact
+        {t("composer.compaction.compactContext")}
       </Button>
     );
     return {
       id: `resume-compaction:${resumeCompactionKey}`,
       variant: "info",
       icon: <Minimize2Icon />,
-      title: "Resume with less context",
-      description: `${formatContextWindowTokens(activeContextWindow.usedTokens)} tokens from an older session`,
+      title: t("composer.compaction.resumeTitle"),
+      description: t("composer.compaction.resumeDescription", {
+        tokens: formatContextWindowTokens(activeContextWindow.usedTokens),
+      }),
       actions: compactDisabledReason ? (
         <Tooltip>
           <TooltipTrigger render={<span className="inline-flex">{compactAction}</span>} />
@@ -4902,7 +4904,7 @@ function ChatViewContent(props: ChatViewProps) {
       ) : (
         compactAction
       ),
-      dismissLabel: "Keep full history",
+      dismissLabel: t("composer.compaction.keepFullHistory"),
       onDismiss: dismiss,
     };
   }, [
@@ -4919,6 +4921,7 @@ function ChatViewContent(props: ChatViewProps) {
     resumeCompactionKey,
     resumeCompactionPermanentlyDismissed,
     selectedProvider,
+    t,
   ]);
   const handleRestoreThreadBranch = useCallback(() => {
     if (gitStatusQuery.data?.hasWorkingTreeChanges) {
@@ -5143,8 +5146,8 @@ function ChatViewContent(props: ChatViewProps) {
           toastManager.add(
             stackedThreadToast({
               type: "error",
-              title: "Failed to settle thread",
-              description: error instanceof Error ? error.message : "An error occurred.",
+              title: t("composer.thread.settleFailed"),
+              description: error instanceof Error ? error.message : t("common.error"),
             }),
           );
         });
@@ -5275,6 +5278,7 @@ function ChatViewContent(props: ChatViewProps) {
     toggleRightPanel,
     toggleRightPanelMaximized,
     toggleTerminalVisibility,
+    t,
     composerRef,
   ]);
 

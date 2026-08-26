@@ -57,6 +57,7 @@ const STATIC_COMMAND_MESSAGE_KEYS = {
   "editor.openFavorite": "keybindings.command.editorOpenFavorite",
   "thread.previous": "keybindings.command.threadPrevious",
   "thread.next": "keybindings.command.threadNext",
+  "thread.settle": "keybindings.command.threadSettle",
 } as const;
 
 type StaticCommandMessageKey =
