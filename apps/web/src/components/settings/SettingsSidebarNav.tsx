@@ -22,7 +22,6 @@ import {
 import { useLocation, useNavigate } from "@tanstack/react-router";
 
 import { useI18n } from "../../i18n/WebI18nProvider";
-import type { WebMessageKey } from "../../i18n/messages";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Kbd } from "../ui/kbd";
@@ -39,12 +38,11 @@ import { T3ConnectSidebarAvatar, T3ConnectSidebarSignIn } from "../clerk/T3Conne
 import { SidebarUtilityMenu } from "../sidebar/SidebarChrome";
 import { scrollToSettingsTarget } from "./settingsLayout";
 import {
+  localizeSettingsSearchItems,
   searchSettings,
-  SETTINGS_SECTION_LABELS,
-  SETTINGS_SEARCH_ITEMS,
+  SETTINGS_SECTION_MESSAGE_KEYS,
   type SettingsPath,
   type SettingsSearchItem,
-  type SettingsSearchItemId,
 } from "./settingsSearch";
 
 const SETTINGS_SECTION_ICONS: Readonly<
@@ -60,67 +58,11 @@ const SETTINGS_SECTION_ICONS: Readonly<
   "/settings/archived": ArchiveIcon,
 };
 
-const SETTINGS_SECTION_MESSAGE_KEYS: Readonly<Record<SettingsPath, WebMessageKey>> = {
-  "/settings/general": "settings.section.general",
-  "/settings/appearance": "settings.section.appearance",
-  "/settings/keybindings": "settings.section.keybindings",
-  "/settings/providers": "settings.section.providers",
-  "/settings/integrations": "settings.section.integrations",
-  "/settings/source-control": "settings.section.sourceControl",
-  "/settings/connections": "settings.section.connections",
-  "/settings/archived": "settings.section.archive",
-};
-
-const SETTINGS_SEARCH_MESSAGE_KEYS: Readonly<Record<SettingsSearchItemId, WebMessageKey>> = {
-  language: "settings.language.title",
-  "color-scheme": "settings.item.colorScheme",
-  theme: "settings.item.themes",
-  "setting-appearance-contrast": "settings.item.appearanceContrast",
-  "setting-glass-opacity": "settings.item.glassOpacity",
-  "environment-identification": "settings.item.environmentIdentification",
-  "interface-font": "settings.item.interfaceFont",
-  "prompt-font": "settings.item.promptFont",
-  "code-font": "settings.item.codeFont",
-  "terminal-font": "settings.item.terminalFont",
-  "font-smoothing": "settings.item.fontSmoothing",
-  "word-wrap": "settings.item.wordWrap",
-  "project-grouping": "settings.item.projectGrouping",
-  "auto-settle-inactive-threads": "settings.item.autoSettleInactiveThreads",
-  "auto-settle-merged-threads": "settings.item.autoSettleMergedThreads",
-  "time-format": "settings.item.timeFormat",
-  "hide-whitespace-changes": "settings.item.hideWhitespaceChanges",
-  "skills-in-slash-menu": "settings.item.skillsInSlashMenu",
-  "provider-update-checks": "settings.item.providerUpdateChecks",
-  "new-threads": "settings.item.newThreads",
-  "start-from-origin": "settings.item.startFromOrigin",
-  "add-project-starts-in": "settings.item.addProjectStartsIn",
-  "archive-confirmation": "settings.item.archiveConfirmation",
-  "delete-confirmation": "settings.item.deleteConfirmation",
-  "quit-confirmation": "settings.item.quitConfirmation",
-  "text-generation-model": "settings.item.textGenerationModel",
-  diagnostics: "settings.item.diagnostics",
-  "legacy-plan-mode": "settings.item.legacyPlanMode",
-  "legacy-token-streaming": "settings.item.legacyTokenStreaming",
-  "legacy-sidebar": "settings.item.legacySidebar",
-  keybindings: "settings.item.keybindings",
-  providers: "settings.item.providers",
-  "agent-browser-access": "settings.item.agentBrowserAccess",
-  "browser-default-viewport": "settings.item.browserDefaultViewport",
-  "browser-default-zoom": "settings.item.browserDefaultZoom",
-  "browser-default-appearance": "settings.item.browserDefaultAppearance",
-  "browser-auto-show-floating-preview": "settings.item.browserAutoShowFloatingPreview",
-  "source-control": "settings.item.sourceControl",
-  "remote-environments": "settings.item.remoteEnvironments",
-  archive: "settings.item.archivedThreads",
-};
-
 export const SETTINGS_NAV_ITEMS: ReadonlyArray<{
-  label: string;
   to: SettingsPath;
   icon: ComponentType<{ className?: string }>;
-}> = (Object.keys(SETTINGS_SECTION_LABELS) as SettingsPath[]).map((to) => ({
+}> = (Object.keys(SETTINGS_SECTION_MESSAGE_KEYS) as SettingsPath[]).map((to) => ({
   to,
-  label: SETTINGS_SECTION_LABELS[to],
   icon: SETTINGS_SECTION_ICONS[to],
 }));
 
@@ -138,11 +80,7 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
   const [query, setQuery] = useState("");
   const [activeResultIndex, setActiveResultIndex] = useState(0);
   const localizedSearchItems = useMemo<ReadonlyArray<SettingsSearchItem>>(
-    () =>
-      SETTINGS_SEARCH_ITEMS.map((item) => ({
-        ...item,
-        title: t(SETTINGS_SEARCH_MESSAGE_KEYS[item.id]),
-      })),
+    () => localizeSettingsSearchItems(t),
     [t],
   );
   const results = useMemo(

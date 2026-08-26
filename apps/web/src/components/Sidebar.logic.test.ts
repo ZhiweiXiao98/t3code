@@ -190,6 +190,7 @@ describe("buildBulkTitleRegenerationContextMenuItem", () => {
       buildBulkTitleRegenerationContextMenuItem({
         supportedCount: 4,
         actionableCount: 3,
+        labels: { regenerating: "Regenerating…", regenerate: "Regenerate titles" },
       }),
     ).toEqual({
       id: "regenerate-title",
@@ -202,6 +203,7 @@ describe("buildBulkTitleRegenerationContextMenuItem", () => {
       buildBulkTitleRegenerationContextMenuItem({
         supportedCount: 2,
         actionableCount: 0,
+        labels: { regenerating: "Regenerating…", regenerate: "Regenerate titles" },
       }),
     ).toEqual({
       id: "regenerate-title",
@@ -215,6 +217,7 @@ describe("buildBulkTitleRegenerationContextMenuItem", () => {
       buildBulkTitleRegenerationContextMenuItem({
         supportedCount: 0,
         actionableCount: 0,
+        labels: { regenerating: "Regenerating…", regenerate: "Regenerate titles" },
       }),
     ).toBeNull();
   });

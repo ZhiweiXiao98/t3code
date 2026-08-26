@@ -70,10 +70,17 @@ describe("searchSettings", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("serves anchor props to panels from the catalog", () => {
-    expect(searchableSetting("language")).toEqual({ id: "language", title: "Language" });
-    expect(searchableSetting("word-wrap")).toEqual({ id: "word-wrap", title: "Word wrap" });
-    expect(searchableSetting("archive")).toEqual({ id: "archive", title: "Archived threads" });
+  it("serves stable anchor props to panels from the catalog", () => {
+    expect(searchableSetting("language")).toEqual({ id: "language" });
+    expect(searchableSetting("word-wrap")).toEqual({ id: "word-wrap" });
+    expect(searchableSetting("archive")).toEqual({ id: "archive" });
+  });
+
+  it("stores message keys instead of duplicate English titles", () => {
+    expect(SETTINGS_SEARCH_ITEMS.every((item) => !("title" in item))).toBe(true);
+    expect(SETTINGS_SEARCH_ITEMS.find((item) => item.id === "word-wrap")?.titleKey).toBe(
+      "settings.item.wordWrap",
+    );
   });
 
   it("routes appearance settings to their current section", () => {

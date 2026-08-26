@@ -898,7 +898,7 @@ function KeybindingTableRow({
                   size="icon-sm"
                   className="size-7 text-muted-foreground hover:text-foreground sm:size-7"
                   disabled={isSaving}
-                  aria-label={commandLabelText}
+                  aria-label={t("keybindings.actionsFor", { command: commandLabelText })}
                 />
               }
             >

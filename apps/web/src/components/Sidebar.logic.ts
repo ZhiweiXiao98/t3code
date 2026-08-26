@@ -109,18 +109,22 @@ export function buildMultiSelectThreadContextMenuItems(input: {
 export function buildBulkTitleRegenerationContextMenuItem(input: {
   supportedCount: number;
   actionableCount: number;
+  labels: {
+    regenerating: string;
+    regenerate: string;
+  };
 }): ContextMenuItem<"regenerate-title"> | null {
   if (input.supportedCount === 0) return null;
   if (input.actionableCount === 0) {
     return {
       id: "regenerate-title",
-      label: `Regenerating… (${input.supportedCount})`,
+      label: `${input.labels.regenerating} (${input.supportedCount})`,
       disabled: true,
     };
   }
   return {
     id: "regenerate-title",
-    label: `Regenerate titles (${input.actionableCount})`,
+    label: `${input.labels.regenerate} (${input.actionableCount})`,
   };
 }
 

@@ -2850,29 +2850,19 @@ export default function Sidebar() {
       const regeneratableTitleThreads = titleRegenerationThreads.filter(
         (thread) => thread.titleRegeneration == null,
       );
-      const titleRegenerationMenuItemEnglish = buildBulkTitleRegenerationContextMenuItem({
+      const titleRegenerationMenuItem = buildBulkTitleRegenerationContextMenuItem({
         supportedCount: titleRegenerationThreads.length,
         actionableCount: regeneratableTitleThreads.length,
+        labels: {
+          regenerating: t("sidebar.bulk.regeneratingTitles"),
+          regenerate: t("sidebar.bulk.regenerateTitles"),
+        },
       });
-      const titleRegenerationMenuItem = titleRegenerationMenuItemEnglish
-        ? {
-            ...titleRegenerationMenuItemEnglish,
-            label: `${t(
-              titleRegenerationMenuItemEnglish.disabled
-                ? "sidebar.action.regenerating"
-                : "sidebar.action.regenerateTitle",
-            )} (${
-              titleRegenerationMenuItemEnglish.disabled
-                ? titleRegenerationThreads.length
-                : regeneratableTitleThreads.length
-            })`,
-          }
-        : null;
       const snoozePresets = resolveSnoozePresets(new Date(), timestampFormat);
       const clicked = await settlePromise(() =>
         api.contextMenu.show(
           [
-            { id: "settle", label: `${t("sidebar.action.settle")} (${count})` },
+            { id: "settle", label: `${t("sidebar.bulk.settle")} (${count})` },
             ...(canSnoozeSelection
               ? [
                   {

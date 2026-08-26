@@ -3181,8 +3181,8 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                     ? activePendingProgress.customAnswer || t("composer.placeholder.customAnswer")
                     : prompt.trim() ||
                       (noProviderAvailable
-                        ? t("composer.placeholder.enableProvider")
-                        : t("composer.placeholder.default"))}
+                        ? t("composer.placeholder.collapsedEnableProvider")
+                        : t("composer.placeholder.collapsedDefault"))}
                 </button>
                 {inlineTasksBadge}
                 {inlineStashBadge}
