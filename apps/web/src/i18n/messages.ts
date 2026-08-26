@@ -417,6 +417,15 @@ export const EN_MESSAGES = {
   "diagnostics.warning.partialTrace":
     "Some trace files could not be read, so diagnostics may be incomplete. {error}",
   "settings.legacy.title": "Legacy features",
+  "settings.legacy.planModeDescription":
+    "Brings back the Build/Plan toggle in the composer along with the /plan and /default commands and the Shift+Tab shortcut. While off, every thread runs in build mode.",
+  "settings.legacy.tokenStreamingDescription":
+    "Paints assistant output token by token instead of in complete chunks. Not recommended: it is significantly slower, and long responses become harder to follow. Kept only for compatibility with the old behavior.",
+  "settings.legacy.tokenStreamingConfirmTitle": "Turn on token-by-token output?",
+  "settings.legacy.tokenStreamingConfirmDescription":
+    "It is significantly slower than the default buffered output and hurts the reading experience. This switch exists only for backwards compatibility.",
+  "settings.legacy.sidebarDescription":
+    "Brings back the original sidebar with per-project thread trees. The default sidebar shows one flat list: active work as rich cards, settled threads as compact rows.",
 
   "appearance.description": "Choose how T3 Code looks. Use a built-in theme or make your own.",
   "appearance.colorScheme": "Color scheme",
@@ -1311,6 +1320,7 @@ export const EN_MESSAGES = {
   "composer.compaction.resumeTitle": "Resume with less context",
   "composer.compaction.resumeDescription": "{tokens} tokens from an older session",
   "composer.compaction.keepFullHistory": "Keep full history",
+  "composer.compaction.compact": "Compact",
   "composer.compaction.compactContext": "Compact context",
   "composer.compaction.native.header": "Resume session",
   "composer.compaction.native.question":
@@ -1466,6 +1476,7 @@ export const EN_MESSAGES = {
   "commandPalette.action.clone": "Clone",
   "commandPalette.action.createAndClone": "Create & Clone",
   "commandPalette.action.createAndAdd": "Create & Add",
+  "commandPalette.action.add": "Add",
   "commandPalette.action.openIn": "Open in {fileManager}",
   "commandPalette.group.cloneDestination": "Select where to clone",
 
@@ -1609,7 +1620,23 @@ export const EN_MESSAGES = {
   "gitAction.hint.branchDiverged": "Branch has diverged from upstream. Rebase or merge first.",
   "gitAction.hint.branchRequired":
     "Create and check out a branch before pushing or opening a {request}.",
+  "gitAction.hint.worktreeClean": "Worktree is clean. Make changes before committing.",
+  "gitAction.hint.commitUnavailable": "Commit is currently unavailable.",
+  "gitAction.hint.detachedBeforePush": "Detached HEAD: check out a branch before pushing.",
+  "gitAction.hint.localChangesBeforePush": "Commit or stash local changes before pushing.",
+  "gitAction.hint.behindBeforePush": "Branch is behind upstream. Pull or rebase before pushing.",
+  "gitAction.hint.originBeforePush": 'Add an "origin" remote before pushing.',
   "gitAction.hint.noLocalCommits": "No local commits to push.",
+  "gitAction.hint.pushUnavailable": "Push is currently unavailable.",
+  "gitAction.hint.viewUnavailable": "Viewing the {request} is currently unavailable.",
+  "gitAction.hint.detachedBeforeCreate":
+    "Detached HEAD: check out a branch before creating a {request}.",
+  "gitAction.hint.localChangesBeforeCreate": "Commit local changes before creating a {request}.",
+  "gitAction.hint.originBeforeCreate": 'Add an "origin" remote before creating a {request}.',
+  "gitAction.hint.noLocalCommitsForCreate": "No local commits to include in a {request}.",
+  "gitAction.hint.behindBeforeCreate":
+    "Branch is behind upstream. Pull or rebase before creating a {request}.",
+  "gitAction.hint.createUnavailable": "Creating a {request} is currently unavailable.",
   "gitAction.hint.statusUnavailable": "Git status is unavailable.",
   "gitAction.hint.unavailable": "This action is currently unavailable.",
   "gitAction.hint.upToDate": "Branch is up to date. No action needed.",
@@ -2334,6 +2361,15 @@ export const ZH_CN_MESSAGES = {
   "diagnostics.tooltip.slowSpansValue": "耗时达到 {duration} 或更长的 Span。",
   "diagnostics.warning.partialTrace": "部分跟踪文件无法读取，诊断结果可能不完整。{error}",
   "settings.legacy.title": "旧版功能",
+  "settings.legacy.planModeDescription":
+    "恢复输入区中的“构建/方案”切换，以及 /plan、/default 命令和 Shift+Tab 快捷键。关闭后，所有任务都以构建模式运行。",
+  "settings.legacy.tokenStreamingDescription":
+    "逐个令牌绘制助手输出，而不是分块显示完整内容。不建议启用：速度会明显变慢，长回复也更难阅读；此选项仅用于兼容旧行为。",
+  "settings.legacy.tokenStreamingConfirmTitle": "启用逐令牌输出？",
+  "settings.legacy.tokenStreamingConfirmDescription":
+    "这会比默认的缓冲输出慢很多，并影响阅读体验。此开关仅用于向后兼容。",
+  "settings.legacy.sidebarDescription":
+    "恢复按项目显示任务树的原版侧栏。默认侧栏使用一个扁平列表：活跃工作显示为详细卡片，已收起任务显示为紧凑行。",
 
   "appearance.description": "选择 T3 Code 的显示方式。使用内置主题，或创建自己的主题。",
   "appearance.colorScheme": "配色方案",
@@ -3189,6 +3225,7 @@ export const ZH_CN_MESSAGES = {
   "composer.compaction.resumeTitle": "精简上下文后继续",
   "composer.compaction.resumeDescription": "来自较早会话的 {tokens} 个令牌",
   "composer.compaction.keepFullHistory": "保留完整历史",
+  "composer.compaction.compact": "压缩",
   "composer.compaction.compactContext": "压缩上下文",
   "composer.compaction.native.header": "继续会话",
   "composer.compaction.native.question":
@@ -3336,6 +3373,7 @@ export const ZH_CN_MESSAGES = {
   "commandPalette.action.clone": "克隆",
   "commandPalette.action.createAndClone": "创建并克隆",
   "commandPalette.action.createAndAdd": "创建并添加",
+  "commandPalette.action.add": "添加",
   "commandPalette.action.openIn": "在 {fileManager} 中打开",
   "commandPalette.group.cloneDestination": "选择克隆位置",
 
@@ -3474,7 +3512,21 @@ export const ZH_CN_MESSAGES = {
   "gitAction.hint.actionInProgress": "Git 操作正在进行。",
   "gitAction.hint.branchDiverged": "分支已与上游分叉，请先变基或合并。",
   "gitAction.hint.branchRequired": "请先创建并签出分支，再推送或打开{request}。",
+  "gitAction.hint.worktreeClean": "工作树没有更改，请先修改文件再提交。",
+  "gitAction.hint.commitUnavailable": "当前无法提交。",
+  "gitAction.hint.detachedBeforePush": "当前处于分离 HEAD 状态，请先签出分支再推送。",
+  "gitAction.hint.localChangesBeforePush": "请先提交或暂存本地更改，再进行推送。",
+  "gitAction.hint.behindBeforePush": "分支落后于上游，请先拉取或变基再推送。",
+  "gitAction.hint.originBeforePush": "请先添加“origin”远程仓库再推送。",
   "gitAction.hint.noLocalCommits": "没有可推送的本地提交。",
+  "gitAction.hint.pushUnavailable": "当前无法推送。",
+  "gitAction.hint.viewUnavailable": "当前无法查看{request}。",
+  "gitAction.hint.detachedBeforeCreate": "当前处于分离 HEAD 状态，请先签出分支再创建{request}。",
+  "gitAction.hint.localChangesBeforeCreate": "请先提交本地更改，再创建{request}。",
+  "gitAction.hint.originBeforeCreate": "请先添加“origin”远程仓库再创建{request}。",
+  "gitAction.hint.noLocalCommitsForCreate": "没有可包含在{request}中的本地提交。",
+  "gitAction.hint.behindBeforeCreate": "分支落后于上游，请先拉取或变基再创建{request}。",
+  "gitAction.hint.createUnavailable": "当前无法创建{request}。",
   "gitAction.hint.statusUnavailable": "无法获取 Git 状态。",
   "gitAction.hint.unavailable": "当前无法执行此操作。",
   "gitAction.hint.upToDate": "分支已是最新，无需操作。",

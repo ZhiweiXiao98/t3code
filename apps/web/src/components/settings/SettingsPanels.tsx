@@ -1897,7 +1897,7 @@ function LegacyFeaturesSection() {
             <SettingsRow
               {...searchableSetting("legacy-plan-mode")}
               title={t("settings.item.legacyPlanMode")}
-              description="Brings back the Build/Plan toggle in the composer along with the /plan and /default commands and the Shift+Tab shortcut. While off, every thread runs in build mode."
+              description={t("settings.legacy.planModeDescription")}
               control={
                 <Switch
                   checked={settings.planModeEnabled}
@@ -1926,14 +1926,14 @@ function LegacyFeaturesSection() {
                           }),
                     });
                   }}
-                  aria-label="Plan mode (legacy)"
+                  aria-label={t("settings.item.legacyPlanMode")}
                 />
               }
             />
             <SettingsRow
               {...searchableSetting("legacy-token-streaming")}
               title={t("settings.item.legacyTokenStreaming")}
-              description="Paints assistant output token by token instead of in complete chunks. Not recommended: it is significantly slower, and long responses become harder to follow. Kept only for compatibility with the old behavior."
+              description={t("settings.legacy.tokenStreamingDescription")}
               control={
                 <Switch
                   checked={settings.enableLegacyTokenStreaming}
@@ -1946,28 +1946,28 @@ function LegacyFeaturesSection() {
                       const api = readLocalApi();
                       const confirmed = await (api ?? ensureLocalApi()).dialogs.confirm(
                         [
-                          "Turn on token-by-token output?",
-                          "It is significantly slower than the default buffered output and hurts the reading experience. This switch exists only for backwards compatibility.",
+                          t("settings.legacy.tokenStreamingConfirmTitle"),
+                          t("settings.legacy.tokenStreamingConfirmDescription"),
                         ].join("\n"),
                       );
                       if (confirmed) updateSettings({ enableLegacyTokenStreaming: true });
                     })();
                   }}
-                  aria-label="Stream token by token (legacy)"
+                  aria-label={t("settings.item.legacyTokenStreaming")}
                 />
               }
             />
             <SettingsRow
               {...searchableSetting("legacy-sidebar")}
               title={t("settings.item.legacySidebar")}
-              description="Brings back the original sidebar with per-project thread trees. The default sidebar shows one flat list: active work as rich cards, settled threads as compact rows."
+              description={t("settings.legacy.sidebarDescription")}
               control={
                 <Switch
                   checked={settings.legacySidebarEnabled}
                   onCheckedChange={(checked) =>
                     updateSettings({ legacySidebarEnabled: Boolean(checked) })
                   }
-                  aria-label="Sidebar (legacy)"
+                  aria-label={t("settings.item.legacySidebar")}
                 />
               }
             />

@@ -266,73 +266,93 @@ function resolveProgressDescription(progress: ActiveGitActionProgress): string |
   return formatElapsedDescription(progress.hookStartedAtMs ?? progress.phaseStartedAtMs);
 }
 
+interface GitMenuActionDisabledReasonCopy {
+  actionInProgress: string;
+  statusUnavailable: string;
+  worktreeClean: string;
+  commitUnavailable: string;
+  detachedBeforePush: string;
+  localChangesBeforePush: string;
+  behindBeforePush: string;
+  originBeforePush: string;
+  noLocalCommits: string;
+  pushUnavailable: string;
+  viewUnavailable: string;
+  detachedBeforeCreate: string;
+  localChangesBeforeCreate: string;
+  originBeforeCreate: string;
+  noLocalCommitsForCreate: string;
+  behindBeforeCreate: string;
+  createUnavailable: string;
+}
+
 function getMenuActionDisabledReason({
   item,
   gitStatus,
   isBusy,
   hasPrimaryRemote,
+  copy,
 }: {
   item: GitActionMenuItem;
   gitStatus: VcsStatusResult | null;
   isBusy: boolean;
   hasPrimaryRemote: boolean;
+  copy: GitMenuActionDisabledReasonCopy;
 }): string | null {
   if (!item.disabled) return null;
-  if (isBusy) return "Git action in progress.";
-  if (!gitStatus) return "Git status is unavailable.";
+  if (isBusy) return copy.actionInProgress;
+  if (!gitStatus) return copy.statusUnavailable;
 
   const hasBranch = gitStatus.refName !== null;
   const hasChanges = gitStatus.hasWorkingTreeChanges;
   const hasOpenPr = gitStatus.pr?.state === "open";
   const isAhead = gitStatus.aheadCount > 0;
   const isBehind = gitStatus.behindCount > 0;
-  const terminology = getSourceControlPresentation(gitStatus.sourceControlProvider).terminology;
-
   if (item.id === "commit") {
     if (!hasChanges) {
-      return "Worktree is clean. Make changes before committing.";
+      return copy.worktreeClean;
     }
-    return "Commit is currently unavailable.";
+    return copy.commitUnavailable;
   }
 
   if (item.id === "push") {
     if (!hasBranch) {
-      return "Detached HEAD: checkout a refName before pushing.";
+      return copy.detachedBeforePush;
     }
     if (hasChanges) {
-      return "Commit or stash local changes before pushing.";
+      return copy.localChangesBeforePush;
     }
     if (isBehind) {
-      return "Branch is behind upstream. Pull/rebase before pushing.";
+      return copy.behindBeforePush;
     }
     if (!gitStatus.hasUpstream && !hasPrimaryRemote) {
-      return 'Add an "origin" remote before pushing.';
+      return copy.originBeforePush;
     }
     if (!isAhead) {
-      return "No local commits to push.";
+      return copy.noLocalCommits;
     }
-    return "Push is currently unavailable.";
+    return copy.pushUnavailable;
   }
 
   if (hasOpenPr) {
-    return `View ${terminology.singular} is currently unavailable.`;
+    return copy.viewUnavailable;
   }
   if (!hasBranch) {
-    return `Detached HEAD: checkout a refName before creating a ${terminology.singular}.`;
+    return copy.detachedBeforeCreate;
   }
   if (hasChanges) {
-    return `Commit local changes before creating a ${terminology.singular}.`;
+    return copy.localChangesBeforeCreate;
   }
   if (!gitStatus.hasUpstream && !hasPrimaryRemote) {
-    return `Add an "origin" remote before creating a ${terminology.singular}.`;
+    return copy.originBeforeCreate;
   }
   if (!isAhead) {
-    return `No local commits to include in a ${terminology.singular}.`;
+    return copy.noLocalCommitsForCreate;
   }
   if (isBehind) {
-    return `Branch is behind upstream. Pull/rebase before creating a ${terminology.singular}.`;
+    return copy.behindBeforeCreate;
   }
-  return `Create ${terminology.singular} is currently unavailable.`;
+  return copy.createUnavailable;
 }
 
 function GitActionItemIcon({
@@ -1226,6 +1246,39 @@ export default function GitActionsControl({
                 ? t("gitAction.hint.upToDate")
                 : t("gitAction.hint.unavailable")
     : null;
+  const menuActionDisabledReasonCopy: GitMenuActionDisabledReasonCopy = {
+    actionInProgress: t("gitAction.hint.actionInProgress"),
+    statusUnavailable: t("gitAction.hint.statusUnavailable"),
+    worktreeClean: t("gitAction.hint.worktreeClean"),
+    commitUnavailable: t("gitAction.hint.commitUnavailable"),
+    detachedBeforePush: t("gitAction.hint.detachedBeforePush"),
+    localChangesBeforePush: t("gitAction.hint.localChangesBeforePush"),
+    behindBeforePush: t("gitAction.hint.behindBeforePush"),
+    originBeforePush: t("gitAction.hint.originBeforePush"),
+    noLocalCommits: t("gitAction.hint.noLocalCommits"),
+    pushUnavailable: t("gitAction.hint.pushUnavailable"),
+    viewUnavailable: t("gitAction.hint.viewUnavailable", {
+      request: localizedChangeRequestLabel,
+    }),
+    detachedBeforeCreate: t("gitAction.hint.detachedBeforeCreate", {
+      request: localizedChangeRequestLabel,
+    }),
+    localChangesBeforeCreate: t("gitAction.hint.localChangesBeforeCreate", {
+      request: localizedChangeRequestLabel,
+    }),
+    originBeforeCreate: t("gitAction.hint.originBeforeCreate", {
+      request: localizedChangeRequestLabel,
+    }),
+    noLocalCommitsForCreate: t("gitAction.hint.noLocalCommitsForCreate", {
+      request: localizedChangeRequestLabel,
+    }),
+    behindBeforeCreate: t("gitAction.hint.behindBeforeCreate", {
+      request: localizedChangeRequestLabel,
+    }),
+    createUnavailable: t("gitAction.hint.createUnavailable", {
+      request: localizedChangeRequestLabel,
+    }),
+  };
   const pendingDefaultBranchActionCopy = pendingDefaultBranchAction
     ? resolveDefaultBranchActionDialogCopy({
         ...pendingDefaultBranchAction,
@@ -1878,6 +1931,7 @@ export default function GitActionsControl({
                   gitStatus: gitStatusForActions,
                   isBusy: isGitActionRunning,
                   hasPrimaryRemote,
+                  copy: menuActionDisabledReasonCopy,
                 });
                 if (item.disabled && disabledReason) {
                   return (

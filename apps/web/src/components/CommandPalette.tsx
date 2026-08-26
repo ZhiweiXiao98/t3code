@@ -2137,7 +2137,7 @@ function OpenCommandPaletteDialog(props: {
       : t("commandPalette.action.clone")
     : willCreateProjectPath
       ? t("commandPalette.action.createAndAdd")
-      : t("home.addProject");
+      : t("commandPalette.action.add");
   const addShortcutLabel = hasHighlightedBrowseItem ? `${submitModifierLabel} Enter` : "Enter";
   const remoteProjectButtonLabel = addProjectCloneFlow
     ? addProjectCloneFlow.source === "url"

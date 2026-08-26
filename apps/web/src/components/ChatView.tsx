@@ -4885,7 +4885,7 @@ function ChatViewContent(props: ChatViewProps) {
           composerRef.current?.compactContext();
         }}
       >
-        {t("composer.compaction.compactContext")}
+        {t("composer.compaction.compact")}
       </Button>
     );
     return {
