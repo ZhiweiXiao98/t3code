@@ -3,6 +3,7 @@ import { type ContextWindowSnapshot, formatContextWindowTokens } from "~/lib/con
 import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
 import { Minimize2Icon } from "lucide-react";
 import { useI18n } from "~/i18n/WebI18nProvider";
+import { formatContextWindowCompactionMessage } from "./ContextWindowMeter.logic";
 
 function formatPercentage(value: number | null): string | null {
   if (value === null || !Number.isFinite(value)) {
@@ -34,13 +35,16 @@ export function ContextWindowMeter(props: {
   const usageColor = isOverloaded
     ? "var(--color-error)"
     : "color-mix(in oklab, var(--color-muted-foreground) 72%, transparent)";
-  const compactionMessage = usage.autoCompactThreshold
-    ? t("contextWindow.compactsAt", {
-        tokens: formatContextWindowTokens(usage.autoCompactThreshold),
-      })
-    : modelDisplayName
-      ? t("contextWindow.compactsForModel", { model: modelDisplayName })
-      : t("contextWindow.compactsAutomatically");
+  const compactionMessage = formatContextWindowCompactionMessage(
+    modelDisplayName,
+    usage.autoCompactThreshold,
+    {
+      threshold: (tokens) =>
+        t("contextWindow.compactsAt", { tokens: formatContextWindowTokens(tokens) }),
+      model: (model) => t("contextWindow.compactsForModel", { model }),
+      automatic: t("contextWindow.compactsAutomatically"),
+    },
+  );
 
   return (
     <Popover>

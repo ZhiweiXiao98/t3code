@@ -12,6 +12,19 @@ import { getTriggerDisplayModelName, type ModelEsque } from "./providerIconUtils
 export const CLAUDE_RESUME_COMPACTION_MINUTES = 70;
 export const CLAUDE_RESUME_COMPACTION_TOKENS = 100_000;
 
+export interface ContextWindowCompactionMessageCopies {
+  threshold: (tokens: number) => string;
+  model: (modelDisplayName: string) => string;
+  automatic: string;
+}
+
+const DEFAULT_COMPACTION_MESSAGE_COPIES: ContextWindowCompactionMessageCopies = {
+  threshold: (tokens) => `Compacts automatically at ${tokens.toLocaleString("en-US")} tokens.`,
+  model: (modelDisplayName) =>
+    `Context for ${modelDisplayName} compacts automatically when needed.`,
+  automatic: "Context compacts automatically when needed.",
+};
+
 export function hasAvailableClaudeCompactionProvider(input: {
   readonly providers: ReadonlyArray<ProviderInstanceEntry>;
   readonly instanceId: ProviderInstanceId | null;
@@ -94,11 +107,10 @@ export function resolveContextWindowModelDisplayName(
 export function formatContextWindowCompactionMessage(
   modelDisplayName: string | null | undefined,
   autoCompactThreshold?: number | null,
+  copies: ContextWindowCompactionMessageCopies = DEFAULT_COMPACTION_MESSAGE_COPIES,
 ): string {
   if (typeof autoCompactThreshold === "number" && autoCompactThreshold > 0) {
-    return `Compacts automatically at ${autoCompactThreshold.toLocaleString("en-US")} tokens.`;
+    return copies.threshold(autoCompactThreshold);
   }
-  return modelDisplayName
-    ? `Context for ${modelDisplayName} compacts automatically when needed.`
-    : "Context compacts automatically when needed.";
+  return modelDisplayName ? copies.model(modelDisplayName) : copies.automatic;
 }

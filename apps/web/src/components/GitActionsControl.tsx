@@ -1187,10 +1187,12 @@ export default function GitActionsControl({
         return t("gitAction.commitPush");
       case "commitPushCreateChangeRequest":
         return t("gitAction.commitPushCreateChangeRequest", {
-          request: localizedChangeRequestLabel,
+          request: changeRequestTerminology.shortLabel,
         });
       case "createChangeRequest":
-        return t("gitAction.createChangeRequest", { request: localizedChangeRequestLabel });
+        return t("gitAction.createChangeRequest", {
+          request: changeRequestTerminology.shortLabel,
+        });
       case "pull":
         return t("gitAction.pull");
       case "publishRepository":
@@ -1198,11 +1200,15 @@ export default function GitActionsControl({
       case "push":
         return t("gitAction.push");
       case "pushCreateChangeRequest":
-        return t("gitAction.pushCreateChangeRequest", { request: localizedChangeRequestLabel });
+        return t("gitAction.pushCreateChangeRequest", {
+          request: changeRequestTerminology.shortLabel,
+        });
       case "syncRef":
         return t("gitAction.syncRef");
       case "viewChangeRequest":
-        return t("gitAction.viewChangeRequest", { request: localizedChangeRequestLabel });
+        return t("gitAction.viewChangeRequest", {
+          request: changeRequestTerminology.shortLabel,
+        });
     }
   })();
   const quickActionDisabledReason = quickAction.disabled
