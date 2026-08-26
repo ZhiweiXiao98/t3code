@@ -44,6 +44,7 @@ import {
   type GitQuickAction,
   type DefaultBranchConfirmableAction,
   requiresDefaultBranchConfirmation,
+  resolveDefaultBranchActionDialogCopy,
   resolveLiveThreadBranchUpdate,
   resolveThreadBranchMetadataPatch,
   resolveQuickAction,
@@ -1171,15 +1172,6 @@ export default function GitActionsControl({
       resolveQuickAction(gitStatusForActions, isGitActionRunning, isDefaultRef, hasPrimaryRemote),
     [gitStatusForActions, hasPrimaryRemote, isDefaultRef, isGitActionRunning],
   );
-  const quickActionLabel =
-    quickAction.label === "Commit"
-      ? t("gitAction.commit")
-      : quickAction.label === "Push"
-        ? t("gitAction.push")
-        : quickAction.label;
-  const quickActionDisabledReason = quickAction.disabled
-    ? (quickAction.hint ?? "This action is currently unavailable.")
-    : null;
   const localizedChangeRequestLabel = t(
     changeRequestTerminology.singular === "pull request"
       ? "gitDialog.defaultBranch.pullRequest"
@@ -1187,11 +1179,53 @@ export default function GitActionsControl({
         ? "gitDialog.defaultBranch.mergeRequest"
         : "gitDialog.defaultBranch.changeRequest",
   );
+  const quickActionLabel = (() => {
+    switch (quickAction.labelId) {
+      case "commit":
+        return t("gitAction.commit");
+      case "commitPush":
+        return t("gitAction.commitPush");
+      case "commitPushCreateChangeRequest":
+        return t("gitAction.commitPushCreateChangeRequest", {
+          request: localizedChangeRequestLabel,
+        });
+      case "createChangeRequest":
+        return t("gitAction.createChangeRequest", { request: localizedChangeRequestLabel });
+      case "pull":
+        return t("gitAction.pull");
+      case "publishRepository":
+        return t("gitAction.publishRepository");
+      case "push":
+        return t("gitAction.push");
+      case "pushCreateChangeRequest":
+        return t("gitAction.pushCreateChangeRequest", { request: localizedChangeRequestLabel });
+      case "syncRef":
+        return t("gitAction.syncRef");
+      case "viewChangeRequest":
+        return t("gitAction.viewChangeRequest", { request: localizedChangeRequestLabel });
+    }
+  })();
+  const quickActionDisabledReason = quickAction.disabled
+    ? quickAction.hintId === "actionInProgress"
+      ? t("gitAction.hint.actionInProgress")
+      : quickAction.hintId === "branchDiverged"
+        ? t("gitAction.hint.branchDiverged")
+        : quickAction.hintId === "branchRequired"
+          ? t("gitAction.hint.branchRequired", { request: localizedChangeRequestLabel })
+          : quickAction.hintId === "noLocalCommits"
+            ? t("gitAction.hint.noLocalCommits")
+            : quickAction.hintId === "statusUnavailable"
+              ? t("gitAction.hint.statusUnavailable")
+              : quickAction.hintId === "upToDate"
+                ? t("gitAction.hint.upToDate")
+                : t("gitAction.hint.unavailable")
+    : null;
   const pendingDefaultBranchActionCopy = pendingDefaultBranchAction
-    ? pendingDefaultBranchAction.action === "push" ||
-      pendingDefaultBranchAction.action === "commit_push"
-      ? pendingDefaultBranchAction.includesCommit
-        ? {
+    ? resolveDefaultBranchActionDialogCopy({
+        ...pendingDefaultBranchAction,
+        terminology: changeRequestTerminology,
+        copies: {
+          commitPush: {
             title: t("gitDialog.defaultBranch.commitPushTitle"),
             description: t("gitDialog.defaultBranch.commitPushDescription", {
               branch: pendingDefaultBranchAction.branchName,
@@ -1199,8 +1233,8 @@ export default function GitActionsControl({
             continueLabel: t("gitDialog.defaultBranch.commitPushContinue", {
               branch: pendingDefaultBranchAction.branchName,
             }),
-          }
-        : {
+          },
+          push: {
             title: t("gitDialog.defaultBranch.pushTitle"),
             description: t("gitDialog.defaultBranch.pushDescription", {
               branch: pendingDefaultBranchAction.branchName,
@@ -1208,9 +1242,8 @@ export default function GitActionsControl({
             continueLabel: t("gitDialog.defaultBranch.pushContinue", {
               branch: pendingDefaultBranchAction.branchName,
             }),
-          }
-      : pendingDefaultBranchAction.includesCommit
-        ? {
+          },
+          commitCreate: {
             title: t("gitDialog.defaultBranch.commitCreateTitle", {
               request: localizedChangeRequestLabel,
             }),
@@ -1221,8 +1254,8 @@ export default function GitActionsControl({
             continueLabel: t("gitDialog.defaultBranch.commitCreateContinue", {
               request: localizedChangeRequestLabel,
             }),
-          }
-        : {
+          },
+          pushCreate: {
             title: t("gitDialog.defaultBranch.pushCreateTitle", {
               request: localizedChangeRequestLabel,
             }),
@@ -1234,7 +1267,9 @@ export default function GitActionsControl({
               branch: pendingDefaultBranchAction.branchName,
               request: localizedChangeRequestLabel,
             }),
-          }
+          },
+        },
+      })
     : null;
 
   useEffect(() => {

@@ -199,6 +199,8 @@ export const EN_MESSAGES = {
     "Require a second click on the inline archive action before a thread is archived.",
   "settings.general.description.deleteConfirmation":
     "Ask before deleting a thread and its chat history.",
+  "settings.general.description.quitConfirmation":
+    "Require holding the quit shortcut before the desktop app quits. A quick tap shows a hint instead.",
   "settings.general.description.textGenerationModel":
     "Default model for generated text like thread titles and source control content. Source control settings can override it with a dedicated source control writer model.",
   "settings.about.title": "About",
@@ -459,7 +461,6 @@ export const EN_MESSAGES = {
   "appearance.fontPicker.default": "default",
   "appearance.fontPicker.search": "Search fonts...",
   "appearance.fontPicker.empty": "No fonts found.",
-  "appearance.fontPreview.placeholder": "Ask for follow-up changes or attach images",
   "appearance.fontPreview.terminal": "Terminal font preview",
   "appearance.fontPreview.sample":
     "Use $frontend-design to fix the flaky test in [surface.test.ts](apps/web/src/terminal/ghostty/surface.test.ts) and align the header with [SettingsPanels.tsx](apps/web/src/components/settings/SettingsPanels.tsx) before shipping.",
@@ -1368,7 +1369,6 @@ export const EN_MESSAGES = {
     "Add feedback to refine the plan, or leave this blank to implement it",
   "composer.placeholder.chooseProject": "Choose a project above to start a thread",
   "composer.placeholder.enableProvider": "Enable a provider in Settings to send a message",
-  "composer.placeholder.followUp": "Ask for follow-up changes or attach images",
   "composer.placeholder.disconnected": "Ask for changes, send follow-ups, or attach images",
   "composer.placeholder.default":
     "Ask anything, @tag files/folders, $use skills, or / for commands",
@@ -1594,10 +1594,23 @@ export const EN_MESSAGES = {
   "gitAction.group": "Git actions",
   "gitAction.options": "Git action options",
   "gitAction.commit": "Commit",
+  "gitAction.commitPush": "Commit & push",
+  "gitAction.commitPushCreateChangeRequest": "Commit, push & {request}",
+  "gitAction.pull": "Pull",
   "gitAction.push": "Push",
+  "gitAction.pushCreateChangeRequest": "Push & create {request}",
+  "gitAction.syncRef": "Sync branch",
   "gitAction.createChangeRequest": "Create {request}",
   "gitAction.viewChangeRequest": "View {request}",
   "gitAction.publishRepository": "Publish repository...",
+  "gitAction.hint.actionInProgress": "Git action in progress.",
+  "gitAction.hint.branchDiverged": "Branch has diverged from upstream. Rebase or merge first.",
+  "gitAction.hint.branchRequired":
+    "Create and check out a branch before pushing or opening a {request}.",
+  "gitAction.hint.noLocalCommits": "No local commits to push.",
+  "gitAction.hint.statusUnavailable": "Git status is unavailable.",
+  "gitAction.hint.unavailable": "This action is currently unavailable.",
+  "gitAction.hint.upToDate": "Branch is up to date. No action needed.",
 
   "projectAction.dialog.addTitle": "Add Action",
   "projectAction.dialog.editTitle": "Edit Action",
@@ -1836,10 +1849,6 @@ export const EN_MESSAGES = {
   "gitDialog.defaultBranch.pushDescription":
     'This action will push changes on "{branch}". You can continue on this branch or create a feature branch and run the same action there.',
   "gitDialog.defaultBranch.pushContinue": "Push to {branch}",
-  "gitDialog.defaultBranch.createTitle": "Create {request} from default branch?",
-  "gitDialog.defaultBranch.createDescription":
-    'This action will create a {request} from "{branch}". You can continue on this branch or create a feature branch and run the same action there.',
-  "gitDialog.defaultBranch.createContinue": "Create {request} from {branch}",
   "gitDialog.defaultBranch.pushCreateTitle": "Push & create {request} from default branch?",
   "gitDialog.defaultBranch.pushCreateDescription":
     'This action will push local commits and create a {request} from "{branch}". You can continue on this branch or create a feature branch and run the same action there.',
@@ -2110,6 +2119,8 @@ export const ZH_CN_MESSAGES = {
   "settings.general.description.addProjectStartsIn": "留空时，“添加项目”浏览器将从“~/”开始。",
   "settings.general.description.archiveConfirmation": "归档任务前，需要再次点击行内归档操作。",
   "settings.general.description.deleteConfirmation": "删除任务及其聊天记录前进行确认。",
+  "settings.general.description.quitConfirmation":
+    "退出桌面应用前需要长按退出快捷键；快速按一下只会显示提示。",
   "settings.general.description.textGenerationModel":
     "用于生成任务标题和源代码管理内容等文本的默认模型。源代码管理设置可以使用专用写作模型覆盖此项。",
   "settings.about.title": "关于",
@@ -2361,7 +2372,6 @@ export const ZH_CN_MESSAGES = {
   "appearance.fontPicker.default": "默认",
   "appearance.fontPicker.search": "搜索字体...",
   "appearance.fontPicker.empty": "未找到字体。",
-  "appearance.fontPreview.placeholder": "提出后续修改或添加图片",
   "appearance.fontPreview.terminal": "终端字体预览",
   "appearance.fontPreview.sample":
     "使用 $frontend-design 修复 [surface.test.ts](apps/web/src/terminal/ghostty/surface.test.ts) 中不稳定的测试，并在发布前将标题与 [SettingsPanels.tsx](apps/web/src/components/settings/SettingsPanels.tsx) 对齐。",
@@ -3229,7 +3239,6 @@ export const ZH_CN_MESSAGES = {
   "composer.placeholder.refinePlan": "补充反馈以完善方案，留空则直接实施",
   "composer.placeholder.chooseProject": "请先在上方选择项目",
   "composer.placeholder.enableProvider": "请在设置中启用服务提供方后再发送消息",
-  "composer.placeholder.followUp": "提出后续修改或添加图片",
   "composer.placeholder.disconnected": "提出修改、发送后续消息或添加图片",
   "composer.placeholder.default": "输入任何问题，@ 引用文件或文件夹，$ 使用技能，/ 使用命令",
 
@@ -3449,10 +3458,22 @@ export const ZH_CN_MESSAGES = {
   "gitAction.group": "Git 操作",
   "gitAction.options": "Git 操作选项",
   "gitAction.commit": "提交",
+  "gitAction.commitPush": "提交并推送",
+  "gitAction.commitPushCreateChangeRequest": "提交、推送并创建{request}",
+  "gitAction.pull": "拉取",
   "gitAction.push": "推送",
+  "gitAction.pushCreateChangeRequest": "推送并创建{request}",
+  "gitAction.syncRef": "同步分支",
   "gitAction.createChangeRequest": "创建{request}",
   "gitAction.viewChangeRequest": "查看{request}",
   "gitAction.publishRepository": "发布仓库...",
+  "gitAction.hint.actionInProgress": "Git 操作正在进行。",
+  "gitAction.hint.branchDiverged": "分支已与上游分叉，请先变基或合并。",
+  "gitAction.hint.branchRequired": "请先创建并签出分支，再推送或打开{request}。",
+  "gitAction.hint.noLocalCommits": "没有可推送的本地提交。",
+  "gitAction.hint.statusUnavailable": "无法获取 Git 状态。",
+  "gitAction.hint.unavailable": "当前无法执行此操作。",
+  "gitAction.hint.upToDate": "分支已是最新，无需操作。",
 
   "projectAction.dialog.addTitle": "添加操作",
   "projectAction.dialog.editTitle": "编辑操作",
@@ -3676,10 +3697,6 @@ export const ZH_CN_MESSAGES = {
   "gitDialog.defaultBranch.pushDescription":
     "此操作会在“{branch}”上推送更改。你可以继续使用此分支，也可以创建功能分支后执行相同操作。",
   "gitDialog.defaultBranch.pushContinue": "推送到 {branch}",
-  "gitDialog.defaultBranch.createTitle": "从默认分支创建{request}？",
-  "gitDialog.defaultBranch.createDescription":
-    "此操作会从“{branch}”创建{request}。你可以继续使用此分支，也可以创建功能分支后执行相同操作。",
-  "gitDialog.defaultBranch.createContinue": "从 {branch} 创建{request}",
   "gitDialog.defaultBranch.pushCreateTitle": "从默认分支推送并创建{request}？",
   "gitDialog.defaultBranch.pushCreateDescription":
     "此操作会推送本地提交，并从“{branch}”创建{request}。你可以继续使用此分支，也可以创建功能分支后执行相同操作。",

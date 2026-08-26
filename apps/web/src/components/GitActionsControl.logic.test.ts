@@ -381,10 +381,12 @@ describe("when: ref has diverged from upstream", () => {
   it("resolveQuickAction returns a disabled sync hint", () => {
     const quick = resolveQuickAction(status({ aheadCount: 2, behindCount: 1 }), false);
     assert.deepEqual(quick, {
+      labelId: "syncRef",
       label: "Sync ref",
       disabled: true,
       kind: "show_hint",
       hint: "Branch has diverged from upstream. Rebase/merge first.",
+      hintId: "branchDiverged",
     });
   });
 });
@@ -743,6 +745,7 @@ describe("when: ref has no upstream configured", () => {
       false,
     );
     assert.deepEqual(quick, {
+      labelId: "publishRepository",
       kind: "open_publish",
       label: "Publish repository",
       disabled: false,
@@ -930,6 +933,25 @@ describe("resolveDefaultBranchActionDialogCopy", () => {
         'This action will commit, push, and create a pull request on "main". You can continue on this ref or create a feature ref and run the same action there.',
       continueLabel: "Commit, push & create PR",
     });
+  });
+
+  it("selects localized copy through the shared resolver", () => {
+    const copies = {
+      commitPush: { title: "提交并推送", description: "说明一", continueLabel: "继续一" },
+      push: { title: "推送", description: "说明二", continueLabel: "继续二" },
+      commitCreate: { title: "提交并创建", description: "说明三", continueLabel: "继续三" },
+      pushCreate: { title: "推送并创建", description: "说明四", continueLabel: "继续四" },
+    };
+
+    assert.deepEqual(
+      resolveDefaultBranchActionDialogCopy({
+        action: "create_pr",
+        branchName: "main",
+        includesCommit: false,
+        copies,
+      }),
+      copies.pushCreate,
+    );
   });
 });
 

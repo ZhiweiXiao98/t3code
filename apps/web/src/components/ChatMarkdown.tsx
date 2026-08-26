@@ -71,6 +71,10 @@ import {
   usePreferredEditor,
 } from "../editorPreferences";
 import { openInEditorMenuLabel } from "../editorLabels";
+import {
+  revealInFileExplorerLabelForKind,
+  revealInFileExplorerLabelForOs,
+} from "./preview/fileExplorerLabel";
 import { resolveDiffThemeName, type DiffThemeName } from "../lib/diffRendering";
 import { fnv1a32 } from "../lib/diffRendering";
 import { LRUCache } from "../lib/lruCache";
@@ -1682,21 +1686,21 @@ function ChatMarkdown({
   const openInEditor = useAtomCommand(shellEnvironment.openInEditor, {
     reportFailure: false,
   });
+  const fileManagerLabels = {
+    finder: t("markdownFile.revealInFinder"),
+    fileExplorer: t("markdownFile.revealInFileExplorer"),
+    files: t("markdownFile.revealInFiles"),
+  };
   const revealInFileManagerLabel =
     environmentId !== null &&
     serverConfig?.shellRevealInFileManager === true &&
     serverConfig.availableEditors.includes("file-manager")
       ? serverConfig.shellRevealInFileManagerKind === undefined
-        ? serverConfig.environment.platform.os === "darwin"
-          ? t("markdownFile.revealInFinder")
-          : serverConfig.environment.platform.os === "windows"
-            ? t("markdownFile.revealInFileExplorer")
-            : t("markdownFile.revealInFiles")
-        : serverConfig.shellRevealInFileManagerKind === "finder"
-          ? t("markdownFile.revealInFinder")
-          : serverConfig.shellRevealInFileManagerKind === "file-explorer"
-            ? t("markdownFile.revealInFileExplorer")
-            : t("markdownFile.revealInFiles")
+        ? revealInFileExplorerLabelForOs(serverConfig.environment.platform.os, fileManagerLabels)
+        : revealInFileExplorerLabelForKind(
+            serverConfig.shellRevealInFileManagerKind,
+            fileManagerLabels,
+          )
       : undefined;
   const revealFileInFileManager = useCallback(
     (filePath: string) => {
