@@ -5,16 +5,10 @@ import {
 } from "../WorkspaceBreadcrumb";
 import { useI18n } from "../../i18n/WebI18nProvider";
 import type { WebMessageKey } from "../../i18n/messages";
+import { SETTINGS_SECTION_MESSAGE_KEYS } from "./settingsSearch";
 
 const SETTINGS_BREADCRUMB_MESSAGE_KEYS: Readonly<Record<string, WebMessageKey>> = {
-  "/settings/general": "settings.section.general",
-  "/settings/appearance": "settings.section.appearance",
-  "/settings/keybindings": "settings.section.keybindings",
-  "/settings/providers": "settings.section.providers",
-  "/settings/integrations": "settings.section.integrations",
-  "/settings/source-control": "settings.section.sourceControl",
-  "/settings/connections": "settings.section.connections",
-  "/settings/archived": "settings.section.archive",
+  ...SETTINGS_SECTION_MESSAGE_KEYS,
   "/settings/diagnostics": "settings.diagnostics",
 };
 

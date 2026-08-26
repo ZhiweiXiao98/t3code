@@ -1431,8 +1431,7 @@ export const EN_MESSAGES = {
   "draftHero.chooseProject": "Choose a project",
   "draftHero.newProject": "New project",
   "draftHero.addProject": "Add a project",
-  "draftHero.questionBeforeProject": "What should we build in ",
-  "draftHero.questionAfterProject": "?",
+  "draftHero.question": "What should we build in {project}?",
   "draftHero.chooseProjectToStart": "{project} to start",
   "draftHero.addProjectToStart": "Add a project to start",
 
@@ -3337,8 +3336,7 @@ export const ZH_CN_MESSAGES = {
   "draftHero.chooseProject": "选择项目",
   "draftHero.newProject": "新建项目",
   "draftHero.addProject": "添加项目",
-  "draftHero.questionBeforeProject": "想在 ",
-  "draftHero.questionAfterProject": " 中构建什么？",
+  "draftHero.question": "想在 {project} 中构建什么？",
   "draftHero.chooseProjectToStart": "选择 {project} 开始",
   "draftHero.addProjectToStart": "添加项目后开始",
 

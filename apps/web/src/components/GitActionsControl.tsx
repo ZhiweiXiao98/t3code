@@ -1935,7 +1935,7 @@ export default function GitActionsControl({
                 });
                 if (item.disabled && disabledReason) {
                   return (
-                    <Popover key={`${item.id}-${item.label}`}>
+                    <Popover key={item.id}>
                       <PopoverTrigger
                         openOnHover
                         nativeButton={false}
@@ -1958,7 +1958,7 @@ export default function GitActionsControl({
 
                 return (
                   <MenuItem
-                    key={`${item.id}-${item.label}`}
+                    key={item.id}
                     disabled={item.disabled}
                     onClick={() => {
                       openDialogForMenuItem(item);

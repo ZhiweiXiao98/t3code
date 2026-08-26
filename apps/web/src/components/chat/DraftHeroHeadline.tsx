@@ -6,7 +6,7 @@ import { useCallback, useMemo } from "react";
 import { openCommandPalette } from "~/commandPaletteBus";
 import { useNewThreadHandler } from "~/hooks/useHandleNewThread";
 import { useClientSettings } from "~/hooks/useSettings";
-import { useI18n } from "~/i18n/WebI18nProvider";
+import { splitWebTranslation, useI18n } from "~/i18n/WebI18nProvider";
 import { selectProjectGroupingSettings } from "~/logicalProject";
 import {
   buildSidebarProjectPickerEntries,
@@ -99,7 +99,8 @@ export function DraftHeroHeadline({
   const hasResolvedProject = activeProjectTitle !== null;
   const canChooseProject = projectPickerEntries.length > 0;
   const shouldShowProjectMenu = canChooseProject;
-  const chooseProjectToStart = t("draftHero.chooseProjectToStart").split("{project}");
+  const questionAroundProject = splitWebTranslation(t, "draftHero.question", "project");
+  const chooseProjectToStart = splitWebTranslation(t, "draftHero.chooseProjectToStart", "project");
 
   const projectSelector = shouldShowProjectMenu ? (
     <Menu>
@@ -175,9 +176,9 @@ export function DraftHeroHeadline({
     <h1 className="mx-auto w-full max-w-5xl text-center font-normal text-2xl text-foreground tracking-tight sm:text-3xl">
       {hasResolvedProject ? (
         <>
-          {t("draftHero.questionBeforeProject")}
+          {questionAroundProject[0]}
           {projectSelector}
-          {t("draftHero.questionAfterProject")}
+          {questionAroundProject[1]}
         </>
       ) : canChooseProject ? (
         <>

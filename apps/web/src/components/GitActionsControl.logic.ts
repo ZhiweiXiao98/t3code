@@ -6,7 +6,6 @@ import type {
 import { isTemporaryWorktreeBranch } from "@t3tools/shared/git";
 import {
   DEFAULT_CHANGE_REQUEST_TERMINOLOGY,
-  getChangeRequestTerminology,
   type ChangeRequestTerminology,
 } from "../sourceControlPresentation";
 
@@ -16,7 +15,6 @@ export type GitDialogAction = "commit" | "push" | "create_pr";
 
 export interface GitActionMenuItem {
   id: "commit" | "push" | "pr";
-  label: string;
   disabled: boolean;
   icon: GitActionIconName;
   kind: "open_dialog" | "open_pr";
@@ -66,14 +64,6 @@ export type DefaultBranchConfirmableAction =
   | "commit_push"
   | "commit_push_pr";
 
-function resolveChangeRequestTerminology(
-  gitStatus: VcsStatusResult | null,
-): ChangeRequestTerminology {
-  return gitStatus?.sourceControlProvider
-    ? getChangeRequestTerminology(gitStatus.sourceControlProvider)
-    : DEFAULT_CHANGE_REQUEST_TERMINOLOGY;
-}
-
 export function buildGitActionProgressStages(input: {
   action: GitStackedAction;
   hasCustomCommitMessage: boolean;
@@ -120,7 +110,6 @@ export function buildMenuItems(
   hasPrimaryRemote = true,
 ): GitActionMenuItem[] {
   if (!gitStatus) return [];
-  const terminology = resolveChangeRequestTerminology(gitStatus);
 
   const hasBranch = gitStatus.refName !== null;
   const hasChanges = gitStatus.hasWorkingTreeChanges;
@@ -147,7 +136,6 @@ export function buildMenuItems(
 
   const commitItem: GitActionMenuItem = {
     id: "commit",
-    label: "Commit",
     disabled: !canCommit,
     icon: "commit",
     kind: "open_dialog",
@@ -162,7 +150,6 @@ export function buildMenuItems(
     commitItem,
     {
       id: "push",
-      label: "Push",
       disabled: !canPush,
       icon: "push",
       kind: "open_dialog",
@@ -171,14 +158,12 @@ export function buildMenuItems(
     hasOpenPr
       ? {
           id: "pr",
-          label: `View ${terminology.shortLabel}`,
           disabled: !canOpenPr,
           icon: "pr",
           kind: "open_pr",
         }
       : {
           id: "pr",
-          label: `Create ${terminology.shortLabel}`,
           disabled: !canCreatePr,
           icon: "pr",
           kind: "open_dialog",

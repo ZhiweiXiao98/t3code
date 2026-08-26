@@ -71,7 +71,6 @@ describe("when: ref is clean and has an open PR", () => {
     assert.deepEqual(items, [
       {
         id: "commit",
-        label: "Commit",
         disabled: true,
         icon: "commit",
         kind: "open_dialog",
@@ -79,7 +78,6 @@ describe("when: ref is clean and has an open PR", () => {
       },
       {
         id: "push",
-        label: "Push",
         disabled: true,
         icon: "push",
         kind: "open_dialog",
@@ -87,7 +85,6 @@ describe("when: ref is clean and has an open PR", () => {
       },
       {
         id: "pr",
-        label: "View PR",
         disabled: false,
         icon: "pr",
         kind: "open_pr",
@@ -112,7 +109,6 @@ describe("when: actions are busy", () => {
     assert.deepEqual(items, [
       {
         id: "commit",
-        label: "Commit",
         disabled: true,
         icon: "commit",
         kind: "open_dialog",
@@ -120,7 +116,6 @@ describe("when: actions are busy", () => {
       },
       {
         id: "push",
-        label: "Push",
         disabled: true,
         icon: "push",
         kind: "open_dialog",
@@ -128,7 +123,6 @@ describe("when: actions are busy", () => {
       },
       {
         id: "pr",
-        label: "Create PR",
         disabled: true,
         icon: "pr",
         kind: "open_dialog",
@@ -192,7 +186,6 @@ describe("when: ref is clean, ahead, and has an open PR", () => {
     assert.deepEqual(items, [
       {
         id: "commit",
-        label: "Commit",
         disabled: true,
         icon: "commit",
         kind: "open_dialog",
@@ -200,7 +193,6 @@ describe("when: ref is clean, ahead, and has an open PR", () => {
       },
       {
         id: "push",
-        label: "Push",
         disabled: false,
         icon: "push",
         kind: "open_dialog",
@@ -208,7 +200,6 @@ describe("when: ref is clean, ahead, and has an open PR", () => {
       },
       {
         id: "pr",
-        label: "View PR",
         disabled: false,
         icon: "pr",
         kind: "open_pr",
@@ -232,7 +223,6 @@ describe("when: ref is clean, ahead, and has no open PR", () => {
     assert.deepEqual(items, [
       {
         id: "commit",
-        label: "Commit",
         disabled: true,
         icon: "commit",
         kind: "open_dialog",
@@ -240,7 +230,6 @@ describe("when: ref is clean, ahead, and has no open PR", () => {
       },
       {
         id: "push",
-        label: "Push",
         disabled: false,
         icon: "push",
         kind: "open_dialog",
@@ -248,7 +237,6 @@ describe("when: ref is clean, ahead, and has no open PR", () => {
       },
       {
         id: "pr",
-        label: "Create PR",
         disabled: false,
         icon: "pr",
         kind: "open_dialog",
@@ -279,7 +267,6 @@ describe("when: source control provider uses merge requests", () => {
     });
     assert.deepInclude(items[2], {
       id: "pr",
-      label: "Create MR",
     });
   });
 });
@@ -318,7 +305,6 @@ describe("when: ref is clean, up to date, and has no open PR", () => {
     assert.deepEqual(items, [
       {
         id: "commit",
-        label: "Commit",
         disabled: true,
         icon: "commit",
         kind: "open_dialog",
@@ -326,7 +312,6 @@ describe("when: ref is clean, up to date, and has no open PR", () => {
       },
       {
         id: "push",
-        label: "Push",
         disabled: true,
         icon: "push",
         kind: "open_dialog",
@@ -334,7 +319,6 @@ describe("when: ref is clean, up to date, and has no open PR", () => {
       },
       {
         id: "pr",
-        label: "Create PR",
         disabled: true,
         icon: "pr",
         kind: "open_dialog",
@@ -355,7 +339,6 @@ describe("when: ref is behind upstream", () => {
     assert.deepEqual(items, [
       {
         id: "commit",
-        label: "Commit",
         disabled: true,
         icon: "commit",
         kind: "open_dialog",
@@ -363,7 +346,6 @@ describe("when: ref is behind upstream", () => {
       },
       {
         id: "push",
-        label: "Push",
         disabled: true,
         icon: "push",
         kind: "open_dialog",
@@ -371,7 +353,6 @@ describe("when: ref is behind upstream", () => {
       },
       {
         id: "pr",
-        label: "Create PR",
         disabled: true,
         icon: "pr",
         kind: "open_dialog",
@@ -445,7 +426,6 @@ describe("when: working tree has local changes", () => {
     assert.deepEqual(items, [
       {
         id: "commit",
-        label: "Commit",
         disabled: false,
         icon: "commit",
         kind: "open_dialog",
@@ -453,7 +433,6 @@ describe("when: working tree has local changes", () => {
       },
       {
         id: "push",
-        label: "Push",
         disabled: true,
         icon: "push",
         kind: "open_dialog",
@@ -461,7 +440,6 @@ describe("when: working tree has local changes", () => {
       },
       {
         id: "pr",
-        label: "Create PR",
         disabled: true,
         icon: "pr",
         kind: "open_dialog",
@@ -487,7 +465,6 @@ describe("when: working tree has local changes", () => {
     assert.deepEqual(items, [
       {
         id: "commit",
-        label: "Commit",
         disabled: false,
         icon: "commit",
         kind: "open_dialog",
@@ -495,7 +472,6 @@ describe("when: working tree has local changes", () => {
       },
       {
         id: "push",
-        label: "Push",
         disabled: false,
         icon: "push",
         kind: "open_dialog",
@@ -503,7 +479,6 @@ describe("when: working tree has local changes", () => {
       },
       {
         id: "pr",
-        label: "Create PR",
         disabled: true,
         icon: "pr",
         kind: "open_dialog",
@@ -561,7 +536,6 @@ describe("when: working tree has local changes and ref is behind upstream", () =
     assert.deepEqual(items, [
       {
         id: "commit",
-        label: "Commit",
         disabled: false,
         icon: "commit",
         kind: "open_dialog",
@@ -569,7 +543,6 @@ describe("when: working tree has local changes and ref is behind upstream", () =
       },
       {
         id: "push",
-        label: "Push",
         disabled: true,
         icon: "push",
         kind: "open_dialog",
@@ -577,7 +550,6 @@ describe("when: working tree has local changes and ref is behind upstream", () =
       },
       {
         id: "pr",
-        label: "Create PR",
         disabled: true,
         icon: "pr",
         kind: "open_dialog",
@@ -601,7 +573,6 @@ describe("when: HEAD is detached and there are no local changes", () => {
     assert.deepEqual(items, [
       {
         id: "commit",
-        label: "Commit",
         disabled: true,
         icon: "commit",
         kind: "open_dialog",
@@ -609,7 +580,6 @@ describe("when: HEAD is detached and there are no local changes", () => {
       },
       {
         id: "push",
-        label: "Push",
         disabled: true,
         icon: "push",
         kind: "open_dialog",
@@ -617,7 +587,6 @@ describe("when: HEAD is detached and there are no local changes", () => {
       },
       {
         id: "pr",
-        label: "Create PR",
         disabled: true,
         icon: "pr",
         kind: "open_dialog",
@@ -693,7 +662,6 @@ describe("when: ref has no upstream configured", () => {
     assert.deepEqual(items, [
       {
         id: "commit",
-        label: "Commit",
         disabled: true,
         icon: "commit",
         kind: "open_dialog",
@@ -701,7 +669,6 @@ describe("when: ref has no upstream configured", () => {
       },
       {
         id: "push",
-        label: "Push",
         disabled: true,
         icon: "push",
         kind: "open_dialog",
@@ -709,7 +676,6 @@ describe("when: ref has no upstream configured", () => {
       },
       {
         id: "pr",
-        label: "Create PR",
         disabled: true,
         icon: "pr",
         kind: "open_dialog",
@@ -758,7 +724,6 @@ describe("when: ref has no upstream configured", () => {
     assert.deepEqual(items, [
       {
         id: "commit",
-        label: "Commit",
         disabled: true,
         icon: "commit",
         kind: "open_dialog",
@@ -766,7 +731,6 @@ describe("when: ref has no upstream configured", () => {
       },
       {
         id: "push",
-        label: "Push",
         disabled: false,
         icon: "push",
         kind: "open_dialog",
@@ -774,7 +738,6 @@ describe("when: ref has no upstream configured", () => {
       },
       {
         id: "pr",
-        label: "Create PR",
         disabled: false,
         icon: "pr",
         kind: "open_dialog",
@@ -792,7 +755,6 @@ describe("when: ref has no upstream configured", () => {
     assert.deepEqual(items, [
       {
         id: "commit",
-        label: "Commit",
         disabled: true,
         icon: "commit",
         kind: "open_dialog",
@@ -852,7 +814,6 @@ describe("when: ref has no upstream configured", () => {
     assert.deepEqual(items, [
       {
         id: "commit",
-        label: "Commit",
         disabled: true,
         icon: "commit",
         kind: "open_dialog",
@@ -860,7 +821,6 @@ describe("when: ref has no upstream configured", () => {
       },
       {
         id: "push",
-        label: "Push",
         disabled: true,
         icon: "push",
         kind: "open_dialog",
@@ -868,7 +828,6 @@ describe("when: ref has no upstream configured", () => {
       },
       {
         id: "pr",
-        label: "Create PR",
         disabled: true,
         icon: "pr",
         kind: "open_dialog",

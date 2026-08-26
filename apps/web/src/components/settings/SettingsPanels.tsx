@@ -17,6 +17,7 @@ import {
   squashAtomCommandFailure,
 } from "@t3tools/client-runtime/state/runtime";
 import {
+  DEFAULT_APP_LOCALE_PREFERENCE,
   DEFAULT_ENVIRONMENT_IDENTIFICATION_MODE,
   DEFAULT_UNIFIED_SETTINGS,
   type EnvironmentIdentificationMode,
@@ -2054,6 +2055,14 @@ export function GeneralSettingsPanel() {
           {...searchableSetting("language")}
           title={t("settings.language.title")}
           description={t("settings.language.description")}
+          resetAction={
+            appLocale !== DEFAULT_APP_LOCALE_PREFERENCE ? (
+              <SettingResetButton
+                label={t("settings.language.title")}
+                onClick={() => setAppLocale(DEFAULT_APP_LOCALE_PREFERENCE)}
+              />
+            ) : null
+          }
           control={
             <Select
               value={appLocale}
