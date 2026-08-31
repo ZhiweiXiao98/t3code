@@ -15,6 +15,7 @@ import * as ElectronTheme from "../electron/ElectronTheme.ts";
 import * as ElectronWindow from "../electron/ElectronWindow.ts";
 import * as DesktopState from "./DesktopState.ts";
 import * as DesktopWindow from "../window/DesktopWindow.ts";
+import * as DesktopTray from "../window/DesktopTray.ts";
 
 export class DesktopLifecycleRelaunchError extends Schema.TaggedErrorClass<DesktopLifecycleRelaunchError>()(
   "DesktopLifecycleRelaunchError",
@@ -33,6 +34,7 @@ export type DesktopLifecycleRuntimeServices =
   | DesktopShutdown.DesktopShutdown
   | DesktopState.DesktopState
   | DesktopWindow.DesktopWindow
+  | DesktopTray.DesktopTray
   | ElectronApp.ElectronApp
   | ElectronTheme.ElectronTheme;
 
@@ -41,7 +43,7 @@ type DesktopLifecycleRegistrationServices =
   | ElectronWindow.ElectronWindow;
 
 /**
- * @effect-expect-leaking DesktopEnvironment | DesktopShutdown | DesktopState | DesktopWindow | ElectronApp | ElectronTheme | ElectronWindow
+ * @effect-expect-leaking DesktopEnvironment | DesktopShutdown | DesktopState | DesktopTray | DesktopWindow | ElectronApp | ElectronTheme | ElectronWindow
  */
 export class DesktopLifecycle extends Context.Service<
   DesktopLifecycle,
@@ -189,6 +191,7 @@ export const make = DesktopLifecycle.of({
   }),
   register: Effect.gen(function* () {
     const desktopWindow = yield* DesktopWindow.DesktopWindow;
+    const desktopTray = yield* DesktopTray.DesktopTray;
     const electronApp = yield* ElectronApp.ElectronApp;
     const electronTheme = yield* ElectronTheme.ElectronTheme;
     const environment = yield* DesktopEnvironment.DesktopEnvironment;
@@ -202,6 +205,7 @@ export const make = DesktopLifecycle.of({
       );
     });
     yield* electronApp.onBeforeQuitForUpdate(() => {
+      desktopTray.markQuitRequested();
       // Electron's updater owns the remaining quit/install/relaunch sequence.
       // Cancelling the following app "before-quit" event breaks that sequence,
       // most visibly on macOS where the native updater performs the relaunch.
@@ -213,6 +217,7 @@ export const make = DesktopLifecycle.of({
       );
     });
     yield* electronApp.on("before-quit", (event: Electron.Event) => {
+      desktopTray.markQuitRequested();
       handleBeforeQuit(
         event,
         runEffect,

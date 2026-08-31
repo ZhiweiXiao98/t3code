@@ -46,6 +46,7 @@ import * as ElectronWindow from "../electron/ElectronWindow.ts";
 import { MENU_ACTION_CHANNEL, WINDOW_FULLSCREEN_STATE_CHANNEL } from "../ipc/channels.ts";
 import * as DesktopServerExposure from "../backend/DesktopServerExposure.ts";
 import * as DesktopWindow from "./DesktopWindow.ts";
+import * as DesktopTray from "./DesktopTray.ts";
 import * as PreviewManager from "../preview/Manager.ts";
 
 const environmentInput = {
@@ -87,6 +88,7 @@ function makeFakeBrowserWindow() {
   const window = {
     close: vi.fn(),
     focus: vi.fn(),
+    hide: vi.fn(),
     getBounds: vi.fn(() => ({ x: 0, y: 0, width: 1100, height: 780 })),
     getNormalBounds: vi.fn(() => ({ x: 0, y: 0, width: 1100, height: 780 })),
     isDestroyed: vi.fn(() => false),
@@ -127,6 +129,7 @@ function makeFakeBrowserWindow() {
     setZoomLevel: webContents.setZoomLevel,
     setBackgroundThrottling: webContents.setBackgroundThrottling,
     setAutoHideCursor: window.setAutoHideCursor,
+    hide: window.hide,
     webContentsListeners,
     windowListeners,
   };
@@ -176,6 +179,14 @@ const electronThemeLayer = Layer.succeed(ElectronTheme.ElectronTheme, {
   onUpdated: () => Effect.void,
 } satisfies ElectronTheme.ElectronTheme["Service"]);
 
+const desktopTray = {
+  ensure: () => Effect.succeed(false),
+  markQuitRequested: () => undefined,
+  shouldHideOnClose: () => false,
+} satisfies DesktopTray.DesktopTray["Service"];
+
+const desktopTrayLayer = Layer.succeed(DesktopTray.DesktopTray, desktopTray);
+
 const desktopEnvironmentLayer = DesktopEnvironment.layer(environmentInput).pipe(
   Layer.provide(
     Layer.mergeAll(
@@ -205,6 +216,7 @@ function makeTestLayer(input: {
   ) => Effect.Effect<void>;
   readonly openedExternalUrls?: unknown[];
   readonly previewZoomReapplies?: number[];
+  readonly desktopTray?: DesktopTray.DesktopTray["Service"];
 }) {
   let desktopSettings = input.desktopSettings ?? DesktopAppSettings.DEFAULT_DESKTOP_SETTINGS;
   const desktopAppSettingsLayer = Layer.succeed(DesktopAppSettings.DesktopAppSettings, {
@@ -279,6 +291,7 @@ function makeTestLayer(input: {
           copyText: () => Effect.void,
         } satisfies ElectronShell.ElectronShell["Service"]),
         electronThemeLayer,
+        Layer.succeed(DesktopTray.DesktopTray, input.desktopTray ?? desktopTray),
         electronWindowLayer,
         Layer.mock(PreviewManager.PreviewManager)({
           getBrowserSession: () => Effect.succeed({} as Electron.Session),
@@ -379,6 +392,7 @@ const makeSplashScenario = (createOutcomes: readonly (Electron.BrowserWindow | n
             copyText: () => Effect.void,
           } satisfies ElectronShell.ElectronShell["Service"]),
           electronThemeLayer,
+          desktopTrayLayer,
           Layer.succeed(ElectronWindow.ElectronWindow, electronWindowShape),
           Layer.mock(PreviewManager.PreviewManager)({
             getBrowserSession: () => Effect.succeed({} as Electron.Session),
@@ -707,6 +721,50 @@ describe("DesktopWindow", () => {
         assert.deepEqual(mainWindowMaximizedUpdates, [true]);
         assert.equal(fakeWindow.getNormalBounds.mock.calls.length, 1);
         assert.equal(fakeWindow.getBounds.mock.calls.length, 0);
+      }).pipe(Effect.provide(layer));
+    }),
+  );
+
+  it.effect("hides the main window when the Windows tray intercepts close", () =>
+    Effect.gen(function* () {
+      const fakeWindow = makeFakeBrowserWindow();
+      const createCount = yield* Ref.make(0);
+      const mainWindow = yield* Ref.make<Option.Option<Electron.BrowserWindow>>(Option.none());
+      let shouldHideOnClose = true;
+      const layer = makeTestLayer({
+        window: fakeWindow.window,
+        createCount,
+        mainWindow,
+        desktopTray: {
+          ensure: () => Effect.succeed(true),
+          markQuitRequested: () => {
+            shouldHideOnClose = false;
+          },
+          shouldHideOnClose: () => shouldHideOnClose,
+        },
+      });
+
+      yield* Effect.gen(function* () {
+        const desktopWindow = yield* DesktopWindow.DesktopWindow;
+        yield* desktopWindow.handleBackendReady(new URL("http://127.0.0.1:3773"));
+
+        const close = fakeWindow.windowListeners.get("close");
+        if (!close) {
+          return yield* Effect.die("window close listener was not registered");
+        }
+
+        let prevented = false;
+        close({ preventDefault: () => (prevented = true) });
+
+        assert.isTrue(prevented);
+        assert.equal(fakeWindow.hide.mock.calls.length, 1);
+
+        shouldHideOnClose = false;
+        prevented = false;
+        close({ preventDefault: () => (prevented = true) });
+
+        assert.isFalse(prevented);
+        assert.equal(fakeWindow.hide.mock.calls.length, 1);
       }).pipe(Effect.provide(layer));
     }),
   );

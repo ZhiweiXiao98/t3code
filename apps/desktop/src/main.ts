@@ -60,6 +60,7 @@ import * as DesktopUpdates from "./updates/DesktopUpdates.ts";
 import * as BrowserSession from "./preview/BrowserSession.ts";
 import * as PreviewManager from "./preview/Manager.ts";
 import * as DesktopWindow from "./window/DesktopWindow.ts";
+import * as DesktopTray from "./window/DesktopTray.ts";
 import * as DesktopWslBackend from "./wsl/DesktopWslBackend.ts";
 import * as DesktopWslEnvironment from "./wsl/DesktopWslEnvironment.ts";
 import * as DesktopWslServerTree from "./wsl/DesktopWslServerTree.ts";
@@ -153,6 +154,7 @@ const desktopPreviewLayer = PreviewManager.layer.pipe(
 );
 
 const desktopWindowLayer = DesktopWindow.layer.pipe(
+  Layer.provideMerge(DesktopTray.layer),
   Layer.provideMerge(desktopServerExposureLayer),
   Layer.provideMerge(desktopPreviewLayer),
 );

@@ -14,6 +14,7 @@ export interface DesktopApplicationMenuMessages {
   readonly hide: (appName: string) => string;
   readonly hideOthers: string;
   readonly showAll: string;
+  readonly open: (appName: string) => string;
   readonly quit: (appName: string) => string;
   readonly closeWindow: string;
   readonly undo: string;
@@ -58,6 +59,7 @@ const messages = {
     hide: (appName) => `Hide ${appName}`,
     hideOthers: "Hide Others",
     showAll: "Show All",
+    open: (appName) => `Open ${appName}`,
     quit: (appName) => `Quit ${appName}`,
     closeWindow: "Close Window",
     undo: "Undo",
@@ -100,6 +102,7 @@ const messages = {
     hide: (appName) => `隐藏 ${appName}`,
     hideOthers: "隐藏其他应用",
     showAll: "全部显示",
+    open: (appName) => `打开 ${appName}`,
     quit: (appName) => `退出 ${appName}`,
     closeWindow: "关闭窗口",
     undo: "撤销",
