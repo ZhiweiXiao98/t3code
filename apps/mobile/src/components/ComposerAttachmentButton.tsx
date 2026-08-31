@@ -1,12 +1,13 @@
 import type { MenuAction } from "@react-native-menu/menu";
 import { Pressable } from "react-native";
 
+import { localizeMobileString } from "../i18n/mobileStrings";
 import { SymbolView } from "./AppSymbol";
 import { ControlPillMenu } from "./ControlPill";
 
 const ATTACHMENT_MENU_ACTIONS: MenuAction[] = [
-  { id: "photos", title: "Photo Library", image: "photo" },
-  { id: "files", title: "Choose Files", image: "folder" },
+  { id: "photos", title: localizeMobileString("Photo Library"), image: "photo" },
+  { id: "files", title: localizeMobileString("Choose Files"), image: "folder" },
 ];
 
 export function ComposerAttachmentButton(props: {
@@ -17,7 +18,7 @@ export function ComposerAttachmentButton(props: {
 }) {
   const button = (
     <Pressable
-      accessibilityLabel="Add attachment"
+      accessibilityLabel={localizeMobileString("Add attachment")}
       accessibilityRole="button"
       accessibilityState={{ disabled: props.disabled }}
       className="size-[44px] shrink-0 items-center justify-center rounded-full active:opacity-70 disabled:opacity-50"

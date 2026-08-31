@@ -21,6 +21,7 @@ import Animated, {
 
 import { AppText as Text } from "../../components/AppText";
 import { SymbolView, type AppSymbolName } from "../../components/AppSymbol";
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { cn } from "../../lib/cn";
 import type { VoiceComposerPresentation } from "./voiceInputPresentation";
 import { VOICE_WAVEFORM_SAMPLE_COUNT } from "./voiceInputMetering";
@@ -304,7 +305,7 @@ export function ComposerDictationStatus(props: {
             {props.presentation.statusLabel}
           </Text>
           <Pressable
-            accessibilityLabel="Dismiss voice input error"
+            accessibilityLabel={localizeMobileString("Dismiss voice input error")}
             accessibilityRole="button"
             className="size-7 items-center justify-center active:opacity-70"
             hitSlop={8}
@@ -321,7 +322,7 @@ export function ComposerDictationStatus(props: {
       ) : (
         <View
           accessible
-          accessibilityLabel={props.presentation.statusLabel}
+          accessibilityLabel={localizeMobileString(props.presentation.statusLabel)}
           accessibilityLiveRegion={props.phase === "recording" ? "none" : "polite"}
           className="h-11"
         >
@@ -356,7 +357,7 @@ export function ComposerDictationCancelAction(props: {
   if (props.presentation.leadingAction !== "cancel") return null;
   return (
     <VoiceActionButton
-      accessibilityLabel="Cancel dictation"
+      accessibilityLabel={localizeMobileString("Cancel dictation")}
       icon="xmark"
       onPress={props.onCancel}
     />
@@ -375,11 +376,11 @@ export function ComposerDictationPrimaryAction(props: {
   if (props.presentation.trailingAction === "confirm") {
     return (
       <VoiceActionButton
-        accessibilityLabel={
+        accessibilityLabel={localizeMobileString(
           props.presentation.confirmationEnabled
             ? "Finish dictation"
-            : (props.presentation.statusLabel ?? "Preparing voice input")
-        }
+            : (props.presentation.statusLabel ?? "Preparing voice input"),
+        )}
         disabled={!props.presentation.confirmationEnabled}
         icon="checkmark"
         loading={!props.presentation.confirmationEnabled}
@@ -403,7 +404,9 @@ export function ComposerDictationStartAction(props: {
   const openSettings = props.state.phase === "error" && props.state.errorAction === "settings";
   return (
     <VoiceActionButton
-      accessibilityLabel={openSettings ? "Open microphone settings" : "Start dictation"}
+      accessibilityLabel={localizeMobileString(
+        openSettings ? "Open microphone settings" : "Start dictation",
+      )}
       disabled={props.disabled}
       icon="mic"
       onPress={

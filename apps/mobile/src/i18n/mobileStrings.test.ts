@@ -29,6 +29,14 @@ describe("mobile strings", () => {
         "zh-CN",
       ),
     ).toBe("此会话已有 2 小时 5 分钟，当前使用 250,000 个令牌。是否先压缩再继续？");
+    expect(localizeMobileString("Recording 1:04", "zh-CN")).toBe("正在录音 1:04");
+  });
+
+  it("translates attachment and voice input controls", () => {
+    expect(localizeMobileString("Photo Library", "zh-CN")).toBe("照片图库");
+    expect(localizeMobileString("Choose Files", "zh-CN")).toBe("选择文件");
+    expect(localizeMobileString("Preparing", "zh-CN")).toBe("正在准备");
+    expect(localizeMobileString("Transcribing", "zh-CN")).toBe("正在转写");
   });
 
   it("translates workspace image and Codex feedback states", () => {

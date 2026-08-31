@@ -60,10 +60,12 @@ const ZH_CN_MESSAGES = {
   Catalog: "目录",
   "Changed files": "已更改文件",
   "Choose project": "选择项目",
+  "Choose model": "选择模型",
   "Choose a thread from the sidebar or start a new task.": "从侧栏选择任务，或新建任务。",
   "Choose another environment or create a new task.": "选择其他环境，或新建任务。",
   "Choose another project or create a new task.": "选择其他项目，或新建任务。",
   "Choose branch": "选择分支",
+  "Choose Files": "选择文件",
   Clear: "清除",
   "Clear all client caches?": "清除所有客户端缓存？",
   "Clear search": "清除搜索",
@@ -133,6 +135,7 @@ const ZH_CN_MESSAGES = {
   "Default grouping": "默认分组",
   "Delete pending task?": "删除待处理任务？",
   "Device Notifications": "设备通知",
+  "Dismiss voice input error": "关闭语音输入错误",
   "Disable notifications": "关闭通知",
   "Dismiss keyboard": "收起键盘",
   Environment: "环境",
@@ -168,6 +171,7 @@ const ZH_CN_MESSAGES = {
   Label: "名称",
   "Latest turn": "最新轮次",
   "Last user message": "最近用户消息",
+  "Live Activity Updates": "实时活动更新",
   Light: "浅色",
   "Leave a comment...": "留下评论…",
   "Leave empty to auto-generate": "留空以自动生成",
@@ -194,6 +198,9 @@ const ZH_CN_MESSAGES = {
   "Mobile control surface for your live coding environments": "随时控制正在运行的编程环境",
   "Model and reasoning settings": "模型与推理设置",
   "Model filters": "模型筛选",
+  "Microphone unavailable": "麦克风不可用",
+  "Move down": "下移",
+  "Move up": "上移",
   "Messages not cached": "消息尚未缓存",
   More: "更多",
   "more files": "个其他文件",
@@ -241,11 +248,13 @@ const ZH_CN_MESSAGES = {
   "Oldest first": "最早优先",
   "Open files": "打开文件",
   "Open in Browser": "在浏览器中打开",
+  "Open in browser": "在浏览器中打开",
   "Open in Safari": "在浏览器中打开",
   "Open legal documents in external browser": "在外部浏览器中打开法律文档",
   "Open new terminal": "打开新终端",
   "Open terminal to start a shell.": "打开终端以启动 Shell。",
   "Open settings": "打开设置",
+  "Open microphone settings": "打开麦克风设置",
   Offline: "离线",
   "Opt into retired interfaces kept for compatibility. Plan Mode restores the Build/Plan control; otherwise every task runs in Build mode.":
     "启用为兼容性保留的旧版界面。计划模式会恢复构建/计划控制；否则所有任务均以构建模式运行。",
@@ -258,7 +267,12 @@ const ZH_CN_MESSAGES = {
   Pending: "等待中",
   "Plain text": "纯文本",
   "Plan Mode": "计划模式",
+  Plan: "方案",
+  Build: "执行",
   "Plan Ready": "计划已就绪",
+  "Photo Library": "照片图库",
+  Preparing: "正在准备",
+  "Preparing voice input": "正在准备语音输入",
   Pin: "置顶",
   "Preparing image preview...": "正在准备图片预览…",
   "Preparing preview...": "正在准备预览…",
@@ -266,6 +280,7 @@ const ZH_CN_MESSAGES = {
   "Preview failed": "预览失败",
   "Preview limited to the first 1 MB of a truncated file.": "截断文件仅预览前 1 MB。",
   "Processed tokens": "已处理 Token",
+  Photos: "照片",
   Project: "项目",
   "Project already exists": "项目已存在",
   "Project Grouping": "项目分组",
@@ -280,6 +295,7 @@ const ZH_CN_MESSAGES = {
   Queued: "已排队",
   "queued message": "条排队消息",
   Refresh: "刷新",
+  "Refresh models": "刷新模型",
   "Refresh archived threads": "刷新已归档任务",
   "Refresh files": "刷新文件",
   "Remove environment?": "移除环境？",
@@ -292,6 +308,7 @@ const ZH_CN_MESSAGES = {
   "Return to chat": "返回对话",
   "Review changes": "审查更改",
   "Review unavailable": "审查不可用",
+  "Run command": "运行命令",
   "Route not found": "找不到页面",
   Runtime: "运行环境",
   Save: "保存",
@@ -329,13 +346,16 @@ const ZH_CN_MESSAGES = {
   "Sort threads": "排序任务",
   Source: "源文件",
   "Start another shell for this thread": "为此任务启动另一个终端",
+  "Start dictation": "开始语音输入",
   "Start from origin": "从 origin 开始",
   "Start or reconnect an environment before adding a project.":
     "添加项目前，请先启动或重新连接环境。",
   Stop: "停止",
+  "Stop agent": "停止 Agent",
   Supervised: "监督模式",
   System: "跟随系统",
   "Syncing messages...": "正在同步消息…",
+  Transcribing: "正在转写",
   "Storage unavailable": "存储不可用",
   "Submit answers": "提交回答",
   "Switch branch, create branch, or move to a worktree": "切换或创建分支，或移动到工作树",
@@ -401,6 +421,7 @@ const ZH_CN_MESSAGES = {
   Unpriced: "未计价",
   "Update failed": "更新失败",
   "Update ready": "更新已就绪",
+  "Use template": "使用模板",
   "Start a Codex thread first": "请先启动 Codex 任务",
   "Send a message before you submit feedback.": "发送一条消息后才能提交反馈。",
   "Could not send feedback to OpenAI": "无法向 OpenAI 发送反馈",
@@ -435,10 +456,27 @@ const ZH_CN_MESSAGES = {
   "Resume session": "继续会话",
   "Resume with a summary and use fewer tokens.": "生成摘要后继续，以减少令牌用量。",
   "Resume without changing the conversation.": "保留对话不变并继续。",
+  "Cancel dictation": "取消语音输入",
+  "Finish dictation": "完成语音输入",
   Worktree: "工作树",
 } as const satisfies Readonly<Record<string, string>>;
 
 function translateDynamicMessage(value: string): string | null {
+  const recording = /^Recording (\d+:\d{2})$/.exec(value);
+  if (recording) return `正在录音 ${recording[1]}`;
+
+  const working = /^Working for (.+)$/.exec(value);
+  if (working) return `已运行 ${working[1]}`;
+
+  const useTemplate = /^Use (.+) template$/.exec(value);
+  if (useTemplate) return `使用“${useTemplate[1]}”模板`;
+
+  const interactionMode = /^Interaction mode: (Plan|Build)$/.exec(value);
+  if (interactionMode) return `交互模式：${interactionMode[1] === "Plan" ? "方案" : "执行"}`;
+
+  const switchMode = /^Switches to (Plan|Build) mode$/.exec(value);
+  if (switchMode) return `切换到${switchMode[1] === "Plan" ? "方案" : "执行"}模式`;
+
   const claudeResumeQuestion =
     /^This session is (?:(\d+)h (\d+)m|(\d+)m) old and uses (\d{1,3}(?:,\d{3})*) tokens\. Compact it before continuing\?$/.exec(
       value,

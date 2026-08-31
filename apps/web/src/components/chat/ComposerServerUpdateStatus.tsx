@@ -1,6 +1,7 @@
 import type { ServerUpdateState } from "@t3tools/client-runtime/state/server";
 import { useId, useState } from "react";
 
+import { useI18n } from "../../i18n/WebI18nProvider";
 import { serverUpdateStageLabel } from "../ServerUpdateAction";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { ComposerBanner } from "./ComposerBanner";
@@ -13,10 +14,14 @@ export function ComposerServerUpdateStatus({
   readonly state: Exclude<ServerUpdateState, { status: "idle" }>;
   readonly serverLabel?: string;
 }) {
+  const { t } = useI18n();
   const [detailsOpen, setDetailsOpen] = useState(false);
   const triggerId = useId();
-  const title = `${state.status === "failed" ? "Could not update" : "Updating"} ${serverLabel}`;
-  const detail = state.status === "failed" ? state.message : serverUpdateStageLabel(state.stage);
+  const title = t(
+    state.status === "failed" ? "serverUpdate.status.failed" : "serverUpdate.status.updating",
+    { server: serverLabel },
+  );
+  const detail = state.status === "failed" ? state.message : serverUpdateStageLabel(state.stage, t);
   return (
     <span
       role={state.status === "failed" ? "alert" : "status"}

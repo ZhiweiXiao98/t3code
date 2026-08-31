@@ -103,6 +103,7 @@ import {
 import { useAtomCommand } from "../state/use-atom-command";
 import { cn } from "~/lib/utils";
 import { getSourceControlPresentationForKind } from "~/sourceControlPresentation";
+import { useI18n } from "~/i18n/WebI18nProvider";
 
 export interface PullRequestsSearch {
   readonly involvement: PullRequestInvolvement;
@@ -221,9 +222,40 @@ export const Route = createFileRoute("/_chat/pull-requests")({
 });
 
 function PullRequestsRouteView() {
+  const { t } = useI18n();
   const search = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
   const { environments } = useEnvironments();
+  const involvementTabs = useMemo(
+    () =>
+      INVOLVEMENT_TABS.map((option) => ({
+        ...option,
+        label: t(
+          option.value === "all"
+            ? "pullRequests.filter.all"
+            : option.value === "reviewing"
+              ? "pullRequests.filter.reviewing"
+              : "pullRequests.filter.authored",
+        ),
+      })),
+    [t],
+  );
+  const stateTabs = useMemo(
+    () =>
+      STATE_TABS.map((option) => ({
+        ...option,
+        label: t(
+          option.value === "all"
+            ? "pullRequests.filter.all"
+            : option.value === "open"
+              ? "pullRequests.filter.open"
+              : option.value === "closed"
+                ? "pullRequests.filter.closed"
+                : "pullRequests.filter.merged",
+        ),
+      })),
+    [t],
+  );
   // Every connected environment that has said it can list pull requests. Sorted, so the query
   // keys, the scope key and the stored snapshot all read the same whichever order the
   // connections happened to come up in.
@@ -1289,6 +1321,7 @@ function PullRequestsRouteView() {
       value={search.q ?? ""}
       busy={typedQuery.length > 0 && (!querySettled || showingCarried)}
       onChange={(query) => updateSearch({ q: query || undefined })}
+      translate={t}
     />
   );
   const panelToggleControls = (
@@ -1300,7 +1333,7 @@ function PullRequestsRouteView() {
       rightPanelAvailable={rightPanelAvailable}
       rightPanelOpen={rightPanelState.isOpen}
       rightPanelShortcutLabel={null}
-      rightPanelUnavailableLabel="Select a pull request first"
+      rightPanelUnavailableLabel={t("pullRequests.panel.selectFirst")}
       liveAgentCount={0}
       onToggleTerminal={() => undefined}
       onToggleRightPanel={toggleRightPanel}
@@ -1331,8 +1364,8 @@ function PullRequestsRouteView() {
         <PullRequestListGhost rows={7} />
       ) : !pullRequestsSupported ? (
         <PullRequestsUnavailableState
-          title="Pull requests unavailable"
-          error="Update your T3 Code servers to browse pull requests."
+          title={t("pullRequests.unavailable.title")}
+          error={t("pullRequests.unavailable.upgrade")}
         />
       ) : firstLoad ? (
         <PullRequestListGhost rows={7} />
@@ -1357,6 +1390,7 @@ function PullRequestsRouteView() {
           loadingMore={loadingMore}
           onClearQuery={() => updateSearch({ q: undefined })}
           onLoadMore={loadMore}
+          translate={t}
         />
       ) : (
         <div className="space-y-3">
@@ -1401,9 +1435,9 @@ function PullRequestsRouteView() {
 
       {listQuery.error && listData !== null ? (
         <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs">
-          <span>The latest request failed. Showing the last pull requests loaded.</span>
+          <span>{t("pullRequests.latestFailed")}</span>
           <Button size="xs" variant="outline" onClick={() => listQuery.refresh()}>
-            Retry
+            {t("common.retry")}
           </Button>
         </div>
       ) : null}
@@ -1412,7 +1446,7 @@ function PullRequestsRouteView() {
           {loadingMore ? (
             <span className="flex items-center gap-2">
               <LoaderIcon aria-hidden className="size-3.5 animate-spin" />
-              Loading more
+              {t("pullRequests.loadingMore")}
             </span>
           ) : null}
         </div>
@@ -1424,7 +1458,7 @@ function PullRequestsRouteView() {
   // kind force the hostname to tell them apart.
   const hostEntries = hosts.length > 0 ? hosts : expectedHosts;
   const hostMenuOptions: ReadonlyArray<PullRequestFilterOption<string>> = [
-    { value: "", label: "All hosts", Icon: LayersIcon },
+    { value: "", label: t("pullRequests.filter.allHosts"), Icon: LayersIcon },
     ...hostEntries.map((entry) => {
       // `expectedHosts` stands in before the server has answered, and nothing is known to be
       // unreadable yet; once the summaries arrive they carry whether each one could be read.
@@ -1435,14 +1469,14 @@ function PullRequestsRouteView() {
         Icon: getSourceControlPresentationForKind(entry.kind).Icon,
         ...(summary === undefined || summary.configured
           ? {}
-          : { unavailable: summary.detail ?? "This host could not be read." }),
+          : { unavailable: summary.detail ?? t("pullRequests.unavailable.host") }),
       };
     }),
   ];
   // The same shape the host pills take, so the two groups read as one control. A local
   // connection wears the screen it is on; every other server wears a server.
   const serverMenuOptions: ReadonlyArray<PullRequestFilterOption<string>> = [
-    { value: "", label: "All servers", Icon: LayersIcon },
+    { value: "", label: t("pullRequests.filter.allServers"), Icon: LayersIcon },
     ...capableEnvironments.map((environment) => ({
       value: environment.environmentId,
       label: environment.label,
@@ -1452,10 +1486,10 @@ function PullRequestsRouteView() {
   const filtersMenu = (
     <PullRequestFiltersMenu
       state={search.state}
-      stateOptions={STATE_TABS}
+      stateOptions={stateTabs}
       onState={(state) => updateListScope({ state })}
       involvement={search.involvement}
-      involvementOptions={INVOLVEMENT_TABS}
+      involvementOptions={involvementTabs}
       onInvolvement={(involvement) => updateListScope({ involvement })}
       filters={menuFilters}
       onFilters={(next) =>
@@ -1479,6 +1513,7 @@ function PullRequestsRouteView() {
       onProject={(projectId, environmentId) =>
         updateListScope(environmentId === undefined ? { projectId } : { projectId, environmentId })
       }
+      translate={t}
     />
   );
   const columnProps = {
@@ -1709,6 +1744,7 @@ function ExpandableSearch({
    */
   onFocusWithin?: (focused: boolean) => void;
 }) {
+  const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (!open) return;
@@ -1741,7 +1777,7 @@ function ExpandableSearch({
     <Button
       size="icon-sm"
       variant="ghost"
-      aria-label="Search pull requests"
+      aria-label={t("pullRequests.search.label")}
       onClick={() => onOpenChange(true)}
     >
       <SearchIcon className="size-4" />
@@ -1792,6 +1828,7 @@ function PullRequestsColumn({
   rightPanelOpen: boolean;
   listBody: ReactNode;
 }) {
+  const { t } = useI18n();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const markerRef = useRef<HTMLDivElement | null>(null);
   const [condensed, setCondensed] = useState(false);
@@ -1866,30 +1903,30 @@ function PullRequestsColumn({
       >
         {titlebarControls}
         {condensed ? (
-          <WorkspaceBreadcrumb ariaLabel="Pull request scope" className="overflow-hidden">
+          <WorkspaceBreadcrumb ariaLabel={t("pullRequests.scope")} className="overflow-hidden">
             {/* An expanded search owns the scarce horizontal space. The page title stays
                 available to readers while the live filters remain available in both states. */}
             <WorkspaceBreadcrumbItem current className={cn(searchExpanded && "sr-only")}>
-              <h1 className="truncate">Pull Requests</h1>
+              <h1 className="truncate">{t("pullRequests.title")}</h1>
             </WorkspaceBreadcrumbItem>
             {searchExpanded ? null : <WorkspaceBreadcrumbSeparator />}
             <WorkspaceBreadcrumbItem className="shrink gap-1.5">
               <CompactFilterMenu
-                label="Filter by state"
+                label={t("pullRequests.filter.byState")}
                 value={state}
                 options={STATE_TABS}
                 onChange={onState}
                 className="shrink-0"
               />
               <CompactFilterMenu
-                label="Filter by involvement"
+                label={t("pullRequests.filter.byInvolvement")}
                 value={involvement}
                 options={INVOLVEMENT_TABS}
                 onChange={onInvolvement}
               />
               {hostMenuOptions.length > 2 ? (
                 <CompactFilterMenu
-                  label="Filter by host"
+                  label={t("pullRequests.filter.byHost")}
                   value={host ?? ""}
                   options={hostMenuOptions}
                   onChange={(next) => onHost(next === "" ? undefined : next)}
@@ -1898,9 +1935,9 @@ function PullRequestsColumn({
             </WorkspaceBreadcrumbItem>
           </WorkspaceBreadcrumb>
         ) : (
-          <WorkspaceBreadcrumb ariaLabel="Pull requests breadcrumb">
+          <WorkspaceBreadcrumb ariaLabel={t("pullRequests.breadcrumb")}>
             <WorkspaceBreadcrumbItem current>
-              <h1 className="truncate">Pull Requests</h1>
+              <h1 className="truncate">{t("pullRequests.title")}</h1>
             </WorkspaceBreadcrumbItem>
           </WorkspaceBreadcrumb>
         )}
@@ -1959,11 +1996,13 @@ function PullRequestRefreshControl({
   refreshing: boolean;
   onRefresh: () => void;
 }) {
+  const { t } = useI18n();
+
   return (
     <Button
       size={compact ? "icon-sm" : "icon"}
       variant={compact ? "ghost" : "outline"}
-      aria-label="Refresh pull requests"
+      aria-label={t("pullRequests.refresh")}
       onClick={onRefresh}
       disabled={refreshing}
     >

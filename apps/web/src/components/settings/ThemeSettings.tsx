@@ -165,7 +165,7 @@ function ThemeLibraryCard({
             <div className="relative">
               {variantNavigation ? (
                 <div
-                  aria-label="Light and dark theme variants"
+                  aria-label={t("appearance.theme.variants.group")}
                   className="relative h-20"
                   role="group"
                   onBlurCapture={(event) => {
@@ -195,8 +195,15 @@ function ThemeLibraryCard({
                           <button
                             aria-label={
                               options.length > 1
-                                ? `Choose ${mode} variant, ${options.length} options, currently ${selected.option.label}`
-                                : `Use ${mode} variant, currently ${selected.option.label}`
+                                ? t("appearance.theme.variants.choose", {
+                                    mode: modeLabel,
+                                    count: options.length,
+                                    theme: selected.option.label,
+                                  })
+                                : t("appearance.theme.variants.use", {
+                                    mode: modeLabel,
+                                    theme: selected.option.label,
+                                  })
                             }
                             aria-pressed={isActive}
                             className="absolute left-1/2 top-2 z-20 flex size-14 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -252,10 +259,18 @@ function ThemeLibraryCard({
                               return (
                                 <ThemeVariantTooltip
                                   key={option.label}
-                                  label={`Use ${option.label} for ${mode} mode`}
+                                  label={t("appearance.theme.variants.useForMode", {
+                                    theme: option.label,
+                                    mode: modeLabel,
+                                  })}
                                 >
                                   <button
-                                    aria-label={`Use ${option.label} for ${mode} mode${optionIsActive ? ", currently active" : ""}`}
+                                    aria-label={t(
+                                      optionIsActive
+                                        ? "appearance.theme.variants.useForModeActive"
+                                        : "appearance.theme.variants.useForMode",
+                                      { theme: option.label, mode: modeLabel },
+                                    )}
                                     aria-pressed={optionIsActive}
                                     className={cn(
                                       "absolute left-1/2 top-1 z-30 flex size-7 items-center justify-center rounded-full bg-background shadow-sm outline-none transition-[transform,opacity] duration-200 ease-out motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-ring",
@@ -352,7 +367,7 @@ function ThemeLibraryCard({
                       <TooltipTrigger
                         render={
                           <Button
-                            aria-label={`Edit ${theme.label}`}
+                            aria-label={t("appearance.theme.editNamed", { theme: theme.label })}
                             size="icon-xs"
                             variant="ghost"
                             onClick={(event) => {
@@ -372,7 +387,7 @@ function ThemeLibraryCard({
                       <TooltipTrigger
                         render={
                           <Button
-                            aria-label={`Export ${theme.label}`}
+                            aria-label={t("appearance.theme.exportNamed", { theme: theme.label })}
                             size="icon-xs"
                             variant="ghost"
                             onClick={(event) => {
@@ -394,8 +409,10 @@ function ThemeLibraryCard({
                           <Button
                             aria-label={
                               variantNavigation
-                                ? `Remove themes from ${variantNavigation.collectionLabel}`
-                                : `Remove ${theme.label}`
+                                ? t("appearance.theme.removeCollectionNamed", {
+                                    collection: variantNavigation.collectionLabel,
+                                  })
+                                : t("appearance.theme.removeNamed", { theme: theme.label })
                             }
                             size="icon-xs"
                             variant="ghost"
@@ -424,10 +441,13 @@ function ThemeLibraryCard({
       />
       <TooltipPopup>
         {variantNavigation
-          ? "Use the first variants for light and dark"
+          ? t("appearance.theme.useFirstVariants")
           : cardModes.length > 1
-            ? "Use for both light and dark"
-            : `Use for ${cardModes[0]} mode only`}
+            ? t("appearance.theme.useBothModes")
+            : t("appearance.theme.useModeOnly", {
+                mode:
+                  cardModes[0] === "light" ? t("appearance.mode.light") : t("appearance.mode.dark"),
+              })}
       </TooltipPopup>
     </Tooltip>
   );
@@ -561,21 +581,21 @@ export function ThemeLibrary({
     toastManager.add(
       stackedThreadToast({
         type: "error",
-        title: "Couldn’t save theme selection",
-        description: "Try again.",
+        title: t("appearance.theme.toast.selectionFailed"),
+        description: t("common.retry"),
       }),
     );
-  }, []);
+  }, [t]);
 
   const notifyThemeRemovalFailure = useCallback(() => {
     toastManager.add(
       stackedThreadToast({
         type: "error",
-        title: "Couldn’t remove theme",
-        description: "Try again.",
+        title: t("appearance.theme.toast.removeFailed"),
+        description: t("common.retry"),
       }),
     );
-  }, []);
+  }, [t]);
 
   const persistTheme = useCallback(
     (nextTheme: string) => {
@@ -952,14 +972,23 @@ export function ThemeLibrary({
           // Re-apply after collection updates. The update may remove the
           // selected variant, in which case the theme hook falls back safely.
           if (updated) refreshTheme();
-          const verb = updated ? "updated" : "added";
           toastManager.add(
             stackedThreadToast({
               type: "success",
               title:
                 importedThemes.length === 1
-                  ? `${importedThemes[0]!.label} ${verb}`
-                  : `${importedThemes.length} themes ${verb}`,
+                  ? t(
+                      updated
+                        ? "appearance.theme.import.toastUpdated"
+                        : "appearance.theme.import.toastAdded",
+                      { theme: importedThemes[0]!.label },
+                    )
+                  : t(
+                      updated
+                        ? "appearance.theme.import.toastManyUpdated"
+                        : "appearance.theme.import.toastManyAdded",
+                      { count: importedThemes.length },
+                    ),
               description: importedThemes.map((imported) => imported.label).join(", "),
             }),
           );
@@ -973,8 +1002,16 @@ export function ThemeLibrary({
             toastManager.add(
               stackedThreadToast({
                 type: "success",
-                title: `${importedTheme.label} added`,
-                description: `It’s now your ${modes[0]!} theme.`,
+                title: t("appearance.theme.import.toastAdded", {
+                  theme: importedTheme.label,
+                }),
+                description: t("appearance.theme.import.toastAppearanceActive", {
+                  appearance: t(
+                    modes[0] === "dark"
+                      ? "settings.integrations.browserDefaultAppearance.dark"
+                      : "settings.integrations.browserDefaultAppearance.light",
+                  ),
+                }),
               }),
             );
             return true;
@@ -983,8 +1020,10 @@ export function ThemeLibrary({
           toastManager.add(
             stackedThreadToast({
               type: "success",
-              title: `${importedTheme.label} added`,
-              description: "It’s now active.",
+              title: t("appearance.theme.import.toastAdded", {
+                theme: importedTheme.label,
+              }),
+              description: t("appearance.themeEditor.toast.nowActive"),
             }),
           );
           return true;

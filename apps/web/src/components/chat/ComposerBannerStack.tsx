@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
+import { useI18n } from "~/i18n/WebI18nProvider";
 import { cn } from "~/lib/utils";
 import { ComposerBanner, type ComposerBannerVariant } from "./ComposerBanner";
 
@@ -43,6 +44,7 @@ interface ComposerBannerStackProps {
 }
 
 export function ComposerBannerStack({ className, items }: ComposerBannerStackProps) {
+  const { t } = useI18n();
   const [stackExpanded, setStackExpanded] = useState(false);
   const noticesRef = useRef<HTMLDivElement>(null);
   const peekRef = useRef<HTMLButtonElement>(null);
@@ -157,7 +159,7 @@ export function ComposerBannerStack({ className, items }: ComposerBannerStackPro
               <ComposerBanner.Peek
                 ref={peekRef}
                 variant={firstStackedItem.variant}
-                aria-label="Show other notices"
+                aria-label={t("composer.banner.showOtherNotices")}
                 aria-expanded={stackExpanded}
                 aria-controls={expandedItemsId}
                 onClick={(event) => {
@@ -223,6 +225,7 @@ function ComposerBannerStackAlert({
   readonly exiting: boolean;
   readonly onDismissRequest: () => void;
 }) {
+  const { t } = useI18n();
   if ("content" in item) {
     return (
       <ComposerBanner.Root
@@ -250,7 +253,7 @@ function ComposerBannerStackAlert({
             {item.actions}
             {item.onDismiss ? (
               <ComposerBanner.Dismiss
-                aria-label={item.dismissLabel ?? "Dismiss warning"}
+                aria-label={item.dismissLabel ?? t("composer.banner.dismissWarning")}
                 disabled={exiting}
                 onClick={onDismissRequest}
               />

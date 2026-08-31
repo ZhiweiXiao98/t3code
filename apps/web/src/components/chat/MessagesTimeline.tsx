@@ -308,6 +308,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
   topFadeEnabled = false,
   loadEarlier = null,
 }: MessagesTimelineProps) {
+  const { t } = useI18n();
   const [expandedTurnIds, setExpandedTurnIds] = useState<ReadonlySet<TurnId>>(new Set());
   const [expandedWorkGroupIds, setExpandedWorkGroupIds] = useState<ReadonlySet<string>>(new Set());
   const [disclosureToggleSettling, setDisclosureToggleSettling] = useState(false);
@@ -606,7 +607,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
     }
     return (
       <div className="flex h-full items-center justify-center">
-        <p className="text-placeholder text-sm">Send a message to start the conversation.</p>
+        <p className="text-placeholder text-sm">{t("timeline.empty")}</p>
       </div>
     );
   }
@@ -1015,6 +1016,7 @@ const TimelineRowContent = memo(function TimelineRowContent({ row }: { row: Time
 
 function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" }> }) {
   const ctx = use(TimelineRowCtx);
+  const { t } = useI18n();
   // The attachment union has an open member, so guards (not literal type
   // comparisons) split it. Unknown types render as inert rows below the files.
   const userImages = (row.message.attachments ?? []).filter(isImageAttachment);
@@ -1090,14 +1092,18 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
                     className="flex min-h-[72px] w-full cursor-zoom-in flex-col items-center justify-center gap-1 px-2 py-2 text-white disabled:cursor-default disabled:opacity-50 aria-disabled:cursor-default aria-disabled:opacity-50"
                     aria-busy={isOpening || undefined}
                     aria-disabled={isOpening || undefined}
-                    aria-label={`${isOpening ? "Loading" : "Play"} ${file.name}`}
+                    aria-label={
+                      isOpening
+                        ? t("timeline.loadingAttachment", { name: file.name })
+                        : t("timeline.playAttachment", { name: file.name })
+                    }
                     onClick={() => {
                       if (isOpening) return;
                       ctx.onFileOpen(file);
                     }}
                   >
                     {isOpening ? (
-                      <span className="text-[11px]">Loading…</span>
+                      <span className="text-[11px]">{t("common.loading")}</span>
                     ) : (
                       <PlayIcon className="size-8 fill-current" />
                     )}
@@ -1144,7 +1150,7 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
                 <button
                   key={file.id}
                   type="button"
-                  aria-label={`Download ${file.name}`}
+                  aria-label={t("timeline.downloadAttachment", { name: file.name })}
                   onClick={() => ctx.onFileOpen(file)}
                   className="flex min-w-0 cursor-pointer items-center gap-2 rounded-md py-1 text-left text-sm hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70"
                 >
@@ -1202,6 +1208,7 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
 function RevertUserMessageButton({ messageId }: { messageId: MessageId }) {
   const ctx = use(TimelineRowCtx);
   const activity = use(TimelineRowActivityCtx);
+  const { t } = useI18n();
 
   return (
     <Tooltip>
@@ -1213,13 +1220,13 @@ function RevertUserMessageButton({ messageId }: { messageId: MessageId }) {
             variant="ghost"
             disabled={activity.isRevertingCheckpoint || activity.isWorking}
             onClick={() => ctx.onRevertUserMessage(messageId)}
-            aria-label="Revert to this message"
+            aria-label={t("timeline.revert")}
           />
         }
       >
         <Undo2Icon className="size-3" />
       </TooltipTrigger>
-      <TooltipPopup side="top">Revert to this message</TooltipPopup>
+      <TooltipPopup side="top">{t("timeline.revert")}</TooltipPopup>
     </Tooltip>
   );
 }

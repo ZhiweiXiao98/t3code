@@ -1,4 +1,4 @@
-import { MenuView } from "@react-native-menu/menu";
+import { MenuView, type MenuAction } from "@react-native-menu/menu";
 import * as Haptics from "expo-haptics";
 import {
   cloneElement,
@@ -14,6 +14,7 @@ import { withUniwind } from "uniwind";
 import { useAppearancePreferences } from "../features/settings/appearance/AppearancePreferencesProvider";
 
 import { cn } from "../lib/cn";
+import { localizeMobileString } from "../i18n/mobileStrings";
 import { withMenuActionIconColors } from "../lib/menu-action-colors";
 import { AndroidAnchoredMenu } from "./AndroidAnchoredMenu";
 import { SymbolView } from "./AppSymbol";
@@ -46,6 +47,17 @@ const ThemedMenuView = withUniwind(
     },
   },
 );
+
+function localizeMenuActions(actions: readonly MenuAction[]): MenuAction[] {
+  return actions.map((action) => ({
+    ...action,
+    title: localizeMobileString(action.title),
+    ...(action.subtitle === undefined ? {} : { subtitle: localizeMobileString(action.subtitle) }),
+    ...(action.subactions === undefined
+      ? {}
+      : { subactions: localizeMenuActions(action.subactions) }),
+  }));
+}
 
 export function ControlPill(props: {
   readonly icon?: ComponentProps<typeof SymbolView>["name"];
@@ -116,7 +128,7 @@ export function ControlPill(props: {
 
   return (
     <Pressable
-      accessibilityLabel={props.accessibilityLabel ?? props.label}
+      accessibilityLabel={localizeMobileString(props.accessibilityLabel ?? props.label ?? "")}
       accessibilityRole="button"
       onPress={props.activateOnPressIn ? handlePress : props.onPress}
       onPressIn={props.activateOnPressIn ? handlePressIn : undefined}
@@ -151,6 +163,8 @@ export function ControlPillMenu(
 ) {
   const { themeAppearance } = useAppearancePreferences();
   const isDarkMode = themeAppearance === "dark";
+  const localizedActions = useMemo(() => localizeMenuActions(props.actions), [props.actions]);
+  const localizedTitle = props.title === undefined ? undefined : localizeMobileString(props.title);
   const menuPress = useRef({ isPreparing: false, isOpen: false, suppressPress: false });
   const pendingPress = useRef<(() => void) | null>(null);
 
@@ -162,9 +176,9 @@ export function ControlPillMenu(
       const child = props.children as ReactElement<{ onLongPress?: () => void }>;
       return (
         <AndroidAnchoredMenu
-          actions={props.actions}
+          actions={localizedActions}
           className={props.className}
-          title={props.title}
+          title={localizedTitle}
           style={props.style}
           onPressAction={props.onPressAction}
         >
@@ -181,9 +195,9 @@ export function ControlPillMenu(
     }
     return (
       <AndroidAnchoredMenu
-        actions={props.actions}
+        actions={localizedActions}
         className={props.className}
-        title={props.title}
+        title={localizedTitle}
         style={props.style}
         onPressAction={props.onPressAction}
       >
@@ -193,6 +207,8 @@ export function ControlPillMenu(
   }
 
   const { className: _className, ...menuProps } = props;
+  menuProps.actions = localizedActions;
+  menuProps.title = localizedTitle;
   let children = menuProps.children;
   if (props.shouldOpenOnLongPress && isValidElement(children)) {
     const child = children as ReactElement<Pick<PressableProps, "onTouchStart" | "onPress">>;

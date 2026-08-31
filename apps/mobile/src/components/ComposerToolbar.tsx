@@ -12,6 +12,7 @@ import {
 } from "react-native";
 
 import { cn } from "../lib/cn";
+import { localizeMobileString } from "../i18n/mobileStrings";
 import { AppText as Text } from "./AppText";
 import { SymbolView } from "./AppSymbol";
 
@@ -41,8 +42,12 @@ export function ComposerInlineControl(props: {
 }) {
   return (
     <Pressable
-      accessibilityLabel={props.accessibilityLabel ?? props.label}
-      accessibilityHint={props.accessibilityHint}
+      accessibilityLabel={localizeMobileString(props.accessibilityLabel ?? props.label)}
+      accessibilityHint={
+        props.accessibilityHint === undefined
+          ? undefined
+          : localizeMobileString(props.accessibilityHint)
+      }
       accessibilityRole={props.static ? undefined : "button"}
       accessibilityState={
         props.static ? undefined : { disabled: props.disabled, selected: props.selected }
@@ -226,7 +231,7 @@ export function ComposerActionButton(props: {
 }) {
   return (
     <Pressable
-      accessibilityLabel={props.accessibilityLabel}
+      accessibilityLabel={localizeMobileString(props.accessibilityLabel)}
       accessibilityRole="button"
       accessibilityState={{ disabled: props.disabled }}
       className="size-[44px] shrink-0 items-center justify-center active:opacity-70"
@@ -286,7 +291,7 @@ export function ComposerToolbarButton(props: {
 
   return (
     <Pressable
-      accessibilityLabel={props.accessibilityLabel ?? props.label}
+      accessibilityLabel={localizeMobileString(props.accessibilityLabel ?? props.label ?? "")}
       accessibilityRole="button"
       disabled={props.disabled}
       onPress={props.onPress}

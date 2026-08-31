@@ -7,8 +7,20 @@ import {
 } from "../../pendingUserInput";
 import { CheckIcon } from "lucide-react";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "../ui/collapsible";
+import { useI18n, type WebTranslate } from "~/i18n/WebI18nProvider";
 import { cn } from "~/lib/utils";
 import { ComposerBanner } from "./ComposerBanner";
+
+function localizePendingUserInputText(value: string, t: WebTranslate): string {
+  const messageKey = {
+    Yes: "common.yes",
+    No: "common.no",
+    Cancel: "common.cancel",
+    Continue: "common.continue",
+  } as const;
+  const key = messageKey[value as keyof typeof messageKey];
+  return key ? t(key) : value;
+}
 
 interface PendingUserInputPanelProps {
   pendingUserInputs: PendingUserInput[];
@@ -59,6 +71,7 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
   onToggleOption: (questionId: string, optionLabel: string) => void;
   onAdvance: () => void;
 }) {
+  const { t } = useI18n();
   const progress = derivePendingUserInputProgress(prompt.questions, answers, questionIndex);
   const activeQuestion = progress.activeQuestion;
   const autoAdvanceTimerRef = useRef<number | null>(null);
@@ -175,9 +188,7 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
     >
       <CollapsibleTrigger
         render={<ComposerBanner.Row render={<button type="button" />} />}
-        title={
-          isCollapsed ? "Show the question and its options" : "Hide the question and its options"
-        }
+        title={t(isCollapsed ? "composer.question.show" : "composer.question.hide")}
         data-pending-user-input-toggle={isCollapsed ? "collapsed" : "expanded"}
       >
         <ComposerBanner.Icon />
@@ -204,7 +215,7 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
         <ComposerBanner.Body>
           <p className="text-sm text-foreground/85">{activeQuestion.question}</p>
           {activeQuestion.multiSelect ? (
-            <p className="mt-1 text-secondary-label text-xs">Select one or more options.</p>
+            <p className="mt-1 text-secondary-label text-xs">{t("composer.selectMultiple")}</p>
           ) : null}
           <div className="mt-2 space-y-0.5">
             {activeQuestion.options.map((option, index) => {
@@ -226,9 +237,13 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
               const content = (
                 <>
                   <div className="min-w-0 flex-1 flex flex-col gap-0.5">
-                    <span className="text-sm font-medium">{option.label}</span>
+                    <span className="text-sm font-medium">
+                      {localizePendingUserInputText(option.label, t)}
+                    </span>
                     {option.description && option.description !== option.label ? (
-                      <span className="text-secondary-label text-[11px]">{option.description}</span>
+                      <span className="text-secondary-label text-[11px]">
+                        {localizePendingUserInputText(option.description, t)}
+                      </span>
                     ) : null}
                   </div>
                   {isSelected ? (

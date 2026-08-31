@@ -627,7 +627,7 @@ function ArtifactTemplateCard(props: {
       {props.onUse ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`Use ${props.template.displayName} template`}
+          accessibilityLabel={localizeMobileString(`Use ${props.template.displayName} template`)}
           className="min-h-9 justify-center rounded-lg border border-border bg-subtle px-3 active:opacity-65"
           onPress={() => props.onUse?.(props.template)}
         >

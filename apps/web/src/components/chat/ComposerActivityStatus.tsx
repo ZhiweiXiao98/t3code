@@ -1,8 +1,10 @@
 import { LoaderCircleIcon } from "lucide-react";
-import { threadSyncLabel, type ThreadSyncPhase } from "../../threadSync";
+import { useI18n } from "../../i18n/WebI18nProvider";
+import type { ThreadSyncPhase } from "../../threadSync";
 import { ComposerBanner } from "./ComposerBanner";
 
 export function ComposerActivityRow({ phase }: { readonly phase: ThreadSyncPhase }) {
+  const { t } = useI18n();
   return (
     <ComposerBanner.Row>
       <ComposerBanner.Icon>
@@ -14,7 +16,11 @@ export function ComposerActivityRow({ phase }: { readonly phase: ThreadSyncPhase
           data-composer-sync-status={phase}
           role="status"
         >
-          {threadSyncLabel(phase)}
+          {t(
+            phase === "loading"
+              ? "composer.state.messagesLoading"
+              : "composer.state.messagesSyncing",
+          )}
         </span>
       </ComposerBanner.Content>
     </ComposerBanner.Row>

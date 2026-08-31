@@ -18,6 +18,7 @@ import { withUniwind } from "uniwind";
 
 import { AppText as Text } from "../../components/AppText";
 import { ControlPill } from "../../components/ControlPill";
+import { localizeMobileString } from "../../i18n/mobileStrings";
 
 const CONTROL_HEIGHT = 44;
 const CONTROL_COMPOSER_GAP = 8;
@@ -163,7 +164,11 @@ function WorkingDuration(props: { readonly startedAt: string }) {
   const label = `Working for ${duration}`;
 
   return (
-    <View accessible accessibilityLabel={label} className="h-11 flex-row items-center px-4">
+    <View
+      accessible
+      accessibilityLabel={localizeMobileString(label)}
+      className="h-11 flex-row items-center px-4"
+    >
       <Text className="font-t3-medium text-xs text-foreground">Working for </Text>
       <SystemText
         className="text-xs text-foreground"

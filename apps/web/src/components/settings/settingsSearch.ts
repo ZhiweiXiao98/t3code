@@ -173,7 +173,7 @@ export const SETTINGS_SEARCH_ITEMS = [
   },
   {
     id: "unpin-confirmation",
-    title: "Unpin confirmation",
+    titleKey: "settings.item.unpinConfirmation",
     to: "/settings/general",
   },
   {
