@@ -1,6 +1,7 @@
 param(
   [Parameter(Mandatory = $true)]
   [string]$Version,
+  [int]$VersionCode = 0,
   [string]$BuildRoot = "C:\t3code-mobile-cache",
   [string]$OutputDirectory,
   [string]$AndroidSdk = (Join-Path $env:LOCALAPPDATA "Android\Sdk")
@@ -16,6 +17,22 @@ $OutputDirectory = [System.IO.Path]::GetFullPath($OutputDirectory)
 $AndroidSdk = [System.IO.Path]::GetFullPath($AndroidSdk)
 if (-not (Test-Path -LiteralPath $AndroidSdk)) {
   throw "Android SDK was not found at $AndroidSdk"
+}
+
+if ($VersionCode -le 0) {
+  $versionMatch = [regex]::Match($Version, '^(?<major>\d+)\.(?<minor>\d+)\.(?<patch>\d+)-cn\.(?<revision>\d+)$')
+  if (-not $versionMatch.Success) {
+    throw "Version must use the form 1.0.4-cn.4, or VersionCode must be provided explicitly."
+  }
+
+  $major = [int]$versionMatch.Groups['major'].Value
+  $minor = [int]$versionMatch.Groups['minor'].Value
+  $patch = [int]$versionMatch.Groups['patch'].Value
+  $revision = [int]$versionMatch.Groups['revision'].Value
+  if ($minor -gt 99 -or $patch -gt 99 -or $revision -gt 99) {
+    throw "Version components minor, patch, and cn revision must each be between 0 and 99."
+  }
+  $VersionCode = ($major * 1000000) + ($minor * 10000) + ($patch * 100) + $revision
 }
 
 Push-Location $repoRoot
@@ -69,9 +86,24 @@ try {
     Write-Host "Reusing the cached hoisted Android dependency tree."
   }
 
-  $androidRoot = Join-Path $BuildRoot "apps\mobile\android"
+  $env:APP_VARIANT = "community"
+  $env:T3CODE_MOBILE_VERSION = $Version
+  $env:T3CODE_MOBILE_VERSION_CODE = $VersionCode.ToString()
   $env:ANDROID_HOME = $AndroidSdk
   $env:ANDROID_SDK_ROOT = $AndroidSdk
+  $mobileRoot = Join-Path $BuildRoot "apps\mobile"
+  $expoCommand = Join-Path $BuildRoot "node_modules\.bin\expo.cmd"
+  Push-Location $mobileRoot
+  try {
+    & $expoCommand prebuild --platform android --no-install
+    if ($LASTEXITCODE -ne 0) {
+      throw "Android native project generation failed with exit code $LASTEXITCODE."
+    }
+  } finally {
+    Pop-Location
+  }
+
+  $androidRoot = Join-Path $mobileRoot "android"
   Push-Location $androidRoot
   try {
     & .\gradlew.bat :app:assembleRelease -PreactNativeArchitectures=arm64-v8a --no-daemon

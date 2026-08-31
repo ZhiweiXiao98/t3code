@@ -12,6 +12,15 @@ const APP_VARIANT = resolveAppVariant(repoEnv.APP_VARIANT);
 if (APP_VARIANT === "community") {
   process.env.EXPO_PUBLIC_APP_LOCALE = "zh-CN";
 }
+const appVersion =
+  APP_VARIANT === "community" ? (repoEnv.T3CODE_MOBILE_VERSION?.trim() ?? "1.0.4") : "1.0.4";
+const androidVersionCode = Number.parseInt(
+  APP_VARIANT === "community" ? (repoEnv.T3CODE_MOBILE_VERSION_CODE?.trim() ?? "1") : "1",
+  10,
+);
+if (!Number.isSafeInteger(androidVersionCode) || androidVersionCode <= 0) {
+  throw new Error("T3CODE_MOBILE_VERSION_CODE must be a positive integer.");
+}
 const isIosPersonalTeamBuild = repoEnv.T3CODE_IOS_PERSONAL_TEAM === "1";
 const runtimeVersionPolicy =
   process.env.MOBILE_VERSION_POLICY ??
@@ -181,7 +190,7 @@ const config: ExpoConfig = {
   slug: "t3-code",
   platforms: ["ios", "android"],
   scheme: variant.scheme,
-  version: "1.0.4",
+  version: appVersion,
   runtimeVersion: {
     // Development manifests resolve on every launch, so avoid fingerprint's
     // expensive native-project calculation there. Preview and production stay
@@ -245,6 +254,7 @@ const config: ExpoConfig = {
   android: {
     icon: variant.assets.appIcon,
     package: variant.androidPackage,
+    versionCode: androidVersionCode,
     adaptiveIcon: {
       backgroundColor: variant.assets.androidAdaptiveBackgroundColor,
       foregroundImage: variant.assets.androidAdaptiveForeground,
