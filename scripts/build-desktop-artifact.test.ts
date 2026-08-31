@@ -70,6 +70,7 @@ import {
   WINDOWS_SERVER_ASAR_RESOURCE,
   WINDOWS_SERVER_ASAR_UNPACK_GLOB,
   WINDOWS_SERVER_RESOURCE_SOURCE_DIR,
+  WINDOWS_TRAY_ICON_EXTRA_RESOURCE,
   WSL_RUNTIME_ARCHIVE_EXTRA_RESOURCE,
   WSL_RUNTIME_ARCHIVE_HASH_EXTRA_RESOURCE,
   WSL_RUNTIME_ARCHIVE_HASH_NAME,
@@ -609,6 +610,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
           from: "apps/desktop/prod-resources/resource-monitor",
           to: "resource-monitor",
         },
+        WINDOWS_TRAY_ICON_EXTRA_RESOURCE,
         ...WINDOWS_SERVER_EXTRA_RESOURCES,
         ...WSL_RUNTIME_EXTRA_RESOURCES,
       ]);
@@ -619,6 +621,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
           from: "apps/desktop/prod-resources/resource-monitor",
           to: "resource-monitor",
         },
+        WINDOWS_TRAY_ICON_EXTRA_RESOURCE,
         ...WINDOWS_SERVER_EXTRA_RESOURCES,
       ]);
       assert.deepStrictEqual(win.nsis, { differentialPackage: true });

@@ -60,25 +60,20 @@ vi.mock("electron", () => {
   };
 });
 
-import * as DesktopAssets from "../app/DesktopAssets.ts";
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import * as ElectronApp from "../electron/ElectronApp.ts";
 import * as DesktopClientSettings from "../settings/DesktopClientSettings.ts";
 import * as DesktopTray from "./DesktopTray.ts";
 
 const dependencies = Layer.mergeAll(
-  Layer.succeed(DesktopAssets.DesktopAssets, {
-    iconPaths: Effect.succeed({
-      ico: Option.some("C:\\Program Files\\T3 Code\\resources\\icon.ico"),
-      icns: Option.none<string>(),
-      png: Option.none<string>(),
-    }),
-    resolveResourcePath: () => Effect.succeed(Option.none<string>()),
-  }),
   Layer.succeed(DesktopEnvironment.DesktopEnvironment, {
     platform: "win32",
     isPackaged: true,
-  } as DesktopEnvironment.DesktopEnvironment["Service"]),
+    resourcesPath: "C:\\Program Files\\T3 Code\\resources",
+    path: {
+      join: (...parts: readonly string[]) => parts.join("\\"),
+    },
+  } as unknown as DesktopEnvironment.DesktopEnvironment["Service"]),
   Layer.mock(ElectronApp.ElectronApp)({
     name: Effect.succeed("T3 Code"),
     systemLocale: Effect.succeed("zh-CN"),

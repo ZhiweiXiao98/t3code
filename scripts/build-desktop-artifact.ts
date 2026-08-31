@@ -863,6 +863,10 @@ export const WINDOWS_SERVER_EXTRA_RESOURCES = [
     filter: [WINDOWS_SERVER_ASAR_RESOURCE, `${WINDOWS_SERVER_ASAR_RESOURCE}.unpacked/**/*`],
   },
 ] as const;
+export const WINDOWS_TRAY_ICON_EXTRA_RESOURCE = {
+  from: "apps/desktop/prod-resources/icon.ico",
+  to: "icon.ico",
+} as const;
 export const WSL_RUNTIME_ARCHIVE_NAME = "wsl-runtime.tar.gz";
 export const WSL_RUNTIME_ARCHIVE_HASH_NAME = `${WSL_RUNTIME_ARCHIVE_NAME}.sha256`;
 export const WSL_RUNTIME_ARCHIVE_EXTRA_RESOURCE = {
@@ -2155,7 +2159,9 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
     // hand-packed server.asar sidecar (see WINDOWS_SERVER_ASAR_RESOURCE).
     extraResources: [
       ...DESKTOP_EXTRA_RESOURCES,
-      ...(platform === "win" ? WINDOWS_SERVER_EXTRA_RESOURCES : []),
+      ...(platform === "win"
+        ? [WINDOWS_TRAY_ICON_EXTRA_RESOURCE, ...WINDOWS_SERVER_EXTRA_RESOURCES]
+        : []),
       ...(platform === "win" && wslRuntimeBundled ? WSL_RUNTIME_EXTRA_RESOURCES : []),
     ],
   };

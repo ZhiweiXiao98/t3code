@@ -7,7 +7,6 @@ import * as Electron from "electron";
 
 import { DEFAULT_APP_LOCALE_PREFERENCE } from "@t3tools/contracts";
 
-import * as DesktopAssets from "../app/DesktopAssets.ts";
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import { makeComponentLogger } from "../app/DesktopObservability.ts";
 import * as ElectronApp from "../electron/ElectronApp.ts";
@@ -31,7 +30,6 @@ export class DesktopTray extends Context.Service<
 const { logWarning: logTrayWarning } = makeComponentLogger("desktop-tray");
 
 export const make = Effect.gen(function* () {
-  const assets = yield* DesktopAssets.DesktopAssets;
   const clientSettings = yield* DesktopClientSettings.DesktopClientSettings;
   const electronApp = yield* ElectronApp.ElectronApp;
   const environment = yield* DesktopEnvironment.DesktopEnvironment;
@@ -60,13 +58,7 @@ export const make = Effect.gen(function* () {
           return true;
         }
 
-        const iconPaths = yield* assets.iconPaths;
-        const iconPath =
-          Option.getOrUndefined(iconPaths.ico) ?? Option.getOrUndefined(iconPaths.png);
-        if (iconPath === undefined) {
-          yield* logTrayWarning("Windows tray icon is unavailable");
-          return false;
-        }
+        const iconPath = environment.path.join(environment.resourcesPath, "icon.ico");
 
         const settings = yield* clientSettings.get;
         const systemLocale = yield* electronApp.systemLocale;
