@@ -1,7 +1,7 @@
 gradle.projectsEvaluated {
   def appProject = gradle.rootProject.findProject(":app")
   if (appProject == null) {
-    throw new GradleException("Unable to find the Android app project.")
+    return
   }
 
   def versionName = gradle.startParameter.projectProperties.get("t3codeVersionName")
