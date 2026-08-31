@@ -1,12 +1,12 @@
 def releaseVersionName = gradle.startParameter.projectProperties.get("t3codeVersionName")
 def releaseVersionCode = gradle.startParameter.projectProperties.get("t3codeVersionCode")
-if (!releaseVersionName || !releaseVersionCode) {
-  throw new GradleException("t3codeVersionName and t3codeVersionCode are required.")
-}
 
 gradle.beforeProject { project ->
   if (project.path != ":app") {
     return
+  }
+  if (!releaseVersionName || !releaseVersionCode) {
+    throw new GradleException("t3codeVersionName and t3codeVersionCode are required.")
   }
 
   project.pluginManager.withPlugin("com.android.application") {
