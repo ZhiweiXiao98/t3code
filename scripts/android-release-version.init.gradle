@@ -1,15 +1,18 @@
-gradle.projectsEvaluated {
-  def appProject = gradle.rootProject.findProject(":app")
-  if (appProject == null) {
+def releaseVersionName = gradle.startParameter.projectProperties.get("t3codeVersionName")
+def releaseVersionCode = gradle.startParameter.projectProperties.get("t3codeVersionCode")
+if (!releaseVersionName || !releaseVersionCode) {
+  throw new GradleException("t3codeVersionName and t3codeVersionCode are required.")
+}
+
+gradle.beforeProject { project ->
+  if (project.path != ":app") {
     return
   }
 
-  def versionName = gradle.startParameter.projectProperties.get("t3codeVersionName")
-  def versionCode = gradle.startParameter.projectProperties.get("t3codeVersionCode")
-  if (!versionName || !versionCode) {
-    throw new GradleException("t3codeVersionName and t3codeVersionCode are required.")
+  project.pluginManager.withPlugin("com.android.application") {
+    project.extensions.getByName("androidComponents").finalizeDsl { extension ->
+      extension.defaultConfig.versionName = releaseVersionName
+      extension.defaultConfig.versionCode = Integer.parseInt(releaseVersionCode)
+    }
   }
-
-  appProject.android.defaultConfig.versionName = versionName
-  appProject.android.defaultConfig.versionCode = Integer.parseInt(versionCode)
 }
