@@ -9,6 +9,31 @@ param(
 
 $ErrorActionPreference = "Stop"
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
+
+function Get-AndroidNativeInputHash {
+  param([string]$Root)
+
+  $inputs = @(
+    (Join-Path $Root "apps\mobile\app.config.ts")
+    (Join-Path $Root "apps\mobile\package.json")
+    (Join-Path $Root "pnpm-lock.yaml")
+    (Join-Path $Root "scripts\lib\brand-assets.ts")
+  )
+  foreach ($directory in @("apps\mobile\plugins", "apps\mobile\assets", "assets\prod")) {
+    $inputs += Get-ChildItem -LiteralPath (Join-Path $Root $directory) -File -Recurse |
+      Select-Object -ExpandProperty FullName
+  }
+
+  $fingerprint = $inputs |
+    Sort-Object |
+    ForEach-Object {
+      $relativePath = [System.IO.Path]::GetRelativePath($Root, $_)
+      "$relativePath`0$((Get-FileHash -Algorithm SHA256 -LiteralPath $_).Hash)"
+    }
+  $bytes = [System.Text.Encoding]::UTF8.GetBytes(($fingerprint -join "`n"))
+  return [System.Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData($bytes))
+}
+
 $BuildRoot = [System.IO.Path]::GetFullPath($BuildRoot)
 if (-not $OutputDirectory) {
   $OutputDirectory = Join-Path $repoRoot "release"
@@ -91,24 +116,62 @@ try {
   $env:T3CODE_MOBILE_VERSION_CODE = $VersionCode.ToString()
   $env:ANDROID_HOME = $AndroidSdk
   $env:ANDROID_SDK_ROOT = $AndroidSdk
+  $env:NODE_ENV = "production"
   $mobileRoot = Join-Path $BuildRoot "apps\mobile"
+  $androidRoot = Join-Path $mobileRoot "android"
   $expoCommand = Join-Path $BuildRoot "node_modules\.bin\expo.cmd"
-  Push-Location $mobileRoot
-  try {
-    & $expoCommand prebuild --platform android --no-install
-    if ($LASTEXITCODE -ne 0) {
-      throw "Android native project generation failed with exit code $LASTEXITCODE."
+  $nativeInputHash = Get-AndroidNativeInputHash -Root $BuildRoot
+  $nativeInputMarker = Join-Path $cacheDirectory "android-native-inputs.sha256"
+  $cachedNativeInputHash = if (Test-Path -LiteralPath $nativeInputMarker) {
+    (Get-Content -Raw -LiteralPath $nativeInputMarker).Trim()
+  } else {
+    ""
+  }
+  if (
+    $cachedNativeInputHash -ne $nativeInputHash -or
+    -not (Test-Path -LiteralPath (Join-Path $androidRoot "app\build.gradle"))
+  ) {
+    Push-Location $mobileRoot
+    try {
+      & $expoCommand prebuild --platform android --no-install
+      if ($LASTEXITCODE -ne 0) {
+        throw "Android native project generation failed with exit code $LASTEXITCODE."
+      }
+    } finally {
+      Pop-Location
     }
-  } finally {
-    Pop-Location
+    Set-Content -LiteralPath $nativeInputMarker -Value $nativeInputHash -Encoding ascii
+  } else {
+    Write-Host "Reusing the cached Android native project."
   }
 
-  $androidRoot = Join-Path $mobileRoot "android"
+  $versionInitScript = Join-Path $BuildRoot "scripts\android-release-version.init.gradle"
   Push-Location $androidRoot
   try {
-    & .\gradlew.bat :app:assembleRelease -PreactNativeArchitectures=arm64-v8a --no-daemon
-    if ($LASTEXITCODE -ne 0) {
-      throw "Android release packaging failed with exit code $LASTEXITCODE."
+    $gradleArguments = @(
+      ":app:assembleRelease"
+      "-PreactNativeArchitectures=arm64-v8a"
+      "-Pt3codeVersionName=$Version"
+      "-Pt3codeVersionCode=$VersionCode"
+      "-I"
+      $versionInitScript
+      "--no-daemon"
+    )
+    $buildSucceeded = $false
+    foreach ($attempt in 1..2) {
+      & .\gradlew.bat @gradleArguments
+      if ($LASTEXITCODE -eq 0) {
+        $buildSucceeded = $true
+        break
+      }
+      if ($attempt -lt 2) {
+        Write-Warning "Android packaging failed once. Stopping stale Gradle daemons before retrying."
+        & .\gradlew.bat --stop | Out-Null
+        Start-Sleep -Seconds 3
+      }
+    }
+    if (-not $buildSucceeded) {
+      throw "Android release packaging failed after two attempts."
     }
   } finally {
     Pop-Location
