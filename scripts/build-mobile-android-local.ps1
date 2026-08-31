@@ -2,7 +2,8 @@ param(
   [Parameter(Mandatory = $true)]
   [string]$Version,
   [string]$BuildRoot = "C:\t3code-mobile-cache",
-  [string]$OutputDirectory
+  [string]$OutputDirectory,
+  [string]$AndroidSdk = (Join-Path $env:LOCALAPPDATA "Android\Sdk")
 )
 
 $ErrorActionPreference = "Stop"
@@ -12,6 +13,10 @@ if (-not $OutputDirectory) {
   $OutputDirectory = Join-Path $repoRoot "release"
 }
 $OutputDirectory = [System.IO.Path]::GetFullPath($OutputDirectory)
+$AndroidSdk = [System.IO.Path]::GetFullPath($AndroidSdk)
+if (-not (Test-Path -LiteralPath $AndroidSdk)) {
+  throw "Android SDK was not found at $AndroidSdk"
+}
 
 Push-Location $repoRoot
 try {
@@ -65,6 +70,8 @@ try {
   }
 
   $androidRoot = Join-Path $BuildRoot "apps\mobile\android"
+  $env:ANDROID_HOME = $AndroidSdk
+  $env:ANDROID_SDK_ROOT = $AndroidSdk
   Push-Location $androidRoot
   try {
     & .\gradlew.bat :app:assembleRelease -PreactNativeArchitectures=arm64-v8a --no-daemon
