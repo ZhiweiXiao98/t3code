@@ -103,7 +103,6 @@ import {
 import { useAtomCommand } from "../state/use-atom-command";
 import { cn } from "~/lib/utils";
 import { getSourceControlPresentationForKind } from "~/sourceControlPresentation";
-import { useI18n } from "~/i18n/WebI18nProvider";
 
 export interface PullRequestsSearch {
   readonly involvement: PullRequestInvolvement;
@@ -222,40 +221,9 @@ export const Route = createFileRoute("/_chat/pull-requests")({
 });
 
 function PullRequestsRouteView() {
-  const { t } = useI18n();
   const search = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
   const { environments } = useEnvironments();
-  const involvementTabs = useMemo(
-    () =>
-      INVOLVEMENT_TABS.map((option) => ({
-        ...option,
-        label: t(
-          option.value === "all"
-            ? "pullRequests.filter.all"
-            : option.value === "reviewing"
-              ? "pullRequests.filter.reviewing"
-              : "pullRequests.filter.authored",
-        ),
-      })),
-    [t],
-  );
-  const stateTabs = useMemo(
-    () =>
-      STATE_TABS.map((option) => ({
-        ...option,
-        label: t(
-          option.value === "all"
-            ? "pullRequests.filter.all"
-            : option.value === "open"
-              ? "pullRequests.filter.open"
-              : option.value === "closed"
-                ? "pullRequests.filter.closed"
-                : "pullRequests.filter.merged",
-        ),
-      })),
-    [t],
-  );
   // Every connected environment that has said it can list pull requests. Sorted, so the query
   // keys, the scope key and the stored snapshot all read the same whichever order the
   // connections happened to come up in.
@@ -1321,7 +1289,6 @@ function PullRequestsRouteView() {
       value={search.q ?? ""}
       busy={typedQuery.length > 0 && (!querySettled || showingCarried)}
       onChange={(query) => updateSearch({ q: query || undefined })}
-      translate={t}
     />
   );
   const panelToggleControls = (
@@ -1364,8 +1331,8 @@ function PullRequestsRouteView() {
         <PullRequestListGhost rows={7} />
       ) : !pullRequestsSupported ? (
         <PullRequestsUnavailableState
-          title={t("pullRequests.unavailable.title")}
-          error={t("pullRequests.unavailable.upgrade")}
+          title="Pull requests unavailable"
+          error="Update your T3 Code servers to browse pull requests."
         />
       ) : firstLoad ? (
         <PullRequestListGhost rows={7} />
@@ -1390,7 +1357,6 @@ function PullRequestsRouteView() {
           loadingMore={loadingMore}
           onClearQuery={() => updateSearch({ q: undefined })}
           onLoadMore={loadMore}
-          translate={t}
         />
       ) : (
         <div className="space-y-3">
@@ -1435,9 +1401,9 @@ function PullRequestsRouteView() {
 
       {listQuery.error && listData !== null ? (
         <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs">
-          <span>{t("pullRequests.latestFailed")}</span>
+          <span>The latest request failed. Showing the last pull requests loaded.</span>
           <Button size="xs" variant="outline" onClick={() => listQuery.refresh()}>
-            {t("common.retry")}
+            Retry
           </Button>
         </div>
       ) : null}
@@ -1446,7 +1412,7 @@ function PullRequestsRouteView() {
           {loadingMore ? (
             <span className="flex items-center gap-2">
               <LoaderIcon aria-hidden className="size-3.5 animate-spin" />
-              {t("pullRequests.loadingMore")}
+              Loading more
             </span>
           ) : null}
         </div>
@@ -1458,7 +1424,7 @@ function PullRequestsRouteView() {
   // kind force the hostname to tell them apart.
   const hostEntries = hosts.length > 0 ? hosts : expectedHosts;
   const hostMenuOptions: ReadonlyArray<PullRequestFilterOption<string>> = [
-    { value: "", label: t("pullRequests.filter.allHosts"), Icon: LayersIcon },
+    { value: "", label: "All hosts", Icon: LayersIcon },
     ...hostEntries.map((entry) => {
       // `expectedHosts` stands in before the server has answered, and nothing is known to be
       // unreadable yet; once the summaries arrive they carry whether each one could be read.
@@ -1469,14 +1435,14 @@ function PullRequestsRouteView() {
         Icon: getSourceControlPresentationForKind(entry.kind).Icon,
         ...(summary === undefined || summary.configured
           ? {}
-          : { unavailable: summary.detail ?? t("pullRequests.unavailable.host") }),
+          : { unavailable: summary.detail ?? "This host could not be read." }),
       };
     }),
   ];
   // The same shape the host pills take, so the two groups read as one control. A local
   // connection wears the screen it is on; every other server wears a server.
   const serverMenuOptions: ReadonlyArray<PullRequestFilterOption<string>> = [
-    { value: "", label: t("pullRequests.filter.allServers"), Icon: LayersIcon },
+    { value: "", label: "All servers", Icon: LayersIcon },
     ...capableEnvironments.map((environment) => ({
       value: environment.environmentId,
       label: environment.label,
@@ -1486,10 +1452,10 @@ function PullRequestsRouteView() {
   const filtersMenu = (
     <PullRequestFiltersMenu
       state={search.state}
-      stateOptions={stateTabs}
+      stateOptions={STATE_TABS}
       onState={(state) => updateListScope({ state })}
       involvement={search.involvement}
-      involvementOptions={involvementTabs}
+      involvementOptions={INVOLVEMENT_TABS}
       onInvolvement={(involvement) => updateListScope({ involvement })}
       filters={menuFilters}
       onFilters={(next) =>
@@ -1513,7 +1479,6 @@ function PullRequestsRouteView() {
       onProject={(projectId, environmentId) =>
         updateListScope(environmentId === undefined ? { projectId } : { projectId, environmentId })
       }
-      translate={t}
     />
   );
   const columnProps = {
@@ -1524,8 +1489,6 @@ function PullRequestsRouteView() {
     state: search.state,
     host: search.host,
     hostMenuOptions,
-    stateOptions: stateTabs,
-    involvementOptions: involvementTabs,
     onInvolvement: (involvement: PullRequestInvolvement) => updateListScope({ involvement }),
     onState: (state: PullRequestListState) => updateListScope({ state }),
     onHost: (host: string | undefined) => updateListScope({ host }),
@@ -1665,11 +1628,13 @@ function CompactFilterMenu<Value extends string>({
   value,
   options,
   onChange,
+  className,
 }: {
   label: string;
   value: Value;
   options: ReadonlyArray<PullRequestFilterOption<Value>>;
   onChange: (value: Value) => void;
+  className?: string;
 }) {
   const current = options.find((option) => option.value === value) ?? options[0];
   if (!current) return null;
@@ -1677,10 +1642,13 @@ function CompactFilterMenu<Value extends string>({
     <Menu>
       <MenuTrigger
         aria-label={label}
-        className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-1.5 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+        className={cn(
+          "inline-flex h-7 min-w-0 items-center gap-1 rounded-md px-1.5 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground",
+          className,
+        )}
       >
-        {current.label}
-        <ChevronDownIcon aria-hidden className="size-3 text-muted-foreground/70" />
+        <span className="truncate">{current.label}</span>
+        <ChevronDownIcon aria-hidden className="size-3 shrink-0 text-muted-foreground/70" />
       </MenuTrigger>
       <MenuPopup align="start" side="bottom" className="min-w-40">
         <MenuRadioGroup value={value} onValueChange={(next) => onChange(next as Value)}>
@@ -1741,7 +1709,6 @@ function ExpandableSearch({
    */
   onFocusWithin?: (focused: boolean) => void;
 }) {
-  const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (!open) return;
@@ -1759,7 +1726,7 @@ function ExpandableSearch({
     return (
       <div
         ref={containerRef}
-        className="w-56 shrink-0"
+        className="w-56 min-w-24 shrink"
         onFocus={() => onFocusWithin?.(true)}
         onBlur={() => {
           onFocusWithin?.(false);
@@ -1774,7 +1741,7 @@ function ExpandableSearch({
     <Button
       size="icon-sm"
       variant="ghost"
-      aria-label={t("pullRequests.search.label")}
+      aria-label="Search pull requests"
       onClick={() => onOpenChange(true)}
     >
       <SearchIcon className="size-4" />
@@ -1798,8 +1765,6 @@ function PullRequestsColumn({
   state,
   host,
   hostMenuOptions,
-  stateOptions,
-  involvementOptions,
   onInvolvement,
   onState,
   onHost,
@@ -1817,8 +1782,6 @@ function PullRequestsColumn({
   state: PullRequestListState;
   host: string | undefined;
   hostMenuOptions: ReadonlyArray<PullRequestFilterOption<string>>;
-  stateOptions: ReadonlyArray<PullRequestFilterOption<PullRequestListState>>;
-  involvementOptions: ReadonlyArray<PullRequestFilterOption<PullRequestInvolvement>>;
   onInvolvement: (involvement: PullRequestInvolvement) => void;
   onState: (state: PullRequestListState) => void;
   onHost: (host: string | undefined) => void;
@@ -1829,7 +1792,6 @@ function PullRequestsColumn({
   rightPanelOpen: boolean;
   listBody: ReactNode;
 }) {
-  const { t } = useI18n();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const markerRef = useRef<HTMLDivElement | null>(null);
   const [condensed, setCondensed] = useState(false);
@@ -1851,6 +1813,7 @@ function PullRequestsColumn({
   const inFlowSearchRef = useRef<HTMLDivElement | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchFocusToken, setSearchFocusToken] = useState(0);
+  const searchExpanded = searchOpen || searchValue.length > 0;
   // Mod+F belongs to this page's own search: the desktop shell binds no find-in-page, so the
   // shortcut would otherwise do nothing. Condensed, it unfolds the topbar search; at the top,
   // it focuses the in-flow bar and selects the query the way a find field would.
@@ -1903,30 +1866,30 @@ function PullRequestsColumn({
       >
         {titlebarControls}
         {condensed ? (
-          <WorkspaceBreadcrumb ariaLabel={t("pullRequests.scope")}>
-            {/* The page name remains the foreground anchor in both states; the live filters are
-                its compact scope, grouped as the second crumb rather than pretending each menu
-                is a separate page in the hierarchy. */}
-            <WorkspaceBreadcrumbItem current>
-              <h1 className="truncate">{t("pullRequests.title")}</h1>
+          <WorkspaceBreadcrumb ariaLabel="Pull request scope" className="overflow-hidden">
+            {/* An expanded search owns the scarce horizontal space. The page title stays
+                available to readers while the live filters remain available in both states. */}
+            <WorkspaceBreadcrumbItem current className={cn(searchExpanded && "sr-only")}>
+              <h1 className="truncate">Pull Requests</h1>
             </WorkspaceBreadcrumbItem>
-            <WorkspaceBreadcrumbSeparator />
-            <WorkspaceBreadcrumbItem className="gap-1.5 overflow-hidden">
+            {searchExpanded ? null : <WorkspaceBreadcrumbSeparator />}
+            <WorkspaceBreadcrumbItem className="shrink gap-1.5">
               <CompactFilterMenu
-                label={t("pullRequests.filter.byState")}
+                label="Filter by state"
                 value={state}
-                options={stateOptions}
+                options={STATE_TABS}
                 onChange={onState}
+                className="shrink-0"
               />
               <CompactFilterMenu
-                label={t("pullRequests.filter.byInvolvement")}
+                label="Filter by involvement"
                 value={involvement}
-                options={involvementOptions}
+                options={INVOLVEMENT_TABS}
                 onChange={onInvolvement}
               />
               {hostMenuOptions.length > 2 ? (
                 <CompactFilterMenu
-                  label={t("pullRequests.filter.byHost")}
+                  label="Filter by host"
                   value={host ?? ""}
                   options={hostMenuOptions}
                   onChange={(next) => onHost(next === "" ? undefined : next)}
@@ -1935,15 +1898,15 @@ function PullRequestsColumn({
             </WorkspaceBreadcrumbItem>
           </WorkspaceBreadcrumb>
         ) : (
-          <WorkspaceBreadcrumb ariaLabel={t("pullRequests.breadcrumb")}>
+          <WorkspaceBreadcrumb ariaLabel="Pull requests breadcrumb">
             <WorkspaceBreadcrumbItem current>
-              <h1 className="truncate">{t("pullRequests.title")}</h1>
+              <h1 className="truncate">Pull Requests</h1>
             </WorkspaceBreadcrumbItem>
           </WorkspaceBreadcrumb>
         )}
         <div className="min-w-0 flex-1" />
         {condensed ? (
-          <div className="flex shrink-0 items-center gap-1.5">
+          <div className="flex shrink items-center gap-1.5">
             <ExpandableSearch
               searchInput={searchInput}
               searchValue={searchValue}
@@ -1962,9 +1925,9 @@ function PullRequestsColumn({
 
       <div
         ref={scrollRef}
-        className="topbar-scroll-fade scrollbar-gutter-both min-h-0 flex-1 overflow-y-auto [--topbar-scroll-fade-height:1.5rem] sm:[--topbar-scroll-fade-height:1.5rem]"
+        className="topbar-scroll-fade scrollbar-gutter-both min-h-0 flex-1 overflow-y-auto"
       >
-        {/* The top padding is the fade band's own height (1.5rem here), the same pairing the
+        {/* The top padding is the shared fade band's height, the same pairing the
             settings page makes: at rest the controls sit fully below the mask, and only
             content actually passing under the chrome fades. */}
         <WorkspacePageContainer className="gap-4">
@@ -1996,13 +1959,11 @@ function PullRequestRefreshControl({
   refreshing: boolean;
   onRefresh: () => void;
 }) {
-  const { t } = useI18n();
-
   return (
     <Button
       size={compact ? "icon-sm" : "icon"}
       variant={compact ? "ghost" : "outline"}
-      aria-label={t("pullRequests.refresh")}
+      aria-label="Refresh pull requests"
       onClick={onRefresh}
       disabled={refreshing}
     >

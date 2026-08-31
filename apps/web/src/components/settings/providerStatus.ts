@@ -41,7 +41,7 @@ function translateProviderMessage(message: string, t: WebTranslate): string {
  */
 export const PROVIDER_STATUS_STYLES = {
   disabled: {
-    dot: "bg-amber-400",
+    dot: "bg-muted-foreground/50",
   },
   error: {
     dot: "bg-destructive",

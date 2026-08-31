@@ -5,8 +5,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SymbolView, type AppSymbolName } from "./AppSymbol";
 import { AppText as Text } from "./AppText";
 import { cn } from "../lib/cn";
-import { localizeMobileString } from "../i18n/mobileStrings";
-import { useThemeColor } from "../lib/useThemeColor";
 
 export interface AndroidHeaderAction {
   readonly accessibilityLabel: string;
@@ -21,12 +19,9 @@ export function AndroidHeaderIconButton(props: {
   readonly onPress?: () => void;
   readonly disabled?: boolean;
 }) {
-  const foregroundColor = useThemeColor("--color-foreground");
-  const disabledColor = useThemeColor("--color-icon-subtle");
-
   return (
     <Pressable
-      accessibilityLabel={localizeMobileString(props.accessibilityLabel)}
+      accessibilityLabel={props.accessibilityLabel}
       accessibilityRole="button"
       disabled={props.disabled}
       hitSlop={8}
@@ -39,7 +34,7 @@ export function AndroidHeaderIconButton(props: {
       <SymbolView
         name={props.icon}
         size={20}
-        tintColor={props.disabled ? disabledColor : foregroundColor}
+        tintColorClassName={props.disabled ? "accent-icon-subtle" : "accent-foreground"}
         type="monochrome"
       />
     </Pressable>
@@ -55,7 +50,6 @@ export function AndroidScreenHeader(props: {
   readonly embedded?: boolean;
 }) {
   const insets = useSafeAreaInsets();
-  const foregroundColor = useThemeColor("--color-foreground");
 
   return (
     <View
@@ -67,7 +61,7 @@ export function AndroidScreenHeader(props: {
       <View className="min-h-12 flex-row items-center gap-2">
         {props.onBack ? (
           <Pressable
-            accessibilityLabel={localizeMobileString("Navigate up")}
+            accessibilityLabel="Navigate up"
             accessibilityRole="button"
             hitSlop={8}
             onPress={props.onBack}
@@ -76,7 +70,7 @@ export function AndroidScreenHeader(props: {
             <SymbolView
               name="chevron.left"
               size={24}
-              tintColor={foregroundColor}
+              tintColorClassName={"accent-foreground"}
               type="monochrome"
             />
           </Pressable>

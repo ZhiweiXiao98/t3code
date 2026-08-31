@@ -5,42 +5,10 @@ import {
   derivePendingUserInputProgress,
   type PendingUserInputDraftAnswer,
 } from "../../pendingUserInput";
-import { CheckIcon, ChevronDownIcon } from "lucide-react";
+import { CheckIcon } from "lucide-react";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "../ui/collapsible";
-import { useI18n, type WebTranslate } from "~/i18n/WebI18nProvider";
 import { cn } from "~/lib/utils";
-
-const CLAUDE_RESUME_QUESTION_PATTERN =
-  /^This session is (?:(\d+)h (\d+)m|(\d+)m) old and uses (\d{1,3}(?:,\d{3})*) tokens\. Compact it before continuing\?$/u;
-
-function localizePendingUserInputText(value: string, t: WebTranslate): string {
-  const questionMatch = CLAUDE_RESUME_QUESTION_PATTERN.exec(value);
-  if (questionMatch) {
-    const age = questionMatch[3]
-      ? t("composer.compaction.native.ageMinutes", { minutes: questionMatch[3] })
-      : t("composer.compaction.native.ageHoursMinutes", {
-          hours: questionMatch[1] ?? "0",
-          minutes: questionMatch[2] ?? "0",
-        });
-    return t("composer.compaction.native.question", {
-      age,
-      tokens: questionMatch[4] ?? "0",
-    });
-  }
-
-  const messageKey = {
-    "Resume session": "composer.compaction.native.header",
-    "Compact and continue": "composer.compaction.native.compactAndContinue",
-    "Resume with a summary and use fewer tokens.": "composer.compaction.native.compactDescription",
-    "Keep full history": "composer.compaction.keepFullHistory",
-    "Resume without changing the conversation.": "composer.compaction.native.keepDescription",
-    "Don't ask again": "composer.compaction.native.dontAskAgain",
-    "Keep full history and skip future resume prompts.":
-      "composer.compaction.native.dontAskDescription",
-  } as const;
-  const key = messageKey[value as keyof typeof messageKey];
-  return key ? t(key) : value;
-}
+import { ComposerBanner } from "./ComposerBanner";
 
 interface PendingUserInputPanelProps {
   pendingUserInputs: PendingUserInput[];
@@ -91,7 +59,6 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
   onToggleOption: (questionId: string, optionLabel: string) => void;
   onAdvance: () => void;
 }) {
-  const { t } = useI18n();
   const progress = derivePendingUserInputProgress(prompt.questions, answers, questionIndex);
   const activeQuestion = progress.activeQuestion;
   const autoAdvanceTimerRef = useRef<number | null>(null);
@@ -201,63 +168,43 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
 
   return (
     <Collapsible
-      className="py-2"
       open={!isCollapsed}
       onOpenChange={(open) => {
         setCollapsedQuestionId(open ? null : activeQuestion.id);
       }}
     >
-      {/* The trigger's wrapper is inset less than the card's text column, and
-          the trigger pays the difference back as padding: the hover background
-          and focus ring bleed 10px past that column on both sides, while the
-          header label and the chevron still line up with the left and right
-          edges of the question text below. The negative block margin keeps the
-          taller hit area from pushing the panel down. */}
-      <div className="flex items-center gap-1 px-1 sm:px-2">
-        <CollapsibleTrigger
-          title={
-            isCollapsed ? "Show the question and its options" : "Hide the question and its options"
-          }
-          data-pending-user-input-toggle={isCollapsed ? "collapsed" : "expanded"}
-          className="group -my-1 flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left outline-none transition-colors duration-150 hover:bg-muted/35 focus-visible:ring-1 focus-visible:ring-primary/25"
-        >
-          <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground/85">
-            {localizePendingUserInputText(activeQuestion.header, t)}
+      <CollapsibleTrigger
+        render={<ComposerBanner.Row render={<button type="button" />} />}
+        title={
+          isCollapsed ? "Show the question and its options" : "Hide the question and its options"
+        }
+        data-pending-user-input-toggle={isCollapsed ? "collapsed" : "expanded"}
+      >
+        <ComposerBanner.Icon />
+        <ComposerBanner.Content>
+          <span className="shrink-0 font-medium text-muted-foreground">
+            {activeQuestion.header}
           </span>
+          {isCollapsed ? (
+            <span className="min-w-0 flex-1 truncate text-secondary-label">
+              {activeQuestion.question}
+            </span>
+          ) : null}
+        </ComposerBanner.Content>
+        <ComposerBanner.Actions>
           {prompt.questions.length > 1 ? (
             <span className="text-[10px] font-medium text-muted-foreground tabular-nums">
               {questionIndex + 1}/{prompt.questions.length}
             </span>
           ) : null}
-          {/* Collapsed, the header is otherwise just a section label and a
-              counter, so the question itself is echoed here as a one-line
-              reminder of what is being asked. */}
-          {isCollapsed ? (
-            <span className="min-w-0 flex-1 truncate text-secondary-label text-xs">
-              {localizePendingUserInputText(activeQuestion.question, t)}
-            </span>
-          ) : null}
-          {/* The chevron points at the body: down while it is open below the
-              header, up while it is collapsed into it. */}
-          <ChevronDownIcon
-            aria-hidden="true"
-            className={cn(
-              "ml-auto size-3.5 shrink-0 text-secondary-label transition-transform duration-150 group-hover:text-foreground",
-              isCollapsed && "rotate-180",
-            )}
-          />
-        </CollapsibleTrigger>
-      </div>
-      {/* The panel carries the horizontal padding itself: it clips its content
-          while the height animates, so the option buttons have to sit inside
-          that padding or their focus rings get shaved off at the edges. */}
-      <CollapsiblePanel className="px-3 sm:px-4">
-        <div className="pt-2 pb-0.5">
-          <p className="text-sm text-foreground/85">
-            {localizePendingUserInputText(activeQuestion.question, t)}
-          </p>
+          <ComposerBanner.ToggleIcon expanded={!isCollapsed} />
+        </ComposerBanner.Actions>
+      </CollapsibleTrigger>
+      <CollapsiblePanel>
+        <ComposerBanner.Body>
+          <p className="text-sm text-foreground/85">{activeQuestion.question}</p>
           {activeQuestion.multiSelect ? (
-            <p className="mt-1 text-secondary-label text-xs">{t("composer.selectMultiple")}</p>
+            <p className="mt-1 text-secondary-label text-xs">Select one or more options.</p>
           ) : null}
           <div className="mt-2 space-y-0.5">
             {activeQuestion.options.map((option, index) => {
@@ -279,13 +226,9 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
               const content = (
                 <>
                   <div className="min-w-0 flex-1 flex flex-col gap-0.5">
-                    <span className="text-sm font-medium">
-                      {localizePendingUserInputText(option.label, t)}
-                    </span>
+                    <span className="text-sm font-medium">{option.label}</span>
                     {option.description && option.description !== option.label ? (
-                      <span className="text-secondary-label text-[11px]">
-                        {localizePendingUserInputText(option.description, t)}
-                      </span>
+                      <span className="text-secondary-label text-[11px]">{option.description}</span>
                     ) : null}
                   </div>
                   {isSelected ? (
@@ -316,7 +259,7 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
               );
             })}
           </div>
-        </div>
+        </ComposerBanner.Body>
       </CollapsiblePanel>
     </Collapsible>
   );
