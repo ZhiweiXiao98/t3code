@@ -1,4 +1,15 @@
 import { describe, expect, it } from "@effect/vitest";
+import {
+  BearerConnectionCredential,
+  BearerConnectionProfile,
+  BearerConnectionRegistration,
+  BearerConnectionTarget,
+} from "@t3tools/client-runtime/connection";
+import {
+  EMPTY_CONNECTION_CATALOG_DOCUMENT,
+  registerConnectionInCatalog,
+} from "@t3tools/client-runtime/platform";
+import { EnvironmentId } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import { vi } from "vite-plus/test";
 
@@ -38,6 +49,33 @@ describe("mobile connection catalog storage", () => {
     Effect.gen(function* () {
       const memory = makeStorage({
         [CONNECTION_CATALOG_KEY]: "{not-json",
+      });
+      const catalog = yield* make().pipe(
+        Effect.provideService(MobileSecureStorage, memory.storage),
+      );
+
+      expect((yield* catalog.read).targets).toEqual([]);
+      expect(memory.deleted).toEqual([CONNECTION_CATALOG_KEY]);
+    }),
+  );
+
+  it.effect("recovers from a catalog with an invalid environment id", () =>
+    Effect.gen(function* () {
+      const memory = makeStorage({
+        [CONNECTION_CATALOG_KEY]: JSON.stringify({
+          schemaVersion: 1,
+          targets: [
+            {
+              _tag: "BearerConnectionTarget",
+              environmentId: "",
+              label: "Desktop",
+              connectionId: "bearer:invalid",
+            },
+          ],
+          profiles: [],
+          credentials: [],
+          remoteDpopTokens: [],
+        }),
       });
       const catalog = yield* make().pipe(
         Effect.provideService(MobileSecureStorage, memory.storage),
@@ -92,6 +130,45 @@ describe("mobile connection catalog storage", () => {
       yield* catalog.update((document) => document);
       expect(memory.values.has(CONNECTION_CATALOG_KEY)).toBe(true);
       expect(memory.values.has(LEGACY_CONNECTIONS_KEY)).toBe(false);
+    }),
+  );
+
+  it.effect("persists and reloads a paired bearer environment", () =>
+    Effect.gen(function* () {
+      const memory = makeStorage({});
+      const catalog = yield* make().pipe(
+        Effect.provideService(MobileSecureStorage, memory.storage),
+      );
+      const environmentId = EnvironmentId.make("environment-1");
+      const connectionId = `bearer:${environmentId}`;
+      const registration = new BearerConnectionRegistration({
+        target: new BearerConnectionTarget({
+          environmentId,
+          label: "Desktop",
+          connectionId,
+        }),
+        profile: new BearerConnectionProfile({
+          connectionId,
+          environmentId,
+          label: "Desktop",
+          httpBaseUrl: "http://127.0.0.1:3773",
+          wsBaseUrl: "ws://127.0.0.1:3773",
+        }),
+        credential: new BearerConnectionCredential({ token: "bearer-token" }),
+      });
+
+      yield* catalog.update((document) => registerConnectionInCatalog(document, registration));
+
+      const encoded = memory.values.get(CONNECTION_CATALOG_KEY);
+      expect(encoded).toContain(environmentId);
+      const reloaded = yield* make().pipe(
+        Effect.provideService(MobileSecureStorage, memory.storage),
+        Effect.flatMap((store) => store.read),
+      );
+      expect(reloaded.targets[0]).toBeInstanceOf(BearerConnectionTarget);
+      expect(reloaded).toEqual(
+        registerConnectionInCatalog(EMPTY_CONNECTION_CATALOG_DOCUMENT, registration),
+      );
     }),
   );
 });
