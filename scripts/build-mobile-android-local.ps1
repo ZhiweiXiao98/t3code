@@ -28,6 +28,18 @@ function Get-RelativePathCompat {
   return $fullPath.Substring($rootPrefix.Length)
 }
 
+function Get-Sha256Hex {
+  param([byte[]]$Bytes)
+
+  $sha256 = [System.Security.Cryptography.SHA256]::Create()
+  try {
+    $hash = $sha256.ComputeHash($Bytes)
+  } finally {
+    $sha256.Dispose()
+  }
+  return -join ($hash | ForEach-Object { $_.ToString("X2") })
+}
+
 function Get-AndroidNativeInputHash {
   param([string]$Root)
 
@@ -47,9 +59,9 @@ function Get-AndroidNativeInputHash {
     ForEach-Object {
       $relativePath = Get-RelativePathCompat -Root $Root -Path $_
       "$relativePath`0$((Get-FileHash -Algorithm SHA256 -LiteralPath $_).Hash)"
-    }
+  }
   $bytes = [System.Text.Encoding]::UTF8.GetBytes(($fingerprint -join "`n"))
-  return [System.Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData($bytes))
+  return Get-Sha256Hex -Bytes $bytes
 }
 
 $BuildRoot = [System.IO.Path]::GetFullPath($BuildRoot)
