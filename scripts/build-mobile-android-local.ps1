@@ -10,6 +10,24 @@ param(
 $ErrorActionPreference = "Stop"
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 
+function Get-RelativePathCompat {
+  param(
+    [string]$Root,
+    [string]$Path
+  )
+
+  $separator = [System.IO.Path]::DirectorySeparatorChar
+  $rootPrefix = $Root.TrimEnd(
+    [System.IO.Path]::DirectorySeparatorChar,
+    [System.IO.Path]::AltDirectorySeparatorChar
+  ) + $separator
+  $fullPath = [System.IO.Path]::GetFullPath($Path)
+  if (-not $fullPath.StartsWith($rootPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw "Android build input is outside the repository: $fullPath"
+  }
+  return $fullPath.Substring($rootPrefix.Length)
+}
+
 function Get-AndroidNativeInputHash {
   param([string]$Root)
 
@@ -27,7 +45,7 @@ function Get-AndroidNativeInputHash {
   $fingerprint = $inputs |
     Sort-Object |
     ForEach-Object {
-      $relativePath = [System.IO.Path]::GetRelativePath($Root, $_)
+      $relativePath = Get-RelativePathCompat -Root $Root -Path $_
       "$relativePath`0$((Get-FileHash -Algorithm SHA256 -LiteralPath $_).Hash)"
     }
   $bytes = [System.Text.Encoding]::UTF8.GetBytes(($fingerprint -join "`n"))
