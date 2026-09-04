@@ -31,6 +31,8 @@ export const EN_MESSAGES = {
   "common.sidebar.resizeHint": "Drag to resize sidebar",
   "common.sidebar.mobileTitle": "Sidebar",
   "common.sidebar.mobileDescription": "Displays the mobile sidebar.",
+  "quit.holdOrDoublePress": "Hold {shortcut} or press twice to quit",
+  "quit.pressAgain": "Press {shortcut} again to quit",
 
   "settings.title": "Settings",
   "settings.breadcrumb": "Settings breadcrumb",
@@ -1476,6 +1478,7 @@ export const EN_MESSAGES = {
   "sidebar.searchProjectsPlaceholder": "Search projects...",
   "sidebar.noMatchingProjects": "No matching projects.",
   "sidebar.discardDraft": "Discard draft",
+  "sidebar.unsentDraft": "Unsent draft",
   "sidebar.allProjects": "All projects",
   "sidebar.projectSettings": "Project settings for {project}",
   "sidebar.newProject": "New project",
@@ -2668,6 +2671,7 @@ export const EN_MESSAGES = {
   "markdownLink.linkFailed": "Unable to link pull request",
   "markdownLink.unlinkFailed": "Unable to unlink pull request",
   "markdownLink.requestFailed": "The request failed.",
+  "markdown.toggleTask": "Toggle task",
   "projectIcon.label": "Choose project icon",
   "projectIcon.select": "Select icon",
   "projectIcon.search": "Search image files...",
@@ -2966,6 +2970,8 @@ export const ZH_CN_MESSAGES = {
   "common.sidebar.resizeHint": "拖动以调整侧栏宽度",
   "common.sidebar.mobileTitle": "侧栏",
   "common.sidebar.mobileDescription": "显示移动端侧栏。",
+  "quit.holdOrDoublePress": "长按 {shortcut} 或快速按两次即可退出",
+  "quit.pressAgain": "再次按下 {shortcut} 即可退出",
 
   "settings.title": "设置",
   "settings.breadcrumb": "设置导航",
@@ -4340,6 +4346,7 @@ export const ZH_CN_MESSAGES = {
   "sidebar.searchProjectsPlaceholder": "搜索项目...",
   "sidebar.noMatchingProjects": "没有匹配的项目。",
   "sidebar.discardDraft": "丢弃草稿",
+  "sidebar.unsentDraft": "未发送的草稿",
   "sidebar.allProjects": "全部项目",
   "sidebar.projectSettings": "{project} 的项目设置",
   "sidebar.newProject": "新建项目",
@@ -5476,6 +5483,7 @@ export const ZH_CN_MESSAGES = {
   "markdownLink.linkFailed": "无法关联拉取请求",
   "markdownLink.unlinkFailed": "无法取消关联拉取请求",
   "markdownLink.requestFailed": "请求失败。",
+  "markdown.toggleTask": "切换任务状态",
   "projectIcon.label": "选择项目图标",
   "projectIcon.select": "选择图标",
   "projectIcon.search": "搜索图片文件...",
@@ -5904,6 +5912,7 @@ const ZH_CN_SOURCE_MESSAGES: Readonly<Record<string, string>> = {
     "服务端更新并重启环境后，自动恢复进行中的任务。",
   "Choose whether the desktop app quits immediately, after a hold, or after two quick presses.":
     "选择桌面客户端立即退出、长按后退出，或快速按两次后退出。",
+  "Hold mode also quits on two quick presses.": "长按模式下，快速按两次也会退出客户端。",
   "Used for thread titles and other generated text. Source control can override it.":
     "用于任务标题和其他生成文本；源代码管理可以单独覆盖此设置。",
   "Tab size for you and agents. Fill fits the panel; other sizes show the device toolbar.":

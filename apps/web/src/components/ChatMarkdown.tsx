@@ -119,6 +119,7 @@ import { LRUCache } from "../lib/lruCache";
 import { getSyntaxHighlighterPromise } from "../lib/syntaxHighlighting";
 import { RenderErrorBoundary } from "./RenderErrorBoundary";
 import { useTheme } from "../hooks/useTheme";
+import { useI18n } from "../i18n/WebI18nProvider";
 import { getClientSettings, useClientSettings } from "../hooks/useSettings";
 import {
   chatMarkdownClipboardPayload,
@@ -1964,6 +1965,7 @@ function useChatMarkdownState({
   imageBaseDir,
   onImageExpand,
 }: ChatMarkdownProps) {
+  const { t } = useI18n();
   const { resolvedTheme } = useTheme();
   const [localMediaPreview, setLocalMediaPreview] = useState<ExpandedImagePreview | null>(null);
   const expandMedia = onImageExpand ?? setLocalMediaPreview;
@@ -2367,6 +2369,7 @@ function useChatMarkdownState({
       resolveThreadPullRequest,
       resolvedTheme,
       skills,
+      t,
       text,
       threadRef,
       updateThreadPullRequestLink,
@@ -2389,6 +2392,7 @@ function useChatMarkdownState({
       resolveThreadPullRequest,
       resolvedTheme,
       skills,
+      t,
       text,
       threadRef,
       updateThreadPullRequestLink,
@@ -2462,7 +2466,7 @@ const CHAT_MARKDOWN_COMPONENTS = {
     );
   },
   input: function MarkdownInput({ node: _node, type, checked, disabled: _disabled, ...props }) {
-    const { onTaskListChange } = use(ChatMarkdownRendererContext);
+    const { onTaskListChange, t } = use(ChatMarkdownRendererContext);
     if (type !== "checkbox" || !onTaskListChange) {
       return (
         <input
@@ -2479,7 +2483,7 @@ const CHAT_MARKDOWN_COMPONENTS = {
         {...props}
         type="checkbox"
         name="markdown-task"
-        aria-label="Toggle task"
+        aria-label={t("markdown.toggleTask")}
         checked={checked}
         onChange={(event) => {
           const markerOffset = Number(event.currentTarget.closest("li")?.dataset.taskMarkerOffset);
@@ -2502,6 +2506,7 @@ const CHAT_MARKDOWN_COMPONENTS = {
       resolveThreadPullRequest,
       updateThreadPullRequestLink,
       fileLinkChip,
+      t,
     } = use(ChatMarkdownRendererContext);
     const citation = href ? parseAssistantCitationHref(href) : null;
     if (citation) return <AssistantCitationChip citation={citation} />;
@@ -2631,9 +2636,10 @@ const CHAT_MARKDOWN_COMPONENTS = {
                       type: "error",
                       title:
                         operation === "link-pull-request-to-thread"
-                          ? "Unable to link pull request"
-                          : "Unable to unlink pull request",
-                      description: cause instanceof Error ? cause.message : "The request failed.",
+                          ? t("markdownLink.linkFailed")
+                          : t("markdownLink.unlinkFailed"),
+                      description:
+                        cause instanceof Error ? cause.message : t("markdownLink.requestFailed"),
                     }),
                   );
                 }
