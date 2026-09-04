@@ -1,12 +1,13 @@
+import type { DraftId } from "~/composerDraftStore";
+import { useComposerDraftStore } from "~/composerDraftStore";
 import type { ScopedProjectRef } from "@t3tools/contracts";
 import { scopedProjectKey, scopeProjectRef } from "@t3tools/client-runtime/environment";
 import { FolderPlusIcon } from "lucide-react";
 import { useCallback, useMemo } from "react";
 
 import { openCommandPalette } from "~/commandPaletteBus";
-import { useNewThreadHandler } from "~/hooks/useHandleNewThread";
 import { useClientSettings } from "~/hooks/useSettings";
-import { splitWebTranslation, useI18n } from "~/i18n/WebI18nProvider";
+import { hasExplicitComposerModelSelection } from "~/lib/chatThreadActions";
 import { selectProjectGroupingSettings } from "~/logicalProject";
 import {
   buildSidebarProjectPickerEntries,
@@ -27,22 +28,28 @@ import {
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 
 interface DraftHeroHeadlineProps {
+  readonly draftId: DraftId | null;
   readonly activeProjectRef: ScopedProjectRef | null;
   readonly activeProjectTitle: string | null;
 }
 
 export function DraftHeroHeadline({
+  draftId,
   activeProjectRef,
   activeProjectTitle,
 }: DraftHeroHeadlineProps) {
-  const { t } = useI18n();
   const projects = useProjects();
   const threads = useThreadShells();
   const { environments } = useEnvironments();
   const primaryEnvironmentId = usePrimaryEnvironmentId();
   const projectGroupingSettings = useClientSettings(selectProjectGroupingSettings);
   const projectSortOrder = useClientSettings((settings) => settings.sidebarProjectSortOrder);
-  const handleNewThread = useNewThreadHandler();
+  const setLogicalProjectDraftThreadId = useComposerDraftStore(
+    (store) => store.setLogicalProjectDraftThreadId,
+  );
+  const getComposerDraft = useComposerDraftStore((store) => store.getComposerDraft);
+  const applyStickyState = useComposerDraftStore((store) => store.applyStickyState);
+  const setModelSelection = useComposerDraftStore((store) => store.setModelSelection);
   const openAddProject = useCallback(() => openCommandPalette({ open: "add-project" }), []);
 
   const environmentLabelById = useMemo(
@@ -99,8 +106,6 @@ export function DraftHeroHeadline({
   const hasResolvedProject = activeProjectTitle !== null;
   const canChooseProject = projectPickerEntries.length > 0;
   const shouldShowProjectMenu = canChooseProject;
-  const questionAroundProject = splitWebTranslation(t, "draftHero.question", "project");
-  const chooseProjectToStart = splitWebTranslation(t, "draftHero.chooseProjectToStart", "project");
 
   const projectSelector = shouldShowProjectMenu ? (
     <Menu>
@@ -108,14 +113,12 @@ export function DraftHeroHeadline({
         <TooltipTrigger
           render={
             <MenuTrigger
-              aria-label={
-                hasResolvedProject ? t("draftHero.changeProject") : t("draftHero.chooseProject")
-              }
+              aria-label={hasResolvedProject ? "Change project" : "Choose a project"}
               className="pointer-events-auto inline-block max-w-64 truncate border-foreground/60 border-b border-dotted align-baseline text-foreground transition-colors hover:border-foreground/80 focus-visible:rounded-sm focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
             />
           }
         >
-          {activeProjectDisplayName ?? t("draftHero.chooseProject")}
+          {activeProjectDisplayName ?? "Choose a project"}
         </TooltipTrigger>
         {activeProjectDisplayName ? (
           <TooltipPopup side="top" className="max-w-80">
@@ -132,12 +135,26 @@ export function DraftHeroHeadline({
               return;
             }
             const project = entry.targetProject;
-            // Changing the repo of a draft moves the typed content along:
-            // the user started writing in the wrong project, not a new task.
-            void handleNewThread(scopeProjectRef(project.environmentId, project.id), {
-              replace: true,
-              carryComposerContent: true,
-            });
+            if (!draftId) {
+              return;
+            }
+            // Project selection changes the target of the open draft in
+            // place. The prompt stays in the same composer session, so the
+            // sidebar only gets a draft row if the user later navigates away.
+            const currentDraft = getComposerDraft(draftId);
+            setLogicalProjectDraftThreadId(
+              entry.group.projectKey,
+              scopeProjectRef(project.environmentId, project.id),
+              draftId,
+            );
+            if (!hasExplicitComposerModelSelection(currentDraft)) {
+              applyStickyState(draftId);
+              if (project.defaultModelSelection) {
+                setModelSelection(draftId, project.defaultModelSelection, {
+                  replaceOptions: true,
+                });
+              }
+            }
           }}
         >
           {projectPickerEntries.map(({ group }) => {
@@ -158,7 +175,7 @@ export function DraftHeroHeadline({
         <MenuSeparator />
         <MenuItem onClick={openAddProject}>
           <FolderPlusIcon />
-          {t("draftHero.newProject")}
+          New project
         </MenuItem>
       </MenuPopup>
     </Menu>
@@ -168,26 +185,18 @@ export function DraftHeroHeadline({
       onClick={openAddProject}
       className="pointer-events-auto inline cursor-pointer border-muted-foreground/35 border-b border-dotted text-muted-foreground/60 transition-colors hover:border-muted-foreground/60 hover:text-muted-foreground/80 focus-visible:rounded-sm focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
     >
-      {activeProjectTitle ?? t("draftHero.addProject")}
+      {activeProjectTitle ?? "Add a project"}
     </button>
   );
 
   return (
     <h1 className="mx-auto w-full max-w-5xl text-center font-normal text-2xl text-foreground tracking-tight sm:text-3xl">
       {hasResolvedProject ? (
-        <>
-          {questionAroundProject[0]}
-          {projectSelector}
-          {questionAroundProject[1]}
-        </>
+        <>What should we build in {projectSelector}?</>
       ) : canChooseProject ? (
-        <>
-          {chooseProjectToStart[0]}
-          {projectSelector}
-          {chooseProjectToStart[1]}
-        </>
+        <>{projectSelector} to start</>
       ) : (
-        <>{t("draftHero.addProjectToStart")}</>
+        <>Add a project to start</>
       )}
     </h1>
   );

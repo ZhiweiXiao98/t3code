@@ -21,6 +21,7 @@ import {
 import { Children, isValidElement, type ReactNode } from "react";
 
 import { cn } from "~/lib/utils";
+import { useI18n, type WebTranslate } from "../../i18n/WebI18nProvider";
 
 import { Badge } from "../ui/badge";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
@@ -33,9 +34,9 @@ interface StatePresentation {
 }
 
 /**
- * How a pull request's state reads on this page. Open, closed and merged use the same ink as
- * the thread badge in `ThreadStatusIndicators`, so one pull request cannot look like two
- * different things in two places; draft and conflicts are states that badge never shows.
+ * How a pull request's state reads on this page. Open, closed, merged, and draft use the same
+ * ink as the thread badge in `ThreadStatusIndicators`, so one pull request cannot look like two
+ * different things in two places.
  *
  * Draft outranks conflicts: a draft is not heading for a merge yet, so conflicts only surface
  * once it is real work.
@@ -45,24 +46,25 @@ export function resolvePullRequestState(input: {
   readonly isDraft: boolean;
   readonly mergeability?: PullRequestMergeability;
   readonly baseBranch?: string;
+  readonly t?: WebTranslate;
 }): StatePresentation {
   if (input.state === "merged") {
     return {
-      label: "Merged",
+      label: input.t?.("pullRequests.state.merged") ?? "Merged",
       toneClassName: "text-violet-600 dark:text-violet-300/90",
       Icon: GitMergeIcon,
     };
   }
   if (input.state === "closed") {
     return {
-      label: "Closed",
+      label: input.t?.("pullRequests.state.closed") ?? "Closed",
       toneClassName: "text-red-600 dark:text-red-300/90",
       Icon: GitPullRequestClosedIcon,
     };
   }
   if (input.isDraft) {
     return {
-      label: "Draft",
+      label: input.t?.("pullRequests.state.draft") ?? "Draft",
       toneClassName: "text-zinc-500 dark:text-zinc-400/80",
       Icon: GitPullRequestDraftIcon,
     };
@@ -71,13 +73,16 @@ export function resolvePullRequestState(input: {
     return {
       // "Has conflicts" leaves out the one thing a reader wants when the warning triangle catches
       // their eye, so name the branch it collides with wherever the caller knows it.
-      label: input.baseBranch ? `Conflicts with ${input.baseBranch}` : "Has conflicts",
+      label: input.baseBranch
+        ? (input.t?.("pullRequests.state.conflictsWith", { branch: input.baseBranch }) ??
+          `Conflicts with ${input.baseBranch}`)
+        : (input.t?.("pullRequests.state.conflicts") ?? "Has conflicts"),
       toneClassName: "text-destructive",
       Icon: TriangleAlertIcon,
     };
   }
   return {
-    label: "Open",
+    label: input.t?.("pullRequests.state.open") ?? "Open",
     toneClassName: "text-emerald-600 dark:text-emerald-300/90",
     Icon: GitPullRequestIcon,
   };
@@ -96,11 +101,13 @@ export function PullRequestStateGlyph({
   baseBranch?: string;
   className?: string;
 }) {
+  const { t } = useI18n();
   const presentation = resolvePullRequestState({
     state,
     isDraft,
     ...(mergeability ? { mergeability } : {}),
     ...(baseBranch ? { baseBranch } : {}),
+    t,
   });
   return (
     <Tooltip>
@@ -120,6 +127,11 @@ export function PullRequestStateGlyph({
 
 const CHECK_STATUS_PRESENTATION = {
   pending: { label: "Running", Icon: LoaderIcon, toneClassName: "animate-spin text-amber-500" },
+  "action-required": {
+    label: "Awaiting action",
+    Icon: CircleDotIcon,
+    toneClassName: "text-amber-600 dark:text-amber-400/90",
+  },
   success: {
     label: "Passed",
     Icon: CircleCheckIcon,
@@ -134,8 +146,37 @@ const CHECK_STATUS_PRESENTATION = {
   { label: string; Icon: typeof CircleCheckIcon; toneClassName: string }
 >;
 
-export function pullRequestCheckStatusLabel(status: PullRequestCheckStatus): string {
-  return CHECK_STATUS_PRESENTATION[status].label;
+function isWorkflowApprovalCheck(check: Pick<PullRequestCheck, "status" | "url">): boolean {
+  return (
+    check.status === "action-required" &&
+    check.url !== null &&
+    /\/actions\/runs\/\d+(?:\/|$)/u.test(check.url)
+  );
+}
+
+export function pullRequestCheckStatusLabel(
+  check: Pick<PullRequestCheck, "status" | "url">,
+  t?: WebTranslate,
+): string {
+  if (isWorkflowApprovalCheck(check)) {
+    return t?.("pullRequests.checks.status.awaitingApproval") ?? "Awaiting approval";
+  }
+  if (!t) return CHECK_STATUS_PRESENTATION[check.status].label;
+  const key =
+    check.status === "pending"
+      ? "pullRequests.checks.status.running"
+      : check.status === "action-required"
+        ? "pullRequests.checks.status.awaitingAction"
+        : check.status === "success"
+          ? "pullRequests.checks.status.passed"
+          : check.status === "failure"
+            ? "pullRequests.checks.status.failed"
+            : check.status === "cancelled"
+              ? "pullRequests.checks.status.cancelled"
+              : check.status === "skipped"
+                ? "pullRequests.checks.status.skipped"
+                : "pullRequests.checks.status.neutral";
+  return t(key);
 }
 
 export function PullRequestCheckStatusIcon({ status }: { status: PullRequestCheckStatus }) {
@@ -173,8 +214,21 @@ const CHECKS_STATE_PRESENTATION = {
   { label: string; Icon: typeof CircleCheckIcon; toneClassName: string }
 >;
 
-export function pullRequestChecksStatePresentation(state: PullRequestChecksState) {
-  return CHECKS_STATE_PRESENTATION[state];
+export function pullRequestChecksStatePresentation(
+  state: PullRequestChecksState,
+  t?: WebTranslate,
+) {
+  const presentation = CHECKS_STATE_PRESENTATION[state];
+  if (!t) return presentation;
+  return {
+    ...presentation,
+    label:
+      state === "passing"
+        ? t("pullRequests.checks.allPassed")
+        : state === "failing"
+          ? t("pullRequests.checks.someFailed")
+          : t("pullRequests.checks.somePending"),
+  };
 }
 
 /**
@@ -187,10 +241,10 @@ export function pullRequestChecksState(
   checks: ReadonlyArray<PullRequestCheck>,
 ): PullRequestChecksState | null {
   if (checks.length === 0) return null;
-  const statuses = checks.map((check) => check.status);
-  if (statuses.includes("failure") || statuses.includes("cancelled")) return "failing";
-  if (statuses.includes("pending")) return "pending";
-  return statuses.includes("success") ? "passing" : null;
+  const statuses = new Set(checks.map((check) => check.status));
+  if (statuses.has("failure") || statuses.has("cancelled")) return "failing";
+  if (statuses.has("pending") || statuses.has("action-required")) return "pending";
+  return statuses.has("success") ? "passing" : null;
 }
 
 /**
@@ -263,8 +317,16 @@ export function pullRequestReviewOutcomeRingClassName(
  * What a superseded verdict says, which is the same word with when it applied added. Commits
  * landed after it, so it stands for code the branch no longer has.
  */
-export function pullRequestReviewOutcomeStaleLabel(outcome: PullRequestReviewOutcome): string {
-  return `${REVIEW_OUTCOME_PRESENTATION[outcome].label} earlier changes`;
+export function pullRequestReviewOutcomeStaleLabel(
+  outcome: PullRequestReviewOutcome,
+  t?: WebTranslate,
+): string {
+  if (!t) return `${REVIEW_OUTCOME_PRESENTATION[outcome].label} earlier changes`;
+  return outcome === "approved"
+    ? t("pullRequests.review.approvedEarlier")
+    : outcome === "changes-requested"
+      ? t("pullRequests.review.changesRequestedEarlier")
+      : t("pullRequests.review.dismissedEarlier");
 }
 
 /** Decorative: every caller says which verdict this is in words beside it. */
@@ -284,8 +346,16 @@ export function PullRequestReviewOutcomeIcon({
   );
 }
 
-export function pullRequestReviewOutcomeLabel(outcome: PullRequestReviewOutcome): string {
-  return REVIEW_OUTCOME_PRESENTATION[outcome].label;
+export function pullRequestReviewOutcomeLabel(
+  outcome: PullRequestReviewOutcome,
+  t?: WebTranslate,
+): string {
+  if (!t) return REVIEW_OUTCOME_PRESENTATION[outcome].label;
+  return outcome === "approved"
+    ? t("pullRequests.review.approved")
+    : outcome === "changes-requested"
+      ? t("pullRequests.review.changesRequested")
+      : t("pullRequests.review.dismissed");
 }
 
 export function PullRequestReviewOutcomeBadge({
@@ -295,11 +365,12 @@ export function PullRequestReviewOutcomeBadge({
   outcome: PullRequestReviewOutcome;
   className?: string;
 }) {
+  const { t } = useI18n();
   const presentation = REVIEW_OUTCOME_PRESENTATION[outcome];
   return (
     <Badge size="sm" variant={presentation.badgeVariant} className={cn("gap-1", className)}>
       <presentation.Icon aria-hidden className="size-3" />
-      {presentation.label}
+      {pullRequestReviewOutcomeLabel(outcome, t)}
     </Badge>
   );
 }
@@ -433,14 +504,56 @@ export function PullRequestMetaLine({
   );
 }
 
-export function summarizePullRequestChecks(checks: ReadonlyArray<PullRequestCheck>): string {
-  if (checks.length === 0) return "No checks reported";
+export function summarizePullRequestChecks(
+  checks: ReadonlyArray<PullRequestCheck>,
+  t?: WebTranslate,
+): string {
+  if (checks.length === 0) return t?.("pullRequests.checks.nonePlain") ?? "No checks reported";
+  const actionRequired = checks.filter((check) => check.status === "action-required");
+  const workflowApprovalRequired = actionRequired.filter(isWorkflowApprovalCheck).length;
+  const otherActionRequired = actionRequired.length - workflowApprovalRequired;
   const failed = checks.filter(
     (check) => check.status === "failure" || check.status === "cancelled",
   ).length;
   const pending = checks.filter((check) => check.status === "pending").length;
   const passed = checks.filter((check) => check.status === "success").length;
-  if (failed > 0) return `${failed} of ${checks.length} failing`;
-  if (pending > 0) return `${pending} of ${checks.length} running`;
-  return passed === checks.length ? "All checks passed" : `${passed} of ${checks.length} passing`;
+  if (failed > 0) {
+    return (
+      t?.("pullRequests.checks.failingCount", { failed, total: checks.length }) ??
+      `${failed} of ${checks.length} failing`
+    );
+  }
+  if (workflowApprovalRequired > 0 && otherActionRequired > 0) {
+    return (
+      t?.("pullRequests.checks.workflowsAndChecksAwaiting", {
+        workflows: workflowApprovalRequired,
+        checks: otherActionRequired,
+      }) ??
+      `${workflowApprovalRequired} ${workflowApprovalRequired === 1 ? "workflow" : "workflows"} and ${otherActionRequired} ${otherActionRequired === 1 ? "check" : "checks"} awaiting action`
+    );
+  }
+  if (workflowApprovalRequired > 0) {
+    return (
+      t?.("pullRequests.checks.workflowsAwaitingApproval", {
+        count: workflowApprovalRequired,
+      }) ??
+      `${workflowApprovalRequired} ${workflowApprovalRequired === 1 ? "workflow" : "workflows"} awaiting approval`
+    );
+  }
+  if (otherActionRequired > 0) {
+    return (
+      t?.("pullRequests.checks.checksAwaitingAction", { count: otherActionRequired }) ??
+      `${otherActionRequired} ${otherActionRequired === 1 ? "check" : "checks"} awaiting action`
+    );
+  }
+  if (pending > 0) {
+    return (
+      t?.("pullRequests.checks.runningCount", { pending, total: checks.length }) ??
+      `${pending} of ${checks.length} running`
+    );
+  }
+  return passed === checks.length
+    ? (t?.("pullRequests.checks.allPassedShort") ?? "All checks passed")
+    : (t?.("pullRequests.checks.passingCount", { passed, total: checks.length }) ??
+        `${passed} of ${checks.length} passing`);
 }

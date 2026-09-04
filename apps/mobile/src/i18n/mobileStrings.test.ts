@@ -39,6 +39,18 @@ describe("mobile strings", () => {
     expect(localizeMobileString("Transcribing", "zh-CN")).toBe("正在转写");
   });
 
+  it("translates usage limits and provider setup states", () => {
+    expect(localizeMobileString("82% used", "zh-CN")).toBe("已使用 82%");
+    expect(localizeMobileString("ahead of pace · resets in 2h 5m", "zh-CN")).toBe(
+      "用量偏快 · 2 小时 5 分钟后重置",
+    );
+    expect(localizeMobileString("2 reset credits banked · next expires in 3d 4h", "zh-CN")).toBe(
+      "有 2 个重置额度 · 下一额度将在 3 天 4 小时后过期",
+    );
+    expect(localizeMobileString("Set up Antigravity", "zh-CN")).toBe("设置 Antigravity");
+    expect(localizeMobileString("Enabled. Installed 1.2.3", "zh-CN")).toBe("已启用 · 已安装 1.2.3");
+  });
+
   it("translates workspace image and Codex feedback states", () => {
     expect(localizeMobileString("Loading image…", "zh-CN")).toBe("正在加载图片…");
     expect(

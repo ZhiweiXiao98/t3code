@@ -13,8 +13,8 @@ import * as DesktopEnvironment from "./DesktopEnvironment.ts";
 import * as DesktopLifecycle from "./DesktopLifecycle.ts";
 import * as DesktopShutdown from "./DesktopShutdown.ts";
 import * as DesktopState from "./DesktopState.ts";
-import * as DesktopWindow from "../window/DesktopWindow.ts";
 import * as DesktopTray from "../window/DesktopTray.ts";
+import * as DesktopWindow from "../window/DesktopWindow.ts";
 
 function makeElectronAppLayer(
   appListeners: Map<string, (...args: readonly unknown[]) => void>,
@@ -109,25 +109,24 @@ describe("DesktopLifecycle", () => {
   for (const platform of ["darwin", "win32", "linux"] satisfies ReadonlyArray<NodeJS.Platform>) {
     it.effect(`lets the updater's quit event proceed on ${platform}`, () => {
       const appListeners = new Map<string, (...args: readonly unknown[]) => void>();
-      let trayQuitRequested = false;
+      let windowsDestroyed = false;
       const environmentLayer = Layer.succeed(DesktopEnvironment.DesktopEnvironment, {
         platform,
         isDevelopment: false,
       } as DesktopEnvironment.DesktopEnvironment["Service"]);
-      const updaterTrayLayer = Layer.succeed(DesktopTray.DesktopTray, {
-        ensure: () => Effect.succeed(false),
-        markQuitRequested: () => {
-          trayQuitRequested = true;
-        },
-        shouldHideOnClose: () => !trayQuitRequested,
-      });
 
       const layer = DesktopLifecycle.layer.pipe(
         Layer.provideMerge(makeElectronAppLayer(appListeners)),
         Layer.provideMerge(electronThemeLayer),
-        Layer.provideMerge(makeElectronWindowLayer()),
+        Layer.provideMerge(
+          makeElectronWindowLayer(
+            Effect.sync(() => {
+              windowsDestroyed = true;
+            }),
+          ),
+        ),
         Layer.provideMerge(makeDesktopWindowLayer()),
-        Layer.provideMerge(updaterTrayLayer),
+        Layer.provideMerge(desktopTrayLayer),
         Layer.provideMerge(environmentLayer),
         Layer.provideMerge(DesktopShutdown.layer),
         Layer.provideMerge(DesktopState.layer),
@@ -139,7 +138,7 @@ describe("DesktopLifecycle", () => {
           yield* lifecycle.register;
 
           appListeners.get("before-quit-for-update")?.();
-          assert.isTrue(trayQuitRequested);
+          yield* Effect.yieldNow;
 
           let prevented = false;
           const event = {
@@ -153,6 +152,7 @@ describe("DesktopLifecycle", () => {
             prevented,
             "cancelling this event prevents the updater from completing its relaunch",
           );
+          assert.isTrue(windowsDestroyed);
 
           const state = yield* DesktopState.DesktopState;
           assert.isTrue(yield* Ref.get(state.quitting));

@@ -1,7 +1,8 @@
 import { useState } from "react";
-import type { EnvironmentId } from "@t3tools/contracts";
+import type { EnvironmentId, ScopedThreadRef } from "@t3tools/contracts";
 
 import { cn } from "~/lib/utils";
+import { useI18n } from "~/i18n/WebI18nProvider";
 
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
@@ -19,6 +20,7 @@ export function PullRequestMarkdownEditor({
   value,
   cwd,
   environmentId,
+  threadRef = null,
   placeholder,
   label,
   saving,
@@ -30,6 +32,8 @@ export function PullRequestMarkdownEditor({
   readonly value: string;
   readonly cwd: string;
   readonly environmentId: EnvironmentId;
+  /** Thread the editor sits beside, so links in its preview follow the link target setting. */
+  readonly threadRef?: ScopedThreadRef | null;
   readonly placeholder?: string | undefined;
   readonly label: string;
   readonly saving: boolean;
@@ -39,6 +43,7 @@ export function PullRequestMarkdownEditor({
   readonly onSave: (next: string) => void;
   readonly onCancel: () => void;
 }) {
+  const { t } = useI18n();
   const [draft, setDraft] = useState(value);
   const [preview, setPreview] = useState(false);
   // The words this draft started from. React keeps a component instance wherever the same
@@ -68,7 +73,7 @@ export function PullRequestMarkdownEditor({
           disabled={saving}
           onClick={() => setPreview(false)}
         >
-          Write
+          {t("pullRequests.markdown.write")}
         </Button>
         <Button
           size="xs"
@@ -76,15 +81,22 @@ export function PullRequestMarkdownEditor({
           disabled={saving}
           onClick={() => setPreview(true)}
         >
-          Preview
+          {t("pullRequests.markdown.preview")}
         </Button>
       </div>
       {preview ? (
         <div className="rounded-lg border border-border/60 px-3 py-2">
           {empty ? (
-            <p className="text-xs text-muted-foreground">Nothing to preview.</p>
+            <p className="text-xs text-muted-foreground">
+              {t("pullRequests.markdown.nothingToPreview")}
+            </p>
           ) : (
-            <PullRequestMarkdown text={draft} cwd={cwd} environmentId={environmentId} />
+            <PullRequestMarkdown
+              text={draft}
+              cwd={cwd}
+              environmentId={environmentId}
+              threadRef={threadRef}
+            />
           )}
         </div>
       ) : (
@@ -100,7 +112,7 @@ export function PullRequestMarkdownEditor({
       )}
       <div className="flex justify-end gap-2">
         <Button size="xs" variant="ghost" disabled={saving} onClick={onCancel}>
-          Cancel
+          {t("common.cancel")}
         </Button>
         <Button
           size="xs"
@@ -108,7 +120,7 @@ export function PullRequestMarkdownEditor({
           disabled={saving || (empty && !allowEmpty)}
           onClick={() => onSave(draft)}
         >
-          {saving ? "Saving..." : "Save"}
+          {saving ? t("pullRequests.markdown.saving") : t("common.save")}
         </Button>
       </div>
     </div>

@@ -7,7 +7,10 @@ import type { DailyTotals, HourlyTotals } from "@t3tools/shared/usageMerge";
 import { isElectron } from "../../env";
 import { useI18n } from "../../i18n/WebI18nProvider";
 import { cn } from "../../lib/utils";
+import { usePrimaryEnvironmentId } from "../../state/environments";
+import { serverEnvironment } from "../../state/server";
 import { useUsage, type EnvironmentUsageStatus } from "../../state/usage";
+import { useAtomCommand } from "../../state/use-atom-command";
 import {
   enumerateDays,
   enumerateHourStarts,
@@ -24,6 +27,7 @@ import { Button } from "../ui/button";
 import { ScrollArea } from "../ui/scroll-area";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
 import { SidebarInset } from "../ui/sidebar";
+import { Skeleton } from "../ui/skeleton";
 import { Toggle, ToggleGroup } from "../ui/toggle-group";
 import {
   WorkspaceBreadcrumb,
@@ -32,8 +36,20 @@ import {
 } from "../WorkspaceBreadcrumb";
 import { WorkspacePageContainer } from "../WorkspacePageContainer";
 import { WorkspacePageHeader } from "../WorkspacePageHeader";
+import { UsageLimitsSection } from "./UsageLimits";
 import { UsageProviderChart, type UsageChartMetric } from "./UsageProviderChart";
 import { PROVIDER_ORDER, PROVIDER_PRESENTATION, providersWithUsage } from "./usageProviders";
+
+type UsageMetric = UsageChartMetric | "limits";
+const METRIC_OPTIONS = [
+  { value: "cost" },
+  { value: "tokens" },
+  { value: "limits" },
+] as const satisfies readonly { value: UsageMetric }[];
+
+function isUsageMetric(value: string | null | undefined): value is UsageMetric {
+  return METRIC_OPTIONS.some((option) => option.value === value);
+}
 
 const WINDOW_OPTIONS = [{ days: 1 }, { days: 7 }, { days: 30 }, { days: 90 }] as const;
 
@@ -43,11 +59,16 @@ export function UsagePage() {
     days: 30,
     window: makeWindow(30),
   }));
-  const [metric, setMetric] = useState<UsageChartMetric>("cost");
+  const [metric, setMetric] = useState<UsageMetric>("cost");
+  const showingLimits = metric === "limits";
   const [breakdown, setBreakdown] = useState<"model" | "time">("model");
   const { days: windowDays, window } = windowSelection;
   const isPast24Hours = windowDays === 1;
   const { merged, environments, isPending, isPartial, refresh } = useUsage(window);
+  const primaryEnvironmentId = usePrimaryEnvironmentId();
+  const refreshProviders = useAtomCommand(serverEnvironment.refreshProviders, {
+    reportFailure: false,
+  });
 
   // Hold the content until every environment is terminal. Rendering merged
   // totals while devices are still answering makes every number on the page
@@ -90,6 +111,15 @@ export function UsagePage() {
     });
   };
   const refreshWindow = () => {
+    // On Limits the button re-probes every provider (and usage-limit source)
+    // on the primary environment; the live snapshots then flow in over the
+    // config stream, so nothing else needs to move.
+    if (showingLimits) {
+      if (primaryEnvironmentId) {
+        void refreshProviders({ environmentId: primaryEnvironmentId, input: {} });
+      }
+      return;
+    }
     const nextWindow = makeWindow(windowDays, undefined, isPast24Hours ? "hour" : "day");
     if (
       nextWindow.sinceDay === window.sinceDay &&
@@ -112,10 +142,14 @@ export function UsagePage() {
         <WorkspaceBreadcrumbItem current>
           <h1>{t("usage.title")}</h1>
         </WorkspaceBreadcrumbItem>
-        <WorkspaceBreadcrumbSeparator className="hidden md:flex" />
-        <WorkspaceBreadcrumbItem className="hidden min-w-0 shrink md:flex">
-          <span className="truncate">{windowLabel}</span>
-        </WorkspaceBreadcrumbItem>
+        {showingLimits ? null : (
+          <>
+            <WorkspaceBreadcrumbSeparator className="hidden md:flex" />
+            <WorkspaceBreadcrumbItem className="hidden min-w-0 shrink md:flex">
+              <span className="truncate">{windowLabel}</span>
+            </WorkspaceBreadcrumbItem>
+          </>
+        )}
       </WorkspaceBreadcrumb>
       <div className="ms-auto hidden min-w-0 items-center justify-end gap-2 lg:flex">
         <ToggleGroup
@@ -124,19 +158,22 @@ export function UsagePage() {
           value={[metric]}
           onValueChange={(next) => {
             const value = next[0];
-            if (value === "cost" || value === "tokens") setMetric(value);
+            if (isUsageMetric(value)) setMetric(value);
           }}
         >
-          {(["cost", "tokens"] as const).map((option) => (
-            <Toggle key={option} value={option}>
-              {t(option === "cost" ? "usage.metric.cost" : "usage.metric.tokens")}
+          {METRIC_OPTIONS.map((option) => (
+            <Toggle key={option.value} value={option.value}>
+              {t(`usage.metric.${option.value}`)}
             </Toggle>
           ))}
         </ToggleGroup>
+        {/* The period does not apply to Limits, so it stays in place but
+            disabled; unmounting it shifted the metric toggle ~300px. */}
         <ToggleGroup
           aria-label={t("usage.period.label")}
           variant="segmented"
           value={[String(windowDays)]}
+          disabled={showingLimits}
           onValueChange={(next) => {
             const value = next[0];
             if (value) selectWindow(Number(value));
@@ -152,7 +189,7 @@ export function UsagePage() {
         </ToggleGroup>
         <Button
           onClick={refreshWindow}
-          aria-label={t("usage.refresh")}
+          aria-label={t(showingLimits ? "usage.limits.refresh" : "usage.refresh")}
           size="icon-sm"
           variant="ghost"
         >
@@ -163,7 +200,7 @@ export function UsagePage() {
         <Select
           value={metric}
           onValueChange={(value) => {
-            if (value === "cost" || value === "tokens") setMetric(value);
+            if (isUsageMetric(value)) setMetric(value);
           }}
         >
           <SelectTrigger
@@ -172,16 +209,21 @@ export function UsagePage() {
             variant="ghost"
             className="w-auto min-w-0"
           >
-            <SelectValue>
-              {t(metric === "cost" ? "usage.metric.cost" : "usage.metric.tokens")}
-            </SelectValue>
+            <SelectValue>{t(`usage.metric.${metric}`)}</SelectValue>
           </SelectTrigger>
           <SelectPopup align="end" alignItemWithTrigger={false}>
-            <SelectItem value="cost">{t("usage.metric.cost")}</SelectItem>
-            <SelectItem value="tokens">{t("usage.metric.tokens")}</SelectItem>
+            {METRIC_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {t(`usage.metric.${option.value}`)}
+              </SelectItem>
+            ))}
           </SelectPopup>
         </Select>
-        <Select value={String(windowDays)} onValueChange={(value) => selectWindow(Number(value))}>
+        <Select
+          value={String(windowDays)}
+          disabled={showingLimits}
+          onValueChange={(value) => selectWindow(Number(value))}
+        >
           <SelectTrigger
             aria-label={t("usage.period.label")}
             size="compact"
@@ -206,7 +248,7 @@ export function UsagePage() {
         </Select>
         <Button
           onClick={refreshWindow}
-          aria-label={t("usage.refresh")}
+          aria-label={t(showingLimits ? "usage.limits.refresh" : "usage.refresh")}
           size="icon-sm"
           variant="ghost"
         >
@@ -223,7 +265,9 @@ export function UsagePage() {
 
         <ScrollArea className="min-h-0 flex-1">
           <WorkspacePageContainer width="wide">
-            {settling ? (
+            {showingLimits ? (
+              <UsageLimitsSection />
+            ) : settling ? (
               <>
                 {environments.length > 1 ? <UsageDeviceStrip environments={environments} /> : null}
                 <UsageSkeleton />
@@ -650,8 +694,9 @@ function UsageDeviceStrip({
 }
 
 /**
- * Static stand-in with the loaded page's shape. No shimmer; blocks fill in
- * exactly once when the last device answers.
+ * Stand-in with the loaded page's shape, using the shared `Skeleton` bars so it
+ * breathes with the same `animate-skeleton` pulse as every other loading state.
+ * Blocks fill in exactly once when the last device answers.
  */
 function UsageSkeleton() {
   const { t } = useI18n();
@@ -668,29 +713,29 @@ function UsageSkeleton() {
       <section className="grid gap-6 lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)]">
         <div className="flex flex-col gap-5">
           <div className="flex flex-col gap-1">
-            <div className="h-10 w-36 rounded-sm bg-muted" />
-            <div className="h-4 w-32 rounded-sm bg-muted" />
+            <Skeleton className="h-10 w-36" />
+            <Skeleton className="h-4 w-32" />
           </div>
           {PROVIDER_ORDER.map((provider) => (
             <div key={provider} className="flex flex-col gap-1">
               <div className="flex min-h-5 items-center justify-between gap-4">
                 <span className="flex items-center gap-2">
-                  <span className="size-2 shrink-0 rounded-full bg-muted" />
-                  <span className="size-4 shrink-0 rounded-full bg-muted" />
-                  <div className="h-3.5 w-20 rounded-sm bg-muted" />
+                  <Skeleton className="size-2 shrink-0 rounded-full" />
+                  <Skeleton className="size-4 shrink-0 rounded-full" />
+                  <Skeleton className="h-3.5 w-20" />
                 </span>
-                <div className="h-3.5 w-14 rounded-sm bg-muted" />
+                <Skeleton className="h-3.5 w-14" />
               </div>
-              <div className="h-4 w-36 rounded-sm bg-muted" />
+              <Skeleton className="h-4 w-36" />
             </div>
           ))}
         </div>
 
         <div className="flex flex-col gap-3">
-          <div className="h-5 w-24 rounded-sm bg-muted" />
+          <Skeleton className="h-5 w-24" />
           <div className="flex flex-col gap-1">
-            <div className="ml-16 h-56 rounded-sm bg-muted/35" />
-            <div className="ml-16 h-4 rounded-sm bg-muted/35" />
+            <Skeleton className="ml-16 h-56 bg-muted-foreground/10" />
+            <Skeleton className="ml-16 h-4 bg-muted-foreground/10" />
           </div>
         </div>
       </section>
@@ -701,7 +746,7 @@ function UsageSkeleton() {
           {metricLabels.map((label) => (
             <div key={label} className="flex flex-col gap-0.5">
               <span className="text-xs text-muted-foreground">{label}</span>
-              <div className="h-6 w-16 rounded-sm bg-muted" />
+              <Skeleton className="h-6 w-16" />
             </div>
           ))}
         </div>
@@ -710,9 +755,9 @@ function UsageSkeleton() {
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-sm font-medium text-foreground">{t("usage.breakdown")}</h2>
-          <div className="h-7 w-28 rounded-lg bg-input/40" />
+          <Skeleton className="h-7 w-28 rounded-lg" />
         </div>
-        <div className="h-44 rounded-sm bg-muted/35" />
+        <Skeleton className="h-44 bg-muted-foreground/10" />
       </section>
     </>
   );

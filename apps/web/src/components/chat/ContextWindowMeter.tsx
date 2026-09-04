@@ -1,9 +1,9 @@
 import { Button } from "../ui/button";
 import { type ContextWindowSnapshot, formatContextWindowTokens } from "~/lib/contextWindow";
 import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
-import { Minimize2Icon } from "lucide-react";
-import { useI18n } from "~/i18n/WebI18nProvider";
 import { formatContextWindowCompactionMessage } from "./ContextWindowMeter.logic";
+import { Minimize2Icon } from "lucide-react";
+import { composerFloatingLayerProps } from "./composerEventScope";
 
 function formatPercentage(value: number | null): string | null {
   if (value === null || !Number.isFinite(value)) {
@@ -23,7 +23,6 @@ export function ContextWindowMeter(props: {
   compactDisabledReason?: string | null | undefined;
 }) {
   const { usage, modelDisplayName, onCompact, compactDisabled, compactDisabledReason } = props;
-  const { t } = useI18n();
   const usedPercentage = formatPercentage(usage.usedPercentage);
   const normalizedPercentage = Math.max(0, Math.min(100, usage.usedPercentage ?? 0));
   const radius = 9.75;
@@ -35,16 +34,6 @@ export function ContextWindowMeter(props: {
   const usageColor = isOverloaded
     ? "var(--color-error)"
     : "color-mix(in oklab, var(--color-muted-foreground) 72%, transparent)";
-  const compactionMessage = formatContextWindowCompactionMessage(
-    modelDisplayName,
-    usage.autoCompactThreshold,
-    {
-      threshold: (tokens) =>
-        t("contextWindow.compactsAt", { tokens: formatContextWindowTokens(tokens) }),
-      model: (model) => t("contextWindow.compactsForModel", { model }),
-      automatic: t("contextWindow.compactsAutomatically"),
-    },
-  );
 
   return (
     <Popover>
@@ -59,10 +48,8 @@ export function ContextWindowMeter(props: {
             className="size-7 rounded-full hover:text-muted-foreground data-pressed:text-muted-foreground"
             aria-label={
               usage.maxTokens !== null && usedPercentage
-                ? t("contextWindow.usedPercentage", { percentage: usedPercentage })
-                : t("contextWindow.usedTokens", {
-                    tokens: formatContextWindowTokens(usage.usedTokens),
-                  })
+                ? `Context window ${usedPercentage} used`
+                : `Context window ${formatContextWindowTokens(usage.usedTokens)} tokens used`
             }
           >
             <span className="relative flex size-5 items-center justify-center">
@@ -97,6 +84,7 @@ export function ContextWindowMeter(props: {
         }
       />
       <PopoverPopup
+        {...composerFloatingLayerProps}
         tooltipStyle
         side="top"
         align="end"
@@ -105,9 +93,7 @@ export function ContextWindowMeter(props: {
       >
         <div className="flex flex-col gap-2 p-[var(--floating-content-inset)]">
           <div className="flex items-center justify-between gap-3">
-            <div className="font-medium text-muted-foreground text-xs">
-              {t("contextWindow.title")}
-            </div>
+            <div className="font-medium text-muted-foreground text-xs">Context Window</div>
             {usage.maxTokens !== null && usedPercentage ? (
               <div className="text-secondary-label text-[11px] tabular-nums">
                 <span>{usedPercentage}</span>
@@ -130,7 +116,7 @@ export function ContextWindowMeter(props: {
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={Math.round(normalizedPercentage)}
-              aria-label={t("contextWindow.usage")}
+              aria-label="Context window usage"
             >
               <div
                 className="h-full rounded-full transition-[width,background-color] duration-500 ease-out motion-reduce:transition-none"
@@ -140,7 +126,7 @@ export function ContextWindowMeter(props: {
           ) : null}
           {showTotalProcessed ? (
             <div className="flex items-center justify-between gap-3 text-[11px] leading-4">
-              <span className="text-secondary-label">{t("contextWindow.totalProcessed")}</span>
+              <span className="text-secondary-label">Total processed</span>
               <span className="font-medium tabular-nums text-secondary-label">
                 {formatContextWindowTokens(totalProcessedTokens)}
               </span>
@@ -148,7 +134,7 @@ export function ContextWindowMeter(props: {
           ) : null}
           {usage.compactsAutomatically ? (
             <div className="mt-1 text-pretty text-secondary-label text-[11px] font-medium">
-              {compactionMessage}
+              {formatContextWindowCompactionMessage(modelDisplayName, usage.autoCompactThreshold)}
             </div>
           ) : null}
           {onCompact ? (
@@ -161,7 +147,7 @@ export function ContextWindowMeter(props: {
                 onClick={onCompact}
               >
                 <Minimize2Icon aria-hidden="true" />
-                {t("composer.compaction.compactContext")}
+                Compact context
               </Button>
               {compactDisabled && compactDisabledReason ? (
                 <div className="text-pretty text-secondary-label text-[11px]">

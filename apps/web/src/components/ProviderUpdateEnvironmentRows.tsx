@@ -138,7 +138,7 @@ function EnvironmentUpdateRow({
       break;
     default:
       trailing = (
-        <Button size="xs" onClick={onUpdate}>
+        <Button size="xs" variant="outline" onClick={onUpdate}>
           {updateLabel}
         </Button>
       );

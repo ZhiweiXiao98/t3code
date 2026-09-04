@@ -3,8 +3,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ComposerPromptEditor, type ComposerPromptEditorHandle } from "../ComposerPromptEditor";
 import { terminalThemeFromApp } from "../ThreadTerminalDrawer";
 import { useTheme } from "../../hooks/useTheme";
+import { DISCONNECTED_COMPOSER_PLACEHOLDER } from "../../composerPlaceholder";
 import { resolveDiffThemeName, type DiffThemeName } from "../../lib/diffRendering";
-import { useI18n } from "../../i18n/WebI18nProvider";
+import { PREFERRED_HIGHLIGHTER } from "../../lib/syntaxHighlighting";
 import { GhosttyTerminalSurface } from "~/terminal/ghostty/surface";
 
 // The font previews are the real surfaces, not lookalikes: the composer's
@@ -16,23 +17,21 @@ import { GhosttyTerminalSurface } from "~/terminal/ghostty/surface";
 const EMPTY_TERMINAL_CONTEXTS: ReadonlyArray<never> = [];
 const EMPTY_SKILLS: ReadonlyArray<never> = [];
 
+// Serialized the way the composer stores inline tokens: the $skill and the
+// markdown-style file links render as chips, so the preview shows prompt
+// text and pills exactly as the real composer draws them.
+const PROMPT_PREVIEW_TEXT =
+  "Use $frontend-design to fix the flaky test in " +
+  "[surface.test.ts](apps/web/src/terminal/ghostty/surface.test.ts) and align the header with " +
+  "[SettingsPanels.tsx](apps/web/src/components/settings/SettingsPanels.tsx) before shipping.";
+
 function noop() {}
 
 /** A live composer editor: type in it to feel the family and size. */
 export function PromptFontPreview() {
-  const { t } = useI18n();
-  const sample = t("appearance.fontPreview.sample");
   const editorRef = useRef<ComposerPromptEditorHandle>(null);
-  const previousSampleRef = useRef(sample);
-  const [prompt, setPrompt] = useState(sample);
-  const [cursor, setCursor] = useState(sample.length);
-  useEffect(() => {
-    const previousSample = previousSampleRef.current;
-    previousSampleRef.current = sample;
-    if (prompt !== previousSample) return;
-    setPrompt(sample);
-    setCursor(sample.length);
-  }, [prompt, sample]);
+  const [prompt, setPrompt] = useState(PROMPT_PREVIEW_TEXT);
+  const [cursor, setCursor] = useState(PROMPT_PREVIEW_TEXT.length);
   const onChange = useCallback((nextValue: string, nextCursor: number) => {
     setPrompt(nextValue);
     setCursor(nextCursor);
@@ -46,7 +45,7 @@ export function PromptFontPreview() {
         terminalContexts={EMPTY_TERMINAL_CONTEXTS}
         skills={EMPTY_SKILLS}
         disabled={false}
-        placeholder={t("composer.placeholder.disconnected")}
+        placeholder={DISCONNECTED_COMPOSER_PLACEHOLDER}
         className="max-h-40 min-h-12"
         onRemoveTerminalContext={noop}
         onChange={onChange}
@@ -81,7 +80,7 @@ function loadDiffPreviewHtml(theme: DiffThemeName): Promise<readonly string[]> {
   if (promise === undefined) {
     promise = preloadPatchFile({
       patch: DIFF_PREVIEW_PATCH,
-      options: { diffStyle: "unified", theme },
+      options: { diffStyle: "unified", theme, preferredHighlighter: PREFERRED_HIGHLIGHTER },
     }).then((results) => results.map((result) => result.prerenderedHTML));
     diffPreviewHtmlByTheme.set(theme, promise);
   }
@@ -181,7 +180,6 @@ function previewTerminalFont(family: string, size: number): { family?: string; s
  * terminal drawer uses.
  */
 export function TerminalFontPreview({ family, size }: { family: string; size: number }) {
-  const { t } = useI18n();
   const mountRef = useRef<HTMLDivElement>(null);
   const surfaceRef = useRef<GhosttyTerminalSurface | null>(null);
   const fontRef = useRef({ family, size });
@@ -269,7 +267,7 @@ export function TerminalFontPreview({ family, size }: { family: string; size: nu
     <div
       ref={mountRef}
       className="relative mt-1 mb-2 h-52 overflow-hidden rounded-lg border border-border"
-      aria-label={t("appearance.fontPreview.terminal")}
+      aria-label="Terminal font preview"
     />
   );
 }

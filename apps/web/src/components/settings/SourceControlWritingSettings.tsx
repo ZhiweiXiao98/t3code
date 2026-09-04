@@ -1,6 +1,7 @@
 import { useAtomValue } from "@effect/atom-react";
+import { useNavigate } from "@tanstack/react-router";
 import { useRef } from "react";
-import type { SourceControlWritingStyleMode } from "@t3tools/contracts";
+import type { ProviderInstanceId, SourceControlWritingStyleMode } from "@t3tools/contracts";
 import { DEFAULT_UNIFIED_SETTINGS } from "@t3tools/contracts/settings";
 import { createModelSelection } from "@t3tools/shared/model";
 import { resolveSourceControlWriterModelSelection } from "@t3tools/shared/serverSettings";
@@ -18,11 +19,18 @@ import {
   resolveAppModelSelectionState,
 } from "../../modelSelection";
 import { primaryServerProvidersAtom } from "../../state/server";
+import { usePrimaryEnvironmentId } from "../../state/environments";
 import { ProviderModelPicker } from "../chat/ProviderModelPicker";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
 import { Switch } from "../ui/switch";
 import { Textarea } from "../ui/textarea";
-import { SettingResetButton, SettingsRow, SettingsSection } from "./settingsLayout";
+import {
+  SETTINGS_PICKER_TRIGGER_CLASSNAME,
+  SettingResetButton,
+  SettingsRow,
+  SettingsSection,
+} from "./settingsLayout";
+import { searchableSetting } from "./settingsSearch";
 
 const MODE_OPTION_MESSAGE_KEYS = {
   repo_conventions: {
@@ -46,6 +54,8 @@ export function SourceControlWritingSettingsSection() {
   const { t } = useI18n();
   const settings = usePrimarySettings();
   const updateSettings = useUpdatePrimarySettings();
+  const navigate = useNavigate();
+  const environmentId = usePrimaryEnvironmentId();
   const serverProviders = useAtomValue(primaryServerProvidersAtom);
   const customInstructionsRef = useRef<HTMLTextAreaElement>(null);
   const style = settings.sourceControlWritingStyle;
@@ -53,29 +63,40 @@ export function SourceControlWritingSettingsSection() {
   const isSourceControlWritingStyleDirty =
     style.mode !== defaults.mode || style.customInstructions !== defaults.customInstructions;
 
-  const defaultModelSelection = resolveAppModelSelectionState(settings, serverProviders);
-  const usesDedicatedModel = settings.sourceControlWriterModelSelection !== null;
-  const resolvedSourceControlWriterSelection = resolveSourceControlWriterModelSelection(
-    settings,
-    serverProviders,
+  const textGenerationProviders = serverProviders.filter(
+    (provider) => provider.supportsTextGeneration !== false,
   );
-  const activeSelection =
-    resolvedSourceControlWriterSelection === settings.textGenerationModelSelection
-      ? defaultModelSelection
-      : resolvedSourceControlWriterSelection;
+  const defaultModelSelection = resolveAppModelSelectionState(settings, textGenerationProviders);
+  const usesDedicatedModel = settings.sourceControlWriterModelSelection !== null;
+  const activeSelection = resolveAppModelSelectionState(
+    {
+      ...settings,
+      textGenerationModelSelection: resolveSourceControlWriterModelSelection(
+        settings,
+        textGenerationProviders,
+      ),
+    },
+    textGenerationProviders,
+  );
   const instanceEntries = sortProviderInstanceEntries(
-    applyProviderInstanceSettings(deriveProviderInstanceEntries(serverProviders), settings),
+    applyProviderInstanceSettings(deriveProviderInstanceEntries(textGenerationProviders), settings),
+  );
+  const canEnableDedicatedModel = instanceEntries.some(
+    (entry) =>
+      entry.instanceId === defaultModelSelection.instanceId && entry.enabled && entry.isAvailable,
   );
   const modelOptionsByInstance = getCustomModelOptionsByInstance(
     settings,
-    serverProviders,
+    textGenerationProviders,
     activeSelection.instanceId,
     activeSelection.model,
   );
 
   return (
-    <SettingsSection title={t("sourceControl.textGeneration")}>
+    <SettingsSection id="source-control-text-generation" title={t("sourceControl.textGeneration")}>
       <SettingsRow
+        serverScoped
+        {...searchableSetting("source-control-writing-style")}
         title={t("sourceControl.writingStyle.title")}
         description={t(MODE_OPTION_MESSAGE_KEYS[style.mode].description)}
         resetAction={
@@ -107,6 +128,7 @@ export function SourceControlWritingSettingsSection() {
             }}
           >
             <SelectTrigger
+              size="sm"
               className="w-full sm:w-56"
               aria-label={t("sourceControl.writingStyle.title")}
             >
@@ -145,6 +167,8 @@ export function SourceControlWritingSettingsSection() {
       </SettingsRow>
 
       <SettingsRow
+        serverScoped
+        {...searchableSetting("follow-change-request-templates")}
         title={t("sourceControl.followTemplates.title")}
         description={t("sourceControl.followTemplates.description")}
         resetAction={
@@ -177,11 +201,18 @@ export function SourceControlWritingSettingsSection() {
       />
 
       <SettingsRow
+        serverScoped
+        {...searchableSetting("source-control-writer-model")}
         title={t("sourceControl.writerModel.title")}
         description={t("sourceControl.writerModel.description")}
         control={
           <div className="flex flex-wrap items-center justify-end gap-2">
-            {usesDedicatedModel ? (
+            {usesDedicatedModel && !canEnableDedicatedModel ? (
+              <span className="text-sm text-muted-foreground">
+                {t("sourceControl.writerModel.none")}
+              </span>
+            ) : null}
+            {usesDedicatedModel && canEnableDedicatedModel ? (
               <ProviderModelPicker
                 activeInstanceId={activeSelection.instanceId}
                 model={activeSelection.model}
@@ -189,8 +220,18 @@ export function SourceControlWritingSettingsSection() {
                 instanceEntries={instanceEntries}
                 modelOptionsByInstance={modelOptionsByInstance}
                 triggerVariant="outline"
-                triggerClassName="min-w-0 max-w-none shrink-0 text-foreground/90 hover:text-foreground"
+                triggerClassName={SETTINGS_PICKER_TRIGGER_CLASSNAME}
                 triggerAriaLabel={t("sourceControl.writerModel.title")}
+                {...(environmentId
+                  ? {
+                      onOpenProviderSetup: (instanceId: ProviderInstanceId) => {
+                        void navigate({
+                          to: "/settings/providers",
+                          search: { environmentId, instanceId },
+                        });
+                      },
+                    }
+                  : {})}
                 onInstanceModelChange={(instanceId, model) => {
                   updateSettings({
                     sourceControlWriterModelSelection: createModelSelection(instanceId, model),
@@ -200,6 +241,7 @@ export function SourceControlWritingSettingsSection() {
             ) : null}
             <Switch
               checked={usesDedicatedModel}
+              disabled={!usesDedicatedModel && !canEnableDedicatedModel}
               onCheckedChange={(checked) =>
                 updateSettings({
                   sourceControlWriterModelSelection: checked

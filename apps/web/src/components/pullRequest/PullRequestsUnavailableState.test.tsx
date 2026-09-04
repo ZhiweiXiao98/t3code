@@ -1,6 +1,23 @@
 import { isValidElement, type ReactElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it, vi } from "vite-plus/test";
+
+vi.mock("../../i18n/WebI18nProvider", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../i18n/WebI18nProvider")>();
+  const { translateWebMessage } = await import("../../i18n/messages");
+  return {
+    ...actual,
+    useI18n: () => ({
+      locale: "en",
+      appLocale: "system",
+      setAppLocale: () => undefined,
+      t: (
+        key: Parameters<typeof translateWebMessage>[1],
+        values?: Parameters<typeof translateWebMessage>[2],
+      ) => translateWebMessage("en", key, values),
+    }),
+  };
+});
 
 import { PullRequestsUnavailableState } from "./PullRequestsUnavailableState";
 

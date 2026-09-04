@@ -109,6 +109,7 @@ const ZH_CN_MESSAGES = {
   "Could not load every archive": "部分归档加载失败",
   "Could not load T3 Connect environments": "无法加载 T3 Connect 环境",
   "Could not load conversation": "无法加载对话",
+  "Could not read limits.": "无法读取额度。",
   "Could not archive thread": "无法归档任务",
   "Could not delete thread": "无法删除任务",
   "Could not settle thread": "无法收起任务",
@@ -191,11 +192,15 @@ const ZH_CN_MESSAGES = {
   "Loading projects and threads from the saved environment.": "正在从已保存的环境加载项目和任务。",
   "Loading projects from the saved environment.": "正在从已保存的环境加载项目。",
   "Loading task": "正在加载任务",
+  Limits: "额度",
   "Local folder": "本地文件夹",
   "Managed by T3 Connect. Tunnel details update automatically.":
     "由 T3 Connect 管理，隧道信息会自动更新。",
   "Messages, labels, and headings scale with this size.": "消息、标签和标题会随此字号缩放。",
   "Mobile control surface for your live coding environments": "随时控制正在运行的编程环境",
+  "Cloud VM": "云端虚拟机",
+  "Mac mini": "Mac mini",
+  "Mac Studio": "Mac Studio",
   "Model and reasoning settings": "模型与推理设置",
   "Model filters": "模型筛选",
   "Microphone unavailable": "麦克风不可用",
@@ -458,10 +463,230 @@ const ZH_CN_MESSAGES = {
   "Resume without changing the conversation.": "保留对话不变并继续。",
   "Cancel dictation": "取消语音输入",
   "Finish dictation": "完成语音输入",
+  "All accounts are shown by connected providers.": "所有账户均已由已连接的服务提供方显示。",
+  "Antigravity cannot be installed on this environment. Use a supported server host or set an executable path in provider settings.":
+    "此环境无法安装 Antigravity。请使用受支持的服务器主机，或在服务提供方设置中指定可执行文件路径。",
+  "Attach the file again and retry.": "请重新附加文件后重试。",
+  "Cancel install": "取消安装",
+  "Cancel sign-in": "取消登录",
+  "Checking credentials.": "正在检查凭据。",
+  "Checking environment access.": "正在检查环境访问权限。",
+  "Checking Google sign-in.": "正在检查 Google 登录状态。",
+  "Checking the Antigravity installation.": "正在检查 Antigravity 安装。",
+  "Close image": "关闭图片",
+  "Close video": "关闭视频",
+  "Complete sign-in": "完成登录",
+  Connect: "连接",
+  "Connect with the credentials set in provider settings on web or desktop.":
+    "使用网页版或桌面版服务提供方设置中配置的凭据进行连接。",
+  "Copy full path": "复制完整路径",
+  "Copy relative path": "复制相对路径",
+  "Copy sign-in link": "复制登录链接",
+  "Copy URL": "复制 URL",
+  "Could not cancel sign-in. Try again.": "无法取消登录，请重试。",
+  "Could not cancel the install. Try again.": "无法取消安装，请重试。",
+  "Could not change this provider. Reconnect and try again.":
+    "无法更改此服务提供方，请重新连接后重试。",
+  "Could not check your environment access.": "无法检查环境访问权限。",
+  "Could not complete Google sign-in. Check the return URL and try again.":
+    "无法完成 Google 登录，请检查返回 URL 后重试。",
+  "Could not copy the sign-in link.": "无法复制登录链接。",
+  "Could not load this video.": "无法加载此视频。",
+  "Could not load this video. Check the connection and try again.":
+    "无法加载此视频，请检查连接后重试。",
+  "Could not open Google sign-in. Copy the link and open it in your browser.":
+    "无法打开 Google 登录页面，请复制链接并在浏览器中打开。",
+  "Could not open PDF": "无法打开 PDF",
+  "Could not open preview": "无法打开预览",
+  "Could not open video": "无法打开视频",
+  "Could not remove the managed install. Try again.": "无法移除托管安装，请重试。",
+  "Could not share file": "无法共享文件",
+  "Could not sign out of Google. Try again.": "无法退出 Google 登录，请重试。",
+  "Could not start Google sign-in. Try again.": "无法启动 Google 登录，请重试。",
+  "Could not start the install. Try again.": "无法启动安装，请重试。",
+  "Could not use the reset credit.": "无法使用重置额度。",
+  "Disable Antigravity": "停用 Antigravity",
+  "Disable Antigravity?": "停用 Antigravity？",
+  Disabled: "已停用",
+  Disable: "停用",
+  Disconnect: "断开连接",
+  "Disconnect Antigravity?": "断开 Antigravity 连接？",
+  Enabled: "已启用",
+  "Enable Antigravity": "启用 Antigravity",
+  "Enable Antigravity to sign in.": "请先启用 Antigravity 再登录。",
+  "Extracting Antigravity files.": "正在解压 Antigravity 文件。",
+  "Google account": "Google 账户",
+  "Gemini Enterprise": "Gemini 企业版",
+  "Gemini API key": "Gemini API 密钥",
+  "Agent Platform (Vertex AI)": "Agent Platform（Vertex AI）",
+  "Google sign-in return URL": "Google 登录返回 URL",
+  Image: "图片",
+  "Install Antigravity": "安装 Antigravity",
+  "Install Antigravity to sign in.": "请先安装 Antigravity 再登录。",
+  "Install status is unavailable. Reconnect and try again.": "无法获取安装状态，请重新连接后重试。",
+  Installed: "已安装",
+  Loading: "正在加载",
+  "Loading provider settings.": "正在加载服务提供方设置。",
+  "Loading video": "正在加载视频",
+  "Loading video...": "正在加载视频...",
+  "Media actions": "媒体操作",
+  "No accounts reported.": "未报告任何账户。",
+  "No limits reported.": "未报告额度。",
+  "No reset credit left.": "没有剩余的重置额度。",
+  "No reset credits banked": "没有可用的重置额度",
+  "Not installed": "未安装",
+  ". Not installed": "。未安装",
+  "Nothing to reset right now.": "当前没有需要重置的额度窗口。",
+  "Open Google sign-in": "打开 Google 登录页面",
+  "Open in file viewer": "在文件查看器中打开",
+  "Opening share sheet…": "正在打开共享面板…",
+  "Opening share sheet...": "正在打开共享面板...",
+  "Please try again.": "请重试。",
+  "Preview unavailable": "预览不可用",
+  "Reconnect to this environment and open the video again.": "请重新连接此环境后再次打开视频。",
+  "Reconnect to this environment and try again.": "请重新连接此环境后重试。",
+  "Reconnect to this environment to continue setup.": "请重新连接此环境以继续设置。",
+  Remove: "移除",
+  "Remove managed install": "移除托管安装",
+  "Remove the Antigravity install?": "移除 Antigravity 安装？",
+  "Reset applied. Your windows have cleared.": "重置已生效，当前额度窗口已清空。",
+  "Retry connection": "重试连接",
+  "Retry Google sign-in": "重试 Google 登录",
+  "Retry install": "重试安装",
+  "Retry video": "重试播放视频",
+  Retry: "重试",
+  "Save or share": "保存或共享",
+  "Save or share video": "保存或共享视频",
+  "Sign in with Google": "使用 Google 登录",
+  "Sign in with the Google account you use for Antigravity.":
+    "使用你用于 Antigravity 的 Google 账户登录。",
+  "Sign-in has not been checked.": "尚未检查登录状态。",
+  "Sign-in is open on another client. Complete it there or wait for it to expire.":
+    "登录流程已在另一客户端打开，请在那里完成，或等待其过期。",
+  "Sign-in status is unavailable. Reconnect and try again.": "无法获取登录状态，请重新连接后重试。",
+  "Signed in. Credentials stay on this environment.": "已登录，凭据将保存在此环境中。",
+  "Sign out": "退出登录",
+  "Sign out of Google": "退出 Google 登录",
+  "Sign out of Google?": "退出 Google 登录？",
+  "Starting Google sign-in.": "正在启动 Google 登录。",
+  "That credit was already redeemed.": "该重置额度已被使用。",
+  "The file could not be loaded. It may have been moved or deleted.":
+    "无法加载该文件，它可能已被移动或删除。",
+  "The file could not be loaded. Please try again.": "无法加载该文件，请重试。",
+  "The file could not be loaded. Reconnect and try again.": "无法加载该文件，请重新连接后重试。",
+  "The local attachment file is missing.": "本地附件文件已丢失。",
+  "The rest of this setup can be completed from web or desktop.":
+    "其余设置可在网页版或桌面版中完成。",
+  "This account has no subscription limits.": "此账户没有订阅额度。",
+  "This attachment is no longer available. Attach the file again.":
+    "此附件已不可用，请重新附加该文件。",
+  "This connection cannot manage providers. Pair again with permission to operate this environment.":
+    "此连接无权管理服务提供方。请重新配对，并授予操作此环境的权限。",
+  "This file may be missing, unsupported, or unavailable on this environment.":
+    "此文件可能已丢失、格式不受支持，或在该环境中不可用。",
+  "This provider is not available on this environment.": "此环境中没有该服务提供方。",
+  "This provider link is not valid.": "此服务提供方链接无效。",
+  "This video couldn't be loaded or played. Check the connection, or touch and hold the video to save or share the original.":
+    "无法加载或播放此视频。请检查连接，或长按视频以保存或共享原文件。",
+  "Touch and hold for media actions": "长按以显示媒体操作",
+  "Try again.": "请重试。",
+  "Upload failed. Tap to retry.": "上传失败，点击重试。",
+  "Use a reset credit": "使用重置额度",
+  "Use a reset credit?": "使用一个重置额度？",
+  "Use credit": "使用额度",
+  "Using credit…": "正在使用额度…",
+  "Video unavailable": "视频不可用",
+  "Waiting for the environment.": "正在等待环境响应。",
+  "Complete sign-in in your browser.": "请在浏览器中完成登录。",
+  "After sign-in, the browser will open a 127.0.0.1 address that cannot load on your phone. Copy that full address and paste it here.":
+    "登录后，浏览器会打开一个手机无法访问的 127.0.0.1 地址。请复制完整地址并粘贴到这里。",
+  "This redeems one credit on your account and clears the current rate-limit windows. It cannot be undone.":
+    "这会使用账户中的一个重置额度并清空当前速率限制窗口，且无法撤销。",
+  "Attachment still uploading": "附件仍在上传",
+  "Retry or remove the failed attachment": "请重试或移除上传失败的附件",
   Worktree: "工作树",
 } as const satisfies Readonly<Record<string, string>>;
 
 function translateDynamicMessage(value: string): string | null {
+  const percentUsed = /^(\d+)% used$/.exec(value);
+  if (percentUsed) return `已使用 ${percentUsed[1]}%`;
+
+  const playMedia = /^Play (.+)$/.exec(value);
+  if (playMedia) return `播放 ${playMedia[1]}`;
+
+  const providerSetup = /^(Set up|Manage) (.+)$/.exec(value);
+  if (providerSetup) {
+    return providerSetup[1] === "Set up" ? `设置 ${providerSetup[2]}` : `管理 ${providerSetup[2]}`;
+  }
+
+  const localizeDuration = (duration: string) =>
+    duration
+      .replace(/(\d+)d/g, "$1 天")
+      .replace(/(\d+)h/g, "$1 小时")
+      .replace(/(\d+)m/g, "$1 分钟");
+
+  if (value === "resets now") return "即将重置";
+  const resetsIn = /^resets in (.+)$/.exec(value);
+  if (resetsIn) return `${localizeDuration(resetsIn[1])}后重置`;
+
+  const pace = /^(ahead of pace|on pace|under pace)(?: · (resets now|resets in .+))?$/.exec(value);
+  if (pace) {
+    const paceLabel =
+      pace[1] === "ahead of pace" ? "用量偏快" : pace[1] === "under pace" ? "用量偏慢" : "用量正常";
+    const resetLabel = pace[2] ? translateDynamicMessage(pace[2]) : null;
+    return resetLabel ? `${paceLabel} · ${resetLabel}` : paceLabel;
+  }
+
+  const resetCredits = /^(\d+) reset credits? banked(?: · next expires in (.+))?$/.exec(value);
+  if (resetCredits) {
+    const expiry = resetCredits[2]
+      ? ` · 下一额度将在 ${localizeDuration(resetCredits[2])}后过期`
+      : "";
+    return `有 ${resetCredits[1]} 个重置额度${expiry}`;
+  }
+
+  const limitsEnvironment = /^Limits · (.+)$/.exec(value);
+  if (limitsEnvironment) return `额度 · ${limitsEnvironment[1]}`;
+
+  const installState = /^(Enabled|Disabled)\. (Installed)(?: (.+))?$/.exec(value);
+  if (installState) {
+    const enabled = installState[1] === "Enabled" ? "已启用" : "已停用";
+    return `${enabled} · 已安装${installState[3] ? ` ${installState[3]}` : ""}`;
+  }
+  const notInstalledState = /^(Enabled|Disabled)\. Not installed$/.exec(value);
+  if (notInstalledState) {
+    return `${notInstalledState[1] === "Enabled" ? "已启用" : "已停用"} · 未安装`;
+  }
+
+  const downloading = /^Downloading (\d+)(?: of (\d+))? MB$/.exec(value);
+  if (downloading) {
+    return downloading[2]
+      ? `正在下载 ${downloading[1]} / ${downloading[2]} MB`
+      : `正在下载 ${downloading[1]} MB`;
+  }
+
+  const signInExpiry = /^Sign-in expires at (.+)\.$/.exec(value);
+  if (signInExpiry) return `登录将在 ${signInExpiry[1]} 过期。`;
+
+  const disableProvider =
+    /^This stops Antigravity sessions on (.+)\. Google credentials stay saved\.$/.exec(value);
+  if (disableProvider)
+    return `这会停止 ${disableProvider[1]} 上的 Antigravity 会话，并保留 Google 凭据。`;
+
+  const removeManagedInstall =
+    /^This removes T3's managed install from (.+)\. Providers that use it will need it installed again\. Google credentials and threads stay\.$/.exec(
+      value,
+    );
+  if (removeManagedInstall) {
+    return `这会从 ${removeManagedInstall[1]} 移除 T3 托管的安装。使用它的服务提供方需要重新安装；Google 凭据和任务会保留。`;
+  }
+
+  const disconnectProvider =
+    /^This stops Antigravity sessions for (.+) on (.+)\. Threads and files stay\.$/.exec(value);
+  if (disconnectProvider) {
+    return `这会停止 ${disconnectProvider[2]} 上 ${disconnectProvider[1]} 的 Antigravity 会话，并保留任务和文件。`;
+  }
+
   const recording = /^Recording (\d+:\d{2})$/.exec(value);
   if (recording) return `正在录音 ${recording[1]}`;
 

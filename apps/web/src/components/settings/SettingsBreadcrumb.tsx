@@ -4,33 +4,35 @@ import {
   WorkspaceBreadcrumbSeparator,
 } from "../WorkspaceBreadcrumb";
 import { useI18n } from "../../i18n/WebI18nProvider";
-import type { WebMessageKey } from "../../i18n/messages";
-import { SETTINGS_SECTION_MESSAGE_KEYS } from "./settingsSearch";
+import { translateWebSource } from "../../i18n/messages";
+import { SETTINGS_SECTION_LABELS } from "./settingsSearch";
 
-const SETTINGS_BREADCRUMB_MESSAGE_KEYS: Readonly<Record<string, WebMessageKey>> = {
-  ...SETTINGS_SECTION_MESSAGE_KEYS,
-  "/settings/diagnostics": "settings.diagnostics",
+const SETTINGS_BREADCRUMB_LABELS: Readonly<Record<string, string>> = {
+  ...SETTINGS_SECTION_LABELS,
+  "/settings/diagnostics": "Diagnostics",
 };
 
-function settingsBreadcrumbMessageKey(pathname: string): WebMessageKey | null {
+function settingsBreadcrumbLabel(pathname: string): string | null {
   const normalizedPathname = pathname.replace(/\/+$/, "") || "/";
-  return SETTINGS_BREADCRUMB_MESSAGE_KEYS[normalizedPathname] ?? null;
+  return SETTINGS_BREADCRUMB_LABELS[normalizedPathname] ?? null;
 }
 
 export function SettingsBreadcrumb({ pathname }: { pathname: string }) {
-  const { t } = useI18n();
-  const sectionMessageKey = settingsBreadcrumbMessageKey(pathname);
+  const { locale, t } = useI18n();
+  const sourceSectionLabel = settingsBreadcrumbLabel(pathname);
+  const sectionLabel =
+    sourceSectionLabel === null ? null : translateWebSource(locale, sourceSectionLabel);
 
   return (
     <WorkspaceBreadcrumb ariaLabel={t("settings.breadcrumb")}>
-      {sectionMessageKey ? (
+      {sectionLabel ? (
         <>
           <WorkspaceBreadcrumbItem>{t("settings.title")}</WorkspaceBreadcrumbItem>
           <WorkspaceBreadcrumbSeparator />
         </>
       ) : null}
       <WorkspaceBreadcrumbItem current className="truncate">
-        {sectionMessageKey ? t(sectionMessageKey) : t("settings.title")}
+        {sectionLabel ?? t("settings.title")}
       </WorkspaceBreadcrumbItem>
     </WorkspaceBreadcrumb>
   );

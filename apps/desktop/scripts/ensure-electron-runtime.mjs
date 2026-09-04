@@ -2,7 +2,9 @@ import * as NodeFS from "node:fs";
 import * as NodeModule from "node:module";
 import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
+import * as NodeURL from "node:url";
 import * as NodeChildProcess from "node:child_process";
+import * as NodeCrypto from "node:crypto";
 
 const require = NodeModule.createRequire(import.meta.url);
 // oxlint-disable-next-line t3code/no-global-process-runtime -- Standalone repair script has no Effect runtime.
@@ -115,29 +117,71 @@ function runChecked(command, args) {
   );
 }
 
-function installElectronRuntime(electronDir, version) {
-  const tempDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-electron-"));
-  const zipPath = NodePath.join(tempDir, `electron-v${version}-${hostPlatform}-${hostArch}.zip`);
+function sha256(filePath) {
+  const hash = NodeCrypto.createHash("sha256");
+  hash.update(NodeFS.readFileSync(filePath));
+  return hash.digest("hex");
+}
 
-  try {
-    runChecked("curl", [
-      "-fsSL",
-      `https://github.com/electron/electron/releases/download/v${version}/electron-v${version}-${hostPlatform}-${hostArch}.zip`,
-      "-o",
-      zipPath,
-    ]);
-    if (hostPlatform === "darwin") {
-      runChecked("ditto", ["-x", "-k", zipPath, NodePath.join(electronDir, "dist")]);
-    } else {
-      runChecked("python3", [
-        "-c",
-        "import os, sys, zipfile; os.makedirs(sys.argv[2], exist_ok=True); zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])",
-        zipPath,
-        NodePath.join(electronDir, "dist"),
-      ]);
+function downloadElectronArchive(zipPath, version, archiveName) {
+  // oxlint-disable-next-line t3code/no-global-process-runtime -- Standalone repair script reads optional mirror overrides.
+  const configuredMirror = process.env.T3_ELECTRON_MIRROR ?? process.env.ELECTRON_MIRROR;
+  const mirrorUrls = [configuredMirror, "https://npmmirror.com/mirrors/electron/"]
+    .filter(Boolean)
+    .map((baseUrl) => `${baseUrl.replace(/\/$/u, "")}/${version}/${archiveName}`);
+  const urls = [
+    ...mirrorUrls,
+    `https://github.com/electron/electron/releases/download/v${version}/${archiveName}`,
+  ];
+  const partialPath = `${zipPath}.partial`;
+
+  for (const url of [...new Set(urls)]) {
+    NodeFS.rmSync(partialPath, { force: true });
+    const result = NodeChildProcess.spawnSync(
+      "curl",
+      ["-fsSL", "--retry", "3", "--retry-delay", "2", url, "-o", partialPath],
+      { encoding: "utf8", stdio: "inherit" },
+    );
+    if (result.status === 0) {
+      NodeFS.renameSync(partialPath, zipPath);
+      return;
     }
-  } finally {
-    NodeFS.rmSync(tempDir, { recursive: true, force: true });
+  }
+
+  throw new Error(`Unable to download ${archiveName} from the configured Electron mirrors.`);
+}
+
+function installElectronRuntime(electronDir, version, expectedChecksum) {
+  const archiveName = `electron-v${version}-${hostPlatform}-${hostArch}.zip`;
+  const repoRoot = NodeURL.fileURLToPath(new URL("../../..", import.meta.url));
+  const cacheDir = NodePath.join(repoRoot, ".electron-runtime", "downloads");
+  const zipPath = NodePath.join(cacheDir, archiveName);
+
+  NodeFS.mkdirSync(cacheDir, { recursive: true });
+  if (NodeFS.existsSync(zipPath) && sha256(zipPath) !== expectedChecksum) {
+    NodeFS.rmSync(zipPath, { force: true });
+  }
+  if (!NodeFS.existsSync(zipPath)) {
+    downloadElectronArchive(zipPath, version, archiveName);
+  }
+  if (sha256(zipPath) !== expectedChecksum) {
+    NodeFS.rmSync(zipPath, { force: true });
+    throw new Error(`Checksum verification failed for ${archiveName}.`);
+  }
+
+  const distDir = NodePath.join(electronDir, "dist");
+  NodeFS.mkdirSync(distDir, { recursive: true });
+  if (hostPlatform === "darwin") {
+    runChecked("ditto", ["-x", "-k", zipPath, distDir]);
+  } else if (hostPlatform === "win32") {
+    runChecked("tar", ["-xf", zipPath, "-C", distDir]);
+  } else {
+    runChecked("python3", [
+      "-c",
+      "import os, sys, zipfile; os.makedirs(sys.argv[2], exist_ok=True); zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])",
+      zipPath,
+      distDir,
+    ]);
   }
 }
 
@@ -145,6 +189,14 @@ export function ensureElectronRuntime() {
   const electronPackageJsonPath = require.resolve("electron/package.json");
   const electronPackageJson = JSON.parse(NodeFS.readFileSync(electronPackageJsonPath, "utf8"));
   const electronDir = NodePath.dirname(electronPackageJsonPath);
+  const archiveName = `electron-v${electronPackageJson.version}-${hostPlatform}-${hostArch}.zip`;
+  const checksums = JSON.parse(
+    NodeFS.readFileSync(NodePath.join(electronDir, "checksums.json"), "utf8"),
+  );
+  const expectedChecksum = checksums[archiveName];
+  if (typeof expectedChecksum !== "string") {
+    throw new Error(`Electron checksum is unavailable for ${archiveName}.`);
+  }
   const platformPath = getPlatformPath();
   const electronPath = NodePath.join(electronDir, "dist", platformPath);
   const missingBeforeInstall = missingRuntimePaths(electronDir, platformPath);
@@ -155,7 +207,7 @@ export function ensureElectronRuntime() {
       NodeFS.rmSync(NodePath.join(electronDir, "dist"), { recursive: true, force: true });
     }
     NodeFS.rmSync(NodePath.join(electronDir, "path.txt"), { force: true });
-    installElectronRuntime(electronDir, electronPackageJson.version);
+    installElectronRuntime(electronDir, electronPackageJson.version, expectedChecksum);
   }
 
   const missingAfterInstall = missingRuntimePaths(electronDir, platformPath);
@@ -176,7 +228,8 @@ export function ensureElectronRuntime() {
   return electronPath;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// `file://${argv[1]}` never matches on Windows (drive letters need `file:///C:/`).
+if (process.argv[1] && NodeURL.pathToFileURL(process.argv[1]).href === import.meta.url) {
   const electronPath = ensureElectronRuntime();
   process.stdout.write(`${electronPath}\n`);
 }

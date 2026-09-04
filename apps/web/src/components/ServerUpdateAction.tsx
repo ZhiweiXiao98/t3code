@@ -4,10 +4,11 @@ import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
 } from "@t3tools/client-runtime/state/runtime";
+import type { ComponentProps } from "react";
 
+import { requestConfirmDialog } from "~/confirmDialog";
 import { useCopyToClipboard } from "~/hooks/useCopyToClipboard";
-import { useI18n, type WebTranslate } from "~/i18n/WebI18nProvider";
-import { translateWebMessage, type WebMessageKey } from "~/i18n/messages";
+import { useClientSettings } from "~/hooks/useSettings";
 import { serverEnvironment } from "~/state/server";
 import { useAtomCommand } from "~/state/use-atom-command";
 import { manualServerUpdateCommand } from "~/versionSkew";
@@ -18,20 +19,19 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
 // The wire "installing" stage is a sub-second launcher handoff, so the UI
 // folds it into the download phase; everything after the handoff is the
 // restart the user is actually waiting through.
-const UPDATE_STAGE_MESSAGE_KEYS: Record<ServerUpdateStage, WebMessageKey> = {
-  downloading: "serverUpdate.stage.downloading",
-  installing: "serverUpdate.stage.downloading",
-  resuming: "serverUpdate.stage.restarting",
+const UPDATE_STAGE_LABELS: Record<ServerUpdateStage, string> = {
+  downloading: "Downloading…",
+  installing: "Downloading…",
+  resuming: "Restarting…",
 };
 const pendingUpdateEnvironmentIds = new Set<EnvironmentId>();
 
-export function serverUpdateStageLabel(stage: ServerUpdateStage, translate?: WebTranslate): string {
-  const t = translate ?? ((key, values) => translateWebMessage("en", key, values));
-  return t(UPDATE_STAGE_MESSAGE_KEYS[stage]);
+export function serverUpdateStageLabel(stage: ServerUpdateStage): string {
+  return UPDATE_STAGE_LABELS[stage];
 }
 
-function updateFailureMessage(error: unknown, t: WebTranslate): string {
-  return error instanceof Error ? error.message : t("serverUpdate.failure.default");
+function updateFailureMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Server update failed.";
 }
 
 /**
@@ -45,7 +45,6 @@ export function ServerUpdateProgress({
 }: {
   readonly state: Exclude<ServerUpdateState, { status: "idle" }>;
 }) {
-  const { t } = useI18n();
   if (state.status === "failed") {
     return (
       <div className="mt-1 flex min-w-0 items-center gap-2 text-xs text-destructive" role="alert">
@@ -65,7 +64,7 @@ export function ServerUpdateProgress({
         className="size-1.5 shrink-0 animate-status-pulse rounded-full bg-foreground"
         aria-hidden="true"
       />
-      <span>{serverUpdateStageLabel(state.stage, t)}</span>
+      <span>{serverUpdateStageLabel(state.stage)}</span>
     </div>
   );
 }
@@ -79,16 +78,30 @@ export function ServerUpdateAction({
   environmentId,
   serverLabel,
   selfUpdate,
+  desktopAppUpdate = false,
+  threadContinuation = false,
   targetVersion,
-  label,
+  label = "Update",
+  variant = "outline",
+  size = "xs",
 }: {
   readonly environmentId: EnvironmentId;
   readonly serverLabel: string;
   readonly selfUpdate: ServerSelfUpdateCapability | null;
+  /** The desktop app supervising this server accepts remote update
+      requests (capabilities.desktopAppUpdate). */
+  readonly desktopAppUpdate?: boolean;
+  /** The server can durably continue running provider turns after updating. */
+  readonly threadContinuation?: boolean;
   readonly targetVersion: string;
   readonly label?: string;
+  readonly variant?: ComponentProps<typeof Button>["variant"];
+  readonly size?: ComponentProps<typeof Button>["size"];
 }) {
-  const { t } = useI18n();
+  const isDesktopAppUpdate = selfUpdate === "desktop-managed";
+  const continueThreadsAfterServerUpdate = useClientSettings(
+    (settings) => settings.continueThreadsAfterServerUpdate,
+  );
   const updateServer = useAtomCommand(serverEnvironment.updateServer, {
     reportFailure: false,
   });
@@ -97,17 +110,14 @@ export function ServerUpdateAction({
     onCopy: ({ command }) => {
       toastManager.add({
         type: "success",
-        title: t("serverUpdate.commandCopied"),
-        description: t("serverUpdate.commandCopiedDescription", {
-          command,
-          server: serverLabel,
-        }),
+        title: "Update command copied",
+        description: `Run \`${command}\` on ${serverLabel} to update it.`,
       });
     },
     onError: (error) => {
       toastManager.add({
         type: "error",
-        title: t("serverUpdate.copyFailed"),
+        title: "Could not copy update command",
         description: error.message,
       });
     },
@@ -117,11 +127,31 @@ export function ServerUpdateAction({
     if (pendingUpdateEnvironmentIds.has(environmentId)) {
       return;
     }
+    if (isDesktopAppUpdate) {
+      // No themed host mounted (undefined) means proceed: the click itself
+      // was the request. This is the only confirmation in the flow; the
+      // remote machine installs without asking anyone there.
+      const confirmed =
+        (await requestConfirmDialog(
+          `Update the T3 Code desktop app that runs the ${serverLabel}? It will close and relaunch on that machine.`,
+        )) ?? true;
+      if (!confirmed) {
+        return;
+      }
+    }
+    if (pendingUpdateEnvironmentIds.has(environmentId)) {
+      return;
+    }
     pendingUpdateEnvironmentIds.add(environmentId);
     try {
       const result = await updateServer({
         environmentId,
-        input: { targetVersion },
+        input: {
+          targetVersion,
+          ...(threadContinuation && continueThreadsAfterServerUpdate
+            ? { continueRunningThreads: true }
+            : {}),
+        },
       });
       if (result._tag === "Failure") {
         if (isAtomCommandInterrupted(result)) {
@@ -129,39 +159,43 @@ export function ServerUpdateAction({
         }
         toastManager.add({
           type: "error",
-          title: t("serverUpdate.failed"),
-          description: updateFailureMessage(squashAtomCommandFailure(result), t),
+          title: "Server update failed",
+          description: updateFailureMessage(squashAtomCommandFailure(result)),
         });
         return;
       }
       toastManager.add({
         type: "success",
-        title: t("serverUpdate.updated", { server: serverLabel }),
-        description: t("serverUpdate.reconnected", { version: result.value.targetVersion }),
+        title: `${serverLabel} updated`,
+        description: isDesktopAppUpdate
+          ? `Desktop app relaunched on ${result.value.targetVersion}.`
+          : `Reconnected on t3@${result.value.targetVersion}.`,
       });
     } finally {
       pendingUpdateEnvironmentIds.delete(environmentId);
     }
   };
 
-  if (selfUpdate === "desktop-managed") {
+  if (selfUpdate === "desktop-managed" && !desktopAppUpdate) {
     return (
-      <span className="text-muted-foreground text-xs">{t("serverUpdate.desktopManaged")}</span>
+      <span className="text-muted-foreground text-xs">
+        Update the desktop app on that machine to update this server.
+      </span>
     );
   }
 
   if (selfUpdate === null) {
     const command = manualServerUpdateCommand(targetVersion);
     return (
-      <Button size="xs" variant="outline" onClick={() => copyToClipboard(command, { command })}>
-        {t("serverUpdate.copyCommand")}
+      <Button size={size} variant={variant} onClick={() => copyToClipboard(command, { command })}>
+        Copy update command
       </Button>
     );
   }
 
   return (
-    <Button size="xs" onClick={() => void handleUpdate()}>
-      {label ?? t("serverUpdate.action")}
+    <Button size={size} variant={variant} onClick={() => void handleUpdate()}>
+      {label}
     </Button>
   );
 }

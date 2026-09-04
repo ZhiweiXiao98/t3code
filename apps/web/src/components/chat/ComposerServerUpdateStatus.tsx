@@ -1,10 +1,24 @@
 import type { ServerUpdateState } from "@t3tools/client-runtime/state/server";
+import { CircleAlertIcon, InfoIcon, LoaderCircleIcon } from "lucide-react";
 import { useId, useState } from "react";
 
-import { useI18n } from "../../i18n/WebI18nProvider";
 import { serverUpdateStageLabel } from "../ServerUpdateAction";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { ComposerBanner } from "./ComposerBanner";
+
+export function ComposerServerUpdateIcon({
+  status,
+}: {
+  readonly status: ServerUpdateState["status"];
+}) {
+  if (status === "running") {
+    return <LoaderCircleIcon aria-hidden className="motion-safe:animate-spin" />;
+  }
+  if (status === "failed") {
+    return <CircleAlertIcon aria-hidden className="text-error" />;
+  }
+  return <InfoIcon aria-hidden />;
+}
 
 /** One text line, clipped at the end so the error detail never squeezes its title. */
 export function ComposerServerUpdateStatus({
@@ -14,14 +28,10 @@ export function ComposerServerUpdateStatus({
   readonly state: Exclude<ServerUpdateState, { status: "idle" }>;
   readonly serverLabel?: string;
 }) {
-  const { t } = useI18n();
   const [detailsOpen, setDetailsOpen] = useState(false);
   const triggerId = useId();
-  const title = t(
-    state.status === "failed" ? "serverUpdate.status.failed" : "serverUpdate.status.updating",
-    { server: serverLabel },
-  );
-  const detail = state.status === "failed" ? state.message : serverUpdateStageLabel(state.stage, t);
+  const title = `${state.status === "failed" ? "Could not update" : "Updating"} ${serverLabel}`;
+  const detail = state.status === "failed" ? state.message : serverUpdateStageLabel(state.stage);
   return (
     <span
       role={state.status === "failed" ? "alert" : "status"}

@@ -70,6 +70,9 @@ const electronDialog = {
 
 const desktopUpdates = {
   getState: Effect.die("unexpected getState"),
+  isActionActive: Effect.succeed(false),
+  isInstallActive: Effect.succeed(false),
+  subscribe: Effect.die("unexpected subscribe"),
   emitState: Effect.void,
   disabledReason: Effect.succeed(Option.none()),
   configure: Effect.void,
@@ -77,6 +80,7 @@ const desktopUpdates = {
   check: () => Effect.die("unexpected check"),
   download: Effect.die("unexpected download"),
   install: Effect.die("unexpected install"),
+  installPrepared: () => Effect.die("unexpected installPrepared"),
 } satisfies DesktopUpdates.DesktopUpdates["Service"];
 
 const makeDesktopWindowLayer = (selectedAction: Deferred.Deferred<string>) =>
@@ -416,6 +420,7 @@ describe("DesktopApplicationMenu", () => {
         message: null,
         errorContext: null,
         canRetry: false,
+        omittedReleaseCount: 0,
       } satisfies DesktopUpdateState;
 
       yield* configureMenu(selectedAction, applicationMenuTemplate, {

@@ -1,8 +1,8 @@
 import { BookmarkIcon, FileIcon, FileTextIcon } from "lucide-react";
 import { memo, useEffect, useRef, useState } from "react";
+import { assistantCitationsToPlainText } from "@t3tools/shared/assistantCitations";
 
 import { formatRelativeTimeLabel } from "../../timestampFormat";
-import { useI18n, type WebTranslate } from "../../i18n/WebI18nProvider";
 import { cn } from "~/lib/utils";
 import { type PromptStashEntry } from "../../promptStashStore";
 import { ComposerBanner } from "./ComposerBanner";
@@ -14,8 +14,8 @@ function missingImageCount(entry: PromptStashEntry): number {
   return entry.droppedImageNames.length + (entry.unreadableImageNames?.length ?? 0);
 }
 
-function stashEntrySnippet(entry: PromptStashEntry, t: WebTranslate): string {
-  const trimmed = entry.prompt.trim().replace(/\s+/g, " ");
+function stashEntrySnippet(entry: PromptStashEntry): string {
+  const trimmed = assistantCitationsToPlainText(entry.prompt).trim().replace(/\s+/g, " ");
   if (trimmed.length > 0) {
     return trimmed.length > SNIPPET_MAX_CHARS ? `${trimmed.slice(0, SNIPPET_MAX_CHARS)}…` : trimmed;
   }
@@ -23,25 +23,17 @@ function stashEntrySnippet(entry: PromptStashEntry, t: WebTranslate): string {
   const fileCount = entry.files?.length ?? 0;
   const attachmentCount = imageCount + fileCount;
   if (attachmentCount === 0) {
-    return t("composer.stash.entry.empty");
+    return "(empty)";
   }
-  const kind = imageCount > 0 && fileCount > 0 ? "attachment" : fileCount > 0 ? "file" : "image";
-  return t(
-    attachmentCount === 1
-      ? "composer.stash.entry.attachmentCount.one"
-      : "composer.stash.entry.attachmentCount.many",
-    {
-      count: attachmentCount,
-      kind: t(`composer.stash.entry.kind.${kind}`),
-    },
-  );
+  const label = imageCount > 0 && fileCount > 0 ? "attachment" : fileCount > 0 ? "file" : "image";
+  return `(${attachmentCount} ${label}${attachmentCount === 1 ? "" : "s"})`;
 }
 
 /**
- * Attached banner listing the stashed prompts. Keyboard-first: opened by ⌘S on an
- * empty composer, navigated with arrows, restored with Enter, dismissed
- * with Escape. The listener runs capture-phase on window so it wins over
- * the Lexical editor's handlers while the menu is open.
+ * Attached banner listing the stashed prompts. Opened by the stash badge or ⌘S
+ * when the empty composer cannot restore a single entry. Navigated with arrows,
+ * restored with Enter, dismissed with Escape. The listener runs capture-phase
+ * on window so it wins over the Lexical editor's handlers while the menu is open.
  */
 export const ComposerStashMenu = memo(function ComposerStashMenu(props: {
   entries: ReadonlyArray<PromptStashEntry>;
@@ -50,7 +42,6 @@ export const ComposerStashMenu = memo(function ComposerStashMenu(props: {
   onDelete: (entry: PromptStashEntry) => void;
   onClose: () => void;
 }) {
-  const { t } = useI18n();
   const { entries, stashShortcutLabel, onRestore, onDelete, onClose } = props;
   const drawerRef = useRef<HTMLDivElement>(null);
   const [highlightedId, setHighlightedId] = useState<string | null>(entries[0]?.id ?? null);
@@ -125,7 +116,7 @@ export const ComposerStashMenu = memo(function ComposerStashMenu(props: {
     <ComposerBanner.Root ref={drawerRef} data-composer-stash-drawer="true">
       <ComposerBanner.Row
         render={<button type="button" />}
-        aria-label={t("composer.stash.close")}
+        aria-label="Close stash"
         aria-expanded="true"
         onPointerDown={(event) => event.preventDefault()}
         onClick={onClose}
@@ -133,23 +124,21 @@ export const ComposerStashMenu = memo(function ComposerStashMenu(props: {
         <ComposerBanner.Icon>
           <BookmarkIcon />
         </ComposerBanner.Icon>
-        <ComposerBanner.Content className="text-muted-foreground">
-          {t("composer.stash.title")}
-        </ComposerBanner.Content>
+        <ComposerBanner.Content className="text-muted-foreground">Stash</ComposerBanner.Content>
         <ComposerBanner.Actions>
           <ComposerBanner.Count>{entries.length}</ComposerBanner.Count>
           <ComposerBanner.ToggleIcon expanded />
         </ComposerBanner.Actions>
       </ComposerBanner.Row>
       <ComposerBanner.Scroll>
-        <ComposerBanner.Children render={<ul />} aria-label={t("composer.stash.listLabel")}>
+        <ComposerBanner.Children render={<ul role="list" />} aria-label="Stashed prompts">
           {entries.length === 0 ? (
             <ComposerBanner.Row render={<li />}>
               <ComposerBanner.Icon />
               <ComposerBanner.Content className="text-muted-foreground">
-                {t("composer.stash.empty")}
+                Nothing stashed yet.
                 {stashShortcutLabel
-                  ? t("composer.stash.emptyHint", { shortcut: stashShortcutLabel })
+                  ? ` Press ${stashShortcutLabel} with a prompt in the composer to stash it.`
                   : null}
               </ComposerBanner.Content>
             </ComposerBanner.Row>
@@ -177,33 +166,23 @@ export const ComposerStashMenu = memo(function ComposerStashMenu(props: {
                     type="button"
                     className="min-w-0 flex-1 cursor-pointer truncate text-left text-foreground/80 outline-none before:absolute before:inset-0 before:rounded-sm focus-visible:before:ring-2 focus-visible:before:ring-ring"
                     data-stash-restore={entry.id}
-                    aria-label={t("composer.stash.restore", {
-                      prompt: stashEntrySnippet(entry, t),
-                    })}
+                    aria-label={`Restore stashed prompt: ${stashEntrySnippet(entry)}`}
                     onPointerDown={(event) => event.preventDefault()}
                     onClick={() => onRestore(entry)}
                   >
-                    {stashEntrySnippet(entry, t)}
+                    {stashEntrySnippet(entry)}
                   </button>
                 </ComposerBanner.Content>
                 <ComposerBanner.Actions>
                   {entry.pendingImageCount ? (
                     <span className="shrink-0 text-muted-foreground">
-                      {t(
-                        entry.pendingImageCount === 1
-                          ? "composer.stash.savingImages.one"
-                          : "composer.stash.savingImages.many",
-                        { count: entry.pendingImageCount },
-                      )}
+                      saving {entry.pendingImageCount} image
+                      {entry.pendingImageCount === 1 ? "" : "s"}…
                     </span>
                   ) : missingImageCount(entry) > 0 ? (
                     <span className="shrink-0 text-warning-foreground">
-                      {t(
-                        missingImageCount(entry) === 1
-                          ? "composer.stash.droppedImages.one"
-                          : "composer.stash.droppedImages.many",
-                        { count: missingImageCount(entry) },
-                      )}
+                      {missingImageCount(entry)} image
+                      {missingImageCount(entry) === 1 ? "" : "s"} dropped
                     </span>
                   ) : null}
                   {entry.attachments.length > 0 ? (
@@ -233,7 +212,7 @@ export const ComposerStashMenu = memo(function ComposerStashMenu(props: {
                   </time>
                   <ComposerBanner.Dismiss
                     className="z-10"
-                    aria-label={t("composer.stash.delete")}
+                    aria-label="Delete stashed prompt"
                     onPointerDown={(event) => event.preventDefault()}
                     onClick={() => onDelete(entry)}
                   />

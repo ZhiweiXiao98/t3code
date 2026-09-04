@@ -1,4 +1,4 @@
-import type { ModelSelection, ProviderInstanceId } from "@t3tools/contracts";
+import type { ModelSelection, ProviderDriverKind, ProviderInstanceId } from "@t3tools/contracts";
 import {
   CLAUDE_RESUME_COMPACTION_NEVER_ANSWER,
   isClaudeResumeCompactionQuestion,
@@ -12,40 +12,33 @@ import { getTriggerDisplayModelName, type ModelEsque } from "./providerIconUtils
 export const CLAUDE_RESUME_COMPACTION_MINUTES = 70;
 export const CLAUDE_RESUME_COMPACTION_TOKENS = 100_000;
 
-export interface ContextWindowCompactionMessageCopies {
-  threshold: (tokens: number) => string;
-  model: (modelDisplayName: string) => string;
-  automatic: string;
+export function providerSupportsManualCompaction(
+  provider: ProviderInstanceEntry | null | undefined,
+): boolean {
+  return provider?.snapshot.slashCommands.some((command) => command.name === "compact") ?? false;
 }
 
-const DEFAULT_COMPACTION_MESSAGE_COPIES: ContextWindowCompactionMessageCopies = {
-  threshold: (tokens) => `Compacts automatically at ${tokens.toLocaleString("en-US")} tokens.`,
-  model: (modelDisplayName) =>
-    `Context for ${modelDisplayName} compacts automatically when needed.`,
-  automatic: "Context compacts automatically when needed.",
-};
-
-export function hasAvailableClaudeCompactionProvider(input: {
+export function hasAvailableCompactionProvider(input: {
   readonly providers: ReadonlyArray<ProviderInstanceEntry>;
+  readonly driverKind: ProviderDriverKind;
   readonly instanceId: ProviderInstanceId | null;
   readonly lockedInstanceId: ProviderInstanceId | null;
 }): boolean {
-  const claudeProviders = input.providers.filter(
-    (provider) => provider.driverKind === "claudeAgent",
+  const driverProviders = input.providers.filter(
+    (provider) => provider.driverKind === input.driverKind,
   );
   const lockedContinuationGroupKey = input.lockedInstanceId
-    ? claudeProviders.find((provider) => provider.instanceId === input.lockedInstanceId)
+    ? driverProviders.find((provider) => provider.instanceId === input.lockedInstanceId)
         ?.continuationGroupKey
     : undefined;
   const compatibleProviders = lockedContinuationGroupKey
-    ? claudeProviders.filter(
+    ? driverProviders.filter(
         (provider) => provider.continuationGroupKey === lockedContinuationGroupKey,
       )
-    : claudeProviders;
+    : driverProviders;
 
-  return (
-    resolveSelectableProviderInstanceEntry(compatibleProviders, input.instanceId ?? undefined) !==
-    undefined
+  return providerSupportsManualCompaction(
+    resolveSelectableProviderInstanceEntry(compatibleProviders, input.instanceId ?? undefined),
   );
 }
 
@@ -107,10 +100,11 @@ export function resolveContextWindowModelDisplayName(
 export function formatContextWindowCompactionMessage(
   modelDisplayName: string | null | undefined,
   autoCompactThreshold?: number | null,
-  copies: ContextWindowCompactionMessageCopies = DEFAULT_COMPACTION_MESSAGE_COPIES,
 ): string {
   if (typeof autoCompactThreshold === "number" && autoCompactThreshold > 0) {
-    return copies.threshold(autoCompactThreshold);
+    return `Compacts automatically at ${autoCompactThreshold.toLocaleString("en-US")} tokens.`;
   }
-  return modelDisplayName ? copies.model(modelDisplayName) : copies.automatic;
+  return modelDisplayName
+    ? `Context for ${modelDisplayName} compacts automatically when needed.`
+    : "Context compacts automatically when needed.";
 }

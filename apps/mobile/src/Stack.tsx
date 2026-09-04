@@ -56,6 +56,7 @@ import { SettingsAuthRouteScreen } from "./features/settings/SettingsAuthRouteSc
 import { SettingsEnvironmentsRouteScreen } from "./features/settings/SettingsEnvironmentsRouteScreen";
 import { SettingsLegalRouteScreen } from "./features/settings/SettingsLegalRouteScreen";
 import { SettingsProjectGroupingRouteScreen } from "./features/settings/SettingsProjectGroupingRouteScreen";
+import { SettingsProviderSetupRouteScreen } from "./features/settings/SettingsProviderSetupRouteScreen";
 import { UsageRouteScreen } from "./features/usage/UsageRouteScreen";
 import { SettingsRouteScreen } from "./features/settings/SettingsRouteScreen";
 import { ShowcaseCaptureCoordinator } from "./features/showcase/ShowcaseCaptureCoordinator";
@@ -73,7 +74,7 @@ import { NATIVE_LIQUID_GLASS_SUPPORTED } from "./native/native-glass";
 import { nativeHeaderScrollEdgeEffects } from "./native/StackHeader";
 import { FORM_SHEET_PRESENTATION_OPTIONS } from "./native/sheet-surface";
 import { useThreadOutboxDrain } from "./state/use-thread-outbox-drain";
-import { localizeMobileString } from "./i18n/mobileStrings";
+import { useComposerAttachmentUploadWorker } from "./state/composer-attachment-uploads";
 
 const HEADER_SCROLL_EDGE_EFFECTS = nativeHeaderScrollEdgeEffects(Platform.OS, Platform.Version);
 
@@ -147,56 +148,63 @@ const SettingsContentStack = createNativeStackNavigator({
       screen: SettingsRouteScreen,
       linking: "",
       options: {
-        title: localizeMobileString("Settings"),
+        title: "Settings",
       },
     }),
     SettingsEnvironments: createNativeStackScreen({
       screen: SettingsEnvironmentsRouteScreen,
       linking: "environments",
       options: {
-        title: localizeMobileString("Environments"),
+        title: "Environments",
       },
     }),
     SettingsEnvironmentNew: createNativeStackScreen({
       screen: ConnectionsNewRouteScreen,
       linking: "environment-new",
       options: {
-        title: localizeMobileString("Add environment"),
+        title: "Add Environment",
+      },
+    }),
+    SettingsProviderSetup: createNativeStackScreen({
+      screen: SettingsProviderSetupRouteScreen,
+      linking: "providers/:environmentId/:instanceId",
+      options: {
+        title: "Antigravity",
       },
     }),
     SettingsArchive: createNativeStackScreen({
       screen: ArchivedThreadsRouteScreen,
       linking: "archive",
       options: {
-        title: localizeMobileString("Archived Threads"),
+        title: "Archived Threads",
       },
     }),
     SettingsAppearance: createNativeStackScreen({
       screen: SettingsAppearanceRouteScreen,
       linking: "appearance",
       options: {
-        title: localizeMobileString("Appearance"),
+        title: "Appearance",
       },
     }),
     SettingsProjectGrouping: createNativeStackScreen({
       screen: SettingsProjectGroupingRouteScreen,
       linking: "project-grouping",
       options: {
-        title: localizeMobileString("Project Grouping"),
+        title: "Project Grouping",
       },
     }),
     SettingsClientStorage: createNativeStackScreen({
       screen: SettingsClientStorageRouteScreen,
       linking: "client-storage",
       options: {
-        title: localizeMobileString("Client Storage"),
+        title: "Client Storage",
       },
     }),
     SettingsUsage: createNativeStackScreen({
       screen: UsageRouteScreen,
       linking: "usage",
       options: {
-        title: localizeMobileString("Usage"),
+        title: "Usage",
       },
     }),
   },
@@ -256,7 +264,7 @@ const NewTaskSheetStack = createNativeStackNavigator({
       screen: NewTaskRouteScreen,
       linking: "",
       options: {
-        title: localizeMobileString("Choose project"),
+        title: "Choose project",
       },
     }),
     NewTaskDraft: createNativeStackScreen({
@@ -271,14 +279,14 @@ const NewTaskSheetStack = createNativeStackNavigator({
       screen: NewTaskEnvironmentPickerRouteScreen,
       linking: "draft/environment",
       options: {
-        title: localizeMobileString("Environment"),
+        title: "Environment",
       },
     }),
     NewTaskBranch: createNativeStackScreen({
       screen: NewTaskBranchPickerRouteScreen,
       linking: "draft/branch",
       options: {
-        title: localizeMobileString("Branch"),
+        title: "Branch",
       },
     }),
     ThreadSettings: createNativeStackScreen({
@@ -300,7 +308,7 @@ const NewTaskSheetStack = createNativeStackNavigator({
       screen: AddProjectSourceRoute,
       linking: "add-project",
       options: {
-        title: localizeMobileString("Add project"),
+        title: "Add Project",
       },
     }),
     AddProjectRepository: createNativeStackScreen({
@@ -356,6 +364,7 @@ function workspacePathFromState(state: NavigationState): string {
 // each enqueue, shell change, or reconnect.
 function ThreadOutboxDrainWorker() {
   useThreadOutboxDrain();
+  useComposerAttachmentUploadWorker();
   return null;
 }
 
@@ -494,7 +503,7 @@ export const RootStack = createNativeStackNavigator({
       linking: `${THREAD_LINKING_PREFIX}/files`,
       options: {
         ...GLASS_HEADER_OPTIONS,
-        title: localizeMobileString("Files"),
+        title: "Files",
       },
     }),
     ThreadFile: createNativeStackScreen({
@@ -574,7 +583,7 @@ export const RootStack = createNativeStackNavigator({
       linking: "settings/legal",
       options: {
         ...LEGAL_DOCUMENT_HEADER_OPTIONS,
-        title: localizeMobileString("Legal"),
+        title: "Legal",
       },
     }),
     ConnectOnboarding: createNativeStackScreen({
@@ -584,7 +593,7 @@ export const RootStack = createNativeStackNavigator({
         // A root-level Android formSheet does not host the native stack bar;
         // the route renders an embedded AndroidSheetHeader instead.
         ...(Platform.OS === "android" ? { headerShown: false } : SHEET_SOLID_HEADER_OPTIONS),
-        title: localizeMobileString("Set up T3 Connect"),
+        title: "Set up T3 Connect",
         gestureEnabled: true,
         ...FORM_SHEET_PRESENTATION_OPTIONS,
         sheetAllowedDetents: [0.6, 0.95],
@@ -595,7 +604,7 @@ export const RootStack = createNativeStackNavigator({
       screen: ConnectionsRouteScreen,
       linking: "connections",
       options: {
-        title: localizeMobileString("Environments"),
+        title: "Environments",
         // Android: full page; the screen renders its own AndroidScreenHeader,
         // so the native bar stays hidden. iOS keeps the sheet.
         ...(Platform.OS === "android"

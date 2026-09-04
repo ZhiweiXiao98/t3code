@@ -15,6 +15,7 @@ import {
 import type {
   ContextMenuItem,
   ModelSelection,
+  ProjectIconOverride,
   ProviderDriverKind,
   SidebarProjectGroupingMode,
   T3ProjectFileScript,
@@ -26,6 +27,8 @@ import { useCanGoBack, useNavigate } from "@tanstack/react-router";
 import * as Cause from "effect/Cause";
 import { ChevronDownIcon, CopyIcon, PlusIcon, SettingsIcon, Trash2Icon } from "lucide-react";
 import {
+  lazy,
+  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -38,6 +41,7 @@ import { useComposerDraftStore } from "../../composerDraftStore";
 import { isElectron } from "../../env";
 import {
   useClientSettings,
+  useEnvironmentSettings,
   useUpdateClientSettings,
   usePrimarySettings,
 } from "../../hooks/useSettings";
@@ -68,7 +72,7 @@ import {
 import { useEnvironments, usePrimaryEnvironmentId } from "../../state/environments";
 import { useProjects, useThreadShells } from "../../state/entities";
 import { projectEnvironment } from "../../state/projects";
-import { primaryServerProvidersAtom, serverEnvironment } from "../../state/server";
+import { EMPTY_SERVER_PROVIDERS, serverEnvironment } from "../../state/server";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { ProviderModelPicker } from "../chat/ProviderModelPicker";
 import { TraitsPicker } from "../chat/TraitsPicker";
@@ -94,6 +98,7 @@ import {
 } from "../ui/menu";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
 import { SidebarInset } from "../ui/sidebar";
+import { Switch } from "../ui/switch";
 import { stackedThreadToast, toastManager } from "../ui/toast";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import {
@@ -103,6 +108,7 @@ import {
 } from "../WorkspaceBreadcrumb";
 import { WorkspacePageHeader } from "../WorkspacePageHeader";
 import {
+  SETTINGS_PICKER_TRIGGER_CLASSNAME,
   SettingResetButton,
   SettingsPageContainer,
   SettingsRow,
@@ -114,6 +120,12 @@ import {
 } from "./ProjectFaviconPickerDialog";
 import { projectGroupTitleNeedsUpdate } from "./ProjectSettingsPanel.logic";
 import { useI18n } from "../../i18n/WebI18nProvider";
+
+const ProjectIconPickerDialog = lazy(() =>
+  import("./ProjectIconPickerDialog").then((module) => ({
+    default: module.ProjectIconPickerDialog,
+  })),
+);
 
 export const PROJECT_GROUPING_MODE_LABELS: Record<SidebarProjectGroupingMode, string> = {
   repository: "Group by repository",
@@ -293,10 +305,20 @@ function ProjectDetail({ group }: { group: SidebarProjectSnapshot }) {
   const { t } = useI18n();
   const navigate = useNavigate();
   const primaryEnvironmentId = usePrimaryEnvironmentId();
+  const representative =
+    group.memberProjects.find(
+      (member) => member.environmentId === group.environmentId && member.id === group.id,
+    ) ?? group.memberProjects[0]!;
   const settings = usePrimarySettings();
+  // Provider instances and model options belong to the environment that runs
+  // the project's threads. The hosted app has no primary environment, so
+  // reading them from there would show "No providers available" everywhere.
+  const projectSettings = useEnvironmentSettings(representative.environmentId);
+  const serverProviders =
+    useAtomValue(serverEnvironment.providersValueAtom(representative.environmentId)) ??
+    EMPTY_SERVER_PROVIDERS;
   const updateClientSettings = useUpdateClientSettings();
   const projectGroupingSettings = useClientSettings(selectProjectGroupingSettings);
-  const serverProviders = useAtomValue(primaryServerProvidersAtom);
   const threads = useThreadShells();
   const updateProject = useAtomCommand(projectEnvironment.update, { reportFailure: false });
   const deleteProject = useAtomCommand(projectEnvironment.delete, { reportFailure: false });
@@ -326,11 +348,8 @@ function ProjectDetail({ group }: { group: SidebarProjectSnapshot }) {
     },
   });
 
-  const representative =
-    group.memberProjects.find(
-      (member) => member.environmentId === group.environmentId && member.id === group.id,
-    ) ?? group.memberProjects[0]!;
   const faviconPath = representative.faviconPath ?? null;
+  const projectIcon = representative.projectIcon ?? null;
   const pickProjectFavicon =
     typeof window !== "undefined" &&
     group.memberProjects.every(
@@ -372,7 +391,9 @@ function ProjectDetail({ group }: { group: SidebarProjectSnapshot }) {
         title: string;
         defaultModelSelection: ModelSelection | null;
         defaultThreadEnvMode: ThreadEnvMode | null;
+        autoPull: boolean;
         faviconPath: string | null;
+        projectIcon: ProjectIconOverride | null;
       }>,
       failureTitle: string,
     ): Promise<AtomCommandResult<void, unknown>> => {
@@ -433,14 +454,22 @@ function ProjectDetail({ group }: { group: SidebarProjectSnapshot }) {
   const instanceEntries = useMemo(
     () =>
       sortProviderInstanceEntries(
-        applyProviderInstanceSettings(deriveProviderInstanceEntries(serverProviders), settings),
+        applyProviderInstanceSettings(
+          deriveProviderInstanceEntries(serverProviders),
+          projectSettings,
+        ),
       ),
-    [serverProviders, settings],
+    [serverProviders, projectSettings],
   );
   const modelOptionsByInstance = useMemo(
     () =>
-      getCustomModelOptionsByInstance(settings, serverProviders, resolvedInstanceId, resolvedModel),
-    [resolvedInstanceId, resolvedModel, serverProviders, settings],
+      getCustomModelOptionsByInstance(
+        projectSettings,
+        serverProviders,
+        resolvedInstanceId,
+        resolvedModel,
+      ),
+    [resolvedInstanceId, resolvedModel, serverProviders, projectSettings],
   );
   const activeEntry = instanceEntries.find((entry) => entry.instanceId === resolvedInstanceId);
   const setDefaultModel = useCallback(
@@ -463,17 +492,25 @@ function ProjectDetail({ group }: { group: SidebarProjectSnapshot }) {
     [t, updateAllMembers],
   );
 
-  // ----- favicon -----
+  const autoPull = representative.autoPull ?? false;
+  const setAutoPull = useCallback(
+    (enabled: boolean) =>
+      void updateAllMembers({ autoPull: enabled }, t("projectSettings.autoPullUpdateFailed")),
+    [t, updateAllMembers],
+  );
+
+  // ----- project icon -----
   const [faviconPickerOpen, setFaviconPickerOpen] = useState(false);
+  const [iconPickerOpen, setIconPickerOpen] = useState(false);
   const [isSavingFavicon, setIsSavingFavicon] = useState(false);
   const savingFaviconRef = useRef(false);
-  const setFaviconPath = useCallback(
-    async (faviconPath: string | null) => {
+  const setProjectIcon = useCallback(
+    async (input: { faviconPath: string | null; projectIcon: ProjectIconOverride | null }) => {
       if (savingFaviconRef.current) return;
       savingFaviconRef.current = true;
       setIsSavingFavicon(true);
       try {
-        await updateAllMembers({ faviconPath }, t("projectSettings.iconUpdateFailed"));
+        await updateAllMembers(input, t("projectSettings.iconUpdateFailed"));
       } finally {
         savingFaviconRef.current = false;
         setIsSavingFavicon(false);
@@ -719,7 +756,9 @@ function ProjectDetail({ group }: { group: SidebarProjectSnapshot }) {
                     : []),
                 ]
               : [t("projectSettings.removeGroupedEntries", { count: members.length })]),
-            ...(projectThreads.length > 0 ? [t("projectSettings.clearHistory")] : []),
+            ...(projectThreads.length > 0
+              ? [t("projectSettings.clearHistoryWithArchived")]
+              : [t("projectSettings.clearArchivedHistory")]),
             isWholeGroup
               ? t("projectSettings.removeEntriesOnly")
               : t("projectSettings.otherEntriesUnaffected"),
@@ -741,7 +780,7 @@ function ProjectDetail({ group }: { group: SidebarProjectSnapshot }) {
             environmentId: member.environmentId,
             input: {
               projectId: member.id,
-              ...(memberThreads.length > 0 ? { force: true } : {}),
+              force: true,
             },
           }),
           () => undefined,
@@ -796,7 +835,7 @@ function ProjectDetail({ group }: { group: SidebarProjectSnapshot }) {
 
   return (
     <>
-      <SettingsPageContainer>
+      <SettingsPageContainer width="wide" className="gap-8">
         <SettingsSection title={t("projectSettings.section.project")}>
           <SettingsRow
             title={t("projectSettings.name")}
@@ -804,6 +843,7 @@ function ProjectDetail({ group }: { group: SidebarProjectSnapshot }) {
             control={
               <Input
                 key={`${group.projectKey}:${group.displayName}`}
+                size="sm"
                 className="w-full sm:w-64"
                 aria-label={t("projectSettings.projectName")}
                 defaultValue={group.displayName}
@@ -823,13 +863,19 @@ function ProjectDetail({ group }: { group: SidebarProjectSnapshot }) {
           />
           <SettingsRow
             title={t("projectSettings.icon")}
-            description={faviconPath ?? t("projectSettings.automatic")}
+            description={
+              projectIcon?.kind === "lucide"
+                ? `${projectIcon.name} · ${projectIcon.color}`
+                : projectIcon?.kind === "emoji"
+                  ? projectIcon.emoji
+                  : (faviconPath ?? t("projectSettings.automatic"))
+            }
             resetAction={
-              faviconPath !== null ? (
+              faviconPath !== null || projectIcon !== null ? (
                 <SettingResetButton
                   label="project icon"
                   disabled={isSavingFavicon}
-                  onClick={() => void setFaviconPath(null)}
+                  onClick={() => void setProjectIcon({ faviconPath: null, projectIcon: null })}
                 />
               ) : null
             }
@@ -838,11 +884,23 @@ function ProjectDetail({ group }: { group: SidebarProjectSnapshot }) {
                 <ProjectFavicon
                   environmentId={representative.environmentId}
                   cwd={representative.workspaceRoot}
+                  projectName={representative.title}
                   faviconPath={faviconPath}
+                  projectIcon={projectIcon}
                   className="size-6"
                 />
                 <Button
-                  size="xs"
+                  size="sm"
+                  variant="outline"
+                  type="button"
+                  aria-label={t("projectSettings.chooseBuiltInIcon")}
+                  disabled={isSavingFavicon}
+                  onClick={() => setIconPickerOpen(true)}
+                >
+                  {t("projectSettings.chooseBuiltInIcon")}
+                </Button>
+                <Button
+                  size="sm"
                   variant="outline"
                   type="button"
                   aria-label={t("projectSettings.chooseIcon")}
@@ -854,9 +912,6 @@ function ProjectDetail({ group }: { group: SidebarProjectSnapshot }) {
               </div>
             }
           />
-        </SettingsSection>
-
-        <SettingsSection title={t("projectSettings.section.newThreads")}>
           <SettingsRow
             title={t("projectSettings.model")}
             description={t("projectSettings.modelDescription")}
@@ -878,7 +933,13 @@ function ProjectDetail({ group }: { group: SidebarProjectSnapshot }) {
                     instanceEntries={instanceEntries}
                     modelOptionsByInstance={modelOptionsByInstance}
                     triggerVariant="outline"
-                    triggerClassName="min-w-0 max-w-none shrink-0 text-foreground/90 hover:text-foreground"
+                    triggerClassName={SETTINGS_PICKER_TRIGGER_CLASSNAME}
+                    onOpenProviderSetup={(instanceId) => {
+                      void navigate({
+                        to: "/settings/providers",
+                        search: { environmentId: representative.environmentId, instanceId },
+                      });
+                    }}
                     onInstanceModelChange={(instanceId, model) => {
                       setDefaultModel(createModelSelection(instanceId, model));
                     }}
@@ -891,9 +952,9 @@ function ProjectDetail({ group }: { group: SidebarProjectSnapshot }) {
                     onPromptChange={() => {}}
                     modelOptions={resolvedSelection.options ?? []}
                     allowPromptInjectedEffort={false}
-                    planModeEnabled={settings.planModeEnabled}
+                    planModeEnabled={projectSettings.planModeEnabled}
                     triggerVariant="outline"
-                    triggerClassName="min-w-0 max-w-none shrink-0 text-foreground/90 hover:text-foreground"
+                    triggerClassName={SETTINGS_PICKER_TRIGGER_CLASSNAME}
                     onModelOptionsChange={(nextOptions) => {
                       setDefaultModel(
                         createModelSelection(
@@ -934,7 +995,7 @@ function ProjectDetail({ group }: { group: SidebarProjectSnapshot }) {
                   }
                 }}
               >
-                <SelectTrigger aria-label={t("projectSettings.newThreadWorkspace")}>
+                <SelectTrigger size="sm" aria-label={t("projectSettings.newThreadWorkspace")}>
                   <SelectValue>
                     {storedEnvMode === null
                       ? group.memberProjects.length > 1
@@ -963,6 +1024,17 @@ function ProjectDetail({ group }: { group: SidebarProjectSnapshot }) {
               </Select>
             }
           />
+          <SettingsRow
+            title={t("projectSettings.autoPull")}
+            description={t("projectSettings.autoPullDescription")}
+            control={
+              <Switch
+                checked={autoPull}
+                aria-label={t("projectSettings.autoPullAria")}
+                onCheckedChange={setAutoPull}
+              />
+            }
+          />
         </SettingsSection>
 
         <SettingsSection
@@ -973,6 +1045,7 @@ function ProjectDetail({ group }: { group: SidebarProjectSnapshot }) {
               onValueChange={(value) => setSelectedCheckoutKey(String(value))}
             >
               <SelectTrigger
+                size="sm"
                 className="max-w-64"
                 aria-label={t("projectSettings.selectedCheckout")}
               >
@@ -1040,6 +1113,7 @@ function ProjectDetail({ group }: { group: SidebarProjectSnapshot }) {
                 }}
               >
                 <SelectTrigger
+                  size="sm"
                   aria-label={t("projectSettings.groupingRule", {
                     checkout: selectedCheckoutLabel,
                   })}
@@ -1076,7 +1150,7 @@ function ProjectDetail({ group }: { group: SidebarProjectSnapshot }) {
               description={t("projectSettings.removeCheckoutDescription")}
               control={
                 <Button
-                  size="xs"
+                  size="sm"
                   variant="destructive-outline"
                   onClick={() => void removeMembers([selectedCheckout])}
                 >
@@ -1164,10 +1238,7 @@ function ProjectDetail({ group }: { group: SidebarProjectSnapshot }) {
                         icon={script.icon}
                         className="size-4 shrink-0 text-muted-foreground"
                       />
-                      <span className="max-w-40 shrink-0 truncate">{script.name}</span>
-                      <code className="min-w-0 flex-1 truncate font-mono font-normal text-muted-foreground">
-                        {script.command}
-                      </code>
+                      <span className="min-w-0 truncate">{script.name}</span>
                       {script.runOnWorktreeCreate ? (
                         <span className="shrink-0 rounded-sm border border-border/60 px-1.5 py-px text-[11px] font-normal text-muted-foreground">
                           {t("projectSettings.setupBadge")}
@@ -1179,6 +1250,9 @@ function ProjectDetail({ group }: { group: SidebarProjectSnapshot }) {
                         </span>
                       ) : null}
                     </span>
+                  }
+                  description={
+                    <code className="block max-w-full truncate font-mono">{script.command}</code>
                   }
                   control={
                     <>
@@ -1228,6 +1302,7 @@ function ProjectDetail({ group }: { group: SidebarProjectSnapshot }) {
             }
             control={
               <Button
+                size="sm"
                 variant="destructive-outline"
                 onClick={() => void removeMembers(group.memberProjects)}
               >
@@ -1256,10 +1331,20 @@ function ProjectDetail({ group }: { group: SidebarProjectSnapshot }) {
         {...(pickProjectFavicon
           ? { onPickExternal: () => pickProjectFavicon(representative.workspaceRoot) }
           : {})}
-        onSelect={(path) => void setFaviconPath(path)}
+        onSelect={(path) => void setProjectIcon({ faviconPath: path, projectIcon: null })}
         open={faviconPickerOpen}
         projectName={group.displayName}
       />
+      {iconPickerOpen ? (
+        <Suspense fallback={null}>
+          <ProjectIconPickerDialog
+            current={projectIcon}
+            open
+            onOpenChange={setIconPickerOpen}
+            onSelect={(icon) => void setProjectIcon({ faviconPath: null, projectIcon: icon })}
+          />
+        </Suspense>
+      ) : null}
     </>
   );
 }

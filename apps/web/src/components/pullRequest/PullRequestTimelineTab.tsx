@@ -4,6 +4,7 @@ import type {
   PullRequestComment,
   PullRequestDetailView,
   PullRequestRef,
+  ScopedThreadRef,
 } from "@t3tools/contracts";
 import {
   ChevronDownIcon,
@@ -23,6 +24,7 @@ import { readLocalApi } from "~/localApi";
 import { pullRequestEnvironment } from "~/state/pullRequests";
 import { useAtomCommand } from "~/state/use-atom-command";
 import { formatRelativeTimeLabel } from "~/timestampFormat";
+import { useI18n } from "../../i18n/WebI18nProvider";
 
 import { Button } from "../ui/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "../ui/collapsible";
@@ -55,6 +57,8 @@ import {
 interface ReactionSurface {
   readonly canReact: boolean;
   readonly environmentId: EnvironmentId;
+  /** Thread the timeline is shown beside, so body links can open in its in-app browser. */
+  readonly threadRef: ScopedThreadRef | null;
   readonly reference: PullRequestRef;
   readonly onRefresh: () => void;
 }
@@ -64,16 +68,23 @@ function TimelineBody({
   markdown,
   cwd,
   environmentId,
+  threadRef,
 }: {
   body: string;
   markdown: boolean;
   cwd: string;
   environmentId: EnvironmentId;
+  threadRef: ScopedThreadRef | null;
 }) {
   return (
     <div className="mt-3">
       {markdown ? (
-        <PullRequestMarkdown text={body} cwd={cwd} environmentId={environmentId} />
+        <PullRequestMarkdown
+          text={body}
+          cwd={cwd}
+          environmentId={environmentId}
+          threadRef={threadRef}
+        />
       ) : (
         <p className="whitespace-pre-wrap text-xs text-muted-foreground">{body}</p>
       )}
@@ -155,12 +166,13 @@ function ReviewStateBadge({ state }: { state: string }) {
 }
 
 function OpenOnHostButton({ url, onOpen }: { url: string | null; onOpen: (url: string) => void }) {
+  const { t } = useI18n();
   return url === null ? null : (
     <Button
       size="icon-xs"
       variant="ghost"
       className="-mr-1 -mt-1 shrink-0 text-muted-foreground"
-      aria-label="Open activity on host"
+      aria-label={t("pullRequests.timeline.openOnHost")}
       onClick={() => onOpen(url)}
     >
       <ExternalLinkIcon className="size-3" />
@@ -182,6 +194,7 @@ function ConversationCard({
   onOpen: (url: string) => void;
   reactions: ReactionSurface;
 }) {
+  const { t } = useI18n();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const updateComment = useAtomCommand(pullRequestEnvironment.updateComment, {
@@ -199,7 +212,7 @@ function ConversationCard({
     });
     setSaving(false);
     if (result._tag === "Failure") {
-      toastManager.add({ type: "error", title: "Could not save the comment" });
+      toastManager.add({ type: "error", title: t("pullRequests.comments.saveFailed") });
       return;
     }
     setEditing(false);
@@ -231,7 +244,7 @@ function ConversationCard({
               size="icon-xs"
               variant="ghost"
               className="-mt-1 shrink-0 text-muted-foreground opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100"
-              aria-label="Edit comment"
+              aria-label={t("pullRequests.comments.edit")}
               onClick={() => setEditing(true)}
             >
               <PencilIcon className="size-3" />
@@ -246,7 +259,8 @@ function ConversationCard({
             value={editable.body}
             cwd={cwd}
             environmentId={reactions.environmentId}
-            label="Edit comment"
+            threadRef={reactions.threadRef}
+            label={t("pullRequests.comments.edit")}
             saving={saving}
             onSave={(body) => void save(body)}
             onCancel={() => setEditing(false)}
@@ -259,6 +273,7 @@ function ConversationCard({
             markdown={event.markdown}
             cwd={cwd}
             environmentId={reactions.environmentId}
+            threadRef={reactions.threadRef}
           />
         </div>
       ) : null}
@@ -300,6 +315,7 @@ function ConversationGroup({
   onOpen: (url: string) => void;
   reactions: ReactionSurface;
 }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const actors = uniqueConversationActors(events);
   const first = events[0];
@@ -323,11 +339,13 @@ function ConversationGroup({
           >
             <span className="min-w-0 flex-1">
               <span className="block text-xs font-semibold">
-                {events.length.toLocaleString()} {events.length === 1 ? "comment" : "comments"}
+                {t("pullRequests.comments.countMany", { count: events.length.toLocaleString() })}
               </span>
               <span className="block truncate text-[10px] text-muted-foreground">
-                {actors.length.toLocaleString()} {actors.length === 1 ? "author" : "authors"} ·{" "}
-                {formatRelativeTimeLabel(first.at)}
+                {t("pullRequests.timeline.authorCount", {
+                  count: actors.length.toLocaleString(),
+                })}{" "}
+                · {formatRelativeTimeLabel(first.at)}
               </span>
             </span>
             <ChevronDownIcon
@@ -370,11 +388,12 @@ function CommitEvent({
   event: PullRequestTimelineEvent;
   onOpen: (oid: string) => void;
 }) {
+  const { t } = useI18n();
   return (
     <button
       type="button"
       className="group relative mb-5 block w-full rounded-sm pl-12 text-left outline-none [contain-intrinsic-block-size:48px] [content-visibility:auto] focus-visible:ring-2 focus-visible:ring-ring"
-      aria-label={`View commit ${event.id}`}
+      aria-label={t("pullRequests.timeline.viewCommit", { commit: event.id })}
       onClick={() => onOpen(event.id)}
     >
       <ActorTimelineMarker
@@ -384,7 +403,7 @@ function CommitEvent({
       <div className="flex min-w-0 items-center gap-2.5 py-1.5">
         <div className="min-w-0 flex-1">
           <div className="truncate text-xs font-semibold text-foreground transition-colors group-hover:text-primary">
-            {event.body ?? "Untitled commit"}
+            {event.body ?? t("pullRequests.timeline.untitledCommit")}
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground">
             <code className="font-mono">{event.id.slice(0, 7)}</code>
@@ -404,20 +423,21 @@ function CommitEvent({
 }
 
 function LifecycleEvent({ event }: { event: PullRequestTimelineEvent }) {
+  const { t } = useI18n();
   const presentation =
     event.kind === "opened"
       ? {
           icon: <GitPullRequestIcon className="size-3.5" />,
-          label: "Pull request opened",
+          label: t("pullRequests.timeline.opened"),
         }
       : event.kind === "merged"
         ? {
             icon: <GitMergeIcon className="size-3.5" />,
-            label: "Pull request merged",
+            label: t("pullRequests.timeline.merged"),
           }
         : {
             icon: <GitPullRequestClosedIcon className="size-3.5" />,
-            label: "Pull request closed",
+            label: t("pullRequests.timeline.closed"),
           };
 
   return (
@@ -457,6 +477,7 @@ function ReviewVerdictEvent({
   onOpen: (url: string) => void;
   reactions: ReactionSurface;
 }) {
+  const { t } = useI18n();
   return (
     <div className="group relative mb-5 pl-12 [contain-intrinsic-block-size:48px] [content-visibility:auto]">
       {/* Pinned rather than centred: this row grows with a body and a reaction bar, and a
@@ -488,10 +509,12 @@ function ReviewVerdictEvent({
                   />
                 }
               >
-                {pullRequestReviewOutcomeLabel(outcome)}
-                {stale ? <span className="sr-only">, before the latest commits</span> : null}
+                {pullRequestReviewOutcomeLabel(outcome, t)}
+                {stale ? (
+                  <span className="sr-only">{t("pullRequests.review.beforeLatest")}</span>
+                ) : null}
               </TooltipTrigger>
-              <TooltipPopup>{pullRequestReviewOutcomeStaleLabel(outcome)}</TooltipPopup>
+              <TooltipPopup>{pullRequestReviewOutcomeStaleLabel(outcome, t)}</TooltipPopup>
             </Tooltip>
           </div>
           {/* The reaction bar rides this line rather than taking one of its own. Its add button
@@ -526,6 +549,7 @@ function ReviewVerdictEvent({
               markdown={event.markdown}
               cwd={cwd}
               environmentId={reactions.environmentId}
+              threadRef={reactions.threadRef}
             />
           ) : null}
         </div>
@@ -538,6 +562,7 @@ function ReviewVerdictEvent({
 export function PullRequestTimelineTab({
   detail,
   environmentId,
+  threadRef = null,
   reference,
   order,
   onOpenCommit,
@@ -545,16 +570,19 @@ export function PullRequestTimelineTab({
 }: {
   detail: PullRequestDetailView;
   environmentId: EnvironmentId;
+  threadRef?: ScopedThreadRef | null;
   reference: PullRequestRef;
   order: "newest" | "oldest";
   onOpenCommit: (oid: string) => void;
   onRefresh: () => void;
 }) {
+  const { t } = useI18n();
   const events = buildPullRequestTimeline(detail);
   const newestCommitAt = newestPullRequestCommitAt(detail.commits);
   const reactions: ReactionSurface = {
     canReact: detail.capabilities.reactions === true,
     environmentId,
+    threadRef,
     reference,
     onRefresh,
   };
@@ -614,7 +642,7 @@ export function PullRequestTimelineTab({
         {events.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
             <GitPullRequestIcon className="mb-2 size-5" />
-            <p className="text-xs">No activity yet.</p>
+            <p className="text-xs">{t("pullRequests.timeline.empty")}</p>
           </div>
         ) : null}
       </div>

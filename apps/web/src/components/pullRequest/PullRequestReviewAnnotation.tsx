@@ -21,6 +21,7 @@ import { useRef, useState } from "react";
 
 import { formatRelativeTimeLabel } from "~/timestampFormat";
 import { cn } from "~/lib/utils";
+import { useI18n } from "../../i18n/WebI18nProvider";
 
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
@@ -65,6 +66,7 @@ export function PendingReviewCommentCard({
   comment: PendingReviewComment;
   onRemove: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div
       className={cn(CARD_CLASS, "border-dashed")}
@@ -73,12 +75,12 @@ export function PendingReviewCommentCard({
     >
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <MessageSquareIcon className="size-3.5" />
-        <span>Pending — sent when you submit the review</span>
+        <span>{t("pullRequests.review.pendingComment")}</span>
         <Button
           size="icon-xs"
           variant="ghost"
           className="ml-auto"
-          aria-label="Discard this comment"
+          aria-label={t("pullRequests.review.discardComment")}
           onClick={onRemove}
         >
           <Trash2Icon className="size-3.5" />
@@ -133,6 +135,7 @@ export function ReviewThreadCard({
   onToggleResolved: () => void;
   onReacted: () => void;
 }) {
+  const { t } = useI18n();
   // A resolved thread is finished work, so it opens collapsed and stays one line until asked for.
   const [expanded, setExpanded] = useState(!thread.isResolved);
   const [replying, setReplying] = useState(false);
@@ -230,8 +233,10 @@ export function ReviewThreadCard({
           aria-expanded={expanded}
           onClick={() => setExpanded((current) => !current)}
         >
-          {thread.isResolved ? "Resolved" : "Open"} · {commentCount}{" "}
-          {commentCount === 1 ? "comment" : "comments"}
+          {thread.isResolved ? t("pullRequests.comments.resolved") : t("pullRequests.state.open")} ·{" "}
+          {t("pullRequests.comments.countMany", {
+            count: commentCount,
+          })}
         </button>
         {thread.isOutdated ? <span>outdated</span> : null}
         {onFix ? (
@@ -243,7 +248,7 @@ export function ReviewThreadCard({
             onClick={onFix}
           >
             <HammerIcon className="size-3" />
-            {fixPending ? "Preparing..." : fixLabel}
+            {fixPending ? t("pullRequests.actions.preparing") : fixLabel}
           </Button>
         ) : null}
         {canResolve ? (
@@ -254,7 +259,9 @@ export function ReviewThreadCard({
             disabled={pending}
             onClick={onToggleResolved}
           >
-            {thread.isResolved ? "Unresolve" : "Resolve"}
+            {thread.isResolved
+              ? t("pullRequests.review.unresolve")
+              : t("pullRequests.review.resolve")}
           </Button>
         ) : null}
       </div>
@@ -274,7 +281,7 @@ export function ReviewThreadCard({
                     value={comment.body}
                     cwd={workspaceRoot}
                     environmentId={environmentId}
-                    label="Edit comment"
+                    label={t("pullRequests.comments.edit")}
                     saving={savingEdit}
                     onSave={(body) => void saveEdit(comment.id, body)}
                     onCancel={() => setEditingId(null)}
@@ -292,7 +299,7 @@ export function ReviewThreadCard({
                         size="icon-xs"
                         variant="ghost"
                         className="shrink-0 text-muted-foreground opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100"
-                        aria-label="Edit comment"
+                        aria-label={t("pullRequests.comments.edit")}
                         onClick={() => setEditingId(comment.id)}
                       >
                         <PencilIcon className="size-3" />
@@ -321,7 +328,7 @@ export function ReviewThreadCard({
                 disabled={loadingMore}
                 onClick={() => void loadMore()}
               >
-                {loadingMore ? "Loading..." : "Load more comments"}
+                {loadingMore ? t("common.loading") : t("pullRequests.comments.loadMore")}
               </Button>
             </div>
           ) : null}
@@ -333,8 +340,8 @@ export function ReviewThreadCard({
                   autoFocus
                   size="sm"
                   value={reply}
-                  placeholder="Reply"
-                  aria-label="Reply to this conversation"
+                  placeholder={t("pullRequests.comments.reply")}
+                  aria-label={t("pullRequests.comments.replyToConversation")}
                   onChange={(event) => setReply(event.target.value)}
                   onKeyDown={submitKeys({
                     value: reply,
