@@ -2967,12 +2967,14 @@ export const stageWindowsServerSidecar = Effect.fn("stageWindowsServerSidecar")(
   }
 
   yield* Effect.log("[desktop-artifact] Installing server sidecar runtime externals...");
-  const installCommand = yield* resolveSpawnCommand("vp", [...STAGE_INSTALL_ARGS]);
   yield* runCommand(
-    ChildProcess.make(installCommand.command, installCommand.args, {
-      cwd: serverStageDir,
-      shell: installCommand.shell,
-    }),
+    ChildProcess.make(
+      process.execPath,
+      [path.join(input.repoRoot, "node_modules/vite-plus/bin/vp"), ...STAGE_INSTALL_ARGS],
+      {
+        cwd: serverStageDir,
+      },
+    ),
     { label: "vp install --prod (server sidecar)", verbose: input.verbose },
   );
 
@@ -3713,12 +3715,14 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
   }
 
   yield* Effect.log("[desktop-artifact] Installing staged production dependencies...");
-  const installCommand = yield* resolveSpawnCommand("vp", [...STAGE_INSTALL_ARGS]);
   yield* runCommand(
-    ChildProcess.make(installCommand.command, installCommand.args, {
-      cwd: stageAppDir,
-      shell: installCommand.shell,
-    }),
+    ChildProcess.make(
+      process.execPath,
+      [path.join(repoRoot, "node_modules/vite-plus/bin/vp"), ...STAGE_INSTALL_ARGS],
+      {
+        cwd: stageAppDir,
+      },
+    ),
     { label: "vp install --prod", verbose: options.verbose },
   );
   yield* stageClerkPasskeyNativeBinaries(stageAppDir, options.platform, options.arch);
