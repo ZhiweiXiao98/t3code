@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useEnvironments } from "~/state/environments";
 import { isDesktopLocalConnectionTarget } from "~/connection/desktopLocal";
 import { useDismissedProviderUpdateNotificationKeys } from "../providerUpdateDismissal";
+import { useI18n } from "../i18n/WebI18nProvider";
 import { ProviderUpdateEnvironmentRows } from "./ProviderUpdateEnvironmentRows";
 import { useLocalEnvironmentUpdateGroups } from "./ProviderUpdateLaunchNotification.environments";
 import {
@@ -12,6 +13,7 @@ import {
   environmentGroupsWithUpdates,
   getProviderUpdateInitialToastView,
   localEnvironmentUpdateNotificationKey,
+  type ProviderUpdateCandidate,
 } from "./ProviderUpdateLaunchNotification.logic";
 import { ProviderUpdatePrimaryNotification } from "./ProviderUpdatePrimaryNotification";
 import { stackedThreadToast, toastManager } from "./ui/toast";
@@ -55,7 +57,8 @@ type ProviderUpdateToastId = ReturnType<typeof toastManager.add>;
 // suppress the primary's updates indefinitely.
 const SETTLING_GRACE_MS = 30_000;
 
-function ProviderUpdateEnvironmentsNotification() {
+export function ProviderUpdateEnvironmentsNotification() {
+  const { locale, t } = useI18n();
   const navigate = useNavigate();
   const { groups, isAnySettling } = useLocalEnvironmentUpdateGroups();
   const { dismissedNotificationKeys, dismissNotificationKey } =
@@ -64,6 +67,8 @@ function ProviderUpdateEnvironmentsNotification() {
   const activeToastRef = useRef<{
     readonly toastId: ProviderUpdateToastId;
     readonly key: string;
+    readonly locale: string;
+    readonly candidates: ReadonlyArray<ProviderUpdateCandidate>;
   } | null>(null);
   const notificationKeyRef = useRef<string | null>(null);
   // Whether the user has triggered an update from the current toast. Until they
@@ -117,34 +122,52 @@ function ProviderUpdateEnvironmentsNotification() {
   }, [navigate]);
 
   useEffect(() => {
+    const active = activeToastRef.current;
+    const replacingPromptForLocale =
+      active !== null && active.key === notificationKey && active.locale !== locale;
+
     // Whether a fresh prompt can actually be shown for the current update set.
     const canShowPrompt =
       notificationKey !== null &&
       !isGated &&
       !dismissedNotificationKeys.has(notificationKey) &&
-      !seenProviderUpdateNotificationKeys.has(notificationKey);
+      (replacingPromptForLocale ||
+        !seenProviderUpdateNotificationKeys.has(`${locale}:${notificationKey}`));
 
     // Close a prompt the user hasn't acted on yet when the available updates
     // change: when they clear entirely (key null) so the toast doesn't linger,
     // and when a fresh set is ready to replace it. Keep it only while a backend
     // is re-settling (updates still exist, just gated) — and once an update is
     // in progress, so its rows survive.
-    const active = activeToastRef.current;
     if (
       active &&
-      active.key !== notificationKey &&
+      (active.key !== notificationKey || active.locale !== locale) &&
       !hasInteractedRef.current &&
-      (notificationKey === null || !isGated)
+      (active.locale !== locale || notificationKey === null || !isGated)
     ) {
       toastManager.close(active.toastId);
       activeToastRef.current = null;
+    }
+
+    if (active && active.locale !== locale && hasInteractedRef.current) {
+      toastManager.update(active.toastId, {
+        title: getProviderUpdateInitialToastView(
+          { updateProviders: active.candidates, oneClickProviders: active.candidates },
+          t,
+        ).title,
+        actionProps: {
+          children: t("providerUpdate.action.settings"),
+          onClick: openProviderSettings,
+        },
+      });
+      activeToastRef.current = { ...active, locale };
     }
 
     if (!notificationKey || !canShowPrompt || activeToastRef.current !== null) {
       return;
     }
 
-    seenProviderUpdateNotificationKeys.add(notificationKey);
+    seenProviderUpdateNotificationKeys.add(`${locale}:${notificationKey}`);
     hasInteractedRef.current = false;
 
     const dismissPrompt = () => {
@@ -160,10 +183,13 @@ function ProviderUpdateEnvironmentsNotification() {
     const toastId = toastManager.add(
       stackedThreadToast({
         type: "warning",
-        title: getProviderUpdateInitialToastView({
-          updateProviders: candidateUnion,
-          oneClickProviders: candidateUnion,
-        }).title,
+        title: getProviderUpdateInitialToastView(
+          {
+            updateProviders: candidateUnion,
+            oneClickProviders: candidateUnion,
+          },
+          t,
+        ).title,
         description: (
           <ProviderUpdateEnvironmentRows
             onInteract={() => {
@@ -173,7 +199,7 @@ function ProviderUpdateEnvironmentsNotification() {
         ),
         timeout: 0,
         actionProps: {
-          children: "Settings",
+          children: t("providerUpdate.action.settings"),
           onClick: openProviderSettings,
         },
         actionVariant: "outline",
@@ -184,14 +210,21 @@ function ProviderUpdateEnvironmentsNotification() {
         },
       }),
     );
-    activeToastRef.current = { toastId, key: notificationKey };
+    activeToastRef.current = {
+      toastId,
+      key: notificationKey,
+      locale,
+      candidates: candidateUnion,
+    };
   }, [
     notificationKey,
     isGated,
     candidateUnion,
     dismissedNotificationKeys,
     dismissNotificationKey,
+    locale,
     openProviderSettings,
+    t,
   ]);
 
   return null;

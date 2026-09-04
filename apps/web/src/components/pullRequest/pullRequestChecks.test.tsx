@@ -1,14 +1,38 @@
 import type { EnvironmentId, ProjectId, PullRequestCheck } from "@t3tools/contracts";
 import { Children, isValidElement, type ReactNode } from "react";
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it, vi } from "vite-plus/test";
+
+vi.mock("../../i18n/WebI18nProvider", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../i18n/WebI18nProvider")>();
+  const { translateWebMessage } = await import("../../i18n/messages");
+  return {
+    ...actual,
+    useI18n: () => ({
+      locale: "en",
+      appLocale: "system",
+      setAppLocale: () => undefined,
+      t: (
+        key: Parameters<typeof translateWebMessage>[1],
+        values?: Parameters<typeof translateWebMessage>[2],
+      ) => translateWebMessage("en", key, values),
+    }),
+  };
+});
 
 import { PullRequestChecksPopover } from "./PullRequestChecksPopover";
 import type { EnvironmentPullRequestEntry } from "./pullRequestList.logic";
 import { PullRequestRow } from "./PullRequestRow";
-import { pullRequestChecksState } from "./pullRequestPresentation";
+import {
+  pullRequestChecksState,
+  pullRequestCheckStatusLabel,
+  summarizePullRequestChecks,
+} from "./pullRequestPresentation";
 
-function check(status: PullRequestCheck["status"]): PullRequestCheck {
-  return { name: `check-${status}`, status, description: null, url: null };
+function check(
+  status: PullRequestCheck["status"],
+  overrides: Partial<PullRequestCheck> = {},
+): PullRequestCheck {
+  return { name: `check-${status}`, status, description: null, url: null, ...overrides };
 }
 
 describe("pullRequestChecksState", () => {
@@ -18,10 +42,30 @@ describe("pullRequestChecksState", () => {
     );
     expect(pullRequestChecksState([check("success"), check("cancelled")])).toBe("failing");
     expect(pullRequestChecksState([check("success"), check("pending")])).toBe("pending");
+    expect(pullRequestChecksState([check("success"), check("action-required")])).toBe("pending");
     expect(pullRequestChecksState([check("success")])).toBe("passing");
     // Skipped and neutral are neither a pass nor a failure, so they are no verdict at all.
     expect(pullRequestChecksState([check("skipped"), check("neutral")])).toBe(null);
     expect(pullRequestChecksState([])).toBe(null);
+  });
+
+  it("names workflow approval instead of claiming every check passed", () => {
+    const workflow = check("action-required", {
+      url: "https://github.com/acme/web/actions/runs/42/job/7",
+    });
+    const manualGate = check("action-required", { url: "https://example.com/manual-gate" });
+    expect(pullRequestCheckStatusLabel(workflow)).toBe("Awaiting approval");
+    expect(pullRequestCheckStatusLabel(manualGate)).toBe("Awaiting action");
+    expect(summarizePullRequestChecks([check("success"), workflow])).toBe(
+      "1 workflow awaiting approval",
+    );
+    expect(summarizePullRequestChecks([check("failure"), workflow])).toBe("1 of 2 failing");
+    expect(summarizePullRequestChecks([check("success"), manualGate])).toBe(
+      "1 check awaiting action",
+    );
+    expect(summarizePullRequestChecks([workflow, manualGate])).toBe(
+      "1 workflow and 1 check awaiting action",
+    );
   });
 });
 

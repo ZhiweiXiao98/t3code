@@ -114,6 +114,8 @@ export type BrowserDefaultSettings = Pick<
   | "browserDefaultViewport"
   | "browserDefaultZoomFactor"
   | "browserDefaultAppearance"
+  | "browserRecordingFrameRate"
+  | "browserLinkTarget"
   | "browserAutoShowFloatingPreview"
 >;
 
@@ -150,6 +152,12 @@ export function getChangedBrowserSettingLabels(settings: BrowserDefaultSettings)
       : []),
     ...(settings.browserDefaultAppearance !== DEFAULT_UNIFIED_SETTINGS.browserDefaultAppearance
       ? ["Browser appearance"]
+      : []),
+    ...(settings.browserRecordingFrameRate !== DEFAULT_UNIFIED_SETTINGS.browserRecordingFrameRate
+      ? ["Recording frame rate"]
+      : []),
+    ...(settings.browserLinkTarget !== DEFAULT_UNIFIED_SETTINGS.browserLinkTarget
+      ? ["Open links in"]
       : []),
     ...(settings.browserAutoShowFloatingPreview !==
     DEFAULT_UNIFIED_SETTINGS.browserAutoShowFloatingPreview
@@ -213,33 +221,54 @@ function collapseOtelSignalsUrl(input: {
   return `${tracesBase}/{traces,metrics}`;
 }
 
-export function formatDiagnosticsDescription(input: {
-  readonly localTracingEnabled: boolean;
-  readonly otlpTracesEnabled: boolean;
-  readonly otlpTracesUrl?: string | undefined;
-  readonly otlpMetricsEnabled: boolean;
-  readonly otlpMetricsUrl?: string | undefined;
-}): string {
-  const mode = input.localTracingEnabled ? "Local trace file" : "Terminal logs only";
+export function formatDiagnosticsDescription(
+  input: {
+    readonly localTracingEnabled: boolean;
+    readonly otlpTracesEnabled: boolean;
+    readonly otlpTracesUrl?: string | undefined;
+    readonly otlpMetricsEnabled: boolean;
+    readonly otlpMetricsUrl?: string | undefined;
+  },
+  copy: {
+    readonly localTraceFile: string;
+    readonly terminalLogsOnly: string;
+    readonly modeSentence: (mode: string) => string;
+    readonly exportingOtel: (url: string) => string;
+    readonly exportingSignals: (tracesUrl: string, metricsUrl: string) => string;
+    readonly exportingTraces: (url: string) => string;
+    readonly exportingMetrics: (url: string) => string;
+  } = {
+    localTraceFile: "Local trace file",
+    terminalLogsOnly: "Terminal logs only",
+    modeSentence: (mode) => `${mode}.`,
+    exportingOtel: (url) => `Exporting OTEL to ${url}.`,
+    exportingSignals: (tracesUrl, metricsUrl) =>
+      `Exporting OTEL traces to ${tracesUrl} and metrics to ${metricsUrl}.`,
+    exportingTraces: (url) => `Exporting OTEL traces to ${url}.`,
+    exportingMetrics: (url) => `Exporting OTEL metrics to ${url}.`,
+  },
+): string {
+  const mode = input.localTracingEnabled ? copy.localTraceFile : copy.terminalLogsOnly;
+  const modeSentence = copy.modeSentence(mode);
   const tracesUrl = input.otlpTracesEnabled ? input.otlpTracesUrl : undefined;
   const metricsUrl = input.otlpMetricsEnabled ? input.otlpMetricsUrl : undefined;
 
   if (tracesUrl && metricsUrl) {
     const collapsedUrl = collapseOtelSignalsUrl({ tracesUrl, metricsUrl });
     return collapsedUrl
-      ? `${mode}. Exporting OTEL to ${collapsedUrl}.`
-      : `${mode}. Exporting OTEL traces to ${tracesUrl} and metrics to ${metricsUrl}.`;
+      ? `${modeSentence} ${copy.exportingOtel(collapsedUrl)}`
+      : `${modeSentence} ${copy.exportingSignals(tracesUrl, metricsUrl)}`;
   }
 
   if (tracesUrl) {
-    return `${mode}. Exporting OTEL traces to ${tracesUrl}.`;
+    return `${modeSentence} ${copy.exportingTraces(tracesUrl)}`;
   }
 
   if (metricsUrl) {
-    return `${mode}. Exporting OTEL metrics to ${metricsUrl}.`;
+    return `${modeSentence} ${copy.exportingMetrics(metricsUrl)}`;
   }
 
-  return `${mode}.`;
+  return modeSentence;
 }
 
 export function buildProviderInstanceUpdatePatch(input: {

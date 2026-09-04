@@ -46,25 +46,15 @@ export function formatPercent(share: number, digits = 1): string {
   return `${(share * 100).toFixed(digits)}%`;
 }
 
-/** `2026-08-07` to `Aug 7`. */
-export function formatDayShort(day: string): string {
+/** `2026-08-07` to a locale-aware short date such as `Aug 7` or `8月7日`. */
+export function formatDayShort(day: string, locale = "en-US"): string {
   const [year, month, dayOfMonth] = day.split("-").map((part) => Number(part));
   if (year === undefined || month === undefined || dayOfMonth === undefined) return day;
-  const MONTHS = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
-  return `${MONTHS[month - 1] ?? ""} ${dayOfMonth}`;
+  return new Intl.DateTimeFormat(locale, {
+    timeZone: "UTC",
+    month: "short",
+    day: "numeric",
+  }).format(new Date(Date.UTC(year, month - 1, dayOfMonth)));
 }
 
 /** Inclusive day list between two `YYYY-MM-DD` bounds. */
@@ -101,11 +91,11 @@ export function enumerateHourStarts(sinceTime: string, untilTime: string): reado
  * Repeated wall-clock hours during a fall-back transition include their short
  * zone name so the two distinct buckets remain distinguishable.
  */
-export function formatHourShort(hourStart: string, timeZone?: string): string {
+export function formatHourShort(hourStart: string, timeZone?: string, locale = "en-US"): string {
   const instant = new Date(hourStart);
   if (Number.isNaN(instant.getTime())) return hourStart;
   const options = timeZone === undefined ? {} : { timeZone };
-  const hourFormat = new Intl.DateTimeFormat("en-US", {
+  const hourFormat = new Intl.DateTimeFormat(locale, {
     ...options,
     hour: "numeric",
   });
@@ -123,7 +113,7 @@ export function formatHourShort(hourStart: string, timeZone?: string): string {
   );
 
   if (!isRepeatedHour) return hourFormat.format(instant);
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat(locale, {
     ...(timeZone === undefined ? {} : { timeZone }),
     hour: "numeric",
     timeZoneName: "short",
@@ -131,10 +121,10 @@ export function formatHourShort(hourStart: string, timeZone?: string): string {
 }
 
 /** `2026-08-11T14:37:00Z` to `Aug 11, 2 PM` in the requested zone. */
-export function formatDateTimeShort(instant: string, timeZone?: string): string {
+export function formatDateTimeShort(instant: string, timeZone?: string, locale = "en-US"): string {
   const date = new Date(instant);
   if (Number.isNaN(date.getTime())) return instant;
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat(locale, {
     ...(timeZone === undefined ? {} : { timeZone }),
     month: "short",
     day: "numeric",
@@ -147,11 +137,12 @@ export function formatRelativeHourShort(
   hourStart: string,
   relativeTo: string,
   timeZone?: string,
+  locale = "en-US",
 ): string {
   const instant = new Date(hourStart);
   const reference = new Date(relativeTo);
   if (Number.isNaN(instant.getTime()) || Number.isNaN(reference.getTime())) {
-    return formatDateTimeShort(hourStart, timeZone);
+    return formatDateTimeShort(hourStart, timeZone, locale);
   }
 
   const dayFormat = new Intl.DateTimeFormat("en-CA", {
@@ -163,11 +154,18 @@ export function formatRelativeHourShort(
   const instantDay = Date.parse(`${dayFormat.format(instant)}T00:00:00Z`);
   const referenceDay = Date.parse(`${dayFormat.format(reference)}T00:00:00Z`);
   const calendarDaysAgo = Math.round((referenceDay - instantDay) / (24 * HOUR_MS));
-  const hour = formatHourShort(hourStart, timeZone);
+  const hour = formatHourShort(hourStart, timeZone, locale);
 
-  if (calendarDaysAgo === 0) return `${hour} today`;
-  if (calendarDaysAgo === 1) return `${hour} yesterday`;
-  return formatDateTimeShort(hourStart, timeZone);
+  if (calendarDaysAgo === 0 || calendarDaysAgo === 1) {
+    const relativeDay = new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(
+      -calendarDaysAgo,
+      "day",
+    );
+    return locale.toLowerCase().startsWith("zh")
+      ? `${relativeDay} ${hour}`
+      : `${hour} ${relativeDay}`;
+  }
+  return formatDateTimeShort(hourStart, timeZone, locale);
 }
 
 /**

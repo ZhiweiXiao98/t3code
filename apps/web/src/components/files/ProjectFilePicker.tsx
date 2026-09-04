@@ -15,6 +15,7 @@ import {
   PROJECT_FILE_PICKER_RESULT_LIMIT,
 } from "./ProjectFilePicker.logic";
 import { useProjectFilePickerQuery } from "./projectFilesQueryState";
+import { useI18n, type WebTranslate } from "~/i18n/WebI18nProvider";
 
 interface ProjectFilePickerProps {
   readonly setOpen: (open: boolean) => void;
@@ -43,32 +44,39 @@ function HighlightedFuzzyText(props: {
   return <span className="text-muted-foreground">{parts}</span>;
 }
 
-function getEmptyStateMessage(query: string, error: string | null, isPending: boolean): string {
+function getEmptyStateMessage(
+  query: string,
+  error: string | null,
+  isPending: boolean,
+  t: WebTranslate,
+): string {
   if (error) return error;
   const isSearching = query.trim().length > 0;
-  if (isPending) return isSearching ? "Searching workspace files…" : "Indexing workspace files…";
-  return isSearching ? "No matching files." : "No files found.";
+  if (isPending) return t(isSearching ? "filePicker.searching" : "filePicker.indexing");
+  return t(isSearching ? "filePicker.noMatches" : "filePicker.empty");
 }
 
 function EmptyProjectFilePicker() {
+  const { t } = useI18n();
   return (
     <CommandPaletteContent
-      aria-label="File picker"
-      escapeLabel="Back"
-      footerActionLabel="Open file"
-      inputProps={{ disabled: true, placeholder: "Search files…" }}
+      aria-label={t("filePicker.label")}
+      escapeLabel={t("common.back")}
+      footerActionLabel={t("filePicker.openFile")}
+      inputProps={{ disabled: true, placeholder: t("filePicker.search") }}
       mode="none"
       testId="project-file-picker"
       value=""
     >
       <div className="py-10 text-center text-sm text-muted-foreground">
-        Open a project to search its files.
+        {t("filePicker.openProject")}
       </div>
     </CommandPaletteContent>
   );
 }
 
 function OpenProjectFilePicker(props: ProjectFilePickerProps & { target: ActiveProjectTarget }) {
+  const { t } = useI18n();
   const { target } = props;
   const [query, setQuery] = useState("");
   const [highlightedItemValue, setHighlightedItemValue] = useState<string | null>(null);
@@ -113,15 +121,15 @@ function OpenProjectFilePicker(props: ProjectFilePickerProps & { target: ActiveP
     [hasMatchedQuery, matches, resolvedTheme, target.threadRef],
   );
 
-  const emptyStateMessage = getEmptyStateMessage(query, result.error, result.isPending);
+  const emptyStateMessage = getEmptyStateMessage(query, result.error, result.isPending, t);
 
   return (
     <CommandPaletteContent
-      aria-label="File picker"
+      aria-label={t("filePicker.label")}
       autoHighlight="always"
-      escapeLabel="Back"
-      footerActionLabel="Open file"
-      inputProps={{ placeholder: "Search files…" }}
+      escapeLabel={t("common.back")}
+      footerActionLabel={t("filePicker.openFile")}
+      inputProps={{ placeholder: t("filePicker.search") }}
       mode="none"
       onItemHighlighted={(value) => {
         setHighlightedItemValue(typeof value === "string" ? value : null);

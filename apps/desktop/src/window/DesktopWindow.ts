@@ -18,6 +18,7 @@ import { getDesktopUrl } from "../electron/ElectronProtocol.ts";
 import * as ElectronShell from "../electron/ElectronShell.ts";
 import * as ElectronTheme from "../electron/ElectronTheme.ts";
 import * as ElectronWindow from "../electron/ElectronWindow.ts";
+import * as DesktopTray from "./DesktopTray.ts";
 import {
   MENU_ACTION_CHANNEL,
   QUIT_SHORTCUT_CHANNEL,
@@ -27,7 +28,7 @@ import * as PreviewManager from "../preview/Manager.ts";
 import * as DesktopAppSettings from "../settings/DesktopAppSettings.ts";
 import * as DesktopClientSettings from "../settings/DesktopClientSettings.ts";
 import * as ElectronApp from "../electron/ElectronApp.ts";
-import { makeQuitHoldHandler } from "./QuitHold.ts";
+import { makeQuitShortcutHandler } from "./QuitHold.ts";
 
 const TITLEBAR_HEIGHT = 40;
 const TITLEBAR_COLOR = "#01000000"; // #00000000 does not work correctly on Linux
@@ -66,6 +67,7 @@ type DesktopWindowRuntimeServices =
   | ElectronShell.ElectronShell
   | ElectronTheme.ElectronTheme
   | ElectronWindow.ElectronWindow
+  | DesktopTray.DesktopTray
   | PreviewManager.PreviewManager;
 
 export type DesktopWindowError =
@@ -207,6 +209,21 @@ export function isRetryableDevelopmentRendererLoadFailure(input: {
   );
 }
 
+export function concealPendingQuitWindow(
+  window: Pick<
+    Electron.BrowserWindow,
+    "isDestroyed" | "isFullScreen" | "setFullScreen" | "setOpacity"
+  >,
+): void {
+  if (window.isDestroyed()) return;
+  if (window.isFullScreen()) {
+    window.setFullScreen(false);
+  }
+  // Electron implements window opacity on macOS and Windows. Linux keeps the
+  // release-gated quit behavior but cannot make the pending window disappear.
+  window.setOpacity(0);
+}
+
 function getWindowTitleBarOptions(
   shouldUseDarkColors: boolean,
   platform: NodeJS.Platform,
@@ -270,6 +287,7 @@ export const make = Effect.gen(function* () {
   const electronShell = yield* ElectronShell.ElectronShell;
   const electronTheme = yield* ElectronTheme.ElectronTheme;
   const electronWindow = yield* ElectronWindow.ElectronWindow;
+  const desktopTray = yield* DesktopTray.DesktopTray;
   const previewManager = yield* PreviewManager.PreviewManager;
   const desktopSettings = yield* DesktopAppSettings.DesktopAppSettings;
   const clientSettings = yield* DesktopClientSettings.DesktopClientSettings;
@@ -287,6 +305,7 @@ export const make = Effect.gen(function* () {
   const runFork = Effect.runForkWith(context);
   const runPromise = Effect.runPromiseWith(context);
   let flushMainWindowBounds: Effect.Effect<void> = Effect.void;
+  let revealMainFromTray: Effect.Effect<void, DesktopWindowError> = Effect.void;
 
   const dismissConnectingSplash = Effect.gen(function* () {
     const splash = yield* Ref.getAndSet(splashWindowRef, Option.none());
@@ -551,12 +570,11 @@ export const make = Effect.gen(function* () {
     // close-terminal shortcut can outlive the terminal that handled its first
     // press, so reject repeats before they reach the native window accelerator.
     // Deliberate presses still flow through the renderer or native menu.
-    // Chrome-style hold-to-quit: intercept the quit accelerator before the
-    // native menu sees it and only quit after the shortcut is held. The
-    // renderer shows the "Hold to Quit" hint via QUIT_SHORTCUT_CHANNEL.
-    const quitHoldHandler = makeQuitHoldHandler({
+    // Intercept the quit accelerator before the native menu sees it and apply
+    // the configured direct, hold, or double-press behavior.
+    const quitShortcutHandler = makeQuitShortcutHandler({
       platform: environment.platform,
-      isEnabled: () =>
+      getMode: () =>
         runPromise(
           Effect.map(
             clientSettings.get,
@@ -566,17 +584,20 @@ export const make = Effect.gen(function* () {
             }),
           ),
         ),
-      notify: (state) => {
+      notify: (hint) => {
         if (!window.isDestroyed()) {
-          window.webContents.send(QUIT_SHORTCUT_CHANNEL, state);
+          window.webContents.send(QUIT_SHORTCUT_CHANNEL, hint);
         }
       },
+      // Keep the transparent window focused until the physical shortcut is
+      // released so its remaining repeats cannot reach the next app.
+      concealWindow: () => concealPendingQuitWindow(window),
       quit: () => {
         void runPromise(electronApp.quit);
       },
     });
     window.webContents.on("before-input-event", (event, input) => {
-      quitHoldHandler(event, input);
+      quitShortcutHandler(event, input);
       if (input.type !== "keyDown" || !input.isAutoRepeat) return;
       const modifier = environment.platform === "darwin" ? input.meta : input.control;
       if (modifier && !input.alt && !input.shift && input.key.toLowerCase() === "w") {
@@ -592,8 +613,21 @@ export const make = Effect.gen(function* () {
     window.on("move", scheduleBoundsPersist);
     window.on("maximize", scheduleBoundsPersist);
     window.on("unmaximize", scheduleBoundsPersist);
-    window.on("close", () => {
+    yield* desktopTray.ensure({
+      open: () => {
+        void runPromise(revealMainFromTray);
+      },
+      quit: () => {
+        void runPromise(electronApp.quit);
+      },
+    });
+
+    window.on("close", (event) => {
       runFork(flushBoundsPersist);
+      if (desktopTray.shouldHideOnClose()) {
+        event.preventDefault();
+        window.hide();
+      }
     });
 
     if (environment.platform === "darwin") {
@@ -778,6 +812,7 @@ export const make = Effect.gen(function* () {
     yield* electronWindow.reveal(window);
     return window;
   }).pipe(Effect.withSpan("desktop.window.revealOrCreateMain"));
+  revealMainFromTray = revealOrCreateMain.pipe(Effect.asVoid);
 
   const createMainIfBackendReady = Effect.gen(function* () {
     const backendReady = yield* Ref.get(backendReadyRef);

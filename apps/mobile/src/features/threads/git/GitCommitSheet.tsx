@@ -80,12 +80,12 @@ export function GitCommitSheet(_props: GitCommitSheetProps) {
         <View className="gap-3 rounded-[22px] border border-border bg-card px-4 py-4">
           <View className="flex-row items-center justify-between gap-3">
             <Text className="text-foreground-muted text-sm font-medium">Branch</Text>
-            <Text className="text-foreground text-base font-t3-bold">
+            <Text localize={false} className="text-foreground text-base font-t3-bold">
               {gitStatus.data?.refName ?? "(detached HEAD)"}
             </Text>
           </View>
           {isDefaultRef ? (
-            <Text className="text-xs leading-normal text-amber-700 dark:text-amber-400">
+            <Text className="text-xs leading-normal text-adaptive-amber-700-400">
               Warning: this is the default branch.
             </Text>
           ) : null}
@@ -127,7 +127,11 @@ export function GitCommitSheet(_props: GitCommitSheetProps) {
             <View className="gap-2">
               {selectedFilePreview.map((file) => (
                 <View key={file.path} className="flex-row items-center justify-between gap-3">
-                  <Text className="text-foreground flex-1 text-sm font-medium" numberOfLines={1}>
+                  <Text
+                    localize={false}
+                    className="text-foreground flex-1 text-sm font-medium"
+                    numberOfLines={1}
+                  >
                     {file.path}
                   </Text>
                   <Text className="text-xs font-t3-bold text-emerald-500">+{file.insertions}</Text>
@@ -169,6 +173,7 @@ export function GitCommitSheet(_props: GitCommitSheetProps) {
                     <View className="flex-row items-start justify-between gap-3">
                       <View className="flex-1 gap-1">
                         <Text
+                          localize={false}
                           selectable
                           className={`text-sm font-t3-bold ${included ? "text-foreground" : "text-foreground-muted"}`}
                         >

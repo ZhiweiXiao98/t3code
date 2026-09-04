@@ -10,6 +10,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "../components/
 import { SidebarInset } from "../components/ui/sidebar";
 import { WorkspacePageHeader } from "../components/WorkspacePageHeader";
 import { useNewThreadHandler } from "../hooks/useHandleNewThread";
+import { useI18n } from "../i18n/WebI18nProvider";
 import {
   useAllEnvironmentShellsBootstrapped,
   useProjects,
@@ -83,18 +84,20 @@ function IndexDraftLanding() {
 }
 
 function DraftStartError({ onRetry }: { readonly onRetry: () => void }) {
+  const { t } = useI18n();
+
   return (
     <SidebarInset className="h-dvh min-h-0 overflow-hidden overscroll-y-none bg-background text-foreground">
       <Empty className="flex-1">
         <EmptyHeader className="max-w-md">
-          <EmptyTitle className="text-foreground text-xl">Couldn’t start a new thread</EmptyTitle>
+          <EmptyTitle className="text-foreground text-xl">{t("home.startFailed")}</EmptyTitle>
           <EmptyDescription className="mt-2 text-sm text-muted-foreground/78">
-            The project is still available. Try opening the draft again.
+            {t("home.startFailedDescription")}
           </EmptyDescription>
           <div className="mt-5 flex justify-center">
             <Button size="sm" onClick={onRetry}>
               <RotateCcwIcon className="size-4" />
-              Try again
+              {t("common.retry")}
             </Button>
           </div>
         </EmptyHeader>
@@ -104,6 +107,7 @@ function DraftStartError({ onRetry }: { readonly onRetry: () => void }) {
 }
 
 function NoProjectsHero() {
+  const { t } = useI18n();
   const openAddProject = useCallback(() => openCommandPalette({ open: "add-project" }), []);
 
   return (
@@ -113,15 +117,15 @@ function NoProjectsHero() {
           <div className="w-full max-w-lg px-8 py-12">
             <EmptyHeader className="max-w-none">
               <EmptyTitle className="text-foreground text-2xl sm:text-3xl">
-                What should we work on?
+                {t("home.heroTitle")}
               </EmptyTitle>
               <EmptyDescription className="mt-2 text-sm text-muted-foreground/78">
-                Add a project to start your first thread.
+                {t("home.heroDescription")}
               </EmptyDescription>
               <div className="mt-6 flex justify-center">
                 <Button size="sm" onClick={openAddProject}>
                   <PlusIcon className="size-4" />
-                  Add project
+                  {t("home.addProject")}
                 </Button>
               </div>
             </EmptyHeader>
@@ -137,6 +141,7 @@ export const Route = createFileRoute("/_chat/")({
 });
 
 function HostedStaticOnboardingState() {
+  const { t } = useI18n();
   const cloudEnabled = hasCloudPublicConfig();
 
   return (
@@ -157,17 +162,17 @@ function HostedStaticOnboardingState() {
                 <LinkIcon className="size-5" />
               </div>
               <EmptyTitle className="text-foreground text-xl">
-                Connect an environment to get started
+                {t("home.connectEnvironment")}
               </EmptyTitle>
               <EmptyDescription className="mt-2 text-sm leading-relaxed text-muted-foreground/78">
                 {cloudEnabled
-                  ? "Sign in to T3 Connect to connect a linked environment through its managed tunnel, or add a reachable backend manually."
-                  : "Add a reachable backend manually to start working from this browser."}
+                  ? t("home.connectCloudDescription")
+                  : t("home.connectManualDescription")}
               </EmptyDescription>
               <div className="mt-6 flex justify-center">
                 <Button render={<Link to="/settings/connections" />} size="sm">
                   <PlusIcon className="size-4" />
-                  {cloudEnabled ? "Open Connections" : "Add environment"}
+                  {cloudEnabled ? t("home.openConnections") : t("home.addEnvironment")}
                 </Button>
               </div>
             </EmptyHeader>

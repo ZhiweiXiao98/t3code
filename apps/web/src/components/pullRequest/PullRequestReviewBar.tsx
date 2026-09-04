@@ -8,6 +8,7 @@ import type { EnvironmentId, PullRequestRef, PullRequestReviewVerdict } from "@t
 import { CheckIcon, MessageSquareIcon, XCircleIcon } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
+import { useI18n } from "~/i18n/WebI18nProvider";
 import { pullRequestEnvironment } from "~/state/pullRequests";
 import { useAtomCommand } from "~/state/use-atom-command";
 
@@ -22,26 +23,18 @@ import {
 
 const VERDICTS: ReadonlyArray<{
   readonly value: PullRequestReviewVerdict;
-  readonly label: string;
-  readonly sent: string;
   readonly icon: ReactNode;
 }> = [
   {
     value: "comment",
-    label: "Comment",
-    sent: "Review submitted",
     icon: <MessageSquareIcon className="size-3" />,
   },
   {
     value: "approve",
-    label: "Approve",
-    sent: "Pull request approved",
     icon: <CheckIcon className="size-3" />,
   },
   {
     value: "request-changes",
-    label: "Request changes",
-    sent: "Changes requested",
     icon: <XCircleIcon className="size-3" />,
   },
 ];
@@ -57,6 +50,7 @@ export function PullRequestReviewBar({
   verdicts: ReadonlyArray<PullRequestReviewVerdict>;
   onSubmitted: () => void;
 }) {
+  const { t } = useI18n();
   const [pending, setPending] = useState(false);
   const comments = usePendingReviewComments(reference);
   const reviewKey = pullRequestReviewKey(reference);
@@ -92,7 +86,7 @@ export function PullRequestReviewBar({
     setPending(false);
     if (result._tag === "Failure") {
       // The draft is kept: whatever went wrong, retyping the review is not the answer.
-      toastManager.add({ type: "error", title: "The review could not be submitted" });
+      toastManager.add({ type: "error", title: t("pullRequests.review.submitFailed") });
       return;
     }
     // More remarks may have been added while the host was accepting this snapshot. Leave those,
@@ -102,7 +96,15 @@ export function PullRequestReviewBar({
       submittedComments.map((comment) => comment.id),
     );
     clearSummary(reviewKey, submittedBody);
-    toastManager.add({ type: "success", title: verdict.sent });
+    toastManager.add({
+      type: "success",
+      title:
+        verdict.value === "approve"
+          ? t("pullRequests.review.approvedSuccess")
+          : verdict.value === "request-changes"
+            ? t("pullRequests.review.changesRequestedSuccess")
+            : t("pullRequests.review.submittedSuccess"),
+    });
     onSubmitted();
   };
 
@@ -115,12 +117,14 @@ export function PullRequestReviewBar({
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <span>
           {comments.length === 0
-            ? "No line comments yet"
-            : `${comments.length} ${comments.length === 1 ? "comment" : "comments"} pending`}
+            ? t("pullRequests.review.noLineComments")
+            : comments.length === 1
+              ? t("pullRequests.review.pendingCommentCountOne", { count: comments.length })
+              : t("pullRequests.review.pendingCommentCountMany", { count: comments.length })}
         </span>
         {comments.length > 0 ? (
           <Button size="xs" variant="ghost" disabled={pending} onClick={() => clear(reviewKey)}>
-            Discard
+            {t("pullRequests.review.discard")}
           </Button>
         ) : null}
       </div>
@@ -128,8 +132,8 @@ export function PullRequestReviewBar({
         size="sm"
         className="mt-2"
         value={body}
-        placeholder="Summarize your review (optional)"
-        aria-label="Review summary"
+        placeholder={t("pullRequests.review.summaryPlaceholder")}
+        aria-label={t("pullRequests.review.summaryAria")}
         onChange={(event) => setSummary(reviewKey, event.target.value)}
       />
       <div className="mt-2 flex flex-wrap justify-end gap-2">
@@ -143,7 +147,11 @@ export function PullRequestReviewBar({
           >
             <span className="flex items-center gap-1.5">
               {verdict.icon}
-              {verdict.label}
+              {verdict.value === "approve"
+                ? t("pullRequests.review.approve")
+                : verdict.value === "request-changes"
+                  ? t("pullRequests.review.requestChanges")
+                  : t("pullRequests.comments.comment")}
             </span>
           </Button>
         ))}

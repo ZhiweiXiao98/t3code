@@ -17,10 +17,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AndroidScreenHeader } from "../../components/AndroidScreenHeader";
 import { AppText as Text } from "../../components/AppText";
+import { MOBILE_LOCALE } from "../../i18n/mobileStrings";
 import { NativeStackScreenOptions } from "../../native/StackHeader";
 import { useUsage, type EnvironmentUsageStatus } from "../../state/usage";
 import { SettingsSection } from "../settings/components/SettingsSection";
 import { UsageDailyChart } from "./UsageDailyChart";
+import { UsageLimitsSection } from "./UsageLimitsSection";
 import type { UsageChartMetric } from "./usageChartData";
 import { PROVIDER_LABEL, useProviderColors } from "./usageProviders";
 
@@ -139,6 +141,7 @@ export function UsageRouteScreen() {
               timeZone={window.timeZone}
             />
             <ProviderSection merged={merged} metric={metric} />
+            <UsageLimitsSection />
             <TotalsSection merged={merged} isPast24Hours={isPast24Hours} />
             <ModelsSection merged={merged} />
           </>
@@ -234,8 +237,8 @@ function ChartCard(props: {
       <View className="flex-row items-center justify-between">
         <Text className="text-xs text-foreground-tertiary">
           {props.isPast24Hours
-            ? formatHourShort(props.days[0] ?? "", props.timeZone)
-            : formatDayShort(props.sinceDay)}
+            ? formatHourShort(props.days[0] ?? "", props.timeZone, MOBILE_LOCALE)
+            : formatDayShort(props.sinceDay, MOBILE_LOCALE)}
         </Text>
         <View className="flex-row items-center gap-4">
           {merged.providers.map((provider) => (
@@ -252,8 +255,12 @@ function ChartCard(props: {
         </View>
         <Text className="text-xs text-foreground-tertiary">
           {props.isPast24Hours
-            ? formatHourShort(props.days[props.days.length - 1] ?? "", props.timeZone)
-            : formatDayShort(props.untilDay)}
+            ? formatHourShort(
+                props.days[props.days.length - 1] ?? "",
+                props.timeZone,
+                MOBILE_LOCALE,
+              )
+            : formatDayShort(props.untilDay, MOBILE_LOCALE)}
         </Text>
       </View>
     </View>

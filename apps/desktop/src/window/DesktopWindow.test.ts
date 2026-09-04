@@ -46,6 +46,7 @@ import * as ElectronWindow from "../electron/ElectronWindow.ts";
 import { MENU_ACTION_CHANNEL, WINDOW_FULLSCREEN_STATE_CHANNEL } from "../ipc/channels.ts";
 import * as DesktopServerExposure from "../backend/DesktopServerExposure.ts";
 import * as DesktopWindow from "./DesktopWindow.ts";
+import * as DesktopTray from "./DesktopTray.ts";
 import * as PreviewManager from "../preview/Manager.ts";
 
 const environmentInput = {
@@ -87,6 +88,7 @@ function makeFakeBrowserWindow() {
   const window = {
     close: vi.fn(),
     focus: vi.fn(),
+    hide: vi.fn(),
     getBounds: vi.fn(() => ({ x: 0, y: 0, width: 1100, height: 780 })),
     getNormalBounds: vi.fn(() => ({ x: 0, y: 0, width: 1100, height: 780 })),
     isDestroyed: vi.fn(() => false),
@@ -105,6 +107,8 @@ function makeFakeBrowserWindow() {
     restore: vi.fn(),
     setBackgroundColor: vi.fn(),
     setAutoHideCursor: vi.fn(),
+    setFullScreen: vi.fn(),
+    setOpacity: vi.fn(),
     setTitle: vi.fn(),
     setTitleBarOverlay: vi.fn(),
     show: vi.fn(),
@@ -119,6 +123,7 @@ function makeFakeBrowserWindow() {
     isFullScreen: window.isFullScreen,
     isMaximized: window.isMaximized,
     isMinimized: window.isMinimized,
+    hide: window.hide,
     loadURL: window.loadURL,
     maximize: window.maximize,
     openDevTools: webContents.openDevTools,
@@ -127,6 +132,8 @@ function makeFakeBrowserWindow() {
     setZoomLevel: webContents.setZoomLevel,
     setBackgroundThrottling: webContents.setBackgroundThrottling,
     setAutoHideCursor: window.setAutoHideCursor,
+    setFullScreen: window.setFullScreen,
+    setOpacity: window.setOpacity,
     webContentsListeners,
     windowListeners,
   };
@@ -176,6 +183,12 @@ const electronThemeLayer = Layer.succeed(ElectronTheme.ElectronTheme, {
   onUpdated: () => Effect.void,
 } satisfies ElectronTheme.ElectronTheme["Service"]);
 
+const desktopTrayLayer = Layer.succeed(DesktopTray.DesktopTray, {
+  ensure: () => Effect.succeed(false),
+  markQuitRequested: () => undefined,
+  shouldHideOnClose: () => false,
+});
+
 const desktopEnvironmentLayer = DesktopEnvironment.layer(environmentInput).pipe(
   Layer.provide(
     Layer.mergeAll(
@@ -205,6 +218,7 @@ function makeTestLayer(input: {
   ) => Effect.Effect<void>;
   readonly openedExternalUrls?: unknown[];
   readonly previewZoomReapplies?: number[];
+  readonly desktopTray?: DesktopTray.DesktopTray["Service"];
 }) {
   let desktopSettings = input.desktopSettings ?? DesktopAppSettings.DEFAULT_DESKTOP_SETTINGS;
   const desktopAppSettingsLayer = Layer.succeed(DesktopAppSettings.DesktopAppSettings, {
@@ -279,6 +293,14 @@ function makeTestLayer(input: {
           copyText: () => Effect.void,
         } satisfies ElectronShell.ElectronShell["Service"]),
         electronThemeLayer,
+        Layer.succeed(
+          DesktopTray.DesktopTray,
+          input.desktopTray ?? {
+            ensure: () => Effect.succeed(false),
+            markQuitRequested: () => undefined,
+            shouldHideOnClose: () => false,
+          },
+        ),
         electronWindowLayer,
         Layer.mock(PreviewManager.PreviewManager)({
           getBrowserSession: () => Effect.succeed({} as Electron.Session),
@@ -379,6 +401,7 @@ const makeSplashScenario = (createOutcomes: readonly (Electron.BrowserWindow | n
             copyText: () => Effect.void,
           } satisfies ElectronShell.ElectronShell["Service"]),
           electronThemeLayer,
+          desktopTrayLayer,
           Layer.succeed(ElectronWindow.ElectronWindow, electronWindowShape),
           Layer.mock(PreviewManager.PreviewManager)({
             getBrowserSession: () => Effect.succeed({} as Electron.Session),
@@ -394,6 +417,25 @@ const makeSplashScenario = (createOutcomes: readonly (Electron.BrowserWindow | n
   });
 
 describe("DesktopWindow", () => {
+  it("leaves fullscreen before concealing a pending quit", () => {
+    const fakeWindow = makeFakeBrowserWindow();
+
+    DesktopWindow.concealPendingQuitWindow(fakeWindow.window);
+    assert.deepEqual(fakeWindow.setOpacity.mock.calls, [[0]]);
+
+    fakeWindow.setOpacity.mockClear();
+    fakeWindow.isFullScreen.mockReturnValue(true);
+    DesktopWindow.concealPendingQuitWindow(fakeWindow.window);
+    assert.deepEqual(fakeWindow.setFullScreen.mock.calls, [[false]]);
+    assert.deepEqual(fakeWindow.setOpacity.mock.calls, [[0]]);
+
+    fakeWindow.setOpacity.mockClear();
+    fakeWindow.isFullScreen.mockReturnValue(false);
+    fakeWindow.isDestroyed.mockReturnValue(true);
+    DesktopWindow.concealPendingQuitWindow(fakeWindow.window);
+    assert.equal(fakeWindow.setOpacity.mock.calls.length, 0);
+  });
+
   it("restores bounds only when the window fits within a connected display", () => {
     const persistedBounds = { x: 2040, y: 80, width: 1320, height: 880 };
     const displays = [
@@ -410,6 +452,48 @@ describe("DesktopWindow", () => {
       DesktopAppSettings.DEFAULT_MAIN_WINDOW_SIZE,
     );
   });
+
+  it.effect("hides the main window when the Windows tray intercepts close", () =>
+    Effect.gen(function* () {
+      const fakeWindow = makeFakeBrowserWindow();
+      const createCount = yield* Ref.make(0);
+      const mainWindow = yield* Ref.make<Option.Option<Electron.BrowserWindow>>(Option.none());
+      let shouldHideOnClose = true;
+      const layer = makeTestLayer({
+        window: fakeWindow.window,
+        createCount,
+        mainWindow,
+        desktopTray: {
+          ensure: () => Effect.succeed(true),
+          markQuitRequested: () => {
+            shouldHideOnClose = false;
+          },
+          shouldHideOnClose: () => shouldHideOnClose,
+        },
+      });
+
+      yield* Effect.gen(function* () {
+        const desktopWindow = yield* DesktopWindow.DesktopWindow;
+        yield* desktopWindow.handleBackendReady(new URL("http://127.0.0.1:3773"));
+
+        const close = fakeWindow.windowListeners.get("close");
+        if (!close) {
+          return yield* Effect.die("window close listener was not registered");
+        }
+
+        let prevented = false;
+        close({ preventDefault: () => (prevented = true) });
+        assert.isTrue(prevented);
+        assert.equal(fakeWindow.hide.mock.calls.length, 1);
+
+        shouldHideOnClose = false;
+        prevented = false;
+        close({ preventDefault: () => (prevented = true) });
+        assert.isFalse(prevented);
+        assert.equal(fakeWindow.hide.mock.calls.length, 1);
+      }).pipe(Effect.provide(layer));
+    }),
+  );
 
   it("recognizes only same-origin renderer navigations", () => {
     assert.isTrue(

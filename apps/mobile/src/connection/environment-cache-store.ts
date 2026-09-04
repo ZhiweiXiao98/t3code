@@ -47,20 +47,52 @@ const StoredVcsRefs = Schema.Struct({
   refs: VcsListRefsResult,
 });
 
-const decodeStoredShellSnapshot = Schema.decodeUnknownEffect(
-  Schema.fromJsonString(StoredShellSnapshot),
+const decodeShellSnapshotValue = Schema.decodeUnknownEffect(Schema.toEncoded(StoredShellSnapshot));
+const decodeThreadSnapshotValue = Schema.decodeUnknownEffect(
+  Schema.toEncoded(StoredThreadSnapshot),
 );
-const encodeStoredShellSnapshot = Schema.encodeEffect(Schema.fromJsonString(StoredShellSnapshot));
-const decodeStoredThreadSnapshot = Schema.decodeUnknownEffect(
-  Schema.fromJsonString(StoredThreadSnapshot),
-);
-const encodeStoredThreadSnapshot = Schema.encodeEffect(Schema.fromJsonString(StoredThreadSnapshot));
-const decodeStoredServerConfig = Schema.decodeUnknownEffect(
-  Schema.fromJsonString(StoredServerConfig),
-);
-const encodeStoredServerConfig = Schema.encodeEffect(Schema.fromJsonString(StoredServerConfig));
-const decodeStoredVcsRefs = Schema.decodeUnknownEffect(Schema.fromJsonString(StoredVcsRefs));
-const encodeStoredVcsRefs = Schema.encodeEffect(Schema.fromJsonString(StoredVcsRefs));
+const decodeServerConfigValue = Schema.decodeUnknownEffect(Schema.toEncoded(StoredServerConfig));
+const decodeVcsRefsValue = Schema.decodeUnknownEffect(Schema.toEncoded(StoredVcsRefs));
+
+type StoredShellSnapshotValue = typeof StoredShellSnapshot.Type;
+type StoredThreadSnapshotValue = typeof StoredThreadSnapshot.Type;
+type StoredServerConfigValue = typeof StoredServerConfig.Type;
+type StoredVcsRefsValue = typeof StoredVcsRefs.Type;
+
+function parseJson(raw: string) {
+  return Effect.try({
+    try: () => JSON.parse(raw) as unknown,
+    catch: (cause) => cause,
+  });
+}
+
+const decodeStoredShellSnapshot = (raw: string) =>
+  parseJson(raw).pipe(
+    Effect.flatMap(decodeShellSnapshotValue),
+    Effect.map((value) => value as unknown as StoredShellSnapshotValue),
+  );
+const decodeStoredThreadSnapshot = (raw: string) =>
+  parseJson(raw).pipe(
+    Effect.flatMap(decodeThreadSnapshotValue),
+    Effect.map((value) => value as unknown as StoredThreadSnapshotValue),
+  );
+const decodeStoredServerConfig = (raw: string) =>
+  parseJson(raw).pipe(
+    Effect.flatMap(decodeServerConfigValue),
+    Effect.map((value) => value as unknown as StoredServerConfigValue),
+  );
+const decodeStoredVcsRefs = (raw: string) =>
+  parseJson(raw).pipe(
+    Effect.flatMap(decodeVcsRefsValue),
+    Effect.map((value) => value as unknown as StoredVcsRefsValue),
+  );
+
+function encodeCacheDocument(value: object) {
+  return Effect.try({
+    try: () => JSON.stringify(value),
+    catch: (cause) => cause,
+  });
+}
 
 type CacheOperation = ConnectionPersistenceError["operation"];
 
@@ -129,7 +161,7 @@ export const make = Effect.fn("MobileEnvironmentCacheStore.make")(function* () {
       }),
     ),
     saveShell: Effect.fn("MobileEnvironmentCache.saveShell")(function* (environmentId, snapshot) {
-      const payload = yield* encodeStoredShellSnapshot({
+      const payload = yield* encodeCacheDocument({
         schemaVersion: SHELL_SNAPSHOT_CACHE_SCHEMA_VERSION,
         environmentId,
         snapshot,
@@ -154,7 +186,7 @@ export const make = Effect.fn("MobileEnvironmentCacheStore.make")(function* () {
     ),
     saveThread: Effect.fn("MobileEnvironmentCache.saveThread")(function* (environmentId, snapshot) {
       const threadId = snapshot.thread.id;
-      const payload = yield* encodeStoredThreadSnapshot({
+      const payload = yield* encodeCacheDocument({
         schemaVersion: THREAD_SNAPSHOT_CACHE_SCHEMA_VERSION,
         environmentId,
         threadId,
@@ -183,7 +215,7 @@ export const make = Effect.fn("MobileEnvironmentCacheStore.make")(function* () {
     ),
     saveServerConfig: Effect.fn("MobileEnvironmentCache.saveServerConfig")(
       function* (environmentId, config) {
-        const payload = yield* encodeStoredServerConfig({
+        const payload = yield* encodeCacheDocument({
           schemaVersion: SERVER_CONFIG_CACHE_SCHEMA_VERSION,
           environmentId,
           config,
@@ -215,7 +247,7 @@ export const make = Effect.fn("MobileEnvironmentCacheStore.make")(function* () {
     ),
     saveVcsRefs: Effect.fn("MobileEnvironmentCache.saveVcsRefs")(
       function* (environmentId, cwd, refs) {
-        const payload = yield* encodeStoredVcsRefs({
+        const payload = yield* encodeCacheDocument({
           schemaVersion: VCS_REFS_CACHE_SCHEMA_VERSION,
           environmentId,
           cwd,

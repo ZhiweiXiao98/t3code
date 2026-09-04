@@ -3,15 +3,18 @@ import type {
   PullRequestCheck,
   PullRequestChecksState,
   PullRequestRef,
+  ScopedThreadRef,
 } from "@t3tools/contracts";
 
-import { readLocalApi } from "~/localApi";
+import { useOpenLink } from "~/browser/useOpenLink";
 import { cn } from "~/lib/utils";
 import { pullRequestEnvironment } from "~/state/pullRequests";
 import { useEnvironmentQuery } from "~/state/query";
+import { useI18n } from "../../i18n/WebI18nProvider";
 
 import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
+import { toastManager } from "../ui/toast";
 import {
   PullRequestCheckStatusIcon,
   pullRequestCheckStatusLabel,
@@ -27,10 +30,13 @@ import {
 function LazyChecksBody({
   environmentId,
   reference,
+  threadRef,
 }: {
   environmentId: EnvironmentId;
   reference: PullRequestRef;
+  threadRef: ScopedThreadRef | null;
 }) {
+  const { t } = useI18n();
   const detailQuery = useEnvironmentQuery(
     pullRequestEnvironment.detail({ environmentId, input: reference }),
   );
@@ -40,16 +46,26 @@ function LazyChecksBody({
   if (detailQuery.data === null) {
     return (
       <p className="text-muted-foreground text-xs">
-        {detailQuery.isPending ? "Loading checks…" : "No checks reported"}
+        {detailQuery.isPending
+          ? t("pullRequests.checks.loading")
+          : t("pullRequests.checks.nonePlain")}
       </p>
     );
   }
-  return <ChecksBody checks={detailQuery.data.checks} />;
+  return <ChecksBody checks={detailQuery.data.checks} threadRef={threadRef} />;
 }
 
-function ChecksBody({ checks }: { checks: ReadonlyArray<PullRequestCheck> }) {
+function ChecksBody({
+  checks,
+  threadRef,
+}: {
+  checks: ReadonlyArray<PullRequestCheck>;
+  threadRef: ScopedThreadRef | null;
+}) {
+  const { t } = useI18n();
+  const openLink = useOpenLink(threadRef);
   if (checks.length === 0) {
-    return <p className="text-muted-foreground text-xs">No checks reported</p>;
+    return <p className="text-muted-foreground text-xs">{t("pullRequests.checks.nonePlain")}</p>;
   }
   return (
     <ul className="flex flex-col gap-1">
@@ -65,15 +81,24 @@ function ChecksBody({ checks }: { checks: ReadonlyArray<PullRequestCheck> }) {
             <TooltipPopup side="top">{check.description ?? check.name}</TooltipPopup>
           </Tooltip>
           <span className="shrink-0 text-muted-foreground">
-            {pullRequestCheckStatusLabel(check.status)}
+            {pullRequestCheckStatusLabel(check, t)}
           </span>
           {check.url === null ? null : (
             <button
               type="button"
               className="shrink-0 text-primary hover:underline"
-              onClick={() => void readLocalApi()?.shell.openExternal(check.url ?? "")}
+              onClick={() => {
+                if (!check.url) return;
+                void openLink(check.url).catch((error: unknown) => {
+                  console.error(error);
+                  toastManager.add({
+                    type: "error",
+                    title: t("pullRequests.checks.openFailed"),
+                  });
+                });
+              }}
             >
-              Details
+              {t("pullRequests.checks.details")}
             </button>
           )}
         </li>
@@ -94,6 +119,7 @@ export function PullRequestChecksPopover({
   checks,
   environmentId,
   reference,
+  threadRef = null,
   className,
 }: {
   checksState: PullRequestChecksState;
@@ -101,22 +127,26 @@ export function PullRequestChecksPopover({
   checks?: ReadonlyArray<PullRequestCheck>;
   environmentId?: EnvironmentId;
   reference?: PullRequestRef;
+  /** Thread the popover sits beside; a listing row has none. */
+  threadRef?: ScopedThreadRef | null;
   className?: string;
 }) {
-  const presentation = pullRequestChecksStatePresentation(checksState);
+  const { t } = useI18n();
+  const presentation = pullRequestChecksStatePresentation(checksState, t);
   // Counts beat the rollup's own wording where they are known, the way GitHub's own header reads.
-  const summary = checks === undefined ? null : summarizePullRequestChecks(checks);
+  const summary = checks === undefined ? null : summarizePullRequestChecks(checks, t);
   return (
     <Popover>
       {/* A listing row is itself a button, so the trigger renders as a span: a nested button is
           not valid inside one. The click is stopped here so opening the checks does not also
           select the row it sits on. */}
       <PopoverTrigger
+        nativeButton={false}
         render={
           <span
             role="button"
             tabIndex={0}
-            aria-label={`Checks: ${presentation.label}`}
+            aria-label={t("pullRequests.checks.aria", { status: presentation.label })}
             className={cn("inline-flex shrink-0 cursor-pointer items-center", className)}
           />
         }
@@ -128,9 +158,13 @@ export function PullRequestChecksPopover({
         <p className="mb-2 font-medium text-sm">{presentation.label}</p>
         {summary === null ? null : <p className="mb-2 text-muted-foreground text-xs">{summary}</p>}
         {checks !== undefined ? (
-          <ChecksBody checks={checks} />
+          <ChecksBody checks={checks} threadRef={threadRef} />
         ) : environmentId !== undefined && reference !== undefined ? (
-          <LazyChecksBody environmentId={environmentId} reference={reference} />
+          <LazyChecksBody
+            environmentId={environmentId}
+            reference={reference}
+            threadRef={threadRef}
+          />
         ) : null}
       </PopoverPopup>
     </Popover>

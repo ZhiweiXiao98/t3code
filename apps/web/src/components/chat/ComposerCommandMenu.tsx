@@ -1,4 +1,5 @@
 import {
+  formatProviderSkillDisplayName,
   resolveProviderSkillSourceKind,
   type ProviderSkillSourceKind,
 } from "@t3tools/client-runtime/providerSkills";
@@ -10,7 +11,6 @@ import {
 } from "@t3tools/contracts";
 import {
   BlocksIcon,
-  FolderGit2Icon,
   FolderIcon,
   PackageIcon,
   SettingsIcon,
@@ -20,9 +20,12 @@ import {
 import { memo, useLayoutEffect, useRef } from "react";
 
 import { type ComposerSlashCommand, type ComposerTriggerKind } from "../../composer-logic";
+import { useI18n } from "../../i18n/WebI18nProvider";
 import { cn } from "~/lib/utils";
+import { Badge } from "../ui/badge";
 import { Command, CommandGroup, CommandItem, CommandList } from "../ui/command";
 import { PierreEntryIcon } from "./PierreEntryIcon";
+import { ComposerBanner } from "./ComposerBanner";
 
 export type ComposerCommandItem =
   | {
@@ -67,6 +70,7 @@ export const ComposerCommandMenu = memo(function ComposerCommandMenu(props: {
   onHighlightedItemChange: (itemId: string | null) => void;
   onSelect: (item: ComposerCommandItem) => void;
 }) {
+  const { t } = useI18n();
   const listRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
@@ -87,9 +91,9 @@ export const ComposerCommandMenu = memo(function ComposerCommandMenu(props: {
         );
       }}
     >
-      <div
+      <ComposerBanner.Surface
         ref={listRef}
-        className="chat-composer-drawer-surface chat-composer-drawer-attached relative w-full overflow-hidden **:data-[slot=scroll-area-scrollbar]:data-[orientation=vertical]:my-4"
+        className="w-full overflow-hidden pb-(--chat-composer-attachment-overlap) **:data-[slot=scroll-area-scrollbar]:data-[orientation=vertical]:my-4"
         data-composer-command-drawer="true"
       >
         {props.items.length > 0 ? (
@@ -113,18 +117,18 @@ export const ComposerCommandMenu = memo(function ComposerCommandMenu(props: {
             <p className="text-secondary-label text-xs">
               {props.isLoading
                 ? props.triggerKind === "skill"
-                  ? "Searching workspace skills..."
-                  : "Searching workspace files..."
+                  ? t("composer.menu.searchingSkills")
+                  : t("composer.menu.searchingFiles")
                 : (props.emptyStateText ??
                   (props.triggerKind === "skill"
-                    ? "No skills found. Try / to browse provider commands."
+                    ? t("composer.menu.noSkills")
                     : props.triggerKind === "path"
-                      ? "No matching files or folders."
-                      : "No matching command."))}
+                      ? t("composer.menu.noPaths")
+                      : t("composer.menu.noCommands")))}
             </p>
           </div>
         )}
-      </div>
+      </ComposerBanner.Surface>
     </Command>
   );
 });
@@ -139,7 +143,7 @@ const ComposerCommandMenuItem = memo(function ComposerCommandMenuItem(props: {
 }) {
   const skillSourceKind =
     props.item.type === "skill" ? resolveProviderSkillSourceKind(props.item.skill) : null;
-  const slashSkill =
+  const isSlashSkill =
     props.triggerKind === "slash-command" && props.item.type === "skill" ? props.item.skill : null;
 
   return (
@@ -166,23 +170,27 @@ const ComposerCommandMenuItem = memo(function ComposerCommandMenuItem(props: {
           kind={props.item.pathKind}
           theme={props.resolvedTheme}
         />
-      ) : skillSourceKind && !slashSkill ? (
-        <SkillSourceIcon kind={skillSourceKind} />
       ) : null}
-      <span className="flex min-w-0 flex-1 items-baseline gap-3">
-        <span className="shrink-0 font-sans text-xs font-medium">
-          {slashSkill ? (
+      <span className="flex min-w-0 flex-1 items-center gap-2">
+        <span className="min-w-0 max-w-[45%] shrink-0 truncate font-sans text-xs font-medium">
+          {isSlashSkill ? (
             <>
-              <span className="text-secondary-label">skill:</span>
-              {slashSkill.name}
+              <span className="text-secondary-label">/skill:</span>
+              {formatProviderSkillDisplayName(isSlashSkill)}
             </>
           ) : (
             props.item.label
           )}
         </span>
-        <span className="min-w-0 flex-1 truncate text-right text-secondary-label text-xs">
+        <span className="min-w-0 max-w-[48ch] flex-1 truncate text-left text-secondary-label text-xs">
           {props.item.description}
         </span>
+        {skillSourceKind ? (
+          <SkillSourceBadge
+            kind={skillSourceKind}
+            showSkillSuffix={props.triggerKind === "skill"}
+          />
+        ) : null}
       </span>
     </CommandItem>
   );
@@ -190,28 +198,33 @@ const ComposerCommandMenuItem = memo(function ComposerCommandMenuItem(props: {
 
 const SKILL_SOURCE_ICON_BY_KIND: Record<ProviderSkillSourceKind, LucideIcon> = {
   app: BlocksIcon,
-  repo: FolderGit2Icon,
+  repo: FolderIcon,
   project: FolderIcon,
   personal: UserRoundIcon,
   system: SettingsIcon,
   other: PackageIcon,
 };
 
-const SKILL_SOURCE_LABEL_BY_KIND: Record<ProviderSkillSourceKind, string> = {
-  app: "App",
-  repo: "Repo",
-  project: "Project",
-  personal: "Personal",
-  system: "System",
-  other: "Other",
-};
-
-function SkillSourceIcon(props: { kind: ProviderSkillSourceKind }) {
+function SkillSourceBadge(props: { kind: ProviderSkillSourceKind; showSkillSuffix: boolean }) {
+  const { t } = useI18n();
   const Icon = SKILL_SOURCE_ICON_BY_KIND[props.kind];
+  const label =
+    props.kind === "app"
+      ? t("composer.skillSource.app")
+      : props.kind === "repo"
+        ? t("composer.skillSource.repo")
+        : props.kind === "project"
+          ? t("composer.skillSource.project")
+          : props.kind === "personal"
+            ? t("composer.skillSource.personal")
+            : props.kind === "system"
+              ? t("composer.skillSource.system")
+              : t("composer.skillSource.provider");
   return (
-    <>
-      <Icon aria-hidden="true" className="size-4 shrink-0 text-icon-muted" />
-      <span className="sr-only">{SKILL_SOURCE_LABEL_BY_KIND[props.kind]} skill</span>
-    </>
+    <Badge className="ms-auto" variant="secondary">
+      <Icon aria-hidden="true" className="text-current" />
+      {label}
+      {props.showSkillSuffix ? t("composer.skillSource.suffix") : null}
+    </Badge>
   );
 }

@@ -30,6 +30,36 @@ export interface ProviderUpdateToastView {
   readonly dismissAfterVisibleMs?: number;
 }
 
+type ProviderUpdateInitialMessageKey =
+  | "providerUpdate.title.single"
+  | "providerUpdate.title.multiple"
+  | "providerUpdate.description.installOrSettings"
+  | "providerUpdate.description.settingsOnly"
+  | "providerUpdate.providerList.two"
+  | "providerUpdate.providerList.many";
+
+export type ProviderUpdateInitialTranslate = (
+  key: ProviderUpdateInitialMessageKey,
+  values?: Readonly<Record<string, string | number>>,
+) => string;
+
+const translateProviderUpdateInitialEnglish: ProviderUpdateInitialTranslate = (key, values) => {
+  switch (key) {
+    case "providerUpdate.title.single":
+      return `Update Available: ${String(values?.provider ?? "")} ${String(values?.version ?? "")}`;
+    case "providerUpdate.title.multiple":
+      return `Updates Available: ${String(values?.count ?? "")} providers`;
+    case "providerUpdate.description.installOrSettings":
+      return "Install the update now or review provider settings.";
+    case "providerUpdate.description.settingsOnly":
+      return `${String(values?.providers ?? "")} can be updated from provider settings.`;
+    case "providerUpdate.providerList.two":
+      return `${String(values?.first ?? "")} and ${String(values?.second ?? "")}`;
+    case "providerUpdate.providerList.many":
+      return `${String(values?.leading ?? "")}, and ${String(values?.last ?? "")}`;
+  }
+};
+
 /**
  * Terminal update phases — outcomes that are safe to persist as a one-shot row
  * result. A non-terminal ("initial"/"running") snapshot never re-polls itself,
@@ -202,10 +232,6 @@ export function providerUpdateNotificationKey(
   return parts.length > 0 ? parts.join("|") : null;
 }
 
-export function providerUpdateCandidateKey(provider: ProviderUpdateCandidate): string {
-  return providerUpdateNotificationKey([provider])!;
-}
-
 export function formatProviderList(providers: ReadonlyArray<Pick<ServerProvider, "driver">>) {
   const names = providers.map(
     (provider) => PROVIDER_DISPLAY_NAMES[provider.driver] ?? provider.driver,
@@ -216,19 +242,48 @@ export function formatProviderList(providers: ReadonlyArray<Pick<ServerProvider,
   return `${names.slice(0, -1).join(", ")}, and ${names[names.length - 1]}`;
 }
 
-export function getProviderUpdateInitialToastView(input: {
-  readonly updateProviders: ReadonlyArray<ProviderUpdateCandidate>;
-  readonly oneClickProviders: ReadonlyArray<ProviderUpdateCandidate>;
-}): ProviderUpdateToastView {
+export function getProviderUpdateInitialToastView(
+  input: {
+    readonly updateProviders: ReadonlyArray<ProviderUpdateCandidate>;
+    readonly oneClickProviders: ReadonlyArray<ProviderUpdateCandidate>;
+  },
+  translate: ProviderUpdateInitialTranslate = translateProviderUpdateInitialEnglish,
+): ProviderUpdateToastView {
   return {
     phase: "initial",
     type: "warning",
-    title: getProviderUpdateInitialToastTitle(input.updateProviders),
+    title: getProviderUpdateInitialToastTitle(input.updateProviders, translate),
     description:
       input.oneClickProviders.length > 0
-        ? "Install the update now or review provider settings."
-        : `${formatProviderList(input.updateProviders)} can be updated from provider settings.`,
+        ? translate("providerUpdate.description.installOrSettings")
+        : translate("providerUpdate.description.settingsOnly", {
+            providers: formatProviderListForInitialToast(input.updateProviders, translate),
+          }),
   };
+}
+
+function formatProviderListForInitialToast(
+  providers: ReadonlyArray<Pick<ServerProvider, "driver">>,
+  translate: ProviderUpdateInitialTranslate,
+): string {
+  const names = providers.map(
+    (provider) => PROVIDER_DISPLAY_NAMES[provider.driver] ?? provider.driver,
+  );
+  if (names.length <= 1) return names[0] ?? "";
+  if (names.length === 2) {
+    return translate("providerUpdate.providerList.two", {
+      first: names[0] ?? "",
+      second: names[1] ?? "",
+    });
+  }
+  return translate("providerUpdate.providerList.many", {
+    leading: names.slice(0, -1).join(", "),
+    last: names.at(-1) ?? "",
+  });
+}
+
+export function shouldShowPrimaryProviderUpdateToast(view: ProviderUpdateToastView): boolean {
+  return view.phase !== "running";
 }
 
 export function getProviderUpdateRunningToastView(providerCount: number): ProviderUpdateToastView {
@@ -535,13 +590,17 @@ export function getProviderUpdateSidebarPillView(
 
 function getProviderUpdateInitialToastTitle(
   providers: ReadonlyArray<ProviderUpdateCandidate>,
+  translate: ProviderUpdateInitialTranslate,
 ): string {
   if (providers.length === 1) {
     const provider = providers[0]!;
     const providerName = PROVIDER_DISPLAY_NAMES[provider.driver] ?? provider.driver;
-    return `Update Available: ${providerName} ${formatVersion(provider.versionAdvisory.latestVersion)}`;
+    return translate("providerUpdate.title.single", {
+      provider: providerName,
+      version: formatVersion(provider.versionAdvisory.latestVersion),
+    });
   }
-  return `Updates Available: ${providers.length} providers`;
+  return translate("providerUpdate.title.multiple", { count: providers.length });
 }
 
 function getFailedProviderUpdateDescription(providers: ReadonlyArray<ServerProvider>): string {

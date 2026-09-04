@@ -1,4 +1,5 @@
 import {
+  AntigravitySettings,
   ClaudeSettings,
   CodexSettings,
   CursorSettings,
@@ -7,7 +8,15 @@ import {
   ProviderDriverKind,
 } from "@t3tools/contracts";
 import type * as Schema from "effect/Schema";
-import { ClaudeAI, CursorIcon, GrokIcon, type Icon, OpenAI, OpenCodeIcon } from "../Icons";
+import {
+  AntigravityIcon,
+  ClaudeAI,
+  CursorIcon,
+  GrokIcon,
+  type Icon,
+  OpenAI,
+  OpenCodeIcon,
+} from "../Icons";
 
 type ProviderSettingsSchema = {
   readonly fields: Readonly<Record<string, Schema.Top>>;
@@ -67,6 +76,12 @@ export const PROVIDER_CLIENT_DEFINITIONS: readonly ProviderClientDefinition[] = 
     icon: OpenCodeIcon,
     settingsSchema: OpenCodeSettings,
   },
+  {
+    value: ProviderDriverKind.make("antigravity"),
+    label: "Antigravity",
+    icon: AntigravityIcon,
+    settingsSchema: AntigravitySettings,
+  },
 ];
 
 export const PROVIDER_CLIENT_DEFINITION_BY_VALUE: Partial<
@@ -78,6 +93,15 @@ export const PROVIDER_CLIENT_DEFINITION_BY_VALUE: Partial<
 export const DRIVER_OPTIONS = PROVIDER_CLIENT_DEFINITIONS;
 export const DRIVER_OPTION_BY_VALUE = PROVIDER_CLIENT_DEFINITION_BY_VALUE;
 export type DriverOption = ProviderClientDefinition;
+
+export function localizeProviderBadgeLabel(
+  badgeLabel: string,
+  labels: { readonly earlyAccess: string; readonly new: string },
+): string {
+  if (badgeLabel === "Early Access") return labels.earlyAccess;
+  if (badgeLabel === "New") return labels.new;
+  return badgeLabel;
+}
 
 /**
  * Look up the driver metadata for an instance's `driver` field. Accepts

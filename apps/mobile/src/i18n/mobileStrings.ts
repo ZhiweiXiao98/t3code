@@ -1,0 +1,781 @@
+import type { AlertButton, AlertOptions } from "react-native";
+
+export type MobileLocale = "en" | "zh-CN";
+
+export const MOBILE_LOCALE: MobileLocale =
+  process.env.EXPO_PUBLIC_APP_LOCALE === "zh-CN" ? "zh-CN" : "en";
+
+const ZH_CN_MESSAGES = {
+  Account: "账户",
+  Actions: "操作",
+  "Add attachment": "添加附件",
+  "Add Comment": "添加评论",
+  "Add Environment": "添加环境",
+  "Add environment": "添加环境",
+  "Add image": "添加图片",
+  "Add new project": "添加新项目",
+  "Add project": "添加项目",
+  "Add an environment before creating a task.": "请先添加环境，再创建任务。",
+  "Add an environment to load projects and start coding sessions.":
+    "添加环境以加载项目并开始编程会话。",
+  "All environments": "所有环境",
+  "All projects": "所有项目",
+  "All providers": "所有服务提供方",
+  "Allow camera": "允许使用相机",
+  "Allow camera access to scan an environment pairing QR code.": "允许使用相机扫描环境配对二维码。",
+  "Allow once": "仅允许一次",
+  "Allow session": "本次会话允许",
+  App: "应用",
+  Appearance: "外观",
+  "Approval needed": "需要批准",
+  Approval: "待批准",
+  Archive: "归档",
+  "Archived thread options": "归档任务选项",
+  "Archived Threads": "已归档任务",
+  "Ask anything…": "输入任何问题…",
+  "Ask the agent to inspect the repo, run a command, or continue the active thread.":
+    "让 Agent 检查仓库、运行命令或继续当前任务。",
+  "Ask the repo agent, or run a command…": "向仓库 Agent 提问，或运行命令…",
+  "Auto-settle merged threads": "合并后自动收起任务",
+  "Auto-accept edits": "自动接受编辑",
+  Auto: "自动",
+  Available: "可用",
+  "Awaiting Input": "等待输入",
+  "Back to chat": "返回对话",
+  Branch: "分支",
+  "Branch changes": "分支更改",
+  "Branches & worktrees": "分支与工作树",
+  "Browse a folder on disk": "浏览磁盘上的文件夹",
+  "Browse folders": "浏览文件夹",
+  "By model": "按模型",
+  "Cache savings": "缓存节省",
+  "Cached input": "缓存输入",
+  "Camera access needed": "需要相机权限",
+  "Camera access was denied for this app. Open Settings to enable it.":
+    "此应用的相机权限已被拒绝。请前往系统设置启用。",
+  "Camera permission is required to scan a QR code.": "扫描二维码需要相机权限。",
+  Cancel: "取消",
+  "Cancel new task": "取消新任务",
+  "Cancel thread settings": "取消任务设置",
+  Catalog: "目录",
+  "Changed files": "已更改文件",
+  "Choose project": "选择项目",
+  "Choose model": "选择模型",
+  "Choose a thread from the sidebar or start a new task.": "从侧栏选择任务，或新建任务。",
+  "Choose another environment or create a new task.": "选择其他环境，或新建任务。",
+  "Choose another project or create a new task.": "选择其他项目，或新建任务。",
+  "Choose branch": "选择分支",
+  "Choose Files": "选择文件",
+  Clear: "清除",
+  "Clear all client caches?": "清除所有客户端缓存？",
+  "Clear search": "清除搜索",
+  "Clearing caches never removes environment connections, credentials, account data, or appearance preferences.":
+    "清除缓存不会移除环境连接、凭据、账户数据或外观偏好。",
+  Clean: "干净",
+  "Client Storage": "客户端存储",
+  "Client storage is temporarily unavailable. Try again after restarting the app.":
+    "客户端存储暂时不可用。请重启应用后重试。",
+  "Clone project": "克隆项目",
+  "Close scanner": "关闭扫码器",
+  "Close legal document": "关闭法律文档",
+  "Close new task": "关闭新任务",
+  "Code & Diffs": "代码与差异",
+  "Collapse user input": "收起用户输入",
+  "Color scheme": "配色方案",
+  Commands: "命令",
+  Comment: "评论",
+  Commit: "提交",
+  "Commit changes": "提交更改",
+  "Commit message": "提交说明",
+  "Commit on new branch": "提交到新分支",
+  "Commit, files, branches": "提交、文件和分支",
+  Configuration: "配置",
+  Confirm: "确认",
+  "Confirm action": "确认操作",
+  "Connect an environment to see usage.": "连接环境后即可查看用量。",
+  Connected: "已连接",
+  Connecting: "正在连接",
+  "Connecting to environment": "正在连接环境",
+  "Connection failed": "连接失败",
+  Copied: "已复制",
+  "Copy code": "复制代码",
+  "Copy message": "复制消息",
+  "Copy path": "复制路径",
+  "Copy trace ID": "复制跟踪 ID",
+  "Could not cancel import": "无法取消导入",
+  "Could not change project": "无法更改项目",
+  "Could not delete pending task": "无法删除待处理任务",
+  "Could not import shared content": "无法导入共享内容",
+  "Could not load every archive": "部分归档加载失败",
+  "Could not load T3 Connect environments": "无法加载 T3 Connect 环境",
+  "Could not load conversation": "无法加载对话",
+  "Could not read limits.": "无法读取额度。",
+  "Could not archive thread": "无法归档任务",
+  "Could not delete thread": "无法删除任务",
+  "Could not settle thread": "无法收起任务",
+  "Could not unarchive thread": "无法取消归档任务",
+  "Could not un-settle thread": "无法恢复任务",
+  "Could not move thread": "无法移动任务",
+  "Could not pin thread": "无法置顶任务",
+  "Could not queue task": "无法将任务加入队列",
+  "Could not regenerate title": "无法重新生成标题",
+  "could not report usage.": "无法报告用量。",
+  "Could not snooze thread": "无法稍后处理任务",
+  "Could not start task": "无法启动任务",
+  "Could not switch branch": "无法切换分支",
+  "Could not unpin thread": "无法取消置顶任务",
+  "Could not update environment": "无法更新环境",
+  "Could not wake thread": "无法唤醒任务",
+  "Create & checkout": "创建并切换",
+  "Create a task to start a new coding session.": "创建任务以开始新的编程会话。",
+  "Create worktree": "创建工作树",
+  "Created at": "创建时间",
+  "Custom font size": "自定义字号",
+  Decline: "拒绝",
+  Default: "默认",
+  "Default grouping": "默认分组",
+  "Delete pending task?": "删除待处理任务？",
+  "Device Notifications": "设备通知",
+  "Dismiss voice input error": "关闭语音输入错误",
+  "Disable notifications": "关闭通知",
+  "Dismiss keyboard": "收起键盘",
+  Environment: "环境",
+  "Environment caches": "环境缓存",
+  "Environment unavailable": "环境不可用",
+  Error: "错误",
+  Environments: "环境",
+  "Excluded from this commit": "未包含在本次提交中",
+  "Existing branches": "现有分支",
+  Failed: "失败",
+  "Feature branch & continue": "创建功能分支并继续",
+  "File actions": "文件操作",
+  "File unavailable": "文件不可用",
+  Files: "文件",
+  "Files unavailable": "文件列表不可用",
+  "Fill in the pending answers": "填写待回答内容",
+  "Filter and sort archived threads": "筛选和排序已归档任务",
+  "Filter and sort threads": "筛选和排序任务",
+  "Filter models": "筛选模型",
+  "Find a branch": "查找分支",
+  "Find a model": "查找模型",
+  "Full access": "完全访问",
+  "Font size": "字号",
+  General: "常规",
+  Host: "主机",
+  "Image unavailable": "图片不可用",
+  "Markdown image": "Markdown 图片",
+  Input: "待输入",
+  "Inspect turn diffs, worktree changes, and base branch diff":
+    "检查轮次差异、工作树更改和基础分支差异",
+  "Inspecting cached data…": "正在检查缓存数据…",
+  "Invalid QR code": "无效的二维码",
+  Label: "名称",
+  "Latest turn": "最新轮次",
+  "Last user message": "最近用户消息",
+  "Live Activity Updates": "实时活动更新",
+  Light: "浅色",
+  "Leave a comment...": "留下评论…",
+  "Leave empty to auto-generate": "留空以自动生成",
+  Legacy: "旧版功能",
+  "Legacy models": "旧版模型",
+  "Legacy Thread List": "旧版任务列表",
+  Legal: "法律信息",
+  "Loading archive...": "正在加载归档…",
+  "Loading branches...": "正在加载分支…",
+  "Loading diff…": "正在加载差异…",
+  "Loading file...": "正在加载文件…",
+  "Loading image...": "正在加载图片…",
+  "Loading image…": "正在加载图片…",
+  "Loading linked cloud environments.": "正在加载关联的云端环境。",
+  "Loading environments": "正在加载环境",
+  "Loading messages...": "正在加载消息…",
+  "Loading projects and threads from the saved environment.": "正在从已保存的环境加载项目和任务。",
+  "Loading projects from the saved environment.": "正在从已保存的环境加载项目。",
+  "Loading task": "正在加载任务",
+  Limits: "额度",
+  "Local folder": "本地文件夹",
+  "Managed by T3 Connect. Tunnel details update automatically.":
+    "由 T3 Connect 管理，隧道信息会自动更新。",
+  "Messages, labels, and headings scale with this size.": "消息、标签和标题会随此字号缩放。",
+  "Mobile control surface for your live coding environments": "随时控制正在运行的编程环境",
+  "Cloud VM": "云端虚拟机",
+  "Mac mini": "Mac mini",
+  "Mac Studio": "Mac Studio",
+  "Model and reasoning settings": "模型与推理设置",
+  "Model filters": "模型筛选",
+  "Microphone unavailable": "麦克风不可用",
+  "Move down": "下移",
+  "Move up": "上移",
+  "Messages not cached": "消息尚未缓存",
+  More: "更多",
+  "more files": "个其他文件",
+  "Navigate up": "返回上一级",
+  "Native terminal unavailable. Using text fallback.": "原生终端不可用，正在使用文本模式。",
+  "New branch": "新建分支",
+  "New task": "新建任务",
+  "New Task": "新建任务",
+  "New Thread": "新建任务",
+  "New worktree": "新建工作树",
+  "Newest first": "最新优先",
+  "No activity in this window.": "此时间范围内没有活动。",
+  "No additional linked cloud environments.": "没有其他关联的云端环境。",
+  "No cached data": "没有缓存数据",
+  "No changed files are available to commit.": "没有可提交的文件更改。",
+  "No changes": "没有更改",
+  "No conversation yet": "还没有对话",
+  "No environments connected yet.": "尚未连接环境。",
+  "No environments connected": "尚未连接环境",
+  "No files found": "未找到文件",
+  "No local branches found.": "未找到本地分支。",
+  "No matching models": "没有匹配的模型",
+  "No matching commands.": "没有匹配的命令。",
+  "No matching files or folders.": "没有匹配的文件或文件夹。",
+  "No open PR": "没有打开的 PR",
+  "No project scripts": "没有项目脚本",
+  "No projects found": "未找到项目",
+  "No results": "没有结果",
+  "No review diffs": "没有可审查的差异",
+  "No selection": "尚未选择内容",
+  "No threads yet": "还没有任务",
+  "No skills found.": "未找到技能。",
+  "No results.": "没有结果。",
+  "Not a git repository": "不是 Git 仓库",
+  "Not a repo": "不是仓库",
+  "Not connected": "未连接",
+  "Notifications disabled": "通知已关闭",
+  "Notifications enabled": "通知已启用",
+  "Notifications unavailable": "通知不可用",
+  "Notifications were denied for this app. Open Settings to enable them.":
+    "此应用的通知权限已被拒绝。请前往系统设置启用。",
+  "Notifications were not enabled.": "通知未能启用。",
+  "Offline cache records will appear here after environments are used.":
+    "使用环境后，离线缓存记录会显示在这里。",
+  "Oldest first": "最早优先",
+  "Open files": "打开文件",
+  "Open in Browser": "在浏览器中打开",
+  "Open in browser": "在浏览器中打开",
+  "Open in Safari": "在浏览器中打开",
+  "Open legal documents in external browser": "在外部浏览器中打开法律文档",
+  "Open new terminal": "打开新终端",
+  "Open terminal to start a shell.": "打开终端以启动 Shell。",
+  "Open settings": "打开设置",
+  "Open microphone settings": "打开麦克风设置",
+  Offline: "离线",
+  "Opt into retired interfaces kept for compatibility. Plan Mode restores the Build/Plan control; otherwise every task runs in Build mode.":
+    "启用为兼容性保留的旧版界面。计划模式会恢复构建/计划控制；否则所有任务均以构建模式运行。",
+  Options: "选项",
+  "Or type a custom answer": "或输入自定义回答",
+  Output: "输出",
+  "Pairing code": "配对码",
+  "Partial diff": "差异内容不完整",
+  "Partial file": "文件内容不完整",
+  Pending: "等待中",
+  "Plain text": "纯文本",
+  "Plan Mode": "计划模式",
+  Plan: "方案",
+  Build: "执行",
+  "Plan Ready": "计划已就绪",
+  "Photo Library": "照片图库",
+  Preparing: "正在准备",
+  "Preparing voice input": "正在准备语音输入",
+  Pin: "置顶",
+  "Preparing image preview...": "正在准备图片预览…",
+  "Preparing preview...": "正在准备预览…",
+  Preview: "预览",
+  "Preview failed": "预览失败",
+  "Preview limited to the first 1 MB of a truncated file.": "截断文件仅预览前 1 MB。",
+  "Processed tokens": "已处理 Token",
+  Photos: "照片",
+  Project: "项目",
+  "Project already exists": "项目已存在",
+  "Project Grouping": "项目分组",
+  Provider: "服务提供方",
+  Providers: "服务提供方",
+  Reasoning: "推理强度",
+  Reconnecting: "正在重新连接",
+  "Reconnect this environment to load the conversation.": "重新连接此环境以加载对话。",
+  "Regenerate title": "重新生成标题",
+  "Regenerating…": "正在重新生成…",
+  "Pull latest": "拉取最新更改",
+  Queued: "已排队",
+  "queued message": "条排队消息",
+  Refresh: "刷新",
+  "Refresh models": "刷新模型",
+  "Refresh archived threads": "刷新已归档任务",
+  "Refresh files": "刷新文件",
+  "Remove environment?": "移除环境？",
+  Repository: "仓库",
+  Reset: "重置",
+  "Resize detail pane": "调整详情面板大小",
+  "Restart the app and try again.": "请重启应用后重试。",
+  "Retry now": "立即重试",
+  "Return home": "返回首页",
+  "Return to chat": "返回对话",
+  "Review changes": "审查更改",
+  "Review unavailable": "审查不可用",
+  "Run command": "运行命令",
+  "Route not found": "找不到页面",
+  Runtime: "运行环境",
+  Save: "保存",
+  "Scan QR Code": "扫描二维码",
+  "Scan QR code": "扫描二维码",
+  "Scanning provider transcripts…": "正在扫描服务提供方记录…",
+  "Scroll to end": "滚动到底部",
+  Search: "搜索",
+  "Search archived threads": "搜索已归档任务",
+  "Search files": "搜索文件",
+  "Search threads": "搜索任务",
+  "Select a diff line or range first.": "请先选择一行或一段差异。",
+  "Select a thread": "选择任务",
+  "Select diff": "选择差异",
+  "Select review diff": "选择要审查的差异",
+  "Set up T3 Connect": "设置 T3 Connect",
+  Settle: "收起",
+  Settings: "设置",
+  "Shared content unavailable": "共享内容不可用",
+  "Show keyboard": "显示键盘",
+  "Show legacy models": "显示旧版模型",
+  "Show threads from every environment": "显示所有环境的任务",
+  "Show threads from every project": "显示所有项目的任务",
+  "Sign in to T3 Connect": "登录 T3 Connect",
+  "Sign in to your T3 account to set up T3 Connect.": "登录 T3 账户以设置 T3 Connect。",
+  "Sign in": "登录",
+  Skills: "技能",
+  Snooze: "稍后处理",
+  "Snooze until": "稍后处理至",
+  "Some environments are still reporting. Totals are partial.":
+    "部分环境仍在上报，用量汇总暂不完整。",
+  "Some shared content was skipped": "部分共享内容已跳过",
+  "Sort by archived date": "按归档日期排序",
+  "Sort projects": "排序项目",
+  "Sort threads": "排序任务",
+  Source: "源文件",
+  "Start another shell for this thread": "为此任务启动另一个终端",
+  "Start dictation": "开始语音输入",
+  "Start from origin": "从 origin 开始",
+  "Start or reconnect an environment before adding a project.":
+    "添加项目前，请先启动或重新连接环境。",
+  Stop: "停止",
+  "Stop agent": "停止 Agent",
+  Supervised: "监督模式",
+  System: "跟随系统",
+  "Syncing messages...": "正在同步消息…",
+  Transcribing: "正在转写",
+  "Storage unavailable": "存储不可用",
+  "Submit answers": "提交回答",
+  "Switch branch, create branch, or move to a worktree": "切换或创建分支，或移动到工作树",
+  "T3 Account": "T3 账户",
+  "T3 Code works locally without signing in. Cloud features are optional.":
+    "无需登录即可在本地使用 T3 Code，云端功能为可选项。",
+  Tap: "点击",
+  Terminal: "终端",
+  "Terminal options": "终端选项",
+  "Terminal unavailable": "终端不可用",
+  Text: "文本",
+  "Text size": "文本字号",
+  "That snooze time has passed. Choose another time.": "该稍后处理时间已经过去，请选择其他时间。",
+  "The image could not be loaded into the local cache.": "无法将图片加载到本地缓存。",
+  "The pull request could not be opened.": "无法打开 Pull Request。",
+  "The shared content is no longer in the inbox. You can continue editing this task draft.":
+    "共享内容已不在收件箱中，你仍可继续编辑此任务草稿。",
+  Themes: "主题",
+  "This branch does not have an open pull request.": "此分支没有打开的 Pull Request。",
+  "The connected environment did not report any projects.": "已连接的环境没有返回任何项目。",
+  "The pending task could not be removed.": "无法移除待处理任务。",
+  "This thread was deleted or is no longer available.": "此任务已删除或不再可用。",
+  "This environment's server does not support pinned reordering yet. Update the server to reorder pins.":
+    "此环境的服务器暂不支持调整置顶顺序，请更新服务器。",
+  "This environment's server does not support pinning yet. Update the server to use Pin.":
+    "此环境的服务器暂不支持置顶，请更新服务器。",
+  "This environment's server does not support settling yet. Update the server to use Settle.":
+    "此环境的服务器暂不支持收起任务，请更新服务器。",
+  "This environment's server does not support snoozing yet. Update the server to use Snooze.":
+    "此环境的服务器暂不支持稍后处理，请更新服务器。",
+  "This environment's server does not support snoozing yet. Update the server to wake this thread.":
+    "此环境的服务器暂不支持唤醒任务，请更新服务器。",
+  "This environment's server does not support title regeneration yet. Update the server to regenerate thread titles.":
+    "此环境的服务器暂不支持重新生成标题，请更新服务器。",
+  "This file path is invalid.": "文件路径无效。",
+  "This project has no saved scripts yet": "此项目还没有已保存的脚本",
+  "This removes offline data for every environment. Connections, credentials, account data, and app preferences stay intact.":
+    "这会移除所有环境的离线数据，但会保留连接、凭据、账户数据和应用偏好。",
+  "This removes offline threads, server metadata, and cached branches for this environment. The saved connection and credentials stay intact.":
+    "这会移除此环境的离线任务、服务器元数据和缓存分支，但会保留连接与凭据。",
+  "This terminal route needs an active thread and workspace.": "打开终端需要有效的任务和工作区。",
+  "This thread does not have a workspace root yet, so there is nowhere to open a shell.":
+    "此任务还没有工作区根目录，无法打开终端。",
+  "This thread does not have an active workspace path.": "此任务没有有效的工作区路径。",
+  "This thread has no ready turn diffs and the worktree diff is empty.":
+    "此任务没有可用的轮次差异，工作树差异也为空。",
+  "This thread is not available in the current mobile snapshot.": "当前移动端快照中没有此任务。",
+  "This thread is working. Interrupt it first, then try again.": "此任务仍在运行，请先中断后重试。",
+  "This thread still needs attention. Resolve or interrupt it first, then try again.":
+    "此任务仍需处理，请先解决或中断后重试。",
+  "Thread list options": "任务列表选项",
+  "Thread settings": "任务设置",
+  "Thread unavailable": "任务不可用",
+  Threads: "任务",
+  Totals: "汇总",
+  "Try again": "重试",
+  "Try Again": "重试",
+  Turn: "轮次",
+  "Turn diffs and worktree changes": "轮次差异与工作树更改",
+  "type and press return": "输入后按回车",
+  "Unable to open PR": "无法打开 PR",
+  "Uncached input": "未缓存输入",
+  Unpriced: "未计价",
+  "Update failed": "更新失败",
+  "Update ready": "更新已就绪",
+  "Use template": "使用模板",
+  "Start a Codex thread first": "请先启动 Codex 任务",
+  "Send a message before you submit feedback.": "发送一条消息后才能提交反馈。",
+  "Could not send feedback to OpenAI": "无法向 OpenAI 发送反馈",
+  "Feedback sent to OpenAI": "反馈已发送给 OpenAI",
+  "Sending feedback to OpenAI...": "正在向 OpenAI 发送反馈...",
+  "An error occurred.": "发生了错误。",
+  "Copy ID": "复制 ID",
+  "Codex feedback thread ID": "Codex 反馈任务 ID",
+  "Install Now": "立即安装",
+  Later: "稍后",
+  Delete: "删除",
+  "Clear Cache": "清除缓存",
+  Usage: "用量",
+  "User input needed": "需要用户输入",
+  "Un-settle": "恢复任务",
+  Unpin: "取消置顶",
+  Version: "版本",
+  "Warning: this is the default branch.": "警告：这是默认分支。",
+  Wake: "唤醒",
+  "Wake thread": "唤醒任务",
+  "What should we build": "想要构建什么",
+  "Word break": "自动换行",
+  "work log": "工作日志",
+  "Working for": "已运行",
+  "Working tree": "工作树",
+  Working: "运行中",
+  "You are offline": "当前处于离线状态",
+  "Compact and continue": "压缩并继续",
+  "Don't ask again": "不再询问",
+  "Keep full history": "保留完整历史",
+  "Keep full history and skip future resume prompts.": "保留完整历史，并跳过以后继续会话时的提示。",
+  "Resume session": "继续会话",
+  "Resume with a summary and use fewer tokens.": "生成摘要后继续，以减少令牌用量。",
+  "Resume without changing the conversation.": "保留对话不变并继续。",
+  "Cancel dictation": "取消语音输入",
+  "Finish dictation": "完成语音输入",
+  "All accounts are shown by connected providers.": "所有账户均已由已连接的服务提供方显示。",
+  "Antigravity cannot be installed on this environment. Use a supported server host or set an executable path in provider settings.":
+    "此环境无法安装 Antigravity。请使用受支持的服务器主机，或在服务提供方设置中指定可执行文件路径。",
+  "Attach the file again and retry.": "请重新附加文件后重试。",
+  "Cancel install": "取消安装",
+  "Cancel sign-in": "取消登录",
+  "Checking credentials.": "正在检查凭据。",
+  "Checking environment access.": "正在检查环境访问权限。",
+  "Checking Google sign-in.": "正在检查 Google 登录状态。",
+  "Checking the Antigravity installation.": "正在检查 Antigravity 安装。",
+  "Close image": "关闭图片",
+  "Close video": "关闭视频",
+  "Complete sign-in": "完成登录",
+  Connect: "连接",
+  "Connect with the credentials set in provider settings on web or desktop.":
+    "使用网页版或桌面版服务提供方设置中配置的凭据进行连接。",
+  "Copy full path": "复制完整路径",
+  "Copy relative path": "复制相对路径",
+  "Copy sign-in link": "复制登录链接",
+  "Copy URL": "复制 URL",
+  "Could not cancel sign-in. Try again.": "无法取消登录，请重试。",
+  "Could not cancel the install. Try again.": "无法取消安装，请重试。",
+  "Could not change this provider. Reconnect and try again.":
+    "无法更改此服务提供方，请重新连接后重试。",
+  "Could not check your environment access.": "无法检查环境访问权限。",
+  "Could not complete Google sign-in. Check the return URL and try again.":
+    "无法完成 Google 登录，请检查返回 URL 后重试。",
+  "Could not copy the sign-in link.": "无法复制登录链接。",
+  "Could not load this video.": "无法加载此视频。",
+  "Could not load this video. Check the connection and try again.":
+    "无法加载此视频，请检查连接后重试。",
+  "Could not open Google sign-in. Copy the link and open it in your browser.":
+    "无法打开 Google 登录页面，请复制链接并在浏览器中打开。",
+  "Could not open PDF": "无法打开 PDF",
+  "Could not open preview": "无法打开预览",
+  "Could not open video": "无法打开视频",
+  "Could not remove the managed install. Try again.": "无法移除托管安装，请重试。",
+  "Could not share file": "无法共享文件",
+  "Could not sign out of Google. Try again.": "无法退出 Google 登录，请重试。",
+  "Could not start Google sign-in. Try again.": "无法启动 Google 登录，请重试。",
+  "Could not start the install. Try again.": "无法启动安装，请重试。",
+  "Could not use the reset credit.": "无法使用重置额度。",
+  "Disable Antigravity": "停用 Antigravity",
+  "Disable Antigravity?": "停用 Antigravity？",
+  Disabled: "已停用",
+  Disable: "停用",
+  Disconnect: "断开连接",
+  "Disconnect Antigravity?": "断开 Antigravity 连接？",
+  Enabled: "已启用",
+  "Enable Antigravity": "启用 Antigravity",
+  "Enable Antigravity to sign in.": "请先启用 Antigravity 再登录。",
+  "Extracting Antigravity files.": "正在解压 Antigravity 文件。",
+  "Google account": "Google 账户",
+  "Gemini Enterprise": "Gemini 企业版",
+  "Gemini API key": "Gemini API 密钥",
+  "Agent Platform (Vertex AI)": "Agent Platform（Vertex AI）",
+  "Google sign-in return URL": "Google 登录返回 URL",
+  Image: "图片",
+  "Install Antigravity": "安装 Antigravity",
+  "Install Antigravity to sign in.": "请先安装 Antigravity 再登录。",
+  "Install status is unavailable. Reconnect and try again.": "无法获取安装状态，请重新连接后重试。",
+  Installed: "已安装",
+  Loading: "正在加载",
+  "Loading provider settings.": "正在加载服务提供方设置。",
+  "Loading video": "正在加载视频",
+  "Loading video...": "正在加载视频...",
+  "Media actions": "媒体操作",
+  "No accounts reported.": "未报告任何账户。",
+  "No limits reported.": "未报告额度。",
+  "No reset credit left.": "没有剩余的重置额度。",
+  "No reset credits banked": "没有可用的重置额度",
+  "Not installed": "未安装",
+  ". Not installed": "。未安装",
+  "Nothing to reset right now.": "当前没有需要重置的额度窗口。",
+  "Open Google sign-in": "打开 Google 登录页面",
+  "Open in file viewer": "在文件查看器中打开",
+  "Opening share sheet…": "正在打开共享面板…",
+  "Opening share sheet...": "正在打开共享面板...",
+  "Please try again.": "请重试。",
+  "Preview unavailable": "预览不可用",
+  "Reconnect to this environment and open the video again.": "请重新连接此环境后再次打开视频。",
+  "Reconnect to this environment and try again.": "请重新连接此环境后重试。",
+  "Reconnect to this environment to continue setup.": "请重新连接此环境以继续设置。",
+  Remove: "移除",
+  "Remove managed install": "移除托管安装",
+  "Remove the Antigravity install?": "移除 Antigravity 安装？",
+  "Reset applied. Your windows have cleared.": "重置已生效，当前额度窗口已清空。",
+  "Retry connection": "重试连接",
+  "Retry Google sign-in": "重试 Google 登录",
+  "Retry install": "重试安装",
+  "Retry video": "重试播放视频",
+  Retry: "重试",
+  "Save or share": "保存或共享",
+  "Save or share video": "保存或共享视频",
+  "Sign in with Google": "使用 Google 登录",
+  "Sign in with the Google account you use for Antigravity.":
+    "使用你用于 Antigravity 的 Google 账户登录。",
+  "Sign-in has not been checked.": "尚未检查登录状态。",
+  "Sign-in is open on another client. Complete it there or wait for it to expire.":
+    "登录流程已在另一客户端打开，请在那里完成，或等待其过期。",
+  "Sign-in status is unavailable. Reconnect and try again.": "无法获取登录状态，请重新连接后重试。",
+  "Signed in. Credentials stay on this environment.": "已登录，凭据将保存在此环境中。",
+  "Sign out": "退出登录",
+  "Sign out of Google": "退出 Google 登录",
+  "Sign out of Google?": "退出 Google 登录？",
+  "Starting Google sign-in.": "正在启动 Google 登录。",
+  "That credit was already redeemed.": "该重置额度已被使用。",
+  "The file could not be loaded. It may have been moved or deleted.":
+    "无法加载该文件，它可能已被移动或删除。",
+  "The file could not be loaded. Please try again.": "无法加载该文件，请重试。",
+  "The file could not be loaded. Reconnect and try again.": "无法加载该文件，请重新连接后重试。",
+  "The local attachment file is missing.": "本地附件文件已丢失。",
+  "The rest of this setup can be completed from web or desktop.":
+    "其余设置可在网页版或桌面版中完成。",
+  "This account has no subscription limits.": "此账户没有订阅额度。",
+  "This attachment is no longer available. Attach the file again.":
+    "此附件已不可用，请重新附加该文件。",
+  "This connection cannot manage providers. Pair again with permission to operate this environment.":
+    "此连接无权管理服务提供方。请重新配对，并授予操作此环境的权限。",
+  "This file may be missing, unsupported, or unavailable on this environment.":
+    "此文件可能已丢失、格式不受支持，或在该环境中不可用。",
+  "This provider is not available on this environment.": "此环境中没有该服务提供方。",
+  "This provider link is not valid.": "此服务提供方链接无效。",
+  "This video couldn't be loaded or played. Check the connection, or touch and hold the video to save or share the original.":
+    "无法加载或播放此视频。请检查连接，或长按视频以保存或共享原文件。",
+  "Touch and hold for media actions": "长按以显示媒体操作",
+  "Try again.": "请重试。",
+  "Upload failed. Tap to retry.": "上传失败，点击重试。",
+  "Use a reset credit": "使用重置额度",
+  "Use a reset credit?": "使用一个重置额度？",
+  "Use credit": "使用额度",
+  "Using credit…": "正在使用额度…",
+  "Video unavailable": "视频不可用",
+  "Waiting for the environment.": "正在等待环境响应。",
+  "Complete sign-in in your browser.": "请在浏览器中完成登录。",
+  "After sign-in, the browser will open a 127.0.0.1 address that cannot load on your phone. Copy that full address and paste it here.":
+    "登录后，浏览器会打开一个手机无法访问的 127.0.0.1 地址。请复制完整地址并粘贴到这里。",
+  "This redeems one credit on your account and clears the current rate-limit windows. It cannot be undone.":
+    "这会使用账户中的一个重置额度并清空当前速率限制窗口，且无法撤销。",
+  "Attachment still uploading": "附件仍在上传",
+  "Retry or remove the failed attachment": "请重试或移除上传失败的附件",
+  Worktree: "工作树",
+} as const satisfies Readonly<Record<string, string>>;
+
+function translateDynamicMessage(value: string): string | null {
+  const percentUsed = /^(\d+)% used$/.exec(value);
+  if (percentUsed) return `已使用 ${percentUsed[1]}%`;
+
+  const playMedia = /^Play (.+)$/.exec(value);
+  if (playMedia) return `播放 ${playMedia[1]}`;
+
+  const providerSetup = /^(Set up|Manage) (.+)$/.exec(value);
+  if (providerSetup) {
+    return providerSetup[1] === "Set up" ? `设置 ${providerSetup[2]}` : `管理 ${providerSetup[2]}`;
+  }
+
+  const localizeDuration = (duration: string) =>
+    duration
+      .replace(/(\d+)d/g, "$1 天")
+      .replace(/(\d+)h/g, "$1 小时")
+      .replace(/(\d+)m/g, "$1 分钟");
+
+  if (value === "resets now") return "即将重置";
+  const resetsIn = /^resets in (.+)$/.exec(value);
+  if (resetsIn) return `${localizeDuration(resetsIn[1])}后重置`;
+
+  const pace = /^(ahead of pace|on pace|under pace)(?: · (resets now|resets in .+))?$/.exec(value);
+  if (pace) {
+    const paceLabel =
+      pace[1] === "ahead of pace" ? "用量偏快" : pace[1] === "under pace" ? "用量偏慢" : "用量正常";
+    const resetLabel = pace[2] ? translateDynamicMessage(pace[2]) : null;
+    return resetLabel ? `${paceLabel} · ${resetLabel}` : paceLabel;
+  }
+
+  const resetCredits = /^(\d+) reset credits? banked(?: · next expires in (.+))?$/.exec(value);
+  if (resetCredits) {
+    const expiry = resetCredits[2]
+      ? ` · 下一额度将在 ${localizeDuration(resetCredits[2])}后过期`
+      : "";
+    return `有 ${resetCredits[1]} 个重置额度${expiry}`;
+  }
+
+  const limitsEnvironment = /^Limits · (.+)$/.exec(value);
+  if (limitsEnvironment) return `额度 · ${limitsEnvironment[1]}`;
+
+  const installState = /^(Enabled|Disabled)\. (Installed)(?: (.+))?$/.exec(value);
+  if (installState) {
+    const enabled = installState[1] === "Enabled" ? "已启用" : "已停用";
+    return `${enabled} · 已安装${installState[3] ? ` ${installState[3]}` : ""}`;
+  }
+  const notInstalledState = /^(Enabled|Disabled)\. Not installed$/.exec(value);
+  if (notInstalledState) {
+    return `${notInstalledState[1] === "Enabled" ? "已启用" : "已停用"} · 未安装`;
+  }
+
+  const downloading = /^Downloading (\d+)(?: of (\d+))? MB$/.exec(value);
+  if (downloading) {
+    return downloading[2]
+      ? `正在下载 ${downloading[1]} / ${downloading[2]} MB`
+      : `正在下载 ${downloading[1]} MB`;
+  }
+
+  const signInExpiry = /^Sign-in expires at (.+)\.$/.exec(value);
+  if (signInExpiry) return `登录将在 ${signInExpiry[1]} 过期。`;
+
+  const disableProvider =
+    /^This stops Antigravity sessions on (.+)\. Google credentials stay saved\.$/.exec(value);
+  if (disableProvider)
+    return `这会停止 ${disableProvider[1]} 上的 Antigravity 会话，并保留 Google 凭据。`;
+
+  const removeManagedInstall =
+    /^This removes T3's managed install from (.+)\. Providers that use it will need it installed again\. Google credentials and threads stay\.$/.exec(
+      value,
+    );
+  if (removeManagedInstall) {
+    return `这会从 ${removeManagedInstall[1]} 移除 T3 托管的安装。使用它的服务提供方需要重新安装；Google 凭据和任务会保留。`;
+  }
+
+  const disconnectProvider =
+    /^This stops Antigravity sessions for (.+) on (.+)\. Threads and files stay\.$/.exec(value);
+  if (disconnectProvider) {
+    return `这会停止 ${disconnectProvider[2]} 上 ${disconnectProvider[1]} 的 Antigravity 会话，并保留任务和文件。`;
+  }
+
+  const recording = /^Recording (\d+:\d{2})$/.exec(value);
+  if (recording) return `正在录音 ${recording[1]}`;
+
+  const working = /^Working for (.+)$/.exec(value);
+  if (working) return `已运行 ${working[1]}`;
+
+  const useTemplate = /^Use (.+) template$/.exec(value);
+  if (useTemplate) return `使用“${useTemplate[1]}”模板`;
+
+  const interactionMode = /^Interaction mode: (Plan|Build)$/.exec(value);
+  if (interactionMode) return `交互模式：${interactionMode[1] === "Plan" ? "方案" : "执行"}`;
+
+  const switchMode = /^Switches to (Plan|Build) mode$/.exec(value);
+  if (switchMode) return `切换到${switchMode[1] === "Plan" ? "方案" : "执行"}模式`;
+
+  const claudeResumeQuestion =
+    /^This session is (?:(\d+)h (\d+)m|(\d+)m) old and uses (\d{1,3}(?:,\d{3})*) tokens\. Compact it before continuing\?$/.exec(
+      value,
+    );
+  if (claudeResumeQuestion) {
+    const age = claudeResumeQuestion[3]
+      ? `${claudeResumeQuestion[3]} 分钟`
+      : `${claudeResumeQuestion[1]} 小时 ${claudeResumeQuestion[2]} 分钟`;
+    return `此会话已有 ${age}，当前使用 ${claudeResumeQuestion[4]} 个令牌。是否先压缩再继续？`;
+  }
+
+  const noThreads = /^No threads matching "(.+)"\.$/.exec(value);
+  if (noThreads) return `没有与“${noThreads[1]}”匹配的任务。`;
+
+  const showMore = /^Show more \((\d+) settled hidden\)$/.exec(value);
+  if (showMore) return `显示更多（已隐藏 ${showMore[1]} 个已收起任务）`;
+
+  const queuedMessages = /^(\d+) queued messages? will send automatically\.$/.exec(value);
+  if (queuedMessages) return `${queuedMessages[1]} 条排队消息将在恢复连接后自动发送。`;
+
+  const questionCount = /^(\d+) questions?$/.exec(value);
+  if (questionCount) return `${questionCount[1]} 个问题`;
+
+  const selectedFiles = /^(\d+) selected · \+(\d+) −(\d+)$/.exec(value);
+  if (selectedFiles)
+    return `已选择 ${selectedFiles[1]} 个 · +${selectedFiles[2]} −${selectedFiles[3]}`;
+
+  const feedbackThreadId = /^Thread ID: (.+)$/.exec(value);
+  if (feedbackThreadId) return `任务 ID：${feedbackThreadId[1]}`;
+
+  const feedbackSent = /^Feedback sent to OpenAI\.\n\nThread ID: `(.+)`$/.exec(value);
+  if (feedbackSent) return `反馈已发送给 OpenAI。\n\n任务 ID：\`${feedbackSent[1]}\``;
+
+  const feedbackFailed = /^Could not send feedback to OpenAI\.\n\n([\s\S]+)$/.exec(value);
+  if (feedbackFailed) return `无法向 OpenAI 发送反馈。\n\n${feedbackFailed[1]}`;
+
+  return null;
+}
+
+export function localizeMobileString(value: string, locale: MobileLocale = MOBILE_LOCALE): string {
+  if (locale !== "zh-CN") return value;
+
+  const leadingWhitespace = value.match(/^\s*/)?.[0] ?? "";
+  const trailingWhitespace = value.match(/\s*$/)?.[0] ?? "";
+  const source = value.trim();
+  if (!source) return value;
+
+  const translated =
+    (ZH_CN_MESSAGES as Readonly<Record<string, string>>)[source] ?? translateDynamicMessage(source);
+  return translated === undefined || translated === null
+    ? value
+    : `${leadingWhitespace}${translated}${trailingWhitespace}`;
+}
+
+export function localizeAlertArguments(
+  title: string,
+  message?: string,
+  buttons?: AlertButton[],
+  locale: MobileLocale = MOBILE_LOCALE,
+): {
+  readonly title: string;
+  readonly message?: string;
+  readonly buttons?: AlertButton[];
+} {
+  return {
+    title: localizeMobileString(title, locale),
+    message: message === undefined ? undefined : localizeMobileString(message, locale),
+    buttons: buttons?.map((button) => ({
+      ...button,
+      text: button.text === undefined ? undefined : localizeMobileString(button.text, locale),
+    })),
+  };
+}
+
+export type LocalizedAlertApi = {
+  alert(title: string, message?: string, buttons?: AlertButton[], options?: AlertOptions): void;
+};

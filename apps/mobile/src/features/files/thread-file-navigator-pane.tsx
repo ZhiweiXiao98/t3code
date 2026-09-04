@@ -12,7 +12,7 @@ import {
 
 import { AppText as Text, AppTextInput as TextInput } from "../../components/AppText";
 import { nativeHeaderScrollEdgeEffects } from "../../native/StackHeader";
-import { useThemeColor } from "../../lib/useThemeColor";
+import { useUniwindTheme } from "../../lib/useUniwindTheme";
 import { projectEnvironment } from "../../state/projects";
 import { useEnvironmentQuery } from "../../state/query";
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
@@ -29,9 +29,9 @@ export function ThreadFileNavigatorPane(props: {
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const { themeAppearance: highlightTheme } = useAppearancePreferences();
-  const iconColor = String(useThemeColor("--color-icon-muted"));
-  const foregroundColor = String(useThemeColor("--color-foreground"));
-  const sheetColor = String(useThemeColor("--color-sheet"));
+  const theme = useUniwindTheme();
+  const foregroundColor = theme["--color-foreground"];
+  const sheetColor = theme["--color-sheet"];
   const headerScrollEdgeEffects = nativeHeaderScrollEdgeEffects(Platform.OS, Platform.Version);
   const entriesQuery = useEnvironmentQuery(
     projectEnvironment.listEntries({
@@ -141,7 +141,7 @@ export function ThreadFileNavigatorPane(props: {
         <View className="h-12 flex-row items-center gap-2 px-3">
           <View className="min-w-0 flex-1">
             <Text className="text-sm font-t3-bold text-foreground">Files</Text>
-            <Text className="text-xs text-foreground-muted" numberOfLines={1}>
+            <Text localize={false} className="text-xs text-foreground-muted" numberOfLines={1}>
               {props.projectName}
             </Text>
           </View>
@@ -152,11 +152,21 @@ export function ThreadFileNavigatorPane(props: {
             className="h-8 w-8 items-center justify-center rounded-full active:bg-subtle"
             onPress={entriesQuery.refresh}
           >
-            <SymbolView name="arrow.clockwise" size={14} tintColor={iconColor} type="monochrome" />
+            <SymbolView
+              name="arrow.clockwise"
+              size={14}
+              tintColorClassName={"accent-icon-muted"}
+              type="monochrome"
+            />
           </Pressable>
         </View>
         <View className="flex-row items-center gap-2 border-t border-border px-3 py-2">
-          <SymbolView name="magnifyingglass" size={15} tintColor={iconColor} type="monochrome" />
+          <SymbolView
+            name="magnifyingglass"
+            size={15}
+            tintColorClassName={"accent-icon-muted"}
+            type="monochrome"
+          />
           <TextInput
             accessibilityLabel="Search files"
             autoCapitalize="none"

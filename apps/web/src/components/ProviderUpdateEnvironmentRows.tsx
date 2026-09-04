@@ -8,6 +8,7 @@ import {
 } from "@t3tools/client-runtime/state/runtime";
 
 import { cn } from "~/lib/utils";
+import { useI18n } from "~/i18n/WebI18nProvider";
 import { serverEnvironment } from "~/state/server";
 import { useAtomCommand } from "~/state/use-atom-command";
 import { useLocalEnvironmentUpdateGroups } from "./ProviderUpdateLaunchNotification.environments";
@@ -110,10 +111,14 @@ function EnvironmentUpdateRow({
   group,
   status,
   onUpdate,
+  retryLabel,
+  updateLabel,
 }: {
   readonly group: LocalEnvironmentUpdateGroup;
   readonly status: ProviderUpdateRowStatus;
   readonly onUpdate: () => void;
+  readonly retryLabel: string;
+  readonly updateLabel: string;
 }) {
   let trailing: ReactNode;
   switch (status.kind) {
@@ -127,14 +132,14 @@ function EnvironmentUpdateRow({
     case "unchanged":
       trailing = (
         <Button size="xs" variant="outline" onClick={onUpdate}>
-          Retry
+          {retryLabel}
         </Button>
       );
       break;
     default:
       trailing = (
-        <Button size="xs" onClick={onUpdate}>
-          Update
+        <Button size="xs" variant="outline" onClick={onUpdate}>
+          {updateLabel}
         </Button>
       );
       break;
@@ -162,6 +167,7 @@ export function ProviderUpdateEnvironmentRows({
   /** Called the first time the user triggers an update, so the host can stop refreshing the prompt. */
   readonly onInteract?: () => void;
 }) {
+  const { t } = useI18n();
   const { groups } = useLocalEnvironmentUpdateGroups();
   const updateProvider = useAtomCommand(serverEnvironment.updateProvider, {
     reportFailure: false,
@@ -390,6 +396,8 @@ export function ProviderUpdateEnvironmentRows({
           group={group}
           status={status}
           onUpdate={() => handleUpdate(group.environmentId)}
+          retryLabel={t("providerUpdate.action.retry")}
+          updateLabel={t("providerUpdate.action.update")}
         />
       ))}
     </div>

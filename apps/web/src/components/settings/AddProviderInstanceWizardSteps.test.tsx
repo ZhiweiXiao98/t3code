@@ -4,6 +4,10 @@ import { describe, expect, it, vi } from "vite-plus/test";
 import { ADD_PROVIDER_WIZARD_STEPS } from "./AddProviderInstanceDialog.logic";
 import { AddProviderInstanceWizardSteps } from "./AddProviderInstanceWizardSteps";
 
+vi.mock("../../i18n/WebI18nProvider", () => ({
+  useI18n: () => ({ t: (key: string) => key }),
+}));
+
 interface StepButtonProps {
   readonly "aria-current"?: string;
   readonly onClick: () => void;
