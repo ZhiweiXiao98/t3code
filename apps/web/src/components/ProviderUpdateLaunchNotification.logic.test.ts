@@ -18,23 +18,22 @@ import {
   environmentGroupsWithUpdates,
   firstFailedProviderUpdateMessage,
   firstRejectedProviderUpdateMessage,
-  firstUnsuccessfulSecondaryProviderOutcome,
   getProviderUpdateInitialToastView,
   getProviderUpdateProgressToastView,
   getProviderUpdateRejectedToastView,
   getProviderUpdateSidebarPillView,
-  getSingleProviderUpdateProgressToastView,
   hasOneClickUpdateProviderCandidate,
   isProviderUpdateCandidate,
   isTerminalProviderUpdatePhase,
   localEnvironmentUpdateNotificationKey,
-  parseWslDistroFromInstanceId,
   providerUpdateNotificationKey,
   resolveEnvironmentUpdateRowStatus,
+  shouldShowPrimaryProviderUpdateToast,
   type LocalEnvironmentProvidersInput,
   type LocalEnvironmentUpdateGroup,
   type LocalProviderUpdateOutcome,
   type ProviderUpdateCandidate,
+  type ProviderUpdateInitialTranslate,
   type ProviderUpdateSidebarPillView,
   type ProviderUpdateToastView,
 } from "./ProviderUpdateLaunchNotification.logic";
@@ -291,6 +290,39 @@ describe("provider update launch notification logic", () => {
     });
   });
 
+  it("localizes the update prompt without changing the provider name or version", () => {
+    const translateChinese: ProviderUpdateInitialTranslate = (key, values) => {
+      switch (key) {
+        case "providerUpdate.title.single":
+          return `可用更新：${String(values?.provider)} ${String(values?.version)}`;
+        case "providerUpdate.title.multiple":
+          return `有 ${String(values?.count)} 个服务提供方可更新`;
+        case "providerUpdate.description.installOrSettings":
+          return "立即安装更新，或前往服务提供方设置查看。";
+        case "providerUpdate.description.settingsOnly":
+          return `可前往服务提供方设置更新 ${String(values?.providers)}。`;
+        case "providerUpdate.providerList.two":
+          return `${String(values?.first)} 和 ${String(values?.second)}`;
+        case "providerUpdate.providerList.many":
+          return `${String(values?.leading)} 和 ${String(values?.last)}`;
+      }
+    };
+    const candidate = updateCandidate({
+      driver: driver("claudeAgent"),
+      latestVersion: "2.1.232",
+    });
+
+    expect(
+      getProviderUpdateInitialToastView(
+        { updateProviders: [candidate], oneClickProviders: [candidate] },
+        translateChinese,
+      ),
+    ).toMatchObject({
+      title: "可用更新：Claude v2.1.232",
+      description: "立即安装更新，或前往服务提供方设置查看。",
+    });
+  });
+
   it("describes settings-only updates without one-click support", () => {
     const view = getProviderUpdateInitialToastView({
       updateProviders: [
@@ -301,6 +333,39 @@ describe("provider update launch notification logic", () => {
     });
 
     expect(view.description).toBe("Codex and Cursor can be updated from provider settings.");
+  });
+
+  it("localizes multi-provider settings-only updates", () => {
+    const translateChinese: ProviderUpdateInitialTranslate = (key, values) => {
+      switch (key) {
+        case "providerUpdate.title.single":
+          return `可用更新：${String(values?.provider)} ${String(values?.version)}`;
+        case "providerUpdate.title.multiple":
+          return `有 ${String(values?.count)} 个服务提供方可更新`;
+        case "providerUpdate.description.installOrSettings":
+          return "立即安装更新，或前往服务提供方设置查看。";
+        case "providerUpdate.description.settingsOnly":
+          return `可前往服务提供方设置更新 ${String(values?.providers)}。`;
+        case "providerUpdate.providerList.two":
+          return `${String(values?.first)} 和 ${String(values?.second)}`;
+        case "providerUpdate.providerList.many":
+          return `${String(values?.leading)} 和 ${String(values?.last)}`;
+      }
+    };
+    const candidates = [
+      updateCandidate({ driver: driver("codex"), canUpdate: false }),
+      updateCandidate({ driver: driver("cursor"), canUpdate: false }),
+    ];
+
+    expect(
+      getProviderUpdateInitialToastView(
+        { updateProviders: candidates, oneClickProviders: [] },
+        translateChinese,
+      ),
+    ).toMatchObject({
+      title: "有 2 个服务提供方可更新",
+      description: "可前往服务提供方设置更新 Codex 和 Cursor。",
+    });
   });
 
   it("uses server update state for running progress", () => {
@@ -325,6 +390,21 @@ describe("provider update launch notification logic", () => {
       type: "loading",
       title: "Updating provider",
     });
+    expect(shouldShowPrimaryProviderUpdateToast(view)).toBe(false);
+  });
+
+  it("keeps the initial prompt and terminal outcomes visible as toasts", () => {
+    expect(
+      shouldShowPrimaryProviderUpdateToast(
+        getProviderUpdateInitialToastView({
+          updateProviders: [updateCandidate({ driver: driver("codex") })],
+          oneClickProviders: [updateCandidate({ driver: driver("codex") })],
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      shouldShowPrimaryProviderUpdateToast(getProviderUpdateRejectedToastView(1, "boom")),
+    ).toBe(true);
   });
 
   it("uses server failure state for failed progress", () => {
@@ -348,28 +428,6 @@ describe("provider update launch notification logic", () => {
       phase: "failed",
       type: "error",
       title: "Provider update failed",
-      description: "command failed",
-    });
-  });
-
-  it("resolves a single-provider completion view from the returned provider snapshot", () => {
-    const view = getSingleProviderUpdateProgressToastView(
-      provider({
-        driver: driver("codex"),
-        updateState: {
-          status: "failed",
-          startedAt: checkedAt,
-          finishedAt: checkedAt,
-          message: "command failed",
-          output: "stderr",
-        },
-      }),
-    );
-
-    expect(view).toMatchObject({
-      phase: "failed",
-      type: "error",
-      title: "Codex v1.1.0 update failed",
       description: "command failed",
     });
   });
@@ -425,31 +483,6 @@ describe("provider update launch notification logic", () => {
       title: "Provider updated",
       description: "New sessions will use the updated provider.",
       dismissAfterVisibleMs: 3_000,
-    });
-  });
-
-  it("uses the updated version in the single-provider success toast title", () => {
-    const view = getSingleProviderUpdateProgressToastView(
-      provider({
-        driver: driver("codex"),
-        version: "1.1.0",
-        latestVersion: "1.1.0",
-        advisoryStatus: "current",
-        updateState: {
-          status: "succeeded",
-          startedAt: checkedAt,
-          finishedAt: checkedAt,
-          message: "Provider updated.",
-          output: null,
-        },
-      }),
-    );
-
-    expect(view).toMatchObject({
-      phase: "succeeded",
-      type: "success",
-      title: "Codex updated: v1.1.0",
-      description: "New sessions will use the updated provider.",
     });
   });
 
@@ -798,39 +831,6 @@ describe("provider update launch notification logic", () => {
       expect(snapshots).toEqual([primary]);
     });
 
-    it("flags the first unsuccessful secondary outcome, skipping the primary and successes", () => {
-      const primaryFailed = provider({
-        driver: driver("codex"),
-        updateState: terminalState("failed", "primary boom"),
-      });
-
-      expect(
-        firstUnsuccessfulSecondaryProviderOutcome([
-          fulfilledOutcome(true, primaryFailed),
-          fulfilledOutcome(
-            false,
-            provider({
-              driver: driver("codex"),
-              updateState: terminalState("succeeded", "ok"),
-            }),
-          ),
-        ]),
-      ).toBeNull();
-
-      expect(
-        firstUnsuccessfulSecondaryProviderOutcome([
-          fulfilledOutcome(true, primaryFailed),
-          fulfilledOutcome(
-            false,
-            provider({
-              driver: driver("codex"),
-              updateState: terminalState("failed", "wsl boom"),
-            }),
-          ),
-        ]),
-      ).toMatchObject({ status: "failed", provider: { updateState: { message: "wsl boom" } } });
-    });
-
     it("treats a rejected dispatch as not contributing a snapshot", () => {
       const primary = provider({
         driver: driver("codex"),
@@ -978,14 +978,6 @@ describe("provider update launch notification logic", () => {
           fallbackLabel: "My Device",
         }),
       ).toBe("My Device");
-    });
-
-    it("parses the WSL distro from the backend instance id", () => {
-      expect(parseWslDistroFromInstanceId("wsl:ubuntu")).toBe("ubuntu");
-      expect(parseWslDistroFromInstanceId("wsl:default")).toBeNull();
-      expect(parseWslDistroFromInstanceId("wsl:")).toBeNull();
-      expect(parseWslDistroFromInstanceId("ssh:host")).toBeNull();
-      expect(parseWslDistroFromInstanceId(undefined)).toBeNull();
     });
   });
 

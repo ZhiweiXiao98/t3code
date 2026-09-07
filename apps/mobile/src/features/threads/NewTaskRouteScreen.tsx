@@ -8,13 +8,13 @@ import {
 import { SymbolView } from "../../components/AppSymbol";
 import type { EnvironmentProject } from "@t3tools/client-runtime/state/shell";
 import { useEffect, useRef } from "react";
-import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, View } from "react-native";
+import { ActivityIndicator, Platform, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useThemeColor } from "../../lib/useThemeColor";
 import { cn } from "../../lib/cn";
 
 import { AndroidScreenHeader } from "../../components/AndroidScreenHeader";
 import { AppText as Text } from "../../components/AppText";
+import { LocalizedAlert as Alert } from "../../i18n/LocalizedAlert";
 import { ProjectFavicon } from "../../components/ProjectFavicon";
 import { useProjects } from "../../state/entities";
 import type { WorkspaceState } from "../../state/workspaceModel";
@@ -91,8 +91,6 @@ export function NewTaskRouteScreen({ route }: StaticScreenProps<NewTaskRoutePara
   const isFocused = useIsFocused();
   const { layout } = useAdaptiveWorkspaceLayout();
   const insets = useSafeAreaInsets();
-  const chevronColor = useThemeColor("--color-chevron");
-  const accentColor = useThemeColor("--color-icon-muted");
   const { getShare, releaseShareReservation } = useIncomingShare();
   const routeShareId = Array.isArray(route.params?.incomingShareId)
     ? route.params.incomingShareId[0]
@@ -102,8 +100,8 @@ export function NewTaskRouteScreen({ route }: StaticScreenProps<NewTaskRoutePara
     ? incomingShare.attachments.length === 0
       ? "Choose a project for what you shared"
       : incomingShare.attachments.length === 1
-        ? "Choose a project for the image you shared"
-        : `Choose a project for the ${incomingShare.attachments.length} images you shared`
+        ? `Choose a project for the ${incomingShare.attachments[0]?.type === "image" ? "image" : "file"} you shared`
+        : `Choose a project for the ${incomingShare.attachments.length} ${incomingShare.attachments.every((attachment) => attachment.type === "image") ? "images" : "files"} you shared`
     : null;
   const screenTitle = incomingShare ? "Start a task" : "Choose project";
   const projectEmptyState = deriveProjectEmptyState(catalogState);
@@ -242,7 +240,9 @@ export function NewTaskRouteScreen({ route }: StaticScreenProps<NewTaskRoutePara
       >
         {projectScopes.length === 0 ? (
           <View collapsable={false} className="items-center gap-3 rounded-[24px] bg-card px-6 py-8">
-            {projectEmptyState.loading ? <ActivityIndicator color={accentColor} /> : null}
+            {projectEmptyState.loading ? (
+              <ActivityIndicator colorClassName={"accent-icon-muted"} />
+            ) : null}
             <Text className="text-center text-lg font-t3-bold text-foreground">
               {projectEmptyState.title}
             </Text>
@@ -294,7 +294,9 @@ export function NewTaskRouteScreen({ route }: StaticScreenProps<NewTaskRoutePara
                       />
                     </View>
                     <View className="min-w-0 flex-1">
-                      <Text className="text-base leading-snug font-t3-bold">{scope.title}</Text>
+                      <Text localize={false} className="text-base leading-snug font-t3-bold">
+                        {scope.title}
+                      </Text>
                       <Text
                         className="text-xs leading-snug text-foreground-muted"
                         ellipsizeMode="middle"
@@ -308,7 +310,7 @@ export function NewTaskRouteScreen({ route }: StaticScreenProps<NewTaskRoutePara
                     <SymbolView
                       name="chevron.right"
                       size={14}
-                      tintColor={chevronColor}
+                      tintColorClassName={"accent-chevron"}
                       type="monochrome"
                     />
                   </Pressable>

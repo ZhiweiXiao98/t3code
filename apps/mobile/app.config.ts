@@ -3,18 +3,36 @@ import type { ExpoConfig } from "expo/config";
 import { BRAND_ASSET_PATHS } from "../../scripts/lib/brand-assets.ts";
 import { loadRepoEnv } from "../../scripts/lib/public-config.ts";
 
-type AppVariant = "development" | "preview" | "production";
+type AppVariant = "community" | "development" | "preview" | "production";
 
 const repoEnv = loadRepoEnv();
 Object.assign(process.env, repoEnv);
 
 const APP_VARIANT = resolveAppVariant(repoEnv.APP_VARIANT);
+if (APP_VARIANT === "community") {
+  process.env.EXPO_PUBLIC_APP_LOCALE = "zh-CN";
+}
+const appVersion =
+  APP_VARIANT === "community" ? (repoEnv.T3CODE_MOBILE_VERSION?.trim() ?? "1.0.4") : "1.0.4";
+const androidVersionCode = Number.parseInt(
+  APP_VARIANT === "community" ? (repoEnv.T3CODE_MOBILE_VERSION_CODE?.trim() ?? "1") : "1",
+  10,
+);
+if (!Number.isSafeInteger(androidVersionCode) || androidVersionCode <= 0) {
+  throw new Error("T3CODE_MOBILE_VERSION_CODE must be a positive integer.");
+}
 const isIosPersonalTeamBuild = repoEnv.T3CODE_IOS_PERSONAL_TEAM === "1";
+const runtimeVersionPolicy =
+  process.env.MOBILE_VERSION_POLICY ??
+  (APP_VARIANT === "development" ? "appVersion" : "fingerprint");
 
 const personalTeamBundleIdentifier = repoEnv.T3CODE_IOS_PERSONAL_TEAM_BUNDLE_ID?.trim();
 const IOS_BUNDLE_IDENTIFIER_PATTERN = /^[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$/;
 
 const fromRepoRoot = (relativePath: string) => `../../${relativePath}`;
+// Universal exports already contain their own rounded-square silhouette. Using one as an adaptive
+// foreground makes Android draw an icon shape inside the launcher's mask.
+const androidAdaptiveForeground = "./assets/android-icon-foreground.png";
 
 if (
   isIosPersonalTeamBuild &&
@@ -30,7 +48,7 @@ const DEVELOPMENT_ASSETS = {
   appIcon: fromRepoRoot(BRAND_ASSET_PATHS.developmentIosIconPng),
   iosIcon: fromRepoRoot(BRAND_ASSET_PATHS.developmentIconComposerProject),
   splashIcon: fromRepoRoot(BRAND_ASSET_PATHS.developmentIosIconPng),
-  androidAdaptiveForeground: fromRepoRoot(BRAND_ASSET_PATHS.developmentUniversalIconPng),
+  androidAdaptiveForeground,
   androidAdaptiveBackgroundColor: "#00639B",
   androidMonochromeIcon: "./assets/android-icon-mark.png",
   androidNotificationIcon: "./assets/android-notification-icon.png",
@@ -41,7 +59,7 @@ const PREVIEW_ASSETS = {
   appIcon: fromRepoRoot(BRAND_ASSET_PATHS.nightlyIosIconPng),
   iosIcon: fromRepoRoot(BRAND_ASSET_PATHS.nightlyIconComposerProject),
   splashIcon: fromRepoRoot(BRAND_ASSET_PATHS.nightlyIosIconPng),
-  androidAdaptiveForeground: fromRepoRoot(BRAND_ASSET_PATHS.nightlyLinuxIconPng),
+  androidAdaptiveForeground,
   androidAdaptiveBackgroundColor: "#111533",
   androidMonochromeIcon: "./assets/android-icon-mark.png",
   androidNotificationIcon: "./assets/android-notification-icon.png",
@@ -52,7 +70,7 @@ const RELEASE_ASSETS = {
   appIcon: fromRepoRoot(BRAND_ASSET_PATHS.productionIosIconPng),
   iosIcon: fromRepoRoot(BRAND_ASSET_PATHS.productionIconComposerProject),
   splashIcon: fromRepoRoot(BRAND_ASSET_PATHS.productionIosIconPng),
-  androidAdaptiveForeground: "./assets/android-icon-mark.png",
+  androidAdaptiveForeground,
   androidAdaptiveBackgroundColor: "#000000",
   androidMonochromeIcon: "./assets/android-icon-mark.png",
   androidNotificationIcon: "./assets/android-notification-icon.png",
@@ -76,6 +94,14 @@ const VARIANT_CONFIG = {
     relyingParty: "clerk.t3.codes",
     assets: PREVIEW_ASSETS,
   },
+  community: {
+    appName: "T3 Code 中文版",
+    scheme: "t3code-zhcn",
+    iosBundleIdentifier: "com.zhiweixiao.t3code.zhcn",
+    androidPackage: "com.zhiweixiao.t3code.zhcn",
+    relyingParty: "clerk.t3.codes",
+    assets: RELEASE_ASSETS,
+  },
   production: {
     appName: "T3 Code",
     scheme: "t3code",
@@ -88,6 +114,7 @@ const VARIANT_CONFIG = {
 
 function resolveAppVariant(value: string | undefined): AppVariant {
   switch (value) {
+    case "community":
     case "development":
     case "preview":
     case "production":
@@ -142,12 +169,14 @@ const sharingPlugin: NonNullable<ExpoConfig["plugins"]>[number] = [
         supportsText: true,
         supportsWebUrlWithMaxCount: 1,
         supportsImageWithMaxCount: 8,
+        supportsMovieWithMaxCount: 8,
+        supportsFileWithMaxCount: 8,
       },
     },
     android: {
       enabled: true,
-      singleShareMimeTypes: ["text/plain", "image/*"],
-      multipleShareMimeTypes: ["image/*"],
+      singleShareMimeTypes: ["*/*"],
+      multipleShareMimeTypes: ["*/*"],
     },
   },
 ];
@@ -161,23 +190,28 @@ const config: ExpoConfig = {
   slug: "t3-code",
   platforms: ["ios", "android"],
   scheme: variant.scheme,
-  version: "1.0.4",
+  version: appVersion,
   runtimeVersion: {
-    // Fingerprint (not appVersion) so an OTA only reaches binaries whose native
-    // project — native deps, config plugins, AND patches/ — matches the update.
-    // With appVersion, every 0.1.0 build shares a runtime version, so a JS update
-    // could land on a binary missing the native changes it needs and crash.
-    policy: process.env.MOBILE_VERSION_POLICY ?? "fingerprint",
+    // Development manifests resolve on every launch, so avoid fingerprint's
+    // expensive native-project calculation there. Preview and production stay
+    // fingerprinted so OTAs only reach binaries with matching native projects.
+    policy: runtimeVersionPolicy,
   },
   orientation: "portrait",
   icon: variant.assets.appIcon,
   userInterfaceStyle: "automatic",
-  updates: {
-    enabled: true,
-    url: "https://u.expo.dev/d763fcb8-d37c-41ea-a773-b54a0ab4a454",
-    checkAutomatically: "ON_LOAD",
-    fallbackToCacheTimeout: 0,
-  },
+  updates:
+    APP_VARIANT === "community"
+      ? {
+          enabled: false,
+          checkAutomatically: "NEVER",
+        }
+      : {
+          enabled: true,
+          url: "https://u.expo.dev/d763fcb8-d37c-41ea-a773-b54a0ab4a454",
+          checkAutomatically: "ON_LOAD",
+          fallbackToCacheTimeout: 0,
+        },
   ios: {
     icon: variant.assets.iosIcon,
     supportsTablet: true,
@@ -199,6 +233,7 @@ const config: ExpoConfig = {
       },
       NSLocalNetworkUsageDescription:
         "Allow T3 Code to connect to T3 Code servers on your local network or tailnet.",
+      NSPhotoLibraryAddUsageDescription: "Allow T3 Code to save images to your photo library.",
       ITSAppUsesNonExemptEncryption: false,
       // The App Store screenshot harness rotates the iPad interface from
       // inside the app (CI denies osascript the Accessibility access that
@@ -220,6 +255,7 @@ const config: ExpoConfig = {
   android: {
     icon: variant.assets.appIcon,
     package: variant.androidPackage,
+    versionCode: androidVersionCode,
     adaptiveIcon: {
       backgroundColor: variant.assets.androidAdaptiveBackgroundColor,
       foregroundImage: variant.assets.androidAdaptiveForeground,
@@ -290,9 +326,21 @@ const config: ExpoConfig = {
       },
     ],
     [
+      "expo-audio",
+      {
+        microphonePermission: "Allow T3 Code to use your microphone for voice input.",
+        recordAudioAndroid: false,
+        enableBackgroundPlayback: false,
+        enableBackgroundRecording: false,
+      },
+    ],
+    [
       "expo-camera",
       {
-        cameraPermission: "Allow T3 Code to access your camera so you can scan pairing QR codes.",
+        cameraPermission:
+          APP_VARIANT === "community"
+            ? "允许 T3 Code 中文版使用相机，以便扫描配对二维码。"
+            : "Allow T3 Code to access your camera so you can scan pairing QR codes.",
         microphonePermission: false,
         barcodeScannerEnabled: true,
         recordAudioAndroid: false,

@@ -446,7 +446,7 @@ async function applyDeferredAppUpdateInstall(
 }
 
 async function defaultConfirmInstallNow(): Promise<boolean> {
-  const { Alert } = await import("react-native");
+  const { LocalizedAlert: Alert } = await import("../../i18n/LocalizedAlert");
   return new Promise<boolean>((resolve) => {
     Alert.alert(
       "Update ready",

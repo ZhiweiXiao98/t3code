@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { buildThreadActionMenuItems, type ThreadActionMenuState } from "./threadActionMenu.logic";
+import { translateWebMessage } from "../i18n/messages";
+import {
+  buildThreadActionMenuItems,
+  localizeSnoozePresetLabel,
+  type ThreadActionMenuState,
+} from "./threadActionMenu.logic";
 
 const baseState: ThreadActionMenuState = {
   branch: null,
@@ -33,7 +38,18 @@ describe("buildThreadActionMenuItems", () => {
         ...baseState,
         supports: { settlement: false, snooze: false, pinning: false, titleRegeneration: false },
       }),
-    ).toEqual(["rename", "mark-unread", "copy", "archive", "delete"]);
+    ).toEqual(["rename", "mark-unread", "copy", "project-settings", "archive", "delete"]);
+  });
+
+  it("groups project settings with utility actions before archive", () => {
+    const items = buildThreadActionMenuItems(baseState);
+    const copyIndex = items.findIndex((item) => item.id === "copy");
+    expect(items[copyIndex + 1]).toMatchObject({
+      id: "project-settings",
+      label: "Project settings",
+      icon: "settings",
+    });
+    expect(items[copyIndex + 2]?.id).toBe("archive");
   });
 
   it("includes branch items only for threads with a branch", () => {
@@ -42,6 +58,30 @@ describe("buildThreadActionMenuItems", () => {
     expect(withBranch).toContain("copy-branch");
     expect(allIds(baseState)).not.toContain("new-thread-on-branch");
     expect(allIds(baseState)).not.toContain("copy-branch");
+  });
+
+  it("uses an optional translator without changing the default English output", () => {
+    const translated = buildThreadActionMenuItems(
+      { ...baseState, branch: "feat/menu" },
+      (key, values) => translateWebMessage("zh-CN", key, values),
+    );
+
+    expect(translated.find((item) => item.id === "new-thread-on-branch")?.label).toBe(
+      "在 feat/menu 分支新建任务",
+    );
+    expect(translated.find((item) => item.id === "pin")?.label).toBe("置顶任务");
+    expect(translated.at(-1)?.label).toBe("删除");
+    expect(buildThreadActionMenuItems({ ...baseState, branch: "feat/menu" })[0]?.label).toBe(
+      "New thread on feat/menu",
+    );
+  });
+
+  it("localizes snooze presets before they are passed to the native menu", () => {
+    expect(
+      localizeSnoozePresetLabel(baseState.snoozePresets[0]!, (key, values) =>
+        translateWebMessage("zh-CN", key, values),
+      ),
+    ).toBe("一小时后");
   });
 
   it("flips lifecycle labels with thread state", () => {

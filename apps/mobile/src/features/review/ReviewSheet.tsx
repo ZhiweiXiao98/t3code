@@ -23,6 +23,7 @@ import {
   FlatList,
   Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   type NativeSyntheticEvent,
   StyleSheet,
@@ -37,7 +38,7 @@ import { ControlPillMenu } from "../../components/ControlPill";
 import { environmentCatalog } from "../../connection/catalog";
 import { useEnvironmentPresentation } from "../../state/presentation";
 import { useAtomCommand } from "../../state/use-atom-command";
-import { useThemeColor } from "../../lib/useThemeColor";
+import { useUniwindTheme } from "../../lib/useUniwindTheme";
 import { IOS_NAV_BAR_HEIGHT } from "../../lib/layoutMetrics";
 import { useThreadDraftForThread } from "../../state/use-thread-composer-state";
 import { EnvironmentConnectionNotice } from "../connection/EnvironmentConnectionNotice";
@@ -80,13 +81,9 @@ const SHOWCASE_ENABLED = process.env.EXPO_PUBLIC_SHOWCASE === "1";
 
 const ReviewNotice = memo(function ReviewNotice(props: { readonly notice: string }) {
   return (
-    <View className="border-b border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/60 dark:bg-amber-950/40">
-      <Text className="text-xs font-t3-bold uppercase text-amber-700 dark:text-amber-300">
-        Partial diff
-      </Text>
-      <Text className="text-xs leading-normal text-amber-800 dark:text-amber-200">
-        {props.notice}
-      </Text>
+    <View className="border-b border-warning-border bg-warning px-4 py-3">
+      <Text className="text-xs font-t3-bold uppercase text-warning-foreground">Partial diff</Text>
+      <Text className="text-xs leading-normal text-warning-foreground">{props.notice}</Text>
     </View>
   );
 });
@@ -97,7 +94,6 @@ function ReviewSelectionActionBar(props: {
   readonly onOpenComment: (() => void) | null;
   readonly onClear: () => void;
 }) {
-  const foreground = useThemeColor("--color-primary-foreground");
   if (!props.title) {
     return null;
   }
@@ -107,7 +103,7 @@ function ReviewSelectionActionBar(props: {
       <SymbolView
         name={props.onOpenComment ? "text.bubble" : "line.3.horizontal.decrease.circle"}
         size={16}
-        tintColor={foreground}
+        tintColorClassName={"accent-primary-foreground"}
         type="monochrome"
       />
       <Text className="text-base font-t3-bold text-primary-foreground">{props.title}</Text>
@@ -144,7 +140,12 @@ function ReviewSelectionActionBar(props: {
         className="h-12 w-12 items-center justify-center rounded-full bg-primary"
         onPress={props.onClear}
       >
-        <SymbolView name="xmark" size={16} tintColor={foreground} type="monochrome" />
+        <SymbolView
+          name="xmark"
+          size={16}
+          tintColorClassName={"accent-primary-foreground"}
+          type="monochrome"
+        />
       </Pressable>
     </View>
   );
@@ -180,6 +181,7 @@ const ReviewFileNavigatorRow = memo(function ReviewFileNavigatorRow(props: {
       onPress={handlePress}
     >
       <Text
+        localize={false}
         className={
           selected
             ? "text-xs font-t3-bold text-foreground"
@@ -217,8 +219,9 @@ function ReviewFileNavigator({
   ref,
 }: ReviewFileNavigatorProps) {
   const insets = useSafeAreaInsets();
-  const sheetColor = String(useThemeColor("--color-sheet"));
-  const foregroundColor = String(useThemeColor("--color-foreground"));
+  const theme = useUniwindTheme();
+  const sheetColor = theme["--color-sheet"];
+  const foregroundColor = theme["--color-foreground"];
   const headerScrollEdgeEffects = nativeHeaderScrollEdgeEffects(Platform.OS, Platform.Version);
   const [fileSelection, setFileSelection] = useState<{
     readonly sectionId: string | null;
@@ -348,7 +351,7 @@ export function ReviewSheet(props: ReviewSheetProps) {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { themeAppearance: selectedTheme } = useAppearancePreferences();
-  const headerIcon = String(useThemeColor("--color-icon"));
+  const headerIcon = String(useUniwindTheme()["--color-icon"]);
   const { environmentId, threadId } = props.route.params;
   const environment = useEnvironmentPresentation(environmentId);
   const retryEnvironment = useAtomCommand(environmentCatalog.retryNow, "environment retry");
@@ -398,7 +401,11 @@ export function ReviewSheet(props: ReviewSheetProps) {
       selectedSection,
       draftMessage,
     });
-  const NativeReviewDiffView = resolveNativeReviewDiffView()!;
+  // Resolution returns null while Expo registers the native view (or forever
+  // when the binary lacks it). Rendering a null component type crashes the
+  // app, so callers must fall back — ThreadFeed's ReviewCommentCard does the
+  // same check.
+  const NativeReviewDiffView = resolveNativeReviewDiffView();
   const nativeReviewDiffViewRef = useRef<NativeReviewDiffViewHandle>(null);
   const showcasedReviewDrawRef = useRef<string | null>(null);
   // Native pull-to-refresh on the diff surface (replaces the old Refresh menu item).
@@ -596,11 +603,27 @@ export function ReviewSheet(props: ReviewSheetProps) {
     .filter((part): part is string => Boolean(part))
     .join(" · ");
 
-  // The changed-files navigator lives in the workspace inspector column —
-  // the single right-hand pane per route — instead of an in-screen panel.
+  // The changed-files navigator drives the native diff surface via
+  // scrollToFile, so it is only useful when that surface resolved. In raw
+  // fallback mode the ref is necessarily null and the raw patch neither
+  // scrolls nor filters — registering the navigator would present working
+  // controls that cannot navigate.
   const showChangedFilesPane =
-    !showConnectionNotice && selectedSection !== null && parsedDiff.kind === "files";
+    !showConnectionNotice &&
+    selectedSection !== null &&
+    parsedDiff.kind === "files" &&
+    NativeReviewDiffView !== null;
   useRegisterWorkspaceInspector(showChangedFilesPane ? renderInspector : undefined);
+  // Raw fallback renders the patch inline with no inspector content, so the
+  // pane toggle would open an empty column — hide it in exactly that case.
+  const showChangedFilesToggle =
+    panes.supportsAuxiliaryPane &&
+    !(
+      !showConnectionNotice &&
+      selectedSection !== null &&
+      parsedDiff.kind === "files" &&
+      NativeReviewDiffView === null
+    );
 
   const listHeader = useMemo(() => {
     const children: ReactElement[] = [];
@@ -609,7 +632,9 @@ export function ReviewSheet(props: ReviewSheetProps) {
       children.push(
         <View key="review-error" className="border-b border-border bg-card px-4 py-3">
           <Text className="text-sm font-t3-bold text-foreground">Review unavailable</Text>
-          <Text className="text-xs leading-normal text-foreground-muted">{error}</Text>
+          <Text localize={false} className="text-xs leading-normal text-foreground-muted">
+            {error}
+          </Text>
         </View>,
       );
     }
@@ -687,7 +712,7 @@ export function ReviewSheet(props: ReviewSheetProps) {
 
       {!isAndroid && (showSectionToolbar || panes.supportsAuxiliaryPane || gitMenuAvailable) ? (
         <NativeHeaderToolbar placement="right">
-          {panes.supportsAuxiliaryPane ? (
+          {showChangedFilesToggle ? (
             <NativeHeaderToolbar.Button
               accessibilityLabel={
                 panes.auxiliaryPaneVisible ? "Hide changed files" : "Show changed files"
@@ -780,7 +805,7 @@ export function ReviewSheet(props: ReviewSheetProps) {
               onRetry={handleRetryEnvironment}
             />
           </View>
-        ) : selectedSection && parsedDiff.kind === "files" ? (
+        ) : selectedSection && parsedDiff.kind === "files" && NativeReviewDiffView ? (
           <View
             className="flex-1"
             style={{
@@ -834,6 +859,16 @@ export function ReviewSheet(props: ReviewSheetProps) {
             }}
             showsVerticalScrollIndicator={false}
             className="flex-1"
+            refreshControl={
+              // The native diff surface owns pull-to-refresh via onPullToRefresh;
+              // the raw fallback (and empty states) need an explicit control —
+              // iOS has no other refresh affordance here (the explicit
+              // "Refresh current diff" menu is Android-only).
+              <RefreshControl
+                refreshing={isPullRefreshing}
+                onRefresh={() => void handlePullToRefresh()}
+              />
+            }
           >
             {listHeader}
             {!selectedSection ? (
@@ -851,18 +886,41 @@ export function ReviewSheet(props: ReviewSheetProps) {
             ) : parsedDiff.kind === "empty" ? (
               <View className="border-b border-border bg-card px-4 py-5">
                 <Text className="text-sm font-t3-bold text-foreground">No changes</Text>
-                <Text className="text-xs leading-normal text-foreground-muted">
-                  {selectedSection.subtitle ?? "This diff is empty."}
-                </Text>
+                {selectedSection.subtitle ? (
+                  <Text localize={false} className="text-xs leading-normal text-foreground-muted">
+                    {selectedSection.subtitle}
+                  </Text>
+                ) : (
+                  <Text className="text-xs leading-normal text-foreground-muted">
+                    This diff is empty.
+                  </Text>
+                )}
               </View>
             ) : parsedDiff.kind === "raw" ? (
               <View className="gap-3 border-b border-border bg-card px-4 py-4">
-                <Text className="text-xs leading-normal text-foreground-muted">
+                <Text localize={false} className="text-xs leading-normal text-foreground-muted">
                   {parsedDiff.reason}
                 </Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} bounces={false}>
-                  <Text selectable className="font-mono text-xs leading-relaxed text-foreground">
+                  <Text
+                    localize={false}
+                    selectable
+                    className="font-mono text-xs leading-relaxed text-foreground"
+                  >
                     {parsedDiff.text}
+                  </Text>
+                </ScrollView>
+              </View>
+            ) : parsedDiff.kind === "files" ? (
+              // The native diff surface could not be resolved on this binary;
+              // degrade to the raw patch instead of crashing the app.
+              <View className="gap-3 border-b border-border bg-card px-4 py-4">
+                <Text className="text-xs leading-normal text-foreground-muted">
+                  Native diff view unavailable. Showing the raw patch.
+                </Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} bounces={false}>
+                  <Text selectable className="font-mono text-xs leading-relaxed text-foreground">
+                    {selectedSection?.diff ?? ""}
                   </Text>
                 </ScrollView>
               </View>

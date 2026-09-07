@@ -12,6 +12,7 @@ import { useCallback, useMemo, useState } from "react";
 
 import { commandForProjectScript, primaryProjectScript } from "~/projectScripts";
 import { shortcutLabelForCommand } from "~/keybindings";
+import { useI18n } from "~/i18n/WebI18nProvider";
 import {
   EMPTY_PROJECT_SCRIPT_INPUT,
   editorRequestForScript,
@@ -64,6 +65,7 @@ export default function ProjectScriptsControl({
   onUpdateScript,
   onDeleteScript,
 }: ProjectScriptsControlProps) {
+  const { t } = useI18n();
   const [actionsMenuOpen, setActionsMenuOpen] = useState({
     scripts: false,
     imports: false,
@@ -236,7 +238,7 @@ export default function ProjectScriptsControl({
               {importMenuItems}
               <MenuItem className={dropdownItemClassName} onClick={openAddDialog}>
                 <PlusIcon className="size-4" />
-                Add action
+                {t("headerAction.addAction")}
               </MenuItem>
             </MenuPopup>
           </Menu>
@@ -250,7 +252,7 @@ export default function ProjectScriptsControl({
           <MenuTrigger render={<Button size="xs" variant="outline" aria-label="Project actions" />}>
             <PlusIcon className="size-3.5" />
             <span className="sr-only @3xl/header-actions:not-sr-only @3xl/header-actions:ml-0.5">
-              Add action
+              {t("headerAction.addAction")}
             </span>
             <ChevronDownIcon className="size-3.5" />
           </MenuTrigger>
@@ -258,7 +260,7 @@ export default function ProjectScriptsControl({
             {importMenuItems}
             <MenuItem className={dropdownItemClassName} onClick={openAddDialog}>
               <PlusIcon className="size-4" />
-              Add action
+              {t("headerAction.addAction")}
             </MenuItem>
           </MenuPopup>
         </Menu>
@@ -270,7 +272,7 @@ export default function ProjectScriptsControl({
                 size="xs"
                 variant="outline"
                 className="w-7 px-0 sm:w-6 @3xl/header-actions:w-auto! @3xl/header-actions:px-[calc(--spacing(2)-1px)]"
-                aria-label="Add action"
+                aria-label={t("headerAction.addAction")}
                 // The tooltip wrapper replaces data-slot="button", so themed
                 // toolbar styling needs its own hook.
                 data-toolbar-control=""
@@ -280,10 +282,10 @@ export default function ProjectScriptsControl({
           >
             <PlusIcon className="size-3.5" />
             <span className="sr-only @3xl/header-actions:not-sr-only @3xl/header-actions:ml-0.5">
-              Add action
+              {t("headerAction.addAction")}
             </span>
           </TooltipTrigger>
-          <TooltipPopup side="top">Add action</TooltipPopup>
+          <TooltipPopup side="top">{t("headerAction.addAction")}</TooltipPopup>
         </Tooltip>
       )}
 

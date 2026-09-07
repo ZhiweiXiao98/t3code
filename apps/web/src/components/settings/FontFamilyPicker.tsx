@@ -2,6 +2,7 @@ import { LegendList, type LegendListRef } from "@legendapp/list/react";
 import { CheckIcon, ChevronDownIcon, SearchIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { isMonospaceFamily, queryInstalledFontFamilies } from "../../appearanceFonts";
+import { useI18n } from "../../i18n/WebI18nProvider";
 import {
   Combobox,
   ComboboxEmpty,
@@ -11,6 +12,7 @@ import {
   ComboboxPopup,
   ComboboxTrigger,
 } from "../ui/combobox";
+import { selectTriggerVariants } from "../ui/select";
 
 const DEFAULT_FONT_VALUE = "__default__";
 
@@ -119,6 +121,7 @@ export function FontFamilyPicker({
   initialOpen?: boolean;
   onSelect: (family: string) => void;
 }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   // Open after mount rather than mounting open: a popup that first renders in
@@ -173,7 +176,9 @@ export function FontFamilyPicker({
           </span>
           <span className="flex shrink-0 items-center gap-1.5">
             {isDefault ? (
-              <span className="text-[10px] text-muted-foreground/60">default</span>
+              <span className="text-[10px] text-muted-foreground/60">
+                {t("appearance.fontPicker.default")}
+              </span>
             ) : null}
             {item === selectedValue ? (
               <CheckIcon className="size-3.5 text-muted-foreground" />
@@ -203,14 +208,11 @@ export function FontFamilyPicker({
         void listRef.current?.scrollIndexIntoView?.({ index: eventDetails.index, animated: false });
       }}
     >
-      <ComboboxTrigger
-        aria-label={ariaLabel}
-        className="relative inline-flex min-h-9 w-full min-w-36 cursor-pointer select-none items-center justify-between gap-2 rounded-lg border border-input bg-background px-[calc(--spacing(3)-1px)] text-left text-base text-foreground shadow-xs/5 outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/24 sm:min-h-8 sm:text-sm dark:bg-input/32"
-      >
+      <ComboboxTrigger aria-label={ariaLabel} className={selectTriggerVariants({ size: "sm" })}>
         <span className="min-w-0 truncate">
           {selectedFamily.length === 0 ? defaultFamily : selectedFamily}
         </span>
-        <ChevronDownIcon className="-me-1 size-3 shrink-0 text-muted-foreground opacity-50" />
+        <ChevronDownIcon className="-me-1 size-3 opacity-50" />
       </ComboboxTrigger>
       <ComboboxPopup align="end" className="flex w-72 flex-col">
         <div className="shrink-0 px-3 pt-2.5">
@@ -222,7 +224,7 @@ export function FontFamilyPicker({
             <ComboboxInput
               className="[&_input]:h-6.5 [&_input]:ps-5 [&_input]:font-sans [&_input]:leading-6.5"
               inputClassName="rounded-none bg-transparent text-sm"
-              placeholder="Search fonts…"
+              placeholder={t("appearance.fontPicker.search")}
               showTrigger={false}
               size="sm"
               unstyled
@@ -232,7 +234,7 @@ export function FontFamilyPicker({
           </div>
         </div>
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <ComboboxEmpty>No fonts found.</ComboboxEmpty>
+          <ComboboxEmpty>{t("appearance.fontPicker.empty")}</ComboboxEmpty>
           <div className="relative min-h-0 max-h-72 w-full flex-1 overflow-hidden">
             <ComboboxListVirtualized className="size-full min-w-0 p-0">
               <LegendList<string>

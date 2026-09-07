@@ -1,6 +1,7 @@
 import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
-import type { ComponentProps, ReactNode } from "react";
+import { type ComponentProps, type ReactNode, useLayoutEffect, useRef } from "react";
 
+import { useI18n } from "../i18n/WebI18nProvider";
 import { Command, CommandFooter, CommandInput, CommandPanel } from "./ui/command";
 import { Kbd, KbdGroup } from "./ui/kbd";
 
@@ -23,7 +24,7 @@ type CommandPaletteContentProps = Omit<ComponentProps<typeof Command>, "children
  */
 export function CommandPaletteContent({
   children,
-  escapeLabel = "Close",
+  escapeLabel,
   footerActionLabel,
   footerTrailing,
   inputAccessory,
@@ -33,11 +34,21 @@ export function CommandPaletteContent({
   testId,
   ...commandProps
 }: CommandPaletteContentProps) {
+  const { t } = useI18n();
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Direct-open flows replace the initial palette view after the dialog has
+  // already moved focus. Reclaim it when the replacement input mounts so
+  // typing cannot continue in the composer behind the modal.
+  useLayoutEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
   return (
     <div className="contents" data-testid={testId}>
       <Command {...commandProps}>
         <div className="relative">
-          <CommandInput {...inputProps} />
+          <CommandInput {...inputProps} ref={inputRef} />
           {inputAccessory}
         </div>
         <CommandPanel className={panelClassName}>{children}</CommandPanel>
@@ -50,7 +61,7 @@ export function CommandPaletteContent({
               <Kbd>
                 <ArrowDownIcon />
               </Kbd>
-              <span>Navigate</span>
+              <span>{t("commandPalette.navigate")}</span>
             </KbdGroup>
             {footerActionLabel !== undefined ? (
               <KbdGroup className="items-center gap-1.5">
@@ -61,12 +72,12 @@ export function CommandPaletteContent({
             {showBackHint ? (
               <KbdGroup className="items-center gap-1.5">
                 <Kbd>Backspace</Kbd>
-                <span>Back</span>
+                <span>{t("common.back")}</span>
               </KbdGroup>
             ) : null}
             <KbdGroup className="items-center gap-1.5">
               <Kbd>Esc</Kbd>
-              <span>{escapeLabel}</span>
+              <span>{escapeLabel ?? t("common.close")}</span>
             </KbdGroup>
           </div>
           {footerTrailing}

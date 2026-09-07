@@ -3,7 +3,17 @@ import {
   type ConnectionCatalogDocument as ConnectionCatalogDocumentType,
   EMPTY_CONNECTION_CATALOG_DOCUMENT,
 } from "@t3tools/client-runtime/platform";
-import { ConnectionTransientError } from "@t3tools/client-runtime/connection";
+import { TokenStore } from "@t3tools/client-runtime/authorization";
+import {
+  BearerConnectionCredential,
+  BearerConnectionProfile,
+  BearerConnectionTarget,
+  ConnectionTransientError,
+  RelayConnectionTarget,
+  SshConnectionProfile,
+  SshConnectionTarget,
+} from "@t3tools/client-runtime/connection";
+import { EnvironmentId } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import * as Ref from "effect/Ref";
@@ -23,22 +33,88 @@ function catalogError(operation: string, cause: unknown) {
   });
 }
 
-const ConnectionCatalogDocumentJson = Schema.fromJsonString(ConnectionCatalogDocument);
-const decodeConnectionCatalogDocument = Schema.decodeEffect(ConnectionCatalogDocumentJson);
-const encodeConnectionCatalogDocument = Schema.encodeEffect(ConnectionCatalogDocumentJson);
+const EncodedConnectionCatalogDocument = Schema.toEncoded(ConnectionCatalogDocument);
+const decodeEncodedConnectionCatalogDocument = Schema.decodeUnknownEffect(
+  EncodedConnectionCatalogDocument,
+);
+
+type EncodedConnectionCatalog = typeof EncodedConnectionCatalogDocument.Type;
+
+function environmentId(value: string) {
+  return EnvironmentId.make(value.trim());
+}
+
+function hydrateCatalog(catalog: EncodedConnectionCatalog): ConnectionCatalogDocumentType {
+  return {
+    schemaVersion: catalog.schemaVersion,
+    targets: catalog.targets.map((target) => {
+      switch (target._tag) {
+        case "BearerConnectionTarget":
+          return new BearerConnectionTarget({
+            ...target,
+            environmentId: environmentId(target.environmentId),
+          });
+        case "RelayConnectionTarget":
+          return new RelayConnectionTarget({
+            ...target,
+            environmentId: environmentId(target.environmentId),
+          });
+        case "SshConnectionTarget":
+          return new SshConnectionTarget({
+            ...target,
+            environmentId: environmentId(target.environmentId),
+          });
+      }
+    }),
+    profiles: catalog.profiles.map((profile) => {
+      switch (profile._tag) {
+        case "BearerConnectionProfile":
+          return new BearerConnectionProfile({
+            ...profile,
+            environmentId: environmentId(profile.environmentId),
+          });
+        case "SshConnectionProfile":
+          return new SshConnectionProfile({
+            ...profile,
+            environmentId: environmentId(profile.environmentId),
+          });
+      }
+    }),
+    credentials: catalog.credentials.map((entry) => ({
+      connectionId: entry.connectionId,
+      credential: new BearerConnectionCredential(entry.credential),
+    })),
+    remoteDpopTokens: catalog.remoteDpopTokens.map(
+      (token) =>
+        new TokenStore.RemoteDpopAccessToken({
+          ...token,
+          environmentId: environmentId(token.environmentId),
+        }),
+    ),
+  };
+}
 
 const decodeCatalog = Effect.fn("mobile.connectionStorage.decodeCatalog")(function* (raw: string) {
-  return yield* decodeConnectionCatalogDocument(raw).pipe(
+  const parsed = yield* Effect.try({
+    try: () => JSON.parse(raw) as unknown,
+    catch: (cause) => catalogError("parse", cause),
+  });
+  const catalog = yield* decodeEncodedConnectionCatalogDocument(parsed).pipe(
     Effect.mapError((cause) => catalogError("decode", cause)),
   );
+  return yield* Effect.try({
+    try: () => hydrateCatalog(catalog),
+    catch: (cause) => catalogError("decode", cause),
+  });
 });
 
 const encodeCatalog = Effect.fn("mobile.connectionStorage.encodeCatalog")(function* (
   catalog: ConnectionCatalogDocumentType,
 ) {
-  return yield* encodeConnectionCatalogDocument(catalog).pipe(
-    Effect.mapError((cause) => catalogError("encode", cause)),
-  );
+  return yield* Effect.try({
+    try: () => JSON.stringify(catalog),
+    catch: (cause) => catalogError("encode", cause),
+  });
 });
 
 interface CatalogStore {

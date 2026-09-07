@@ -15,8 +15,10 @@ import { Button } from "../components/ui/button";
 import { SidebarInset } from "../components/ui/sidebar";
 import { WorkspacePageHeader } from "../components/WorkspacePageHeader";
 import { isElectron } from "../env";
+import { useI18n } from "../i18n/WebI18nProvider";
 
 function RestoreDefaultsButton({ onRestored }: { onRestored: () => void }) {
+  const { t } = useI18n();
   const { changedSettingLabels, restoreDefaults } = useSettingsRestore(onRestored);
 
   return (
@@ -27,7 +29,7 @@ function RestoreDefaultsButton({ onRestored }: { onRestored: () => void }) {
       onClick={() => void restoreDefaults()}
     >
       <RotateCcwIcon className="mx-1 size-3.5" />
-      Restore defaults
+      {t("settings.restoreDefaults")}
     </Button>
   );
 }
@@ -69,7 +71,10 @@ function SettingsContentLayout() {
   }, [navigateBackWithinApp]);
 
   return (
-    <SidebarInset className="h-dvh min-h-0 overflow-hidden overscroll-y-none bg-background text-foreground isolate">
+    <SidebarInset
+      className="h-dvh min-h-0 overflow-hidden overscroll-y-none bg-background text-foreground isolate"
+      data-settings-page-layout
+    >
       <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-background text-foreground">
         <WorkspacePageHeader electron={isElectron}>
           <div className="flex w-full items-center gap-3">

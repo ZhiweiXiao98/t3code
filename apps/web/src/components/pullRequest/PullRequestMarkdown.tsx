@@ -1,36 +1,58 @@
 import { ExternalLinkIcon, PaperclipIcon, PlayIcon } from "lucide-react";
+import type { EnvironmentId, ScopedThreadRef } from "@t3tools/contracts";
+import { createContext, useContext, useMemo } from "react";
+import type { Options as ReactMarkdownOptions } from "react-markdown";
 
 import { cn } from "~/lib/utils";
+import { useI18n } from "~/i18n/WebI18nProvider";
 
 import ChatMarkdown from "../ChatMarkdown";
-import { splitPullRequestBody } from "./pullRequestMarkdown.logic";
+import { remarkPullRequestAutolinks, splitPullRequestBody } from "./pullRequestMarkdown.logic";
+
+export const PullRequestMarkdownContext = createContext<string | null>(null);
 
 /**
  * A pull request body, rendered with the app's markdown renderer plus a card for each upload
  * embedded in it, which that renderer drops on the floor.
  *
- * The card links out instead of playing in place, because nothing here can play. A
- * `github.com/user-attachments/assets/…` link is a 302 to a signed S3 URL that serves the file
- * as uploaded — `video/quicktime` for anything recorded on a Mac, which no Chromium decodes —
- * and the desktop window's content policy declares no `media-src`, so media falls back to
- * `default-src 'self'` and every remote source is refused before a byte is fetched. A player
- * here can only be the box that never fills in; a card that opens the host is a real answer.
+ * These upload URLs do not identify the media format. The card links to GitHub, where the
+ * original upload can be opened or downloaded even when its codec cannot play in the client.
  */
 export function PullRequestMarkdown({
   text,
   cwd,
+  environmentId,
+  threadRef,
   className,
 }: {
   text: string;
   cwd: string;
+  environmentId: EnvironmentId;
+  /** Thread the body is shown beside, so its links can open in that thread's in-app browser. */
+  threadRef?: ScopedThreadRef | null;
   className?: string;
 }) {
+  const { t } = useI18n();
   const segments = splitPullRequestBody(text);
+  const repositoryUrl = useContext(PullRequestMarkdownContext);
+  const extraRemarkPlugins = useMemo<NonNullable<ReactMarkdownOptions["remarkPlugins"]>>(
+    () => (repositoryUrl ? [[remarkPullRequestAutolinks, { repositoryUrl }]] : []),
+    [repositoryUrl],
+  );
   return (
     <div className={cn("space-y-3", className)}>
       {segments.map((segment) => {
         if (segment.kind === "markdown") {
-          return <ChatMarkdown key={segment.id} text={segment.text} cwd={cwd} />;
+          return (
+            <ChatMarkdown
+              key={segment.id}
+              text={segment.text}
+              cwd={cwd}
+              threadRef={threadRef ?? undefined}
+              environmentId={environmentId}
+              extraRemarkPlugins={extraRemarkPlugins}
+            />
+          );
         }
         const isVideo = segment.media === "video";
         const Icon = isVideo ? PlayIcon : PaperclipIcon;
@@ -47,7 +69,9 @@ export function PullRequestMarkdown({
           >
             <Icon aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
             <span className="min-w-0 flex-1 truncate">
-              {isVideo ? "Play video on GitHub" : "Open attachment on GitHub"}
+              {isVideo
+                ? t("pullRequests.markdown.playVideoOnHost")
+                : t("pullRequests.markdown.openAttachmentOnHost")}
             </span>
             <ExternalLinkIcon aria-hidden className="size-3 shrink-0 text-muted-foreground" />
           </a>

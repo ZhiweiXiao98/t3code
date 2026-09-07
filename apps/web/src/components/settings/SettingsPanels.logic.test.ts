@@ -14,7 +14,6 @@ import {
   formatDiagnosticsDescription,
   getChangedBrowserSettingLabels,
   getChangedTypographySettingLabels,
-  isSamePreviewViewport,
   hasChangedBackgroundActivitySettings,
   isProjectGroupingEnabled,
   projectGroupingModeFromToggle,
@@ -188,6 +187,29 @@ describe("formatDiagnosticsDescription", () => {
       }),
     ).toBe("Local trace file.");
   });
+
+  it("accepts localized copy without changing technical URLs", () => {
+    expect(
+      formatDiagnosticsDescription(
+        {
+          localTracingEnabled: true,
+          otlpTracesEnabled: true,
+          otlpTracesUrl: "http://localhost:4318/v1/traces",
+          otlpMetricsEnabled: false,
+        },
+        {
+          localTraceFile: "本地跟踪文件",
+          terminalLogsOnly: "仅终端日志",
+          modeSentence: (mode) => `${mode}。`,
+          exportingOtel: (url) => `正在将 OTEL 导出到 ${url}。`,
+          exportingSignals: (tracesUrl, metricsUrl) =>
+            `正在将 OTEL 跟踪导出到 ${tracesUrl}，并将指标导出到 ${metricsUrl}。`,
+          exportingTraces: (url) => `正在将 OTEL 跟踪导出到 ${url}。`,
+          exportingMetrics: (url) => `正在将 OTEL 指标导出到 ${url}。`,
+        },
+      ),
+    ).toBe("本地跟踪文件。 正在将 OTEL 跟踪导出到 http://localhost:4318/v1/traces。");
+  });
 });
 
 describe("buildProviderInstanceUpdatePatch", () => {
@@ -268,30 +290,17 @@ describe("getChangedBrowserSettingLabels", () => {
         browserDefaultViewport: { _tag: "freeform", width: 900, height: 600 },
         browserDefaultZoomFactor: 1.5,
         browserDefaultAppearance: "dark",
+        browserRecordingFrameRate: 60,
+        browserLinkTarget: "app",
         browserAutoShowFloatingPreview: !DEFAULT_UNIFIED_SETTINGS.browserAutoShowFloatingPreview,
       }),
-    ).toEqual(["Browser viewport", "Browser zoom", "Browser appearance", "Floating preview"]);
-  });
-});
-
-describe("isSamePreviewViewport", () => {
-  it("separates presets that share a size", () => {
-    // Two presets can agree on width and height and still be different
-    // entries in the picker, so the id has to take part in the comparison.
-    expect(
-      isSamePreviewViewport(
-        { _tag: "preset", width: 390, height: 844, presetId: "iphone-12-pro" },
-        { _tag: "preset", width: 390, height: 844, presetId: "ipad-mini" },
-      ),
-    ).toBe(false);
-  });
-
-  it("separates a freeform viewport from a preset of the same size", () => {
-    expect(
-      isSamePreviewViewport(
-        { _tag: "freeform", width: 390, height: 844 },
-        { _tag: "preset", width: 390, height: 844, presetId: "iphone-12-pro" },
-      ),
-    ).toBe(false);
+    ).toEqual([
+      "Browser viewport",
+      "Browser zoom",
+      "Browser appearance",
+      "Recording frame rate",
+      "Open links in",
+      "Floating preview",
+    ]);
   });
 });
