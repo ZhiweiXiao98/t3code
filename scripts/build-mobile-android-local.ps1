@@ -128,7 +128,22 @@ try {
   if ($installedHash -ne $lockHash -or -not (Test-Path -LiteralPath (Join-Path $BuildRoot "node_modules\.modules.yaml"))) {
     Push-Location $BuildRoot
     try {
-      & pnpm.cmd install --frozen-lockfile --config.node-linker=hoisted
+      $installArguments = @(
+        "install"
+        "--frozen-lockfile"
+        "--config.node-linker=hoisted"
+        "--os"
+        "win32"
+        "--cpu"
+        "x64"
+      )
+      & pnpm.cmd @installArguments --offline
+      if ($LASTEXITCODE -ne 0) {
+        Write-Host "The offline dependency cache is incomplete. Fetching missing packages once..."
+        & pnpm.cmd @installArguments `
+          --fetch-retries 0 `
+          --fetch-timeout 30000
+      }
       if ($LASTEXITCODE -ne 0) {
         throw "The hoisted Android dependency install failed with exit code $LASTEXITCODE."
       }
