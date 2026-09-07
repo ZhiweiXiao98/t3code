@@ -1,4 +1,5 @@
-import { ChevronDownIcon, GitPullRequestIcon, RefreshCwIcon } from "lucide-react";
+import { RefreshIcon } from "~/components/ui/refresh-icon";
+import { ChevronDownIcon, GitPullRequestIcon } from "lucide-react";
 import * as Duration from "effect/Duration";
 import * as Option from "effect/Option";
 import { useEffect, useState, type ReactNode } from "react";
@@ -333,7 +334,7 @@ function DiscoveryItemRow({
   return (
     <div
       className={cn(
-        "rounded-xl transition-colors hover:bg-muted/20",
+        "first:rounded-t-xl last:rounded-b-xl transition-colors hover:bg-muted/20",
         isVcsNotReady(item) && "opacity-80",
       )}
     >
@@ -486,7 +487,7 @@ function SourceControlSectionSkeleton({
   return (
     <SettingsSection title={title} headerAction={headerAction}>
       {SOURCE_CONTROL_SKELETON_ROWS.map((row) => (
-        <div key={row} className="rounded-xl px-3 py-3 sm:px-4">
+        <div key={row} className="first:rounded-t-xl last:rounded-b-xl px-3 py-3 sm:px-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0 flex-1 space-y-2">
               <div className="flex items-center gap-2">
@@ -544,7 +545,7 @@ function EmptySourceControlDiscovery({
         </EmptyHeader>
         <EmptyContent>
           <Button size="sm" variant="outline" onClick={onScan} disabled={isPending}>
-            <RefreshCwIcon className={cn("size-3.5", isPending && "animate-spin")} />
+            <RefreshIcon className="size-3.5" refreshing={isPending} />
             {t("sourceControl.empty.scan")}
           </Button>
         </EmptyContent>
@@ -590,7 +591,7 @@ export function SourceControlSettingsPanel() {
             disabled={discovery.isPending}
             aria-label={t("sourceControl.action.rescan")}
           >
-            <RefreshCwIcon className={cn(discovery.isPending && "animate-spin")} />
+            <RefreshIcon refreshing={discovery.isPending} />
           </Button>
         }
       />

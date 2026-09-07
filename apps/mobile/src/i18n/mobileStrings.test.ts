@@ -41,6 +41,8 @@ describe("mobile strings", () => {
 
   it("translates usage limits and provider setup states", () => {
     expect(localizeMobileString("82% used", "zh-CN")).toBe("已使用 82%");
+    expect(localizeMobileString("in 2h 5m", "zh-CN")).toBe("2 小时 5 分钟后");
+    expect(localizeMobileString("Dismiss usage limits", "zh-CN")).toBe("关闭用量限额");
     expect(localizeMobileString("ahead of pace · resets in 2h 5m", "zh-CN")).toBe(
       "用量偏快 · 2 小时 5 分钟后重置",
     );

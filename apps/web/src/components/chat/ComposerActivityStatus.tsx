@@ -1,4 +1,5 @@
-import { LoaderCircleIcon } from "lucide-react";
+import { Spinner } from "~/components/ui/spinner";
+
 import { useI18n } from "../../i18n/WebI18nProvider";
 import type { ThreadSyncPhase } from "../../threadSync";
 import { ComposerBanner } from "./ComposerBanner";
@@ -8,7 +9,7 @@ export function ComposerActivityRow({ phase }: { readonly phase: ThreadSyncPhase
   return (
     <ComposerBanner.Row>
       <ComposerBanner.Icon>
-        <LoaderCircleIcon className="motion-safe:animate-spin" />
+        <Spinner />
       </ComposerBanner.Icon>
       <ComposerBanner.Content>
         <span

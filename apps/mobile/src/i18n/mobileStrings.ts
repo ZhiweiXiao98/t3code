@@ -143,7 +143,6 @@ const ZH_CN_MESSAGES = {
   "Environment caches": "环境缓存",
   "Environment unavailable": "环境不可用",
   Error: "错误",
-  Environments: "环境",
   "Excluded from this commit": "未包含在本次提交中",
   "Existing branches": "现有分支",
   Failed: "失败",
@@ -349,7 +348,7 @@ const ZH_CN_MESSAGES = {
   "Sort by archived date": "按归档日期排序",
   "Sort projects": "排序项目",
   "Sort threads": "排序任务",
-  Source: "源文件",
+  Source: "来源",
   "Start another shell for this thread": "为此任务启动另一个终端",
   "Start dictation": "开始语音输入",
   "Start from origin": "从 origin 开始",
@@ -595,6 +594,51 @@ const ZH_CN_MESSAGES = {
   "Use a reset credit?": "使用一个重置额度？",
   "Use credit": "使用额度",
   "Using credit…": "正在使用额度…",
+  "Use reset": "使用重置额度",
+  "Usage limits": "用量限额",
+  "Dismiss usage limits": "关闭用量限额",
+  "Dismiss feedback notice": "关闭反馈提示",
+  "Dismiss without answering": "不回答并关闭",
+  "Ahead of pace": "用量偏快",
+  "On pace": "用量正常",
+  "Under pace": "用量偏慢",
+  left: "剩余",
+  now: "现在",
+  "Show account details": "显示账号详情",
+  "Select an environment to see limits.": "选择一个环境以查看限额。",
+  "No provider on the selected environments reports subscription limits.":
+    "所选环境中没有服务提供方报告订阅限额。",
+  "Hide account email": "隐藏账号邮箱",
+  "Reveal account email": "显示账号邮箱",
+  "This account is no longer reporting limits on the selected environments.":
+    "此账号已不再报告所选环境的限额。",
+  Resets: "重置时间",
+  Restores: "恢复额度",
+  "Signed in": "登录位置",
+  "Reset credits": "重置额度",
+  "Raw token cost": "原始 Token 成本",
+  "* if billed at full API rate": "* 按完整 API 费率估算",
+  "Past 24 hours": "过去 24 小时",
+  "Past 7 days": "过去 7 天",
+  "Past 30 days": "过去 30 天",
+  "Past 90 days": "过去 90 天",
+  Cost: "成本",
+  Tokens: "Token",
+  Environments: "环境",
+  "Filter usage environments": "筛选用量环境",
+  "Filter usage environments, some environments are loading": "筛选用量环境，部分环境仍在加载",
+  "Select an environment to see usage.": "选择一个环境以查看用量。",
+  "Older server · excluded from usage totals": "服务器版本较旧 · 未计入用量总计",
+  "Disconnected · showing saved usage": "连接已断开 · 正在显示已保存的用量",
+  "Waiting for connection…": "正在等待连接…",
+  "Usage unavailable · showing saved totals": "用量不可用 · 正在显示已保存的总计",
+  "Usage unavailable": "用量不可用",
+  "Updating usage…": "正在更新用量…",
+  "Loading usage…": "正在加载用量…",
+  "Usage up to date": "用量已是最新",
+  "Cache read": "缓存读取",
+  "Cache write": "缓存写入",
+  "of records, excluded from cost": "记录未计价，已从成本中排除",
   "Video unavailable": "视频不可用",
   "Waiting for the environment.": "正在等待环境响应。",
   "Complete sign-in in your browser.": "请在浏览器中完成登录。",
@@ -611,6 +655,50 @@ function translateDynamicMessage(value: string): string | null {
   const percentUsed = /^(\d+)% used$/.exec(value);
   if (percentUsed) return `已使用 ${percentUsed[1]}%`;
 
+  const percentLeft = /^(\d+)% left$/.exec(value);
+  if (percentLeft) return `剩余 ${percentLeft[1]}%`;
+
+  const sessions = /^Across (.+) sessions$/.exec(value);
+  if (sessions) return `共 ${sessions[1]} 个会话`;
+
+  const share = /^(.+) of (cost|tokens) · (.+?)(?: tokens)?$/.exec(value);
+  if (share)
+    return `${share[1]} 的${share[2] === "cost" ? "成本" : "Token"}占比 · ${share[3]} Token`;
+
+  const periodAverage = /^(.+) per active (hour|day)$/.exec(value);
+  if (periodAverage)
+    return `每个活跃${periodAverage[2] === "hour" ? "小时" : "日期"} ${periodAverage[1]}`;
+
+  const rawCost = /^(.+)x the raw cost$/.exec(value);
+  if (rawCost) return `为原始成本的 ${rawCost[1]} 倍`;
+
+  const observedInput = /^(.+) of observed input$/.exec(value);
+  if (observedInput) return `占观测输入的 ${observedInput[1]}`;
+
+  const cacheWrites = /^(.+) cache writes$/.exec(value);
+  if (cacheWrites) return `${cacheWrites[1]} 个缓存写入 Token`;
+
+  const reasoning = /^incl\. (.+) reasoning$/.exec(value);
+  if (reasoning) return `其中推理 Token 为 ${reasoning[1]}`;
+
+  const restoresPool = /^Restores (\d+)% of the pool$/.exec(value);
+  if (restoresPool) return `恢复池额度的 ${restoresPool[1]}%`;
+
+  const resetAt = /^Resets (.+)$/.exec(value);
+  if (resetAt) return `重置时间：${resetAt[1]}`;
+
+  const refreshLimits = /^(.+) could not refresh limits\. Showing the last known values\.$/.exec(
+    value,
+  );
+  if (refreshLimits) return `${refreshLimits[1]} 无法刷新限额，正在显示上次已知值。`;
+
+  const segment = /^Segment (\d+), (.+), (\d+)% left(.*)$/.exec(value);
+  if (segment) return `区段 ${segment[1]}，${segment[2]}，剩余 ${segment[3]}%${segment[4]}`;
+
+  const duplicateUsage =
+    /^Counted once across environments sharing a transcript directory: (.+)$/.exec(value);
+  if (duplicateUsage) return `共享同一记录目录的环境仅计一次：${duplicateUsage[1]}`;
+
   const playMedia = /^Play (.+)$/.exec(value);
   if (playMedia) return `播放 ${playMedia[1]}`;
 
@@ -626,6 +714,8 @@ function translateDynamicMessage(value: string): string | null {
       .replace(/(\d+)m/g, "$1 分钟");
 
   if (value === "resets now") return "即将重置";
+  const inDuration = /^in (.+)$/.exec(value);
+  if (inDuration) return `${localizeDuration(inDuration[1])}后`;
   const resetsIn = /^resets in (.+)$/.exec(value);
   if (resetsIn) return `${localizeDuration(resetsIn[1])}后重置`;
 

@@ -1,8 +1,13 @@
-import { lazy, Suspense, useCallback } from "react";
+import { lazy, Suspense, useCallback, useSyncExternalStore } from "react";
 
 import { useTheme } from "../../hooks/useTheme";
 import { useI18n } from "../../i18n/WebI18nProvider";
-import { getThemeDefinition, type ThemeAppearance, type ThemeDefinition } from "../../themePalette";
+import {
+  getThemeDefinition,
+  subscribeToCustomThemes,
+  type ThemeAppearance,
+  type ThemeDefinition,
+} from "../../themePalette";
 import { stackedThreadToast, toastManager } from "../ui/toast";
 import { useThemeEditorStore } from "./themeEditorStore";
 
@@ -12,6 +17,14 @@ import { useThemeEditorStore } from "./themeEditorStore";
 const ThemeEditorPanel = lazy(() =>
   import("./ThemeEditorPanel").then((module) => ({ default: module.ThemeEditorPanel })),
 );
+
+function useThemeDefinition(id: string | null | undefined) {
+  return useSyncExternalStore(
+    subscribeToCustomThemes,
+    () => (id ? (getThemeDefinition(id) ?? null) : null),
+    () => null,
+  );
+}
 
 /**
  * Renders the theme editor above the router. The editor paints its draft on
@@ -23,6 +36,9 @@ export function ThemeEditorHost() {
   const session = useThemeEditorStore((store) => store.session);
   const closeThemeEditor = useThemeEditorStore((store) => store.closeThemeEditor);
   const { theme, setTheme, themeHalves, refreshTheme } = useTheme();
+  // A saved definition can change without its id changing between sessions.
+  const editingTheme = useThemeDefinition(session?.editingThemeId);
+  const seedTheme = useThemeDefinition(session?.seedThemeId);
 
   // The panel reports which path it actually took: a theme removed while its
   // editor is open resolves to null there, so the save becomes a create even
@@ -106,13 +122,6 @@ export function ThemeEditorHost() {
   );
 
   if (!session) return null;
-
-  // Resolve on every render: an edit or import can change the stored
-  // definitions while a session is open.
-  const editingTheme = session.editingThemeId
-    ? (getThemeDefinition(session.editingThemeId) ?? null)
-    : null;
-  const seedTheme = session.seedThemeId ? (getThemeDefinition(session.seedThemeId) ?? null) : null;
 
   return (
     <Suspense fallback={null}>

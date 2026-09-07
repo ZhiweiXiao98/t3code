@@ -1,4 +1,4 @@
-import { RefreshCwIcon } from "lucide-react";
+import { RefreshIcon } from "~/components/ui/refresh-icon";
 
 import { cn } from "~/lib/utils";
 import { useI18n } from "../../i18n/WebI18nProvider";
@@ -25,7 +25,7 @@ export function PullRequestActivityUnavailableState({
       <p className="text-sm font-medium text-foreground">{t("pullRequests.activity.loadFailed")}</p>
       <p className="max-w-md text-xs text-muted-foreground">{error}</p>
       <Button size="sm" variant="outline" onClick={onRetry}>
-        <RefreshCwIcon aria-hidden className="size-3.5" />
+        <RefreshIcon aria-hidden className="size-3.5" />
         {t("common.retry")}
       </Button>
     </div>

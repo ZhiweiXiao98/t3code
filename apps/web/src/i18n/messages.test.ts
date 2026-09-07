@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { translateWebMessage } from "./messages";
+import { translateWebMessage, translateWebSource } from "./messages";
 
 describe("translateWebMessage", () => {
   it("uses English as the complete baseline catalog", () => {
@@ -47,6 +47,10 @@ describe("translateWebMessage", () => {
         orientation: "横向",
       }),
     ).toBe("旋转为横向");
+    expect(translateWebSource("zh-CN", "No actions configured.")).toBe("尚未配置操作。");
+    expect(translateWebSource("zh-CN", "Project agent browser access")).toBe(
+      "项目 Agent 浏览器访问权限",
+    );
   });
 
   it("localizes dialog copy while preserving technical values", () => {

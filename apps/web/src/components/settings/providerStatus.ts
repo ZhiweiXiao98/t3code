@@ -61,7 +61,8 @@ export type ProviderStatusKey = keyof typeof PROVIDER_STATUS_STYLES;
  * settings page. Prefers `provider.message` for server-supplied detail and
  * falls back to generic phrasing when the server has not yet reported any
  * state — which happens before the first probe or when an instance names a
- * driver this build does not ship.
+ * driver this build does not ship. A ready provider without account metadata
+ * remains available and does not imply an authentication failure.
  */
 export function getProviderSummary(
   provider: ServerProvider | undefined,
@@ -73,7 +74,7 @@ export function getProviderSummary(
       detail: t("providers.status.waiting"),
     };
   }
-  if (!provider.enabled) {
+  if (!provider.enabled || provider.status === "disabled") {
     return {
       headline: t("providers.status.disabled"),
       detail: provider.message
@@ -87,15 +88,6 @@ export function getProviderSummary(
       detail: provider.message
         ? translateProviderMessage(provider.message, t)
         : t("providers.status.cliNotDetected"),
-    };
-  }
-  if (provider.auth.status === "authenticated") {
-    const authLabel = provider.auth.label ?? provider.auth.type;
-    return {
-      headline: authLabel
-        ? t("providers.status.authenticatedWith", { method: authLabel })
-        : t("providers.status.authenticated"),
-      detail: provider.message ? translateProviderMessage(provider.message, t) : null,
     };
   }
   if (provider.auth.status === "unauthenticated") {
@@ -120,11 +112,16 @@ export function getProviderSummary(
         : t("providers.status.unavailableDetail"),
     };
   }
+  if (provider.auth.status === "authenticated") {
+    const authLabel = provider.auth.label ?? provider.auth.type;
+    return {
+      headline: authLabel ? `Authenticated · ${authLabel}` : "Authenticated",
+      detail: provider.message ?? null,
+    };
+  }
   return {
-    headline: t("providers.status.available"),
-    detail: provider.message
-      ? translateProviderMessage(provider.message, t)
-      : t("providers.status.availableDetail"),
+    headline: "Available",
+    detail: provider.message ?? null,
   };
 }
 

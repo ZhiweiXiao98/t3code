@@ -297,11 +297,7 @@ export const OpenInPicker = memo(function OpenInPicker({
       <Menu>
         <MenuTrigger
           render={
-            <Button
-              aria-label={t(compact ? "headerAction.chooseEditor" : "headerAction.options")}
-              size="icon-xs"
-              variant="outline"
-            />
+            <Button aria-label={t("headerAction.chooseEditor")} size="icon-xs" variant="outline" />
           }
         >
           <ChevronDownIcon aria-hidden="true" className="size-4" />

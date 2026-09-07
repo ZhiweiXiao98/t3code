@@ -1,5 +1,7 @@
+import { RefreshIcon } from "~/components/ui/refresh-icon";
+import { Spinner } from "~/components/ui/spinner";
 import type { EnvironmentId } from "@t3tools/contracts";
-import { ArrowLeftIcon, ChevronRightIcon, LoaderCircleIcon, RotateCwIcon } from "lucide-react";
+import { ArrowLeftIcon, ChevronRightIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { PierreEntryIcon } from "~/components/chat/PierreEntryIcon";
@@ -130,12 +132,12 @@ function BreadcrumbMenuContent(props: {
       <MenuGroup key={props.directoryPath}>
         {entriesQuery.isPending && entriesQuery.data === null ? (
           <MenuItem disabled>
-            <LoaderCircleIcon className="animate-spin" />
+            <Spinner />
             {t("files.breadcrumb.loadingFolder")}
           </MenuItem>
         ) : entriesQuery.error && entriesQuery.data === null ? (
           <MenuItem closeOnClick={false} onClick={entriesQuery.refresh}>
-            <RotateCwIcon />
+            <RefreshIcon refreshing={entriesQuery.isPending} />
             <span className="min-w-0 flex-1 truncate">{t("files.breadcrumb.retryFolder")}</span>
           </MenuItem>
         ) : !directoryAvailable && !entriesTruncated ? (
@@ -183,7 +185,7 @@ function BreadcrumbMenuContent(props: {
         <>
           <MenuSeparator />
           <MenuItem closeOnClick={false} onClick={entriesQuery.refresh}>
-            <RotateCwIcon />
+            <RefreshIcon refreshing={entriesQuery.isPending} />
             {t("files.breadcrumb.refreshFailed")}
           </MenuItem>
         </>

@@ -70,6 +70,8 @@ export function AppTextInput({
       )}
       placeholder={placeholder === undefined ? undefined : localizeMobileString(placeholder)}
       placeholderTextColorClassName="accent-placeholder"
+      selectionColorClassName="accent-foreground-secondary"
+      cursorColorClassName="accent-foreground-secondary"
       {...props}
     />
   );

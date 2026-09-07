@@ -2,7 +2,6 @@ import { memo, type PointerEventHandler } from "react";
 import { ChevronDownIcon, ChevronLeftIcon } from "lucide-react";
 import { useEnvironmentIdentificationMode } from "~/hooks/useSettings";
 import { useI18n, type WebTranslate } from "~/i18n/WebI18nProvider";
-import { translateWebMessage } from "~/i18n/messages";
 import { cn } from "~/lib/utils";
 import { StageBackdropButtonArt, useSidebarStageBackdropVariant } from "../SidebarStageBackdrop";
 import { Button } from "../ui/button";
@@ -39,16 +38,14 @@ interface ComposerPrimaryActionsProps {
   onImplementPlanInNewThread: () => void;
 }
 
-const translateEnglish: WebTranslate = (key, values) => translateWebMessage("en", key, values);
-
-export const formatPendingPrimaryActionLabel = (
+const formatPendingPrimaryActionLabel = (
   input: {
     compact: boolean;
     isLastQuestion: boolean;
     isResponding: boolean;
     questionIndex: number;
   },
-  t: WebTranslate = translateEnglish,
+  t: WebTranslate,
 ) => {
   if (input.isResponding) {
     return t("composer.action.submitting");

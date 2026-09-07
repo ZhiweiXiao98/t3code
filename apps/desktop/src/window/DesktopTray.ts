@@ -60,7 +60,13 @@ export const make = Effect.gen(function* () {
 
         const iconPath = environment.path.join(environment.resourcesPath, "icon.ico");
 
-        const settings = yield* clientSettings.get;
+        const settings = yield* clientSettings.get.pipe(
+          Effect.catch((error) =>
+            logTrayWarning("Could not read the desktop language setting.", { error }).pipe(
+              Effect.as(Option.none()),
+            ),
+          ),
+        );
         const systemLocale = yield* electronApp.systemLocale;
         const appName = yield* electronApp.name;
         const appLocale = Option.match(settings, {

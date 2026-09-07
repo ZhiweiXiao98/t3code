@@ -40,6 +40,7 @@ import type { WebMessageKey } from "../../i18n/messages";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Switch } from "../ui/switch";
+import { Toggle, ToggleGroup } from "../ui/toggle-group";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { getThemeRoleLabel, ThemeColorField } from "./ThemeColorPicker";
 import {
@@ -958,24 +959,17 @@ export function ThemeEditorPanel({
   );
 
   const renderAppearanceButton = (appearance: ThemeAppearance) => {
-    const isActive = activeAppearance === appearance;
     const lockReason = appearanceLockReason(appearance);
     // A locked mode stays hoverable so the tooltip can say why it is off;
     // a real disabled attribute would swallow the pointer events.
     const button = (
-      <Button
+      <Toggle
         aria-disabled={lockReason !== null}
-        aria-pressed={isActive}
-        size="sm"
+        value={appearance}
         className={lockReason !== null ? "opacity-50" : undefined}
-        style={isActive ? { boxShadow: "inset 0 0 0 1px var(--ring)" } : undefined}
-        variant={isActive ? "secondary" : "outline"}
-        onClick={() => {
-          if (lockReason === null) setActiveAppearance(appearance);
-        }}
       >
-        {t(appearance === "light" ? "appearance.themeEditor.light" : "appearance.themeEditor.dark")}
-      </Button>
+        {appearance === "light" ? "Light" : "Dark"}
+      </Toggle>
     );
     if (lockReason === null) return button;
     return (
@@ -989,14 +983,23 @@ export function ThemeEditorPanel({
   const renderAppearanceButtons = () => (
     <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] items-center gap-3">
       <span className="text-sm font-medium">{t("appearance.themeEditor.appearance")}</span>
-      <div
-        aria-label={t("appearance.themeEditor.appearanceGroup")}
-        className="grid grid-cols-2 gap-2"
-        role="group"
+      <ToggleGroup
+        aria-label="Theme appearance"
+        variant="segmented"
+        value={[activeAppearance]}
+        onValueChange={(next) => {
+          const appearance = next[0];
+          if (
+            (appearance === "light" || appearance === "dark") &&
+            appearanceLockReason(appearance) === null
+          ) {
+            setActiveAppearance(appearance);
+          }
+        }}
       >
         {renderAppearanceButton("light")}
         {renderAppearanceButton("dark")}
-      </div>
+      </ToggleGroup>
     </div>
   );
 

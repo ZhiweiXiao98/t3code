@@ -1360,7 +1360,7 @@ function KeybindingsList(props: KeybindingsListProps) {
 function BrowserKeybindingNotice() {
   const { t } = useI18n();
   return (
-    <div className="flex items-center gap-1.5 px-3 pb-2 text-[12px] text-muted-foreground sm:px-4">
+    <div className="flex items-center gap-2 px-3 py-2.5 text-[12px] leading-[1.45] text-muted-foreground sm:px-4">
       <TriangleAlertIcon className="size-3.5 shrink-0 text-warning" aria-hidden />
       <span>{t("keybindings.browserWarning")}</span>
     </div>

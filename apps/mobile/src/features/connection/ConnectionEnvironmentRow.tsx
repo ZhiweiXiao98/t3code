@@ -16,8 +16,6 @@ import { LocalizedAlert as Alert } from "../../i18n/LocalizedAlert";
 import { copyTextWithHaptic } from "../../lib/copyTextWithHaptic";
 import type { ConnectedEnvironmentSummary } from "../../state/remote-runtime-types";
 import { serverEnvironment } from "../../state/server";
-import { ProviderSetupLink } from "../settings/ProviderSetupLink";
-import type { ProviderSetupRouteParams } from "../settings/SettingsProviderSetupRouteScreen";
 import { ConnectionStatusDot } from "./ConnectionStatusDot";
 
 function connectionStatusLabel(environment: ConnectedEnvironmentSummary): string | null {
@@ -34,7 +32,6 @@ export function ConnectionEnvironmentRow(props: {
   readonly onToggle: () => void;
   readonly onReconnect: (environmentId: EnvironmentId) => void;
   readonly onRemove: (environmentId: EnvironmentId) => void;
-  readonly onSetupProvider: (target: ProviderSetupRouteParams) => void;
   readonly onUpdate: (
     environmentId: EnvironmentId,
     updates: { readonly label: string; readonly displayUrl: string },
@@ -94,7 +91,7 @@ export function ConnectionEnvironmentRow(props: {
             <Text
               className={cn(
                 "text-xs",
-                hasConnectionFailure ? "text-adaptive-rose-500-400" : "text-foreground-muted",
+                hasConnectionFailure ? "text-danger-foreground" : "text-foreground-muted",
               )}
               numberOfLines={props.expanded ? undefined : 1}
               selectable={props.expanded}
@@ -176,22 +173,6 @@ export function ConnectionEnvironmentRow(props: {
               </View>
             </>
           )}
-
-          {serverConfig?.providers
-            .filter((provider) => provider.setup?.canAuthenticate || provider.setup?.canInstall)
-            .map((provider) => (
-              <ProviderSetupLink
-                key={provider.instanceId}
-                provider={provider}
-                disabled={props.environment.connectionState !== "connected"}
-                onPress={() =>
-                  props.onSetupProvider({
-                    environmentId: props.environment.environmentId,
-                    instanceId: provider.instanceId,
-                  })
-                }
-              />
-            ))}
 
           <View className="flex-row justify-end gap-2">
             {props.environment.isRelayManaged ? null : (

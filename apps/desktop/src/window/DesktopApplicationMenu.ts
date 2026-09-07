@@ -137,7 +137,13 @@ export const make = Effect.gen(function* () {
   };
 
   const configure = Effect.gen(function* () {
-    const settings = yield* clientSettings.get;
+    const settings = yield* clientSettings.get.pipe(
+      Effect.catch((error) =>
+        logMenuError("Could not read the desktop language setting.", { error }).pipe(
+          Effect.as(Option.none()),
+        ),
+      ),
+    );
     const systemLocale = yield* electronApp.systemLocale;
     const appLocale = Option.match(settings, {
       onNone: () => DEFAULT_APP_LOCALE_PREFERENCE,

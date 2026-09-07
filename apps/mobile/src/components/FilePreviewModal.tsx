@@ -4,7 +4,7 @@ import { useEffect, useEffectEvent, useState } from "react";
 import { Keyboard } from "react-native";
 
 import { LocalizedAlert as Alert } from "../i18n/LocalizedAlert";
-import type { DraftComposerFileAttachment } from "../lib/composerImages";
+import type { FileBackedComposerAttachment } from "../lib/composerImages";
 import { loadLocalAttachmentPreview } from "../lib/localAttachmentPreview";
 import type { MediaActionsSource } from "../lib/mediaActions";
 import { useAssetUrlState } from "../state/assets";
@@ -23,7 +23,7 @@ export interface ResolvedFilePreviewSource {
 export type FilePreviewSource = Omit<ResolvedFilePreviewSource, "uri"> &
   (
     | { readonly uri: string }
-    | { readonly attachment: DraftComposerFileAttachment }
+    | { readonly attachment: FileBackedComposerAttachment }
     | { readonly environmentId: EnvironmentId; readonly resource: AssetResource }
   );
 
