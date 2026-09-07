@@ -3454,12 +3454,14 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
 
   if (!options.skipBuild) {
     yield* Effect.log("[desktop-artifact] Building desktop/server/web artifacts...");
-    const spawnCommand = yield* resolveSpawnCommand("vp", ["run", "build:desktop"]);
     yield* runCommand(
-      ChildProcess.make(spawnCommand.command, spawnCommand.args, {
-        cwd: repoRoot,
-        shell: spawnCommand.shell,
-      }),
+      ChildProcess.make(
+        process.execPath,
+        [path.join(repoRoot, "node_modules/vite-plus/bin/vp"), "run", "build:desktop"],
+        {
+          cwd: repoRoot,
+        },
+      ),
       { label: "vp run build:desktop", verbose: options.verbose },
     );
   }
@@ -3813,13 +3815,15 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
     "--publish",
     "never",
   ];
-  const builderCommand = yield* resolveSpawnCommand("vp", builderArgs, { env: buildEnv });
   yield* runCommand(
-    ChildProcess.make(builderCommand.command, builderCommand.args, {
-      cwd: repoRoot,
-      env: buildEnv,
-      shell: builderCommand.shell,
-    }),
+    ChildProcess.make(
+      process.execPath,
+      [path.join(repoRoot, "node_modules/vite-plus/bin/vp"), ...builderArgs],
+      {
+        cwd: repoRoot,
+        env: buildEnv,
+      },
+    ),
     {
       label: `vp exec --filter @t3tools/desktop -- electron-builder --projectDir ${stageAppDir} ${platformConfig.cliFlag} --${options.arch} --publish never`,
       verbose: options.verbose,
