@@ -43,6 +43,7 @@ const ZH_CN_MESSAGES = {
   "Awaiting Input": "等待输入",
   "Back to chat": "返回对话",
   Branch: "分支",
+  "Base branch": "基础分支",
   "Branch changes": "分支更改",
   "Branches & worktrees": "分支与工作树",
   "Browse a folder on disk": "浏览磁盘上的文件夹",
@@ -123,6 +124,7 @@ const ZH_CN_MESSAGES = {
   "Could not snooze thread": "无法稍后处理任务",
   "Could not start task": "无法启动任务",
   "Could not switch branch": "无法切换分支",
+  "Could not restore draft": "无法恢复草稿",
   "Could not unpin thread": "无法取消置顶任务",
   "Could not update environment": "无法更新环境",
   "Could not wake thread": "无法唤醒任务",
@@ -181,6 +183,7 @@ const ZH_CN_MESSAGES = {
   Legal: "法律信息",
   "Loading archive...": "正在加载归档…",
   "Loading branches...": "正在加载分支…",
+  "Loading branches…": "正在加载分支…",
   "Loading diff…": "正在加载差异…",
   "Loading file...": "正在加载文件…",
   "Loading image...": "正在加载图片…",
@@ -649,6 +652,15 @@ const ZH_CN_MESSAGES = {
   "Attachment still uploading": "附件仍在上传",
   "Retry or remove the failed attachment": "请重试或移除上传失败的附件",
   Worktree: "工作树",
+  "Switching branch...": "正在切换分支…",
+  "The branch could not be checked out.": "无法检出该分支。",
+  "The task could not be saved to the outbox.": "无法将任务保存到发送队列。",
+  "Your prompt was kept in the project draft.": "你的提示词已保留在项目草稿中。",
+  "Edit task": "编辑任务",
+  "Setting up worktree…": "正在设置工作树…",
+  "Starting…": "正在启动…",
+  "Starting the task…": "正在启动任务…",
+  "New thread on branch": "基于分支新建任务",
 } as const satisfies Readonly<Record<string, string>>;
 
 function translateDynamicMessage(value: string): string | null {
@@ -737,6 +749,17 @@ function translateDynamicMessage(value: string): string | null {
 
   const limitsEnvironment = /^Limits · (.+)$/.exec(value);
   if (limitsEnvironment) return `额度 · ${limitsEnvironment[1]}`;
+
+  const branchSelection = /^(Base branch|Branch): (.+)$/.exec(value);
+  if (branchSelection)
+    return `${branchSelection[1] === "Base branch" ? "基础分支" : "分支"}：${branchSelection[2]}`;
+
+  const switchesWorkspace = /^Switches to (a new worktree|the current checkout)$/.exec(value);
+  if (switchesWorkspace)
+    return switchesWorkspace[1] === "a new worktree" ? "切换到新工作树" : "切换到当前检出目录";
+
+  const newThreadOnBranch = /^New thread on (.+)$/.exec(value);
+  if (newThreadOnBranch) return `基于 ${newThreadOnBranch[1]} 新建任务`;
 
   const installState = /^(Enabled|Disabled)\. (Installed)(?: (.+))?$/.exec(value);
   if (installState) {

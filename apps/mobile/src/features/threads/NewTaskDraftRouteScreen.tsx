@@ -1,6 +1,6 @@
 import { useNavigation, usePreventRemove, type StaticScreenProps } from "@react-navigation/native";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, View } from "react-native";
+import { View } from "react-native";
 import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
@@ -10,6 +10,8 @@ import { useProjects } from "../../state/entities";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { useWorkspaceState } from "../../state/workspace";
 import { vcsEnvironment } from "../../state/vcs";
+import { LocalizedAlert as Alert } from "../../i18n/LocalizedAlert";
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { checkoutNewTaskBranch } from "./checkout-new-task-branch";
 import { NativeStackScreenOptions } from "../../native/StackHeader";
 
@@ -148,7 +150,9 @@ export function NewTaskDraftRouteScreen({ route }: StaticScreenProps<NewTaskDraf
     <>
       <NativeStackScreenOptions
         options={{
-          title: Array.isArray(params.title) ? params.title[0] : (params.title ?? "New task"),
+          title: localizeMobileString(
+            Array.isArray(params.title) ? params.title[0] : (params.title ?? "New task"),
+          ),
         }}
       />
       {preparingBranch ? (

@@ -30,6 +30,11 @@ describe("mobile strings", () => {
       ),
     ).toBe("此会话已有 2 小时 5 分钟，当前使用 250,000 个令牌。是否先压缩再继续？");
     expect(localizeMobileString("Recording 1:04", "zh-CN")).toBe("正在录音 1:04");
+    expect(localizeMobileString("Base branch: main", "zh-CN")).toBe("基础分支：main");
+    expect(localizeMobileString("Switches to a new worktree", "zh-CN")).toBe("切换到新工作树");
+    expect(localizeMobileString("New thread on feature/mobile", "zh-CN")).toBe(
+      "基于 feature/mobile 新建任务",
+    );
   });
 
   it("translates attachment and voice input controls", () => {

@@ -60,7 +60,7 @@ describe("new-task branch checkout", () => {
     expect(result.value.name).toBe("feature/a");
     expect(result.value.current).toBe(true);
     expect((await git("branch", "--show-current")).stdout.trim()).toBe("feature/a");
-    expect(await NodeFSP.readFile(NodePath.join(cwd, "file.txt"), "utf8")).toBe("feature\n");
+    expect((await NodeFSP.readFile(NodePath.join(cwd, "file.txt"), "utf8")).trim()).toBe("feature");
   });
 
   it("does not release the selection while checkout is still pending", async () => {
@@ -125,8 +125,8 @@ describe("new-task branch checkout", () => {
     if (result._tag !== "Success") throw new Error("Worktree selection failed");
     expect(result.value.worktreePath).toBe(worktreePath);
     expect((await git("branch", "--show-current")).stdout.trim()).toBe("main");
-    expect(await NodeFSP.readFile(NodePath.join(worktreePath, "file.txt"), "utf8")).toBe(
-      "feature\n",
+    expect((await NodeFSP.readFile(NodePath.join(worktreePath, "file.txt"), "utf8")).trim()).toBe(
+      "feature",
     );
   });
 });

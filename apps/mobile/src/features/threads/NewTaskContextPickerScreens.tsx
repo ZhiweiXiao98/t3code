@@ -8,15 +8,7 @@ import {
 import * as Haptics from "expo-haptics";
 import { useNavigation } from "@react-navigation/native";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Platform,
-  Pressable,
-  ScrollView,
-  TextInput,
-  View,
-} from "react-native";
+import { ActivityIndicator, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AndroidScreenHeader } from "../../components/AndroidScreenHeader";
@@ -36,6 +28,8 @@ import {
 } from "../layout/native-mail-search-toolbar";
 import { branchBadgeLabel, useNewTaskFlow } from "./new-task-flow-provider";
 import { checkoutNewTaskBranch } from "./checkout-new-task-branch";
+import { LocalizedAlert as Alert } from "../../i18n/LocalizedAlert";
+import { localizeMobileString } from "../../i18n/mobileStrings";
 
 function SelectionRow(props: {
   readonly icon?: "arrow.triangle.branch" | ReactNode;
@@ -210,7 +204,9 @@ export function NewTaskBranchPickerRouteScreen() {
   const selectingBranchNameRef = useRef<string | null>(null);
   const allowSelectionNavigationRef = useRef(false);
   const mountedRef = useRef(true);
-  const screenTitle = flow.workspaceMode === "worktree" ? "Base branch" : "Branch";
+  const screenTitle = localizeMobileString(
+    flow.workspaceMode === "worktree" ? "Base branch" : "Branch",
+  );
   const usesNativeMailSearchToolbar = Platform.OS === "ios" && NATIVE_MAIL_SEARCH_TOOLBAR_SUPPORTED;
   const selectedBranchName =
     flow.selectedBranchName ??

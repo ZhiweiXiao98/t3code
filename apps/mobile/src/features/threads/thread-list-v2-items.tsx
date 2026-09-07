@@ -18,6 +18,7 @@ import { EnvironmentMachineSymbol } from "../../components/EnvironmentMachineSym
 import { ProjectFavicon } from "../../components/ProjectFavicon";
 import { ProviderIcon } from "../../components/ProviderIcon";
 import { LocalizedAlert as Alert } from "../../i18n/LocalizedAlert";
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { cn } from "../../lib/cn";
 import { relativeTime } from "../../lib/time";
 import { useUniwindTheme } from "../../lib/useUniwindTheme";
@@ -986,10 +987,11 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
                 ? [
                     {
                       id: "new-thread-on-branch",
-                      title:
+                      title: localizeMobileString(
                         Platform.OS === "ios"
                           ? "New thread on branch"
                           : `New thread on ${thread.branch}`,
+                      ),
                       image: "square.and.pencil",
                     },
                   ]

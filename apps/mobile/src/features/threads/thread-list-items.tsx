@@ -17,6 +17,7 @@ import { AppText as Text } from "../../components/AppText";
 import { ControlPillMenu } from "../../components/ControlPill";
 import { EnvironmentMachineSymbol } from "../../components/EnvironmentMachineSymbol";
 import { ProjectFavicon } from "../../components/ProjectFavicon";
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { cn } from "../../lib/cn";
 import { HOME_HORIZONTAL_INSET } from "../../lib/layoutMetrics";
 import { relativeTime } from "../../lib/time";
@@ -536,8 +537,9 @@ export const ThreadListRow = memo(function ThreadListRow(props: {
         ? [
             {
               id: "new-thread-on-branch",
-              title:
+              title: localizeMobileString(
                 Platform.OS === "ios" ? "New thread on branch" : `New thread on ${thread.branch}`,
+              ),
               image: "square.and.pencil",
             },
           ]

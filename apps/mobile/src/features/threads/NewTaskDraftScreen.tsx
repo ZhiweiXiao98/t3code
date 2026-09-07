@@ -9,7 +9,7 @@ import {
   type NavigationAction,
 } from "@react-navigation/native";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Platform, Pressable, ScrollView, View } from "react-native";
+import { Platform, Pressable, ScrollView, View } from "react-native";
 import {
   KeyboardController,
   KeyboardStickyView,
@@ -19,6 +19,8 @@ import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useUniwindTheme } from "../../lib/useUniwindTheme";
 import { useFontFamily } from "../../lib/useFontFamily";
+import { LocalizedAlert as Alert } from "../../i18n/LocalizedAlert";
+import { localizeMobileString } from "../../i18n/mobileStrings";
 
 import {
   PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
@@ -1229,7 +1231,9 @@ export function NewTaskDraftScreen(props: {
   const workspaceControls = (
     <View className="flex-row items-center gap-1 px-2">
       <ComposerInlineControl
-        accessibilityHint={`Switches to ${flow.workspaceMode === "local" ? "a new worktree" : "the current checkout"}`}
+        accessibilityHint={localizeMobileString(
+          `Switches to ${flow.workspaceMode === "local" ? "a new worktree" : "the current checkout"}`,
+        )}
         accessibilityLabel={workspaceLabel}
         disabled={isComposerInteractionLocked || voiceInput.isBusy}
         iconNode={
@@ -1245,7 +1249,9 @@ export function NewTaskDraftScreen(props: {
       />
 
       <ComposerInlineControl
-        accessibilityLabel={`${flow.workspaceMode === "worktree" ? "Base branch" : "Branch"}: ${selectedBranchLabel}`}
+        accessibilityLabel={localizeMobileString(
+          `${flow.workspaceMode === "worktree" ? "Base branch" : "Branch"}: ${selectedBranchLabel}`,
+        )}
         chevronDirection="right"
         disabled={isComposerInteractionLocked}
         icon="arrow.triangle.branch"
