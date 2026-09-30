@@ -1,5 +1,8 @@
 # T3 Code
 
+> [!IMPORTANT]
+> Maintenance and releases for this fork / Simplified Chinese community edition are currently paused because the maintainer does not have time to work on it. There is no set date for resuming maintenance or releases. This notice applies only to this community fork.
+
 > [简体中文社区版说明与下载](./README.zh-CN.md) · Community-maintained and unofficial
 
 T3 Code is an "agent harness control surface". It enables control of the agents on your machine with a best-in-class mobile app ([iOS](https://apps.apple.com/us/app/t3-code-remote-claude-more/id6787819824), [Android](https://play.google.com/store/apps/details?id=com.t3tools.t3code)), [web app](https://app.t3.codes) and [Electron-based desktop app](https://t3.codes).
