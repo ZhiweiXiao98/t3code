@@ -1,13 +1,7 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - "v*.*.*"
-      - "!v*-nightly.*"
-  schedule:
-    # Avoid minute zero, when GitHub scheduled jobs are busiest.
-    - cron: "8,38 * * * *"
+  # Automatic releases are paused while this community fork is not maintained.
   workflow_dispatch:
     inputs:
       channel:
