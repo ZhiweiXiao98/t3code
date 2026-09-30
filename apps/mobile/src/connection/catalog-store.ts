@@ -47,6 +47,7 @@ function environmentId(value: string) {
 function hydrateCatalog(catalog: EncodedConnectionCatalog): ConnectionCatalogDocumentType {
   return {
     schemaVersion: catalog.schemaVersion,
+    disabledEnvironmentIds: (catalog.disabledEnvironmentIds ?? []).map(environmentId),
     targets: catalog.targets.map((target) => {
       switch (target._tag) {
         case "BearerConnectionTarget":

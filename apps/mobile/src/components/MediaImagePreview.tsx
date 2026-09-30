@@ -7,7 +7,7 @@ import { useMediaActions } from "../lib/mediaActions";
 import { localizeMobileString } from "../i18n/mobileStrings";
 import { AppText } from "./AppText";
 import { SymbolView } from "./AppSymbol";
-import type { ResolvedFilePreviewSource } from "./FilePreviewModal";
+import type { ResolvedFilePreviewSource } from "./FilePreviewModal.types";
 import { MediaActionsMenu } from "./MediaActionsMenu";
 import { MediaSourceCaption } from "./MediaSourceCaption";
 

@@ -11,7 +11,19 @@ import {
   parseKeybindingWhenExpression,
 } from "@t3tools/shared/keybindings";
 
+import { shortcutKeyFromEvent } from "../../keybindings";
 import { isMacPlatform } from "../../lib/utils";
+import { METRIC_OPTIONS, WINDOW_OPTIONS } from "../usage/usageShortcuts";
+
+const usageCommandOrder = new Map<KeybindingCommand, number>(
+  [...METRIC_OPTIONS, ...WINDOW_OPTIONS].map((option, index) => [option.command, index]),
+);
+
+function compareUsageCommands(left: KeybindingCommand, right: KeybindingCommand): number | null {
+  const leftIndex = usageCommandOrder.get(left);
+  const rightIndex = usageCommandOrder.get(right);
+  return leftIndex !== undefined && rightIndex !== undefined ? leftIndex - rightIndex : null;
+}
 
 export type KeybindingSource = "Default" | "Custom" | "Project";
 
@@ -73,7 +85,14 @@ export type KeybindingCommandTranslator = (
   values?: Readonly<Record<string, string | number>>,
 ) => string;
 
-const CORE_WHEN_VARIABLES = ["terminalFocus", "terminalOpen", "true", "false"] as const;
+const CORE_WHEN_VARIABLES = [
+  "terminalFocus",
+  "terminalOpen",
+  "isWeb",
+  "isDesktop",
+  "true",
+  "false",
+] as const;
 
 const DEFAULT_WHEN_VARIABLES = new Set<string>(CORE_WHEN_VARIABLES);
 for (const binding of DEFAULT_RESOLVED_KEYBINDINGS) {
@@ -245,7 +264,9 @@ export function buildKeybindingRows(
   });
 
   rowsWithConflicts.sort((left, right) => {
-    const commandCompare = labelCommand(left.command).localeCompare(labelCommand(right.command));
+    const commandCompare =
+      compareUsageCommands(left.command, right.command) ??
+      labelCommand(left.command).localeCompare(labelCommand(right.command));
     if (commandCompare !== 0) return commandCompare;
     const commandIdCompare = left.command.localeCompare(right.command);
     return commandIdCompare !== 0 ? commandIdCompare : left.key.localeCompare(right.key);
@@ -259,6 +280,7 @@ export function buildKeybindingRows(
     return (
       row.command.toLowerCase().includes(normalizedQuery) ||
       labelCommand(row.command).toLowerCase().includes(normalizedQuery) ||
+      commandLabel(row.command).toLowerCase().includes(normalizedQuery) ||
       row.key.toLowerCase().includes(normalizedQuery) ||
       row.when.toLowerCase().includes(normalizedQuery) ||
       row.source.toLowerCase().includes(normalizedQuery)
@@ -320,13 +342,18 @@ export function buildKeybindingCommandOptions(
   for (const binding of keybindings) {
     commands.add(binding.command);
   }
-  return [...commands].toSorted((left, right) => {
-    const labelCompare = labelCommand(left).localeCompare(labelCommand(right));
-    return labelCompare !== 0 ? labelCompare : left.localeCompare(right);
-  });
+  return [...commands].toSorted(
+    (left, right) =>
+      compareUsageCommands(left, right) ?? labelCommand(left).localeCompare(labelCommand(right)),
+  );
 }
 
 export function commandLabel(command: KeybindingCommand): string {
+  if (command === "thread.copyReference") return "Pull Request: Copy Link or Thread ID";
+  const usageMetric = METRIC_OPTIONS.find((option) => option.command === command);
+  if (usageMetric) return `Usage: ${usageMetric.label}`;
+  const usagePeriod = WINDOW_OPTIONS.find((option) => option.command === command);
+  if (usagePeriod) return `Usage: Period: ${usagePeriod.label}`;
   const raw = String(command);
   if (raw.startsWith("script.") && raw.endsWith(".run")) {
     return `Run Script: ${titleCaseCommandSegment(raw.slice("script.".length, -".run".length))}`;
@@ -400,10 +427,10 @@ function normalizeShortcutKeyToken(key: string): string | null {
 }
 
 export function keybindingFromKeyboardEvent(
-  event: Pick<KeyboardEvent, "key" | "metaKey" | "ctrlKey" | "altKey" | "shiftKey">,
+  event: Pick<KeyboardEvent, "key" | "code" | "metaKey" | "ctrlKey" | "altKey" | "shiftKey">,
   platform: string,
 ): string | null {
-  const keyToken = normalizeShortcutKeyToken(event.key);
+  const keyToken = normalizeShortcutKeyToken(shortcutKeyFromEvent(event));
   if (!keyToken) return null;
 
   const parts: string[] = [];

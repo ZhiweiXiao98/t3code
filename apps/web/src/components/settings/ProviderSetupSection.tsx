@@ -12,6 +12,7 @@ import {
   type ServerProvider,
 } from "@t3tools/contracts";
 import { useRef, useState } from "react";
+import { Trash2Icon } from "lucide-react";
 
 import { writeTextToClipboard } from "../../hooks/useCopyToClipboard";
 import { useI18n } from "../../i18n/WebI18nProvider";
@@ -22,6 +23,8 @@ import { serverEnvironment } from "../../state/server";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
+import { SettingsRow } from "./settingsLayout";
 
 interface ProviderSetupSectionProps {
   readonly environmentId: EnvironmentId;
@@ -71,22 +74,34 @@ export function readAntigravityAuthMethod(config: unknown): AntigravityAuthMetho
 export function ProviderSetupSection(props: ProviderSetupSectionProps) {
   const { t } = useI18n();
   return (
-    <section aria-label={t("providers.setup.aria")} className="grid gap-3 text-xs">
-      <p>{t("providers.setup.runsOn", { environment: props.environmentLabel })}</p>
-      {!props.enabled ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-muted-foreground">{t("providers.setup.enableDescription")}</span>
-          {!props.readOnly ? (
-            <Button size="xs" variant="outline" onClick={props.onEnable}>
-              {t("providers.setup.enable")}
-            </Button>
-          ) : null}
-        </div>
-      ) : null}
+    <section
+      aria-label={t("providers.setup.aria")}
+      className="@container/setup divide-y divide-border/50 text-xs"
+    >
+      <SettingsRow
+        className="@max-lg/setup:[&>div:first-child]:flex @max-lg/setup:[&>div:first-child]:items-stretch @max-lg/setup:[&>div:first-child]:gap-3"
+        title="Environment"
+        description="Device that runs this provider."
+        control={
+          <div className="flex min-w-0 flex-col gap-2 sm:items-end">
+            <span className="text-muted-foreground [overflow-wrap:anywhere]">
+              {props.environmentLabel}
+            </span>
+            {!props.enabled && !props.readOnly ? (
+              <Button size="sm" variant="outline" onClick={props.onEnable}>
+                {t("providers.setup.enable")}
+              </Button>
+            ) : null}
+          </div>
+        }
+      />
       {props.readOnly ? (
-        <p className="text-muted-foreground">{t("providers.setup.readOnly")}</p>
+        <SettingsRow title="Setup unavailable" description="Provider setup is read-only." />
       ) : props.provider?.setup === undefined ? (
-        <p className="text-muted-foreground">{t("providers.setup.updateEnvironment")}</p>
+        <SettingsRow
+          title="Update required"
+          description="Update this environment to manage Antigravity."
+        />
       ) : (
         <ProviderSetupActions
           key={`${props.environmentId}:${props.instanceId}`}
@@ -190,12 +205,14 @@ function ProviderSetupActions({
         : installation?.phase === "verifying"
           ? t("providers.setup.install.verifying")
           : installed
-            ? t("providers.setup.install.installed")
+            ? "Installed."
             : usesCustomBinary
               ? enabled
                 ? t("providers.setup.install.customUnavailable")
                 : t("providers.setup.install.customUnchecked")
-              : t("providers.setup.install.required");
+              : installation?.totalBytes
+                ? `${Math.ceil(installation.totalBytes / 1_000_000)} MB download.`
+                : "Not installed.";
 
   async function runCommand<A, E>(
     label: string,
@@ -281,218 +298,259 @@ function ProviderSetupActions({
   }
 
   return (
-    <div className="grid gap-3">
-      <div className="grid gap-2">
-        <p className="font-medium">{t("providers.setup.runtime")}</p>
-        <p role="status" className="text-muted-foreground">
-          {installationStatusMessage}
-        </p>
-        {installation?.phase === "downloading" &&
-        installation.totalBytes !== null &&
-        installation.totalBytes > 0 ? (
-          <progress
-            aria-label={t("providers.setup.install.downloadAria")}
-            className="h-1 w-full accent-foreground"
-            value={installation.downloadedBytes}
-            max={installation.totalBytes}
-          />
-        ) : null}
-        {installation?.message && installation.message !== installationStatusMessage ? (
-          <p className="text-muted-foreground [overflow-wrap:anywhere]">
-            {tr(installation.message)}
-          </p>
-        ) : null}
-        {usesCustomBinary ? (
-          <p className="text-muted-foreground">{t("providers.setup.install.customDescription")}</p>
-        ) : null}
-        {!installed && !usesCustomBinary && !installActive && installation?.totalBytes ? (
-          <p className="text-muted-foreground">
-            {t("providers.setup.install.downloadSize", {
-              size: Math.ceil(installation.totalBytes / 1_000_000),
-            })}
-          </p>
-        ) : null}
-        {!installed && !provider.setup?.canInstall ? (
-          <p className="text-muted-foreground">{t("providers.setup.install.unavailable")}</p>
-        ) : null}
-        <div className="flex flex-wrap gap-2">
-          {installActive && installation.operationId ? (
-            <Button
-              size="xs"
-              variant="outline"
-              disabled={actionsDisabled}
-              onClick={() => {
-                const operationId = installation.operationId;
-                if (!operationId) return;
-                void runCommand(t("providers.setup.pending.cancellingInstall"), () =>
-                  cancelInstall({ environmentId, input: { instanceId, operationId } }),
-                );
-              }}
-            >
-              {t("providers.setup.install.cancel")}
-            </Button>
-          ) : !installActive && provider.setup?.canInstall ? (
-            <Button
-              size="xs"
-              variant="outline"
-              disabled={actionsDisabled || installation === null || authActive}
-              onClick={() =>
-                void runCommand(t("providers.setup.pending.startingInstall"), () =>
-                  startInstall(target),
-                )
-              }
-            >
-              {installation?.installedVersion
-                ? installation.version && installation.version !== installation.installedVersion
-                  ? t("providers.setup.install.update")
-                  : t("providers.setup.install.reinstall")
-                : installation?.phase === "failed" || installation?.phase === "cancelled"
-                  ? t("providers.setup.install.retry")
-                  : installed
-                    ? t("providers.setup.install.managed")
-                    : t("providers.setup.install.install")}
-            </Button>
-          ) : null}
-          {installation?.canRemove && !installActive ? (
-            <Button
-              size="xs"
-              variant="ghost"
-              disabled={actionsDisabled || authActive}
-              onClick={() => void removeRuntime()}
-            >
-              {t("providers.setup.install.remove")}
-            </Button>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="grid gap-2 border-t border-border/60 pt-3">
-        <p className="font-medium">{tr(methodLabel)}</p>
-        <p role="status" className="text-muted-foreground [overflow-wrap:anywhere]">
-          {authStatusMessage}
-        </p>
-        {authorizationUrl ? (
-          <>
-            <div className="flex flex-wrap gap-2">
-              <Button size="xs" variant="outline" onClick={() => void openSignInPage()}>
-                {t("providers.setup.auth.open")}
-              </Button>
-              <Button size="xs" variant="ghost" onClick={() => void copySignInLink()}>
-                {copiedFlowId === auth?.flowId
-                  ? t("providers.setup.auth.copied")
-                  : t("providers.setup.auth.copy")}
-              </Button>
-            </div>
-            {auth?.expiresAt ? (
+    <div className="divide-y divide-border/50">
+      <SettingsRow
+        title={t("providers.setup.runtime")}
+        className="@max-lg/setup:[&>div:first-child]:flex @max-lg/setup:[&>div:first-child]:items-stretch @max-lg/setup:[&>div:first-child]:gap-3"
+        description="Install and manage Antigravity."
+        status={
+          <div className="space-y-2">
+            {usesCustomBinary ? (
               <p className="text-muted-foreground">
-                {t("providers.setup.auth.expiresAt")}{" "}
-                <time dateTime={auth.expiresAt}>
-                  {new Date(auth.expiresAt).toLocaleTimeString([], {
-                    hour: "numeric",
-                    minute: "2-digit",
-                  })}
-                </time>
-                .
+                Uses the custom binary path below. Installation keeps that path.
               </p>
             ) : null}
-            <form
-              className="grid gap-2"
-              onSubmit={(event) => {
-                event.preventDefault();
-                void submitCallback();
-              }}
-            >
-              <label htmlFor={`provider-callback-${instanceId}`}>
-                {t("providers.setup.auth.callbackDescription")}
-              </label>
-              <Input
-                id={`provider-callback-${instanceId}`}
-                size="sm"
-                type="url"
-                autoComplete="off"
-                spellCheck={false}
-                placeholder="http://127.0.0.1:..."
-                value={callbackUrl}
-                maxLength={16_384}
-                disabled={actionsDisabled}
-                onChange={(event) =>
-                  setCallbackDraft({ flowId: auth?.flowId ?? null, value: event.target.value })
-                }
-              />
-              <Button
-                size="xs"
-                variant="outline"
-                type="submit"
-                className="w-fit"
-                disabled={actionsDisabled || !callbackUrl.trim()}
-              >
-                {t("common.continue")}
-              </Button>
-            </form>
-          </>
-        ) : auth?.phase === "waiting" ? (
-          <p className="text-muted-foreground">{t("providers.setup.auth.otherClient")}</p>
-        ) : null}
-        <div className="flex flex-wrap gap-2">
-          {authActive && auth?.flowId ? (
-            <Button
-              size="xs"
-              variant="ghost"
-              disabled={actionsDisabled}
-              onClick={() => {
-                const flowId = auth.flowId;
-                if (!flowId) return;
-                void runCommand(t("providers.setup.pending.cancellingSignIn"), () =>
-                  cancelAuth({ environmentId, input: { instanceId, flowId } }),
-                );
-              }}
-            >
-              {t("providers.setup.auth.cancel")}
-            </Button>
-          ) : !authActive && !authenticated && provider.setup?.canAuthenticate ? (
-            <Button
-              size="xs"
-              variant="outline"
-              disabled={actionsDisabled || !installed || auth === null || installActive}
-              onClick={() =>
-                void runCommand(t("providers.setup.pending.startingSignIn"), () =>
-                  startAuth(target),
-                )
+            {!installed && !provider.setup?.canInstall ? (
+              <p className="text-muted-foreground">
+                Automatic installation unavailable. Set a binary path or use another environment.
+              </p>
+            ) : null}
+          </div>
+        }
+        control={
+          <div className="flex w-full min-w-0 flex-col gap-2 sm:w-56 sm:text-right">
+            <p role="status" className="min-h-4 text-muted-foreground tabular-nums">
+              {installationStatusMessage}
+            </p>
+            <div className="h-1">
+              {installation?.phase === "downloading" &&
+              installation.totalBytes !== null &&
+              installation.totalBytes > 0 ? (
+                <progress
+                  aria-label={t("providers.setup.install.downloadAria")}
+                  className="block h-1 w-full accent-foreground"
+                  value={installation.downloadedBytes}
+                  max={installation.totalBytes}
+                />
+              ) : null}
+            </div>
+            {!installActive &&
+            installation?.message &&
+            installation.message !== installationStatusMessage ? (
+              <p className="text-muted-foreground [overflow-wrap:anywhere]">
+                {installation.message}
+              </p>
+            ) : null}
+            <div className="grid min-h-7 grid-cols-[1.75rem_minmax(0,1fr)] gap-2">
+              <div className="col-start-2 row-start-1 grid">
+                {installActive && installation.operationId ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={actionsDisabled}
+                    onClick={() => {
+                      const operationId = installation.operationId;
+                      if (!operationId) return;
+                      void runCommand(t("providers.setup.pending.cancellingInstall"), () =>
+                        cancelInstall({ environmentId, input: { instanceId, operationId } }),
+                      );
+                    }}
+                  >
+                    {t("providers.setup.install.cancel")}
+                  </Button>
+                ) : !installActive && provider.setup?.canInstall ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={actionsDisabled || installation === null || authActive}
+                    onClick={() =>
+                      void runCommand(t("providers.setup.pending.startingInstall"), () =>
+                        startInstall(target),
+                      )
+                    }
+                  >
+                    {installation?.installedVersion
+                      ? installation.version &&
+                        installation.version !== installation.installedVersion
+                        ? t("providers.setup.install.update")
+                        : t("providers.setup.install.reinstall")
+                      : installation?.phase === "failed" || installation?.phase === "cancelled"
+                        ? t("providers.setup.install.retry")
+                        : installed
+                          ? t("providers.setup.install.managed")
+                          : t("providers.setup.install.install")}
+                  </Button>
+                ) : null}
+              </div>
+              {installation?.canRemove && !installActive ? (
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        size="icon-sm"
+                        variant="ghost"
+                        className="col-start-1 row-start-1"
+                        aria-label={t("providers.setup.install.remove")}
+                        disabled={actionsDisabled || authActive}
+                        onClick={() => void removeRuntime()}
+                      />
+                    }
+                  >
+                    <Trash2Icon className="size-3.5" />
+                  </TooltipTrigger>
+                  <TooltipPopup>{t("providers.setup.install.remove")}</TooltipPopup>
+                </Tooltip>
+              ) : null}
+            </div>
+          </div>
+        }
+      />
+
+      <SettingsRow
+        title={methodLabel}
+        className="@max-lg/setup:[&>div:first-child]:flex @max-lg/setup:[&>div:first-child]:items-stretch @max-lg/setup:[&>div:first-child]:gap-3"
+        description={
+          usesBrowser ? "Connect your Google account." : "Connect with the credentials below."
+        }
+        control={
+          <div className="flex min-w-0 flex-col gap-2 sm:max-w-56 sm:items-end sm:text-right xl:max-w-72">
+            <p
+              role="status"
+              className={
+                authStatusMessage === phaseLabels.idle
+                  ? "sr-only"
+                  : "text-muted-foreground [overflow-wrap:anywhere]"
               }
             >
-              {usesBrowser
-                ? auth?.phase === "failed" || auth?.phase === "cancelled"
-                  ? t("providers.setup.auth.retryGoogle")
-                  : t("providers.setup.auth.signInGoogle")
-                : auth?.phase === "failed" || auth?.phase === "cancelled"
-                  ? t("providers.setup.auth.retryConnection")
-                  : t("providers.setup.auth.connect")}
-            </Button>
-          ) : null}
-          {!authActive && provider.setup?.canAuthenticate ? (
-            <Button
-              size="xs"
-              variant={authenticated ? "outline" : "ghost"}
-              disabled={actionsDisabled || auth === null}
-              onClick={() => void signOut()}
-            >
-              {usesBrowser
-                ? t("providers.setup.auth.signOut")
-                : t("providers.setup.auth.disconnect")}
-            </Button>
-          ) : null}
-        </div>
-      </div>
+              {authStatusMessage}
+            </p>
+            {authorizationUrl ? (
+              <div className="flex flex-wrap gap-2 sm:justify-end">
+                <Button size="sm" variant="outline" onClick={() => void openSignInPage()}>
+                  Open sign-in page
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => void copySignInLink()}>
+                  {copiedFlowId === auth?.flowId ? "Link copied" : "Copy sign-in link"}
+                </Button>
+              </div>
+            ) : null}
+            <div className="flex flex-wrap gap-2 sm:justify-end">
+              {authActive && auth?.flowId ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={actionsDisabled}
+                  onClick={() => {
+                    const flowId = auth.flowId;
+                    if (!flowId) return;
+                    void runCommand("Cancelling sign-in", () =>
+                      cancelAuth({ environmentId, input: { instanceId, flowId } }),
+                    );
+                  }}
+                >
+                  Cancel sign-in
+                </Button>
+              ) : !authActive && !authenticated && provider.setup?.canAuthenticate ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={actionsDisabled || !installed || auth === null || installActive}
+                  onClick={() => void runCommand("Starting sign-in", () => startAuth(target))}
+                >
+                  {usesBrowser
+                    ? auth?.phase === "failed" || auth?.phase === "cancelled"
+                      ? "Retry Google sign-in"
+                      : "Sign in with Google"
+                    : auth?.phase === "failed" || auth?.phase === "cancelled"
+                      ? "Retry connection"
+                      : "Connect"}
+                </Button>
+              ) : null}
+              {!authActive && provider.setup?.canAuthenticate ? (
+                <Button
+                  size="sm"
+                  variant={authenticated ? "outline" : "ghost"}
+                  disabled={actionsDisabled || auth === null}
+                  onClick={() => void signOut()}
+                >
+                  {usesBrowser ? "Sign out of Google" : "Disconnect"}
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        }
+      >
+        {authorizationUrl || auth?.phase === "waiting" ? (
+          <div className="space-y-2 pb-2">
+            {authorizationUrl ? (
+              <>
+                {auth?.expiresAt ? (
+                  <p className="text-muted-foreground">
+                    Link expires at{" "}
+                    <time dateTime={auth.expiresAt}>
+                      {new Date(auth.expiresAt).toLocaleTimeString([], {
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })}
+                    </time>
+                    .
+                  </p>
+                ) : null}
+                <form
+                  className="grid gap-2"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void submitCallback();
+                  }}
+                >
+                  <label htmlFor={`provider-callback-${instanceId}`}>
+                    If the final localhost page does not load, paste its full URL here.
+                  </label>
+                  <Input
+                    id={`provider-callback-${instanceId}`}
+                    size="sm"
+                    type="url"
+                    autoComplete="off"
+                    spellCheck={false}
+                    placeholder="http://127.0.0.1:..."
+                    value={callbackUrl}
+                    maxLength={16_384}
+                    disabled={actionsDisabled}
+                    onChange={(event) =>
+                      setCallbackDraft({ flowId: auth?.flowId ?? null, value: event.target.value })
+                    }
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    type="submit"
+                    className="w-fit"
+                    disabled={actionsDisabled || !callbackUrl.trim()}
+                  >
+                    Continue
+                  </Button>
+                </form>
+              </>
+            ) : auth?.phase === "waiting" ? (
+              <p className="text-muted-foreground">
+                Sign-in is open in another client. Complete or cancel it there.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+      </SettingsRow>
 
-      {pendingLabel ? <p role="status">{pendingLabel}.</p> : null}
+      <p className="sr-only" role="status">
+        {pendingLabel ? `${pendingLabel}.` : null}
+      </p>
       {error || queryError ? (
-        <div className="grid gap-2">
+        <div className="grid gap-2 px-3 py-3 sm:px-4">
           <p role="alert" className="text-destructive [overflow-wrap:anywhere]">
             {error ?? queryError}
           </p>
           {queryError ? (
             <Button
-              size="xs"
+              size="sm"
               variant="outline"
               className="w-fit"
               onClick={() => {

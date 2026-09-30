@@ -22,7 +22,11 @@ export function AddProviderInstanceWizardSteps({
   const { t } = useI18n();
   return (
     <WizardSteps
-      steps={ADD_PROVIDER_WIZARD_STEPS}
+      steps={[
+        t("providers.add.step.driver"),
+        t("providers.add.step.identity"),
+        t("providers.add.step.config"),
+      ]}
       currentStep={currentStep}
       summaries={summaries}
       onStepChange={(requestedStep) =>

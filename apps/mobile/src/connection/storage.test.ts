@@ -45,6 +45,22 @@ function makeStorage(initial: Readonly<Record<string, string>>) {
 }
 
 describe("mobile connection catalog storage", () => {
+  it.effect("preserves disabled environments when reading saved catalogs", () =>
+    Effect.gen(function* () {
+      const id = EnvironmentId.make("desktop-disabled");
+      const memory = makeStorage({
+        [CONNECTION_CATALOG_KEY]: JSON.stringify({
+          ...EMPTY_CONNECTION_CATALOG_DOCUMENT,
+          disabledEnvironmentIds: [id],
+        }),
+      });
+      const catalog = yield* make().pipe(
+        Effect.provideService(MobileSecureStorage, memory.storage),
+      );
+      expect((yield* catalog.read).disabledEnvironmentIds).toEqual([id]);
+    }),
+  );
+
   it.effect("recovers from a corrupt current catalog", () =>
     Effect.gen(function* () {
       const memory = makeStorage({

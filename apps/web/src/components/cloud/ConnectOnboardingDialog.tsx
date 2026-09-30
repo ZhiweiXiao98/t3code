@@ -1,6 +1,6 @@
+import { translateWebSource } from "~/i18n/messages";
 import { useAuth } from "@clerk/react";
 import { AuthAdministrativeScopes, AuthRelayWriteScope } from "@t3tools/contracts";
-import { CheckIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import {
@@ -12,22 +12,14 @@ import { hasCloudPublicConfig } from "~/cloud/publicConfig";
 import { useCloudLinkController } from "~/cloud/useCloudLinkController";
 import { usePrimarySessionState } from "~/environments/primary";
 import { useLocalStorage } from "~/hooks/useLocalStorage";
-import { cn } from "~/lib/utils";
 import { useEnvironments, usePrimaryEnvironment } from "~/state/environments";
 import { CloudEnvironmentConnectRows } from "./CloudEnvironmentConnectList";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
-import {
-  Dialog,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogPanel,
-  DialogPopup,
-  DialogTitle,
-} from "../ui/dialog";
+import { Dialog } from "../ui/dialog";
 import { Switch } from "../ui/switch";
 import { toastManager } from "../ui/toast";
+import { WizardSteps, WizardPopup, WizardHeader, WizardPanel, WizardFooter } from "../ui/wizard";
 import { useI18n } from "~/i18n/WebI18nProvider";
 
 /**
@@ -48,6 +40,7 @@ export function ConnectOnboardingDialog() {
 type OnboardingStep = "publish" | "devices";
 
 function ConfiguredConnectOnboardingDialog() {
+  const { locale: uiLocale } = useI18n();
   const { t } = useI18n();
   // Mirrors ManagedRelayAuthProvider: a pending Clerk session must not read as
   // signed-out, or its later activation would look like a fresh sign-in.
@@ -118,7 +111,7 @@ function ConfiguredConnectOnboardingDialog() {
   const publishStepDecided = !canManageRelay || controller.linkState.target !== null;
 
   // Open once the session scopes resolve so the step set is stable. Accounts
-  // that chose "Don't show this again" are skipped.
+  // that chose t("connectOnboarding.dontShowAgain") are skipped.
   useEffect(() => {
     if (requestedAccount === null || openForAccount !== null) return;
     if (optOutAccounts.includes(requestedAccount)) {
@@ -219,20 +212,37 @@ function ConfiguredConnectOnboardingDialog() {
         if (!open && !isApplying) complete();
       }}
     >
-      <DialogPopup className="max-w-xl">
-        <DialogHeader>
-          <DialogTitle>{t("connectOnboarding.title")}</DialogTitle>
-          <DialogDescription>{t("connectOnboarding.description")}</DialogDescription>
+      <WizardPopup>
+        <WizardHeader
+          title={t("connectOnboarding.title")}
+          description={
+            <>
+              {translateWebSource(
+                uiLocale,
+                "Mesh your devices together — publish this environment and connect the rest, all in one place.",
+              )}
+            </>
+          }
+        >
           {steps.length > 1 ? (
-            <OnboardingStepper
-              steps={steps}
-              currentStep={step}
-              disabled={isApplying}
-              onStepSelect={setStep}
+            <WizardSteps
+              steps={steps.map((id) =>
+                t(
+                  id === "publish"
+                    ? "connectOnboarding.step.publish"
+                    : "connectOnboarding.step.devices",
+                ),
+              )}
+              currentStep={steps.indexOf(step)}
+              isStepDisabled={() => isApplying}
+              onStepChange={(index) => {
+                const next = steps[index];
+                if (next) setStep(next);
+              }}
             />
           ) : null}
-        </DialogHeader>
-        <DialogPanel>
+        </WizardHeader>
+        <WizardPanel>
           {step === "publish" ? (
             <PublishStep
               exposeEnvironment={exposeEnvironment}
@@ -245,98 +255,38 @@ function ConfiguredConnectOnboardingDialog() {
           ) : (
             <DevicesStep />
           )}
-        </DialogPanel>
-        <DialogFooter variant="bare" className="sm:justify-between">
-          <label className="flex cursor-pointer items-center gap-2 self-start text-xs text-muted-foreground sm:self-center">
-            <Checkbox
-              checked={dontShowAgain}
-              onCheckedChange={(checked) => setDontShowAgain(checked === true)}
-            />
-            {t("connectOnboarding.dontShowAgain")}
-          </label>
-          <div className="flex flex-col-reverse gap-2 sm:flex-row">
-            {step === "publish" ? (
-              <>
-                <Button variant="ghost" disabled={isApplying} onClick={() => setStep("devices")}>
-                  {t("connectOnboarding.notNow")}
-                </Button>
-                <Button
-                  disabled={
-                    isApplying || (controller.linkState.isPending && linkStateData === null)
-                  }
-                  onClick={() => void applyPublishSelection()}
-                >
-                  {isApplying ? t("connectOnboarding.enabling") : t("common.continue")}
-                </Button>
-              </>
-            ) : (
-              <Button disabled={isApplying} onClick={complete}>
-                {t("common.done")}
-              </Button>
-            )}
-          </div>
-        </DialogFooter>
-      </DialogPopup>
-    </Dialog>
-  );
-}
-
-function OnboardingStepper({
-  steps,
-  currentStep,
-  disabled,
-  onStepSelect,
-}: {
-  readonly steps: ReadonlyArray<OnboardingStep>;
-  readonly currentStep: OnboardingStep;
-  readonly disabled: boolean;
-  readonly onStepSelect: (step: OnboardingStep) => void;
-}) {
-  const { t } = useI18n();
-  const currentIndex = steps.indexOf(currentStep);
-  return (
-    <div className="grid grid-cols-2 gap-2">
-      {steps.map((step, index) => (
-        <button
-          key={step}
-          type="button"
-          disabled={disabled}
-          className={cn(
-            "grid min-w-0 grid-cols-[1rem_minmax(0,1fr)] gap-x-2 rounded-lg border px-3 py-2 text-left",
-            index === currentIndex
-              ? "border-primary bg-primary/10 ring-1 ring-primary/25"
-              : index < currentIndex
-                ? "border-border bg-background"
-                : "border-border bg-muted/40",
-          )}
-          onClick={() => onStepSelect(step)}
+        </WizardPanel>
+        <WizardFooter
+          leading={
+            <label className="flex cursor-pointer items-center gap-2 self-start text-xs text-muted-foreground sm:self-center">
+              <Checkbox
+                checked={dontShowAgain}
+                onCheckedChange={(checked) => setDontShowAgain(checked === true)}
+              />
+              {translateWebSource(uiLocale, "Don't show this again")}
+            </label>
+          }
         >
-          <span
-            className={cn(
-              "row-span-2 mt-0.5 grid size-4 place-items-center rounded-full border",
-              index < currentIndex
-                ? "border-primary bg-primary text-primary-foreground"
-                : index === currentIndex
-                  ? "border-primary bg-background"
-                  : "border-muted-foreground/35 bg-background",
-            )}
-            aria-hidden
-          >
-            {index < currentIndex ? <CheckIcon className="size-3" /> : null}
-          </span>
-          <span className="text-[10px] font-medium uppercase text-muted-foreground">
-            {t("connectOnboarding.step", { index: index + 1 })}
-          </span>
-          <span className="truncate text-xs font-semibold text-foreground">
-            {t(
-              step === "publish"
-                ? "connectOnboarding.step.publish"
-                : "connectOnboarding.step.devices",
-            )}
-          </span>
-        </button>
-      ))}
-    </div>
+          {step === "publish" ? (
+            <>
+              <Button variant="ghost" disabled={isApplying} onClick={() => setStep("devices")}>
+                {t("connectOnboarding.notNow")}{" "}
+              </Button>
+              <Button
+                disabled={isApplying || (controller.linkState.isPending && linkStateData === null)}
+                onClick={() => void applyPublishSelection()}
+              >
+                {isApplying ? "Enabling…" : t("common.continue")}
+              </Button>
+            </>
+          ) : (
+            <Button disabled={isApplying} onClick={complete}>
+              {t("common.done")}
+            </Button>
+          )}
+        </WizardFooter>
+      </WizardPopup>
+    </Dialog>
   );
 }
 

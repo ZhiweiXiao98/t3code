@@ -5,6 +5,7 @@ import * as Schema from "effect/Schema";
 
 import * as DesktopClientSettings from "../../settings/DesktopClientSettings.ts";
 import * as DesktopApplicationMenu from "../../window/DesktopApplicationMenu.ts";
+import * as DesktopSnapShot from "../../snapShot/DesktopSnapShot.ts";
 import * as IpcChannels from "../channels.ts";
 import * as DesktopIpc from "../DesktopIpc.ts";
 
@@ -34,5 +35,7 @@ export const setClientSettings = DesktopIpc.makeIpcMethod({
       const applicationMenu = yield* DesktopApplicationMenu.DesktopApplicationMenu;
       yield* applicationMenu.configure;
     }
+    const snapShot = yield* DesktopSnapShot.DesktopSnapShot;
+    yield* snapShot.configure(settings);
   }),
 });

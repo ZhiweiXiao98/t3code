@@ -15,7 +15,6 @@ import {
   CircleXIcon,
   EyeOffIcon,
   FolderGit2Icon,
-  GitPullRequestDraftIcon,
   LayersIcon,
   ListFilterIcon,
   SearchIcon,
@@ -27,7 +26,7 @@ import { type ElementType, useState } from "react";
 import { useI18n } from "~/i18n/WebI18nProvider";
 import { translateWebSource } from "~/i18n/messages";
 import { getSourceControlPresentationForKind } from "~/sourceControlPresentation";
-import { ProjectFavicon } from "../ProjectFavicon";
+import { ProjectFavicon, type ProjectFaviconProject } from "../ProjectFavicon";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "../ui/input-group";
 import { Button } from "../ui/button";
 
@@ -53,18 +52,14 @@ import {
   type PullRequestLabelFacet,
 } from "./pullRequestList.logic";
 import { PullRequestActorAvatar } from "./pullRequestPresentation";
+import { PullRequestGlyph } from "./pullRequestIcons";
 
 export interface PullRequestFilterOption<Value extends string> {
   readonly value: Value;
   readonly label: string;
   /** Uses the option's native icon tone. */
   readonly Icon: ElementType<{ className?: string }>;
-  readonly favicon?: {
-    readonly environmentId: EnvironmentId;
-    readonly cwd: string;
-    readonly faviconPath?: string | null;
-    readonly projectIcon?: ProjectIconOverride | null;
-  };
+  readonly project?: ProjectFaviconProject;
   /** Why it cannot be chosen, carried onto the item as its title. */
   readonly unavailable?: string | undefined;
 }
@@ -74,15 +69,8 @@ export function PullRequestFilterOptionIcon<Value extends string>({
 }: {
   option: PullRequestFilterOption<Value>;
 }) {
-  return option.favicon ? (
-    <ProjectFavicon
-      environmentId={option.favicon.environmentId}
-      cwd={option.favicon.cwd}
-      projectName={option.label}
-      faviconPath={option.favicon.faviconPath}
-      projectIcon={option.favicon.projectIcon}
-      className="size-3.5"
-    />
+  return option.project ? (
+    <ProjectFavicon project={option.project} className="size-3.5" />
   ) : (
     <option.Icon aria-hidden className="size-3.5" />
   );
@@ -158,7 +146,7 @@ export const pullRequestProjectKey = (project: {
 
 const DRAFT_OPTIONS = [
   { value: UNFILTERED_VALUE, label: "All", Icon: LayersIcon },
-  { value: "only", label: "Drafts only", Icon: GitPullRequestDraftIcon },
+  { value: "only", label: "Drafts only", Icon: PullRequestGlyph.draft },
   { value: "hide", label: "Hide drafts", Icon: EyeOffIcon },
 ] as const satisfies ReadonlyArray<PullRequestFilterOption<string>>;
 
@@ -218,9 +206,7 @@ function PullRequestFilterRadioGroup<Value extends string>({
         return (
           <Tooltip key={option.value}>
             <TooltipTrigger render={item} />
-            <TooltipPopup side="top" className="max-w-80">
-              {option.unavailable}
-            </TooltipPopup>
+            <TooltipPopup side="top">{option.unavailable}</TooltipPopup>
           </Tooltip>
         );
       })}
@@ -251,7 +237,7 @@ function PullRequestFilterRadioSubmenu<Value extends string>({
           {translateWebSource(locale, current.label)}
         </span>
       </MenuSubTrigger>
-      <MenuSubPopup className="min-w-56">
+      <MenuSubPopup>
         <PullRequestFilterRadioGroup
           label={label}
           value={value}
@@ -297,7 +283,7 @@ function PullRequestAuthorFilter({
           {value ?? t("pullRequests.filter.anyone")}
         </span>
       </MenuSubTrigger>
-      <MenuSubPopup className="w-80">
+      <MenuSubPopup>
         <div className="p-1 pb-2">
           <InputGroup>
             <InputGroupAddon>
@@ -371,7 +357,7 @@ function PullRequestLabelFilter({
             : t("pullRequests.filter.selected", { count: value.length })}
         </span>
       </MenuSubTrigger>
-      <MenuSubPopup className="w-72">
+      <MenuSubPopup>
         {visible.length === 0 ? (
           <MenuItem disabled>{t("pullRequests.filter.noLabels")}</MenuItem>
         ) : (
@@ -382,7 +368,6 @@ function PullRequestLabelFilter({
             return (
               <MenuCheckboxItem
                 key={key}
-                className="grid-cols-[1rem_minmax(0,1fr)]"
                 checked={checked}
                 onCheckedChange={(next) =>
                   onChange(
@@ -463,14 +448,7 @@ export function PullRequestFiltersMenu({
   serverOptions: ReadonlyArray<PullRequestFilterOption<string>>;
   onServer: (server: EnvironmentId | undefined) => void;
   /** The projects of every connected environment, each carrying the one its favicon is read from. */
-  projects: ReadonlyArray<{
-    readonly id: ProjectId;
-    readonly environmentId: EnvironmentId;
-    readonly title: string;
-    readonly workspaceRoot: string;
-    readonly faviconPath?: string | null | undefined;
-    readonly projectIcon?: ProjectIconOverride | null | undefined;
-  }>;
+  projects: ReadonlyArray<ProjectFaviconProject & { readonly id: ProjectId }>;
   projectId: ProjectId | undefined;
   /**
    * The server the selected project belongs to. A project id is only unique within its own
@@ -526,12 +504,7 @@ export function PullRequestFiltersMenu({
         value: pullRequestProjectKey(project),
         label: project.title,
         Icon: FolderGit2Icon,
-        favicon: {
-          environmentId: project.environmentId,
-          cwd: project.workspaceRoot,
-          faviconPath: project.faviconPath ?? null,
-          projectIcon: project.projectIcon ?? null,
-        },
+        project,
         ...(unavailable.has(pullRequestProjectKey(project))
           ? { unavailable: unavailable.get(pullRequestProjectKey(project)) }
           : {}),
@@ -539,14 +512,7 @@ export function PullRequestFiltersMenu({
   ];
   return (
     <Menu onOpenChange={onOpenChange}>
-      <MenuTrigger
-        render={
-          <Button
-            className={filterCount > 0 ? "[--control-icon-color:currentColor]" : undefined}
-            variant="outline"
-          />
-        }
-      >
+      <MenuTrigger render={<Button variant="outline" />}>
         <ListFilterIcon className="size-4" />
         <span>{t("pullRequests.filter.trigger")}</span>
         {filterCount > 0 ? (
@@ -555,7 +521,7 @@ export function PullRequestFiltersMenu({
           </span>
         ) : null}
       </MenuTrigger>
-      <MenuPopup align="end" side="bottom" className="w-56">
+      <MenuPopup align="end" side="bottom">
         <PullRequestFilterRadioSubmenu
           label="State"
           value={state}

@@ -124,18 +124,22 @@ function sha256(filePath) {
 }
 
 function downloadElectronArchive(zipPath, version, archiveName) {
-  // oxlint-disable-next-line t3code/no-global-process-runtime -- Standalone repair script reads optional mirror overrides.
   const configuredMirror = process.env.T3_ELECTRON_MIRROR ?? process.env.ELECTRON_MIRROR;
   const mirrorUrls = [configuredMirror, "https://npmmirror.com/mirrors/electron/"]
     .filter(Boolean)
-    .map((baseUrl) => `${baseUrl.replace(/\/$/u, "")}/${version}/${archiveName}`);
+    .map((baseUrl) => {
+      const base = baseUrl.replace(/\/$/u, "");
+      const releaseVersion =
+        base === "https://github.com/electron/electron/releases/download" ? `v${version}` : version;
+      return `${base}/${releaseVersion}/${archiveName}`;
+    });
   const urls = [
     ...mirrorUrls,
     `https://github.com/electron/electron/releases/download/v${version}/${archiveName}`,
   ];
   const partialPath = `${zipPath}.partial`;
 
-  for (const url of [...new Set(urls)]) {
+  for (const url of new Set(urls)) {
     NodeFS.rmSync(partialPath, { force: true });
     const result = NodeChildProcess.spawnSync(
       "curl",

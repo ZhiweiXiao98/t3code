@@ -205,8 +205,8 @@ export function PullRequestThreadDialog({
     >
       <DialogPopup className="max-w-xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <SourceControlIcon className="size-4" />
+          <DialogTitle className="flex items-center">
+            <SourceControlIcon className="me-2 size-4" />
             {t("pullRequestThread.title", { request: requestLabel })}
           </DialogTitle>
           <DialogDescription>
@@ -216,7 +216,7 @@ export function PullRequestThreadDialog({
             })}
           </DialogDescription>
         </DialogHeader>
-        <DialogPanel className="space-y-4">
+        <DialogPanel>
           <label className="grid gap-1.5">
             <span className="text-xs font-medium text-foreground capitalize">{requestLabel}</span>
             <Input
@@ -233,9 +233,12 @@ export function PullRequestThreadDialog({
                 if (event.key !== "Enter") {
                   return;
                 }
+                if (event.nativeEvent.isComposing || event.keyCode === 229) {
+                  return;
+                }
                 event.preventDefault();
                 if (!isResolving && !preparePullRequestThreadAction.isPending) {
-                  void handleConfirm("local");
+                  void handleConfirm("worktree");
                 }
               }}
             />
@@ -269,7 +272,7 @@ export function PullRequestThreadDialog({
 
           {isResolving ? (
             <div className="flex items-center gap-2 text-muted-foreground text-xs">
-              <Spinner className="size-3.5" />
+              <Spinner size="sm" />
               {t("pullRequestThread.resolving", { request: requestLabel })}
             </div>
           ) : null}

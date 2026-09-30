@@ -1,7 +1,8 @@
+import { localizeMobileString } from "../i18n/mobileStrings";
 import type { MenuAction } from "@react-native-menu/menu";
 import { Pressable } from "react-native";
 
-import { localizeMobileString } from "../i18n/mobileStrings";
+import { useAndroidControlSizing } from "./useAndroidControlSizing";
 import { SymbolView } from "./AppSymbol";
 import { ControlPillMenu } from "./ControlPill";
 
@@ -16,6 +17,7 @@ export function ComposerAttachmentButton(props: {
   readonly onPickMedia: () => Promise<void>;
   readonly onPickFiles: () => Promise<void>;
 }) {
+  const { scale } = useAndroidControlSizing();
   const button = (
     <Pressable
       accessibilityLabel={localizeMobileString("Add attachment")}
@@ -27,7 +29,7 @@ export function ComposerAttachmentButton(props: {
     >
       <SymbolView
         name="plus"
-        size={20}
+        size={Math.round(20 * scale)}
         weight="regular"
         tintColorClassName="accent-icon"
         type="monochrome"
@@ -41,6 +43,9 @@ export function ComposerAttachmentButton(props: {
 
   return (
     <ControlPillMenu
+      accessible
+      accessibilityLabel="Add attachment"
+      accessibilityRole="button"
       actions={ATTACHMENT_MENU_ACTIONS}
       onPressAction={({ nativeEvent }) => {
         if (nativeEvent.event === "photos") {

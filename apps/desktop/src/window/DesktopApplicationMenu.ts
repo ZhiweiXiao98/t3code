@@ -20,7 +20,7 @@ import {
 } from "./DesktopApplicationMenuMessages.ts";
 import * as DesktopWindow from "./DesktopWindow.ts";
 
-export class DesktopApplicationMenuActionError extends Schema.TaggedErrorClass<DesktopApplicationMenuActionError>()(
+export class DesktopApplicationMenuActionError extends Schema.TaggedError<DesktopApplicationMenuActionError>()(
   "DesktopApplicationMenuActionError",
   {
     action: Schema.String,
@@ -52,7 +52,9 @@ const dispatchMenuAction = Effect.fn("desktop.menu.dispatchMenuAction")(function
   action: string,
 ): Effect.fn.Return<void, DesktopWindow.DesktopWindowError, DesktopWindow.DesktopWindow> {
   const desktopWindow = yield* DesktopWindow.DesktopWindow;
-  yield* desktopWindow.dispatchMenuAction(action);
+  yield* desktopWindow.dispatchMenuAction(action, {
+    reveal: action !== "paste-as-text",
+  });
 });
 
 const zoomMainWindow = Effect.fn("desktop.menu.zoomMainWindow")(function* (
@@ -111,6 +113,7 @@ const handleCheckForUpdatesMenuClick = (messages: DesktopApplicationMenuMessages
     yield* checkForUpdatesFromMenu(messages);
   }).pipe(Effect.withSpan("desktop.menu.handleCheckForUpdatesClick"));
 
+/** @public Service construction is part of the canonical Effect module API. */
 export const make = Effect.gen(function* () {
   const electronApp = yield* ElectronApp.ElectronApp;
   const electronMenu = yield* ElectronMenu.ElectronMenu;
@@ -155,6 +158,19 @@ export const make = Effect.gen(function* () {
     };
     const settingsClick = () => {
       runMenuEffect("open-settings", dispatchMenuAction("open-settings"));
+    };
+    // Chromium already pastes as plain text for this chord, so the accelerator
+    // needs nothing from the menu: the composer and the terminal each arm
+    // themselves from the same keydown. Routing it through the renderer anyway
+    // lands a second, injected paste and doubles the text. Only a menu click,
+    // which produces no keystroke for them to see, needs that round trip.
+    const pasteAsTextClick = (
+      _item: Electron.MenuItem,
+      _window: Electron.BaseWindow | undefined,
+      event: Electron.KeyboardEvent,
+    ) => {
+      if (event.triggeredByAccelerator === true) return;
+      runMenuEffect("paste-as-text", dispatchMenuAction("paste-as-text"));
     };
     const zoomClick = (direction: DesktopWindow.MainWindowZoomDirection) => () => {
       runMenuEffect(`zoom-${direction}`, zoomMainWindow(direction));
@@ -210,7 +226,6 @@ export const make = Effect.gen(function* () {
         ],
       },
       {
-        role: "editMenu",
         label: messages.edit,
         submenu: [
           { role: "undo", label: messages.undo },
@@ -219,10 +234,26 @@ export const make = Effect.gen(function* () {
           { role: "cut", label: messages.cut },
           { role: "copy", label: messages.copy },
           { role: "paste", label: messages.paste },
-          { role: "pasteAndMatchStyle", label: messages.pasteAndMatchStyle },
+          {
+            label: messages.pasteAsText,
+            accelerator: "CmdOrCtrl+Shift+V",
+            click: pasteAsTextClick,
+          },
           { role: "delete", label: messages.delete },
           { type: "separator" },
           { role: "selectAll", label: messages.selectAll },
+          ...(environment.platform === "darwin"
+            ? [
+                { type: "separator" as const },
+                {
+                  label: messages.speech,
+                  submenu: [
+                    { role: "startSpeaking" as const, label: messages.startSpeaking },
+                    { role: "stopSpeaking" as const, label: messages.stopSpeaking },
+                  ],
+                },
+              ]
+            : []),
         ],
       },
       {

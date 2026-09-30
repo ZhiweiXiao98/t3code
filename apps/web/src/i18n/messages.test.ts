@@ -85,3 +85,21 @@ describe("translateWebMessage", () => {
     );
   });
 });
+
+describe("upstream UI localization", () => {
+  it("localizes new queue, permission and scoped-settings copy", () => {
+    expect(translateWebSource("zh-CN", "Queue message")).toBe("将消息加入队列");
+    expect(translateWebSource("zh-CN", "App permission approval")).toBe("应用权限审批");
+    expect(translateWebSource("zh-CN", "Restore device defaults")).toBe("恢复此设备的默认设置");
+    expect(translateWebSource("en", "Queue message")).toBe("Queue message");
+  });
+
+  it("preserves user-provided project names and counts in new upstream controls", () => {
+    expect(
+      translateWebMessage("zh-CN", "upstream.sidebar.projectFilter", { project: "feature/API-v2" }),
+    ).toBe("按 feature/API-v2 筛选");
+    expect(
+      translateWebMessage("zh-CN", "upstream.comments.olderBots", { count: 20, hidden: 42 }),
+    ).toBe("显示较早的 20 条机器人评论（隐藏了 42 条）");
+  });
+});

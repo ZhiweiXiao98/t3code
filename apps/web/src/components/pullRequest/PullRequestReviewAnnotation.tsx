@@ -1,3 +1,4 @@
+import { translateWebSource } from "~/i18n/messages";
 /**
  * Pull-request-specific annotations: conversations already on the host and comments queued for
  * the review being written. New comment composition uses the shared diff annotation.
@@ -14,7 +15,6 @@ import {
   CircleIcon,
   HammerIcon,
   MessageSquareIcon,
-  PencilIcon,
   Trash2Icon,
 } from "lucide-react";
 import { useRef, useState } from "react";
@@ -24,6 +24,7 @@ import { cn } from "~/lib/utils";
 import { useI18n } from "../../i18n/WebI18nProvider";
 
 import { Button } from "../ui/button";
+import { PullRequestEditButton } from "./PullRequestEditButton";
 import { Textarea } from "../ui/textarea";
 import { isCommentSubmitShortcut } from "../diffs/commentSubmitShortcut";
 import {
@@ -135,6 +136,7 @@ export function ReviewThreadCard({
   onToggleResolved: () => void;
   onReacted: () => void;
 }) {
+  const { locale: uiLocale } = useI18n();
   const { t } = useI18n();
   // A resolved thread is finished work, so it opens collapsed and stays one line until asked for.
   const [expanded, setExpanded] = useState(!thread.isResolved);
@@ -223,7 +225,7 @@ export function ReviewThreadCard({
     >
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         {thread.isResolved ? (
-          <CheckCircle2Icon className="size-3.5 text-emerald-600 dark:text-emerald-500" />
+          <CheckCircle2Icon className="size-3.5 text-success-foreground" />
         ) : (
           <CircleIcon className="size-3.5" />
         )}
@@ -238,7 +240,7 @@ export function ReviewThreadCard({
             count: commentCount,
           })}
         </button>
-        {thread.isOutdated ? <span>outdated</span> : null}
+        {thread.isOutdated ? <span>{translateWebSource(uiLocale, "outdated")}</span> : null}
         {onFix ? (
           <Button
             size="xs"
@@ -271,9 +273,18 @@ export function ReviewThreadCard({
           <div className="mt-2 space-y-3">
             {comments.map((comment) => (
               <article key={comment.id} className="group min-w-0">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <PullRequestActorLabel actor={comment.author} className="text-foreground" />
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <PullRequestActorLabel actor={comment.author} />
                   <span>{formatRelativeTimeLabel(comment.createdAt)}</span>
+                  <PullRequestReactionBar
+                    className="ml-auto justify-end"
+                    reactions={comment.reactions ?? []}
+                    canReact={canReact}
+                    subjectId={comment.id}
+                    environmentId={environmentId}
+                    reference={reference}
+                    onRefresh={onReacted}
+                  />
                 </div>
                 {editingId === comment.id ? (
                   <PullRequestMarkdownEditor
@@ -295,27 +306,13 @@ export function ReviewThreadCard({
                       environmentId={environmentId}
                     />
                     {canEditComment(comment) ? (
-                      <Button
-                        size="icon-xs"
-                        variant="ghost"
-                        className="shrink-0 text-muted-foreground opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100"
+                      <PullRequestEditButton
                         aria-label={t("pullRequests.comments.edit")}
                         onClick={() => setEditingId(comment.id)}
-                      >
-                        <PencilIcon className="size-3" />
-                      </Button>
+                      />
                     ) : null}
                   </div>
                 )}
-                <PullRequestReactionBar
-                  className="mt-1.5"
-                  reactions={comment.reactions ?? []}
-                  canReact={canReact}
-                  subjectId={comment.id}
-                  environmentId={environmentId}
-                  reference={reference}
-                  onRefresh={onReacted}
-                />
               </article>
             ))}
           </div>
@@ -324,7 +321,6 @@ export function ReviewThreadCard({
               <Button
                 size="xs"
                 variant="ghost"
-                className="px-1"
                 disabled={loadingMore}
                 onClick={() => void loadMore()}
               >
@@ -352,25 +348,20 @@ export function ReviewThreadCard({
                 />
                 <div className="mt-2 flex justify-end gap-2">
                   <Button size="xs" variant="ghost" onClick={() => setReplying(false)}>
-                    Cancel
+                    {translateWebSource(uiLocale, "Cancel")}
                   </Button>
                   <Button
                     size="xs"
                     disabled={pending || reply.trim().length === 0}
                     onClick={() => void send()}
                   >
-                    Reply
+                    {t("pullRequests.comments.reply")}
                   </Button>
                 </div>
               </div>
             ) : (
-              <Button
-                size="xs"
-                variant="ghost"
-                className="mt-2 px-1"
-                onClick={() => setReplying(true)}
-              >
-                Reply
+              <Button size="xs" variant="ghost" className="mt-2" onClick={() => setReplying(true)}>
+                {t("pullRequests.comments.reply")}
               </Button>
             )
           ) : null}

@@ -1,16 +1,10 @@
 import { RefreshIcon } from "~/components/ui/refresh-icon";
-import { ExternalLinkIcon, GitPullRequestIcon } from "lucide-react";
+import { ExternalLinkIcon } from "lucide-react";
 
 import { useI18n } from "../../i18n/WebI18nProvider";
 import { Button } from "../ui/button";
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "../ui/empty";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "../ui/empty";
+import { PullRequestGlyph } from "./pullRequestIcons";
 
 export function PullRequestsUnavailableState({
   title,
@@ -28,9 +22,9 @@ export function PullRequestsUnavailableState({
   const { t } = useI18n();
   const displayTitle = title ?? t("pullRequests.unavailable.loadFailed");
   return (
-    <Empty className="px-4 py-16 md:px-4">
+    <Empty className="min-h-0 justify-center-safe overflow-y-auto [&>*]:shrink-0">
       <EmptyMedia variant="icon">
-        <GitPullRequestIcon />
+        <PullRequestGlyph.pullRequest />
       </EmptyMedia>
       <EmptyHeader>
         <EmptyTitle>{displayTitle}</EmptyTitle>
@@ -39,7 +33,7 @@ export function PullRequestsUnavailableState({
         <EmptyDescription>{error}</EmptyDescription>
       </EmptyHeader>
       {onRetry || gitHubUrl ? (
-        <EmptyContent className="flex-row flex-wrap justify-center gap-2">
+        <div className="flex flex-wrap justify-center gap-2">
           {onRetry ? (
             <Button
               size="sm"
@@ -48,8 +42,8 @@ export function PullRequestsUnavailableState({
               disabled={refreshing}
               aria-busy={refreshing}
             >
-              <RefreshIcon className="size-3.5" refreshing={refreshing} />
-              {t("pullRequests.unavailable.retry")}
+              <RefreshIcon size="sm" refreshing={refreshing} />
+              {t("pullRequests.unavailable.retry")}{" "}
             </Button>
           ) : null}
           {gitHubUrl ? (
@@ -62,7 +56,7 @@ export function PullRequestsUnavailableState({
               {t("pullRequests.openOnGitHub")}
             </Button>
           ) : null}
-        </EmptyContent>
+        </div>
       ) : null}
     </Empty>
   );

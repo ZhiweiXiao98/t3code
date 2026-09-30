@@ -1,3 +1,4 @@
+import { translateWebSource } from "~/i18n/messages";
 import { RefreshIcon } from "~/components/ui/refresh-icon";
 
 import { cn } from "~/lib/utils";
@@ -14,6 +15,7 @@ export function PullRequestActivityUnavailableState({
   onRetry: () => void;
   compact?: boolean;
 }) {
+  const { locale: uiLocale } = useI18n();
   const { t } = useI18n();
   return (
     <div
@@ -25,8 +27,8 @@ export function PullRequestActivityUnavailableState({
       <p className="text-sm font-medium text-foreground">{t("pullRequests.activity.loadFailed")}</p>
       <p className="max-w-md text-xs text-muted-foreground">{error}</p>
       <Button size="sm" variant="outline" onClick={onRetry}>
-        <RefreshIcon aria-hidden className="size-3.5" />
-        {t("common.retry")}
+        <RefreshIcon aria-hidden size="sm" />
+        {translateWebSource(uiLocale, "Retry")}
       </Button>
     </div>
   );

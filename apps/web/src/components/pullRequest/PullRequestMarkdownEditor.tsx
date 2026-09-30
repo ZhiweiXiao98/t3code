@@ -1,3 +1,4 @@
+import { translateWebSource } from "~/i18n/messages";
 import { useState } from "react";
 import type { EnvironmentId, ScopedThreadRef } from "@t3tools/contracts";
 
@@ -44,6 +45,7 @@ export function PullRequestMarkdownEditor({
   readonly onSave: (next: string) => void;
   readonly onCancel: () => void;
 }) {
+  const { locale: uiLocale } = useI18n();
   const { t } = useI18n();
   const [draft, setDraft] = useState(value);
   const [preview, setPreview] = useState(false);
@@ -57,18 +59,31 @@ export function PullRequestMarkdownEditor({
     setDraft(value);
   }
   const empty = draft.trim().length === 0;
+  const saveDisabled = saving || (empty && !allowEmpty);
 
   return (
     <div
       className={cn("space-y-2", className)}
       onKeyDown={(event) => {
+        if (event.nativeEvent.isComposing || event.keyCode === 229) return;
+        if (
+          event.key === "Enter" &&
+          (event.metaKey || event.ctrlKey) &&
+          !event.shiftKey &&
+          !event.altKey
+        ) {
+          event.preventDefault();
+          event.stopPropagation();
+          if (!saveDisabled && !event.repeat) onSave(draft);
+          return;
+        }
         if (event.key !== "Escape" || saving) return;
         event.preventDefault();
         onCancel();
       }}
     >
       <ToggleGroup
-        aria-label="Markdown editor mode"
+        aria-label={translateWebSource(uiLocale, "Markdown editor mode")}
         variant="segmented"
         value={[preview ? "preview" : "write"]}
         disabled={saving}
@@ -110,12 +125,7 @@ export function PullRequestMarkdownEditor({
         <Button size="xs" variant="ghost" disabled={saving} onClick={onCancel}>
           {t("common.cancel")}
         </Button>
-        <Button
-          size="xs"
-          variant="outline"
-          disabled={saving || (empty && !allowEmpty)}
-          onClick={() => onSave(draft)}
-        >
+        <Button size="xs" variant="outline" disabled={saveDisabled} onClick={() => onSave(draft)}>
           {saving ? t("pullRequests.markdown.saving") : t("common.save")}
         </Button>
       </div>

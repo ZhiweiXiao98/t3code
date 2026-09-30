@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
 import {
+  Platform,
   Text as RNText,
   TextInput as RNTextInput,
   type TextInputProps as RNTextInputProps,
@@ -35,6 +35,7 @@ export function AppText({
           : localizeMobileString(accessibilityLabel)
       }
       className={cn("font-sans text-foreground", className)}
+      selectionColorClassName={Platform.OS === "android" ? "accent-focus/32" : undefined}
       {...props}
     >
       {localize ? localizeTextChildren(children, localizeMobileString) : children}
@@ -70,8 +71,9 @@ export function AppTextInput({
       )}
       placeholder={placeholder === undefined ? undefined : localizeMobileString(placeholder)}
       placeholderTextColorClassName="accent-placeholder"
-      selectionColorClassName="accent-foreground-secondary"
-      cursorColorClassName="accent-foreground-secondary"
+      selectionColorClassName={"accent-focus/32"}
+      cursorColorClassName={"accent-focus"}
+      selectionHandleColorClassName={Platform.OS === "android" ? "accent-focus" : undefined}
       {...props}
     />
   );

@@ -7,7 +7,7 @@ export function PanelAnimationsPreview({ durationMs }: { durationMs: number }) {
   const { t } = useI18n();
   const [panelsOpen, setPanelsOpen] = useState(true);
   const transitionClass =
-    "transition-[width,height,border-width] [transition-duration:var(--preview-duration)] ease-out motion-reduce:transition-none";
+    "transition-[width,height,border-width] duration-(--preview-duration) ease-out motion-reduce:transition-none";
 
   return (
     <button

@@ -6,6 +6,15 @@ export const MOBILE_LOCALE: MobileLocale =
   process.env.EXPO_PUBLIC_APP_LOCALE === "zh-CN" ? "zh-CN" : "en";
 
 const ZH_CN_MESSAGES = {
+  "Search projects": "搜索项目",
+  "Try a different project name or workspace path.": "请尝试其他项目名称或工作区路径。",
+  "No matching projects": "没有匹配的项目",
+  "Clear model search": "清除模型搜索",
+  Enable: "启用",
+  "Requires access to your Cursor login in macOS Keychain.":
+    "需要访问 macOS 钥匙串中的 Cursor 登录信息。",
+  "Manage usage": "管理用量",
+  "ChatGPT shared usage": "ChatGPT 共享用量",
   Account: "账户",
   Actions: "操作",
   "Add attachment": "添加附件",
@@ -664,6 +673,15 @@ const ZH_CN_MESSAGES = {
 } as const satisfies Readonly<Record<string, string>>;
 
 function translateDynamicMessage(value: string): string | null {
+  const enableCursor = /^Enable Cursor usage from (.+)$/.exec(value);
+  if (enableCursor) return `启用 ${enableCursor[1]} 的 Cursor 用量统计`;
+  const enableOn = /^Enable on (.+)$/.exec(value);
+  if (enableOn) return `在 ${enableOn[1]} 上启用`;
+  const chatGptAccount = /^(.+)\. Open ChatGPT with the account you connected\.$/.exec(value);
+  if (chatGptAccount) return `${chatGptAccount[1]}。请使用已连接的账户打开 ChatGPT。`;
+  const unknownRates = /^no known rates · (.+) tokens$/.exec(value);
+  if (unknownRates) return `暂无已知费率 · ${unknownRates[1]} 个令牌`;
+
   const percentUsed = /^(\d+)% used$/.exec(value);
   if (percentUsed) return `已使用 ${percentUsed[1]}%`;
 
@@ -727,9 +745,9 @@ function translateDynamicMessage(value: string): string | null {
 
   if (value === "resets now") return "即将重置";
   const inDuration = /^in (.+)$/.exec(value);
-  if (inDuration) return `${localizeDuration(inDuration[1])}后`;
+  if (inDuration) return `${localizeDuration(inDuration[1]!)}后`;
   const resetsIn = /^resets in (.+)$/.exec(value);
-  if (resetsIn) return `${localizeDuration(resetsIn[1])}后重置`;
+  if (resetsIn) return `${localizeDuration(resetsIn[1]!)}后重置`;
 
   const pace = /^(ahead of pace|on pace|under pace)(?: · (resets now|resets in .+))?$/.exec(value);
   if (pace) {
@@ -890,5 +908,6 @@ export function localizeAlertArguments(
 }
 
 export type LocalizedAlertApi = {
+  prompt: typeof import("react-native").Alert.prompt;
   alert(title: string, message?: string, buttons?: AlertButton[], options?: AlertOptions): void;
 };

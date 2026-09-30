@@ -89,7 +89,7 @@ export function SidebarUpdateReleaseNotes({
 
           return (
             <div key={releaseNote.version}>
-              {index > 0 && <Separator className="my-3 bg-border/60" />}
+              {index > 0 && <Separator className="my-3" />}
               <section>
                 <h3 className="text-foreground text-xs leading-4 font-semibold">
                   {index === 0
@@ -114,7 +114,7 @@ export function SidebarUpdateReleaseNotes({
         })}
         {state.omittedReleaseCount > 0 ? (
           <div>
-            <Separator className="my-3 bg-border/60" />
+            <Separator className="my-3" />
             <ReleaseLink releaseUrl={getDesktopUpdateReleaseHistoryUrl()} shell={shell}>
               {state.omittedReleaseCount === 1
                 ? t("sidebar.update.olderRelease", { count: state.omittedReleaseCount })

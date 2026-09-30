@@ -1,6 +1,10 @@
-import type { ServerProvider, ServerProviderVersionAdvisory } from "@t3tools/contracts";
-import type { WebTranslate } from "../../i18n/WebI18nProvider";
 import { translateWebMessage } from "../../i18n/messages";
+import type { WebTranslate } from "../../i18n/WebI18nProvider";
+import type {
+  ServerProvider,
+  ServerProviderVersionAdvisory,
+  ServerProviderCompatibilityAdvisory,
+} from "@t3tools/contracts";
 
 const translateProviderEnglish: WebTranslate = (key, values) =>
   translateWebMessage("en", key, values);
@@ -115,12 +119,14 @@ export function getProviderSummary(
   if (provider.auth.status === "authenticated") {
     const authLabel = provider.auth.label ?? provider.auth.type;
     return {
-      headline: authLabel ? `Authenticated · ${authLabel}` : "Authenticated",
+      headline: authLabel
+        ? t("providers.status.authenticatedWith", { method: authLabel })
+        : t("providers.status.authenticated"),
       detail: provider.message ?? null,
     };
   }
   return {
-    headline: "Available",
+    headline: t("providers.status.available"),
     detail: provider.message ?? null,
   };
 }
@@ -143,22 +149,63 @@ export function getProviderVersionLabel(version: string | null | undefined) {
   return /^\d/.test(version) ? `v${version}` : version;
 }
 
+const COMPATIBILITY_TITLES = {
+  graceful: "Limited support",
+  unsupported: "Unsupported version",
+  broken: "Known broken version",
+} as const;
+
+/** Compatibility guidance shares the version popover, with safe install actions. */
 export function getProviderVersionAdvisoryPresentation(
   advisory: ServerProviderVersionAdvisory | undefined,
+  compatibility?: ServerProviderCompatibilityAdvisory | undefined,
+  showCompatibility = true,
   t: WebTranslate = translateProviderEnglish,
 ): {
+  readonly title: string;
   readonly detail: string;
   readonly updateCommand: string | null;
   readonly emphasis: "normal" | "strong";
+  readonly targetVersion: string | null;
 } | null {
-  if (!advisory || advisory.status === "current" || advisory.status === "unknown") {
+  const latestIsIncompatible =
+    compatibility?.latestVersionStatus === "broken" ||
+    compatibility?.latestVersionStatus === "unsupported";
+  if (
+    showCompatibility &&
+    compatibility &&
+    (compatibility.status === "graceful" ||
+      compatibility.status === "unsupported" ||
+      compatibility.status === "broken")
+  ) {
+    const targetVersion = compatibility.recommendedVersion;
+    const recommendation = getProviderVersionLabel(targetVersion) ?? compatibility.recommendedRange;
+    return {
+      title: COMPATIBILITY_TITLES[compatibility.status],
+      detail:
+        compatibility.message ??
+        (recommendation ? `Use ${recommendation} for full support.` : "Update for full support."),
+      updateCommand:
+        targetVersion || latestIsIncompatible ? null : (advisory?.updateCommand ?? null),
+      emphasis: compatibility.status === "graceful" ? "normal" : "strong",
+      targetVersion,
+    };
+  }
+  if (
+    !advisory ||
+    advisory.status === "current" ||
+    advisory.status === "unknown" ||
+    latestIsIncompatible
+  ) {
     return null;
   }
 
+  const label = t("providers.update.available");
   const version = advisory.latestVersion;
   const versionLabel = getProviderVersionLabel(version);
 
   return {
+    title: label,
     detail:
       (advisory.message ? translateProviderMessage(advisory.message, t) : null) ??
       (versionLabel
@@ -166,5 +213,6 @@ export function getProviderVersionAdvisoryPresentation(
         : t("providers.update.installLatest")),
     updateCommand: advisory.updateCommand,
     emphasis: "normal" as const,
+    targetVersion: null,
   };
 }

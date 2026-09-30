@@ -23,6 +23,10 @@ export interface DesktopApplicationMenuMessages {
   readonly copy: string;
   readonly paste: string;
   readonly pasteAndMatchStyle: string;
+  readonly pasteAsText: string;
+  readonly speech: string;
+  readonly startSpeaking: string;
+  readonly stopSpeaking: string;
   readonly delete: string;
   readonly selectAll: string;
   readonly reload: string;
@@ -68,6 +72,10 @@ const messages = {
     copy: "Copy",
     paste: "Paste",
     pasteAndMatchStyle: "Paste and Match Style",
+    pasteAsText: "Paste as Text",
+    speech: "Speech",
+    startSpeaking: "Start Speaking",
+    stopSpeaking: "Stop Speaking",
     delete: "Delete",
     selectAll: "Select All",
     reload: "Reload",
@@ -111,6 +119,10 @@ const messages = {
     copy: "复制",
     paste: "粘贴",
     pasteAndMatchStyle: "粘贴并匹配样式",
+    pasteAsText: "粘贴为纯文本",
+    speech: "语音",
+    startSpeaking: "开始朗读",
+    stopSpeaking: "停止朗读",
     delete: "删除",
     selectAll: "全选",
     reload: "重新加载",

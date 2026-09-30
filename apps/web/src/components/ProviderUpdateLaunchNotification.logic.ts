@@ -171,6 +171,8 @@ export function isProviderUpdateCandidate(
 ): provider is ProviderUpdateCandidate {
   return (
     provider.enabled &&
+    provider.compatibilityAdvisory?.latestVersionStatus !== "broken" &&
+    provider.compatibilityAdvisory?.latestVersionStatus !== "unsupported" &&
     provider.versionAdvisory?.status === "behind_latest" &&
     provider.versionAdvisory.latestVersion !== null
   );
@@ -191,6 +193,8 @@ export function isProviderSettingsUpdateCandidate(
 ): provider is ProviderSettingsUpdateCandidate {
   return (
     provider.enabled &&
+    provider.compatibilityAdvisory?.latestVersionStatus !== "broken" &&
+    provider.compatibilityAdvisory?.latestVersionStatus !== "unsupported" &&
     provider.versionAdvisory?.status === "behind_latest" &&
     provider.versionAdvisory.canUpdate === true &&
     provider.versionAdvisory.updateCommand !== null

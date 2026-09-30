@@ -39,15 +39,12 @@ export function PullRequestReviewerPicker({
   environmentId,
   reference,
   allowed,
-  onRequested,
 }: {
   environmentId: EnvironmentId;
   reference: PullRequestRef;
   /** False where the host would refuse this account's request, which is worth saying rather than
    * hiding: the control disabled with a reason answers the question its absence would raise. */
   allowed: boolean;
-  /** The detail carries who is requested, so it is re-read once the host has taken the change. */
-  onRequested: () => void;
 }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
@@ -98,8 +95,6 @@ export function PullRequestReviewerPicker({
         ? t("pullRequests.reviewers.withdrawn", { reviewer: candidate.login })
         : t("pullRequests.reviewers.requested", { reviewer: candidate.login }),
     });
-    onRequested();
-    candidatesQuery.refresh();
   };
 
   return (
@@ -113,8 +108,8 @@ export function PullRequestReviewerPicker({
       query={query}
       onQueryChange={setQuery}
       searchLabel={t("pullRequests.reviewers.search")}
-      isPending={candidatesQuery.isPending}
-      error={candidatesQuery.error}
+      isPending={candidatesQuery.isPending && candidatesQuery.data === null}
+      error={candidatesQuery.data === null ? candidatesQuery.error : null}
       candidates={candidates}
       emptyLabel={t("pullRequests.reviewers.empty")}
       noMatchLabel={t("pullRequests.reviewers.noMatch")}
@@ -127,7 +122,7 @@ export function PullRequestReviewerPicker({
     >
       {(candidate) => (
         <>
-          <PullRequestActorLabel actor={candidate} className="min-w-0 flex-1 truncate" />
+          <PullRequestActorLabel actor={candidate} className="flex-1" />
           {candidate.kind === "team" ? (
             <span className="shrink-0 text-muted-foreground">
               {t("pullRequests.reviewers.team")}

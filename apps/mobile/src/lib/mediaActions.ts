@@ -9,7 +9,7 @@ import { LocalizedAlert as Alert } from "../i18n/LocalizedAlert";
 import { localizeMobileString } from "../i18n/mobileStrings";
 import { useRefreshAssetUrl } from "../state/assets";
 import { downloadAndShareAttachment, shareLocalAttachment } from "./attachmentDownload";
-import type { DraftComposerFileAttachment } from "./composerImages";
+import type { FileBackedComposerAttachment } from "./composerImages";
 import { copyTextWithHaptic } from "./copyTextWithHaptic";
 import { loadLocalAttachmentPreview } from "./localAttachmentPreview";
 
@@ -22,7 +22,7 @@ export type MediaActionsSource = {
   readonly sourceIdentifier?: string;
 } & (
   | { readonly uri: string }
-  | { readonly attachment: DraftComposerFileAttachment }
+  | { readonly attachment: FileBackedComposerAttachment }
   | {
       readonly environmentId: EnvironmentId;
       readonly threadId?: ThreadId;

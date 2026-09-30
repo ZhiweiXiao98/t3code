@@ -168,8 +168,9 @@ export function CustomModelEditor({
         size="compact"
         value={choice.id}
         onChange={(event) => updateChoice(descriptor.key, choice.key, { id: event.target.value })}
-        placeholder={translate("value")}
-        className="w-28 font-mono"
+        placeholder={translate(translate("value"))}
+        font="mono"
+        className="w-28"
         spellCheck={false}
         aria-label={translate("Choice value")}
       />
@@ -183,7 +184,7 @@ export function CustomModelEditor({
         className="min-w-0 flex-1"
         aria-label={translate("Choice label")}
       />
-      <label className="flex shrink-0 items-center gap-1.5 text-[11px] text-muted-foreground">
+      <label className="flex shrink-0 items-center gap-1.5 text-2xs text-muted-foreground">
         <Switch
           size="sm"
           checked={choice.isDefault}
@@ -215,8 +216,8 @@ export function CustomModelEditor({
       className="flex flex-col gap-2 rounded-md border border-border/60 bg-background/40 p-2.5"
     >
       <div className="flex flex-wrap items-center gap-2">
-        <span className="w-14 shrink-0 text-[11px] text-muted-foreground">
-          {translate("Option")} {index + 1}
+        <span className="w-14 shrink-0 text-2xs text-muted-foreground">
+          {translate(translate("Option"))} {index + 1}
         </span>
         {presets.length > 0 ? (
           <Select
@@ -249,7 +250,8 @@ export function CustomModelEditor({
             value={descriptor.id}
             onChange={(event) => updateDescriptor(descriptor.key, { id: event.target.value })}
             placeholder="optionId"
-            className="w-36 font-mono"
+            font="mono"
+            className="w-36"
             spellCheck={false}
             aria-label={translate("Option id")}
           />

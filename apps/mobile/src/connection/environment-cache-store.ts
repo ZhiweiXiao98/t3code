@@ -1,6 +1,7 @@
 import {
   ConnectionPersistenceError,
   EnvironmentCacheStore,
+  encodeShellSnapshotForCache,
 } from "@t3tools/client-runtime/platform";
 import {
   type EnvironmentId,
@@ -15,13 +16,18 @@ import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 
 import * as MobileDatabase from "../persistence/mobile-database";
-import { attachProjectFaviconDatabase, projectFaviconCache } from "../lib/projectFaviconCache";
+import {
+  attachProjectFaviconDatabase,
+  projectFaviconDatabaseCache,
+} from "../lib/projectFaviconDatabaseCache";
 
 const SHELL_SNAPSHOT_CACHE_SCHEMA_VERSION = 1;
 // v3 adds windowed (paginated) snapshots carrying `page` metadata; the bump
 // makes pre-pagination clients discard the record instead of decoding a
 // partial thread as complete (rollback safety).
-const THREAD_SNAPSHOT_CACHE_SCHEMA_VERSION = 3;
+// v4 reloads pre-thinking caches whose system-role fallback would otherwise
+// survive afterSequence resume and hide settled reasoning messages.
+const THREAD_SNAPSHOT_CACHE_SCHEMA_VERSION = 4;
 const SERVER_CONFIG_CACHE_SCHEMA_VERSION = 1;
 const VCS_REFS_CACHE_SCHEMA_VERSION = 1;
 
@@ -48,52 +54,19 @@ const StoredVcsRefs = Schema.Struct({
   refs: VcsListRefsResult,
 });
 
-const decodeShellSnapshotValue = Schema.decodeUnknownEffect(Schema.toEncoded(StoredShellSnapshot));
-const decodeThreadSnapshotValue = Schema.decodeUnknownEffect(
-  Schema.toEncoded(StoredThreadSnapshot),
+const decodeStoredShellSnapshot = Schema.decodeUnknownEffect(
+  Schema.fromJsonString(StoredShellSnapshot),
 );
-const decodeServerConfigValue = Schema.decodeUnknownEffect(Schema.toEncoded(StoredServerConfig));
-const decodeVcsRefsValue = Schema.decodeUnknownEffect(Schema.toEncoded(StoredVcsRefs));
-
-type StoredShellSnapshotValue = typeof StoredShellSnapshot.Type;
-type StoredThreadSnapshotValue = typeof StoredThreadSnapshot.Type;
-type StoredServerConfigValue = typeof StoredServerConfig.Type;
-type StoredVcsRefsValue = typeof StoredVcsRefs.Type;
-
-function parseJson(raw: string) {
-  return Effect.try({
-    try: () => JSON.parse(raw) as unknown,
-    catch: (cause) => cause,
-  });
-}
-
-const decodeStoredShellSnapshot = (raw: string) =>
-  parseJson(raw).pipe(
-    Effect.flatMap(decodeShellSnapshotValue),
-    Effect.map((value) => value as unknown as StoredShellSnapshotValue),
-  );
-const decodeStoredThreadSnapshot = (raw: string) =>
-  parseJson(raw).pipe(
-    Effect.flatMap(decodeThreadSnapshotValue),
-    Effect.map((value) => value as unknown as StoredThreadSnapshotValue),
-  );
-const decodeStoredServerConfig = (raw: string) =>
-  parseJson(raw).pipe(
-    Effect.flatMap(decodeServerConfigValue),
-    Effect.map((value) => value as unknown as StoredServerConfigValue),
-  );
-const decodeStoredVcsRefs = (raw: string) =>
-  parseJson(raw).pipe(
-    Effect.flatMap(decodeVcsRefsValue),
-    Effect.map((value) => value as unknown as StoredVcsRefsValue),
-  );
-
-function encodeCacheDocument(value: object) {
-  return Effect.try({
-    try: () => JSON.stringify(value),
-    catch: (cause) => cause,
-  });
-}
+const decodeStoredThreadSnapshot = Schema.decodeUnknownEffect(
+  Schema.fromJsonString(StoredThreadSnapshot),
+);
+const encodeStoredThreadSnapshot = Schema.encodeEffect(Schema.fromJsonString(StoredThreadSnapshot));
+const decodeStoredServerConfig = Schema.decodeUnknownEffect(
+  Schema.fromJsonString(StoredServerConfig),
+);
+const encodeStoredServerConfig = Schema.encodeEffect(Schema.fromJsonString(StoredServerConfig));
+const decodeStoredVcsRefs = Schema.decodeUnknownEffect(Schema.fromJsonString(StoredVcsRefs));
+const encodeStoredVcsRefs = Schema.encodeEffect(Schema.fromJsonString(StoredVcsRefs));
 
 type CacheOperation = ConnectionPersistenceError["operation"];
 
@@ -160,14 +133,21 @@ export const make = Effect.fn("MobileEnvironmentCacheStore.make")(function* () {
         decode: decodeStoredShellSnapshot,
         select: (stored) =>
           stored.environmentId === environmentId ? Option.some(stored.snapshot) : Option.none(),
-      }).pipe(Effect.tap(() => Effect.promise(() => projectFaviconCache.hydrate()))),
+      }).pipe(Effect.tap(() => Effect.promise(() => projectFaviconDatabaseCache.hydrate()))),
     ),
     saveShell: Effect.fn("MobileEnvironmentCache.saveShell")(function* (environmentId, snapshot) {
-      const payload = yield* encodeCacheDocument({
-        schemaVersion: SHELL_SNAPSHOT_CACHE_SCHEMA_VERSION,
-        environmentId,
-        snapshot,
-      }).pipe(Effect.mapError((cause) => persistenceError("save-shell", cause)));
+      const encodedSnapshot = yield* encodeShellSnapshotForCache(snapshot).pipe(
+        Effect.mapError((cause) => persistenceError("save-shell", cause)),
+      );
+      const payload = yield* Effect.try({
+        try: () =>
+          JSON.stringify({
+            schemaVersion: SHELL_SNAPSHOT_CACHE_SCHEMA_VERSION,
+            environmentId,
+            snapshot: encodedSnapshot,
+          } satisfies typeof StoredShellSnapshot.Encoded),
+        catch: (cause) => persistenceError("save-shell", cause),
+      });
       yield* database
         .saveCache(environmentId, "shell", "snapshot", SHELL_SNAPSHOT_CACHE_SCHEMA_VERSION, payload)
         .pipe(Effect.mapError(mapDatabaseError("save-shell")));
@@ -188,7 +168,7 @@ export const make = Effect.fn("MobileEnvironmentCacheStore.make")(function* () {
     ),
     saveThread: Effect.fn("MobileEnvironmentCache.saveThread")(function* (environmentId, snapshot) {
       const threadId = snapshot.thread.id;
-      const payload = yield* encodeCacheDocument({
+      const payload = yield* encodeStoredThreadSnapshot({
         schemaVersion: THREAD_SNAPSHOT_CACHE_SCHEMA_VERSION,
         environmentId,
         threadId,
@@ -217,7 +197,7 @@ export const make = Effect.fn("MobileEnvironmentCacheStore.make")(function* () {
     ),
     saveServerConfig: Effect.fn("MobileEnvironmentCache.saveServerConfig")(
       function* (environmentId, config) {
-        const payload = yield* encodeCacheDocument({
+        const payload = yield* encodeStoredServerConfig({
           schemaVersion: SERVER_CONFIG_CACHE_SCHEMA_VERSION,
           environmentId,
           config,
@@ -249,7 +229,7 @@ export const make = Effect.fn("MobileEnvironmentCacheStore.make")(function* () {
     ),
     saveVcsRefs: Effect.fn("MobileEnvironmentCache.saveVcsRefs")(
       function* (environmentId, cwd, refs) {
-        const payload = yield* encodeCacheDocument({
+        const payload = yield* encodeStoredVcsRefs({
           schemaVersion: VCS_REFS_CACHE_SCHEMA_VERSION,
           environmentId,
           cwd,
@@ -271,7 +251,7 @@ export const make = Effect.fn("MobileEnvironmentCacheStore.make")(function* () {
         .pipe(Effect.mapError(mapDatabaseError("clear-vcs-refs"))),
     ),
     clear: Effect.fn("MobileEnvironmentCache.clear")((environmentId) =>
-      Effect.promise(() => projectFaviconCache.clearEnvironment(environmentId)).pipe(
+      Effect.promise(() => projectFaviconDatabaseCache.clearEnvironment(environmentId)).pipe(
         Effect.andThen(database.clearEnvironmentCache(environmentId)),
         Effect.mapError(mapDatabaseError("clear-environment")),
       ),

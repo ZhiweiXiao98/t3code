@@ -9,13 +9,21 @@ import {
 
 const baseState: ThreadActionMenuState = {
   branch: null,
+  projectFilter: null,
   isPinned: false,
   isSettled: false,
+  autoSettleEnabled: true,
   isSnoozed: false,
   canSnoozeNow: true,
   isRegeneratingTitle: false,
   isRunning: false,
-  supports: { settlement: true, snooze: true, pinning: true, titleRegeneration: true },
+  supports: {
+    settlement: true,
+    autoSettleOptOut: true,
+    snooze: true,
+    pinning: true,
+    titleRegeneration: true,
+  },
   snoozePresets: [
     { id: "hour", label: "In 1 hour", whenLabel: "3:00 PM", snoozedUntil: "2026-08-07T15:00:00Z" },
   ],
@@ -36,7 +44,13 @@ describe("buildThreadActionMenuItems", () => {
     expect(
       ids({
         ...baseState,
-        supports: { settlement: false, snooze: false, pinning: false, titleRegeneration: false },
+        supports: {
+          settlement: false,
+          autoSettleOptOut: false,
+          snooze: false,
+          pinning: false,
+          titleRegeneration: false,
+        },
       }),
     ).toEqual(["rename", "mark-unread", "copy", "project-settings", "archive", "delete"]);
   });
@@ -50,6 +64,27 @@ describe("buildThreadActionMenuItems", () => {
       icon: "settings",
     });
     expect(items[copyIndex + 2]?.id).toBe("archive");
+  });
+
+  it("offers project filtering only for surfaces with a scoped thread list", () => {
+    expect(ids(baseState)).not.toContain("filter-by-project");
+    expect(
+      buildThreadActionMenuItems({
+        ...baseState,
+        projectFilter: { label: "Beta Project", isActive: false },
+      }).find((item) => item.id === "filter-by-project"),
+    ).toMatchObject({ label: "Filter by Beta Project", icon: "folder-tree" });
+  });
+
+  it("offers the way back to all projects once the list is scoped", () => {
+    const items = buildThreadActionMenuItems({
+      ...baseState,
+      projectFilter: { label: "Beta Project", isActive: true },
+    });
+    const filterIndex = items.findIndex((candidate) => candidate.id === "filter-by-project");
+    expect(items[filterIndex]).toMatchObject({ label: "Show all projects", icon: "folder-tree" });
+    expect(items[filterIndex - 1]?.id).toBe("mark-unread");
+    expect(items[filterIndex + 1]?.id).toBe("auto-settle");
   });
 
   it("includes branch items only for threads with a branch", () => {
@@ -91,12 +126,31 @@ describe("buildThreadActionMenuItems", () => {
     expect(ids(baseState)).toEqual(expect.arrayContaining(["pin", "settle", "snooze"]));
   });
 
+  it("offers auto-settle as a submenu with the current option checked", () => {
+    const find = (state: ThreadActionMenuState) =>
+      buildThreadActionMenuItems(state).find((item) => item.id === "auto-settle");
+    const on = find(baseState);
+    expect(on?.label).toBe("Auto-settle behavior");
+    expect(on?.children?.map((child) => [child.id, child.checked])).toEqual([
+      ["auto-settle:enabled", true],
+      ["auto-settle:disabled", false],
+    ]);
+    const off = find({ ...baseState, autoSettleEnabled: false });
+    expect(off?.children?.map((child) => child.checked)).toEqual([false, true]);
+    // Sits with the per-thread settings after Mark unread, not the lifecycle verbs.
+    const items = buildThreadActionMenuItems(baseState);
+    expect(items[items.findIndex((item) => item.id === "mark-unread") + 1]?.id).toBe("auto-settle");
+    expect(
+      ids({ ...baseState, supports: { ...baseState.supports, autoSettleOptOut: false } }),
+    ).not.toContain("auto-settle");
+  });
+
   it("disables snooze when the thread cannot snooze, keeping presets visible", () => {
     const snooze = buildThreadActionMenuItems({ ...baseState, canSnoozeNow: false }).find(
       (item) => item.id === "snooze",
     );
     expect(snooze?.disabled).toBe(true);
-    expect(snooze?.children?.map((child) => child.id)).toEqual(["snooze:hour"]);
+    expect(snooze?.children?.map((child) => child.id)).toEqual(["snooze:hour", "snooze:custom"]);
   });
 
   it("disables title regeneration while one is in flight", () => {
@@ -124,7 +178,13 @@ describe("buildThreadActionMenuItems", () => {
     expect(
       ids({
         ...baseState,
-        supports: { settlement: false, snooze: false, pinning: false, titleRegeneration: false },
+        supports: {
+          settlement: false,
+          autoSettleOptOut: false,
+          snooze: false,
+          pinning: false,
+          titleRegeneration: false,
+        },
       }),
     ).toContain("archive");
   });
@@ -134,5 +194,23 @@ describe("buildThreadActionMenuItems", () => {
       (item) => item.id === "archive",
     );
     expect(archiveItem?.disabled).toBe(true);
+  });
+});
+
+it("localizes new project and auto-settle menus without translating action ids", () => {
+  const items = buildThreadActionMenuItems(
+    { ...baseState, projectFilter: { label: "Project/API-v2", isActive: false } },
+    (key, values) => translateWebMessage("zh-CN", key, values),
+  );
+  expect(items.find((item) => item.id === "filter-by-project")).toMatchObject({
+    id: "filter-by-project",
+    label: "按 Project/API-v2 筛选",
+  });
+  expect(items.find((item) => item.id === "auto-settle")).toMatchObject({
+    label: "自动收起行为",
+    children: [
+      { id: "auto-settle:enabled", label: "已启用", checked: true },
+      { id: "auto-settle:disabled", label: "已禁用", checked: false },
+    ],
   });
 });

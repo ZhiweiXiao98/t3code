@@ -11,11 +11,7 @@ import {
   ExternalLinkIcon,
   FileCode2Icon,
   GitCommitHorizontalIcon,
-  GitMergeIcon,
-  GitPullRequestClosedIcon,
-  GitPullRequestIcon,
   MessageSquareIcon,
-  PencilIcon,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
@@ -27,6 +23,7 @@ import { formatRelativeTimeLabel } from "~/timestampFormat";
 import { useI18n } from "../../i18n/WebI18nProvider";
 
 import { Button } from "../ui/button";
+import { PullRequestEditButton } from "./PullRequestEditButton";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "../ui/collapsible";
 import { toastManager } from "../ui/toast";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
@@ -52,6 +49,7 @@ import {
   pullRequestReviewOutcomeStaleLabel,
   pullRequestReviewOutcomeToneClassName,
 } from "./pullRequestPresentation";
+import { PullRequestGlyph } from "./pullRequestIcons";
 
 /** What every comment on the timeline needs to react; only the subject differs between them. */
 interface ReactionSurface {
@@ -144,7 +142,7 @@ function ActorTimelineMarker({
       <PullRequestActorAvatar
         actor={actor}
         className={cn(
-          "size-7 bg-muted text-[9px] transition-opacity",
+          "size-7 bg-muted text-3xs transition-opacity",
           muted && "opacity-45 grayscale",
         )}
       />
@@ -159,9 +157,7 @@ function friendlyReviewState(value: string): string {
 
 function ReviewStateBadge({ state }: { state: string }) {
   return (
-    <span className="text-[10px] font-medium text-muted-foreground">
-      {friendlyReviewState(state)}
-    </span>
+    <span className="text-3xs font-medium text-muted-foreground">{friendlyReviewState(state)}</span>
   );
 }
 
@@ -170,8 +166,8 @@ function OpenOnHostButton({ url, onOpen }: { url: string | null; onOpen: (url: s
   return url === null ? null : (
     <Button
       size="icon-xs"
-      variant="ghost"
-      className="-mr-1 -mt-1 shrink-0 text-muted-foreground"
+      variant="ghost-muted"
+      className="-mr-1 -mt-1 shrink-0"
       aria-label={t("pullRequests.timeline.openOnHost")}
       onClick={() => onOpen(url)}
     >
@@ -222,14 +218,14 @@ function ConversationCard({
   return (
     <article className="group py-2">
       <div className="px-2">
-        <div className="flex min-w-0 items-start gap-2">
+        <div className="flex min-w-0 flex-wrap items-start gap-2">
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-xs">
               <ActorName actor={event.actor} />
               <span className="text-muted-foreground">{event.title}</span>
               {event.reviewState ? <ReviewStateBadge state={event.reviewState} /> : null}
             </div>
-            <PullRequestMetaLine className="mt-1 flex-wrap text-[11px] text-muted-foreground">
+            <PullRequestMetaLine className="mt-1 flex-wrap text-2xs text-muted-foreground">
               <span>{formatRelativeTimeLabel(event.at)}</span>
               {event.path ? (
                 <span className="inline-flex min-w-0 items-center gap-1">
@@ -240,15 +236,22 @@ function ConversationCard({
             </PullRequestMetaLine>
           </div>
           {editable !== null && !editing ? (
-            <Button
-              size="icon-xs"
-              variant="ghost"
-              className="-mt-1 shrink-0 text-muted-foreground opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100"
+            <PullRequestEditButton
+              className="-mt-1"
               aria-label={t("pullRequests.comments.edit")}
               onClick={() => setEditing(true)}
-            >
-              <PencilIcon className="size-3" />
-            </Button>
+            />
+          ) : null}
+          {reactions.canReact || event.reactions.length > 0 ? (
+            <PullRequestReactionBar
+              className="ml-auto justify-end"
+              reactions={event.reactions}
+              canReact={reactions.canReact}
+              subjectId={event.id}
+              environmentId={reactions.environmentId}
+              reference={reactions.reference}
+              onRefresh={reactions.onRefresh}
+            />
           ) : null}
           <OpenOnHostButton url={event.url} onOpen={onOpen} />
         </div>
@@ -274,18 +277,6 @@ function ConversationCard({
             cwd={cwd}
             environmentId={reactions.environmentId}
             threadRef={reactions.threadRef}
-          />
-        </div>
-      ) : null}
-      {reactions.canReact || event.reactions.length > 0 ? (
-        <div className="px-2 pb-2">
-          <PullRequestReactionBar
-            reactions={event.reactions}
-            canReact={reactions.canReact}
-            subjectId={event.id}
-            environmentId={reactions.environmentId}
-            reference={reactions.reference}
-            onRefresh={reactions.onRefresh}
           />
         </div>
       ) : null}
@@ -341,10 +332,8 @@ function ConversationGroup({
               <span className="block text-xs font-semibold">
                 {t("pullRequests.comments.countMany", { count: events.length.toLocaleString() })}
               </span>
-              <span className="block truncate text-[10px] text-muted-foreground">
-                {t("pullRequests.timeline.authorCount", {
-                  count: actors.length.toLocaleString(),
-                })}{" "}
+              <span className="block truncate text-3xs text-muted-foreground">
+                {t("pullRequests.timeline.authorCount", { count: actors.length.toLocaleString() })}{" "}
                 · {formatRelativeTimeLabel(first.at)}
               </span>
             </span>
@@ -392,7 +381,7 @@ function CommitEvent({
   return (
     <button
       type="button"
-      className="group relative mb-5 block w-full rounded-sm pl-12 text-left outline-none [contain-intrinsic-block-size:48px] [content-visibility:auto] focus-visible:ring-2 focus-visible:ring-ring"
+      className="group relative mb-5 block w-full cursor-pointer rounded-sm pl-12 text-left outline-none [contain-intrinsic-block-size:48px] [content-visibility:auto] focus-visible:ring-2 focus-visible:ring-ring"
       aria-label={t("pullRequests.timeline.viewCommit", { commit: event.id })}
       onClick={() => onOpen(event.id)}
     >
@@ -405,7 +394,7 @@ function CommitEvent({
           <div className="truncate text-xs font-semibold text-foreground transition-colors group-hover:text-primary">
             {event.body ?? t("pullRequests.timeline.untitledCommit")}
           </div>
-          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground">
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-3xs text-muted-foreground">
             <code className="font-mono">{event.id.slice(0, 7)}</code>
             <span>{formatRelativeTimeLabel(event.at)}</span>
           </div>
@@ -414,7 +403,7 @@ function CommitEvent({
           <PullRequestDiffStat
             additions={event.additions}
             deletions={event.deletions}
-            className="ml-auto shrink-0 font-mono text-[10px]"
+            className="ml-auto shrink-0 font-mono text-3xs"
           />
         ) : null}
       </div>
@@ -427,16 +416,16 @@ function LifecycleEvent({ event }: { event: PullRequestTimelineEvent }) {
   const presentation =
     event.kind === "opened"
       ? {
-          icon: <GitPullRequestIcon className="size-3.5" />,
+          icon: <PullRequestGlyph.pullRequest className="size-3.5" />,
           label: t("pullRequests.timeline.opened"),
         }
       : event.kind === "merged"
         ? {
-            icon: <GitMergeIcon className="size-3.5" />,
+            icon: <PullRequestGlyph.merged className="size-3.5" />,
             label: t("pullRequests.timeline.merged"),
           }
         : {
-            icon: <GitPullRequestClosedIcon className="size-3.5" />,
+            icon: <PullRequestGlyph.closed className="size-3.5" />,
             label: t("pullRequests.timeline.closed"),
           };
 
@@ -448,7 +437,7 @@ function LifecycleEvent({ event }: { event: PullRequestTimelineEvent }) {
           {event.actor ? <ActorName actor={event.actor} /> : null}
           <span className="font-semibold text-foreground">{presentation.label}</span>
         </div>
-        <div className="mt-0.5 text-[11px] text-muted-foreground">
+        <div className="mt-0.5 text-2xs text-muted-foreground">
           {formatRelativeTimeLabel(event.at)}
         </div>
       </div>
@@ -480,14 +469,14 @@ function ReviewVerdictEvent({
   const { t } = useI18n();
   return (
     <div className="group relative mb-5 pl-12 [contain-intrinsic-block-size:48px] [content-visibility:auto]">
-      {/* Pinned rather than centred: this row grows with a body and a reaction bar, and a
-          centred avatar drifts down beside them instead of sitting by the name. */}
+      {/* Pinned rather than centred: this row grows with a body, and a
+          centred avatar drifts down beside it instead of sitting by the name. */}
       <ActorTimelineMarker
         actors={event.actor ? [event.actor] : []}
         className="top-6"
         fallback={<PullRequestReviewOutcomeIcon outcome={outcome} />}
       />
-      <div className="flex min-w-0 items-start gap-2 py-1.5">
+      <div className="flex min-w-0 flex-wrap items-start gap-2 py-1.5">
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-xs">
             <ActorName actor={event.actor} />
@@ -517,11 +506,8 @@ function ReviewVerdictEvent({
               <TooltipPopup>{pullRequestReviewOutcomeStaleLabel(outcome, t)}</TooltipPopup>
             </Tooltip>
           </div>
-          {/* The reaction bar rides this line rather than taking one of its own. Its add button
-              is invisible until hovered but still occupies `h-6`, and under a verdict — usually a
-              single line with no body — a row of that reserved on its own reads as a hole. */}
           <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-            <PullRequestMetaLine className="flex-wrap text-[11px] text-muted-foreground">
+            <PullRequestMetaLine className="flex-wrap text-2xs text-muted-foreground">
               <span>{formatRelativeTimeLabel(event.at)}</span>
               {event.path ? (
                 <span className="inline-flex min-w-0 items-center gap-1">
@@ -530,31 +516,32 @@ function ReviewVerdictEvent({
                 </span>
               ) : null}
             </PullRequestMetaLine>
-            {reactions.canReact || event.reactions.length > 0 ? (
-              <PullRequestReactionBar
-                reactions={event.reactions}
-                canReact={reactions.canReact}
-                subjectId={event.id}
-                environmentId={reactions.environmentId}
-                reference={reactions.reference}
-                onRefresh={reactions.onRefresh}
-              />
-            ) : null}
           </div>
-          {/* An approval usually carries no words. When it does they are the review, so they stay
-              visible rather than being folded away with the ordinary conversation. */}
-          {event.body ? (
-            <TimelineBody
-              body={event.body}
-              markdown={event.markdown}
-              cwd={cwd}
-              environmentId={reactions.environmentId}
-              threadRef={reactions.threadRef}
-            />
-          ) : null}
         </div>
+        {reactions.canReact || event.reactions.length > 0 ? (
+          <PullRequestReactionBar
+            className="ml-auto justify-end"
+            reactions={event.reactions}
+            canReact={reactions.canReact}
+            subjectId={event.id}
+            environmentId={reactions.environmentId}
+            reference={reactions.reference}
+            onRefresh={reactions.onRefresh}
+          />
+        ) : null}
         <OpenOnHostButton url={event.url} onOpen={onOpen} />
       </div>
+      {/* An approval usually carries no words. When it does they are the review, so they stay
+          visible rather than being folded away with the ordinary conversation. */}
+      {event.body ? (
+        <TimelineBody
+          body={event.body}
+          markdown={event.markdown}
+          cwd={cwd}
+          environmentId={reactions.environmentId}
+          threadRef={reactions.threadRef}
+        />
+      ) : null}
     </div>
   );
 }
@@ -641,7 +628,7 @@ export function PullRequestTimelineTab({
 
         {events.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
-            <GitPullRequestIcon className="mb-2 size-5" />
+            <PullRequestGlyph.pullRequest className="mb-2 size-5" />
             <p className="text-xs">{t("pullRequests.timeline.empty")}</p>
           </div>
         ) : null}

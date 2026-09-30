@@ -78,7 +78,7 @@ export function ProjectFaviconPickerDialog(props: {
       {props.open ? (
         <CommandDialogPopup
           aria-label={t("projectIcon.label")}
-          className="overflow-hidden p-0"
+          className="overflow-hidden"
           onBackdropPointerDown={() => props.onOpenChange(false)}
         >
           <CommandPaletteContent
@@ -121,7 +121,7 @@ export function ProjectFaviconPickerDialog(props: {
               setHighlightedItemValue(null);
               setQuery(value);
             }}
-            panelClassName="max-h-[min(34rem,76vh)]"
+            panelSize="tall-list"
             testId="project-favicon-picker"
             value={query}
           >

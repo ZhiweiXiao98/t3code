@@ -28,6 +28,19 @@ const state = vi.hoisted(() => ({
   },
 }));
 
+vi.mock("../../i18n/WebI18nProvider", async () => {
+  const { translateWebMessage } = await import("../../i18n/messages");
+  return {
+    useI18n: () => ({
+      locale: "en",
+      t: (
+        key: Parameters<typeof translateWebMessage>[1],
+        values?: Parameters<typeof translateWebMessage>[2],
+      ) => translateWebMessage("en", key, values),
+    }),
+  };
+});
+
 vi.mock("react", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react")>();
   const { reactHookHarness } = await import("../../test/reactHookHarness");

@@ -105,7 +105,7 @@ export function PullRequestListEmptyState({
   // Ahead of the search and the filters, because neither can produce a row until a project does.
   if (!hasProjects) {
     return (
-      <Empty className="py-16">
+      <Empty>
         <BranchMark joined={false} />
         <EmptyHeader>
           <EmptyTitle>{t("pullRequests.empty.noProjects")}</EmptyTitle>
@@ -136,7 +136,7 @@ export function PullRequestListEmptyState({
 
   if (query.length > 0) {
     return (
-      <Empty className="py-16">
+      <Empty>
         <BranchMark joined={false} />
         <EmptyHeader>
           {/* A pasted paragraph is still a search, but it is not a title. */}
@@ -147,7 +147,7 @@ export function PullRequestListEmptyState({
           </EmptyTitle>
           <EmptyDescription>{t("pullRequests.empty.noMatchesDescription")}</EmptyDescription>
         </EmptyHeader>
-        <EmptyContent className="flex-row flex-wrap justify-center gap-2">
+        <div className="flex flex-wrap justify-center gap-2">
           <Button size="sm" variant="outline" onClick={onClearQuery}>
             <SearchIcon className="size-3.5" />
             {t("pullRequests.empty.clearSearch")}
@@ -155,16 +155,16 @@ export function PullRequestListEmptyState({
           {/* The hosts answered this query once; a pull request opened since then would answer
               differently, and nothing on screen says which of the two the reader is looking at. */}
           <Button size="sm" variant="outline" disabled={refreshing} onClick={onRefresh}>
-            <RefreshIcon className="size-3.5" refreshing={refreshing} />
-            {t(refreshing ? "pullRequests.empty.checking" : "pullRequests.empty.checkAgain")}
+            <RefreshIcon size="sm" refreshing={refreshing} />
+            {refreshing ? t("pullRequests.empty.checking") : t("pullRequests.empty.checkAgain")}
           </Button>
-        </EmptyContent>
+        </div>
       </Empty>
     );
   }
 
   return (
-    <Empty className="py-16">
+    <Empty>
       <BranchMark joined={false} />
       <EmptyHeader>
         <EmptyTitle>
@@ -178,17 +178,17 @@ export function PullRequestListEmptyState({
           )}
         </EmptyDescription>
       </EmptyHeader>
-      <EmptyContent className="flex-row flex-wrap justify-center gap-2">
+      <div className="flex flex-wrap justify-center gap-2">
         {canLoadMore ? (
           <Button size="sm" variant="outline" disabled={loadingMore} onClick={onLoadMore}>
             {t(loadingMore ? "pullRequests.empty.loading" : "pullRequests.empty.loadMore")}
           </Button>
         ) : null}
         <Button size="sm" variant="outline" disabled={refreshing} onClick={onRefresh}>
-          <RefreshIcon className="size-3.5" refreshing={refreshing} />
-          {t(refreshing ? "pullRequests.empty.checking" : "pullRequests.empty.checkAgain")}
+          <RefreshIcon size="sm" refreshing={refreshing} />
+          {refreshing ? t("pullRequests.empty.checking") : t("pullRequests.empty.checkAgain")}
         </Button>
-      </EmptyContent>
+      </div>
     </Empty>
   );
 }

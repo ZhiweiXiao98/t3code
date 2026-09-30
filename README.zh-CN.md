@@ -1,19 +1,26 @@
 # T3 Code 简体中文社区版
 
 > [!IMPORTANT]
-> 本 Fork / 简体中文社区版的维护者目前因时间安排抽不开身，现暂停维护与发布，恢复时间待定。本说明仅针对这个社区 Fork。
+> 本 Fork / 简体中文社区版已恢复维护，跟进上游稳定版本并补齐汉化。客户端在 GitHub 云端构建，只有通过测试和构建验证的产物才会发布。
 
 > [!IMPORTANT]
-> 这是由社区维护的非官方汉化版本，与 T3 Code 官方团队没有隶属关系。暂停维护期间不再跟进上游更新，也不发布新版本。
+> 这是由社区维护的非官方汉化版本，与 T3 Code 官方团队没有隶属关系。维护范围为 Windows、macOS、Linux 和 Android；iOS 仅提供官方原版入口。
 
 本分支为 T3 Code 增加简体中文界面，并保留英文和“跟随系统”选项。Provider 名称、模型名称、命令、快捷键、路径、URL、Git 标识符等技术内容保持原样，避免翻译影响实际操作。
 
 ## 下载与安装
 
+- [社区版 Releases 与本次发布状态](https://github.com/ZhiweiXiao98/t3code/releases)：请以每个发布页实际列出的系统、架构和资产为准
+- [iOS 官方原版（未汉化）](https://apps.apple.com/us/app/t3-code-remote-claude-more/id6787819824)，开发者 T3Tools；本仓库不构建或上架 iOS
+
+本次正在迁移上游稳定版 `v0.0.44`。Windows、macOS 与 Linux 的新构建在验证通过前不会替换下面的历史下载；Android 的原有升级签名无法提供，后续安装包将使用新的发布签名，不能直接覆盖历史 APK。请先备份设置，再卸载旧版；卸载可能丢失本地数据。新签名完成安全备份前不会发布可安装 APK。Actions 中明确标记的未签名 Android 候选包不可安装，不是正式下载。
+
+### 历史社区安装包
+
 - [Windows x64 简体中文安装包](https://github.com/ZhiweiXiao98/t3code/releases/tag/zh-cn-v0.0.33-cn.1)
 - [Android 简体中文 APK](https://github.com/ZhiweiXiao98/t3code/releases/tag/zh-cn-mobile-v1.0.4-cn.1)
 
-两个社区安装包均未使用应用商店或商业代码签名。Windows SmartScreen 或 Android 系统可能显示安全提醒，请只从本仓库 Releases 下载，并在安装前核对发布页提供的 SHA-256。
+这些历史社区安装包并非通过应用商店分发；Windows 没有商业代码签名，Android 使用的历史签名身份需要核实。Windows SmartScreen 或 Android 系统可能显示安全提醒，请只从本仓库 Releases 下载，并在安装前核对发布页提供的 SHA-256。
 
 Android 版使用独立应用标识 `com.zhiweixiao.t3code.zhcn`，可以与官方版同时安装，并已关闭官方 OTA 更新，避免汉化界面被英文更新覆盖。它支持与本地 T3 Code 后端配对；依赖官方应用签名或云端凭据的 T3 Connect 登录、推送通知等功能可能受限。
 
@@ -33,7 +40,7 @@ T3 Code 需要至少一个已安装并完成登录的 Provider CLI：
 - `English`
 - `简体中文`
 
-选择“跟随系统”时，应用会根据浏览器或操作系统语言自动显示中文或英文。
+选择“跟随系统”时，应用会根据浏览器或操作系统语言自动显示中文或英文。Windows 托盘菜单目前在启动时读取语言；切换语言后重启应用即可同步托盘文字。
 
 ## 已覆盖界面
 
@@ -55,7 +62,7 @@ Android 社区安装包固定使用简体中文；桌面版仍可在设置中切
 - 实现与审查记录：[Fork PR #1](https://github.com/ZhiweiXiao98/t3code/pull/1)
 - 问题反馈：[Issues](https://github.com/ZhiweiXiao98/t3code/issues)
 
-本分支目前暂停吸收上游 `main` 的更新。由于改动范围较大，当前以社区 Fork 形式交付；如果官方维护者希望采用其中的国际化基础设施，可以再拆分成小型、可独立审查的提交。
+本分支恢复跟进上游稳定发布，先在维护分支迁移和验证，再发布对应客户端。由于改动范围较大，当前以社区 Fork 形式交付；如果官方维护者希望采用其中的国际化基础设施，可以再拆分成小型、可独立审查的提交。
 
 ## 从源码运行
 

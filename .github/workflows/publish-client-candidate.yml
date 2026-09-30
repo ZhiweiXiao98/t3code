@@ -1,0 +1,299 @@
+name: Publish reviewed community client candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_run_id:
+        description: Successful client-release.yml run whose desktop artifacts you reviewed
+        required: true
+        type: string
+      expected_sha:
+        description: Exact full 40-character source SHA of that reviewed candidate
+        required: true
+        type: string
+      reviewed_artifacts:
+        description: I reviewed this run's actual desktop artifacts and unsigned-release disclosures
+        required: true
+        type: boolean
+        default: false
+
+permissions: {}
+
+concurrency:
+  group: publish-community-client-v0.0.44-zh.1
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify reviewed candidate without rebuilding
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      manifest_sha256: ${{ steps.verify.outputs.manifest_sha256 }}
+    steps:
+      # Never check out or execute code from the candidate in this workflow.
+      - name: Validate run and download four exact immutable artifacts
+        id: verify
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_RUN_ID: ${{ inputs.candidate_run_id }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          REVIEWED_ARTIFACTS: ${{ inputs.reviewed_artifacts }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          import datetime, hashlib, json, os, pathlib, re, shutil, stat, subprocess, zipfile
+
+          repo = 'ZhiweiXiao98/t3code'
+          branch = 'maintenance/v0.0.44-zh-cloud'
+          run_id = os.environ['CANDIDATE_RUN_ID']
+          sha = os.environ['EXPECTED_SHA']
+          assert re.fullmatch(r'[1-9][0-9]{0,17}', run_id), 'Invalid run ID'
+          assert re.fullmatch(r'[0-9a-f]{40}', sha), 'Expected full lowercase SHA'
+          assert os.environ['REVIEWED_ARTIFACTS'] == 'true', 'Review the actual candidate artifacts before dispatch'
+          assert os.environ['GITHUB_REPOSITORY'] == repo
+          assert os.environ['GITHUB_REF'] == 'refs/heads/' + branch
+          base = f'repos/{repo}'
+          def api(path):
+              return json.loads(subprocess.check_output(['gh', 'api', base + path]))
+          assert api('')['private'] is False, 'Public repository required'
+          run_path = '/actions/runs/' + run_id
+          def run_snapshot():
+              r = api(run_path)
+              assert r['repository']['full_name'] == repo and r['head_repository']['full_name'] == repo
+              workflow_path = '.github/workflows/client-release.yml'
+              assert r['path'] in {workflow_path, workflow_path + '@' + branch,
+                                   workflow_path + '@refs/heads/' + branch, workflow_path + '@' + sha}
+              assert api('/actions/workflows/' + str(r['workflow_id']))['path'] == workflow_path
+              assert r['head_branch'] == branch and r['head_sha'] == sha
+              assert r['event'] in ('push', 'workflow_dispatch')
+              assert r['status'] == 'completed' and r['conclusion'] == 'success'
+              assert isinstance(r['run_attempt'], int) and r['run_attempt'] > 0
+              return {k: r[k] for k in ('id', 'workflow_id', 'run_attempt', 'head_sha', 'head_branch', 'path', 'status', 'conclusion', 'updated_at', 'run_started_at')}
+          run = run_snapshot()
+          # A green run can contain skipped jobs. Require all actual build/check jobs.
+          jobs = api(run_path + '/attempts/' + str(run['run_attempt']) + '/jobs?per_page=100')
+          assert jobs['total_count'] <= 100, 'Unexpected job count'
+          required_jobs = {
+              'Validate exact source', 'Lint and typecheck', 'Build validated desktop bundle',
+              'Linux x64 and embedded Windows WSL runtime',
+              'Tests (clients)', 'Tests (server-1)', 'Tests (server-2)', 'Tests (server-3)',
+              'Desktop win x64 (unsigned)', 'Desktop mac arm64 (unsigned)', 'Desktop mac x64 (unsigned)',
+              'Android arm64 unsigned candidate (NOT installable)',
+          }
+          for name in required_jobs:
+              matches = [j for j in jobs['jobs'] if j['name'] == name]
+              assert len(matches) == 1 and matches[0]['conclusion'] == 'success' and matches[0]['status'] == 'completed', name
+              assert matches[0]['head_sha'] == sha and matches[0]['run_id'] == int(run_id)
+          assert api('/commits/' + sha)['sha'] == sha
+          assert api('/git/ref/heads/' + branch)['object']['sha'] == sha, 'Maintenance branch moved; review again'
+          prefix = 'T3-Code-0.0.44-zh.1-'
+          specifications = {
+              'client-linux-x64': ({prefix + 'x86_64.AppImage'}, {prefix + 'amd64.deb'}),
+              'client-win-x64': ({prefix + 'x64.exe'}, set()),
+              'client-mac-arm64': ({prefix + 'arm64.dmg'}, {prefix + 'arm64.zip'}),
+              'client-mac-x64': ({prefix + 'x64.dmg'}, {prefix + 'x64.zip'}),
+          }
+          def artifacts_snapshot():
+              result = api(run_path + '/artifacts?per_page=100')
+              assert result['total_count'] <= 100, 'Unexpected artifact count'
+              result = result['artifacts']
+              assert {a['name'] for a in result if a['name'].startswith('client-')} == set(specifications)
+              selected = []
+              for name in specifications:
+                  matches = [a for a in result if a['name'] == name]
+                  assert len(matches) == 1, 'Missing or duplicate artifact: ' + name
+                  a = matches[0]
+                  assert type(a['id']) is int and a['id'] > 0
+                  assert not a['expired'] and 0 < a['size_in_bytes'] <= 2 * 1024**3
+                  assert datetime.datetime.fromisoformat(a['expires_at'].replace('Z', '+00:00')) > datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
+                  assert a['workflow_run']['id'] == int(run_id) and a['workflow_run']['head_sha'] == sha
+                  assert a['workflow_run']['head_branch'] == branch
+                  assert re.fullmatch(r'sha256:[0-9a-f]{64}', a.get('digest', '')), 'Missing archive SHA-256'
+                  # Reject retained artifacts from an earlier failed attempt.
+                  assert a['created_at'] >= run['run_started_at'], 'Artifact predates current run attempt'
+                  selected.append({k: a[k] for k in ('id', 'name', 'size_in_bytes', 'digest', 'created_at', 'updated_at', 'expires_at')})
+              assert len({a['id'] for a in selected}) == 4
+              return selected
+          artifacts = artifacts_snapshot()
+          output = pathlib.Path('verified-assets')
+          output.mkdir()
+          asset_records = []
+          for a in artifacts:
+              archive = pathlib.Path(os.environ['RUNNER_TEMP']) / (str(a['id']) + '.zip')
+              with archive.open('xb') as f:
+                  subprocess.run(['gh', 'api', base + '/actions/artifacts/' + str(a['id']) + '/zip'], stdout=f, check=True)
+              assert archive.stat().st_size <= 2 * 1024**3
+              assert 'sha256:' + hashlib.file_digest(archive.open('rb'), 'sha256').hexdigest() == a['digest'], 'Archive digest mismatch'
+              required, optional = specifications[a['name']]
+              with zipfile.ZipFile(archive) as z:
+                  entries = z.infolist()
+                  names = [e.filename for e in entries]
+                  assert len(names) == len(set(names)), 'Duplicate ZIP entries'
+                  assert required <= set(names) <= required | optional, 'Unexpected paths or platform assets'
+                  for entry in entries:
+                      mode = entry.external_attr >> 16
+                      assert not entry.is_dir() and stat.S_IFMT(mode) in (0, stat.S_IFREG), 'Non-regular ZIP entry'
+                      assert not entry.flag_bits & 1, 'Encrypted ZIP entry'
+                      assert 0 < entry.file_size <= 2 * 1024**3
+                      target = output / entry.filename
+                      # Exact allowlists above reject traversal, backslashes, option-like names,
+                      # updater feeds, APKs, shell metacharacters and cross-platform substitutes.
+                      with z.open(entry) as src, target.open('xb') as dst:
+                          shutil.copyfileobj(src, dst)
+                      assert target.stat().st_size == entry.file_size
+                      digest = hashlib.file_digest(target.open('rb'), 'sha256').hexdigest()
+                      asset_records.append({'name': entry.filename, 'size': entry.file_size, 'sha256': digest, 'artifact_id': a['id']})
+              archive.unlink()
+          assert run_snapshot() == run, 'Candidate was rerun or changed during verification'
+          assert artifacts_snapshot() == artifacts, 'Candidate artifacts changed during verification'
+          asset_records.sort(key=lambda a: a['name'])
+          manifest = {'repository': repo, 'version': '0.0.44-zh.1', 'source_sha': sha,
+                      'run_url': f'https://github.com/{repo}/actions/runs/{run_id}/attempts/{run["run_attempt"]}',
+                      'run': run, 'artifacts': artifacts, 'assets': asset_records}
+          manifest_path = output / 'BUILD-PROVENANCE.json'
+          manifest_path.write_text(json.dumps(manifest, indent=2) + '\n')
+          manifest_digest = hashlib.file_digest(manifest_path.open('rb'), 'sha256').hexdigest()
+          checksums = ''.join(a['sha256'] + '  ' + a['name'] + '\n' for a in asset_records)
+          (output / 'SHA256SUMS.txt').write_text(checksums + manifest_digest + '  BUILD-PROVENANCE.json\n')
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write('manifest_sha256=' + manifest_digest + '\n')
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
+              f.write('Verified reviewed candidate: ' + manifest['run_url'] + '\n\nSource: ' + sha + '\n\n' + checksums)
+          PY
+      - name: Transfer only verified desktop files
+        id: upload
+        uses: actions/upload-artifact@v7
+        with:
+          name: verified-desktop-release
+          path: verified-assets/*
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: Publish verified desktop prerelease
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      # Same-workflow artifact download uses the scoped Actions runtime token.
+      - uses: actions/download-artifact@v8
+        with:
+          artifact-ids: ${{ needs.verify.outputs.artifact_id }}
+          path: assets
+          merge-multiple: true
+      - name: Reverify provenance and publish without running candidate code
+        uses: actions/github-script@v8
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          CANDIDATE_RUN_ID: ${{ inputs.candidate_run_id }}
+          MANIFEST_SHA256: ${{ needs.verify.outputs.manifest_sha256 }}
+        with:
+          script: |
+            const fs = require('node:fs');
+            const crypto = require('node:crypto');
+            const assert = require('node:assert/strict');
+            const hash = data => crypto.createHash('sha256').update(data).digest('hex');
+            const repo = {owner: 'ZhiweiXiao98', repo: 't3code'};
+            const branch = 'maintenance/v0.0.44-zh-cloud';
+            const tag = 'v0.0.44-zh.1';
+            assert.equal(context.repo.owner, repo.owner);
+            assert.equal(context.repo.repo, repo.repo);
+            const manifestBytes = fs.readFileSync('assets/BUILD-PROVENANCE.json');
+            assert.equal(hash(manifestBytes), process.env.MANIFEST_SHA256);
+            const m = JSON.parse(manifestBytes);
+            assert.equal(m.repository, 'ZhiweiXiao98/t3code');
+            assert.equal(m.version, '0.0.44-zh.1');
+            assert.equal(m.source_sha, process.env.EXPECTED_SHA);
+            assert.equal(String(m.run.id), process.env.CANDIDATE_RUN_ID);
+            assert.match(m.source_sha, /^[0-9a-f]{40}$/);
+            const mandatory = ['T3-Code-0.0.44-zh.1-x86_64.AppImage', 'T3-Code-0.0.44-zh.1-x64.exe',
+              'T3-Code-0.0.44-zh.1-arm64.dmg', 'T3-Code-0.0.44-zh.1-x64.dmg'];
+            const allowed = new Set([...mandatory, 'T3-Code-0.0.44-zh.1-amd64.deb',
+              'T3-Code-0.0.44-zh.1-arm64.zip', 'T3-Code-0.0.44-zh.1-x64.zip']);
+            const names = m.assets.map(a => a.name);
+            assert.equal(new Set(names).size, names.length);
+            assert(mandatory.every(n => names.includes(n)) && names.every(n => allowed.has(n)));
+            const files = [...names, 'BUILD-PROVENANCE.json', 'SHA256SUMS.txt'].sort();
+            assert.deepEqual(fs.readdirSync('assets').sort(), files);
+            for (const name of files) assert(fs.lstatSync(`assets/${name}`).isFile());
+            for (const a of m.assets) {
+              assert(a.size > 0 && a.size === fs.statSync(`assets/${a.name}`).size);
+              assert.equal(hash(fs.readFileSync(`assets/${a.name}`)), a.sha256);
+            }
+            assert.equal(fs.readFileSync('assets/SHA256SUMS.txt', 'utf8'),
+              m.assets.map(a => `${a.sha256}  ${a.name}\n`).join('') + `${hash(manifestBytes)}  BUILD-PROVENANCE.json\n`);
+            // This job has no actions:read permission. Recheck the PUBLIC repository
+            // through unauthenticated, fixed-origin REST requests; fail closed on errors.
+            async function publicAPI(path) {
+              const response = await fetch(`https://api.github.com/repos/ZhiweiXiao98/t3code${path}`, {
+                headers: {'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28'},
+                redirect: 'error'
+              });
+              assert(response.ok, `Public API check failed: ${response.status}`);
+              return response.json();
+            }
+            async function recheck() {
+              assert.equal((await publicAPI('')).private, false);
+              const run = await publicAPI(`/actions/runs/${m.run.id}`);
+              for (const [key, value] of Object.entries(m.run)) assert.equal(run[key], value);
+              assert.equal(run.repository.full_name, m.repository);
+              assert.equal(run.head_repository.full_name, m.repository);
+              assert.equal((await publicAPI(`/git/ref/heads/${branch}`)).object.sha, m.source_sha);
+              const artifacts = await publicAPI(`/actions/runs/${m.run.id}/artifacts?per_page=100`);
+              assert(artifacts.total_count <= 100);
+              assert.equal(artifacts.artifacts.filter(a => a.name.startsWith('client-')).length, 4);
+              for (const expected of m.artifacts) {
+                const found = artifacts.artifacts.filter(a => a.id === expected.id);
+                assert.equal(found.length, 1);
+                assert.equal(found[0].expired, false);
+                assert(Date.parse(found[0].expires_at) > Date.now());
+                for (const [key, value] of Object.entries(expected)) assert.equal(found[0][key], value);
+              }
+            }
+            await recheck();
+            async function requireAbsent(request) {
+              try { await request(); } catch (e) { if (e.status === 404) return; throw e; }
+              throw new Error('Existing release/tag; refusing replacement');
+            }
+            await requireAbsent(() => github.rest.git.getRef({...repo, ref: `tags/${tag}`}));
+            await requireAbsent(() => github.rest.repos.getReleaseByTag({...repo, tag}));
+            const releases = await github.paginate(github.rest.repos.listReleases, {...repo, per_page: 100});
+            assert(!releases.some(r => r.tag_name === tag), 'Existing draft/release; refusing replacement');
+            // Atomic ref creation prevents accidentally publishing on a raced existing tag.
+            await github.rest.git.createRef({...repo, ref: `refs/tags/${tag}`, sha: m.source_sha});
+            const body = `Chinese community desktop clients, version ${m.version}.\n\n` +
+              `Source: ${m.source_sha}\nVerified candidate: ${m.run_url}\n\n` +
+              'Windows x64 is unsigned (no Authenticode signature). macOS arm64/x64 is not Developer ID signed or notarized. OS trust warnings are expected. Linux x64 AppImage is included.\n\n' +
+              'Android is not included: secure backup and rollout of the new release signing key are still pending. The unsigned candidate is NOT installable. A future build with the new signature cannot overwrite the historical APK; back up settings before uninstalling the old app, since uninstalling can delete local data.\n\n' +
+              'Android 暂未发布：新签名的安全备份与后续发布仍待完成。新签名不能直接覆盖历史 APK，卸载旧版前请先备份设置；卸载可能丢失本地数据。\n\n' +
+              'Lint, typecheck, tests and desktop packaging passed for this exact candidate. These artifacts were reviewed before manual publication and were not rebuilt. SHA256SUMS.txt and BUILD-PROVENANCE.json record integrity and origin, not publisher identity. Manual downloads only; no updater feeds, npm, AUR or other registry publishing.\n';
+            const {data: release} = await github.rest.repos.createRelease({...repo, tag_name: tag,
+              target_commitish: m.source_sha, name: `T3 Code 中文版 ${m.version} (unsigned desktop clients)`,
+              body, draft: true, prerelease: true, make_latest: 'false'});
+            // A failure leaves a draft for investigation; never overwrite or auto-delete it.
+            for (const name of files) {
+              const data = fs.readFileSync(`assets/${name}`);
+              const {data: asset} = await github.rest.repos.uploadReleaseAsset({...repo,
+                release_id: release.id, name, data, headers: {'content-type': 'application/octet-stream', 'content-length': data.length}});
+              assert.equal(asset.state, 'uploaded');
+              assert.equal(asset.size, data.length);
+              assert.equal(asset.digest, `sha256:${hash(data)}`);
+            }
+            await recheck();
+            assert.equal((await github.rest.git.getRef({...repo, ref: `tags/${tag}`})).data.object.sha, m.source_sha);
+            const {data: uploaded} = await github.rest.repos.listReleaseAssets({...repo, release_id: release.id, per_page: 100});
+            assert.deepEqual(uploaded.map(a => a.name).sort(), files);
+            const {data: published} = await github.rest.repos.updateRelease({...repo, release_id: release.id,
+              draft: false, prerelease: true, make_latest: 'false'});
+            assert.equal(published.draft, false);
+            assert.equal(published.prerelease, true);
+            core.summary.addLink('Desktop prerelease', published.html_url);
+            await core.summary.write();

@@ -1,4 +1,5 @@
-import { RotateCwIcon, TriangleAlertIcon } from "lucide-react";
+import { translateWebSource } from "~/i18n/messages";
+import { PlayIcon, RotateCwIcon, TriangleAlertIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 
 import { cn } from "../../lib/utils";
@@ -16,13 +17,15 @@ interface MediaVideoPlayerProps {
   readonly revision?: string | null | undefined;
   readonly preload?: "visible" | "metadata" | undefined;
   readonly autoPlay?: boolean | undefined;
+  /** Presents a still thumbnail whose full surface opens the video in a viewer. */
+  readonly onOpen?: (() => void) | undefined;
   readonly className?: string | undefined;
   readonly videoClassName?: string | undefined;
   /** Styles the loading and failure panels, which otherwise assume an inline light surface. */
   readonly stateClassName?: string | undefined;
   readonly style?: CSSProperties | undefined;
   readonly copyMarkdown?: string | undefined;
-  readonly onRetry?: (() => Promise<void>) | undefined;
+  readonly onRetry?: (() => Promise<unknown>) | undefined;
   readonly actionsSource?: MediaActionSource | undefined;
 }
 
@@ -35,6 +38,7 @@ export function MediaVideoPlayer({
   revision = null,
   preload = "visible",
   autoPlay = false,
+  onOpen,
   className,
   videoClassName,
   stateClassName,
@@ -43,6 +47,7 @@ export function MediaVideoPlayer({
   onRetry,
   actionsSource,
 }: MediaVideoPlayerProps) {
+  const { locale: uiLocale } = useI18n();
   const { t } = useI18n();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [playbackSource, setPlaybackSource] = useState<{
@@ -95,11 +100,19 @@ export function MediaVideoPlayer({
     const video = videoRef.current;
     if (!video) return;
     const pauseWhenHidden = () => {
-      if (document.hidden) video.pause();
+      // Native fullscreen can hide the inline page while this video is still visible.
+      const fullscreen =
+        document.fullscreenElement?.contains(video) ||
+        ("webkitDisplayingFullscreen" in video && video.webkitDisplayingFullscreen === true);
+      if (document.hidden && !fullscreen) video.pause();
     };
     document.addEventListener("visibilitychange", pauseWhenHidden);
+    document.addEventListener("fullscreenchange", pauseWhenHidden);
+    video.addEventListener("webkitendfullscreen", pauseWhenHidden);
     return () => {
       document.removeEventListener("visibilitychange", pauseWhenHidden);
+      document.removeEventListener("fullscreenchange", pauseWhenHidden);
+      video.removeEventListener("webkitendfullscreen", pauseWhenHidden);
       video.pause();
     };
   }, [src, failed, loadAttempt]);
@@ -125,7 +138,7 @@ export function MediaVideoPlayer({
       style={style}
       data-markdown-copy={copyMarkdown}
     >
-      {failed ? (
+      {failed && !onOpen ? (
         <span
           role="alert"
           className={cn(
@@ -155,17 +168,23 @@ export function MediaVideoPlayer({
             <OpenMediaLink originalUrl={originalUrl} src={latestSrc ?? src} fileName={label} />
           </span>
         </span>
-      ) : src !== null ? (
+      ) : src !== null && !failed ? (
         <video
           key={loadAttempt}
           ref={videoRef}
           src={src}
           aria-label={label || t("media.videoPreview")}
-          autoPlay={autoPlay}
-          controls
+          aria-hidden={onOpen ? true : undefined}
+          autoPlay={onOpen ? false : autoPlay}
+          controls={!onOpen}
+          muted={onOpen ? true : undefined}
           playsInline
           preload={preload === "metadata" || preloadedSrc === src ? "metadata" : "none"}
-          className={cn("aspect-video max-h-full w-full bg-black object-contain", videoClassName)}
+          className={cn(
+            "aspect-video max-h-full w-full bg-black object-contain",
+            onOpen && "pointer-events-none",
+            videoClassName,
+          )}
           style={style}
           onLoadedMetadata={(event) => prepareVideoFirstFrame(event.currentTarget)}
           onPlay={() => setPlaybackSource({ src, revision: sourceRevision })}
@@ -179,11 +198,27 @@ export function MediaVideoPlayer({
       ) : (
         <span
           role="status"
-          aria-label={t("media.loadingVideo")}
+          aria-label={
+            failed
+              ? translateWebSource(uiLocale, "Video preview unavailable")
+              : t("media.loadingVideo")
+          }
           className={cn("block aspect-video w-full rounded-lg bg-muted/60", stateClassName)}
           style={style}
         />
       )}
+      {onOpen ? (
+        <button
+          type="button"
+          aria-label={label ? `Play ${label}` : "Play video"}
+          onClick={onOpen}
+          className="absolute inset-0 flex cursor-pointer items-center justify-center rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          <span className="flex size-8 items-center justify-center rounded-full bg-black/50 text-white">
+            <PlayIcon aria-hidden className="size-4 fill-current" />
+          </span>
+        </button>
+      ) : null}
     </span>
   );
   return actionsSource ? <MediaActions source={actionsSource}>{player}</MediaActions> : player;

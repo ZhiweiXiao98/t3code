@@ -34,15 +34,12 @@ export function PullRequestLabelPicker({
   environmentId,
   reference,
   allowed,
-  onChanged,
 }: {
   environmentId: EnvironmentId;
   reference: PullRequestRef;
   /** False where the host would refuse this account's change. Disabled with the reason rather
    * than hidden, like the reviewer control beside it. */
   allowed: boolean;
-  /** The detail carries the labels, so it is re-read once the host has taken the change. */
-  onChanged: () => void;
 }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
@@ -81,8 +78,6 @@ export function PullRequestLabelPicker({
       });
       return;
     }
-    onChanged();
-    candidatesQuery.refresh();
   };
 
   return (
@@ -96,8 +91,8 @@ export function PullRequestLabelPicker({
       query={query}
       onQueryChange={setQuery}
       searchLabel={t("pullRequests.labels.search")}
-      isPending={candidatesQuery.isPending}
-      error={candidatesQuery.error}
+      isPending={candidatesQuery.isPending && candidatesQuery.data === null}
+      error={candidatesQuery.data === null ? candidatesQuery.error : null}
       candidates={candidates}
       emptyLabel={t("pullRequests.labels.empty")}
       noMatchLabel={t("pullRequests.labels.noMatch")}

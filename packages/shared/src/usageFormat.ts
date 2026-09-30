@@ -6,6 +6,8 @@
  */
 import { UsageDay, type UsageResolution, type UsageSummaryInput } from "@t3tools/contracts";
 
+import type { UsageContractMismatch } from "./usageMerge.ts";
+
 const CURRENCY = new Intl.NumberFormat("en-US", {
   style: "currency",
   currency: "USD",
@@ -43,7 +45,19 @@ function trim(value: number): string {
 }
 
 export function formatPercent(share: number, digits = 1): string {
-  return `${(share * 100).toFixed(digits)}%`;
+  const percent = share * 100;
+  const smallest = 10 ** -digits;
+  if (percent > 0 && percent < smallest) return `<${smallest.toFixed(digits)}%`;
+  return `${percent.toFixed(digits)}%`;
+}
+
+export function formatUsageContractMismatch(
+  environmentLabel: string,
+  mismatch: Pick<UsageContractMismatch, "direction">,
+): string {
+  return mismatch.direction === "serverBehind"
+    ? `${environmentLabel} runs an older server version and is excluded from totals.`
+    : `This client is older than the server on ${environmentLabel}; its usage is excluded from totals.`;
 }
 
 /** `2026-08-07` to a locale-aware short date such as `Aug 7` or `8月7日`. */
@@ -72,6 +86,23 @@ export function enumerateDays(sinceDay: string, untilDay: string): readonly stri
 
 const HOUR_MS = 60 * 60 * 1000;
 
+const dateTimeFormatters = new Map<string, Intl.DateTimeFormat>();
+
+function dateTimeFormatter(
+  locale: string,
+  options: Intl.DateTimeFormatOptions,
+): Intl.DateTimeFormat {
+  if (options.timeZone === undefined) return new Intl.DateTimeFormat(locale, options);
+  const key = JSON.stringify([locale, options]);
+  let formatter = dateTimeFormatters.get(key);
+  if (formatter === undefined) {
+    formatter = new Intl.DateTimeFormat(locale, options);
+    if (dateTimeFormatters.size >= 16) dateTimeFormatters.clear();
+    dateTimeFormatters.set(key, formatter);
+  }
+  return formatter;
+}
+
 /** Every fixed-duration bucket start in an hourly rolling window. */
 export function enumerateHourStarts(sinceTime: string, untilTime: string): readonly string[] {
   const starts: string[] = [];
@@ -95,11 +126,11 @@ export function formatHourShort(hourStart: string, timeZone?: string, locale = "
   const instant = new Date(hourStart);
   if (Number.isNaN(instant.getTime())) return hourStart;
   const options = timeZone === undefined ? {} : { timeZone };
-  const hourFormat = new Intl.DateTimeFormat(locale, {
+  const hourFormat = dateTimeFormatter(locale, {
     ...options,
     hour: "numeric",
   });
-  const wallHourFormat = new Intl.DateTimeFormat("en-CA", {
+  const wallHourFormat = dateTimeFormatter("en-CA", {
     ...options,
     year: "numeric",
     month: "2-digit",
@@ -113,7 +144,7 @@ export function formatHourShort(hourStart: string, timeZone?: string, locale = "
   );
 
   if (!isRepeatedHour) return hourFormat.format(instant);
-  return new Intl.DateTimeFormat(locale, {
+  return dateTimeFormatter(locale, {
     ...(timeZone === undefined ? {} : { timeZone }),
     hour: "numeric",
     timeZoneName: "short",
@@ -124,7 +155,7 @@ export function formatHourShort(hourStart: string, timeZone?: string, locale = "
 export function formatDateTimeShort(instant: string, timeZone?: string, locale = "en-US"): string {
   const date = new Date(instant);
   if (Number.isNaN(date.getTime())) return instant;
-  return new Intl.DateTimeFormat(locale, {
+  return dateTimeFormatter(locale, {
     ...(timeZone === undefined ? {} : { timeZone }),
     month: "short",
     day: "numeric",
@@ -145,7 +176,7 @@ export function formatRelativeHourShort(
     return formatDateTimeShort(hourStart, timeZone, locale);
   }
 
-  const dayFormat = new Intl.DateTimeFormat("en-CA", {
+  const dayFormat = dateTimeFormatter("en-CA", {
     ...(timeZone === undefined ? {} : { timeZone }),
     year: "numeric",
     month: "2-digit",

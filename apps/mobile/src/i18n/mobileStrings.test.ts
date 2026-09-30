@@ -3,6 +3,18 @@ import { describe, expect, it } from "vite-plus/test";
 import { localizeAlertArguments, localizeMobileString } from "./mobileStrings";
 
 describe("mobile strings", () => {
+  it("translates the new shared usage and Cursor access copy", () => {
+    expect(localizeMobileString("ChatGPT shared usage", "zh-CN")).toBe("ChatGPT 共享用量");
+    expect(localizeMobileString("Manage usage", "zh-CN")).toBe("管理用量");
+    expect(localizeMobileString("Enable Cursor usage from Work Mac", "zh-CN")).toBe(
+      "启用 Work Mac 的 Cursor 用量统计",
+    );
+    expect(localizeMobileString("Enable on Work Mac", "zh-CN")).toBe("在 Work Mac 上启用");
+    expect(localizeMobileString("no known rates · 20K tokens", "zh-CN")).toBe(
+      "暂无已知费率 · 20K 个令牌",
+    );
+  });
+
   it("keeps English and technical values unchanged", () => {
     expect(localizeMobileString("Settings", "en")).toBe("Settings");
     expect(localizeMobileString("gpt-5.6-sol", "zh-CN")).toBe("gpt-5.6-sol");

@@ -1,3 +1,4 @@
+import { translateWebSource } from "~/i18n/messages";
 import { Spinner } from "~/components/ui/spinner";
 import type { ProjectContentMatch } from "@t3tools/contracts";
 
@@ -68,14 +69,13 @@ function SearchOptionButton(props: {
           <Toggle
             aria-label={props.label}
             pressed={props.active}
-            className="size-8 rounded-[5px] font-mono text-muted-foreground data-pressed:text-foreground sm:size-7"
-            size="compact"
-            variant="ghost"
+            size="segmented"
+            variant="segmented"
             onClick={props.onClick}
           />
         }
       >
-        {props.children}
+        <span className="font-mono">{props.children}</span>
       </TooltipTrigger>
       <TooltipPopup side="top">{props.label}</TooltipPopup>
     </Tooltip>
@@ -91,11 +91,13 @@ function EmptyContentSearchDialog() {
       footerActionLabel={t("filePicker.openFile")}
       inputProps={{ disabled: true, placeholder: t("contentSearch.search") }}
       mode="none"
-      panelClassName="flex min-h-0 flex-1 items-center justify-center px-6 text-center text-sm text-muted-foreground"
+      panelSize="fill"
       testId="project-content-search"
       value=""
     >
-      {t("filePicker.openProject")}
+      <p className="m-auto px-6 text-center text-muted-foreground text-sm">
+        {t("filePicker.openProject")}
+      </p>
     </CommandPaletteContent>
   );
 }
@@ -104,6 +106,7 @@ function OpenContentSearchDialog(props: {
   readonly onOpenChange: (open: boolean) => void;
   readonly target: ActiveProjectTarget;
 }) {
+  const { locale: uiLocale } = useI18n();
   const { t } = useI18n();
   const { target } = props;
   const { resolvedTheme } = useTheme();
@@ -221,7 +224,7 @@ function OpenContentSearchDialog(props: {
       }}
       mode="none"
       onValueChange={setQuery}
-      panelClassName="flex min-h-0 flex-1 flex-col"
+      panelSize="fill"
       testId="project-content-search"
       value={query}
     >
@@ -229,7 +232,7 @@ function OpenContentSearchDialog(props: {
         <div className="flex h-9 shrink-0 items-center border-b px-3 text-xs text-muted-foreground">
           {search.isPending ? (
             <span className="flex items-center gap-2">
-              <Spinner className="size-3.5" /> {t("contentSearch.searching")}
+              <Spinner size="sm" /> {translateWebSource(uiLocale, "Searching…")}
             </span>
           ) : search.error ? (
             <span className="text-destructive">{search.error}</span>
@@ -270,7 +273,7 @@ function OpenContentSearchDialog(props: {
                         {path.directory}
                       </span>
                     ) : null}
-                    <span className="ml-auto rounded-full bg-muted px-1.5 py-0.5 tabular-nums text-[10px] text-muted-foreground">
+                    <span className="ml-auto rounded-full bg-muted px-1.5 py-0.5 tabular-nums text-3xs text-muted-foreground">
                       {group.matches.length}
                     </span>
                   </div>
