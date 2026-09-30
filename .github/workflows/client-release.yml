@@ -371,7 +371,7 @@ jobs:
           cache: true
           run-install: false
       - name: Install hoisted native dependencies
-        run: vp install --frozen-lockfile --config.node-linker=hoisted
+        run: vp install --frozen-lockfile -- --config.node-linker=hoisted
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -418,7 +418,7 @@ jobs:
           grep -F "package: name='com.zhiweixiao.t3code.zhcn' versionCode='4401' versionName='$CLIENT_VERSION'" "$RUNNER_TEMP/android-badging.txt"
           mkdir -p android-candidate
           cp "$apk" "android-candidate/T3-Code-zh-CN-Android-$CLIENT_VERSION-arm64-UNSIGNED-NOT-INSTALLABLE.apk"
-          printf '%s\n' 'BLOCKED: Existing Android upgrade signing certificate and original signing key are not verified. No replacement key was generated; no debug-signed APK is published. This unsigned APK is not installable. Verify a monotonic versionCode before a signed release.' > android-candidate/SIGNING-BLOCKER.txt
+          printf '%s\n' 'BLOCKED: This candidate is unsigned and is not installable. Android publication requires a verified signing certificate, confirmed secure key backup, and a monotonic versionCode. A replacement certificate does not permit an in-place upgrade over older installations; release notes must disclose that limitation. No private signing material is included in this artifact.' > android-candidate/SIGNING-BLOCKER.txt
           cat android-candidate/SIGNING-BLOCKER.txt >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v7
         with:
