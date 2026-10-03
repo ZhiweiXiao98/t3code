@@ -20,7 +20,7 @@ Android 的原有升级签名无法提供，后续安装包将使用新的发布
 ### 历史社区安装包
 
 - [Windows x64 历史版 `0.0.39-cn.3`](https://github.com/ZhiweiXiao98/t3code/releases/tag/zh-cn-v0.0.39-cn.3)
-- [Android 历史版 `1.0.4-cn.9`（旧签名）](https://github.com/ZhiweiXiao98/t3code/releases/tag/zh-cn-mobile-v1.0.4-cn.9)
+- [Android 历史版 `1.0.4-cn.10`（旧签名）](https://github.com/ZhiweiXiao98/t3code/releases/tag/zh-cn-mobile-v1.0.4-cn.10)
 
 这些历史社区安装包并非通过应用商店分发；Windows 没有商业代码签名，Android 使用的历史签名身份需要核实。Windows SmartScreen 或 Android 系统可能显示安全提醒，请只从本仓库 Releases 下载，并在安装前核对发布页提供的 SHA-256。
 
