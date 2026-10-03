@@ -6,6 +6,32 @@ export const MOBILE_LOCALE: MobileLocale =
   process.env.EXPO_PUBLIC_APP_LOCALE === "zh-CN" ? "zh-CN" : "en";
 
 const ZH_CN_MESSAGES = {
+  "New project": "新建项目",
+  "Start a new Git repository from a name": "输入名称以创建新的 Git 仓库",
+  "Created without a first commit": "项目已创建，但未完成首次提交",
+  "Could not create the GitHub repository": "无法创建 GitHub 仓库",
+  "The project was created but has not reached this device yet. It will appear in the project list once the connection catches up.":
+    "项目已创建，但尚未同步到此设备。连接恢复同步后，它将出现在项目列表中。",
+  "Project name": "项目名称",
+  "Create private repository on GitHub": "在 GitHub 上创建私有仓库",
+  "Create project": "创建项目",
+  "Add existing project": "添加已有项目",
+  "Open a folder or clone a repository": "打开文件夹或克隆仓库",
+  Creates: "创建位置：",
+  "Goes in": "存放位置：",
+  "Could not switch machine": "无法切换机器",
+  "The folder for threads without a project could not be created.":
+    "无法创建未关联项目任务的文件夹。",
+  "It has not reached this device yet. Try again.": "尚未同步到此设备，请重试。",
+  "Could not start without a project": "无法在不关联项目的情况下启动",
+  "It has not reached this device yet. Pick No project from the list once it appears.":
+    "尚未同步到此设备。同步完成后，请在列表中选择“不关联项目”。",
+  "No project": "不关联项目",
+  "Start a task without a project": "创建不关联项目的任务",
+  "Start without a project": "不关联项目并开始",
+  "What should we work on?": "我们来做些什么？",
+  "Choose a project": "选择项目",
+  "Opens the project picker": "打开项目选择器",
   "Search projects": "搜索项目",
   "Try a different project name or workspace path.": "请尝试其他项目名称或工作区路径。",
   "No matching projects": "没有匹配的项目",
@@ -673,6 +699,11 @@ const ZH_CN_MESSAGES = {
 } as const satisfies Readonly<Record<string, string>>;
 
 function translateDynamicMessage(value: string): string | null {
+  const environmentLabel = /^Environment: (.+)$/.exec(value);
+  if (environmentLabel) return `环境：${environmentLabel[1]}`;
+  const onMachine = /^on (.+)$/.exec(value);
+  if (onMachine) return `在 ${onMachine[1]} 上`;
+
   const enableCursor = /^Enable Cursor usage from (.+)$/.exec(value);
   if (enableCursor) return `启用 ${enableCursor[1]} 的 Cursor 用量统计`;
   const enableOn = /^Enable on (.+)$/.exec(value);

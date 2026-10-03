@@ -55,19 +55,48 @@ describe("KeybindingsSettings.logic", () => {
   it("orders Usage bindings and command choices like the page", () => {
     const expected = [
       "usage.cost",
-      "usage.open",
       "usage.tokens",
       "usage.limits",
       "usage.period.day",
       "usage.period.week",
       "usage.period.month",
       "usage.period.quarter",
+      "usage.open",
     ];
     const bindings = DEFAULT_RESOLVED_KEYBINDINGS.toReversed();
     expect(buildKeybindingRows(bindings, "usage").map((row) => row.command)).toEqual(expected);
     expect(
       buildKeybindingCommandOptions(bindings).filter((command) => command.startsWith("usage.")),
     ).toEqual(expected);
+  });
+
+  it("keeps the Usage block stable with translated labels and interleaving commands", () => {
+    const label = (command: Parameters<typeof commandLabel>[0]) => {
+      if (command === "usage.cost") return "M";
+      if (command.startsWith("usage.")) return "Z";
+      if (command === "chat.new") return "N";
+      return "L";
+    };
+    const bindings = DEFAULT_RESOLVED_KEYBINDINGS.filter(
+      (binding) => binding.command.startsWith("usage.") || binding.command === "chat.new",
+    );
+    const forward = buildKeybindingRows(bindings, "", label).map((row) => row.command);
+    const reversed = buildKeybindingRows(bindings.toReversed(), "", label).map(
+      (row) => row.command,
+    );
+    expect(reversed).toEqual(forward);
+    expect(forward.slice(0, 7)).toEqual([
+      "usage.cost",
+      "usage.tokens",
+      "usage.limits",
+      "usage.period.day",
+      "usage.period.week",
+      "usage.period.month",
+      "usage.period.quarter",
+    ]);
+    expect(forward[7]).toBe("chat.new");
+    const options = buildKeybindingCommandOptions([], label);
+    expect(options.indexOf("usage.period.quarter") - options.indexOf("usage.cost")).toBe(6);
   });
 
   it("builds searchable rows with readable key and when values", () => {
@@ -117,6 +146,31 @@ describe("KeybindingsSettings.logic", () => {
         "Win32",
       ),
     ).toBe("mod+shift+k");
+  });
+
+  it.each([
+    ["k", "KeyK", "k"],
+    ["Tab", "Tab", "tab"],
+    ["F5", "F5", "f5"],
+  ])("captures %s without a modifier", (key, code, expected) => {
+    const noModifiers = { metaKey: false, ctrlKey: false, altKey: false, shiftKey: false };
+    expect(keybindingFromKeyboardEvent({ key, code, ...noModifiers }, "MacIntel")).toBe(expected);
+  });
+
+  it("waits for a key when only a modifier is pressed", () => {
+    expect(
+      keybindingFromKeyboardEvent(
+        {
+          key: "Meta",
+          code: "MetaLeft",
+          metaKey: true,
+          ctrlKey: false,
+          altKey: false,
+          shiftKey: false,
+        },
+        "MacIntel",
+      ),
+    ).toBeNull();
   });
 
   it.each([
@@ -232,6 +286,7 @@ describe("KeybindingsSettings.logic", () => {
 
   it("localizes static and dynamic command labels while preserving the English fallback", () => {
     expect(localizedChineseCommandLabel("chat.new")).toBe("聊天：新建任务");
+    expect(localizedChineseCommandLabel("chat.newWithoutProject")).toBe("聊天：新建无项目任务");
     expect(localizedChineseCommandLabel("thread.settle")).toBe("任务：收起或恢复");
     expect(localizedChineseCommandLabel("thread.jump.3")).toBe("任务：跳转到第 3 个");
     expect(localizedChineseCommandLabel("modelPicker.jump.7")).toBe("模型选择器：选择第 7 个模型");

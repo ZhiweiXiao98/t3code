@@ -1,5 +1,6 @@
 import type { RelayClientDeviceRecord } from "@t3tools/contracts/relay";
 import { SmartphoneIcon } from "lucide-react";
+import { useI18n } from "~/i18n/WebI18nProvider";
 
 import { useManagedRelayDevices } from "../../cloud/managedRelayState";
 import { Badge } from "../ui/badge";
@@ -86,6 +87,7 @@ function MobileClientsSkeleton() {
 }
 
 function EmptyMobileClients() {
+  const { t } = useI18n();
   return (
     <Empty size="compact">
       <EmptyMedia variant="icon">
@@ -93,16 +95,14 @@ function EmptyMobileClients() {
       </EmptyMedia>
       <EmptyHeader>
         <EmptyTitle>No mobile clients</EmptyTitle>
-        <EmptyDescription>
-          Sign in to T3 Code on your iPhone to register it for push notifications and Live
-          Activities.
-        </EmptyDescription>
+        <EmptyDescription>{t("mobileClients.emptyDescription")}</EmptyDescription>
       </EmptyHeader>
     </Empty>
   );
 }
 
 export function MobileClientsUserProfilePage() {
+  const { t } = useI18n();
   const devicesState = useManagedRelayDevices();
   const devices = devicesState.data ?? [];
   const isInitialLoad =
@@ -112,7 +112,7 @@ export function MobileClientsUserProfilePage() {
   return (
     <ClerkUserProfilePage
       title="Mobile clients"
-      description="Devices registered to receive T3 Connect activity from your environments."
+      description={t("mobileClients.description")}
       action={
         <ClerkUserProfileRefreshButton
           isPending={devicesState.isPending}

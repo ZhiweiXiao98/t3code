@@ -7,6 +7,7 @@ import {
 } from "@t3tools/contracts";
 import * as Cause from "effect/Cause";
 import { AsyncResult } from "effect/unstable/reactivity";
+import { translateWebMessage } from "../i18n/messages";
 
 import {
   buildLocalEnvironmentUpdateGroups,
@@ -21,6 +22,7 @@ import {
   getProviderUpdateInitialToastView,
   getProviderUpdateProgressToastView,
   getProviderUpdateRejectedToastView,
+  getProviderUpdateRunToastView,
   getProviderUpdateSidebarPillView,
   hasOneClickUpdateProviderCandidate,
   isProviderUpdateCandidate,
@@ -35,6 +37,7 @@ import {
   type LocalProviderUpdateOutcome,
   type ProviderUpdateCandidate,
   type ProviderUpdateInitialTranslate,
+  type ProviderUpdateRunTranslate,
   type ProviderUpdateSidebarPillView,
   type ProviderUpdateToastView,
 } from "./ProviderUpdateLaunchNotification.logic";
@@ -1124,4 +1127,183 @@ it("does not offer incompatible latest versions and restores suggestions after p
     expect(isProviderUpdateCandidate(snapshot)).toBe(expected);
     expect(isProviderSettingsUpdateCandidate(snapshot)).toBe(expected);
   }
+});
+
+describe("getProviderUpdateRunToastView", () => {
+  const translateChinese: ProviderUpdateRunTranslate = (key, values) =>
+    translateWebMessage("zh-CN", key, values);
+  const updateState = (
+    status: "succeeded" | "failed",
+    message: string,
+  ): ServerProvider["updateState"] => ({
+    status,
+    startedAt: checkedAt,
+    finishedAt: laterCheckedAt,
+    message,
+    output: null,
+  });
+  const run = (
+    machineLabel: string,
+    providerDriver: string,
+    result: Parameters<typeof getProviderUpdateRunToastView>[0][number]["result"],
+  ) => ({
+    machineLabel,
+    driver: driver(providerDriver),
+    instanceId: instanceId(providerDriver),
+    result,
+  });
+
+  it("lists every failed update and ignores interrupted ones", () => {
+    const view = getProviderUpdateRunToastView([
+      run(
+        "Mac Studio",
+        "codex",
+        AsyncResult.success({
+          providers: [
+            provider({
+              driver: driver("codex"),
+              updateState: updateState("succeeded", "Provider updated."),
+            }),
+          ],
+        }),
+      ),
+      run(
+        "Mac Studio",
+        "claudeAgent",
+        AsyncResult.success({
+          providers: [
+            provider({
+              driver: driver("claudeAgent"),
+              updateState: updateState("failed", "npm exited with code 1."),
+            }),
+          ],
+        }),
+      ),
+      run("Laptop", "codex", AsyncResult.failure(Cause.die(new Error("WebSocket closed")))),
+      run("Server", "codex", AsyncResult.failure(Cause.interrupt())),
+    ]);
+
+    expect(view).toEqual({
+      type: "error",
+      title: "2 of 3 provider updates failed",
+      description: "Mac Studio · Claude: npm exited with code 1.\nLaptop · Codex: WebSocket closed",
+    });
+  });
+
+  it("reports success when every update succeeded", () => {
+    const succeeded = AsyncResult.success({
+      providers: [
+        provider({
+          driver: driver("codex"),
+          updateState: updateState("succeeded", "Provider updated."),
+        }),
+      ],
+    });
+
+    expect(
+      getProviderUpdateRunToastView([
+        run("Mac Studio", "codex", succeeded),
+        run("Laptop", "codex", succeeded),
+      ]),
+    ).toEqual({
+      type: "success",
+      title: "2 providers updated",
+      description: "New sessions will use the updated providers.",
+    });
+    expect(
+      getProviderUpdateRunToastView([
+        run("Server", "codex", AsyncResult.failure(Cause.interrupt())),
+      ]),
+    ).toBeNull();
+  });
+
+  it("localizes mixed outcomes without translating machine names, providers or errors", () => {
+    const view = getProviderUpdateRunToastView(
+      [
+        run(
+          "Mac Studio",
+          "codex",
+          AsyncResult.success({
+            providers: [
+              provider({
+                driver: driver("codex"),
+                updateState: updateState("succeeded", "Provider updated."),
+              }),
+            ],
+          }),
+        ),
+        run("Server", "claudeAgent", AsyncResult.success({ providers: [] })),
+        run("Workstation", "codex", AsyncResult.failure(Cause.die("Installer failed"))),
+        run("Laptop", "codex", AsyncResult.failure(Cause.die(new Error("WebSocket closed")))),
+        run("Interrupted", "codex", AsyncResult.failure(Cause.interrupt())),
+      ],
+      translateChinese,
+    );
+
+    expect(view).toEqual({
+      type: "error",
+      title: "4 个服务提供方中有 3 个更新失败",
+      description:
+        "Server · Claude: 服务提供方更新未完成。\nWorkstation · Codex: 服务提供方更新失败。\nLaptop · Codex: WebSocket closed",
+    });
+  });
+
+  it("localizes single and multiple successful updates", () => {
+    const succeeded = AsyncResult.success({
+      providers: [
+        provider({
+          driver: driver("codex"),
+          updateState: updateState("succeeded", "Provider updated."),
+        }),
+      ],
+    });
+
+    expect(
+      getProviderUpdateRunToastView([run("Mac Studio", "codex", succeeded)], translateChinese),
+    ).toEqual({
+      type: "success",
+      title: "服务提供方已更新",
+      description: "新会话将使用更新后的服务提供方。",
+    });
+    expect(
+      getProviderUpdateRunToastView(
+        [run("Mac Studio", "codex", succeeded), run("Laptop", "codex", succeeded)],
+        translateChinese,
+      ),
+    ).toEqual({
+      type: "success",
+      title: "已更新 2 个服务提供方",
+      description: "新会话将使用更新后的服务提供方。",
+    });
+  });
+
+  it("localizes entirely failed runs while preserving server-reported details", () => {
+    const failed = AsyncResult.success({
+      providers: [
+        provider({
+          driver: driver("codex"),
+          updateState: updateState("failed", "npm exited with code 1."),
+        }),
+      ],
+    });
+
+    expect(
+      getProviderUpdateRunToastView([run("Mac Studio", "codex", failed)], translateChinese),
+    ).toEqual({
+      type: "error",
+      title: "服务提供方更新失败",
+      description: "Mac Studio · Codex: npm exited with code 1.",
+    });
+    expect(
+      getProviderUpdateRunToastView(
+        [run("Mac Studio", "codex", failed), run("Laptop", "codex", failed)],
+        translateChinese,
+      ),
+    ).toEqual({
+      type: "error",
+      title: "服务提供方更新失败",
+      description:
+        "Mac Studio · Codex: npm exited with code 1.\nLaptop · Codex: npm exited with code 1.",
+    });
+  });
 });

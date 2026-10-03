@@ -103,3 +103,42 @@ describe("upstream UI localization", () => {
     ).toBe("显示较早的 20 条机器人评论（隐藏了 42 条）");
   });
 });
+
+describe("v0.0.45 UI localization", () => {
+  it("preserves project paths, environment names, and errors in new project messages", () => {
+    expect(
+      translateWebMessage("zh-CN", "newProject.createsPath", {
+        path: "C:\\Users\\dev\\API-v2",
+      }),
+    ).toBe("将创建 C:\\Users\\dev\\API-v2");
+    expect(
+      translateWebMessage("zh-CN", "newProject.createdWithoutCommit", { name: "API-v2" }),
+    ).toBe("已创建 API-v2，但未完成首次提交");
+    expect(
+      translateWebMessage("zh-CN", "newProject.onEnvironment", { environment: "dev@host" }),
+    ).toBe("（dev@host）");
+    expect(
+      translateWebMessage("zh-CN", "newProject.gitHubErrorDescription", { error: "HTTP 403" }),
+    ).toBe("HTTP 403 可在 Git 菜单中选择“发布仓库”重试。");
+    expect(translateWebMessage("en", "newProject.createShortcut")).toBe("Create (Enter)");
+  });
+
+  it("localizes the Working setting through source-text settings search and restore", () => {
+    expect(translateWebSource("zh-CN", "Working section (beta)")).toBe("进行中分区（测试版）");
+    expect(translateWebSource("zh-CN", "Working section")).toBe("进行中分区");
+    expect(
+      translateWebSource(
+        "zh-CN",
+        "Automatically resume interrupted threads after an update, crash, or machine restart on the selected environments.",
+      ),
+    ).toBe("在所选环境更新、崩溃或设备重启后，自动恢复被中断的任务。");
+    expect(translateWebMessage("zh-CN", "sidebar.working", { count: 3 })).toBe("进行中（3）");
+  });
+
+  it("localizes new screen-reader labels without changing English fallback", () => {
+    expect(translateWebMessage("zh-CN", "composer.menu.label.paths")).toBe("文件和文件夹");
+    expect(translateWebMessage("zh-CN", "composer.messageLabel")).toBe("消息");
+    expect(translateWebMessage("zh-CN", "composer.traits.ultrafastModeOn")).toBe("已开启极速模式");
+    expect(translateWebMessage("en", "composer.menu.label.commands")).toBe("Commands");
+  });
+});

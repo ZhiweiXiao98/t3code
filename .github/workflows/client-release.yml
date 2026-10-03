@@ -2,7 +2,7 @@ name: Community client candidates
 
 on:
   push:
-    branches: [maintenance/v0.0.44-zh-cloud]
+    branches: [maintenance/v0.0.45-zh-cloud]
   workflow_dispatch:
     inputs:
       expected_sha:
@@ -18,7 +18,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  CLIENT_VERSION: 0.0.44-zh.1
+  CLIENT_VERSION: 0.0.45-zh.1
   CI: "true"
   CSC_IDENTITY_AUTO_DISCOVERY: "false"
   # Public distribution endpoints, never production relay credentials.
@@ -45,8 +45,8 @@ jobs:
             if (context.payload.repository.private !== false) {
               throw new Error('Standard hosted runners are free for public repositories only.');
             }
-            if (context.ref !== 'refs/heads/maintenance/v0.0.44-zh-cloud') {
-              throw new Error('Dispatch must select maintenance/v0.0.44-zh-cloud.');
+            if (context.ref !== 'refs/heads/maintenance/v0.0.45-zh-cloud') {
+              throw new Error('Dispatch must select maintenance/v0.0.45-zh-cloud.');
             }
             if (context.eventName === 'workflow_dispatch' &&
                 (!/^[0-9a-f]{40}$/.test(process.env.EXPECTED_SHA || '') ||
@@ -54,7 +54,7 @@ jobs:
               throw new Error('Expected SHA must equal the selected branch commit exactly.');
             }
             core.setOutput('sha', context.sha);
-            core.summary.addRaw(`Source: ${context.sha}\nVersion: 0.0.44-zh.1\n`);
+            core.summary.addRaw(`Source: ${context.sha}\nVersion: 0.0.45-zh.1\n`);
             await core.summary.write();
 
   quality:
@@ -345,9 +345,9 @@ jobs:
     timeout-minutes: 120
     env:
       APP_VARIANT: community
-      T3CODE_MOBILE_VERSION: 0.0.44-zh.1
+      T3CODE_MOBILE_VERSION: 0.0.45-zh.1
       # Candidate only. A publishable versionCode must exceed the installed release.
-      T3CODE_MOBILE_VERSION_CODE: "4401"
+      T3CODE_MOBILE_VERSION_CODE: "4501"
       T3CODE_MOBILE_UPDATES_ENABLED: "0"
       EXPO_NO_GIT_STATUS: "1"
       EXPO_NO_TELEMETRY: "1"
@@ -418,7 +418,7 @@ jobs:
           fi
           unzip -t "$apk"
           "$build_tools/aapt" dump badging "$apk" | tee "$RUNNER_TEMP/android-badging.txt"
-          grep -F "package: name='com.zhiweixiao.t3code.zhcn' versionCode='4401' versionName='$CLIENT_VERSION'" "$RUNNER_TEMP/android-badging.txt"
+          grep -F "package: name='com.zhiweixiao.t3code.zhcn' versionCode='4501' versionName='$CLIENT_VERSION'" "$RUNNER_TEMP/android-badging.txt"
           mkdir -p android-candidate
           cp "$apk" "android-candidate/T3-Code-zh-CN-Android-$CLIENT_VERSION-arm64-UNSIGNED-NOT-INSTALLABLE.apk"
           printf '%s\n' 'BLOCKED: This candidate is unsigned and is not installable. Android publication requires a verified signing certificate, confirmed secure key backup, and a monotonic versionCode. A replacement certificate does not permit an in-place upgrade over older installations; release notes must disclose that limitation. No private signing material is included in this artifact.' > android-candidate/SIGNING-BLOCKER.txt

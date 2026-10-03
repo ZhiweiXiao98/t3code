@@ -1,8 +1,10 @@
-import { PlusIcon } from "lucide-react";
+import { MessageSquareDashedIcon, PlusIcon } from "lucide-react";
 import { useCallback } from "react";
 
 import { openCommandPalette } from "../commandPaletteBus";
 import { isElectron } from "../env";
+import { useScratchProject } from "../hooks/useScratchProject";
+import { usePrimaryEnvironmentId } from "../state/environments";
 import { Button } from "./ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "./ui/empty";
 import { SidebarInset } from "./ui/sidebar";
@@ -12,6 +14,9 @@ import { useI18n } from "../i18n/WebI18nProvider";
 export function NoProjectsHero() {
   const { t } = useI18n();
   const openAddProject = useCallback(() => openCommandPalette({ open: "add-project" }), []);
+  const primaryEnvironmentId = usePrimaryEnvironmentId();
+  const { scratchEnvironmentId, startScratchThread } = useScratchProject();
+  const scratchTargetEnvironmentId = scratchEnvironmentId(primaryEnvironmentId);
 
   return (
     <SidebarInset className="h-dvh min-h-0 overflow-hidden overscroll-y-none">
@@ -22,12 +27,26 @@ export function NoProjectsHero() {
           <div className="w-full max-w-lg px-8 py-12">
             <EmptyHeader className="max-w-none">
               <EmptyTitle>{t("home.heroTitle")}</EmptyTitle>
-              <EmptyDescription>{t("home.heroDescription")}</EmptyDescription>
-              <div className="mt-6 flex justify-center">
+              <EmptyDescription>
+                {scratchTargetEnvironmentId === null
+                  ? t("home.heroDescription")
+                  : t("home.heroDescriptionWithScratch")}
+              </EmptyDescription>
+              <div className="mt-6 flex justify-center gap-2">
                 <Button size="sm" onClick={openAddProject}>
                   <PlusIcon className="size-4" />
                   {t("home.addProject")}
                 </Button>
+                {scratchTargetEnvironmentId === null ? null : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void startScratchThread(scratchTargetEnvironmentId)}
+                  >
+                    <MessageSquareDashedIcon className="size-4" />
+                    {t("home.startWithoutProject")}
+                  </Button>
+                )}
               </div>
             </EmptyHeader>
           </div>

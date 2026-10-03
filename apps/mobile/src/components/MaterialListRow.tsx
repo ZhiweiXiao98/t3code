@@ -14,6 +14,7 @@ export function MaterialListRow({
   titleClassName,
   localizeTitle = true,
   subtitle,
+  localizeSubtitle = true,
   leading,
   trailing,
   className,
@@ -23,6 +24,7 @@ export function MaterialListRow({
   readonly titleClassName?: string;
   readonly localizeTitle?: boolean;
   readonly subtitle?: string | null;
+  readonly localizeSubtitle?: boolean;
   readonly leading?: ReactNode;
   readonly trailing?: ReactNode;
 }) {
@@ -33,7 +35,7 @@ export function MaterialListRow({
       accessibilityRole="button"
       accessibilityLabel={[
         localizeTitle ? localizeMobileString(title) : title,
-        subtitle ? localizeMobileString(subtitle) : subtitle,
+        subtitle && localizeSubtitle ? localizeMobileString(subtitle) : subtitle,
       ]
         .filter(Boolean)
         .join(", ")}
@@ -58,7 +60,11 @@ export function MaterialListRow({
           {title}
         </AppText>
         {subtitle ? (
-          <AppText className="text-sm text-foreground-muted" numberOfLines={2}>
+          <AppText
+            localize={localizeSubtitle}
+            className="text-sm text-foreground-muted"
+            numberOfLines={2}
+          >
             {subtitle}
           </AppText>
         ) : null}

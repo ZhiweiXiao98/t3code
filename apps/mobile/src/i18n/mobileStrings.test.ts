@@ -3,6 +3,46 @@ import { describe, expect, it } from "vite-plus/test";
 import { localizeAlertArguments, localizeMobileString } from "./mobileStrings";
 
 describe("mobile strings", () => {
+  it("translates project creation and scratch-task copy", () => {
+    const messages = {
+      "New project": "新建项目",
+      "Start a new Git repository from a name": "输入名称以创建新的 Git 仓库",
+      "Project name": "项目名称",
+      "Create private repository on GitHub": "在 GitHub 上创建私有仓库",
+      "Create project": "创建项目",
+      "Add existing project": "添加已有项目",
+      "No project": "不关联项目",
+      "Start a task without a project": "创建不关联项目的任务",
+      "Start without a project": "不关联项目并开始",
+      "What should we work on?": "我们来做些什么？",
+      "Choose a project": "选择项目",
+      "Opens the project picker": "打开项目选择器",
+    };
+    for (const [source, translated] of Object.entries(messages)) {
+      expect(localizeMobileString(source, "zh-CN")).toBe(translated);
+      expect(localizeMobileString(source, "en")).toBe(source);
+    }
+  });
+
+  it("localizes new-task alerts and preserves machine names", () => {
+    expect(
+      localizeAlertArguments(
+        "Could not switch machine",
+        "It has not reached this device yet. Try again.",
+        undefined,
+        "zh-CN",
+      ),
+    ).toMatchObject({ title: "无法切换机器", message: "尚未同步到此设备，请重试。" });
+    expect(localizeMobileString("Created without a first commit", "zh-CN")).toBe(
+      "项目已创建，但未完成首次提交",
+    );
+    expect(localizeMobileString("Could not start without a project", "zh-CN")).toBe(
+      "无法在不关联项目的情况下启动",
+    );
+    expect(localizeMobileString("Environment: Work Mac", "zh-CN")).toBe("环境：Work Mac");
+    expect(localizeMobileString("on Settings", "zh-CN")).toBe("在 Settings 上");
+  });
+
   it("translates the new shared usage and Cursor access copy", () => {
     expect(localizeMobileString("ChatGPT shared usage", "zh-CN")).toBe("ChatGPT 共享用量");
     expect(localizeMobileString("Manage usage", "zh-CN")).toBe("管理用量");

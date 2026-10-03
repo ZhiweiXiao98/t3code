@@ -13,7 +13,9 @@
 - [社区版 Releases 与本次发布状态](https://github.com/ZhiweiXiao98/t3code/releases)：请以每个发布页实际列出的系统、架构和资产为准
 - [iOS 官方原版（未汉化）](https://apps.apple.com/us/app/t3-code-remote-claude-more/id6787819824)，开发者 T3Tools；本仓库不构建或上架 iOS
 
-本次正在迁移上游稳定版 `v0.0.44`。Windows、macOS 与 Linux 的新构建在验证通过前不会替换下面的历史下载；Android 的原有升级签名无法提供，后续安装包将使用新的发布签名，不能直接覆盖历史 APK。请先备份设置，再卸载旧版；卸载可能丢失本地数据。新签名完成安全备份前不会发布可安装 APK。Actions 中明确标记的未签名 Android 候选包不可安装，不是正式下载。
+已发布基于上游 `v0.0.44` 的[桌面社区预发布版 `v0.0.44-zh.1`](https://github.com/ZhiweiXiao98/t3code/releases/tag/v0.0.44-zh.1)，提供 Windows x64、macOS Apple Silicon / Intel 和 Linux x64 安装包。新版正在跟进上游稳定版 `v0.0.45`，只有通过验证后才会发布；请以 Releases 中实际可下载的版本为准。Windows / macOS 社区安装包没有正式代码签名，macOS 也未公证，系统可能显示安全提示。
+
+Android 的原有升级签名无法提供，后续安装包将使用新的发布签名，不能直接覆盖历史 APK。请先备份设置，再卸载旧版；卸载可能丢失本地数据。新签名完成安全备份前不会发布可安装 APK。Actions 中明确标记的未签名 Android 候选包不可安装，不是正式下载。
 
 ### 历史社区安装包
 

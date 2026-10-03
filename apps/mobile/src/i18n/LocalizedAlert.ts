@@ -5,14 +5,16 @@ import { localizeAlertArguments, type LocalizedAlertApi } from "./mobileStrings"
 export const LocalizedAlert: LocalizedAlertApi = {
   prompt(title, message, callbackOrButtons, type, defaultValue, keyboardType, options) {
     const localized = localizeAlertArguments(
-      title,
-      message,
+      title ?? "",
+      message ?? undefined,
       Array.isArray(callbackOrButtons) ? callbackOrButtons : undefined,
     );
     NativeAlert.prompt(
-      localized.title,
-      localized.message,
-      typeof callbackOrButtons === "function" ? callbackOrButtons : localized.buttons,
+      title == null ? title : localized.title,
+      message == null ? message : localized.message,
+      typeof callbackOrButtons === "function" || callbackOrButtons == null
+        ? callbackOrButtons
+        : localized.buttons,
       type,
       defaultValue,
       keyboardType,

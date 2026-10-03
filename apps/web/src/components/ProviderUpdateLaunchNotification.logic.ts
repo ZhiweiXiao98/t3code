@@ -8,9 +8,11 @@ import {
   type ServerProvider,
 } from "@t3tools/contracts";
 import {
+  isAtomCommandInterrupted,
   squashAtomCommandFailure,
   type AtomCommandResult,
 } from "@t3tools/client-runtime/state/runtime";
+import { translateWebMessage } from "../i18n/messages";
 
 export type ProviderUpdateCandidate = ServerProvider & {
   readonly versionAdvisory: NonNullable<ServerProvider["versionAdvisory"]> & {
@@ -383,6 +385,93 @@ export function getProviderUpdateProgressToastView(input: {
   }
 
   return getProviderUpdateRunningToastView(input.providerCount);
+}
+
+/** One provider update sent by the cross-machine "Update all", with its result. */
+export interface ProviderUpdateRun {
+  readonly machineLabel: string;
+  readonly driver: ProviderDriverKind;
+  readonly instanceId: ProviderInstanceId;
+  readonly result: AtomCommandResult<
+    { readonly providers: ReadonlyArray<ServerProvider> },
+    unknown
+  >;
+}
+
+type ProviderUpdateRunMessageKey =
+  | "providerUpdate.run.failedFallback"
+  | "providerUpdate.run.unfinished"
+  | "providerUpdate.run.updated"
+  | "providerUpdate.run.updatedMany"
+  | "providerUpdate.run.partialFailure"
+  | "providerUpdate.run.failed"
+  | "providerUpdate.run.failedMany"
+  | "providerUpdate.run.descriptionSingle"
+  | "providerUpdate.run.descriptionMany";
+
+export type ProviderUpdateRunTranslate = (
+  key: ProviderUpdateRunMessageKey,
+  values?: Readonly<Record<string, string | number>>,
+) => string;
+
+const translateProviderUpdateRunEnglish: ProviderUpdateRunTranslate = (key, values) =>
+  translateWebMessage("en", key, values);
+
+/**
+ * Summarize a cross-machine "Update all" as one toast, or null when every
+ * request was interrupted. Each update that did not succeed gets its own line,
+ * so a failure on one machine is not hidden by successes on the others.
+ */
+export function getProviderUpdateRunToastView(
+  runs: ReadonlyArray<ProviderUpdateRun>,
+  translate: ProviderUpdateRunTranslate = translateProviderUpdateRunEnglish,
+): Pick<ProviderUpdateToastView, "type" | "title" | "description"> | null {
+  const settled = runs.filter((run) => !isAtomCommandInterrupted(run.result));
+  if (settled.length === 0) {
+    return null;
+  }
+  const failureLines = settled.flatMap((run) => {
+    const label = `${run.machineLabel} · ${PROVIDER_DISPLAY_NAMES[run.driver] ?? run.driver}`;
+    if (run.result._tag === "Failure") {
+      const error = squashAtomCommandFailure(run.result);
+      return [
+        `${label}: ${error instanceof Error ? error.message : translate("providerUpdate.run.failedFallback")}`,
+      ];
+    }
+    const updateState = run.result.value.providers.find(
+      (provider) => provider.instanceId === run.instanceId,
+    )?.updateState;
+    return updateState?.status === "succeeded"
+      ? []
+      : [`${label}: ${updateState?.message ?? translate("providerUpdate.run.unfinished")}`];
+  });
+  if (failureLines.length === 0) {
+    return {
+      type: "success",
+      title:
+        settled.length === 1
+          ? translate("providerUpdate.run.updated")
+          : translate("providerUpdate.run.updatedMany", { count: settled.length }),
+      description: translate(
+        settled.length === 1
+          ? "providerUpdate.run.descriptionSingle"
+          : "providerUpdate.run.descriptionMany",
+      ),
+    };
+  }
+  return {
+    type: "error",
+    title:
+      failureLines.length < settled.length
+        ? translate("providerUpdate.run.partialFailure", {
+            failed: failureLines.length,
+            total: settled.length,
+          })
+        : settled.length === 1
+          ? translate("providerUpdate.run.failed")
+          : translate("providerUpdate.run.failedMany"),
+    description: failureLines.join("\n"),
+  };
 }
 
 export function collectUpdatedProviderSnapshots(input: {

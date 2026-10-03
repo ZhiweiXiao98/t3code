@@ -1,6 +1,6 @@
 import { localizeMobileString } from "../i18n/mobileStrings";
 import type { RefObject } from "react";
-import { Pressable, TextInput, View } from "react-native";
+import { Pressable, TextInput, type TextInputInstance, View } from "react-native";
 
 import { SymbolView } from "./AppSymbol";
 import { useAndroidControlSizing } from "./useAndroidControlSizing";
@@ -13,7 +13,7 @@ export function MaterialSearchField({
   value,
   onChangeText,
 }: {
-  readonly inputRef: RefObject<TextInput | null>;
+  readonly inputRef: RefObject<TextInputInstance | null>;
   readonly accessibilityLabel: string;
   readonly clearAccessibilityLabel: string;
   readonly placeholder: string;

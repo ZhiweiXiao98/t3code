@@ -56,6 +56,12 @@ import {
   serializeEditorDoc,
   type SkillMeta,
 } from "~/composer-rich-text-doc";
+import {
+  COMPOSER_UNDO_GROUP_DELAY,
+  type ComposerChangeKind,
+  groupUndoByChangeKind,
+  markAsClipboardEdit,
+} from "~/composer-undo-grouping";
 import { collectInlineContextIds } from "~/lib/composerContextReferences";
 import { cn, isMacPlatform } from "~/lib/utils";
 import { basenameOfPath } from "~/pierre-icons";
@@ -121,6 +127,11 @@ export interface ComposerPromptEditorProps {
   skills: ReadonlyArray<ServerProviderSkill>;
   disabled: boolean;
   placeholder: string;
+  ariaLabel?: string | undefined;
+  /** Identifies an editor with suggestions, even while its list is closed. */
+  suggestionListId?: string | undefined;
+  /** References the highlighted option only while its list is rendered. */
+  activeSuggestionId?: string | undefined;
   containerClassName?: string;
   className?: string;
   placeholderClassName?: string;
@@ -581,6 +592,26 @@ export function ComposerPromptEditorTiptap(props: ComposerPromptEditorProps) {
   );
 }
 
+/**
+ * Starts a new undo step when the kind of change switches (typing, deleting,
+ * a paste or a store rewrite), the way the Lexical composer grouped undo.
+ * Runs as dispatch middleware because the grouping has to be decided before
+ * the history plugin applies the transaction.
+ */
+const ComposerUndoGroupingExtension = Extension.create<
+  Record<string, never>,
+  { previous: ComposerChangeKind | null }
+>({
+  name: "composer-undo-grouping",
+  addStorage() {
+    return { previous: null };
+  },
+  dispatchTransaction({ transaction, next }) {
+    this.storage.previous = groupUndoByChangeKind(transaction, this.storage.previous);
+    next(transaction);
+  },
+});
+
 function ComposerPromptEditorTiptapInner(props: ComposerPromptEditorProps) {
   const {
     value,
@@ -592,6 +623,9 @@ function ComposerPromptEditorTiptapInner(props: ComposerPromptEditorProps) {
     skills,
     disabled,
     placeholder,
+    ariaLabel,
+    suggestionListId,
+    activeSuggestionId,
     containerClassName,
     className,
     placeholderClassName,
@@ -752,9 +786,25 @@ function ComposerPromptEditorTiptapInner(props: ComposerPromptEditorProps) {
       ),
       "data-testid": "composer-editor",
       "data-composer-rich-text": richText ? "true" : "false",
+      role: "textbox",
+      "aria-multiline": "true",
+      ...(ariaLabel ? { "aria-label": ariaLabel } : {}),
+      ...(disabled ? { "aria-readonly": "true" } : {}),
+      ...(!disabled && suggestionListId
+        ? {
+            "aria-autocomplete": "list",
+            "aria-haspopup": "listbox",
+            ...(activeSuggestionId
+              ? {
+                  "aria-controls": suggestionListId,
+                  "aria-activedescendant": activeSuggestionId,
+                }
+              : {}),
+          }
+        : {}),
       "aria-placeholder": placeholder,
     }),
-    [className, placeholder, richText],
+    [activeSuggestionId, ariaLabel, className, disabled, placeholder, richText, suggestionListId],
   );
 
   const editor = useEditor(
@@ -774,9 +824,11 @@ function ComposerPromptEditorTiptapInner(props: ComposerPromptEditorProps) {
           gapcursor: false,
           trailingNode: false,
           code: false,
+          undoRedo: { newGroupDelay: COMPOSER_UNDO_GROUP_DELAY },
           // Plain mode has no marks: typed markers stay literal characters.
           ...(richText ? {} : { bold: false, italic: false, strike: false }),
         }),
+        ComposerUndoGroupingExtension,
         ComposerMentionExtension,
         ComposerSkillExtension,
         ComposerCitationExtension,
@@ -1024,7 +1076,16 @@ function ComposerPromptEditorTiptapInner(props: ComposerPromptEditorProps) {
           const editorInstance = editorHolder.current;
           if (editorInstance) {
             insertMarkdownParagraphs(text, skillLabelFor, { styling: richText }, (content) => {
-              editorInstance.commands.insertContent(content);
+              // Tagged on the same transaction insertContent builds, so the
+              // paste is one undo step of its own.
+              editorInstance
+                .chain()
+                .command(({ tr }) => {
+                  markAsClipboardEdit(tr, "paste");
+                  return true;
+                })
+                .insertContent(content)
+                .run();
             });
             scrollTiptapCaretIntoView(editorInstance);
           }
@@ -1285,7 +1346,15 @@ function ComposerPromptEditorTiptapInner(props: ComposerPromptEditorProps) {
         clipboardData.setData("text/html", encodeComposerContextClipboardHtml(text, fragment));
       }
       if (cut) {
-        editor.chain().focus().deleteSelection().run();
+        editor
+          .chain()
+          .focus()
+          .command(({ tr }) => {
+            markAsClipboardEdit(tr, "cut");
+            return true;
+          })
+          .deleteSelection()
+          .run();
       }
     },
     [editor],

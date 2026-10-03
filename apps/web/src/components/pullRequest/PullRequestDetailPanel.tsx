@@ -1539,6 +1539,8 @@ export function PullRequestDetailPanel({
   const statePresentation = detail
     ? resolvePullRequestState({ state: detail.state, isDraft: detail.isDraft, t })
     : null;
+  const showsApproveWorkflows =
+    workflowApprovalsRequired > 0 && !checksStale && can("approve-workflows");
   const checksSummary = checksStale
     ? checksState === null
       ? "No checks reported"
@@ -2631,8 +2633,13 @@ export function PullRequestDetailPanel({
               ))}
             </ToggleGroup>
             {tab === "summary" ? (
-              <span className="ml-auto inline-flex shrink-0 items-center">
-                {workflowApprovalsRequired > 0 && !checksStale && can("approve-workflows") ? (
+              <span
+                className={cn(
+                  "ml-auto flex items-center justify-end",
+                  showsApproveWorkflows ? "shrink-0" : "min-w-0 flex-1",
+                )}
+              >
+                {showsApproveWorkflows ? (
                   <Tooltip>
                     <TooltipTrigger
                       render={
@@ -2668,7 +2675,7 @@ export function PullRequestDetailPanel({
                   </Tooltip>
                 ) : (
                   <span
-                    className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"
+                    className="flex h-4 min-w-0 flex-wrap content-start items-center justify-end gap-x-1.5 overflow-hidden text-xs text-muted-foreground"
                     aria-label={
                       checksSummary
                         ? t("pullRequests.checks.aria", { status: checksSummary })
@@ -2685,7 +2692,7 @@ export function PullRequestDetailPanel({
                     ) : (
                       <CircleDotIcon aria-hidden className="size-3.5" />
                     )}
-                    {checksSummary}
+                    <span className="whitespace-nowrap">{checksSummary}</span>
                   </span>
                 )}
               </span>

@@ -13,7 +13,7 @@ if (APP_VARIANT === "community") {
   process.env.EXPO_PUBLIC_APP_LOCALE = "zh-CN";
 }
 const appVersion =
-  APP_VARIANT === "community" ? (repoEnv.T3CODE_MOBILE_VERSION?.trim() ?? "1.3.1") : "1.3.1";
+  APP_VARIANT === "community" ? (repoEnv.T3CODE_MOBILE_VERSION?.trim() ?? "1.4.0") : "1.4.0";
 const androidVersionCode = Number.parseInt(
   APP_VARIANT === "community" ? (repoEnv.T3CODE_MOBILE_VERSION_CODE?.trim() ?? "1") : "1",
   10,
@@ -141,6 +141,9 @@ const dmSansFonts = {
   bold: "@expo-google-fonts/dm-sans/700Bold/DMSans_700Bold.ttf",
 } as const;
 
+const widgetCopy = (english: string, chinese: string): string =>
+  process.env.EXPO_PUBLIC_APP_LOCALE === "zh-CN" ? chinese : english;
+
 const widgetsPlugin: NonNullable<ExpoConfig["plugins"]>[number] = [
   "expo-widgets",
   {
@@ -150,51 +153,74 @@ const widgetsPlugin: NonNullable<ExpoConfig["plugins"]>[number] = [
     // Agent activity can update many times an hour; without the
     // frequent-updates entitlement iOS throttles the update budget sooner.
     frequentUpdates: true,
+    enableAndroid: true,
     widgets: [
       {
         name: "SubscriptionUsage",
-        displayName: "Subscription usage",
-        description: "Subscription quotas from your connected T3 Code environments.",
-        configuration: {
-          title: "Subscription usage",
-          description:
-            "Both shows Session and Weekly when available. The Lock Screen shows the tightest selected limit.",
-          parameters: {
-            codexPeriod: {
-              title: "Codex limits",
-              type: "enum",
-              default: "auto",
-              values: [
-                { name: "Both", value: "auto" },
-                { name: "Session", value: "session" },
-                { name: "Weekly", value: "weekly" },
-              ],
-            },
-            claudePeriod: {
-              title: "Claude limits",
-              type: "enum",
-              default: "auto",
-              values: [
-                { name: "Both", value: "auto" },
-                { name: "Session", value: "session" },
-                { name: "Weekly", value: "weekly" },
-              ],
+        displayName: widgetCopy("Subscription usage", "订阅用量"),
+        description: widgetCopy(
+          "Subscription quotas from your connected T3 Code environments.",
+          "已连接 T3 Code 环境的订阅额度。",
+        ),
+        ios: {
+          configuration: {
+            title: widgetCopy("Subscription usage", "订阅用量"),
+            description: widgetCopy(
+              "Both shows Session and Weekly when available. The Lock Screen shows the tightest selected limit.",
+              "选择“两者”可同时显示会话和每周额度（若可用）。锁定屏幕显示所选额度中剩余最少的一项。",
+            ),
+            parameters: {
+              codexPeriod: {
+                title: widgetCopy("Codex limits", "Codex 额度"),
+                type: "enum",
+                default: "auto",
+                values: [
+                  { name: widgetCopy("Both", "两者"), value: "auto" },
+                  { name: widgetCopy("Session", "会话"), value: "session" },
+                  { name: widgetCopy("Weekly", "每周"), value: "weekly" },
+                ],
+              },
+              claudePeriod: {
+                title: widgetCopy("Claude limits", "Claude 额度"),
+                type: "enum",
+                default: "auto",
+                values: [
+                  { name: widgetCopy("Both", "两者"), value: "auto" },
+                  { name: widgetCopy("Session", "会话"), value: "session" },
+                  { name: widgetCopy("Weekly", "每周"), value: "weekly" },
+                ],
+              },
             },
           },
+          supportedFamilies: [
+            "systemSmall",
+            "systemMedium",
+            "systemLarge",
+            "systemExtraLarge",
+            "accessoryRectangular",
+          ],
         },
-        supportedFamilies: [
-          "systemSmall",
-          "systemMedium",
-          "systemLarge",
-          "systemExtraLarge",
-          "accessoryRectangular",
-        ],
+        android: {
+          minWidth: 250,
+          minHeight: 180,
+          targetCellWidth: 4,
+          targetCellHeight: 3,
+          resizeMode: "both",
+          // Embeds the layout in the APK so the widget renders before the app
+          // has run once; the app replaces it with stored props on publish.
+          initialLayout: "./src/widgets/SubscriptionUsage.android.tsx",
+        },
       },
       {
         name: "AgentActivity",
-        displayName: "Agent Activity",
-        description: "Shows the current state of active T3 Code agents.",
-        supportedFamilies: ["systemSmall", "systemMedium", "accessoryRectangular"],
+        displayName: widgetCopy("Agent Activity", "Agent 动态"),
+        description: widgetCopy(
+          "Shows the current state of active T3 Code agents.",
+          "显示活跃 T3 Code Agent 的当前状态。",
+        ),
+        // Live Activity companion; there is no Android presentation for it.
+        android: null,
+        ios: { supportedFamilies: ["systemSmall", "systemMedium", "accessoryRectangular"] },
       },
     ],
   },
@@ -432,6 +458,9 @@ const config: ExpoConfig = {
         android: {
           // Keep the supported floor explicit and covered by native notification tests.
           minSdkVersion: 24,
+          // kotlinx-io uses Kotlin 2.3's return-value checker annotation, while
+          // SDK 58 builds with Kotlin 2.2. It has no runtime behavior.
+          extraProguardRules: "-dontwarn kotlin.MustUseReturnValues",
         },
         ios: {
           deploymentTarget: "18.0",
@@ -450,7 +479,6 @@ const config: ExpoConfig = {
     // would delete the asset catalog) and its xcodeproj mod creates the widget
     // target (which must exist before the compile phase can be attached).
     ...(!isIosPersonalTeamBuild ? ["./plugins/withWidgetLogoAsset.cjs", widgetsPlugin] : []),
-    "./plugins/withIosSceneLifecycle.cjs",
     "./plugins/withAndroidCleartextTraffic.cjs",
     "./plugins/withAndroidGradleHeap.cjs",
     "./plugins/withAndroidInputBackground.cjs",

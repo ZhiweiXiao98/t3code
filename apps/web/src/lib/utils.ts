@@ -2,7 +2,7 @@ import { MessageId, ProjectId, ThreadId } from "@t3tools/contracts";
 import { type CxOptions, cx } from "class-variance-authority";
 import * as Encoding from "effect/Encoding";
 import { extendTailwindMerge } from "tailwind-merge";
-import { DraftId } from "../composerDraftStore";
+import { DraftId } from "../draftId";
 
 // The theme's extra font sizes (index.css). Unregistered, tailwind-merge reads
 // text-2xs as a colour and drops it next to text-muted-foreground.

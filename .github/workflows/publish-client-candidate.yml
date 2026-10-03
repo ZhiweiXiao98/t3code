@@ -20,7 +20,7 @@ on:
 permissions: {}
 
 concurrency:
-  group: publish-community-client-v0.0.44-zh.1
+  group: publish-community-client-v0.0.45-zh.1
   cancel-in-progress: false
 
 jobs:
@@ -50,7 +50,7 @@ jobs:
           import datetime, hashlib, json, os, pathlib, re, shutil, stat, subprocess, zipfile
 
           repo = 'ZhiweiXiao98/t3code'
-          branch = 'maintenance/v0.0.44-zh-cloud'
+          branch = 'maintenance/v0.0.45-zh-cloud'
           run_id = os.environ['CANDIDATE_RUN_ID']
           sha = os.environ['EXPECTED_SHA']
           assert re.fullmatch(r'[1-9][0-9]{0,17}', run_id), 'Invalid run ID'
@@ -92,7 +92,7 @@ jobs:
               assert matches[0]['head_sha'] == sha and matches[0]['run_id'] == int(run_id)
           assert api('/commits/' + sha)['sha'] == sha
           assert api('/git/ref/heads/' + branch)['object']['sha'] == sha, 'Maintenance branch moved; review again'
-          prefix = 'T3-Code-0.0.44-zh.1-'
+          prefix = 'T3-Code-0.0.45-zh.1-'
           specifications = {
               'client-linux-x64': ({prefix + 'x86_64.AppImage'}, {prefix + 'amd64.deb'}),
               'client-win-x64': ({prefix + 'x64.exe'}, set()),
@@ -153,7 +153,7 @@ jobs:
           assert run_snapshot() == run, 'Candidate was rerun or changed during verification'
           assert artifacts_snapshot() == artifacts, 'Candidate artifacts changed during verification'
           asset_records.sort(key=lambda a: a['name'])
-          manifest = {'repository': repo, 'version': '0.0.44-zh.1', 'source_sha': sha,
+          manifest = {'repository': repo, 'version': '0.0.45-zh.1', 'source_sha': sha,
                       'run_url': f'https://github.com/{repo}/actions/runs/{run_id}/attempts/{run["run_attempt"]}',
                       'run': run, 'artifacts': artifacts, 'assets': asset_records}
           manifest_path = output / 'BUILD-PROVENANCE.json'
@@ -202,22 +202,22 @@ jobs:
             const assert = require('node:assert/strict');
             const hash = data => crypto.createHash('sha256').update(data).digest('hex');
             const repo = {owner: 'ZhiweiXiao98', repo: 't3code'};
-            const branch = 'maintenance/v0.0.44-zh-cloud';
-            const tag = 'v0.0.44-zh.1';
+            const branch = 'maintenance/v0.0.45-zh-cloud';
+            const tag = 'v0.0.45-zh.1';
             assert.equal(context.repo.owner, repo.owner);
             assert.equal(context.repo.repo, repo.repo);
             const manifestBytes = fs.readFileSync('assets/BUILD-PROVENANCE.json');
             assert.equal(hash(manifestBytes), process.env.MANIFEST_SHA256);
             const m = JSON.parse(manifestBytes);
             assert.equal(m.repository, 'ZhiweiXiao98/t3code');
-            assert.equal(m.version, '0.0.44-zh.1');
+            assert.equal(m.version, '0.0.45-zh.1');
             assert.equal(m.source_sha, process.env.EXPECTED_SHA);
             assert.equal(String(m.run.id), process.env.CANDIDATE_RUN_ID);
             assert.match(m.source_sha, /^[0-9a-f]{40}$/);
-            const mandatory = ['T3-Code-0.0.44-zh.1-x86_64.AppImage', 'T3-Code-0.0.44-zh.1-x64.exe',
-              'T3-Code-0.0.44-zh.1-arm64.dmg', 'T3-Code-0.0.44-zh.1-x64.dmg'];
-            const allowed = new Set([...mandatory, 'T3-Code-0.0.44-zh.1-amd64.deb',
-              'T3-Code-0.0.44-zh.1-arm64.zip', 'T3-Code-0.0.44-zh.1-x64.zip']);
+            const mandatory = ['T3-Code-0.0.45-zh.1-x86_64.AppImage', 'T3-Code-0.0.45-zh.1-x64.exe',
+              'T3-Code-0.0.45-zh.1-arm64.dmg', 'T3-Code-0.0.45-zh.1-x64.dmg'];
+            const allowed = new Set([...mandatory, 'T3-Code-0.0.45-zh.1-amd64.deb',
+              'T3-Code-0.0.45-zh.1-arm64.zip', 'T3-Code-0.0.45-zh.1-x64.zip']);
             const names = m.assets.map(a => a.name);
             assert.equal(new Set(names).size, names.length);
             assert(mandatory.every(n => names.includes(n)) && names.every(n => allowed.has(n)));
@@ -269,12 +269,12 @@ jobs:
             assert(!releases.some(r => r.tag_name === tag), 'Existing draft/release; refusing replacement');
             // Atomic ref creation prevents accidentally publishing on a raced existing tag.
             await github.rest.git.createRef({...repo, ref: `refs/tags/${tag}`, sha: m.source_sha});
-            const body = `Chinese community desktop clients, version ${m.version}.\n\n` +
-              `Source: ${m.source_sha}\nVerified candidate: ${m.run_url}\n\n` +
-              'Windows x64 is unsigned (no Authenticode signature). macOS arm64/x64 is not Developer ID signed or notarized. OS trust warnings are expected. Linux x64 AppImage is included.\n\n' +
-              'Android is not included: secure backup and rollout of the new release signing key are still pending. The unsigned candidate is NOT installable. A future build with the new signature cannot overwrite the historical APK; back up settings before uninstalling the old app, since uninstalling can delete local data.\n\n' +
-              'Android 暂未发布：新签名的安全备份与后续发布仍待完成。新签名不能直接覆盖历史 APK，卸载旧版前请先备份设置；卸载可能丢失本地数据。\n\n' +
-              'Lint, typecheck, tests and desktop packaging passed for this exact candidate. These artifacts were reviewed before manual publication and were not rebuilt. SHA256SUMS.txt and BUILD-PROVENANCE.json record integrity and origin, not publisher identity. Manual downloads only; no updater feeds, npm, AUR or other registry publishing.\n';
+            const body = `基于上游稳定版 v0.0.45 的简体中文社区桌面预发布：${m.version}。\n\n` +
+              `精确源码：${m.source_sha}\n构建记录：${m.run_url}\n上游版本：https://github.com/pingdotgg/t3code/releases/tag/v0.0.45\n\n` +
+              '本版同步上游更新，包括无项目启动任务、按名称新建项目、批量更新服务提供方以及实验性的工作中分区；补齐新增界面汉化，并保留 Windows 关闭窗口后驻留托盘等社区功能。\n\n' +
+              '提供 Windows x64、macOS Apple Silicon / Intel、Linux x64 客户端。Windows 安装包没有 Authenticode 签名；macOS 未经 Developer ID 签名或公证，系统可能显示安全提示。升级前建议备份现有数据。\n\n' +
+              'Android 暂未发布：新签名的安全备份仍待确认，未签名候选包不可安装。新签名不能直接覆盖历史 APK，卸载旧版前请先备份设置；卸载可能丢失本地数据。\n\n' +
+              '该精确提交的 lint、类型检查、测试、桌面打包和 Android 未签名候选构建均已通过。桌面产物经校验后直接发布，没有重新构建；云端验证不等于所有系统上的人工安装测试。SHA256SUMS.txt 和 BUILD-PROVENANCE.json 记录完整性与来源，不代表商业签名。请手动下载，本版不提供自动更新源。\n';
             const {data: release} = await github.rest.repos.createRelease({...repo, tag_name: tag,
               target_commitish: m.source_sha, name: `T3 Code 中文版 ${m.version} (unsigned desktop clients)`,
               body, draft: true, prerelease: true, make_latest: 'false'});
