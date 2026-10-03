@@ -13,14 +13,14 @@
 - [社区版 Releases 与本次发布状态](https://github.com/ZhiweiXiao98/t3code/releases)：请以每个发布页实际列出的系统、架构和资产为准
 - [iOS 官方原版（未汉化）](https://apps.apple.com/us/app/t3-code-remote-claude-more/id6787819824)，开发者 T3Tools；本仓库不构建或上架 iOS
 
-已发布基于上游 `v0.0.44` 的[桌面社区预发布版 `v0.0.44-zh.1`](https://github.com/ZhiweiXiao98/t3code/releases/tag/v0.0.44-zh.1)，提供 Windows x64、macOS Apple Silicon / Intel 和 Linux x64 安装包。新版正在跟进上游稳定版 `v0.0.45`，只有通过验证后才会发布；请以 Releases 中实际可下载的版本为准。Windows / macOS 社区安装包没有正式代码签名，macOS 也未公证，系统可能显示安全提示。
+当前桌面版为基于上游 `v0.0.45` 的[社区预发布版 `v0.0.45-zh.1`](https://github.com/ZhiweiXiao98/t3code/releases/tag/v0.0.45-zh.1)，于 2026 年 10 月 3 日发布，提供 Windows x64、macOS Apple Silicon / Intel 和 Linux x64 安装包。该精确提交的 12 项云端验证任务全部通过，包含 18,403 项通过的测试（另有 16 项跳过）、lint、类型检查、桌面打包与 Android 未签名候选构建；[构建记录](https://github.com/ZhiweiXiao98/t3code/actions/runs/37131562744)可供查验。发布页同时提供 SHA-256 和构建来源记录。云端验证不等于所有系统上的人工安装测试；升级前请备份现有数据。Windows / macOS 社区安装包没有正式代码签名，macOS 也未公证，系统可能显示安全提示。
 
 Android 的原有升级签名无法提供，后续安装包将使用新的发布签名，不能直接覆盖历史 APK。请先备份设置，再卸载旧版；卸载可能丢失本地数据。新签名完成安全备份前不会发布可安装 APK。Actions 中明确标记的未签名 Android 候选包不可安装，不是正式下载。
 
 ### 历史社区安装包
 
-- [Windows x64 简体中文安装包](https://github.com/ZhiweiXiao98/t3code/releases/tag/zh-cn-v0.0.33-cn.1)
-- [Android 简体中文 APK](https://github.com/ZhiweiXiao98/t3code/releases/tag/zh-cn-mobile-v1.0.4-cn.1)
+- [Windows x64 历史版 `0.0.39-cn.3`](https://github.com/ZhiweiXiao98/t3code/releases/tag/zh-cn-v0.0.39-cn.3)
+- [Android 历史版 `1.0.4-cn.9`（旧签名）](https://github.com/ZhiweiXiao98/t3code/releases/tag/zh-cn-mobile-v1.0.4-cn.9)
 
 这些历史社区安装包并非通过应用商店分发；Windows 没有商业代码签名，Android 使用的历史签名身份需要核实。Windows SmartScreen 或 Android 系统可能显示安全提醒，请只从本仓库 Releases 下载，并在安装前核对发布页提供的 SHA-256。
 
