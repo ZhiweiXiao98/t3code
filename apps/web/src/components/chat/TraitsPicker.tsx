@@ -17,7 +17,7 @@ import {
 } from "@t3tools/shared/model";
 import { memo, useCallback } from "react";
 import { BrainIcon, ZapIcon } from "lucide-react";
-import { useI18n } from "~/i18n/WebI18nProvider";
+import { useI18n } from "~/i18n/WebI18nContext";
 import { UltrafastIcon } from "../Icons";
 import {
   Menu,

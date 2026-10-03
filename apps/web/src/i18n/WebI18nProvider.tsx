@@ -1,36 +1,12 @@
 import type { AppLocalePreference } from "@t3tools/contracts/settings";
-import { resolveAppLocale, type ResolvedAppLocale } from "@t3tools/shared/appLocale";
-import {
-  createContext,
-  type ReactNode,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { resolveAppLocale } from "@t3tools/shared/appLocale";
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
 import { useClientSettings, useUpdateClientSettings } from "../hooks/useSettings";
 import { translateWebMessage, type WebMessageKey, type WebMessageValues } from "./messages";
+import { WebI18nContext, type WebI18nContextValue, type WebTranslate } from "./WebI18nContext";
 
-export type WebTranslate = (key: WebMessageKey, values?: WebMessageValues) => string;
-
-export interface WebI18nContextValue {
-  readonly locale: ResolvedAppLocale;
-  readonly appLocale: AppLocalePreference;
-  readonly setAppLocale: (locale: AppLocalePreference) => void;
-  readonly t: WebTranslate;
-}
-
-const translateEnglish: WebTranslate = (key, values) => translateWebMessage("en", key, values);
-const noopSetAppLocale = (_locale: AppLocalePreference) => undefined;
-
-const WebI18nContext = createContext<WebI18nContextValue>({
-  locale: "en",
-  appLocale: "system",
-  setAppLocale: noopSetAppLocale,
-  t: translateEnglish,
-});
+export { useI18n, type WebI18nContextValue, type WebTranslate } from "./WebI18nContext";
 
 function readRuntimeLocales(): ReadonlyArray<string> {
   const desktopLocale =
@@ -95,9 +71,4 @@ export function WebI18nProvider({ children }: { readonly children: ReactNode }) 
   );
 
   return <WebI18nContext value={value}>{children}</WebI18nContext>;
-}
-
-/** English remains available when a standalone component test omits the provider. */
-export function useI18n(): WebI18nContextValue {
-  return useContext(WebI18nContext);
 }
