@@ -1,5 +1,7 @@
+import { translateWebSource } from "~/i18n/messages";
+import { Spinner } from "~/components/ui/spinner";
 import type { ProjectContentMatch } from "@t3tools/contracts";
-import { LoaderCircle } from "lucide-react";
+
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { useActiveProjectTarget, type ActiveProjectTarget } from "~/hooks/useActiveProjectTarget";
@@ -14,6 +16,7 @@ import { ScrollArea } from "../ui/scroll-area";
 import { Toggle } from "../ui/toggle";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { HighlightedSearchLine } from "./HighlightedSearchLine";
+import { useI18n } from "~/i18n/WebI18nProvider";
 
 interface ProjectContentSearchDialogProps {
   readonly onOpenChange: (open: boolean) => void;
@@ -66,14 +69,13 @@ function SearchOptionButton(props: {
           <Toggle
             aria-label={props.label}
             pressed={props.active}
-            className="size-8 rounded-[5px] font-mono text-muted-foreground data-pressed:text-foreground sm:size-7"
-            size="compact"
-            variant="ghost"
+            size="segmented"
+            variant="segmented"
             onClick={props.onClick}
           />
         }
       >
-        {props.children}
+        <span className="font-mono">{props.children}</span>
       </TooltipTrigger>
       <TooltipPopup side="top">{props.label}</TooltipPopup>
     </Tooltip>
@@ -81,18 +83,21 @@ function SearchOptionButton(props: {
 }
 
 function EmptyContentSearchDialog() {
+  const { t } = useI18n();
   return (
     <CommandPaletteContent
-      aria-label="Search project contents"
-      escapeLabel="Back"
-      footerActionLabel="Open file"
-      inputProps={{ disabled: true, placeholder: "Search project contents…" }}
+      aria-label={t("contentSearch.label")}
+      escapeLabel={t("common.back")}
+      footerActionLabel={t("filePicker.openFile")}
+      inputProps={{ disabled: true, placeholder: t("contentSearch.search") }}
       mode="none"
-      panelClassName="flex min-h-0 flex-1 items-center justify-center px-6 text-center text-sm text-muted-foreground"
+      panelSize="fill"
       testId="project-content-search"
       value=""
     >
-      Open a project to search its files.
+      <p className="m-auto px-6 text-center text-muted-foreground text-sm">
+        {t("filePicker.openProject")}
+      </p>
     </CommandPaletteContent>
   );
 }
@@ -101,6 +106,8 @@ function OpenContentSearchDialog(props: {
   readonly onOpenChange: (open: boolean) => void;
   readonly target: ActiveProjectTarget;
 }) {
+  const { locale: uiLocale } = useI18n();
+  const { t } = useI18n();
   const { target } = props;
   const { resolvedTheme } = useTheme();
   const [query, setQuery] = useState("");
@@ -161,28 +168,28 @@ function OpenContentSearchDialog(props: {
 
   return (
     <CommandPaletteContent
-      aria-label={`Search file contents in ${target.projectName}`}
-      escapeLabel="Back"
-      footerActionLabel="Open file"
+      aria-label={t("contentSearch.labelInProject", { project: target.projectName })}
+      escapeLabel={t("common.back")}
+      footerActionLabel={t("filePicker.openFile")}
       inputAccessory={
         <div className="absolute inset-e-2.5 top-1/2 flex shrink-0 -translate-y-1/2 items-center gap-0.5 rounded-md border bg-muted/30 p-0.5">
           <SearchOptionButton
             active={caseSensitive}
-            label="Match case"
+            label={t("contentSearch.matchCase")}
             onClick={() => setCaseSensitive((current) => !current)}
           >
             Aa
           </SearchOptionButton>
           <SearchOptionButton
             active={wholeWord}
-            label="Match whole word"
+            label={t("contentSearch.wholeWord")}
             onClick={() => setWholeWord((current) => !current)}
           >
             <span className="underline decoration-2 underline-offset-2">ab</span>
           </SearchOptionButton>
           <SearchOptionButton
             active={useRegex}
-            label="Use regular expression"
+            label={t("contentSearch.regex")}
             onClick={() => setUseRegex((current) => !current)}
           >
             .*
@@ -191,7 +198,7 @@ function OpenContentSearchDialog(props: {
       }
       inputProps={{
         className: "pe-30",
-        placeholder: `Search in ${target.projectName}`,
+        placeholder: t("contentSearch.searchIn", { project: target.projectName }),
         onKeyDown: (event) => {
           if (event.key === "ArrowDown" && matches.length > 0) {
             event.preventDefault();
@@ -217,7 +224,7 @@ function OpenContentSearchDialog(props: {
       }}
       mode="none"
       onValueChange={setQuery}
-      panelClassName="flex min-h-0 flex-1 flex-col"
+      panelSize="fill"
       testId="project-content-search"
       value={query}
     >
@@ -225,14 +232,17 @@ function OpenContentSearchDialog(props: {
         <div className="flex h-9 shrink-0 items-center border-b px-3 text-xs text-muted-foreground">
           {search.isPending ? (
             <span className="flex items-center gap-2">
-              <LoaderCircle className="size-3.5 animate-spin" /> Searching…
+              <Spinner size="sm" /> {translateWebSource(uiLocale, "Searching…")}
             </span>
           ) : search.error ? (
             <span className="text-destructive">{search.error}</span>
           ) : search.invalidRegex ? (
-            <span className="text-destructive">Invalid regular expression</span>
+            <span className="text-destructive">{t("contentSearch.invalidRegex")}</span>
           ) : (
-            `${matches.length.toLocaleString()}${search.truncated ? "+" : ""} results in ${fileCount.toLocaleString()} files`
+            t("contentSearch.results", {
+              results: `${matches.length.toLocaleString()}${search.truncated ? "+" : ""}`,
+              files: fileCount.toLocaleString(),
+            })
           )}
         </div>
       ) : null}
@@ -240,8 +250,8 @@ function OpenContentSearchDialog(props: {
       {matches.length === 0 ? (
         <div className="flex flex-1 items-center justify-center px-6 text-center text-sm text-muted-foreground">
           {search.hasQuery && !search.isPending && !search.error
-            ? "No results found."
-            : "Type to search across your project."}
+            ? t("contentSearch.noResults")
+            : t("contentSearch.typeToSearch")}
         </div>
       ) : (
         <ScrollArea className="min-h-0 flex-1" scrollFade>
@@ -263,7 +273,7 @@ function OpenContentSearchDialog(props: {
                         {path.directory}
                       </span>
                     ) : null}
-                    <span className="ml-auto rounded-full bg-muted px-1.5 py-0.5 tabular-nums text-[10px] text-muted-foreground">
+                    <span className="ml-auto rounded-full bg-muted px-1.5 py-0.5 tabular-nums text-3xs text-muted-foreground">
                       {group.matches.length}
                     </span>
                   </div>

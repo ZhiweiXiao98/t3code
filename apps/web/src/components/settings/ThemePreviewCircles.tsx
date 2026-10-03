@@ -5,6 +5,7 @@ import {
   THEME_PREVIEW_RENDER_SPECS,
 } from "@t3tools/shared/themePreview";
 import { cn } from "../../lib/utils";
+import { useI18n } from "../../i18n/WebI18nProvider";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import {
   getThemeColorsForMode,
@@ -131,14 +132,19 @@ function themePreviewEdgeShadow(mode: ThemeAppearance): string {
 export function ThemePreviewCircle({
   colors,
   mode,
+  className,
 }: {
   colors: ThemeCardPreviewColors;
   mode: ThemeAppearance;
+  className?: string;
 }) {
   return (
     <span
       aria-hidden
-      className="relative block size-14 shrink-0 overflow-hidden rounded-full border-2 border-background"
+      className={cn(
+        "relative block size-14 shrink-0 overflow-hidden rounded-full border-2 border-background",
+        className,
+      )}
       style={{ boxShadow: themePreviewEdgeShadow(mode) }}
     >
       <span
@@ -169,6 +175,7 @@ export function ThemePreviewCircles({
   onSelectMode: (mode: ThemeMode) => void;
   previews: ThemeCardDefinition["previews"];
 }) {
+  const { t } = useI18n();
   return (
     <div className="flex min-h-16 items-center justify-center gap-2.5 px-3 pt-3">
       {previews.map((preview) => {
@@ -215,7 +222,9 @@ export function ThemePreviewCircles({
               }
             />
             <TooltipPopup>
-              {mode === "light" ? "Use for light mode only" : "Use for dark mode only"}
+              {mode === "light"
+                ? t("appearance.theme.useLightOnly")
+                : t("appearance.theme.useDarkOnly")}
             </TooltipPopup>
           </Tooltip>
         );

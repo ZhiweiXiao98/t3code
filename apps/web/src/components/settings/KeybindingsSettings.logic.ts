@@ -11,7 +11,33 @@ import {
   parseKeybindingWhenExpression,
 } from "@t3tools/shared/keybindings";
 
+import { shortcutKeyFromEvent } from "../../keybindings";
 import { isMacPlatform } from "../../lib/utils";
+import { METRIC_OPTIONS, WINDOW_OPTIONS } from "../usage/usageShortcuts";
+
+const usageCommandOrder = new Map<KeybindingCommand, number>(
+  [...METRIC_OPTIONS, ...WINDOW_OPTIONS].map((option, index) => [option.command, index]),
+);
+
+const firstUsageCommand = METRIC_OPTIONS[0].command;
+
+/**
+ * Orders commands by `key`, except Usage page commands, which sort as one
+ * block in page order where the first of them would sort. A total order, so
+ * adding a binding elsewhere cannot reshuffle the Usage rows.
+ */
+function compareCommands(
+  left: KeybindingCommand,
+  right: KeybindingCommand,
+  key: (command: KeybindingCommand) => string,
+): number {
+  const leftRank = usageCommandOrder.get(left);
+  const rightRank = usageCommandOrder.get(right);
+  if (leftRank !== undefined && rightRank !== undefined) return leftRank - rightRank;
+  return key(leftRank === undefined ? left : firstUsageCommand).localeCompare(
+    key(rightRank === undefined ? right : firstUsageCommand),
+  );
+}
 
 export type KeybindingSource = "Default" | "Custom" | "Project";
 
@@ -29,8 +55,59 @@ export interface KeybindingRow {
 
 export type WhenVariableOption = string;
 export type KeybindingCommandOption = KeybindingCommand;
+export type KeybindingCommandLabeler = (command: KeybindingCommand) => string;
 
-const CORE_WHEN_VARIABLES = ["terminalFocus", "terminalOpen", "true", "false"] as const;
+const STATIC_COMMAND_MESSAGE_KEYS = {
+  "sidebar.toggle": "keybindings.command.sidebarToggle",
+  "terminal.toggle": "keybindings.command.terminalToggle",
+  "rightPanel.toggle": "keybindings.command.rightPanelToggle",
+  "terminal.split": "keybindings.command.terminalSplit",
+  "terminal.splitVertical": "keybindings.command.terminalSplitVertical",
+  "terminal.new": "keybindings.command.terminalNew",
+  "terminal.close": "keybindings.command.terminalClose",
+  "diff.toggle": "keybindings.command.diffToggle",
+  "preview.toggle": "keybindings.command.previewToggle",
+  "preview.refresh": "keybindings.command.previewRefresh",
+  "preview.focusUrl": "keybindings.command.previewFocusUrl",
+  "preview.zoomIn": "keybindings.command.previewZoomIn",
+  "preview.zoomOut": "keybindings.command.previewZoomOut",
+  "preview.resetZoom": "keybindings.command.previewResetZoom",
+  "commandPalette.toggle": "keybindings.command.commandPaletteToggle",
+  "filePicker.toggle": "keybindings.command.filePickerToggle",
+  "projectSearch.toggle": "keybindings.command.projectSearchToggle",
+  "themeEditor.toggle": "keybindings.command.themeEditorToggle",
+  "composer.stash": "keybindings.command.composerStash",
+  "chat.new": "keybindings.command.chatNew",
+  "chat.newLocal": "keybindings.command.chatNewLocal",
+  "chat.newWithoutProject": "keybindings.command.chatNewWithoutProject",
+  "modelPicker.toggle": "keybindings.command.modelPickerToggle",
+  "editor.openFavorite": "keybindings.command.editorOpenFavorite",
+  "thread.previous": "keybindings.command.threadPrevious",
+  "thread.next": "keybindings.command.threadNext",
+  "thread.settle": "keybindings.command.threadSettle",
+} as const;
+
+type StaticCommandMessageKey =
+  (typeof STATIC_COMMAND_MESSAGE_KEYS)[keyof typeof STATIC_COMMAND_MESSAGE_KEYS];
+type DynamicCommandMessageKey =
+  | "keybindings.command.threadJump"
+  | "keybindings.command.modelPickerJump"
+  | "keybindings.command.runScript";
+type KeybindingCommandMessageKey = StaticCommandMessageKey | DynamicCommandMessageKey;
+
+export type KeybindingCommandTranslator = (
+  key: KeybindingCommandMessageKey,
+  values?: Readonly<Record<string, string | number>>,
+) => string;
+
+const CORE_WHEN_VARIABLES = [
+  "terminalFocus",
+  "terminalOpen",
+  "isWeb",
+  "isDesktop",
+  "true",
+  "false",
+] as const;
 
 const DEFAULT_WHEN_VARIABLES = new Set<string>(CORE_WHEN_VARIABLES);
 for (const binding of DEFAULT_RESOLVED_KEYBINDINGS) {
@@ -66,6 +143,14 @@ export function whenAstToExpression(node: KeybindingWhenNode | undefined): strin
     case "or":
       return `${wrapWhenExpression(node.left)} || ${wrapWhenExpression(node.right)}`;
   }
+}
+
+export function whenNodeRemoveLabel(node: KeybindingWhenNode, depth: number): string {
+  if (depth === 0) return "Clear all conditions";
+  if (node.type === "identifier" || (node.type === "not" && node.node.type === "identifier")) {
+    return "Remove condition";
+  }
+  return "Remove group and its conditions";
 }
 
 function wrapWhenExpression(node: KeybindingWhenNode): string {
@@ -139,6 +224,7 @@ function conflictsWithWhen(leftWhen: string, rightWhen: string): boolean {
 export function keybindingConflictLabels(
   rows: ReadonlyArray<KeybindingRow>,
   input: { readonly rowId: string; readonly key: string; readonly when: string },
+  labelCommand: KeybindingCommandLabeler = commandLabel,
 ): ReadonlyArray<string> {
   if (input.key.trim().length === 0) return [];
   const conflicts: Array<string> = [];
@@ -148,7 +234,7 @@ export function keybindingConflictLabels(
       candidate.key === input.key &&
       conflictsWithWhen(candidate.when, input.when)
     ) {
-      conflicts.push(commandLabel(candidate.command));
+      conflicts.push(labelCommand(candidate.command));
     }
   }
   return [...new Set(conflicts)].toSorted();
@@ -157,6 +243,7 @@ export function keybindingConflictLabels(
 export function buildKeybindingRows(
   keybindings: ResolvedKeybindingsConfig,
   query: string,
+  labelCommand: KeybindingCommandLabeler = commandLabel,
 ): ReadonlyArray<KeybindingRow> {
   const normalizedQuery = query.trim().toLowerCase();
   const rows = keybindings.map((binding, index) => {
@@ -177,20 +264,25 @@ export function buildKeybindingRows(
   });
 
   const rowsWithConflicts = rows.map((row) => {
-    const conflicts = keybindingConflictLabels(rows, {
-      rowId: row.id,
-      key: row.key,
-      when: row.when,
-    });
+    const conflicts = keybindingConflictLabels(
+      rows,
+      {
+        rowId: row.id,
+        key: row.key,
+        when: row.when,
+      },
+      labelCommand,
+    );
     return conflicts.length > 0
       ? Object.assign({}, row, { conflicts: [...new Set(conflicts)].toSorted() })
       : row;
   });
 
   rowsWithConflicts.sort((left, right) => {
-    const commandCompare = left.command.localeCompare(right.command);
+    const commandCompare = compareCommands(left.command, right.command, labelCommand);
     if (commandCompare !== 0) return commandCompare;
-    return left.key.localeCompare(right.key);
+    const commandIdCompare = left.command.localeCompare(right.command);
+    return commandIdCompare !== 0 ? commandIdCompare : left.key.localeCompare(right.key);
   });
 
   if (normalizedQuery.length === 0) {
@@ -200,6 +292,8 @@ export function buildKeybindingRows(
   return rowsWithConflicts.filter((row) => {
     return (
       row.command.toLowerCase().includes(normalizedQuery) ||
+      labelCommand(row.command).toLowerCase().includes(normalizedQuery) ||
+      commandLabel(row.command).toLowerCase().includes(normalizedQuery) ||
       row.key.toLowerCase().includes(normalizedQuery) ||
       row.when.toLowerCase().includes(normalizedQuery) ||
       row.source.toLowerCase().includes(normalizedQuery)
@@ -255,22 +349,51 @@ export function buildWhenVariableOptions(): ReadonlyArray<WhenVariableOption> {
 
 export function buildKeybindingCommandOptions(
   keybindings: ResolvedKeybindingsConfig,
+  labelCommand: KeybindingCommandLabeler = commandLabel,
 ): ReadonlyArray<KeybindingCommandOption> {
   const commands = new Set<KeybindingCommand>(STATIC_KEYBINDING_COMMANDS);
   for (const binding of keybindings) {
     commands.add(binding.command);
   }
-  return [...commands].toSorted((left, right) =>
-    commandLabel(left).localeCompare(commandLabel(right)),
-  );
+  return [...commands].toSorted((left, right) => compareCommands(left, right, labelCommand));
 }
 
 export function commandLabel(command: KeybindingCommand): string {
+  if (command === "thread.copyReference") return "Pull Request: Copy Link or Thread ID";
+  const usageMetric = METRIC_OPTIONS.find((option) => option.command === command);
+  if (usageMetric) return `Usage: ${usageMetric.label}`;
+  const usagePeriod = WINDOW_OPTIONS.find((option) => option.command === command);
+  if (usagePeriod) return `Usage: Period: ${usagePeriod.label}`;
   const raw = String(command);
   if (raw.startsWith("script.") && raw.endsWith(".run")) {
     return `Run Script: ${titleCaseCommandSegment(raw.slice("script.".length, -".run".length))}`;
   }
   return raw.split(".").map(titleCaseCommandSegment).join(": ");
+}
+
+export function localizedCommandLabel(
+  command: KeybindingCommand,
+  translate: KeybindingCommandTranslator,
+): string {
+  const raw = String(command);
+  const threadJumpMatch = /^thread\.jump\.(\d+)$/.exec(raw);
+  if (threadJumpMatch?.[1]) {
+    return translate("keybindings.command.threadJump", { index: threadJumpMatch[1] });
+  }
+
+  const modelPickerJumpMatch = /^modelPicker\.jump\.(\d+)$/.exec(raw);
+  if (modelPickerJumpMatch?.[1]) {
+    return translate("keybindings.command.modelPickerJump", { index: modelPickerJumpMatch[1] });
+  }
+
+  if (raw.startsWith("script.") && raw.endsWith(".run")) {
+    return translate("keybindings.command.runScript", {
+      name: titleCaseCommandSegment(raw.slice("script.".length, -".run".length)),
+    });
+  }
+
+  const messageKey = STATIC_COMMAND_MESSAGE_KEYS[raw as keyof typeof STATIC_COMMAND_MESSAGE_KEYS];
+  return messageKey ? translate(messageKey) : commandLabel(command);
 }
 
 function titleCaseCommandSegment(segment: string): string {
@@ -283,7 +406,7 @@ function titleCaseCommandSegment(segment: string): string {
   return words.join(" ");
 }
 
-export function normalizeShortcutKeyToken(key: string): string | null {
+function normalizeShortcutKeyToken(key: string): string | null {
   const normalized = key.toLowerCase();
   if (
     normalized === "meta" ||
@@ -313,11 +436,12 @@ export function normalizeShortcutKeyToken(key: string): string | null {
   return null;
 }
 
+/** Turns a keydown into a binding such as `mod+shift+k` or `tab`. Null for modifier-only presses. */
 export function keybindingFromKeyboardEvent(
-  event: Pick<KeyboardEvent, "key" | "metaKey" | "ctrlKey" | "altKey" | "shiftKey">,
+  event: Pick<KeyboardEvent, "key" | "code" | "metaKey" | "ctrlKey" | "altKey" | "shiftKey">,
   platform: string,
 ): string | null {
-  const keyToken = normalizeShortcutKeyToken(event.key);
+  const keyToken = normalizeShortcutKeyToken(shortcutKeyFromEvent(event));
   if (!keyToken) return null;
 
   const parts: string[] = [];
@@ -330,9 +454,6 @@ export function keybindingFromKeyboardEvent(
   }
   if (event.altKey) parts.push("alt");
   if (event.shiftKey) parts.push("shift");
-  if (parts.length === 0) {
-    return null;
-  }
   parts.push(keyToken);
   return parts.join("+");
 }

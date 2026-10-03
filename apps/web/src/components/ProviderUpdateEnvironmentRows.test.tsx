@@ -16,6 +16,7 @@ import type {
 
 const testState = vi.hoisted(() => ({
   groups: [] as LocalEnvironmentUpdateGroup[],
+  locale: "en" as "en" | "zh-CN",
   updateProvider: vi.fn(),
 }));
 
@@ -94,6 +95,24 @@ vi.mock("~/state/use-atom-command", () => ({
   useAtomCommand: () => testState.updateProvider,
 }));
 
+vi.mock("~/i18n/WebI18nProvider", () => ({
+  useI18n: () => ({
+    t: (key: string) => {
+      const translations = {
+        en: {
+          "providerUpdate.action.retry": "Retry",
+          "providerUpdate.action.update": "Update",
+        },
+        "zh-CN": {
+          "providerUpdate.action.retry": "重试",
+          "providerUpdate.action.update": "更新",
+        },
+      } as const;
+      return translations[testState.locale][key as keyof (typeof translations)["en"]];
+    },
+  }),
+}));
+
 vi.mock("./ProviderUpdateLaunchNotification.environments", () => ({
   useLocalEnvironmentUpdateGroups: () => ({
     groups: testState.groups,
@@ -155,6 +174,8 @@ function deferred<T>() {
 type RowElement = ReactElement<{
   readonly status: ProviderUpdateRowStatus;
   readonly onUpdate: () => void;
+  readonly retryLabel: string;
+  readonly updateLabel: string;
 }>;
 
 function renderRow(): RowElement {
@@ -176,6 +197,7 @@ describe("ProviderUpdateEnvironmentRows", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     hooks.reset();
+    testState.locale = "en";
     testState.updateProvider.mockReset();
     const candidate = provider() as ProviderUpdateCandidate;
     testState.groups = [
@@ -188,6 +210,13 @@ describe("ProviderUpdateEnvironmentRows", () => {
         providers: [candidate],
       },
     ];
+  });
+
+  it("provides localized update action labels", () => {
+    expect(renderRow().props).toMatchObject({ updateLabel: "Update", retryLabel: "Retry" });
+
+    testState.locale = "zh-CN";
+    expect(renderRow().props).toMatchObject({ updateLabel: "更新", retryLabel: "重试" });
   });
 
   afterEach(() => {

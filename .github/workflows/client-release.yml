@@ -1,0 +1,431 @@
+name: Community client candidates
+
+on:
+  push:
+    branches: [maintenance/v0.0.45-zh-cloud]
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact full commit SHA to validate and build
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: community-clients-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CLIENT_VERSION: 0.0.45-zh.1
+  CI: "true"
+  CSC_IDENTITY_AUTO_DISCOVERY: "false"
+  # Public distribution endpoints, never production relay credentials.
+  ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
+  ELECTRON_BUILDER_BINARIES_MIRROR: https://github.com/electron-userland/electron-builder-binaries/releases/download/
+
+jobs:
+  source:
+    name: Validate exact source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      sha: ${{ steps.source.outputs.sha }}
+    steps:
+      - uses: actions/github-script@v8
+        id: source
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        with:
+          script: |
+            if (context.repo.owner !== 'ZhiweiXiao98' || context.repo.repo !== 't3code') {
+              throw new Error('This workflow is scoped to ZhiweiXiao98/t3code.');
+            }
+            if (context.payload.repository.private !== false) {
+              throw new Error('Standard hosted runners are free for public repositories only.');
+            }
+            if (context.ref !== 'refs/heads/maintenance/v0.0.45-zh-cloud') {
+              throw new Error('Dispatch must select maintenance/v0.0.45-zh-cloud.');
+            }
+            if (context.eventName === 'workflow_dispatch' &&
+                (!/^[0-9a-f]{40}$/.test(process.env.EXPECTED_SHA || '') ||
+                 process.env.EXPECTED_SHA !== context.sha)) {
+              throw new Error('Expected SHA must equal the selected branch commit exactly.');
+            }
+            core.setOutput('sha', context.sha);
+            core.summary.addRaw(`Source: ${context.sha}\nVersion: 0.0.45-zh.1\n`);
+            await core.summary.write();
+
+  quality:
+    name: Lint and typecheck
+    needs: source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout exact source without credentials
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ needs.source.outputs.sha }}
+          GIT_TERMINAL_PROMPT: "0"
+        run: |
+          set -euo pipefail
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
+          git sparse-checkout set --no-cone '/*' '!/.repos/'
+          git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
+        with:
+          node-version-file: package.json
+          cache: true
+          run-install: false
+      - name: Install locked dependencies
+        run: vp install --frozen-lockfile
+      - run: vp run --filter @t3tools/desktop ensure:electron
+      - run: vp run lint
+      - run: vp run typecheck
+      - run: vp run lint:mobile
+
+  tests:
+    name: Tests (${{ matrix.suite }})
+    needs: source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [clients, server-1, server-2, server-3]
+    steps:
+      - name: Checkout exact source without credentials
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ needs.source.outputs.sha }}
+          GIT_TERMINAL_PROMPT: "0"
+        run: |
+          set -euo pipefail
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
+          git sparse-checkout set --no-cone '/*' '!/.repos/'
+          git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
+        with:
+          node-version-file: package.json
+          cache: true
+          run-install: false
+      - name: Install locked dependencies
+        run: vp install --frozen-lockfile
+      - name: Install Linux native build libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsecret-1-dev pkg-config build-essential imagemagick
+      - run: vp run --filter @t3tools/desktop ensure:electron
+        if: matrix.suite == 'clients'
+      - name: Run tests
+        shell: bash
+        env:
+          SUITE: ${{ matrix.suite }}
+        run: |
+          set -euo pipefail
+          if [[ "$SUITE" == clients ]]; then
+            vp run --parallel --concurrency-limit 2 --filter '!t3' --filter '!@t3tools/monorepo' test
+          else
+            vp run --filter t3 test --shard "${SUITE#server-}/3"
+          fi
+
+  bundle:
+    name: Build validated desktop bundle
+    needs: [source, quality, tests]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout exact source without credentials
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ needs.source.outputs.sha }}
+          GIT_TERMINAL_PROMPT: "0"
+        run: |
+          set -euo pipefail
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
+          git sparse-checkout set --no-cone '/*' '!/.repos/'
+          git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
+        with:
+          node-version-file: package.json
+          cache: true
+          run-install: false
+      - name: Install locked dependencies
+        run: vp install --frozen-lockfile
+      - name: Install Linux native build libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsecret-1-dev pkg-config build-essential imagemagick
+      - run: node scripts/update-release-package-versions.ts "$CLIENT_VERSION"
+      - run: vp run build:desktop
+      - run: node apps/desktop/scripts/verify-preload-bundle.mjs
+      - uses: actions/upload-artifact@v7
+        with:
+          name: community-js-bundle
+          path: |
+            apps/server/dist
+            apps/desktop/dist-electron
+          if-no-files-found: error
+          retention-days: 7
+
+  linux:
+    name: Linux x64 and embedded Windows WSL runtime
+    needs: [source, bundle]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Checkout exact source without credentials
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ needs.source.outputs.sha }}
+          GIT_TERMINAL_PROMPT: "0"
+        run: |
+          set -euo pipefail
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
+          git sparse-checkout set --no-cone '/*' '!/.repos/'
+          git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
+        with:
+          node-version-file: package.json
+          cache: true
+          run-install: false
+      - name: Install locked dependencies
+        run: vp install --frozen-lockfile
+      - name: Install Linux native build libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsecret-1-dev pkg-config build-essential imagemagick
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: stable
+          targets: x86_64-unknown-linux-gnu
+      - run: node scripts/update-release-package-versions.ts "$CLIENT_VERSION"
+      - uses: actions/download-artifact@v8
+        with:
+          name: community-js-bundle
+          path: apps
+      - name: Package Linux client
+        run: vp run dist:desktop:artifact --platform linux --target AppImage --arch x64 --build-version "$CLIENT_VERSION" --skip-build --verbose
+      - name: Build embedded WSL executable
+        env:
+          VP_NODE_VERSION: "26.8.2"
+        run: node apps/server/scripts/cli.ts build-exe --verbose
+      - name: Package and smoke-test embedded WSL runtime
+        run: |
+          mkdir -p "$RUNNER_TEMP/cli-resource-monitor/linux-x64"
+          cp native/resource-monitor/target/x86_64-unknown-linux-gnu/release/t3-resource-monitor "$RUNNER_TEMP/cli-resource-monitor/linux-x64/"
+          node scripts/build-cli-archive.ts --platform linux --arch x64 --version "$CLIENT_VERSION" --resource-monitor-dir "$RUNNER_TEMP/cli-resource-monitor" --output-dir wsl-runtime
+          node scripts/smoke-cli-archive.ts --archive wsl-runtime/* --expect-version "$CLIENT_VERSION"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: community-wsl-runtime
+          path: wsl-runtime/*.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v7
+        with:
+          name: client-linux-x64
+          path: |
+            release/*.AppImage
+            release/*.deb
+          if-no-files-found: error
+          retention-days: 14
+
+  desktop:
+    name: Desktop ${{ matrix.platform }} ${{ matrix.arch }} (unsigned)
+    needs: [source, bundle, linux]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-2022
+            platform: win
+            arch: x64
+            target: nsis
+            rust_target: x86_64-pc-windows-msvc
+          - runner: macos-15
+            platform: mac
+            arch: arm64
+            target: dmg
+            rust_target: aarch64-apple-darwin
+          - runner: macos-15-intel
+            platform: mac
+            arch: x64
+            target: dmg
+            rust_target: x86_64-apple-darwin
+    steps:
+      - name: Checkout exact source without credentials
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ needs.source.outputs.sha }}
+          GIT_TERMINAL_PROMPT: "0"
+        run: |
+          set -euo pipefail
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
+          git sparse-checkout set --no-cone '/*' '!/.repos/'
+          git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
+        with:
+          node-version-file: package.json
+          cache: true
+          run-install: false
+      - name: Install locked dependencies
+        run: vp install --frozen-lockfile
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: stable
+          targets: ${{ matrix.rust_target }}
+      - name: Install Windows Spectre-mitigated runtime
+        if: matrix.platform == 'win'
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $installPath = & $vswhere -products * -latest -property installationPath
+          $setup = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\setup.exe"
+          $proc = Start-Process $setup -ArgumentList "modify", "--installPath", "`"$installPath`"", "--add", "Microsoft.VisualStudio.Component.VC.Runtimes.x86.x64.Spectre", "--quiet", "--norestart" -Wait -PassThru
+          if ($proc.ExitCode -notin @(0, 3010)) { throw "VS installer failed: $($proc.ExitCode)" }
+      - run: node scripts/update-release-package-versions.ts "$CLIENT_VERSION"
+      - uses: actions/download-artifact@v8
+        with:
+          name: community-js-bundle
+          path: apps
+      - uses: actions/download-artifact@v8
+        if: matrix.platform == 'win'
+        with:
+          name: community-wsl-runtime
+          path: wsl-runtime
+      - name: Package unsigned client
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          TARGET: ${{ matrix.target }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          args=(--platform "$PLATFORM" --target "$TARGET" --arch "$ARCH" --build-version "$CLIENT_VERSION" --skip-build --verbose)
+          if [[ "$PLATFORM" == win ]]; then
+            args+=(--wsl-runtime "$GITHUB_WORKSPACE/wsl-runtime/t3-$CLIENT_VERSION-linux-x64.tar.gz")
+          fi
+          vp run dist:desktop:artifact "${args[@]}"
+          echo "Unsigned community desktop build. macOS is not Developer ID signed or notarized; Windows is not Authenticode signed." >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: client-${{ matrix.platform }}-${{ matrix.arch }}
+          path: |
+            release/*.dmg
+            release/*.zip
+            release/*.exe
+          if-no-files-found: error
+          retention-days: 14
+
+  android:
+    name: Android arm64 unsigned candidate (NOT installable)
+    needs: [source, quality, tests, bundle]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      APP_VARIANT: community
+      T3CODE_MOBILE_VERSION: 0.0.45-zh.1
+      # Candidate only. A publishable versionCode must exceed the installed release.
+      T3CODE_MOBILE_VERSION_CODE: "4501"
+      T3CODE_MOBILE_UPDATES_ENABLED: "0"
+      EXPO_NO_GIT_STATUS: "1"
+      EXPO_NO_TELEMETRY: "1"
+    steps:
+      - name: Checkout exact source without credentials
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ needs.source.outputs.sha }}
+          GIT_TERMINAL_PROMPT: "0"
+        run: |
+          set -euo pipefail
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
+          git sparse-checkout set --no-cone '/*' '!/.repos/'
+          git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
+        with:
+          node-version-file: package.json
+          cache: true
+          run-install: false
+      - name: Install hoisted native dependencies
+        run: vp install --frozen-lockfile -- --config.node-linker=hoisted
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+        with:
+          packages: platform-tools
+          accept-android-sdk-licenses: false
+      - name: Generate community Android project
+        working-directory: apps/mobile
+        run: vp exec expo prebuild --platform android --no-install
+      - name: Explicitly disable ALL release signing
+        run: |
+          cat > "$RUNNER_TEMP/unsigned-release.init.gradle" <<'GRADLE'
+          gradle.beforeProject { project ->
+            if (project.path == ":app") {
+              project.pluginManager.withPlugin("com.android.application") {
+                project.extensions.getByName("androidComponents").finalizeDsl { android ->
+                  android.buildTypes.getByName("release").signingConfig = null
+                }
+              }
+            }
+          }
+          GRADLE
+      - name: Assemble unsigned release candidate
+        working-directory: apps/mobile/android
+        run: |
+          ./gradlew :app:assembleRelease --no-daemon --max-workers=2 \
+            -PreactNativeArchitectures=arm64-v8a \
+            -Pt3codeVersionName="$T3CODE_MOBILE_VERSION" \
+            -Pt3codeVersionCode="$T3CODE_MOBILE_VERSION_CODE" \
+            -I "$GITHUB_WORKSPACE/scripts/android-release-version.init.gradle" \
+            -I "$RUNNER_TEMP/unsigned-release.init.gradle"
+      - name: Verify unsigned APK and record blocker
+        run: |
+          set -euo pipefail
+          apk=apps/mobile/android/app/build/outputs/apk/release/app-release-unsigned.apk
+          test -s "$apk"
+          build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          test -x "$build_tools/apksigner"
+          if "$build_tools/apksigner" verify "$apk"; then
+            echo 'Unexpected signed APK: refusing candidate upload.' >&2
+            exit 1
+          fi
+          unzip -t "$apk"
+          "$build_tools/aapt" dump badging "$apk" | tee "$RUNNER_TEMP/android-badging.txt"
+          grep -F "package: name='com.zhiweixiao.t3code.zhcn' versionCode='4501' versionName='$CLIENT_VERSION'" "$RUNNER_TEMP/android-badging.txt"
+          mkdir -p android-candidate
+          cp "$apk" "android-candidate/T3-Code-zh-CN-Android-$CLIENT_VERSION-arm64-UNSIGNED-NOT-INSTALLABLE.apk"
+          printf '%s\n' 'BLOCKED: This candidate is unsigned and is not installable. Android publication requires a verified signing certificate, confirmed secure key backup, and a monotonic versionCode. A replacement certificate does not permit an in-place upgrade over older installations; release notes must disclose that limitation. No private signing material is included in this artifact.' > android-candidate/SIGNING-BLOCKER.txt
+          cat android-candidate/SIGNING-BLOCKER.txt >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: android-UNSIGNED-NOT-INSTALLABLE
+          path: android-candidate/*
+          if-no-files-found: error
+          retention-days: 14

@@ -6,11 +6,13 @@ import {
   View,
   type LayoutChangeEvent,
   type NativeSyntheticEvent,
+  type TextInputInstance,
   type ViewProps,
 } from "react-native";
 
 import { AppText as Text } from "../../components/AppText";
 import { MOBILE_TYPOGRAPHY } from "../../lib/typography";
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
 import {
   getNativeTerminalHardwareKeyRevision,
@@ -39,6 +41,8 @@ interface TerminalSurfaceProps extends ViewProps {
   readonly isRunning: boolean;
   readonly autoFocus?: boolean;
   readonly keyboardFocusRequest?: number;
+  readonly captureRequest?: number;
+  readonly onCapture?: (text: string) => void;
   readonly theme?: TerminalTheme;
   readonly onInput: (data: string) => void;
   readonly onResize: (size: { readonly cols: number; readonly rows: number }) => void;
@@ -59,7 +63,7 @@ function estimateGridSize(input: {
 
 const FallbackTerminalSurface = memo(function FallbackTerminalSurface(props: TerminalSurfaceProps) {
   const fontSize = props.fontSize ?? MOBILE_TYPOGRAPHY.label.fontSize;
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
   const { themeAppearance, themeId } = useAppearancePreferences();
   const theme = props.theme ?? getMobileTerminalTheme(themeId, themeAppearance);
   const statusLabel = props.isRunning
@@ -133,7 +137,7 @@ const FallbackTerminalSurface = memo(function FallbackTerminalSurface(props: Ter
           autoCorrect={false}
           blurOnSubmit={false}
           editable={props.isRunning}
-          placeholder="type and press return"
+          placeholder={localizeMobileString("type and press return")}
           placeholderTextColor={theme.mutedForeground}
           returnKeyType="send"
           className="text-sm"
@@ -228,6 +232,8 @@ export const TerminalSurface = memo(function TerminalSurface(props: TerminalSurf
           themeConfig={buildGhosttyThemeConfig(theme)}
           onInput={handleNativeInput}
           onResize={handleNativeResize}
+          captureRequest={props.captureRequest}
+          onCapture={(event) => props.onCapture?.(event.nativeEvent.text)}
         />
       </View>
     );

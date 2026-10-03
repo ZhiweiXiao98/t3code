@@ -32,6 +32,7 @@ import { stackedThreadToast, toastManager } from "../ui/toast";
 import { projectEnvironment } from "~/state/projects";
 import { useCopyToClipboard } from "~/hooks/useCopyToClipboard";
 import { useAtomCommand } from "~/state/use-atom-command";
+import { splitWebTranslation, useI18n } from "~/i18n/WebI18nProvider";
 
 export const ProposedPlanCard = memo(function ProposedPlanCard({
   planMarkdown,
@@ -46,6 +47,7 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
   cwd: string | undefined;
   workspaceRoot: string | undefined;
 }) {
+  const { t } = useI18n();
   const [expanded, setExpanded] = useState(false);
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [savePath, setSavePath] = useState("");
@@ -59,14 +61,14 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: "Could not copy plan",
-          description: error instanceof Error ? error.message : "An error occurred while copying.",
+          title: t("plan.copyFailed"),
+          description: error instanceof Error ? error.message : t("plan.copyFailedDescription"),
         }),
       );
     },
   });
   const savePathInputId = useId();
-  const title = proposedPlanTitle(planMarkdown) ?? "Proposed plan";
+  const title = proposedPlanTitle(planMarkdown) ?? t("plan.fallbackTitle");
   const lineCount = planMarkdown.split("\n").length;
   const canCollapse = planMarkdown.length > 900 || lineCount > 20;
   const displayedPlanMarkdown = stripDisplayedPlanMarkdown(planMarkdown);
@@ -89,8 +91,8 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: "Workspace path is unavailable",
-          description: "This thread does not have a workspace path to save into.",
+          title: t("plan.workspaceUnavailable"),
+          description: t("plan.workspaceUnavailableDescription"),
         }),
       );
       return;
@@ -107,7 +109,7 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
     if (!relativePath) {
       toastManager.add({
         type: "warning",
-        title: "Enter a workspace path",
+        title: t("plan.enterWorkspacePath"),
       });
       return;
     }
@@ -127,7 +129,7 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
         setIsSaveDialogOpen(false);
         toastManager.add({
           type: "success",
-          title: "Plan saved to workspace",
+          title: t("plan.saved"),
           description: result.value.relativePath,
         });
         return;
@@ -137,8 +139,8 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "Could not save plan",
-            description: error instanceof Error ? error.message : "An error occurred while saving.",
+            title: t("plan.saveFailed"),
+            description: error instanceof Error ? error.message : t("plan.saveFailedDescription"),
           }),
         );
       }
@@ -146,25 +148,27 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
   };
 
   return (
-    <div className="rounded-[24px] border border-border/80 bg-card/70 p-4 sm:p-5">
+    <div className="rounded-3xl border border-border/80 bg-card/70 p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
-          <Badge variant="secondary">Plan</Badge>
-          <p className="truncate text-sm font-medium text-foreground">{title}</p>
+          <Badge variant="secondary">{t("plan.badge")}</Badge>
+          {/* Same heading level as the message author headings in the timeline,
+              so a plan's own headings nest beneath it in the outline. */}
+          <h3 className="truncate text-sm font-medium text-foreground">{title}</h3>
         </div>
         <Menu>
           <MenuTrigger
-            render={<Button aria-label="Plan actions" size="icon-xs" variant="outline" />}
+            render={<Button aria-label={t("plan.actions")} size="icon-xs" variant="outline" />}
           >
             <EllipsisIcon aria-hidden="true" className="size-4" />
           </MenuTrigger>
           <MenuPopup align="end">
             <MenuItem onClick={handleCopyPlan}>
-              {isCopied ? "Copied!" : "Copy to clipboard"}
+              {isCopied ? t("plan.copied") : t("plan.copy")}
             </MenuItem>
-            <MenuItem onClick={handleDownload}>Download as markdown</MenuItem>
+            <MenuItem onClick={handleDownload}>{t("plan.download")}</MenuItem>
             <MenuItem onClick={openSaveDialog} disabled={!workspaceRoot || isSavingToWorkspace}>
-              Save to workspace
+              {t("plan.saveToWorkspace")}
             </MenuItem>
           </MenuPopup>
         </Menu>
@@ -177,6 +181,7 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
               cwd={cwd}
               threadRef={threadRef}
               isStreaming={false}
+              headingLevelOffset={3}
             />
           ) : (
             <ChatMarkdown
@@ -184,6 +189,7 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
               cwd={cwd}
               threadRef={threadRef}
               isStreaming={false}
+              headingLevelOffset={3}
             />
           )}
           {canCollapse && !expanded ? (
@@ -198,7 +204,7 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
               data-scroll-anchor-ignore
               onClick={() => setExpanded((value) => !value)}
             >
-              {expanded ? "Collapse plan" : "Expand plan"}
+              {expanded ? t("plan.collapse") : t("plan.expand")}
             </Button>
           </div>
         ) : null}
@@ -214,14 +220,30 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
       >
         <DialogPopup className="max-w-xl">
           <DialogHeader>
-            <DialogTitle>Save plan to workspace</DialogTitle>
+            <DialogTitle>{t("plan.dialog.title")}</DialogTitle>
             <DialogDescription>
-              Enter a path relative to <code>{workspaceRoot ?? "the workspace"}</code>.
+              {(() => {
+                const workspace = workspaceRoot ?? t("plan.dialog.workspaceFallback");
+                const [beforeWorkspace, afterWorkspace] = splitWebTranslation(
+                  t,
+                  "plan.dialog.description",
+                  "workspace",
+                );
+                return (
+                  <>
+                    {beforeWorkspace}
+                    <code>{workspace}</code>
+                    {afterWorkspace}
+                  </>
+                );
+              })()}
             </DialogDescription>
           </DialogHeader>
-          <DialogPanel className="space-y-3">
+          <DialogPanel>
             <label htmlFor={savePathInputId} className="grid gap-1.5">
-              <span className="text-xs font-medium text-foreground">Workspace path</span>
+              <span className="text-xs font-medium text-foreground">
+                {t("plan.dialog.workspacePath")}
+              </span>
               <Input
                 id={savePathInputId}
                 value={savePath}
@@ -239,14 +261,14 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
               onClick={() => setIsSaveDialogOpen(false)}
               disabled={isSavingToWorkspace}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               size="sm"
               onClick={() => void handleSaveToWorkspace()}
               disabled={isSavingToWorkspace}
             >
-              {isSavingToWorkspace ? "Saving..." : "Save"}
+              {isSavingToWorkspace ? t("common.saving") : t("common.save")}
             </Button>
           </DialogFooter>
         </DialogPopup>

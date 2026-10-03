@@ -42,7 +42,9 @@ describe("resolveSnoozePresets", () => {
     const tomorrow = presets.find((preset) => preset.id === "tomorrow");
     expect(tomorrow!.whenLabel).toMatch(/9/);
     const nextWeek = presets.find((preset) => preset.id === "next-week");
-    expect(nextWeek!.whenLabel).toMatch(/Mon/);
+    const nextWeekDate = new Date(nextWeek!.snoozedUntil);
+    const weekday = nextWeekDate.toLocaleDateString(undefined, { weekday: "short" });
+    expect(nextWeek!.whenLabel).toContain(weekday);
   });
 
   it("drops the evening preset once evening is near or past", () => {
@@ -65,7 +67,15 @@ describe("resolveSnoozePresets", () => {
     const twelveHour = resolveSnoozePresets(localDate(2026, 4, 8, 10), "12-hour");
     const twentyFourHour = resolveSnoozePresets(localDate(2026, 4, 8, 10), "24-hour");
 
-    expect(twelveHour.find((preset) => preset.id === "evening")!.whenLabel).toMatch(/PM/i);
+    const evening = localDate(2026, 4, 8, 18);
+    const expectedTwelveHour = evening.toLocaleTimeString(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+    expect(twelveHour.find((preset) => preset.id === "evening")!.whenLabel).toBe(
+      expectedTwelveHour,
+    );
     expect(twentyFourHour.find((preset) => preset.id === "evening")!.whenLabel).toBe("18:00");
   });
 });
@@ -80,15 +90,19 @@ describe("snoozeWakeDescription", () => {
     expect(snoozeWakeDescription(localDate(2026, 4, 9, 9).toISOString(), now, "locale")).toContain(
       "tomorrow",
     );
-    expect(snoozeWakeDescription(localDate(2026, 4, 13, 9).toISOString(), now, "locale")).toMatch(
-      /Mon/,
-    );
+    const nextMonday = localDate(2026, 4, 13, 9);
+    const mondayLabel = nextMonday.toLocaleDateString(undefined, { weekday: "short" });
+    expect(snoozeWakeDescription(nextMonday.toISOString(), now, "locale")).toContain(mondayLabel);
   });
 
   it("formats wake descriptions with the selected clock preference", () => {
-    expect(snoozeWakeDescription(localDate(2026, 4, 8, 18).toISOString(), now, "12-hour")).toMatch(
-      /PM/i,
-    );
+    const evening = localDate(2026, 4, 8, 18);
+    const expectedTwelveHour = evening.toLocaleTimeString(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+    expect(snoozeWakeDescription(evening.toISOString(), now, "12-hour")).toBe(expectedTwelveHour);
     expect(snoozeWakeDescription(localDate(2026, 4, 8, 18).toISOString(), now, "24-hour")).toBe(
       "18:00",
     );

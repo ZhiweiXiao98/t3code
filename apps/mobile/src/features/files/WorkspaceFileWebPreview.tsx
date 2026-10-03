@@ -3,6 +3,7 @@ import { ActivityIndicator, View } from "react-native";
 import { WebView } from "react-native-webview";
 
 import { AppText as Text } from "../../components/AppText";
+import { FilePreviewLoading } from "./FilePreviewFeedback";
 import { LoadingStrip } from "../../components/LoadingStrip";
 
 export function WorkspaceFileWebPreview(props: { readonly uri: string | null }) {
@@ -10,12 +11,7 @@ export function WorkspaceFileWebPreview(props: { readonly uri: string | null }) 
   const [loadError, setLoadError] = useState<string | null>(null);
 
   if (props.uri === null) {
-    return (
-      <View className="flex-1 items-center justify-center gap-3 bg-card px-6">
-        <ActivityIndicator />
-        <Text className="text-center text-sm text-foreground-muted">Preparing preview...</Text>
-      </View>
-    );
+    return <FilePreviewLoading message="Preparing preview..." background="card" />;
   }
 
   return (
@@ -24,7 +20,9 @@ export function WorkspaceFileWebPreview(props: { readonly uri: string | null }) 
       {loadError ? (
         <View className="border-b border-border bg-card px-4 py-2">
           <Text className="text-xs font-t3-bold text-foreground">Preview failed</Text>
-          <Text className="mt-0.5 text-xs leading-snug text-foreground-muted">{loadError}</Text>
+          <Text localize={false} className="mt-0.5 text-xs leading-snug text-foreground-muted">
+            {loadError}
+          </Text>
         </View>
       ) : null}
       <WebView

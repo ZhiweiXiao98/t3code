@@ -2,6 +2,7 @@ import { DownloadIcon, PlusIcon } from "lucide-react";
 import type { ChangeEvent, DragEvent, UIEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "../../lib/utils";
+import { useI18n } from "../../i18n/WebI18nProvider";
 import {
   getCustomThemes,
   installCustomTheme,
@@ -111,12 +112,12 @@ function ThemeJsonEditor({
   }, []);
 
   return (
-    <div className="relative overflow-hidden rounded-xl border border-input bg-background shadow-xs/5 focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/24">
+    <div className="relative overflow-hidden rounded-xl border border-input bg-background shadow-xs/5 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/24">
       {isPlainText ? null : (
         <pre
           ref={highlightRef}
           aria-hidden
-          className="pointer-events-none absolute inset-0 m-0 overflow-hidden whitespace-pre-wrap break-words p-3 font-mono text-[12px] leading-5 text-foreground"
+          className="pointer-events-none absolute inset-0 m-0 overflow-hidden whitespace-pre-wrap break-words p-3 font-mono text-xs leading-5 text-foreground"
         >
           <code dangerouslySetInnerHTML={{ __html: highlightedJson }} />
         </pre>
@@ -124,7 +125,7 @@ function ThemeJsonEditor({
       <textarea
         aria-label="Theme JSON"
         className={cn(
-          "relative z-10 block min-h-44 w-full resize-y overflow-auto bg-transparent p-3 font-mono text-[12px] leading-5 caret-foreground outline-none placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground",
+          "relative z-10 block min-h-44 w-full resize-y overflow-auto bg-transparent p-3 font-mono text-xs leading-5 caret-foreground outline-none placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground",
           isPlainText ? "text-foreground" : "text-transparent",
         )}
         id={id}
@@ -155,6 +156,7 @@ export function ThemeImportDialog({
   /** Batch imports install without activating; the caller reports them. */
   onImportedMany: (themes: ReadonlyArray<ThemeDefinition>, context: { updated: boolean }) => void;
 }) {
+  const { t } = useI18n();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [json, setJson] = useState("");
   const [fileName, setFileName] = useState<string | null>(null);
@@ -425,9 +427,9 @@ export function ThemeImportDialog({
     >
       <DialogPopup className="max-w-3xl overflow-hidden">
         <DialogHeader>
-          <DialogTitle>Add a theme</DialogTitle>
+          <DialogTitle>{t("appearance.theme.import.addTitle")}</DialogTitle>
         </DialogHeader>
-        <DialogPanel className="space-y-5">
+        <DialogPanel>
           <ThemeSearchSection
             onInstalled={(themes, context) => {
               onImportedMany(themes, context);
@@ -438,7 +440,7 @@ export function ThemeImportDialog({
 
           <div className="flex items-center gap-3" aria-hidden>
             <div className="h-px flex-1 bg-border" />
-            <span className="text-muted-foreground text-[11px] uppercase tracking-wider">
+            <span className="text-muted-foreground text-2xs uppercase tracking-wider">
               or import a file
             </span>
             <div className="h-px flex-1 bg-border" />
@@ -471,17 +473,17 @@ export function ThemeImportDialog({
                 type="file"
               />
             );
-            const chooseButton = (label = "Choose files") => (
+            const chooseButton = (label = t("appearance.theme.import.chooseFiles")) => (
               <Button disabled={isReading} size="sm" variant="outline" onClick={openFilePicker}>
                 <DownloadIcon />
-                {isReading ? "Reading…" : label}
+                {isReading ? t("appearance.theme.import.reading") : label}
               </Button>
             );
             const editorSection = () => (
               <div className="space-y-2">
                 <div className="flex items-baseline justify-between gap-3">
                   <label className="text-sm font-medium" htmlFor="theme-json-editor">
-                    Theme JSON
+                    {t("appearance.theme.import.json")}
                   </label>
                 </div>
                 <ThemeJsonEditor id="theme-json-editor" onChange={setJson} value={json} />
@@ -491,23 +493,23 @@ export function ThemeImportDialog({
               return (
                 <div className="space-y-3">
                   <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
-                    <p className="text-sm font-medium">Already installed</p>
+                    <p className="text-sm font-medium">{t("appearance.theme.import.installed")}</p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {conflicts.map((theme) => theme.label).join(", ")}
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <Button size="sm" onClick={() => resolveConflicts("update")}>
-                      Update existing
+                      {t("appearance.theme.import.updateExisting")}
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => resolveConflicts("copy")}>
-                      Keep both
+                      {t("appearance.theme.import.keepBoth")}
                     </Button>
                     <Button size="sm" variant="ghost" onClick={() => setConflicts(null)}>
-                      Back
+                      {t("appearance.theme.import.back")}
                     </Button>
                     <Button size="sm" variant="ghost" onClick={() => onOpenChange(false)}>
-                      Cancel
+                      {t("appearance.theme.cancel")}
                     </Button>
                   </div>
                 </div>
@@ -523,9 +525,9 @@ export function ThemeImportDialog({
                   {...dropHandlers}
                 >
                   <div className="min-w-0">
-                    <p className="text-sm font-medium">Theme file</p>
+                    <p className="text-sm font-medium">{t("appearance.theme.import.file")}</p>
                     <p className="truncate text-xs text-muted-foreground">
-                      {fileName ?? "Drop T3 Code or VS Code .json files"}
+                      {fileName ?? t("appearance.theme.import.dropFiles")}
                     </p>
                   </div>
                   {chooseButton()}
@@ -538,11 +540,11 @@ export function ThemeImportDialog({
                     the dialog also has the search and conflict views. */}
                 <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                   <Button variant="ghost" onClick={() => onOpenChange(false)}>
-                    Cancel
+                    {t("appearance.theme.cancel")}
                   </Button>
                   <Button disabled={!json.trim() || isReading} onClick={handleSubmit}>
                     <PlusIcon />
-                    Add theme
+                    {t("appearance.theme.import.add")}
                   </Button>
                 </div>
               </div>
