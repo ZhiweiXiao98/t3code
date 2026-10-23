@@ -142,7 +142,6 @@ export function useTimelineRewind(input: TimelineRewindInput) {
     }));
     setThreadError(activeThread.id, null);
     const rewind = await rewindToMessage({
-      locale: uiLocale,
       message,
       environmentId,
       routeThreadRef,

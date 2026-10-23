@@ -469,7 +469,7 @@ function ProjectScriptEditorForm({
                             }}
                           >
                             <ScriptIcon icon={entry.id} className="size-4" />
-                            <span>{entry.label}</span>
+                            <span>{t(entry.labelKey)}</span>
                           </button>
                         );
                       })}

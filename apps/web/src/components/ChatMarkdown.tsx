@@ -1051,6 +1051,7 @@ const CHAT_MARKDOWN_COMPONENTS = {
     );
   },
   a: function MarkdownAnchor({ node, href, children, title: _title, ...props }) {
+    const { t } = useI18n();
     const {
       canOperateHost,
       canOperatePreview,
@@ -1070,7 +1071,6 @@ const CHAT_MARKDOWN_COMPONENTS = {
       pullRequestsEnabled,
       updateThreadPullRequestLink,
       fileLinkChip,
-      t,
       renderContextReference,
     } = use(ChatMarkdownRendererContext);
     const text = use(ChatMarkdownTextContext);
