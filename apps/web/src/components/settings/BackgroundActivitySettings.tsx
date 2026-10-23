@@ -162,7 +162,9 @@ function BackgroundActivityAdvancedDialog({
                   className="w-full sm:w-40"
                   aria-label={translateWebSource(locale, "Shared background policy")}
                 >
-                  <SelectValue>{BACKGROUND_ACTIVITY_PROFILE_LABELS[activeProfile]}</SelectValue>
+                  <SelectValue>
+                    {translateWebSource(locale, BACKGROUND_ACTIVITY_PROFILE_LABELS[activeProfile])}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectPopup align="end" alignItemWithTrigger={false}>
                   <SelectItem hideIndicator value="balanced">

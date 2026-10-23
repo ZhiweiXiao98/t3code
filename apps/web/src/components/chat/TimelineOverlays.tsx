@@ -36,7 +36,7 @@ export function ScrollToEndButton(props: {
       style={{ bottom: props.bottom }}
     >
       <Button
-        aria-label="Scroll to end"
+        aria-label={translateWebSource(uiLocale, "Scroll to end")}
         onPointerDown={(event) => event.preventDefault()}
         onClick={props.onScrollToEnd}
         className="pointer-events-auto"

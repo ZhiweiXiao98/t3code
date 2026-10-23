@@ -1365,7 +1365,10 @@ export function useComposerSend(input: ComposerSendInput) {
                 submissionIntent === "background"
                   ? translateWebSource(uiLocale, "Background task failed")
                   : "Could not start thread",
-              description: error instanceof Error ? error.message : "Failed to send message.",
+              description:
+                error instanceof Error
+                  ? error.message
+                  : translateWebSource(uiLocale, "Failed to send message."),
               actionProps: {
                 children: translateWebSource(uiLocale, "Open draft"),
                 onClick: () => {

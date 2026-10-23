@@ -15,7 +15,7 @@ permissions:
 
 concurrency:
   group: community-clients-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 env:
   CLIENT_VERSION: 0.1.2-zh.1
@@ -83,10 +83,12 @@ jobs:
           cache: true
           run-install: false
       - name: Install locked dependencies
+        id: dependencies
         run: vp install --frozen-lockfile
       - run: vp run --filter @t3tools/desktop ensure:electron
       - run: vp check
-      - run: vp run -r --concurrency-limit 2 typecheck
+      - if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
+        run: vp run -r --concurrency-limit 2 typecheck
       - run: vp run lint:mobile
 
   tests:
@@ -118,6 +120,7 @@ jobs:
           cache: true
           run-install: false
       - name: Install locked dependencies
+        id: dependencies
         run: vp install --frozen-lockfile
       - name: Install Linux native build libraries
         run: |
@@ -176,6 +179,7 @@ jobs:
           cache: true
           run-install: false
       - name: Install locked dependencies
+        id: dependencies
         run: vp install --frozen-lockfile
       - name: Install Linux native build libraries
         run: |
@@ -218,6 +222,7 @@ jobs:
           cache: true
           run-install: false
       - name: Install locked dependencies
+        id: dependencies
         run: vp install --frozen-lockfile
       - name: Install Linux native build libraries
         run: |
@@ -306,6 +311,7 @@ jobs:
           cache: true
           run-install: false
       - name: Install locked dependencies
+        id: dependencies
         run: vp install --frozen-lockfile
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:

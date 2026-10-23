@@ -1,3 +1,5 @@
+import { WebI18nContext } from "../../i18n/WebI18nContext";
+import { translateWebMessage } from "../../i18n/messages";
 import { ProviderDriverKind, ProviderInstanceId, type ServerProvider } from "@t3tools/contracts";
 import { describe, expect, it, vi } from "vite-plus/test";
 
@@ -76,4 +78,24 @@ describe("SidebarProviderUpdatePill exit", () => {
     await advance(180);
     expect(screen.container.textContent).toBe("");
   });
+});
+
+it("renders provider progress in Simplified Chinese", async () => {
+  setup([provider("running")]);
+  await using screen = await render(
+    <WebI18nContext.Provider
+      value={{
+        locale: "zh-CN",
+        appLocale: "zh-CN",
+        setAppLocale: () => undefined,
+        t: (key, values) => translateWebMessage("zh-CN", key, values),
+      }}
+    >
+      <SidebarProviderUpdatePill />
+    </WebI18nContext.Provider>,
+  );
+  expect(screen.container.textContent).toContain("正在更新 Claude");
+  expect(
+    screen.container.querySelector("[data-provider-update-main]")?.getAttribute("aria-label"),
+  ).toContain("正在更新");
 });

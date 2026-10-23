@@ -142,7 +142,11 @@ export function PullRequestActionsMenu({
             <MenuTrigger
               render={
                 <Button
-                  aria-label={refreshing ? "Refreshing pull request" : "More pull request actions"}
+                  aria-label={
+                    refreshing
+                      ? translateWebSource(uiLocale, "Refreshing pull request")
+                      : t("pullRequests.actions.more")
+                  }
                   size="icon-xs"
                   variant="ghost-muted"
                 />
@@ -178,11 +182,15 @@ export function PullRequestActionsMenu({
         <MenuItem disabled={handoff !== null} onClick={askAboutPullRequest}>
           <MessageCircleQuestionIcon className="mt-1 size-3.5 shrink-0 self-start" />
           <span className="flex min-w-0 flex-col">
-            <span>{handoff === "ask" ? "Opening..." : "Ask a question"}</span>
+            <span>
+              {handoff === "ask"
+                ? t("pullRequests.actions.opening")
+                : t("pullRequests.actions.askQuestion")}
+            </span>
             <span className="text-xs text-muted-foreground">
               {attachesToComposer
-                ? "Adds the pull request to this thread's composer."
-                : "Opens a thread that knows which pull request you mean."}
+                ? t("pullRequests.handoff.addToCurrentComposer")
+                : t("pullRequests.handoff.openAwareThread")}
             </span>
           </span>
         </MenuItem>
@@ -195,18 +203,24 @@ export function PullRequestActionsMenu({
                 : t("pullRequests.actions.explain")}
             </span>
             <span className="text-xs text-muted-foreground">
-              A walk through the diff and what to read closely.
+              {t("pullRequests.actions.explainDescription")}
             </span>
           </span>
         </MenuItem>
         <MenuItem disabled={handoff !== null || !canFixFindings} onClick={startFixFindings}>
           <HammerIcon className="size-3.5" />
-          {handoff === "findings" ? "Preparing..." : handoffLabels.fixFindings}
+          {handoff === "findings"
+            ? t("pullRequests.actions.preparing")
+            : tx(handoffLabels.fixFindings)}
         </MenuItem>
         {canWriteGuide ? (
           <MenuItem disabled={guideRunning} onClick={writeGuide}>
             <SparklesIcon className="size-3.5" />
-            {guideRunning ? "Writing guide..." : !guideWritten ? "Write guide" : "Rewrite guide"}
+            {guideRunning
+              ? translateWebSource(uiLocale, "Writing guide...")
+              : !guideWritten
+                ? translateWebSource(uiLocale, "Write guide")
+                : translateWebSource(uiLocale, "Rewrite guide")}
           </MenuItem>
         ) : null}
         {pickableEnvironments.length > 0 ? (
@@ -238,7 +252,11 @@ export function PullRequestActionsMenu({
             {showsMergeNow ? (
               <MenuItem
                 closeOnClick={inlineConfirm.isArmed("merge")}
-                aria-label={inlineConfirm.isArmed("merge") ? "Confirm merge?" : "Merge now"}
+                aria-label={
+                  inlineConfirm.isArmed("merge")
+                    ? translateWebSource(uiLocale, "Confirm merge?")
+                    : t("pullRequests.actions.mergeNow")
+                }
                 disabled={actionPending}
                 {...inlineConfirm.props("merge", () => void perform("merge", selectedMergeMethod))}
               >
@@ -313,7 +331,7 @@ export function PullRequestActionsMenu({
           onClick={() => copyReference(detail.url, translateWebSource(uiLocale, "PR link"))}
         >
           <LinkIcon className="size-3.5" />
-          Copy link
+          {t("common.copyLink")}
           <MenuShortcut>
             {shortcutLabelForCommand(keybindings, "thread.copyReference")}
           </MenuShortcut>
@@ -324,7 +342,7 @@ export function PullRequestActionsMenu({
           }
         >
           <CopyIcon className="size-3.5" />
-          Copy PR number
+          {translateWebSource(uiLocale, "Copy PR number")}
           <MenuShortcut>
             {shortcutLabelForCommand(keybindings, "pullRequest.copyNumber")}
           </MenuShortcut>
@@ -334,7 +352,11 @@ export function PullRequestActionsMenu({
             <MenuSeparator />
             <MenuItem
               closeOnClick={inlineConfirm.isArmed("close")}
-              aria-label={inlineConfirm.isArmed("close") ? "Confirm close?" : "Close pull request"}
+              aria-label={
+                inlineConfirm.isArmed("close")
+                  ? translateWebSource(uiLocale, "Confirm close?")
+                  : t("pullRequests.actions.close")
+              }
               variant="destructive"
               disabled={actionPending}
               {...inlineConfirm.props("close", () => void perform("close"))}
@@ -358,7 +380,11 @@ export function PullRequestActionsMenu({
             <MenuSeparator />
             <MenuItem
               closeOnClick={inlineConfirm.isArmed("revert")}
-              aria-label={inlineConfirm.isArmed("revert") ? "Confirm revert?" : "Revert changes"}
+              aria-label={
+                inlineConfirm.isArmed("revert")
+                  ? translateWebSource(uiLocale, "Confirm revert?")
+                  : t("pullRequests.actions.revert")
+              }
               variant={inlineConfirm.isArmed("revert") ? "destructive" : "default"}
               disabled={actionPending}
               {...inlineConfirm.props("revert", () => void perform("revert"))}

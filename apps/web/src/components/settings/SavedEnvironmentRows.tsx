@@ -485,7 +485,7 @@ function ConfiguredCloudLinkRow({ canManageRelay }: { readonly canManageRelay: b
   const disabledReason = !isSignedIn
     ? t("connections.cloudLink.signInRequired")
     : !canManageRelay
-      ? "Your session does not have permission to manage T3 Connect access."
+      ? t("connections.cloudLink.permissionRequired")
       : null;
   const isBusy = isUpdating || isUpdatingPreference;
   const refreshLinkState = useEffectEvent(primaryCloudLinkState.refresh);
@@ -529,13 +529,13 @@ function ConfiguredCloudLinkRow({ canManageRelay }: { readonly canManageRelay: b
         title: enabled
           ? t("connections.cloudLink.linked")
           : publishAgentActivity
-            ? "T3 Connect tunnel disabled"
-            : "T3 Connect unlinked",
+            ? t("connections.cloudLink.tunnelDisabled")
+            : t("connections.cloudLink.unlinked"),
         description: enabled
           ? t("connections.cloudLink.available")
           : publishAgentActivity
-            ? "The managed tunnel was removed. Agent activity publishing stays on."
-            : "This environment is no longer available through T3 Connect.",
+            ? t("connections.cloudLink.tunnelRemovedPublishingOn")
+            : t("connections.cloudLink.unavailable"),
       });
     }
     setIsUpdating(false);
@@ -556,8 +556,8 @@ function ConfiguredCloudLinkRow({ canManageRelay }: { readonly canManageRelay: b
           ? t("connections.cloudLink.activityEnabled")
           : t("connections.cloudLink.activityDisabled"),
         description: enabled
-          ? "This environment publishes agent activity to your mobile clients."
-          : "This environment will stop publishing agent activity.",
+          ? t("connections.cloudLink.activityPublishing")
+          : t("connections.cloudLink.activityStopped"),
       });
     }
     setIsUpdatingPreference(false);
@@ -696,9 +696,7 @@ function EmptyRemoteEnvironments({ cloudEnabled = true }: { readonly cloudEnable
       <EmptyHeader>
         <EmptyTitle>{t("connections.empty.title")}</EmptyTitle>
         <EmptyDescription>
-          {cloudEnabled
-            ? "Click “Add environment” to pair another environment, or connect one from T3 Connect."
-            : "Click “Add environment” to pair another environment."}
+          {cloudEnabled ? t("connections.empty.withCloud") : t("connections.empty.withoutCloud")}
         </EmptyDescription>
       </EmptyHeader>
     </Empty>

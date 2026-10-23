@@ -149,13 +149,19 @@ export function MarkdownCodeBlock({
   diagram?: boolean;
   children: ReactNode;
 }) {
+  const { t: translateRelease } = useI18n();
+
   const { locale: uiLocale } = useI18n();
 
   const [copied, setCopied] = useState(false);
   const [wrapped, setWrapped] = useState(() => getClientSettings().wordWrap);
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const wrapLabel = wrapped ? "Disable line wrap" : "Wrap lines";
-  const copyLabel = copied ? "Copied" : "Copy code";
+  const wrapLabel = wrapped
+    ? translateWebSource(uiLocale, "Disable line wrap")
+    : translateWebSource(uiLocale, "Wrap lines");
+  const copyLabel = copied
+    ? translateWebSource(uiLocale, "Copied")
+    : translateRelease("connections.access.copyCode");
   const command = code.trim();
   const canRun =
     onRunShellCommand !== undefined &&

@@ -431,7 +431,9 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
                 role="radiogroup"
                 aria-label={t("connections.access.reachVia")}
               >
-                <p className="text-2xs text-muted-foreground/70">Reach this machine via</p>
+                <p className="text-2xs text-muted-foreground/70">
+                  {t("connections.access.reachVia")}
+                </p>
                 {endpointCopyOptions.map((option) => {
                   const isSelected = option.id === selectedQrOption?.id;
                   return (
@@ -721,7 +723,7 @@ export const AuthorizedClientsHeaderAction = memo(function AuthorizedClientsHead
                     {t("connections.access.permissions")}
                   </h3>
                   <p className="text-xs text-muted-foreground">
-                    Limit what the paired client can do.
+                    {t("connections.access.permissionsDescription")}
                   </p>
                 </div>
                 <div className="flex gap-1">

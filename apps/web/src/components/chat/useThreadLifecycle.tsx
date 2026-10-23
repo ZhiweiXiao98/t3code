@@ -550,7 +550,7 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
           : t("sidebar.snoozedTitle")
       }
       clockMinute={nowMinute}
-      actionLabel={isUnsnoozing ? "Waking..." : "Wake now"}
+      actionLabel={isUnsnoozing ? t("composer.banner.waking") : t("composer.banner.wakeNow")}
       actionDisabled={!canOperateThread || isUnsnoozing}
       onAction={() => void handleUnsnoozeActiveThreadStable()}
     />
@@ -561,7 +561,7 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
         settledAt ? `Settled ${formatRelativeTimeLabel(settledAt)}` : t("sidebar.settledTitle")
       }
       clockMinute={nowMinute}
-      actionLabel={isUnsettling ? "Un-settling..." : "Un-settle"}
+      actionLabel={isUnsettling ? t("composer.banner.unsettling") : t("composer.banner.unsettle")}
       actionDisabled={!canOperateThread || isUnsettling}
       onAction={() => void handleUnsettleActiveThreadStable()}
     />
@@ -603,7 +603,7 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
         activeThreadPinned ? confirmAndUnpinThread(activeThreadRef) : pinThread(activeThreadRef)
       ).then(
         toastThreadActionFailure(
-          activeThreadPinned ? "Failed to unpin thread" : "Failed to pin thread",
+          activeThreadPinned ? "Failed to unpin thread" : t("sidebar.pinFailed"),
         ),
       );
     },

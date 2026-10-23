@@ -193,8 +193,8 @@ export function ArchivedThreadsPanel() {
                 {isLoadingArchive
                   ? t("archive.loading")
                   : archiveError
-                    ? "Could not load archived threads"
-                    : "No archived threads"}
+                    ? t("archive.loadFailed")
+                    : t("archive.empty")}
               </span>
             }
             description={

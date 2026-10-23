@@ -1,3 +1,4 @@
+import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 import {
   defaultInstanceIdForDriver,
   PROVIDER_DISPLAY_NAMES,
@@ -39,6 +40,7 @@ export interface ProviderUpdateSidebarPillView {
 }
 
 interface ProviderUpdateSidebarPillOptions {
+  readonly locale?: ResolvedAppLocale;
   readonly visibleAfterIso?: string;
   readonly dismissedKeys?: ReadonlySet<string>;
 }
@@ -344,6 +346,7 @@ export function getProviderUpdateSidebarPillView(
   providers: ReadonlyArray<ServerProvider>,
   options?: ProviderUpdateSidebarPillOptions,
 ): ProviderUpdateSidebarPillView | null {
+  const locale = options?.locale ?? "en";
   // Update state is recorded per instance, so pick the instances with an
   // update before collapsing to one entry per driver.
   const activeProviders = dedupeProvidersByDriver(providers.filter(isProviderUpdateActive));
@@ -359,12 +362,22 @@ export function getProviderUpdateSidebarPillView(
       tone: "loading",
       title:
         activeProviders.length === 1
-          ? `Updating ${activeProviderName}`
-          : `Updating ${activeProviders.length} providers`,
+          ? translateWebMessage(locale, "providerUpdate.pill.updatingOne", {
+              provider: activeProviderName,
+            })
+          : translateWebMessage(locale, "providerUpdate.pill.updatingMany", {
+              count: activeProviders.length,
+            }),
       description:
         activeProviders.length === 1
-          ? `${formatProviderList(activeProviders)} update in progress.`
-          : `${formatProviderList(activeProviders)} updates are in progress.`,
+          ? translateWebMessage(locale, "providerUpdate.pill.progress", {
+              providers: formatProviderList(activeProviders),
+            })
+          : locale === "en"
+            ? `${formatProviderList(activeProviders)} updates are in progress.`
+            : translateWebMessage(locale, "providerUpdate.pill.progress", {
+                providers: formatProviderList(activeProviders),
+              }),
     };
   }
 
@@ -389,9 +402,20 @@ export function getProviderUpdateSidebarPillView(
       tone: "error",
       title:
         failedProviders.length === 1
-          ? getProviderFailedUpdateTitle(failedProvider)
-          : `${failedProviders.length} provider updates failed`,
-      description: getFailedProviderUpdateDescription(failedProviders),
+          ? locale === "en"
+            ? getProviderFailedUpdateTitle(failedProvider)
+            : translateWebMessage(locale, "providerUpdate.pill.failedOne", {
+                provider: PROVIDER_DISPLAY_NAMES[failedProvider.driver] ?? failedProvider.driver,
+              })
+          : translateWebMessage(locale, "providerUpdate.pill.failedMany", {
+              count: failedProviders.length,
+            }),
+      description:
+        failedProviders.length === 1 && failedProvider.updateState?.message
+          ? failedProvider.updateState.message
+          : translateWebMessage(locale, "providerUpdate.pill.failedDetail", {
+              providers: formatProviderList(failedProviders),
+            }),
       dismissible: true,
     });
   }
@@ -414,11 +438,18 @@ export function getProviderUpdateSidebarPillView(
       tone: "warning",
       title:
         unchangedProviders.length === 1
-          ? `${unchangedProviderName} still needs an update`
-          : `${unchangedProviders.length} providers still need updates`,
-      description: `${formatProviderList(unchangedProviders)} ${
-        unchangedProviders.length === 1 ? "still appears" : "still appear"
-      } outdated. Review provider settings for details.`,
+          ? translateWebMessage(locale, "providerUpdate.pill.unchangedOne", {
+              provider: unchangedProviderName,
+            })
+          : translateWebMessage(locale, "providerUpdate.pill.unchangedMany", {
+              count: unchangedProviders.length,
+            }),
+      description:
+        locale === "en"
+          ? `${formatProviderList(unchangedProviders)} ${unchangedProviders.length === 1 ? "still appears" : "still appear"} outdated. Review provider settings for details.`
+          : translateWebMessage(locale, "providerUpdate.pill.unchangedDetail", {
+              providers: formatProviderList(unchangedProviders),
+            }),
       dismissible: true,
     });
   }
@@ -439,9 +470,28 @@ export function getProviderUpdateSidebarPillView(
       tone: "success",
       title:
         succeededProviders.length === 1
-          ? getProviderUpdatedTitle(succeededProvider)
-          : `${succeededProviders.length} providers updated`,
-      description: getProviderUpdatedDescription(succeededProviders.length),
+          ? locale === "en"
+            ? getProviderUpdatedTitle(succeededProvider)
+            : translateWebMessage(
+                locale,
+                succeededProvider.version
+                  ? "providerUpdate.pill.updatedVersion"
+                  : "providerUpdate.pill.updatedOne",
+                {
+                  provider:
+                    PROVIDER_DISPLAY_NAMES[succeededProvider.driver] ?? succeededProvider.driver,
+                  version: succeededProvider.version
+                    ? formatVersion(succeededProvider.version)
+                    : "",
+                },
+              )
+          : translateWebMessage(locale, "providerUpdate.pill.updatedMany", {
+              count: succeededProviders.length,
+            }),
+      description:
+        locale === "en"
+          ? getProviderUpdatedDescription(succeededProviders.length)
+          : translateWebMessage(locale, "providerUpdate.pill.updatedDetail"),
       dismissAfterVisibleMs: PROVIDER_UPDATE_SUCCESS_VISIBLE_MS,
     });
   }

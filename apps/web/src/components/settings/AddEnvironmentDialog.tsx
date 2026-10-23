@@ -619,7 +619,7 @@ export function AddEnvironmentDialog({
                   aria-label={t("connections.addEnvironment.action")}
                 >
                   <PlusIcon className="size-3" />
-                  <span>Add environment</span>
+                  <span>{t("connections.addEnvironment.action")}</span>
                 </Button>
               }
             />

@@ -698,7 +698,7 @@ export function ComposerAttachButton({
               size="icon-sm"
               onPointerDown={(event) => event.preventDefault()}
               onClick={() => inputRef.current?.click()}
-              aria-label="Attach files"
+              aria-label={t("composer.attachment.attachFiles")}
             />
           }
         >

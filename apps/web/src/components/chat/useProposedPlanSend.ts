@@ -397,9 +397,7 @@ export function useImplementPlanInNewThread(input: ImplementPlanInNewThreadInput
             type: "error",
             title: t("chat.implementationStartFailed"),
             description:
-              error instanceof Error
-                ? error.message
-                : "An error occurred while creating the new thread.",
+              error instanceof Error ? error.message : t("chat.implementationCreateError"),
           }),
         );
       }

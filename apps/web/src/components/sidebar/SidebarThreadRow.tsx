@@ -957,7 +957,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
         autoFocus
         value={renamingTitle}
         dir="auto"
-        aria-label="Thread title"
+        aria-label={t("sidebar.threadTitle")}
         onChange={(event) => onRenameTitleChange(event.target.value)}
         onFocus={(event) => event.currentTarget.select()}
         onKeyDown={handleRenameKeyDown}
@@ -1423,7 +1423,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                             <CheckIcon className="size-3.5" />
                             {t("sidebar.bulk.settle")}
                           </TooltipTrigger>
-                          <TooltipPopup>Settle thread</TooltipPopup>
+                          <TooltipPopup>{t("sidebar.action.settle")}</TooltipPopup>
                         </Tooltip>
                       ) : null}
                     </span>

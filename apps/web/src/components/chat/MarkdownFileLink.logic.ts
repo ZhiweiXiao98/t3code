@@ -40,7 +40,12 @@ export function markdownFileCopyMenuItems(
   ) => string = (key) => translateWebMessage("en", key),
 ) {
   const items = [
-    { id: "copy-full", label: "Copy full path", value: targetPath, title: "Full path" },
+    {
+      id: "copy-full",
+      label: translateRelease("markdownFile.copyFullPath"),
+      value: targetPath,
+      title: "Full path",
+    },
   ];
   if (workspaceRelativePath !== null) {
     const position = targetPath.slice(splitFilePathPosition(targetPath).path.length);

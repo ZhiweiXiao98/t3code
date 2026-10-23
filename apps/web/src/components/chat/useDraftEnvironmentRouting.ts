@@ -164,7 +164,7 @@ export function useDraftEnvironmentRouting(input: DraftEnvironmentRoutingInput) 
     ? draftThread?.loadBalancedEnvironmentId
       ? translateWebSource(uiLocale, "Auto balance")
       : loadBalancing.pending
-        ? "Checking machines…"
+        ? translateWebSource(uiLocale, "Checking machines…")
         : loadBalancing.failed
           ? translateWebSource(uiLocale, "Auto balance unavailable")
           : translateWebSource(uiLocale, "Auto balance")

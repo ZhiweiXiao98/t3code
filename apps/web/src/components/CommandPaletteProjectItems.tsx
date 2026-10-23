@@ -1,3 +1,4 @@
+import { useI18n } from "~/i18n/WebI18nContext";
 import type { EnvironmentId, EnvironmentMachineKind } from "@t3tools/contracts";
 
 import type { SidebarProjectSnapshot } from "../sidebarProjectGrouping";
@@ -97,7 +98,11 @@ function ProjectLocationDescription(props: {
   readonly location: CommandPaletteProjectLocation | undefined;
   readonly workspaceRoot: string;
 }) {
-  const location = props.location ?? UNKNOWN_PROJECT_LOCATION;
+  const { t } = useI18n();
+  const location = props.location ?? {
+    ...UNKNOWN_PROJECT_LOCATION,
+    label: t("gitDialog.publish.remote"),
+  };
   return (
     <span className="flex min-w-0 items-center gap-1">
       <span className="inline-flex min-w-0 items-center gap-1">

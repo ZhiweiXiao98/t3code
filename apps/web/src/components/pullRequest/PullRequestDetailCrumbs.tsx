@@ -50,7 +50,9 @@ function BackButton({ onBack, focusable }: { onBack: () => void; focusable: bool
           </Button>
         }
       />
-      <TooltipPopup side="top">Back to pull requests</TooltipPopup>
+      <TooltipPopup side="top">
+        {translateWebSource(uiLocale, "Back to pull requests")}
+      </TooltipPopup>
     </Tooltip>
   );
 }
@@ -66,6 +68,8 @@ function NumberLink({
   openOnHostText: string;
   focusable: boolean;
 }) {
+  const { t } = useI18n();
+
   return (
     <Tooltip>
       <TooltipTrigger
@@ -82,7 +86,9 @@ function NumberLink({
               "inline-flex shrink-0 cursor-pointer items-center gap-0.5 font-medium underline-offset-2 hover:underline",
               toneClassName,
             )}
-            aria-label={`Open pull request #${detail.number} on host`}
+            aria-label={t("pullRequests.detail.openOnHost", {
+              number: detail.number,
+            })}
           >
             #{detail.number}
             <ExternalLinkIcon aria-hidden className="size-2.5" />

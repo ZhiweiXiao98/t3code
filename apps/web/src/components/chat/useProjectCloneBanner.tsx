@@ -57,7 +57,7 @@ export function useProjectCloneBanner(activeProjectRef: ScopedProjectRef | null)
     activeProjectClone?.phase === "running"
       ? translateWebSource(uiLocale, "Cloning repository")
       : activeProjectClone !== null && activeProjectClone.phase !== "done"
-        ? "Repository not cloned"
+        ? translateWebSource(uiLocale, "Repository not cloned")
         : activeProjectFileCopy?.phase === "copying"
           ? "Copying files"
           : null;

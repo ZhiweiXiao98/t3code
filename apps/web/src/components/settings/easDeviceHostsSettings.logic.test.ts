@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vite-plus/test";
 import * as Option from "effect/Option";
 
-import { newEasDeviceHost, parseEasDeviceHostDraft } from "./easDeviceHostsSettings.logic";
+import {
+  easSessionLimits,
+  newEasDeviceHost,
+  parseEasDeviceHostDraft,
+} from "./easDeviceHostsSettings.logic";
 
 describe("EAS device host settings", () => {
   it("rejects limits EAS does not allow", () => {

@@ -132,7 +132,7 @@ export function PullRequestCheckoutMenu({
           <span className="flex min-w-0 flex-col">
             <span>{t("pullRequests.checkout.separateWorktree")}</span>
             <span className="text-xs text-muted-foreground">
-              Its own folder and thread. Nothing you have open moves.
+              {t("pullRequests.checkout.separateWorktreeDescription")}
             </span>
           </span>
         </MenuItem>
@@ -141,7 +141,7 @@ export function PullRequestCheckoutMenu({
           <span className="flex min-w-0 flex-col">
             <span>{t("pullRequests.checkout.inRepository")}</span>
             <span className="text-xs text-muted-foreground">
-              Switches the branch you are working in, like `gh pr checkout`.
+              {t("pullRequests.checkout.inRepositoryDescription")}
             </span>
           </span>
         </MenuItem>
@@ -179,7 +179,11 @@ export function PullRequestResolveConflictsButton({
               variant="destructive-outline"
               disabled={handoff !== null || unavailable}
               onClick={onResolve}
-              aria-label={handoff === "conflicts" ? "Preparing..." : "Resolve conflicts"}
+              aria-label={
+                handoff === "conflicts"
+                  ? t("pullRequests.actions.preparing")
+                  : t("pullRequests.actions.resolveConflicts")
+              }
             >
               <PullRequestGlyph.conflicting aria-hidden className="size-3.5" />
               <span className="@max-[30rem]/pr-header:hidden">

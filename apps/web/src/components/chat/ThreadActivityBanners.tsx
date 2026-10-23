@@ -24,6 +24,8 @@ export function childInputBannerItem(input: {
   readonly parentAwaitingUser: boolean;
   readonly onOpenThread: (threadId: ThreadId) => void;
 }): ComposerBannerStackItem | null {
+  const { locale: uiLocale } = readWebI18n();
+
   const { childThreadInputs, onOpenThread } = input;
   const first = childThreadInputs[0];
   if (!first || input.parentAwaitingUser) return null;
@@ -46,7 +48,9 @@ export function childInputBannerItem(input: {
     )),
     actions: (
       <Button size="xs" variant="ghost" onClick={() => onOpenThread(first.id)}>
-        {first.hasPendingApprovals ? "Open approval" : "Open question"}
+        {first.hasPendingApprovals
+          ? translateWebSource(uiLocale, "Open approval")
+          : translateWebSource(uiLocale, "Open question")}
       </Button>
     ),
   };
@@ -103,6 +107,8 @@ export function backgroundWorkBannerItem(input: {
   readonly onStop: () => Promise<void>;
   readonly onOpenThread: (threadId: ThreadId) => void;
 }): ComposerBannerStackItem | null {
+  const { t } = readWebI18n();
+
   const { onOpenThread } = input;
   const presentation = presentPendingBackgroundWork(input.tasks);
   if (presentation === null) return null;
@@ -138,7 +144,7 @@ export function backgroundWorkBannerItem(input: {
                   <span className="whitespace-nowrap">
                     <InlineButton
                       tone="muted"
-                      aria-label={`${presentation.items.length === 1 ? "Show" : "Open"} subagent ${item.label}`}
+                      aria-label={`${presentation.items.length === 1 ? "Show" : t("pullRequestThread.state.open")} subagent ${item.label}`}
                       onClick={() => onOpenThread(childThreadId)}
                     >
                       {presentation.items.length === 1 ? "Show" : item.label}
