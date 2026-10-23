@@ -271,8 +271,6 @@ jobs:
       - name: Package Linux client
         run: vp run dist:desktop:artifact --platform linux --target AppImage --arch x64 --build-version "$CLIENT_VERSION" --skip-build --verbose
       - name: Build embedded WSL executable
-        env:
-          VP_NODE_VERSION: "26.8.2"
         run: node apps/server/scripts/cli.ts build-exe --verbose
       - name: Package and smoke-test embedded WSL runtime
         run: |
