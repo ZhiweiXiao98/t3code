@@ -80,7 +80,7 @@ jobs:
           jobs = api(run_path + '/attempts/' + str(run['run_attempt']) + '/jobs?per_page=100')
           assert jobs['total_count'] <= 100, 'Unexpected job count'
           required_jobs = {
-              'Validate exact source', 'Lint and typecheck', 'Build validated desktop bundle',
+              'Validate exact source', 'Lint and typecheck', 'Mobile native static analysis', 'Build validated desktop bundle',
               'Linux x64 and embedded Windows WSL runtime',
               'Tests (clients)', 'Tests (web)', 'Tests (server-1)', 'Tests (server-2)', 'Tests (server-3)',
               'Desktop win x64 (unsigned)', 'Desktop mac arm64 (unsigned)', 'Desktop mac x64 (unsigned)',

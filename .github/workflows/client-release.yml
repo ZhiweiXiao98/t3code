@@ -89,7 +89,38 @@ jobs:
       - run: vp check
       - if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
         run: vp run -r --concurrency-limit 2 typecheck
-      - run: vp run lint:mobile
+
+  mobile-native-quality:
+    name: Mobile native static analysis
+    needs: source
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact source without credentials
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ needs.source.outputs.sha }}
+          GIT_TERMINAL_PROMPT: "0"
+        run: |
+          set -euo pipefail
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
+          git sparse-checkout set --no-cone '/*' '!/.repos/'
+          git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
+        with:
+          node-version-file: package.json
+          cache: true
+          run-install: false
+      - name: Install locked dependencies
+        id: dependencies
+        run: vp install --frozen-lockfile --filter @t3tools/scripts...
+      - name: Install mobile native static analysis tools
+        run: brew bundle install --file apps/mobile/Brewfile
+      - name: Lint Swift and Kotlin sources
+        run: vp run lint:mobile
 
   tests:
     name: Tests (${{ matrix.suite }})
@@ -156,7 +187,7 @@ jobs:
 
   bundle:
     name: Build validated desktop bundle
-    needs: [source, quality, tests]
+    needs: [source, quality, mobile-native-quality, tests]
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -361,7 +392,7 @@ jobs:
 
   android:
     name: Android arm64 unsigned candidate (NOT installable)
-    needs: [source, quality, tests, bundle]
+    needs: [source, quality, mobile-native-quality, tests, bundle]
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     env:
