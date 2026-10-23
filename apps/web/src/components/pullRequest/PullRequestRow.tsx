@@ -80,7 +80,6 @@ function PullRequestRowImpl({
   statsKey,
   statsRef,
   onSelect,
-  speedMode,
   hostActions,
   onActed,
   closing = false,
@@ -97,7 +96,6 @@ function PullRequestRowImpl({
   statsKey?: string;
   statsRef?: RefCallback<HTMLDivElement>;
   onSelect: (entry: PullRequestRowTarget) => void;
-  speedMode: boolean;
   hostActions: ReadonlySet<PullRequestAction>;
   onActed: (result: PullRequestSpeedActionResult) => void;
   closing?: boolean;
@@ -249,7 +247,6 @@ function PullRequestRowImpl({
         <PullRequestSpeedActions
           entry={entry}
           hostActions={hostActions}
-          visible={speedMode}
           onActed={onActed}
           closing={closing}
           sweeping={sweeping}

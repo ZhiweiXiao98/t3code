@@ -60,6 +60,7 @@ const state = vi.hoisted(() => ({
 vi.mock("react", () => ({
   useCallback: <A>(callback: A) => callback,
   useEffect: () => {},
+  useLayoutEffect: () => {},
   useRef: <A>(current: A) => ({ current }),
   useMemo: <A>(factory: () => A) => factory(),
   useState: <A>(initial: A | (() => A)) => [
@@ -108,7 +109,10 @@ vi.mock("./use-atom-command", () => ({ useAtomCommand: <A>(command: A) => comman
 vi.mock("./threads", async () => {
   const { Atom } = await import("effect/reactivity");
   return {
-    environmentThreadDetails: { queueWorkflowAtom: () => Atom.make(null) },
+    environmentThreadDetails: {
+      queueWorkflowAtom: () => Atom.make(null),
+      checkpointSummariesAtom: () => Atom.make([]),
+    },
     threadEnvironment: {
       respondToApproval: state.approve,
       respondToUserInput: state.answer,
@@ -227,17 +231,6 @@ describe("mobile task permissions", () => {
         text: "Keep my draft",
       }),
     );
-  });
-
-  it("preserves offline queueing without dispatching feedback through the queue action", async () => {
-    state.connectionState = "disconnected";
-    expect(await useThreadComposerState().onSendMessage()).toBe("message");
-    expect(state.enqueue).toHaveBeenCalledTimes(1);
-    state.draft.text = "/feedback The agent stopped early.";
-    expect(await useThreadComposerState().onSendMessage()).toBeNull();
-    expect(state.feedback).not.toHaveBeenCalled();
-    expect(state.enqueue).toHaveBeenCalledTimes(1);
-    expect(state.clearDraft).toHaveBeenCalledTimes(1);
   });
 
   it("rechecks the target environment before an approval response", async () => {

@@ -57,6 +57,7 @@ import {
   View,
 } from "react-native";
 import { NativeScrollViewMarker as ScrollViewMarker } from "../../native/NativeScrollViewMarker";
+import { useRestingTopOffset } from "../../native/useRestingTopOffset";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppText as Text } from "../../components/ui/AppText";
@@ -118,13 +119,14 @@ const EMPTY_IDS: readonly string[] = [];
 
 function PullRequestTabScrollView(props: ScrollViewProps) {
   const insets = useSafeAreaInsets();
+  const restingOffset = useRestingTopOffset(insets.top, props);
   return (
     <ScrollViewMarker style={{ flex: 1 }}>
       <ScrollView
         {...props}
+        {...restingOffset}
         automaticallyAdjustContentInsets={false}
         contentInsetAdjustmentBehavior="never"
-        contentOffset={props.contentOffset ?? { x: 0, y: -insets.top }}
       />
     </ScrollViewMarker>
   );
@@ -300,6 +302,18 @@ export function PullRequestRouteScreen({ route }: StaticScreenProps<PullRequestP
   const [headerHeight, setHeaderHeight] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(0);
   const scrollViews = useRef<Partial<Record<typeof section, LegendListRef | null>>>({});
+  // AnimatedLegendList re-attaches its handle and sets state whenever its ref changes,
+  // so an inline ref in the tab map loops the screen into "Maximum update depth exceeded".
+  const [listRefs] = useState(() => {
+    const listRef = (tab: typeof section) => (list: LegendListRef | null) => {
+      scrollViews.current[tab] = list;
+    };
+    return {
+      overview: listRef("overview"),
+      guide: listRef("guide"),
+      activity: listRef("activity"),
+    };
+  });
   const selectSection = (next: typeof section) => {
     if (next === section) return;
     scrollOffsets.current[section] = currentScrollOffset.current;
@@ -546,10 +560,10 @@ export function PullRequestRouteScreen({ route }: StaticScreenProps<PullRequestP
                 importantForAccessibility={section === tab ? "auto" : "no-hide-descendants"}
               >
                 <AnimatedLegendList
-                  ref={(list) => {
-                    scrollViews.current[tab] = list;
-                  }}
-                  initialScrollOffset={-insets.top}
+                  ref={listRefs[tab]}
+                  // The scroll view owns its resting offset. LegendList keeps the first
+                  // initialScrollOffset it gets, and the first render has the window's top
+                  // inset (0 on the folded iPhone Duo), not the header's.
                   onScroll={(event) => {
                     const offset = event.nativeEvent.contentOffset.y;
                     scrollOffsets.current[tab] = offset;

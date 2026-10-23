@@ -85,7 +85,7 @@ export function WorktreeSetupCard(props: WorktreeSetupCardProps) {
           accessibilityRole="button"
           accessibilityLabel={
             backgroundSetup
-              ? `${scriptName} is still running. Show setup progress.`
+              ? `Background setup is still running: ${scriptName}. Show setup progress.`
               : "Worktree setup details"
           }
           accessibilityState={{ expanded: detailsOpen }}
@@ -117,7 +117,7 @@ export function WorktreeSetupCard(props: WorktreeSetupCardProps) {
               />
             ) : null}
             <Text numberOfLines={1} className="shrink text-2xs text-foreground-secondary">
-              {backgroundSetup ? scriptName : "Details"}
+              {backgroundSetup ? "Background setup" : "Details"}
             </Text>
             {!backgroundSetup ? (
               <SymbolView name="chevron.right" size={10} tintColorClassName="accent-icon-muted" />

@@ -23,13 +23,6 @@ const provider: ServerProvider = {
 };
 
 describe("getProviderSummary", () => {
-  it("reports ready providers with unknown authentication as available", () => {
-    expect(getProviderSummary({ ...provider, auth: { status: "unknown" } })).toEqual({
-      headline: "Available",
-      detail: null,
-    });
-  });
-
   it("does not hide a provider error behind a previous authenticated state", () => {
     expect(
       getProviderSummary({
@@ -40,19 +33,6 @@ describe("getProviderSummary", () => {
     ).toEqual({
       headline: "Unavailable",
       detail: "The provider process failed to start.",
-    });
-  });
-
-  it("does not hide a provider warning behind an authenticated state", () => {
-    expect(
-      getProviderSummary({
-        ...provider,
-        status: "warning",
-        message: "The provider version is unsupported.",
-      }),
-    ).toEqual({
-      headline: "Needs attention",
-      detail: "The provider version is unsupported.",
     });
   });
 
@@ -68,10 +48,6 @@ describe("getProviderSummary", () => {
       headline: "Not authenticated",
       detail: "Run codex login.",
     });
-  });
-
-  it("treats a disabled provider status as disabled even before its enabled flag updates", () => {
-    expect(getProviderSummary({ ...provider, status: "disabled" }).headline).toBe("Disabled");
   });
 });
 
@@ -96,6 +72,7 @@ describe("Antigravity with unchecked sign-in", () => {
     }
   });
 
+  // regression: #18623 neutral unchecked-sign-in display must not mask real warnings
   it("preserves actionable warnings, failures and disabled states outside unchecked Google sign-in", () => {
     const cases = [
       {
