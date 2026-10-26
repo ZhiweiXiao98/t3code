@@ -1,6 +1,8 @@
-import { RefreshCwIcon } from "lucide-react";
+import { translateWebSource } from "~/i18n/messages";
+import { RefreshIcon } from "~/components/ui/refresh-icon";
 
 import { cn } from "~/lib/utils";
+import { useI18n } from "../../i18n/WebI18nProvider";
 
 import { Button } from "../ui/button";
 
@@ -13,6 +15,8 @@ export function PullRequestActivityUnavailableState({
   onRetry: () => void;
   compact?: boolean;
 }) {
+  const { locale: uiLocale } = useI18n();
+  const { t } = useI18n();
   return (
     <div
       className={cn(
@@ -20,11 +24,11 @@ export function PullRequestActivityUnavailableState({
         compact ? "py-3" : "min-h-48 px-4 py-10",
       )}
     >
-      <p className="text-sm font-medium text-foreground">Could not load pull request activity</p>
+      <p className="text-sm font-medium text-foreground">{t("pullRequests.activity.loadFailed")}</p>
       <p className="max-w-md text-xs text-muted-foreground">{error}</p>
       <Button size="sm" variant="outline" onClick={onRetry}>
-        <RefreshCwIcon aria-hidden className="size-3.5" />
-        Retry
+        <RefreshIcon aria-hidden size="sm" />
+        {translateWebSource(uiLocale, "Retry")}
       </Button>
     </div>
   );

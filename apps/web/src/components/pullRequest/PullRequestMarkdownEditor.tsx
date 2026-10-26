@@ -1,9 +1,13 @@
+import { translateWebSource } from "~/i18n/messages";
 import { useState } from "react";
+import type { EnvironmentId, ScopedThreadRef } from "@t3tools/contracts";
 
 import { cn } from "~/lib/utils";
+import { useI18n } from "~/i18n/WebI18nProvider";
 
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
+import { Toggle, ToggleGroup } from "../ui/toggle-group";
 import { PullRequestMarkdown } from "./PullRequestMarkdown";
 
 /**
@@ -17,6 +21,8 @@ import { PullRequestMarkdown } from "./PullRequestMarkdown";
 export function PullRequestMarkdownEditor({
   value,
   cwd,
+  environmentId,
+  threadRef = null,
   placeholder,
   label,
   saving,
@@ -27,6 +33,9 @@ export function PullRequestMarkdownEditor({
 }: {
   readonly value: string;
   readonly cwd: string;
+  readonly environmentId: EnvironmentId;
+  /** Thread the editor sits beside, so links in its preview follow the link target setting. */
+  readonly threadRef?: ScopedThreadRef | null;
   readonly placeholder?: string | undefined;
   readonly label: string;
   readonly saving: boolean;
@@ -36,6 +45,8 @@ export function PullRequestMarkdownEditor({
   readonly onSave: (next: string) => void;
   readonly onCancel: () => void;
 }) {
+  const { locale: uiLocale } = useI18n();
+  const { t } = useI18n();
   const [draft, setDraft] = useState(value);
   const [preview, setPreview] = useState(false);
   // The words this draft started from. React keeps a component instance wherever the same
@@ -48,40 +59,55 @@ export function PullRequestMarkdownEditor({
     setDraft(value);
   }
   const empty = draft.trim().length === 0;
+  const saveDisabled = saving || (empty && !allowEmpty);
 
   return (
     <div
       className={cn("space-y-2", className)}
       onKeyDown={(event) => {
+        if (event.nativeEvent.isComposing || event.keyCode === 229) return;
+        if (
+          event.key === "Enter" &&
+          (event.metaKey || event.ctrlKey) &&
+          !event.shiftKey &&
+          !event.altKey
+        ) {
+          event.preventDefault();
+          event.stopPropagation();
+          if (!saveDisabled && !event.repeat) onSave(draft);
+          return;
+        }
         if (event.key !== "Escape" || saving) return;
         event.preventDefault();
         onCancel();
       }}
     >
-      <div className="flex items-center gap-1">
-        <Button
-          size="xs"
-          variant={preview ? "ghost" : "outline"}
-          disabled={saving}
-          onClick={() => setPreview(false)}
-        >
-          Write
-        </Button>
-        <Button
-          size="xs"
-          variant={preview ? "outline" : "ghost"}
-          disabled={saving}
-          onClick={() => setPreview(true)}
-        >
-          Preview
-        </Button>
-      </div>
+      <ToggleGroup
+        aria-label={translateWebSource(uiLocale, "Markdown editor mode")}
+        variant="segmented"
+        value={[preview ? "preview" : "write"]}
+        disabled={saving}
+        onValueChange={(next) => {
+          const mode = next[0];
+          if (mode === "write" || mode === "preview") setPreview(mode === "preview");
+        }}
+      >
+        <Toggle value="write">{t("pullRequests.markdown.write")}</Toggle>
+        <Toggle value="preview">{t("pullRequests.markdown.preview")}</Toggle>
+      </ToggleGroup>
       {preview ? (
         <div className="rounded-lg border border-border/60 px-3 py-2">
           {empty ? (
-            <p className="text-xs text-muted-foreground">Nothing to preview.</p>
+            <p className="text-xs text-muted-foreground">
+              {t("pullRequests.markdown.nothingToPreview")}
+            </p>
           ) : (
-            <PullRequestMarkdown text={draft} cwd={cwd} />
+            <PullRequestMarkdown
+              text={draft}
+              cwd={cwd}
+              environmentId={environmentId}
+              threadRef={threadRef}
+            />
           )}
         </div>
       ) : (
@@ -97,15 +123,10 @@ export function PullRequestMarkdownEditor({
       )}
       <div className="flex justify-end gap-2">
         <Button size="xs" variant="ghost" disabled={saving} onClick={onCancel}>
-          Cancel
+          {t("common.cancel")}
         </Button>
-        <Button
-          size="xs"
-          variant="outline"
-          disabled={saving || (empty && !allowEmpty)}
-          onClick={() => onSave(draft)}
-        >
-          {saving ? "Saving..." : "Save"}
+        <Button size="xs" variant="outline" disabled={saveDisabled} onClick={() => onSave(draft)}>
+          {saving ? t("pullRequests.markdown.saving") : t("common.save")}
         </Button>
       </div>
     </div>

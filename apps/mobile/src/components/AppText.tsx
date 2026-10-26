@@ -1,40 +1,80 @@
 import {
+  Platform,
   Text as RNText,
   TextInput as RNTextInput,
+  type TextInputInstance,
   type TextInputProps as RNTextInputProps,
   type TextProps as RNTextProps,
 } from "react-native";
 
 import { cn } from "../lib/cn";
+import { localizeTextChildren } from "../i18n/localizeTextChildren";
+import { localizeMobileString } from "../i18n/mobileStrings";
 
-export type AppTextProps = RNTextProps & { readonly className?: string };
+export type AppTextProps = RNTextProps & {
+  readonly className?: string;
+  /** UI copy is localized by default; disable this for user-, server-, or repository-owned text. */
+  readonly localize?: boolean;
+};
 
 /**
  * Thin wrapper around RN Text with default font-family and foreground color.
  * Uses Uniwind className — no manual style parsing.
  */
-export function AppText({ className, ...props }: AppTextProps) {
-  return <RNText className={cn("font-sans text-foreground", className)} {...props} />;
+export function AppText({
+  accessibilityLabel,
+  children,
+  className,
+  localize = true,
+  ...props
+}: AppTextProps) {
+  return (
+    <RNText
+      accessibilityLabel={
+        accessibilityLabel === undefined || !localize
+          ? accessibilityLabel
+          : localizeMobileString(accessibilityLabel)
+      }
+      className={cn("font-sans text-foreground", className)}
+      selectionColorClassName={Platform.OS === "android" ? "accent-focus/32" : undefined}
+      {...props}
+    >
+      {localize ? localizeTextChildren(children, localizeMobileString) : children}
+    </RNText>
+  );
 }
 
 export type AppTextInputProps = Omit<RNTextInputProps, "placeholderTextColor"> & {
   readonly className?: string;
-  readonly ref?: React.Ref<RNTextInput>;
+  readonly ref?: React.Ref<TextInputInstance>;
 };
 
 /**
  * Thin wrapper around RN TextInput with default input styling.
  * Uses Uniwind className — no manual style parsing.
  */
-export function AppTextInput({ className, ref, ...props }: AppTextInputProps) {
+export function AppTextInput({
+  accessibilityLabel,
+  className,
+  placeholder,
+  ref,
+  ...props
+}: AppTextInputProps) {
   return (
     <RNTextInput
       ref={ref}
+      accessibilityLabel={
+        accessibilityLabel === undefined ? undefined : localizeMobileString(accessibilityLabel)
+      }
       className={cn(
         "min-h-13.5 rounded-2xl border border-input-border bg-input px-3.5 py-3 font-sans text-base text-foreground",
         className,
       )}
+      placeholder={placeholder === undefined ? undefined : localizeMobileString(placeholder)}
       placeholderTextColorClassName="accent-placeholder"
+      selectionColorClassName={"accent-focus/32"}
+      cursorColorClassName={"accent-focus"}
+      selectionHandleColorClassName={Platform.OS === "android" ? "accent-focus" : undefined}
       {...props}
     />
   );

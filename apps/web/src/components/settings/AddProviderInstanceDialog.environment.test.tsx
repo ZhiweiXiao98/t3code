@@ -28,6 +28,10 @@ vi.mock("../../hooks/useSettings", () => ({
   useUpdateEnvironmentSettings: settingsHooks.update,
 }));
 
+vi.mock("../../i18n/WebI18nProvider", () => ({
+  useI18n: () => ({ t: (key: string) => key }),
+}));
+
 import { AddProviderInstanceDialog } from "./AddProviderInstanceDialog";
 
 const remoteEnvironmentId = EnvironmentId.make("remote-device");
