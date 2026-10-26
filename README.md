@@ -1,3 +1,16 @@
+# T3 Code 简体中文社区版
+
+> [!IMPORTANT]
+> **下载当前中文版：[v0.1.2-zh.1 桌面客户端](https://github.com/ZhiweiXiao98/t3code/releases/tag/v0.1.2-zh.1)**（基于上游稳定版 v0.1.2，社区预发布，提供 Windows、macOS、Linux）。
+>
+> **查看[当前中文版介绍、下载与升级说明](https://github.com/ZhiweiXiao98/t3code/blob/maintenance/v0.1.2-zh-cloud/README.md)** · [完整平台状态与注意事项](https://github.com/ZhiweiXiao98/t3code/blob/maintenance/v0.1.2-zh-cloud/README.zh-CN.md) · [当前稳定版维护分支](https://github.com/ZhiweiXiao98/t3code/tree/maintenance/v0.1.2-zh-cloud)
+>
+> 你正在查看历史分支 `feature/i18n-zh-cn`，**不是当前维护源码**。以下保留的说明可能过时，请以上方链接为准。社区桌面安装包未商业签名；请先阅读发布页的安全与 V1/V2 迁移提醒。Android 新版暂未发布；本项目是非官方社区维护版。
+
+---
+
+## 历史分支原说明
+
 # T3 Code
 
 > [!IMPORTANT]
