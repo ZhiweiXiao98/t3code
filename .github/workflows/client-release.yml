@@ -350,7 +350,7 @@ jobs:
             arch: x64
             target: nsis
             rust_target: x86_64-pc-windows-msvc
-          - runner: macos-15
+          - runner: macos-26
             platform: mac
             arch: arm64
             target: dmg
