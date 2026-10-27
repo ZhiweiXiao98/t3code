@@ -1,4 +1,4 @@
-import { readWebI18n } from "~/i18n/readWebI18n";
+import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 import { translateWebSource } from "~/i18n/messages";
 import { appAtomRegistry, subscribeAtomChanges } from "../rpc/atomRegistry";
 import { primaryEnvironmentIdAtom } from "../state/primaryEnvironment";
@@ -8,12 +8,14 @@ import { createKeybindingsUpdateToastController } from "./KeybindingsUpdateToast
 import { stackedThreadToast, toastManager } from "./ui/toast";
 
 /** Toasts each keybindings reload the primary server reports. */
-export function startKeybindingsUpdateToasts(): () => void {
+export function startKeybindingsUpdateToasts(
+  readLocale: () => ResolvedAppLocale = () => "en",
+): () => void {
   const controller = createKeybindingsUpdateToastController({});
   return subscribeAtomChanges(primaryServerConfigEventAtom, (event) => {
     const decision = controller.handle(event);
     if (!decision) return;
-    const { locale } = readWebI18n();
+    const locale = readLocale();
 
     if (decision._tag === "Success") {
       toastManager.add({

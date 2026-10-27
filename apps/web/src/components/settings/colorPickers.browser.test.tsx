@@ -4,6 +4,8 @@ import { userEvent } from "vite-plus/test/browser";
 import type { ReactNode } from "react";
 
 import { act, render } from "../../../test/render";
+import { WebI18nContext } from "../../i18n/WebI18nContext";
+import { translateWebMessage } from "../../i18n/messages";
 import { ProviderAccentColorPicker } from "./ProviderAccentColorPicker";
 import { ThemeColorField } from "./ThemeColorPicker";
 
@@ -135,4 +137,33 @@ describe("provider accent color picker", () => {
 
     expect(byLabel("Change accent color for Codex").style.backgroundColor).toBe("rgb(255, 0, 0)");
   });
+});
+
+it("adds an accent color through the English accessible name", async () => {
+  const onCommit = vi.fn();
+  await using _screen = await renderPicker(
+    <ProviderAccentColorPicker displayName="Codex" value={undefined} onCommit={onCommit} />,
+  );
+  await open("Add accent color for Codex");
+  await userEvent.fill(byLabel("Custom hex accent color"), "#00ff00");
+  expect(onCommit).toHaveBeenLastCalledWith("#00ff00");
+});
+
+it("edits an accent color through the Chinese accessible name", async () => {
+  const onCommit = vi.fn();
+  await using _screen = await renderPicker(
+    <WebI18nContext
+      value={{
+        locale: "zh-CN",
+        appLocale: "zh-CN",
+        setAppLocale: () => undefined,
+        t: (key, values) => translateWebMessage("zh-CN", key, values),
+      }}
+    >
+      <ProviderAccentColorPicker displayName="Codex" value="#ff0000" onCommit={onCommit} />
+    </WebI18nContext>,
+  );
+  await userEvent.click(byLabel("为 Codex 更改强调色"));
+  await userEvent.fill(byLabel("自定义十六进制强调色"), "#00ff00");
+  expect(onCommit).toHaveBeenLastCalledWith("#00ff00");
 });

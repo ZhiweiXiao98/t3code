@@ -95,7 +95,7 @@ function ProviderCustomColorPicker(props: {
   readonly onClear: () => void;
   readonly onClose: () => void;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const normalized = normalizeProviderAccentColor(props.value);
 
   return (
@@ -111,10 +111,16 @@ function ProviderCustomColorPicker(props: {
             size="icon-sm"
             variant="ghost-muted"
             style={normalized ? { backgroundColor: normalized } : undefined}
-            aria-label={t("providers.accent.chooseFor", { provider: props.displayName })}
+            aria-label={
+              locale === "zh-CN"
+                ? `为 ${props.displayName} ${normalized ? "更改" : "添加"}强调色`
+                : `${normalized ? "Change" : "Add"} accent color for ${props.displayName}`
+            }
           >
             {normalized ? (
-              <span className="sr-only">Change accent color</span>
+              <span className="sr-only">
+                {locale === "zh-CN" ? "更改强调色" : "Change accent color"}
+              </span>
             ) : (
               <PlusIcon aria-hidden />
             )}

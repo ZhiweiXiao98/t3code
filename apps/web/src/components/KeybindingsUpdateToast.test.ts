@@ -62,4 +62,20 @@ describe("startKeybindingsUpdateToasts", () => {
       stop();
     }
   });
+  it("reads the current locale for each toast without loading settings state", () => {
+    mocks.addToast.mockClear();
+    let locale: "en" | "zh-CN" = "zh-CN";
+    const stop = startKeybindingsUpdateToasts(() => locale);
+    try {
+      appAtomRegistry.set(mocks.state, { latestEvent: keybindingsUpdated([]) });
+      locale = "en";
+      appAtomRegistry.set(mocks.state, { latestEvent: keybindingsUpdated([]) });
+      expect(mocks.addToast.mock.calls.map(([toast]) => toast.title)).toEqual([
+        "快捷键已更新",
+        "Keybindings updated",
+      ]);
+    } finally {
+      stop();
+    }
+  });
 });

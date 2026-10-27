@@ -764,19 +764,6 @@ export function buildRootGroups(input: {
   return groups;
 }
 
-export function getCommandPaletteInputPlaceholder(mode: CommandPaletteMode): string {
-  switch (mode) {
-    case "root":
-      return "Search commands, projects, and threads...";
-    case "root-browse":
-      return "Enter project path (e.g. ~/projects/my-app)";
-    case "submenu":
-      return "Search...";
-    case "submenu-browse":
-      return "Enter path (e.g. ~/projects/my-app)";
-  }
-}
-
 export function getEnvironmentBrowsePlatform(os: string | null | undefined): string {
   if (os === "windows") {
     return "Win32";

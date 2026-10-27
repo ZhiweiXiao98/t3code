@@ -1,6 +1,6 @@
 import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 
-export const EN_MESSAGES = {
+const EN_MESSAGES = {
   "guestShare.guestName": "{name} is a guest",
   "guestShare.waiting": "{count} guest messages waiting",
   "guestShare.dismissFrom": "Dismiss message from {name}",
@@ -3204,7 +3204,7 @@ export type WebMessageKey = keyof typeof EN_MESSAGES;
 export type WebMessages = Readonly<Record<WebMessageKey, string>>;
 export type WebMessageValues = Readonly<Record<string, string | number>>;
 
-export const ZH_CN_MESSAGES = {
+const ZH_CN_MESSAGES = {
   "guestShare.guestName": "访客：{name}",
   "guestShare.waiting": "{count} 条访客消息待处理",
   "guestShare.dismissFrom": "忽略 {name} 的消息",
@@ -6253,7 +6253,7 @@ export const ZH_CN_MESSAGES = {
   "providers.update.failedDescription": "无法启动服务提供方更新命令。",
 } as const satisfies WebMessages;
 
-export const WEB_MESSAGES: Readonly<Record<ResolvedAppLocale, WebMessages>> = {
+const WEB_MESSAGES: Readonly<Record<ResolvedAppLocale, WebMessages>> = {
   en: EN_MESSAGES,
   "zh-CN": ZH_CN_MESSAGES,
 };
@@ -6366,7 +6366,7 @@ const ZH_CN_SOURCE_MESSAGES: Readonly<Record<string, string>> = {
   "Snooze until limits reset": "暂停至用量限制重置",
   "Resume after usage limits": "用量限制解除后继续",
   "New design": "新设计",
-  "Working section": "进行中分组",
+  "Working section": "进行中分区",
 
   "Open Environments": "打开环境",
   "Share with guest": "与访客共享",

@@ -98,7 +98,7 @@ export interface ThreadActionMenuState {
   readonly canShareWithGuest?: boolean;
 }
 
-export function localizeSnoozePresetLabel(preset: SnoozePreset, t: WebTranslate): string {
+function localizeSnoozePresetLabel(preset: SnoozePreset, t: WebTranslate): string {
   switch (preset.id) {
     case "hour":
       return t("sidebar.snooze.hour");
@@ -197,7 +197,7 @@ export function buildThreadActionMenuItems(
                 children: [
                   ...state.snoozePresets.map((preset) => ({
                     id: `snooze:${preset.id}` as const,
-                    label: `${preset.label} (${preset.whenLabel})`,
+                    label: `${translate ? localizeSnoozePresetLabel(preset, translate) : preset.label} (${preset.whenLabel})`,
                   })),
                   { id: "snooze:custom" as const, label: "Custom…", separatorBefore: true },
                 ],

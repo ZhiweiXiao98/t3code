@@ -249,6 +249,7 @@ describe("DesktopLifecycle", () => {
         Layer.provideMerge(layerElectronTheme),
         Layer.provideMerge(layerElectronWindow()),
         Layer.provideMerge(layerDesktopWindow()),
+        Layer.provideMerge(layerDesktopTray),
         Layer.provideMerge(layerEnvironment),
         // Nothing marks this shutdown complete, so it stays pending.
         Layer.provideMerge(DesktopShutdown.layer),

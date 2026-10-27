@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
+import { translateWebMessage } from "../i18n/messages";
 
 import { buildThreadActionMenuItems, type ThreadActionMenuState } from "./threadActionMenu.logic";
 
@@ -26,6 +27,22 @@ const baseState: ThreadActionMenuState = {
 };
 
 describe("buildThreadActionMenuItems", () => {
+  it("localizes snooze presets while preserving their formatted wake time", () => {
+    const items = buildThreadActionMenuItems(baseState, (key, values) =>
+      translateWebMessage("zh-CN", key, values),
+    );
+    const preset = items
+      .find((item) => item.id === "snooze")
+      ?.children?.find((item) => item.id === "snooze:hour");
+    expect(preset?.label).toBe(`${translateWebMessage("zh-CN", "sidebar.snooze.hour")} (3:00 PM)`);
+    const englishItems = buildThreadActionMenuItems(baseState);
+    expect(
+      englishItems
+        .find((item) => item.id === "snooze")
+        ?.children?.find((item) => item.id === "snooze:hour")?.label,
+    ).toBe("In 1 hour (3:00 PM)");
+  });
+
   it.each([false, true])(
     "disables both lifecycle directions without permission (reversed: %s)",
     (reversed) => {

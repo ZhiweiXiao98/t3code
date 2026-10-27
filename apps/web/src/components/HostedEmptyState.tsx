@@ -69,7 +69,7 @@ export function HostedEmptyState() {
   );
 }
 
-export function T3ConnectSteps() {
+function T3ConnectSteps() {
   const { locale } = useI18n();
   const tx = (source: string) => translateWebSource(locale, source);
 

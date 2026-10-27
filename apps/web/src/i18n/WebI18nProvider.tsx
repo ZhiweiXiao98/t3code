@@ -6,13 +6,6 @@ import { useClientSettings, updateClientSettings } from "../hooks/useSettings";
 import { translateWebMessage } from "./messages";
 import { WebI18nContext, type WebI18nContextValue, type WebTranslate } from "./WebI18nContext";
 
-export {
-  useI18n,
-  splitWebTranslation,
-  type WebI18nContextValue,
-  type WebTranslate,
-} from "./WebI18nContext";
-
 function readRuntimeLocales(): ReadonlyArray<string> {
   const desktopLocale =
     typeof window === "undefined" ? null : (window.desktopBridge?.getSystemLocale?.() ?? null);

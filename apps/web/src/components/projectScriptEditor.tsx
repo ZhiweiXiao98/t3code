@@ -57,7 +57,7 @@ import { Textarea } from "./ui/textarea";
 import { useI18n } from "~/i18n/WebI18nContext";
 import type { WebMessageKey } from "~/i18n/messages";
 
-export const SCRIPT_ICONS: Array<{ id: ProjectScriptIcon; labelKey: WebMessageKey }> = [
+const SCRIPT_ICONS: Array<{ id: ProjectScriptIcon; labelKey: WebMessageKey }> = [
   { id: "play", labelKey: "projectAction.icon.play" },
   { id: "test", labelKey: "projectAction.icon.test" },
   { id: "lint", labelKey: "projectAction.icon.lint" },

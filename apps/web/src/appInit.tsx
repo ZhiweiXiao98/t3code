@@ -1,3 +1,4 @@
+import { readWebI18n } from "./i18n/readWebI18n";
 import { scopedThreadKey, scopeThreadRef } from "@t3tools/client-runtime/environment";
 import type { ClientSettings } from "@t3tools/contracts/settings";
 import { createBrowserHistory, createHashHistory } from "@tanstack/react-router";
@@ -187,7 +188,7 @@ export function startAppServices(): AppRouter {
   startThreadVisitedMigration(appAtomRegistry);
   startSshPasswordPromptQueue();
 
-  startKeybindingsUpdateToasts();
+  startKeybindingsUpdateToasts(() => readWebI18n().locale);
   startSlowRpcRequestToasts();
   startHostFreezeToasts();
   startLegacyThreadMigrationToast();

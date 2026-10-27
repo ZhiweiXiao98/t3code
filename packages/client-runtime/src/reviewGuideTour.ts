@@ -14,12 +14,6 @@ export function stopFilePaths(stop: PullRequestReviewGuideStop): ReadonlyArray<s
   ];
 }
 
-export function stopSubline(stop: PullRequestReviewGuideStop): string {
-  const count = stopFilePaths(stop).length;
-  if (count === 0) return "Context, no code";
-  return count === 1 ? "1 file" : `${count} files`;
-}
-
 function noteMarker(index: number): string {
   return index < 26 ? String.fromCharCode(65 + index) : String(index + 1);
 }

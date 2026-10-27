@@ -86,11 +86,16 @@ jobs:
         id: dependencies
         run: vp install --frozen-lockfile
       - run: vp run --filter @t3tools/desktop ensure:electron
-      - run: vp run knip:check
-      - run: vp run --filter @t3tools/source-control-github generate --check
-      - run: vp run --filter t3 generate --check
-      - run: node scripts/release-smoke.ts
-      - run: vp check
+      - if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
+        run: vp run knip:check
+      - if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
+        run: vp run --filter @t3tools/source-control-github generate --check
+      - if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
+        run: vp run --filter t3 generate --check
+      - if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
+        run: node scripts/release-smoke.ts
+      - if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
+        run: vp check
       - if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
         run: vp run -r --concurrency-limit 2 typecheck
 
