@@ -131,7 +131,7 @@ jobs:
   mobile-native-quality:
     name: Mobile native static analysis
     needs: source
-    runs-on: macos-15
+    runs-on: macos-15-intel
     timeout-minutes: 30
     steps:
       - name: Checkout exact source without credentials
