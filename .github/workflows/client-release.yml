@@ -2,7 +2,7 @@ name: 简体中文客户端验证与构建
 
 on:
   push:
-    branches: [maintenance/v0.1.2-zh-cloud]
+    branches: [maintenance/v0.1.3-zh-cloud]
   workflow_dispatch:
     inputs:
       expected_sha:
@@ -18,7 +18,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  CLIENT_VERSION: 0.1.2-zh.1
+  CLIENT_VERSION: 0.1.3-zh.1
   CI: "true"
   CSC_IDENTITY_AUTO_DISCOVERY: "false"
   T3CODE_DESKTOP_SIGNED: "false"
@@ -46,8 +46,8 @@ jobs:
             if (context.payload.repository.private !== false) {
               throw new Error('Standard hosted runners are free for public repositories only.');
             }
-            if (context.ref !== 'refs/heads/maintenance/v0.1.2-zh-cloud') {
-              throw new Error('Dispatch must select maintenance/v0.1.2-zh-cloud.');
+            if (context.ref !== 'refs/heads/maintenance/v0.1.3-zh-cloud') {
+              throw new Error('Dispatch must select maintenance/v0.1.3-zh-cloud.');
             }
             if (context.eventName === 'workflow_dispatch' &&
                 (!/^[0-9a-f]{40}$/.test(process.env.EXPECTED_SHA || '') ||
@@ -55,7 +55,7 @@ jobs:
               throw new Error('Expected SHA must equal the selected branch commit exactly.');
             }
             core.setOutput('sha', context.sha);
-            core.summary.addRaw(`Source: ${context.sha}\nVersion: 0.1.2-zh.1\n`);
+            core.summary.addRaw(`Source: ${context.sha}\nVersion: 0.1.3-zh.1\n`);
             await core.summary.write();
 
   quality:
@@ -86,9 +86,42 @@ jobs:
         id: dependencies
         run: vp install --frozen-lockfile
       - run: vp run --filter @t3tools/desktop ensure:electron
+      - run: vp run knip:check
+      - run: vp run --filter @t3tools/source-control-github generate --check
+      - run: vp run --filter t3 generate --check
+      - run: node scripts/release-smoke.ts
       - run: vp check
       - if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
         run: vp run -r --concurrency-limit 2 typecheck
+
+  native-rust-quality:
+    name: Rust native formatting and tests
+    needs: source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact source without credentials
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ needs.source.outputs.sha }}
+          GIT_TERMINAL_PROMPT: "0"
+        run: |
+          set -euo pipefail
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
+          git sparse-checkout set --no-cone '/*' '!/.repos/'
+          git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          components: rustfmt
+      - name: Check all native Rust crates
+        run: |
+          for crate in resource-monitor kde-snap-shot hyprland-snap-shot; do
+            cargo fmt --manifest-path "native/$crate/Cargo.toml" -- --check
+            cargo test --locked --manifest-path "native/$crate/Cargo.toml"
+          done
 
   mobile-native-quality:
     name: Mobile native static analysis
@@ -121,6 +154,8 @@ jobs:
         run: brew bundle install --file apps/mobile/Brewfile
       - name: Lint Swift and Kotlin sources
         run: vp run lint:mobile
+      - name: Run native review diff Swift regressions
+        run: apps/mobile/modules/t3-review-diff/tests/run-ios.sh
 
   tests:
     name: Tests (${{ matrix.suite }})
@@ -187,7 +222,7 @@ jobs:
 
   bundle:
     name: Build validated desktop bundle
-    needs: [source, quality, mobile-native-quality, tests]
+    needs: [source, quality, mobile-native-quality, native-rust-quality, tests]
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -390,14 +425,14 @@ jobs:
 
   android:
     name: Android arm64 unsigned candidate (NOT installable)
-    needs: [source, quality, mobile-native-quality, tests, bundle]
+    needs: [source, quality, mobile-native-quality, native-rust-quality, tests, bundle]
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     env:
       APP_VARIANT: community
-      T3CODE_MOBILE_VERSION: 0.1.2-zh.1
+      T3CODE_MOBILE_VERSION: 0.1.3-zh.1
       # Candidate only. A publishable versionCode must exceed the installed release.
-      T3CODE_MOBILE_VERSION_CODE: "10102"
+      T3CODE_MOBILE_VERSION_CODE: "10103"
       T3CODE_MOBILE_UPDATES_ENABLED: "0"
       EXPO_NO_GIT_STATUS: "1"
       EXPO_NO_TELEMETRY: "1"
@@ -425,7 +460,9 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: |
+            21
+            17
       - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
         with:
           packages: platform-tools
@@ -433,6 +470,18 @@ jobs:
       - name: Generate community Android project
         working-directory: apps/mobile
         run: vp exec expo prebuild --platform android --no-install
+      - name: Run Android native unit regressions
+        working-directory: apps/mobile/android
+        run: |
+          printf '\norg.gradle.java.installations.paths=%s,%s\n' "$JAVA_HOME_17_X64" "$JAVA_HOME_21_X64" >> gradle.properties
+          ./gradlew -q javaToolchains --no-daemon
+          ./gradlew projects --no-daemon
+          ./gradlew :t3-widget-expiry:testDebugUnitTest :t3-agent-notifications:testDebugUnitTest \
+            :t3-composer-editor:testDebugUnitTest :t3-review-diff:testDebugUnitTest \
+            --no-daemon --max-workers=2
+      - name: Run standalone Android review geometry and viewport regressions
+        working-directory: apps/mobile
+        run: GRADLE="$PWD/android/gradlew" modules/t3-review-diff/tests/run-android.sh --no-daemon --max-workers=2
       - name: Explicitly disable ALL release signing
         run: |
           cat > "$RUNNER_TEMP/unsigned-release.init.gradle" <<'GRADLE'
@@ -468,10 +517,10 @@ jobs:
           fi
           unzip -t "$apk"
           "$build_tools/aapt" dump badging "$apk" | tee "$RUNNER_TEMP/android-badging.txt"
-          grep -F "package: name='com.zhiweixiao.t3code.zhcn' versionCode='10102' versionName='$CLIENT_VERSION'" "$RUNNER_TEMP/android-badging.txt"
+          grep -F "package: name='com.zhiweixiao.t3code.zhcn' versionCode='10103' versionName='$CLIENT_VERSION'" "$RUNNER_TEMP/android-badging.txt"
           mkdir -p android-candidate
           cp "$apk" "android-candidate/T3-Code-zh-CN-Android-$CLIENT_VERSION-arm64-UNSIGNED-NOT-INSTALLABLE.apk"
-          printf '%s\n' 'BLOCKED: This candidate is unsigned and is not installable. Android publication requires a verified signing certificate, confirmed secure key backup, and a monotonic versionCode. A replacement certificate does not permit an in-place upgrade over older installations; release notes must disclose that limitation. No private signing material is included in this artifact.' > android-candidate/SIGNING-BLOCKER.txt
+          printf '%s\n' 'BLOCKED: This candidate is unsigned and is not installable. Android publication requires the existing signing identity, confirmed secure key backup, and a monotonic versionCode. Do not generate a replacement signing key. No private signing material is included in this artifact.' > android-candidate/SIGNING-BLOCKER.txt
           cat android-candidate/SIGNING-BLOCKER.txt >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v7
         with:

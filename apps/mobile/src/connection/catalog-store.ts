@@ -47,6 +47,14 @@ function environmentId(value: string) {
 function hydrateCatalog(catalog: EncodedConnectionCatalog): ConnectionCatalogDocumentType {
   return {
     schemaVersion: catalog.schemaVersion,
+    ...(catalog.githubRoutingPermissions === undefined
+      ? {}
+      : {
+          githubRoutingPermissions: catalog.githubRoutingPermissions.map((grant) => ({
+            ...grant,
+            environmentId: environmentId(grant.environmentId),
+          })),
+        }),
     disabledEnvironmentIds: (catalog.disabledEnvironmentIds ?? []).map(environmentId),
     targets: catalog.targets.map((target) => {
       switch (target._tag) {

@@ -152,3 +152,25 @@ describe("v0.0.45 UI localization", () => {
     expect(translateWebMessage("en", "composer.menu.label.commands")).toBe("Commands");
   });
 });
+
+describe("v0.1.3 incremental localization", () => {
+  it("covers reorganized settings, guest sharing and title instructions", () => {
+    expect(translateWebSource("zh-CN", "Sharing & access")).toBe("共享与访问");
+    expect(translateWebSource("zh-CN", "Guest links")).toBe("访客链接");
+    expect(translateWebSource("zh-CN", "Thread title instructions")).toBe("会话标题生成指令");
+    expect(translateWebSource("zh-CN", "Open Environments")).toBe("打开环境");
+    expect(translateWebSource("en", "Open Environments")).toBe("Open Environments");
+  });
+
+  it("keeps guest names and recovered thread titles intact", () => {
+    expect(translateWebMessage("zh-CN", "guestShare.sendFrom", { name: "API-v3" })).toBe(
+      "发送 API-v3 的消息",
+    );
+    expect(
+      translateWebMessage("zh-CN", "chat.queuedEdit.threadSuffix", { title: "feature/API-v3" }),
+    ).toBe("（会话“feature/API-v3”）");
+    expect(translateWebMessage("zh-CN", "guestShare.waiting", { count: 3 })).toBe(
+      "3 条访客消息待处理",
+    );
+  });
+});

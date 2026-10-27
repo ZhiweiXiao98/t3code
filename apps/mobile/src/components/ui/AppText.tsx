@@ -19,25 +19,10 @@ export type AppTextProps = RNTextProps & {
   readonly textRole?: keyof typeof MOBILE_TEXT_CLASSES;
 };
 
-/**
- * Thin wrapper around RN Text with default font-family and foreground color.
- * Uses Uniwind className — no manual style parsing.
- */
-export function AppText({
-  accessibilityLabel,
-  children,
-  className,
-  textRole,
-  localize = true,
-  ...props
-}: AppTextProps) {
+export function AppText({ accessibilityLabel, children, className, textRole, localize = true, ...props }: AppTextProps) {
   return (
     <RNText
-      accessibilityLabel={
-        accessibilityLabel === undefined || !localize
-          ? accessibilityLabel
-          : localizeMobileString(accessibilityLabel)
-      }
+      accessibilityLabel={accessibilityLabel === undefined || !localize ? accessibilityLabel : localizeMobileString(accessibilityLabel)}
       className={cn(
         "font-sans text-foreground",
         textRole && MOBILE_TEXT_CLASSES[textRole],

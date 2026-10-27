@@ -13,7 +13,7 @@ import {
 import { deriveProjectGroupLabel } from "@t3tools/client-runtime/state/project-grouping";
 import type { EnvironmentProject } from "@t3tools/client-runtime/state/shell";
 import { useNavigation } from "@react-navigation/native";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Platform, Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -40,6 +40,10 @@ import {
   SettingsEnvironmentFilterHeader,
 } from "./components/SettingsEnvironmentFilterHeader";
 import { useSettingsEnvironmentFilter, type SettingsTarget } from "./settings-environment-filter";
+import { leaveSettingsPage } from "./settings-navigation";
+import { workspaceHasColumns } from "../workspace/workspace-selection-store";
+import { DEFAULT_SETTINGS_PAGE } from "../workspace/workspace-tab-navigation";
+import { readUnloadedThreadCount } from "../../state/olderSettledShelf";
 
 export function SettingsProjectOverviewRouteScreen() {
   const insets = useSafeAreaInsets();
@@ -55,16 +59,18 @@ export function SettingsProjectOverviewRouteScreen() {
     setIsRemoving(false);
   };
   const navigation = useNavigation();
-  const { selectedTargets, projectGroups, selectedProjectKey, selectProject } =
-    useSettingsEnvironmentFilter();
-  const latestProjectKey = useRef(selectedProjectKey);
-  useEffect(() => {
-    latestProjectKey.current = selectedProjectKey;
-  }, [selectedProjectKey]);
+  const {
+    selectedTargets,
+    projectGroups,
+    selectedProjectKey,
+    selectProject,
+    getSelectedProjectKey,
+  } = useSettingsEnvironmentFilter();
   // The filter can move to another project while a removal is still running.
   const finishProjectRemoval = (projectKey: string | null) => {
-    if (latestProjectKey.current !== projectKey) return;
-    if (navigation.isFocused()) navigation.goBack();
+    if (getSelectedProjectKey() !== projectKey) return;
+    if (navigation.isFocused())
+      leaveSettingsPage(navigation, workspaceHasColumns(), DEFAULT_SETTINGS_PAGE);
     // Otherwise the filter keeps pointing at the removed project as an unavailable one.
     selectProject(null);
   };
@@ -78,7 +84,7 @@ export function SettingsProjectOverviewRouteScreen() {
   return (
     <>
       <SettingsEnvironmentFilterHeader />
-      <SettingsScreen title="Project overview" trailing={<AndroidSettingsEnvironmentFilter />}>
+      <SettingsScreen title="Projects" trailing={<AndroidSettingsEnvironmentFilter />}>
         <ScrollView
           contentInsetAdjustmentBehavior="automatic"
           showsVerticalScrollIndicator={false}
@@ -86,7 +92,11 @@ export function SettingsProjectOverviewRouteScreen() {
           contentContainerClassName="gap-6 px-5 pt-4"
           contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 18) + 18 }}
         >
-          {members.length === 0 ? (
+          {selectedProjectKey === null ? (
+            <Text className="px-2 text-base text-foreground-muted">
+              Choose a project with the filter above to manage its name, checkouts and removal.
+            </Text>
+          ) : members.length === 0 ? (
             <Text className="px-2 text-base text-foreground-muted">
               This project has no checkout on the selected connected environments. Change the filter
               above.
@@ -172,6 +182,7 @@ function ProjectOverviewContent(props: {
       hasOtherMembers: props.hasOtherMembers,
       displayName,
       threads,
+      unloadedThreadCount: readUnloadedThreadCount(members, threads),
     });
     Dialog.confirm({
       title: plan.targetKind === "checkout" ? "Remove checkout" : "Remove project",

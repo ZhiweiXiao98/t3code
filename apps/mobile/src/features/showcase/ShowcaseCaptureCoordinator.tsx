@@ -1,13 +1,8 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Keyboard, View } from "react-native";
-import {
-  CommonActions,
-  type NavigationState,
-  type PartialState,
-  StackActions,
-  useNavigation,
-} from "@react-navigation/native";
+import { CommonActions, StackActions, useNavigation } from "@react-navigation/native";
 import { AsyncResult } from "effect/reactivity";
+import { requireOptionalNativeModule } from "expo";
 
 import { useConnectionController } from "../connection/useConnectionController";
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
@@ -38,11 +33,11 @@ import {
   subscribeToShowcaseRenderSignal,
 } from "./showcaseRenderSignal";
 import { stageShowcaseAgentActivity } from "./stageShowcaseAgentActivity";
+import { openSettings } from "../settings/settings-navigation";
+import { selectWorkspaceDetail } from "../workspace/workspace-detail-selection";
 
 const SHOWCASE_ENABLED = process.env.EXPO_PUBLIC_SHOWCASE === "1";
 const SHOWCASE_THREAD_ID = "remote-command-center";
-
-type ShowcaseResetRoute = PartialState<NavigationState>["routes"][number];
 
 function sceneFromPathname(pathname: string): ShowcaseScene | null {
   const routePath = pathname.split(/[?#]/u, 1)[0] ?? pathname;
@@ -63,6 +58,18 @@ export function ShowcaseCaptureCoordinator(props: { readonly pathname: string })
 
 function EnabledShowcaseCaptureCoordinator(props: { readonly pathname: string }) {
   const navigation = useNavigation();
+  useEffect(() => {
+    const menu = requireOptionalNativeModule<{
+      closeMenu(): void;
+      setToolsButtonVisible(visible: boolean): void;
+    }>("ExpoDevMenu");
+    // The dev menu can open after bundle loading and block orientation requests.
+    const timer = setInterval(() => {
+      menu?.closeMenu();
+      menu?.setToolsButtonVisible(false);
+    }, 1_000);
+    return () => clearInterval(timer);
+  }, []);
   const { connectPairingUrl } = useConnectionController();
   const {
     isReady: appearancePreferencesReady,
@@ -84,8 +91,7 @@ function EnabledShowcaseCaptureCoordinator(props: { readonly pathname: string })
   const [orientationSettled, setOrientationSettled] = useState(false);
   const [agentActivityStaged, setAgentActivityStaged] = useState(false);
   const requestedSceneRef = useRef<ShowcaseScene | null>(null);
-  // Staging reads the latest entities without restarting on every shell
-  // update, which would re-enter a permission prompt that is still open.
+  // Read current entities without restarting on shell updates and re-entering open permission prompts.
   const entitiesRef = useRef({ threads, projects });
   useEffect(() => {
     entitiesRef.current = { threads, projects };
@@ -115,12 +121,12 @@ function EnabledShowcaseCaptureCoordinator(props: { readonly pathname: string })
     if (orientationSettled) return;
     const orientation = getNativeShowcaseOrientation();
     if (orientation === null) {
+      // oxlint-disable-next-line react/set-state-in-effect -- Capture readiness follows the native orientation change.
       setOrientationSettled(true);
       return;
     }
 
     let cancelled = false;
-    let lastOutcome: string | null = null;
     void retryShowcaseOperation(async () => applyNativeShowcaseOrientation(orientation), {
       isCancelled: () => cancelled,
     }).then((applied) => {
@@ -136,8 +142,7 @@ function EnabledShowcaseCaptureCoordinator(props: { readonly pathname: string })
       const value = getNativeShowcaseScene();
       if (!value || requestedSceneRef.current === value) return;
       requestedSceneRef.current = value;
-      // A native draw belongs only to the scene request that produced it. In
-      // particular, revisiting review must wait for its newly mounted surface.
+      // Draws belong to their scene request; revisiting review must wait for its new surface.
       clearShowcaseRenderSignal();
       setAgentActivityStaged(false);
       setRequestedScene(value);
@@ -237,40 +242,17 @@ function EnabledShowcaseCaptureCoordinator(props: { readonly pathname: string })
       navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: "Home" }] }));
       return;
     }
-    const routes: ShowcaseResetRoute[] = [{ name: "Home" }];
     if (requestedScene === "environments") {
-      routes.push({
-        name: "SettingsSheet",
-        state: {
-          index: 0,
-          routes: [
-            {
-              name: "SettingsContent",
-              state: {
-                index: 1,
-                routes: [{ name: "Settings" }, { name: "SettingsEnvironments" }],
-              },
-            },
-          ],
-        },
-      });
+      openSettings(navigation, "SettingsEnvironments");
+    } else if (requestedScene === "terminal") {
+      navigation.dispatch(
+        CommonActions.navigate("ThreadTerminal", { ...params, terminalId: "term-1" }),
+      );
+    } else if (requestedScene === "review") {
+      navigation.dispatch(CommonActions.navigate("ThreadReview", params));
     } else {
-      routes.push({ name: "Thread", params });
-      if (requestedScene === "terminal") {
-        routes.push({
-          name: "ThreadTerminal",
-          params: { ...params, terminalId: "term-1" },
-        });
-      } else if (requestedScene === "review") {
-        routes.push({ name: "ThreadReview", params });
-      }
+      navigation.dispatch(selectWorkspaceDetail({ name: "Thread", params }));
     }
-    navigation.dispatch(
-      CommonActions.reset({
-        index: routes.length - 1,
-        routes,
-      }),
-    );
   }, [hasFixture, navigation, requestedScene, scene, showcaseThread]);
 
   useEffect(() => {
@@ -314,6 +296,7 @@ function EnabledShowcaseCaptureCoordinator(props: { readonly pathname: string })
       (scene === "agent-activity" && !agentActivityStaged) ||
       !isShowcaseNativeContentReady({ scene, themeId, renderSignal })
     ) {
+      // oxlint-disable-next-line react/set-state-in-effect -- Capture readiness clears while the scene, fixture, or native content is not ready.
       setReadyScene(null);
       return;
     }

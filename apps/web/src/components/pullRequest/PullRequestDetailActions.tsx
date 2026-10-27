@@ -83,6 +83,7 @@ export function PullRequestCheckoutMenu({
   pickableEnvironments,
   actingEnvironmentId,
   onActingEnvironmentChange,
+  term,
 }: {
   handoff: string | null;
   checkoutRoot: string | null;
@@ -92,6 +93,8 @@ export function PullRequestCheckoutMenu({
   pickableEnvironments: ReadonlyArray<PickableEnvironment>;
   actingEnvironmentId: EnvironmentId;
   onActingEnvironmentChange: (environmentId: EnvironmentId) => void;
+  /** The host's word for a change request, as in "pull request". */
+  term: string;
 }) {
   const { t, locale: uiLocale } = useI18n();
 
@@ -124,7 +127,9 @@ export function PullRequestCheckoutMenu({
             />
           }
         />
-        <TooltipPopup>{translateWebSource(uiLocale, "Check out this pull request")}</TooltipPopup>
+        <TooltipPopup>
+          {uiLocale === "zh-CN" ? "检出此变更请求" : `Check out this ${term}`}
+        </TooltipPopup>
       </Tooltip>
       <MenuPopup align="end" side="bottom">
         <MenuItem disabled={!canPrepareWorktree} onClick={() => onCheckout("worktree")}>
@@ -141,7 +146,7 @@ export function PullRequestCheckoutMenu({
           <span className="flex min-w-0 flex-col">
             <span>{t("pullRequests.checkout.inRepository")}</span>
             <span className="text-xs text-muted-foreground">
-              {t("pullRequests.checkout.inRepositoryDescription")}
+              {translateWebSource(uiLocale, "Switches the branch you are working in.")}
             </span>
           </span>
         </MenuItem>

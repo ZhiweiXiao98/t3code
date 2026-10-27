@@ -85,9 +85,7 @@ function formatValue(key: keyof ServerSettings, value: unknown): string {
   return "Custom";
 }
 
-/**
- * Same order as `resolveProjectSettings`.
- */
+/** Matches resolveProjectSettings order. */
 export function settingInheritanceLayers(
   target: ScopedSettingsTarget,
   environmentSettings: ServerSettings,
@@ -123,8 +121,7 @@ export function settingInheritanceLayers(
       set: source === "t3.json",
     });
   }
-  // For a file-backed key the built-in is what the resolver produced with
-  // nothing set, not the null the schema decodes to.
+  // File-backed defaults come from the resolver, not the schema's decoded null.
   const builtIn = fileBacked
     ? PROJECT_FILE_BACKED_SETTINGS[key].builtIn
     : DEFAULT_SERVER_SETTINGS[key];

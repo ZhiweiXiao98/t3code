@@ -324,11 +324,7 @@ function latestFinishedAtForProviders(providers: ReadonlyArray<ServerProvider>):
   }, null);
 }
 
-/**
- * Collapses terminal update states to the most recently finished instance per
- * driver, so an update on a non-default instance is not hidden behind an
- * older outcome on the driver's default instance.
- */
+/** Use each driver's latest finished instance so an older default-instance result cannot hide it. */
 function latestTerminalProvidersByDriver(providers: ReadonlyArray<ServerProvider>) {
   const latestProviderByDriver = new Map<ProviderDriverKind, ServerProvider>();
 
@@ -347,8 +343,7 @@ export function getProviderUpdateSidebarPillView(
   options?: ProviderUpdateSidebarPillOptions,
 ): ProviderUpdateSidebarPillView | null {
   const locale = options?.locale ?? "en";
-  // Update state is recorded per instance, so pick the instances with an
-  // update before collapsing to one entry per driver.
+  // Filter active instances before deduplicating drivers because update state is per instance.
   const activeProviders = dedupeProvidersByDriver(providers.filter(isProviderUpdateActive));
   if (activeProviders.length > 0) {
     const activeProvider = activeProviders[0]!;
@@ -517,14 +512,4 @@ export function getProviderUpdateSidebarPillView(
       })
       .find((candidate) => !options?.dismissedKeys?.has(candidate.key)) ?? null
   );
-}
-
-function getFailedProviderUpdateDescription(providers: ReadonlyArray<ServerProvider>): string {
-  if (providers.length === 1) {
-    const provider = providers[0]!;
-    if (provider.updateState?.message) {
-      return provider.updateState.message;
-    }
-  }
-  return `${formatProviderList(providers)} failed to update. Check provider settings for details.`;
 }

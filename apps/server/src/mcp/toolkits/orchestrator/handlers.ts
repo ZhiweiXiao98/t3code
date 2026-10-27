@@ -57,27 +57,66 @@ const handlers = {
         );
       }),
   ),
-  schedule_task: McpToolAccess.startsThreads(
-    () => ({}),
-    (input) =>
-      Effect.gen(function* () {
-        const scope = yield* McpInvocationContext.McpInvocationContext;
-        const service = yield* OrchestratorMcpService.OrchestratorMcpService;
-        return yield* service.scheduleTask(scope, input);
-      }),
+  t3_background_wait: McpToolAccess.actsAsCaller((input) =>
+    Effect.gen(function* () {
+      const { scope, threads } = yield* readCaller();
+      const caller = yield* McpInvocationContext.requireThreadScope(scope, "t3_background_wait");
+      return yield* threads
+        .awaitBackgroundTasks({
+          threadId: caller.thread.threadId,
+          taskIds: input.taskIds,
+          awaited: input.waiting ?? true,
+        })
+        .pipe(
+          Effect.mapError(
+            (cause) =>
+              new OrchestratorMcpFailure({
+                code: cause.reason === "unsupported" ? "invalid_request" : "orchestration_error",
+                message: cause.message,
+              }),
+          ),
+        );
+    }),
+  ),
+  schedule_task: McpToolAccess.either(
+    (input) => input.scheduledTaskId === undefined,
+    McpToolAccess.startsThreads(
+      () => ({}),
+      ({ prompt, schedule, ...input }) =>
+        Effect.gen(function* () {
+          if (prompt === undefined || schedule === undefined) {
+            return yield* new OrchestratorMcpFailure({
+              code: "invalid_request",
+              message: "A new scheduled task needs `prompt` and `schedule`.",
+            });
+          }
+          const scope = yield* McpInvocationContext.McpInvocationContext;
+          const service = yield* OrchestratorMcpService.OrchestratorMcpService;
+          return yield* service.scheduleTask(scope, { ...input, prompt, schedule });
+        }),
+    ),
+    McpToolAccess.writes(
+      ({ scheduledTaskId, prompt, title, schedule, enabled, bindToCurrentThread }) =>
+        Effect.gen(function* () {
+          if (scheduledTaskId === undefined) return yield* Effect.die("unreachable");
+          const scope = yield* McpInvocationContext.McpInvocationContext;
+          const service = yield* OrchestratorMcpService.OrchestratorMcpService;
+          return yield* service.updateScheduledTask(scope, {
+            scheduledTaskId,
+            prompt,
+            title,
+            schedule,
+            enabled,
+            bindToCurrentThread,
+          });
+        }),
+    ),
   ),
   list_scheduled_tasks: McpToolAccess.reads((input) =>
     Effect.gen(function* () {
       const scope = yield* McpInvocationContext.McpInvocationContext;
       const service = yield* OrchestratorMcpService.OrchestratorMcpService;
       return yield* service.listScheduledTasks(scope, input);
-    }),
-  ),
-  update_scheduled_task: McpToolAccess.writes((input) =>
-    Effect.gen(function* () {
-      const scope = yield* McpInvocationContext.McpInvocationContext;
-      const service = yield* OrchestratorMcpService.OrchestratorMcpService;
-      return yield* service.updateScheduledTask(scope, input);
     }),
   ),
   delete_scheduled_task: McpToolAccess.writes((input) =>

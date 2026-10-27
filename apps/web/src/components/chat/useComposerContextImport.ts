@@ -1,3 +1,10 @@
+import {
+  ConnectionBlockedError,
+  ConnectionTransientError,
+} from "@t3tools/client-runtime/connection";
+import { EnvironmentRpcUnavailableError } from "@t3tools/client-runtime/rpc";
+import * as Cause from "effect/Cause";
+import * as Schema from "effect/Schema";
 import type { RefObject } from "react";
 import type { ChatComposerProps } from "./ChatComposer";
 import {
@@ -47,6 +54,11 @@ import {
 import { useAtomCommand } from "../../state/use-atom-command";
 import { useAtomQueryRunner } from "~/state/use-atom-query-runner";
 import { useStableCallback } from "../../hooks/useStableCallback";
+import { countPreparingComposerImages } from "./preparingComposerImages";
+
+const isUnreachable = Schema.is(
+  Schema.Union([ConnectionTransientError, ConnectionBlockedError, EnvironmentRpcUnavailableError]),
+);
 
 async function downloadAttachmentBlob(url: string): Promise<Blob | null> {
   try {
@@ -74,7 +86,6 @@ export function useComposerContextImport(input: {
   readonly composerContextRecords: ComposerDraftContextRecords;
   readonly composerImages: ReadonlyArray<ComposerImageAttachment>;
   readonly composerFilesRef: ChatComposerProps["composerFilesRef"];
-  readonly pendingImageCompressionsRef: RefObject<Map<string, number>>;
   readonly pendingThreadImportsRef: RefObject<Map<string, number>>;
   readonly addComposerFilesToDraft: (files: ComposerFileAttachment[]) => string[];
 }) {
@@ -91,7 +102,6 @@ export function useComposerContextImport(input: {
     composerContextRecords,
     composerImages,
     composerFilesRef,
-    pendingImageCompressionsRef,
     pendingThreadImportsRef,
     addComposerFilesToDraft,
   } = input;
@@ -128,7 +138,7 @@ export function useComposerContextImport(input: {
     return (
       (draft?.images.length ?? 0) +
       (draft?.files.length ?? 0) +
-      (pendingImageCompressionsRef.current.get(attachmentTargetKey) ?? 0) +
+      countPreparingComposerImages(attachmentTargetKey) +
       (pendingThreadImportsRef.current.get(attachmentTargetKey) ?? 0) +
       countQuestionAttachments(otherQuestionKeys)
     );
@@ -163,7 +173,12 @@ export function useComposerContextImport(input: {
           ? resolveAssetUrl(sourceConnection.httpBaseUrl, result.value.relativeUrl)
           : null;
       if (!url) {
-        fail("The original attachment is no longer available.");
+        const cause = result._tag === "Failure" ? Cause.squash(result.cause) : null;
+        fail(
+          isUnreachable(cause)
+            ? "The environment it came from is not reachable right now."
+            : "The original attachment is no longer available.",
+        );
         return;
       }
       const blob = await downloadAttachmentBlob(url);

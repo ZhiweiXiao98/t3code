@@ -14,6 +14,7 @@ import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
+import * as NodeSqliteClient from "@t3tools/shared/nodeSqliteClient";
 import * as SqlClient from "effect/sql/SqlClient";
 import {
   ProjectionStoreReadError,
@@ -263,8 +264,7 @@ export const makeThreadFind = Effect.fn("makeThreadFind")(function* (
           });
     });
   });
-  // Each scan visits every message, so a cache smaller than the thread is cycled through and
-  // never hits. Real threads reach a few thousand messages of a few hundred characters.
+  // Scans visit every message; a cache smaller than the thread churns without hits.
   const textCache = yield* Cache.make({
     capacity: 8192,
     timeToLive: "1 minute",
@@ -345,7 +345,7 @@ export const makeThreadFind = Effect.fn("makeThreadFind")(function* (
       }
       return { payloads, cwd, sequence, cacheKey, sourceThreadIds };
     },
-    sql.withTransaction,
+    (effect) => sql.withTransaction(effect).pipe(NodeSqliteClient.readOnly),
     (effect, input) =>
       effect.pipe(
         Effect.mapError((cause) =>

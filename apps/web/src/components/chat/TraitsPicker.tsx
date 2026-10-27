@@ -25,8 +25,8 @@ import {
   normalizeModelSlug,
 } from "@t3tools/shared/model";
 import { memo } from "react";
-import { BrainIcon } from "lucide-react";
 import { useI18n } from "~/i18n/WebI18nContext";
+import { BrainIcon, GaugeIcon } from "lucide-react";
 import {
   Menu,
   MenuGroup,
@@ -278,8 +278,6 @@ export function getReasoningTraitStep(input: {
           input.reportedModelSelection,
         );
   const ordered = input.direction > 0 ? descriptor.options : descriptor.options.toReversed();
-  // A reported value outside the catalog, such as OpenCode's "default", steps
-  // from the catalog default, or from the end when there is none.
   const position =
     [current, getDescriptorStringValue(descriptor)]
       .map((value) => ordered.findIndex((option) => option.id === value))
@@ -459,8 +457,6 @@ export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
                     key={option.id}
                     value={option.id}
                     hideIndicator
-                    // Base UI keeps radio menus open by default. Close on pick so
-                    // the traits menu behaves like the model picker.
                     closeOnClick
                     disabled={ultrathinkInBodyText && descriptor.id === primarySelectDescriptor?.id}
                   >
@@ -619,7 +615,8 @@ export const TraitsPicker = memo(function TraitsPicker({
                 size === "xs" ? "gap-1" : "gap-1.5",
               )}
             >
-              <ComposerControlIcon icon={BrainIcon} size={size} />
+              <ComposerControlIcon icon={BrainIcon} size={size} className="redesign:hidden" />
+              <ComposerControlIcon icon={GaugeIcon} size={size} className="hidden redesign:block" />
               <span data-composer-control-label className="min-w-0 truncate">
                 {triggerLabel}
               </span>
@@ -627,7 +624,8 @@ export const TraitsPicker = memo(function TraitsPicker({
             </span>
           ) : (
             <>
-              <ComposerControlIcon icon={BrainIcon} size={size} />
+              <ComposerControlIcon icon={BrainIcon} size={size} className="redesign:hidden" />
+              <ComposerControlIcon icon={GaugeIcon} size={size} className="hidden redesign:block" />
               <span data-composer-control-label>{triggerLabel}</span>
               <ComposerControlChevron size={size} />
             </>

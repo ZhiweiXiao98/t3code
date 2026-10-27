@@ -68,7 +68,7 @@ function NumberLink({
   openOnHostText: string;
   focusable: boolean;
 }) {
-  const { t } = useI18n();
+  const { locale } = useI18n();
 
   return (
     <Tooltip>
@@ -86,9 +86,11 @@ function NumberLink({
               "inline-flex shrink-0 cursor-pointer items-center gap-0.5 font-medium underline-offset-2 hover:underline",
               toneClassName,
             )}
-            aria-label={t("pullRequests.detail.openOnHost", {
-              number: detail.number,
-            })}
+            aria-label={
+              locale === "zh-CN"
+                ? `在托管平台打开变更请求 #${detail.number}`
+                : `Open ${sourceControlClients.get(detail.provider).changeRequest.singular} #${detail.number} on host`
+            }
           >
             #{detail.number}
             <ExternalLinkIcon aria-hidden className="size-2.5" />

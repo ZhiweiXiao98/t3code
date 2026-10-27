@@ -45,6 +45,40 @@ function makeStorage(initial: Readonly<Record<string, string>>) {
 }
 
 describe("mobile connection catalog storage", () => {
+  it.effect("preserves pull request routing grants across catalog reloads and writes", () =>
+    Effect.gen(function* () {
+      const grants = [
+        {
+          environmentId: EnvironmentId.make("desktop-routing"),
+          connectionKey: '["RelayConnectionTarget","desktop-routing"]',
+          permission: "read-write" as const,
+        },
+        {
+          environmentId: EnvironmentId.make("desktop-disabled-routing"),
+          connectionKey: '["RelayConnectionTarget","desktop-disabled-routing"]',
+          permission: "off" as const,
+        },
+      ];
+      const memory = makeStorage({
+        [CONNECTION_CATALOG_KEY]: JSON.stringify({
+          ...EMPTY_CONNECTION_CATALOG_DOCUMENT,
+          githubRoutingPermissions: grants,
+        }),
+      });
+      const catalog = yield* make().pipe(
+        Effect.provideService(MobileSecureStorage.MobileSecureStorage, memory.storage),
+      );
+      expect((yield* catalog.read).githubRoutingPermissions).toEqual(grants);
+      yield* catalog.update((document) => document);
+      const reloaded = yield* make().pipe(
+        Effect.provideService(MobileSecureStorage.MobileSecureStorage, memory.storage),
+      );
+      expect((yield* reloaded.read).githubRoutingPermissions).toEqual(grants);
+      expect(
+        JSON.parse(memory.values.get(CONNECTION_CATALOG_KEY)!).githubRoutingPermissions,
+      ).toEqual(grants);
+    }),
+  );
   it.effect("preserves disabled environments when reading saved catalogs", () =>
     Effect.gen(function* () {
       const id = EnvironmentId.make("desktop-disabled");

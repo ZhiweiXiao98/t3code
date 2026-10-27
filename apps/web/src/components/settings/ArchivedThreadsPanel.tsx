@@ -1,5 +1,4 @@
-import { splitWebTranslation } from "~/i18n/WebI18nContext";
-import { useI18n } from "~/i18n/WebI18nContext";
+import { splitWebTranslation, useI18n } from "~/i18n/WebI18nContext";
 import { settingsScopeEnvironmentLabels } from "./settingsScopeAxis";
 import { Spinner } from "~/components/ui/spinner";
 import { ArchiveIcon, ArchiveX } from "lucide-react";
@@ -243,9 +242,13 @@ export function ArchivedThreadsPanel() {
                 description={
                   <span className={hasMultipleEnvironments ? "block truncate" : undefined}>
                     {hasMultipleEnvironments ? `${thread.environmentLabel} · ` : null}
-                    Archived <RelativeTime timestamp={thread.archivedAt ?? thread.createdAt} />
-                    {" \u00b7 Created "}
+                    {beforeArchived}
+                    <RelativeTime timestamp={thread.archivedAt ?? thread.createdAt} />
+                    {afterArchived}
+                    {" \u00b7 "}
+                    {beforeCreated}
                     <RelativeTime timestamp={thread.createdAt} />
+                    {afterCreated}
                   </span>
                 }
                 control={

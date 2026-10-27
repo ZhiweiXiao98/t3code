@@ -106,6 +106,7 @@ import { CodexSetupSection, CodexManagedRuntimeFields } from "./CodexSetupSectio
 import { readCodexSetupMode } from "./CodexSetupSection.logic";
 import { providerClients } from "./providerDriverMeta";
 import { searchableSetting } from "./settingsSearch";
+import { CompactIdleThreadsRow } from "./SettingsPanels";
 import {
   backgroundActivityOverrideSettings,
   buildProviderInstanceUpdatePatch,
@@ -156,8 +157,7 @@ function configuredBinaryPath(config: unknown): string {
   return typeof config.binaryPath === "string" ? config.binaryPath.trim() : "";
 }
 
-// Subscribes on its own: a status push restamps `checkedAt` on every provider,
-// and this label is the only part of the panel that shows it.
+// Subscribe only in the label because every status push restamps all providers' checkedAt.
 function ProviderLastChecked({ environmentId }: { environmentId: EnvironmentId }) {
   const { t } = useI18n();
   const serverProviders =
@@ -278,8 +278,7 @@ function EnvironmentUnavailablePlaceholder({
       : t("providers.unavailable.waitingConfiguration", { environment: environment.label })
     : localizedConnectionStatus(environment, t);
   const error = isLoading ? null : environment.connection.error;
-  // No spinner: this state can persist indefinitely for a wedged device, and a
-  // continuously repainting animation would run the whole time.
+  // Wedged devices can remain here indefinitely; a spinner would continuously repaint.
   return (
     <ProviderSettingsPlaceholder
       deviceTabs={deviceTabs}
@@ -362,7 +361,6 @@ function ProviderSettingsPanelContent(target: ProviderSettingsTarget) {
         hasServerConfig: true,
       }),
   )?.environmentId;
-  // A search jump to a setting the selected device cannot show switches to one that can.
   let searchRedirectEnvironmentId: EnvironmentId | undefined;
   {
     if (
@@ -596,9 +594,7 @@ export function EnvironmentProviderSettings({
   const toggleModelFavorite = useToggleEnvironmentModelFavorite(environmentId);
   const persistProviderInstance = usePersistEnvironmentProviderInstanceMutation(environmentId);
   const serverProviders = useAtomValue(providersIgnoringCheckedAtAtom(environmentId));
-  // Older servers decode an unknown providerInstances key away, so sending
-  // a project override patch would silently do nothing. Hide the switch
-  // instead of offering a control that can never take effect.
+  // Hide overrides on older servers that silently ignore providerInstances patches.
   const supportsProjectProviderOverrides = useAtomValue(
     serverEnvironment.configValueAtom(environmentId),
     (config) => config?.environment.capabilities.projectProviderInstanceOverrides === true,
@@ -627,8 +623,6 @@ export function EnvironmentProviderSettings({
   const refreshingRef = useRef(false);
   const updatingInstanceIdsRef = useRef<Set<ProviderInstanceId>>(new Set());
 
-  // Rows call these at event time and receive the same functions every render,
-  // so a settings write or provider push only redraws the row it changed.
   const acceptUrlAuthentication = useStableCallback(
     (instanceId: ProviderInstanceId, action: AcpRegistryUrlAuthAction) => {
       void acceptAcpRegistryUrlAuth({
@@ -701,8 +695,7 @@ export function EnvironmentProviderSettings({
       targetVersion?: string,
     ) => {
       if (!readEnvironmentScope(environmentId, AuthProvidersManageScope)) return;
-      // Ref-based re-entry guard, mirroring refreshProviders: a state updater
-      // may run after this function returns, so it cannot gate the dispatch.
+      // Guard re-entry with a ref; deferred state updates cannot gate dispatch.
       if (updatingInstanceIdsRef.current.has(candidate.instanceId)) {
         return;
       }
@@ -897,9 +890,7 @@ export function EnvironmentProviderSettings({
       const agentId = providerConfigString(instance.config, "agentId");
       if (agentId === null) return;
 
-      // The server decides from its latest settings whether this was the last
-      // instance using the managed agent. A client-side snapshot check can race
-      // two removals and make both callers skip cleanup.
+      // Concurrent removals race client snapshots; let the server decide whether the agent remains in use.
       const uninstallResult = await uninstallAcpRegistryManagedBinary({
         environmentId,
         input: { agentId },
@@ -1029,7 +1020,8 @@ export function EnvironmentProviderSettings({
           ) : null
         }
         headerAction={
-          <div className="flex min-w-0 items-center gap-2">
+          // The ghost button's padding would inset its label; the New design aligns the text to the card edge.
+          <div className="flex min-w-0 items-center gap-2 redesign:-me-2">
             <ProviderUpdatesAction />
             <Tooltip>
               <TooltipTrigger
@@ -1100,10 +1092,13 @@ export function EnvironmentProviderSettings({
             </ScrollArea>
           </div>
 
-          <div className="min-w-0 @min-[48rem]/providers:min-h-0">
+          <div data-provider-detail className="min-w-0 @min-[48rem]/providers:min-h-0">
             {selectedRow ? (
               <ScrollArea scrollFade chainVerticalScroll className="@min-[48rem]/providers:h-full">
-                <div className="space-y-6 p-4">{renderProviderInstance(selectedRow, "editor")}</div>
+                {/* Flat sections run dividers edge to edge and inset text like the list beside them. */}
+                <div className="space-y-6 p-4 redesign:px-0">
+                  {renderProviderInstance(selectedRow, "editor")}
+                </div>
               </ScrollArea>
             ) : (
               <div className="p-6 text-sm text-muted-foreground">
@@ -1134,7 +1129,7 @@ export function EnvironmentProviderSettings({
               <PolicyTooltip>
                 This interval is configured here, then the shared Background activity policy decides
                 whether provider probes may run when the timer fires. Custom intervals appear as
-                Advanced in General settings.
+                Advanced in Maintenance settings.
               </PolicyTooltip>
             </span>
           }
@@ -1213,6 +1208,7 @@ export function EnvironmentProviderSettings({
             </div>
           }
         />
+        <CompactIdleThreadsRow />
       </SettingsSection>
 
       {isAddInstanceDialogOpen && !readOnly ? (
@@ -1262,12 +1258,7 @@ interface ProviderInstanceRowActions {
 
 const NO_MODELS: ReadonlyArray<string> = [];
 
-/**
- * The boundary that lets the list skip work: the parent rebuilds every row
- * element when settings change, so this cheap component re-renders, but each
- * prop is a primitive, a settings value shared across pushes, or a stable
- * action, and its cached card element is returned unchanged.
- */
+/** Stable props let this boundary return cached cards even when settings rebuild parent row elements. */
 function ProviderInstanceRow({
   environmentId,
   environmentLabel,

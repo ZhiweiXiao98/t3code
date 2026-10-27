@@ -21,9 +21,14 @@ export function PullRequestDiffUnavailableState({
   url: string;
   onRetry: () => void;
 }) {
-  const { t } = useI18n();
-  const { providerName } = getSourceControlPresentationForKind(provider);
-  const { title, description } = describePullRequestDiffError(error, providerName, t);
+  const { t, locale } = useI18n();
+  const { providerName, terminology } = getSourceControlPresentationForKind(provider);
+  const { title, description } = describePullRequestDiffError(
+    error,
+    providerName,
+    terminology.singular,
+    locale === "zh-CN" ? t : undefined,
+  );
 
   return (
     <Empty size="compact" className="min-h-full" role="status">

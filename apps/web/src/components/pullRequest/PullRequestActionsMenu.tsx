@@ -1,6 +1,7 @@
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
 import { useAtomValue } from "@effect/atom-react";
+import type { ChangeRequestTerminology } from "@t3tools/client-runtime/source-control-clients";
 import type {
   EnvironmentId,
   PullRequestAction,
@@ -54,6 +55,7 @@ export function PullRequestActionsMenu({
   reference,
   pullRequestKey,
   detail,
+  terminology,
   linkThreadRef,
   onThreadPickerOpenChange,
   refreshing,
@@ -93,6 +95,7 @@ export function PullRequestActionsMenu({
   reference: PullRequestRef;
   pullRequestKey: string;
   detail: Pick<PullRequestDetail, "url" | "state" | "isDraft" | "headBranch">;
+  terminology: ChangeRequestTerminology;
   linkThreadRef: ScopedThreadRef | null;
   onThreadPickerOpenChange: (open: boolean) => void;
   refreshing: boolean;
@@ -144,8 +147,12 @@ export function PullRequestActionsMenu({
                 <Button
                   aria-label={
                     refreshing
-                      ? translateWebSource(uiLocale, "Refreshing pull request")
-                      : t("pullRequests.actions.more")
+                      ? uiLocale === "zh-CN"
+                        ? "正在刷新变更请求"
+                        : `Refreshing ${terminology.singular}`
+                      : uiLocale === "zh-CN"
+                        ? "更多变更请求操作"
+                        : `More ${terminology.singular} actions`
                   }
                   size="icon-xs"
                   variant="ghost-muted"
@@ -162,8 +169,12 @@ export function PullRequestActionsMenu({
         />
         <TooltipPopup>
           {refreshing
-            ? translateWebSource(uiLocale, "Refreshing pull request")
-            : t("pullRequests.actions.more")}
+            ? uiLocale === "zh-CN"
+              ? "正在刷新变更请求"
+              : `Refreshing ${terminology.singular}`
+            : uiLocale === "zh-CN"
+              ? "更多变更请求操作"
+              : `More ${terminology.singular} actions`}
         </TooltipPopup>
       </Tooltip>
       <MenuPopup align="end" side="bottom">
@@ -189,8 +200,12 @@ export function PullRequestActionsMenu({
             </span>
             <span className="text-xs text-muted-foreground">
               {attachesToComposer
-                ? t("pullRequests.handoff.addToCurrentComposer")
-                : t("pullRequests.handoff.openAwareThread")}
+                ? uiLocale === "zh-CN"
+                  ? "将变更请求添加到此会话的输入框。"
+                  : `Adds the ${terminology.singular} to this thread's composer.`
+                : uiLocale === "zh-CN"
+                  ? "打开已关联此变更请求的会话。"
+                  : `Opens a thread that knows which ${terminology.singular} you mean.`}
             </span>
           </span>
         </MenuItem>
@@ -198,9 +213,7 @@ export function PullRequestActionsMenu({
           <BookOpenIcon className="mt-1 size-3.5 shrink-0 self-start" />
           <span className="flex min-w-0 flex-col">
             <span>
-              {handoff === "explain"
-                ? t("pullRequests.actions.opening")
-                : t("pullRequests.actions.explain")}
+              {handoff === "explain" ? "Opening..." : `Explain this ${terminology.shortLabel}`}
             </span>
             <span className="text-xs text-muted-foreground">
               {t("pullRequests.actions.explainDescription")}
@@ -327,9 +340,7 @@ export function PullRequestActionsMenu({
           <ArrowUpRightIcon className="size-3.5" />
           {openOnHostText}
         </MenuItem>
-        <MenuItem
-          onClick={() => copyReference(detail.url, translateWebSource(uiLocale, "PR link"))}
-        >
+        <MenuItem onClick={() => copyReference(detail.url, `${terminology.shortLabel} link`)}>
           <LinkIcon className="size-3.5" />
           {t("common.copyLink")}
           <MenuShortcut>
@@ -337,12 +348,10 @@ export function PullRequestActionsMenu({
           </MenuShortcut>
         </MenuItem>
         <MenuItem
-          onClick={() =>
-            copyReference(`#${reference.number}`, translateWebSource(uiLocale, "PR number"))
-          }
+          onClick={() => copyReference(`#${reference.number}`, `${terminology.shortLabel} number`)}
         >
           <CopyIcon className="size-3.5" />
-          {translateWebSource(uiLocale, "Copy PR number")}
+          Copy {terminology.shortLabel} number
           <MenuShortcut>
             {shortcutLabelForCommand(keybindings, "pullRequest.copyNumber")}
           </MenuShortcut>
@@ -355,7 +364,9 @@ export function PullRequestActionsMenu({
               aria-label={
                 inlineConfirm.isArmed("close")
                   ? translateWebSource(uiLocale, "Confirm close?")
-                  : t("pullRequests.actions.close")
+                  : uiLocale === "zh-CN"
+                    ? "关闭变更请求"
+                    : `Close ${terminology.singular}`
               }
               variant="destructive"
               disabled={actionPending}
@@ -364,7 +375,9 @@ export function PullRequestActionsMenu({
               <PullRequestGlyph.closed className="size-3.5" />
               {inlineConfirm.isArmed("close")
                 ? translateWebSource(uiLocale, "Confirm close?")
-                : t("pullRequests.actions.close")}
+                : uiLocale === "zh-CN"
+                  ? "关闭变更请求"
+                  : `Close ${terminology.singular}`}
             </MenuItem>
           </>
         ) : detail.state === "closed" && can("reopen") ? (
@@ -372,7 +385,7 @@ export function PullRequestActionsMenu({
             <MenuSeparator />
             <MenuItem disabled={actionPending} onClick={() => void perform("reopen")}>
               <PullRequestGlyph.reopen className="size-3.5" />
-              {t("pullRequests.actions.reopen")}{" "}
+              {uiLocale === "zh-CN" ? "重新打开变更请求" : `Reopen ${terminology.singular}`}
             </MenuItem>
           </>
         ) : detail.state === "merged" && can("revert") ? (

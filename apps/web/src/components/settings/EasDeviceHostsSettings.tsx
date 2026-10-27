@@ -1,6 +1,7 @@
 import { translateWebSource } from "../../i18n/messages";
 import { useI18n } from "../../i18n/WebI18nContext";
-import { useEffect, useEffectEvent, useId, useRef, useState } from "react";
+import { useAtomValue } from "@effect/atom-react";
+import { useId, useRef, useState } from "react";
 import * as Cause from "effect/Cause";
 import * as Option from "effect/Option";
 import {
@@ -12,7 +13,7 @@ import {
 import { CloudIcon, PlusIcon, XIcon } from "lucide-react";
 
 import { randomUUID } from "../../lib/utils";
-import { deviceEnvironment } from "../../state/device";
+import { deviceEasAccountCheck, deviceEnvironment } from "../../state/device";
 import { serverEnvironment } from "../../state/server";
 import { readEnvironmentScope, useEnvironmentScope } from "../../state/session";
 import { useAtomCommand } from "../../state/use-atom-command";
@@ -166,6 +167,12 @@ export function EasDeviceHostsSettings(props: { environmentId: EnvironmentId | n
   );
 }
 
+type AccountCheck =
+  | { status: "idle" }
+  | { status: "checking" }
+  | { status: "signed-in"; account: DeviceEasAccount }
+  | { status: "failed"; error: string };
+
 function EasDeviceHostEditor(props: {
   environmentId: EnvironmentId;
   host: EasDeviceHostConfig;
@@ -182,13 +189,26 @@ function EasDeviceHostEditor(props: {
   const [token, setToken] = useState<
     { kind: "saved" } | { kind: "new"; value: string } | { kind: "cleared" }
   >(props.host.accessToken ? { kind: "saved" } : { kind: "cleared" });
-  const [account, setAccount] = useState<
-    | { status: "idle" }
-    | { status: "checking" }
-    | { status: "signed-in"; account: DeviceEasAccount }
-    | { status: "failed"; error: string }
-    // The editor checks the account as it opens.
-  >({ status: "checking" });
+  // Checking on open names the saved project and shows a rejected credential
+  // before anything is changed. A manual check or a token edit replaces it.
+  const openCheck = useAtomValue(
+    deviceEasAccountCheck({
+      environmentId: props.environmentId,
+      input: props.host.accessToken
+        ? props.isNew
+          ? {}
+          : { hostId: props.host.id }
+        : { accessToken: "" },
+    }),
+  );
+  const [checked, setAccount] = useState<AccountCheck | null>(null);
+  const account: AccountCheck =
+    checked ??
+    (openCheck._tag === "Initial" || openCheck.waiting
+      ? { status: "checking" }
+      : openCheck._tag === "Success"
+        ? { status: "signed-in", account: openCheck.value }
+        : { status: "failed", error: failureMessage(openCheck.cause) });
   const next: EasDeviceHostConfig = {
     ...draft,
     label: draft.label.trim(),
@@ -240,13 +260,6 @@ function EasDeviceHostEditor(props: {
     setAccount({ status: "checking" });
     void requestCheck();
   };
-
-  // Checking on open names the saved project and shows a rejected credential
-  // before anything is changed.
-  const checkOnOpen = useEffectEvent(() => void requestCheck());
-  useEffect(() => {
-    checkOnOpen();
-  }, []);
 
   const limit = (
     field: "maxSessionMinutes" | "idleMinutes" | "maxConcurrentSessions",

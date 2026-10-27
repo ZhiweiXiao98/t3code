@@ -20,7 +20,7 @@ import {
 import { PREFERRED_HIGHLIGHTER } from "~/lib/syntaxHighlighting";
 import {
   buildDiffReviewComment,
-  resolveDiffReviewPosition,
+  resolveDiffReviewAnchor,
   type ReviewCommentContext,
 } from "~/reviewCommentContext";
 
@@ -55,11 +55,14 @@ export interface ExcerptNoteMarker {
 
 export interface ExcerptCommenting {
   readonly canComment: boolean;
+  /** The host anchors a comment to a range of lines rather than to its last one. */
+  readonly rangeComments: boolean;
   readonly pending: ReadonlyArray<PendingReviewComment>;
   readonly onComment: (comment: {
     readonly path: string;
     readonly oldPath: string | null;
     readonly position: PullRequestReviewPosition;
+    readonly startPosition?: PullRequestReviewPosition | undefined;
     readonly body: string;
   }) => void;
   readonly onRemove: (commentId: string) => void;
@@ -75,6 +78,7 @@ interface ExcerptAnnotation {
 interface ExcerptDraft {
   readonly range: SelectedLineRange;
   readonly position: PullRequestReviewPosition;
+  readonly startPosition?: PullRequestReviewPosition;
 }
 
 type ExcerptSlice = NonNullable<ReturnType<typeof excerptSlice>>;
@@ -97,9 +101,7 @@ function excerptSlice(file: FileDiffMetadata | null, excerpt: PullRequestReviewG
   return { fileDiff, rows: shown, shown: shown.length, total: rows.length, drawn };
 }
 
-// The excerpt expands against an old side of its own: the file's real old side differs from
-// the new one wherever another hunk changed it, and the renderer needs the two to agree around
-// the lines it shows. A slice across hunks has nothing consistent to expand into.
+// Other hunks shift old-side context; expand against an excerpt-matching old side.
 function excerptLoader(
   excerpt: PullRequestReviewGuideExcerpt,
   sliceRows: ExcerptSlice["rows"],
@@ -141,7 +143,7 @@ export function GuideExcerpt({
   onOpenFile: (path: string) => void;
 }) {
   const { t, locale: uiLocale } = useI18n();
-  // Kept here, not in ExcerptDiff, so a selection survives the diff reloading for a new head.
+  // Keep selections outside ExcerptDiff to survive head reloads.
   const [draft, setDraft] = useState<ExcerptDraft | null>(null);
   const slice = excerptSlice(file, excerpt);
 
@@ -183,7 +185,6 @@ export function GuideExcerpt({
   );
 }
 
-// Split out so draft changes re-render the diff without re-slicing the patch.
 function ExcerptDiff({
   excerpt,
   file,
@@ -257,9 +258,9 @@ function ExcerptDiff({
 
   const beginComment = (range: SelectedLineRange | null) => {
     if (range === null) return;
-    const position = resolveDiffReviewPosition(file, range.end, range.endSide ?? range.side);
-    if (position === null) return;
-    setDraft({ range, position });
+    const anchor = resolveDiffReviewAnchor(file, range, commenting?.rangeComments === true);
+    if (anchor === null) return;
+    setDraft({ range, ...anchor });
   };
   const interactive = commenting !== null && draft === null;
   const onAskAgent = commenting?.onAskAgent ?? null;
@@ -354,6 +355,7 @@ function ExcerptDiff({
                     path: excerpt.path,
                     oldPath: previousPathOf(file, excerpt.path),
                     position: draft.position,
+                    startPosition: draft.startPosition,
                     body,
                   });
                   setDraft(null);

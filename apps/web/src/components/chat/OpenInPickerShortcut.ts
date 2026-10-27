@@ -2,10 +2,38 @@ import type { EditorId, EnvironmentId, ResolvedKeybindingsConfig } from "@t3tool
 import { useEffect } from "react";
 
 import { usePreferredEditor } from "../../editorPreferences";
+import { editorLabelForPlatform } from "../../editorLabels";
 import { isOpenFavoriteEditorShortcut } from "../../keybindings";
+import { announce } from "../../lib/announce";
 import { useRemoteOpenState } from "../../remoteOpen";
+import { registerCommands } from "../../shortcuts/dispatcher";
 import { shellEnvironment } from "../../state/shell";
 import { useAtomCommand } from "../../state/use-atom-command";
+
+/** Marks an OpenInPicker's primary button as the target of `editor.openFavorite`. */
+export const OPEN_FAVORITE_EDITOR_ATTRIBUTE = "data-open-favorite-editor";
+
+/**
+ * `editor.openFavorite` presses the marked OpenInPicker primary button, so the shortcut opens
+ * exactly what the button on screen would. A missing or disabled button leaves the chord to the
+ * bubble-phase fallback below. Capture phase, so a focused terminal does not swallow the chord.
+ */
+export function registerOpenFavoriteEditorCommand(): () => void {
+  return registerCommands(
+    {
+      "editor.openFavorite": (event) => {
+        if (event.repeat) return false;
+        const button = [
+          ...document.querySelectorAll<HTMLButtonElement>(`[${OPEN_FAVORITE_EDITOR_ATTRIBUTE}]`),
+        ].at(-1);
+        if (button === undefined || button.disabled) return false;
+        event.preventDefault();
+        button.click();
+      },
+    },
+    { capture: true },
+  );
+}
 
 export function useOpenFavoriteEditorShortcut({
   enabled,
@@ -31,12 +59,15 @@ export function useOpenFavoriteEditorShortcut({
       if (!openInCwd || !preferredEditor) return;
 
       event.preventDefault();
+      const label = editorLabelForPlatform(preferredEditor, navigator.platform);
       void openInEditorMutation({
         environmentId,
         input: {
           cwd: openInCwd,
           editor: preferredEditor,
         },
+      }).then((result) => {
+        if (result._tag === "Success") announce(`Opened in ${label}`);
       });
     };
     window.addEventListener("keydown", handler);

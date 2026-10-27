@@ -3,6 +3,21 @@ import { describe, expect, it } from "vite-plus/test";
 import { localizeAlertArguments, localizeMobileString } from "./mobileStrings";
 
 describe("mobile strings", () => {
+  it("translates stable 0.1.3 settings and review controls while preserving English", () => {
+    const messages = {
+      "Agent browser access": "Agent 浏览器访问",
+      "Reset tabs": "重置标签页",
+      "Resume after usage limits": "用量限制解除后继续",
+      "Snooze until limits reset": "休眠至用量限制重置",
+      "Edit labels": "编辑标签",
+      "Search authors…": "搜索作者…",
+      "Ask anything": "输入任何问题",
+    };
+    for (const [source, translated] of Object.entries(messages)) {
+      expect(localizeMobileString(source, "zh-CN")).toBe(translated);
+      expect(localizeMobileString(source, "en")).toBe(source);
+    }
+  });
   it("translates the new commit, linking, webhook, and preview controls", () => {
     const messages = {
       "Cancel commit": "取消提交",

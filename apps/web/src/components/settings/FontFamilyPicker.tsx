@@ -35,6 +35,7 @@ let enumerationState: FontEnumerationState = supportsFontEnumeration()
 const enumerationListeners = new Set<() => void>();
 
 function subscribeToEnumeration(listener: () => void): () => void {
+  probeAlreadyGrantedPermission();
   enumerationListeners.add(listener);
   return () => enumerationListeners.delete(listener);
 }
@@ -60,11 +61,7 @@ export function discoverInstalledFonts(): void {
 
 let grantedProbeStarted = false;
 
-/**
- * Electron's default permission handler approves silently (it has no prompt
- * UI), and a browser that granted once reports "granted" on later visits — in
- * both, no user gesture is needed.
- */
+/** Electron and previously granted browsers need no user gesture to enumerate fonts. */
 function probeAlreadyGrantedPermission(): void {
   if (grantedProbeStarted || enumerationState.status !== "unknown") return;
   grantedProbeStarted = true;
@@ -79,7 +76,6 @@ function probeAlreadyGrantedPermission(): void {
 }
 
 export function useFontEnumeration(): FontEnumerationState {
-  useEffect(probeAlreadyGrantedPermission, []);
   return useSyncExternalStore(subscribeToEnumeration, readEnumerationState);
 }
 
@@ -101,10 +97,8 @@ export function FontFamilyPicker({
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  // Open after mount rather than mounting open: a popup that first renders in
-  // its open state never receives Base UI's entrance style baseline, so the
-  // exit transition on close has no style delta, never fires transitionend,
-  // and the popup lingers on screen forever.
+  // Base UI needs an initial closed commit; mounting open loses exit transitionend and leaves the popup
+  // stuck.
   const [openAfterMount] = useState(initialOpen);
   useEffect(() => {
     // oxlint-disable-next-line react/set-state-in-effect -- Base UI needs one closed commit first to record the popup's entrance style.
@@ -206,9 +200,8 @@ export function FontFamilyPicker({
               <LegendList<string>
                 ref={listRef}
                 data={items}
-                // Rows are memoized by item, but Base UI highlights and selects
-                // virtualized rows by index. Re-render them when filtering moves
-                // a surviving item to a new index.
+                // Base UI selects virtualized rows by index; rerender surviving items when filtering changes
+                // their indices.
                 extraData={items}
                 keyExtractor={(item) => item}
                 renderItem={({ item, index }) => renderItem(item, index)}

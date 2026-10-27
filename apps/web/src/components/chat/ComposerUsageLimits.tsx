@@ -61,7 +61,6 @@ export function usageLimitsBannerItem(
   return {
     id,
     variant: "info",
-    priority: "notice",
     icon: <GaugeIcon />,
     title: t("usage.limits.title"),
     description: summary,

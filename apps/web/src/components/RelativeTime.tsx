@@ -1,8 +1,7 @@
 import { useI18n } from "../i18n/WebI18nContext";
 import { useRelativeTimeState } from "../hooks/useRelativeTimeState";
 
-// A "5m ago" label that keeps counting. Formatting the label inline in render
-// does not: the React Compiler caches it on the timestamp alone.
+// Use a live clock because the compiler caches inline formatting on the timestamp.
 export function RelativeTime(props: { timestamp: string }) {
   const { t } = useI18n();
   const relative = useRelativeTimeState(props.timestamp);

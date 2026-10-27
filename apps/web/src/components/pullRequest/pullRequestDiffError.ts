@@ -4,6 +4,7 @@ import type { WebTranslate } from "~/i18n/WebI18nContext";
 export function describePullRequestDiffError(
   error: string,
   providerName: string,
+  term: string,
   t?: WebTranslate,
 ) {
   if (/\brate limit\b|\brate[-_]limited\b|\btoo many requests\b/i.test(error)) {
@@ -21,6 +22,6 @@ export function describePullRequestDiffError(
     title: t?.("pullRequests.diff.unavailableTitle") ?? "Couldn't load the changes",
     description:
       t?.("pullRequests.diff.unavailableDescription", { provider: providerName }) ??
-      `The environment couldn't load this pull request's diff. Try again, or view the changes on ${providerName}.`,
+      `The environment couldn't load this ${term}'s diff. Try again, or view the changes on ${providerName}.`,
   };
 }

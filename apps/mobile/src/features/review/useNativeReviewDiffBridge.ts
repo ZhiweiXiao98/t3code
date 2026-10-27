@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import type { NativeSyntheticEvent } from "react-native";
 
 import { createNativeReviewDiffTheme, type NativeReviewDiffData } from "./nativeReviewDiffAdapter";
@@ -33,6 +33,8 @@ export function useNativeReviewDiffBridge(input: {
   const { nativeReviewDiffStyle } = useAppearanceCodeSurface();
   const { themeAppearance: scheme, themeId } = useAppearancePreferences();
   const appTheme = useUniwindTheme();
+  const [surfaceGeneration, setSurfaceGeneration] = useState(0);
+  const hasMountedContentRef = useRef(false);
   const [collapsedCommentIds, setCollapsedCommentIds] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
@@ -41,6 +43,7 @@ export function useNativeReviewDiffBridge(input: {
     () => createNativeReviewDiffTheme(scheme, themeId, appTheme),
     [appTheme, scheme, themeId],
   );
+  const collapsedFileIdsSet = useMemo(() => new Set(collapsedFileIds), [collapsedFileIds]);
   const rowsJson = useMemo(() => JSON.stringify(data.rows), [data.rows]);
   const collapsedFileIdsJson = useMemo(() => JSON.stringify(collapsedFileIds), [collapsedFileIds]);
   const viewedFileIdsJson = useMemo(() => JSON.stringify(viewedFileIds), [viewedFileIds]);
@@ -53,28 +56,37 @@ export function useNativeReviewDiffBridge(input: {
   const styleJson = useMemo(() => JSON.stringify(nativeReviewDiffStyle), [nativeReviewDiffStyle]);
   const tokensResetKey = useMemo(
     () =>
-      buildNativeReviewTokensResetKey({
+      `${buildNativeReviewTokensResetKey({
         threadKey,
         sectionId,
         scheme,
         diff,
         fileCount: data.files.length,
         rowCount: data.rows.length,
-      }),
-    [data.files.length, data.rows.length, diff, scheme, sectionId, threadKey],
+      })}:${surfaceGeneration}`,
+    [data.files.length, data.rows.length, diff, scheme, sectionId, surfaceGeneration, threadKey],
   );
-  const { tokensPatchJson, updateVisibleRange } = useNativeReviewDiffHighlighting({
-    files: data.files,
-    rows: data.rows,
-    scheme,
-    resetKey: tokensResetKey,
-    enabled: canHighlight,
-  });
+  const { acknowledgeTokenPatch, rejectTokenPatch, tokensPatchJson, updateVisibleRange } =
+    useNativeReviewDiffHighlighting({
+      files: data.files,
+      rows: data.rows,
+      collapsedFileIds: collapsedFileIdsSet,
+      scheme,
+      resetKey: tokensResetKey,
+      enabled: canHighlight,
+    });
 
   const onDebug = useCallback(
     (event: NativeSyntheticEvent<Record<string, unknown>>) => {
       const payload = event.nativeEvent;
       const message = payload.message;
+      if (message === "surface-content-mounted") {
+        // The initial content already has a fresh hook; replacements lose accepted tokens.
+        if (hasMountedContentRef.current) setSurfaceGeneration((generation) => generation + 1);
+        hasMountedContentRef.current = true;
+      }
+      if (message === "tokens-patch-delivered") acknowledgeTokenPatch(payload);
+      if (message === "tokens-patch-failed") rejectTokenPatch(payload);
       if (
         (message === "draw-metrics" || message === "visible-range") &&
         typeof payload.firstRowIndex === "number" &&
@@ -86,7 +98,7 @@ export function useNativeReviewDiffBridge(input: {
         });
       }
     },
-    [updateVisibleRange],
+    [acknowledgeTokenPatch, rejectTokenPatch, updateVisibleRange],
   );
 
   const onToggleComment = useCallback(
