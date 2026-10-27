@@ -96,7 +96,11 @@ function ToastContent(props: ToastProps & { readonly glassReady?: boolean }) {
         </View>
         {inlineAction && action ? <View className="self-center">{action}</View> : null}
         {props.onDismiss && props.dismissMode !== "swipe" ? (
-          <IconButton accessibilityLabel={localizeMobileString("Dismiss message")} icon="xmark" onPress={props.onDismiss} />
+          <IconButton
+            accessibilityLabel={localizeMobileString("Dismiss message")}
+            icon="xmark"
+            onPress={props.onDismiss}
+          />
         ) : null}
       </View>
       {action && !inlineAction ? <View className="mt-2 self-end">{action}</View> : null}

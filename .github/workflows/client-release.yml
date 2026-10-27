@@ -160,7 +160,7 @@ jobs:
       - name: Lint Swift and Kotlin sources
         run: vp run lint:mobile
       - name: Run native review diff Swift regressions
-        run: apps/mobile/modules/t3-review-diff/tests/run-ios.sh
+        run: bash apps/mobile/modules/t3-review-diff/tests/run-ios.sh
 
   tests:
     name: Tests (${{ matrix.suite }})

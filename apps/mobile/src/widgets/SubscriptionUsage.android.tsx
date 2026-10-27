@@ -18,11 +18,8 @@ import type { SubscriptionUsageSnapshot as SubscriptionUsageProps } from "./subs
 
 export function SubscriptionUsage(props: SubscriptionUsageProps, environment: WidgetEnvironment) {
   "widget";
-  // The widget runtime evaluates this function without the app's module scope.
-  // Android has no timeline, so freshness is decided on every render; the
-  // expiry alarm and each tap trigger one while the app is closed.
-  // Expo inlines this build setting before serializing the widget function.
-  // Keep all translation helpers inside it: the OS has no app module scope.
+  // The widget has no app module scope: keep helpers local and let Expo inline the locale.
+  // Android has no timeline; expiry alarms and taps re-render to refresh freshness.
   const isChinese = process.env.EXPO_PUBLIC_APP_LOCALE === "zh-CN";
   const copy = (english: string, chinese: string) => (isChinese ? chinese : english);
   const localizeValue = (value: string) => {

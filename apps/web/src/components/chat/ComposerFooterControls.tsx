@@ -47,8 +47,8 @@ export const ComposerFooterModeControls = memo(function ComposerFooterModeContro
   const RuntimeModeIcon = runtimeModeOption.icon;
   const interactionModeTooltip =
     props.interactionMode === "plan"
-      ? translateWebSource(releaseLocale, "Plan mode — click to return to normal build mode")
-      : translateWebSource(releaseLocale, "Default mode — click to enter plan mode");
+      ? translateWebSource(releaseLocale, "Plan mode: click to return to normal build mode")
+      : translateWebSource(releaseLocale, "Default mode: click to enter plan mode");
 
   const interactionModeToggle = props.showInteractionModeToggle ? (
     <Tooltip>

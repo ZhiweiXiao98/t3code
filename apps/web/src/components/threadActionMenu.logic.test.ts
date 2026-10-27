@@ -27,6 +27,23 @@ const baseState: ThreadActionMenuState = {
 };
 
 describe("buildThreadActionMenuItems", () => {
+  it("localizes guest sharing without changing its capability gate", () => {
+    const translate = (
+      key: Parameters<typeof translateWebMessage>[1],
+      values?: Parameters<typeof translateWebMessage>[2],
+    ) => translateWebMessage("zh-CN", key, values);
+    expect(
+      buildThreadActionMenuItems(baseState, translate).some((item) => item.id === "share-guest"),
+    ).toBe(false);
+    const state = { ...baseState, canShareWithGuest: true };
+    expect(
+      buildThreadActionMenuItems(state, translate).find((item) => item.id === "share-guest")?.label,
+    ).toBe("与访客共享");
+    expect(buildThreadActionMenuItems(state).find((item) => item.id === "share-guest")?.label).toBe(
+      "Share with guest",
+    );
+  });
+
   it("localizes snooze presets while preserving their formatted wake time", () => {
     const items = buildThreadActionMenuItems(baseState, (key, values) =>
       translateWebMessage("zh-CN", key, values),

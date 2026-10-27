@@ -1042,7 +1042,8 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
             />
           </View>
         ) : null}
-        <Text localize={false}
+        <Text
+          localize={false}
           className={cn(
             "flex-1 text-base",
             !recede && "font-t3-medium",
@@ -1147,7 +1148,8 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
       ) : null}
       <View className="mt-1 flex-row items-center gap-2" style={{ paddingLeft: titleTextInset }}>
         {(status === "failed" || status === "limited") && thread.runtime?.lastError ? (
-          <Text localize={false}
+          <Text
+            localize={false}
             className={cn(
               "flex-1 text-xs",
               selected
@@ -1173,7 +1175,8 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
                 }
               />
             ) : null}
-            <Text localize={false}
+            <Text
+              localize={false}
               className={cn(
                 "shrink text-xs",
                 selected

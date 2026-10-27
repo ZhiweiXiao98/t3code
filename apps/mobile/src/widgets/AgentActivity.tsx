@@ -130,8 +130,14 @@ export function AgentActivity(
       : tint;
 
   const allDone = props.activeCount === 0;
-  const doneLabel = failedRow ? (isChinese ? "失败" : "Failed") : (isChinese ? "完成" : "Done");
-  const outcomeLabel = failedRow ? (isChinese ? "Agent 工作失败" : "Agent work failed") : (isChinese ? "Agent 工作已完成" : "Agent work completed");
+  const doneLabel = failedRow ? (isChinese ? "失败" : "Failed") : isChinese ? "完成" : "Done";
+  const outcomeLabel = failedRow
+    ? isChinese
+      ? "Agent 工作失败"
+      : "Agent work failed"
+    : isChinese
+      ? "Agent 工作已完成"
+      : "Agent work completed";
 
   const agentWord = props.activeCount === 1 ? "agent" : "agents";
   const agentsLabel = allDone
@@ -140,16 +146,22 @@ export function AgentActivity(
       ? isChinese
         ? "Agent 状态已过期"
         : "Agent status out of date"
-      : isChinese ? `${props.activeCount} 个 Agent 正在运行` : `${props.activeCount} active ${agentWord}`;
+      : isChinese
+        ? `${props.activeCount} 个 Agent 正在运行`
+        : `${props.activeCount} active ${agentWord}`;
   const attentionSuffix =
     attentionRows.length > 0
-      ? isChinese ? `${attentionRows.length} 个需要处理` : `${attentionRows.length} need${attentionRows.length === 1 ? "s" : ""} attention`
+      ? isChinese
+        ? `${attentionRows.length} 个需要处理`
+        : `${attentionRows.length} need${attentionRows.length === 1 ? "s" : ""} attention`
       : "";
   const activeLabel = allDone
     ? doneLabel
     : environment.isStale
       ? staleLabel
-      : isChinese ? `${props.activeCount} 个正在运行` : `${props.activeCount} active`;
+      : isChinese
+        ? `${props.activeCount} 个正在运行`
+        : `${props.activeCount} active`;
   const showCompactGlyph = !attentionRow && !failedRow && !allDone && !environment.isStale;
   const summary = attentionSuffix || activeLabel;
 

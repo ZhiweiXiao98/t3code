@@ -198,7 +198,7 @@ function ConfiguredConnectOnboardingDialog() {
             <>
               {translateWebSource(
                 uiLocale,
-                "Mesh your devices together — publish this environment and connect the rest, all in one place.",
+                "Mesh your devices together: publish this environment and connect the rest, all in one place.",
               )}
             </>
           }

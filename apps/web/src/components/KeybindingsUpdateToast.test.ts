@@ -64,11 +64,16 @@ describe("startKeybindingsUpdateToasts", () => {
   });
   it("reads the current locale for each toast without loading settings state", () => {
     mocks.addToast.mockClear();
+    using now = vi.spyOn(Date, "now").mockReturnValue(0);
     let locale: "en" | "zh-CN" = "zh-CN";
     const stop = startKeybindingsUpdateToasts(() => locale);
     try {
       appAtomRegistry.set(mocks.state, { latestEvent: keybindingsUpdated([]) });
       locale = "en";
+      now.mockReturnValue(1_000);
+      appAtomRegistry.set(mocks.state, { latestEvent: keybindingsUpdated([]) });
+      expect(mocks.addToast.mock.calls.map(([toast]) => toast.title)).toEqual(["快捷键已更新"]);
+      now.mockReturnValue(2_000);
       appAtomRegistry.set(mocks.state, { latestEvent: keybindingsUpdated([]) });
       expect(mocks.addToast.mock.calls.map(([toast]) => toast.title)).toEqual([
         "快捷键已更新",

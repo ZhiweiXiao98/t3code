@@ -1729,6 +1729,7 @@ const EN_MESSAGES = {
   "sidebar.action.threadId": "Thread ID",
   "sidebar.action.copyPath": "Copy path",
   "sidebar.action.copyBranch": "Copy branch",
+  "sidebar.action.shareGuest": "Share with guest",
   "sidebar.action.copyThreadId": "Copy thread ID",
   "sidebar.action.archive": "Archive thread",
   "sidebar.action.dismissWoke": "Dismiss Woke notification",
@@ -2304,14 +2305,14 @@ const EN_MESSAGES = {
   "pullRequests.actions.revert": "Revert changes",
   "pullRequests.handoff.addedToComposer": "Added to the composer",
   "pullRequests.handoff.questionInComposer":
-    "The question is in the composer — read it over, then send.",
+    "The question is in the composer: read it over, then send.",
   "pullRequests.handoff.requestInComposer":
-    "The pull request is in the composer — type your question, then send.",
+    "The pull request is in the composer: type your question, then send.",
   "pullRequests.handoff.openThreadFailed": "Could not open a thread",
   "pullRequests.handoff.openThreadFailedDescription":
     "Try again from the project, or open a thread first.",
   "pullRequests.handoff.askedInThread": "Asked in a thread",
-  "pullRequests.handoff.taskInComposer": "The task is in the composer — read it over, then send.",
+  "pullRequests.handoff.taskInComposer": "The task is in the composer: read it over, then send.",
   "pullRequests.handoff.preparingCheckout": "Preparing the pull request checkout...",
   "pullRequests.handoff.openCheckoutThreadFailed": "Could not open a thread for the checkout",
   "pullRequests.handoff.prepareCheckoutFailed": "Could not prepare the pull request checkout",
@@ -2353,7 +2354,7 @@ const EN_MESSAGES = {
   "pullRequests.code.fileCountMany": "{count} files",
   "pullRequests.code.diffPartiallyHidden": "Some of this diff was not shown",
   "pullRequests.code.diffPartiallyHiddenDescription":
-    "The host withheld part of this diff — a binary file, or a change too large to inline.",
+    "The host withheld part of this diff: a binary file, or a change too large to inline.",
   "pullRequests.code.commentsUseWholeChange": "Line comments are written from the whole change",
   "pullRequests.code.commentsUseWholeChangeDescription":
     "A comment is anchored to the whole change, so switch to All commits to write one.",
@@ -2397,7 +2398,7 @@ const EN_MESSAGES = {
   "pullRequests.row.matchedDescription": "Matched in the description",
   "pullRequests.reactions.saveFailed": "The reaction could not be saved",
   "pullRequests.reactions.add": "Add a reaction",
-  "pullRequests.review.pendingComment": "Pending — sent when you submit the review",
+  "pullRequests.review.pendingComment": "Pending: sent when you submit the review",
   "pullRequests.review.discardComment": "Discard this comment",
   "pullRequests.review.unresolve": "Unresolve",
   "pullRequests.review.resolve": "Resolve",
@@ -2444,7 +2445,7 @@ const EN_MESSAGES = {
   "files.breadcrumb.partialEmpty":
     "No entries from this folder are available in the partial workspace index.",
   "files.breadcrumb.emptyFolder": "This folder is empty.",
-  "files.breadcrumb.refreshFailed": "Refresh failed — retry",
+  "files.breadcrumb.refreshFailed": "Refresh failed: retry",
   "files.breadcrumb.truncated": "Some workspace entries are not shown.",
   "files.breadcrumb.browse": "Browse {path}",
   "citation.viewText": "View cited assistant text: {text}",
@@ -3124,7 +3125,7 @@ const EN_MESSAGES = {
   "chat.wakeFailed": "Failed to wake thread",
   "chat.checkoutSwitchFailed": "Failed to switch checkout",
   "chat.checkoutThreadUpdateFailed": "Checkout switched, but the thread could not be updated",
-  "chat.branchChangedWas": "Branch changed — was",
+  "chat.branchChangedWas": "Branch changed: was",
   "chat.branchChangedDescription":
     "This thread last ran on {previous}. Sending will continue on {current}.",
   "chat.annotationAttached": "Annotation attached to draft",
@@ -4852,6 +4853,7 @@ const ZH_CN_MESSAGES = {
   "sidebar.action.threadId": "任务 ID",
   "sidebar.action.copyPath": "复制路径",
   "sidebar.action.copyBranch": "复制分支",
+  "sidebar.action.shareGuest": "与访客共享",
   "sidebar.action.copyThreadId": "复制任务 ID",
   "sidebar.action.archive": "归档任务",
   "sidebar.action.dismissWoke": "清除已唤醒提示",
@@ -6603,8 +6605,8 @@ const ZH_CN_SOURCE_MESSAGES: Readonly<Record<string, string>> = {
   "Official version (not translated)": "官方原版（未汉化）",
   "Shortcuts are environment-wide. Projects using the same action share its shortcut.":
     "快捷键在整个环境中生效，使用相同操作的项目共用其快捷键。",
-  "Update timed out — try again.": "更新超时，请重试。",
-  "This environment isn’t connected — try again once it reconnects.":
+  "Update timed out: try again.": "更新超时，请重试。",
+  "This environment isn’t connected: try again once it reconnects.":
     "此环境尚未连接，请在重新连接后重试。",
   Updated: "已更新",
   "Show title details": "显示标题详情",
@@ -6805,7 +6807,7 @@ const ZH_CN_SOURCE_MESSAGES: Readonly<Record<string, string>> = {
   "The URL appears after you save.": "保存后将显示 URL。",
   "Webhook URL": "Webhook URL",
   "Change in Connections": "在连接设置中更改",
-  "Run a prompt automatically — on an interval, at a fixed time, or when a webhook is called.":
+  "Run a prompt automatically: on an interval, at a fixed time, or when a webhook is called.":
     "按指定间隔、固定时间或收到 Webhook 请求时自动运行提示词。",
   "Reconnect this environment before saving.": "请重新连接此环境后再保存。",
   "Runs on": "运行环境",
@@ -7145,8 +7147,8 @@ const ZH_CN_SOURCE_MESSAGES: Readonly<Record<string, string>> = {
   "Terminal write failed": "终端写入失败",
   "Unable to initialize libghostty-vt": "无法初始化 libghostty-vt",
   "Go to source": "转到来源",
-  "Plan mode — click to return to normal build mode": "计划模式：点击返回普通构建模式",
-  "Default mode — click to enter plan mode": "默认模式：点击进入计划模式",
+  "Plan mode: click to return to normal build mode": "计划模式：点击返回普通构建模式",
+  "Default mode: click to enter plan mode": "默认模式：点击进入计划模式",
   "Update this server to send files with question answers":
     "请更新此服务器，以在回答问题时发送文件",
   "Select at least one model.": "请至少选择一个模型。",
@@ -7247,7 +7249,7 @@ const ZH_CN_SOURCE_MESSAGES: Readonly<Record<string, string>> = {
   "View agents": "查看智能体",
   View: "查看",
   Compact: "压缩上下文",
-  "Branch changed — was": "分支已更改，原分支为",
+  "Branch changed: was": "分支已更改，原分支为",
   "This thread last ran on": "此任务上次运行于",
   ". Sending will continue on": "。发送消息后将继续使用",
   "Pull requests unavailable": "拉取请求不可用",
@@ -7275,7 +7277,7 @@ const ZH_CN_SOURCE_MESSAGES: Readonly<Record<string, string>> = {
   "Open in": "打开方式",
   "Open in…": "选择打开方式…",
   Add: "添加",
-  "Mesh your devices together — publish this environment and connect the rest, all in one place.":
+  "Mesh your devices together: publish this environment and connect the rest, all in one place.":
     "将设备连接起来：在此发布当前环境并连接其他设备。",
   "Don't show this again": "不再显示",
   "Connect your agents": "连接智能体",
@@ -7352,7 +7354,7 @@ const ZH_CN_SOURCE_MESSAGES: Readonly<Record<string, string>> = {
   "Pull request closed": "拉取请求已关闭",
   "Pull request reopened": "拉取请求已重新打开",
   "Branch updated with the base branch": "分支已根据基础分支更新",
-  "Auto-merge turned on — merges as soon as this is ready, sooner if it already is":
+  "Auto-merge turned on: merges as soon as this is ready, sooner if it already is":
     "已启用自动合并；准备就绪后会立即合并，若当前已就绪则会马上合并",
   "Auto-merge turned off": "已停用自动合并",
   "Revert pull request opened": "还原拉取请求已创建",
@@ -7377,7 +7379,7 @@ const ZH_CN_SOURCE_MESSAGES: Readonly<Record<string, string>> = {
     "托管服务拒绝了操作。请确认你拥有写入权限，或此请求由你创建。",
   "The host refused it. Check that you have write access, and that the branch still exists.":
     "托管服务拒绝了操作。请确认你拥有写入权限且分支仍然存在。",
-  "The host refused it. Check that you have write access to the branch — one from a fork also needs its author to allow edits from maintainers — and that it does not conflict with the base.":
+  "The host refused it. Check that you have write access to the branch: one from a fork also needs its author to allow edits from maintainers: and that it does not conflict with the base.":
     "托管服务拒绝了操作。请确认你拥有该分支的写入权限；来自复刻仓库的分支还需作者允许维护者编辑，并确保它与基础分支没有冲突。",
   "The host refused it. Check that this repository allows auto-merge, that you have write access, and that there is something left for it to wait on.":
     "托管服务拒绝了操作。请确认仓库允许自动合并、你拥有写入权限，并且仍有条件需要等待。",
@@ -7535,7 +7537,7 @@ const ZH_CN_SOURCE_MESSAGES: Readonly<Record<string, string>> = {
     "连接 CLIProxyAPI Hub，在“用量 → 限额”中显示其账号。",
   "Not installed on this machine.": "此设备上未安装。",
   "Needs Keychain access to read its cookies.": "需要访问系统钥匙串才能读取 Cookie。",
-  "No encryption key in your Keychain — sign in to that browser once, then retry.":
+  "No encryption key in your Keychain: sign in to that browser once, then retry.":
     "系统钥匙串中没有加密密钥。请先在该浏览器中登录一次，然后重试。",
   "Quit the browser first so its cookie database can be read.":
     "请先退出浏览器，以便读取其 Cookie 数据库。",

@@ -12,13 +12,13 @@
 
 当前版本：**[v0.1.2-zh.1](https://github.com/ZhiweiXiao98/t3code/releases/tag/v0.1.2-zh.1)**，发布于 **2026 年 10 月 23 日**，基于官方稳定版 **v0.1.2**。本社区版本仍标记为 **预发布**。
 
-| 你的系统 | 直接下载 |
-| --- | --- |
-| Windows x64 | [下载安装程序 .exe](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.2-zh.1/T3-Code-0.1.2-zh.1-x64.exe) |
-| Mac：Apple Silicon（M 系列） | [下载 .dmg](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.2-zh.1/T3-Code-0.1.2-zh.1-arm64.dmg) |
-| Mac：Intel | [下载 .dmg](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.2-zh.1/T3-Code-0.1.2-zh.1-x64.dmg) |
-| Linux x64：Debian / Ubuntu | [下载 .deb](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.2-zh.1/T3-Code-0.1.2-zh.1-amd64.deb) |
-| Linux x64：AppImage | [下载 .AppImage](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.2-zh.1/T3-Code-0.1.2-zh.1-x86_64.AppImage) |
+| 你的系统                     | 直接下载                                                                                                                  |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Windows x64                  | [下载安装程序 .exe](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.2-zh.1/T3-Code-0.1.2-zh.1-x64.exe)      |
+| Mac：Apple Silicon（M 系列） | [下载 .dmg](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.2-zh.1/T3-Code-0.1.2-zh.1-arm64.dmg)            |
+| Mac：Intel                   | [下载 .dmg](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.2-zh.1/T3-Code-0.1.2-zh.1-x64.dmg)              |
+| Linux x64：Debian / Ubuntu   | [下载 .deb](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.2-zh.1/T3-Code-0.1.2-zh.1-amd64.deb)            |
+| Linux x64：AppImage          | [下载 .AppImage](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.2-zh.1/T3-Code-0.1.2-zh.1-x86_64.AppImage) |
 
 [全部文件与发布说明](https://github.com/ZhiweiXiao98/t3code/releases/tag/v0.1.2-zh.1) · [SHA-256 校验值](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.2-zh.1/SHA256SUMS.txt) · [构建来源](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.2-zh.1/BUILD-PROVENANCE.json)
 

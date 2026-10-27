@@ -84,7 +84,10 @@ function convertMenuAction(
     return {
       type: "action",
       label,
-      description: typeof element.props.subtitle === "string" ? localizeMobileString(element.props.subtitle) : undefined,
+      description:
+        typeof element.props.subtitle === "string"
+          ? localizeMobileString(element.props.subtitle)
+          : undefined,
       disabled: Boolean(element.props.disabled),
       icon: iconFromProp(element.props.icon),
       onPress: register(element.props.onPress),
@@ -186,7 +189,10 @@ function convertToolbarChild(
       axisBehavior: child.props.axisBehavior as NativeStackHeaderAxisBehavior,
       icon: iconFromProp(child.props.icon),
       menu: {
-        title: typeof child.props.title === "string" ? localizeMobileString(child.props.title) : undefined,
+        title:
+          typeof child.props.title === "string"
+            ? localizeMobileString(child.props.title)
+            : undefined,
         items: collectMenuItems(child.props.children, register),
       },
       sharesBackground: !child.props.separateBackground,
