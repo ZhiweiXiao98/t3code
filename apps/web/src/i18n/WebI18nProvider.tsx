@@ -1,6 +1,6 @@
 import type { AppLocalePreference } from "@t3tools/contracts/settings";
 import { resolveAppLocale } from "@t3tools/shared/appLocale";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useSyncExternalStore } from "react";
 
 import { useClientSettings, updateClientSettings } from "../hooks/useSettings";
 import { translateWebMessage } from "./messages";
@@ -20,20 +20,30 @@ function readRuntimeLocales(): ReadonlyArray<string> {
   return desktopLocale ? [desktopLocale, ...browserLocales] : browserLocales;
 }
 
+function subscribeRuntimeLocale(onChange: () => void): () => void {
+  if (typeof window === "undefined") return () => undefined;
+  window.addEventListener("languagechange", onChange);
+  return () => window.removeEventListener("languagechange", onChange);
+}
+
+function readSystemLocale() {
+  return resolveAppLocale("system", readRuntimeLocales());
+}
+
+function readServerLocale() {
+  return "en" as const;
+}
+
 export function WebI18nProvider({ children }: { readonly children: ReactNode }) {
   const appLocale = useClientSettings((settings) => settings.appLocale);
-  const [runtimeLocales, setRuntimeLocales] = useState(readRuntimeLocales);
+  const runtimeLocale = useSyncExternalStore(
+    subscribeRuntimeLocale,
+    readSystemLocale,
+    readServerLocale,
+  );
+  const locale = resolveAppLocale(appLocale, [runtimeLocale]);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const handleLanguageChange = () => setRuntimeLocales(readRuntimeLocales());
-    window.addEventListener("languagechange", handleLanguageChange);
-    return () => window.removeEventListener("languagechange", handleLanguageChange);
-  }, []);
-
-  const locale = resolveAppLocale(appLocale, runtimeLocales);
-
+  // oxlint-disable-next-line t3code/react-effect-budget -- Synchronize the document language used by screen readers and browser translation with the selected UI locale.
   useEffect(() => {
     if (typeof document !== "undefined") {
       document.documentElement.lang = locale;

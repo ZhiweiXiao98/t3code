@@ -131,3 +131,13 @@ it("persists an explicit language selection as a client-settings patch", async (
   await userEvent.click(screen.getByRole("button", { name: "Choose Chinese" }));
   expect(state.updateClientSettings).toHaveBeenCalledExactlyOnceWith({ appLocale: "zh-CN" });
 });
+
+it("keeps an explicit locale when repeated runtime language events arrive", async () => {
+  using state = setup({ appLocale: "en", runtimeLanguages: ["en-US"] });
+  await using screen = await render(provider());
+  await act(() => state.changeLanguages(["zh-Hans-CN"]));
+  await act(() => state.changeLanguages(["zh-Hans-CN"]));
+  expect(screen.getByRole("status", { name: "Current locale" }).element().textContent).toBe("en");
+  expect(screen.getByRole("heading").element().textContent).toBe("Settings");
+  expect(document.documentElement.lang).toBe("en");
+});
