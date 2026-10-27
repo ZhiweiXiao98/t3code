@@ -482,7 +482,7 @@ jobs:
           ./gradlew -q javaToolchains --no-daemon
           ./gradlew projects --no-daemon
           ./gradlew :t3-widget-expiry:testDebugUnitTest :t3-agent-notifications:testDebugUnitTest \
-            :t3-composer-editor:testDebugUnitTest :t3-review-diff:testDebugUnitTest \
+            :t3-composer-editor:testDebugUnitTest :t3tools-mobile-review-diff-native:testDebugUnitTest \
             --no-daemon --max-workers=2
       - name: Run standalone Android review geometry and viewport regressions
         working-directory: apps/mobile
