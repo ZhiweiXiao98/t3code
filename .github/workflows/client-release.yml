@@ -436,8 +436,8 @@ jobs:
     env:
       APP_VARIANT: community
       T3CODE_MOBILE_VERSION: 0.1.3-zh.1
-      # Candidate only. A publishable versionCode must exceed the installed release.
-      T3CODE_MOBILE_VERSION_CODE: "10103"
+      # Monotonic community code; signing remains isolated from this build job.
+      T3CODE_MOBILE_VERSION_CODE: "1000411"
       T3CODE_MOBILE_UPDATES_ENABLED: "0"
       EXPO_NO_GIT_STATUS: "1"
       EXPO_NO_TELEMETRY: "1"
@@ -522,10 +522,10 @@ jobs:
           fi
           unzip -t "$apk"
           "$build_tools/aapt" dump badging "$apk" | tee "$RUNNER_TEMP/android-badging.txt"
-          grep -F "package: name='com.zhiweixiao.t3code.zhcn' versionCode='10103' versionName='$CLIENT_VERSION'" "$RUNNER_TEMP/android-badging.txt"
+          grep -F "package: name='com.zhiweixiao.t3code.zhcn' versionCode='1000411' versionName='$CLIENT_VERSION'" "$RUNNER_TEMP/android-badging.txt"
           mkdir -p android-candidate
           cp "$apk" "android-candidate/T3-Code-zh-CN-Android-$CLIENT_VERSION-arm64-UNSIGNED-NOT-INSTALLABLE.apk"
-          printf '%s\n' 'BLOCKED: This candidate is unsigned and is not installable. Android publication requires the existing signing identity, confirmed secure key backup, and a monotonic versionCode. Do not generate a replacement signing key. No private signing material is included in this artifact.' > android-candidate/SIGNING-BLOCKER.txt
+          printf '%s\n' 'UNSIGNED: This build artifact is not installable. Publication requires the separate fixed-identity signing and APK verification gates. No private signing material is included in this artifact.' > android-candidate/SIGNING-BLOCKER.txt
           cat android-candidate/SIGNING-BLOCKER.txt >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v7
         with:

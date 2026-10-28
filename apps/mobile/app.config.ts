@@ -15,7 +15,7 @@ if (APP_VARIANT === "community") {
 const appVersion =
   repoEnv.T3CODE_MOBILE_VERSION?.trim() || (APP_VARIANT === "community" ? "0.1.3" : "2.1.0");
 const androidVersionCode = Number.parseInt(
-  APP_VARIANT === "community" ? (repoEnv.T3CODE_MOBILE_VERSION_CODE?.trim() ?? "10103") : "1",
+  APP_VARIANT === "community" ? (repoEnv.T3CODE_MOBILE_VERSION_CODE?.trim() ?? "1000411") : "1",
   10,
 );
 if (!Number.isSafeInteger(androidVersionCode) || androidVersionCode <= 0) {
