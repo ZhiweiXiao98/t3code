@@ -10,17 +10,17 @@
 
 ## 下载中文版
 
-当前版本：**[v0.1.2-zh.1](https://github.com/ZhiweiXiao98/t3code/releases/tag/v0.1.2-zh.1)**，发布于 **2026 年 10 月 23 日**，基于官方稳定版 **v0.1.2**。本社区版本仍标记为 **预发布**。
+当前版本：**[v0.1.3-zh.1](https://github.com/ZhiweiXiao98/t3code/releases/tag/v0.1.3-zh.1)**，发布于 **2026 年 10 月 28 日**，基于官方稳定版 **v0.1.3**。本社区版本仍标记为 **预发布**。
 
 | 你的系统                     | 直接下载                                                                                                                  |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| Windows x64                  | [下载安装程序 .exe](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.2-zh.1/T3-Code-0.1.2-zh.1-x64.exe)      |
-| Mac：Apple Silicon（M 系列） | [下载 .dmg](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.2-zh.1/T3-Code-0.1.2-zh.1-arm64.dmg)            |
-| Mac：Intel                   | [下载 .dmg](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.2-zh.1/T3-Code-0.1.2-zh.1-x64.dmg)              |
-| Linux x64：Debian / Ubuntu   | [下载 .deb](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.2-zh.1/T3-Code-0.1.2-zh.1-amd64.deb)            |
-| Linux x64：AppImage          | [下载 .AppImage](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.2-zh.1/T3-Code-0.1.2-zh.1-x86_64.AppImage) |
+| Windows x64                  | [下载安装程序 .exe](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.3-zh.1/T3-Code-0.1.3-zh.1-x64.exe)      |
+| Mac：Apple Silicon（M 系列） | [下载 .dmg](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.3-zh.1/T3-Code-0.1.3-zh.1-arm64.dmg)            |
+| Mac：Intel                   | [下载 .dmg](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.3-zh.1/T3-Code-0.1.3-zh.1-x64.dmg)              |
+| Linux x64：Debian / Ubuntu   | [下载 .deb](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.3-zh.1/T3-Code-0.1.3-zh.1-amd64.deb)            |
+| Linux x64：AppImage          | [下载 .AppImage](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.3-zh.1/T3-Code-0.1.3-zh.1-x86_64.AppImage) |
 
-[全部文件与发布说明](https://github.com/ZhiweiXiao98/t3code/releases/tag/v0.1.2-zh.1) · [SHA-256 校验值](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.2-zh.1/SHA256SUMS.txt) · [构建来源](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.2-zh.1/BUILD-PROVENANCE.json)
+[全部文件与发布说明](https://github.com/ZhiweiXiao98/t3code/releases/tag/v0.1.3-zh.1) · [SHA-256 校验值](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.3-zh.1/SHA256SUMS.txt) · [构建来源](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.3-zh.1/BUILD-PROVENANCE.json)
 
 > **安装前请知悉：** Windows 安装包未进行 Authenticode 签名；macOS 未进行 Developer ID 签名或公证，系统可能提示风险。请核对来源和校验值，不要为了安装而关闭系统安全保护。本版暂不提供自动更新源，请从本仓库手动下载更新。
 
@@ -28,7 +28,7 @@
 
 ## 升级前必读
 
-当前 `v0.1.2-zh.1` 桌面社区预发布版已于 2026 年 10 月 23 日发布，不再是未发布候选。上游基线为官方稳定版 `v0.1.2`。
+当前 `v0.1.3-zh.1` 桌面社区预发布版已于 2026 年 10 月 28 日发布，不再是未发布候选。上游基线为官方稳定版 `v0.1.3`。
 
 - 请先备份数据。V2 首次启动会复制并导入 V1 数据；两个版本此后的数据不会互相同步。
 - V1 与 V2 的服务器和客户端不能互连，连接的所有机器、桌面端和移动端都需要更新。
@@ -38,9 +38,9 @@
 
 ### 当前版本的验证范围
 
-源码提交 `45a74a097977decbe5d70222525c30635e40e701` 的 14 项云端验证任务全部通过，覆盖规范、类型检查、测试、原生检查、桌面打包及 Android 未签名候选构建。桌面产物经校验后直接发布，没有重新构建。
+源码提交 `9c964ab34311a8389eb16cc288cc47398626606f` 的 15 项云端验证任务全部通过，覆盖规范、类型检查、测试、原生检查、桌面打包及 Android 未签名候选构建。桌面产物经校验后直接发布，没有重新构建。
 
-[查看构建记录](https://github.com/ZhiweiXiao98/t3code/actions/runs/39927545775)。云端验证不等于所有系统上的人工安装测试；SHA-256 和构建来源记录不等于商业代码签名。
+[查看构建记录](https://github.com/ZhiweiXiao98/t3code/actions/runs/40565836137)。云端验证不等于所有系统上的人工安装测试；SHA-256 和构建来源记录不等于商业代码签名。
 
 ### 历史社区安装包
 
@@ -86,8 +86,8 @@ Android 社区安装包固定使用简体中文；桌面版仍可在设置中切
 
 ## 开发状态
 
-- 当前稳定版汉化维护分支：[`maintenance/v0.1.2-zh-cloud`](https://github.com/ZhiweiXiao98/t3code/tree/maintenance/v0.1.2-zh-cloud)
-- 当前已发布桌面版：[`v0.1.2-zh.1`](https://github.com/ZhiweiXiao98/t3code/releases/tag/v0.1.2-zh.1)（社区预发布）
+- 当前稳定版汉化维护分支：[`maintenance/v0.1.3-zh-cloud`](https://github.com/ZhiweiXiao98/t3code/tree/maintenance/v0.1.3-zh-cloud)
+- 当前已发布桌面版：[`v0.1.3-zh.1`](https://github.com/ZhiweiXiao98/t3code/releases/tag/v0.1.3-zh.1)（社区预发布）
 - 上游项目：[pingdotgg/t3code](https://github.com/pingdotgg/t3code)
 - 早期国际化实现记录：[Fork PR #1](https://github.com/ZhiweiXiao98/t3code/pull/1)（不是当前发布版本的完整审查记录）
 - 问题反馈：[Issues](https://github.com/ZhiweiXiao98/t3code/issues)
