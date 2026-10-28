@@ -1,8 +1,8 @@
 {
-  "enabled": false,
-  "candidate_run_id": null,
-  "candidate_attempt": null,
-  "candidate_source_sha": null,
-  "candidate_artifact_id": null,
-  "candidate_artifact_zip_sha256": null
+  "enabled": true,
+  "candidate_run_id": 40650302651,
+  "candidate_attempt": 1,
+  "candidate_source_sha": "fb48ddad571d653e721759ba593f648c2681a571",
+  "candidate_artifact_id": 12799989636,
+  "candidate_artifact_zip_sha256": "fffd593bf9b73724944c944dfcd18f7ac451c1117d3e7aa01b9e9b18662cbe5f"
 }
