@@ -34,6 +34,11 @@ jobs:
           git checkout --detach FETCH_HEAD
           if ($LASTEXITCODE) { throw 'git checkout failed' }
           if ((git rev-parse HEAD).Trim() -ne $env:SOURCE_SHA) { throw 'Source mismatch' }
-      - name: Parse and test with mock keytool; never generate a key
-        shell: ${{ matrix.shell }}
+      - name: Windows PowerShell parser and mocks only
+        if: matrix.shell == 'powershell'
+        shell: powershell
+        run: ./docs/tools/android-signing/Test-SigningHelper.ps1
+      - name: PowerShell 7 parser and mocks only
+        if: matrix.shell == 'pwsh'
+        shell: pwsh
         run: ./docs/tools/android-signing/Test-SigningHelper.ps1
