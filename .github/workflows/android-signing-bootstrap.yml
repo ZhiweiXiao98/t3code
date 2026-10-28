@@ -1,0 +1,100 @@
+name: Initialize fixed Android signing identity
+on:
+  push:
+    branches: [signing/android-bootstrap]
+permissions:
+  contents: read
+concurrency:
+  group: fixed-android-signing-bootstrap
+  cancel-in-progress: false
+jobs:
+  initialize:
+    if: github.repository == 'ZhiweiXiao98/t3code' && github.ref == 'refs/heads/signing/android-bootstrap' && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: android-signing
+    permissions:
+      contents: write
+    steps:
+      - name: Fetch only exact reviewed public helper source
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+          GIT_TERMINAL_PROMPT: '0'
+        run: |
+          set -euo pipefail
+          git init .
+          git remote add origin https://github.com/ZhiweiXiao98/t3code.git
+          git sparse-checkout init --cone
+          git sparse-checkout set docs/tools/android-cloud-signing
+          git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
+          git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(git ls-remote origin refs/heads/signing/android-bootstrap | cut -f1)" = "$SOURCE_SHA"
+      - name: Check password presence and existing toolchain without printing secrets
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "${JAVA_HOME_21_X64:-}"
+          test -x "$JAVA_HOME_21_X64/bin/keytool"
+          command -v openssl >/dev/null
+          python - <<'PY'
+          import os
+          p = os.environ.get('ANDROID_KEYSTORE_PASSWORD', '')
+          if not (32 <= len(p) <= 256) or '\n' in p or '\r' in p:
+              raise SystemExit('Missing or invalid passphrase. No identity reserved or generated.')
+          print('Secret presence/length checked; randomness and independent retention are owner-confirmed, not inferred.')
+          PY
+      - name: Atomically reserve permanent public identity record
+        id: reserve
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python docs/tools/android-cloud-signing/identity_ledger.py reserve \
+            --repository "$GITHUB_REPOSITORY" --run-id "$GITHUB_RUN_ID" \
+            --source-sha "$GITHUB_SHA" --timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$RUNNER_TEMP/reservation.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          d=json.loads((Path(os.environ['RUNNER_TEMP'])/'reservation.json').read_text())
+          with open(os.environ['GITHUB_OUTPUT'],'a') as f: f.write('sha='+d['commit_sha']+'\n')
+          PY
+      - name: Generate once and verify actual encrypted PKCS12 profile
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          umask 077
+          export JAVA_HOME="$JAVA_HOME_21_X64"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          python docs/tools/android-cloud-signing/crypto.py "$RUNNER_TEMP/android-encrypted-export"
+      - name: Upload only approved encrypted handoff files
+        id: handoff
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: android-encrypted-signing-backup-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/android-encrypted-export/t3code-release.p12
+            ${{ runner.temp }}/android-encrypted-export/encrypted-keystore-base64.txt
+            ${{ runner.temp }}/android-encrypted-export/public-manifest.json
+          if-no-files-found: error
+          compression-level: 0
+          # Repository retention default. No special expiry/deletion is configured.
+      - name: Append public identity metadata only after upload acknowledgement
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          RESERVATION_SHA: ${{ steps.reserve.outputs.sha }}
+          ARTIFACT_ID: ${{ steps.handoff.outputs.artifact-id }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import datetime, json, os, subprocess
+          from pathlib import Path
+          m=json.loads((Path(os.environ['RUNNER_TEMP'])/'android-encrypted-export/public-manifest.json').read_text())
+          subprocess.run(['python','docs/tools/android-cloud-signing/identity_ledger.py','complete',
+            '--repository',os.environ['GITHUB_REPOSITORY'],'--run-id',os.environ['GITHUB_RUN_ID'],
+            '--source-sha',os.environ['GITHUB_SHA'],'--timestamp',datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            '--reservation-sha',os.environ['RESERVATION_SHA'],'--certificate-sha256',m['certificate_sha256'],
+            '--artifact-sha256',m['encrypted_container_sha256'],'--artifact-id',os.environ['ARTIFACT_ID']],check=True)
+          PY

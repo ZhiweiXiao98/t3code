@@ -1,0 +1,32 @@
+name: Cloud Android signing non-secret mocks
+on:
+  push:
+    branches: [validation/android-signing-helper-20261028]
+    paths:
+      - docs/tools/android-cloud-signing/**
+      - .github/workflows/android-cloud-signing-mock.yml
+      - .github/workflows/android-signing-bootstrap.yml
+permissions:
+  contents: read
+jobs:
+  mocks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Fetch exact public source without credentials
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+          GIT_TERMINAL_PROMPT: '0'
+        run: |
+          set -euo pipefail
+          git init .
+          git remote add origin https://github.com/ZhiweiXiao98/t3code.git
+          git sparse-checkout init --cone
+          git sparse-checkout set docs/tools/android-cloud-signing
+          git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
+          git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - name: Compile and run only offline mocks; no keys or GitHub writes
+        run: |
+          python -m compileall -q docs/tools/android-cloud-signing
+          python -m unittest discover -s docs/tools/android-cloud-signing -p 'test_*.py' -v
