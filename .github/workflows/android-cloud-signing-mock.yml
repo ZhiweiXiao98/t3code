@@ -6,6 +6,7 @@ on:
       - docs/tools/android-cloud-signing/**
       - .github/workflows/android-cloud-signing-mock.yml
       - .github/workflows/android-signing-bootstrap.yml
+      - .github/workflows/android-signing-recovery.yml
 permissions:
   contents: read
 jobs:

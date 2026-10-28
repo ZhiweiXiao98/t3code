@@ -9,7 +9,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   initialize:
-    if: github.repository == 'ZhiweiXiao98/t3code' && github.ref == 'refs/heads/signing/android-bootstrap' && github.run_attempt == 1
+    if: github.repository == 'ZhiweiXiao98/t3code' && github.ref == 'refs/heads/signing/android-bootstrap' && github.run_attempt == 1 && github.sha == 'e55c21f8035ddc982dde4059221ba4d5290db21e'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     environment: android-signing

@@ -1,0 +1,64 @@
+name: Verify fixed Android signing backup recovery
+on:
+  push:
+    branches: [signing/android-bootstrap]
+    paths:
+      - docs/tools/android-cloud-signing/recovery.py
+      - .github/workflows/android-signing-recovery.yml
+permissions:
+  contents: read
+concurrency:
+  group: fixed-android-signing-recovery
+  cancel-in-progress: false
+jobs:
+  recover:
+    if: github.repository == 'ZhiweiXiao98/t3code' && github.ref == 'refs/heads/signing/android-bootstrap'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: android-signing
+    steps:
+      - name: Fetch exact public source and bind permanent identity record
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+          GIT_TERMINAL_PROMPT: '0'
+        run: |
+          set -euo pipefail
+          git init .
+          git remote add origin https://github.com/ZhiweiXiao98/t3code.git
+          git sparse-checkout init --cone
+          git sparse-checkout set docs/tools/android-cloud-signing
+          git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
+          git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(git ls-remote origin refs/heads/signing/android-bootstrap | cut -f1)" = "$SOURCE_SHA"
+          git fetch --no-tags --depth=1 origin refs/heads/signing/android-identity-state
+          test "$(git rev-parse FETCH_HEAD)" = 6ece97202423fd9d851180049657f889411b2aa8
+          git show FETCH_HEAD:identity-state.json > "$RUNNER_TEMP/identity-state.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          state=json.loads((Path(os.environ['RUNNER_TEMP'])/'identity-state.json').read_text())
+          expected={'status':'READY','run_id':'40648258404','source_sha':'e55c21f8035ddc982dde4059221ba4d5290db21e','artifact_id':'12798229258','certificate_sha256':'82f2437cbceb94fe6fe4a60a1c0de99f643124c64a648a27de9ce92bd39ecd88','artifact_sha256':'7e4922f7de02c1c739e627eb3ef87fa1fb639329ed27613dff8b4f0fdad2d397'}
+          if any(state.get(k)!=v for k,v in expected.items()):
+              raise SystemExit('Public identity record mismatch; no recovery attempted')
+          print('Permanent identity record and original artifact binding verified')
+          PY
+      - name: Recover owner-imported encrypted backup in this fresh runner
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          umask 077
+          test -n "${JAVA_HOME_21_X64:-}"
+          test -x "$JAVA_HOME_21_X64/bin/keytool"
+          export JAVA_HOME="$JAVA_HOME_21_X64"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          python docs/tools/android-cloud-signing/recovery.py "$RUNNER_TEMP/android-recovery"
+      - name: Upload only public recovery evidence
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: android-public-recovery-evidence-${{ github.run_id }}
+          path: ${{ runner.temp }}/android-recovery/recovery-report.json
+          if-no-files-found: error
+          # No private key, ciphertext, CSR, password or environment dump is uploaded.

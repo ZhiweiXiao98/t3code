@@ -73,3 +73,27 @@ These are browser setup sessions, not a guarantee of exactly two clicks. Require
 reviewers add an approval to each protected job; do not enable self-review blocking
 on a single-owner account without a viable second reviewer. Environment selection
 restricts access but does not make malicious same-repository workflows safe.
+
+## Fixed identity recovery (no key generation)
+
+The one initialization completed in run `40648258404`. The immutable reviewed
+initialization source is `e55c21f8035ddc982dde4059221ba4d5290db21e`.
+Its permanent READY state commit is
+`6ece97202423fd9d851180049657f889411b2aa8` and encrypted artifact ID is
+`12798229258`. Subsequent commits explicitly skip the bootstrap generation job.
+
+Recovery is staged and tested on the validation branch first. Only after the
+owner confirms importing the encrypted backup into `ANDROID_KEYSTORE_BASE64`
+in the existing environment may the reviewed commit fast-forward the allowed
+bootstrap branch. This launches a fresh runner, checks the exact READY record,
+decodes the existing ciphertext, matches its fixed digest and certificate,
+checks the actual PKCS12 encryption profile, and performs a private-key CSR
+operation. It never generates or replaces a key. Only a public recovery report
+is uploaded; no private key, encrypted container, CSR, password, or environment
+dump is included. Failure preserves the permanent identity and is not permission
+to initialize another identity.
+
+Owner-imported email backup is the asserted source of the Secret; the runner
+itself does not access a mailbox. Recovery evidence must not claim independent
+mailbox download verification. This recovery also does not verify an APK
+signature or authorize publication; those release gates remain separate.
