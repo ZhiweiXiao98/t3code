@@ -1,0 +1,39 @@
+name: Android signing helper mock checks
+on:
+  push:
+    branches: [validation/android-signing-helper-20261028]
+    paths:
+      - docs/tools/android-signing/**
+      - .github/workflows/android-signing-helper-check.yml
+permissions:
+  contents: read
+jobs:
+  mock-check:
+    name: PowerShell ${{ matrix.shell }} syntax and mocks only
+    runs-on: windows-2025
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        shell: [powershell, pwsh]
+    steps:
+      - name: Fetch exact public source without stored credentials
+        shell: pwsh
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+          GIT_TERMINAL_PROMPT: '0'
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git init .
+          if ($LASTEXITCODE) { throw 'git init failed' }
+          git remote add origin https://github.com/ZhiweiXiao98/t3code.git
+          git sparse-checkout init --cone
+          git sparse-checkout set docs/tools/android-signing
+          git fetch --no-tags --depth=1 origin $env:SOURCE_SHA
+          if ($LASTEXITCODE) { throw 'git fetch failed' }
+          git checkout --detach FETCH_HEAD
+          if ($LASTEXITCODE) { throw 'git checkout failed' }
+          if ((git rev-parse HEAD).Trim() -ne $env:SOURCE_SHA) { throw 'Source mismatch' }
+      - name: Parse and test with mock keytool; never generate a key
+        shell: ${{ matrix.shell }}
+        run: ./docs/tools/android-signing/Test-SigningHelper.ps1
