@@ -97,3 +97,22 @@ Owner-imported email backup is the asserted source of the Secret; the runner
 itself does not access a mailbox. Recovery evidence must not claim independent
 mailbox download verification. This recovery also does not verify an APK
 signature or authorize publication; those release gates remain separate.
+
+## Reviewed Android publication
+
+`android-sign-reviewed.yml` accepts no free-form dispatch input. Its committed
+input starts disabled. The reviewer fills exact candidate source, successful CI
+run/attempt and immutable artifact ID/ZIP digest only after inspecting all 15
+gates. It runs only on the existing allowed signing branch. The candidate source
+is never executed in the signing runner. Artifact download, full ZIP integrity,
+package/version/architecture, unsigned status and fixed recovery evidence are
+checked before signing Secrets enter the single signing step. The encrypted
+container digest and signed APK certificate are fixed, and temporary key copies
+are removed without changing the permanent identity or its backup.
+
+A separate publication job receives no signing Secrets. It rechecks signed
+artifact ownership, source/run/attempt, all 15 gate names and conclusions,
+provenance and hashes. It atomically creates a new Android-only tag, uploads into
+a draft, verifies asset hashes, then publishes with `make_latest: false`.
+Existing tags/releases/drafts are never replaced or deleted. A failed partial
+publication is inspected before any retry. Existing desktop assets remain intact.

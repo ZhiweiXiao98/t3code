@@ -7,6 +7,7 @@ on:
       - .github/workflows/android-cloud-signing-mock.yml
       - .github/workflows/android-signing-bootstrap.yml
       - .github/workflows/android-signing-recovery.yml
+      - .github/workflows/android-sign-reviewed.yml
 permissions:
   contents: read
 jobs:
@@ -31,3 +32,15 @@ jobs:
         run: |
           python -m compileall -q docs/tools/android-cloud-signing
           python -m unittest discover -s docs/tools/android-cloud-signing -p 'test_*.py' -v
+      - name: Syntax and offline publisher safety scenarios
+        run: |
+          git show HEAD:.github/workflows/android-sign-reviewed.yml > "$RUNNER_TEMP/sign-workflow.yml"
+          python - <<'PYCODE'
+          import os, textwrap
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP'])
+          script=textwrap.dedent((root/'sign-workflow.yml').read_text().split('          script: |\n',1)[1])
+          (root/'publisher-check.js').write_text('(async()=>{\n'+script+'\n})();\n')
+          PYCODE
+          node --check "$RUNNER_TEMP/publisher-check.js"
+          node docs/tools/android-cloud-signing/test-publisher.cjs "$RUNNER_TEMP/publisher-check.js"

@@ -1,0 +1,8 @@
+{
+  "enabled": false,
+  "candidate_run_id": null,
+  "candidate_attempt": null,
+  "candidate_source_sha": null,
+  "candidate_artifact_id": null,
+  "candidate_artifact_zip_sha256": null
+}
