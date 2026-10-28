@@ -1,8 +1,14 @@
 {
+  "artifact_id": "12798229258",
+  "artifact_sha256": "7e4922f7de02c1c739e627eb3ef87fa1fb639329ed27613dff8b4f0fdad2d397",
+  "backup_recovery_verified": false,
+  "certificate_sha256": "82f2437cbceb94fe6fe4a60a1c0de99f643124c64a648a27de9ce92bd39ecd88",
+  "completed_at": "2026-10-28T07:09:47.483129Z",
   "repository": "ZhiweiXiao98/t3code",
+  "reservation_sha": "c4b213a3fd9e60fcf11c2f8ff46e87972e40c3cc",
   "reserved_at": "2026-10-28T07:09:38Z",
   "run_id": "40648258404",
   "schema": 1,
   "source_sha": "e55c21f8035ddc982dde4059221ba4d5290db21e",
-  "status": "RESERVED"
+  "status": "READY"
 }
