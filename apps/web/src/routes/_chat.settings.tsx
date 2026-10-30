@@ -1,5 +1,6 @@
 import { translateWebSource } from "~/i18n/messages";
 import { useI18n } from "../i18n/WebI18nContext";
+import { workspaceAreaProps } from "../lib/workspaceFocus";
 import { Outlet, createFileRoute, redirect, useLocation } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 import { RotateCcwIcon } from "lucide-react";
@@ -113,6 +114,12 @@ function SettingsScopeBoundary({ pathname, children }: { pathname: string; child
 }
 
 function SettingsContentLayout() {
+  const { locale } = useI18n();
+  const contentArea = workspaceAreaProps(
+    "settings",
+    1,
+    translateWebSource(locale, "Settings content"),
+  );
   const location = useLocation();
   const { search, environment } = useSettingsScope();
   const contentScopeKey =
@@ -122,10 +129,10 @@ function SettingsContentLayout() {
   const [restoreSignal, setRestoreSignal] = useState(0);
 
   return (
-    <AppRouteModal label="Settings">
+    <AppRouteModal label={translateWebSource(locale, "Settings")}>
       <div className="relative flex min-h-0 flex-1">
         <SettingsSidebarNav pathname={location.pathname} />
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div {...contentArea} className="flex min-h-0 min-w-0 flex-1 flex-col">
           <header className="flex h-12 shrink-0 items-center gap-3 border-b ps-5 pe-2">
             <SettingsBreadcrumb pathname={location.pathname} />
             <div className="ms-auto flex shrink-0 items-center gap-1">

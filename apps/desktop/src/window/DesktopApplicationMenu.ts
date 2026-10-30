@@ -226,13 +226,10 @@ export const make = Effect.gen(function* () {
                 },
                 { type: "separator" as const },
               ]),
-          {
-            role: environment.platform === "darwin" ? "close" : "quit",
-            label:
-              environment.platform === "darwin"
-                ? messages.closeWindow
-                : messages.quit(environment.displayName),
-          },
+          // Cmd/Ctrl+W belongs to the renderer's tab close; it must never close the window.
+          environment.platform === "darwin"
+            ? { label: messages.closeWindow, click: (_item, window) => window?.close() }
+            : { role: "quit", label: messages.quit(environment.displayName) },
         ],
       },
       {
@@ -333,13 +330,13 @@ export const make = Effect.gen(function* () {
         label: messages.window,
         submenu: [
           { role: "minimize", label: messages.minimize },
+          { role: "zoom", label: messages.zoomWindow },
           ...(environment.platform === "darwin"
             ? [
-                { role: "zoom" as const, label: messages.zoomWindow },
                 { type: "separator" as const },
                 { role: "front" as const, label: messages.bringAllToFront },
               ]
-            : [{ role: "close" as const, label: messages.closeWindow }]),
+            : []),
         ],
       },
       {

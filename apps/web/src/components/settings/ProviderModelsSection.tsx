@@ -109,7 +109,7 @@ interface ProviderModelsSectionProps {
   readonly onChange: (next: ReadonlyArray<CustomModelDefinition>) => void;
   readonly onHiddenModelsChange: (
     next: ReadonlyArray<string>,
-    affectedModels?: ReadonlyArray<string>,
+    affectedModels: ReadonlyArray<string>,
   ) => void;
   readonly onFavoriteModelsChange: (next: ReadonlyArray<string>) => void;
   readonly onToggleFavorite: (model: string) => void;
@@ -163,6 +163,7 @@ export function ProviderModelsSection({
     : displayModels;
 
   // A model added or moved lands in a later commit, so each commit looks for the pending row.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- scrolls the pending model's DOM row into view once a later commit renders it
   useEffect(() => {
     const slug = scrollToSlugRef.current;
     if (slug === null) return;
@@ -341,7 +342,7 @@ export function ProviderModelsSection({
             size="xs"
             variant="ghost-muted"
             // The ghost padding would inset the label from the column edge the toggles align to.
-            className="ml-auto redesign:-me-2"
+            className="-me-2 ml-auto"
             onClick={() => setIsAdding(true)}
           >
             <PlusIcon className="size-3" />

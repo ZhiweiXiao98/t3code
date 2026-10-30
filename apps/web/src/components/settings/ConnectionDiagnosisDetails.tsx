@@ -12,12 +12,13 @@ import {
 import * as Option from "effect/Option";
 import { AsyncResult } from "effect/reactivity";
 import { ChevronRightIcon } from "lucide-react";
-import { useEffect, useState } from "react";
 
 import { APP_VERSION } from "~/branding";
 import { environmentCatalog } from "~/connection/catalog";
 import { type EnvironmentPresentation, useRelayEnvironmentDiscovery } from "~/state/environments";
 import { useCopyToClipboard } from "../../hooks/useCopyToClipboard";
+import { useDeadlinePassed } from "../../hooks/useDeadline";
+import { useNowSecond } from "../../hooks/useNowSecond";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 import { localizeConnectionDiagnosisText } from "./connectionDiagnosisLocale";
@@ -31,8 +32,8 @@ import { stackedThreadToast, toastManager } from "../ui/toast";
 export function useConnectionDiagnosis(environment: EnvironmentPresentation) {
   const { locale } = useI18n();
   const environmentId = environment.environmentId;
-  const state = Option.getOrElse(
-    AsyncResult.value(useAtomValue(environmentCatalog.stateAtom(environmentId))),
+  const state = AsyncResult.getOrElse(
+    useAtomValue(environmentCatalog.stateAtom(environmentId)),
     () => AVAILABLE_CONNECTION_STATE,
   );
   const relayStatus = useRelayEnvironmentDiscovery().environments.get(environmentId)?.status;
@@ -81,13 +82,20 @@ const HOP_NOTE = { ok: "", failed: "Failed", unchecked: "Not checked" } as const
 /** Ticks once per second, and only while a retry is scheduled, so the list around it does not re-render. */
 function RetryCountdown({ retryAt }: { readonly retryAt: number }) {
   const { locale } = useI18n();
-  const [now, setNow] = useState(Date.now);
-  useEffect(() => {
-    if (retryAt <= Date.now()) return;
-    const timer = setInterval(() => setNow(Date.now()), 1_000);
-    return () => clearInterval(timer);
-  }, [retryAt]);
-  const seconds = Math.ceil((retryAt - now) / 1_000);
+  return useDeadlinePassed(retryAt) ? (
+    locale === "zh-CN" ? (
+      "正在重试"
+    ) : (
+      "retrying"
+    )
+  ) : (
+    <RetryCountdownTicker retryAt={retryAt} />
+  );
+}
+
+function RetryCountdownTicker({ retryAt }: { readonly retryAt: number }) {
+  const { locale } = useI18n();
+  const seconds = Math.ceil((retryAt - useNowSecond()) / 1_000);
   return (
     <>
       {locale === "zh-CN"

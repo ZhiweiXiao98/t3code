@@ -89,6 +89,9 @@ export function DevicePanel(props: {
         (device) => device.hostId === activeSession.hostId && device.id === activeSession.deviceId,
       )
     : undefined;
+  const activeHost = activeDevice
+    ? state.hosts.find((host) => host.id === activeDevice.hostId)
+    : undefined;
 
   const grouped = groupDevices(state);
 
@@ -237,9 +240,8 @@ export function DevicePanel(props: {
               key={`${environmentId}\u0000${deviceKey(activeDevice)}`}
               environmentId={environmentId}
               device={activeDevice}
-              hostLabel={
-                state.hosts.find((host) => host.id === activeDevice.hostId)?.label ?? "Device host"
-              }
+              hostLabel={activeHost?.label ?? "Device host"}
+              simlock={activeHost?.kind === "simlock"}
               hostDiagnostics={
                 diagnostics.find(({ hostId }) => hostId === activeDevice.hostId)?.detail
               }

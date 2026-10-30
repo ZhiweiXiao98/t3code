@@ -11,6 +11,7 @@ import type { WebTranslate } from "../i18n/WebI18nContext";
 export type ThreadActionMenuId =
   | "new-thread-on-branch"
   | "filter-by-project"
+  | "turn-into-project"
   | "project-settings"
   | "pin"
   | "unpin"
@@ -29,6 +30,7 @@ export type ThreadActionMenuId =
   | "copy"
   | "copy-path"
   | "copy-branch"
+  | "copy-thread"
   | "copy-thread-id"
   | "archive"
   | "delete";
@@ -96,23 +98,43 @@ export interface ThreadActionMenuState {
   readonly snoozePresets: ReadonlyArray<SnoozePreset>;
   /** Guest links need their own grant, so the caller checks it instead of `canOperate`. */
   readonly canShareWithGuest?: boolean;
+  /** A No project thread with its own folder, on a server that can promote it. */
+  readonly canTurnIntoProject?: boolean;
 }
 
-function localizeSnoozePresetLabel(preset: SnoozePreset, t: WebTranslate): string {
-  switch (preset.id) {
-    case "hour":
-      return t("sidebar.snooze.hour");
-    case "three-hours":
-      return t("sidebar.snooze.threeHours");
-    case "evening":
-      return t("sidebar.snooze.evening");
-    case "tomorrow":
-      return t("sidebar.snooze.tomorrow");
-    case "next-week":
-      return t("sidebar.snooze.nextWeek");
-    default:
-      return preset.label;
+export function localizeSnoozePresetLabel(preset: SnoozePreset, t: WebTranslate): string {
+  const duration = /^In (\d+) (minute|hour|day)s?$/.exec(preset.label);
+  if (duration) {
+    const count = Number(duration[1]);
+    const unit = duration[2];
+    if (unit === "minute")
+      return t(count === 1 ? "sidebar.snooze.minuteOne" : "sidebar.snooze.minuteMany", { count });
+    if (unit === "hour")
+      return t(count === 1 ? "sidebar.snooze.hourOne" : "sidebar.snooze.hourMany", { count });
+    return t(count === 1 ? "sidebar.snooze.dayOne" : "sidebar.snooze.dayMany", { count });
   }
+  const labels = {
+    "This morning": "sidebar.snooze.morning",
+    "This afternoon": "sidebar.snooze.afternoon",
+    "This evening": "sidebar.snooze.evening",
+    Tomorrow: "sidebar.snooze.tomorrow",
+    "Next week": "sidebar.snooze.nextWeek",
+    Monday: "sidebar.snooze.monday",
+    Tuesday: "sidebar.snooze.tuesday",
+    Wednesday: "sidebar.snooze.wednesday",
+    Thursday: "sidebar.snooze.thursday",
+    Friday: "sidebar.snooze.friday",
+    Saturday: "sidebar.snooze.saturday",
+    Sunday: "sidebar.snooze.sunday",
+  } as const;
+  const next = preset.label.startsWith("Next ");
+  const label = next ? preset.label.slice(5) : preset.label;
+  const key = labels[preset.label as keyof typeof labels] ?? labels[label as keyof typeof labels];
+  if (!key) return preset.label;
+  const translated = t(key);
+  return next && preset.label !== "Next week"
+    ? t("sidebar.snooze.nextDay", { day: translated })
+    : translated;
 }
 
 /** Local navigation, read markers, and copying remain available to read-only clients. */
@@ -125,6 +147,7 @@ export function threadActionRequiresOperate(action: ThreadActionMenuId): boolean
     "copy",
     "copy-path",
     "copy-branch",
+    "copy-thread",
     "copy-thread-id",
   ].includes(action);
 }
@@ -199,7 +222,11 @@ export function buildThreadActionMenuItems(
                     id: `snooze:${preset.id}` as const,
                     label: `${translate ? localizeSnoozePresetLabel(preset, translate) : preset.label} (${preset.whenLabel})`,
                   })),
-                  { id: "snooze:custom" as const, label: "Custom…", separatorBefore: true },
+                  {
+                    id: "snooze:custom" as const,
+                    label: "Custom…",
+                    separatorBefore: state.snoozePresets.length > 0,
+                  },
                 ],
               },
         ]
@@ -249,6 +276,16 @@ export function buildThreadActionMenuItems(
           },
         ]
       : []),
+    ...(state.canTurnIntoProject
+      ? [
+          {
+            id: "turn-into-project" as const,
+            label: label("sidebar.action.turnIntoProject", "Turn into project"),
+            icon: "folder-plus",
+            disabled: state.isRunning,
+          },
+        ]
+      : []),
     ...(state.supports.autoSettleOptOut
       ? [
           {
@@ -286,6 +323,11 @@ export function buildThreadActionMenuItems(
               },
             ]
           : []),
+        {
+          id: "copy-thread",
+          label: label("sidebar.action.thread", "Thread"),
+          icon: "message-square",
+        },
         {
           id: "copy-thread-id",
           label: label("sidebar.action.threadId", "Thread ID"),

@@ -2,7 +2,7 @@ name: 简体中文客户端验证与构建
 
 on:
   push:
-    branches: [maintenance/v0.1.3-zh-cloud]
+    branches: [maintenance/v0.1.5-zh-cloud]
   workflow_dispatch:
     inputs:
       expected_sha:
@@ -18,7 +18,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  CLIENT_VERSION: 0.1.3-zh.1
+  CLIENT_VERSION: 0.1.5-zh.1
   CI: "true"
   CSC_IDENTITY_AUTO_DISCOVERY: "false"
   T3CODE_DESKTOP_SIGNED: "false"
@@ -46,8 +46,8 @@ jobs:
             if (context.payload.repository.private !== false) {
               throw new Error('Standard hosted runners are free for public repositories only.');
             }
-            if (context.ref !== 'refs/heads/maintenance/v0.1.3-zh-cloud') {
-              throw new Error('Dispatch must select maintenance/v0.1.3-zh-cloud.');
+            if (context.ref !== 'refs/heads/maintenance/v0.1.5-zh-cloud') {
+              throw new Error('Dispatch must select maintenance/v0.1.5-zh-cloud.');
             }
             if (context.eventName === 'workflow_dispatch' &&
                 (!/^[0-9a-f]{40}$/.test(process.env.EXPECTED_SHA || '') ||
@@ -55,7 +55,7 @@ jobs:
               throw new Error('Expected SHA must equal the selected branch commit exactly.');
             }
             core.setOutput('sha', context.sha);
-            core.summary.addRaw(`Source: ${context.sha}\nVersion: 0.1.3-zh.1\n`);
+            core.summary.addRaw(`Source: ${context.sha}\nVersion: 0.1.5-zh.1\n`);
             await core.summary.write();
 
   quality:
@@ -85,6 +85,13 @@ jobs:
       - name: Install locked dependencies
         id: dependencies
         run: vp install --frozen-lockfile
+      - name: Reject repository-owned PR assets
+        run: |
+          files="$(git ls-files .github/pr-assets)"
+          if test -n "$files"; then
+            printf 'PR evidence must be uploaded to GitHub, not committed:\n%s\n' "$files" >&2
+            exit 1
+          fi
       - run: vp run --filter @t3tools/desktop ensure:electron
       - if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
         run: vp run knip:check
@@ -211,10 +218,17 @@ jobs:
             browser_cli=apps/web/node_modules/playwright/cli.js
           fi
           node "$browser_cli" install --with-deps --only-shell chromium
+      - name: Check release and preview orchestration helpers
+        if: matrix.suite == 'clients'
+        run: |
+          python3 -B .github/scripts/stage-preview-bundle.test.py
+          node --test .github/scripts/check-nightly-release.test.cjs .github/scripts/vercel-deployment-output.test.cjs
       - name: Run tests
         shell: bash
         env:
           SUITE: ${{ matrix.suite }}
+          T3CODE_TRANSFER_BUDGET_REPORT_PATH: ${{ runner.temp }}/t3code-transfer-budget.md
+          T3CODE_TRANSFER_BUDGET_RESULT_PATH: ${{ runner.temp }}/thread-transfer-result.json
         run: |
           set -euo pipefail
           if [[ "$SUITE" == clients ]]; then
@@ -225,12 +239,41 @@ jobs:
             vp run --filter t3 test --shard "${SUITE#server-}/3"
           fi
 
+      - name: Detect transfer budget report
+        id: transfer_budget
+        if: always() && startsWith(matrix.suite, 'server-')
+        run: |
+          if test -s "$RUNNER_TEMP/thread-transfer-result.json"; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+            cat "$RUNNER_TEMP/t3code-transfer-budget.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v7
+        if: always() && steps.transfer_budget.outputs.present == 'true'
+        with:
+          name: thread-transfer-results
+          path: ${{ runner.temp }}/thread-transfer-result.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Boot the built web client
+        if: matrix.suite == 'web'
+        run: |
+          vp run --filter @t3tools/web build
+          node apps/web/scripts/verify-built-boot.ts
+
   bundle:
     name: Build validated desktop bundle
     needs: [source, quality, mobile-native-quality, native-rust-quality, tests]
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
+      - name: Require transfer measurements from this run
+        uses: actions/download-artifact@v8
+        with:
+          name: thread-transfer-results
+          path: ${{ runner.temp }}/thread-transfer
+      - name: Validate transfer measurements
+        run: test -s "$RUNNER_TEMP/thread-transfer/thread-transfer-result.json"
       - name: Checkout exact source without credentials
         shell: bash
         env:
@@ -310,6 +353,21 @@ jobs:
           path: apps
       - name: Package Linux client
         run: vp run dist:desktop:artifact --platform linux --target AppImage --arch x64 --build-version "$CLIENT_VERSION" --skip-build --verbose
+      - name: Launch packaged Linux client
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y xvfb
+          appimage=$(ls "$GITHUB_WORKSPACE"/release/*.AppImage)
+          chmod +x "$appimage"
+          (cd "$RUNNER_TEMP" && "$appimage" --appimage-extract >/dev/null)
+          xvfb-run -a node scripts/smoke-desktop-app.ts --artifacts-dir "$RUNNER_TEMP/desktop-launch-check" --executable "$RUNNER_TEMP/squashfs-root/t3code"
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: desktop-launch-check-linux-x64
+          path: ${{ runner.temp }}/desktop-launch-check
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Build embedded WSL executable
         run: node apps/server/scripts/cli.ts build-exe --verbose
       - name: Package and smoke-test embedded WSL runtime
@@ -418,6 +476,23 @@ jobs:
           fi
           vp run dist:desktop:artifact "${args[@]}"
           echo "Unsigned community desktop build. macOS is not Developer ID signed or notarized; Windows is not Authenticode signed." >> "$GITHUB_STEP_SUMMARY"
+      - name: Launch packaged macOS client
+        if: matrix.platform == 'mac'
+        run: |
+          set -euo pipefail
+          mount="$RUNNER_TEMP/desktop-launch-dmg"
+          hdiutil attach -nobrowse -readonly -mountpoint "$mount" "$(ls "$GITHUB_WORKSPACE"/release/*.dmg)"
+          trap 'hdiutil detach "$mount" -force >/dev/null || true' EXIT
+          app=$(ls -d "$mount"/*.app)
+          executable=$(/usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" "$app/Contents/Info.plist")
+          node scripts/smoke-desktop-app.ts --artifacts-dir "$RUNNER_TEMP/desktop-launch-check" --executable "$app/Contents/MacOS/$executable"
+      - uses: actions/upload-artifact@v7
+        if: failure() && matrix.platform == 'mac'
+        with:
+          name: desktop-launch-check-mac-${{ matrix.arch }}
+          path: ${{ runner.temp }}/desktop-launch-check
+          if-no-files-found: ignore
+          retention-days: 7
       - uses: actions/upload-artifact@v7
         with:
           name: client-${{ matrix.platform }}-${{ matrix.arch }}
@@ -435,9 +510,9 @@ jobs:
     timeout-minutes: 120
     env:
       APP_VARIANT: community
-      T3CODE_MOBILE_VERSION: 0.1.3-zh.1
+      T3CODE_MOBILE_VERSION: 0.1.5-zh.1
       # Monotonic community code; signing remains isolated from this build job.
-      T3CODE_MOBILE_VERSION_CODE: "1000411"
+      T3CODE_MOBILE_VERSION_CODE: "1000412"
       T3CODE_MOBILE_UPDATES_ENABLED: "0"
       EXPO_NO_GIT_STATUS: "1"
       EXPO_NO_TELEMETRY: "1"
@@ -522,7 +597,7 @@ jobs:
           fi
           unzip -t "$apk"
           "$build_tools/aapt" dump badging "$apk" | tee "$RUNNER_TEMP/android-badging.txt"
-          grep -F "package: name='com.zhiweixiao.t3code.zhcn' versionCode='1000411' versionName='$CLIENT_VERSION'" "$RUNNER_TEMP/android-badging.txt"
+          grep -F "package: name='com.zhiweixiao.t3code.zhcn' versionCode='1000412' versionName='$CLIENT_VERSION'" "$RUNNER_TEMP/android-badging.txt"
           mkdir -p android-candidate
           cp "$apk" "android-candidate/T3-Code-zh-CN-Android-$CLIENT_VERSION-arm64-UNSIGNED-NOT-INSTALLABLE.apk"
           printf '%s\n' 'UNSIGNED: This build artifact is not installable. Publication requires the separate fixed-identity signing and APK verification gates. No private signing material is included in this artifact.' > android-candidate/SIGNING-BLOCKER.txt

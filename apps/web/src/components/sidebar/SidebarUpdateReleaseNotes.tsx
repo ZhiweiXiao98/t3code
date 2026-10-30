@@ -6,8 +6,8 @@ import {
   getDesktopUpdateReleaseHistoryUrl,
   getDesktopUpdateReleaseUrl,
 } from "../desktopUpdate.logic";
+import { formatRelativeTimeLabel } from "../../timestampFormat";
 import { openDesktopUpdateReleaseNotes } from "../desktopUpdate.toast";
-import { Separator } from "../ui/separator";
 
 type DesktopUpdateShell = Pick<DesktopBridge, "openExternal">;
 
@@ -18,6 +18,18 @@ function keyReleaseNoteItems(items: ReadonlyArray<string>) {
     occurrences.set(item, occurrence + 1);
     return { item, key: JSON.stringify([item, occurrence]) };
   });
+}
+
+/** Feed times read "3h ago"; build days from a prerelease version read "today" or "2d ago". */
+function formatReleaseAge(releasedAt: string): string {
+  const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(releasedAt);
+  if (!day) return formatRelativeTimeLabel(releasedAt);
+  const now = new Date();
+  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const days = Math.round(
+    (today - Date.UTC(Number(day[1]), Number(day[2]) - 1, Number(day[3]))) / 86_400_000,
+  );
+  return days <= 0 ? "today" : `${days}d ago`;
 }
 
 function ReleaseLink({
@@ -31,7 +43,7 @@ function ReleaseLink({
 }) {
   return (
     <a
-      className="mt-2 inline-flex items-center gap-1 rounded-sm text-xs leading-5 text-muted-foreground underline decoration-dotted underline-offset-4 outline-none transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+      className="mt-1 inline-flex items-center gap-1 rounded-sm text-xs leading-5 text-muted-foreground underline-offset-2 outline-none transition-colors hover:text-foreground hover:underline focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
       href={releaseUrl}
       onClick={(event) => {
         event.preventDefault();
@@ -39,7 +51,7 @@ function ReleaseLink({
       }}
     >
       {children}
-      <ExternalLinkIcon aria-hidden className="size-3 shrink-0" strokeWidth={2.25} />
+      <ExternalLinkIcon aria-hidden className="size-3 shrink-0" strokeWidth={2} />
     </a>
   );
 }
@@ -54,12 +66,15 @@ export function SidebarUpdateReleaseNotes({
   readonly tooltip: string;
 }) {
   const { t } = useI18n();
-  if (state.channel !== "nightly" || state.releaseNotes.length === 0) {
+  if (state.releaseNotes.length === 0) {
     return <>{tooltip}</>;
   }
+  const releasedAt = state.releaseNotes.find(
+    (releaseNote) => releaseNote.version === state.availableVersion,
+  )?.releasedAt;
 
   return (
-    <div className="flex max-h-[calc(var(--available-height)-0.5rem)] min-h-0 w-fit max-w-[min(24rem,calc(100vw-2rem))] flex-col text-left">
+    <div className="flex max-h-[calc(var(--available-height)-0.5rem)] min-h-0 w-fit max-w-[min(24rem,calc(100vw-2rem))] flex-col text-left text-pretty">
       <div className="shrink-0 px-1">
         {state.status === "available" ? (
           <div>
@@ -68,7 +83,9 @@ export function SidebarUpdateReleaseNotes({
             </div>
             {state.availableVersion ? (
               <div className="mt-0.5 text-xs leading-4 text-muted-foreground">
-                {state.availableVersion}
+                {releasedAt
+                  ? `${state.availableVersion} · ${formatReleaseAge(releasedAt)}`
+                  : state.availableVersion}
               </div>
             ) : null}
           </div>
@@ -76,20 +93,45 @@ export function SidebarUpdateReleaseNotes({
           <div className="text-sm leading-5 font-medium">{tooltip}</div>
         )}
       </div>
-      <div className="min-h-0 max-h-[min(28rem,calc(100vh-6rem))] overflow-y-auto px-1 pt-4 pb-1">
+      <div className="min-h-0 max-h-[min(28rem,calc(100vh-6rem))] overflow-y-auto px-1 pt-3 pb-1">
         {state.releaseNotes.map((releaseNote, index) => {
           const releaseUrl = getDesktopUpdateReleaseUrl(releaseNote.version);
           const omittedItemCount = Math.max(0, releaseNote.totalItems - releaseNote.items.length);
           const linkLabel =
-            omittedItemCount === 0
+            releaseNote.stats ??
+            (omittedItemCount === 0
               ? t("sidebar.update.viewRelease")
-              : omittedItemCount === 1
-                ? t("sidebar.update.moreChange", { count: omittedItemCount })
-                : t("sidebar.update.moreChanges", { count: omittedItemCount });
+              : t(
+                  omittedItemCount === 1
+                    ? "sidebar.update.moreChange"
+                    : "sidebar.update.moreChanges",
+                  { count: omittedItemCount },
+                ));
+
+          if (releaseNote.intro !== undefined) {
+            return (
+              <section className={index > 0 ? "mt-4" : undefined} key={releaseNote.version}>
+                {releaseNote.version !== state.availableVersion ? (
+                  <h3 className="mb-1 text-xs leading-4 font-medium text-muted-foreground">
+                    {releaseNote.releasedAt
+                      ? `${releaseNote.version} · ${formatReleaseAge(releaseNote.releasedAt)}`
+                      : releaseNote.version}
+                  </h3>
+                ) : null}
+                <p className="break-words text-xs leading-5 text-popover-foreground">
+                  {releaseNote.intro}
+                </p>
+                {releaseUrl ? (
+                  <ReleaseLink releaseUrl={releaseUrl} shell={shell}>
+                    {releaseNote.stats ?? t("sidebar.update.viewRelease")}
+                  </ReleaseLink>
+                ) : null}
+              </section>
+            );
+          }
 
           return (
-            <div key={releaseNote.version}>
-              {index > 0 && <Separator className="my-3" />}
+            <div className={index > 0 ? "mt-4" : undefined} key={releaseNote.version}>
               <section>
                 <h3 className="text-foreground text-xs leading-4 font-semibold">
                   {index === 0
@@ -113,8 +155,7 @@ export function SidebarUpdateReleaseNotes({
           );
         })}
         {state.omittedReleaseCount > 0 ? (
-          <div>
-            <Separator className="my-3" />
+          <div className="mt-3">
             <ReleaseLink releaseUrl={getDesktopUpdateReleaseHistoryUrl()} shell={shell}>
               {state.omittedReleaseCount === 1
                 ? t("sidebar.update.olderRelease", { count: state.omittedReleaseCount })

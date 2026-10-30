@@ -61,9 +61,7 @@ export function PullRequestListGhost({ rows = 7, caption }: { rows?: number; cap
     >
       {/* Outside the pulse so the explanation stays readable. */}
       {caption ? (
-        <p className="px-3 pb-1 text-xs font-medium text-muted-foreground/70 redesign:text-muted-foreground">
-          {caption}
-        </p>
+        <p className="px-3 pb-1 text-xs font-medium text-muted-foreground">{caption}</p>
       ) : null}
       <div className="motion-safe:animate-skeleton space-y-0.5">
         {Array.from({ length: rows }, (_, index) => (

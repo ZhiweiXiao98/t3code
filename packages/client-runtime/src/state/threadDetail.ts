@@ -199,8 +199,8 @@ export function createEnvironmentThreadDetailAtoms<E>(
   const threadStateValueAtomFamily = Atom.family((key: string) => {
     const ref = parseThreadKey(key);
     return Atom.make((get) =>
-      Option.getOrElse(
-        AsyncResult.value(get(threadStateAtom(ref.environmentId, ref.threadId))),
+      AsyncResult.getOrElse(
+        get(threadStateAtom(ref.environmentId, ref.threadId)),
         () => EMPTY_ENVIRONMENT_THREAD_STATE,
       ),
     ).pipe(Atom.setIdleTTL(0), Atom.withLabel(`environment-thread-state-value:${key}`));
@@ -409,6 +409,12 @@ export function createEnvironmentThreadDetailAtoms<E>(
       Atom.withLabel(`environment-thread-status:${key}`),
     ),
   );
+  const sequenceAtomFamily = Atom.family((key: string) =>
+    Atom.make((get) => get(threadStateValueAtomFamily(key)).sequence).pipe(
+      Atom.setIdleTTL(0),
+      Atom.withLabel(`environment-thread-sequence:${key}`),
+    ),
+  );
   const errorAtomFamily = Atom.family((key: string) =>
     Atom.make((get) => Option.getOrNull(get(threadStateValueAtomFamily(key)).error)).pipe(
       Atom.setIdleTTL(0),
@@ -439,6 +445,7 @@ export function createEnvironmentThreadDetailAtoms<E>(
     quietVisibleTurnItemsAtom: (ref: ScopedThreadRef) =>
       quietVisibleTurnItemsAtomFamily(threadKey(ref)),
     statusAtom: (ref: ScopedThreadRef) => statusAtomFamily(threadKey(ref)),
+    sequenceAtom: (ref: ScopedThreadRef) => sequenceAtomFamily(threadKey(ref)),
     errorAtom: (ref: ScopedThreadRef) => errorAtomFamily(threadKey(ref)),
     historyAtom: (ref: ScopedThreadRef) => historyAtomFamily(threadKey(ref)),
   };

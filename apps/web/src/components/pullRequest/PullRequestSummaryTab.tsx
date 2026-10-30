@@ -50,6 +50,7 @@ import {
   pullRequestCheckStatusLabel,
   PullRequestLabelChip,
   PullRequestReviewOutcomeBadge,
+  PullRequestReviewOutcomeAvatarBadge,
   pullRequestReviewOutcomeRingClassName,
 } from "./pullRequestPresentation";
 import { PullRequestLabelPicker } from "./PullRequestLabelPicker";
@@ -729,11 +730,17 @@ export function PullRequestSummaryTab({
                             variant="avatar"
                           />
                           {entry.outcome ? (
-                            <span className="sr-only">
-                              {entry.stale
-                                ? localizedReviewOutcome(t, entry.outcome, true)
-                                : localizedReviewOutcome(t, entry.outcome, false)}
-                            </span>
+                            <>
+                              <PullRequestReviewOutcomeAvatarBadge
+                                outcome={entry.outcome}
+                                stale={entry.stale}
+                              />
+                              <span className="sr-only">
+                                {entry.stale
+                                  ? localizedReviewOutcome(t, entry.outcome, true)
+                                  : localizedReviewOutcome(t, entry.outcome, false)}
+                              </span>
+                            </>
                           ) : null}
                         </TooltipTrigger>
                         <TooltipPopup side="bottom">

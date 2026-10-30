@@ -3,6 +3,41 @@ import { describe, expect, it } from "vite-plus/test";
 import { translateWebMessage, translateWebSource } from "./messages";
 
 describe("translateWebMessage", () => {
+  it("preserves full-access approval exceptions and original English explanations", () => {
+    expect(
+      translateWebSource(
+        "zh-CN",
+        "Full access skips approvals, but an ask rule in the agent's own settings matches this action, so it still asks. Remove or narrow that rule to stop these prompts.",
+      ),
+    ).toBe(
+      "完全访问会跳过审批，但 Agent 自身设置中的一条询问规则匹配了此操作，因此仍会询问。删除该规则或缩小其适用范围，即可停止这些提示。",
+    );
+    expect(
+      translateWebSource(
+        "en",
+        "Full access skips approvals, but an ask rule in the agent's own settings matches this action, so it still asks. Remove or narrow that rule to stop these prompts.",
+      ),
+    ).toBe(
+      "Full access skips approvals, but an ask rule in the agent's own settings matches this action, so it still asks. Remove or narrow that rule to stop these prompts.",
+    );
+    expect(
+      translateWebSource(
+        "zh-CN",
+        "Full access skips approvals, but the agent still stops for a few safety checks of its own that no setting can skip, such as a delete whose path it can't verify. T3 Code can't turn these off, so check the request and approve it if it's what you expect.",
+      ),
+    ).toBe(
+      "完全访问会跳过审批，但 Agent 仍会停下来进行少数自身安全检查；这些检查无法通过任何设置跳过，例如删除操作的路径无法验证时。T3 Code 无法关闭这些检查，请检查请求，确认符合预期后再批准。",
+    );
+    expect(
+      translateWebSource(
+        "en",
+        "Full access skips approvals, but the agent still stops for a few safety checks of its own that no setting can skip, such as a delete whose path it can't verify. T3 Code can't turn these off, so check the request and approve it if it's what you expect.",
+      ),
+    ).toBe(
+      "Full access skips approvals, but the agent still stops for a few safety checks of its own that no setting can skip, such as a delete whose path it can't verify. T3 Code can't turn these off, so check the request and approve it if it's what you expect.",
+    );
+  });
+
   it("uses English as the complete baseline catalog", () => {
     expect(translateWebMessage("en", "sidebar.newThread")).toBe("New thread");
   });

@@ -41,7 +41,6 @@ import {
 } from "@t3tools/shared/model";
 import { cn } from "../../lib/utils";
 import { useCopyToClipboard } from "../../hooks/useCopyToClipboard";
-import { useClientSettings } from "../../hooks/useSettings";
 import { useStableCallback } from "../../hooks/useStableCallback";
 import { normalizeProviderAccentColor } from "../../providerInstances";
 import { Badge } from "../ui/badge";
@@ -581,7 +580,7 @@ interface ProviderInstanceCardProps {
   readonly modelOrder: ReadonlyArray<string>;
   readonly onHiddenModelsChange: (
     next: ReadonlyArray<string>,
-    affectedModels?: ReadonlyArray<string>,
+    affectedModels: ReadonlyArray<string>,
   ) => void;
   readonly onFavoriteModelsChange: (next: ReadonlyArray<string>) => void;
   readonly onToggleFavorite: (model: string) => void;
@@ -683,7 +682,6 @@ export function ProviderInstanceCard({
   const displayName =
     instance.displayName?.trim() || driverOption?.label || String(instance.driver);
   const accentColor = normalizeProviderAccentColor(instance.accentColor);
-  const redesign = useClientSettings((settings) => settings.redesignEnabled);
   const { copyToClipboard } = useCopyToClipboard<{ providerName: string }>({
     onCopy: ({ providerName }) => {
       toastManager.add({
@@ -976,7 +974,7 @@ export function ProviderInstanceCard({
         data-slot="settings-row"
         className={cn(
           "group flex min-h-18 items-center gap-3 px-3 py-3 transition-colors sm:px-4",
-          selected ? "bg-muted/45 redesign:bg-foreground/[0.06]" : "hover:bg-muted/25",
+          selected ? "bg-foreground/[0.06]" : "hover:bg-muted/25",
         )}
       >
         <div
@@ -1084,7 +1082,7 @@ export function ProviderInstanceCard({
     </div>
   );
 
-  // The New design gives provider status its own row instead of hanging it under the name field.
+  // Provider status gets its own row instead of hanging under the name field.
   const statusContent = (
     <>
       <ProviderStatusDiagnostic detail={statusDiagnostic}>
@@ -1144,10 +1142,9 @@ export function ProviderInstanceCard({
   return (
     <>
       <SettingsSection title={displayName} icon={titleIconNode} headerAction={editorHeaderAction}>
-        {redesign ? <SettingsRow title="Status" status={statusContent} /> : null}
+        <SettingsRow title="Status" status={statusContent} />
         <SettingsRow
           title="Display name"
-          {...(redesign ? {} : { status: statusContent })}
           control={
             <div
               inert={readOnly}

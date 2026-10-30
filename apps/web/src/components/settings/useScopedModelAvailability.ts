@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n/WebI18nContext";
 import type { ProviderInstanceId, UnifiedSettings } from "@t3tools/contracts";
 
 import { mergeEnvironmentSettings } from "../../hooks/useSettings";
@@ -14,6 +15,7 @@ export function useScopedModelDisabledReason(
   settings: UnifiedSettings,
   entries: readonly ProviderInstanceEntry[],
 ) {
+  const { locale } = useI18n();
   const { targets } = useSettingsScope();
   const { environments } = useEnvironments();
   const providersByEnvironment = useEnvironmentProviders();
@@ -40,7 +42,9 @@ export function useScopedModelDisabledReason(
         entry.driverKind !== sourceEntry?.driverKind ||
         !options?.some((option) => option.slug === model && !option.isUnavailable)
       ) {
-        return `This model is unavailable on ${environment?.label ?? "a selected environment"}. Select that environment to choose its model separately.`;
+        return locale === "zh-CN"
+          ? `此模型在${environment?.label ?? "某个所选环境"}上不可用。请选择该环境，为其单独选择模型。`
+          : `This model is unavailable on ${environment?.label ?? "a selected environment"}. Select that environment to choose its model separately.`;
       }
     }
     return null;

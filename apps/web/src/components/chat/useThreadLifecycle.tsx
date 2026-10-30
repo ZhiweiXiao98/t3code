@@ -84,6 +84,7 @@ interface ThreadLifecycleInput {
   readonly runtimeMode: RuntimeMode;
   readonly isWorking: boolean;
   readonly pendingBackgroundTasks: Parameters<typeof backgroundWorkNowItem>[0]["tasks"];
+  readonly turnItems: Parameters<typeof backgroundWorkNowItem>[0]["turnItems"];
   readonly activePendingApproval: PendingThreadRequests["activePendingApproval"];
   readonly activePendingUserInput: PendingThreadRequests["activePendingUserInput"];
   readonly localCheckoutBranchMismatch: {
@@ -136,6 +137,7 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
     runtimeMode,
     isWorking,
     pendingBackgroundTasks,
+    turnItems,
     activePendingApproval,
     activePendingUserInput,
     localCheckoutBranchMismatch,
@@ -168,10 +170,8 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
     reportFailure: false,
   });
 
-  const supportsSettlement = serverConfig?.environment.capabilities.threadSettlement === true;
-  const supportsSnooze = serverConfig?.environment.capabilities.threadSnooze === true;
-  const supportsPinning = serverConfig?.environment.capabilities.threadPinning === true;
-  const activeThreadPinned = supportsPinning && activeThreadShell?.pinnedAt != null;
+  const serverConfigLoaded = serverConfig !== null;
+  const activeThreadPinned = serverConfigLoaded && activeThreadShell?.pinnedAt != null;
   // A clock read in render would stay frozen in the compiler's cache, so the
   // snooze checks read a snapshot that moves when the wake time changes or passes.
   const snoozeClock = new Date(
@@ -179,10 +179,10 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
   ).toISOString();
   const activeThreadSnoozed =
     activeThreadShell !== null &&
-    supportsSnooze &&
+    serverConfigLoaded &&
     effectiveSnoozed(activeThreadShell, { now: snoozeClock });
   const activeThreadWokeAt =
-    activeThreadShell !== null && supportsSnooze
+    activeThreadShell !== null && serverConfigLoaded
       ? threadWokeAt(activeThreadShell, { now: snoozeClock })
       : null;
   const acknowledgeThreadWoke = useAcknowledgeThreadWoke();
@@ -205,7 +205,7 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
     latestRunCompletedAt: activeLatestRun?.completedAt ?? null,
   });
   const activeThreadSettled =
-    supportsSettlement && activeThreadShell?.settledOverride === "settled";
+    serverConfigLoaded && activeThreadShell?.settledOverride === "settled";
   const unsettleThreadMutation = useOrchestrationCommand(threadEnvironment.unsettle, {
     reportFailure: false,
   });
@@ -519,6 +519,7 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
     ? backgroundWorkNowItem({
         threadId: activeThread.id,
         tasks: activeBackgroundTasks,
+        turnItems,
         stopDisabled: !canOperateThread || isStoppingBackgroundWork,
         stopping: isStoppingBackgroundWork,
         onStop: handleStopBackgroundWorkStable,
@@ -579,7 +580,7 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
   const shortcuts = {
     "thread.settle": () => {
       if (!readEnvironmentScope(environmentId, AuthOrchestrationOperateScope)) return false;
-      if (!activeThreadShell || !activeThreadRef || !supportsSettlement) return;
+      if (!activeThreadShell || !activeThreadRef || !serverConfigLoaded) return;
       if (activeThreadSettled) {
         void handleUnsettleActiveThread();
         return;
@@ -589,7 +590,7 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
     },
     "thread.pin": () => {
       if (!readEnvironmentScope(environmentId, AuthOrchestrationOperateScope)) return false;
-      if (!activeThreadShell || !activeThreadRef || !supportsPinning) return;
+      if (!activeThreadShell || !activeThreadRef || !serverConfigLoaded) return;
       void (
         activeThreadPinned ? confirmAndUnpinThread(activeThreadRef) : pinThread(activeThreadRef)
       ).then(

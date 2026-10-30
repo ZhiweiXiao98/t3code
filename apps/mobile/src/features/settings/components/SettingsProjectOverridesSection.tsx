@@ -8,7 +8,6 @@ import { SettingsSection } from "./SettingsSection";
 export function SettingsProjectOverridesSection(props: {
   readonly projectLabel: string;
   readonly hasOverrides: boolean;
-  readonly supportsOverrides: boolean;
   readonly pending: boolean;
   readonly disabled?: boolean;
   readonly onClear: () => void;
@@ -19,7 +18,7 @@ export function SettingsProjectOverridesSection(props: {
         <Text className="min-w-0 flex-1 text-base text-foreground" numberOfLines={2}>
           {props.projectLabel}
         </Text>
-        {!props.pending && props.supportsOverrides && props.hasOverrides ? (
+        {!props.pending && props.hasOverrides ? (
           <Button
             label="Use defaults"
             accessibilityHint={localizeMobileString("Use environment defaults for this project")}
@@ -29,11 +28,6 @@ export function SettingsProjectOverridesSection(props: {
           />
         ) : null}
       </View>
-      {!props.supportsOverrides ? (
-        <Text className="px-4 pb-3 text-sm text-foreground-muted">
-          Update the selected environments to edit project overrides.
-        </Text>
-      ) : null}
     </SettingsSection>
   );
 }

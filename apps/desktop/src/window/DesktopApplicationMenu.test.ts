@@ -410,7 +410,7 @@ describe("DesktopApplicationMenu", () => {
         throw new Error("Expected localized Window menu submenu to be an array.");
       }
       assert.equal(windowMenu.submenu.find((item) => item.role === "minimize")?.label, "最小化");
-      assert.equal(windowMenu.submenu.find((item) => item.role === "close")?.label, "关闭窗口");
+      assert.equal(windowMenu.submenu.find((item) => item.role === "zoom")?.label, "缩放");
 
       const helpMenu = template.find((item) => item.role === "help");
       assert.isDefined(helpMenu);
@@ -459,7 +459,7 @@ describe("DesktopApplicationMenu", () => {
         throw new Error("Expected English Window menu submenu to be an array.");
       }
       assert.equal(windowMenu.submenu.find((item) => item.role === "minimize")?.label, "Minimize");
-      assert.equal(windowMenu.submenu.find((item) => item.role === "close")?.label, "Close Window");
+      assert.equal(windowMenu.submenu.find((item) => item.role === "zoom")?.label, "Zoom");
       assert.equal(template.find((item) => item.role === "help")?.label, "Help");
     }),
   );
@@ -498,7 +498,24 @@ describe("DesktopApplicationMenu", () => {
       if (!Array.isArray(fileMenu?.submenu)) {
         throw new Error("Expected macOS File menu submenu to be an array.");
       }
-      assert.equal(fileMenu.submenu.find((item) => item.role === "close")?.label, "关闭窗口");
+      const closeWindow = fileMenu.submenu.find((item) => item.label === "关闭窗口");
+      assert.isDefined(closeWindow);
+      assert.isUndefined(closeWindow.role);
+      assert.isUndefined(closeWindow.accelerator);
+      let closed = false;
+      if (typeof closeWindow.click !== "function") {
+        throw new Error("Expected localized Close Window click handler.");
+      }
+      closeWindow.click(
+        {} as Electron.MenuItem,
+        {
+          close: () => {
+            closed = true;
+          },
+        } as Electron.BrowserWindow,
+        {} as KeyboardEvent,
+      );
+      assert.isTrue(closed);
 
       const windowMenu = template.find((item) => item.role === "windowMenu");
       if (!Array.isArray(windowMenu?.submenu)) {
@@ -637,6 +654,41 @@ describe("DesktopApplicationMenu", () => {
           assert.equal(yield* Deferred.await(selectedAction), expected);
         }
       }),
+  );
+
+  it.effect("never binds Cmd/Ctrl+W to closing the window", () =>
+    Effect.gen(function* () {
+      for (const platform of ["darwin", "linux", "win32"] as const) {
+        const applicationMenuTemplate =
+          yield* Deferred.make<readonly Electron.MenuItemConstructorOptions[]>();
+        yield* configureMenu(yield* Deferred.make<string>(), applicationMenuTemplate, {
+          platform,
+        });
+
+        const items: Electron.MenuItemConstructorOptions[] = [];
+        const collect = (template: readonly Electron.MenuItemConstructorOptions[]) => {
+          for (const item of template) {
+            items.push(item);
+            if (Array.isArray(item.submenu)) collect(item.submenu);
+          }
+        };
+        collect(yield* Deferred.await(applicationMenuTemplate));
+
+        assert.isUndefined(
+          items.find((item) => item.role === "close"),
+          platform,
+        );
+        // Electron's default windowMenu submenu includes a close role.
+        assert.isUndefined(
+          items.find((item) => item.role === "windowMenu" && item.submenu === undefined),
+          platform,
+        );
+        assert.isUndefined(
+          items.find((item) => item.accelerator?.toLowerCase().endsWith("+w")),
+          platform,
+        );
+      }
+    }),
   );
 
   it.effect("reloads the main window even while a browser page has focus", () =>

@@ -43,7 +43,7 @@ export function WebI18nProvider({ children }: { readonly children: ReactNode }) 
   );
   const locale = resolveAppLocale(appLocale, [runtimeLocale]);
 
-  // oxlint-disable-next-line t3code/react-effect-budget -- Synchronize the document language used by screen readers and browser translation with the selected UI locale.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Synchronize the document language used by screen readers and browser translation with the selected UI locale.
   useEffect(() => {
     if (typeof document !== "undefined") {
       document.documentElement.lang = locale;

@@ -60,6 +60,29 @@ describe("buildThreadActionMenuItems", () => {
     ).toBe("In 1 hour (3:00 PM)");
   });
 
+  it.each([
+    ["after:25", "In 25 minutes", "25 分钟后"],
+    ["after:180", "In 3 hours", "3 小时后"],
+    ["at:today:18:00", "This evening", "今天晚上"],
+    ["at:next-tuesday:09:00", "Next Tuesday", "下个星期二"],
+    ["custom", "A custom label", "A custom label"],
+  ])("localizes current snooze preset %s without changing its wake time", (id, label, chinese) => {
+    const state = { ...baseState, snoozePresets: [{ ...baseState.snoozePresets[0]!, id, label }] };
+    const translated = buildThreadActionMenuItems(state, (key, values) =>
+      translateWebMessage("zh-CN", key, values),
+    );
+    expect(
+      translated
+        .find((item) => item.id === "snooze")
+        ?.children?.find((item) => item.id === `snooze:${id}`)?.label,
+    ).toBe(`${chinese} (3:00 PM)`);
+    expect(
+      buildThreadActionMenuItems(state)
+        .find((item) => item.id === "snooze")
+        ?.children?.find((item) => item.id === `snooze:${id}`)?.label,
+    ).toBe(`${label} (3:00 PM)`);
+  });
+
   it.each([false, true])(
     "disables both lifecycle directions without permission (reversed: %s)",
     (reversed) => {
@@ -99,10 +122,13 @@ describe("buildThreadActionMenuItems", () => {
     },
   );
 
-  it("disables archive while the thread is running", () => {
-    const archiveItem = buildThreadActionMenuItems({ ...baseState, isRunning: true }).find(
-      (item) => item.id === "archive",
-    );
-    expect(archiveItem?.disabled).toBe(true);
+  it("disables archive and turning into a project while the thread is running", () => {
+    const items = buildThreadActionMenuItems({
+      ...baseState,
+      isRunning: true,
+      canTurnIntoProject: true,
+    });
+    expect(items.find((item) => item.id === "archive")?.disabled).toBe(true);
+    expect(items.find((item) => item.id === "turn-into-project")?.disabled).toBe(true);
   });
 });

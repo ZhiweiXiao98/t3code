@@ -3,7 +3,6 @@ import { translateWebSource } from "~/i18n/messages";
 import type { AnyRouter } from "@tanstack/react-router";
 import type { PullRequestReviewGuideResult } from "@t3tools/contracts";
 import { CircleAlertIcon, CircleCheckIcon } from "lucide-react";
-import * as Option from "effect/Option";
 import { AsyncResult, type AtomRegistry } from "effect/reactivity";
 
 import { getClientSettings } from "~/hooks/useSettings";
@@ -165,7 +164,7 @@ function watchGuideRun(
   const unsubscribe = registry.subscribe(
     atom,
     (result) => {
-      const data = Option.getOrNull(AsyncResult.value(result));
+      const data = AsyncResult.getOrElse(result, () => null);
       if (data === null || data === seen) return;
       seen = data;
       if (subscribing && watch.answeredRunning === true) return;

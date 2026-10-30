@@ -6,6 +6,93 @@ export const MOBILE_LOCALE: MobileLocale =
   process.env.EXPO_PUBLIC_APP_LOCALE === "zh-CN" ? "zh-CN" : "en";
 
 const ZH_CN_MESSAGES = {
+  Linked: "已关联",
+  Declined: "已拒绝",
+  "Request ended": "请求已结束",
+  Reachable: "可连接",
+  "Link a machine": "关联机器",
+  "Link a machine to this environment": "将机器关联到此环境",
+  "Expired. Link it again with a new pairing code.": "已过期。请使用新配对码重新关联。",
+  "Not answering right now.": "当前无响应。",
+  "Waiting for an answer in the original thread": "正在等待原任务中的答复",
+  "The ZIP wasn't downloaded. Try again to list its files.":
+    "ZIP 尚未下载。请重试以查看其中的文件。",
+  "Save the ZIP to open it in another app.": "保存 ZIP 后可使用其他应用打开。",
+  "Check the connection to this environment and try again.": "请检查与此环境的连接，然后重试。",
+  "Agents here can then launch, message and wait on threads there. It appears in that machine's Connections, where it can be revoked.":
+    "此处的 Agent 随后可以启动目标环境中的任务、发送消息并等待任务完成。该关联将出现在目标机器的“连接”设置中，可随时撤销。",
+  "An agent here never gets more there than its own mode here either. Threads it starts there cannot change that environment's own threads, projects or settings.":
+    "Agent 在目标环境中的权限也不会超过它在此处的运行模式所允许的权限。它在目标环境中启动的任务无法更改该环境原有的任务、项目或设置。",
+  "Add to chat": "添加到聊天",
+  "Allow edits from maintainers": "允许维护者编辑",
+  "Another address…": "其他地址…",
+  "Beta: Linked environments": "测试版：关联环境",
+  "Built-in microphone": "内置麦克风",
+  "By speed": "按速度",
+  "By type": "按类型",
+  "Change account": "切换账户",
+  "Clear filter": "清除筛选",
+  "Close files": "关闭文件",
+  "Copy thread": "复制任务",
+  "Couldn't browse this ZIP": "无法浏览此 ZIP",
+  "Couldn't download this ZIP": "无法下载此 ZIP",
+  "Couldn't read this file": "无法读取此文件",
+  "Crash reports": "崩溃报告",
+  "Download cancelled": "下载已取消",
+  "Earlier work": "此前工作",
+  "Extra High": "极高",
+  "Filter files in ZIP": "筛选 ZIP 中的文件",
+  "Floating navigation with a separate compose button.": "浮动导航与独立撰写按钮。",
+  Forget: "忘记",
+  "Git action failed": "Git 操作失败",
+  "Go to threads list": "前往任务列表",
+  "Link a machine this app does not know, by its https or Tailscale address.":
+    "通过 HTTPS 或 Tailscale 地址关联此应用尚未连接的机器。",
+  Machine: "机器",
+  Navigation: "导航",
+  "Open link": "打开链接",
+  "Opens queued messages to send now, edit, or remove": "打开排队消息以立即发送、编辑或移除",
+  "Paste the code": "粘贴代码",
+  "Preferred order": "首选顺序",
+  Pushed: "已推送",
+  "Read only": "只读",
+  "Read projects and threads. Cannot start, message or change anything.":
+    "读取项目和任务，不能启动任务、发送消息或进行任何更改。",
+  "Refreshing source control status": "正在刷新源代码管理状态",
+  "Resume interrupted threads after an update or restart.": "更新或重启后恢复中断的任务。",
+  "Save ZIP": "保存 ZIP",
+  "Save file": "保存文件",
+  "Send crash reports": "发送崩溃报告",
+  "Send now": "立即发送",
+  "Send response": "发送回复",
+  "Sent by T3 Code": "由 T3 Code 发送",
+  "Share link": "分享链接",
+  "Sign in with": "登录方式",
+  "Standard Android navigation bar and side rail.": "标准 Android 导航栏与侧边栏。",
+  "Start new threads in the last project you used on this device.":
+    "在此设备上最近使用的项目中新建任务。",
+  "This ZIP is empty": "此 ZIP 为空",
+  "It has no files.": "其中没有文件。",
+  "Too big to preview": "文件过大，无法预览",
+  "Too large to browse here": "文件过大，无法在此浏览",
+  Triage: "问题分流",
+  "Triage an issue": "对问题进行分流",
+  "Turn into project": "转为项目",
+  "Use last project": "使用上次项目",
+  "What agents here may do there": "此处 Agent 可在目标环境执行的操作",
+  "While the agent is running": "Agent 运行期间",
+  "ZIP actions": "ZIP 操作",
+  "ZIP download progress": "ZIP 下载进度",
+  "Stop workflow?": "停止工作流？",
+  "Stop agent?": "停止 Agent？",
+  "Could not stop workflow": "无法停止工作流",
+  "Could not stop agent": "无法停止 Agent",
+  "Provider-managed agent. Its work appears in the transcript.":
+    "由提供商管理的 Agent，其工作内容显示在记录中。",
+  "Choose machine…": "选择机器…",
+  "Review link…": "检查关联…",
+  "Linking…": "正在关联…",
+  "Use this link": "使用此关联",
   "Add a reaction": "添加回应",
   "Agent browser access": "Agent 浏览器访问",
   "All sections are hidden": "所有分区均已隐藏",
@@ -1076,6 +1163,59 @@ const ZH_CN_MESSAGES = {
 } as const satisfies Readonly<Record<string, string>>;
 
 function translateDynamicMessage(value: string): string | null {
+  const linkFrom = /^Linked from (.+)$/.exec(value);
+  if (linkFrom) return `来自 ${linkFrom[1]} 的关联`;
+  const linkTo = /^Link (.+) to this environment$/.exec(value);
+  if (linkTo) return `将 ${linkTo[1]} 关联到此环境`;
+  const linkMachine = /^Link (.+)$/.exec(value);
+  if (linkMachine) return `关联 ${linkMachine[1]}`;
+  const linkedMachine = /^Linked (.+)$/.exec(value);
+  if (linkedMachine) return `已关联 ${linkedMachine[1]}`;
+  const linkFailure = /^Could not link: (.+)$/.exec(value);
+  if (linkFailure) return `无法关联：${linkFailure[1]}`;
+  const linkExpiry = /^Expires in (\d+) days?$/.exec(value);
+  if (linkExpiry) return `${linkExpiry[1]} 天后过期`;
+  const fileCount = /^(\d+) files?$/.exec(value);
+  if (fileCount) return `${fileCount[1]} 个文件`;
+  const zipLimit = /^Browsing works up to (.+)\. Save the ZIP to open it in another app\.$/.exec(
+    value,
+  );
+  if (zipLimit) return `最多可浏览 ${zipLimit[1]} 的 ZIP。请保存后使用其他应用打开。`;
+  const previewLimit = /^Previews stop at (.+)\. Save the file to open it in another app\.$/.exec(
+    value,
+  );
+  if (previewLimit) return `预览上限为 ${previewLimit[1]}。请保存文件后使用其他应用打开。`;
+  const linkAddress =
+    /^This app has no address for (.+) that another machine can reach\. Enter its https or Tailscale address\.$/.exec(
+      value,
+    );
+  if (linkAddress)
+    return `此应用没有可供其他机器访问 ${linkAddress[1]} 的地址。请输入其 HTTPS 或 Tailscale 地址。`;
+  const linkExisting =
+    /^This environment is already linked to (.+)\. The agent can use that link as it is; change its access in Settings → Connections\.$/.exec(
+      value,
+    );
+  if (linkExisting)
+    return `此环境已关联到 ${linkExisting[1]}。Agent 可使用现有的关联；如需更改权限，请前往“设置 → 连接”。`;
+  const createLink =
+    /^Create a link on (.+): Settings → Connections → Create link, then paste its code here\.$/.exec(
+      value,
+    );
+  if (createLink)
+    return `在 ${createLink[1]} 上前往“设置 → 连接 → 创建关联”，然后将配对码粘贴到此处。`;
+
+  const zipFilter = /^Filter (\d+) files?$/.exec(value);
+  if (zipFilter) return `筛选 ${zipFilter[1]} 个文件`;
+  const zipNoMatch = /^No files match “(.*)”$/.exec(value);
+  if (zipNoMatch) return `没有文件匹配“${zipNoMatch[1]}”`;
+  const remoteAgent = /^Runs on (.+)\. Connect to it to open its thread\.$/.exec(value);
+  if (remoteAgent) return `运行于 ${remoteAgent[1]}。连接后可打开其任务。`;
+  const stopNamed = /^(Stop|Stopping) (workflow|agent) (.+)$/.exec(value);
+  if (stopNamed)
+    return `${stopNamed[1] === "Stopping" ? "正在停止" : "停止"}${stopNamed[2] === "workflow" ? "工作流" : " Agent"} ${stopNamed[3]}`;
+  const stopWorkflow = /^Every running agent in (.+) stops\.$/.exec(value);
+  if (stopWorkflow) return `停止 ${stopWorkflow[1]} 中所有运行中的 Agent。`;
+
   const createPrivateRepository = /^Create private repository on (.+)$/.exec(value);
   if (createPrivateRepository) return `在 ${createPrivateRepository[1]} 上创建私有仓库`;
   const createRepositoryFailure = /^Could not create the (.+) repository$/.exec(value);

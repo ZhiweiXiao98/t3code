@@ -4,6 +4,7 @@ import { defineConfig, normalizePath } from "vite-plus";
 import "vite-plus/test/config";
 
 const reactTests = [
+  "src/features/files/useFileTreeEntries.test.tsx",
   "src/features/projects/AddProjectScreen.test.ts",
   "src/lib/useMediaVideoPlayback.test.tsx",
   "src/features/pull-requests/usePullRequestEnvironmentFallback.test.tsx",
@@ -11,10 +12,13 @@ const reactTests = [
   "src/features/threads/thread-inspector-navigation.test.tsx",
   "src/features/diffs/nativeReviewDiffSurface.test.tsx",
   "src/features/pull-requests/usePullRequestDiff.test.tsx",
+  "src/components/ProjectFavicon.test.tsx",
   "src/components/ui/Dialog.android.test.tsx",
+  "src/features/files/ZipArchiveView.test.tsx",
   "src/features/pull-requests/guide/useReviewGuide.test.tsx",
   "src/features/settings/SettingsServerControlsRouteScreen.test.tsx",
   "src/features/settings/components/BranchNamingSettings.test.tsx",
+  "src/features/settings/components/SettingsDragHandle.test.tsx",
   "src/features/threads/ThreadMarkdownImage.test.tsx",
   "src/features/threads/UsageLimitRecoveryCard.test.tsx",
   "src/features/threads/NewTaskDraftRouteScreen.test.tsx",
@@ -24,6 +28,9 @@ const reactTests = [
   "src/state/queries.debounce.test.tsx",
   "src/state/use-selected-thread-git-actions.test.tsx",
   "src/features/terminal/useTerminalExitNavigation.test.tsx",
+  "src/features/threads/use-thread-list-now.test.tsx",
+  "src/features/home/home-list-options.test.tsx",
+  "src/features/connection/ConnectionsNewRouteScreen.test.tsx",
 ];
 
 const sourceRoot = `${normalizePath(NodeURL.fileURLToPath(new URL("./src", import.meta.url)))}/`;
