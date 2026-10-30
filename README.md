@@ -10,7 +10,7 @@
 
 ## 下载中文版
 
-当前桌面版本：**[v0.1.3-zh.1](https://github.com/ZhiweiXiao98/t3code/releases/tag/v0.1.3-zh.1)**，发布于 **2026 年 10 月 28 日**，基于官方稳定版 **v0.1.3**。桌面版本仍标记为 **预发布**。Android **[0.1.3-zh.1](https://github.com/ZhiweiXiao98/t3code/releases/tag/android-v0.1.3-zh.1)** 已正式发布，面向 ARM64 手机。
+当前桌面版本：**[v0.1.3-zh.1](https://github.com/ZhiweiXiao98/t3code/releases/tag/v0.1.3-zh.1)**，发布于 **2026 年 10 月 28 日**，基于官方稳定版 **v0.1.3**。Android **[0.1.3-zh.1](https://github.com/ZhiweiXiao98/t3code/releases/tag/android-v0.1.3-zh.1)** 已正式发布，面向 ARM64 手机。
 
 | 你的系统                     | 直接下载                                                                                                                                       |
 | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
