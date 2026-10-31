@@ -1,6 +1,10 @@
 name: 发布已验证的简体中文客户端
 
 on:
+  # This control-branch push is the reviewed publication action; never push it before artifact review.
+  push:
+    branches: [release/v0.1.5-zh-reviewed-20261031]
+    paths: [.github/workflows/publish-client-candidate.yml]
   workflow_dispatch:
     inputs:
       candidate_run_id:
@@ -44,10 +48,10 @@ jobs:
         id: verify
         env:
           GH_TOKEN: ${{ github.token }}
-          CANDIDATE_RUN_ID: ${{ inputs.candidate_run_id }}
-          EXPECTED_ATTEMPT: ${{ inputs.expected_attempt }}
-          EXPECTED_SHA: ${{ inputs.expected_sha }}
-          REVIEWED_ARTIFACTS: ${{ inputs.reviewed_artifacts }}
+          CANDIDATE_RUN_ID: ${{ github.event_name == 'push' && '41193465754' || inputs.candidate_run_id }}
+          EXPECTED_ATTEMPT: ${{ github.event_name == 'push' && '1' || inputs.expected_attempt }}
+          EXPECTED_SHA: ${{ github.event_name == 'push' && '40fd1d260c26c77d347de42b7315dd6380c8fb4d' || inputs.expected_sha }}
+          REVIEWED_ARTIFACTS: ${{ github.event_name == 'push' && 'true' || inputs.reviewed_artifacts }}
         shell: bash
         run: |
           set -euo pipefail
@@ -64,7 +68,9 @@ jobs:
           assert re.fullmatch(r'[0-9a-f]{40}', sha), 'Expected full lowercase SHA'
           assert os.environ['REVIEWED_ARTIFACTS'] == 'true', 'Review the actual candidate artifacts before dispatch'
           assert os.environ['GITHUB_REPOSITORY'] == repo
-          assert os.environ['GITHUB_REF'] == 'refs/heads/' + branch
+          assert os.environ['GITHUB_REF'] == 'refs/heads/release/v0.1.5-zh-reviewed-20261031'
+          assert os.environ['GITHUB_EVENT_NAME'] in ('push', 'workflow_dispatch')
+          assert (run_id, attempt, sha) == ('41193465754', '1', '40fd1d260c26c77d347de42b7315dd6380c8fb4d'), 'Only the fixed reviewed candidate may be published'
           base = f'repos/{repo}'
           def api(path):
               return json.loads(subprocess.check_output(['gh', 'api', base + path]))
@@ -200,9 +206,9 @@ jobs:
       - name: Reverify provenance and publish without running candidate code
         uses: actions/github-script@v8
         env:
-          EXPECTED_ATTEMPT: ${{ inputs.expected_attempt }}
-          EXPECTED_SHA: ${{ inputs.expected_sha }}
-          CANDIDATE_RUN_ID: ${{ inputs.candidate_run_id }}
+          EXPECTED_ATTEMPT: ${{ github.event_name == 'push' && '1' || inputs.expected_attempt }}
+          EXPECTED_SHA: ${{ github.event_name == 'push' && '40fd1d260c26c77d347de42b7315dd6380c8fb4d' || inputs.expected_sha }}
+          CANDIDATE_RUN_ID: ${{ github.event_name == 'push' && '41193465754' || inputs.candidate_run_id }}
           MANIFEST_SHA256: ${{ needs.verify.outputs.manifest_sha256 }}
         with:
           script: |
@@ -215,6 +221,11 @@ jobs:
             const tag = 'v0.1.5-zh.1';
             assert.equal(context.repo.owner, repo.owner);
             assert.equal(context.repo.repo, repo.repo);
+            assert.equal(context.ref, 'refs/heads/release/v0.1.5-zh-reviewed-20261031');
+            assert(['push', 'workflow_dispatch'].includes(context.eventName));
+            assert.equal(process.env.CANDIDATE_RUN_ID, '41193465754');
+            assert.equal(process.env.EXPECTED_ATTEMPT, '1');
+            assert.equal(process.env.EXPECTED_SHA, '40fd1d260c26c77d347de42b7315dd6380c8fb4d');
             const manifestBytes = fs.readFileSync('assets/BUILD-PROVENANCE.json');
             assert.equal(hash(manifestBytes), process.env.MANIFEST_SHA256);
             const m = JSON.parse(manifestBytes);
