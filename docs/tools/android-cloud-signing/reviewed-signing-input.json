@@ -1,8 +1,8 @@
 {
   "enabled": true,
-  "candidate_run_id": 40650302651,
+  "candidate_run_id": 41193465754,
   "candidate_attempt": 1,
-  "candidate_source_sha": "fb48ddad571d653e721759ba593f648c2681a571",
-  "candidate_artifact_id": 12799989636,
-  "candidate_artifact_zip_sha256": "fffd593bf9b73724944c944dfcd18f7ac451c1117d3e7aa01b9e9b18662cbe5f"
+  "candidate_source_sha": "40fd1d260c26c77d347de42b7315dd6380c8fb4d",
+  "candidate_artifact_id": 13040393151,
+  "candidate_artifact_zip_sha256": "a4a6217d6f59ed7f9eddae4b09a5ab45cd7877875106f2864b64fdd9b72b67ff"
 }
