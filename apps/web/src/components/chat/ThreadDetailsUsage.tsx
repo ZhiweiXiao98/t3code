@@ -188,13 +188,14 @@ function UsageRow({
 }) {
   const { t } = useI18n();
   const tone = left === null ? null : left <= 10 ? "error" : left <= 20 ? "warning" : null;
+  const accessibleValue = value ?? (left !== null ? t("usage.details.remaining", { left }) : null);
   return (
     <Tooltip>
       <TooltipTrigger
         render={
           <div
             tabIndex={0}
-            aria-label={`${label}: ${value ?? t("usage.details.remaining", { left })}`}
+            aria-label={accessibleValue === null ? label : `${label}: ${accessibleValue}`}
             className={cn(
               "col-span-3 grid h-6 cursor-default grid-cols-subgrid items-center rounded-lg px-2.5 outline-none hover:bg-black/[0.035] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring data-popup-open:bg-black/[0.035] dark:hover:bg-white/[0.08] dark:data-popup-open:bg-white/[0.08]",
               className,
