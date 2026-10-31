@@ -486,10 +486,32 @@ jobs:
           app=$(ls -d "$mount"/*.app)
           executable=$(/usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" "$app/Contents/Info.plist")
           node scripts/smoke-desktop-app.ts --artifacts-dir "$RUNNER_TEMP/desktop-launch-check" --executable "$app/Contents/MacOS/$executable"
+      - name: Launch installed Windows client
+        if: matrix.platform == 'win'
+        shell: pwsh
+        timeout-minutes: 10
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $installer = Join-Path $env:GITHUB_WORKSPACE "release/T3-Code-$env:CLIENT_VERSION-x64.exe"
+          $installDir = Join-Path $env:RUNNER_TEMP ("t3-installed-" + [guid]::NewGuid().ToString('N'))
+          if (-not (Test-Path -LiteralPath $installer -PathType Leaf)) {
+            throw "Expected installer missing: $installer"
+          }
+          # NSIS requires /D last and its value without literal quote characters.
+          $process = Start-Process -FilePath $installer -ArgumentList "/S /D=$installDir" -Wait -PassThru
+          if ($process.ExitCode -ne 0) {
+            throw "Installer failed with exit code $($process.ExitCode)"
+          }
+          $executable = Join-Path $installDir 'T3 Code (Beta).exe'
+          if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) {
+            throw "Installed application missing: $executable"
+          }
+          node scripts/smoke-desktop-app.ts --artifacts-dir "$env:RUNNER_TEMP/desktop-launch-check" --executable "$executable"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v7
-        if: failure() && matrix.platform == 'mac'
+        if: failure() && (matrix.platform == 'mac' || matrix.platform == 'win')
         with:
-          name: desktop-launch-check-mac-${{ matrix.arch }}
+          name: desktop-launch-check-${{ matrix.platform }}-${{ matrix.arch }}
           path: ${{ runner.temp }}/desktop-launch-check
           if-no-files-found: ignore
           retention-days: 7
