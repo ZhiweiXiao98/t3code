@@ -13,14 +13,14 @@ import urllib.request
 import zipfile
 
 REPO = 'ZhiweiXiao98/t3code'
-BRANCH = 'maintenance/v0.1.3-zh-cloud'
+BRANCH = 'maintenance/v0.1.5-zh-cloud'
 RECOVERY_RUN = 40649758501
 RECOVERY_ARTIFACT = 12799615493
 RECOVERY_ZIP_SHA256 = 'b2c345e3b7566e2c6cd3efa8be8213b464f1c3a04497967c96228d3797769fdd'
 CERT = '82f2437cbceb94fe6fe4a60a1c0de99f643124c64a648a27de9ce92bd39ecd88'
 KEY_HASH = '7e4922f7de02c1c739e627eb3ef87fa1fb639329ed27613dff8b4f0fdad2d397'
-APK_NAME = 'T3-Code-zh-CN-Android-0.1.3-zh.1-arm64-v8a.apk'
-UNSIGNED_APK_NAME = 'T3-Code-zh-CN-Android-0.1.3-zh.1-arm64-UNSIGNED-NOT-INSTALLABLE.apk'
+APK_NAME = 'T3-Code-zh-CN-Android-0.1.5-zh.1-arm64-v8a.apk'
+UNSIGNED_APK_NAME = 'T3-Code-zh-CN-Android-0.1.5-zh.1-arm64-UNSIGNED-NOT-INSTALLABLE.apk'
 JOBS = {'Validate exact source', 'Lint and typecheck', 'Rust native formatting and tests',
         'Mobile native static analysis', 'Build validated desktop bundle',
         'Linux x64 and embedded Windows WSL runtime',
@@ -133,7 +133,7 @@ def run(command):
 
 
 def check_badging(text):
-    require("package: name='com.zhiweixiao.t3code.zhcn' versionCode='1000411' versionName='0.1.3-zh.1'" in text, 'APK package/version mismatch')
+    require("package: name='com.zhiweixiao.t3code.zhcn' versionCode='1000412' versionName='0.1.5-zh.1'" in text, 'APK package/version mismatch')
     natives = re.findall(r'^native-code:\s*(.*)$', text, re.M)
     require(natives == ["'arm64-v8a'"], 'APK must contain exactly arm64-v8a native code')
 
@@ -255,7 +255,7 @@ def sign(input_path, workspace, destination):
         proof.update({'signed_apk_sha256': digest(signed), 'apk_signature_verified': True,
                       'source_sha': manifest['candidate_source_sha'],
                       'candidate_artifact_sha256': manifest['candidate_artifact_zip_sha256'],
-                      'package_name': 'com.zhiweixiao.t3code.zhcn', 'version_name': '0.1.3-zh.1', 'version_code': 1000411})
+                      'package_name': 'com.zhiweixiao.t3code.zhcn', 'version_name': '0.1.5-zh.1', 'version_code': 1000412})
         (out / 'BUILD-PROVENANCE.json').write_text(json.dumps(proof, indent=2) + '\n')
         (out / 'SHA256SUMS.txt').write_text(digest(signed) + '  ' + APK_NAME + '\n' + digest(out / 'BUILD-PROVENANCE.json') + '  BUILD-PROVENANCE.json\n')
     finally:
@@ -280,3 +280,4 @@ if __name__ == '__main__':
     except Exception:
         raise SystemExit('Reviewed APK operation failed closed. No publication or key replacement performed.') from None
     print('Reviewed APK ' + args.operation + ' completed; no release publication performed.')
+

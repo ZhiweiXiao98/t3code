@@ -46,9 +46,9 @@ class ReviewedSigningTests(unittest.TestCase):
         with self.assertRaises(ValueError): signer.check_jobs(jobs)
 
     def test_apk_badging_is_exact(self):
-        valid = "package: name='com.zhiweixiao.t3code.zhcn' versionCode='1000411' versionName='0.1.3-zh.1'\nnative-code: 'arm64-v8a'\n"
+        valid = "package: name='com.zhiweixiao.t3code.zhcn' versionCode='1000412' versionName='0.1.5-zh.1'\nnative-code: 'arm64-v8a'\n"
         signer.check_badging(valid)
-        for wrong in [valid.replace('1000411','10103'), valid.replace('arm64-v8a','x86_64'), valid.replace("'arm64-v8a'", "'arm64-v8a' 'armeabi-v7a'")]:
+        for wrong in [valid.replace('1000412','10103'), valid.replace('arm64-v8a','x86_64'), valid.replace("'arm64-v8a'", "'arm64-v8a' 'armeabi-v7a'")]:
             with self.assertRaises(ValueError): signer.check_badging(wrong)
 
     def test_unsigned_gate_requires_expected_verifier_failure(self):
@@ -108,7 +108,7 @@ class ReviewedSigningTests(unittest.TestCase):
             elif '-f' in command:
                 Path(command[-1]).write_bytes(b'PUBLIC MOCK ALIGNED')
             elif 'badging' in command:
-                return "package: name='com.zhiweixiao.t3code.zhcn' versionCode='1000411' versionName='0.1.3-zh.1'\nnative-code: 'arm64-v8a'\n"
+                return "package: name='com.zhiweixiao.t3code.zhcn' versionCode='1000412' versionName='0.1.5-zh.1'\nnative-code: 'arm64-v8a'\n"
             return ''
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder); work=root/'work';work.mkdir();output=root/'output';inp=root/'input.json'
@@ -124,10 +124,11 @@ class ReviewedSigningTests(unittest.TestCase):
             report=json.loads((output/'BUILD-PROVENANCE.json').read_text())
             self.assertEqual(report['source_sha'],'a'*40)
             self.assertEqual(report['candidate_artifact_sha256'],'b'*64)
-            self.assertEqual(report['version_code'],1000411)
+            self.assertEqual(report['version_code'],1000412)
             self.assertEqual(len((output/'SHA256SUMS.txt').read_text().splitlines()),2)
             self.assertNotIn('PUBLIC-NOT-A-SECRET-',repr(commands))
 
 
 if __name__ == '__main__':
     unittest.main()
+

@@ -65,7 +65,7 @@ jobs:
         with:
           name: android-signed-reviewed-${{ github.run_id }}
           path: |
-            ${{ runner.temp }}/signed-android/T3-Code-zh-CN-Android-0.1.3-zh.1-arm64-v8a.apk
+            ${{ runner.temp }}/signed-android/T3-Code-zh-CN-Android-0.1.5-zh.1-arm64-v8a.apk
             ${{ runner.temp }}/signed-android/BUILD-PROVENANCE.json
             ${{ runner.temp }}/signed-android/SHA256SUMS.txt
           if-no-files-found: error
@@ -87,8 +87,8 @@ jobs:
       - name: Verify signed handoff and publish a new non-Latest Android release
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          EXPECTED_SOURCE_SHA: fb48ddad571d653e721759ba593f648c2681a571
-          EXPECTED_CANDIDATE_RUN: '40650302651'
+          EXPECTED_SOURCE_SHA: 40fd1d260c26c77d347de42b7315dd6380c8fb4d
+          EXPECTED_CANDIDATE_RUN: '41193465754'
           SIGNED_ARTIFACT_ID: ${{ needs.sign.outputs.artifact_id }}
           SIGNED_ARTIFACT_DIGEST: ${{ needs.sign.outputs.artifact_digest }}
         with:
@@ -97,8 +97,8 @@ jobs:
             const crypto = require('node:crypto');
             const assert = require('node:assert/strict');
             const repo = {owner:'ZhiweiXiao98', repo:'t3code'};
-            const tag = 'android-v0.1.3-zh.1';
-            const apkName = 'T3-Code-zh-CN-Android-0.1.3-zh.1-arm64-v8a.apk';
+            const tag = 'android-v0.1.5-zh.1';
+            const apkName = 'T3-Code-zh-CN-Android-0.1.5-zh.1-arm64-v8a.apk';
             const hash = b => crypto.createHash('sha256').update(b).digest('hex');
             const names = [apkName, 'BUILD-PROVENANCE.json', 'SHA256SUMS.txt'].sort();
             assert.deepEqual(fs.readdirSync('release-assets').sort(), names);
@@ -109,8 +109,8 @@ jobs:
             assert.equal(String(m.candidate_run_id), process.env.EXPECTED_CANDIDATE_RUN);
             assert.equal(m.certificate_sha256, '82f2437cbceb94fe6fe4a60a1c0de99f643124c64a648a27de9ce92bd39ecd88');
             assert.equal(m.package_name, 'com.zhiweixiao.t3code.zhcn');
-            assert.equal(m.version_name, '0.1.3-zh.1');
-            assert.equal(m.version_code, 1000411);
+            assert.equal(m.version_name, '0.1.5-zh.1');
+            assert.equal(m.version_code, 1000412);
             assert.equal(String(m.recovery_run_id), '40649758501');
             const apk = fs.readFileSync(`release-assets/${apkName}`);
             assert.equal(hash(apk), m.signed_apk_sha256);
@@ -128,7 +128,7 @@ jobs:
               assert.equal(signed.expired,false); assert.equal(signed.digest, `sha256:${process.env.SIGNED_ARTIFACT_DIGEST}`);
               const r = await publicAPI(`/actions/runs/${m.candidate_run_id}`);
               assert.equal(r.status,'completed'); assert.equal(r.conclusion,'success'); assert.equal(r.run_attempt,m.candidate_attempt);
-              assert.equal(r.head_sha,m.source_sha); assert.equal(r.head_branch,'maintenance/v0.1.3-zh-cloud');
+              assert.equal(r.head_sha,m.source_sha); assert.equal(r.head_branch,'maintenance/v0.1.5-zh-cloud');
               assert.equal(r.path,'.github/workflows/client-release.yml');
               assert.equal(r.repository.full_name,'ZhiweiXiao98/t3code');
               assert.equal(r.head_repository.full_name,'ZhiweiXiao98/t3code');
@@ -136,7 +136,7 @@ jobs:
               const expectedJobs=['Validate exact source','Lint and typecheck','Rust native formatting and tests','Mobile native static analysis','Build validated desktop bundle','Linux x64 and embedded Windows WSL runtime','Android arm64 unsigned candidate (NOT installable)','Desktop win x64 (unsigned)','Desktop mac arm64 (unsigned)','Desktop mac x64 (unsigned)',...['clients','web','server-1','server-2','server-3'].map(x=>`Tests (${x})`)];
               assert.deepEqual(j.jobs.map(x=>x.name).sort(),expectedJobs.sort());
               assert.equal(j.total_count,15); assert(j.jobs.every(x=>x.status==='completed'&&x.conclusion==='success'));
-              assert.equal((await publicAPI('/git/ref/heads/maintenance/v0.1.3-zh-cloud')).object.sha,m.source_sha);
+              assert.equal((await publicAPI('/git/ref/heads/maintenance/v0.1.5-zh-cloud')).object.sha,m.source_sha);
               const a = await publicAPI(`/actions/artifacts/${m.candidate_artifact_id}`);
               assert.equal(a.expired,false); assert.equal(a.digest,`sha256:${m.candidate_artifact_sha256}`);
               assert.equal(a.workflow_run.id,Number(m.candidate_run_id)); assert.equal(a.workflow_run.head_sha,m.source_sha);
@@ -153,12 +153,12 @@ jobs:
             const releases=await github.paginate(github.rest.repos.listReleases,{...repo,per_page:100});
             assert(!releases.some(r=>r.tag_name===tag),'Existing draft; preserve it for investigation');
             await github.rest.git.createRef({...repo,ref:`refs/tags/${tag}`,sha:m.source_sha});
-            const body = `基于上游稳定版 v0.1.3 的简体中文 Android 社区版，arm64-v8a。\n\n`+
-              `版本：0.1.3-zh.1；versionCode：1000411。\n精确源码：${m.source_sha}\n构建与完整验证：https://github.com/ZhiweiXiao98/t3code/actions/runs/${m.candidate_run_id}\n签名发布：https://github.com/ZhiweiXiao98/t3code/actions/runs/${context.runId}\n\n`+
-              '采用固定社区签名身份，加密备份已通过新云端 runner 恢复验证。与早期 APK 签名不同，不能直接覆盖旧安装；卸载前请自行保存需要的应用配置。\n\n'+
-              '本版为连接 T3 Code 服务端的移动客户端；请使用兼容的新版服务端。此 APK 来源提交与已发布桌面二进制提交不同，未替换任何桌面资产。\n\n'+
+            const body = `基于上游稳定版 v0.1.5 的简体中文 Android 社区版，arm64-v8a。\n\n`+
+              `版本：0.1.5-zh.1；versionCode：1000412。\n精确源码：${m.source_sha}\n构建与完整验证：https://github.com/ZhiweiXiao98/t3code/actions/runs/${m.candidate_run_id}\n签名发布：https://github.com/ZhiweiXiao98/t3code/actions/runs/${context.runId}\n\n`+
+              '采用固定社区签名身份，加密备份已通过新云端 runner 恢复验证。沿用 android-v0.1.3-zh.1 的固定签名身份，versionCode 递增；更早使用其他签名的 APK 不能直接覆盖安装，卸载前请自行保存需要的应用配置。\n\n'+
+              '本版为连接 T3 Code 服务端的移动客户端；请使用兼容的新版服务端。本次 Android 发布未替换任何桌面资产；请以各发布页的精确源码和构建记录核对来源。\n\n'+
               '已完成完整当前提交 CI、原生回归、APK 包名/版本/架构与签名证书校验；未声称完成所有实体手机上的人工安装与界面验证。SHA256SUMS.txt 与 BUILD-PROVENANCE.json 记录完整性、构建及签名来源。手动下载安装，不提供自动更新。';
-            const {data:release}=await github.rest.repos.createRelease({...repo,tag_name:tag,target_commitish:m.source_sha,name:'T3 Code 中文 Android 0.1.3-zh.1 (arm64)',body,draft:true,prerelease:false,make_latest:'false'});
+            const {data:release}=await github.rest.repos.createRelease({...repo,tag_name:tag,target_commitish:m.source_sha,name:'T3 Code 中文 Android 0.1.5-zh.1 (arm64)',body,draft:true,prerelease:false,make_latest:'false'});
             for(const name of names) {
               const data=fs.readFileSync(`release-assets/${name}`);
               const {data:asset}=await github.rest.repos.uploadReleaseAsset({...repo,release_id:release.id,name,data,headers:{'content-type':'application/octet-stream','content-length':data.length}});
@@ -171,3 +171,4 @@ jobs:
             const {data:published}=await github.rest.repos.updateRelease({...repo,release_id:release.id,draft:false,prerelease:false,make_latest:'false'});
             assert.equal(published.draft,false); assert.equal(published.prerelease,false);
             core.summary.addLink('Signed Android release',published.html_url); await core.summary.write();
+
