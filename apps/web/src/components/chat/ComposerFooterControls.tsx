@@ -43,6 +43,7 @@ export const ComposerFooterModeControls = memo(function ComposerFooterModeContro
   onRuntimeModeChange: (mode: RuntimeMode) => void;
 }) {
   const { locale: releaseLocale, t: translateRelease } = useI18n();
+  const tx = (source: string) => translateWebSource(releaseLocale, source);
   const size = props.size ?? "sm";
   const accessDisplay = props.accessDisplay ?? "label";
   const composerFloatingLayerProps = useComposerMenuProps();
@@ -99,7 +100,8 @@ export const ComposerFooterModeControls = memo(function ComposerFooterModeContro
   ) : null;
 
   // The chip opens the same Permissions toggle used in the effort menu.
-  const permissionsTooltip = `Permissions: ${runtimeModeOption.label}. ${runtimeModeOption.description}`;
+  const permissionsLabel = `${tx("Permissions")}: ${tx(runtimeModeOption.label)}`;
+  const permissionsTooltip = `${permissionsLabel}. ${tx(runtimeModeOption.description)}`;
   const permissionsChip = (
     <Menu
       open={open}
@@ -119,7 +121,7 @@ export const ComposerFooterModeControls = memo(function ComposerFooterModeContro
                   size={size}
                   // Mirrors the effort chip's trailing pe-1 so both gaps around the bars match.
                   className="ps-1.5"
-                  aria-label={`${translateRelease("composer.runtimeMode")}: ${runtimeModeOption.label}`}
+                  aria-label={permissionsLabel}
                 />
               }
             />
@@ -135,7 +137,7 @@ export const ComposerFooterModeControls = memo(function ComposerFooterModeContro
             data-composer-control-label
             className={accessDisplay === "icon" ? "sr-only" : undefined}
           >
-            {runtimeModeOption.label}
+            {tx(runtimeModeOption.label)}
           </span>
         </TooltipTrigger>
         <TooltipPopup side="top">{permissionsTooltip}</TooltipPopup>
@@ -171,6 +173,8 @@ export function ComposerPermissionsSection(props: {
   >;
   onRuntimeModeChange: (mode: RuntimeMode) => void;
 }) {
+  const { locale } = useI18n();
+  const tx = (source: string) => translateWebSource(locale, source);
   // Hover or keyboard focus previews a mode's name and description before a pick.
   const [previewMode, setPreviewMode] = useState<RuntimeMode | null>(null);
   const shownMode = previewMode ?? props.runtimeMode;
@@ -180,9 +184,9 @@ export function ComposerPermissionsSection(props: {
   const descriptionId = useId();
   return (
     <div data-composer-permissions className="grid w-72 gap-1.5 px-2 py-1.5">
-      <div className="font-medium text-muted-foreground text-xs">Permissions</div>
+      <div className="font-medium text-muted-foreground text-xs">{tx("Permissions")}</div>
       <MenuPrimitive.RadioGroup
-        aria-label="Permissions"
+        aria-label={tx("Permissions")}
         value={props.runtimeMode}
         onValueChange={(value: RuntimeMode) => {
           if (value !== props.runtimeMode) props.onRuntimeModeChange(value);
@@ -208,8 +212,8 @@ export function ComposerPermissionsSection(props: {
             <MenuPrimitive.RadioItem
               key={option.mode}
               value={option.mode}
-              label={option.label}
-              aria-label={option.label}
+              label={tx(option.label)}
+              aria-label={tx(option.label)}
               aria-describedby={`${descriptionId}-${option.mode}`}
               closeOnClick
               onPointerEnter={() => setPreviewMode(option.mode)}
@@ -226,7 +230,7 @@ export function ComposerPermissionsSection(props: {
       {/* Static per-mode descriptions for screen readers; the preview below is visual only. */}
       {props.runtimeModeOptions.map((option) => (
         <span key={option.mode} id={`${descriptionId}-${option.mode}`} className="sr-only">
-          {option.description}
+          {tx(option.description)}
         </span>
       ))}
       <div className="grid gap-0.5" aria-hidden="true">
@@ -237,10 +241,12 @@ export function ComposerPermissionsSection(props: {
               : "text-muted-foreground text-sm"
           }
         >
-          {shown.label}
+          {tx(shown.label)}
         </span>
         {/* Two lines reserved so the menu does not shift while you preview modes. */}
-        <span className="min-h-8 text-muted-foreground text-xs leading-4">{shown.description}</span>
+        <span className="min-h-8 text-muted-foreground text-xs leading-4">
+          {tx(shown.description)}
+        </span>
       </div>
     </div>
   );

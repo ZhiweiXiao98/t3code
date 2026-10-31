@@ -532,9 +532,7 @@ export const make = Effect.gen(function* () {
         event.preventDefault();
         void runPromise(
           Effect.gen(function* () {
-            const settings = yield* clientSettings.get.pipe(
-              Effect.catch(() => Effect.succeed(Option.none())),
-            );
+            const settings = yield* clientSettings.get.pipe(Effect.orElseSucceed(Option.none));
             const systemLocale = yield* electronApp.systemLocale;
             const messages = resolveDesktopApplicationMenuMessages(
               Option.isSome(settings)

@@ -51,7 +51,7 @@ describe("buildThreadActionMenuItems", () => {
     const preset = items
       .find((item) => item.id === "snooze")
       ?.children?.find((item) => item.id === "snooze:hour");
-    expect(preset?.label).toBe(`${translateWebMessage("zh-CN", "sidebar.snooze.hour")} (3:00 PM)`);
+    expect(preset?.label).toBe("1 小时后 (3:00 PM)");
     const englishItems = buildThreadActionMenuItems(baseState);
     expect(
       englishItems

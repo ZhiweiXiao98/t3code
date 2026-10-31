@@ -8,6 +8,7 @@ import { AsyncResult } from "effect/reactivity";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import type { ThreadActionMenuId } from "../components/threadActionMenu.logic";
+import { translateWebMessage } from "../i18n/messages";
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -35,6 +36,15 @@ function recordEffect(action: string) {
 }
 
 vi.mock("../components/CustomSnoozeDialog", () => ({ requestCustomSnooze: vi.fn() }));
+vi.mock("../i18n/WebI18nContext", () => ({
+  useI18n: () => ({
+    locale: "en",
+    t: (
+      key: Parameters<typeof translateWebMessage>[1],
+      values?: Parameters<typeof translateWebMessage>[2],
+    ) => translateWebMessage("en", key, values),
+  }),
+}));
 vi.mock("react", () => ({
   useCallback: (callback: unknown) => callback,
   useMemo: (factory: () => unknown) => factory(),

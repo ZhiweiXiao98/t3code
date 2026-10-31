@@ -4,6 +4,8 @@ import { expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 
 import { render } from "../../../test/render";
+import { WebI18nContext } from "../../i18n/WebI18nContext";
+import { translateWebMessage } from "../../i18n/messages";
 import { ComposerHandleContext, type ComposerHandleRef } from "../../composerHandleContext";
 import { Menu, MenuPopup, MenuRadioGroup, MenuRadioItem, MenuTrigger } from "../ui/menu";
 import {
@@ -141,11 +143,31 @@ function PermissionsChip() {
   );
 }
 
-it("returns focus to the editor when picking the default hides the chip", async () => {
-  const { handle, ui } = withComposer(<PermissionsChip />);
-  await using screen = await render(ui, { router: false }); // no routes involved
-  await userEvent.click(screen.getByRole("button", { name: "Permissions: Supervised" }));
-  await userEvent.click(page.getByRole("menuitemradio", { name: "Full access" }));
-  await vi.waitFor(() => expect(handle.focusAtEnd).toHaveBeenCalled());
-  await expect.element(screen.getByRole("button", { name: "Effort" })).not.toHaveFocus();
-});
+it.each([
+  ["en", "Permissions: Supervised", "Full access", "Allow commands and edits without prompts."],
+  ["zh-CN", "权限: 监督模式", "完全访问", "无需提示即可执行命令和编辑。"],
+] as const)(
+  "returns focus to the editor when picking the default hides the chip in %s",
+  async (locale, chipLabel, fullAccessLabel, description) => {
+    const { handle, ui } = withComposer(<PermissionsChip />);
+    await using screen = await render(
+      <WebI18nContext
+        value={{
+          locale,
+          appLocale: locale,
+          setAppLocale: () => {},
+          t: (key, values) => translateWebMessage(locale, key, values),
+        }}
+      >
+        {ui}
+      </WebI18nContext>,
+      { router: false }, // no routes involved
+    );
+    await userEvent.click(screen.getByRole("button", { name: chipLabel }));
+    const fullAccess = page.getByRole("menuitemradio", { name: fullAccessLabel });
+    await expect.element(fullAccess).toHaveAccessibleDescription(description);
+    await userEvent.click(fullAccess);
+    await vi.waitFor(() => expect(handle.focusAtEnd).toHaveBeenCalled());
+    await expect.element(screen.getByRole("button", { name: "Effort" })).not.toHaveFocus();
+  },
+);
