@@ -10,31 +10,31 @@
 
 ## 下载中文版
 
-当前桌面版本：**[v0.1.3-zh.1](https://github.com/ZhiweiXiao98/t3code/releases/tag/v0.1.3-zh.1)**，发布于 **2026 年 10 月 28 日**，基于官方稳定版 **v0.1.3**。Android **[0.1.3-zh.1](https://github.com/ZhiweiXiao98/t3code/releases/tag/android-v0.1.3-zh.1)** 已正式发布，面向 ARM64 手机。
+当前桌面版本：**[v0.1.5-zh.1](https://github.com/ZhiweiXiao98/t3code/releases/tag/v0.1.5-zh.1)**，发布于 **2026 年 10 月 31 日**，基于官方稳定版 **v0.1.5**。Android **[0.1.5-zh.1](https://github.com/ZhiweiXiao98/t3code/releases/tag/android-v0.1.5-zh.1)** 已于同日正式发布，面向 ARM64 手机。
 
 | 你的系统                     | 直接下载                                                                                                                                       |
 | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| Windows x64                  | [下载安装程序 .exe](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.3-zh.1/T3-Code-0.1.3-zh.1-x64.exe)                           |
-| Mac：Apple Silicon（M 系列） | [下载 .dmg](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.3-zh.1/T3-Code-0.1.3-zh.1-arm64.dmg)                                 |
-| Mac：Intel                   | [下载 .dmg](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.3-zh.1/T3-Code-0.1.3-zh.1-x64.dmg)                                   |
-| Linux x64：Debian / Ubuntu   | [下载 .deb](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.3-zh.1/T3-Code-0.1.3-zh.1-amd64.deb)                                 |
-| Linux x64：AppImage          | [下载 .AppImage](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.3-zh.1/T3-Code-0.1.3-zh.1-x86_64.AppImage)                      |
-| Android ARM64                | [下载已签名 .apk](https://github.com/ZhiweiXiao98/t3code/releases/download/android-v0.1.3-zh.1/T3-Code-zh-CN-Android-0.1.3-zh.1-arm64-v8a.apk) |
+| Windows x64                  | [下载安装程序 .exe](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.5-zh.1/T3-Code-0.1.5-zh.1-x64.exe)                           |
+| Mac：Apple Silicon（M 系列） | [下载 .dmg](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.5-zh.1/T3-Code-0.1.5-zh.1-arm64.dmg)                                 |
+| Mac：Intel                   | [下载 .dmg](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.5-zh.1/T3-Code-0.1.5-zh.1-x64.dmg)                                   |
+| Linux x64：Debian / Ubuntu   | [下载 .deb](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.5-zh.1/T3-Code-0.1.5-zh.1-amd64.deb)                                 |
+| Linux x64：AppImage          | [下载 .AppImage](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.5-zh.1/T3-Code-0.1.5-zh.1-x86_64.AppImage)                      |
+| Android ARM64                | [下载已签名 .apk](https://github.com/ZhiweiXiao98/t3code/releases/download/android-v0.1.5-zh.1/T3-Code-zh-CN-Android-0.1.5-zh.1-arm64-v8a.apk) |
 
-[桌面文件与发布说明](https://github.com/ZhiweiXiao98/t3code/releases/tag/v0.1.3-zh.1) · [SHA-256 校验值](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.3-zh.1/SHA256SUMS.txt) · [构建来源](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.3-zh.1/BUILD-PROVENANCE.json)
+[桌面文件与发布说明](https://github.com/ZhiweiXiao98/t3code/releases/tag/v0.1.5-zh.1) · [SHA-256 校验值](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.5-zh.1/SHA256SUMS.txt) · [构建来源](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.5-zh.1/BUILD-PROVENANCE.json)
 
 > **安装前请知悉：** Windows 安装包未进行 Authenticode 签名；macOS 未进行 Developer ID 签名或公证，系统可能提示风险。请核对来源和校验值，不要为了安装而关闭系统安全保护。本版暂不提供自动更新源，请从本仓库手动下载更新。
 
-**Android 已发布可安装的汉化 APK。** [Android 发布说明](https://github.com/ZhiweiXiao98/t3code/releases/tag/android-v0.1.3-zh.1) · [Android SHA-256 校验值](https://github.com/ZhiweiXiao98/t3code/releases/download/android-v0.1.3-zh.1/SHA256SUMS.txt)。新版使用已完成云端恢复验证的固定社区签名，**不能直接覆盖历史旧签名 APK**；卸载旧版前请保存需要的配置，卸载可能丢失本地数据。已通过云端构建、原生回归及签名验证，未宣称完成实体手机上的人工安装测试。**iOS 仅有[官方原版（未汉化）](https://apps.apple.com/us/app/t3-code-remote-claude-more/id6787819824)**，不属于本社区安装包。
+**Android 已发布可安装的汉化 APK。** [Android 发布说明](https://github.com/ZhiweiXiao98/t3code/releases/tag/android-v0.1.5-zh.1) · [Android SHA-256 校验值](https://github.com/ZhiweiXiao98/t3code/releases/download/android-v0.1.5-zh.1/SHA256SUMS.txt)。新版沿用已完成云端恢复验证的固定社区签名，**可覆盖安装 `android-v0.1.3-zh.1` 固定签名版**；更早使用其他签名的 APK 不能直接覆盖。需要卸载异签名旧版时，请先保存配置，卸载可能丢失本地数据。已通过云端构建、原生回归及签名验证，未宣称完成实体手机上的人工安装测试。**iOS 仅有[官方原版（未汉化）](https://apps.apple.com/us/app/t3-code-remote-claude-more/id6787819824)**，不属于本社区安装包。
 
 ## 为什么选择这个版本
 
 - **常用工作流看中文：** 项目与会话、设置中心、命令面板、Pull Request、用量与常见提示等界面持续完善汉化。
 - **保留准确的技术信息：** Provider 与模型名称、命令、快捷键、路径、URL、Git 标识符保留原文，方便操作与排错。
 - **跟进官方稳定版：** 保留已有翻译，增量补齐新功能和新文案；通过验证后再发布，不把未发布的 main 或 nightly 当稳定更新。
-- **下载与验证可查：** 已发布桌面对应源码 `9c964ab3`、Android 对应源码 `fb48ddad`，两者各自的 15 项云端验证任务全部通过；不是同一二进制提交。发布页分别提供文件校验值和构建来源。云端验证不等于所有系统上的人工安装测试。
+- **下载与验证可查：** 已发布桌面与 Android 均对应[源码 `40fd1d26`](https://github.com/ZhiweiXiao98/t3code/commit/40fd1d260c26c77d347de42b7315dd6380c8fb4d)，完整 15 项云端验证任务全部通过；Linux、两种 Mac 架构和 Windows 的实际桌面产物启动检查通过。发布页分别提供文件校验值和构建来源。后续文档提交不是二进制来源；云端验证不等于所有系统上的人工安装测试。
 
-[桌面构建记录](https://github.com/ZhiweiXiao98/t3code/actions/runs/40565836137) · [Android 构建记录](https://github.com/ZhiweiXiao98/t3code/actions/runs/40650302651) · [Android 签名与发布](https://github.com/ZhiweiXiao98/t3code/actions/runs/40655213271) · [查看汉化范围及已知限制](./README.zh-CN.md#已覆盖界面)
+[完整构建记录](https://github.com/ZhiweiXiao98/t3code/actions/runs/41193465754) · [桌面发布记录](https://github.com/ZhiweiXiao98/t3code/actions/runs/41196620658) · [Android 签名与发布](https://github.com/ZhiweiXiao98/t3code/actions/runs/41196654710) · [查看汉化范围及已知限制](./README.zh-CN.md#已覆盖界面)
 
 ## 首次使用
 
@@ -48,7 +48,7 @@
 
 - V2 首次启动会复制并导入 V1 数据；之后两套数据**不会互相同步**。
 - V1 与 V2 的服务器、桌面端和移动客户端**不能互连**，请同步升级连接的设备。
-- 历史社区 Android APK 不能连接新版；请使用上方新版 Android APK。新旧签名不同，不能直接覆盖安装，卸载前请保存配置。
+- V1 历史社区 Android APK 不能连接 V2 服务端；请使用上方新版 Android APK。`android-v0.1.3-zh.1` 固定签名版可直接覆盖升级，更早异签名版本需先保存配置再卸载。
 - OpenCode 2 会迁移共享数据库，不要与 OpenCode 1 在同一台机器上并行运行。
 
 [详细升级说明](./README.zh-CN.md#升级前必读) · [上游迁移指南](https://github.com/pingdotgg/t3code/issues/14871)
@@ -57,7 +57,7 @@
 
 发现漏译、翻译不自然或界面问题？欢迎[提交 Issue](https://github.com/ZhiweiXiao98/t3code/issues/new)，附上版本号、系统、复现步骤，以及已遮挡敏感信息的截图。请勿上传访问令牌、密钥或私人对话。
 
-维护流程：**官方稳定版更新 → 同步改动 → 增量完善汉化 → 测试与构建 → 发布客户端**。历史分支和发布保留；默认分支以最新已验证的稳定版汉化维护分支为维护目标。[当前维护源码](https://github.com/ZhiweiXiao98/t3code/tree/maintenance/v0.1.3-zh-cloud)。
+维护流程：**官方稳定版更新 → 同步改动 → 增量完善汉化 → 测试与构建 → 发布客户端**。历史分支和发布保留；当前维护分支为 `maintenance/v0.1.5-zh-cloud`，仓库默认分支暂仍为 `maintenance/v0.1.3-zh-cloud`，未调整默认分支设置。[当前维护源码](https://github.com/ZhiweiXiao98/t3code/tree/maintenance/v0.1.5-zh-cloud)。
 
 ## 文档与源码
 
