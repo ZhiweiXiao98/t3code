@@ -537,6 +537,84 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  mac-clean-install:
+    name: Clean macOS ${{ matrix.arch }} ${{ matrix.format }} first start
+    needs: [source, desktop]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-26
+            arch: arm64
+            format: dmg
+          - runner: macos-26
+            arch: arm64
+            format: zip
+          - runner: macos-15-intel
+            arch: x64
+            format: dmg
+          - runner: macos-15-intel
+            arch: x64
+            format: zip
+    steps:
+      - name: Checkout exact source without credentials
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ needs.source.outputs.sha }}
+          GIT_TERMINAL_PROMPT: "0"
+        run: |
+          set -euo pipefail
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
+          git sparse-checkout set --no-cone '/*' '!/.repos/'
+          git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
+        with:
+          node-version-file: package.json
+          run-install: false
+      - uses: actions/download-artifact@v8
+        with:
+          name: client-mac-${{ matrix.arch }}
+          path: candidate
+      - name: Install pinned acceptance driver
+        run: npm install --prefix "$RUNNER_TEMP/acceptance-tools" --no-save --ignore-scripts playwright-core@1.60.0
+      - name: Copy candidate and verify complete bundle
+        shell: bash
+        env:
+          ARCH: ${{ matrix.arch }}
+          FORMAT: ${{ matrix.format }}
+        run: |
+          set -euo pipefail
+          install_root=$(mktemp -d "$RUNNER_TEMP/t3-clean-install.XXXXXX")
+          asset="$GITHUB_WORKSPACE/candidate/T3-Code-$CLIENT_VERSION-$ARCH.$FORMAT"
+          mkdir -p "$RUNNER_TEMP/acceptance-artifacts"
+          shasum -a 256 "$asset" | tee "$RUNNER_TEMP/acceptance-artifacts/asset-sha256.txt"
+          if [[ "$FORMAT" == dmg ]]; then
+            mount="$RUNNER_TEMP/t3-candidate-mount"
+            hdiutil attach -nobrowse -readonly -mountpoint "$mount" "$asset"
+            trap 'hdiutil detach "$mount" >/dev/null || true' EXIT
+            ditto "$mount/T3 Code (Beta).app" "$install_root/T3 Code (Beta).app"
+          else
+            ditto -x -k "$asset" "$install_root"
+          fi
+          app="$install_root/T3 Code (Beta).app"
+          bash .github/scripts/verify-macos-distribution.sh "$app" --signature-only 2>&1 | tee "$RUNNER_TEMP/acceptance-artifacts/signature.txt"
+          executable=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Contents/Info.plist")
+          echo "T3_CANDIDATE_EXECUTABLE=$app/Contents/MacOS/$executable" >> "$GITHUB_ENV"
+      - name: Launch with empty data and normal sandbox
+        run: node .github/scripts/check-clean-desktop-first-start.mjs --executable "$T3_CANDIDATE_EXECUTABLE" --platform macOS --playwright-module "$RUNNER_TEMP/acceptance-tools/node_modules/playwright-core/index.mjs" --artifacts-dir "$RUNNER_TEMP/acceptance-artifacts"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: clean-install-mac-${{ matrix.arch }}-${{ matrix.format }}
+          path: ${{ runner.temp }}/acceptance-artifacts
+          if-no-files-found: warn
+          retention-days: 14
+
   android:
     name: Android arm64 unsigned candidate (NOT installable)
     needs: [source, quality, mobile-native-quality, native-rust-quality, tests, bundle]

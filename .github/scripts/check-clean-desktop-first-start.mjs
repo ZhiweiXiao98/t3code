@@ -14,22 +14,32 @@ const { values } = NodeUtil.parseArgs({
   },
 });
 NodeAssert.ok(values.executable && values["playwright-module"] && values["artifacts-dir"]);
-NodeAssert.ok(["Linux", "Windows"].includes(values.platform));
+NodeAssert.ok(["Linux", "Windows", "macOS"].includes(values.platform));
 const { _electron } = await import(NodeURL.pathToFileURL(values["playwright-module"]).href);
 const artifacts = NodePath.resolve(values["artifacts-dir"]);
 NodeFS.mkdirSync(artifacts, { recursive: true });
 const home = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-clean-first-start-"));
 const t3Home = NodePath.join(home, "t3");
 NodeAssert.ok(!NodeFS.existsSync(t3Home));
+const macProfile =
+  values.platform === "macOS"
+    ? NodePath.join(NodeOS.homedir(), "Library", "Application Support", "t3code-v2")
+    : null;
+if (macProfile) {
+  NodeAssert.equal(process.env.GITHUB_ACTIONS, "true");
+  NodeAssert.equal(process.env.RUNNER_OS, "macOS");
+  NodeAssert.ok(!NodeFS.existsSync(macProfile), "macOS CI runner profile must start empty");
+}
 const report = {
   executable: NodePath.resolve(values.executable),
   fixtureData: false,
   testHome: home,
   requestedChromiumSandbox: true,
+  profileIsolation: macProfile ? "fresh macOS CI runner account" : "unique temporary directory",
   scope:
     "instrumented clean first launch through the installed executable or ordinary AppImage entry; no migration fixture",
   downloadTrustDialogs:
-    "Browser-origin security dialogs and Windows SmartScreen are not covered by this headless CI check.",
+    "Browser-origin security dialogs, Finder approval and Windows SmartScreen are not covered by this CI check.",
 };
 let app;
 let page;
@@ -64,13 +74,20 @@ try {
     userData: app.getPath("userData"),
   }));
   NodeAssert.ok(report.packaged.isPackaged);
-  const relativeProfile = NodePath.relative(
-    NodeFS.realpathSync(home),
-    NodeFS.realpathSync(report.packaged.userData),
-  );
-  NodeAssert.ok(
-    !relativeProfile.startsWith(`..${NodePath.sep}`) && !NodePath.isAbsolute(relativeProfile),
-  );
+  if (macProfile) {
+    NodeAssert.equal(
+      NodeFS.realpathSync(report.packaged.userData),
+      NodeFS.realpathSync(macProfile),
+    );
+  } else {
+    const relativeProfile = NodePath.relative(
+      NodeFS.realpathSync(home),
+      NodeFS.realpathSync(report.packaged.userData),
+    );
+    NodeAssert.ok(
+      !relativeProfile.startsWith(`..${NodePath.sep}`) && !NodePath.isAbsolute(relativeProfile),
+    );
+  }
   page = await app.firstWindow({ timeout: 60_000 });
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
