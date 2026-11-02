@@ -25,7 +25,7 @@ const report = {
   executable: NodePath.resolve(values.executable),
   fixtureData: false,
   testHome: home,
-  cliSandboxOverride: false,
+  requestedChromiumSandbox: true,
   scope:
     "instrumented clean first launch through the installed executable or ordinary AppImage entry; no migration fixture",
   downloadTrustDialogs:
@@ -36,6 +36,7 @@ let page;
 try {
   app = await _electron.launch({
     executablePath: report.executable,
+    chromiumSandbox: true,
     args: [`--user-data-dir=${NodePath.join(home, "electron-profile")}`],
     env: {
       ...process.env,
@@ -54,11 +55,10 @@ try {
     timeout: 60_000,
   });
   report.spawnArgs = app.process().spawnargs;
-  NodeAssert.ok(
-    !report.spawnArgs.some((arg) =>
-      /--(?:no-sandbox|disable-setuid-sandbox|appimage-extract)/.test(arg),
-    ),
+  report.cliSandboxOverride = report.spawnArgs.some((arg) =>
+    /--(?:no-sandbox|disable-setuid-sandbox|appimage-extract)/.test(arg),
   );
+  NodeAssert.equal(report.cliSandboxOverride, false);
   report.packaged = await app.evaluate(({ app }) => ({
     isPackaged: app.isPackaged,
     userData: app.getPath("userData"),
@@ -74,8 +74,14 @@ try {
   page = await app.firstWindow({ timeout: 60_000 });
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  await page.waitForURL(/^https?:\/\/(?:127\.0\.0\.1|localhost):\d+\//, { timeout: 60_000 });
-  await page.getByRole("main").waitFor({ state: "visible", timeout: 60_000 });
+  await page.waitForURL(/^(?:t3code:\/\/app\/|https?:\/\/(?:127\.0\.0\.1|localhost):\d+\/)/, {
+    timeout: 60_000,
+  });
+  await page
+    .getByRole("main")
+    .or(page.getByRole("dialog"))
+    .first()
+    .waitFor({ state: "visible", timeout: 60_000 });
   await page.getByRole("button").first().waitFor({ state: "visible", timeout: 60_000 });
   report.bodyText = await page.locator("body").innerText();
   NodeAssert.ok(report.bodyText.trim().length > 0);
@@ -90,6 +96,7 @@ try {
 } catch (error) {
   report.result = "failed";
   report.error = String(error);
+  console.error(error);
   if (page)
     await page.screenshot({ path: NodePath.join(artifacts, "failure.png") }).catch(() => {});
   process.exitCode = 1;
