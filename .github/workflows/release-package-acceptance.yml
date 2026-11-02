@@ -2,7 +2,7 @@ name: Existing package clean-install acceptance
 
 on:
   push:
-    branches: [fix/macos-bundle-integrity-20261102]
+    branches: [maintenance/v0.1.5-zh-cloud]
     paths:
       - .github/workflows/release-package-acceptance.yml
       - .github/scripts/check-clean-desktop-first-start.mjs
@@ -22,7 +22,7 @@ concurrency:
 
 jobs:
   clean-install:
-    if: github.repository == 'ZhiweiXiao98/t3code' && github.ref == 'refs/heads/fix/macos-bundle-integrity-20261102' && github.event.repository.private == false
+    if: github.repository == 'ZhiweiXiao98/t3code' && github.ref == 'refs/heads/maintenance/v0.1.5-zh-cloud' && github.event.repository.private == false
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 25
     strategy:
