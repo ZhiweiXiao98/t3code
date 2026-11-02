@@ -123,6 +123,7 @@ function UsageScreen(props: {
   };
   const sourceMessages = usageSourceMessages(
     selectedEnvironments.flatMap((environment) => environment.summary?.sources ?? []),
+    MOBILE_LOCALE,
   );
   const canReadDiagnostics = selectedEnvironments.some(
     (environment) => environment.canReadDiagnostics,

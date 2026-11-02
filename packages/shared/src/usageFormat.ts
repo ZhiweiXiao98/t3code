@@ -6,6 +6,7 @@ import {
   type UsageSummaryInput,
 } from "@t3tools/contracts";
 
+import type { ResolvedAppLocale } from "./appLocale.ts";
 import type { UsageContractMismatch } from "./usageMerge.ts";
 
 const CURRENCY = new Intl.NumberFormat("en-US", {
@@ -17,11 +18,19 @@ const CURRENCY = new Intl.NumberFormat("en-US", {
 
 const INTEGER = new Intl.NumberFormat("en-US");
 
-export function formatMalformedUsageWarning(count: number): string {
+export function formatMalformedUsageWarning(
+  count: number,
+  locale: ResolvedAppLocale = "en",
+): string {
+  if (locale === "zh-CN")
+    return `已跳过 ${count} 条格式错误或不一致的用量记录；用量数据可能不完整。`;
   return `${count} malformed or inconsistent usage record(s) were skipped; usage may be incomplete.`;
 }
 
-export function usageSourceMessages(sources: readonly UsageSource[]): readonly string[] {
+export function usageSourceMessages(
+  sources: readonly UsageSource[],
+  locale: ResolvedAppLocale = "en",
+): readonly string[] {
   const messages = new Set<string>();
   const malformedBySource = new Map<string, number>();
   for (const source of sources) {
@@ -52,7 +61,7 @@ export function usageSourceMessages(sources: readonly UsageSource[]): readonly s
     (total, count) => total + count,
     0,
   );
-  if (malformedRecords > 0) messages.add(formatMalformedUsageWarning(malformedRecords));
+  if (malformedRecords > 0) messages.add(formatMalformedUsageWarning(malformedRecords, locale));
   return [...messages];
 }
 

@@ -52,6 +52,9 @@ describe("usage source messages", () => {
     expect(usageSourceMessages([codex, claude])).toEqual([
       "12 malformed or inconsistent usage record(s) were skipped; usage may be incomplete.",
     ]);
+    expect(usageSourceMessages([codex, claude], "zh-CN")).toEqual([
+      "已跳过 12 条格式错误或不一致的用量记录；用量数据可能不完整。",
+    ]);
   });
 
   it.each([
@@ -105,16 +108,20 @@ describe("usage source messages", () => {
       message: "Cursor history is limited to the last 30 days.",
     });
 
-    expect(
-      usageSourceMessages([
-        { ...source, message: `${readFailure} ${source.message}` },
-        { ...source, malformedRecords: 0, message: readFailure },
-        cursor,
-      ]),
-    ).toEqual([
+    const sources = [
+      { ...source, message: `${readFailure} ${source.message}` },
+      { ...source, malformedRecords: 0, message: readFailure },
+      cursor,
+    ];
+    expect(usageSourceMessages(sources)).toEqual([
       readFailure,
       cursor.message,
       "1 malformed or inconsistent usage record(s) were skipped; usage may be incomplete.",
+    ]);
+    expect(usageSourceMessages(sources, "zh-CN")).toEqual([
+      readFailure,
+      cursor.message,
+      "已跳过 1 条格式错误或不一致的用量记录；用量数据可能不完整。",
     ]);
   });
 

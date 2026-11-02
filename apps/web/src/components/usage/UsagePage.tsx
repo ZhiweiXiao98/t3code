@@ -668,6 +668,7 @@ function UsageOverview({
           (source) => !hiddenProviders.has(source.fingerprint.provider),
         ) ?? [],
     ),
+    uiLocale,
   );
   const breakdownPeriods: readonly (DailyTotals | HourlyTotals)[] = (
     shownHourly ? merged.hourly : merged.daily
