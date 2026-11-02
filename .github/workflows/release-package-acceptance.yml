@@ -41,6 +41,14 @@ jobs:
             kind: nsis
             asset: T3-Code-0.1.5-zh.1-x64.exe
             sha256: b8394d5099bc030a0974e2984800abdf2fb77a05096056b4d5e85ab145e4a1df
+          - runner: macos-15-intel
+            kind: dmg
+            asset: T3-Code-0.1.5-zh.1-x64.dmg
+            sha256: 9cf244b3c6a4a7e66a2166edd387036edfec2929de7ce830e3bd212cd2ae22a1
+          - runner: macos-15-intel
+            kind: zip
+            asset: T3-Code-0.1.5-zh.1-x64.zip
+            sha256: c98ad60cf71b957646f38fc8bda0e1d48cb4f11ba7b5e961fdae76c767abd771
     steps:
       - name: Require exact reviewed source
         shell: bash
@@ -125,6 +133,38 @@ jobs:
           if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) { throw 'Installed executable missing' }
           node .github/scripts/check-clean-desktop-first-start.mjs --executable $executable --platform Windows --playwright-module "$env:RUNNER_TEMP/acceptance-tools/node_modules/playwright-core/index.mjs" --artifacts-dir $artifacts
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Install original Intel macOS package and launch clean
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          ASSET: ${{ matrix.asset }}
+          SHA256: ${{ matrix.sha256 }}
+          FORMAT: ${{ matrix.kind }}
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = x86_64
+          mkdir -p "$RUNNER_TEMP/acceptance-artifacts"
+          asset="$RUNNER_TEMP/$ASSET"
+          curl --fail --location --proto '=https' --output "$asset" "https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.5-zh.1/$ASSET"
+          printf '%s  %s\n' "$SHA256" "$asset" | shasum -a 256 --check
+          install_root=$(mktemp -d "$RUNNER_TEMP/t3-existing-install.XXXXXX")
+          if [[ "$FORMAT" == dmg ]]; then
+            mount="$RUNNER_TEMP/t3-existing-mount"
+            hdiutil attach -nobrowse -readonly -mountpoint "$mount" "$asset"
+            trap 'hdiutil detach "$mount" >/dev/null || true' EXIT
+            ditto "$mount/T3 Code (Beta).app" "$install_root/T3 Code (Beta).app"
+          else
+            ditto -x -k "$asset" "$install_root"
+          fi
+          app="$install_root/T3 Code (Beta).app"
+          if codesign --verify --deep --strict --verbose=2 "$app" > "$RUNNER_TEMP/acceptance-artifacts/signature.txt" 2>&1; then
+            echo 'Original bundle signature verified.'
+          else
+            cat "$RUNNER_TEMP/acceptance-artifacts/signature.txt"
+            grep -F 'code object is not signed at all' "$RUNNER_TEMP/acceptance-artifacts/signature.txt"
+          fi
+          executable=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Contents/Info.plist")
+          node .github/scripts/check-clean-desktop-first-start.mjs --executable "$app/Contents/MacOS/$executable" --platform macOS --playwright-module "$RUNNER_TEMP/acceptance-tools/node_modules/playwright-core/index.mjs" --artifacts-dir "$RUNNER_TEMP/acceptance-artifacts"
       - uses: actions/upload-artifact@v7
         if: always()
         with:

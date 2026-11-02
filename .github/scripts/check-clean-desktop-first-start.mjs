@@ -108,7 +108,10 @@ try {
   );
   report.windowTitle = await page.title();
   report.windowUrl = page.url();
-  await page.screenshot({ path: NodePath.join(artifacts, "clean-first-start.png") });
+  await page.screenshot({
+    path: NodePath.join(artifacts, "clean-first-start.png"),
+    animations: "disabled",
+  });
   report.result = "passed";
 } catch (error) {
   report.result = "failed";
