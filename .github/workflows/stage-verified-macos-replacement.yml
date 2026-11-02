@@ -1,0 +1,150 @@
+name: Stage verified macOS integrity replacement
+
+on:
+  push:
+    branches: [maintenance/v0.1.5-zh-cloud]
+    paths: [.github/workflows/stage-verified-macos-replacement.yml]
+
+permissions: {}
+
+concurrency:
+  group: stage-macos-integrity-69e504f
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    if: github.repository == 'ZhiweiXiao98/t3code' && github.ref == 'refs/heads/maintenance/v0.1.5-zh-cloud' && github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      artifact_id: ${{ steps.transfer.outputs.artifact-id }}
+    steps:
+      - name: Verify exact accepted source and immutable artifact without executing it
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          import hashlib, json, os, pathlib, subprocess, zipfile
+          repo = 'ZhiweiXiao98/t3code'
+          source = '69e504f14379e3f7db5d0711b5d26b62b2efe63a'
+          assert os.environ['GITHUB_REPOSITORY'] == repo
+          assert os.environ['GITHUB_REF'] == 'refs/heads/maintenance/v0.1.5-zh-cloud'
+          def api(path):
+              return json.loads(subprocess.check_output(['gh', 'api', f'repos/{repo}{path}']))
+          assert api('')['private'] is False
+          run = api('/actions/runs/41397263130')
+          assert run['head_sha'] == source and run['head_branch'] == 'maintenance/v0.1.5-zh-cloud'
+          assert run['repository']['full_name'] == repo and run['head_repository']['full_name'] == repo
+          assert run['path'] == '.github/workflows/client-release.yml'
+          assert run['run_attempt'] == 1 and run['status'] == 'completed' and run['conclusion'] == 'success'
+          jobs = api('/actions/runs/41397263130/attempts/1/jobs?per_page=100')
+          assert jobs['total_count'] == len(jobs['jobs']) == 19
+          assert all(j['head_sha'] == source and j['status'] == 'completed' and j['conclusion'] == 'success' for j in jobs['jobs'])
+          required = {'Clean macOS arm64 dmg first start', 'Clean macOS arm64 zip first start', 'Clean macOS x64 dmg first start', 'Clean macOS x64 zip first start'}
+          assert required <= {j['name'] for j in jobs['jobs']}
+          artifact = api('/actions/artifacts/13120842189')
+          expected_digest = 'c978115caaad7c9df887b7e6fb9cf01789dbf5a253e107074f60a3fbec4e86a8'
+          assert artifact['name'] == 'client-mac-arm64' and artifact['expired'] is False
+          assert artifact['workflow_run']['id'] == 41397263130 and artifact['workflow_run']['head_sha'] == source
+          assert artifact['size_in_bytes'] == 363727425 and artifact['digest'] == 'sha256:' + expected_digest
+          with open('accepted-artifact.zip', 'wb') as stream:
+              subprocess.run(['gh', 'api', f'repos/{repo}/actions/artifacts/13120842189/zip'], stdout=stream, check=True, timeout=180)
+          def digest(path):
+              h = hashlib.sha256()
+              with path.open('rb') as stream:
+                  for chunk in iter(lambda: stream.read(1024 * 1024), b''): h.update(chunk)
+              return h.hexdigest()
+          archive = pathlib.Path('accepted-artifact.zip')
+          assert archive.stat().st_size == 363727425 and digest(archive) == expected_digest
+          expected = {
+              'T3-Code-0.1.5-zh.1-arm64.dmg': (185757312, '1278e28c4a3d54b4663daded56c5782f5ad052e44505c9bc3bf9c8a9e88f91f5'),
+              'T3-Code-0.1.5-zh.1-arm64.zip': (178827212, '331c23fe44e98e392e67e8cc9642bee04fc4064c24ac72477d54461ae7a855ad'),
+          }
+          output = pathlib.Path('verified-assets'); output.mkdir()
+          with zipfile.ZipFile(archive) as z:
+              assert set(z.namelist()) == set(expected) | {'MACOS-TRUST-arm64.txt'}
+              assert z.testzip() is None
+              for name, (size, checksum) in expected.items():
+                  path = pathlib.Path(z.extract(name, output))
+                  assert path.stat().st_size == size and digest(path) == checksum
+          print('Accepted run, all 19 jobs, archive and both package bytes verified; no application code executed.')
+          PY
+      - name: Transfer only the two verified package files
+        id: transfer
+        uses: actions/upload-artifact@v7
+        with:
+          name: verified-macos-integrity-69e504f
+          path: verified-assets/*
+          if-no-files-found: error
+          retention-days: 1
+
+  stage:
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          artifact-ids: ${{ needs.verify.outputs.artifact_id }}
+          path: verified-assets
+          merge-multiple: true
+      - name: Stage two exact assets in the existing release without renaming or deleting
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('node:fs');
+            const crypto = require('node:crypto');
+            const assert = require('node:assert/strict');
+            const repo = {owner: 'ZhiweiXiao98', repo: 't3code'};
+            assert.equal(context.repo.owner, repo.owner);
+            assert.equal(context.repo.repo, repo.repo);
+            assert.equal(context.ref, 'refs/heads/maintenance/v0.1.5-zh-cloud');
+            assert.equal(context.payload.repository.private, false);
+            const expected = [
+              ['T3-Code-0.1.5-zh.1-arm64.dmg', 185757312, '1278e28c4a3d54b4663daded56c5782f5ad052e44505c9bc3bf9c8a9e88f91f5'],
+              ['T3-Code-0.1.5-zh.1-arm64.zip', 178827212, '331c23fe44e98e392e67e8cc9642bee04fc4064c24ac72477d54461ae7a855ad'],
+            ];
+            const old = [
+              ['T3-Code-0.1.5-zh.1-arm64.dmg', 695194330, 'adfcd9cc44beb7ad8b0b1ebc1c6a9d786d484e4c16eed3bb674d8282119ea2c0'],
+              ['T3-Code-0.1.5-zh.1-arm64.zip', 695194825, 'f64f4ba6321405f08a25753f994559d2b1d3fd27d472a917450acade030bf55e'],
+              ['BUILD-PROVENANCE.json', 695194013, '5b4a7a37d03c0b0631a5017c96ec5e4648eb68dd8e526c635a94af40e640eea3'],
+              ['SHA256SUMS.txt', 695194033, '09ceb1ab58704d47caf460767827289c159638d066c3ae907f1e3da44071e60a'],
+            ];
+            async function inventory() {
+              const {data: release} = await github.rest.repos.getRelease({...repo, release_id: 429892127});
+              assert.equal(release.tag_name, 'v0.1.5-zh.1');
+              assert.equal(release.draft, false);
+              assert.equal(release.immutable, false);
+              for (const [name, id, checksum] of old) {
+                const asset = release.assets.find(a => a.name === name);
+                assert(asset && asset.id === id && asset.digest === `sha256:${checksum}`);
+              }
+              return release.assets;
+            }
+            const hash = data => crypto.createHash('sha256').update(data).digest('hex');
+            for (const [name, size, checksum] of expected) {
+              const data = fs.readFileSync(`verified-assets/${name}`);
+              assert.equal(data.length, size);
+              assert.equal(hash(data), checksum);
+              const stagingName = name.replace(/\.(dmg|zip)$/, '.candidate-69e504f.$1');
+              const assets = await inventory();
+              let asset = assets.find(a => a.name === stagingName);
+              if (!asset) {
+                ({data: asset} = await github.rest.repos.uploadReleaseAsset({...repo, release_id: 429892127,
+                  name: stagingName, data, headers: {'content-type': 'application/octet-stream', 'content-length': size}}));
+              }
+              assert.equal(asset.state, 'uploaded');
+              assert.equal(asset.size, size);
+              assert.equal(asset.digest, `sha256:${checksum}`);
+              core.summary.addRaw(`Staged ${stagingName}: asset ${asset.id}, SHA256 ${checksum}\n\n`);
+            }
+            await inventory();
+            core.summary.addRaw('Only staged files. Original names, release, tag and healthy assets were preserved.\n');
+            await core.summary.write();
