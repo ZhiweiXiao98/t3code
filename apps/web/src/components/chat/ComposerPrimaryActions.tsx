@@ -383,9 +383,11 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
           }
         >
           <Minimize2Icon aria-hidden="true" />
-          {keepFullHistory
-            ? translateWebSource(uiLocale, "Keep")
-            : t("composer.compaction.compact")}
+          <span className="@max-[480px]/composer-surface:hidden">
+            {keepFullHistory
+              ? translateWebSource(uiLocale, "Keep")
+              : t("composer.compaction.compact")}
+          </span>
           <span className="text-muted-foreground">{compactTokens}</span>
         </TooltipTrigger>
         <TooltipPopup>

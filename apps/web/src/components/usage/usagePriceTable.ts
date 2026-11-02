@@ -1,3 +1,5 @@
+import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
+import { translateWebMessage, translateWebSource } from "../../i18n/messages";
 import {
   parseUsagePriceForm,
   usagePriceForm,
@@ -64,6 +66,7 @@ export function usagePriceCell(
 export function usagePriceTableChanges(
   target: UsagePriceTarget,
   drafts: readonly UsagePriceDraft[],
+  locale: ResolvedAppLocale = "en",
 ) {
   const changes: UsagePriceChange[] = [];
   const errors = new Map<string, string>();
@@ -78,8 +81,16 @@ export function usagePriceTableChanges(
     }
     const alias = (draft.alias ?? currentAlias ?? "").trim();
     if (alias !== "") {
-      if (model === "") errors.set(draft.id, "Enter a model ID.");
-      else if (alias === model) errors.set(draft.id, "Map to a different model.");
+      if (draft.alias === undefined && Object.keys(draft.values).length > 0) {
+        errors.set(
+          draft.id,
+          translateWebMessage(locale, "usage.prices.mappedModel", { environment: target.label }),
+        );
+        continue;
+      }
+      if (model === "") errors.set(draft.id, translateWebSource(locale, "Enter a model ID."));
+      else if (alias === model)
+        errors.set(draft.id, translateWebSource(locale, "Map to a different model."));
       else {
         if (alias !== currentAlias) changes.push({ model, alias });
         if (modelPrice(target, model)) changes.push({ model, price: null });
@@ -104,10 +115,13 @@ export function usagePriceTableChanges(
       errors.set(
         draft.id,
         model === ""
-          ? "Enter a model ID."
+          ? translateWebSource(locale, "Enter a model ID.")
           : missing
-            ? `${missing.label} is required on ${target.label}.`
-            : "Use non-negative numbers for prices.",
+            ? translateWebMessage(locale, "usage.prices.requiredField", {
+                field: translateWebSource(locale, missing.label),
+                environment: target.label,
+              })
+            : translateWebSource(locale, "Use non-negative numbers for prices."),
       );
       continue;
     }
@@ -115,16 +129,40 @@ export function usagePriceTableChanges(
     if (USAGE_PRICE_FIELDS.some((field) => original[field.key] !== next[field.key]))
       changes.push(parsed);
   }
+  // Check the final batch so clearing a mapping and reversing it in one save stays valid.
+  const aliases = new Map(Object.entries(target.aliases ?? {}));
+  for (const change of changes) {
+    if (!("alias" in change)) continue;
+    if (change.alias === null) aliases.delete(change.model);
+    else aliases.set(change.model, change.alias);
+  }
+  for (const draft of drafts) {
+    if (draft.removed || errors.has(draft.id)) continue;
+    let model = draft.model.trim();
+    const seen = new Set<string>();
+    while (aliases.has(model)) {
+      if (seen.has(model)) {
+        errors.set(
+          draft.id,
+          translateWebMessage(locale, "usage.prices.mappingCycle", { environment: target.label }),
+        );
+        break;
+      }
+      seen.add(model);
+      model = aliases.get(model)!;
+    }
+  }
   return { changes, errors };
 }
 
 export function usagePriceTableErrors(
   targets: readonly UsagePriceTarget[],
   drafts: readonly UsagePriceDraft[],
+  locale: ResolvedAppLocale = "en",
 ) {
   return new Map(
     targets
       .filter((target) => target.unavailable === null && target.prices !== null)
-      .flatMap((target) => [...usagePriceTableChanges(target, drafts).errors]),
+      .flatMap((target) => [...usagePriceTableChanges(target, drafts, locale).errors]),
   );
 }

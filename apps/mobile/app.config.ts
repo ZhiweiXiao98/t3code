@@ -13,9 +13,9 @@ if (APP_VARIANT === "community") {
   process.env.EXPO_PUBLIC_APP_LOCALE = "zh-CN";
 }
 const appVersion =
-  repoEnv.T3CODE_MOBILE_VERSION?.trim() || (APP_VARIANT === "community" ? "0.1.5" : "2.2.0");
+  repoEnv.T3CODE_MOBILE_VERSION?.trim() || (APP_VARIANT === "community" ? "0.1.6" : "2.2.0");
 const androidVersionCode = Number.parseInt(
-  APP_VARIANT === "community" ? (repoEnv.T3CODE_MOBILE_VERSION_CODE?.trim() ?? "1000412") : "1",
+  APP_VARIANT === "community" ? (repoEnv.T3CODE_MOBILE_VERSION_CODE?.trim() ?? "1000413") : "1",
   10,
 );
 if (!Number.isSafeInteger(androidVersionCode) || androidVersionCode <= 0) {
@@ -129,8 +129,10 @@ function resolveAppVariant(value: string | undefined): AppVariant {
     case "preview":
     case "production":
       return value;
-    default:
+    case undefined:
       return "production";
+    default:
+      throw new Error("APP_VARIANT must be community, development, preview, or production.");
   }
 }
 

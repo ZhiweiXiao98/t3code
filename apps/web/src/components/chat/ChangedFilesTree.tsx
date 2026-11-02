@@ -1,12 +1,9 @@
-import { type RunId } from "@t3tools/contracts";
+import { useSyncLayout } from "@legendapp/list/react";
+import { type OrchestrationV2CheckpointFileTotals, type RunId } from "@t3tools/contracts";
 import { type MouseEvent, type ReactNode, memo, useLayoutEffect, useRef, useState } from "react";
 import { useI18n } from "../../i18n/WebI18nContext";
 import { type TurnDiffFileChange } from "../../types";
-import {
-  buildTurnDiffTree,
-  summarizeTurnDiffStats,
-  type TurnDiffTreeNode,
-} from "../../lib/turnDiffTree";
+import { buildTurnDiffTree, type TurnDiffTreeNode } from "../../lib/turnDiffTree";
 import { ChevronRightIcon, FileDiffIcon } from "lucide-react";
 import { ChevronsDownUp, ChevronsUpDown, Folder, FolderClosed } from "lucide";
 import { cn } from "~/lib/utils";
@@ -31,7 +28,9 @@ type ChangedFileContextMenuHandler = (filePath: string, event: MouseEvent) => vo
 
 export const ChangedFilesCard = memo(function ChangedFilesCard(props: {
   runId: RunId;
+  /** May be a prefix of the changed files; `totals` covers all of them. */
   files: ReadonlyArray<TurnDiffFileChange>;
+  totals: OrchestrationV2CheckpointFileTotals;
   allDirectoriesExpanded: boolean;
   resolvedTheme: "light" | "dark";
   onToggleAllDirectories: () => void;
@@ -42,13 +41,15 @@ export const ChangedFilesCard = memo(function ChangedFilesCard(props: {
   const {
     runId,
     files,
+    totals,
     allDirectoriesExpanded,
     resolvedTheme,
     onToggleAllDirectories,
     onOpenTurnDiff,
     onFileContextMenu,
   } = props;
-  const summaryStat = summarizeTurnDiffStats(files);
+  const syncTimelineLayout = useSyncLayout();
+  const hiddenFileCount = totals.count - files.length;
   const hasDirectories = files.some((file) => /[/\\]/.test(file.path));
 
   return (
@@ -62,14 +63,14 @@ export const ChangedFilesCard = memo(function ChangedFilesCard(props: {
       >
         <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium text-foreground">
           <span>
-            {t(files.length === 1 ? "changedFiles.countOne" : "changedFiles.countMany", {
-              count: files.length,
+            {t(totals.count === 1 ? "changedFiles.countOne" : "changedFiles.countMany", {
+              count: totals.count,
             })}
           </span>
-          {hasNonZeroStat(summaryStat) && (
+          {hasNonZeroStat(totals) && (
             <DiffStatLabel
-              additions={summaryStat.additions}
-              deletions={summaryStat.deletions}
+              additions={totals.additions}
+              deletions={totals.deletions}
               layout="inline"
               className="text-xs leading-4"
             />
@@ -90,7 +91,10 @@ export const ChangedFilesCard = memo(function ChangedFilesCard(props: {
                         : t("changedFiles.expandAll")
                     }
                     data-scroll-anchor-ignore
-                    onClick={onToggleAllDirectories}
+                    onClick={() => {
+                      onToggleAllDirectories();
+                      syncTimelineLayout();
+                    }}
                   />
                 }
               >
@@ -136,6 +140,20 @@ export const ChangedFilesCard = memo(function ChangedFilesCard(props: {
         onOpenTurnDiff={onOpenTurnDiff}
         onFileContextMenu={onFileContextMenu}
       />
+      {hiddenFileCount > 0 && (
+        <div className="px-3 pb-2">
+          <Button
+            type="button"
+            size="xs"
+            variant="ghost-muted"
+            onClick={() => onOpenTurnDiff(runId, files[0]?.path)}
+          >
+            {t(hiddenFileCount === 1 ? "changedFiles.moreOne" : "changedFiles.moreMany", {
+              count: hiddenFileCount.toLocaleString(),
+            })}
+          </Button>
+        </div>
+      )}
     </div>
   );
 });
@@ -155,6 +173,7 @@ const ChangedFilesTree = memo(function ChangedFilesTree(props: {
     key: string | null;
     overrides: Record<string, boolean>;
   }>({ key: null, overrides: {} });
+  const syncTimelineLayout = useSyncLayout();
   const treeNodes = buildTurnDiffTree(files);
   const directoryPathsKey = collectDirectoryPaths(treeNodes).join("\u0000");
   const hasDirectoryNodes = directoryPathsKey.length > 0;
@@ -175,6 +194,8 @@ const ChangedFilesTree = memo(function ChangedFilesTree(props: {
         },
       };
     });
+    // Measure before paint instead of waiting for LegendList's deferred shrink measurement.
+    syncTimelineLayout();
   };
 
   const rows = collectExpandedRows(treeNodes, expandedDirectories, allDirectoriesExpanded);

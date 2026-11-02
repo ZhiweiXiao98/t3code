@@ -143,29 +143,37 @@ function ProviderSetupActions({
   const queryError = authQuery.error ?? installQuery.error;
   const actionsDisabled = pendingLabel !== null || queryError !== null;
   const installationStatusMessage =
-    installation?.phase === "downloading"
-      ? t("providers.setup.install.downloading", {
-          downloaded: (installation.downloadedBytes / 1_000_000).toFixed(1),
-          total:
-            installation.totalBytes === null
-              ? ""
-              : t("providers.setup.install.ofTotal", {
-                  total: (installation.totalBytes / 1_000_000).toFixed(1),
-                }),
-        })
-      : installation?.phase === "extracting"
-        ? t("providers.setup.install.extracting")
-        : installation?.phase === "verifying"
-          ? t("providers.setup.install.verifying")
-          : installed
-            ? "Installed."
-            : usesCustomBinary
-              ? enabled
-                ? t("providers.setup.install.customUnavailable")
-                : t("providers.setup.install.customUnchecked")
-              : installation?.totalBytes
-                ? `${Math.ceil(installation.totalBytes / 1_000_000)} MB download.`
-                : "Not installed.";
+    installation === null
+      ? translateWebSource(sourceLocale, "Checking the Antigravity runtime.")
+      : installation?.phase === "downloading"
+        ? t("providers.setup.install.downloading", {
+            downloaded: (installation.downloadedBytes / 1_000_000).toFixed(1),
+            total:
+              installation.totalBytes === null
+                ? ""
+                : t("providers.setup.install.ofTotal", {
+                    total: (installation.totalBytes / 1_000_000).toFixed(1),
+                  }),
+          })
+        : installation?.phase === "extracting"
+          ? t("providers.setup.install.extracting")
+          : installation?.phase === "verifying"
+            ? t("providers.setup.install.verifying")
+            : installed
+              ? sourceLocale === "zh-CN"
+                ? "已安装。"
+                : "Installed."
+              : usesCustomBinary
+                ? enabled
+                  ? t("providers.setup.install.customUnavailable")
+                  : t("providers.setup.install.customUnchecked")
+                : installation?.totalBytes
+                  ? sourceLocale === "zh-CN"
+                    ? `下载大小为 ${Math.ceil(installation.totalBytes / 1_000_000)} MB。`
+                    : `${Math.ceil(installation.totalBytes / 1_000_000)} MB download.`
+                  : sourceLocale === "zh-CN"
+                    ? "尚未安装。"
+                    : "Not installed.";
 
   async function runCommand<A, E>(
     label: string,
@@ -282,7 +290,7 @@ function ProviderSetupActions({
                   <Button
                     size="sm"
                     variant="outline"
-                    disabled={actionsDisabled || installation === null || authActive}
+                    disabled={actionsDisabled || authActive}
                     onClick={() =>
                       void runCommand(t("providers.setup.pending.startingInstall"), () =>
                         startInstall(target),

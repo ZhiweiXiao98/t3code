@@ -66,6 +66,8 @@ export function useComposerMenuItems({
   pullRequestRepository,
   threadPullRequests,
   planModeUiEnabled,
+  sideChatAvailable,
+  sideChatDisabledReason,
   compactSlashCommandAvailable,
   selectedProvider,
   selectedProviderSkills,
@@ -82,6 +84,8 @@ export function useComposerMenuItems({
   readonly pullRequestRepository: string | null;
   readonly threadPullRequests: ReadonlyArray<ThreadPullRequestLink> | undefined;
   readonly planModeUiEnabled: boolean;
+  readonly sideChatAvailable: boolean;
+  readonly sideChatDisabledReason: string | null;
   readonly compactSlashCommandAvailable: boolean;
   readonly selectedProvider: ProviderDriverKind;
   readonly selectedProviderSkills: ServerProvider["skills"];
@@ -89,6 +93,7 @@ export function useComposerMenuItems({
   readonly showSkillsInSlashMenu: boolean;
   readonly questionAttachmentTarget: DraftId | null;
 }) {
+  const { locale: incrementalLocale } = useI18n();
   const { t, locale: releaseLocale } = useI18n();
 
   // Thread mentions rank by recency as of when the composer mounted.
@@ -237,6 +242,27 @@ export function useComposerMenuItems({
                 command: "default",
                 label: "/default",
                 description: t("composer.command.defaultDescription"),
+              },
+            ] as const)
+          : []),
+        ...(sideChatAvailable
+          ? ([
+              {
+                id: "slash:side",
+                type: "slash-command",
+                command: "side",
+                label: "/side",
+                description:
+                  sideChatDisabledReason ??
+                  translateWebSource(incrementalLocale, "Ask a side question in a new side chat"),
+              },
+              {
+                id: "slash:btw",
+                type: "slash-command",
+                command: "btw",
+                label: "/btw",
+                description:
+                  sideChatDisabledReason ?? translateWebSource(incrementalLocale, "Same as /side"),
               },
             ] as const)
           : []),

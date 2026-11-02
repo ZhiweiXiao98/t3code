@@ -1,3 +1,4 @@
+import { translateWebSource } from "../../i18n/messages";
 import { PlusIcon, XIcon } from "lucide-react";
 import { useRef, useState, type PointerEvent } from "react";
 
@@ -15,12 +16,21 @@ function ProviderCustomColorPanel(props: {
   readonly value: string;
   readonly onPreview: (value: string) => void;
   readonly onCommit: (value: string) => void;
+  readonly showAddButton: boolean;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { onCommit, onPreview } = props;
   const [hsv, setHsv] = useState(() => hexToHsv(props.value));
   const currentColor = hsvToHex(hsv.h, hsv.s, hsv.v);
   const [hexDraft, setHexDraft] = useState<string | null>(null);
+  const [syncedValue, setSyncedValue] = useState(props.value);
+  if (syncedValue !== props.value) {
+    setSyncedValue(props.value);
+    if (currentColor !== props.value.toLowerCase()) {
+      setHsv(hexToHsv(props.value));
+      setHexDraft(null);
+    }
+  }
   // Pointer drags only preview and commit once on release, so a drag writes
   // settings once instead of on every pointer move. Keyboard steps commit
   // immediately because they have no release to wait for. Holds the latest
@@ -50,7 +60,7 @@ function ProviderCustomColorPanel(props: {
     <div className="w-56 bg-popover">
       <div onPointerDownCapture={startDrag}>
         <ColorSaturationValuePlane
-          label="Accent color"
+          label={translateWebSource(locale, "Accent color")}
           value={hsv}
           onChange={changeHsv}
           onInteractionEnd={endDrag}
@@ -60,7 +70,7 @@ function ProviderCustomColorPanel(props: {
       <div className="grid gap-3 p-3">
         <div onPointerDownCapture={startDrag}>
           <ColorHueSlider
-            label="Accent color hue"
+            label={translateWebSource(locale, "Accent color hue")}
             value={hsv.h}
             onChange={(h) => changeHsv({ ...hsv, h })}
             onInteractionEnd={endDrag}
@@ -82,6 +92,15 @@ function ProviderCustomColorPanel(props: {
           aria-label={t("providers.accent.customHex")}
           spellCheck={false}
         />
+        {props.showAddButton ? (
+          <PopoverClose
+            render={
+              <Button type="button" size="compact" onClick={() => onCommit(currentColor)}>
+                {translateWebSource(locale, "Add color")}
+              </Button>
+            }
+          />
+        ) : null}
       </div>
     </div>
   );
@@ -132,6 +151,7 @@ function ProviderCustomColorPicker(props: {
           value={normalized ?? FALLBACK_ACCENT_COLOR}
           onPreview={props.onPreview}
           onCommit={props.onCommit}
+          showAddButton={!normalized}
         />
         {normalized ? (
           <div className="border-t border-border/60 p-1">

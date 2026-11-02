@@ -52,6 +52,12 @@ describe("translateWebMessage", () => {
 
   it("interpolates task titles in localized destructive confirmations", () => {
     expect(
+      translateWebMessage("zh-CN", "sideChat.deleteConfirmation", { title: "fix English title" }),
+    ).toBe("删除旁支对话“fix English title”？");
+    expect(translateWebMessage("en", "sideChat.deleteConfirmation", { title: "修复登录" })).toBe(
+      'Delete side chat "修复登录"?',
+    );
+    expect(
       translateWebMessage("zh-CN", "sidebar.confirmDeleteThread", {
         title: "修复登录",
       }),

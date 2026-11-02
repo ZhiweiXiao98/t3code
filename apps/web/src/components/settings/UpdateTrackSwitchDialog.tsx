@@ -11,7 +11,7 @@ import { AsyncResult } from "effect/reactivity";
 import { APP_VERSION } from "~/branding";
 import { useDesktopUpdateState } from "~/state/desktopUpdate";
 import { useEnvironments } from "~/state/environments";
-import { npmReleaseAtom } from "~/state/npmRelease";
+import { npmReleaseAtom, npmReleaseFailureMessage } from "~/state/npmRelease";
 import { downloadLocalUpdate, installLocalUpdate } from "../sidebar/SidebarUpdatePill";
 import { UpdateEverythingDialog } from "../sidebar/UpdateEverythingDialog";
 import {
@@ -57,11 +57,13 @@ export function UpdateTrackSwitchDialog({
             {locale === "zh-CN" ? `切换到${label}` : `Switch to ${label}`}
           </AlertDialogTitle>
           <AlertDialogDescription>
-            {AsyncResult.isFailure(release) || AsyncResult.isSuccess(release)
-              ? locale === "zh-CN"
-                ? `未能在 npm 上找到最新的${label}版本。请稍后重试。`
-                : `Could not find the latest ${label} release on npm. Try again later.`
-              : tx("Checking releases…")}
+            {AsyncResult.isFailure(release)
+              ? tx(npmReleaseFailureMessage(release.cause))
+              : AsyncResult.isSuccess(release)
+                ? locale === "zh-CN"
+                  ? `未能在此环境的 npm 注册表中找到最新的${label}版本。`
+                  : `Could not find the latest ${label} release in this environment's npm registry.`
+                : tx("Checking releases…")}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

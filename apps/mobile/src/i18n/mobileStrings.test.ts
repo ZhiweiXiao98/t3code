@@ -3,7 +3,7 @@ import { describe, expect, it } from "vite-plus/test";
 import { localizeAlertArguments, localizeMobileString } from "./mobileStrings";
 
 describe("mobile strings", () => {
-  it("translates stable 0.1.3 settings and review controls while preserving English", () => {
+  it("translates stable settings, review, and side-chat controls while preserving English", () => {
     const messages = {
       "Agent browser access": "Agent 浏览器访问",
       "Reset tabs": "重置标签页",
@@ -12,6 +12,11 @@ describe("mobile strings", () => {
       "Edit labels": "编辑标签",
       "Search authors…": "搜索作者…",
       "Ask anything": "输入任何问题",
+      "Side chats": "旁支对话",
+      "Force stop": "强制停止",
+      "Not responding to Stop": "未响应停止请求",
+      "Archive project": "归档项目",
+      "Unarchive project": "取消归档项目",
     };
     for (const [source, translated] of Object.entries(messages)) {
       expect(localizeMobileString(source, "zh-CN")).toBe(translated);
@@ -117,6 +122,19 @@ describe("mobile strings", () => {
     );
     expect(localizeMobileString("Environment: Work Mac", "zh-CN")).toBe("环境：Work Mac");
     expect(localizeMobileString("on Settings", "zh-CN")).toBe("在 Settings 上");
+    expect(localizeMobileString('Failed to update "Settings"', "zh-CN")).toBe("无法更新“Settings”");
+    expect(localizeMobileString("Settings is still archived. Try again later.", "zh-CN")).toBe(
+      "Settings 仍处于归档状态，请稍后重试。",
+    );
+    expect(
+      localizeMobileString(
+        "Forget Work Mac and its cached threads on this device.\n\nIt's no longer on your T3 Connect account.",
+        "zh-CN",
+      ),
+    ).toBe("忘记 Work Mac 及其在此设备上缓存的任务。\n\n它已不在你的 T3 Connect 账户中。");
+    expect(
+      localizeMobileString("It is shared with 2 working threads. Stop those to free it.", "zh-CN"),
+    ).toBe("该进程由另外 2 个运行中的任务共享。停止这些任务后即可释放该进程。");
   });
 
   it("translates the new shared usage and Cursor access copy", () => {
@@ -135,6 +153,7 @@ describe("mobile strings", () => {
     expect(localizeMobileString("Settings", "en")).toBe("Settings");
     expect(localizeMobileString("gpt-5.6-sol", "zh-CN")).toBe("gpt-5.6-sol");
     expect(localizeMobileString("feature/mobile-polish", "zh-CN")).toBe("feature/mobile-polish");
+    expect(localizeMobileString("Open AI", "zh-CN")).toBe("Open AI");
   });
 
   it("translates fixed messages while preserving surrounding whitespace", () => {

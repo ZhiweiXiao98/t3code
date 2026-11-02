@@ -6,6 +6,51 @@ export const MOBILE_LOCALE: MobileLocale =
   process.env.EXPO_PUBLIC_APP_LOCALE === "zh-CN" ? "zh-CN" : "en";
 
 const ZH_CN_MESSAGES = {
+  Open: "打开",
+  Download: "下载",
+  "This connection does not have permission to manage the environment.":
+    "此连接没有管理环境的权限。",
+  "Failed to update project": "更新项目失败",
+  "This connection can no longer change it.": "此连接已无权更改此项目。",
+  Organize: "整理",
+  "Connect every machine with this project to change this.":
+    "请连接所有包含此项目的机器后再更改此设置。",
+  "Pinned projects come first in project pickers.": "置顶项目会优先显示在项目选择器中。",
+  "Unarchive project": "取消归档项目",
+  "Archive project": "归档项目",
+  "Hidden from project pickers. Threads and files are kept.":
+    "已从项目选择器中隐藏，任务和文件仍会保留。",
+  "Hides the project from project pickers. Threads and files are kept.":
+    "从项目选择器中隐藏项目，保留任务和文件。",
+  "Could not force stop the agent": "无法强制停止 Agent",
+  "Turn stopped; the agent is still shutting down": "本轮已停止，Agent 仍在关闭中",
+  "Turn stopped; the agent process kept running": "本轮已停止，Agent 进程仍在运行",
+  "Not responding to Stop": "未响应停止请求",
+  "Stopping…": "正在停止…",
+  "Force stopping...": "正在强制停止…",
+  "Force stop": "强制停止",
+  "Force stop the agent": "强制停止 Agent",
+  "Force stop the agent?": "强制停止 Agent？",
+  "It has not answered Stop. Force stop ends the turn and kills the agent's processes, unless other working threads share them.":
+    "Agent 未响应停止请求。强制停止会结束本轮并终止其进程，但其他运行中的任务共享的进程除外。",
+  "Side chats": "旁支对话",
+  "Open side chat": "打开旁支对话",
+  ", needs approval": "，需要批准",
+  ", needs input": "，需要输入",
+  ", messages queued to send": "，有消息排队等待发送",
+  ", regenerating title": "，正在重新生成标题",
+  "Choose a pull request from the sidebar to review it.": "从侧边栏选择一个拉取请求进行审查。",
+  "It stays on your T3 Connect account and keeps its host space. Deregister it under T3 Account → T3 Connect to free it.":
+    "它仍会保留在你的 T3 Connect 账户中，并占用主机名额。请前往“T3 账户 → T3 Connect”取消注册以释放名额。",
+  "It's no longer on your T3 Connect account.": "它已不在你的 T3 Connect 账户中。",
+  "This doesn't change your T3 Connect account. To deregister it there, use T3 Account → T3 Connect.":
+    "此操作不会更改你的 T3 Connect 账户。如需在账户中取消注册，请前往“T3 账户 → T3 Connect”。",
+  "Open T3 Account": "打开 T3 账户",
+  "Failed to refresh branches.": "刷新分支失败。",
+  Updated: "更新于",
+  ago: "前",
+  "<1m": "不到 1 分钟",
+
   Linked: "已关联",
   Declined: "已拒绝",
   "Request ended": "请求已结束",
@@ -1163,6 +1208,23 @@ const ZH_CN_MESSAGES = {
 } as const satisfies Readonly<Record<string, string>>;
 
 function translateDynamicMessage(value: string): string | null {
+  const archivedProject = /^(.+) is still archived\. Try again later\.$/.exec(value);
+  if (archivedProject) return `${archivedProject[1]} 仍处于归档状态，请稍后重试。`;
+  const projectUpdate = /^Failed to update "(.+)"$/.exec(value);
+  if (projectUpdate) return `无法更新“${projectUpdate[1]}”`;
+  const projectTitle = /^Project · (.+)$/.exec(value);
+  if (projectTitle) return `项目 · ${projectTitle[1]}`;
+  const sharedAgent =
+    /^It is shared with (other|\d+) working threads?\. Stop those to free it\.$/.exec(value);
+  if (sharedAgent)
+    return `该进程由${sharedAgent[1] === "other" ? "其他" : `另外 ${sharedAgent[1]} 个`}运行中的任务共享。停止这些任务后即可释放该进程。`;
+  const forgetRelay = /^Forget (.+) and its cached threads on this device\.\n\n(.+)$/.exec(value);
+  if (forgetRelay)
+    return `忘记 ${forgetRelay[1]} 及其在此设备上缓存的任务。\n\n${localizeMobileString(forgetRelay[2]!, "zh-CN")}`;
+  const relativeTime = /^(\d+)(m|h|d)$/.exec(value);
+  if (relativeTime)
+    return `${relativeTime[1]} ${relativeTime[2] === "m" ? "分钟" : relativeTime[2] === "h" ? "小时" : "天"}`;
+
   const linkFrom = /^Linked from (.+)$/.exec(value);
   if (linkFrom) return `来自 ${linkFrom[1]} 的关联`;
   const linkTo = /^Link (.+) to this environment$/.exec(value);

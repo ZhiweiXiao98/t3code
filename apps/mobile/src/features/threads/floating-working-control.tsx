@@ -84,7 +84,9 @@ export function FloatingWorkingControl(props: {
   const [queueWidth, setQueueWidth] = useState(0);
   const [actionWidth, setActionWidth] = useState(0);
   const action =
-    props.status?.kind === "background" || props.status?.kind === "lifecycle"
+    props.status?.kind === "background" ||
+    props.status?.kind === "lifecycle" ||
+    props.status?.kind === "stop"
       ? props.status.action
       : null;
   const [agentsWidth, setAgentsWidth] = useState(0);
@@ -200,7 +202,7 @@ export function FloatingWorkingControl(props: {
           <View className="h-4 w-px bg-border" />
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={action.accessibilityLabel}
+            accessibilityLabel={localizeMobileString(action.accessibilityLabel)}
             accessibilityState={{ disabled: action.disabled }}
             disabled={action.disabled}
             onPress={action.onPress}
@@ -375,7 +377,7 @@ function FloatingStatusLabel(props: {
     return (
       <StatusLabelRow
         key="syncing"
-        accessibilityLabel={props.status.label}
+        accessibilityLabel={localizeMobileString(props.status.label)}
         className="gap-2"
         onLayout={props.onLayout}
       >
@@ -410,7 +412,7 @@ function FloatingStatusLabel(props: {
     return (
       <StatusLabelRow
         key="connection"
-        accessibilityLabel={props.status.label}
+        accessibilityLabel={localizeMobileString(props.status.label)}
         accessibilityRole="button"
         className="gap-2"
         onLayout={props.onLayout}
@@ -434,7 +436,7 @@ function FloatingStatusLabel(props: {
     return (
       <StatusLabelRow
         key="lifecycle"
-        accessibilityLabel={props.status.label}
+        accessibilityLabel={localizeMobileString(props.status.label)}
         className="gap-2"
         onLayout={props.onLayout}
       >
@@ -472,6 +474,30 @@ function FloatingStatusLabel(props: {
       </StatusLabelRow>
     );
   }
+  if (props.status.kind === "stop") {
+    return (
+      <StatusLabelRow
+        key="stop"
+        accessibilityLabel={localizeMobileString(props.status.label)}
+        className="gap-2"
+        onLayout={props.onLayout}
+      >
+        {props.status.unresponsive ? (
+          <SymbolView
+            name="exclamationmark.triangle"
+            size={13}
+            tintColorClassName="accent-warning-foreground"
+            type="monochrome"
+          />
+        ) : (
+          <AppActivityIndicator size="small" colorClassName="accent-icon-muted" />
+        )}
+        <Text className="shrink font-t3-medium text-xs text-foreground" numberOfLines={1}>
+          {props.status.label}
+        </Text>
+      </StatusLabelRow>
+    );
+  }
   if (props.status.kind === "goal") {
     return (
       <StatusLabelRow
@@ -491,7 +517,7 @@ function FloatingStatusLabel(props: {
     return (
       <StatusLabelRow
         key="preparing"
-        accessibilityLabel={props.status.label}
+        accessibilityLabel={localizeMobileString(props.status.label)}
         className="gap-1.5"
         onLayout={props.onLayout}
       >

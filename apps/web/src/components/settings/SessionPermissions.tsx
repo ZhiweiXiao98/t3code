@@ -1,7 +1,10 @@
 import { translateWebSource } from "../../i18n/messages";
 import { useI18n } from "../../i18n/WebI18nContext";
 import { type EnvironmentId, sessionGrantsScope } from "@t3tools/contracts";
-import { AUTH_SCOPE_OPTIONS } from "@t3tools/shared/authScopeOptions";
+import {
+  AUTH_SCOPE_OPTIONS,
+  sessionPermissionsUnavailableMessage,
+} from "@t3tools/shared/authScopeOptions";
 import { useEnvironmentSessionState } from "~/state/session";
 
 export function SessionPermissions({
@@ -45,7 +48,12 @@ export function SessionPermissions({
     <p className="py-3 text-xs text-muted-foreground">
       {translateWebSource(
         sourceLocale,
-        "Permissions not checked. Connect to this environment to view this session’s permissions.",
+        sessionPermissionsUnavailableMessage({
+          connected,
+          failed: session.hasError,
+          rejected:
+            !session.hasError && !session.isPending && session.data?.authenticated === false,
+        }),
       )}
     </p>
   );

@@ -7,11 +7,13 @@ import { useState, type ReactNode, type RefObject } from "react";
 
 import { useI18n } from "~/i18n/WebI18nContext";
 import { pullRequestEnvironment } from "~/state/pullRequests";
+import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
 
 import { Button } from "../ui/button";
 import { Select, SelectItem, SelectPopup, SelectTrigger } from "../ui/select";
 import { Textarea } from "../ui/textarea";
 import { toastManager } from "../ui/toast";
+import { readableFailure } from "./pullRequestDetail.logic";
 import {
   pullRequestReviewKey,
   usePendingReviewComments,
@@ -107,7 +109,14 @@ export function PullRequestReviewForm({
     });
     onPendingChange(false);
     if (result._tag === "Failure") {
-      toastManager.add({ type: "error", title: t("pullRequests.review.submitFailed") });
+      toastManager.add({
+        type: "error",
+        title: t("pullRequests.review.submitFailed"),
+        description: readableFailure(
+          squashAtomCommandFailure(result),
+          t("pullRequests.review.refusedDraftKept"),
+        ),
+      });
       return;
     }
     // Preserve comments and summary edits made during submission.

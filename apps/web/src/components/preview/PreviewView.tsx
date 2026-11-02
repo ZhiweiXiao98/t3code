@@ -1,3 +1,5 @@
+import { useI18n } from "~/i18n/WebI18nContext";
+import { translateWebSource } from "~/i18n/messages";
 import { scopedThreadKey } from "@t3tools/client-runtime/environment";
 import { settlePromise } from "@t3tools/client-runtime/state/runtime";
 import { previewStreamDownloadUrl } from "@t3tools/client-runtime/preview/server-browser-stream";
@@ -17,6 +19,7 @@ import {
 } from "@t3tools/contracts";
 import {
   normalizePreviewUrl,
+  isPreviewUrlNormalizationError,
   resolveAddressBarInput,
   previewPdfAssetUrl,
   resolveSearchUrlTemplate,
@@ -145,6 +148,7 @@ export function PreviewView({
   visible,
   onSendAnnotation,
 }: Props) {
+  const { locale } = useI18n();
   const urlInputRef = useRef<HTMLInputElement | null>(null);
   const [pickActive, setPickActive] = useState(false);
   const canSendAnnotation =
@@ -245,7 +249,7 @@ export function PreviewView({
       if (error instanceof BrowserSettingsReadError) {
         toastManager.add({
           type: "error",
-          title: "Unable to open browser",
+          title: translateWebSource(locale, "Unable to open browser"),
           description: error.message,
         });
       }
@@ -259,7 +263,17 @@ export function PreviewView({
       if (await navigateToResolvedUrl(resolved)) {
         recordVisitForThread(threadRef, resolved);
       }
-    } catch {}
+    } catch (error) {
+      toastManager.add({
+        type: "error",
+        title: translateWebSource(locale, "Could not open this address"),
+        description: isPreviewUrlNormalizationError(error)
+          ? translateWebSource(locale, "Enter an http or https URL.")
+          : error instanceof Error
+            ? error.message
+            : translateWebSource(locale, "An error occurred."),
+      });
+    }
   };
 
   const handleOpenServerUrl = async (next: string) => {
@@ -271,7 +285,17 @@ export function PreviewView({
       if (await navigateToResolvedUrl(resolved)) {
         recordVisitForThread(threadRef, next);
       }
-    } catch {}
+    } catch (error) {
+      toastManager.add({
+        type: "error",
+        title: translateWebSource(locale, "Could not open this address"),
+        description: isPreviewUrlNormalizationError(error)
+          ? translateWebSource(locale, "Enter an http or https URL.")
+          : error instanceof Error
+            ? error.message
+            : translateWebSource(locale, "An error occurred."),
+      });
+    }
   };
 
   const handleRefresh = () => {
@@ -290,7 +314,8 @@ export function PreviewView({
       toastManager.add({
         type: "error",
         title: "Unable to change the browser tab",
-        description: error instanceof Error ? error.message : "An error occurred.",
+        description:
+          error instanceof Error ? error.message : translateWebSource(locale, "An error occurred."),
       });
       return;
     }
@@ -391,7 +416,8 @@ export function PreviewView({
       toastManager.add({
         type: "error",
         title: "Unable to move the browser tab",
-        description: error instanceof Error ? error.message : "An error occurred.",
+        description:
+          error instanceof Error ? error.message : translateWebSource(locale, "An error occurred."),
       });
       return;
     }
@@ -460,7 +486,8 @@ export function PreviewView({
       toastManager.add({
         type: "error",
         title: "Unable to update popped-out preview",
-        description: error instanceof Error ? error.message : "An error occurred.",
+        description:
+          error instanceof Error ? error.message : translateWebSource(locale, "An error occurred."),
       });
     });
   };
@@ -504,7 +531,10 @@ export function PreviewView({
                   stackedThreadToast({
                     type: "error",
                     title: "Unable to copy recording path",
-                    description: error instanceof Error ? error.message : "An error occurred.",
+                    description:
+                      error instanceof Error
+                        ? error.message
+                        : translateWebSource(locale, "An error occurred."),
                     actionProps: revealAction,
                   }),
                 );
@@ -554,7 +584,10 @@ export function PreviewView({
           toastManager.add({
             type: "error",
             title: "Unable to stop recording",
-            description: error instanceof Error ? error.message : "An error occurred.",
+            description:
+              error instanceof Error
+                ? error.message
+                : translateWebSource(locale, "An error occurred."),
           });
         },
       );
@@ -641,7 +674,9 @@ export function PreviewView({
               updateScreenshotToast(
                 "error",
                 "Unable to copy screenshot path",
-                error instanceof Error ? error.message : "An error occurred.",
+                error instanceof Error
+                  ? error.message
+                  : translateWebSource(locale, "An error occurred."),
               );
             },
           );
@@ -661,7 +696,9 @@ export function PreviewView({
               updateScreenshotToast(
                 "error",
                 "Unable to copy screenshot",
-                error instanceof Error ? error.message : "An error occurred.",
+                error instanceof Error
+                  ? error.message
+                  : translateWebSource(locale, "An error occurred."),
               );
             },
           );
@@ -697,7 +734,10 @@ export function PreviewView({
         toastManager.add({
           type: "error",
           title: "Unable to capture screenshot",
-          description: error instanceof Error ? error.message : "An error occurred.",
+          description:
+            error instanceof Error
+              ? error.message
+              : translateWebSource(locale, "An error occurred."),
         });
       },
     );

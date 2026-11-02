@@ -107,24 +107,27 @@ export function PullRequestGuideTab({
       );
     }
     return (
-      <div className="flex min-h-48 flex-col items-center justify-center gap-2 px-4 py-10 text-center">
+      <div className="scrollbar-gutter-both flex h-full flex-col items-center justify-center-safe gap-2 overflow-y-auto px-4 py-10 text-center">
         <p className="text-sm font-medium text-foreground">
           {running
             ? translateWebSource(uiLocale, "Writing a review guide")
-            : translateWebSource(uiLocale, "No review guide yet")}
+            : failure === null
+              ? translateWebSource(uiLocale, "No review guide yet")
+              : translateWebSource(uiLocale, "Could not write a review guide")}
         </p>
         <p className="max-w-md text-xs text-muted-foreground">
-          {failure ??
-            query.error ??
-            (running
-              ? translateWebSource(
-                  uiLocale,
-                  "An agent is reading the change. A large one takes a few minutes. You can leave; you will be told when it is ready.",
-                )
-              : translateWebSource(
+          {running
+            ? translateWebSource(
+                uiLocale,
+                "An agent is reading the change. A large one takes a few minutes. You can leave; you will be told when it is ready.",
+              )
+            : failure === null
+              ? (query.error ??
+                translateWebSource(
                   uiLocale,
                   "A guide is a tour of the change: stops through the code in reading order, with the calls only a maintainer can make.",
-                ))}
+                ))
+              : translateWebSource(uiLocale, FAILURE_HINT)}
         </p>
         {writeButton(
           failure === null
@@ -132,6 +135,7 @@ export function PullRequestGuideTab({
             : translateWebSource(uiLocale, "Try again"),
           "sm",
         )}
+        {failure === null || running ? null : <FailureDetails detail={failure} />}
       </div>
     );
   }
@@ -141,12 +145,20 @@ export function PullRequestGuideTab({
       <Alert variant={running ? "info" : "warning"}>
         {running ? <Spinner /> : <TriangleAlertIcon />}
         <AlertDescription>
-          {running
-            ? translateWebSource(
-                uiLocale,
-                "Rewriting this guide. You will be told when the new one is ready.",
-              )
-            : (failure ?? translateWebSource(uiLocale, "Written before the latest push."))}
+          {running ? (
+            translateWebSource(
+              uiLocale,
+              "Rewriting this guide. You will be told when the new one is ready.",
+            )
+          ) : failure === null ? (
+            translateWebSource(uiLocale, "Written before the latest push.")
+          ) : (
+            <>
+              {translateWebSource(uiLocale, "Could not rewrite this guide.")}{" "}
+              {translateWebSource(uiLocale, FAILURE_HINT)}
+              <FailureDetails detail={failure} />
+            </>
+          )}
         </AlertDescription>
         {!running && canWrite ? (
           <AlertAction>{writeButton(translateWebSource(uiLocale, "Rewrite"), "xs")}</AlertAction>
@@ -175,5 +187,21 @@ export function PullRequestGuideTab({
         onOpenFile={onOpenFile}
       />
     </GuideProseContext>
+  );
+}
+
+const FAILURE_HINT = "Check the review guide model in Settings → Source control.";
+
+function FailureDetails({ detail }: { detail: string }) {
+  const { locale: uiLocale } = useI18n();
+  return (
+    <details className="w-full max-w-lg text-xs text-muted-foreground">
+      <summary className="cursor-pointer rounded-sm -outline-offset-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
+        {translateWebSource(uiLocale, "Technical details")}
+      </summary>
+      <pre className="scrollbar-gutter-both mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-words rounded-lg border border-border bg-muted/40 p-3 text-left font-mono text-xs">
+        {detail}
+      </pre>
+    </details>
   );
 }

@@ -161,7 +161,7 @@ export function UsagePriceOverrides({
     ...drafts.filter((draft) => draft.isNew),
   ];
   const stagedDrafts = drafts.filter((draft) => !isEmptyUsagePriceDraft(draft));
-  const errors = usagePriceTableErrors(selected, stagedDrafts);
+  const errors = usagePriceTableErrors(selected, stagedDrafts, locale);
   for (const draft of stagedDrafts) {
     if (!draft.isNew) continue;
     if (draft.model.trim() === "") errors.set(draft.id, translate("Enter a model ID."));
@@ -238,7 +238,10 @@ export function UsagePriceOverrides({
         ) ?? { ...destination, prices: null, aliases: null, unavailable: "Environment removed" },
     );
     const changes = new Map(
-      targets.map((target) => [target.environmentId, usagePriceTableChanges(target, edits)]),
+      targets.map((target) => [
+        target.environmentId,
+        usagePriceTableChanges(target, edits, locale),
+      ]),
     );
     setPending(true);
     setAttempt((previous) => ({

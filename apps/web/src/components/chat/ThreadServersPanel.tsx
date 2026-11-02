@@ -32,7 +32,7 @@ import { THREAD_DETAILS_PANEL_ICON_CLASS } from "./threadDetailsPanelStyles";
 
 const serverKey = (server: DiscoveredLocalServer) => `${server.pid}:${server.port}`;
 
-/** Web servers the thread's terminals and agent started. Hidden while none run. */
+/** Local servers the thread's terminals and agent started. Hidden while none run. */
 export function ThreadServersPanel(props: {
   readonly environmentId: EnvironmentId;
   readonly threadId: ThreadId;
