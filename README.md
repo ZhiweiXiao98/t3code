@@ -25,6 +25,8 @@
 
 > **安装前请知悉：** Windows 安装包未进行 Authenticode 签名；macOS 未进行 Developer ID 签名或公证，系统可能提示风险。请核对来源和校验值，不要为了安装而关闭系统安全保护。本版暂不提供自动更新源，请从本仓库手动下载更新。
 
+> **macOS 已知问题：** `v0.1.5-zh.1` 的 Apple Silicon 安装包已确认签名结构校验失败，可能显示“已损坏”。重新下载同一文件无法修复，请等待通过完整签名结构校验的修复包。社区包不具备 Developer ID 签名或 Apple 公证，修复后仍可能需要用户在 macOS“隐私与安全性”中手动确认允许。
+
 **Android 已发布可安装的汉化 APK。** [Android 发布说明](https://github.com/ZhiweiXiao98/t3code/releases/tag/android-v0.1.5-zh.1) · [Android SHA-256 校验值](https://github.com/ZhiweiXiao98/t3code/releases/download/android-v0.1.5-zh.1/SHA256SUMS.txt)。新版沿用已完成云端恢复验证的固定社区签名，**可覆盖安装 `android-v0.1.3-zh.1` 固定签名版**；更早使用其他签名的 APK 不能直接覆盖。需要卸载异签名旧版时，请先保存配置，卸载可能丢失本地数据。已通过云端构建、原生回归及签名验证，未宣称完成实体手机上的人工安装测试。**iOS 仅有[官方原版（未汉化）](https://apps.apple.com/us/app/t3-code-remote-claude-more/id6787819824)**，不属于本社区安装包。
 
 ## 为什么选择这个版本

@@ -888,6 +888,27 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
       assert.deepStrictEqual(win.files, DESKTOP_FILE_EXCLUSIONS);
       assert.deepStrictEqual(winWithoutWslRuntime.files, win.files);
       assert.notProperty(mac.mac as Record<string, unknown>, "sign");
+      assert.propertyVal(mac.mac as Record<string, unknown>, "strictVerify", true);
+      assert.propertyVal(mac.mac as Record<string, unknown>, "identity", "-");
+      assert.propertyVal(mac.mac as Record<string, unknown>, "hardenedRuntime", false);
+      assert.propertyVal(mac.mac as Record<string, unknown>, "notarize", false);
+      const signedMac = yield* createBuildConfig(
+        "mac",
+        "dmg",
+        "1.2.3",
+        true,
+        false,
+        undefined,
+        undefined,
+      );
+      assert.notProperty(signedMac.mac as Record<string, unknown>, "identity");
+      assert.notProperty(signedMac.mac as Record<string, unknown>, "hardenedRuntime");
+      assert.notProperty(signedMac.mac as Record<string, unknown>, "notarize");
+      assert.propertyVal(signedMac.mac as Record<string, unknown>, "strictVerify", true);
+      assert.match(
+        (signedMac.mac as Record<string, unknown>).sign as string,
+        /scripts[\\/]sign-macos\.ts$/,
+      );
       assert.propertyVal(
         (mac.mac as Record<string, unknown>).extendInfo as Record<string, unknown>,
         "NSLocalNetworkUsageDescription",

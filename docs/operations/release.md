@@ -563,6 +563,25 @@ commit a version bump to `main`. Only run it when a real nightly release is acce
 Manual `channel=stable` is also a real stable-channel release. Omitting signing secrets only makes
 platform artifacts unsigned; it does not prevent publication.
 
+The community `client-release.yml` workflow requires the DMG's app to pass strict `codesign`
+verification before macOS artifact upload. It also reports `spctl` and `stapler validate` results
+for a disposable quarantined copy in the job summary and `MACOS-TRUST-<arch>.txt`. A valid ad-hoc
+community bundle may upload when Gatekeeper rejects it or no notarization ticket exists; those
+results describe distribution trust and do not mean its resource seal is broken. The workflow's
+`T3CODE_DESKTOP_SIGNED=false` does not require a Developer ID or notarization account.
+
+This simulates browser quarantine; it is not a browser download or Finder launch test. Before
+publishing, also test the exact final DMG downloaded in a browser with quarantine preserved,
+including the user's normal Privacy & Security authorization flow where needed. Directly launching
+its Mach-O executable is not that test. Do not remove quarantine or change system security settings
+as part of automated verification.
+
+For a read-only check of a quarantined application, run
+`bash .github/scripts/verify-macos-distribution.sh '/path/to/T3 Code (Beta).app'`.
+`--signature-only` checks bundle integrity without claiming Gatekeeper acceptance.
+`--require-notarized` explicitly requires Gatekeeper acceptance and a stapled ticket; the unsigned
+community workflow does not enable that stricter policy.
+
 ## 2) Apple signing + notarization setup (macOS)
 
 Required secrets used by the workflow:

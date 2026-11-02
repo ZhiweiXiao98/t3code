@@ -392,7 +392,7 @@ jobs:
           retention-days: 14
 
   desktop:
-    name: Desktop ${{ matrix.platform }} ${{ matrix.arch }} (unsigned)
+    name: Desktop ${{ matrix.platform }} ${{ matrix.arch }} (integrity checked)
     needs: [source, bundle, linux]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 120
@@ -463,7 +463,7 @@ jobs:
         with:
           name: community-wsl-runtime
           path: wsl-runtime
-      - name: Package unsigned client
+      - name: Package community client
         env:
           PLATFORM: ${{ matrix.platform }}
           TARGET: ${{ matrix.target }}
@@ -475,8 +475,8 @@ jobs:
             args+=(--wsl-runtime "$GITHUB_WORKSPACE/wsl-runtime/t3-$CLIENT_VERSION-linux-x64.tar.gz")
           fi
           vp run dist:desktop:artifact "${args[@]}"
-          echo "Unsigned community desktop build. macOS is not Developer ID signed or notarized; Windows is not Authenticode signed." >> "$GITHUB_STEP_SUMMARY"
-      - name: Launch packaged macOS client
+          echo "Community build: macOS uses ad-hoc integrity signing without Developer ID or notarization. Strict bundle integrity is required; Gatekeeper trust is reported separately. Windows is not Authenticode signed." >> "$GITHUB_STEP_SUMMARY"
+      - name: Verify macOS integrity and report quarantined Gatekeeper trust
         if: matrix.platform == 'mac'
         run: |
           set -euo pipefail
@@ -484,6 +484,17 @@ jobs:
           hdiutil attach -nobrowse -readonly -mountpoint "$mount" "$(ls "$GITHUB_WORKSPACE"/release/*.dmg)"
           trap 'hdiutil detach "$mount" -force >/dev/null || true' EXIT
           app=$(ls -d "$mount"/*.app)
+          mkdir -p "$RUNNER_TEMP/desktop-launch-check"
+          bash .github/scripts/verify-macos-distribution.sh "$app" --signature-only 2>&1 | tee "$RUNNER_TEMP/desktop-launch-check/signature.log"
+          copy_root=$(mktemp -d "$RUNNER_TEMP/desktop-gatekeeper.XXXXXX")
+          copy="$copy_root/$(basename "$app")"
+          ditto "$app" "$copy"
+          # Simulate a browser download on a disposable CI copy; never clear quarantine or change Gatekeeper.
+          quarantine=$(printf '0081;%x;T3CodeCI;' "$(date +%s)")
+          xattr -w com.apple.quarantine "$quarantine" "$copy"
+          bash .github/scripts/verify-macos-distribution.sh "$copy" 2>&1 | tee "$RUNNER_TEMP/desktop-launch-check/gatekeeper.log"
+          cp "$RUNNER_TEMP/desktop-launch-check/gatekeeper.log" "release/MACOS-TRUST-${{ matrix.arch }}.txt"
+          cat "$RUNNER_TEMP/desktop-launch-check/gatekeeper.log" >> "$GITHUB_STEP_SUMMARY"
           executable=$(/usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" "$app/Contents/Info.plist")
           node scripts/smoke-desktop-app.ts --artifacts-dir "$RUNNER_TEMP/desktop-launch-check" --executable "$app/Contents/MacOS/$executable"
       - name: Launch installed Windows client
@@ -522,6 +533,7 @@ jobs:
             release/*.dmg
             release/*.zip
             release/*.exe
+            release/MACOS-TRUST-*.txt
           if-no-files-found: error
           retention-days: 14
 
