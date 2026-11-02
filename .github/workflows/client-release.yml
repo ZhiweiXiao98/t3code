@@ -408,7 +408,7 @@ jobs:
             arch: x64
             target: nsis
             rust_target: x86_64-pc-windows-msvc
-          - runner: macos-26
+          - runner: macos-15
             platform: mac
             arch: arm64
             target: dmg
@@ -546,10 +546,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: macos-26
+          - runner: macos-15
             arch: arm64
             format: dmg
-          - runner: macos-26
+          - runner: macos-15
             arch: arm64
             format: zip
           - runner: macos-15-intel
