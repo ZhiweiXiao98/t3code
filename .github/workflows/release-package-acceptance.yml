@@ -41,12 +41,24 @@ jobs:
             kind: nsis
             asset: T3-Code-0.1.5-zh.1-x64.exe
             sha256: b8394d5099bc030a0974e2984800abdf2fb77a05096056b4d5e85ab145e4a1df
+          - runner: macos-26
+            kind: dmg
+            host_arch: arm64
+            asset: T3-Code-0.1.5-zh.1-arm64.dmg
+            sha256: 1278e28c4a3d54b4663daded56c5782f5ad052e44505c9bc3bf9c8a9e88f91f5
+          - runner: macos-26
+            kind: zip
+            host_arch: arm64
+            asset: T3-Code-0.1.5-zh.1-arm64.zip
+            sha256: 331c23fe44e98e392e67e8cc9642bee04fc4064c24ac72477d54461ae7a855ad
           - runner: macos-15-intel
             kind: dmg
+            host_arch: x86_64
             asset: T3-Code-0.1.5-zh.1-x64.dmg
             sha256: 9cf244b3c6a4a7e66a2166edd387036edfec2929de7ce830e3bd212cd2ae22a1
           - runner: macos-15-intel
             kind: zip
+            host_arch: x86_64
             asset: T3-Code-0.1.5-zh.1-x64.zip
             sha256: c98ad60cf71b957646f38fc8bda0e1d48cb4f11ba7b5e961fdae76c767abd771
     steps:
@@ -133,16 +145,17 @@ jobs:
           if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) { throw 'Installed executable missing' }
           node .github/scripts/check-clean-desktop-first-start.mjs --executable $executable --platform Windows --playwright-module "$env:RUNNER_TEMP/acceptance-tools/node_modules/playwright-core/index.mjs" --artifacts-dir $artifacts
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Install original Intel macOS package and launch clean
+      - name: Install macOS package and launch clean
         if: runner.os == 'macOS'
         shell: bash
         env:
           ASSET: ${{ matrix.asset }}
           SHA256: ${{ matrix.sha256 }}
           FORMAT: ${{ matrix.kind }}
+          EXPECTED_ARCH: ${{ matrix.host_arch }}
         run: |
           set -euo pipefail
-          test "$(uname -m)" = x86_64
+          test "$(uname -m)" = "$EXPECTED_ARCH"
           mkdir -p "$RUNNER_TEMP/acceptance-artifacts"
           asset="$RUNNER_TEMP/$ASSET"
           curl --fail --location --proto '=https' --output "$asset" "https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.5-zh.1/$ASSET"
@@ -161,6 +174,7 @@ jobs:
             echo 'Original bundle signature verified.'
           else
             cat "$RUNNER_TEMP/acceptance-artifacts/signature.txt"
+            test "$EXPECTED_ARCH" = x86_64
             grep -F 'code object is not signed at all' "$RUNNER_TEMP/acceptance-artifacts/signature.txt"
           fi
           executable=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Contents/Info.plist")
@@ -168,7 +182,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: clean-install-${{ matrix.kind }}-${{ runner.os }}
+          name: clean-install-${{ matrix.kind }}-${{ runner.os }}-${{ matrix.host_arch || runner.arch }}
           path: ${{ runner.temp }}/acceptance-artifacts
           if-no-files-found: warn
           retention-days: 7
