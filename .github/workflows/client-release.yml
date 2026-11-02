@@ -771,6 +771,7 @@ jobs:
           ./gradlew projects --no-daemon
           ./gradlew :t3-widget-expiry:testDebugUnitTest :t3-agent-notifications:testDebugUnitTest \
             :t3-composer-editor:testDebugUnitTest :t3tools-mobile-review-diff-native:testDebugUnitTest \
+            :t3tools-mobile-terminal-native:testDebugUnitTest \
             --no-daemon --max-workers=2
       - name: Run standalone Android review geometry and viewport regressions
         working-directory: apps/mobile
@@ -810,7 +811,7 @@ jobs:
           fi
           unzip -t "$apk"
           "$build_tools/aapt" dump badging "$apk" | tee "$RUNNER_TEMP/android-badging.txt"
-          grep -F "package: name='com.zhiweixiao.t3code.zhcn' versionCode='1000412' versionName='$CLIENT_VERSION'" "$RUNNER_TEMP/android-badging.txt"
+          grep -F "package: name='com.zhiweixiao.t3code.zhcn' versionCode='$T3CODE_MOBILE_VERSION_CODE' versionName='$CLIENT_VERSION'" "$RUNNER_TEMP/android-badging.txt"
           mkdir -p android-candidate
           cp "$apk" "android-candidate/T3-Code-zh-CN-Android-$CLIENT_VERSION-arm64-UNSIGNED-NOT-INSTALLABLE.apk"
           printf '%s\n' 'UNSIGNED: This build artifact is not installable. Publication requires the separate fixed-identity signing and APK verification gates. No private signing material is included in this artifact.' > android-candidate/SIGNING-BLOCKER.txt

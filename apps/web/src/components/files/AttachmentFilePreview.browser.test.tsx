@@ -5,6 +5,16 @@ import { describe, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import "~/index.css";
 
+// Each PDF revision boots a real worker. As in PdfViewer.browser.test.tsx, serve the same
+// worker code without Vite's large inline source map so reloads test view restoration,
+// not repeated dev-server transforms under CI contention.
+vi.mock(import("pdfjs-dist/build/pdf.worker.min.mjs?url"), async () => {
+  const { default: source } = await import("pdfjs-dist/build/pdf.worker.min.mjs?raw");
+  return {
+    default: URL.createObjectURL(new Blob([source], { type: "text/javascript" })),
+  };
+});
+
 const { refresh, assetUrlState } = vi.hoisted(() => ({
   refresh: vi.fn<() => Promise<string | null>>(),
   assetUrlState: vi.fn<() => import("~/assets/assetUrls").AssetUrlState>(),
