@@ -20,6 +20,7 @@ jobs:
     outputs:
       artifact_id: ${{ steps.upload.outputs.artifact-id }}
       artifact_digest: ${{ steps.upload.outputs.artifact-digest }}
+      manifest_sha256: ${{ steps.signed.outputs.manifest_sha256 }}
     steps:
       - name: Fetch only reviewed signing tools from exact workflow commit
         env:
@@ -48,6 +49,7 @@ jobs:
             --input docs/tools/android-cloud-signing/reviewed-signing-input.json \
             --workspace "$RUNNER_TEMP/reviewed-android"
       - name: Sign only reviewed APK with fixed recovered identity
+        id: signed
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -59,6 +61,7 @@ jobs:
           python docs/tools/android-cloud-signing/sign_reviewed.py sign \
             --input docs/tools/android-cloud-signing/reviewed-signing-input.json \
             --workspace "$RUNNER_TEMP/reviewed-android" --output "$RUNNER_TEMP/signed-android"
+          printf 'manifest_sha256=%s\n' "$(sha256sum "$RUNNER_TEMP/signed-android/BUILD-PROVENANCE.json" | cut -d ' ' -f1)" >> "$GITHUB_OUTPUT"
       - name: Upload only signed APK and public provenance
         id: upload
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
@@ -91,6 +94,7 @@ jobs:
           EXPECTED_CANDIDATE_RUN: ''
           SIGNED_ARTIFACT_ID: ${{ needs.sign.outputs.artifact_id }}
           SIGNED_ARTIFACT_DIGEST: ${{ needs.sign.outputs.artifact_digest }}
+          SIGNED_MANIFEST_SHA256: ${{ needs.sign.outputs.manifest_sha256 }}
         with:
           script: |
             const fs = require('node:fs');
@@ -103,6 +107,8 @@ jobs:
             const names = [apkName, 'BUILD-PROVENANCE.json', 'SHA256SUMS.txt'].sort();
             assert.deepEqual(fs.readdirSync('release-assets').sort(), names);
             const manifestBytes = fs.readFileSync('release-assets/BUILD-PROVENANCE.json');
+            assert(/^[a-f0-9]{64}$/.test(process.env.SIGNED_MANIFEST_SHA256 || ''));
+            assert.equal(hash(manifestBytes), process.env.SIGNED_MANIFEST_SHA256, 'Independent signed manifest handoff hash mismatch');
             const m = JSON.parse(manifestBytes);
             assert.equal(m.apk_signature_verified, true);
             assert.equal(m.source_sha, process.env.EXPECTED_SOURCE_SHA);
@@ -121,27 +127,146 @@ jobs:
               assert(r.ok, `Public API check failed: ${r.status}`);
               return r.json();
             }
-            async function recheck() {
-              assert.equal((await publicAPI('')).private, false);
-              const signed = await publicAPI(`/actions/artifacts/${process.env.SIGNED_ARTIFACT_ID}`);
-              assert.equal(signed.workflow_run.id, context.runId); assert.equal(signed.workflow_run.head_sha, context.sha);
-              assert.equal(signed.expired,false); assert.equal(signed.digest, `sha256:${process.env.SIGNED_ARTIFACT_DIGEST}`);
-              const r = await publicAPI(`/actions/runs/${m.candidate_run_id}`);
-              assert.equal(r.status,'completed'); assert.equal(r.conclusion,'success'); assert.equal(r.run_attempt,m.candidate_attempt);
-              assert.equal(r.head_sha,m.source_sha); assert.equal(r.head_branch,'maintenance/v0.1.6-zh-cloud');
-              assert.equal(r.path,'.github/workflows/client-release.yml');
-              assert.equal(r.repository.full_name,'ZhiweiXiao98/t3code');
-              assert.equal(r.head_repository.full_name,'ZhiweiXiao98/t3code');
-              const j = await publicAPI(`/actions/runs/${m.candidate_run_id}/attempts/${m.candidate_attempt}/jobs?per_page=100`);
-              const expectedJobs=['Validate exact source','Lint and typecheck','Rust native formatting and tests','Mobile native static analysis','Build validated desktop bundle','Linux x64 and embedded Windows WSL runtime','Android arm64 unsigned candidate (NOT installable)','Desktop win x64 (integrity checked)','Desktop mac arm64 (integrity checked)','Desktop mac x64 (integrity checked)','Clean macOS arm64 dmg first start', 'Clean macOS arm64 zip first start', 'Clean macOS x64 dmg first start', 'Clean macOS x64 zip first start', 'Clean desktop deb first start', 'Clean desktop appimage first start', 'Clean desktop nsis first start',...['clients','web','server-1','server-2','server-3'].map(x=>`Tests (${x})`)];
-              assert.deepEqual(j.jobs.map(x=>x.name).sort(),expectedJobs.sort());
-              assert.equal(j.total_count,22); assert(j.jobs.every(x=>x.status==='completed'&&x.conclusion==='success'));
-              assert.equal((await publicAPI('/git/ref/heads/maintenance/v0.1.6-zh-cloud')).object.sha,m.source_sha);
-              const a = await publicAPI(`/actions/artifacts/${m.candidate_artifact_id}`);
-              assert.equal(a.expired,false); assert.equal(a.digest,`sha256:${m.candidate_artifact_sha256}`);
-              assert.equal(a.workflow_run.id,Number(m.candidate_run_id)); assert.equal(a.workflow_run.head_sha,m.source_sha);
-              const recovery = await publicAPI('/actions/runs/40649758501');
-              assert.equal(recovery.conclusion,'success'); assert.equal(recovery.head_sha,'8fc8b21abd2380926242fc49e7f488cb4b3aa0b8');
+            const runFields=['id','run_attempt','head_sha','head_branch','path','workflow_id','event','status','conclusion','run_started_at','updated_at'];
+            const jobFields=['id','run_id','run_attempt','head_sha','head_branch','labels','name','status','conclusion','started_at','completed_at','runner_id'];
+            const stepFields=['name','number','status','conclusion','started_at','completed_at'];
+            const artifactFields=['id','name','size_in_bytes','digest','expired','created_at','updated_at','expires_at'];
+            const pick=(v,keys)=>Object.fromEntries(keys.map(k=>[k,v[k]??null]));
+            const stable=v=>JSON.stringify(sortValue(v));
+            function sortValue(v){if(Array.isArray(v))return v.map(sortValue);if(v&&typeof v==='object')return Object.fromEntries(Object.keys(v).sort().map(k=>[k,sortValue(v[k])]));return v;}
+            const jobView=j=>({...pick(j,jobFields),api_metadata_sha256:hash(stable(j)),steps:j.steps.map(s=>pick(s,stepFields))});
+            const expectedJobs=['Validate exact source','Lint and typecheck','Rust native formatting and tests','Mobile native static analysis','Build validated desktop bundle','Linux x64 and embedded Windows WSL runtime','Android arm64 unsigned candidate (NOT installable)','Desktop win x64 (integrity checked)','Desktop mac arm64 (integrity checked)','Desktop mac x64 (integrity checked)','Clean macOS arm64 dmg first start','Clean macOS arm64 zip first start','Clean macOS x64 dmg first start','Clean macOS x64 zip first start','Clean desktop deb first start','Clean desktop appimage first start','Clean desktop nsis first start',...['clients','web','server-1','server-2','server-3'].map(x=>`Tests (${x})`)];
+            const oldPlaceholders=['Clean macOS $'+'{{ matrix.arch }} $'+'{{ matrix.format }} first start','Clean desktop $'+'{{ matrix.kind }} first start'];
+            const branch='maintenance/v0.1.6-zh-cloud', workflow='.github/workflows/client-release.yml';
+            const androidJob='Android arm64 unsigned candidate (NOT installable)';
+            function identity(r,attempt,current=false){
+             assert.equal(r.id,m.candidate_run_id);assert.equal(r.run_attempt,attempt);
+             assert.equal(r.head_sha,m.source_sha);assert.equal(r.head_branch,branch);
+             assert.equal(r.path,workflow);assert.equal(r.workflow_id,m.candidate_workflow_id);assert.equal(r.event,'push');
+             assert.equal(r.repository.full_name,'ZhiweiXiao98/t3code');assert.equal(r.head_repository.full_name,'ZhiweiXiao98/t3code');
+             assert.equal(r.status,'completed');if(current)assert.equal(r.conclusion,'success');
+            }
+            function at(t){assert.equal(typeof t,'string');assert(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z$/.test(t));const n=Date.parse(t);assert(Number.isFinite(n));return n;}
+            function checkNeeds(latest){
+             const source='Validate exact source',quality=['Lint and typecheck','Rust native formatting and tests','Mobile native static analysis',...['clients','web','server-1','server-2','server-3'].map(x=>`Tests (${x})`)];
+             const bundle='Build validated desktop bundle',linux='Linux x64 and embedded Windows WSL runtime';
+             const desktop=['win x64','mac arm64','mac x64'].map(x=>`Desktop ${x} (integrity checked)`);
+             const dag={[source]:[],...Object.fromEntries(quality.map(x=>[x,[source]])),[bundle]:[source,...quality],[linux]:[source,bundle],[androidJob]:[source,...quality,bundle],...Object.fromEntries(desktop.map(x=>[x,[source,bundle,linux]]))};
+             for(const arch of ['arm64','x64'])for(const fmt of ['dmg','zip'])dag[`Clean macOS ${arch} ${fmt} first start`]=[source,...desktop];
+             for(const kind of ['deb','appimage','nsis'])dag[`Clean desktop ${kind} first start`]=[source,linux,...desktop];
+             assert.deepEqual(Object.keys(dag).sort(),Object.keys(latest).sort());
+             for(const [name,j] of Object.entries(latest)){assert(Number.isSafeInteger(j.runner_id)&&j.runner_id>0&&j.steps.length>0);assert.equal(new Set(j.steps.map(s=>s.number)).size,j.steps.length);assert(at(j.started_at)<=at(j.completed_at));for(const dep of dag[name])assert(latest[dep].run_attempt<=j.run_attempt&&at(j.started_at)>=at(latest[dep].completed_at),'Stale downstream after dependency rerun');}
+            }
+            const capacityMessage='The job was not acquired by Runner of type hosted even after multiple attempts';
+            const capacityNotice='Due to capacity constraints, jobs targeting macOS arm64 runners may experience longer queue times.';
+            async function checkRetryAuthorizations(rawJobs,latest){
+             const reviewed=m.candidate_retry_authorizations;assert(Array.isArray(reviewed));
+             const fields=['job_id','run_attempt','job_name','job_snapshot_sha256','capacity_annotations_sha256'].sort();
+             const indexed=new Map();for(const a of reviewed){assert.deepEqual(Object.keys(a).sort(),fields);assert(!indexed.has(a.job_id));indexed.set(a.job_id,a);}
+             const replaced=rawJobs.filter(j=>latest[j.name]&&j.id!==latest[j.name].id&&!(j.status==='completed'&&j.conclusion==='success'));
+             assert.deepEqual([...indexed.keys()].sort((a,b)=>a-b),replaced.map(j=>j.id).sort((a,b)=>a-b),'Unauthorized non-successful execution override');
+             const evidence=[];
+             for(const j of replaced.sort((a,b)=>a.id-b.id)){
+              const a=indexed.get(j.id);assert.equal(j.status,'completed');assert.equal(j.conclusion,'cancelled');assert.equal(j.runner_id,0);assert.deepEqual(j.steps,[]);
+              assert.equal(a.run_attempt,j.run_attempt);assert.equal(a.job_name,j.name);assert.equal(a.job_snapshot_sha256,hash(stable(j)));
+              const annotations=await publicAPI(`/check-runs/${j.id}/annotations?per_page=100`);assert(Array.isArray(annotations)&&annotations.length>0&&annotations.length<100);
+              assert.equal(hash(stable(annotations)),a.capacity_annotations_sha256);assert.equal(annotations.filter(x=>x.annotation_level==='failure'&&x.message===capacityMessage).length,1);assert(annotations.some(x=>x.annotation_level==='notice'&&x.message===capacityNotice));
+              assert(annotations.every(x=>((x.annotation_level==='failure'&&x.message===capacityMessage)||(x.annotation_level==='notice'&&x.message===capacityNotice))&&x.path==='.github'&&x.blob_href===`https://github.com/ZhiweiXiao98/t3code/blob/${m.source_sha}/.github`&&x.raw_details===''));
+              evidence.push({authorization:a,job_metadata:j,capacity_annotations:annotations,annotations_endpoint:`/check-runs/${j.id}/annotations?per_page=100`});
+             }
+             return evidence;
+            }
+            const aliasIdentityFields=new Set(['id','node_id','url','check_run_url','html_url','run_attempt','created_at','runner_group_id']);
+            const fullJobFields=['check_run_url','completed_at','conclusion','created_at','head_branch','head_sha','html_url','id','labels','name','node_id','run_attempt','run_id','run_url','runner_group_id','runner_group_name','runner_id','runner_name','started_at','status','steps','url','workflow_name'].sort();
+            function validateJobRecord(j){
+             assert.deepEqual(Object.keys(j).sort(),fullJobFields);canonicalJobUrls(j);assert.equal(j.run_url,`https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/${j.run_id}`);
+             const start=at(j.started_at),end=at(j.completed_at);assert(start<=end);assert(Array.isArray(j.steps));
+             for(const st of j.steps){assert.deepEqual(Object.keys(st).sort(),stepFields.slice().sort());if(st.started_at===null||st.completed_at===null){assert.equal(st.started_at,null);assert.equal(st.completed_at,null);assert.equal(st.conclusion,'skipped');}else assert(start<=at(st.started_at)&&at(st.started_at)<=at(st.completed_at)&&at(st.completed_at)<=end,'Step outside execution interval');}
+            }
+            function canonicalJobUrls(j){
+             assert(typeof j.node_id==='string'&&j.node_id.length>0);const base='https://api.github.com/repos/ZhiweiXiao98/t3code';
+             assert.equal(j.url,`${base}/actions/jobs/${j.id}`);assert.equal(j.check_run_url,`${base}/check-runs/${j.id}`);assert.equal(j.html_url,`https://github.com/ZhiweiXiao98/t3code/actions/runs/${j.run_id}/job/${j.id}`);
+            }
+            function resolveExecution(j,previous,executions,attemptRun){
+             canonicalJobUrls(j);const began=at(attemptRun.run_started_at);
+             if(at(j.started_at)>=began)return{execution:j,alias:null};
+             assert(previous&&previous.run_attempt===j.run_attempt-1,'Alias has no immediately preceding attempt');canonicalJobUrls(previous);
+             assert(j.status==='completed'&&previous.status==='completed'&&j.conclusion==='success'&&previous.conclusion==='success'&&j.runner_id>0&&j.steps.length>0,'Alias cannot bypass non-success');
+             assert.deepEqual(Object.keys(j).sort(),Object.keys(previous).sort());for(const key of aliasIdentityFields)assert(Object.hasOwn(j,key));
+             const payload=x=>Object.fromEntries(Object.entries(x).filter(([k])=>!aliasIdentityFields.has(k)));
+             assert.deepEqual(payload(j),payload(previous),'Alias non-identity metadata changed');assert.notEqual(j.id,previous.id);assert.notEqual(j.node_id,previous.node_id);
+             const root=executions.get(previous.id);assert(root);const continuation=previous.runner_group_id===null&&root.id!==previous.id&&root.run_attempt<previous.run_attempt&&stable(payload(root))===stable(payload(j));assert(j.runner_group_id===null&&(previous.runner_group_id===0||continuation));
+             assert(at(j.created_at)>=began&&at(j.completed_at)<began,'Alias creation/execution interval mismatch');
+             const execution=executions.get(previous.id);assert(execution);
+             return{execution,alias:{schema:'github-actions-carried-forward-job/v1',job_name:j.name,alias_job_id:j.id,alias_run_attempt:j.run_attempt,previous_job_id:previous.id,previous_run_attempt:previous.run_attempt,execution_job_id:execution.id,execution_run_attempt:execution.run_attempt,alias_metadata_sha256:hash(stable(j)),previous_metadata_sha256:hash(stable(previous)),execution_metadata_sha256:hash(stable(execution))}};
+            }
+            function checkAliasLogProofs(s){
+             const proofs=m.alias_log_proofs;assert(Array.isArray(proofs));assert.equal(proofs.length,s.job_aliases.length);assert.equal(hash(stable(proofs)),m.alias_log_proofs_sha256);
+             const rootHashes=new Map();
+             for(let i=0;i<proofs.length;i++){
+              const alias=s.job_aliases[i],proof=proofs[i];const keys=['alias_job_id','alias_run_attempt','execution_job_id','execution_run_attempt'];
+              assert.deepEqual(Object.keys(proof).sort(),[...keys,'log_sha256'].sort());for(const key of keys)assert.equal(proof[key],alias[key]);assert(/^[a-f0-9]{64}$/.test(proof.log_sha256));
+              assert(!rootHashes.has(proof.execution_job_id)||rootHashes.get(proof.execution_job_id)===proof.log_sha256,'Conflicting hashes for one actual execution');rootHashes.set(proof.execution_job_id,proof.log_sha256);
+              if(alias.job_name===androidJob){assert.equal(proof.execution_job_id,m.candidate_producer_job_id);assert.equal(proof.execution_run_attempt,m.candidate_producer_attempt);assert.equal(proof.log_sha256,m.producer_job_receipt.log_sha256);}
+             }
+            }
+            async function snapshot(){
+             const prefix=`/actions/runs/${m.candidate_run_id}`, initial=await publicAPI(prefix);identity(initial,m.candidate_attempt,true);
+             const head=await publicAPI(`/git/ref/heads/${branch}`);assert.equal(head.object.type,'commit');assert.equal(head.object.sha,m.source_sha);
+             const w=await publicAPI(`/contents/${workflow}?ref=${m.source_sha}`);assert.equal(w.type,'file');assert.equal(w.path,workflow);assert.equal(w.encoding,'base64');
+             const bytes=Buffer.from(w.content,'base64');const blob=crypto.createHash('sha1').update(Buffer.from(`blob ${bytes.length}\0`)).update(bytes).digest('hex');
+             assert.equal(w.sha,blob);assert.equal(blob,m.candidate_workflow_blob_sha);assert.equal(hash(bytes),m.candidate_workflow_sha256);
+             const attempts=[],latest={},ids=new Set(),rawJobs=[],latestApi={},executions=new Map(),aliases=[],nodeIds=new Set();
+             assert(Number.isSafeInteger(m.candidate_attempt)&&m.candidate_attempt>0&&m.candidate_attempt<=100);
+             for(let attempt=1;attempt<=m.candidate_attempt;attempt++){
+              const r=await publicAPI(`${prefix}/attempts/${attempt}`);identity(r,attempt,attempt===m.candidate_attempt);assert.equal(r.event,initial.event);
+              const page=await publicAPI(`${prefix}/attempts/${attempt}/jobs?per_page=100`);assert(Array.isArray(page.jobs));assert(page.jobs.length>0&&page.jobs.length<=100);assert.equal(page.total_count,page.jobs.length);
+              const names=new Set(),views=[];
+              for(const j of page.jobs){assert(Number.isSafeInteger(j.id)&&j.id>0&&!ids.has(j.id));ids.add(j.id);rawJobs.push(j);validateJobRecord(j);assert(!nodeIds.has(j.node_id));nodeIds.add(j.node_id);assert.equal(j.run_id,m.candidate_run_id);assert.equal(j.run_attempt,attempt);assert.equal(j.head_sha,m.source_sha);assert.equal(j.head_branch,branch);assert(!names.has(j.name));names.add(j.name);assert(Array.isArray(j.steps));
+               if(!expectedJobs.includes(j.name)){assert(oldPlaceholders.includes(j.name)&&attempt<m.candidate_attempt);assert.equal(j.status,'completed');assert.equal(j.conclusion,'skipped');assert.deepEqual(j.steps,[]);assert.equal(j.runner_id,null);assert.equal(j.runner_name,null);assert.deepEqual(j.labels,[]);assert.equal(j.started_at,j.completed_at);}
+               else {const resolved=resolveExecution(j,latestApi[j.name],executions,r);if(resolved.alias)aliases.push(resolved.alias);executions.set(j.id,resolved.execution);latestApi[j.name]=j;latest[j.name]=jobView(resolved.execution);}
+               views.push(jobView(j));
+              }
+              if(attempt===m.candidate_attempt){assert.deepEqual([...names].sort(),expectedJobs.slice().sort());assert.equal(page.jobs.length,22);}
+              attempts.push({run:pick(r,runFields),jobs:views.sort((a,b)=>a.id-b.id)});
+             }
+             assert.deepEqual(Object.keys(latest).sort(),expectedJobs.slice().sort());assert.equal(Object.keys(latest).length,22);
+             assert(Object.values(latest).every(j=>j.status==='completed'&&j.conclusion==='success'));checkNeeds(latest);
+              aliases.sort((a,b)=>a.alias_run_attempt-b.alias_run_attempt||a.alias_job_id-b.alias_job_id);
+              const retryEvidence=await checkRetryAuthorizations(rawJobs,latest);
+             assert.deepEqual(pick(await publicAPI(prefix),runFields),pick(initial,runFields),'Candidate snapshot race');assert.deepEqual(await publicAPI(`/git/ref/heads/${branch}`),head,'HEAD snapshot race');
+             return {schema:'same-run-latest-gates/v2',run:pick(initial,runFields),workflow:{path:workflow,blob_sha:blob,sha256:hash(bytes)},attempts,retry_evidence:retryEvidence,job_aliases:aliases,latest_api_jobs:Object.keys(latestApi).sort().map(n=>jobView(latestApi[n])),latest_jobs:Object.keys(latest).sort().map(n=>latest[n])};
+            }
+            function artifactView(a){
+             assert.equal(a.id,m.candidate_artifact_id);assert.equal(a.name,'android-UNSIGNED-NOT-INSTALLABLE');assert.equal(a.expired,false);assert(at(a.expires_at)>Date.now());
+             assert.equal(a.digest,`sha256:${m.candidate_artifact_zip_sha256}`);assert.equal(m.candidate_artifact_sha256,m.candidate_artifact_zip_sha256);
+             assert.equal(a.workflow_run.id,m.candidate_run_id);assert.equal(a.workflow_run.head_sha,m.source_sha);assert.equal(a.workflow_run.head_branch,branch);assert(Number.isSafeInteger(a.size_in_bytes)&&a.size_in_bytes>0);
+             return {...pick(a,artifactFields),workflow_run:pick(a.workflow_run,['id','head_sha','head_branch'])};
+            }
+            function verifyReceipt(s,a){
+             const p=m.producer_job_receipt,j=s.latest_jobs.find(x=>x.name===androidJob);
+             assert.equal(hash(stable(p)),m.producer_job_receipt_sha256);assert.equal(p.schema,'github-upload-artifact-job-log/v1');
+             assert.equal(p.job_id,j.id);assert.equal(p.job_id,m.candidate_producer_job_id);assert.equal(p.run_attempt,j.run_attempt);assert.equal(p.run_attempt,m.candidate_producer_attempt);assert.equal(p.run_id,m.candidate_run_id);assert.equal(p.job_name,androidJob);
+             assert.equal(p.log_sha256,m.candidate_producer_log_sha256);assert(/^[a-f0-9]{64}$/.test(p.log_sha256));
+             assert.equal(p.upload_action_ref,'actions/upload-artifact@v7');assert.equal(p.upload_action_sha,'cf430e030ddbb5b0abf93d22962f4752f3646cd9');
+             assert.equal(p.artifact_id,a.id);assert.equal(p.artifact_name,a.name);assert.equal(p.artifact_digest,a.digest);assert.equal(p.artifact_size_in_bytes,a.size_in_bytes);
+             const steps=j.steps.filter(x=>x.name==='Run actions/upload-artifact@v7');assert.equal(steps.length,1);const st=steps[0];
+             assert.equal(st.status,'completed');assert.equal(st.conclusion,'success');assert.equal(p.step_number,st.number);assert.equal(p.step_name,st.name);assert.equal(p.step_started_at,st.started_at);assert.equal(p.step_completed_at,st.completed_at);assert(at(a.created_at)>=at(st.started_at)&&at(a.created_at)<=at(a.updated_at)&&at(a.updated_at)<at(st.completed_at)+1000);
+            }
+            async function checkAnchor(s){
+              assert.deepEqual(pick(await publicAPI(`/actions/runs/${m.candidate_run_id}`),runFields),s.run,'Final run snapshot race');
+              const head=await publicAPI(`/git/ref/heads/${branch}`);assert.equal(head.object.type,'commit');assert.equal(head.object.sha,m.source_sha,'Final HEAD drift');
+            }
+            async function recheck(){
+             assert.equal(m.enabled,true);assert.equal(m.candidate_source_sha,m.source_sha);
+             assert.equal((await publicAPI('')).private,false);
+             const signed=await publicAPI(`/actions/artifacts/${process.env.SIGNED_ARTIFACT_ID}`);
+             assert.equal(signed.id,Number(process.env.SIGNED_ARTIFACT_ID));assert.equal(signed.name,`android-signed-reviewed-${context.runId}`);
+             assert.equal(signed.workflow_run.id,context.runId);assert.equal(signed.workflow_run.head_sha,context.sha);assert.equal(signed.expired,false);assert.equal(signed.digest,`sha256:${process.env.SIGNED_ARTIFACT_DIGEST}`);
+             const s=await snapshot();checkAliasLogProofs(s);assert.equal(hash(stable(s)),m.candidate_gates_sha256);assert.equal(stable(s),stable(m.candidate_gates_snapshot),'Prepared gate snapshot changed');
+             const a=artifactView(await publicAPI(`/actions/artifacts/${m.candidate_artifact_id}`));assert.equal(stable(a),stable(m.candidate_artifact_metadata),'Prepared artifact metadata changed');verifyReceipt(s,a);
+             const recovery=await publicAPI('/actions/runs/40649758501');assert.equal(recovery.status,'completed');assert.equal(recovery.conclusion,'success');assert.equal(recovery.head_sha,'8fc8b21abd2380926242fc49e7f488cb4b3aa0b8');assert.equal(recovery.path,'.github/workflows/android-signing-recovery.yml');assert.equal(recovery.head_branch,'signing/android-bootstrap');
+              await checkAnchor(s);
             }
             await recheck();
             async function absent(request) {
@@ -157,17 +282,21 @@ jobs:
               `版本：0.1.6-zh.1；versionCode：1000413。\n精确源码：${m.source_sha}\n构建与完整验证：https://github.com/ZhiweiXiao98/t3code/actions/runs/${m.candidate_run_id}\n签名发布：https://github.com/ZhiweiXiao98/t3code/actions/runs/${context.runId}\n\n`+
               '采用固定社区签名身份，加密备份已通过新云端 runner 恢复验证。沿用 android-v0.1.3-zh.1 和 android-v0.1.5-zh.1 的固定签名身份，versionCode 递增；更早使用其他签名的 APK 不能直接覆盖安装，卸载前请自行保存需要的应用配置。\n\n'+
               '本版为连接 T3 Code 服务端的移动客户端；请使用兼容的新版服务端。本次 Android 发布未替换任何桌面资产；请以各发布页的精确源码和构建记录核对来源。\n\n'+
-              '已完成精确当前提交的全部 22 项 CI 门禁、原生回归、APK 包名/版本/架构与签名证书校验；未声称完成所有实体手机上的人工安装与界面验证。SHA256SUMS.txt 与 BUILD-PROVENANCE.json 记录完整性、构建及签名来源。手动下载安装，不提供自动更新。';
+              '已核验精确当前提交的全部 22 项门禁的最新实际执行结果成功；基础设施重试中沿用的执行及 API 别名均另行记录，非全部重新执行。已核验原生回归、APK 包名/版本/架构与签名证书校验；未声称完成所有实体手机上的人工安装与界面验证。SHA256SUMS.txt 与 BUILD-PROVENANCE.json 记录完整性、构建及签名来源。手动下载安装，不提供自动更新。';
             const {data:release}=await github.rest.repos.createRelease({...repo,tag_name:tag,target_commitish:m.source_sha,name:'T3 Code 中文 Android 0.1.6-zh.1 (arm64)',body,draft:true,prerelease:false,make_latest:'false'});
+            const uploadedAssets=[];
             for(const name of names) {
               const data=fs.readFileSync(`release-assets/${name}`);
               const {data:asset}=await github.rest.repos.uploadReleaseAsset({...repo,release_id:release.id,name,data,headers:{'content-type':'application/octet-stream','content-length':data.length}});
               assert.equal(asset.state,'uploaded'); assert.equal(asset.size,data.length); assert.equal(asset.digest,`sha256:${hash(data)}`);
+              uploadedAssets.push(pick(asset,['id','name','state','size','digest']));
             }
             await recheck();
             assert.equal((await github.rest.git.getRef({...repo,ref:`tags/${tag}`})).data.object.sha,m.source_sha);
             const {data:uploaded}=await github.rest.repos.listReleaseAssets({...repo,release_id:release.id,per_page:100});
             assert.deepEqual(uploaded.map(x=>x.name).sort(),names);
+            assert.deepEqual(uploaded.map(a=>pick(a,['id','name','state','size','digest'])).sort((a,b)=>a.name.localeCompare(b.name)),uploadedAssets.sort((a,b)=>a.name.localeCompare(b.name)),'Release asset replaced after upload');
+            await checkAnchor(m.candidate_gates_snapshot);
             const {data:published}=await github.rest.repos.updateRelease({...repo,release_id:release.id,draft:false,prerelease:false,make_latest:'false'});
             assert.equal(published.draft,false); assert.equal(published.prerelease,false);
             core.summary.addLink('Signed Android release',published.html_url); await core.summary.write();

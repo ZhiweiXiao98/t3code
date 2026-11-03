@@ -1,0 +1,4228 @@
+{
+  "manifest": {
+    "enabled": true,
+    "candidate_run_id": 10000000000,
+    "candidate_attempt": 2,
+    "candidate_source_sha": "1111111111111111111111111111111111111111",
+    "candidate_artifact_id": 1,
+    "candidate_artifact_zip_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "candidate_workflow_id": 1234,
+    "candidate_workflow_blob_sha": "e8cb5f1ec815c406c64e48b1d21d014dd25dadbc",
+    "candidate_workflow_sha256": "541016107140da72390c1801195a51bf759d45a48e32673c5c41c2d1215adce9",
+    "candidate_producer_job_id": 111,
+    "candidate_producer_attempt": 1,
+    "candidate_retry_authorizations": [
+      {
+        "job_id": 400,
+        "run_attempt": 1,
+        "job_name": "Desktop mac arm64 (integrity checked)",
+        "job_snapshot_sha256": "724a10e7dbe712040528f65844f32715399e2493165b7e63012fc53dcccf9291",
+        "capacity_annotations_sha256": "a768895551f9fd01470fcb716e251bb0ac3d34af61c0b6821ab56222b62af6ac"
+      }
+    ],
+    "alias_log_proofs": [
+      {
+        "alias_job_id": 2100,
+        "alias_run_attempt": 2,
+        "execution_job_id": 100,
+        "execution_run_attempt": 1,
+        "log_sha256": "3611f25167664eed8ff9a7f64d720289db33581e5f3559651156775588e0557a"
+      },
+      {
+        "alias_job_id": 2101,
+        "alias_run_attempt": 2,
+        "execution_job_id": 101,
+        "execution_run_attempt": 1,
+        "log_sha256": "651ccc5e7572cc1ae99e2dc5e1607f7da160fac9fea8bd902dc97b3ac2a394ca"
+      },
+      {
+        "alias_job_id": 2102,
+        "alias_run_attempt": 2,
+        "execution_job_id": 102,
+        "execution_run_attempt": 1,
+        "log_sha256": "ea021469070caec5fecd73ca131f547cf2d3743da7853bd62bfc26c12b6d1b91"
+      },
+      {
+        "alias_job_id": 2103,
+        "alias_run_attempt": 2,
+        "execution_job_id": 103,
+        "execution_run_attempt": 1,
+        "log_sha256": "d5299b2d2103444fe3969fdc13d9d74c9f03d2b3136df841d8585a98767bcc3b"
+      },
+      {
+        "alias_job_id": 2104,
+        "alias_run_attempt": 2,
+        "execution_job_id": 104,
+        "execution_run_attempt": 1,
+        "log_sha256": "8af8ec3ce2dc42d31e9309b717a1a6a7afb578a55ea5859ff00cc2425d415dcd"
+      },
+      {
+        "alias_job_id": 2105,
+        "alias_run_attempt": 2,
+        "execution_job_id": 105,
+        "execution_run_attempt": 1,
+        "log_sha256": "f7accdc6a3e16685f3c53e88a22fee8f4e15c74d4b34399cdead6f5d2d5f2531"
+      },
+      {
+        "alias_job_id": 2106,
+        "alias_run_attempt": 2,
+        "execution_job_id": 106,
+        "execution_run_attempt": 1,
+        "log_sha256": "657c87ea4d77fc952e564d737ed483e1bfa1eb4494b8cbbbfea91b0d782e6f53"
+      },
+      {
+        "alias_job_id": 2107,
+        "alias_run_attempt": 2,
+        "execution_job_id": 107,
+        "execution_run_attempt": 1,
+        "log_sha256": "e4d15e95592df8aaa43048e9cfd3f0a1d9d0c033dce21c94910898f82a42d47e"
+      },
+      {
+        "alias_job_id": 2108,
+        "alias_run_attempt": 2,
+        "execution_job_id": 108,
+        "execution_run_attempt": 1,
+        "log_sha256": "ebab6379e0c72f43a5bf6994b0156ceed106891108859635111f54a664ccc166"
+      },
+      {
+        "alias_job_id": 2109,
+        "alias_run_attempt": 2,
+        "execution_job_id": 109,
+        "execution_run_attempt": 1,
+        "log_sha256": "92cc67cf62c2facaabd661f1a9595f3051f6ac089225b317cd77fba0e9263617"
+      },
+      {
+        "alias_job_id": 2110,
+        "alias_run_attempt": 2,
+        "execution_job_id": 110,
+        "execution_run_attempt": 1,
+        "log_sha256": "8f3d699dd06bf9a1faebf68a62223638735e8fc2b229ebd5c6eb2591416ec7ad"
+      },
+      {
+        "alias_job_id": 2111,
+        "alias_run_attempt": 2,
+        "execution_job_id": 111,
+        "execution_run_attempt": 1,
+        "log_sha256": "22cd1ab7e075e01d228b43ed0bd65b5e40e3aca4db31aba41b2e361b91bd7a5a"
+      },
+      {
+        "alias_job_id": 2112,
+        "alias_run_attempt": 2,
+        "execution_job_id": 112,
+        "execution_run_attempt": 1,
+        "log_sha256": "2fa9d462384e11b1945fe9a16f66f63f9db7558274d5f6f1271f88fab130870e"
+      },
+      {
+        "alias_job_id": 2114,
+        "alias_run_attempt": 2,
+        "execution_job_id": 114,
+        "execution_run_attempt": 1,
+        "log_sha256": "9c9fb26e6cfc78e55137e1dab013bae188d80153c92b2e55c349f84c3fc89721"
+      }
+    ],
+    "alias_log_proofs_sha256": "ceb857a102199c4859d6c36e8391ebbad076e75e883808e82194aa3cac189c87",
+    "source_sha": "1111111111111111111111111111111111111111",
+    "candidate_artifact_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "candidate_gates_snapshot": {
+      "schema": "same-run-latest-gates/v2",
+      "run": {
+        "id": 10000000000,
+        "run_attempt": 2,
+        "head_sha": "1111111111111111111111111111111111111111",
+        "head_branch": "maintenance/v0.1.6-zh-cloud",
+        "path": ".github/workflows/client-release.yml",
+        "workflow_id": 1234,
+        "event": "push",
+        "status": "completed",
+        "conclusion": "success",
+        "run_started_at": "2026-11-02T00:16:40Z",
+        "updated_at": "2026-11-02T00:30:00Z"
+      },
+      "workflow": {
+        "path": ".github/workflows/client-release.yml",
+        "blob_sha": "e8cb5f1ec815c406c64e48b1d21d014dd25dadbc",
+        "sha256": "541016107140da72390c1801195a51bf759d45a48e32673c5c41c2d1215adce9"
+      },
+      "attempts": [
+        {
+          "run": {
+            "id": 10000000000,
+            "run_attempt": 1,
+            "head_sha": "1111111111111111111111111111111111111111",
+            "head_branch": "maintenance/v0.1.6-zh-cloud",
+            "path": ".github/workflows/client-release.yml",
+            "workflow_id": 1234,
+            "event": "push",
+            "status": "completed",
+            "conclusion": "cancelled",
+            "run_started_at": "2026-11-02T00:00:00Z",
+            "updated_at": "2026-11-02T00:15:50Z"
+          },
+          "jobs": [
+            {
+              "id": 100,
+              "run_id": 10000000000,
+              "run_attempt": 1,
+              "head_sha": "1111111111111111111111111111111111111111",
+              "head_branch": "maintenance/v0.1.6-zh-cloud",
+              "labels": [
+                "ubuntu-24.04"
+              ],
+              "name": "Validate exact source",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:00:10Z",
+              "completed_at": "2026-11-02T00:00:20Z",
+              "runner_id": 42,
+              "api_metadata_sha256": "6acd9a83f6a2295b29ccb2a5fb3f66a61cb5c07bf18055a97fa6292db95db8cf",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "number": 1,
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-02T00:00:10Z",
+                  "completed_at": "2026-11-02T00:00:11Z"
+                }
+              ]
+            },
+            {
+              "id": 101,
+              "run_id": 10000000000,
+              "run_attempt": 1,
+              "head_sha": "1111111111111111111111111111111111111111",
+              "head_branch": "maintenance/v0.1.6-zh-cloud",
+              "labels": [
+                "ubuntu-24.04"
+              ],
+              "name": "Lint and typecheck",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:00:30Z",
+              "completed_at": "2026-11-02T00:00:40Z",
+              "runner_id": 42,
+              "api_metadata_sha256": "ea280effb4593d68c3cc54bb4730db601ed3c05d7ed83b2d7655c3b414a690a6",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "number": 1,
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-02T00:00:30Z",
+                  "completed_at": "2026-11-02T00:00:31Z"
+                }
+              ]
+            },
+            {
+              "id": 102,
+              "run_id": 10000000000,
+              "run_attempt": 1,
+              "head_sha": "1111111111111111111111111111111111111111",
+              "head_branch": "maintenance/v0.1.6-zh-cloud",
+              "labels": [
+                "ubuntu-24.04"
+              ],
+              "name": "Rust native formatting and tests",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:00:50Z",
+              "completed_at": "2026-11-02T00:01:00Z",
+              "runner_id": 42,
+              "api_metadata_sha256": "de9e333c9ab1e6c2271004f6c1cd64436e00158555f4d35b2357cf159e6d3492",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "number": 1,
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-02T00:00:50Z",
+                  "completed_at": "2026-11-02T00:00:51Z"
+                }
+              ]
+            },
+            {
+              "id": 103,
+              "run_id": 10000000000,
+              "run_attempt": 1,
+              "head_sha": "1111111111111111111111111111111111111111",
+              "head_branch": "maintenance/v0.1.6-zh-cloud",
+              "labels": [
+                "ubuntu-24.04"
+              ],
+              "name": "Mobile native static analysis",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:01:10Z",
+              "completed_at": "2026-11-02T00:01:20Z",
+              "runner_id": 42,
+              "api_metadata_sha256": "0b4286dba332f146a3d77580f0f7cee371fb49ea8fa6c62c9bad0cf88195c2d7",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "number": 1,
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-02T00:01:10Z",
+                  "completed_at": "2026-11-02T00:01:11Z"
+                }
+              ]
+            },
+            {
+              "id": 104,
+              "run_id": 10000000000,
+              "run_attempt": 1,
+              "head_sha": "1111111111111111111111111111111111111111",
+              "head_branch": "maintenance/v0.1.6-zh-cloud",
+              "labels": [
+                "ubuntu-24.04"
+              ],
+              "name": "Tests (clients)",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:01:30Z",
+              "completed_at": "2026-11-02T00:01:40Z",
+              "runner_id": 42,
+              "api_metadata_sha256": "a77f26a40854070fc4e853210088a453697df82cc261b8bf7ec70611e38e062f",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "number": 1,
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-02T00:01:30Z",
+                  "completed_at": "2026-11-02T00:01:31Z"
+                }
+              ]
+            },
+            {
+              "id": 105,
+              "run_id": 10000000000,
+              "run_attempt": 1,
+              "head_sha": "1111111111111111111111111111111111111111",
+              "head_branch": "maintenance/v0.1.6-zh-cloud",
+              "labels": [
+                "ubuntu-24.04"
+              ],
+              "name": "Tests (web)",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:01:50Z",
+              "completed_at": "2026-11-02T00:02:00Z",
+              "runner_id": 42,
+              "api_metadata_sha256": "f832f5a3226332f3910dbb7b9c86548ca9d53cbf7ce9a0ad1381c1ebc6419d01",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "number": 1,
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-02T00:01:50Z",
+                  "completed_at": "2026-11-02T00:01:51Z"
+                }
+              ]
+            },
+            {
+              "id": 106,
+              "run_id": 10000000000,
+              "run_attempt": 1,
+              "head_sha": "1111111111111111111111111111111111111111",
+              "head_branch": "maintenance/v0.1.6-zh-cloud",
+              "labels": [
+                "ubuntu-24.04"
+              ],
+              "name": "Tests (server-1)",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:02:10Z",
+              "completed_at": "2026-11-02T00:02:20Z",
+              "runner_id": 42,
+              "api_metadata_sha256": "f8f6cd57b081d21f43cdefbcf3135b698b76fe13c12f3c50a0df65c99a4c7693",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "number": 1,
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-02T00:02:10Z",
+                  "completed_at": "2026-11-02T00:02:11Z"
+                }
+              ]
+            },
+            {
+              "id": 107,
+              "run_id": 10000000000,
+              "run_attempt": 1,
+              "head_sha": "1111111111111111111111111111111111111111",
+              "head_branch": "maintenance/v0.1.6-zh-cloud",
+              "labels": [
+                "ubuntu-24.04"
+              ],
+              "name": "Tests (server-2)",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:02:30Z",
+              "completed_at": "2026-11-02T00:02:40Z",
+              "runner_id": 42,
+              "api_metadata_sha256": "ff44dc59718ea80c618f9ae62953bd590dfa1a3a33dfebc38d1776007ec682aa",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "number": 1,
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-02T00:02:30Z",
+                  "completed_at": "2026-11-02T00:02:31Z"
+                }
+              ]
+            },
+            {
+              "id": 108,
+              "run_id": 10000000000,
+              "run_attempt": 1,
+              "head_sha": "1111111111111111111111111111111111111111",
+              "head_branch": "maintenance/v0.1.6-zh-cloud",
+              "labels": [
+                "ubuntu-24.04"
+              ],
+              "name": "Tests (server-3)",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:02:50Z",
+              "completed_at": "2026-11-02T00:03:00Z",
+              "runner_id": 42,
+              "api_metadata_sha256": "a9f4fb80a927fe85ea9a65aec14b20091ac2c5dc2b3b521918bdc800d30a1bfb",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "number": 1,
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-02T00:02:50Z",
+                  "completed_at": "2026-11-02T00:02:51Z"
+                }
+              ]
+            },
+            {
+              "id": 109,
+              "run_id": 10000000000,
+              "run_attempt": 1,
+              "head_sha": "1111111111111111111111111111111111111111",
+              "head_branch": "maintenance/v0.1.6-zh-cloud",
+              "labels": [
+                "ubuntu-24.04"
+              ],
+              "name": "Build validated desktop bundle",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:03:10Z",
+              "completed_at": "2026-11-02T00:03:20Z",
+              "runner_id": 42,
+              "api_metadata_sha256": "93069b9d7c8a1671947681323eb0e2b67646c61d006413e177f644945d8b4958",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "number": 1,
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-02T00:03:10Z",
+                  "completed_at": "2026-11-02T00:03:11Z"
+                }
+              ]
+            },
+            {
+              "id": 110,
+              "run_id": 10000000000,
+              "run_attempt": 1,
+              "head_sha": "1111111111111111111111111111111111111111",
+              "head_branch": "maintenance/v0.1.6-zh-cloud",
+              "labels": [
+                "ubuntu-24.04"
+              ],
+              "name": "Linux x64 and embedded Windows WSL runtime",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:03:30Z",
+              "completed_at": "2026-11-02T00:03:40Z",
+              "runner_id": 42,
+              "api_metadata_sha256": "10188bbc3a87aa8cffb7cc1b783822b927359c7ff1f1e5a19e86e0e793685e86",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "number": 1,
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-02T00:03:30Z",
+                  "completed_at": "2026-11-02T00:03:31Z"
+                }
+              ]
+            },
+            {
+              "id": 111,
+              "run_id": 10000000000,
+              "run_attempt": 1,
+              "head_sha": "1111111111111111111111111111111111111111",
+              "head_branch": "maintenance/v0.1.6-zh-cloud",
+              "labels": [
+                "ubuntu-24.04"
+              ],
+              "name": "Android arm64 unsigned candidate (NOT installable)",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:03:50Z",
+              "completed_at": "2026-11-02T00:04:00Z",
+              "runner_id": 42,
+              "api_metadata_sha256": "51fe918233c1f37b91e0bf56c59e70372eabc72976816b0e049f3f1d1ff2f11f",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "number": 1,
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-02T00:03:50Z",
+                  "completed_at": "2026-11-02T00:03:51Z"
+                },
+                {
+                  "name": "Run actions/upload-artifact@v7",
+                  "number": 13,
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-02T00:03:52Z",
+                  "completed_at": "2026-11-02T00:03:59Z"
+                }
+              ]
+            },
+            {
+              "id": 112,
+              "run_id": 10000000000,
+              "run_attempt": 1,
+              "head_sha": "1111111111111111111111111111111111111111",
+              "head_branch": "maintenance/v0.1.6-zh-cloud",
+              "labels": [
+                "ubuntu-24.04"
+              ],
+              "name": "Desktop win x64 (integrity checked)",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:04:10Z",
+              "completed_at": "2026-11-02T00:04:20Z",
+              "runner_id": 42,
+              "api_metadata_sha256": "6a9b06027e91d108f3dee963cac8a24cf63d7daa24a0fc50a58d30297c08f648",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "number": 1,
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-02T00:04:10Z",
+                  "completed_at": "2026-11-02T00:04:11Z"
+                }
+              ]
+            },
+            {
+              "id": 114,
+              "run_id": 10000000000,
+              "run_attempt": 1,
+              "head_sha": "1111111111111111111111111111111111111111",
+              "head_branch": "maintenance/v0.1.6-zh-cloud",
+              "labels": [
+                "ubuntu-24.04"
+              ],
+              "name": "Desktop mac x64 (integrity checked)",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:04:50Z",
+              "completed_at": "2026-11-02T00:05:00Z",
+              "runner_id": 42,
+              "api_metadata_sha256": "c28d94eac3eaedc5cf61d30c85c71697a21a95c236ea1ef346ae0568e4b6dcc0",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "number": 1,
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-02T00:04:50Z",
+                  "completed_at": "2026-11-02T00:04:51Z"
+                }
+              ]
+            },
+            {
+              "id": 300,
+              "run_id": 10000000000,
+              "run_attempt": 1,
+              "head_sha": "1111111111111111111111111111111111111111",
+              "head_branch": "maintenance/v0.1.6-zh-cloud",
+              "labels": [],
+              "name": "Clean desktop ${{ matrix.kind }} first start",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-11-02T00:15:00Z",
+              "completed_at": "2026-11-02T00:15:00Z",
+              "runner_id": null,
+              "api_metadata_sha256": "315a417e5eb4452303086f89b99490b0a842be36ac672fb0497053a4707e83b7",
+              "steps": []
+            },
+            {
+              "id": 301,
+              "run_id": 10000000000,
+              "run_attempt": 1,
+              "head_sha": "1111111111111111111111111111111111111111",
+              "head_branch": "maintenance/v0.1.6-zh-cloud",
+              "labels": [],
+              "name": "Clean macOS ${{ matrix.arch }} ${{ matrix.format }} first start",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-11-02T00:15:00Z",
+              "completed_at": "2026-11-02T00:15:00Z",
+              "runner_id": null,
+              "api_metadata_sha256": "433e2c904e38f077bac4b5ed429266ba2200c87e659645f0fb6ecf1a27cceadc",
+              "steps": []
+            },
+            {
+              "id": 400,
+              "run_id": 10000000000,
+              "run_attempt": 1,
+              "head_sha": "1111111111111111111111111111111111111111",
+              "head_branch": "maintenance/v0.1.6-zh-cloud",
+              "labels": [
+                "ubuntu-24.04"
+              ],
+              "name": "Desktop mac arm64 (integrity checked)",
+              "status": "completed",
+              "conclusion": "cancelled",
+              "started_at": "2026-11-02T00:13:20Z",
+              "completed_at": "2026-11-02T00:15:00Z",
+              "runner_id": 0,
+              "api_metadata_sha256": "724a10e7dbe712040528f65844f32715399e2493165b7e63012fc53dcccf9291",
+              "steps": []
+            }
+          ]
+        },
+        {
+          "run": {
+            "id": 10000000000,
+            "run_attempt": 2,
+            "head_sha": "1111111111111111111111111111111111111111",
+            "head_branch": "maintenance/v0.1.6-zh-cloud",
+            "path": ".github/workflows/client-release.yml",
+            "workflow_id": 1234,
+            "event": "push",
+            "status": "completed",
+            "conclusion": "success",
+            "run_started_at": "2026-11-02T00:16:40Z",
+            "updated_at": "2026-11-02T00:30:00Z"
+          },
+          "jobs": [
+            {
+              "id": 113,
+              "run_id": 10000000000,
+              "run_attempt": 2,
+              "head_sha": "1111111111111111111111111111111111111111",
+              "head_branch": "maintenance/v0.1.6-zh-cloud",
+              "labels": [
+                "ubuntu-24.04"
+              ],
+              "name": "Desktop mac arm64 (integrity checked)",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:21:10Z",
+              "completed_at": "2026-11-02T00:21:20Z",
+              "runner_id": 42,
+              "api_metadata_sha256": "1b1c5d900230b9499afbf3ddb53313fd8863cf9a97d1efd932c687a4fa359d54",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "number": 1,
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-02T00:21:10Z",
+                  "completed_at": "2026-11-02T00:21:11Z"
+                }
+              ]
+            },
+            {
+              "id": 115,
+              "run_id": 10000000000,
+              "run_attempt": 2,
+              "head_sha": "1111111111111111111111111111111111111111",
+              "head_branch": "maintenance/v0.1.6-zh-cloud",
+              "labels": [
+                "ubuntu-24.04"
+              ],
+              "name": "Clean macOS arm64 dmg first start",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:21:50Z",
+              "completed_at": "2026-11-02T00:22:00Z",
+              "runner_id": 42,
+              "api_metadata_sha256": "9338c4ef713618ebfe98ded8929b7d61d7a1073b1ba9fb4b46ef242e4a0b1dd1",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "number": 1,
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-02T00:21:50Z",
+                  "completed_at": "2026-11-02T00:21:51Z"
+                }
+              ]
+            },
+            {
+              "id": 116,
+              "run_id": 10000000000,
+              "run_attempt": 2,
+              "head_sha": "1111111111111111111111111111111111111111",
+              "head_branch": "maintenance/v0.1.6-zh-cloud",
+              "labels": [
+                "ubuntu-24.04"
+              ],
+              "name": "Clean macOS arm64 zip first start",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:22:10Z",
+              "completed_at": "2026-11-02T00:22:20Z",
+              "runner_id": 42,
+              "api_metadata_sha256": "ce955ca023dad94770162613fef7f806a1cfaac3f7f93ec19669fa4b48779d9d",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "number": 1,
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-02T00:22:10Z",
+                  "completed_at": "2026-11-02T00:22:11Z"
+                }
+              ]
+            },
+            {
+              "id": 117,
+              "run_id": 10000000000,
+              "run_attempt": 2,
+              "head_sha": "1111111111111111111111111111111111111111",
+              "head_branch": "maintenance/v0.1.6-zh-cloud",
+              "labels": [
+                "ubuntu-24.04"
+              ],
+              "name": "Clean macOS x64 dmg first start",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:22:30Z",
+              "completed_at": "2026-11-02T00:22:40Z",
+              "runner_id": 42,
+              "api_metadata_sha256": "2e02caa4578516fee6e626e69dd0a23a2349a62f89bf179e4ea89cafb139ac98",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "number": 1,
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-02T00:22:30Z",
+                  "completed_at": "2026-11-02T00:22:31Z"
+                }
+              ]
+            },
+            {
+              "id": 118,
+              "run_id": 10000000000,
+              "run_attempt": 2,
+              "head_sha": "1111111111111111111111111111111111111111",
+              "head_branch": "maintenance/v0.1.6-zh-cloud",
+              "labels": [
+                "ubuntu-24.04"
+              ],
+              "name": "Clean macOS x64 zip first start",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:22:50Z",
+              "completed_at": "2026-11-02T00:23:00Z",
+              "runner_id": 42,
+              "api_metadata_sha256": "c93ff4c9f0221af20cc2e27451f74ee35eb388ec3c2549fa9296e7558fd92be0",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "number": 1,
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-02T00:22:50Z",
+                  "completed_at": "2026-11-02T00:22:51Z"
+                }
+              ]
+            },
+            {
+              "id": 119,
+              "run_id": 10000000000,
+              "run_attempt": 2,
+              "head_sha": "1111111111111111111111111111111111111111",
+              "head_branch": "maintenance/v0.1.6-zh-cloud",
+              "labels": [
+                "ubuntu-24.04"
+              ],
+              "name": "Clean desktop deb first start",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:23:10Z",
+              "completed_at": "2026-11-02T00:23:20Z",
+              "runner_id": 42,
+              "api_metadata_sha256": "14480c5404468ad26ea4f6e376448f4541b9f81119cacee991fe35eedff42657",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "number": 1,
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-02T00:23:10Z",
+                  "completed_at": "2026-11-02T00:23:11Z"
+                }
+              ]
+            },
+            {
+              "id": 120,
+              "run_id": 10000000000,
+              "run_attempt": 2,
+              "head_sha": "1111111111111111111111111111111111111111",
+              "head_branch": "maintenance/v0.1.6-zh-cloud",
+              "labels": [
+                "ubuntu-24.04"
+              ],
+              "name": "Clean desktop appimage first start",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:23:30Z",
+              "completed_at": "2026-11-02T00:23:40Z",
+              "runner_id": 42,
+              "api_metadata_sha256": "bd981d89e238a34b7bae3eec6d174a92e352c73a0a3dd0eddfe3f5e67749771f",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "number": 1,
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-02T00:23:30Z",
+                  "completed_at": "2026-11-02T00:23:31Z"
+                }
+              ]
+            },
+            {
+              "id": 121,
+              "run_id": 10000000000,
+              "run_attempt": 2,
+              "head_sha": "1111111111111111111111111111111111111111",
+              "head_branch": "maintenance/v0.1.6-zh-cloud",
+              "labels": [
+                "ubuntu-24.04"
+              ],
+              "name": "Clean desktop nsis first start",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:23:50Z",
+              "completed_at": "2026-11-02T00:24:00Z",
+              "runner_id": 42,
+              "api_metadata_sha256": "8ff9e582f56111cf86b4618e01917185486399e7d4ba681fabed0066544a5350",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "number": 1,
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-02T00:23:50Z",
+                  "completed_at": "2026-11-02T00:23:51Z"
+                }
+              ]
+            },
+            {
+              "id": 2100,
+              "run_id": 10000000000,
+              "run_attempt": 2,
+              "head_sha": "1111111111111111111111111111111111111111",
+              "head_branch": "maintenance/v0.1.6-zh-cloud",
+              "labels": [
+                "ubuntu-24.04"
+              ],
+              "name": "Validate exact source",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:00:10Z",
+              "completed_at": "2026-11-02T00:00:20Z",
+              "runner_id": 42,
+              "api_metadata_sha256": "541f341c2bfcd6447884e1ea64454af809caffd1100ab67e9640c5b91659b8fd",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "number": 1,
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-02T00:00:10Z",
+                  "completed_at": "2026-11-02T00:00:11Z"
+                }
+              ]
+            },
+            {
+              "id": 2101,
+              "run_id": 10000000000,
+              "run_attempt": 2,
+              "head_sha": "1111111111111111111111111111111111111111",
+              "head_branch": "maintenance/v0.1.6-zh-cloud",
+              "labels": [
+                "ubuntu-24.04"
+              ],
+              "name": "Lint and typecheck",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:00:30Z",
+              "completed_at": "2026-11-02T00:00:40Z",
+              "runner_id": 42,
+              "api_metadata_sha256": "cec23d9e93ac298d4469a134662cef9664ac7e9765d57f82160c39c505968736",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "number": 1,
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-02T00:00:30Z",
+                  "completed_at": "2026-11-02T00:00:31Z"
+                }
+              ]
+            },
+            {
+              "id": 2102,
+              "run_id": 10000000000,
+              "run_attempt": 2,
+              "head_sha": "1111111111111111111111111111111111111111",
+              "head_branch": "maintenance/v0.1.6-zh-cloud",
+              "labels": [
+                "ubuntu-24.04"
+              ],
+              "name": "Rust native formatting and tests",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:00:50Z",
+              "completed_at": "2026-11-02T00:01:00Z",
+              "runner_id": 42,
+              "api_metadata_sha256": "60e40bd72cb73e4644211a6bc3e573706cf5450d1a942b1af14c0c4b952402a9",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "number": 1,
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-02T00:00:50Z",
+                  "completed_at": "2026-11-02T00:00:51Z"
+                }
+              ]
+            },
+            {
+              "id": 2103,
+              "run_id": 10000000000,
+              "run_attempt": 2,
+              "head_sha": "1111111111111111111111111111111111111111",
+              "head_branch": "maintenance/v0.1.6-zh-cloud",
+              "labels": [
+                "ubuntu-24.04"
+              ],
+              "name": "Mobile native static analysis",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:01:10Z",
+              "completed_at": "2026-11-02T00:01:20Z",
+              "runner_id": 42,
+              "api_metadata_sha256": "2253cc46577cacda15793d19e103034d1324f9a0bfcb13fb8e6e2cead01b9202",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "number": 1,
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-02T00:01:10Z",
+                  "completed_at": "2026-11-02T00:01:11Z"
+                }
+              ]
+            },
+            {
+              "id": 2104,
+              "run_id": 10000000000,
+              "run_attempt": 2,
+              "head_sha": "1111111111111111111111111111111111111111",
+              "head_branch": "maintenance/v0.1.6-zh-cloud",
+              "labels": [
+                "ubuntu-24.04"
+              ],
+              "name": "Tests (clients)",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:01:30Z",
+              "completed_at": "2026-11-02T00:01:40Z",
+              "runner_id": 42,
+              "api_metadata_sha256": "4afd36cc7834ec7a1a632046d22d5a8e5f34291a42a19e01c0ce914f19de7514",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "number": 1,
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-02T00:01:30Z",
+                  "completed_at": "2026-11-02T00:01:31Z"
+                }
+              ]
+            },
+            {
+              "id": 2105,
+              "run_id": 10000000000,
+              "run_attempt": 2,
+              "head_sha": "1111111111111111111111111111111111111111",
+              "head_branch": "maintenance/v0.1.6-zh-cloud",
+              "labels": [
+                "ubuntu-24.04"
+              ],
+              "name": "Tests (web)",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:01:50Z",
+              "completed_at": "2026-11-02T00:02:00Z",
+              "runner_id": 42,
+              "api_metadata_sha256": "ce45b618d20a878ef612a0fc61104058b20cc107f31db5404edae9f8906d6e0b",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "number": 1,
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-02T00:01:50Z",
+                  "completed_at": "2026-11-02T00:01:51Z"
+                }
+              ]
+            },
+            {
+              "id": 2106,
+              "run_id": 10000000000,
+              "run_attempt": 2,
+              "head_sha": "1111111111111111111111111111111111111111",
+              "head_branch": "maintenance/v0.1.6-zh-cloud",
+              "labels": [
+                "ubuntu-24.04"
+              ],
+              "name": "Tests (server-1)",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:02:10Z",
+              "completed_at": "2026-11-02T00:02:20Z",
+              "runner_id": 42,
+              "api_metadata_sha256": "12b36ec4f3014ed935c2d581da3f6dde2d4fe2e271990a1457655cb21c6a654b",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "number": 1,
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-02T00:02:10Z",
+                  "completed_at": "2026-11-02T00:02:11Z"
+                }
+              ]
+            },
+            {
+              "id": 2107,
+              "run_id": 10000000000,
+              "run_attempt": 2,
+              "head_sha": "1111111111111111111111111111111111111111",
+              "head_branch": "maintenance/v0.1.6-zh-cloud",
+              "labels": [
+                "ubuntu-24.04"
+              ],
+              "name": "Tests (server-2)",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:02:30Z",
+              "completed_at": "2026-11-02T00:02:40Z",
+              "runner_id": 42,
+              "api_metadata_sha256": "a77d88e8087433a42c01e80e3418883f632bc67edfe234f5bf18a9d78d94561b",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "number": 1,
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-02T00:02:30Z",
+                  "completed_at": "2026-11-02T00:02:31Z"
+                }
+              ]
+            },
+            {
+              "id": 2108,
+              "run_id": 10000000000,
+              "run_attempt": 2,
+              "head_sha": "1111111111111111111111111111111111111111",
+              "head_branch": "maintenance/v0.1.6-zh-cloud",
+              "labels": [
+                "ubuntu-24.04"
+              ],
+              "name": "Tests (server-3)",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:02:50Z",
+              "completed_at": "2026-11-02T00:03:00Z",
+              "runner_id": 42,
+              "api_metadata_sha256": "175bbdbcf5b95107758a86323b7d2939b15118b0424807df51bfee484bb2af20",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "number": 1,
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-02T00:02:50Z",
+                  "completed_at": "2026-11-02T00:02:51Z"
+                }
+              ]
+            },
+            {
+              "id": 2109,
+              "run_id": 10000000000,
+              "run_attempt": 2,
+              "head_sha": "1111111111111111111111111111111111111111",
+              "head_branch": "maintenance/v0.1.6-zh-cloud",
+              "labels": [
+                "ubuntu-24.04"
+              ],
+              "name": "Build validated desktop bundle",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:03:10Z",
+              "completed_at": "2026-11-02T00:03:20Z",
+              "runner_id": 42,
+              "api_metadata_sha256": "5727112781dc0452b8eefec43f4a3accba764cfcd7397dda73ca332232467607",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "number": 1,
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-02T00:03:10Z",
+                  "completed_at": "2026-11-02T00:03:11Z"
+                }
+              ]
+            },
+            {
+              "id": 2110,
+              "run_id": 10000000000,
+              "run_attempt": 2,
+              "head_sha": "1111111111111111111111111111111111111111",
+              "head_branch": "maintenance/v0.1.6-zh-cloud",
+              "labels": [
+                "ubuntu-24.04"
+              ],
+              "name": "Linux x64 and embedded Windows WSL runtime",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:03:30Z",
+              "completed_at": "2026-11-02T00:03:40Z",
+              "runner_id": 42,
+              "api_metadata_sha256": "6c7bcae331faceaeb4355043d84403f087ed8c843e9faf761c7b4344993b48ec",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "number": 1,
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-02T00:03:30Z",
+                  "completed_at": "2026-11-02T00:03:31Z"
+                }
+              ]
+            },
+            {
+              "id": 2111,
+              "run_id": 10000000000,
+              "run_attempt": 2,
+              "head_sha": "1111111111111111111111111111111111111111",
+              "head_branch": "maintenance/v0.1.6-zh-cloud",
+              "labels": [
+                "ubuntu-24.04"
+              ],
+              "name": "Android arm64 unsigned candidate (NOT installable)",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:03:50Z",
+              "completed_at": "2026-11-02T00:04:00Z",
+              "runner_id": 42,
+              "api_metadata_sha256": "e68ad27ee20e987136eb04ddb14904e31779dac23ad43d0ad742dd53fb375b4c",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "number": 1,
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-02T00:03:50Z",
+                  "completed_at": "2026-11-02T00:03:51Z"
+                },
+                {
+                  "name": "Run actions/upload-artifact@v7",
+                  "number": 13,
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-02T00:03:52Z",
+                  "completed_at": "2026-11-02T00:03:59Z"
+                }
+              ]
+            },
+            {
+              "id": 2112,
+              "run_id": 10000000000,
+              "run_attempt": 2,
+              "head_sha": "1111111111111111111111111111111111111111",
+              "head_branch": "maintenance/v0.1.6-zh-cloud",
+              "labels": [
+                "ubuntu-24.04"
+              ],
+              "name": "Desktop win x64 (integrity checked)",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:04:10Z",
+              "completed_at": "2026-11-02T00:04:20Z",
+              "runner_id": 42,
+              "api_metadata_sha256": "79216516a505853f3b4198dde059328aa1d3ab152ebfa75ec2e283ee04e68412",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "number": 1,
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-02T00:04:10Z",
+                  "completed_at": "2026-11-02T00:04:11Z"
+                }
+              ]
+            },
+            {
+              "id": 2114,
+              "run_id": 10000000000,
+              "run_attempt": 2,
+              "head_sha": "1111111111111111111111111111111111111111",
+              "head_branch": "maintenance/v0.1.6-zh-cloud",
+              "labels": [
+                "ubuntu-24.04"
+              ],
+              "name": "Desktop mac x64 (integrity checked)",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:04:50Z",
+              "completed_at": "2026-11-02T00:05:00Z",
+              "runner_id": 42,
+              "api_metadata_sha256": "1638ad521083a1f81da2e73f4bf77f9ad22b117b4a1799f4e889cc4c20745c39",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "number": 1,
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-02T00:04:50Z",
+                  "completed_at": "2026-11-02T00:04:51Z"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "retry_evidence": [
+        {
+          "authorization": {
+            "job_id": 400,
+            "run_attempt": 1,
+            "job_name": "Desktop mac arm64 (integrity checked)",
+            "job_snapshot_sha256": "724a10e7dbe712040528f65844f32715399e2493165b7e63012fc53dcccf9291",
+            "capacity_annotations_sha256": "a768895551f9fd01470fcb716e251bb0ac3d34af61c0b6821ab56222b62af6ac"
+          },
+          "job_metadata": {
+            "id": 400,
+            "run_id": 10000000000,
+            "run_attempt": 1,
+            "head_sha": "1111111111111111111111111111111111111111",
+            "head_branch": "maintenance/v0.1.6-zh-cloud",
+            "labels": [
+              "ubuntu-24.04"
+            ],
+            "name": "Desktop mac arm64 (integrity checked)",
+            "status": "completed",
+            "conclusion": "cancelled",
+            "started_at": "2026-11-02T00:13:20Z",
+            "completed_at": "2026-11-02T00:15:00Z",
+            "runner_id": 0,
+            "steps": [],
+            "node_id": "MOCK-NODE-400",
+            "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/400",
+            "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/400",
+            "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/job/400",
+            "created_at": "2026-11-02T00:13:20Z",
+            "runner_group_id": 0,
+            "runner_name": "",
+            "runner_group_name": "",
+            "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/10000000000",
+            "workflow_name": "PUBLIC MOCK CLIENT WORKFLOW"
+          },
+          "capacity_annotations": [
+            {
+              "path": ".github",
+              "blob_href": "https://github.com/ZhiweiXiao98/t3code/blob/1111111111111111111111111111111111111111/.github",
+              "start_line": 1,
+              "end_line": 1,
+              "start_column": null,
+              "end_column": null,
+              "annotation_level": "failure",
+              "title": "",
+              "message": "The job was not acquired by Runner of type hosted even after multiple attempts",
+              "raw_details": ""
+            },
+            {
+              "path": ".github",
+              "blob_href": "https://github.com/ZhiweiXiao98/t3code/blob/1111111111111111111111111111111111111111/.github",
+              "start_line": 1,
+              "end_line": 1,
+              "start_column": null,
+              "end_column": null,
+              "annotation_level": "notice",
+              "title": "",
+              "message": "Due to capacity constraints, jobs targeting macOS arm64 runners may experience longer queue times.",
+              "raw_details": ""
+            }
+          ],
+          "annotations_endpoint": "/check-runs/400/annotations?per_page=100"
+        }
+      ],
+      "job_aliases": [
+        {
+          "schema": "github-actions-carried-forward-job/v1",
+          "job_name": "Validate exact source",
+          "alias_job_id": 2100,
+          "alias_run_attempt": 2,
+          "previous_job_id": 100,
+          "previous_run_attempt": 1,
+          "execution_job_id": 100,
+          "execution_run_attempt": 1,
+          "alias_metadata_sha256": "541f341c2bfcd6447884e1ea64454af809caffd1100ab67e9640c5b91659b8fd",
+          "previous_metadata_sha256": "6acd9a83f6a2295b29ccb2a5fb3f66a61cb5c07bf18055a97fa6292db95db8cf",
+          "execution_metadata_sha256": "6acd9a83f6a2295b29ccb2a5fb3f66a61cb5c07bf18055a97fa6292db95db8cf"
+        },
+        {
+          "schema": "github-actions-carried-forward-job/v1",
+          "job_name": "Lint and typecheck",
+          "alias_job_id": 2101,
+          "alias_run_attempt": 2,
+          "previous_job_id": 101,
+          "previous_run_attempt": 1,
+          "execution_job_id": 101,
+          "execution_run_attempt": 1,
+          "alias_metadata_sha256": "cec23d9e93ac298d4469a134662cef9664ac7e9765d57f82160c39c505968736",
+          "previous_metadata_sha256": "ea280effb4593d68c3cc54bb4730db601ed3c05d7ed83b2d7655c3b414a690a6",
+          "execution_metadata_sha256": "ea280effb4593d68c3cc54bb4730db601ed3c05d7ed83b2d7655c3b414a690a6"
+        },
+        {
+          "schema": "github-actions-carried-forward-job/v1",
+          "job_name": "Rust native formatting and tests",
+          "alias_job_id": 2102,
+          "alias_run_attempt": 2,
+          "previous_job_id": 102,
+          "previous_run_attempt": 1,
+          "execution_job_id": 102,
+          "execution_run_attempt": 1,
+          "alias_metadata_sha256": "60e40bd72cb73e4644211a6bc3e573706cf5450d1a942b1af14c0c4b952402a9",
+          "previous_metadata_sha256": "de9e333c9ab1e6c2271004f6c1cd64436e00158555f4d35b2357cf159e6d3492",
+          "execution_metadata_sha256": "de9e333c9ab1e6c2271004f6c1cd64436e00158555f4d35b2357cf159e6d3492"
+        },
+        {
+          "schema": "github-actions-carried-forward-job/v1",
+          "job_name": "Mobile native static analysis",
+          "alias_job_id": 2103,
+          "alias_run_attempt": 2,
+          "previous_job_id": 103,
+          "previous_run_attempt": 1,
+          "execution_job_id": 103,
+          "execution_run_attempt": 1,
+          "alias_metadata_sha256": "2253cc46577cacda15793d19e103034d1324f9a0bfcb13fb8e6e2cead01b9202",
+          "previous_metadata_sha256": "0b4286dba332f146a3d77580f0f7cee371fb49ea8fa6c62c9bad0cf88195c2d7",
+          "execution_metadata_sha256": "0b4286dba332f146a3d77580f0f7cee371fb49ea8fa6c62c9bad0cf88195c2d7"
+        },
+        {
+          "schema": "github-actions-carried-forward-job/v1",
+          "job_name": "Tests (clients)",
+          "alias_job_id": 2104,
+          "alias_run_attempt": 2,
+          "previous_job_id": 104,
+          "previous_run_attempt": 1,
+          "execution_job_id": 104,
+          "execution_run_attempt": 1,
+          "alias_metadata_sha256": "4afd36cc7834ec7a1a632046d22d5a8e5f34291a42a19e01c0ce914f19de7514",
+          "previous_metadata_sha256": "a77f26a40854070fc4e853210088a453697df82cc261b8bf7ec70611e38e062f",
+          "execution_metadata_sha256": "a77f26a40854070fc4e853210088a453697df82cc261b8bf7ec70611e38e062f"
+        },
+        {
+          "schema": "github-actions-carried-forward-job/v1",
+          "job_name": "Tests (web)",
+          "alias_job_id": 2105,
+          "alias_run_attempt": 2,
+          "previous_job_id": 105,
+          "previous_run_attempt": 1,
+          "execution_job_id": 105,
+          "execution_run_attempt": 1,
+          "alias_metadata_sha256": "ce45b618d20a878ef612a0fc61104058b20cc107f31db5404edae9f8906d6e0b",
+          "previous_metadata_sha256": "f832f5a3226332f3910dbb7b9c86548ca9d53cbf7ce9a0ad1381c1ebc6419d01",
+          "execution_metadata_sha256": "f832f5a3226332f3910dbb7b9c86548ca9d53cbf7ce9a0ad1381c1ebc6419d01"
+        },
+        {
+          "schema": "github-actions-carried-forward-job/v1",
+          "job_name": "Tests (server-1)",
+          "alias_job_id": 2106,
+          "alias_run_attempt": 2,
+          "previous_job_id": 106,
+          "previous_run_attempt": 1,
+          "execution_job_id": 106,
+          "execution_run_attempt": 1,
+          "alias_metadata_sha256": "12b36ec4f3014ed935c2d581da3f6dde2d4fe2e271990a1457655cb21c6a654b",
+          "previous_metadata_sha256": "f8f6cd57b081d21f43cdefbcf3135b698b76fe13c12f3c50a0df65c99a4c7693",
+          "execution_metadata_sha256": "f8f6cd57b081d21f43cdefbcf3135b698b76fe13c12f3c50a0df65c99a4c7693"
+        },
+        {
+          "schema": "github-actions-carried-forward-job/v1",
+          "job_name": "Tests (server-2)",
+          "alias_job_id": 2107,
+          "alias_run_attempt": 2,
+          "previous_job_id": 107,
+          "previous_run_attempt": 1,
+          "execution_job_id": 107,
+          "execution_run_attempt": 1,
+          "alias_metadata_sha256": "a77d88e8087433a42c01e80e3418883f632bc67edfe234f5bf18a9d78d94561b",
+          "previous_metadata_sha256": "ff44dc59718ea80c618f9ae62953bd590dfa1a3a33dfebc38d1776007ec682aa",
+          "execution_metadata_sha256": "ff44dc59718ea80c618f9ae62953bd590dfa1a3a33dfebc38d1776007ec682aa"
+        },
+        {
+          "schema": "github-actions-carried-forward-job/v1",
+          "job_name": "Tests (server-3)",
+          "alias_job_id": 2108,
+          "alias_run_attempt": 2,
+          "previous_job_id": 108,
+          "previous_run_attempt": 1,
+          "execution_job_id": 108,
+          "execution_run_attempt": 1,
+          "alias_metadata_sha256": "175bbdbcf5b95107758a86323b7d2939b15118b0424807df51bfee484bb2af20",
+          "previous_metadata_sha256": "a9f4fb80a927fe85ea9a65aec14b20091ac2c5dc2b3b521918bdc800d30a1bfb",
+          "execution_metadata_sha256": "a9f4fb80a927fe85ea9a65aec14b20091ac2c5dc2b3b521918bdc800d30a1bfb"
+        },
+        {
+          "schema": "github-actions-carried-forward-job/v1",
+          "job_name": "Build validated desktop bundle",
+          "alias_job_id": 2109,
+          "alias_run_attempt": 2,
+          "previous_job_id": 109,
+          "previous_run_attempt": 1,
+          "execution_job_id": 109,
+          "execution_run_attempt": 1,
+          "alias_metadata_sha256": "5727112781dc0452b8eefec43f4a3accba764cfcd7397dda73ca332232467607",
+          "previous_metadata_sha256": "93069b9d7c8a1671947681323eb0e2b67646c61d006413e177f644945d8b4958",
+          "execution_metadata_sha256": "93069b9d7c8a1671947681323eb0e2b67646c61d006413e177f644945d8b4958"
+        },
+        {
+          "schema": "github-actions-carried-forward-job/v1",
+          "job_name": "Linux x64 and embedded Windows WSL runtime",
+          "alias_job_id": 2110,
+          "alias_run_attempt": 2,
+          "previous_job_id": 110,
+          "previous_run_attempt": 1,
+          "execution_job_id": 110,
+          "execution_run_attempt": 1,
+          "alias_metadata_sha256": "6c7bcae331faceaeb4355043d84403f087ed8c843e9faf761c7b4344993b48ec",
+          "previous_metadata_sha256": "10188bbc3a87aa8cffb7cc1b783822b927359c7ff1f1e5a19e86e0e793685e86",
+          "execution_metadata_sha256": "10188bbc3a87aa8cffb7cc1b783822b927359c7ff1f1e5a19e86e0e793685e86"
+        },
+        {
+          "schema": "github-actions-carried-forward-job/v1",
+          "job_name": "Android arm64 unsigned candidate (NOT installable)",
+          "alias_job_id": 2111,
+          "alias_run_attempt": 2,
+          "previous_job_id": 111,
+          "previous_run_attempt": 1,
+          "execution_job_id": 111,
+          "execution_run_attempt": 1,
+          "alias_metadata_sha256": "e68ad27ee20e987136eb04ddb14904e31779dac23ad43d0ad742dd53fb375b4c",
+          "previous_metadata_sha256": "51fe918233c1f37b91e0bf56c59e70372eabc72976816b0e049f3f1d1ff2f11f",
+          "execution_metadata_sha256": "51fe918233c1f37b91e0bf56c59e70372eabc72976816b0e049f3f1d1ff2f11f"
+        },
+        {
+          "schema": "github-actions-carried-forward-job/v1",
+          "job_name": "Desktop win x64 (integrity checked)",
+          "alias_job_id": 2112,
+          "alias_run_attempt": 2,
+          "previous_job_id": 112,
+          "previous_run_attempt": 1,
+          "execution_job_id": 112,
+          "execution_run_attempt": 1,
+          "alias_metadata_sha256": "79216516a505853f3b4198dde059328aa1d3ab152ebfa75ec2e283ee04e68412",
+          "previous_metadata_sha256": "6a9b06027e91d108f3dee963cac8a24cf63d7daa24a0fc50a58d30297c08f648",
+          "execution_metadata_sha256": "6a9b06027e91d108f3dee963cac8a24cf63d7daa24a0fc50a58d30297c08f648"
+        },
+        {
+          "schema": "github-actions-carried-forward-job/v1",
+          "job_name": "Desktop mac x64 (integrity checked)",
+          "alias_job_id": 2114,
+          "alias_run_attempt": 2,
+          "previous_job_id": 114,
+          "previous_run_attempt": 1,
+          "execution_job_id": 114,
+          "execution_run_attempt": 1,
+          "alias_metadata_sha256": "1638ad521083a1f81da2e73f4bf77f9ad22b117b4a1799f4e889cc4c20745c39",
+          "previous_metadata_sha256": "c28d94eac3eaedc5cf61d30c85c71697a21a95c236ea1ef346ae0568e4b6dcc0",
+          "execution_metadata_sha256": "c28d94eac3eaedc5cf61d30c85c71697a21a95c236ea1ef346ae0568e4b6dcc0"
+        }
+      ],
+      "latest_api_jobs": [
+        {
+          "id": 2111,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Android arm64 unsigned candidate (NOT installable)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:03:50Z",
+          "completed_at": "2026-11-02T00:04:00Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "e68ad27ee20e987136eb04ddb14904e31779dac23ad43d0ad742dd53fb375b4c",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:03:50Z",
+              "completed_at": "2026-11-02T00:03:51Z"
+            },
+            {
+              "name": "Run actions/upload-artifact@v7",
+              "number": 13,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:03:52Z",
+              "completed_at": "2026-11-02T00:03:59Z"
+            }
+          ]
+        },
+        {
+          "id": 2109,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Build validated desktop bundle",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:03:10Z",
+          "completed_at": "2026-11-02T00:03:20Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "5727112781dc0452b8eefec43f4a3accba764cfcd7397dda73ca332232467607",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:03:10Z",
+              "completed_at": "2026-11-02T00:03:11Z"
+            }
+          ]
+        },
+        {
+          "id": 120,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Clean desktop appimage first start",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:23:30Z",
+          "completed_at": "2026-11-02T00:23:40Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "bd981d89e238a34b7bae3eec6d174a92e352c73a0a3dd0eddfe3f5e67749771f",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:23:30Z",
+              "completed_at": "2026-11-02T00:23:31Z"
+            }
+          ]
+        },
+        {
+          "id": 119,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Clean desktop deb first start",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:23:10Z",
+          "completed_at": "2026-11-02T00:23:20Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "14480c5404468ad26ea4f6e376448f4541b9f81119cacee991fe35eedff42657",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:23:10Z",
+              "completed_at": "2026-11-02T00:23:11Z"
+            }
+          ]
+        },
+        {
+          "id": 121,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Clean desktop nsis first start",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:23:50Z",
+          "completed_at": "2026-11-02T00:24:00Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "8ff9e582f56111cf86b4618e01917185486399e7d4ba681fabed0066544a5350",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:23:50Z",
+              "completed_at": "2026-11-02T00:23:51Z"
+            }
+          ]
+        },
+        {
+          "id": 115,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Clean macOS arm64 dmg first start",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:21:50Z",
+          "completed_at": "2026-11-02T00:22:00Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "9338c4ef713618ebfe98ded8929b7d61d7a1073b1ba9fb4b46ef242e4a0b1dd1",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:21:50Z",
+              "completed_at": "2026-11-02T00:21:51Z"
+            }
+          ]
+        },
+        {
+          "id": 116,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Clean macOS arm64 zip first start",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:22:10Z",
+          "completed_at": "2026-11-02T00:22:20Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "ce955ca023dad94770162613fef7f806a1cfaac3f7f93ec19669fa4b48779d9d",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:22:10Z",
+              "completed_at": "2026-11-02T00:22:11Z"
+            }
+          ]
+        },
+        {
+          "id": 117,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Clean macOS x64 dmg first start",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:22:30Z",
+          "completed_at": "2026-11-02T00:22:40Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "2e02caa4578516fee6e626e69dd0a23a2349a62f89bf179e4ea89cafb139ac98",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:22:30Z",
+              "completed_at": "2026-11-02T00:22:31Z"
+            }
+          ]
+        },
+        {
+          "id": 118,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Clean macOS x64 zip first start",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:22:50Z",
+          "completed_at": "2026-11-02T00:23:00Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "c93ff4c9f0221af20cc2e27451f74ee35eb388ec3c2549fa9296e7558fd92be0",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:22:50Z",
+              "completed_at": "2026-11-02T00:22:51Z"
+            }
+          ]
+        },
+        {
+          "id": 113,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Desktop mac arm64 (integrity checked)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:21:10Z",
+          "completed_at": "2026-11-02T00:21:20Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "1b1c5d900230b9499afbf3ddb53313fd8863cf9a97d1efd932c687a4fa359d54",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:21:10Z",
+              "completed_at": "2026-11-02T00:21:11Z"
+            }
+          ]
+        },
+        {
+          "id": 2114,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Desktop mac x64 (integrity checked)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:04:50Z",
+          "completed_at": "2026-11-02T00:05:00Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "1638ad521083a1f81da2e73f4bf77f9ad22b117b4a1799f4e889cc4c20745c39",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:04:50Z",
+              "completed_at": "2026-11-02T00:04:51Z"
+            }
+          ]
+        },
+        {
+          "id": 2112,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Desktop win x64 (integrity checked)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:04:10Z",
+          "completed_at": "2026-11-02T00:04:20Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "79216516a505853f3b4198dde059328aa1d3ab152ebfa75ec2e283ee04e68412",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:04:10Z",
+              "completed_at": "2026-11-02T00:04:11Z"
+            }
+          ]
+        },
+        {
+          "id": 2101,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Lint and typecheck",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:00:30Z",
+          "completed_at": "2026-11-02T00:00:40Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "cec23d9e93ac298d4469a134662cef9664ac7e9765d57f82160c39c505968736",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:00:30Z",
+              "completed_at": "2026-11-02T00:00:31Z"
+            }
+          ]
+        },
+        {
+          "id": 2110,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Linux x64 and embedded Windows WSL runtime",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:03:30Z",
+          "completed_at": "2026-11-02T00:03:40Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "6c7bcae331faceaeb4355043d84403f087ed8c843e9faf761c7b4344993b48ec",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:03:30Z",
+              "completed_at": "2026-11-02T00:03:31Z"
+            }
+          ]
+        },
+        {
+          "id": 2103,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Mobile native static analysis",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:01:10Z",
+          "completed_at": "2026-11-02T00:01:20Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "2253cc46577cacda15793d19e103034d1324f9a0bfcb13fb8e6e2cead01b9202",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:01:10Z",
+              "completed_at": "2026-11-02T00:01:11Z"
+            }
+          ]
+        },
+        {
+          "id": 2102,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Rust native formatting and tests",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:00:50Z",
+          "completed_at": "2026-11-02T00:01:00Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "60e40bd72cb73e4644211a6bc3e573706cf5450d1a942b1af14c0c4b952402a9",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:00:50Z",
+              "completed_at": "2026-11-02T00:00:51Z"
+            }
+          ]
+        },
+        {
+          "id": 2104,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Tests (clients)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:01:30Z",
+          "completed_at": "2026-11-02T00:01:40Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "4afd36cc7834ec7a1a632046d22d5a8e5f34291a42a19e01c0ce914f19de7514",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:01:30Z",
+              "completed_at": "2026-11-02T00:01:31Z"
+            }
+          ]
+        },
+        {
+          "id": 2106,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Tests (server-1)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:02:10Z",
+          "completed_at": "2026-11-02T00:02:20Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "12b36ec4f3014ed935c2d581da3f6dde2d4fe2e271990a1457655cb21c6a654b",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:02:10Z",
+              "completed_at": "2026-11-02T00:02:11Z"
+            }
+          ]
+        },
+        {
+          "id": 2107,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Tests (server-2)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:02:30Z",
+          "completed_at": "2026-11-02T00:02:40Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "a77d88e8087433a42c01e80e3418883f632bc67edfe234f5bf18a9d78d94561b",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:02:30Z",
+              "completed_at": "2026-11-02T00:02:31Z"
+            }
+          ]
+        },
+        {
+          "id": 2108,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Tests (server-3)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:02:50Z",
+          "completed_at": "2026-11-02T00:03:00Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "175bbdbcf5b95107758a86323b7d2939b15118b0424807df51bfee484bb2af20",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:02:50Z",
+              "completed_at": "2026-11-02T00:02:51Z"
+            }
+          ]
+        },
+        {
+          "id": 2105,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Tests (web)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:01:50Z",
+          "completed_at": "2026-11-02T00:02:00Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "ce45b618d20a878ef612a0fc61104058b20cc107f31db5404edae9f8906d6e0b",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:01:50Z",
+              "completed_at": "2026-11-02T00:01:51Z"
+            }
+          ]
+        },
+        {
+          "id": 2100,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Validate exact source",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:00:10Z",
+          "completed_at": "2026-11-02T00:00:20Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "541f341c2bfcd6447884e1ea64454af809caffd1100ab67e9640c5b91659b8fd",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:00:10Z",
+              "completed_at": "2026-11-02T00:00:11Z"
+            }
+          ]
+        }
+      ],
+      "latest_jobs": [
+        {
+          "id": 111,
+          "run_id": 10000000000,
+          "run_attempt": 1,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Android arm64 unsigned candidate (NOT installable)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:03:50Z",
+          "completed_at": "2026-11-02T00:04:00Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "51fe918233c1f37b91e0bf56c59e70372eabc72976816b0e049f3f1d1ff2f11f",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:03:50Z",
+              "completed_at": "2026-11-02T00:03:51Z"
+            },
+            {
+              "name": "Run actions/upload-artifact@v7",
+              "number": 13,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:03:52Z",
+              "completed_at": "2026-11-02T00:03:59Z"
+            }
+          ]
+        },
+        {
+          "id": 109,
+          "run_id": 10000000000,
+          "run_attempt": 1,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Build validated desktop bundle",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:03:10Z",
+          "completed_at": "2026-11-02T00:03:20Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "93069b9d7c8a1671947681323eb0e2b67646c61d006413e177f644945d8b4958",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:03:10Z",
+              "completed_at": "2026-11-02T00:03:11Z"
+            }
+          ]
+        },
+        {
+          "id": 120,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Clean desktop appimage first start",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:23:30Z",
+          "completed_at": "2026-11-02T00:23:40Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "bd981d89e238a34b7bae3eec6d174a92e352c73a0a3dd0eddfe3f5e67749771f",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:23:30Z",
+              "completed_at": "2026-11-02T00:23:31Z"
+            }
+          ]
+        },
+        {
+          "id": 119,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Clean desktop deb first start",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:23:10Z",
+          "completed_at": "2026-11-02T00:23:20Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "14480c5404468ad26ea4f6e376448f4541b9f81119cacee991fe35eedff42657",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:23:10Z",
+              "completed_at": "2026-11-02T00:23:11Z"
+            }
+          ]
+        },
+        {
+          "id": 121,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Clean desktop nsis first start",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:23:50Z",
+          "completed_at": "2026-11-02T00:24:00Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "8ff9e582f56111cf86b4618e01917185486399e7d4ba681fabed0066544a5350",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:23:50Z",
+              "completed_at": "2026-11-02T00:23:51Z"
+            }
+          ]
+        },
+        {
+          "id": 115,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Clean macOS arm64 dmg first start",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:21:50Z",
+          "completed_at": "2026-11-02T00:22:00Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "9338c4ef713618ebfe98ded8929b7d61d7a1073b1ba9fb4b46ef242e4a0b1dd1",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:21:50Z",
+              "completed_at": "2026-11-02T00:21:51Z"
+            }
+          ]
+        },
+        {
+          "id": 116,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Clean macOS arm64 zip first start",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:22:10Z",
+          "completed_at": "2026-11-02T00:22:20Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "ce955ca023dad94770162613fef7f806a1cfaac3f7f93ec19669fa4b48779d9d",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:22:10Z",
+              "completed_at": "2026-11-02T00:22:11Z"
+            }
+          ]
+        },
+        {
+          "id": 117,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Clean macOS x64 dmg first start",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:22:30Z",
+          "completed_at": "2026-11-02T00:22:40Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "2e02caa4578516fee6e626e69dd0a23a2349a62f89bf179e4ea89cafb139ac98",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:22:30Z",
+              "completed_at": "2026-11-02T00:22:31Z"
+            }
+          ]
+        },
+        {
+          "id": 118,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Clean macOS x64 zip first start",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:22:50Z",
+          "completed_at": "2026-11-02T00:23:00Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "c93ff4c9f0221af20cc2e27451f74ee35eb388ec3c2549fa9296e7558fd92be0",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:22:50Z",
+              "completed_at": "2026-11-02T00:22:51Z"
+            }
+          ]
+        },
+        {
+          "id": 113,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Desktop mac arm64 (integrity checked)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:21:10Z",
+          "completed_at": "2026-11-02T00:21:20Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "1b1c5d900230b9499afbf3ddb53313fd8863cf9a97d1efd932c687a4fa359d54",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:21:10Z",
+              "completed_at": "2026-11-02T00:21:11Z"
+            }
+          ]
+        },
+        {
+          "id": 114,
+          "run_id": 10000000000,
+          "run_attempt": 1,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Desktop mac x64 (integrity checked)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:04:50Z",
+          "completed_at": "2026-11-02T00:05:00Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "c28d94eac3eaedc5cf61d30c85c71697a21a95c236ea1ef346ae0568e4b6dcc0",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:04:50Z",
+              "completed_at": "2026-11-02T00:04:51Z"
+            }
+          ]
+        },
+        {
+          "id": 112,
+          "run_id": 10000000000,
+          "run_attempt": 1,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Desktop win x64 (integrity checked)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:04:10Z",
+          "completed_at": "2026-11-02T00:04:20Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "6a9b06027e91d108f3dee963cac8a24cf63d7daa24a0fc50a58d30297c08f648",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:04:10Z",
+              "completed_at": "2026-11-02T00:04:11Z"
+            }
+          ]
+        },
+        {
+          "id": 101,
+          "run_id": 10000000000,
+          "run_attempt": 1,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Lint and typecheck",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:00:30Z",
+          "completed_at": "2026-11-02T00:00:40Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "ea280effb4593d68c3cc54bb4730db601ed3c05d7ed83b2d7655c3b414a690a6",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:00:30Z",
+              "completed_at": "2026-11-02T00:00:31Z"
+            }
+          ]
+        },
+        {
+          "id": 110,
+          "run_id": 10000000000,
+          "run_attempt": 1,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Linux x64 and embedded Windows WSL runtime",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:03:30Z",
+          "completed_at": "2026-11-02T00:03:40Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "10188bbc3a87aa8cffb7cc1b783822b927359c7ff1f1e5a19e86e0e793685e86",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:03:30Z",
+              "completed_at": "2026-11-02T00:03:31Z"
+            }
+          ]
+        },
+        {
+          "id": 103,
+          "run_id": 10000000000,
+          "run_attempt": 1,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Mobile native static analysis",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:01:10Z",
+          "completed_at": "2026-11-02T00:01:20Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "0b4286dba332f146a3d77580f0f7cee371fb49ea8fa6c62c9bad0cf88195c2d7",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:01:10Z",
+              "completed_at": "2026-11-02T00:01:11Z"
+            }
+          ]
+        },
+        {
+          "id": 102,
+          "run_id": 10000000000,
+          "run_attempt": 1,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Rust native formatting and tests",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:00:50Z",
+          "completed_at": "2026-11-02T00:01:00Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "de9e333c9ab1e6c2271004f6c1cd64436e00158555f4d35b2357cf159e6d3492",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:00:50Z",
+              "completed_at": "2026-11-02T00:00:51Z"
+            }
+          ]
+        },
+        {
+          "id": 104,
+          "run_id": 10000000000,
+          "run_attempt": 1,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Tests (clients)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:01:30Z",
+          "completed_at": "2026-11-02T00:01:40Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "a77f26a40854070fc4e853210088a453697df82cc261b8bf7ec70611e38e062f",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:01:30Z",
+              "completed_at": "2026-11-02T00:01:31Z"
+            }
+          ]
+        },
+        {
+          "id": 106,
+          "run_id": 10000000000,
+          "run_attempt": 1,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Tests (server-1)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:02:10Z",
+          "completed_at": "2026-11-02T00:02:20Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "f8f6cd57b081d21f43cdefbcf3135b698b76fe13c12f3c50a0df65c99a4c7693",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:02:10Z",
+              "completed_at": "2026-11-02T00:02:11Z"
+            }
+          ]
+        },
+        {
+          "id": 107,
+          "run_id": 10000000000,
+          "run_attempt": 1,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Tests (server-2)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:02:30Z",
+          "completed_at": "2026-11-02T00:02:40Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "ff44dc59718ea80c618f9ae62953bd590dfa1a3a33dfebc38d1776007ec682aa",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:02:30Z",
+              "completed_at": "2026-11-02T00:02:31Z"
+            }
+          ]
+        },
+        {
+          "id": 108,
+          "run_id": 10000000000,
+          "run_attempt": 1,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Tests (server-3)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:02:50Z",
+          "completed_at": "2026-11-02T00:03:00Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "a9f4fb80a927fe85ea9a65aec14b20091ac2c5dc2b3b521918bdc800d30a1bfb",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:02:50Z",
+              "completed_at": "2026-11-02T00:02:51Z"
+            }
+          ]
+        },
+        {
+          "id": 105,
+          "run_id": 10000000000,
+          "run_attempt": 1,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Tests (web)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:01:50Z",
+          "completed_at": "2026-11-02T00:02:00Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "f832f5a3226332f3910dbb7b9c86548ca9d53cbf7ce9a0ad1381c1ebc6419d01",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:01:50Z",
+              "completed_at": "2026-11-02T00:01:51Z"
+            }
+          ]
+        },
+        {
+          "id": 100,
+          "run_id": 10000000000,
+          "run_attempt": 1,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Validate exact source",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:00:10Z",
+          "completed_at": "2026-11-02T00:00:20Z",
+          "runner_id": 42,
+          "api_metadata_sha256": "6acd9a83f6a2295b29ccb2a5fb3f66a61cb5c07bf18055a97fa6292db95db8cf",
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:00:10Z",
+              "completed_at": "2026-11-02T00:00:11Z"
+            }
+          ]
+        }
+      ]
+    },
+    "candidate_gates_sha256": "c4f16423a6b69dc2ca44d766fde65c9a1cc04560836d1332836240cd5e2411c4",
+    "candidate_producer_log_sha256": "22cd1ab7e075e01d228b43ed0bd65b5e40e3aca4db31aba41b2e361b91bd7a5a",
+    "producer_job_receipt": {
+      "schema": "github-upload-artifact-job-log/v1",
+      "run_id": 10000000000,
+      "run_attempt": 1,
+      "job_id": 111,
+      "job_name": "Android arm64 unsigned candidate (NOT installable)",
+      "step_number": 13,
+      "step_name": "Run actions/upload-artifact@v7",
+      "step_started_at": "2026-11-02T00:03:52Z",
+      "step_completed_at": "2026-11-02T00:03:59Z",
+      "log_sha256": "22cd1ab7e075e01d228b43ed0bd65b5e40e3aca4db31aba41b2e361b91bd7a5a",
+      "artifact_id": 1,
+      "artifact_name": "android-UNSIGNED-NOT-INSTALLABLE",
+      "artifact_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "artifact_size_in_bytes": 12345,
+      "upload_action_ref": "actions/upload-artifact@v7",
+      "upload_action_sha": "cf430e030ddbb5b0abf93d22962f4752f3646cd9"
+    },
+    "producer_job_receipt_sha256": "ad70e55322cba30771636c32ccd76e7ecf1ae95cf7475ade82fdc87bc3043321",
+    "candidate_artifact_metadata": {
+      "id": 1,
+      "name": "android-UNSIGNED-NOT-INSTALLABLE",
+      "size_in_bytes": 12345,
+      "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "expired": false,
+      "created_at": "2026-11-02T00:03:55Z",
+      "updated_at": "2026-11-02T00:03:55Z",
+      "expires_at": "2099-01-01T00:00:00Z",
+      "workflow_run": {
+        "id": 10000000000,
+        "head_sha": "1111111111111111111111111111111111111111",
+        "head_branch": "maintenance/v0.1.6-zh-cloud"
+      }
+    }
+  },
+  "routes": {
+    "/actions/runs/10000000000": {
+      "id": 10000000000,
+      "run_attempt": 2,
+      "head_sha": "1111111111111111111111111111111111111111",
+      "head_branch": "maintenance/v0.1.6-zh-cloud",
+      "path": ".github/workflows/client-release.yml",
+      "workflow_id": 1234,
+      "event": "push",
+      "status": "completed",
+      "conclusion": "success",
+      "repository": {
+        "full_name": "ZhiweiXiao98/t3code"
+      },
+      "head_repository": {
+        "full_name": "ZhiweiXiao98/t3code"
+      },
+      "run_started_at": "2026-11-02T00:16:40Z",
+      "updated_at": "2026-11-02T00:30:00Z"
+    },
+    "/actions/runs/10000000000/attempts/1": {
+      "id": 10000000000,
+      "run_attempt": 1,
+      "head_sha": "1111111111111111111111111111111111111111",
+      "head_branch": "maintenance/v0.1.6-zh-cloud",
+      "path": ".github/workflows/client-release.yml",
+      "workflow_id": 1234,
+      "event": "push",
+      "status": "completed",
+      "conclusion": "cancelled",
+      "repository": {
+        "full_name": "ZhiweiXiao98/t3code"
+      },
+      "head_repository": {
+        "full_name": "ZhiweiXiao98/t3code"
+      },
+      "run_started_at": "2026-11-02T00:00:00Z",
+      "updated_at": "2026-11-02T00:15:50Z"
+    },
+    "/actions/runs/10000000000/attempts/2": {
+      "id": 10000000000,
+      "run_attempt": 2,
+      "head_sha": "1111111111111111111111111111111111111111",
+      "head_branch": "maintenance/v0.1.6-zh-cloud",
+      "path": ".github/workflows/client-release.yml",
+      "workflow_id": 1234,
+      "event": "push",
+      "status": "completed",
+      "conclusion": "success",
+      "repository": {
+        "full_name": "ZhiweiXiao98/t3code"
+      },
+      "head_repository": {
+        "full_name": "ZhiweiXiao98/t3code"
+      },
+      "run_started_at": "2026-11-02T00:16:40Z",
+      "updated_at": "2026-11-02T00:30:00Z"
+    },
+    "/actions/runs/10000000000/attempts/1/jobs?per_page=100": {
+      "total_count": 17,
+      "jobs": [
+        {
+          "id": 100,
+          "run_id": 10000000000,
+          "run_attempt": 1,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Validate exact source",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:00:10Z",
+          "completed_at": "2026-11-02T00:00:20Z",
+          "runner_id": 42,
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:00:10Z",
+              "completed_at": "2026-11-02T00:00:11Z"
+            }
+          ],
+          "node_id": "MOCK-NODE-100",
+          "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/100",
+          "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/100",
+          "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/job/100",
+          "created_at": "2026-11-02T00:00:10Z",
+          "runner_group_id": 0,
+          "runner_name": "GitHub Actions MOCK",
+          "runner_group_name": "GitHub Actions",
+          "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/10000000000",
+          "workflow_name": "PUBLIC MOCK CLIENT WORKFLOW"
+        },
+        {
+          "id": 101,
+          "run_id": 10000000000,
+          "run_attempt": 1,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Lint and typecheck",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:00:30Z",
+          "completed_at": "2026-11-02T00:00:40Z",
+          "runner_id": 42,
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:00:30Z",
+              "completed_at": "2026-11-02T00:00:31Z"
+            }
+          ],
+          "node_id": "MOCK-NODE-101",
+          "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/101",
+          "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/101",
+          "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/job/101",
+          "created_at": "2026-11-02T00:00:30Z",
+          "runner_group_id": 0,
+          "runner_name": "GitHub Actions MOCK",
+          "runner_group_name": "GitHub Actions",
+          "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/10000000000",
+          "workflow_name": "PUBLIC MOCK CLIENT WORKFLOW"
+        },
+        {
+          "id": 102,
+          "run_id": 10000000000,
+          "run_attempt": 1,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Rust native formatting and tests",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:00:50Z",
+          "completed_at": "2026-11-02T00:01:00Z",
+          "runner_id": 42,
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:00:50Z",
+              "completed_at": "2026-11-02T00:00:51Z"
+            }
+          ],
+          "node_id": "MOCK-NODE-102",
+          "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/102",
+          "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/102",
+          "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/job/102",
+          "created_at": "2026-11-02T00:00:50Z",
+          "runner_group_id": 0,
+          "runner_name": "GitHub Actions MOCK",
+          "runner_group_name": "GitHub Actions",
+          "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/10000000000",
+          "workflow_name": "PUBLIC MOCK CLIENT WORKFLOW"
+        },
+        {
+          "id": 103,
+          "run_id": 10000000000,
+          "run_attempt": 1,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Mobile native static analysis",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:01:10Z",
+          "completed_at": "2026-11-02T00:01:20Z",
+          "runner_id": 42,
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:01:10Z",
+              "completed_at": "2026-11-02T00:01:11Z"
+            }
+          ],
+          "node_id": "MOCK-NODE-103",
+          "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/103",
+          "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/103",
+          "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/job/103",
+          "created_at": "2026-11-02T00:01:10Z",
+          "runner_group_id": 0,
+          "runner_name": "GitHub Actions MOCK",
+          "runner_group_name": "GitHub Actions",
+          "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/10000000000",
+          "workflow_name": "PUBLIC MOCK CLIENT WORKFLOW"
+        },
+        {
+          "id": 104,
+          "run_id": 10000000000,
+          "run_attempt": 1,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Tests (clients)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:01:30Z",
+          "completed_at": "2026-11-02T00:01:40Z",
+          "runner_id": 42,
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:01:30Z",
+              "completed_at": "2026-11-02T00:01:31Z"
+            }
+          ],
+          "node_id": "MOCK-NODE-104",
+          "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/104",
+          "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/104",
+          "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/job/104",
+          "created_at": "2026-11-02T00:01:30Z",
+          "runner_group_id": 0,
+          "runner_name": "GitHub Actions MOCK",
+          "runner_group_name": "GitHub Actions",
+          "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/10000000000",
+          "workflow_name": "PUBLIC MOCK CLIENT WORKFLOW"
+        },
+        {
+          "id": 105,
+          "run_id": 10000000000,
+          "run_attempt": 1,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Tests (web)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:01:50Z",
+          "completed_at": "2026-11-02T00:02:00Z",
+          "runner_id": 42,
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:01:50Z",
+              "completed_at": "2026-11-02T00:01:51Z"
+            }
+          ],
+          "node_id": "MOCK-NODE-105",
+          "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/105",
+          "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/105",
+          "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/job/105",
+          "created_at": "2026-11-02T00:01:50Z",
+          "runner_group_id": 0,
+          "runner_name": "GitHub Actions MOCK",
+          "runner_group_name": "GitHub Actions",
+          "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/10000000000",
+          "workflow_name": "PUBLIC MOCK CLIENT WORKFLOW"
+        },
+        {
+          "id": 106,
+          "run_id": 10000000000,
+          "run_attempt": 1,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Tests (server-1)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:02:10Z",
+          "completed_at": "2026-11-02T00:02:20Z",
+          "runner_id": 42,
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:02:10Z",
+              "completed_at": "2026-11-02T00:02:11Z"
+            }
+          ],
+          "node_id": "MOCK-NODE-106",
+          "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/106",
+          "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/106",
+          "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/job/106",
+          "created_at": "2026-11-02T00:02:10Z",
+          "runner_group_id": 0,
+          "runner_name": "GitHub Actions MOCK",
+          "runner_group_name": "GitHub Actions",
+          "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/10000000000",
+          "workflow_name": "PUBLIC MOCK CLIENT WORKFLOW"
+        },
+        {
+          "id": 107,
+          "run_id": 10000000000,
+          "run_attempt": 1,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Tests (server-2)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:02:30Z",
+          "completed_at": "2026-11-02T00:02:40Z",
+          "runner_id": 42,
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:02:30Z",
+              "completed_at": "2026-11-02T00:02:31Z"
+            }
+          ],
+          "node_id": "MOCK-NODE-107",
+          "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/107",
+          "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/107",
+          "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/job/107",
+          "created_at": "2026-11-02T00:02:30Z",
+          "runner_group_id": 0,
+          "runner_name": "GitHub Actions MOCK",
+          "runner_group_name": "GitHub Actions",
+          "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/10000000000",
+          "workflow_name": "PUBLIC MOCK CLIENT WORKFLOW"
+        },
+        {
+          "id": 108,
+          "run_id": 10000000000,
+          "run_attempt": 1,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Tests (server-3)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:02:50Z",
+          "completed_at": "2026-11-02T00:03:00Z",
+          "runner_id": 42,
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:02:50Z",
+              "completed_at": "2026-11-02T00:02:51Z"
+            }
+          ],
+          "node_id": "MOCK-NODE-108",
+          "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/108",
+          "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/108",
+          "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/job/108",
+          "created_at": "2026-11-02T00:02:50Z",
+          "runner_group_id": 0,
+          "runner_name": "GitHub Actions MOCK",
+          "runner_group_name": "GitHub Actions",
+          "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/10000000000",
+          "workflow_name": "PUBLIC MOCK CLIENT WORKFLOW"
+        },
+        {
+          "id": 109,
+          "run_id": 10000000000,
+          "run_attempt": 1,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Build validated desktop bundle",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:03:10Z",
+          "completed_at": "2026-11-02T00:03:20Z",
+          "runner_id": 42,
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:03:10Z",
+              "completed_at": "2026-11-02T00:03:11Z"
+            }
+          ],
+          "node_id": "MOCK-NODE-109",
+          "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/109",
+          "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/109",
+          "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/job/109",
+          "created_at": "2026-11-02T00:03:10Z",
+          "runner_group_id": 0,
+          "runner_name": "GitHub Actions MOCK",
+          "runner_group_name": "GitHub Actions",
+          "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/10000000000",
+          "workflow_name": "PUBLIC MOCK CLIENT WORKFLOW"
+        },
+        {
+          "id": 110,
+          "run_id": 10000000000,
+          "run_attempt": 1,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Linux x64 and embedded Windows WSL runtime",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:03:30Z",
+          "completed_at": "2026-11-02T00:03:40Z",
+          "runner_id": 42,
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:03:30Z",
+              "completed_at": "2026-11-02T00:03:31Z"
+            }
+          ],
+          "node_id": "MOCK-NODE-110",
+          "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/110",
+          "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/110",
+          "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/job/110",
+          "created_at": "2026-11-02T00:03:30Z",
+          "runner_group_id": 0,
+          "runner_name": "GitHub Actions MOCK",
+          "runner_group_name": "GitHub Actions",
+          "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/10000000000",
+          "workflow_name": "PUBLIC MOCK CLIENT WORKFLOW"
+        },
+        {
+          "id": 111,
+          "run_id": 10000000000,
+          "run_attempt": 1,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Android arm64 unsigned candidate (NOT installable)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:03:50Z",
+          "completed_at": "2026-11-02T00:04:00Z",
+          "runner_id": 42,
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:03:50Z",
+              "completed_at": "2026-11-02T00:03:51Z"
+            },
+            {
+              "name": "Run actions/upload-artifact@v7",
+              "number": 13,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:03:52Z",
+              "completed_at": "2026-11-02T00:03:59Z"
+            }
+          ],
+          "node_id": "MOCK-NODE-111",
+          "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/111",
+          "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/111",
+          "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/job/111",
+          "created_at": "2026-11-02T00:03:50Z",
+          "runner_group_id": 0,
+          "runner_name": "GitHub Actions MOCK",
+          "runner_group_name": "GitHub Actions",
+          "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/10000000000",
+          "workflow_name": "PUBLIC MOCK CLIENT WORKFLOW"
+        },
+        {
+          "id": 112,
+          "run_id": 10000000000,
+          "run_attempt": 1,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Desktop win x64 (integrity checked)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:04:10Z",
+          "completed_at": "2026-11-02T00:04:20Z",
+          "runner_id": 42,
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:04:10Z",
+              "completed_at": "2026-11-02T00:04:11Z"
+            }
+          ],
+          "node_id": "MOCK-NODE-112",
+          "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/112",
+          "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/112",
+          "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/job/112",
+          "created_at": "2026-11-02T00:04:10Z",
+          "runner_group_id": 0,
+          "runner_name": "GitHub Actions MOCK",
+          "runner_group_name": "GitHub Actions",
+          "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/10000000000",
+          "workflow_name": "PUBLIC MOCK CLIENT WORKFLOW"
+        },
+        {
+          "id": 114,
+          "run_id": 10000000000,
+          "run_attempt": 1,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Desktop mac x64 (integrity checked)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:04:50Z",
+          "completed_at": "2026-11-02T00:05:00Z",
+          "runner_id": 42,
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:04:50Z",
+              "completed_at": "2026-11-02T00:04:51Z"
+            }
+          ],
+          "node_id": "MOCK-NODE-114",
+          "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/114",
+          "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/114",
+          "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/job/114",
+          "created_at": "2026-11-02T00:04:50Z",
+          "runner_group_id": 0,
+          "runner_name": "GitHub Actions MOCK",
+          "runner_group_name": "GitHub Actions",
+          "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/10000000000",
+          "workflow_name": "PUBLIC MOCK CLIENT WORKFLOW"
+        },
+        {
+          "id": 300,
+          "run_id": 10000000000,
+          "run_attempt": 1,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "name": "Clean desktop ${{ matrix.kind }} first start",
+          "status": "completed",
+          "conclusion": "skipped",
+          "started_at": "2026-11-02T00:15:00Z",
+          "completed_at": "2026-11-02T00:15:00Z",
+          "runner_id": null,
+          "runner_name": null,
+          "labels": [],
+          "steps": [],
+          "node_id": "MOCK-NODE-300",
+          "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/300",
+          "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/300",
+          "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/job/300",
+          "created_at": "2026-11-02T00:15:00Z",
+          "runner_group_id": null,
+          "runner_group_name": null,
+          "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/10000000000",
+          "workflow_name": "PUBLIC MOCK CLIENT WORKFLOW"
+        },
+        {
+          "id": 301,
+          "run_id": 10000000000,
+          "run_attempt": 1,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "name": "Clean macOS ${{ matrix.arch }} ${{ matrix.format }} first start",
+          "status": "completed",
+          "conclusion": "skipped",
+          "started_at": "2026-11-02T00:15:00Z",
+          "completed_at": "2026-11-02T00:15:00Z",
+          "runner_id": null,
+          "runner_name": null,
+          "labels": [],
+          "steps": [],
+          "node_id": "MOCK-NODE-301",
+          "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/301",
+          "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/301",
+          "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/job/301",
+          "created_at": "2026-11-02T00:15:00Z",
+          "runner_group_id": null,
+          "runner_group_name": null,
+          "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/10000000000",
+          "workflow_name": "PUBLIC MOCK CLIENT WORKFLOW"
+        },
+        {
+          "id": 400,
+          "run_id": 10000000000,
+          "run_attempt": 1,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Desktop mac arm64 (integrity checked)",
+          "status": "completed",
+          "conclusion": "cancelled",
+          "started_at": "2026-11-02T00:13:20Z",
+          "completed_at": "2026-11-02T00:15:00Z",
+          "runner_id": 0,
+          "steps": [],
+          "node_id": "MOCK-NODE-400",
+          "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/400",
+          "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/400",
+          "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/job/400",
+          "created_at": "2026-11-02T00:13:20Z",
+          "runner_group_id": 0,
+          "runner_name": "",
+          "runner_group_name": "",
+          "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/10000000000",
+          "workflow_name": "PUBLIC MOCK CLIENT WORKFLOW"
+        }
+      ]
+    },
+    "/actions/runs/10000000000/attempts/2/jobs?per_page=100": {
+      "total_count": 22,
+      "jobs": [
+        {
+          "id": 113,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Desktop mac arm64 (integrity checked)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:21:10Z",
+          "completed_at": "2026-11-02T00:21:20Z",
+          "runner_id": 42,
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:21:10Z",
+              "completed_at": "2026-11-02T00:21:11Z"
+            }
+          ],
+          "node_id": "MOCK-NODE-113",
+          "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/113",
+          "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/113",
+          "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/job/113",
+          "created_at": "2026-11-02T00:21:10Z",
+          "runner_group_id": 0,
+          "runner_name": "GitHub Actions MOCK",
+          "runner_group_name": "GitHub Actions",
+          "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/10000000000",
+          "workflow_name": "PUBLIC MOCK CLIENT WORKFLOW"
+        },
+        {
+          "id": 115,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Clean macOS arm64 dmg first start",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:21:50Z",
+          "completed_at": "2026-11-02T00:22:00Z",
+          "runner_id": 42,
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:21:50Z",
+              "completed_at": "2026-11-02T00:21:51Z"
+            }
+          ],
+          "node_id": "MOCK-NODE-115",
+          "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/115",
+          "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/115",
+          "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/job/115",
+          "created_at": "2026-11-02T00:21:50Z",
+          "runner_group_id": 0,
+          "runner_name": "GitHub Actions MOCK",
+          "runner_group_name": "GitHub Actions",
+          "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/10000000000",
+          "workflow_name": "PUBLIC MOCK CLIENT WORKFLOW"
+        },
+        {
+          "id": 116,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Clean macOS arm64 zip first start",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:22:10Z",
+          "completed_at": "2026-11-02T00:22:20Z",
+          "runner_id": 42,
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:22:10Z",
+              "completed_at": "2026-11-02T00:22:11Z"
+            }
+          ],
+          "node_id": "MOCK-NODE-116",
+          "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/116",
+          "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/116",
+          "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/job/116",
+          "created_at": "2026-11-02T00:22:10Z",
+          "runner_group_id": 0,
+          "runner_name": "GitHub Actions MOCK",
+          "runner_group_name": "GitHub Actions",
+          "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/10000000000",
+          "workflow_name": "PUBLIC MOCK CLIENT WORKFLOW"
+        },
+        {
+          "id": 117,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Clean macOS x64 dmg first start",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:22:30Z",
+          "completed_at": "2026-11-02T00:22:40Z",
+          "runner_id": 42,
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:22:30Z",
+              "completed_at": "2026-11-02T00:22:31Z"
+            }
+          ],
+          "node_id": "MOCK-NODE-117",
+          "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/117",
+          "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/117",
+          "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/job/117",
+          "created_at": "2026-11-02T00:22:30Z",
+          "runner_group_id": 0,
+          "runner_name": "GitHub Actions MOCK",
+          "runner_group_name": "GitHub Actions",
+          "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/10000000000",
+          "workflow_name": "PUBLIC MOCK CLIENT WORKFLOW"
+        },
+        {
+          "id": 118,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Clean macOS x64 zip first start",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:22:50Z",
+          "completed_at": "2026-11-02T00:23:00Z",
+          "runner_id": 42,
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:22:50Z",
+              "completed_at": "2026-11-02T00:22:51Z"
+            }
+          ],
+          "node_id": "MOCK-NODE-118",
+          "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/118",
+          "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/118",
+          "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/job/118",
+          "created_at": "2026-11-02T00:22:50Z",
+          "runner_group_id": 0,
+          "runner_name": "GitHub Actions MOCK",
+          "runner_group_name": "GitHub Actions",
+          "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/10000000000",
+          "workflow_name": "PUBLIC MOCK CLIENT WORKFLOW"
+        },
+        {
+          "id": 119,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Clean desktop deb first start",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:23:10Z",
+          "completed_at": "2026-11-02T00:23:20Z",
+          "runner_id": 42,
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:23:10Z",
+              "completed_at": "2026-11-02T00:23:11Z"
+            }
+          ],
+          "node_id": "MOCK-NODE-119",
+          "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/119",
+          "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/119",
+          "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/job/119",
+          "created_at": "2026-11-02T00:23:10Z",
+          "runner_group_id": 0,
+          "runner_name": "GitHub Actions MOCK",
+          "runner_group_name": "GitHub Actions",
+          "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/10000000000",
+          "workflow_name": "PUBLIC MOCK CLIENT WORKFLOW"
+        },
+        {
+          "id": 120,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Clean desktop appimage first start",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:23:30Z",
+          "completed_at": "2026-11-02T00:23:40Z",
+          "runner_id": 42,
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:23:30Z",
+              "completed_at": "2026-11-02T00:23:31Z"
+            }
+          ],
+          "node_id": "MOCK-NODE-120",
+          "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/120",
+          "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/120",
+          "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/job/120",
+          "created_at": "2026-11-02T00:23:30Z",
+          "runner_group_id": 0,
+          "runner_name": "GitHub Actions MOCK",
+          "runner_group_name": "GitHub Actions",
+          "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/10000000000",
+          "workflow_name": "PUBLIC MOCK CLIENT WORKFLOW"
+        },
+        {
+          "id": 121,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Clean desktop nsis first start",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:23:50Z",
+          "completed_at": "2026-11-02T00:24:00Z",
+          "runner_id": 42,
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:23:50Z",
+              "completed_at": "2026-11-02T00:23:51Z"
+            }
+          ],
+          "node_id": "MOCK-NODE-121",
+          "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/121",
+          "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/121",
+          "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/job/121",
+          "created_at": "2026-11-02T00:23:50Z",
+          "runner_group_id": 0,
+          "runner_name": "GitHub Actions MOCK",
+          "runner_group_name": "GitHub Actions",
+          "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/10000000000",
+          "workflow_name": "PUBLIC MOCK CLIENT WORKFLOW"
+        },
+        {
+          "id": 2100,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Validate exact source",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:00:10Z",
+          "completed_at": "2026-11-02T00:00:20Z",
+          "runner_id": 42,
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:00:10Z",
+              "completed_at": "2026-11-02T00:00:11Z"
+            }
+          ],
+          "node_id": "MOCK-NODE-2100",
+          "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/2100",
+          "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/2100",
+          "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/job/2100",
+          "created_at": "2026-11-02T00:16:42Z",
+          "runner_group_id": null,
+          "runner_name": "GitHub Actions MOCK",
+          "runner_group_name": "GitHub Actions",
+          "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/10000000000",
+          "workflow_name": "PUBLIC MOCK CLIENT WORKFLOW"
+        },
+        {
+          "id": 2101,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Lint and typecheck",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:00:30Z",
+          "completed_at": "2026-11-02T00:00:40Z",
+          "runner_id": 42,
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:00:30Z",
+              "completed_at": "2026-11-02T00:00:31Z"
+            }
+          ],
+          "node_id": "MOCK-NODE-2101",
+          "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/2101",
+          "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/2101",
+          "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/job/2101",
+          "created_at": "2026-11-02T00:16:42Z",
+          "runner_group_id": null,
+          "runner_name": "GitHub Actions MOCK",
+          "runner_group_name": "GitHub Actions",
+          "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/10000000000",
+          "workflow_name": "PUBLIC MOCK CLIENT WORKFLOW"
+        },
+        {
+          "id": 2102,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Rust native formatting and tests",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:00:50Z",
+          "completed_at": "2026-11-02T00:01:00Z",
+          "runner_id": 42,
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:00:50Z",
+              "completed_at": "2026-11-02T00:00:51Z"
+            }
+          ],
+          "node_id": "MOCK-NODE-2102",
+          "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/2102",
+          "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/2102",
+          "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/job/2102",
+          "created_at": "2026-11-02T00:16:42Z",
+          "runner_group_id": null,
+          "runner_name": "GitHub Actions MOCK",
+          "runner_group_name": "GitHub Actions",
+          "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/10000000000",
+          "workflow_name": "PUBLIC MOCK CLIENT WORKFLOW"
+        },
+        {
+          "id": 2103,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Mobile native static analysis",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:01:10Z",
+          "completed_at": "2026-11-02T00:01:20Z",
+          "runner_id": 42,
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:01:10Z",
+              "completed_at": "2026-11-02T00:01:11Z"
+            }
+          ],
+          "node_id": "MOCK-NODE-2103",
+          "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/2103",
+          "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/2103",
+          "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/job/2103",
+          "created_at": "2026-11-02T00:16:42Z",
+          "runner_group_id": null,
+          "runner_name": "GitHub Actions MOCK",
+          "runner_group_name": "GitHub Actions",
+          "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/10000000000",
+          "workflow_name": "PUBLIC MOCK CLIENT WORKFLOW"
+        },
+        {
+          "id": 2104,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Tests (clients)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:01:30Z",
+          "completed_at": "2026-11-02T00:01:40Z",
+          "runner_id": 42,
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:01:30Z",
+              "completed_at": "2026-11-02T00:01:31Z"
+            }
+          ],
+          "node_id": "MOCK-NODE-2104",
+          "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/2104",
+          "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/2104",
+          "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/job/2104",
+          "created_at": "2026-11-02T00:16:42Z",
+          "runner_group_id": null,
+          "runner_name": "GitHub Actions MOCK",
+          "runner_group_name": "GitHub Actions",
+          "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/10000000000",
+          "workflow_name": "PUBLIC MOCK CLIENT WORKFLOW"
+        },
+        {
+          "id": 2105,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Tests (web)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:01:50Z",
+          "completed_at": "2026-11-02T00:02:00Z",
+          "runner_id": 42,
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:01:50Z",
+              "completed_at": "2026-11-02T00:01:51Z"
+            }
+          ],
+          "node_id": "MOCK-NODE-2105",
+          "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/2105",
+          "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/2105",
+          "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/job/2105",
+          "created_at": "2026-11-02T00:16:42Z",
+          "runner_group_id": null,
+          "runner_name": "GitHub Actions MOCK",
+          "runner_group_name": "GitHub Actions",
+          "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/10000000000",
+          "workflow_name": "PUBLIC MOCK CLIENT WORKFLOW"
+        },
+        {
+          "id": 2106,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Tests (server-1)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:02:10Z",
+          "completed_at": "2026-11-02T00:02:20Z",
+          "runner_id": 42,
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:02:10Z",
+              "completed_at": "2026-11-02T00:02:11Z"
+            }
+          ],
+          "node_id": "MOCK-NODE-2106",
+          "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/2106",
+          "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/2106",
+          "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/job/2106",
+          "created_at": "2026-11-02T00:16:42Z",
+          "runner_group_id": null,
+          "runner_name": "GitHub Actions MOCK",
+          "runner_group_name": "GitHub Actions",
+          "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/10000000000",
+          "workflow_name": "PUBLIC MOCK CLIENT WORKFLOW"
+        },
+        {
+          "id": 2107,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Tests (server-2)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:02:30Z",
+          "completed_at": "2026-11-02T00:02:40Z",
+          "runner_id": 42,
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:02:30Z",
+              "completed_at": "2026-11-02T00:02:31Z"
+            }
+          ],
+          "node_id": "MOCK-NODE-2107",
+          "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/2107",
+          "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/2107",
+          "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/job/2107",
+          "created_at": "2026-11-02T00:16:42Z",
+          "runner_group_id": null,
+          "runner_name": "GitHub Actions MOCK",
+          "runner_group_name": "GitHub Actions",
+          "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/10000000000",
+          "workflow_name": "PUBLIC MOCK CLIENT WORKFLOW"
+        },
+        {
+          "id": 2108,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Tests (server-3)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:02:50Z",
+          "completed_at": "2026-11-02T00:03:00Z",
+          "runner_id": 42,
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:02:50Z",
+              "completed_at": "2026-11-02T00:02:51Z"
+            }
+          ],
+          "node_id": "MOCK-NODE-2108",
+          "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/2108",
+          "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/2108",
+          "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/job/2108",
+          "created_at": "2026-11-02T00:16:42Z",
+          "runner_group_id": null,
+          "runner_name": "GitHub Actions MOCK",
+          "runner_group_name": "GitHub Actions",
+          "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/10000000000",
+          "workflow_name": "PUBLIC MOCK CLIENT WORKFLOW"
+        },
+        {
+          "id": 2109,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Build validated desktop bundle",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:03:10Z",
+          "completed_at": "2026-11-02T00:03:20Z",
+          "runner_id": 42,
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:03:10Z",
+              "completed_at": "2026-11-02T00:03:11Z"
+            }
+          ],
+          "node_id": "MOCK-NODE-2109",
+          "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/2109",
+          "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/2109",
+          "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/job/2109",
+          "created_at": "2026-11-02T00:16:42Z",
+          "runner_group_id": null,
+          "runner_name": "GitHub Actions MOCK",
+          "runner_group_name": "GitHub Actions",
+          "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/10000000000",
+          "workflow_name": "PUBLIC MOCK CLIENT WORKFLOW"
+        },
+        {
+          "id": 2110,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Linux x64 and embedded Windows WSL runtime",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:03:30Z",
+          "completed_at": "2026-11-02T00:03:40Z",
+          "runner_id": 42,
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:03:30Z",
+              "completed_at": "2026-11-02T00:03:31Z"
+            }
+          ],
+          "node_id": "MOCK-NODE-2110",
+          "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/2110",
+          "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/2110",
+          "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/job/2110",
+          "created_at": "2026-11-02T00:16:42Z",
+          "runner_group_id": null,
+          "runner_name": "GitHub Actions MOCK",
+          "runner_group_name": "GitHub Actions",
+          "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/10000000000",
+          "workflow_name": "PUBLIC MOCK CLIENT WORKFLOW"
+        },
+        {
+          "id": 2111,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Android arm64 unsigned candidate (NOT installable)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:03:50Z",
+          "completed_at": "2026-11-02T00:04:00Z",
+          "runner_id": 42,
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:03:50Z",
+              "completed_at": "2026-11-02T00:03:51Z"
+            },
+            {
+              "name": "Run actions/upload-artifact@v7",
+              "number": 13,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:03:52Z",
+              "completed_at": "2026-11-02T00:03:59Z"
+            }
+          ],
+          "node_id": "MOCK-NODE-2111",
+          "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/2111",
+          "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/2111",
+          "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/job/2111",
+          "created_at": "2026-11-02T00:16:42Z",
+          "runner_group_id": null,
+          "runner_name": "GitHub Actions MOCK",
+          "runner_group_name": "GitHub Actions",
+          "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/10000000000",
+          "workflow_name": "PUBLIC MOCK CLIENT WORKFLOW"
+        },
+        {
+          "id": 2112,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Desktop win x64 (integrity checked)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:04:10Z",
+          "completed_at": "2026-11-02T00:04:20Z",
+          "runner_id": 42,
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:04:10Z",
+              "completed_at": "2026-11-02T00:04:11Z"
+            }
+          ],
+          "node_id": "MOCK-NODE-2112",
+          "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/2112",
+          "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/2112",
+          "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/job/2112",
+          "created_at": "2026-11-02T00:16:42Z",
+          "runner_group_id": null,
+          "runner_name": "GitHub Actions MOCK",
+          "runner_group_name": "GitHub Actions",
+          "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/10000000000",
+          "workflow_name": "PUBLIC MOCK CLIENT WORKFLOW"
+        },
+        {
+          "id": 2114,
+          "run_id": 10000000000,
+          "run_attempt": 2,
+          "head_sha": "1111111111111111111111111111111111111111",
+          "head_branch": "maintenance/v0.1.6-zh-cloud",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "name": "Desktop mac x64 (integrity checked)",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-02T00:04:50Z",
+          "completed_at": "2026-11-02T00:05:00Z",
+          "runner_id": 42,
+          "steps": [
+            {
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-02T00:04:50Z",
+              "completed_at": "2026-11-02T00:04:51Z"
+            }
+          ],
+          "node_id": "MOCK-NODE-2114",
+          "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/2114",
+          "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/2114",
+          "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/job/2114",
+          "created_at": "2026-11-02T00:16:42Z",
+          "runner_group_id": null,
+          "runner_name": "GitHub Actions MOCK",
+          "runner_group_name": "GitHub Actions",
+          "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/10000000000",
+          "workflow_name": "PUBLIC MOCK CLIENT WORKFLOW"
+        }
+      ]
+    },
+    "/git/ref/heads/maintenance/v0.1.6-zh-cloud": {
+      "object": {
+        "type": "commit",
+        "sha": "1111111111111111111111111111111111111111"
+      }
+    },
+    "/contents/.github/workflows/client-release.yml?ref=1111111111111111111111111111111111111111": {
+      "type": "file",
+      "path": ".github/workflows/client-release.yml",
+      "encoding": "base64",
+      "sha": "e8cb5f1ec815c406c64e48b1d21d014dd25dadbc",
+      "content": "UFVCTElDIE1PQ0sgV09SS0ZMT1cgQllURVMgLSBOT1QgREVQTE9ZQUJMRQo="
+    },
+    "/actions/artifacts/1": {
+      "id": 1,
+      "name": "android-UNSIGNED-NOT-INSTALLABLE",
+      "size_in_bytes": 12345,
+      "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "expired": false,
+      "created_at": "2026-11-02T00:03:55Z",
+      "updated_at": "2026-11-02T00:03:55Z",
+      "expires_at": "2099-01-01T00:00:00Z",
+      "workflow_run": {
+        "id": 10000000000,
+        "head_sha": "1111111111111111111111111111111111111111",
+        "head_branch": "maintenance/v0.1.6-zh-cloud"
+      }
+    },
+    "/check-runs/400/annotations?per_page=100": [
+      {
+        "path": ".github",
+        "blob_href": "https://github.com/ZhiweiXiao98/t3code/blob/1111111111111111111111111111111111111111/.github",
+        "start_line": 1,
+        "end_line": 1,
+        "start_column": null,
+        "end_column": null,
+        "annotation_level": "failure",
+        "title": "",
+        "message": "The job was not acquired by Runner of type hosted even after multiple attempts",
+        "raw_details": ""
+      },
+      {
+        "path": ".github",
+        "blob_href": "https://github.com/ZhiweiXiao98/t3code/blob/1111111111111111111111111111111111111111/.github",
+        "start_line": 1,
+        "end_line": 1,
+        "start_column": null,
+        "end_column": null,
+        "annotation_level": "notice",
+        "title": "",
+        "message": "Due to capacity constraints, jobs targeting macOS arm64 runners may experience longer queue times.",
+        "raw_details": ""
+      }
+    ]
+  },
+  "log": "2026-11-02T00:03:50.1234567Z Download action repository 'actions/upload-artifact@v7' (SHA:cf430e030ddbb5b0abf93d22962f4752f3646cd9)\n2026-11-02T00:03:53.1234567Z ##[group]Run actions/upload-artifact@v7\n2026-11-02T00:03:53.1234567Z with:\n2026-11-02T00:03:53.1234567Z   name: android-UNSIGNED-NOT-INSTALLABLE\n2026-11-02T00:03:53.1234567Z   overwrite: false\n2026-11-02T00:03:53.1234567Z   if-no-files-found: error\n2026-11-02T00:03:53.1234567Z   archive: true\n2026-11-02T00:03:53.1234567Z ##[endgroup]\n2026-11-02T00:03:55.1234567Z Uploading artifact: android-UNSIGNED-NOT-INSTALLABLE.zip\n2026-11-02T00:03:55.1234567Z Finished uploading artifact content to blob storage!\n2026-11-02T00:03:55.1234567Z SHA256 digest of uploaded artifact is aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n2026-11-02T00:03:55.1234567Z Finalizing artifact upload\n2026-11-02T00:03:55.1234567Z Artifact android-UNSIGNED-NOT-INSTALLABLE successfully finalized. Artifact ID 1\n2026-11-02T00:03:55.1234567Z Artifact android-UNSIGNED-NOT-INSTALLABLE has been successfully uploaded! Final size is 12345 bytes. Artifact ID is 1\n2026-11-02T00:03:55.1234567Z Artifact download URL: https://github.com/ZhiweiXiao98/t3code/actions/runs/10000000000/artifacts/1\n"
+}

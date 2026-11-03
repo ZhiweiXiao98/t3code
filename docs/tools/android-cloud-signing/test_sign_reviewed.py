@@ -12,13 +12,15 @@ from unittest.mock import patch
 import zipfile
 
 import sign_reviewed as signer
+import retry_provenance as provenance
+from retry_fixture import signed_fixture, fixture
 
 
 class ReviewedSigningTests(unittest.TestCase):
     def manifest(self):
         return dict(enabled=True, candidate_run_id=123, candidate_attempt=1,
                     candidate_source_sha='a' * 40, candidate_artifact_id=456,
-                    candidate_artifact_zip_sha256='b' * 64)
+                    candidate_artifact_zip_sha256='b' * 64, candidate_workflow_id=1, candidate_workflow_blob_sha='c'*40, candidate_workflow_sha256='d'*64, candidate_producer_job_id=12, candidate_producer_attempt=1, candidate_producer_log_sha256='e'*64, candidate_retry_authorizations=[])
 
     def test_disabled_input(self):
         with tempfile.TemporaryDirectory() as root:
@@ -30,7 +32,7 @@ class ReviewedSigningTests(unittest.TestCase):
     def test_exact_run_binding_and_gates(self):
         m = self.manifest()
         run = dict(id=123, run_attempt=1, head_sha='a' * 40, head_branch=signer.BRANCH,
-                   path='.github/workflows/client-release.yml', event='push',
+                   path='.github/workflows/client-release.yml', workflow_id=1, event='push',
                    repository={'full_name':signer.REPO}, head_repository={'full_name':signer.REPO}, status='completed', conclusion='success')
         signer.check_run(run, m)
         with self.assertRaises(ValueError):
@@ -119,9 +121,9 @@ class ReviewedSigningTests(unittest.TestCase):
             return ''
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder); work=root/'work';work.mkdir();output=root/'output';inp=root/'input.json'
-            m=self.manifest();inp.write_text(json.dumps(m))
+            m=fixture()['manifest'];inp.write_text(json.dumps(m))
             unsigned=work/'reviewed-unsigned.apk';unsigned.write_bytes(b'PUBLIC MOCK UNSIGNED')
-            proof={**m,'unsigned_apk_sha256':signer.digest(unsigned),'certificate_sha256':signer.CERT,'recovery_run_id':signer.RECOVERY_RUN}
+            proof={**signed_fixture()['manifest'],'unsigned_apk_sha256':signer.digest(unsigned),'certificate_sha256':signer.CERT,'recovery_run_id':signer.RECOVERY_RUN}
             (work/'reviewed-provenance.json').write_text(json.dumps(proof))
             with patch.dict(os.environ,{'ANDROID_KEYSTORE_BASE64':base64.b64encode(data).decode(),'ANDROID_KEYSTORE_PASSWORD':'PUBLIC-NOT-A-SECRET-'*3}), patch.object(signer,'KEY_HASH',expected_hash), patch.object(signer,'tools',return_value=Path('/PUBLIC-MOCK-TOOLS')), patch.object(signer,'run',side_effect=fake), patch.object(signer.subprocess,'run',side_effect=AssertionError('Real tool execution forbidden')):
                 signer.sign(inp,work,output)
@@ -129,8 +131,8 @@ class ReviewedSigningTests(unittest.TestCase):
             self.assertFalse((work/'signing-only.p12').exists())
             self.assertFalse((work/'aligned.apk').exists())
             report=json.loads((output/'BUILD-PROVENANCE.json').read_text())
-            self.assertEqual(report['source_sha'],'a'*40)
-            self.assertEqual(report['candidate_artifact_sha256'],'b'*64)
+            self.assertEqual(report['source_sha'],'1'*40)
+            self.assertEqual(report['candidate_artifact_sha256'],'a'*64)
             self.assertEqual(report['version_code'],1000413)
             self.assertEqual(len((output/'SHA256SUMS.txt').read_text().splitlines()),2)
             self.assertNotIn('PUBLIC-NOT-A-SECRET-',repr(commands))
