@@ -1,0 +1,201 @@
+name: Verify reviewed Android provenance only
+on:
+  push:
+    branches: [validation/android-provenance-v016-20261103]
+    paths: [.github/workflows/verify-android-provenance-v016.yml]
+permissions: {}
+concurrency:
+  group: readonly-android-provenance-v016
+  cancel-in-progress: false
+jobs:
+  verify:
+    if: github.repository == 'ZhiweiXiao98/t3code' && github.ref == 'refs/heads/validation/android-provenance-v016-20261103'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      proof_sha256: ${{ steps.public.outputs.proof_sha256 }}
+      summary_sha256: ${{ steps.public.outputs.summary_sha256 }}
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      artifact_digest: ${{ steps.upload.outputs.artifact-digest }}
+    steps:
+      - name: Fetch immutable mock-validated helpers without credentials
+        env:
+          HELPER_SHA: 642f6965584c3fe61eaee9e27edd23ac7a8fcdd5
+          WORKFLOW_SHA: ${{ github.sha }}
+          GIT_TERMINAL_PROMPT: '0'
+        run: |
+          set -euo pipefail
+          umask 077
+          git init .
+          git remote add origin https://github.com/ZhiweiXiao98/t3code.git
+          test "$(git ls-remote origin refs/heads/validation/android-provenance-v016-20261103 | cut -f1)" = "$WORKFLOW_SHA"
+          git sparse-checkout init --cone
+          git sparse-checkout set docs/tools/android-cloud-signing
+          git fetch --no-tags --depth=1 origin "$HELPER_SHA"
+          git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$HELPER_SHA"
+          printf '%s\n' 'ccf874c0b8aafcd7e213327729d8be3953fa96ebfbdf1a321ec9f0ed6fdcd607  docs/tools/android-cloud-signing/sign_reviewed.py' '2077c7d5fcb1e3c97b2002fab1e95f5b5a0387d6793dc583337df1d4820b5c47  docs/tools/android-cloud-signing/retry_provenance.py' | sha256sum -c -
+          test -x "$JAVA_HOME_21_X64/bin/java"
+          test -x "$ANDROID_HOME/build-tools/36.0.0/aapt2"
+          test -x "$ANDROID_HOME/build-tools/36.0.0/apksigner"
+      - name: Write exact non-secret preparation input outside the checkout
+        env:
+          REVIEWED_INPUT_JSON: |
+            {
+              "enabled": true,
+              "candidate_run_id": 41492562572,
+              "candidate_attempt": 4,
+              "candidate_source_sha": "fc437bef34b2fd813f4a5bdaefb87f0aa751bb17",
+              "candidate_artifact_id": 13166529607,
+              "candidate_artifact_zip_sha256": "745fdc56c1e789ce757c1afd8048e61b5bdd88f104a063c8d6e0911cffb63fd4",
+              "candidate_workflow_id": 371287124,
+              "candidate_workflow_blob_sha": "fd4fa189adafafab1a54e6e4da811fe2d66dd3ce",
+              "candidate_workflow_sha256": "4ab010bee2de6e41281f13974fd15ed1a368655a00c0d884f44e07b06cbe00c7",
+              "candidate_producer_job_id": 125444480191,
+              "candidate_producer_attempt": 1,
+              "candidate_retry_authorizations": [
+                {
+                  "job_id": 125447378291,
+                  "run_attempt": 1,
+                  "job_name": "Desktop mac arm64 (integrity checked)",
+                  "job_snapshot_sha256": "df7e4c3fdf78c330643e51d1af26854a2df5e52c0edd528cf3fb30d857ed61a2",
+                  "capacity_annotations_sha256": "a4724b20fa220a01e3724f1120a9f9045dcc33a3239bf1e8c276331de153fdbf"
+                },
+                {
+                  "job_id": 125473870652,
+                  "run_attempt": 2,
+                  "job_name": "Desktop mac arm64 (integrity checked)",
+                  "job_snapshot_sha256": "a6330ed895fc7463dc03ccc221f0198379330e51c188cd2f98e23085eb528ca2",
+                  "capacity_annotations_sha256": "a4724b20fa220a01e3724f1120a9f9045dcc33a3239bf1e8c276331de153fdbf"
+                },
+                {
+                  "job_id": 125482777146,
+                  "run_attempt": 3,
+                  "job_name": "Desktop mac arm64 (integrity checked)",
+                  "job_snapshot_sha256": "d6ce39e65e2abe67d45daf227050b2aff79836823feb744e8126e4405f0872d1",
+                  "capacity_annotations_sha256": "a4724b20fa220a01e3724f1120a9f9045dcc33a3239bf1e8c276331de153fdbf"
+                }
+              ]
+            }
+        run: |
+          set -euo pipefail
+          umask 077
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP'])
+          original = Path('docs/tools/android-cloud-signing/reviewed-signing-input.json')
+          assert json.loads(original.read_text()) == {'enabled': False}, 'Validated repository input must remain disabled'
+          data = json.loads(os.environ['REVIEWED_INPUT_JSON'])
+          with (root / 'android-provenance-input.json').open('x') as out:
+              json.dump(data, out, sort_keys=True, indent=2)
+              out.write('\n')
+          PY
+      - name: Run original preparation only with read-only Actions access
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          export JAVA_HOME="$JAVA_HOME_21_X64"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          python docs/tools/android-cloud-signing/sign_reviewed.py prepare \
+            --input "$RUNNER_TEMP/android-provenance-input.json" \
+            --workspace "$RUNNER_TEMP/reviewed-android"
+      - name: Export only complete public proof and independent hashes
+        id: public
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib, json, os, shutil, sys
+          from pathlib import Path
+          sys.path.insert(0, 'docs/tools/android-cloud-signing')
+          import sign_reviewed as signer
+          import retry_provenance as provenance
+          root = Path(os.environ['RUNNER_TEMP'])
+          manifest = signer.read_input(root / 'android-provenance-input.json')
+          source = root / 'reviewed-android' / 'reviewed-provenance.json'
+          proof = json.loads(source.read_text())
+          assert all(proof.get(k) == v for k, v in manifest.items()), 'Prepared input binding changed'
+          provenance.check_prepared(proof, manifest, signer.JOBS)
+          aliases = proof['candidate_gates_snapshot']['job_aliases']
+          job_ids = sorted({a[k] for a in aliases for k in ('execution_job_id', 'previous_job_id', 'alias_job_id')})
+          assert len(aliases) == len(proof['alias_log_proofs']) == 42
+          assert len(job_ids) == 56
+          assert proof['candidate_run_id'] == 41492562572 and proof['candidate_attempt'] == 4
+          assert proof['candidate_source_sha'] == 'fc437bef34b2fd813f4a5bdaefb87f0aa751bb17'
+          assert proof['candidate_producer_job_id'] == 125444480191 and proof['candidate_producer_attempt'] == 1
+          assert proof['candidate_artifact_id'] == 13166529607
+          assert proof['certificate_sha256'] == signer.CERT and proof['recovery_run_id'] == signer.RECOVERY_RUN
+          assert signer.digest(root / 'reviewed-android' / 'reviewed-unsigned.apk') == proof['unsigned_apk_sha256'] == '65e7674bddb1a78afab0308927f711837d2dd0b6bb228aba56ba00faefdafaa4', 'Reviewed unsigned APK bytes changed'
+          assert 'signed_apk_sha256' not in proof and 'apk_signature_verified' not in proof
+          destination = root / 'android-provenance-public'
+          destination.mkdir(mode=0o700, exist_ok=False)
+          shutil.copyfile(source, destination / 'reviewed-provenance.json')
+          digest = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()
+          proof_sha = digest(destination / 'reviewed-provenance.json')
+          summary = {
+              'schema': 'android-readonly-prepare-summary/v1',
+              'helper_source_sha': '642f6965584c3fe61eaee9e27edd23ac7a8fcdd5',
+              'verifier_run_id': int(os.environ['GITHUB_RUN_ID']),
+              'verifier_run_attempt': int(os.environ['GITHUB_RUN_ATTEMPT']),
+              'verifier_workflow_sha': os.environ['GITHUB_SHA'],
+              'candidate_source_sha': proof['candidate_source_sha'],
+              'candidate_run_id': proof['candidate_run_id'],
+              'candidate_attempt': proof['candidate_attempt'],
+              'candidate_artifact_id': proof['candidate_artifact_id'],
+              'candidate_artifact_zip_sha256': proof['candidate_artifact_zip_sha256'],
+              'unsigned_apk_sha256': proof['unsigned_apk_sha256'],
+              'candidate_producer_job_id': proof['candidate_producer_job_id'],
+              'candidate_producer_attempt': proof['candidate_producer_attempt'],
+              'producer_job_receipt_sha256': proof['producer_job_receipt_sha256'],
+              'alias_proof_count': len(proof['alias_log_proofs']),
+              'authenticated_log_job_ids': job_ids,
+              'alias_log_proofs_sha256': proof['alias_log_proofs_sha256'],
+              'candidate_gates_sha256': proof['candidate_gates_sha256'],
+              'recovery_run_id': proof['recovery_run_id'],
+              'certificate_sha256': proof['certificate_sha256'],
+              'reviewed_provenance_sha256': proof_sha,
+              'signed_or_published': False,
+              'satisfies_separate_desktop_workflow_metadata_guard': False,
+          }
+          summary_path = destination / 'SUMMARY.json'
+          summary_path.write_text(json.dumps(summary, sort_keys=True, indent=2) + '\n')
+          summary_sha = digest(summary_path)
+          (destination / 'SHA256SUMS.txt').write_text(proof_sha + '  reviewed-provenance.json\n' + summary_sha + '  SUMMARY.json\n')
+          assert {p.name for p in destination.iterdir()} == {'reviewed-provenance.json', 'SUMMARY.json', 'SHA256SUMS.txt'}
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+              out.write('proof_sha256=' + proof_sha + '\nsummary_sha256=' + summary_sha + '\n')
+          print('Public proof SHA-256: ' + proof_sha)
+          print('Public summary SHA-256: ' + summary_sha)
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as out:
+              out.write('Read-only Android provenance preparation succeeded. 42 alias proofs over 56 authenticated job logs; no APK signing or publication.\n\nProof SHA-256: ' + proof_sha + '\n')
+          PY
+      - name: Upload only public metadata evidence
+        id: upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: android-readonly-provenance-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/android-provenance-public/reviewed-provenance.json
+            ${{ runner.temp }}/android-provenance-public/SUMMARY.json
+            ${{ runner.temp }}/android-provenance-public/SHA256SUMS.txt
+          if-no-files-found: error
+          overwrite: false
+          retention-days: 14
+      - name: Remove temporary unsigned candidate material
+        if: always()
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os, shutil
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP']).resolve()
+          target = root / 'reviewed-android'
+          assert target.parent == root
+          if target.exists():
+              shutil.rmtree(target)
+          (root / 'android-provenance-input.json').unlink(missing_ok=True)
+          PY
