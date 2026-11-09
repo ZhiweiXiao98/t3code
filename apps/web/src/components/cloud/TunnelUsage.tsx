@@ -1,5 +1,6 @@
+import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 import { useI18n } from "~/i18n/WebI18nContext";
-import { translateWebSource } from "~/i18n/messages";
+import { translateWebMessage, translateWebSource } from "~/i18n/messages";
 import { T3CHAT_PLAN_TUNNEL_LIMITS } from "@t3tools/contracts/relay";
 import { TriangleAlertIcon } from "lucide-react";
 import type { ReactNode } from "react";
@@ -14,15 +15,18 @@ const MAX_SEGMENTS = 10;
 
 export const T3CHAT_SUBSCRIPTION_URL = "https://t3.chat/settings/subscription";
 
-export function tunnelUpgradeCopy(upgrade: Exclude<ManagedTunnelUpgrade, null>): string {
+export function tunnelUpgradeCopy(
+  upgrade: Exclude<ManagedTunnelUpgrade, null>,
+  locale: ResolvedAppLocale = "en",
+): string {
   const { pro, premier } = T3CHAT_PLAN_TUNNEL_LIMITS;
   switch (upgrade) {
     case "link":
-      return `Link T3 Chat Pro for up to ${pro} tunnels, or Premier for up to ${premier}.`;
+      return translateWebMessage(locale, "tunnels.upgrade.link", { pro, premier });
     case "pro":
-      return `Upgrade to T3 Chat Pro for up to ${pro} tunnels, or Premier for up to ${premier}.`;
+      return translateWebMessage(locale, "tunnels.upgrade.pro", { pro, premier });
     case "premier":
-      return `Upgrade to T3 Chat Premier for up to ${premier} tunnels.`;
+      return translateWebMessage(locale, "tunnels.upgrade.premier", { premier });
   }
 }
 
@@ -45,8 +49,7 @@ export function TunnelUsageMeter({
     <div className={cn("flex max-w-sm flex-col gap-1.5", className)}>
       <div className="flex items-baseline justify-between gap-3 text-xs">
         <span className={cn("tabular-nums", full ? "text-warning-foreground" : "text-foreground")}>
-          {used} {translateWebSource(copyLocale, "of")} {limit}{" "}
-          {translateWebSource(copyLocale, "tunnels in use")}
+          {translateWebMessage(copyLocale, "tunnels.inUse", { used, limit })}
         </span>
         {action}
       </div>
@@ -114,10 +117,19 @@ export function TunnelLimitAlert({
       </AlertTitle>
       <AlertDescription>
         {upgrade === "link"
-          ? "Switch to Tailscale or get more tunnels by linking your T3 Chat sub (sorry!)"
+          ? translateWebSource(
+              copyLocale,
+              "Switch to Tailscale or get more tunnels by linking your T3 Chat sub (sorry!)",
+            )
           : upgrade
-            ? "Switch to Tailscale or get more tunnels by upgrading your T3 Chat sub (sorry!)"
-            : "Switch to Tailscale or deregister an environment you no longer use (sorry!)"}
+            ? translateWebSource(
+                copyLocale,
+                "Switch to Tailscale or get more tunnels by upgrading your T3 Chat sub (sorry!)",
+              )
+            : translateWebSource(
+                copyLocale,
+                "Switch to Tailscale or deregister an environment you no longer use (sorry!)",
+              )}
       </AlertDescription>
       {action ? <AlertAction>{action}</AlertAction> : null}
     </Alert>

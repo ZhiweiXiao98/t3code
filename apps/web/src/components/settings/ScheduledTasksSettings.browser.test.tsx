@@ -14,6 +14,8 @@ import { page, userEvent } from "vite-plus/test/browser";
 
 import "~/index.css";
 import { act, render } from "../../../test/render";
+import { WebI18nContext } from "../../i18n/WebI18nContext";
+import { translateWebMessage } from "../../i18n/messages";
 import { ScheduledTasksSettings } from "./ScheduledTasksSettings";
 
 const environmentId = EnvironmentId.make("laptop");
@@ -47,7 +49,13 @@ const threadFamilyRead = {
   threads: [{ id: task.threadId, title: "Fix login bug" }],
 };
 
-const state = vi.hoisted(() => ({ connected: true, tasksLoaded: true, secondary: false }));
+const state = vi.hoisted(() => ({
+  connected: true,
+  tasksLoaded: true,
+  secondary: false,
+  taskTitle: "Review issues",
+  environmentLabel: "Laptop",
+}));
 const secondaryId = EnvironmentId.make("secondary");
 const permissions = new Map<string, Atom.Writable<boolean>>();
 
@@ -55,6 +63,8 @@ function setup() {
   state.connected = true;
   state.tasksLoaded = true;
   state.secondary = false;
+  state.taskTitle = "Review issues";
+  state.environmentLabel = "Laptop";
   permissions.clear();
   permissions.set(environmentId, Atom.make(true));
   permissions.set(secondaryId, Atom.make(true));
@@ -68,9 +78,11 @@ function secondaryEnvironment() {
 function environment() {
   return {
     environmentId,
-    label: "Laptop",
+    label: state.environmentLabel,
     connection: { phase: state.connected ? "connected" : "disconnected" },
-    serverConfig: state.connected ? { environment: { platform: "linux" } } : null,
+    serverConfig: state.connected
+      ? { environment: { platform: "linux", capabilities: { oneTimeSchedules: true } } }
+      : null,
   };
 }
 
@@ -123,7 +135,7 @@ vi.mock(import("../../state/query"), async (original) => ({
     data:
       request === null || request === threadFamilyRead
         ? request
-        : { tasks: state.tasksLoaded ? [task] : [] },
+        : { tasks: state.tasksLoaded ? [{ ...task, title: state.taskTitle }] : [] },
     error: null,
     isPending: false,
     refresh: vi.fn(),
@@ -144,6 +156,31 @@ vi.mock(import("../../hooks/useSettings"), async (original) => ({
 }));
 
 describe("ScheduledTasksSettings", () => {
+  it("keeps user task and environment names when they match translated UI text", async () => {
+    setup();
+    state.taskTitle = "New task";
+    state.environmentLabel = "Settings";
+    await using screen = await render(
+      <WebI18nContext
+        value={{
+          locale: "zh-CN",
+          appLocale: "zh-CN",
+          setAppLocale: () => undefined,
+          t: (key, values) => translateWebMessage("zh-CN", key, values),
+        }}
+      >
+        <ScheduledTasksSettings />
+      </WebI18nContext>,
+    );
+    await expect
+      .element(screen.getByRole("heading", { name: "New task", level: 3, exact: true }))
+      .toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("heading", { name: "Settings", level: 2, exact: true }))
+      .toBeInTheDocument();
+    await expect.element(screen.getByRole("button", { name: "新建任务" })).toBeEnabled();
+  });
+
   it("creates on a permitted secondary and reacts to permission changes", async () => {
     setup();
     state.secondary = true;

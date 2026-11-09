@@ -88,7 +88,10 @@ export function PullRequestSpeedActions<Entry extends PullRequestSpeedActionEntr
     <SpeedModeGroup
       busy={busy}
       pending={actionPending || closing}
-      label={`Quick actions for ${terminology.singular} #${entry.number}`}
+      label={t("pullRequests.speed.forRequest", {
+        request: translateWebSource(uiLocale, terminology.singular),
+        number: entry.number,
+      })}
     >
       {actions.map((action) => {
         const label = translateWebSource(uiLocale, ACTIONS[action].label);
@@ -116,7 +119,9 @@ export function PullRequestSpeedActions<Entry extends PullRequestSpeedActionEntr
             </TooltipTrigger>
             <TooltipPopup>
               {action === "merge" && entry.stack
-                ? `Open this ${terminology.singular} to merge its stack`
+                ? t("pullRequests.stack.openToMerge", {
+                    request: translateWebSource(uiLocale, terminology.singular),
+                  })
                 : action === "close" && onCloseSweepStart
                   ? translateWebSource(
                       uiLocale,

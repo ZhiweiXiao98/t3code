@@ -41,19 +41,27 @@ export function snapShotSetupSummary(state: DesktopSnapShotState, enabled: boole
   return "Finish shortcut setup";
 }
 
-export function snapShotShortcutStatus(state: DesktopSnapShotState | null): string | null {
+export function snapShotShortcutStatus(
+  state: DesktopSnapShotState | null,
+  formatLabel: (label: string) => string = (label) => label,
+): string | null {
   if (!state) return null;
   if (state.linuxBackend === "hyprland") return state.shortcutMessage;
-  if (state.shortcutPending) return "Approve the shortcut permission prompt to continue.";
-  if (state.shortcutRegistered) return state.mode === "portal" ? null : "Shortcut saved.";
+  if (state.shortcutPending)
+    return formatLabel("Approve the shortcut permission prompt to continue.");
+  if (state.shortcutRegistered)
+    return state.mode === "portal" ? null : formatLabel("Shortcut saved.");
   return state.shortcutMessage;
 }
 
-export function snapShotSetupButtonLabel(state: DesktopSnapShotState | null): string {
+export function snapShotSetupButtonLabel(
+  state: DesktopSnapShotState | null,
+  formatDesktop: (desktop: string) => string = (desktop) => `Set up ${desktop} capture`,
+): string {
   if (!state) return "Continue setup";
   if (captureSetupAccessReady(state)) return "Manage capture";
   const desktop = captureSetupDesktopName(state);
-  return desktop ? `Set up ${desktop} capture` : "Continue setup";
+  return desktop ? formatDesktop(desktop) : "Continue setup";
 }
 
 export function snapShotSetupComplete(

@@ -11,7 +11,7 @@ import {
   type ProviderInstanceId,
   type ServerProviderModel,
 } from "@t3tools/contracts";
-import { REASONING_SELECT_DESCRIPTOR_IDS } from "@t3tools/client-runtime/model-traits";
+import { isReasoningControl } from "@t3tools/client-runtime/model-traits";
 import { type CustomModelDefinition, normalizeCustomModelSlug } from "@t3tools/shared/model";
 
 import { useStableCallback } from "../../hooks/useStableCallback";
@@ -37,9 +37,7 @@ const FILTER_THRESHOLD = 8;
 const PROVIDER_ALIAS_SLUGS = new Set(["default", "auto"]);
 
 function hasReasoningControl(model: ServerProviderModel): boolean {
-  return (model.capabilities?.optionDescriptors ?? []).some((descriptor) =>
-    REASONING_SELECT_DESCRIPTOR_IDS.has(descriptor.id),
-  );
+  return (model.capabilities?.optionDescriptors ?? []).some(isReasoningControl);
 }
 
 // Reasoning is the norm, so only its absence is labeled, and only when other models have it.
@@ -144,6 +142,7 @@ export function ProviderModelsSection({
   onModelOrderChange,
 }: ProviderModelsSectionProps) {
   const { locale, t } = useI18n();
+  const translateNotice = useStableCallback((source: string) => translateWebSource(locale, source));
   const [input, setInput] = useState("");
   const [isAdding, setIsAdding] = useState(false);
   const [filter, setFilter] = useState("");
@@ -208,7 +207,7 @@ export function ProviderModelsSection({
       return;
     }
     if (customModels.some((entry) => entry.slug === normalized)) {
-      setError("That custom model is already saved.");
+      setError(translateNotice("That custom model is already saved."));
       return;
     }
 
@@ -338,15 +337,24 @@ export function ProviderModelsSection({
                 )
               }
             >
-              {allBuiltInModelsHidden ? "Enable all" : "Disable all"}
+              {allBuiltInModelsHidden
+                ? translateWebSource(locale, "Enable all")
+                : translateWebSource(locale, "Disable all")}
             </Button>
           ) : null}
           <span className="text-xs text-muted-foreground">
-            {models.length} model{models.length === 1 ? "" : "s"}
+            {t(models.length === 1 ? "settingsControls.oneModel" : "settingsControls.manyModels", {
+              count: models.length,
+            })}
             {favoriteCount > 0
-              ? ` · ${favoriteCount} favorite${favoriteCount === 1 ? "" : "s"}`
+              ? t(
+                  favoriteCount === 1
+                    ? "settingsControls.oneFavorite"
+                    : "settingsControls.manyFavorites",
+                  { count: favoriteCount },
+                )
               : ""}
-            {hiddenCount > 0 ? ` · ${hiddenCount} hidden` : ""}
+            {hiddenCount > 0 ? t("settingsControls.hiddenCount", { count: hiddenCount }) : ""}
           </span>
         </div>
         {driverKind !== "antigravity" && !isAdding ? (
@@ -359,7 +367,7 @@ export function ProviderModelsSection({
             onClick={() => setIsAdding(true)}
           >
             <PlusIcon className="size-3" />
-            Add custom model
+            {translateWebSource(locale, "Add custom model")}
           </Button>
         ) : null}
       </div>
@@ -545,12 +553,16 @@ function ProviderModelRow({
           </TooltipPopup>
         </Tooltip>
         {model.isCustom ? (
-          <span className="shrink-0 text-2xs text-muted-foreground/70">custom</span>
+          <span className="shrink-0 text-2xs text-muted-foreground/70">
+            {translateWebSource(locale, "custom")}
+          </span>
         ) : null}
       </span>
       <span className="text-2xs text-muted-foreground/70">
         {capLabels.length > 0 ? (
-          <span className="hidden sm:inline">{capLabels.join(" · ")}</span>
+          <span className="hidden sm:inline">
+            {capLabels.map((label) => translateWebSource(locale, label)).join(" · ")}
+          </span>
         ) : null}
       </span>
       <span className="flex shrink-0 items-center justify-end gap-0.5">
@@ -599,14 +611,16 @@ function ProviderModelRow({
                     size="icon-micro"
                     variant="ghost-muted"
                     disabled={!canManageCustomModels}
-                    aria-label={`Edit ${model.slug}`}
+                    aria-label={t("settingsControls.editModel", { model: model.slug })}
                     onClick={() => onToggleEdit(model.slug)}
                   />
                 }
               >
                 <PencilIcon className="size-3" />
               </TooltipTrigger>
-              <TooltipPopup side="top">Edit name and options</TooltipPopup>
+              <TooltipPopup side="top">
+                {translateWebSource(locale, "Edit name and options")}
+              </TooltipPopup>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger
@@ -615,14 +629,16 @@ function ProviderModelRow({
                     size="icon-micro"
                     variant="ghost-muted"
                     disabled={!canManageCustomModels}
-                    aria-label={`Remove ${model.slug}`}
+                    aria-label={t("settingsControls.removeModel", { model: model.slug })}
                     onClick={() => onRemove(model.slug)}
                   />
                 }
               >
                 <XIcon className="size-3" />
               </TooltipTrigger>
-              <TooltipPopup side="top">Remove custom model</TooltipPopup>
+              <TooltipPopup side="top">
+                {translateWebSource(locale, "Remove custom model")}
+              </TooltipPopup>
             </Tooltip>
           </>
         ) : null}

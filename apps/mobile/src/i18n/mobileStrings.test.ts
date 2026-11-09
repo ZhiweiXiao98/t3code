@@ -1,8 +1,51 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import { localizeAlertArguments, localizeMobileString } from "./mobileStrings";
+import { localizeMobileVoiceError } from "./mobileVoiceStrings";
 
 describe("mobile strings", () => {
+  it("localizes the new native child work and one-time scheduling copy in Chinese only", () => {
+    const messages = {
+      "Approval from": "批准请求来自",
+      "Subagent work": "子 Agent 工作",
+      "Read only. These subagents cannot take messages.": "仅供查看。这些子 Agent 无法接收消息。",
+      "No transcript yet.": "暂无记录。",
+      Once: "单次",
+      Date: "日期",
+      "Duplicate request key": "重复请求识别键",
+    };
+    for (const [source, translated] of Object.entries(messages)) {
+      expect(localizeMobileString(source, "zh-CN")).toBe(translated);
+      expect(localizeMobileString(source, "en")).toBe(source);
+    }
+  });
+
+  it("does not interpret opaque policy messages as UI templates", () => {
+    for (const value of [
+      "Completed in 1m",
+      "2 of 4",
+      "Runs on Settings",
+      "Managed by Settings.",
+      "Settings manages T3 Code updates.",
+      "O'Brien limits threads to Auto-accept edits.",
+      "Open's policy does not allow webhook tasks.",
+    ]) {
+      expect(localizeMobileString(value, "zh-CN")).toBe(value);
+    }
+  });
+
+  it("localizes only recognized voice fallback errors and preserves native error text", () => {
+    const source = "Speech model download failed. Check your network connection and retry.";
+    expect(localizeMobileVoiceError(source, "zh-CN")).toBe(
+      "语音模型下载失败。请检查网络连接后重试。",
+    );
+    expect(localizeMobileVoiceError(source, "en")).toBe(source);
+    for (const error of ["Open", "Settings", "E_AUDIO: native diagnostic", "Voice error\nOpen"]) {
+      expect(localizeMobileVoiceError(error, "zh-CN")).toBe(error);
+      expect(localizeMobileVoiceError(error, "en")).toBe(error);
+    }
+  });
+
   it("translates stable settings, review, and side-chat controls while preserving English", () => {
     const messages = {
       "Agent browser access": "Agent 浏览器访问",
@@ -154,6 +197,12 @@ describe("mobile strings", () => {
     expect(localizeMobileString("gpt-5.6-sol", "zh-CN")).toBe("gpt-5.6-sol");
     expect(localizeMobileString("feature/mobile-polish", "zh-CN")).toBe("feature/mobile-polish");
     expect(localizeMobileString("Open AI", "zh-CN")).toBe("Open AI");
+    for (const value of ["constructor", "toString", "__proto__", "hasOwnProperty", "valueOf"]) {
+      for (const source of [value, ` \t${value}\n `]) {
+        expect(localizeMobileString(source, "zh-CN")).toBe(source);
+        expect(localizeMobileString(source, "en")).toBe(source);
+      }
+    }
   });
 
   it("translates fixed messages while preserving surrounding whitespace", () => {

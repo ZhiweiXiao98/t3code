@@ -73,17 +73,18 @@ const timestampFormatterCache = new Map<string, Intl.DateTimeFormat>();
 function getTimestampFormatter(
   timestampFormat: TimestampFormat,
   includeSeconds: boolean,
+  timeZone?: string,
 ): Intl.DateTimeFormat {
-  const cacheKey = `${timestampFormat}:${includeSeconds ? "seconds" : "minutes"}`;
+  const cacheKey = `${timestampFormat}:${includeSeconds ? "seconds" : "minutes"}:${timeZone ?? ""}`;
   const cachedFormatter = timestampFormatterCache.get(cacheKey);
   if (cachedFormatter) {
     return cachedFormatter;
   }
 
-  const formatter = new Intl.DateTimeFormat(
-    timestampLocale,
-    getTimestampFormatOptions(timestampFormat, includeSeconds),
-  );
+  const formatter = new Intl.DateTimeFormat(timestampLocale, {
+    ...getTimestampFormatOptions(timestampFormat, includeSeconds),
+    ...(timeZone ? { timeZone } : {}),
+  });
   timestampFormatterCache.set(cacheKey, formatter);
   return formatter;
 }
@@ -136,58 +137,88 @@ export function formatShortTimestamp(isoDate: string, timestampFormat: Timestamp
   return getTimestampFormatter(timestampFormat, false).format(date);
 }
 
-const numericDateFormatter = new Intl.DateTimeFormat(timestampLocale, {
-  month: "numeric",
-  day: "numeric",
-});
-const numericDateWithYearFormatter = new Intl.DateTimeFormat(timestampLocale, {
-  month: "numeric",
-  day: "numeric",
+const numericDateOptions: Intl.DateTimeFormatOptions = { month: "numeric", day: "numeric" };
+const numericDateWithYearOptions: Intl.DateTimeFormatOptions = {
+  ...numericDateOptions,
   year: "numeric",
-});
+};
+const numericDateFormatter = new Intl.DateTimeFormat(timestampLocale, numericDateOptions);
+const numericDateWithYearFormatter = new Intl.DateTimeFormat(
+  timestampLocale,
+  numericDateWithYearOptions,
+);
+
+interface CalendarDay {
+  year: number;
+  /** Days since the epoch, so differences are whole days across DST shifts. */
+  index: number;
+}
+
+function calendarDay(date: Date, timeZone: string | undefined): CalendarDay {
+  if (!timeZone) {
+    const year = date.getFullYear();
+    return { year, index: Date.UTC(year, date.getMonth(), date.getDate()) / 86_400_000 };
+  }
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+  }).formatToParts(date);
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((entry) => entry.type === type)?.value);
+  const year = part("year");
+  return { year, index: Date.UTC(year, part("month") - 1, part("day")) / 86_400_000 };
+}
+
+function formatNumericDate(date: Date, sameYear: boolean, timeZone: string | undefined): string {
+  if (!timeZone) {
+    return (sameYear ? numericDateFormatter : numericDateWithYearFormatter).format(date);
+  }
+  return new Intl.DateTimeFormat(timestampLocale, {
+    ...(sameYear ? numericDateOptions : numericDateWithYearOptions),
+    timeZone,
+  }).format(date);
+}
 
 export function formatDayAwareTimestamp(
   isoDate: string,
   timestampFormat: TimestampFormat,
   nowMs: number = Date.now(),
+  timeZone?: string,
 ): string {
   const date = parseTimestampDate(isoDate);
   if (!date) return "";
-  const time = getTimestampFormatter(timestampFormat, false).format(date);
+  const time = getTimestampFormatter(timestampFormat, false, timeZone).format(date);
 
-  const now = new Date(nowMs);
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const startOfMessageDay = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
-  // Round so DST-shifted 23/25 hour days still count as whole days.
-  const dayDiff = Math.round((startOfToday - startOfMessageDay) / 86_400_000);
+  const today = calendarDay(new Date(nowMs), timeZone);
+  const messageDay = calendarDay(date, timeZone);
+  const dayDiff = today.index - messageDay.index;
 
   if (dayDiff <= 0) return time;
   if (dayDiff === 1) return `yesterday at ${time}`;
-  const dateFormatter =
-    date.getFullYear() === now.getFullYear() ? numericDateFormatter : numericDateWithYearFormatter;
-  return `${dateFormatter.format(date)} ${time}`;
+  return `${formatNumericDate(date, messageDay.year === today.year, timeZone)} ${time}`;
 }
 
+/** `timeZone` overrides the zone the formatters cached when they were built. */
 export function formatUpcomingTimestamp(
   isoDate: string,
   timestampFormat: TimestampFormat,
   nowMs: number = Date.now(),
+  timeZone?: string,
 ): string {
   const date = parseTimestampDate(isoDate);
   if (!date) return "";
-  const time = getTimestampFormatter(timestampFormat, false).format(date);
+  const time = getTimestampFormatter(timestampFormat, false, timeZone).format(date);
 
-  const now = new Date(nowMs);
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const startOfTargetDay = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
-  const dayDiff = Math.round((startOfTargetDay - startOfToday) / 86_400_000);
+  const today = calendarDay(new Date(nowMs), timeZone);
+  const targetDay = calendarDay(date, timeZone);
+  const dayDiff = targetDay.index - today.index;
 
-  if (dayDiff < 0) return formatDayAwareTimestamp(isoDate, timestampFormat, nowMs);
+  if (dayDiff < 0) return formatDayAwareTimestamp(isoDate, timestampFormat, nowMs, timeZone);
   if (dayDiff === 0) return time;
   if (dayDiff === 1) return `tomorrow at ${time}`;
-  const dateFormatter =
-    date.getFullYear() === now.getFullYear() ? numericDateFormatter : numericDateWithYearFormatter;
-  return `${dateFormatter.format(date)} ${time}`;
+  return `${formatNumericDate(date, targetDay.year === today.year, timeZone)} ${time}`;
 }
 
 type RelativeTimeParts = { value: string; suffix: string | null };
@@ -253,41 +284,67 @@ export function formatRelativeTimeLabel(isoDate: string, nowMs: number = Date.no
   return relative.suffix ? `${relative.value} ${relative.suffix}` : relative.value;
 }
 
-export function formatElapsedDurationLabel(isoDate: string, nowMs: number = Date.now()): string {
+export interface DurationLabelText {
+  readonly justNow: string;
+  readonly expired: string;
+  readonly expiresInAMoment: string;
+  readonly formatUnit: (count: number, unit: "s" | "m" | "h" | "d") => string;
+  readonly expiresIn: (duration: string) => string;
+}
+
+const defaultDurationText: DurationLabelText = {
+  justNow: "just now",
+  expired: "Expired",
+  expiresInAMoment: "Expires in a moment",
+  formatUnit: (count, unit) => `${count}${unit}`,
+  expiresIn: (duration) => `Expires in ${duration}`,
+};
+
+export function formatElapsedDurationLabel(
+  isoDate: string,
+  nowMs: number = Date.now(),
+  text: DurationLabelText = defaultDurationText,
+): string {
   const date = parseTimestampDate(isoDate);
   if (!date) return "";
   const diffMs = nowMs - date.getTime();
-  if (diffMs <= 0) return "just now";
+  if (diffMs <= 0) return text.justNow;
 
   const seconds = Math.floor(diffMs / 1000);
-  if (seconds < 5) return "just now";
-  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 5) return text.justNow;
+  if (seconds < 60) return text.formatUnit(seconds, "s");
 
   const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m`;
+  if (minutes < 60) return text.formatUnit(minutes, "m");
 
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h`;
+  if (hours < 24) return text.formatUnit(hours, "h");
 
   const days = Math.floor(hours / 24);
-  return `${days}d`;
+  return text.formatUnit(days, "d");
 }
 
 /** Pass nowMs to match a parent-driven render tick. */
-export function formatExpiresInLabel(isoDate: string, nowMs: number = Date.now()): string {
+export function formatExpiresInLabel(
+  isoDate: string,
+  nowMs: number = Date.now(),
+  text: DurationLabelText = defaultDurationText,
+): string {
   const date = parseTimestampDate(isoDate);
   if (!date) return "";
   const diffMs = date.getTime() - nowMs;
-  if (diffMs <= 0) return "Expired";
+  if (diffMs <= 0) return text.expired;
 
   const totalSeconds = Math.floor(diffMs / 1000);
-  if (totalSeconds < 5) return "Expires in a moment";
-  if (totalSeconds < 60) return `Expires in ${totalSeconds}s`;
+  if (totalSeconds < 5) return text.expiresInAMoment;
+  if (totalSeconds < 60) return text.expiresIn(text.formatUnit(totalSeconds, "s"));
 
   if (totalSeconds < 3600) {
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
-    return seconds === 0 ? `Expires in ${minutes}m` : `Expires in ${minutes}m ${seconds}s`;
+    return seconds === 0
+      ? text.expiresIn(text.formatUnit(minutes, "m"))
+      : text.expiresIn(`${text.formatUnit(minutes, "m")} ${text.formatUnit(seconds, "s")}`);
   }
 
   if (totalSeconds < 86_400) {
@@ -295,22 +352,24 @@ export function formatExpiresInLabel(isoDate: string, nowMs: number = Date.now()
     const rem = totalSeconds % 3600;
     const minutes = Math.floor(rem / 60);
     const seconds = rem % 60;
-    const parts = [`${hours}h`];
-    if (minutes > 0) parts.push(`${minutes}m`);
-    if (seconds > 0) parts.push(`${seconds}s`);
-    return `Expires in ${parts.join(" ")}`;
+    const parts = [text.formatUnit(hours, "h")];
+    if (minutes > 0) parts.push(text.formatUnit(minutes, "m"));
+    if (seconds > 0) parts.push(text.formatUnit(seconds, "s"));
+    return text.expiresIn(parts.join(" "));
   }
 
   const days = Math.floor(totalSeconds / 86_400);
   const remAfterDays = totalSeconds % 86_400;
-  if (remAfterDays === 0) return `Expires in ${days}d`;
+  if (remAfterDays === 0) return text.expiresIn(text.formatUnit(days, "d"));
   const hours = Math.floor(remAfterDays / 3600);
   const rem = remAfterDays % 3600;
   const minutes = Math.floor(rem / 60);
   const seconds = rem % 60;
   const tail: string[] = [];
-  if (hours > 0) tail.push(`${hours}h`);
-  if (minutes > 0) tail.push(`${minutes}m`);
-  if (seconds > 0) tail.push(`${seconds}s`);
-  return tail.length > 0 ? `Expires in ${days}d ${tail.join(" ")}` : `Expires in ${days}d`;
+  if (hours > 0) tail.push(text.formatUnit(hours, "h"));
+  if (minutes > 0) tail.push(text.formatUnit(minutes, "m"));
+  if (seconds > 0) tail.push(text.formatUnit(seconds, "s"));
+  return tail.length > 0
+    ? text.expiresIn(`${text.formatUnit(days, "d")} ${tail.join(" ")}`)
+    : text.expiresIn(text.formatUnit(days, "d"));
 }

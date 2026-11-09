@@ -2,11 +2,12 @@ import { EnvironmentId, ThreadId } from "@t3tools/contracts";
 import * as Cause from "effect/Cause";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { useThreadActions } from "./useThreadActions";
+import { ThreadSettlementUnsupportedError, useThreadActions } from "./useThreadActions";
 import { threadEnvironment } from "../state/threads";
 import { toastManager } from "../components/ui/toast";
 import { useThreadUndoNotice } from "./showThreadUndoNotice";
 
+const locale = vi.hoisted(() => ({ current: "en" as "en" | "zh-CN" }));
 const commands = vi.hoisted(() => ({
   pin: vi.fn(),
   unpin: vi.fn(),
@@ -34,15 +35,19 @@ vi.mock("react", async (original) => ({
   useRef: (value: unknown) => ({ current: value }),
 }));
 vi.mock("@tanstack/react-router", () => ({ useRouter: () => router }));
-vi.mock("./useSettings", () => ({ useClientSettings: () => false }));
+vi.mock("./useSettings", () => ({
+  useClientSettings: () => false,
+  getClientSettings: () => ({ appLocale: locale.current }),
+}));
 vi.mock("../i18n/WebI18nContext", async () => {
   const { translateWebMessage } = await import("../i18n/messages");
   return {
     useI18n: () => ({
+      locale: locale.current,
       t: (
         key: import("../i18n/messages").WebMessageKey,
         values?: import("../i18n/messages").WebMessageValues,
-      ) => translateWebMessage("en", key, values),
+      ) => translateWebMessage(locale.current, key, values),
     }),
   };
 });
@@ -111,6 +116,7 @@ function currentUndo() {
 
 beforeEach(() => {
   vi.useFakeTimers();
+  locale.current = "en";
   for (const command of Object.values(commands)) {
     command.mockReset().mockResolvedValue({ _tag: "Success", value: undefined });
   }
@@ -251,6 +257,21 @@ describe("archive navigation", () => {
 });
 
 describe("settle and snooze Undo", () => {
+  it("formats an Undo failure using the locale when Undo runs", async () => {
+    const add = vi.spyOn(toastManager, "add").mockReturnValue("toast");
+    const failure = new ThreadSettlementUnsupportedError(target);
+    commands.unsettle.mockResolvedValue({ _tag: "Failure", cause: Cause.fail(failure) });
+    await useThreadActions().settleThread(target);
+    const undo = currentUndo();
+    expect(add).not.toHaveBeenCalled();
+
+    locale.current = "zh-CN";
+    await undo();
+    expect(add).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ description: expect.stringMatching(/\p{Script=Han}/u) }),
+    );
+  });
+
   it("un-settles from the notice and expires the Undo after a manual un-settle", async () => {
     const add = vi.spyOn(toastManager, "add").mockReturnValue("toast");
     const actions = useThreadActions();

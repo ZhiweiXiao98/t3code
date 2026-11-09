@@ -1,10 +1,21 @@
-import { type ProviderInstanceId, type ServerProvider } from "@t3tools/contracts";
-import { memo } from "react";
+import { translateWebMessage } from "~/i18n/messages";
+import type { WebTranslate } from "~/i18n/WebI18nContext";
+import { useI18n } from "~/i18n/WebI18nContext";
+import {
+  type EnvironmentId,
+  type ProviderInstanceId,
+  type ServerProvider,
+} from "@t3tools/contracts";
+import { useAtomValue } from "@effect/atom-react";
+import { memo, useRef, useState } from "react";
 import { InfoIcon, XIcon } from "lucide-react";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "../ui/alert";
 import { Button, InlineButton } from "../ui/button";
 import { formatProviderDriverKindLabel } from "../../providerModels";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
+import { serverEnvironment } from "../../state/server";
+import { useAtomCommand } from "../../state/use-atom-command";
+import { RefreshIcon } from "../ui/refresh-icon";
 
 function getIncompatibleVersion(status: ServerProvider) {
   const compatibility = status.compatibilityAdvisory;
@@ -57,7 +68,10 @@ export function hasProviderSetup(status: ServerProvider): boolean {
   );
 }
 
-export function getProviderStatusMessage(status: ServerProvider): string {
+export function getProviderStatusMessage(
+  status: ServerProvider,
+  controlsT: WebTranslate = (key, values) => translateWebMessage("en", key, values),
+): string {
   if (
     status.auth.status !== "unauthenticated" &&
     status.compatibilityAdvisory?.status === "broken" &&
@@ -68,32 +82,56 @@ export function getProviderStatusMessage(status: ServerProvider): string {
   if (status.message) return status.message;
   const providerName = status.displayName?.trim() || formatProviderDriverKindLabel(status.driver);
   if (!status.installed && hasProviderSetup(status)) {
-    return `Open provider setup to install ${formatProviderDriverKindLabel(status.driver)} on this environment.`;
+    return controlsT("chatControls.installProvider", {
+      provider: formatProviderDriverKindLabel(status.driver),
+    });
   }
   if (status.auth.status === "unauthenticated") {
     if (hasProviderSetup(status)) {
       return status.driver === "antigravity"
-        ? "Open provider setup to sign in with Google."
-        : "Open provider setup to sign in.";
+        ? controlsT("chatControls.copy53")
+        : controlsT("chatControls.copy54");
     }
-    return "Sign in via the CLI to authenticate again.";
+    return controlsT("chatControls.copy55");
   }
   return status.status === "ready"
-    ? "No models are available for this provider."
+    ? controlsT("chatControls.copy56")
     : status.status === "error"
-      ? `${providerName} provider is unavailable.`
-      : `${providerName} provider has limited availability.`;
+      ? controlsT("chatControls.providerUnavailable", { provider: providerName })
+      : controlsT("chatControls.providerLimited", { provider: providerName });
 }
 
 export const ProviderStatusBanner = memo(function ProviderStatusBanner({
+  environmentId,
   onDismiss,
   onOpenProviderSetup,
   status,
 }: {
+  environmentId: EnvironmentId;
   onDismiss: () => void;
   onOpenProviderSetup?: (instanceId: ProviderInstanceId) => void;
   status: ServerProvider | null;
 }) {
+  const { t: controlsT } = useI18n();
+  const canRefresh = useAtomValue(serverEnvironment.refreshProviders.permissionAtom(environmentId));
+  const refreshProviders = useAtomCommand(serverEnvironment.refreshProviders, {
+    label: controlsT("providers.action.refresh"),
+  });
+  const refreshingRef = useRef(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const refresh = async () => {
+    if (!status || !canRefresh || refreshingRef.current) return;
+    refreshingRef.current = true;
+    setIsRefreshing(true);
+    await refreshProviders({
+      environmentId,
+      input: { instanceId: status.instanceId, refreshModels: true },
+    });
+    refreshingRef.current = false;
+    setIsRefreshing(false);
+  };
+
   if (!status || getProviderStatusBannerKey(status) === null) {
     return null;
   }
@@ -102,11 +140,18 @@ export const ProviderStatusBanner = memo(function ProviderStatusBanner({
   const isUnauthenticated = status.status === "error" && status.auth.status === "unauthenticated";
   const incompatible = getIncompatibleVersion(status);
   const title = isUnauthenticated
-    ? `${providerName} is unauthenticated`
+    ? controlsT("chatControls.unauthenticated", { provider: providerName })
     : incompatible
-      ? `${providerName} ${status.version ?? ""} is ${incompatible.status === "broken" ? "known to be broken" : "unsupported"}`
-      : `${providerName} provider status`;
-  const message = incompatible?.message ?? getProviderStatusMessage(status);
+      ? controlsT("chatControls.versionStatus", {
+          provider: providerName,
+          version: status.version ?? "",
+          status:
+            incompatible.status === "broken"
+              ? controlsT("chatControls.knownBroken")
+              : controlsT("chatControls.unsupported"),
+        })
+      : controlsT("chatControls.providerStatus", { provider: providerName });
+  const message = incompatible?.message ?? getProviderStatusMessage(status, controlsT);
   const isWarning =
     incompatible?.status !== "broken" && (status.status === "warning" || incompatible !== null);
 
@@ -121,21 +166,42 @@ export const ProviderStatusBanner = memo(function ProviderStatusBanner({
         <InfoIcon />
         <AlertTitle>{title}</AlertTitle>
         <AlertDescription>
-          <Tooltip>
-            <TooltipTrigger render={<div className="line-clamp-3" />}>{message}</TooltipTrigger>
-            <TooltipPopup side="top" className="whitespace-pre-wrap">
-              {message}
-            </TooltipPopup>
-          </Tooltip>
-          {onOpenProviderSetup && hasProviderSetup(status) ? (
-            <InlineButton onClick={() => onOpenProviderSetup(status.instanceId)}>
-              Open provider setup
-            </InlineButton>
-          ) : null}
+          <div className="flex flex-col gap-2">
+            <Tooltip>
+              <TooltipTrigger render={<div className="line-clamp-3" />}>{message}</TooltipTrigger>
+              <TooltipPopup side="top" className="whitespace-pre-wrap">
+                {message}
+              </TooltipPopup>
+            </Tooltip>
+            <div className="flex flex-wrap items-center justify-end gap-3">
+              {onOpenProviderSetup && hasProviderSetup(status) ? (
+                <InlineButton onClick={() => onOpenProviderSetup(status.instanceId)}>
+                  {controlsT("chatControls.copy32")}
+                </InlineButton>
+              ) : null}
+              <Button
+                aria-label={controlsT("chatControls.refreshNamedProviderStatus", {
+                  provider: providerName,
+                })}
+                disabled={!canRefresh || isRefreshing}
+                onClick={() => void refresh()}
+                size="xs"
+                variant="outline"
+              >
+                <RefreshIcon />
+                {isRefreshing
+                  ? controlsT("chatControls.refreshingProvider")
+                  : controlsT("browserPreview.refresh")}
+              </Button>
+            </div>
+          </div>
         </AlertDescription>
         <AlertAction>
           <Button
-            aria-label={`Dismiss ${providerName} provider ${status.status}`}
+            aria-label={controlsT("chatControls.dismissProviderStatus", {
+              provider: providerName,
+              status: providerStatusLabel(status.status, controlsT),
+            })}
             onClick={onDismiss}
             size="icon-xs"
             variant="ghost-muted"
@@ -147,3 +213,16 @@ export const ProviderStatusBanner = memo(function ProviderStatusBanner({
     </div>
   );
 });
+
+function providerStatusLabel(status: ServerProvider["status"], controlsT: WebTranslate): string {
+  switch (status) {
+    case "ready":
+      return controlsT("chatControls.stateReady");
+    case "warning":
+      return controlsT("chatControls.stateWarning");
+    case "error":
+      return controlsT("chatControls.stateError");
+    case "disabled":
+      return controlsT("chatControls.stateDisabled");
+  }
+}

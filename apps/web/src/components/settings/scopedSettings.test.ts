@@ -119,6 +119,7 @@ describe("scoped settings targets", () => {
     ).toMatchObject({
       serverWrites: [],
       unavailableReason: "Connect Offline to save this setting.",
+      unavailableEnvironmentLabel: "Offline",
     });
   });
 
@@ -258,13 +259,18 @@ describe("scoped settings writes", () => {
       const result = await persistScopedSettingsPatch(plan, persistServer, vi.fn());
       return {
         saved: result.savedEnvironments.map(({ label }) => label),
-        failed: result.failedEnvironments.map(({ label, message }) => ({ label, message })),
+        failed: result.failedEnvironments.map(({ label, message, sourceMessage }) => ({
+          label,
+          message,
+          sourceMessage,
+        })),
       };
     };
     const unsupported = [
       {
         label: server.label,
         message: "This environment does not support this setting. Update T3 Code on it.",
+        sourceMessage: true,
       },
     ];
 
@@ -504,11 +510,20 @@ describe("scoped settings writes", () => {
   it("waits for every target and identifies both RPC failures and rejected writes", async () => {
     const third = environment("Third");
     const fourth = environment("Fourth");
-    const selected = [...environments, third, fourth];
+    const fifth = environment("Fifth");
+    const sixth = environment("Sixth");
+    const seventh = environment("Seventh");
+    const eighth = environment("Eighth");
+    const ninth = environment("Ninth");
+    const selected = [...environments, third, fourth, fifth, sixth, seventh, eighth, ninth];
+    let resolvePending!: (value: { _tag: "Success" }) => void;
+    const pending = new Promise<{ _tag: "Success" }>((resolve) => {
+      resolvePending = resolve;
+    });
     const scope = resolveSettingsScope({}, [], selected);
     const persistServer = vi
       .fn()
-      .mockResolvedValueOnce({ _tag: "Success" })
+      .mockReturnValueOnce(pending)
       .mockResolvedValueOnce({
         _tag: "Failure",
         cause: Cause.fail(
@@ -519,12 +534,33 @@ describe("scoped settings writes", () => {
         ),
       })
       .mockRejectedValueOnce(new Error("Disconnected during save"))
-      .mockResolvedValueOnce({ _tag: "Success" });
-    const result = await persistScopedSettingsPatch(
+      .mockResolvedValueOnce({ _tag: "Success" })
+      .mockResolvedValueOnce({ _tag: "Failure" })
+      .mockRejectedValueOnce(new Error("The save failed. Try reconnecting and saving again."))
+      .mockRejectedValueOnce(
+        new Error("This environment does not support this setting. Update T3 Code on it."),
+      )
+      .mockResolvedValueOnce({
+        _tag: "Failure",
+        cause: Cause.fail(
+          new EnvironmentAuthorizationError({
+            requiredScope: "settings:write",
+            message: "This connection lacks permission to change these settings.",
+          }),
+        ),
+        sourceMessage: true,
+      })
+      .mockRejectedValueOnce(
+        new Error("This connection lacks permission to change these settings."),
+      );
+    const resultPromise = persistScopedSettingsPatch(
       planScopedSettingsPatch(scope, selected, { enableAgentBrowserAccess: false }),
       persistServer,
       vi.fn(),
     );
+    expect(persistServer).toHaveBeenCalledTimes(9);
+    resolvePending({ _tag: "Success" });
+    const result = await resultPromise;
     expect(result.savedEnvironmentCount).toBe(2);
     expect(result.savedEnvironments.map(({ label }) => label)).toEqual([
       laptop.label,
@@ -533,12 +569,30 @@ describe("scoped settings writes", () => {
     expect(result.failedEnvironments.map(({ message }) => message)).toEqual([
       "This connection lacks permission to change settings.",
       "Disconnected during save",
+      "The save failed. Try reconnecting and saving again.",
+      "The save failed. Try reconnecting and saving again.",
+      "This environment does not support this setting. Update T3 Code on it.",
+      "This connection lacks permission to change these settings.",
+      "This connection lacks permission to change these settings.",
+    ]);
+    expect(result.failedEnvironments.map(({ sourceMessage }) => sourceMessage)).toEqual([
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      false,
     ]);
     expect(result.failedEnvironments.map(({ label }) => label)).toEqual([
       server.label,
       third.label,
+      fifth.label,
+      sixth.label,
+      seventh.label,
+      eighth.label,
+      ninth.label,
     ]);
-    expect(persistServer).toHaveBeenCalledTimes(4);
   });
 });
 

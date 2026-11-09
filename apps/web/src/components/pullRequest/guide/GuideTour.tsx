@@ -107,7 +107,11 @@ export function GuideTour({
           {banner}
           {diff.error !== null ? (
             <p className="text-xs text-muted-foreground">
-              The diff could not be loaded, so excerpts are missing: {diff.error}
+              {translateWebSource(
+                uiLocale,
+                "The diff could not be loaded, so excerpts are missing:",
+              )}{" "}
+              {diff.error}
             </p>
           ) : null}
           {stop === null ? (

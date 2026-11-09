@@ -12,13 +12,18 @@ import { OFFICE_PREVIEW_MAX_BYTES, type OfficeWorkerResult } from "./officePrevi
 const WordDocument = lazy(() => import("./office/WordDocument"));
 const Spreadsheet = lazy(() => import("./office/Spreadsheet"));
 const Presentation = lazy(() => import("./office/Presentation"));
-async function readOfficeFile(src: string, signal: AbortSignal) {
+async function readOfficeFile(
+  src: string,
+  signal: AbortSignal,
+  translateSource: (source: string) => string,
+) {
   const response = await fetch(src, { signal });
-  if (!response.ok) throw new Error("The file could not be loaded. Close it and try again.");
+  if (!response.ok)
+    throw new Error(translateSource("The file could not be loaded. Close it and try again."));
   if (Number(response.headers.get("content-length")) > OFFICE_PREVIEW_MAX_BYTES)
-    throw new Error("Preview limited to files under 50 MB.");
+    throw new Error(translateSource("Preview limited to files under 50 MB."));
   const reader = response.body?.getReader();
-  if (!reader) throw new Error("The file is unavailable.");
+  if (!reader) throw new Error(translateSource("The file is unavailable."));
   const chunks: Uint8Array<ArrayBuffer>[] = [];
   let size = 0;
   try {
@@ -26,7 +31,8 @@ async function readOfficeFile(src: string, signal: AbortSignal) {
       const { value, done } = await reader.read();
       if (done) break;
       size += value.length;
-      if (size > OFFICE_PREVIEW_MAX_BYTES) throw new Error("Preview limited to files under 50 MB.");
+      if (size > OFFICE_PREVIEW_MAX_BYTES)
+        throw new Error(translateSource("Preview limited to files under 50 MB."));
       chunks.push(value);
     }
   } finally {
@@ -42,18 +48,25 @@ export default function OfficeViewer(props: {
   readonly sizeBytes?: number;
 }) {
   const { locale: previewLocale } = useI18n();
+  const translateSource = useStableCallback((source: string) =>
+    translateWebSource(previewLocale, source),
+  );
   const [error, setError] = useState<string | null>(null);
   const [prepared, setPrepared] = useState<Extract<OfficeWorkerResult, { bytes: ArrayBuffer }>>();
   const [details, setDetails] = useState("");
   const fail = useStableCallback((cause: unknown) =>
-    setError(cause instanceof Error ? cause.message : "Could not render this Office document."),
+    setError(
+      cause instanceof Error
+        ? cause.message
+        : translateWebSource(previewLocale, "Could not render this Office document."),
+    ),
   );
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Own the Open XML fetch, preparation worker, and timeout for this source and release them on cleanup.
   useEffect(() => {
     if ((props.sizeBytes ?? 0) > OFFICE_PREVIEW_MAX_BYTES) {
       // Metadata bounds are checked before fetching or starting an engine.
       // oxlint-disable-next-line react/set-state-in-effect
-      setError("Preview limited to files under 50 MB.");
+      setError(translateSource("Preview limited to files under 50 MB."));
       return;
     }
     const controller = new AbortController();
@@ -66,12 +79,19 @@ export default function OfficeViewer(props: {
       worker.terminate();
     };
     const timer = setTimeout(
-      () => failure(new Error("This document took too long to preview. Open it in another app.")),
+      () =>
+        failure(
+          new Error(
+            translateSource("This document took too long to preview. Open it in another app."),
+          ),
+        ),
       30000,
     );
-    worker.addEventListener("error", () => failure(new Error("Could not load the Office viewer.")));
+    worker.addEventListener("error", () =>
+      failure(new Error(translateSource("Could not load the Office viewer."))),
+    );
     worker.addEventListener("messageerror", () =>
-      failure(new Error("Could not read the Office viewer response.")),
+      failure(new Error(translateSource("Could not read the Office viewer response."))),
     );
     worker.addEventListener("message", (event: MessageEvent<OfficeWorkerResult>) => {
       if (controller.signal.aborted) return;
@@ -82,7 +102,7 @@ export default function OfficeViewer(props: {
         worker.terminate();
       }
     });
-    void readOfficeFile(props.src, controller.signal)
+    void readOfficeFile(props.src, controller.signal, translateSource)
       .then((bytes) => {
         if (!controller.signal.aborted)
           worker.postMessage({ type: "open", kind: props.kind, bytes }, [bytes]);
@@ -93,7 +113,7 @@ export default function OfficeViewer(props: {
       worker.terminate();
       clearTimeout(timer);
     };
-  }, [props.src, props.kind, props.sizeBytes, fail]);
+  }, [props.src, props.kind, props.sizeBytes, fail, translateSource]);
   if (error)
     return (
       <div
@@ -104,7 +124,7 @@ export default function OfficeViewer(props: {
           {translateWebSource(previewLocale, "No preview for this file")}
         </p>
         <p className="max-w-sm text-xs leading-relaxed text-muted-foreground">
-          {error} Save it or open it in another app.
+          {error} {translateWebSource(previewLocale, "Save it or open it in another app.")}
         </p>
       </div>
     );
@@ -123,7 +143,10 @@ export default function OfficeViewer(props: {
       ) : null}
       {prepared.truncated ? (
         <FileSurfaceNotice>
-          Preview limited. Save it or open it in another app to read the full document.
+          {translateWebSource(
+            previewLocale,
+            "Preview limited. Save it or open it in another app to read the full document.",
+          )}
         </FileSurfaceNotice>
       ) : null}
       <Suspense fallback={<FileSurfaceLoading />}>

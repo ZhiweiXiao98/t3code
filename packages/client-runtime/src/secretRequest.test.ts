@@ -34,6 +34,12 @@ describe("secretRequestFailureMessage", () => {
     expect(secretRequestFailureMessage(new Error('Expected string, got "whsec_1"'))).toBe(
       "Could not answer the request. Try again.",
     );
+    expect(secretRequestFailureMessage(new Error('Expected string, got "whsec_1"'), "请重试")).toBe(
+      "请重试",
+    );
+    expect(
+      secretRequestFailureMessage(new SecretRequestError({ reason: "already_answered" }), "请重试"),
+    ).toBe("This secret request was already answered.");
     expect(secretRequestFailureMessage(undefined)).toBe("Could not answer the request. Try again.");
   });
 });

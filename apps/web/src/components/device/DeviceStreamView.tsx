@@ -1,3 +1,5 @@
+import { useI18n } from "~/i18n/WebI18nContext";
+import { translateWebMessage, translateWebSource } from "~/i18n/messages";
 import type { DevicePlatform, EnvironmentId } from "@t3tools/contracts";
 import { useAtomValue } from "@effect/atom-react";
 import { AsyncResult, Atom } from "effect/reactivity";
@@ -96,6 +98,7 @@ export function DeviceStreamView(props: {
   /** The host serves only serve-sim's stream and input socket (Simlock). */
   readonly serveSimOnly?: boolean;
 }) {
+  const { locale: devicePreviewLocale } = useI18n();
   const model = deviceModel(props.platform, props.deviceName ?? "");
   const isDuo = model?.id === "iphone-duo";
   const [presentation, setPresentation] = useState<"phone" | "flat">("phone");
@@ -226,13 +229,13 @@ export function DeviceStreamView(props: {
 
   const phoneUnavailableReason =
     isDuo && !screen?.supportsHingeAngle
-      ? "iPhone Duo 3D requires Device Hub 0.11.0 or newer"
+      ? translateWebSource(devicePreviewLocale, "iPhone Duo 3D requires Device Hub 0.11.0 or newer")
       : phoneUnavailable
-        ? "3D is unavailable on this browser"
+        ? translateWebSource(devicePreviewLocale, "3D is unavailable on this browser")
         : mjpegUrl
-          ? "3D requires the H.264 stream"
+          ? translateWebSource(devicePreviewLocale, "3D requires the H.264 stream")
           : props.axOverlay
-            ? "Turn off accessibility frames to use 3D"
+            ? translateWebSource(devicePreviewLocale, "Turn off accessibility frames to use 3D")
             : null;
 
   const keyboardSource = deviceKeyboard(props.platform, props.deviceName ?? "");
@@ -322,7 +325,10 @@ export function DeviceStreamView(props: {
         )}
         tabIndex={0}
         role="application"
-        aria-label={`${props.platform === "ios" ? "iOS Simulator" : "Android Emulator"} screen`}
+        aria-label={translateWebMessage(
+          devicePreviewLocale,
+          props.platform === "ios" ? "device.stream.iosScreen" : "device.stream.androidScreen",
+        )}
         onKeyDown={(event) => {
           if (event.target !== event.currentTarget) return;
           if (event.metaKey && !["r", "R"].includes(event.key)) return;
@@ -443,7 +449,9 @@ export function DeviceStreamView(props: {
               size="xs"
               aria-pressed={!!showPhone}
               disabled={!!phoneUnavailableReason}
-              title={phoneUnavailableReason ?? "Show 3D phone"}
+              title={
+                phoneUnavailableReason ?? translateWebSource(devicePreviewLocale, "Show 3D phone")
+              }
               onClick={() => setPresentation("phone")}
             >
               3D
@@ -454,14 +462,21 @@ export function DeviceStreamView(props: {
               aria-pressed={!showPhone}
               onClick={() => setPresentation("flat")}
             >
-              Flat
+              {translateWebSource(devicePreviewLocale, "Flat")}
             </Button>
           </div>
         ) : null}
         {status === "streaming" && !inputState.connected ? (
           <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center p-2">
             <span className="rounded-md bg-background/85 px-2 py-1 text-xs text-muted-foreground">
-              Input disconnected{inputState.detail ? ` (${inputState.detail})` : ""}, reconnecting…
+              {" "}
+              {translateWebMessage(
+                devicePreviewLocale,
+                inputState.detail
+                  ? "device.stream.inputDisconnectedDetail"
+                  : "device.stream.inputDisconnected",
+                { detail: inputState.detail ?? "" },
+              )}{" "}
             </span>
           </div>
         ) : null}
@@ -469,17 +484,21 @@ export function DeviceStreamView(props: {
           // Shown only once the device has been silent for two seconds.
           <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center p-2 transition-opacity delay-2000 duration-0 starting:opacity-0">
             <span className="rounded-md bg-background/85 px-2 py-1 text-xs text-muted-foreground">
-              Waiting for device video…
+              {translateWebSource(devicePreviewLocale, "Waiting for device video…")}
             </span>
           </div>
         ) : null}
         {status !== "streaming" && !(retainingFrame && showPhone) ? (
           <div className="absolute inset-0">
             <DeviceLoadingView
-              name={props.deviceName ?? "Device"}
+              name={props.deviceName ?? translateWebSource(devicePreviewLocale, "Device")}
               description={props.deviceDescription ?? ""}
               stage="stream"
-              message={status === "error" ? (detail ?? "Stream failed.") : "Connecting video…"}
+              message={
+                status === "error"
+                  ? (detail ?? translateWebSource(devicePreviewLocale, "Stream failed."))
+                  : translateWebSource(devicePreviewLocale, "Connecting video…")
+              }
               error={status === "error"}
             >
               {status === "error" ? (
@@ -492,7 +511,7 @@ export function DeviceStreamView(props: {
                     session?.reconnect();
                   }}
                 >
-                  Reconnect
+                  {translateWebSource(devicePreviewLocale, "Reconnect")}
                 </Button>
               ) : null}
             </DeviceLoadingView>

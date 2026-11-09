@@ -3,6 +3,62 @@ import { describe, expect, it } from "vite-plus/test";
 import { translateWebMessage, translateWebSource } from "./messages";
 
 describe("translateWebMessage", () => {
+  it("localizes shared account and settings controls without changing English", () => {
+    for (const [source, chinese] of [
+      ["Continue with ChatGPT", "使用 ChatGPT 继续"],
+      ["Reconnect ChatGPT", "重新连接 ChatGPT"],
+      ["Any local files", "任何本地文件"],
+      ["Last selected", "上次选择"],
+      ["Queue", "排队"],
+      ["Blue & orange", "蓝色和橙色"],
+      ["Collapsed", "折叠"],
+    ]) {
+      expect(translateWebSource("zh-CN", source!)).toBe(chinese);
+      expect(translateWebSource("en", source!)).toBe(source);
+    }
+  });
+
+  it("preserves account identifiers and setting names in translated notices", () => {
+    expect(
+      translateWebMessage("zh-CN", "settings.followUps.multilineDescription", {
+        singleShortcut: "⌘ + Enter",
+        multilineShortcut: "⌘ + Shift + Enter",
+      }),
+    ).toBe(
+      "Agent 运行时，可将追加消息排队或用于引导当前运行。单行提示按 ⌘ + Enter，多行提示按 ⌘ + Shift + Enter，可对此条消息使用另一种方式。",
+    );
+
+    expect(
+      translateWebMessage("zh-CN", "sourceControl.accounts.accountForHost", {
+        provider: "GitHub",
+        host: "git.example.org",
+      }),
+    ).toBe("git.example.org 的 GitHub 账号");
+    expect(
+      translateWebMessage("en", "sourceControl.accounts.accountForHost", {
+        provider: "GitHub",
+        host: "git.example.org",
+      }),
+    ).toBe("GitHub account for git.example.org");
+    expect(
+      translateWebMessage("zh-CN", "sourceControl.tokens.noneSaved", {
+        variable: "GH_TOKEN",
+        cli: "gh",
+      }),
+    ).toBe("尚未保存令牌；服务器使用 GH_TOKEN 或 gh 登录账号。");
+    expect(
+      translateWebMessage("zh-CN", "settings.scope.requiresSupported", {
+        setting: "自动收起任务",
+      }),
+    ).toBe("“自动收起任务”需要受支持的环境。请选择一个环境以继续。");
+    expect(
+      translateWebMessage("zh-CN", "storage.cleanup.moreResults", {
+        environment: "My Linux",
+        count: "1,234",
+      }),
+    ).toBe("My Linux：另有 1,234 条结果。");
+  });
+
   it("preserves full-access approval exceptions and original English explanations", () => {
     expect(
       translateWebSource(
@@ -48,6 +104,13 @@ describe("translateWebMessage", () => {
         environment: "Local dev",
       }),
     ).toBe("Local dev 已保存在此浏览器中。");
+    const computers = "Open, Continue, 开发机";
+    expect(translateWebMessage("en", "onboarding.skippedComputers", { computers })).toBe(
+      `Skipped unavailable computers: ${computers}.`,
+    );
+    expect(translateWebMessage("zh-CN", "onboarding.skippedComputers", { computers })).toBe(
+      `已跳过不可用的计算机：${computers}。`,
+    );
   });
 
   it("interpolates task titles in localized destructive confirmations", () => {
@@ -212,6 +275,25 @@ describe("v0.1.3 incremental localization", () => {
     ).toBe("（会话“feature/API-v3”）");
     expect(translateWebMessage("zh-CN", "guestShare.waiting", { count: 3 })).toBe(
       "3 条访客消息待处理",
+    );
+  });
+});
+
+describe("source translation own-property lookup", () => {
+  it("preserves prototype-property names as plain source strings in both locales", () => {
+    for (const locale of ["en", "zh-CN"] as const) {
+      for (const source of ["constructor", "toString", "__proto__"]) {
+        expect(translateWebSource(locale, source)).toBe(source);
+      }
+    }
+  });
+
+  it("retains known source translations, keyed fallback, and unknown text", () => {
+    expect(translateWebSource("zh-CN", "Continue with ChatGPT")).toBe("使用 ChatGPT 继续");
+    expect(translateWebSource("en", "Continue with ChatGPT")).toBe("Continue with ChatGPT");
+    expect(translateWebSource("zh-CN", "Settings")).toBe("设置");
+    expect(translateWebSource("zh-CN", "User_原文 /tmp/file.ts {count}")).toBe(
+      "User_原文 /tmp/file.ts {count}",
     );
   });
 });

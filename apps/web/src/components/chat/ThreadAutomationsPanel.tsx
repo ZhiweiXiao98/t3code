@@ -1,3 +1,4 @@
+import { splitWebTranslation, useI18n, type WebTranslate } from "~/i18n/WebI18nContext";
 import { useAtomValue } from "@effect/atom-react";
 import { ThreadDetailsControl } from "./ThreadDetailsControl";
 import { useNavigate } from "@tanstack/react-router";
@@ -37,19 +38,22 @@ const STATUS_DOT_CLASS: Record<ScheduledTask["lastRunStatus"], string> = {
   failed: "bg-destructive",
 };
 
-function taskScheduleLine(task: ScheduledTask) {
+function taskScheduleLine(task: ScheduledTask, residualT: WebTranslate) {
   return (
     <>
       {scheduleLabel(task.schedule)}
-      {task.enabled && task.nextRunAt !== null ? (
+      {task.blockedByPolicy !== undefined ? (
+        ` · ${task.blockedByPolicy}`
+      ) : task.enabled && task.nextRunAt !== null ? (
         <>
-          {" · next "}
+          {splitWebTranslation(residualT, "chatResidual.nextRun", "time")[0]}
           <ScheduledRelativeLabel value={task.nextRunAt} />
+          {splitWebTranslation(residualT, "chatResidual.nextRun", "time")[1]}
         </>
       ) : task.enabled ? (
         ""
       ) : (
-        " · paused"
+        residualT("chatResidual.paused")
       )}
     </>
   );
@@ -59,6 +63,7 @@ export function ThreadAutomationsPanel(props: {
   readonly environmentId: EnvironmentId;
   readonly threadId: ThreadId;
 }) {
+  const { t: residualT } = useI18n();
   const canOperate = useAtomValue(
     serverEnvironment.runScheduledTaskNow.permissionAtom(props.environmentId),
   );
@@ -103,7 +108,10 @@ export function ThreadAutomationsPanel(props: {
     });
     setBusyTaskId(null);
     if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
-      reportFailure("Could not update automation", squashAtomCommandFailure(result));
+      reportFailure(
+        residualT("chatResidual.automationUpdateError"),
+        squashAtomCommandFailure(result),
+      );
     }
   };
 
@@ -120,14 +128,14 @@ export function ThreadAutomationsPanel(props: {
     });
     setBusyTaskId(null);
     if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
-      reportFailure("Could not run automation", squashAtomCommandFailure(result));
+      reportFailure(residualT("chatResidual.automationRunError"), squashAtomCommandFailure(result));
     }
   };
 
   return (
     <ThreadDetailsSection
       headingId="thread-details-automations-heading"
-      title="Automations"
+      title={residualT("chatResidual.copy32")}
       data-thread-automations-panel
       actions={
         <Tooltip>
@@ -137,7 +145,7 @@ export function ThreadAutomationsPanel(props: {
                 size="icon-xs"
                 variant="ghost"
                 part="icon"
-                aria-label="Manage scheduled tasks"
+                aria-label={residualT("chatResidual.copy33")}
                 onClick={() =>
                   void navigate({
                     to: "/settings/scheduled-tasks",
@@ -149,11 +157,11 @@ export function ThreadAutomationsPanel(props: {
               </ThreadDetailsControl>
             }
           />
-          <TooltipPopup>Manage scheduled tasks</TooltipPopup>
+          <TooltipPopup>{residualT("chatResidual.copy33")}</TooltipPopup>
         </Tooltip>
       }
     >
-      <ul className="m-0 list-none p-0">
+      <ul className="m-0 max-h-[13.5rem] list-none overflow-y-auto p-0">
         {boundTasks.map((task) => (
           <li
             key={task.id}
@@ -177,11 +185,13 @@ export function ThreadAutomationsPanel(props: {
                 <span className="block truncate text-sm font-medium text-foreground/80">
                   {task.title}
                 </span>
-                <p className="truncate text-2xs text-muted-foreground">{taskScheduleLine(task)}</p>
+                <p className="truncate text-2xs text-muted-foreground">
+                  {taskScheduleLine(task, residualT)}
+                </p>
               </TooltipTrigger>
               <TooltipPopup side="left">
                 <p className="font-medium">{task.title}</p>
-                <p className="text-muted-foreground">{taskScheduleLine(task)}</p>
+                <p className="text-muted-foreground">{taskScheduleLine(task, residualT)}</p>
               </TooltipPopup>
             </Tooltip>
             <Tooltip>
@@ -191,7 +201,7 @@ export function ThreadAutomationsPanel(props: {
                     size="icon-xs"
                     variant="ghost"
                     part="icon"
-                    aria-label={`Edit ${task.title}`}
+                    aria-label={residualT("chatResidual.editTask", { name: task.title })}
                     onClick={() =>
                       void navigate({
                         to: "/settings/scheduled-tasks",
@@ -203,7 +213,7 @@ export function ThreadAutomationsPanel(props: {
                   </ThreadDetailsControl>
                 }
               />
-              <TooltipPopup>Edit automation</TooltipPopup>
+              <TooltipPopup>{residualT("chatResidual.copy34")}</TooltipPopup>
             </Tooltip>
             {/* Webhook tasks need a request from their URL. */}
             {task.schedule.type === "webhook" ? null : (
@@ -214,7 +224,7 @@ export function ThreadAutomationsPanel(props: {
                       size="icon-xs"
                       variant="ghost"
                       part="icon"
-                      aria-label={`Run ${task.title} now`}
+                      aria-label={residualT("chatResidual.runTask", { name: task.title })}
                       disabled={
                         !canOperate || busyTaskId !== null || task.lastRunStatus === "running"
                       }
@@ -224,13 +234,17 @@ export function ThreadAutomationsPanel(props: {
                     </ThreadDetailsControl>
                   }
                 />
-                <TooltipPopup>Run now</TooltipPopup>
+                <TooltipPopup>{residualT("chatResidual.copy35")}</TooltipPopup>
               </Tooltip>
             )}
             <Switch
               checked={task.enabled}
               disabled={!canOperate || busyTaskId !== null}
-              aria-label={task.enabled ? `Pause ${task.title}` : `Resume ${task.title}`}
+              aria-label={
+                task.enabled
+                  ? residualT("chatResidual.pauseTask", { name: task.title })
+                  : residualT("chatResidual.resumeTask", { name: task.title })
+              }
               onCheckedChange={(enabled) => void toggleEnabled(task, enabled)}
             />
           </li>
@@ -239,7 +253,8 @@ export function ThreadAutomationsPanel(props: {
       {/* Kept last: the details card treats a section whose last child is empty as empty. */}
       {tasksQuery.error !== null ? (
         <p className="px-2.5 py-1.5 text-2xs text-destructive">
-          Could not load automations: {tasksQuery.error}
+          {residualT("chatResidual.copy36")}
+          {tasksQuery.error}
         </p>
       ) : null}
     </ThreadDetailsSection>

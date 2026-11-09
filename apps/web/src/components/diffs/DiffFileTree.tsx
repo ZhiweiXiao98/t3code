@@ -1,3 +1,5 @@
+import { translateWebSource } from "~/i18n/messages";
+import { useI18n } from "~/i18n/WebI18nContext";
 import type { GitStatusEntry } from "@pierre/trees";
 import { FileTree, useFileTree, useFileTreeSelector } from "@pierre/trees/react";
 import { ChevronsDownUp, ChevronsUpDown } from "lucide";
@@ -44,6 +46,7 @@ export function DiffFileTree({
   footer,
   className,
 }: DiffFileTreeProps) {
+  const { locale } = useI18n();
   const { resolvedTheme } = useTheme();
   const paths = entries.map((entry) => entry.path);
   const presented = diffFileTreeModel(paths);
@@ -186,7 +189,9 @@ export function DiffFileTree({
         className="flex h-10 min-h-10 shrink-0 items-center gap-1 border-b border-border/60 bg-background px-2 text-xs text-muted-foreground in-data-[preview-panel-mode=inline]:mb-3 in-data-[preview-panel-mode=inline]:h-7 in-data-[preview-panel-mode=inline]:min-h-7 in-data-[preview-panel-mode=inline]:border-b-transparent"
         data-surface-subheader
       >
-        <span className="px-1 font-medium text-foreground">Files</span>
+        <span className="px-1 font-medium text-foreground">
+          {translateWebSource(locale, "Files")}
+        </span>
         <span className="ml-auto tabular-nums">{entries.length}</span>
         {headerAccessory}
         {directoryPaths.length > 0 ? (
@@ -198,7 +203,9 @@ export function DiffFileTree({
                   size="icon-xs"
                   variant="ghost"
                   aria-label={
-                    allDirectoriesExpanded ? "Collapse all folders" : "Expand all folders"
+                    allDirectoriesExpanded
+                      ? translateWebSource(locale, "Collapse all folders")
+                      : translateWebSource(locale, "Expand all folders")
                   }
                   onClick={() =>
                     setAllDirectoriesExpanded(model, directoryPaths, !allDirectoriesExpanded)
@@ -212,7 +219,9 @@ export function DiffFileTree({
               />
             </TooltipTrigger>
             <TooltipPopup>
-              {allDirectoriesExpanded ? "Collapse all folders" : "Expand all folders"}
+              {allDirectoriesExpanded
+                ? translateWebSource(locale, "Collapse all folders")
+                : translateWebSource(locale, "Expand all folders")}
             </TooltipPopup>
           </Tooltip>
         ) : null}

@@ -1,13 +1,17 @@
-import { memo, useEffect, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
+import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 import { isThemeColor, themeColorToHex, type ThemeColorRole } from "../../themePalette";
 import { cn } from "../../lib/utils";
 import { useI18n } from "../../i18n/WebI18nContext";
+import { getThemeRoleTranslation } from "../../i18n/themeEditorMessages";
 import { hexToHsv, hsvToHex, type HsvColor } from "../../lib/color";
 import { ColorHueSlider, ColorSaturationValuePlane } from "../ui/color-picker";
 import { Input } from "../ui/input";
 import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
-export function getThemeRoleLabel(role: ThemeColorRole): string {
+export function getThemeRoleLabel(role: ThemeColorRole, locale: ResolvedAppLocale = "en"): string {
+  const translated = getThemeRoleTranslation(locale, role);
+  if (translated !== undefined) return translated;
   const labels: Partial<Record<ThemeColorRole, string>> = {
     canvas: "Background",
     toolbar: "Toolbar background",
@@ -146,7 +150,7 @@ function ThemeColorPickerPanel({
     const nextHsv = hexToHsv(nextValue);
     setHsv(nextHsv);
     setRgbDraft(themeRgbValue(nextValue));
-    onChange(nextValue.toLowerCase());
+    onChange(nextValue.toLowerCase() + alphaSuffix);
   };
 
   const handleRgbChange = (nextValue: string) => {
@@ -180,7 +184,7 @@ function ThemeColorPickerPanel({
           onInteractionEnd={committer.flush}
         />
         <ColorHueSlider
-          label={`${label} hue`}
+          label={t("appearance.themeEditor.color.hue", { label })}
           value={hsv.h}
           onChange={(h) => commitHsv({ ...hsv, h })}
           onInteractionEnd={committer.flush}
@@ -196,7 +200,7 @@ function ThemeColorPickerPanel({
                 style={{ backgroundColor: currentColor }}
               />
               <input
-                aria-label={`${label} picker hex value`}
+                aria-label={t("appearance.themeEditor.color.pickerHex", { label })}
                 className="h-8 min-w-0 flex-1 bg-transparent font-mono text-xs text-foreground outline-none"
                 onBlur={() => {
                   setIsEditingText(false);
@@ -218,7 +222,7 @@ function ThemeColorPickerPanel({
             </span>
             <span className="flex min-w-0 items-center rounded-lg border border-input bg-background px-2 focus-within:border-ring">
               <input
-                aria-label={`${label} picker RGB value`}
+                aria-label={t("appearance.themeEditor.color.pickerRgb", { label })}
                 className="h-8 min-w-0 flex-1 bg-transparent font-mono text-xs text-foreground outline-none"
                 onBlur={() => {
                   setIsEditingText(false);
@@ -244,23 +248,36 @@ function ThemeColorPicker({
   label,
   value,
   onChange,
+  onEditStart,
+  onEditCancel,
   onInteract,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  onEditStart?: () => void;
+  onEditCancel?: () => void;
   onInteract?: () => void;
 }) {
   const { t } = useI18n();
   const chooseLabel = t("appearance.themeEditor.color.chooseNamed", { label });
   const [committer] = useState(createFrameCommitter);
+  // Escape reverts the edit, so commits after it (the pending frame flushed on close, or a drag
+  // still firing through the exit animation) are dropped instead of landing on the restored colors.
+  const cancelledRef = useRef(false);
   // Unmounting with the popover open (the editor closes mid-drag) never fires onOpenChange.
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- flushes the frame committer on unmount, since an open popover never fires onOpenChange
   useEffect(() => committer.flush, [committer]);
   return (
     <Popover
-      onOpenChange={(open) => {
-        if (!open) committer.flush();
+      onOpenChange={(open, eventDetails) => {
+        cancelledRef.current = !open && eventDetails.reason === "escape-key";
+        if (open) {
+          onEditStart?.();
+          return;
+        }
+        committer.flush();
+        if (cancelledRef.current) onEditCancel?.();
       }}
     >
       <Tooltip>
@@ -296,7 +313,9 @@ function ThemeColorPicker({
         <ThemeColorPickerPanel
           committer={committer}
           label={label}
-          onChange={onChange}
+          onChange={(nextValue) => {
+            if (!cancelledRef.current) onChange(nextValue);
+          }}
           value={value}
         />
       </PopoverPopup>
@@ -308,6 +327,8 @@ export const ThemeColorField = memo(function ThemeColorField({
   role,
   value,
   onChange,
+  onEditStart,
+  onEditCancel,
   onSelect,
   onToggleSelected,
   selected = false,
@@ -316,13 +337,15 @@ export const ThemeColorField = memo(function ThemeColorField({
   role: ThemeColorRole;
   value: string;
   onChange: (role: ThemeColorRole, value: string) => void;
+  onEditStart?: (role: ThemeColorRole) => void;
+  onEditCancel?: (role: ThemeColorRole) => void;
   onSelect?: (role: ThemeColorRole) => void;
   onToggleSelected?: (role: ThemeColorRole) => void;
   selected?: boolean;
   label?: string;
 }) {
-  const { t } = useI18n();
-  const label = customLabel ?? getThemeRoleLabel(role);
+  const { t, locale } = useI18n();
+  const label = customLabel ?? getThemeRoleLabel(role, locale);
   const isColorValue = isThemeColor(value);
   const swatchValue = isColorValue ? value : "#000000";
   const editorValue = value.trim().toLowerCase().startsWith("oklch(")
@@ -356,18 +379,27 @@ export const ThemeColorField = memo(function ThemeColorField({
             </button>
           }
         />
-        <TooltipPopup side="top">{`${selected ? "Hide" : "Show"} where ${label} is used`}</TooltipPopup>
+        <TooltipPopup side="top">
+          {t(
+            selected
+              ? "appearance.themeEditor.color.hideWhereUsed"
+              : "appearance.themeEditor.color.showWhereUsed",
+            { label },
+          )}
+        </TooltipPopup>
       </Tooltip>
       <div className="ml-auto flex shrink-0 items-center gap-2">
         <ThemeColorPicker
           label={label}
           onChange={(nextValue) => onChange(role, nextValue)}
+          onEditCancel={() => onEditCancel?.(role)}
+          onEditStart={() => onEditStart?.(role)}
           onInteract={() => onSelect?.(role)}
           value={swatchValue}
         />
         <Input
           aria-invalid={!isColorValue}
-          aria-label={`${label} hex value`}
+          aria-label={t("appearance.themeEditor.color.hex", { label })}
           className="w-28 shrink-0"
           font="mono"
           id={`${role}-hex`}

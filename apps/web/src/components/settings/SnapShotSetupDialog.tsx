@@ -1,3 +1,5 @@
+import { useI18n } from "../../i18n/WebI18nContext";
+import { translateWebSource } from "../../i18n/messages";
 import { PermissionChecklist, PermissionContinueButton } from "../permissions/PermissionChecklist";
 import { usePermissionStatus } from "../permissions/usePermissionStatus";
 import {
@@ -97,6 +99,7 @@ export function SnapShotSetupDialog({
   onClose: (completed: boolean) => Promise<void>;
   onLeaveStep: () => void;
 }) {
+  const { locale, t } = useI18n();
   const [step, setStep] = useState(() => captureSetupInitialStep(state, initialStep));
   const [checking, setChecking] = useState(false);
   const [checked, setChecked] = useState(false);
@@ -114,7 +117,8 @@ export function SnapShotSetupDialog({
   const permissionStatus = usePermissionStatus(
     async () => {
       const refreshed = await onRefresh();
-      if (!refreshed?.macPermissions) throw new Error("Permission status unavailable");
+      if (!refreshed?.macPermissions)
+        throw new Error(translateWebSource(locale, "Permission status unavailable"));
       return refreshed.macPermissions;
     },
     state.macPermissions ?? { screenRecording: false, accessibility: false },
@@ -231,9 +235,15 @@ export function SnapShotSetupDialog({
       }}
     >
       <WizardPopup showCloseButton={!busy}>
-        <WizardHeader title={desktop ? `Set up snapshots for ${desktop}` : "Set up snapshots"}>
+        <WizardHeader
+          title={
+            desktop
+              ? t("settingsResidual.setupDesktop", { desktop })
+              : translateWebSource(locale, "Set up snapshots")
+          }
+        >
           <WizardSteps
-            steps={SETUP_STEPS.map((item) => item.label)}
+            steps={SETUP_STEPS.map((item) => translateWebSource(locale, item.label))}
             currentStep={stepIndex}
             isStepDisabled={(index) => busy || index > stepIndex}
             onStepChange={(index) => {
@@ -245,8 +255,10 @@ export function SnapShotSetupDialog({
         <WizardPanel>
           <div className="space-y-4 text-sm">
             <div className="space-y-2" aria-live="polite">
-              <h3 className="flex items-center gap-2 font-medium">{title}</h3>
-              <DialogDescription>{description}</DialogDescription>
+              <h3 className="flex items-center gap-2 font-medium">
+                {translateWebSource(locale, title)}
+              </h3>
+              <DialogDescription>{translateWebSource(locale, description)}</DialogDescription>
             </div>
             {step === "access" ? (
               <>
@@ -257,7 +269,9 @@ export function SnapShotSetupDialog({
                     checked && !busy && !error ? "text-xs text-muted-foreground" : "sr-only"
                   }
                 >
-                  {checked && !busy && !error ? captureSetupCheckMessage(state) : null}
+                  {checked && !busy && !error
+                    ? translateWebSource(locale, captureSetupCheckMessage(state))
+                    : null}
                 </p>
                 {macPermissions ? (
                   <PermissionChecklist
@@ -266,18 +280,24 @@ export function SnapShotSetupDialog({
                       {
                         id: "screenRecording",
                         icon: <MacScreenRecordingIcon className="size-8 shrink-0 drop-shadow-sm" />,
-                        title: "Screen Recording",
-                        description: "Capture the window you're using.",
+                        title: translateWebSource(locale, "Screen Recording"),
+                        description: translateWebSource(locale, "Capture the window you're using."),
                         granted: macPermissions.screenRecording,
                         onAllow: () => void onAction("allow-screen-recording"),
                       },
                       {
                         id: "accessibility",
                         icon: <MacAccessibilityIcon className="size-8 shrink-0 drop-shadow-sm" />,
-                        title: "Accessibility",
+                        title: translateWebSource(locale, "Accessibility"),
                         description: includeAccessibility
-                          ? "Include text and controls from the captured app."
-                          : "Optional. Include text and controls from the captured app.",
+                          ? translateWebSource(
+                              locale,
+                              "Include text and controls from the captured app.",
+                            )
+                          : translateWebSource(
+                              locale,
+                              "Optional. Include text and controls from the captured app.",
+                            ),
                         granted: macPermissions.accessibility,
                         onAllow: () => void onAction("allow-accessibility"),
                       },
@@ -296,7 +316,7 @@ export function SnapShotSetupDialog({
                     disabled={busy}
                     onClick={() => void onAction(installHelper)}
                   >
-                    Reinstall helper
+                    {translateWebSource(locale, "Reinstall helper")}
                   </Button>
                 ) : null}
               </>
@@ -327,24 +347,31 @@ export function SnapShotSetupDialog({
                     disabled={busy}
                     onClick={() => void onAction("retry-shortcut")}
                   >
-                    {state.mode === "portal" ? "Shortcut permissions" : "Try again"}
+                    {state.mode === "portal"
+                      ? translateWebSource(locale, "Shortcut permissions")
+                      : translateWebSource(locale, "Try again")}
                   </Button>
                 ) : null}
               </div>
             )}
             {step === "shortcut" && !accessReady ? (
               <p role="alert" className="text-destructive">
-                Capture needs attention. Go back to check access.
+                {translateWebSource(locale, "Capture needs attention. Go back to check access.")}
               </p>
             ) : null}
             {error ? (
               <p role="alert" className="text-destructive">
-                Couldn't finish this step. Try again or check Advanced for help.
+                {translateWebSource(
+                  locale,
+                  "Couldn't finish this step. Try again or check Advanced for help.",
+                )}
               </p>
             ) : null}
             {details.length > 0 || (step === "access" && (backend === "gnome" || helperBackend)) ? (
               <details className="text-xs text-muted-foreground">
-                <summary className="cursor-pointer">Advanced</summary>
+                <summary className="cursor-pointer">
+                  {translateWebSource(locale, "Advanced")}
+                </summary>
                 <div className="mt-3 space-y-3">
                   {details.map((detail) => (
                     <p key={detail} className="break-words">
@@ -352,7 +379,9 @@ export function SnapShotSetupDialog({
                     </p>
                   ))}
                   {step === "access" && (backend === "gnome" || helperBackend) ? (
-                    <p>Included with T3 Code. No download needed.</p>
+                    <p>
+                      {translateWebSource(locale, "Included with T3 Code. No download needed.")}
+                    </p>
                   ) : null}
                   {step === "access" && backend === "gnome" && extension?.status === "enabled" ? (
                     <Button
@@ -361,7 +390,7 @@ export function SnapShotSetupDialog({
                       disabled={busy}
                       onClick={() => void onAction("disable-extension")}
                     >
-                      Disable extension
+                      {translateWebSource(locale, "Disable extension")}
                     </Button>
                   ) : null}
                   {step === "access" && helperBackend && helper?.status !== "not-installed" ? (
@@ -371,7 +400,7 @@ export function SnapShotSetupDialog({
                       disabled={busy}
                       onClick={() => void onAction(removeHelper)}
                     >
-                      Remove capture helper
+                      {translateWebSource(locale, "Remove capture helper")}
                     </Button>
                   ) : null}
                 </div>
@@ -382,11 +411,13 @@ export function SnapShotSetupDialog({
         <WizardFooter>
           {step !== "access" ? (
             <Button variant="ghost" disabled={busy} onClick={() => changeStep("access")}>
-              Back
+              {translateWebSource(locale, "Back")}
             </Button>
           ) : null}
           <Button variant="ghost" disabled={busy} onClick={() => void onClose(false)}>
-            {wasEnabled ? "Close" : "Finish later"}
+            {wasEnabled
+              ? translateWebSource(locale, "Close")
+              : translateWebSource(locale, "Finish later")}
           </Button>
           {step === "access" ? (
             helperBackend && !accessReady && helper?.status !== "ready" ? (
@@ -398,14 +429,14 @@ export function SnapShotSetupDialog({
                 }
               >
                 {checking
-                  ? "Checking…"
+                  ? translateWebSource(locale, "Checking…")
                   : busy
-                    ? "Installing…"
+                    ? translateWebSource(locale, "Installing…")
                     : helper?.status === "error"
-                      ? "Check again"
+                      ? translateWebSource(locale, "Check again")
                       : helper?.status === "update-required"
-                        ? "Update helper"
-                        : "Install helper"}
+                        ? translateWebSource(locale, "Update helper")
+                        : translateWebSource(locale, "Install helper")}
               </Button>
             ) : backend === "gnome" && !accessReady && extension?.status !== "enabled" ? (
               <Button
@@ -420,20 +451,20 @@ export function SnapShotSetupDialog({
                 }
               >
                 {checking
-                  ? "Checking…"
+                  ? translateWebSource(locale, "Checking…")
                   : busy
                     ? install
-                      ? "Installing…"
+                      ? translateWebSource(locale, "Installing…")
                       : enable
-                        ? "Enabling…"
-                        : "Working…"
+                        ? translateWebSource(locale, "Enabling…")
+                        : translateWebSource(locale, "Working…")
                     : install
                       ? extension?.status === "update-required"
-                        ? "Update extension"
-                        : "Install extension"
+                        ? translateWebSource(locale, "Update extension")
+                        : translateWebSource(locale, "Install extension")
                       : enable
-                        ? "Enable extension"
-                        : "Check again"}
+                        ? translateWebSource(locale, "Enable extension")
+                        : translateWebSource(locale, "Check again")}
               </Button>
             ) : (
               <PermissionContinueButton
@@ -444,14 +475,14 @@ export function SnapShotSetupDialog({
                 }}
               >
                 {busy
-                  ? "Working…"
+                  ? translateWebSource(locale, "Working…")
                   : macPermissions
-                    ? "Test capture and continue"
+                    ? translateWebSource(locale, "Test capture and continue")
                     : backend === "direct"
-                      ? "Allow capture"
+                      ? translateWebSource(locale, "Allow capture")
                       : !accessReady && !macPermissions
-                        ? "Try again"
-                        : "Continue"}
+                        ? translateWebSource(locale, "Try again")
+                        : translateWebSource(locale, "Continue")}
               </PermissionContinueButton>
             )
           ) : !configShortcut ? (
@@ -463,7 +494,11 @@ export function SnapShotSetupDialog({
                 if (!shortcutChanged || (await onSaveShortcut())) await onClose(true);
               }}
             >
-              {busy ? "Saving…" : shortcutChanged ? "Save and finish" : "Done"}
+              {busy
+                ? translateWebSource(locale, "Saving…")
+                : shortcutChanged
+                  ? translateWebSource(locale, "Save and finish")
+                  : translateWebSource(locale, "Done")}
             </Button>
           ) : null}
         </WizardFooter>

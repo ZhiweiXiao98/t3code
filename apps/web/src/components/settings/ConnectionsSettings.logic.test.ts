@@ -1,6 +1,8 @@
-import type { DesktopWslState } from "@t3tools/contracts";
+import { translateWebMessage } from "../../i18n/messages";
+import type { DesktopUpdateState, DesktopWslState } from "@t3tools/contracts";
 import { describe, expect, it, vi } from "vite-plus/test";
 import {
+  resolveLocalVersionStatusLabel,
   applyWslEnableSelection,
   resolveTailscaleServeBaseUrl,
   selectQrEndpointOption,
@@ -142,5 +144,64 @@ describe("selectQrEndpointOption", () => {
     expect(selectQrEndpointOption(options, "tailscale-ip:gone", "nope")?.id).toBe(
       "tailscale-ip:http://100.84.12.7:4780",
     );
+  });
+});
+
+describe("localized local version status", () => {
+  const baseState: DesktopUpdateState = {
+    enabled: true,
+    status: "idle",
+    channel: "latest",
+    currentVersion: "1.0.0",
+    hostArch: "x64",
+    appArch: "x64",
+    runningUnderArm64Translation: false,
+    availableVersion: null,
+    downloadedVersion: null,
+    releaseNotes: [],
+    omittedReleaseCount: 0,
+    downloadPercent: null,
+    checkedAt: null,
+    message: null,
+    errorContext: null,
+    canRetry: false,
+  };
+  it.each([
+    { patch: null, english: "Up to date", chinese: "已是最新版本" },
+    { patch: { status: "downloading" }, english: "Downloading update", chinese: "正在下载更新" },
+    {
+      patch: { status: "downloading", availableVersion: "v1.2.3-test" },
+      english: "Downloading update v1.2.3-test",
+      chinese: "正在下载更新 v1.2.3-test",
+    },
+    { patch: { status: "downloaded" }, english: "Update downloaded", chinese: "更新已下载" },
+    {
+      patch: { status: "checking", downloadedVersion: "1.2.3" },
+      english: "Update 1.2.3 downloaded",
+      chinese: "更新 1.2.3 已下载",
+    },
+    {
+      patch: { status: "available", availableVersion: "1.2.4" },
+      english: "Update 1.2.4 available",
+      chinese: "有可用更新 1.2.4",
+    },
+    {
+      patch: {
+        status: "error",
+        availableVersion: "1.2.4",
+        errorContext: "download",
+        canRetry: true,
+      },
+      english: "Update 1.2.4 available",
+      chinese: "有可用更新 1.2.4",
+    },
+  ] as const)("preserves update state and version: $english", ({ patch, english, chinese }) => {
+    const state = patch === null ? null : { ...baseState, ...patch };
+    expect(resolveLocalVersionStatusLabel(state)).toBe(english);
+    expect(
+      resolveLocalVersionStatusLabel(state, (key, values) =>
+        translateWebMessage("zh-CN", key, values),
+      ),
+    ).toBe(chinese);
   });
 });

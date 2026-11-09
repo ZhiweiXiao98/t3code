@@ -18,7 +18,7 @@ export function DatabaseStorageNotice({
 }: {
   environments: ReadonlyArray<{ readonly environmentId: EnvironmentId; readonly label: string }>;
 }) {
-  const { locale: sourceLocale } = useI18n();
+  const { locale: sourceLocale, t } = useI18n();
 
   const recommendations = useAtomValue(
     serverEnvironment.databaseCompactionRecommendations(
@@ -36,18 +36,23 @@ export function DatabaseStorageNotice({
   );
   if (visible.length === 0) return null;
   return (
-    <SettingsSection id="storage-database" title="Database">
+    <SettingsSection id="storage-database" title={translateWebSource(sourceLocale, "Database")}>
       <SettingsRow
-        title="Reclaim freed database space"
-        description="Old history is cleaned up automatically, but these databases still hold the freed space. Run the command on each machine to return it to disk; it pauses and restarts the background service. Quit the desktop app first if it hosts the environment."
+        title={translateWebSource(sourceLocale, "Reclaim freed database space")}
+        description={translateWebSource(
+          sourceLocale,
+          "Old history is cleaned up automatically, but these databases still hold the freed space. Run the command on each machine to return it to disk; it pauses and restarts the background service. Quit the desktop app first if it hosts the environment.",
+        )}
       />
       {visible.map(({ environmentId, status }) => (
         <SettingsRow
           key={environmentId}
-          title={`${(status.reclaimableBytes / 1024 ** 3).toFixed(1)} GiB on ${
-            environments.find((environment) => environment.environmentId === environmentId)
-              ?.label ?? environmentId
-          }`}
+          title={t("settingsControls.databaseSize", {
+            size: (status.reclaimableBytes / 1024 ** 3).toFixed(1),
+            environment:
+              environments.find((environment) => environment.environmentId === environmentId)
+                ?.label ?? environmentId,
+          })}
           description={<code className="select-text break-all">{status.compactCommand}</code>}
           control={
             <div className="flex flex-wrap items-center gap-1.5">
@@ -63,7 +68,7 @@ export function DatabaseStorageNotice({
                 size="xs"
                 onClick={() => setDismissed((current) => [...current, environmentId])}
               >
-                Dismiss
+                {translateWebSource(sourceLocale, "Dismiss")}
               </Button>
             </div>
           }

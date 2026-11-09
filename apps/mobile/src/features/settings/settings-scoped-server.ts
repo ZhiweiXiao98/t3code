@@ -1,4 +1,5 @@
 import {
+  isManagedSettingPath,
   isNullableProjectSettingsOverride,
   PROJECT_SCOPED_SERVER_SETTING_KEYS,
   type EnvironmentId,
@@ -12,6 +13,7 @@ import {
   resolveProjectSettings,
 } from "@t3tools/shared/projectSettings";
 
+import { managedByMessage } from "../../i18n/managedPolicyMessages";
 import type { SettingsTarget } from "./settings-environment-filter";
 
 export interface ScopedMobileSettingsTarget {
@@ -19,6 +21,20 @@ export interface ScopedMobileSettingsTarget {
   readonly projectId: ProjectId | null;
   readonly settings: ServerSettings;
   readonly sources: ReturnType<typeof resolveProjectSettings>["sources"];
+}
+
+/**
+ * "Managed by <organization>." when any target's policy locks `path`: the server refuses the
+ * whole write then, so the control is managed for the selection.
+ */
+export function managedSettingReason(
+  targets: readonly ScopedMobileSettingsTarget[],
+  ...paths: readonly string[]
+): string | undefined {
+  const policy = targets
+    .map((target) => target.environment.serverConfig.managedPolicy)
+    .find((candidate) => paths.some((path) => isManagedSettingPath(candidate, path)));
+  return policy === undefined ? undefined : managedByMessage(policy.organization);
 }
 
 export function resolveMobileSettingsTargets(

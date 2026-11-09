@@ -1,3 +1,5 @@
+import { useI18n } from "~/i18n/WebI18nContext";
+import { translateWebSource } from "~/i18n/messages";
 import type { DeviceHostSummary, DeviceSummary, EnvironmentId } from "@t3tools/contracts";
 import { useRef, useState } from "react";
 import {
@@ -32,6 +34,7 @@ export function DeviceWorkspace(props: {
   const access = useDeviceHubAccess(props.environmentId, props.device.hostId);
   // Settings and tools run commands on the device's own machine, which EAS and Simlock do not expose.
   const runsHostCommands = props.hostKind === "local" || props.hostKind === "ssh";
+  const { locale: devicePreviewLocale } = useI18n();
   const controls = useDeviceControls({
     ...props,
     access,
@@ -62,7 +65,9 @@ export function DeviceWorkspace(props: {
         if (cause instanceof DeviceScreenshotError && cause.status === 401)
           refreshDeviceHubAccess(props.environmentId);
         setScreenshotError(
-          cause instanceof Error ? cause.message : "Screenshot capture failed. Try again.",
+          cause instanceof Error
+            ? cause.message
+            : translateWebSource(devicePreviewLocale, "Screenshot capture failed. Try again."),
         );
       })
       .finally(() => {

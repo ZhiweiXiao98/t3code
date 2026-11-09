@@ -1,3 +1,5 @@
+import { useI18n } from "~/i18n/WebI18nContext";
+import { translateWebSource } from "~/i18n/messages";
 import { useState } from "react";
 import {
   duoFoldState,
@@ -26,6 +28,7 @@ export function DeviceDuoControls(props: {
   enabled: boolean;
   onCommand: (command: DuoCommand) => void;
 }) {
+  const { locale: devicePreviewLocale } = useI18n();
   const { screen } = props;
   const { fold, stand, phoneVertical: reportedVertical, settled } = duoFoldState(screen);
   const [settledVertical, setSettledVertical] = useState(reportedVertical);
@@ -55,7 +58,7 @@ export function DeviceDuoControls(props: {
             size="icon"
             variant={pressed ? "secondary" : "ghost"}
             disabled={!props.enabled || waits}
-            aria-label={label}
+            aria-label={translateWebSource(devicePreviewLocale, label)}
             aria-pressed={pressed}
             data-pressed={pressed ? "" : undefined}
             onClick={onClick}
@@ -64,14 +67,21 @@ export function DeviceDuoControls(props: {
       >
         {glyph}
       </TooltipTrigger>
-      <TooltipPopup side="left">{label}</TooltipPopup>
+      <TooltipPopup side="left">{translateWebSource(devicePreviewLocale, label)}</TooltipPopup>
     </Tooltip>
   );
   const group =
     "pointer-events-auto flex shrink-0 flex-col items-center gap-1 rounded-full border border-border/50 bg-background/80 p-1 shadow-sm";
   return (
-    <div aria-label="iPhone Duo stands" className="flex flex-col items-center gap-2">
-      <div role="group" aria-label="Fold shape" className={group}>
+    <div
+      aria-label={translateWebSource(devicePreviewLocale, "iPhone Duo stands")}
+      className="flex flex-col items-center gap-2"
+    >
+      <div
+        role="group"
+        aria-label={translateWebSource(devicePreviewLocale, "Fold shape")}
+        className={group}
+      >
         {FOLDS.map(({ id, angle: value }) =>
           button(
             id,
@@ -90,7 +100,11 @@ export function DeviceDuoControls(props: {
           ),
         )}
       </div>
-      <div role="group" aria-label="Device stance" className={group}>
+      <div
+        role="group"
+        aria-label={translateWebSource(devicePreviewLocale, "Device stance")}
+        className={group}
+      >
         {STANDS.map(({ id, label }) =>
           button(
             id,

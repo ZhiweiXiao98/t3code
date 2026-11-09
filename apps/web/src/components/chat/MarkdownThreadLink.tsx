@@ -1,13 +1,16 @@
+import { useI18n } from "~/i18n/WebI18nContext";
+import { translateChatSource } from "~/i18n/chatSourceMessages";
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import type { EnvironmentId } from "@t3tools/contracts";
 import {
-  formatThreadLink,
+  formatHostedThreadLink,
   guessThreadLinkRef,
   percentDecodedThreadLinkId,
   type ThreadLink,
   unknownThreadLinkLabel,
 } from "@t3tools/shared/threadLinks";
 
+import { configuredHostedAppUrl } from "../../hostedPairing";
 import { useThreadRefs, useThreadShell } from "../../state/entities";
 import { UnresolvedChip } from "../contextChipParts";
 import { ThreadContextChip } from "../ThreadContextChip";
@@ -18,6 +21,7 @@ export function MarkdownThreadLink(props: {
   readonly link: ThreadLink;
   readonly label: string | null;
 }) {
+  const { locale } = useI18n();
   const environmentId = props.link.environmentId ?? props.environmentId;
   const decodedId = percentDecodedThreadLinkId(props.link.threadId);
   const written = useThreadShell(scopeThreadRef(environmentId, props.link.threadId));
@@ -30,12 +34,19 @@ export function MarkdownThreadLink(props: {
   const remote = useThreadShell(guess ? guessThreadLinkRef(props.link, refs) : null);
   const thread = local ?? remote;
   if (thread === null) {
-    const unknown = unknownThreadLinkLabel(props.link, props.environmentId);
+    const unknown = translateChatSource(
+      locale,
+      unknownThreadLinkLabel(props.link, props.environmentId),
+    );
     return <UnresolvedChip label={props.label ?? unknown} tooltip={unknown} />;
   }
   const ref = { environmentId: thread.environmentId, threadId: thread.id };
-  const title = thread.title.trim() || props.label || "Untitled thread";
+  const title =
+    thread.title.trim() || props.label || translateChatSource(locale, "Untitled thread");
   return (
-    <ThreadContextChip record={{ ...ref, title }} copyMarkdown={formatThreadLink(ref, title)} />
+    <ThreadContextChip
+      record={{ ...ref, title }}
+      copyMarkdown={formatHostedThreadLink(ref, title, configuredHostedAppUrl())}
+    />
   );
 }

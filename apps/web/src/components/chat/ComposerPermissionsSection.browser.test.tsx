@@ -7,6 +7,7 @@ import { render } from "../../../test/render";
 import { WebI18nContext } from "../../i18n/WebI18nContext";
 import { translateWebMessage } from "../../i18n/messages";
 import { ComposerHandleContext, type ComposerHandleRef } from "../../composerHandleContext";
+import { ComposerContextPermissions } from "../ComposerContextPermissions";
 import { Menu, MenuPopup, MenuRadioGroup, MenuRadioItem, MenuTrigger } from "../ui/menu";
 import {
   focusRequestedPermission,
@@ -169,5 +170,60 @@ it.each([
     await userEvent.click(fullAccess);
     await vi.waitFor(() => expect(handle.focusAtEnd).toHaveBeenCalled());
     await expect.element(screen.getByRole("button", { name: "Model" })).not.toHaveFocus();
+  },
+);
+
+function ContextPermissions() {
+  const [mode, setMode] = useState<RuntimeMode>("full-access");
+  return (
+    <ComposerContextPermissions
+      environmentId={null}
+      runtimeMode={mode}
+      supportedRuntimeModes={["approval-required", "full-access"]}
+      onRuntimeModeChange={setMode}
+    />
+  );
+}
+
+it.each([
+  ["en", "Permissions: Full access", "Full access", "Supervised", "Auto"],
+  ["zh-CN", "权限: 完全访问", "完全访问", "监督模式", "自动"],
+] as const)(
+  "opens permissions directly from the context strip and applies a supported mode in %s",
+  async (locale, initialLabel, fullAccessLabel, supervisedLabel, autoLabel) => {
+    await using screen = await render(
+      <WebI18nContext
+        value={{
+          locale,
+          appLocale: locale,
+          setAppLocale: () => {},
+          t: (key, values) => translateWebMessage(locale, key, values),
+        }}
+      >
+        <ContextPermissions />
+      </WebI18nContext>,
+      { router: false }, // no routes involved
+    );
+    await userEvent.click(screen.getByRole("button", { name: initialLabel }));
+    await expect
+      .element(page.getByRole("menuitemradio", { name: fullAccessLabel }))
+      .toHaveAttribute("aria-checked", "true");
+    await expect
+      .element(page.getByRole("menuitemradio", { name: autoLabel, exact: true }))
+      .not.toBeInTheDocument();
+    await userEvent.click(page.getByRole("menuitemradio", { name: supervisedLabel }));
+    const trigger = screen.getByRole("button", {
+      name: `${locale === "zh-CN" ? "权限" : "Permissions"}: ${supervisedLabel}`,
+    });
+    await expect.element(trigger).toBeVisible();
+    await expect
+      .element(page.getByRole("menuitemradio", { name: supervisedLabel }))
+      .not.toBeInTheDocument();
+    await userEvent.click(trigger);
+    await expect
+      .element(page.getByRole("menuitemradio", { name: supervisedLabel }))
+      .toHaveAttribute("aria-checked", "true");
+    await userEvent.keyboard("{Escape}");
+    await expect.element(trigger).toHaveFocus();
   },
 );

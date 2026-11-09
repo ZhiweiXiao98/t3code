@@ -122,7 +122,9 @@ function ProjectIconPickerBody({
     <>
       <DialogHeader>
         <DialogTitle>{t("projectIconPicker.title")}</DialogTitle>
-        <DialogDescription>Choose an icon, emoji, or monogram.</DialogDescription>
+        <DialogDescription>
+          {translateWebSource(locale, "Choose an icon, emoji, or monogram.")}
+        </DialogDescription>
       </DialogHeader>
       <DialogPanel className="flex min-h-0 flex-col">
         <ToggleGroup
@@ -136,13 +138,19 @@ function ProjectIconPickerBody({
         >
           <Toggle value="lucide">{t("projectIconPicker.icons")}</Toggle>
           <Toggle value="emoji">{t("projectIconPicker.emoji")}</Toggle>
-          <Toggle value="monogram">Monogram</Toggle>
+          <Toggle value="monogram">{translateWebSource(locale, "Monogram")}</Toggle>
         </ToggleGroup>
 
         {mode !== "emoji" ? (
           <div>
-            <div className="mb-2 text-xs font-medium text-muted-foreground">Color</div>
-            <div className="flex flex-wrap gap-1.5" role="group" aria-label="Icon color">
+            <div className="mb-2 text-xs font-medium text-muted-foreground">
+              {translateWebSource(locale, "Color")}
+            </div>
+            <div
+              className="flex flex-wrap gap-1.5"
+              role="group"
+              aria-label={translateWebSource(locale, "Icon color")}
+            >
               {PROJECT_ICON_COLORS.map((option) => (
                 <button
                   key={option.value}
@@ -167,8 +175,8 @@ function ProjectIconPickerBody({
             <Input
               type="search"
               value={query}
-              aria-label="Search Lucide icons"
-              placeholder="Search all Lucide icons"
+              aria-label={translateWebSource(locale, "Search Lucide icons")}
+              placeholder={translateWebSource(locale, "Search all Lucide icons")}
               onChange={(event) => setQuery(event.currentTarget.value)}
             />
             <ScrollArea scrollFade className="max-h-64">
@@ -206,7 +214,7 @@ function ProjectIconPickerBody({
             />
             <div className="flex-1 space-y-2">
               <label htmlFor="project-monogram" className="text-sm font-medium">
-                Letters
+                {translateWebSource(locale, "Letters")}
               </label>
               <Input
                 id="project-monogram"
@@ -217,7 +225,7 @@ function ProjectIconPickerBody({
                 autoComplete="off"
               />
               <p id="project-monogram-hint" className="text-xs text-muted-foreground">
-                One or two letters or numbers.
+                {translateWebSource(locale, "One or two letters or numbers.")}
               </p>
             </div>
           </div>

@@ -2,7 +2,7 @@ name: 简体中文客户端验证与构建
 
 on:
   push:
-    branches: [maintenance/v0.1.6-zh-cloud]
+    branches: [maintenance/v0.1.7-zh-cloud]
   workflow_dispatch:
     inputs:
       expected_sha:
@@ -18,7 +18,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  CLIENT_VERSION: 0.1.6-zh.1
+  CLIENT_VERSION: 0.1.7-zh.1
   CI: "true"
   CSC_IDENTITY_AUTO_DISCOVERY: "false"
   T3CODE_DESKTOP_SIGNED: "false"
@@ -46,8 +46,8 @@ jobs:
             if (context.payload.repository.private !== false) {
               throw new Error('Standard hosted runners are free for public repositories only.');
             }
-            if (context.ref !== 'refs/heads/maintenance/v0.1.6-zh-cloud') {
-              throw new Error('Dispatch must select maintenance/v0.1.6-zh-cloud.');
+            if (context.ref !== 'refs/heads/maintenance/v0.1.7-zh-cloud') {
+              throw new Error('Dispatch must select maintenance/v0.1.7-zh-cloud.');
             }
             if (context.eventName === 'workflow_dispatch' &&
                 (!/^[0-9a-f]{40}$/.test(process.env.EXPECTED_SHA || '') ||
@@ -55,15 +55,22 @@ jobs:
               throw new Error('Expected SHA must equal the selected branch commit exactly.');
             }
             core.setOutput('sha', context.sha);
-            core.summary.addRaw(`Source: ${context.sha}\nVersion: 0.1.6-zh.1\n`);
+            core.summary.addRaw(`Source: ${context.sha}\nVersion: 0.1.7-zh.1\n`);
             await core.summary.write();
 
   quality:
     name: Lint and typecheck
-    needs: source
+    needs: [source, bundle, linux, desktop, android, tests]
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
+      - name: Require transfer measurements from this run
+        uses: actions/download-artifact@v8
+        with:
+          name: thread-transfer-results
+          path: ${{ runner.temp }}/thread-transfer
+      - name: Validate transfer measurements
+        run: test -s "$RUNNER_TEMP/thread-transfer/thread-transfer-result.json"
       - name: Checkout exact source without credentials
         shell: bash
         env:
@@ -108,7 +115,7 @@ jobs:
 
   native-rust-quality:
     name: Rust native formatting and tests
-    needs: source
+    needs: [source, bundle, linux, desktop, android]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -137,7 +144,7 @@ jobs:
 
   mobile-native-quality:
     name: Mobile native static analysis
-    needs: source
+    needs: [source, bundle, linux, desktop, android]
     runs-on: macos-15-intel
     timeout-minutes: 30
     steps:
@@ -171,7 +178,7 @@ jobs:
 
   tests:
     name: Tests (${{ matrix.suite }})
-    needs: source
+    needs: [source, bundle, linux, desktop, android]
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     strategy:
@@ -263,17 +270,10 @@ jobs:
 
   bundle:
     name: Build validated desktop bundle
-    needs: [source, quality, mobile-native-quality, native-rust-quality, tests]
+    needs: source
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
-      - name: Require transfer measurements from this run
-        uses: actions/download-artifact@v8
-        with:
-          name: thread-transfer-results
-          path: ${{ runner.temp }}/thread-transfer
-      - name: Validate transfer measurements
-        run: test -s "$RUNNER_TEMP/thread-transfer/thread-transfer-result.json"
       - name: Checkout exact source without credentials
         shell: bash
         env:
@@ -539,7 +539,7 @@ jobs:
 
   mac-clean-install:
     name: Clean macOS ${{ matrix.arch }} ${{ matrix.format }} first start
-    needs: [source, desktop]
+    needs: [source, desktop, quality, native-rust-quality, mobile-native-quality, tests]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
     strategy:
@@ -617,7 +617,7 @@ jobs:
 
   desktop-clean-install:
     name: Clean desktop ${{ matrix.kind }} first start
-    needs: [source, linux, desktop]
+    needs: [source, linux, desktop, quality, native-rust-quality, mobile-native-quality, tests]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 25
     strategy:
@@ -718,14 +718,14 @@ jobs:
 
   android:
     name: Android arm64 unsigned candidate (NOT installable)
-    needs: [source, quality, mobile-native-quality, native-rust-quality, tests, bundle]
+    needs: [source, bundle]
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     env:
       APP_VARIANT: community
-      T3CODE_MOBILE_VERSION: 0.1.6-zh.1
+      T3CODE_MOBILE_VERSION: 0.1.7-zh.1
       # Monotonic community code; signing remains isolated from this build job.
-      T3CODE_MOBILE_VERSION_CODE: "1000413"
+      T3CODE_MOBILE_VERSION_CODE: "1000414"
       T3CODE_MOBILE_UPDATES_ENABLED: "0"
       EXPO_NO_GIT_STATUS: "1"
       EXPO_NO_TELEMETRY: "1"

@@ -1,3 +1,4 @@
+import { useStableCallback } from "../../hooks/useStableCallback";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
 import { pipe } from "effect/Function";
@@ -85,6 +86,8 @@ export function AddEnvironmentDialog({
   readonly onErrorChange: (error: string | null) => void;
 }) {
   const { t, locale } = useI18n();
+  const translateAsync = useStableCallback(t);
+  const translateNotice = useStableCallback((source: string) => translateWebSource(locale, source));
 
   const desktopBridge = window.desktopBridge;
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
@@ -183,10 +186,15 @@ export function AddEnvironmentDialog({
     handleOpenChange(false);
     toastManager.add({
       type: "success",
-      title: routeTarget ? "Route added" : "Environment connected",
+      title: routeTarget
+        ? translateNotice("Route added")
+        : translateNotice("Environment connected"),
       description: routeTarget
-        ? `${routeTarget.label} can now be reached over SSH ${target.alias}.`
-        : `${target.alias} is ready over an SSH-managed tunnel.`,
+        ? translateAsync("settingsControls.sshRoute", {
+            name: routeTarget.label,
+            alias: target.alias,
+          })
+        : translateAsync("settingsControls.sshReady", { alias: target.alias }),
     });
     setIsAddingSavedBackend(false);
   };
@@ -218,12 +226,13 @@ export function AddEnvironmentDialog({
         pairingCode: savedBackendPairingCode,
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to add backend.";
+      const message =
+        error instanceof Error ? error.message : translateNotice("Failed to add backend.");
       onErrorChange(message);
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: "Could not add backend",
+          title: translateNotice("Could not add backend"),
           description: message,
         }),
       );
@@ -238,12 +247,13 @@ export function AddEnvironmentDialog({
     if (result._tag === "Failure") {
       if (!isAtomCommandInterrupted(result)) {
         const error = squashAtomCommandFailure(result);
-        const message = error instanceof Error ? error.message : "Failed to add backend.";
+        const message =
+          error instanceof Error ? error.message : translateNotice("Failed to add backend.");
         onErrorChange(message);
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "Could not add backend",
+            title: translateNotice("Could not add backend"),
             description: message,
           }),
         );
@@ -257,13 +267,15 @@ export function AddEnvironmentDialog({
       routeTarget
         ? {
             type: "success",
-            title: "Route added",
-            description: `${routeTarget.label} now has another way to connect.`,
+            title: translateNotice("Route added"),
+            description: translateAsync("settingsControls.routeReady", { name: routeTarget.label }),
           }
         : {
             type: "success",
-            title: "Backend added",
-            description: "The environment is saved and will reconnect on app startup.",
+            title: translateNotice("Backend added"),
+            description: translateNotice(
+              "The environment is saved and will reconnect on app startup.",
+            ),
           },
     );
     setIsAddingSavedBackend(false);
@@ -423,7 +435,10 @@ export function AddEnvironmentDialog({
       </div>
       <div>
         <span className="mt-1 block text-2xs text-muted-foreground">
-          Paste a full pairing URL here to fill both fields automatically.
+          {translateWebSource(
+            locale,
+            "Paste a full pairing URL here to fill both fields automatically.",
+          )}
         </span>
       </div>
     </div>
@@ -449,15 +464,17 @@ export function AddEnvironmentDialog({
     if (result._tag === "Failure") {
       if (!isAtomCommandInterrupted(result)) {
         const error = squashAtomCommandFailure(result);
-        onErrorChange(error instanceof Error ? error.message : "Could not add the route.");
+        onErrorChange(
+          error instanceof Error ? error.message : translateNotice("Could not add the route."),
+        );
       }
       return;
     }
     handleOpenChange(false);
     toastManager.add({
       type: "success",
-      title: "Route added",
-      description: `${routeTarget.label} falls back to T3 Connect when its other routes are unreachable.`,
+      title: translateNotice("Route added"),
+      description: translateAsync("settingsControls.routeFallback", { name: routeTarget.label }),
     });
   };
   const renderRemoteModeBody = () => (
@@ -465,7 +482,10 @@ export function AddEnvironmentDialog({
       {relayRouteOffer !== null ? (
         <div className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2">
           <p className="text-xs text-muted-foreground">
-            This machine is on your T3 Connect account. Use it as a fallback route.
+            {translateWebSource(
+              locale,
+              "This machine is on your T3 Connect account. Use it as a fallback route.",
+            )}
           </p>
           <Button
             size="xs"
@@ -473,7 +493,7 @@ export function AddEnvironmentDialog({
             disabled={isAddingSavedBackend}
             onClick={() => void addRelayRoute()}
           >
-            Add T3 Connect
+            {translateWebSource(locale, "Add T3 Connect")}
           </Button>
         </div>
       ) : null}
@@ -486,7 +506,11 @@ export function AddEnvironmentDialog({
         onClick={() => void handleAddSavedBackend()}
       >
         <PlusIcon className="size-3.5" />
-        {isAddingSavedBackend ? "Adding…" : routeTarget ? "Add route" : "Add environment"}
+        {isAddingSavedBackend
+          ? translateWebSource(locale, "Adding…")
+          : routeTarget
+            ? translateWebSource(locale, "Add route")
+            : translateWebSource(locale, "Add environment")}
       </Button>
     </div>
   );
@@ -565,7 +589,7 @@ export function AddEnvironmentDialog({
                   </AutocompleteList>
                 ) : (
                   <AutocompleteEmpty className="break-all">
-                    No hosts match "{savedBackendSshHost.trim()}".
+                    {t("settingsControls.noHosts", { query: savedBackendSshHost.trim() })}
                   </AutocompleteEmpty>
                 )}
               </AutocompletePopup>
@@ -613,7 +637,11 @@ export function AddEnvironmentDialog({
           onClick={() => void handleAddSavedBackend()}
         >
           <PlusIcon className="size-3.5" />
-          {isAddingSavedBackend ? "Adding…" : routeTarget ? "Add route" : "Add environment"}
+          {isAddingSavedBackend
+            ? translateWebSource(locale, "Adding…")
+            : routeTarget
+              ? translateWebSource(locale, "Add route")
+              : translateWebSource(locale, "Add environment")}
         </Button>
       </div>
     </div>

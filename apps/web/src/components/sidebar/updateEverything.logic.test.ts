@@ -1,8 +1,14 @@
+import type { WebTranslate } from "../../i18n/WebI18nContext";
+import { translateWebMessage } from "../../i18n/messages";
 import { EnvironmentId, type ServerSelfUpdateCapability } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
   collectChannelSwitchTargets,
+  collectUpdateEverythingResult,
+  formatUpdateElapsed,
+  getUpdateEverythingToastView,
+  getUpdateRunStatusLabel,
   collectRestartingMachines,
   localSwitchBlockReason,
   collectServerUpdateTargets,
@@ -11,6 +17,8 @@ import {
   runUpdateEverything,
   type UpdateEverythingMachine,
 } from "./updateEverything.logic";
+
+const zh: WebTranslate = (key, values) => translateWebMessage("zh-CN", key, values);
 
 function machine(
   id: string,
@@ -84,6 +92,48 @@ describe("collectServerUpdateTargets", () => {
       ["manual", "needs a manual update"],
     ]);
   });
+
+  it("skips servers whose policy refuses the update, with the policy's message", () => {
+    const managed = (
+      id: string,
+      updates: { mode: "off" } | { mode: "auto"; allowNightly: false },
+      selfUpdate: "boot-service" | "desktop-managed" = "boot-service",
+    ) => {
+      const base = machine(id, "0.0.40", selfUpdate);
+      return {
+        ...base,
+        serverConfig: {
+          ...base.serverConfig!,
+          managedPolicy: { organization: "Example Corp", lockedSettings: [], limits: { updates } },
+        },
+      };
+    };
+    const machines = [
+      managed("off", { mode: "off" }),
+      managed("no-nightly", { mode: "auto", allowNightly: false }),
+      // A desktop app updates from its own feed, whatever track this app is on.
+      managed("desktop-no-nightly", { mode: "auto", allowNightly: false }, "desktop-managed"),
+    ];
+
+    expect(
+      collectServerUpdateTargets(machines, "0.0.50").skipped.map((entry) => [
+        entry.label,
+        entry.reason,
+      ]),
+    ).toEqual([["off", "Example Corp manages T3 Code updates."]]);
+    expect(
+      collectServerUpdateTargets(
+        machines.map((entry) => ({
+          ...entry,
+          serverConfig: {
+            ...entry.serverConfig,
+            environment: { ...entry.serverConfig.environment, serverVersion: "0.0.49-nightly.1" },
+          },
+        })),
+        "0.0.50-nightly.20261028.1",
+      ).skipped.map((entry) => entry.label),
+    ).toEqual(["off", "no-nightly"]);
+  });
 });
 
 describe("collectChannelSwitchTargets", () => {
@@ -154,6 +204,18 @@ describe("collectChannelSwitchTargets", () => {
     ]);
   });
 
+  const managedHost = (base: UpdateEverythingMachine): UpdateEverythingMachine => ({
+    ...base,
+    serverConfig: {
+      ...base.serverConfig!,
+      managedPolicy: {
+        organization: "Example Corp",
+        lockedSettings: [],
+        limits: { updates: { mode: "auto", allowNightly: false } },
+      },
+    },
+  });
+
   it("moves stable hosts to nightly only when nightly knows their database", () => {
     const nightly = { channel: "nightly" as const, version: NIGHTLY, databaseMigration: 72 };
     const { targets, skipped } = collectChannelSwitchTargets(
@@ -171,6 +233,8 @@ describe("collectChannelSwitchTargets", () => {
           },
         }),
         machine("current", NIGHTLY, "boot-service"),
+        // The server refuses a track its policy rules out, so the dialog skips it up front.
+        managedHost(host(machine("no-nightly", "0.1.2", "boot-service"), 70)),
       ],
       nightly,
     );
@@ -184,6 +248,10 @@ describe("collectChannelSwitchTargets", () => {
         `its database has changes ${NIGHTLY} does not support yet; stay on Stable until Nightly has them`,
       ],
       ["old-desktop", "needs a newer desktop app"],
+      [
+        "no-nightly",
+        "Example Corp manages T3 Code updates. Only stable releases can be installed.",
+      ],
     ]);
   });
 });
@@ -213,6 +281,13 @@ describe("localSwitchBlockReason", () => {
       localSwitchBlockReason(nightly, stable, [{ connected: false, databaseMigration: 69 }], 1),
     ).toBe("its server is not connected, so its database cannot be checked");
     expect(localSwitchBlockReason("0.1.3", stable, [], 1)).toBeNull();
+    expect(localSwitchBlockReason(nightly, stable, [windows], 2, zh)).toBe(
+      "服务器未连接，无法检查其数据库",
+    );
+    expect(
+      localSwitchBlockReason(nightly, stable, [{ connected: true, databaseMigration: 72 }], 1, zh),
+    ).toBe("其数据库包含 0.1.3 尚不支持的更改；请继续使用 Nightly，直到 Stable 支持这些更改");
+    expect(localSwitchBlockReason("0.1.3", stable, [], 1, zh)).toBeNull();
   });
 });
 
@@ -337,8 +412,134 @@ describe("describeUpdateCapsule", () => {
     const run = { localVersion: null, phase: "servers" as const, restartAt: null, machines: [] };
 
     expect(describeUpdateCapsule(run, [failed], null, 0).action).toBe("retry");
+    expect(describeUpdateCapsule(run, [failed], null, 0, zh)).toMatchObject({
+      label: "remote 更新失败",
+      action: "retry",
+    });
+    expect(describeUpdateCapsule(run, [failed, failed], null, 0, zh).label).toBe(
+      "2 台设备更新失败",
+    );
+    expect(describeUpdateCapsule({ ...run, trackSwitch: true }, [failed], null, 0, zh).action).toBe(
+      "dismiss",
+    );
+    expect(
+      describeUpdateCapsule({ ...run, phase: "countdown", restartAt: 1_001 }, [], null, 0, zh)
+        .label,
+    ).toBe("2 秒后重启");
+    expect(describeUpdateCapsule({ ...run, phase: "installing" }, [], null, 0, zh).label).toBe(
+      "正在重启…",
+    );
+    expect(
+      describeUpdateCapsule(run, [], { status: "downloading", percent: 27.9 }, 0, zh).label,
+    ).toBe("正在下载 27%");
+    expect(
+      describeUpdateCapsule(run, [], { status: "downloading", percent: null }, 0, zh).label,
+    ).toBe("正在下载");
+    expect(
+      describeUpdateCapsule(run, [{ ...failed, status: "downloading" }], null, 180_000, zh).slow,
+    ).toEqual({ status: "正在下载", elapsed: "3 分钟" });
+    expect(
+      describeUpdateCapsule(
+        run,
+        [
+          { ...failed, status: "done" },
+          { ...failed, status: "waiting" },
+        ],
+        null,
+        0,
+        zh,
+      ).label,
+    ).toBe("已更新 1/2");
+    expect(formatUpdateElapsed(0, zh)).toBe("不到 1 分钟");
+    expect(formatUpdateElapsed(3_660_000, zh)).toBe("1 小时 1 分钟");
+    expect(getUpdateRunStatusLabel("providers", zh)).toBe("正在更新服务提供方");
     expect(describeUpdateCapsule({ ...run, trackSwitch: true }, [failed], null, 0).action).toBe(
       "dismiss",
     );
+  });
+});
+
+describe("localized update summaries", () => {
+  it.each([1, 2])("keeps counts, machine identities and result flags with %s updates", (count) => {
+    const plan = {
+      localVersion: "1.1.0",
+      localMachines: [],
+      servers: Array.from({ length: count }, (_, i) => ({
+        environmentId: EnvironmentId.make(`server-${i}`),
+        serverLabel: `server-${i}`,
+        selfUpdate: "respawn" as const,
+        targetVersion: "1.1.0",
+      })),
+      providerMachines: [
+        {
+          environmentId: EnvironmentId.make("providers"),
+          label: "provider-machine",
+          providers: Array.from({ length: count }, () => "Codex"),
+        },
+      ],
+      skipped: [],
+    };
+    const english = describeUpdateEverything(plan);
+    const chinese = describeUpdateEverything(plan, zh);
+    expect(english.summary).toBe(
+      `Update this app, ${count} server${count === 1 ? "" : "s"}, and ${count} provider${count === 1 ? "" : "s"}`,
+    );
+    expect(chinese.summary).toBe(`更新此应用、${count} 台服务器和${count} 个服务提供方`);
+    expect(chinese.rows[0]?.label).toBe("此应用");
+    expect(chinese.rows.slice(1)).toEqual(english.rows.slice(1));
+    const result = {
+      localVersion: "1.1.0",
+      updatedServers: count,
+      updatedProviders: count,
+      failures: [],
+      restarting: count === 1 ? ["remote"] : ["remote", "other"],
+    };
+    expect(getUpdateEverythingToastView(result, "1.1.0", zh)).toEqual({
+      type: "success",
+      title: `已更新此应用、${count} 台服务器和${count} 个服务提供方`,
+      description: `${count === 1 ? "remote" : "remote和other"} 仍在重启。`,
+    });
+    expect(
+      getUpdateEverythingToastView({ ...result, failures: ["original server error"] }, "1.1.0", zh)
+        ?.description,
+    ).toContain("original server error");
+    expect(
+      collectUpdateEverythingResult(
+        { localVersion: null, localFailures: ["original error"], servers: [], providers: [] },
+        zh,
+      ).failures,
+    ).toEqual(["此应用：original error"]);
+  });
+
+  it("translates skip reasons without changing update eligibility or commands", () => {
+    const machines = [
+      machine("offline", "0.1.1", "boot-service", { connected: false }),
+      machine("no-scope", "0.1.1", "boot-service", { canMaintain: false }),
+      machine("manual", "0.1.1", undefined),
+      machine("nightly", "0.1.2-nightly.20261001.3500", "boot-service"),
+      machine("valid", "0.1.1", "boot-service"),
+    ];
+    const english = collectServerUpdateTargets(machines, "0.1.3");
+    const chinese = collectServerUpdateTargets(machines, "0.1.3", zh);
+    expect(chinese.targets).toEqual(english.targets);
+    expect(chinese.skipped.map(({ reason }) => reason)).toEqual([
+      "未连接",
+      "没有权限",
+      "需要手动更新",
+      "使用 nightly 渠道",
+    ]);
+    const newer = machine("newer", "0.1.4-nightly.20261020.3700", "boot-service");
+    const host = {
+      ...newer,
+      serverConfig: {
+        ...newer.serverConfig!,
+        environment: { ...newer.serverConfig!.environment, databaseMigration: 69 },
+      },
+    };
+    const release = { channel: "latest" as const, version: "0.1.3", databaseMigration: 69 };
+    expect(collectChannelSwitchTargets([host], release, zh)).toMatchObject({
+      targets: [],
+      skipped: [{ reason: "请在该设备上运行 `t3 update --channel stable --allow-downgrade`" }],
+    });
   });
 });

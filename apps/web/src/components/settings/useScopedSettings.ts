@@ -1,3 +1,5 @@
+import { readWebI18n } from "../../i18n/readWebI18n";
+import { translateWebSource } from "../../i18n/messages";
 import { AuthSettingsWriteScope } from "@t3tools/contracts";
 import { useEnvironmentsWithScope } from "../../state/session";
 import {
@@ -51,10 +53,18 @@ function useRunScopedPlan() {
   const persistServer = useAtomCommand(serverEnvironment.updateSettings, { reportFailure: false });
   return (plan: ReturnType<typeof planScopedSettingsPatch>, onFailed?: () => void) => {
     if (plan.unavailableReason) {
+      const { locale } = readWebI18n();
+      const environmentLabel = plan.unavailableEnvironmentLabel;
       toastManager.add({
         type: "warning",
-        title: "Setting not saved",
-        description: plan.unavailableReason,
+        title: translateWebSource(locale, "Setting not saved"),
+        description:
+          environmentLabel !== undefined
+            ? translateWebSource(locale, "Connect {environment} to save this setting.").replace(
+                "{environment}",
+                () => environmentLabel,
+              )
+            : translateWebSource(locale, plan.unavailableReason),
       });
       onFailed?.();
       return;
@@ -66,30 +76,49 @@ function useRunScopedPlan() {
           (scope) => !readEnvironmentScope(request.environmentId, scope),
         );
         if (missing)
-          return AsyncResult.failure(
-            Cause.fail(
-              new EnvironmentAuthorizationError({
-                requiredScope: missing,
-                message: "This connection lacks permission to change these settings.",
-              }),
+          return {
+            ...AsyncResult.failure(
+              Cause.fail(
+                new EnvironmentAuthorizationError({
+                  requiredScope: missing,
+                  message: "This connection lacks permission to change these settings.",
+                }),
+              ),
             ),
-          );
-        return persistServer(request);
+            sourceMessage: true,
+          };
+        return { ...(await persistServer(request)), sourceMessage: false };
       },
       persistClientSettingsPatch,
     ).then(({ failedEnvironments, savedEnvironments, savedEnvironmentCount }) => {
       if (failedEnvironments.length === 0) return;
       onFailed?.();
+      const { locale } = readWebI18n();
       toastManager.add({
         type: "error",
-        title:
+        title: translateWebSource(
+          locale,
           savedEnvironmentCount > 0 ? "Setting saved on some environments" : "Setting not saved",
+        ),
         description: [
-          ...failedEnvironments.map(
-            ({ label, message }) => `Could not save on ${label}: ${message}`,
+          ...failedEnvironments.map(({ label, message, sourceMessage }) =>
+            translateWebSource(locale, "Could not save on {environment}: {message}").replace(
+              /\{(environment|message)\}/g,
+              (_, key: string) =>
+                key === "environment"
+                  ? label
+                  : sourceMessage
+                    ? translateWebSource(locale, message)
+                    : message,
+            ),
           ),
           ...(savedEnvironmentCount > 0
-            ? [`Saved on ${savedEnvironments.map(({ label }) => label).join(", ")}.`]
+            ? [
+                translateWebSource(locale, "Saved on {environments}.").replace(
+                  "{environments}",
+                  () => savedEnvironments.map(({ label }) => label).join(", "),
+                ),
+              ]
             : []),
         ].join("\n"),
       });

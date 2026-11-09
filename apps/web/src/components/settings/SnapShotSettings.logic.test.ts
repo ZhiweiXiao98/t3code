@@ -1,4 +1,5 @@
 import { assert, expect, it } from "vite-plus/test";
+import { translateWebSource } from "../../i18n/messages";
 import { DEFAULT_CLIENT_SETTINGS, type DesktopSnapShotState } from "@t3tools/contracts";
 
 import {
@@ -163,4 +164,53 @@ it("hides macOS setup only while permissions and the shortcut are all in place",
       true,
     ),
   ).toBe(true);
+});
+
+it.each(["Open", "Ready to save.", "Shortcut saved."])(
+  "preserves raw shortcut messages that match translated UI copy: %s",
+  (message) => {
+    const state: DesktopSnapShotState = {
+      mode: "direct",
+      shortcut: DEFAULT_CLIENT_SETTINGS.snapShotShortcut,
+      shortcutRegistered: false,
+      shortcutMessage: message,
+      message: null,
+    };
+    const translatedLabels: string[] = [];
+    const formatLabel = (label: string) => {
+      translatedLabels.push(label);
+      return translateWebSource("zh-CN", label);
+    };
+
+    expect(translateWebSource("zh-CN", message)).not.toBe(message);
+    expect(snapShotShortcutStatus(state, formatLabel)).toBe(message);
+    expect(
+      snapShotShortcutStatus(
+        { ...state, mode: "portal", linuxBackend: "hyprland", shortcutPending: true },
+        formatLabel,
+      ),
+    ).toBe(message);
+    expect(translatedLabels).toEqual([]);
+  },
+);
+
+it("formats only fixed shortcut labels and preserves the default English output", () => {
+  const state: DesktopSnapShotState = {
+    mode: "direct",
+    shortcut: DEFAULT_CLIENT_SETTINGS.snapShotShortcut,
+    shortcutRegistered: true,
+    shortcutMessage: "Open",
+    message: null,
+  };
+  const formatLabel = (label: string) => translateWebSource("zh-CN", label);
+
+  expect(snapShotShortcutStatus(state)).toBe("Shortcut saved.");
+  expect(snapShotShortcutStatus(state, formatLabel)).toBe("快捷键已保存。");
+  expect(snapShotShortcutStatus({ ...state, shortcutPending: true })).toBe(
+    "Approve the shortcut permission prompt to continue.",
+  );
+  expect(snapShotShortcutStatus({ ...state, shortcutPending: true }, formatLabel)).toBe(
+    "批准快捷键权限提示以继续。",
+  );
+  expect(snapShotShortcutStatus({ ...state, mode: "portal" }, formatLabel)).toBeNull();
 });

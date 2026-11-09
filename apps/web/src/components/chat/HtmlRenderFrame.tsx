@@ -1,3 +1,5 @@
+import { useStableCallback } from "~/hooks/useStableCallback";
+import { useI18n } from "~/i18n/WebI18nContext";
 import type { EnvironmentId, ScopedThreadRef } from "@t3tools/contracts";
 import {
   HTML_RENDER_COLUMN_WIDTH,
@@ -26,6 +28,8 @@ export function HtmlRenderFrame(props: {
   readonly threadRef: ScopedThreadRef | undefined;
   readonly onFullscreenChange?: (fullscreen: boolean) => void;
 }) {
+  const { t: controlsT } = useI18n();
+  const liveT = useStableCallback(controlsT);
   const { attachmentId, title } = props.htmlRender;
   const [width, setWidth] = useState(HTML_RENDER_COLUMN_WIDTH);
   const observeBox = (box: HTMLDivElement) => {
@@ -83,7 +87,7 @@ export function HtmlRenderFrame(props: {
               <TooltipTrigger
                 render={
                   <Button
-                    aria-label="Open full screen"
+                    aria-label={controlsT("chatControls.copy19")}
                     size="icon-xs"
                     variant="glass"
                     onClick={async () => {
@@ -95,8 +99,8 @@ export function HtmlRenderFrame(props: {
                       else
                         toastManager.add({
                           type: "error",
-                          title: "Page unavailable",
-                          description: "Reconnect to the environment and try again.",
+                          title: liveT("chatControls.copy20"),
+                          description: liveT("chatControls.copy21"),
                         });
                     }}
                   />
@@ -104,7 +108,7 @@ export function HtmlRenderFrame(props: {
               >
                 <Maximize2Icon className="size-3.5" />
               </TooltipTrigger>
-              <TooltipPopup side="left">Open full screen</TooltipPopup>
+              <TooltipPopup side="left">{controlsT("chatControls.copy19")}</TooltipPopup>
             </Tooltip>
           </div>
           {expandedSrc !== null ? (
@@ -118,7 +122,7 @@ export function HtmlRenderFrame(props: {
         </>
       ) : failed ? (
         <p className="flex size-full items-center justify-center text-muted-foreground text-xs">
-          Unable to load {title}
+          {controlsT("chatControls.unableLoad", { title })}
         </p>
       ) : null}
     </div>

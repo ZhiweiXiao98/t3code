@@ -1,9 +1,12 @@
+import type { WebTranslate } from "~/i18n/WebI18nContext";
+import { useI18n } from "~/i18n/WebI18nContext";
 import {
   formatProviderSubagentStatus,
   type ProviderSubagentStatus,
 } from "@t3tools/client-runtime/state/thread-execution";
 import { isOrchestrationV2WorkActive } from "@t3tools/contracts";
 import { ArrowUpLeftIcon } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { tickTextContent } from "~/lib/tickTextContent";
 import type { ProviderInstanceEntry } from "../../providerInstances";
@@ -17,14 +20,17 @@ export function ProviderSubagentBar(props: {
   readonly effortLabel: string | null;
   readonly status: ProviderSubagentStatus | null;
   readonly onOpenParent: (() => void) | null;
+  readonly actions?: ReactNode;
 }) {
+  const { t: controlsT } = useI18n();
   const { status } = props;
   const live = status !== null && isOrchestrationV2WorkActive(status.status);
   const modelDescription =
     props.effortLabel === null ? props.modelLabel : `${props.modelLabel}, ${props.effortLabel}`;
-  const announcement = formatProviderSubagentStatus(
+  const announcement = localizedSubagentStatus(
     status === null ? null : { ...status, startedAt: null },
     0,
+    controlsT,
   );
 
   // Sized by the composer, not the viewport: a docked side panel narrows the
@@ -53,23 +59,59 @@ export function ProviderSubagentBar(props: {
           )}
         </span>
         <span
-          ref={tickTextContent((nowMs) => formatProviderSubagentStatus(status, nowMs), live)}
+          ref={tickTextContent((nowMs) => localizedSubagentStatus(status, nowMs, controlsT), live)}
           aria-hidden
           className="min-w-0 max-w-full truncate text-muted-foreground tabular-nums @max-[560px]/composer-surface:text-xs"
         />
       </div>
       <span role="status" className="sr-only">
-        {`${modelDescription} subagent: ${announcement}`}
+        {controlsT("chatControls.subagentAnnouncement", {
+          model: modelDescription,
+          status: announcement,
+        })}
       </span>
       <span className="shrink-0 text-muted-foreground @max-[640px]/composer-surface:sr-only">
-        Runs on its own
+        {controlsT("chatControls.copy57")}
       </span>
+      {props.actions}
       {props.onOpenParent ? (
         <Button size="sm" variant="ghost" onClick={props.onOpenParent}>
           <ArrowUpLeftIcon />
-          <span className="@max-[320px]/composer-surface:sr-only">Open parent</span>
+          <span className="@max-[320px]/composer-surface:sr-only">
+            {controlsT("chatControls.copy58")}
+          </span>
         </Button>
       ) : null}
     </div>
   );
+}
+
+// Labels and elapsed-time grammar originate in client-runtime/state/threadExecution.ts.
+// Only its finite status labels are localized; provider/model strings remain untouched.
+function localizedSubagentStatus(
+  status: ProviderSubagentStatus | null,
+  nowMs: number,
+  controlsT: WebTranslate,
+): string {
+  if (status === null) return controlsT("chatControls.subagentStarting");
+  const labels = {
+    idle: controlsT("chatControls.subagentIdle"),
+    pending: controlsT("chatControls.subagentWorking"),
+    running: controlsT("chatControls.subagentWorking"),
+    waiting: controlsT("chatControls.subagentWaiting"),
+    completed: controlsT("chatControls.subagentCompleted"),
+    interrupted: controlsT("chatControls.subagentInterrupted"),
+    failed: controlsT("chatControls.subagentFailed"),
+    cancelled: controlsT("chatControls.subagentCancelled"),
+    rolled_back: controlsT("chatControls.subagentCancelled"),
+  };
+  const label = labels[status.status];
+  const englishLabel = formatProviderSubagentStatus({ ...status, startedAt: null }, nowMs);
+  const english = formatProviderSubagentStatus(status, nowMs);
+  if (english === englishLabel) return label;
+  const completed = status.status === "completed";
+  const duration = english.slice(englishLabel.length + (completed ? 4 : 1));
+  return completed
+    ? controlsT("chatControls.subagentCompletedTime", { label, duration })
+    : controlsT("chatControls.subagentLiveTime", { label, duration });
 }

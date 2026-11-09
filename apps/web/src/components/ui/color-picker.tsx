@@ -1,5 +1,6 @@
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
+import { translateThemeEditorSource } from "~/i18n/themeEditorMessages";
 import {
   useId,
   useRef,
@@ -68,7 +69,7 @@ export function ColorSaturationValuePlane({
   className,
   variant = "inset",
 }: ColorControlProps<HsvColor> & { variant?: "inset" | "edge" }) {
-  const { locale: newCopyLocale } = useI18n();
+  const { locale: newCopyLocale, t } = useI18n();
   const instructionsId = useId();
   const saturationRef = useRef<HTMLInputElement>(null);
   const { handlers, thumbTransition } = useColorDrag(
@@ -112,7 +113,7 @@ export function ColorSaturationValuePlane({
 
   return (
     <div
-      aria-label={`${label} saturation and brightness`}
+      aria-label={t("appearance.themeEditor.color.saturationBrightness", { label })}
       role="group"
       className={cn(
         "relative cursor-crosshair touch-none overflow-hidden bg-[linear-gradient(to_top,#000,transparent),linear-gradient(to_right,#fff,transparent)] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-inset has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-popover",
@@ -144,7 +145,12 @@ export function ColorSaturationValuePlane({
             max={100}
             step="any"
             value={value[axis] * 100}
-            aria-label={`${label} ${axisLabel.toLowerCase()}`}
+            aria-label={t(
+              axis === "s"
+                ? "appearance.themeEditor.color.saturation"
+                : "appearance.themeEditor.color.brightness",
+              { label },
+            )}
             aria-describedby={instructionsId}
             aria-valuetext={`${Math.round(value[axis] * 100)}%`}
             className="peer sr-only"
@@ -157,7 +163,7 @@ export function ColorSaturationValuePlane({
             aria-hidden
             className="pointer-events-none invisible absolute bottom-2 left-2 z-10 rounded bg-popover px-1.5 py-0.5 text-xs text-popover-foreground peer-focus-visible:visible"
           >
-            {axisLabel} {Math.round(value[axis] * 100)}%
+            {translateThemeEditorSource(newCopyLocale, axisLabel)} {Math.round(value[axis] * 100)}%
           </span>
         </label>
       ))}

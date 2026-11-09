@@ -1,7 +1,7 @@
 import type { Session, WebContents } from "electron";
 import { BrowserWindow, session } from "electron";
 import * as Context from "effect/Context";
-import * as Crypto from "effect/Crypto";
+import * as Digest from "effect/crypto/Digest";
 import * as Effect from "effect/Effect";
 import * as Hex from "effect/encoding/Hex";
 import * as Layer from "effect/Layer";
@@ -10,6 +10,8 @@ import * as Schema from "effect/Schema";
 import * as SynchronizedRef from "effect/SynchronizedRef";
 
 import * as ElectronDialog from "../electron/ElectronDialog.ts";
+import { makePreviewPromptMessages } from "./PreviewPromptLocale.ts";
+import type { resolvePreviewPromptMessages } from "./PreviewPromptMessages.ts";
 
 const PREVIEW_PARTITION_PREFIX = "persist:t3code-preview-";
 /** Ephemeral partitions omit persist: but retain a product prefix so the webview gate recognizes them. */
@@ -24,6 +26,7 @@ const ALLOWED_PREVIEW_PERMISSIONS: ReadonlySet<string> = new Set([
   "geolocation",
   // DesktopWindow confines HTML fullscreen to the guest's webview.
   "fullscreen",
+  "pointerLock",
   // Loopback requests already succeed in Electron 44; permission-aware sign-in widgets query first.
   "loopback-network",
   // Deny local-fonts to untrusted previews: it exposes installed-font fingerprints and file bytes.
@@ -185,15 +188,16 @@ const previewHostWindow = (guest: WebContents | null): BrowserWindow | undefined
 
 /** @public */
 export const make = Effect.gen(function* BrowserSessionMake() {
-  const crypto = yield* Crypto.Crypto;
+  const crypto = yield* Digest.Digest;
   const electronDialog = yield* ElectronDialog.ElectronDialog;
+  const getPromptMessages = yield* makePreviewPromptMessages;
   const runFork = Effect.runForkWith(yield* Effect.context<never>());
   // One prompt at a time, so a page cannot stack dialogs by looping a deep link.
   let permissionPromptOpen = false;
   /** Settles with `undefined` when the user gave no answer: another prompt was open or the dialog failed. */
   const promptPermission = (
     requester: WebContents | null,
-    prompt: {
+    makePrompt: (messages: ReturnType<typeof resolvePreviewPromptMessages>) => {
       readonly buttons: readonly [allow: string, deny: string];
       readonly message: string;
       readonly detail?: string;
@@ -211,25 +215,27 @@ export const make = Effect.gen(function* BrowserSessionMake() {
         callback(answer);
       });
     runFork(
-      electronDialog
-        .showMessageBox(
-          {
-            type: "question",
-            buttons: [...prompt.buttons],
-            // Default to deny so an Enter typed into the page cannot accept a prompt it raised.
-            defaultId: 1,
-            cancelId: 1,
-            message: prompt.message,
-            ...(prompt.detail === undefined ? {} : { detail: prompt.detail }),
-          },
-          previewHostWindow(requester),
-        )
-        .pipe(
-          Effect.map(({ response }): boolean | undefined => response === 0),
-          Effect.orElseSucceed(() => undefined),
-          Effect.flatMap(settle),
-          Effect.onInterrupt(() => settle(undefined)),
-        ),
+      getPromptMessages.pipe(
+        Effect.flatMap((messages) => {
+          const prompt = makePrompt(messages);
+          return electronDialog.showMessageBox(
+            {
+              type: "question",
+              buttons: [...prompt.buttons],
+              // Default to deny so an Enter typed into the page cannot accept a prompt it raised.
+              defaultId: 1,
+              cancelId: 1,
+              message: prompt.message,
+              ...(prompt.detail === undefined ? {} : { detail: prompt.detail }),
+            },
+            previewHostWindow(requester),
+          );
+        }),
+        Effect.map(({ response }): boolean | undefined => response === 0),
+        Effect.orElseSucceed(() => undefined),
+        Effect.flatMap(settle),
+        Effect.onInterrupt(() => settle(undefined)),
+      ),
     );
   };
   /** Electron launches external protocols after granting openExternal; untrusted pages require confirmation. */
@@ -245,11 +251,11 @@ export const make = Effect.gen(function* BrowserSessionMake() {
     }
     promptPermission(
       requester,
-      {
-        buttons: ["Open", "Cancel"],
-        message: `Open this ${new URL(url).protocol.slice(0, -1)} link?`,
-        detail: `A page in the browser wants to open another application:\n\n${truncateForPrompt(url)}`,
-      },
+      (messages) => ({
+        buttons: [messages.open, messages.cancel],
+        message: messages.openLink(new URL(url).protocol.slice(0, -1)),
+        detail: messages.openLinkDetail(truncateForPrompt(url)),
+      }),
       (answer) => callback(answer === true),
     );
   };
@@ -260,7 +266,7 @@ export const make = Effect.gen(function* BrowserSessionMake() {
     persistent = true,
     namespace?: BrowserSessionPartitionNamespace,
   ) {
-    const digest = yield* crypto.digest("SHA-256", encodeScopeForDigest(scope)).pipe(
+    const digest = yield* crypto.digest(Digest.sha256, encodeScopeForDigest(scope)).pipe(
       Effect.mapError(
         (cause) =>
           new BrowserSessionPartitionDerivationError({
@@ -304,10 +310,10 @@ export const make = Effect.gen(function* BrowserSessionMake() {
             }
             promptPermission(
               requester,
-              {
-                buttons: ["Allow", "Block"],
-                message: `${truncateForPrompt(origin)} wants to see text and images copied to the clipboard`,
-              },
+              (messages) => ({
+                buttons: [messages.allow, messages.block],
+                message: messages.clipboardRead(truncateForPrompt(origin)),
+              }),
               (answer) => {
                 if (answer !== undefined) clipboardReadDecisions.set(origin, answer);
                 callback(answer === true);

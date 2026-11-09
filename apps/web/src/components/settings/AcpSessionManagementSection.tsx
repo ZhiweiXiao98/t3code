@@ -1,3 +1,4 @@
+import { readWebI18n } from "../../i18n/readWebI18n";
 import { translateWebSource } from "../../i18n/messages";
 import { useI18n } from "../../i18n/WebI18nContext";
 import {
@@ -39,10 +40,14 @@ interface AcpSessionProject {
 function reportFailure(title: string, result: AtomCommandResult<unknown, unknown>) {
   if (result._tag !== "Failure" || isAtomCommandInterrupted(result)) return;
   const error = squashAtomCommandFailure(result);
+  const { locale } = readWebI18n();
   toastManager.add({
     type: "error",
-    title,
-    description: error instanceof Error ? error.message : "The ACP operation failed.",
+    title: translateWebSource(locale, title),
+    description:
+      error instanceof Error
+        ? error.message
+        : translateWebSource(locale, "The ACP operation failed."),
   });
 }
 
@@ -50,7 +55,7 @@ function parseProviderHeaders(
   text: string,
 ):
   | { readonly ok: true; readonly headers: Record<string, string> | undefined }
-  | { readonly ok: false; readonly error: string } {
+  | { readonly ok: false; readonly error: string; readonly sourceMessage?: true } {
   if (text.trim().length === 0) return { ok: true, headers: undefined };
   let parsed: unknown;
   try {
@@ -59,6 +64,7 @@ function parseProviderHeaders(
     return {
       ok: false,
       error: error instanceof Error ? error.message : "Headers must be valid JSON.",
+      ...(error instanceof Error ? {} : { sourceMessage: true as const }),
     };
   }
   if (
@@ -67,7 +73,11 @@ function parseProviderHeaders(
     Array.isArray(parsed) ||
     !Object.values(parsed).every((value) => typeof value === "string")
   ) {
-    return { ok: false, error: "Headers must be a JSON object with string values." };
+    return {
+      ok: false,
+      error: "Headers must be a JSON object with string values.",
+      sourceMessage: true,
+    };
   }
   return { ok: true, headers: parsed as Record<string, string> };
 }
@@ -182,7 +192,10 @@ export function AcpSessionManagementSection(props: {
       );
       toastManager.add({
         type: "success",
-        title: result.value.imported ? "ACP session imported" : "ACP session already imported",
+        title: translateWebSource(
+          readWebI18n().locale,
+          result.value.imported ? "ACP session imported" : "ACP session already imported",
+        ),
       });
       return;
     }
@@ -208,7 +221,10 @@ export function AcpSessionManagementSection(props: {
       setSessions((current) =>
         current.filter((candidate) => candidate.sessionId !== session.sessionId),
       );
-      toastManager.add({ type: "success", title: "ACP session deleted" });
+      toastManager.add({
+        type: "success",
+        title: translateWebSource(readWebI18n().locale, "ACP session deleted"),
+      });
       return;
     }
     reportFailure("Could not delete ACP session", result);
@@ -257,8 +273,10 @@ export function AcpSessionManagementSection(props: {
     if (!parsedHeaders.ok) {
       toastManager.add({
         type: "error",
-        title: "Invalid provider headers",
-        description: parsedHeaders.error,
+        title: translateWebSource(readWebI18n().locale, "Invalid provider headers"),
+        description: parsedHeaders.sourceMessage
+          ? translateWebSource(readWebI18n().locale, parsedHeaders.error)
+          : parsedHeaders.error,
       });
       return;
     }
@@ -277,7 +295,10 @@ export function AcpSessionManagementSection(props: {
     });
     setSavingProviderId(null);
     if (result._tag === "Success") {
-      toastManager.add({ type: "success", title: "ACP provider configured" });
+      toastManager.add({
+        type: "success",
+        title: translateWebSource(readWebI18n().locale, "ACP provider configured"),
+      });
       await loadProviders(provider.providerId);
       return;
     }
@@ -299,7 +320,10 @@ export function AcpSessionManagementSection(props: {
     });
     setSavingProviderId(null);
     if (result._tag === "Success") {
-      toastManager.add({ type: "success", title: "ACP provider disabled" });
+      toastManager.add({
+        type: "success",
+        title: translateWebSource(readWebI18n().locale, "ACP provider disabled"),
+      });
       await loadProviders(provider.providerId);
       return;
     }
@@ -317,7 +341,10 @@ export function AcpSessionManagementSection(props: {
     if (result._tag === "Success") {
       setSessions([]);
       setNextCursor(null);
-      toastManager.add({ type: "success", title: "Logged out of ACP agent" });
+      toastManager.add({
+        type: "success",
+        title: translateWebSource(readWebI18n().locale, "Logged out of ACP agent"),
+      });
       return;
     }
     reportFailure("Could not log out of ACP agent", result);

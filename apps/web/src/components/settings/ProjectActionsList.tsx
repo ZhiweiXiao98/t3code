@@ -19,7 +19,7 @@ export function ProjectActionsList({
   disabled: boolean;
   onEdit: (script: ProjectScript) => void;
 }) {
-  const { locale } = useI18n();
+  const { locale, t } = useI18n();
   const translate = (source: string) => translateWebSource(locale, source);
   if (scripts.length === 0)
     return (
@@ -39,17 +39,17 @@ export function ProjectActionsList({
             <span className="min-w-0 truncate">{script.name}</span>
             {script.runOnWorktreeCreate ? (
               <span className="shrink-0 rounded-sm border border-border/60 px-1.5 py-px text-2xs font-normal text-muted-foreground">
-                {translate(translate("setup"))}
+                {translate("setup")}
               </span>
             ) : null}
             {script.runOnSettle ? (
               <span className="shrink-0 rounded-sm border border-border/60 px-1.5 py-px text-2xs font-normal text-muted-foreground">
-                on settle
+                {translateWebSource(locale, "on settle")}
               </span>
             ) : null}
             {script.previewUrl ? (
               <span className="shrink-0 rounded-sm border border-border/60 px-1.5 py-px text-2xs font-normal text-muted-foreground max-sm:hidden">
-                preview · desktop only
+                {translateWebSource(locale, "preview · desktop only")}
               </span>
             ) : null}
           </span>
@@ -64,7 +64,7 @@ export function ProjectActionsList({
               <Button
                 size="icon-xs"
                 variant="ghost-muted"
-                aria-label={`Edit ${script.name}`}
+                aria-label={t("settingsControls.editAction", { name: script.name })}
                 disabled={disabled}
                 onClick={() => onEdit(script)}
               >

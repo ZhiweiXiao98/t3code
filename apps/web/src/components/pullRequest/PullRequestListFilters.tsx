@@ -198,7 +198,9 @@ function PullRequestFilterRadioGroup<Value extends string>({
             <span className="flex min-w-0 items-center gap-2">
               <PullRequestFilterOptionIcon option={option} />
               <span className="min-w-0 flex-1 truncate">{option.label}</span>
-              {option.unavailable ? <span className="shrink-0">· Unavailable</span> : null}
+              {option.unavailable ? (
+                <span className="shrink-0">{translateWebSource(locale, "· Unavailable")}</span>
+              ) : null}
               <MenuRadioItemIndicator />
             </span>
           </MenuRadioItem>
@@ -235,7 +237,7 @@ function PullRequestFilterRadioSubmenu<Value extends string>({
         <PullRequestFilterOptionIcon option={current} />
         <span className="flex-1">{translateWebSource(locale, label)}</span>
         <span className="min-w-0 max-w-32 truncate text-xs text-muted-foreground">
-          {translateWebSource(locale, current.label)}
+          {current.label}
         </span>
       </MenuSubTrigger>
       <MenuSubPopup>
@@ -285,7 +287,7 @@ function PullRequestAuthorChoices({
   scope: ReadonlyArray<PullRequestFilterOptionScope>;
   onChange: (author: string | undefined) => void;
 }) {
-  const { locale } = useI18n();
+  const { locale, t } = useI18n();
   const [query, setQuery] = useState("");
   const hosted = useHostedFilterOptions(scope, "authors", query);
   const login = value?.toLowerCase() ?? "";
@@ -304,14 +306,14 @@ function PullRequestAuthorChoices({
         busy={hosted.isPending}
         value={query}
         onChange={(event) => setQuery(event.currentTarget.value)}
-        placeholder="Search authors"
-        aria-label="Search authors"
+        placeholder={translateWebSource(locale, "Search authors")}
+        aria-label={translateWebSource(locale, "Search authors")}
       />
       <MenuRadioGroup value={selected?.actor.login ?? value ?? ""} onValueChange={select}>
         <MenuRadioItem value="">
           <span className="flex min-w-0 items-center gap-2">
             <LayersIcon aria-hidden className="size-3.5" />
-            Anyone
+            {translateWebSource(locale, "Anyone")}
           </span>
         </MenuRadioItem>
         {visible.map((option) => (
@@ -321,7 +323,7 @@ function PullRequestAuthorChoices({
               <span className="min-w-0 flex-1 truncate">{option.actor.login}</span>
               {option.mergedCount > 0 ? (
                 <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                  {option.mergedCount} merges loaded
+                  {t("pullRequests.filters.mergedLoaded", { count: option.mergedCount })}
                 </span>
               ) : null}
             </span>
@@ -401,8 +403,8 @@ function PullRequestLabelChoices({
         busy={hosted.isPending}
         value={query}
         onChange={(event) => setQuery(event.currentTarget.value)}
-        placeholder="Search labels"
-        aria-label="Search labels"
+        placeholder={translateWebSource(locale, "Search labels")}
+        aria-label={translateWebSource(locale, "Search labels")}
       />
       {visible.length === 0 && !hosted.isPending ? (
         <MenuItem disabled>
@@ -530,7 +532,7 @@ export function PullRequestFiltersMenu({
   unavailable: ReadonlyMap<string, string>;
   onProject: (projectId: ProjectId | undefined, environmentId: EnvironmentId | undefined) => void;
 }) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const selectedLabels = (filters.labels ?? []).flatMap((group) => group);
   const filterCount = [
     state !== "open",
@@ -589,15 +591,21 @@ export function PullRequestFiltersMenu({
       </MenuTrigger>
       <MenuPopup align="end" side="bottom">
         <PullRequestFilterRadioSubmenu
-          label="State"
+          label={translateWebSource(locale, "State")}
           value={state}
-          options={stateOptions}
+          options={stateOptions.map((option) => ({
+            ...option,
+            label: t(`pullRequests.filter.${option.value}`),
+          }))}
           onChange={onState}
         />
         <PullRequestFilterRadioSubmenu
-          label="Involvement"
+          label={translateWebSource(locale, "Involvement")}
           value={involvement}
-          options={involvementOptions}
+          options={involvementOptions.map((option) => ({
+            ...option,
+            label: translateWebSource(locale, option.label),
+          }))}
           onChange={onInvolvement}
         />
         <MenuSeparator />
@@ -618,28 +626,37 @@ export function PullRequestFiltersMenu({
           }
         />
         <PullRequestFilterRadioSubmenu
-          label="Draft"
+          label={translateWebSource(locale, "Draft")}
           value={filters.draft ?? UNFILTERED_VALUE}
-          options={DRAFT_OPTIONS}
+          options={DRAFT_OPTIONS.map((option) => ({
+            ...option,
+            label: translateWebSource(locale, option.label),
+          }))}
           onChange={(draft) => updateFilter("draft", draft)}
         />
         <PullRequestFilterRadioSubmenu
-          label="Review"
+          label={translateWebSource(locale, "Review")}
           value={filters.review ?? UNFILTERED_VALUE}
-          options={REVIEW_OPTIONS}
+          options={REVIEW_OPTIONS.map((option) => ({
+            ...option,
+            label: translateWebSource(locale, option.label),
+          }))}
           onChange={(review) => updateFilter("review", review)}
         />
         <PullRequestFilterRadioSubmenu
-          label="Checks"
+          label={translateWebSource(locale, "Checks")}
           value={filters.checks ?? UNFILTERED_VALUE}
-          options={CHECKS_OPTIONS}
+          options={CHECKS_OPTIONS.map((option) => ({
+            ...option,
+            label: translateWebSource(locale, option.label),
+          }))}
           onChange={(checks) => updateFilter("checks", checks)}
         />
         {hostOptions.length > 2 ? (
           <>
             <MenuSeparator />
             <PullRequestFilterRadioSubmenu
-              label="Host"
+              label={translateWebSource(locale, "Host")}
               value={host ?? ALL_HOSTS_VALUE}
               options={hostOptions}
               onChange={(next) => onHost(next === ALL_HOSTS_VALUE ? undefined : next)}
@@ -650,7 +667,7 @@ export function PullRequestFiltersMenu({
           <>
             <MenuSeparator />
             <PullRequestFilterRadioSubmenu
-              label="Server"
+              label={translateWebSource(locale, "Server")}
               value={server ?? ALL_SERVERS_VALUE}
               options={serverOptions}
               onChange={(next) =>
@@ -661,7 +678,7 @@ export function PullRequestFiltersMenu({
         ) : null}
         <MenuSeparator />
         <PullRequestFilterRadioSubmenu
-          label="Project"
+          label={translateWebSource(locale, "Project")}
           value={projectValue}
           options={projectOptions}
           onChange={(next) => {

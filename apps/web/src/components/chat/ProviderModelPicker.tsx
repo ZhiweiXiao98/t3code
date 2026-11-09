@@ -1,3 +1,4 @@
+import { useI18n } from "~/i18n/WebI18nContext";
 import {
   ANTIGRAVITY_DEFAULT_MODEL,
   type ProviderInstanceId,
@@ -37,7 +38,9 @@ function lockBackgroundScroll(popup: HTMLElement | null) {
   const shouldAllowOverlayScroll = (target: EventTarget | null) => {
     return (
       target instanceof Element &&
-      target.closest("[data-model-picker-content], [data-model-picker-effort]")
+      target.closest(
+        "[data-model-picker-content], [data-model-picker-effort], [data-model-picker-option-menu]",
+      )
     );
   };
   const preventBackgroundWheel = (event: WheelEvent) => {
@@ -90,6 +93,7 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
   disabled?: boolean;
   terminalOpen?: boolean;
   open?: boolean;
+  popupAlign?: "start" | "end";
   triggerClassName?: string;
   triggerLabel?: string;
   triggerAriaLabel?: string;
@@ -110,6 +114,7 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
   effortColumn?: ReactNode;
   footer?: ReactNode;
 }) {
+  const { t: controlsT } = useI18n();
   const composerFloatingLayerProps = useComposerMenuProps();
   const [uncontrolledIsMenuOpen, setUncontrolledIsMenuOpen] = useState(false);
   const isMenuOpen = props.open ?? uncontrolledIsMenuOpen;
@@ -136,10 +141,10 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
   const triggerTitle = selectedModel
     ? getTriggerDisplayModelName(selectedModel, activeEntry?.driverKind)
     : props.model === ANTIGRAVITY_DEFAULT_MODEL
-      ? "Choose model"
-      : props.model || "Choose model";
+      ? controlsT("chatControls.copy49")
+      : props.model || controlsT("chatControls.copy49");
   const triggerLabel = selectedModel
-    ? `${getDisplayModelName(selectedModel)}${selectedModel.isUnavailable ? " (Unavailable)" : ""}`
+    ? `${getDisplayModelName(selectedModel)}${selectedModel.isUnavailable ? controlsT("chatControls.copy50") : ""}`
     : triggerTitle;
   const showInstanceBadge =
     activeEntry !== null && shouldShowInstanceBadge(activeEntry, props.instanceEntries);
@@ -153,16 +158,22 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
 
   /**
    * Focuses the selected reasoning level, else the first level. With `rows: "any"` it falls back
-   * to the column's other options. False when nothing took focus.
+   * to the column's first enabled option. False when nothing took focus.
    */
   const focusEffort = (rows: "levels" | "any") => {
     const column = popupRef.current?.querySelector("[data-model-picker-effort]");
-    const first = (selector: string) =>
-      column?.querySelector<HTMLElement>(`${selector}[aria-checked="true"]:not(:disabled)`) ??
-      column?.querySelector<HTMLElement>(`${selector}:not(:disabled)`);
+    const level =
+      column?.querySelector<HTMLElement>(
+        '[data-effort-level][aria-checked="true"]:not(:disabled)',
+      ) ?? column?.querySelector<HTMLElement>("[data-effort-level]:not(:disabled)");
+    // No aria-checked here: an On switch is checked but is not where focus belongs.
     const row =
-      first("[data-effort-level]") ?? (rows === "any" ? first("[data-effort-row]") : null);
+      level ??
+      (rows === "any"
+        ? column?.querySelector<HTMLElement>("[data-effort-row]:not(:disabled)")
+        : null);
     row?.focus({ preventScroll: true });
+    row?.scrollIntoView({ block: "nearest" });
     return row != null;
   };
   const openTarget = (target: "effort" | "permissions") => {
@@ -198,7 +209,7 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
       model: selection.model,
       options: props.modelOptionsByInstance.get(selection.instanceId) ?? [],
     });
-    const unavailable = model?.isUnavailable ? " (Unavailable)" : "";
+    const unavailable = model?.isUnavailable ? controlsT("chatControls.copy50") : "";
     return {
       ...selection,
       entry,
@@ -210,14 +221,17 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
   });
   const multipleLabel = selectedEntries
     ? selectedEntries.length === 0
-      ? "Choose models"
+      ? controlsT("chatControls.copy51")
       : `${selectedEntries
           .slice(0, 2)
           .map((selection) => selection.label)
-          .join(", ")}${selectedEntries.length > 2 ? `, ${selectedEntries.length - 2} more` : ""}`
+          .join(
+            ", ",
+          )}${selectedEntries.length > 2 ? controlsT("chatControls.moreModels", { count: selectedEntries.length - 2 }) : ""}`
     : undefined;
   const allModelNames = selectedEntries
-    ? selectedEntries.map((selection) => selection.fullLabel).join(", ") || "Choose models"
+    ? selectedEntries.map((selection) => selection.fullLabel).join(", ") ||
+      controlsT("chatControls.copy51")
     : undefined;
   const triggerTooltipContent = [
     props.triggerLabel ?? allModelNames ?? triggerLabel,
@@ -229,7 +243,11 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
 
   const triggerText = props.triggerLabel ?? multipleLabel ?? triggerTitle;
   const triggerTextProps = {
-    className: "min-w-0 flex-1 overflow-hidden truncate",
+    className: cn(
+      "min-w-0 flex-1 overflow-hidden truncate",
+      // Long names such as "Fusion (Claude Opus 5.5 Medium + SWE-2 High)" would push the composer.
+      props.isComposerOwned && "max-w-56",
+    ),
     "data-chat-provider-model-picker-label": "true",
   } as const;
 
@@ -257,11 +275,20 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
       {...(props.onOpenProviderSetup ? { onOpenProviderSetup: props.onOpenProviderSetup } : {})}
       getModelDisabledReason={(instanceId, model) =>
         props.disabled
-          ? "Model picker is disabled"
+          ? controlsT("chatControls.copy52")
           : (props.getModelDisabledReason?.(instanceId, model) ?? null)
       }
       onInstanceModelChange={handleInstanceModelChange}
-      {...(docked ? { docked, onFocusEffort: () => void focusEffort("any") } : {})}
+      {...(docked
+        ? {
+            docked,
+            onFocusEffort: () => void focusEffort("any"),
+            // Inside the fixed height, so switching to or from a ChatGPT plan never resizes it.
+            ...(props.selectedModels === undefined
+              ? { listFooter: <ChatGptSharingControl provider={activeEntry?.snapshot ?? null} /> }
+              : {}),
+          }
+        : {})}
     />
   );
 
@@ -376,7 +403,7 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
           {props.triggerSuffix}
           {selectedModel?.isUnavailable && !selectedEntries && props.triggerLabel === undefined ? (
             <Badge variant="outline" size="sm">
-              Unavailable
+              {controlsT("chatControls.copy29")}
             </Badge>
           ) : null}
         </span>
@@ -392,19 +419,26 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
           };
         }}
         initialFocus={searchInputRef}
-        align="start"
+        align={props.popupAlign ?? "start"}
+        // Docked, the popup opens above the composer and slides over it when that space is short,
+        // so a short window gets its full height (Floating UI sizes to the viewport) instead of a sliver.
+        {...(docked
+          ? { side: "top" as const, collisionAvoidance: { side: "shift", align: "shift" } as const }
+          : {})}
         className="before:hidden"
         padding="none"
         touchBackdrop
       >
         {props.effortColumn ? (
           <DockedPickerContext value={{ modelLabel: triggerTitle }}>
-            <div className="flex flex-col">
-              <div className="flex max-h-86.5 max-sm:max-h-none max-sm:flex-col">
+            <div className="flex max-h-(--available-height) flex-col">
+              {/* One fixed height, so a model with more options never resizes the popup. Short
+                  windows shrink it and keep the footer. */}
+              <div className="flex h-86.5 min-h-0 max-sm:h-auto max-sm:flex-col">
                 {picker}
                 <div
                   data-model-picker-effort
-                  className="flex min-h-0 w-48 shrink-0 flex-col border-l border-border/70 bg-muted/40 max-sm:max-h-64 max-sm:w-full max-sm:border-t max-sm:border-l-0"
+                  className="flex min-h-0 w-48 flex-col sm:shrink-0 border-l border-border/70 bg-muted/40 max-sm:h-64 max-sm:w-full max-sm:border-t max-sm:border-l-0"
                   onKeyDown={(event) => {
                     if (event.key !== "ArrowLeft" || event.altKey || event.ctrlKey || event.metaKey)
                       return;
@@ -422,7 +456,7 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
         ) : (
           picker
         )}
-        {props.selectedModels === undefined ? (
+        {props.selectedModels === undefined && !docked ? (
           <ChatGptSharingControl provider={activeEntry?.snapshot ?? null} />
         ) : null}
       </PopoverPopup>

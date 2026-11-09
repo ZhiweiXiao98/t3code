@@ -42,16 +42,19 @@ export function PendingApprovalCard(props: PendingApprovalCardProps) {
       <Text className="font-t3-bold text-2xs uppercase tracking-[1.1px] text-foreground-secondary">
         Approval needed
       </Text>
-      <Text className="font-t3-bold text-lg text-foreground">
+      <Text localize={false} className="font-t3-bold text-lg text-foreground">
         {props.approval.appName ?? props.approval.requestKind}
       </Text>
       {props.approval.detail ? (
-        <Text className="font-sans text-sm leading-normal text-foreground-secondary">
+        <Text
+          localize={false}
+          className="font-sans text-sm leading-normal text-foreground-secondary"
+        >
           {props.approval.detail}
         </Text>
       ) : null}
       {props.approval.reason ? (
-        <Text className="font-sans text-xs leading-normal text-warning-foreground">
+        <Text localize={false} className="font-sans text-xs leading-normal text-warning-foreground">
           {props.approval.reason}
         </Text>
       ) : null}
@@ -78,13 +81,16 @@ export function PendingApprovalCard(props: PendingApprovalCardProps) {
         </Text>
       ) : null}
       {warning ? (
-        <Text className="font-sans text-xs leading-normal text-warning-foreground">{warning}</Text>
+        <Text localize={false} className="font-sans text-xs leading-normal text-warning-foreground">
+          {warning}
+        </Text>
       ) : null}
       <View className="flex-row flex-wrap gap-2.5">
         {options.map((option) => (
           <Button
             key={option.decision}
             label={option.label}
+            localize={options === DEFAULT_APPROVAL_OPTIONS}
             tone={
               option.decision === "accept"
                 ? "primary"

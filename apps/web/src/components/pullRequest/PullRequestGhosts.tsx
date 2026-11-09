@@ -246,7 +246,9 @@ export function PullRequestDetailGhost({
                   <PullRequestCopyableCode
                     key={checkout}
                     value={checkout}
-                    target={`${terminology.singular} checkout command`}
+                    target={t("pullRequests.detail.checkoutCommand", {
+                      request: translateWebSource(uiLocale, terminology.singular),
+                    })}
                     copyLabel={translateWebSource(uiLocale, "Copy checkout command")}
                     copiedLabel={translateWebSource(uiLocale, "Checkout command copied")}
                     className="ml-auto font-mono"

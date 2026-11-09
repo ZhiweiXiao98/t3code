@@ -7,6 +7,7 @@ import { cn } from "../../lib/cn";
 
 export interface ButtonProps {
   readonly label: string;
+  readonly localize?: boolean;
   readonly accessibilityLabel?: string;
   readonly icon?: AppSymbolName;
   readonly onPress: () => void;
@@ -15,6 +16,7 @@ export interface ButtonProps {
   readonly loading?: boolean;
   readonly tone?: "primary" | "secondary" | "danger" | "text" | "contrast";
   readonly fullWidth?: boolean;
+  readonly size?: "default" | "compact";
 }
 
 const TONE_CLASS_NAMES = {
@@ -31,17 +33,22 @@ export function Button(props: ButtonProps) {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={localizeMobileString(props.accessibilityLabel ?? props.label)}
+      accessibilityLabel={
+        props.localize === false
+          ? (props.accessibilityLabel ?? props.label)
+          : localizeMobileString(props.accessibilityLabel ?? props.label)
+      }
       accessibilityHint={
-        props.accessibilityHint === undefined
-          ? undefined
+        props.accessibilityHint === undefined || props.localize === false
+          ? props.accessibilityHint
           : localizeMobileString(props.accessibilityHint)
       }
       accessibilityState={{ disabled, busy: Boolean(props.loading) }}
       disabled={disabled}
       onPress={props.onPress}
       className={cn(
-        "min-h-12 flex-row items-center justify-center gap-2 rounded-full px-6 active:opacity-70",
+        "flex-row items-center justify-center gap-2 rounded-full active:opacity-70",
+        props.size === "compact" ? "min-h-10 px-5" : "min-h-12 px-6",
         props.fullWidth ? "w-full" : "self-start",
         disabled ? "bg-subtle-strong" : containerClassName,
       )}
@@ -58,6 +65,7 @@ export function Button(props: ButtonProps) {
         />
       ) : null}
       <AppText
+        localize={props.localize}
         className={cn(
           "min-w-0 shrink text-center font-t3-medium",
           disabled ? "text-foreground-muted" : labelClassName,

@@ -26,7 +26,7 @@ export function MobileAppSettingsRow() {
   const { locale: sourceLocale } = useI18n();
   return (
     <SettingsRow
-      {...searchableSetting("mobile-app")}
+      {...searchableSetting("mobile-app", sourceLocale)}
       description={
         <>
           {translateWebSource(sourceLocale, "Connect to your server from your phone or tablet.")}{" "}

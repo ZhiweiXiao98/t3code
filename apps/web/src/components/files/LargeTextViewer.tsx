@@ -1,3 +1,4 @@
+import { useStableCallback } from "~/hooks/useStableCallback";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
 import { useEffect, useImperativeHandle, useRef, useState, type RefObject } from "react";
@@ -41,7 +42,10 @@ export default function LargeTextViewer(props: {
   /** A preview's own wrap toggle; omitted follows the word wrap setting. */
   readonly wordWrap?: boolean;
 }) {
-  const { locale: previewLocale } = useI18n();
+  const { t, locale: previewLocale } = useI18n();
+  const translateSource = useStableCallback((source: string) =>
+    translateWebSource(previewLocale, source),
+  );
   const [meta, setMeta] = useState<Extract<TextPreviewResult, { type: "meta" }> | null>(null);
   const [pages, setPages] = useState(new Map<number, string[][]>());
   const [error, setError] = useState<string | null>(null);
@@ -129,9 +133,9 @@ export default function LargeTextViewer(props: {
         }
       });
       engine.addEventListener("error", () => {
-        copyPending.current?.reject(new Error("The text viewer stopped."));
+        copyPending.current?.reject(new Error(translateSource("The text viewer stopped.")));
         copyPending.current = null;
-        setError("Could not load the text viewer. Close the file and try again.");
+        setError(translateSource("Could not load the text viewer. Close the file and try again."));
       });
       engine.postMessage(
         {
@@ -183,29 +187,29 @@ export default function LargeTextViewer(props: {
     } else startWorker();
     return () => {
       controller.abort();
-      copyPending.current?.reject(new Error("Preview closed."));
+      copyPending.current?.reject(new Error(translateSource("Preview closed.")));
       copyPending.current = null;
       worker.current?.terminate();
       worker.current = null;
       pending.current.clear();
     };
-  }, [props.src, props.text, props.delimiter, props.sizeBytes]);
+  }, [props.src, props.text, props.delimiter, props.sizeBytes, translateSource]);
   useImperativeHandle(
     props.copyContents,
     () => () =>
       new Promise<string>((resolve, reject) => {
         if (!worker.current) {
-          reject(new Error("The file is unavailable."));
+          reject(new Error(translateSource("The file is unavailable.")));
           return;
         }
         if (copyPending.current) {
-          reject(new Error("Another copy is in progress."));
+          reject(new Error(translateSource("Another copy is in progress.")));
           return;
         }
         copyPending.current = { resolve, reject };
         worker.current.postMessage({ type: "copy" }, []);
       }),
-    [],
+    [translateSource],
   );
   if (error)
     return (
@@ -219,12 +223,17 @@ export default function LargeTextViewer(props: {
         className="flex min-h-10 shrink-0 flex-wrap items-center gap-x-1 border-b border-border/60 px-3 py-2 text-xs text-muted-foreground tabular-nums"
         role="status"
       >
-        {Math.max(0, meta.count - (props.delimiter && meta.count ? 1 : 0)).toLocaleString()}{" "}
-        {props.delimiter ? "rows" : "lines"}
-        {props.delimiter ? ` · ${meta.count ? meta.columns.toLocaleString() : 0} columns` : ""}
+        {t(props.delimiter ? "files.residual.rows" : "files.residual.lines", {
+          count: Math.max(0, meta.count - (props.delimiter && meta.count ? 1 : 0)).toLocaleString(),
+        })}
+        {props.delimiter
+          ? t("files.residual.columnsSuffix", {
+              count: meta.count ? meta.columns.toLocaleString() : 0,
+            })
+          : ""}
         {meta.complete && meta.sizeBytes !== undefined
-          ? ` · ${meta.sizeBytes === 0 ? "0 bytes" : formatAttachmentSize(meta.sizeBytes)}`
-          : " · Indexing…"}
+          ? ` · ${meta.sizeBytes === 0 ? translateWebSource(previewLocale, "0 bytes") : formatAttachmentSize(meta.sizeBytes)}`
+          : translateWebSource(previewLocale, " · Indexing…")}
       </div>
       {!meta.complete ? (
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20">
@@ -235,7 +244,10 @@ export default function LargeTextViewer(props: {
       ) : null}
       {meta.columns === 1024 ? (
         <FileSurfaceNotice>
-          Showing the first 1,024 columns. Source and Save retain every column.
+          {translateWebSource(
+            previewLocale,
+            "Showing the first 1,024 columns. Source and Save retain every column.",
+          )}
         </FileSurfaceNotice>
       ) : null}
       {meta.count > 0 ? (
@@ -257,7 +269,7 @@ export default function LargeTextViewer(props: {
         />
       ) : (
         <div className="flex flex-1 items-center justify-center p-6 text-xs text-muted-foreground">
-          This file is empty.
+          {translateWebSource(previewLocale, "This file is empty.")}
         </div>
       )}
     </div>

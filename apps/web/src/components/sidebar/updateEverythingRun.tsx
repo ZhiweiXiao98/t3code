@@ -1,3 +1,4 @@
+import { readWebI18n } from "../../i18n/readWebI18n";
 import { useAtomValue } from "@effect/atom-react";
 import { serverUpdateStateAtom } from "@t3tools/client-runtime/state/server";
 import { EnvironmentId } from "@t3tools/contracts";
@@ -91,7 +92,7 @@ export function retryFailedUpdateRunServers(
           ? providerFailure
           : outcome.status === "failed"
             ? outcome.message
-            : "Could not start the update",
+            : readWebI18n().t("updateEverything.startError"),
         { serverUpdated: outcome.status === "updated" },
       ),
     );
@@ -233,7 +234,8 @@ function takeSavedUpdateEverythingResult(): typeof SavedResult.Type | null {
 }
 
 export function showUpdateEverythingResult(result: UpdateEverythingResult): void {
-  const view = getUpdateEverythingToastView(result, APP_VERSION);
+  const { t } = readWebI18n();
+  const view = getUpdateEverythingToastView(result, APP_VERSION, t);
   if (!view) return;
   toastManager.add(
     stackedThreadToast({
@@ -303,7 +305,12 @@ function followHandedOffServers(servers: ReadonlyArray<HandedOffServer>): void {
       }
     };
     const timer = setTimeout(
-      () => settle(`Not back after ${HANDOFF_TIMEOUT_MS / 60_000} minutes`),
+      () =>
+        settle(
+          readWebI18n().t("updateEverything.handoffTimeout", {
+            minutes: HANDOFF_TIMEOUT_MS / 60_000,
+          }),
+        ),
       server.startedAt + HANDOFF_TIMEOUT_MS - Date.now(),
     );
     const unsubscribe = appAtomRegistry.subscribe(
@@ -338,11 +345,15 @@ export function startDesktopUpdateLaunchNotice(): () => void {
         AsyncResult.getOrElse(result, () => null)?.notAppliedVersion ?? null;
       if (notAppliedVersion === null || notifiedNotAppliedVersion === notAppliedVersion) return;
       notifiedNotAppliedVersion = notAppliedVersion;
+      const { t } = readWebI18n();
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: "Update did not apply",
-          description: `T3 Code is still on ${APP_VERSION}. Install ${notAppliedVersion} again from the update button.`,
+          title: t("desktopUpdate.notAppliedTitle"),
+          description: t("desktopUpdate.notAppliedDescription", {
+            currentVersion: APP_VERSION,
+            version: notAppliedVersion,
+          }),
         }),
       );
     },

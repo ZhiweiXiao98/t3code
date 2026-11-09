@@ -22,7 +22,7 @@ export function ThreadDetailsItemsRow() {
   const enabled = THREAD_DETAILS_ITEMS.filter((item) => visibility[item.id]).length;
   return (
     <SettingsRow
-      {...searchableSetting("thread-details-items")}
+      {...searchableSetting("thread-details-items", locale)}
       description={tx(
         "Choose what the thread details card shows. You can also right-click the card.",
       )}

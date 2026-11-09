@@ -293,6 +293,7 @@ const ZH_CN_MESSAGES = {
   "Remove project": "移除项目",
   "Close arrange threads": "关闭任务排序",
   "Resume queue": "恢复队列",
+  "Resume thread": "恢复任务",
   "View instructions": "查看指令",
   "Copy skill": "复制技能",
   "Open thread": "打开任务",
@@ -1205,6 +1206,139 @@ const ZH_CN_MESSAGES = {
   "Starting…": "正在启动…",
   "Starting the task…": "正在启动任务…",
   "New thread on branch": "基于分支新建任务",
+  "Approval from": "批准请求来自",
+  "Failed to submit approval decision.": "提交批准决定失败。",
+  "Subagent work": "子 Agent 工作",
+  "Read only. These subagents cannot take messages.": "仅供查看。这些子 Agent 无法接收消息。",
+  "The provider has no record of which subagents this call started.":
+    "提供商未记录此次调用启动了哪些子 Agent。",
+  Subagent: "子 Agent",
+  "Earlier steps are not shown.": "更早的步骤未显示。",
+  "No transcript yet.": "暂无记录。",
+  Work: "工作记录",
+  "Runs on its own": "独立运行",
+  "It runs on its own and cannot take messages.": "此子 Agent 独立运行，无法接收消息。",
+  Starting: "正在启动",
+  Idle: "空闲",
+  Waiting: "等待中",
+  Completed: "已完成",
+  Interrupted: "已中断",
+  Cancelled: "已取消",
+  "Switch this thread's mode to continue.": "请切换此任务的运行模式后继续。",
+  "Managed by": "管理方：",
+  "Provider not allowed": "不允许使用此提供商",
+  "Ask before commands and file changes.": "执行命令和更改文件前先询问。",
+  "Auto-approve edits, ask before other actions.": "自动批准编辑，执行其他操作前先询问。",
+  "Supported providers approve routine actions; others still ask.":
+    "支持此功能的提供商会批准常规操作，其他提供商仍会询问。",
+  "Allow commands and edits without prompts.": "无需询问即可执行命令和编辑文件。",
+  "Switch the task to a timer, or turn it off, to save it.":
+    "请将任务改为定时触发或停用任务后再保存。",
+  "Once is not available here": "此处不支持单次任务",
+  "This environment runs an older T3 Code. Update it to schedule a one-time task, or pick another schedule.":
+    "此环境运行的是旧版 T3 Code。请更新后再设置单次任务，或选择其他计划。",
+  Once: "单次",
+  Date: "日期",
+  "Duplicate request key": "重复请求识别键",
+  "Requests with the same key run only once within 7 days.":
+    "相同识别键的请求在 7 天内仅执行一次。",
+  "Coalescing runs the latest payload when the window from the first delivery closes. Empty keys run normally.":
+    "合并窗口从首次送达时开始计时，窗口结束后执行最新载荷。识别键为空的请求正常执行。",
+  "This task previously ran more than once per minute. Saving requires an interval of at least 1 minute.":
+    "此任务此前每分钟运行多次。保存时需将间隔设为至少 1 分钟。",
+  "The provider process for this request is no longer available. Interrupt or restart the run to continue.":
+    "处理此请求的提供商进程已不可用。请中断或重启本次运行后继续。",
+  "On-device voice transcription is not available for this device language.":
+    "此设备语言不支持设备端语音转写。",
+  "Not enough storage for on-device dictation. Free device storage and retry.":
+    "存储空间不足，无法进行设备端听写。请释放设备存储空间后重试。",
+  "On-device speech quota reached. Let the device rest or charge it, then retry.":
+    "已达到设备端语音用量限制。请让设备休息或充电后重试。",
+  "No speech was detected. Speak again and retry dictation.":
+    "未检测到语音。请重新说话并重试听写。",
+  "On-device speech is busy. Wait for it to finish, then retry dictation.":
+    "设备端语音服务正忙。请等待其完成后重试听写。",
+  "Update Android and its on-device speech services, then retry dictation.":
+    "请更新 Android 及其设备端语音服务，然后重试听写。",
+  "Speech model download failed. Check your network connection and retry.":
+    "语音模型下载失败。请检查网络连接后重试。",
+  "The speech engine could not process the complete recording. No text was added. Retry dictation.":
+    "语音引擎无法处理完整录音，未添加任何文本。请重试听写。",
+  "Speech recognition could not process the complete recording. No text was added. Retry dictation.":
+    "语音识别无法处理完整录音，未添加任何文本。请重试听写。",
+  "Voice transcription could not prepare this language. Check Google speech services and try again.":
+    "语音转写无法准备此语言。请检查 Google 语音服务后重试。",
+  "Voice transcription failed.": "语音转写失败。",
+  "Voice transcription requires a supported device with iOS 26 or later.":
+    "语音转写需要受支持且运行 iOS 26 或更新版本的设备。",
+  "Voice transcription does not support this device language.": "语音转写不支持此设备语言。",
+  "Voice transcription could not prepare this language.": "语音转写无法准备此语言。",
+  Wired: "有线",
+  "Other wired": "其他有线麦克风",
+  "Headsets and USB microphones not listed": "未列出的耳麦和 USB 麦克风",
+  Bluetooth: "蓝牙",
+  "Other Bluetooth": "其他蓝牙麦克风",
+  "Earbuds, headsets, and cars, including Android Auto, not listed":
+    "未列出的耳机、耳麦和车载设备（包括 Android Auto）",
+  "AirPods, headsets, and cars not listed": "未列出的 AirPods、耳麦和车载设备",
+  "The microphone on this device": "此设备的麦克风",
+  "The car’s microphone": "车载麦克风",
+  "Voice input": "语音输入",
+  "Not available on this device": "此设备不支持",
+  "Microphone access": "麦克风访问权限",
+  "Allow microphone access": "允许访问麦克风",
+  "Open Settings": "打开设置",
+  "Voice input needs microphone access before it can record or list your microphones.":
+    "语音输入需要麦克风访问权限才能录音或列出麦克风。",
+  "Microphone access is off for T3 Code. Turn it on in Settings to use voice input.":
+    "T3 Code 的麦克风访问权限已关闭。请在设置中开启后使用语音输入。",
+  "Voice input prefers the first connected microphone in this list. Wired and Bluetooth devices are added by name after you use voice input with them connected; until then, the Other row ranks them. Swipe a device left to forget it.":
+    "语音输入优先使用此列表中排序最靠前且已连接的麦克风。有线和蓝牙设备连接后使用过语音输入，才会按名称加入列表；在此之前，其优先级由“其他”行决定。向左轻扫设备即可将其忘记。",
+  "Voice transcription is still finishing. Try again shortly.": "语音转写仍在完成中。请稍后重试。",
+  "Voice transcription is not available for this language.": "此语言不支持语音转写。",
+  "Could not prepare voice transcription.": "无法准备语音转写。",
+  "Could not transcribe this recording.": "无法转写此录音。",
+  "This draft is no longer available.": "此草稿已不可用。",
+  "Another voice recording is already active.": "已有另一段语音录音正在进行。",
+  "Voice transcription is not available.": "语音转写不可用。",
+  "Microphone access is required for voice input.": "语音输入需要麦克风访问权限。",
+  "Could not start voice recording.": "无法开始语音录音。",
+  "Voice recording was interrupted.": "语音录音已中断。",
+  "Voice input stopped when the app moved to the background.": "应用转入后台时，语音输入已停止。",
+  "Could not finish voice recording.": "无法完成语音录音。",
+  "The draft changed while voice input was running. The transcript was not added.":
+    "语音输入期间草稿发生了更改，未添加转写文本。",
+  "No speech was detected.": "未检测到语音。",
+  "Provider-managed agent": "由提供商管理的 Agent",
+  subagent: "子 Agent",
+  "This connection cannot respond to approvals.": "此连接无权回应批准请求。",
+  "Why am I being asked this?": "为什么仍然需要询问我？",
+  "Full access skips approvals, but an ask rule in the agent's own settings matches this action, so it still asks. Remove or narrow that rule to stop these prompts.":
+    "完全访问模式会跳过批准，但 Agent 自身设置中的询问规则匹配了此操作，因此仍会询问。移除该规则或缩小其适用范围即可停止这些提示。",
+  "Full access skips approvals, but the agent still stops for a few safety checks of its own that no setting can skip, such as a delete whose path it can't verify. T3 Code can't turn these off, so check the request and approve it if it's what you expect.":
+    "完全访问模式会跳过批准，但 Agent 仍会执行一些无法通过设置跳过的安全检查，例如无法验证路径的删除操作。T3 Code 无法关闭这些检查，请核对请求，确认符合预期后再批准。",
+  "Managed by {organization}.": "由 {organization} 管理。",
+  "Some settings are managed by {organizations} and cannot be changed here.":
+    "部分设置由 {organizations} 管理，无法在此更改。",
+  "Get help from {organization}": "向 {organization} 寻求帮助",
+  "{organization} manages T3 Code updates.": "{organization} 管理 T3 Code 更新。",
+  "{organization} limits threads to {mode}.": "{organization} 将任务的运行模式限制为{mode}。",
+  "Switch to {mode}": "切换为{mode}",
+  "{organization}'s policy does not allow {capability}.":
+    "{organization} 的策略不允许{capability}。",
+  "{organization}'s policy does not allow the {provider} provider.":
+    "{organization} 的策略不允许使用 {provider} 提供商。",
+  "Your organization policy does not allow the {provider} provider.":
+    "你所在组织的策略不允许使用 {provider} 提供商。",
+  "Choose another model.": "请选择其他模型。",
+  "Last run failed:": "上次运行失败：",
+  "T3 Code's voice input uses Google's on-device speech recognition, which needs Android 12 or later with compatible Google speech services for the device language. Without it, the composer has no microphone button, and allowing microphone access won't add one. Keyboard voice typing is separate and isn't affected.":
+    "T3 Code 的语音输入使用 Google 的设备端语音识别，需要 Android 12 或更新版本，以及支持设备语言的兼容 Google 语音服务。如果设备不满足条件，输入框中就不会显示麦克风按钮，授予麦克风权限也不会添加该按钮。键盘语音输入是独立功能，不受影响。",
+  "T3 Code's voice input uses Apple's on-device speech transcription, which needs iOS 26 or later on a device that supports it. Without it, the composer has no microphone button, and allowing microphone access won't add one. Apple keyboard dictation is separate and isn't affected.":
+    "T3 Code 的语音输入使用 Apple 的设备端语音转写，需要支持此功能且运行 iOS 26 或更新版本的设备。如果设备不满足条件，输入框中就不会显示麦克风按钮，授予麦克风权限也不会添加该按钮。Apple 键盘听写是独立功能，不受影响。",
+  "Once, {date} at {time}": "单次，{date} {time}",
+  "{position} of {count}": "第 {position} 项，共 {count} 项",
+  "Runs on {environment}": "运行于 {environment}",
 } as const satisfies Readonly<Record<string, string>>;
 
 function translateDynamicMessage(value: string): string | null {
@@ -1515,8 +1649,9 @@ export function localizeMobileString(value: string, locale: MobileLocale = MOBIL
   const source = value.trim();
   if (!source) return value;
 
-  const translated =
-    (ZH_CN_MESSAGES as Readonly<Record<string, string>>)[source] ?? translateDynamicMessage(source);
+  const translated = Object.hasOwn(ZH_CN_MESSAGES, source)
+    ? (ZH_CN_MESSAGES as Readonly<Record<string, string>>)[source]
+    : translateDynamicMessage(source);
   return translated === undefined || translated === null
     ? value
     : `${leadingWhitespace}${translated}${trailingWhitespace}`;

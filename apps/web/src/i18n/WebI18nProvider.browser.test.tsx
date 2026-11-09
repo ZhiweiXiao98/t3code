@@ -1,6 +1,6 @@
 import type { AppLocalePreference } from "@t3tools/contracts/settings";
 import { expect, it, vi } from "vite-plus/test";
-import { userEvent } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 
 const testState = vi.hoisted(() => ({
   settings: { appLocale: "en" as AppLocalePreference },
@@ -11,11 +11,14 @@ vi.mock("../hooks/useSettings", () => ({
   useClientSettings: (selector: (settings: typeof testState.settings) => unknown) =>
     selector(testState.settings),
   updateClientSettings: testState.updateClientSettings,
+  getClientSettings: () => testState.settings,
 }));
 
 import { act, render } from "../../test/render";
 import { useI18n } from "./WebI18nContext";
 import { WebI18nProvider } from "./WebI18nProvider";
+import { readWebI18n } from "./readWebI18n";
+import { LanguageSelect } from "../components/LanguageSelect";
 
 function setup({
   appLocale = "en",
@@ -64,14 +67,14 @@ function setup({
 }
 
 function LocaleControls() {
-  const { locale, t, setAppLocale } = useI18n();
+  const { locale, t } = useI18n();
   return (
     <>
       <output aria-label="Current locale">{locale}</output>
       <h1>{t("settings.title")}</h1>
       <p>{t("common.confirm")}</p>
       <p>{t("common.back")}</p>
-      <button onClick={() => setAppLocale("zh-CN")}>Choose Chinese</button>
+      <LanguageSelect />
     </>
   );
 }
@@ -111,6 +114,8 @@ it("prefers the desktop bridge's OS locale over Chromium's packaged locale", asy
     "zh-CN",
   );
   expect(screen.getByRole("heading").element().textContent).toBe("设置");
+  expect(readWebI18n().locale).toBe("zh-CN");
+  expect(readWebI18n().t("settings.title")).toBe("设置");
 });
 
 it("updates when the runtime language changes while following the system", async () => {
@@ -128,8 +133,13 @@ it("updates when the runtime language changes while following the system", async
 it("persists an explicit language selection as a client-settings patch", async () => {
   using state = setup();
   await using screen = await render(provider());
-  await userEvent.click(screen.getByRole("button", { name: "Choose Chinese" }));
+  await userEvent.click(screen.getByRole("combobox", { name: "App language" }));
+  await userEvent.click(page.getByRole("option", { name: "简体中文" }));
   expect(state.updateClientSettings).toHaveBeenCalledExactlyOnceWith({ appLocale: "zh-CN" });
+  testState.settings = { appLocale: "zh-CN" };
+  await screen.rerender(provider());
+  expect(screen.getByRole("heading").element().textContent).toBe("设置");
+  expect(document.documentElement.lang).toBe("zh-CN");
 });
 
 it("keeps an explicit locale when repeated runtime language events arrive", async () => {

@@ -4,7 +4,11 @@ import { resolveAutoFeatureBranchName } from "@t3tools/shared/git";
 import { assert, describe, it } from "vite-plus/test";
 import {
   buildMenuItems,
+  formatGitActionElapsed,
+  resolveGitActionProgressPresentation,
+  resolveFeatureBranchUnavailableReason,
   requiresDefaultBranchConfirmation,
+  resolveChangesTotals,
   resolveDefaultBranchActionDialogCopy,
   resolveLiveThreadBranchUpdate,
   resolveQuickAction,
@@ -187,6 +191,23 @@ describe("when: the ref is on GitLab", () => {
     });
     assert.equal(copy.title, "Push & create MR from default ref?");
     assert.include(copy.description, "create a merge request on");
+
+    assert.equal(resolveQuickAction(ahead, false, false, true, "zh-CN").label, "推送并创建 MR");
+    assert.equal(
+      buildMenuItems(ahead, false, true, "zh-CN").find((item) => item.id === "pr")?.label,
+      "创建 MR",
+    );
+    const translated = resolveDefaultBranchActionDialogCopy({
+      action: "create_pr",
+      branchName: "feature/保留-main",
+      includesCommit: false,
+      terminology: sourceControlClients.get("gitlab").changeRequest,
+      locale: "zh-CN",
+    });
+    assert.equal(translated.title, "从默认引用推送并创建 MR？");
+    assert.include(translated.description, "“feature/保留-main”");
+    assert.include(translated.description, "合并请求");
+    assert.notInclude(translated.description, "{branch}");
   });
 });
 
@@ -245,5 +266,85 @@ describe("resolveAutoFeatureBranchName", () => {
   it("treats existing ref names as case-insensitive for collision checks", () => {
     const ref = resolveAutoFeatureBranchName(["Feature/Ticket-1"], "feature/ticket-1");
     assert.equal(ref, "feature/ticket-1-2");
+  });
+});
+
+describe("localized Git action progress", () => {
+  it("keeps hook output and branch identifiers intact while translating presentation", () => {
+    const progress = {
+      isRunning: true,
+      operation: "run_change_request",
+      currentLabel: "Running pre-commit...",
+      hookName: "pre-commit",
+      lastOutputLine: "  test --run path/file.ts  ",
+      phaseStartedAtMs: 0,
+      hookStartedAtMs: 1,
+    };
+    assert.equal(resolveGitActionProgressPresentation(progress)?.status, "Running pre-commit...");
+    assert.deepEqual(resolveGitActionProgressPresentation(progress, "zh-CN"), {
+      status: "正在运行 pre-commit…",
+      output: "test --run path/file.ts",
+      startedAtMs: 1,
+    });
+    assert.equal(formatGitActionElapsed(0, 65000), "1m 5s");
+    assert.equal(formatGitActionElapsed(0, 65000, "zh-CN"), "1 分 5 秒");
+    assert.include(
+      resolveFeatureBranchUnavailableReason({
+        branchName: "feature/do-not-translate",
+        hasWorkingTreeChanges: false,
+        locale: "zh-CN",
+      }) ?? "",
+      "feature/do-not-translate",
+    );
+  });
+});
+
+describe("resolveChangesTotals", () => {
+  it("does not let an empty branchChanges hide a dirty working tree", () => {
+    assert.deepEqual(
+      resolveChangesTotals(
+        status({
+          hasWorkingTreeChanges: true,
+          branchChanges: { baseRef: "main", insertions: 0, deletions: 0 },
+          workingTree: {
+            files: [{ path: "a.ts", insertions: 5, deletions: 1 }],
+            insertions: 5,
+            deletions: 1,
+          },
+        }),
+      ),
+      { insertions: 5, deletions: 1 },
+    );
+  });
+
+  it("keeps non-zero branchChanges over the working tree", () => {
+    assert.deepEqual(
+      resolveChangesTotals(
+        status({
+          branchChanges: { baseRef: "main", insertions: 20, deletions: 3 },
+          workingTree: {
+            files: [{ path: "a.ts", insertions: 1, deletions: 0 }],
+            insertions: 1,
+            deletions: 0,
+          },
+        }),
+      ),
+      { insertions: 20, deletions: 3 },
+    );
+  });
+
+  it("falls back to the working tree when branchChanges is omitted", () => {
+    assert.deepEqual(
+      resolveChangesTotals(
+        status({
+          workingTree: {
+            files: [{ path: "a.ts", insertions: 2, deletions: 0 }],
+            insertions: 2,
+            deletions: 0,
+          },
+        }),
+      ),
+      { insertions: 2, deletions: 0 },
+    );
   });
 });

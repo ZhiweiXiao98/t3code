@@ -331,7 +331,18 @@ export function planScopedSettingsPatch(
           : isProjectScope
             ? "Connect the selected checkouts, or update their environments, to save a project override."
             : `Connect ${scope.kind === "environment" ? scope.label : "an environment"} to save this setting.`;
-  return { clientPatch, hasClientWrite, serverWrites, unavailableReason };
+  return {
+    clientPatch,
+    hasClientWrite,
+    serverWrites,
+    unavailableReason,
+    ...(!hasWrite &&
+    Object.keys(patch).length > 0 &&
+    scope.kind === "environment" &&
+    unscopableKeys.length === 0
+      ? { unavailableEnvironmentLabel: scope.label }
+      : {}),
+  };
 }
 
 export function planScopedSettingsClear(
@@ -451,6 +462,7 @@ export async function persistScopedSettingsPatch(
     readonly _tag: "Success" | "Failure";
     readonly cause?: Cause.Cause<unknown>;
     readonly value?: ServerSettings;
+    readonly sourceMessage?: boolean;
   }>,
   persistClient: (patch: ClientSettingsPatch) => void,
 ) {
@@ -476,6 +488,7 @@ export async function persistScopedSettingsPatch(
         {
           ...environment,
           message: "This environment does not support this setting. Update T3 Code on it.",
+          sourceMessage: true,
         },
       ];
     }
@@ -488,6 +501,9 @@ export async function persistScopedSettingsPatch(
     return [
       {
         ...environment,
+        sourceMessage:
+          !(error instanceof Error) ||
+          (result?.status === "fulfilled" && result.value.sourceMessage === true),
         message:
           error instanceof Error
             ? error.message

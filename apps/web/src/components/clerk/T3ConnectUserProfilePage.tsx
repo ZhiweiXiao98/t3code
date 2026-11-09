@@ -1,5 +1,5 @@
 import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
-import { useI18n, type WebTranslate } from "~/i18n/WebI18nContext";
+import { splitWebTranslation, useI18n, type WebTranslate } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
 
 import { findErrorTraceId } from "@t3tools/client-runtime/errors";
@@ -125,6 +125,12 @@ function T3ConnectEnvironmentRow(props: {
 }
 
 function T3ConnectTunnelUsage() {
+  const { locale, t } = useI18n();
+  const [beforeConfirmation, afterConfirmation] = splitWebTranslation(
+    t,
+    "t3Chat.confirmLink",
+    "site",
+  );
   const usage = useManagedTunnelUsage();
   const t3Chat = useT3ChatLink();
   if (usage.used === null || usage.limit === null) return null;
@@ -135,7 +141,7 @@ function T3ConnectTunnelUsage() {
         <p className="mt-2 text-xs leading-4.5 text-muted-foreground">
           {usage.upgrade === "link" && t3Chat.linkUrl ? (
             <>
-              Confirm on{" "}
+              {beforeConfirmation}
               <a
                 className="underline"
                 href={t3Chat.linkUrl}
@@ -144,14 +150,16 @@ function T3ConnectTunnelUsage() {
               >
                 t3.chat
               </a>
-              , then select Refresh.
+              {afterConfirmation}
             </>
           ) : (
             <>
-              {tunnelUpgradeCopy(usage.upgrade)}{" "}
+              {tunnelUpgradeCopy(usage.upgrade, locale)}{" "}
               {usage.upgrade === "link" ? (
                 <InlineButton disabled={t3Chat.pending !== null} onClick={() => void t3Chat.link()}>
-                  {t3Chat.pending === "link" ? "Opening…" : "Link T3 Chat"}
+                  {t3Chat.pending === "link"
+                    ? translateWebSource(locale, "Opening…")
+                    : translateWebSource(locale, "Link T3 Chat")}
                 </InlineButton>
               ) : (
                 <a
@@ -160,7 +168,7 @@ function T3ConnectTunnelUsage() {
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  Upgrade on T3 Chat
+                  {translateWebSource(locale, "Upgrade on T3 Chat")}
                 </a>
               )}
             </>

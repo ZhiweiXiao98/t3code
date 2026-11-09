@@ -82,11 +82,14 @@ export function SnapShotContentsButton({
   className?: string;
   side?: "top" | "right" | "bottom" | "left";
 }) {
+  const { t: controlsT } = useI18n();
   const { locale: newCopyLocale } = useI18n();
   const includesAccessibility = snapShotIncludesAccessibility(source);
   const ContentsIcon = includesAccessibility ? TextIcon : ImageIcon;
   const accessibilityDetails = snapShotAccessibilityDetails(source);
-  const tooltip = includesAccessibility ? "Accessibility data" : "No accessibility data";
+  const tooltip = includesAccessibility
+    ? controlsT("chatControls.copy60")
+    : controlsT("chatControls.copy61");
 
   return (
     <Popover>
@@ -97,7 +100,9 @@ export function SnapShotContentsButton({
               render={
                 <Button
                   aria-label={
-                    includesAccessibility ? "View accessibility data" : "No accessibility data"
+                    includesAccessibility
+                      ? controlsT("chatControls.copy62")
+                      : controlsT("chatControls.copy61")
                   }
                   className={className}
                   onClick={(event) => event.stopPropagation()}
@@ -114,7 +119,7 @@ export function SnapShotContentsButton({
       </Tooltip>
       <PopoverPopup side={side} align="center" width="md">
         <div className="max-h-[min(28rem,70vh)] space-y-2 overflow-y-auto">
-          <PopoverTitle>Accessibility data</PopoverTitle>
+          <PopoverTitle>{controlsT("chatControls.copy60")}</PopoverTitle>
           {accessibilityDetails ? (
             <SnapShotAccessibilityData
               details={accessibilityDetails}
@@ -129,7 +134,7 @@ export function SnapShotContentsButton({
             </div>
           ) : (
             <div className="rounded-md border border-border/70 bg-muted/45 p-2.5 text-muted-foreground text-xs leading-4">
-              The app or capture backend did not provide verified accessibility data.
+              {controlsT("chatControls.copy63")}
             </div>
           )}
         </div>
@@ -145,6 +150,7 @@ export function SnapShotAttachmentDetails({
   source: SnapShotSource;
   className?: string;
 }) {
+  const { t: controlsT } = useI18n();
   return (
     <div
       className={cn(
@@ -165,7 +171,7 @@ export function SnapShotAttachmentDetails({
           <SnapShotContentsButton source={source} className="pointer-events-auto" />
         </div>
         <div className="truncate text-3xs leading-3.5 text-white/70">
-          {source.windowTitle || "Captured window"}
+          {source.windowTitle || controlsT("chatControls.capturedWindow")}
         </div>
       </div>
     </div>

@@ -1,5 +1,6 @@
+import { managedRuntimeModeCeilingMessage } from "../../i18n/managedPolicyMessages";
 import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
-import { useI18n, splitWebTranslation } from "~/i18n/WebI18nContext";
+import { useI18n, splitWebTranslation, type WebTranslate } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
 
 import {
@@ -8,6 +9,7 @@ import {
   AuthMcpApprovalError,
   AuthMcpClientAccess,
   AuthMcpAuthorizationRequest,
+  isRuntimeModeAbove,
 } from "@t3tools/contracts";
 import { Radio as RadioPrimitive } from "@base-ui/react/radio";
 import { isLoopbackHost } from "@t3tools/shared/preview";
@@ -232,7 +234,12 @@ export function ConnectAgentSurface() {
             onValueChange={(value) => setAccess(value as AuthMcpClientAccess)}
           >
             {AuthMcpClientAccess.literals.map((option) => (
-              <AccessOption key={option} access={option} selected={option === access} />
+              <AccessOption
+                key={option}
+                access={option}
+                selected={option === access}
+                managedReason={ceilingReason(details, option, t)}
+              />
             ))}
           </RadioGroup>
           <p className="text-xs text-muted-foreground">
@@ -305,12 +312,28 @@ function ConnectAgentHeading({
   );
 }
 
+/** Why a managed policy keeps `access` from being granted, or undefined when it may be. */
+function ceilingReason(
+  details: AuthMcpApprovalDetails,
+  access: AuthMcpClientAccess,
+  t: WebTranslate,
+) {
+  const ceiling = details.runtimeModeCeiling;
+  return ceiling === undefined ||
+    access === "read-only" ||
+    !isRuntimeModeAbove(access, ceiling.maxRuntimeMode)
+    ? undefined
+    : managedRuntimeModeCeilingMessage(ceiling.organization, ceiling.maxRuntimeMode, t);
+}
+
 function AccessOption({
   access,
   selected,
+  managedReason,
 }: {
   readonly access: AuthMcpClientAccess;
   readonly selected: boolean;
+  readonly managedReason: string | undefined;
 }) {
   const { locale } = useI18n();
   const tx = (source: string) => translateWebSource(locale, source);
@@ -318,6 +341,7 @@ function AccessOption({
   return (
     <RadioPrimitive.Root
       value={access}
+      disabled={managedReason !== undefined}
       className={cn(
         "flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-2.5 text-left outline-none transition-[background-color,border-color,box-shadow]",
         "focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
@@ -335,7 +359,9 @@ function AccessOption({
       />
       <span className="min-w-0">
         <span className="block text-sm font-medium text-foreground">{tx(label)}</span>
-        <span className="block text-xs text-muted-foreground">{tx(description)}</span>
+        <span className="block text-xs text-muted-foreground">
+          {managedReason ?? tx(description)}
+        </span>
       </span>
     </RadioPrimitive.Root>
   );

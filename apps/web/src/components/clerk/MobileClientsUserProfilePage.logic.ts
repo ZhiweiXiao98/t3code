@@ -1,9 +1,16 @@
+import { translateWebMessage, translateWebSource } from "~/i18n/messages";
+import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 import type { RelayClientDeviceRecord } from "@t3tools/contracts/relay";
 
 const mobileClientUpdatedAtFormatter = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
   timeStyle: "short",
 });
+
+const mobileClientLocaleFormatters = {
+  en: new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }),
+  "zh-CN": new Intl.DateTimeFormat("zh-CN", { dateStyle: "medium", timeStyle: "short" }),
+};
 
 const NOTIFICATION_PREFERENCES = [
   ["notifyOnApproval", "approvals"],
@@ -24,22 +31,35 @@ export function mobileClientPlatformLabel(device: RelayClientDeviceRecord): stri
   return `${platform}${device.appVersion ? ` · T3 Code ${device.appVersion}` : ""}`;
 }
 
-export function mobileClientNotificationDetail(device: RelayClientDeviceRecord): string {
+export function mobileClientNotificationDetail(
+  device: RelayClientDeviceRecord,
+  locale: ResolvedAppLocale = "en",
+): string {
   if (!device.notifications.enabled) {
-    return "Push notifications are disabled on this device.";
+    return translateWebSource(locale, "Push notifications are disabled on this device.");
   }
 
   const enabledPreferences = NOTIFICATION_PREFERENCES.flatMap(([preference, label]) =>
-    device.notifications[preference] ? [label] : [],
+    device.notifications[preference] ? [translateWebSource(locale, label)] : [],
   );
   return enabledPreferences.length > 0
-    ? `Alerts enabled for ${enabledPreferences.join(", ")}.`
-    : "Push notifications are enabled, but no alert types are selected.";
+    ? translateWebMessage(locale, "mobileClients.alertTypes", {
+        types: enabledPreferences.join(locale === "zh-CN" ? "、" : ", "),
+      })
+    : translateWebSource(
+        locale,
+        "Push notifications are enabled, but no alert types are selected.",
+      );
 }
 
-export function mobileClientUpdatedAtLabel(updatedAt: string): string {
+export function mobileClientUpdatedAtLabel(updatedAt: string, locale?: ResolvedAppLocale): string {
   const date = new Date(updatedAt);
   return Number.isNaN(date.getTime())
-    ? "Update time unavailable"
-    : `Updated ${mobileClientUpdatedAtFormatter.format(date)}`;
+    ? translateWebSource(locale ?? "en", "Update time unavailable")
+    : translateWebMessage(locale ?? "en", "mobileClients.updated", {
+        date: (locale === undefined
+          ? mobileClientUpdatedAtFormatter
+          : mobileClientLocaleFormatters[locale]
+        ).format(date),
+      });
 }

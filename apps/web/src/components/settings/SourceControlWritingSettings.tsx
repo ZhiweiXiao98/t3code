@@ -1,3 +1,5 @@
+import { useStableCallback } from "../../hooks/useStableCallback";
+import { translateWebSource } from "../../i18n/messages";
 import { useNavigate } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import type {
@@ -45,6 +47,17 @@ import {
 import { AdvancedSettings } from "./AdvancedSettings";
 import { searchableSetting } from "./settingsSearch";
 
+const WRITING_SOURCE_MESSAGES = {
+  "Review guide model": "审查指南模型",
+} as const;
+
+function translateWritingSource(
+  locale: string,
+  source: keyof typeof WRITING_SOURCE_MESSAGES,
+): string {
+  return locale === "zh-CN" ? WRITING_SOURCE_MESSAGES[source] : source;
+}
+
 const MODE_OPTION_MESSAGE_KEYS = {
   repo_conventions: {
     label: "sourceControl.writingStyle.repoConventions",
@@ -64,7 +77,8 @@ const MODE_OPTION_MESSAGE_KEYS = {
 >;
 
 export function SourceControlWritingSettingsSection() {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
+  const translateNotice = useStableCallback((source: string) => translateWebSource(locale, source));
   const settings = useScopedSettings();
   const updateSettings = useUpdateScopedSettings();
   const mixedReviewGuidesEnabled = useScopedSettingsMixed(["reviewGuidesEnabled"]);
@@ -176,7 +190,10 @@ export function SourceControlWritingSettingsSection() {
   );
 
   return (
-    <SettingsSection id="source-control-text-generation" title="Writing & review">
+    <SettingsSection
+      id="source-control-text-generation"
+      title={translateWebSource(locale, "Writing & review")}
+    >
       <SettingsRow
         serverScoped
         settingKeys={["sourceControlWritingStyle"]}
@@ -219,7 +236,9 @@ export function SourceControlWritingSettingsSection() {
             >
               <SelectValue>
                 {(value: SourceControlWritingStyleMode | null) =>
-                  value === null ? "Mixed" : t(MODE_OPTION_MESSAGE_KEYS[value].label)
+                  value === null
+                    ? translateWebSource(locale, "Mixed")
+                    : t(MODE_OPTION_MESSAGE_KEYS[value].label)
                 }
               </SelectValue>
             </SelectTrigger>
@@ -243,8 +262,14 @@ export function SourceControlWritingSettingsSection() {
                   value={allInstructions ?? ""}
                   onChange={(event) => setAllInstructions(event.target.value)}
                   rows={4}
-                  aria-label="Custom source control instructions for all selected environments"
-                  placeholder="Write the instructions each selected environment should use."
+                  aria-label={translateWebSource(
+                    locale,
+                    "Custom source control instructions for all selected environments",
+                  )}
+                  placeholder={translateWebSource(
+                    locale,
+                    "Write the instructions each selected environment should use.",
+                  )}
                 />
                 <Button
                   size="sm"
@@ -261,7 +286,7 @@ export function SourceControlWritingSettingsSection() {
                     setEditingAllInstructions(false);
                   }}
                 >
-                  Apply instructions to all
+                  {translateWebSource(locale, "Apply instructions to all")}
                 </Button>
               </>
             ) : (
@@ -273,7 +298,7 @@ export function SourceControlWritingSettingsSection() {
                   setEditingAllInstructions(true);
                 }}
               >
-                Write custom instructions for all
+                {translateWebSource(locale, "Write custom instructions for all")}
               </Button>
             )}
           </div>
@@ -301,14 +326,17 @@ export function SourceControlWritingSettingsSection() {
         serverScoped
         settingKeys={["reviewGuidesEnabled"]}
         mixed={mixedReviewGuidesEnabled}
-        {...searchableSetting("review-guides")}
-        description="Adds a Guide tab to pull requests: an agent writes a tour of the change, stop by stop, with the calls a maintainer should make."
+        {...searchableSetting("review-guides", locale)}
+        description={translateWebSource(
+          locale,
+          "Add a Guide tab to pull requests. An agent explains the changes and points out decisions that need review.",
+        )}
         control={
           <Switch
             mixed={mixedReviewGuidesEnabled}
             checked={mixedReviewGuidesEnabled ? false : settings.reviewGuidesEnabled}
             onCheckedChange={(checked) => updateSettings({ reviewGuidesEnabled: Boolean(checked) })}
-            aria-label="Review guides"
+            aria-label={translateWebSource(locale, "Review guides")}
           />
         }
       />
@@ -318,12 +346,18 @@ export function SourceControlWritingSettingsSection() {
           <SettingsRow
             serverScoped
             settingKeys={["reviewGuideModelSelection"]}
-            {...searchableSetting("review-guide-model")}
-            description="Model that reads a pull request to write its review guide. It reads the change itself over many steps, so a stronger model helps. Off uses the source control writer model."
+            {...searchableSetting("review-guide-model", locale)}
+            description={translateWebSource(
+              locale,
+              "Model that reads a pull request to write its review guide. It reads the change itself over many steps, so a stronger model helps. Off uses the source control writer model.",
+            )}
             control={
               !hasServerTargets ? (
                 <span className="text-sm text-muted-foreground">
-                  Connect an environment to choose its review guide model.
+                  {translateWebSource(
+                    locale,
+                    "Connect an environment to choose its review guide model.",
+                  )}
                 </span>
               ) : (
                 <div className="flex flex-wrap items-center justify-end gap-2">
@@ -336,15 +370,17 @@ export function SourceControlWritingSettingsSection() {
                       instanceEntries={instanceEntries}
                       modelOptionsByInstance={reviewGuideModelOptionsByInstance}
                       triggerClassName={SETTINGS_PICKER_TRIGGER_CLASSNAME}
-                      triggerAriaLabel="Review guide model"
-                      {...(mixedReviewGuideModel ? { triggerLabel: "Mixed" } : {})}
+                      triggerAriaLabel={translateWritingSource(locale, "Review guide model")}
+                      {...(mixedReviewGuideModel
+                        ? { triggerLabel: translateWebSource(locale, "Mixed") }
+                        : {})}
                       getModelDisabledReason={writerModelDisabledReason}
                       onInstanceModelChange={(instanceId, model) => {
                         const reason = writerModelDisabledReason(instanceId, model);
                         if (reason) {
                           toastManager.add({
                             type: "error",
-                            title: "Review guide model not saved",
+                            title: translateNotice("Review guide model not saved"),
                             description: reason,
                           });
                           return;
@@ -396,7 +432,7 @@ export function SourceControlWritingSettingsSection() {
                       if (reason) {
                         toastManager.add({
                           type: "error",
-                          title: "Review guide model not saved",
+                          title: translateNotice("Review guide model not saved"),
                           description: reason,
                         });
                         return;
@@ -409,7 +445,7 @@ export function SourceControlWritingSettingsSection() {
                         ),
                       });
                     }}
-                    aria-label="Use a separate review guide model"
+                    aria-label={translateWebSource(locale, "Use a separate review guide model")}
                   />
                 </div>
               )
@@ -420,11 +456,14 @@ export function SourceControlWritingSettingsSection() {
             serverScoped
             settingKeys={["reviewGuideInstructions"]}
             {...searchableSetting("review-guide-instructions")}
-            description="Your preferences for review guides: what to show first, dwell on, or skip. The guide's format and coverage stay the same."
+            description={translateWebSource(
+              locale,
+              "Your preferences for review guides: what to show first, dwell on, or skip. The guide's format and coverage stay the same.",
+            )}
             resetAction={
               mixedReviewGuideInstructions || settings.reviewGuideInstructions !== "" ? (
                 <SettingResetButton
-                  label="review guide instructions"
+                  label={translateWebSource(locale, "review guide instructions")}
                   onClick={() => updateSettings({ reviewGuideInstructions: "" })}
                 />
               ) : null
@@ -433,7 +472,7 @@ export function SourceControlWritingSettingsSection() {
             <div className="mt-3 max-w-2xl pb-3.5">
               <Textarea
                 key={`${scopeKey}:${mixedReviewGuideInstructions}:${settings.reviewGuideInstructions}`}
-                aria-label="Review guide instructions"
+                aria-label={translateWebSource(locale, "Review guide instructions")}
                 onChange={() => {
                   reviewGuideInstructionsEdited.current = true;
                 }}
@@ -441,8 +480,14 @@ export function SourceControlWritingSettingsSection() {
                 defaultValue={mixedReviewGuideInstructions ? "" : settings.reviewGuideInstructions}
                 placeholder={
                   mixedReviewGuideInstructions
-                    ? "Mixed. Enter instructions to apply to all selected targets."
-                    : "Show service interfaces before implementations. Skip test files unless they change behavior. Keep summaries to two sentences."
+                    ? translateWebSource(
+                        locale,
+                        "Mixed. Enter instructions to apply to all selected targets.",
+                      )
+                    : translateWebSource(
+                        locale,
+                        "Show service interfaces before implementations. Skip test files unless they change behavior. Keep summaries to two sentences.",
+                      )
                 }
                 onBlur={(event) => {
                   const value = event.target.value.trim();
@@ -506,11 +551,17 @@ export function SourceControlWritingSettingsSection() {
           serverScoped
           settingKeys={["sourceControlWriterModelSelection"]}
           {...searchableSetting("source-control-writer-model")}
-          description="Model for source control text and branch or bookmark names. Off uses the environment's text generation model."
+          description={translateWebSource(
+            locale,
+            "Model for source control text and branch or bookmark names. When disabled, use the text generation model configured for this environment.",
+          )}
           control={
             !hasServerTargets ? (
               <span className="text-sm text-muted-foreground">
-                Connect an environment to choose its source control writer model.
+                {translateWebSource(
+                  locale,
+                  "Connect an environment to choose its source control writer model.",
+                )}
               </span>
             ) : (
               <div className="flex flex-wrap items-center justify-end gap-2">
@@ -529,7 +580,9 @@ export function SourceControlWritingSettingsSection() {
                     modelOptionsByInstance={modelOptionsByInstance}
                     triggerClassName={SETTINGS_PICKER_TRIGGER_CLASSNAME}
                     triggerAriaLabel={t("sourceControl.writerModel.title")}
-                    {...(mixedWriterModel ? { triggerLabel: "Mixed" } : {})}
+                    {...(mixedWriterModel
+                      ? { triggerLabel: translateWebSource(locale, "Mixed") }
+                      : {})}
                     {...(environmentId
                       ? {
                           onOpenProviderSetup: (instanceId: ProviderInstanceId) => {
@@ -546,7 +599,7 @@ export function SourceControlWritingSettingsSection() {
                       if (reason) {
                         toastManager.add({
                           type: "error",
-                          title: "Source control writer model not saved",
+                          title: translateNotice("Source control writer model not saved"),
                           description: reason,
                         });
                         return;
@@ -596,7 +649,10 @@ export function SourceControlWritingSettingsSection() {
                         : null,
                     })
                   }
-                  aria-label="Use a separate source control writer model"
+                  aria-label={translateWebSource(
+                    locale,
+                    "Use a separate source control writer model",
+                  )}
                 />
               </div>
             )

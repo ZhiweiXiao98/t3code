@@ -1,4 +1,5 @@
 import { assert, describe, it } from "@effect/vitest";
+import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -30,7 +31,9 @@ vi.mock("electron", () => ({
   },
 }));
 
+import * as ElectronApp from "../electron/ElectronApp.ts";
 import * as ElectronDialog from "../electron/ElectronDialog.ts";
+import * as DesktopClientSettings from "../settings/DesktopClientSettings.ts";
 import * as BrowserSession from "./BrowserSession.ts";
 
 const { showMessageBox } = vi.hoisted(() => ({
@@ -46,7 +49,9 @@ const layerDialog = Layer.succeed(ElectronDialog.ElectronDialog, {
   showErrorBox: () => Effect.void,
 });
 const layer = BrowserSession.layer.pipe(
-  Layer.provide(Layer.merge(NodeServices.layer, layerDialog)),
+  Layer.provide(DesktopClientSettings.layerTest()),
+  Layer.provide(Layer.mock(ElectronApp.ElectronApp)({ systemLocale: Effect.succeed("en-US") })),
+  Layer.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer, layerDialog)),
 );
 
 describe("BrowserSession", () => {
@@ -172,6 +177,7 @@ describe("BrowserSession", () => {
         "clipboard-sanitized-write",
         "geolocation",
         "fullscreen",
+        "pointerLock",
         "loopback-network",
       ]) {
         assert.isTrue(requestAllows(permission), `request handler should allow ${permission}`);

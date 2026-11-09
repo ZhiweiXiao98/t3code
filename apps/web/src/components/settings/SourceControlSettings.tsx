@@ -1,3 +1,4 @@
+import { translateWebSource } from "../../i18n/messages";
 import { RefreshIcon } from "~/components/ui/refresh-icon";
 import { ChevronDownIcon } from "lucide-react";
 import * as Option from "effect/Option";
@@ -213,11 +214,19 @@ function itemSummary({
     }
 
     if (!item.executable && auth.status === "unauthenticated") {
-      return <span>Available. {item.installHint}</span>;
+      return (
+        <span>
+          {t("settingsControls.availableHint", { hint: localizeInstallHint(item.installHint, t) })}
+        </span>
+      );
     }
 
     if (auth.status === "unauthenticated" && auth.accounts?.some((entry) => entry.authenticated)) {
-      return <span>{optionLabel(auth.detail) ?? `Every ${item.label} host is turned off.`}</span>;
+      return (
+        <span>
+          {optionLabel(auth.detail) ?? t("settingsControls.hostsOff", { provider: item.label })}
+        </span>
+      );
     }
 
     if (auth.status === "unauthenticated") {
@@ -386,7 +395,7 @@ function EmptySourceControlDiscovery({
   readonly isPending: boolean;
   readonly onScan: () => void;
 }) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const hasError = error !== null;
 
   return (
@@ -409,7 +418,7 @@ function EmptySourceControlDiscovery({
         <EmptyContent>
           <Button size="sm" variant="outline" onClick={onScan} disabled={isPending}>
             <RefreshIcon size="sm" refreshing={isPending} />
-            Scan
+            {translateWebSource(locale, "Scan")}
           </Button>
         </EmptyContent>
       </Empty>
@@ -418,7 +427,7 @@ function EmptySourceControlDiscovery({
 }
 
 export function SourceControlSettingsPanel() {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const { scope, environment, connectedEnvironments } = useSettingsScope();
 
   const environmentId =
@@ -461,7 +470,7 @@ export function SourceControlSettingsPanel() {
             {credentials.appSignIn && item.appSignIn === true ? (
               <div className="flex items-center gap-3 text-2xs text-muted-foreground">
                 <span aria-hidden className="h-px flex-1 bg-border" />
-                Or use your own credentials
+                {translateWebSource(locale, "Or use your own credentials")}
                 <span aria-hidden className="h-px flex-1 bg-border" />
               </div>
             ) : null}
@@ -520,15 +529,21 @@ export function SourceControlSettingsPanel() {
     <SettingsPageContainer>
       <ProjectDefaultsSettings category="source-control" />
       {environmentId === null ? (
-        <SettingsSection id={searchableSetting("source-control").id} title="Server environment">
+        <SettingsSection
+          id={searchableSetting("source-control").id}
+          title={translateWebSource(locale, "Server environment")}
+        >
           <p className="px-4 py-3 text-sm text-muted-foreground">
-            Connect an environment to inspect its version control tools and hosting integrations.
+            {translateWebSource(
+              locale,
+              "Connect an environment to inspect its version control tools and hosting integrations.",
+            )}
           </p>
         </SettingsSection>
       ) : isInitialScanPending ? (
         <>
           <SourceControlSectionSkeleton
-            title={`Version Control${environmentSuffix}`}
+            title={t("settingsControls.versionControl", { suffix: environmentSuffix })}
             headerAction={scanButton}
           />
           <SourceControlSectionSkeleton title={t("sourceControl.providers")} />
@@ -538,7 +553,7 @@ export function SourceControlSettingsPanel() {
           {hasVersionControlSystems ? (
             <SettingsSection
               id={searchableSetting("source-control").id}
-              title={`Version Control${environmentSuffix}`}
+              title={t("settingsControls.versionControl", { suffix: environmentSuffix })}
               headerAction={scanButton}
             >
               {result.versionControlSystems.map((item) => (

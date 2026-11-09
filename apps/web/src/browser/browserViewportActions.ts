@@ -1,3 +1,5 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
+import { translateWebSource } from "~/i18n/messages";
 import { runAtomCommand, squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
 import type { PreviewViewportSetting, ScopedThreadRef } from "@t3tools/contracts";
 
@@ -77,10 +79,12 @@ async function resizeBrowserViewport(
   );
   if (result._tag === "Failure") {
     const error = squashAtomCommandFailure(result);
+    const { locale } = readWebI18n();
     toastManager.add({
       type: "error",
-      title: "Unable to resize browser viewport",
-      description: error instanceof Error ? error.message : "An error occurred.",
+      title: translateWebSource(locale, "Unable to resize browser viewport"),
+      description:
+        error instanceof Error ? error.message : translateWebSource(locale, "An error occurred."),
     });
     throw error;
   }

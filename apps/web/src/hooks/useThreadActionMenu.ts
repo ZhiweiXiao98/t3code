@@ -1,3 +1,4 @@
+import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 import { translateWebSource } from "../i18n/messages";
 import { useI18n } from "../i18n/WebI18nContext";
 import { scopeProjectRef } from "@t3tools/client-runtime/environment";
@@ -37,6 +38,7 @@ import {
 } from "../state/entities";
 import { usePrimaryEnvironmentId } from "../state/environments";
 import { readLocalApi } from "../localApi";
+import { configuredHostedAppUrl } from "../hostedPairing";
 import {
   deriveLogicalProjectKeyFromSettings,
   derivePhysicalProjectKey,
@@ -47,14 +49,27 @@ import { threadRuntimeCanArchive } from "@t3tools/client-runtime/state/models";
 import { useCopyToClipboard } from "./useCopyToClipboard";
 import { useNewThreadHandler } from "./useHandleNewThread";
 import { useClientSettings } from "./useSettings";
-import { canTurnThreadIntoProject, useThreadActions } from "./useThreadActions";
+import {
+  canTurnThreadIntoProject,
+  formatThreadActionError,
+  useThreadActions,
+} from "./useThreadActions";
 
-function showFailureToast(title: string, error: unknown, fallback: string) {
+function localThreadPermissionMessage(locale: ResolvedAppLocale): string {
+  return locale === "zh-CN" ? "此连接无权修改会话。" : "This connection cannot change threads.";
+}
+
+function showFailureToast(
+  title: string,
+  error: unknown,
+  fallback: string,
+  locale: ResolvedAppLocale,
+) {
   toastManager.add(
     stackedThreadToast({
       type: "error",
       title,
-      description: error instanceof Error ? error.message : fallback,
+      description: formatThreadActionError(error, locale, fallback),
     }),
   );
 }
@@ -68,7 +83,7 @@ export function useThreadActionMenu(input: {
 }) {
   const { locale, t } = useI18n();
   const failureToast = (title: string, error: unknown) =>
-    showFailureToast(translateWebSource(locale, title), error, t("common.error"));
+    showFailureToast(translateWebSource(locale, title), error, t("common.error"), locale);
   const { threadRef, projectCwd, onStartRename, onFind, canShareWithGuest } = input;
   const router = useRouter();
   const projects = useProjects();
@@ -168,10 +183,7 @@ export function useThreadActionMenu(input: {
         threadActionRequiresOperate(action) &&
         !readEnvironmentScope(threadRef.environmentId, AuthOrchestrationOperateScope)
       ) {
-        failureToast(
-          "Thread action unavailable",
-          new Error("This connection cannot change threads."),
-        );
+        failureToast("Thread action unavailable", new Error(localThreadPermissionMessage(locale)));
         return;
       }
       if (action.startsWith("snooze:")) {
@@ -307,7 +319,10 @@ export function useThreadActionMenu(input: {
           }
           return;
         case "copy-thread":
-          void copyThreadReference(threadChipCopyTarget(threadRef, thread.title), locale);
+          void copyThreadReference(
+            threadChipCopyTarget(threadRef, thread.title, configuredHostedAppUrl()),
+            locale,
+          );
           return;
         case "copy-thread-id":
           copyThreadIdToClipboard(thread.id, { threadId: thread.id });

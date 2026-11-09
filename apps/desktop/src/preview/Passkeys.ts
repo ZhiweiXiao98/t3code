@@ -12,6 +12,8 @@ import { PASSKEY_CREATE_CHANNEL, PASSKEY_GET_CHANNEL } from "./GuestProtocol.ts"
 import type { PasskeyBackend, PasskeyCeremonyContext } from "./PasskeyBackend.ts";
 import { macPasskeyBackend } from "./PasskeyBackendMac.ts";
 import type { PasskeyCeremonyResult } from "./PasskeyBridge.ts";
+import { makePreviewPromptMessages } from "./PreviewPromptLocale.ts";
+import type { resolvePreviewPromptMessages } from "./PreviewPromptMessages.ts";
 
 const PasskeyPackageMetadata = Schema.Struct({
   t3codeWebAuthn: Schema.optional(
@@ -50,10 +52,10 @@ export class PreviewPasskeys extends Context.Service<
 
 const notAllowed: PasskeyCeremonyResult = { success: false, error: "NotAllowedError" };
 
-const accountLabel = (account: Electron.WebAuthnAccount) =>
+const accountLabel = (account: Electron.WebAuthnAccount, unnamedPasskey: string) =>
   account.displayName && account.name && account.displayName !== account.name
     ? `${account.displayName} (${account.name})`
-    : (account.name ?? account.displayName ?? "Unnamed passkey");
+    : (account.name ?? account.displayName ?? unnamedPasskey);
 
 const ownerWindow = (frame: WebFrameMain | null) => {
   const contents = frame ? electronWebContents.fromFrame(frame) : undefined;
@@ -61,15 +63,22 @@ const ownerWindow = (frame: WebFrameMain | null) => {
   return owner ? BrowserWindow.fromWebContents(owner) : null;
 };
 
-const chooseAccount = async (details: Electron.SelectWebauthnAccountDetails) => {
+const chooseAccount = async (
+  details: Electron.SelectWebauthnAccountDetails,
+  getMessages: () => Promise<ReturnType<typeof resolvePreviewPromptMessages>>,
+) => {
   const [onlyAccount] = details.accounts;
   // The Touch ID prompt that follows already asks the user to confirm.
   if (details.accounts.length === 1) return onlyAccount?.credentialId;
+  const messages = await getMessages();
   const options: Electron.MessageBoxOptions = {
     type: "none",
-    message: "Choose a passkey",
+    message: messages.choosePasskey,
     detail: details.relyingPartyId,
-    buttons: [...details.accounts.map(accountLabel), "Cancel"],
+    buttons: [
+      ...details.accounts.map((account) => accountLabel(account, messages.unnamedPasskey)),
+      messages.cancel,
+    ],
     cancelId: details.accounts.length,
     defaultId: 0,
     noLink: true,
@@ -116,6 +125,9 @@ const backendFor = (platform: NodeJS.Platform): PasskeyBackend | undefined =>
 const make = Effect.gen(function* () {
   const environment = yield* DesktopEnvironment.DesktopEnvironment;
   const fileSystem = yield* FileSystem.FileSystem;
+  const getPromptMessages = yield* makePreviewPromptMessages;
+  const runPromise = Effect.runPromiseWith(yield* Effect.context<never>());
+  const getMessages = () => runPromise(getPromptMessages);
 
   const metadata =
     environment.platform === "darwin" && environment.isPackaged
@@ -146,7 +158,7 @@ const make = Effect.gen(function* () {
       sessionsWithHandlers.add(session);
       session.on("select-webauthn-account", (_event, details, callback) => {
         // The request stays pending until the callback runs, so it must run once.
-        void chooseAccount(details).then(
+        void chooseAccount(details, getMessages).then(
           (credentialId) => callback(credentialId),
           () => callback(),
         );

@@ -17,6 +17,7 @@ import {
   sessionGrantsScope,
 } from "@t3tools/contracts";
 import { resolveWorktreeCleanup } from "@t3tools/shared/projectSettings";
+import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 import * as Cause from "effect/Cause";
 import * as Schema from "effect/Schema";
 import { AsyncResult } from "effect/reactivity";
@@ -45,7 +46,10 @@ import {
   readThreadShells,
 } from "../state/entities";
 import { useUiStateStore } from "../uiStateStore";
+import { useDiffPanelStore } from "../diffPanelStore";
+import { usePreviewMiniPlayerStore } from "../previewMiniPlayerStore";
 import { clearThreadPreviewState } from "../previewStateStore";
+import { useRightPanelStore } from "../rightPanelStore";
 import { useTerminalUiStateStore } from "../terminalUiStateStore";
 import { buildThreadRouteParams, resolveThreadRouteRef } from "../threadRoutes";
 import { formatWorktreePathForDisplay, getOrphanedWorktreePathForThread } from "../worktreeCleanup";
@@ -55,6 +59,7 @@ import * as ThreadUndo from "@t3tools/client-runtime/state/thread-undo";
 import { showThreadUndoNotice } from "./showThreadUndoNotice";
 import { useAtomCommand } from "../state/use-atom-command";
 import { useI18n } from "../i18n/WebI18nContext";
+import { readWebI18n } from "../i18n/readWebI18n";
 import { useOrchestrationCommand } from "../state/use-orchestration-command";
 import { useAtomQueryRunner } from "../state/use-atom-query-runner";
 
@@ -163,6 +168,49 @@ export class ThreadActiveReorderUnsupportedError extends Schema.TaggedError<Thre
   }
 }
 
+const isThreadArchiveBlockedError = Schema.is(ThreadArchiveBlockedError);
+const isThreadSettlementUnsupportedError = Schema.is(ThreadSettlementUnsupportedError);
+const isThreadSnoozeUnsupportedError = Schema.is(ThreadSnoozeUnsupportedError);
+const isThreadSnoozeBlockedError = Schema.is(ThreadSnoozeBlockedError);
+const isThreadAutoSettleOptOutUnsupportedError = Schema.is(ThreadAutoSettleOptOutUnsupportedError);
+const isThreadPinningUnsupportedError = Schema.is(ThreadPinningUnsupportedError);
+const isThreadPinReorderUnsupportedError = Schema.is(ThreadPinReorderUnsupportedError);
+const isThreadActiveReorderUnsupportedError = Schema.is(ThreadActiveReorderUnsupportedError);
+
+export function formatThreadActionError(
+  error: unknown,
+  locale: ResolvedAppLocale,
+  fallback: string,
+): string {
+  if (locale === "zh-CN") {
+    if (isThreadArchiveBlockedError(error)) {
+      return "服务提供方处于活动状态时无法归档。";
+    }
+    if (isThreadSettlementUnsupportedError(error)) {
+      return "此环境的服务器尚不支持收起任务。请更新服务器以使用收起功能。";
+    }
+    if (isThreadSnoozeUnsupportedError(error)) {
+      return "此环境的服务器尚不支持稍后处理。请更新服务器以使用稍后处理功能。";
+    }
+    if (isThreadSnoozeBlockedError(error)) {
+      return "此任务正在等待你回应。请先回应待处理的请求，再将任务设为稍后处理。";
+    }
+    if (isThreadAutoSettleOptOutUnsupportedError(error)) {
+      return "此环境的服务器尚不支持为单个任务关闭自动收起。请更新服务器以使用此功能。";
+    }
+    if (isThreadPinningUnsupportedError(error)) {
+      return "此环境的服务器尚不支持置顶。请更新服务器以使用置顶功能。";
+    }
+    if (isThreadPinReorderUnsupportedError(error)) {
+      return "此环境的服务器尚不支持调整置顶任务的顺序。请更新服务器以调整置顶顺序。";
+    }
+    if (isThreadActiveReorderUnsupportedError(error)) {
+      return "请更新此环境的服务器，以调整活跃任务的顺序。";
+    }
+  }
+  return error instanceof Error ? error.message : fallback;
+}
+
 async function requestThreadUnpinConfirmation(input: {
   enabled: boolean;
   title: string;
@@ -237,6 +285,13 @@ function expireThreadUndos(target: ScopedThreadRef, kinds: readonly string[]) {
   for (const kind of kinds) ThreadUndo.invalidate(kind, scopedThreadKey(target));
 }
 
+function clearDeletedThreadPanelState(ref: ScopedThreadRef) {
+  clearThreadPreviewState(ref);
+  useRightPanelStore.getState().removeThread(ref);
+  useDiffPanelStore.getState().removeThread(ref);
+  usePreviewMiniPlayerStore.getState().removeThread(ref);
+}
+
 /** A No project thread that already has its own folder, on a server that can promote it. */
 export function canTurnThreadIntoProject(threadRef: ScopedThreadRef): boolean {
   const thread = readThreadShell(threadRef);
@@ -251,13 +306,25 @@ export function canTurnThreadIntoProject(threadRef: ScopedThreadRef): boolean {
   return project !== null && isScratchProject(project, config.scratchWorkspaceRoot);
 }
 
-function threadOperationFailure(target: ScopedThreadRef) {
+const LOCAL_THREAD_PERMISSION_MESSAGES = {
+  "This connection cannot change threads.": "此连接无权修改会话。",
+  "This connection can no longer remove worktrees.": "此连接已无权移除工作树。",
+} as const;
+
+function localThreadPermissionMessage(
+  locale: ResolvedAppLocale,
+  source: keyof typeof LOCAL_THREAD_PERMISSION_MESSAGES,
+): string {
+  return locale === "zh-CN" ? LOCAL_THREAD_PERMISSION_MESSAGES[source] : source;
+}
+
+function threadOperationFailure(target: ScopedThreadRef, locale: ResolvedAppLocale) {
   return readEnvironmentScope(target.environmentId, AuthOrchestrationOperateScope)
     ? null
     : AsyncResult.failure(
         Cause.fail(
           new EnvironmentAuthorizationError({
-            message: "This connection cannot change threads.",
+            message: localThreadPermissionMessage(locale, "This connection cannot change threads."),
             requiredScope: AuthOrchestrationOperateScope,
           }),
         ),
@@ -265,7 +332,9 @@ function threadOperationFailure(target: ScopedThreadRef) {
 }
 
 export function useThreadActions() {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
+  const formatUndoFailure = (error: unknown) =>
+    formatThreadActionError(error, readWebI18n().locale, "An error occurred.");
   const archiveThreadMutation = useOrchestrationCommand(threadEnvironment.archive, {
     reportFailure: false,
   });
@@ -409,6 +478,7 @@ export function useThreadActions() {
       claim: action,
       undo: () => unarchiveThread(threadRef, { navigate: shouldNavigateToDraft }),
       failureTitle: "Failed to undo archive",
+      formatFailure: formatUndoFailure,
     });
 
     if (shouldNavigateToDraft && router.state.location.href === requestingRouteHref) {
@@ -428,7 +498,7 @@ export function useThreadActions() {
     target: ScopedThreadRef,
     opts: { deletedThreadKeys?: ReadonlySet<string> } = {},
   ) => {
-    const permissionFailure = threadOperationFailure(target);
+    const permissionFailure = threadOperationFailure(target, locale);
     if (permissionFailure) return permissionFailure;
     const resolved = resolveThreadTarget(target);
     if (!resolved) {
@@ -439,7 +509,7 @@ export function useThreadActions() {
       if (result._tag === "Success") {
         expireThreadUndos(target, [...LIST_PLACEMENT_UNDO_KINDS, "archive"]);
         refreshArchivedThreadsForEnvironment(target.environmentId);
-        clearThreadPreviewState(target);
+        clearDeletedThreadPanelState(target);
       }
       return result;
     }
@@ -500,7 +570,7 @@ export function useThreadActions() {
       localApi
     ) {
       const sessionResult = await loadSessionState(threadRef.environmentId);
-      const permissionFailure = threadOperationFailure(threadRef);
+      const permissionFailure = threadOperationFailure(threadRef, locale);
       if (permissionFailure) return permissionFailure;
       canDeleteWorktree =
         sessionResult._tag === "Success" &&
@@ -546,6 +616,7 @@ export function useThreadActions() {
       deletedThreadId: threadRef.threadId,
       deletedThreadIds,
       sortOrder: sidebarThreadSortOrder,
+      now: new Date().toISOString(),
     });
     const deleteResult = await deleteThreadMutation({
       environmentId: threadRef.environmentId,
@@ -563,7 +634,7 @@ export function useThreadActions() {
       threadRef,
     );
     clearTerminalUiState(threadRef);
-    clearThreadPreviewState(threadRef);
+    clearDeletedThreadPanelState(threadRef);
 
     if (shouldNavigateToFallback) {
       const fallbackThread = fallbackThreadId
@@ -598,7 +669,10 @@ export function useThreadActions() {
       : AsyncResult.failure(
           Cause.fail(
             new EnvironmentAuthorizationError({
-              message: "This connection can no longer remove worktrees.",
+              message: localThreadPermissionMessage(
+                locale,
+                "This connection can no longer remove worktrees.",
+              ),
               requiredScope: AuthSourceControlWriteScope,
             }),
           ),
@@ -727,6 +801,7 @@ export function useThreadActions() {
         claim: action,
         undo: () => runUndoPlan(target, undoPlan),
         failureTitle: "Failed to undo unpin",
+        formatFailure: formatUndoFailure,
       });
     } else {
       action.finish();
@@ -771,12 +846,13 @@ export function useThreadActions() {
       claim: action,
       undo: () => runUndoPlan(target, undoPlan),
       failureTitle: "Failed to undo settle",
+      formatFailure: formatUndoFailure,
     });
     return result;
   };
 
   const confirmAndUnpinThread = async (target: ScopedThreadRef) => {
-    const permissionFailure = threadOperationFailure(target);
+    const permissionFailure = threadOperationFailure(target, locale);
     if (permissionFailure) return permissionFailure;
     const localApi = readLocalApi();
     const resolved = resolveThreadTarget(target);
@@ -884,6 +960,7 @@ export function useThreadActions() {
       claim: action,
       undo: () => runUndoPlan(target, ThreadUndo.planThreadUndo("snooze")),
       failureTitle: "Failed to wake thread",
+      formatFailure: formatUndoFailure,
     });
     return result;
   };
@@ -913,7 +990,7 @@ export function useThreadActions() {
     );
 
   const confirmAndDeleteThread = async (target: ScopedThreadRef) => {
-    const permissionFailure = threadOperationFailure(target);
+    const permissionFailure = threadOperationFailure(target, locale);
     if (permissionFailure) return permissionFailure;
     const localApi = readLocalApi();
     const resolved = resolveThreadTarget(target);

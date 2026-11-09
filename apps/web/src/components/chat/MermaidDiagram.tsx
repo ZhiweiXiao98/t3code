@@ -1,3 +1,4 @@
+import { useI18n } from "~/i18n/WebI18nContext";
 import DOMPurify from "dompurify";
 import type { DiagramType, MathResolver } from "pele/lazy";
 import { use, useState } from "react";
@@ -226,8 +227,9 @@ export function MermaidDiagram({
   source: string;
   onExpand: (imageUrl: string) => void;
 }) {
+  const { t: controlsT } = useI18n();
   const [, setAttempt] = useState(0);
-  const [renderError, setRenderError] = useState<string | null>(null);
+  const [renderError, setRenderError] = useState<string | false | null>(null);
   const trimmedSource = source.trim();
   const core = use(loadCore());
   const type = core.status === "loaded" ? detectDiagramType(core.pele, trimmedSource) : null;
@@ -245,10 +247,7 @@ export function MermaidDiagram({
       autoDirection: false,
       ...(math ? { math, sanitize: sanitizeMathDiagramSvg } : { sanitize: sanitizeDiagramSvg }),
       onRender: () => setRenderError(null),
-      onError: (error) =>
-        setRenderError(
-          error instanceof Error ? error.message : "The diagram could not be rendered.",
-        ),
+      onError: (error) => setRenderError(error instanceof Error ? error.message : false),
     });
     return () => mounted.destroy();
   };
@@ -256,7 +255,7 @@ export function MermaidDiagram({
   if (load.status === "failed") {
     return (
       <DiagramError
-        message="The diagram renderer failed to load."
+        message={controlsT("chatControls.copy23")}
         source={source}
         onRetry={() => {
           if (core.status === "failed") coreLoad = null;
@@ -273,10 +272,15 @@ export function MermaidDiagram({
       data-markdown-mermaid=""
       data-markdown-copy={serializeCodeBlockToMarkdown(source, "mermaid")}
     >
-      {renderError ? <DiagramError message={renderError} source={source} /> : null}
+      {renderError !== null ? (
+        <DiagramError
+          message={renderError === false ? controlsT("chatControls.copy22") : renderError}
+          source={source}
+        />
+      ) : null}
       <button
         type="button"
-        aria-label="Expand diagram"
+        aria-label={controlsT("chatControls.copy24")}
         hidden={renderError !== null}
         className="block w-full cursor-zoom-in rounded-md focus-visible:outline-2 focus-visible:outline-ring"
         onClick={(event) => {
@@ -299,13 +303,16 @@ function DiagramError({
   source: string;
   onRetry?: () => void;
 }) {
+  const { t: controlsT } = useI18n();
   return (
     <div>
       <div className="flex items-center justify-between gap-2">
-        <p className="m-0 text-xs text-destructive">Unable to render diagram: {message}</p>
+        <p className="m-0 text-xs text-destructive">
+          {controlsT("chatControls.diagramError", { message })}
+        </p>
         {onRetry ? (
           <Button type="button" variant="ghost" size="xs" onClick={onRetry}>
-            Retry
+            {controlsT("chatControls.copy26")}
           </Button>
         ) : null}
       </div>

@@ -47,7 +47,7 @@ export default function NotebookPreview(props: {
   readonly notebook: Extract<OfficeWorkerResult, { type: "notebook" }>;
   readonly sizeBytes?: number | undefined;
 }) {
-  const { locale: previewLocale } = useI18n();
+  const { t, locale: previewLocale } = useI18n();
   const [visible, setVisible] = useState(20);
   const scroll = useRef<HTMLDivElement>(null);
   const [outputView, setOutputView] = useState(() => ({
@@ -101,9 +101,10 @@ export default function NotebookPreview(props: {
         className="border-b border-border/60 px-3 py-2 text-xs text-muted-foreground tabular-nums"
         role="status"
       >
-        {props.notebook.cells.length.toLocaleString()} cells · {props.notebook.language}
+        {t("files.residual.cells", { count: props.notebook.cells.length.toLocaleString() })} ·{" "}
+        {props.notebook.language}
         {props.sizeBytes !== undefined
-          ? ` · ${props.sizeBytes === 0 ? "0 bytes" : formatAttachmentSize(props.sizeBytes)}`
+          ? ` · ${props.sizeBytes === 0 ? translateWebSource(previewLocale, "0 bytes") : formatAttachmentSize(props.sizeBytes)}`
           : ""}
       </div>
       <FileSurfaceNotice>
@@ -114,7 +115,7 @@ export default function NotebookPreview(props: {
           {props.notebook.cells.slice(0, visible).map((cell, index) => (
             <section
               key={index}
-              aria-label={`Cell ${index + 1}`}
+              aria-label={t("files.residual.cell", { index: index + 1 })}
               className="min-w-0 overflow-hidden rounded-md border border-border/60"
             >
               <div className="border-b border-border/60 bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground">
@@ -152,14 +153,14 @@ export default function NotebookPreview(props: {
                     !outputView.mounted.has(`${index}-${outputIndex}`) ? null : (
                       <DocumentPages
                         html={output.text}
-                        name={`Cell ${index + 1} HTML output`}
+                        name={t("files.residual.cellHtml", { index: index + 1 })}
                         output
                       />
                     )
                   ) : output.kind === "image" ? (
                     <img
                       src={output.text}
-                      alt={`Cell ${index + 1} output`}
+                      alt={t("files.residual.cellOutput", { index: index + 1 })}
                       loading="lazy"
                       className="max-h-96 max-w-full p-4 object-contain"
                     />
@@ -179,7 +180,7 @@ export default function NotebookPreview(props: {
           ) : null}
           {visible < props.notebook.cells.length ? (
             <Button variant="outline" size="sm" onClick={() => setVisible((count) => count + 20)}>
-              Show more cells ({props.notebook.cells.length - visible} remaining)
+              {t("files.residual.moreCells", { count: props.notebook.cells.length - visible })}
             </Button>
           ) : null}
         </div>

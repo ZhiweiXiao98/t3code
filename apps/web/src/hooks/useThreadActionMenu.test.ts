@@ -130,6 +130,8 @@ vi.mock("./useSettings", () => ({
 }));
 vi.mock("./useThreadActions", () => ({
   canTurnThreadIntoProject: () => false,
+  formatThreadActionError: (error: unknown, _locale: string, fallback: string) =>
+    error instanceof Error ? error.message : fallback,
   useThreadActions: () =>
     Object.fromEntries(
       [

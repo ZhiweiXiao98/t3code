@@ -1,9 +1,12 @@
+import { translateWebExtraSource } from "~/i18n/webExtraMessages";
 import { resolveEnvironmentMachineKind, type EnvironmentId } from "@t3tools/contracts";
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import { ChevronRightIcon, LayersIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { cn } from "../../lib/utils";
+import { useI18n } from "../../i18n/WebI18nContext";
+import { translateWebSource } from "../../i18n/messages";
 import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
 import { useEnvironments, type EnvironmentPresentation } from "../../state/environments";
 import { EnvironmentMachineIcon } from "../EnvironmentMachineIcon";
@@ -41,6 +44,7 @@ export function SettingsScopeNotice({
   targetId?: string;
   eligibleEnvironmentIds?: readonly EnvironmentId[];
 }) {
+  const { locale } = useI18n();
   const { selectScope, search, groups } = useSettingsScope();
   const navigate = useNavigate({ from: "/settings" });
   const pathname = useLocation({ select: (location) => location.pathname });
@@ -66,7 +70,7 @@ export function SettingsScopeNotice({
           const { primary, secondary } = environment
             ? settingsScopeEnvironmentLabels(environment, environments)
             : {
-                primary: member.environmentLabel ?? "Environment",
+                primary: member.environmentLabel ?? translateWebSource(locale, "Environment"),
                 secondary: member.environmentId,
               };
           return {
@@ -84,7 +88,7 @@ export function SettingsScopeNotice({
         ? groups.map((group) => ({
             label: group.displayName,
             secondary: [
-              ...(group.archived ? ["Archived"] : []),
+              ...(group.archived ? [translateWebSource(locale, "Archived")] : []),
               ...(groups.some(
                 (other) =>
                   other.projectKey !== group.projectKey && other.displayName === group.displayName,
@@ -114,7 +118,7 @@ export function SettingsScopeNotice({
               })
           : [
               {
-                label: "Open all environments",
+                label: translateWebExtraSource(locale, "Open all environments"),
                 icon: <LayersIcon aria-hidden className="size-4 shrink-0 text-muted-foreground" />,
                 search: {},
               },
@@ -129,7 +133,16 @@ export function SettingsScopeNotice({
         )}
         onClick={() => {
           if (targetId)
-            void navigate({ to: pathname, search: () => choice.search, hash: targetId });
+            void navigate({
+              to: pathname,
+              search: () => ({
+                project: undefined,
+                machine: undefined,
+                checkout: undefined,
+                ...choice.search,
+              }),
+              hash: targetId,
+            });
           else selectScope(choice.search);
         }}
       >
@@ -159,7 +172,7 @@ export function SettingsScopeNotice({
       <div className="space-y-4">
         {choiceGroups.map((group) =>
           group?.displayName ? (
-            <SettingsSection key={group.projectKey} title={group.displayName}>
+            <SettingsSection key={group.projectKey} title={group.displayName} localizeTitle={false}>
               {renderChoices(group)}
             </SettingsSection>
           ) : (

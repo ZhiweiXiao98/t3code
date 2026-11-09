@@ -1,3 +1,5 @@
+import { translateProviderAuthenticationSource } from "../../i18n/providerAuthenticationMessages";
+import { useStableCallback } from "../../hooks/useStableCallback";
 import { translateWebSource } from "../../i18n/messages";
 import { useI18n } from "../../i18n/WebI18nContext";
 import {
@@ -42,7 +44,10 @@ export function ProviderAuthenticationSection({
   readonly provider: ServerProvider;
   readonly readOnly: boolean;
 }) {
-  const { locale: sourceLocale } = useI18n();
+  const { locale: sourceLocale, t } = useI18n();
+  const translateAction = useStableCallback((source: string) =>
+    translateProviderAuthenticationSource(sourceLocale, source),
+  );
   const target = { environmentId, input: { instanceId } };
   const query = useEnvironmentQuery(serverEnvironment.providerAuthState(target));
   const commands = { reportFailure: false, reportDefect: false };
@@ -76,11 +81,18 @@ export function ProviderAuthenticationSection({
     !signedIn &&
     (provider.setup?.canAuthenticate === false ||
       (provider.driver === "acpRegistry" && auth?.methods?.length === 0));
+  const usesCredentials =
+    provider.driver === "antigravity" &&
+    (provider.auth.type === "gemini-api-key" || provider.auth.type === "agent-platform");
   const accountDescription = active
     ? auth?.phase === "starting"
-      ? (auth.message ?? translateWebSource(sourceLocale, "Starting sign-in…"))
+      ? (auth.message ??
+        translateWebSource(sourceLocale, usesCredentials ? "Connecting…" : "Starting sign-in…"))
       : auth?.phase === "verifying"
-        ? translateWebSource(sourceLocale, "Checking your account…")
+        ? translateWebSource(
+            sourceLocale,
+            usesCredentials ? "Checking credentials and loading models…" : "Checking your account…",
+          )
         : interaction?.type === "terminal"
           ? translateWebSource(sourceLocale, "Complete sign-in in the terminal below.")
           : interaction?.type === "credentials"
@@ -95,9 +107,13 @@ export function ProviderAuthenticationSection({
               sourceLocale,
               "No in-app sign-in advertised. Follow the provider's docs to finish setup.",
             )
-          : sourceLocale === "zh-CN"
-            ? `在 ${environmentLabel} 上登录。`
-            : `Sign in on ${environmentLabel}.`;
+          : usesCredentials
+            ? sourceLocale === "zh-CN"
+              ? `在 ${environmentLabel} 上连接以加载模型。`
+              : `Connect on ${environmentLabel} to load models.`
+            : sourceLocale === "zh-CN"
+              ? `在 ${environmentLabel} 上登录。`
+              : `Sign in on ${environmentLabel}.`;
   const statusMessage = auth?.phase === "failed" ? auth.message : null;
   const disabled = readOnly || pending || query.error !== null || isDiscovering;
   const draftId = `${auth?.flowId ?? ""}:${interaction?.id ?? ""}`;
@@ -121,11 +137,11 @@ export function ProviderAuthenticationSection({
         setError(
           failure instanceof Error
             ? failure.message
-            : translateWebSource(sourceLocale, "Provider sign-in failed. Try again."),
+            : translateAction("Provider sign-in failed. Try again."),
         );
       }
     } catch {
-      setError(translateWebSource(sourceLocale, "Provider sign-in failed. Try again."));
+      setError(translateAction("Provider sign-in failed. Try again."));
     }
     pendingRef.current = false;
     setPending(false);
@@ -158,7 +174,11 @@ export function ProviderAuthenticationSection({
       setError(null);
     } catch {
       pending?.close();
-      setError("Could not open the sign-in page. Copy the link and open it in your browser.");
+      setError(
+        translateAction(
+          "Could not open the sign-in page. Copy the link and open it in your browser.",
+        ),
+      );
     }
   }
 
@@ -176,9 +196,9 @@ export function ProviderAuthenticationSection({
             <RedactedSensitiveText
               key={provider.auth.email}
               value={provider.auth.email}
-              ariaLabel="Toggle account email visibility"
-              revealTooltip="Click to reveal email"
-              hideTooltip="Click to hide email"
+              ariaLabel={translateWebSource(sourceLocale, "Toggle account email visibility")}
+              revealTooltip={translateWebSource(sourceLocale, "Click to reveal email")}
+              hideTooltip={translateWebSource(sourceLocale, "Click to hide email")}
               className="max-w-full truncate"
             />
           </span>
@@ -208,7 +228,7 @@ export function ProviderAuthenticationSection({
               >
                 <SelectValue>
                   {auth?.methods?.find((method) => method.id === methodId)?.name ??
-                    "Provider default"}
+                    translateWebSource(sourceLocale, "Provider default")}
                 </SelectValue>
               </SelectTrigger>
               <SelectPopup>
@@ -244,12 +264,17 @@ export function ProviderAuthenticationSection({
                       onClick={() => {
                         // Copy during the click to retain clipboard activation; consent must still be
                         // recorded before use.
-                        const copied = writeTextToClipboard(url, "Provider sign-in link");
+                        const copied = writeTextToClipboard(
+                          url,
+                          translateAction("Provider sign-in link"),
+                        );
                         void (async () => {
                           await copied;
                           if (interaction?.type === "browser" && interaction.requiresConsent)
                             await send({ type: "browser", action: "accept" });
-                        })().catch(() => setError("Could not copy the sign-in link."));
+                        })().catch(() =>
+                          setError(translateAction("Could not copy the sign-in link.")),
+                        );
                       }}
                     >
                       <CopyIcon />
@@ -304,11 +329,18 @@ export function ProviderAuthenticationSection({
                   )
                 }
               >
-                {signedIn
-                  ? "Change account"
-                  : auth?.phase === "failed" || auth?.phase === "cancelled"
-                    ? "Retry sign-in"
-                    : "Sign in"}
+                {translateProviderAuthenticationSource(
+                  sourceLocale,
+                  signedIn
+                    ? "Change account"
+                    : auth?.phase === "failed" || auth?.phase === "cancelled"
+                      ? usesCredentials
+                        ? "Retry connection"
+                        : "Retry sign-in"
+                      : usesCredentials
+                        ? "Connect"
+                        : "Sign in",
+                )}
               </Button>
             ) : null}
             {!active && signedIn && (provider.auth.canLogout ?? provider.setup?.canAuthenticate) ? (
@@ -319,7 +351,10 @@ export function ProviderAuthenticationSection({
                 onClick={() => {
                   void ensureLocalApi()
                     .dialogs.confirm(
-                      `Sign out of ${provider.displayName ?? provider.driver} on ${environmentLabel}? This stops running threads that share this sign-in. Thread history is kept.`,
+                      t("providerAuthentication.signOutConfirm", {
+                        provider: provider.displayName ?? provider.driver,
+                        environment: environmentLabel,
+                      }),
                     )
                     .then((confirmed) => {
                       if (confirmed) void run(() => logout(target));
@@ -386,14 +421,20 @@ export function ProviderAuthenticationSection({
                         if (result._tag !== "Success") {
                           terminalQueue.current = [];
                           if (!isAtomCommandInterrupted(result))
-                            setError("The provider sign-in terminal is no longer available.");
+                            setError(
+                              translateAction(
+                                "The provider sign-in terminal is no longer available.",
+                              ),
+                            );
                           break;
                         }
                       }
                     })()
                       .catch(() => {
                         terminalQueue.current = [];
-                        setError("Could not send input to the provider sign-in terminal.");
+                        setError(
+                          translateAction("Could not send input to the provider sign-in terminal."),
+                        );
                       })
                       .finally(() => {
                         terminalSending.current = false;

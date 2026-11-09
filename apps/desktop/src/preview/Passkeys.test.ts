@@ -21,11 +21,15 @@ vi.mock("electron", () => ({
 vi.mock("electron-webauthn", () => webauthn);
 
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
+import * as ElectronApp from "../electron/ElectronApp.ts";
+import * as DesktopClientSettings from "../settings/DesktopClientSettings.ts";
 import { PASSKEY_CREATE_CHANNEL, PASSKEY_GET_CHANNEL } from "./GuestProtocol.ts";
 import * as PreviewPasskeys from "./Passkeys.ts";
 
 const layerFor = (packageJson: object, isPackaged = true) =>
   PreviewPasskeys.layer.pipe(
+    Layer.provide(DesktopClientSettings.layerTest()),
+    Layer.provide(Layer.mock(ElectronApp.ElectronApp)({ systemLocale: Effect.succeed("en-US") })),
     Layer.provide(
       Layer.succeed(
         DesktopEnvironment.DesktopEnvironment,

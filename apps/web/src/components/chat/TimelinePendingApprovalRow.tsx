@@ -38,6 +38,7 @@ export const TimelinePendingApprovalRow = memo(function TimelinePendingApprovalR
 }: {
   approval: PendingApproval;
 }) {
+  const { t: controlsT } = useI18n();
   const { locale } = useI18n();
   const { respondingRequestIds, canOperateThread, onRespondToApproval } = use(TimelineRowCtx);
   const presentation = APPROVAL_PRESENTATION[approval.requestKind];
@@ -63,7 +64,7 @@ export const TimelinePendingApprovalRow = memo(function TimelinePendingApprovalR
           data-approval-detail="complete"
           tabIndex={0}
         >
-          {approval.detail || presentation.label}
+          {approval.detail || translateWebSource(locale, presentation.label)}
         </code>
       }
     >
@@ -79,7 +80,7 @@ export const TimelinePendingApprovalRow = memo(function TimelinePendingApprovalR
             <>
               <span className="inline-flex items-center gap-1 text-warning">
                 <ShieldIcon aria-hidden className="size-3 shrink-0" />
-                Waiting for approval
+                {controlsT("chatControls.copy81")}
               </span>
               {onRespondToApproval ? (
                 <>

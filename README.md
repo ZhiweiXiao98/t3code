@@ -2,7 +2,7 @@
 
 **用中文管理你的 AI 编程工作流。**
 
-在 T3 Code 中使用已有的 Codex、Claude Code 等智能体，管理项目、对话与代码变更。本项目在官方稳定版基础上持续完善简体中文界面，保留英文和“跟随系统”选项。
+在 T3 Code 中使用已有的 Codex、Claude Code、fx 等智能体，管理项目、对话与代码变更。本项目在官方稳定版基础上持续完善简体中文界面，保留英文和“跟随系统”选项。
 
 **[下载中文版](#下载中文版) · [首次使用](#首次使用) · [汉化范围与升级说明](./README.zh-CN.md) · [反馈问题](https://github.com/ZhiweiXiao98/t3code/issues)**
 
@@ -41,6 +41,8 @@
 1. **按上表选择系统与架构下载安装包。** 不确定 Mac 架构时，在“关于本机”查看“芯片”或“处理器”。
 2. **在桌面端或服务端所在机器配置至少一个已安装并登录的智能体。** 例如 [Codex CLI](https://developers.openai.com/codex/cli) 或 [Claude Code](https://claude.com/product/claude-code)。本客户端不附送模型额度，也不替代服务提供方账号。
 3. **打开应用，进入“设置 → 常规 → 语言”，选择“简体中文”。** 添加项目后，选择已配置的 Provider 开始使用。Windows 托盘菜单切换语言后需重启应用同步。Android 社区版固定使用简体中文，配对连接兼容的新版 T3 Code 服务端；不需要在手机上安装 Provider CLI。
+
+当前源码还支持 [fx](https://fx.sh)：请在运行 T3 Code 服务端的机器上安装 fx 并运行 `fx login`，详见[设置指南](./docs/user/providers-fx.md)。上方已发布安装包仍对应各自标注的旧版本。
 
 > 官方的 `t3.codes` 安装脚本、`npx t3@latest`、Homebrew、winget 等入口安装的是**官方原版**，不是本仓库的汉化安装包。想使用中文版，请使用上方下载入口。
 

@@ -16,6 +16,7 @@ type UndoOptions = {
   action: "Settled" | "Snoozed" | "Unpinned" | "Archived" | "Discarded";
   undo: () => Promise<AtomCommandResult<unknown, unknown>>;
   failureTitle: string;
+  formatFailure?: (error: unknown) => string;
   claim: ReturnType<typeof ThreadUndo.begin>;
   commit?: () => void;
 };
@@ -88,13 +89,17 @@ function refreshNotice() {
       for (const entry of current) entry.claim.finish();
       refreshNotice();
       await Promise.all(
-        current.map(async ({ undo, failureTitle }) => {
+        current.map(async ({ undo, failureTitle, formatFailure }) => {
           const reportFailure = (error: unknown) => {
             toastManager.add(
               stackedThreadToast({
                 type: "error",
                 title: failureTitle,
-                description: error instanceof Error ? error.message : "An error occurred.",
+                description: formatFailure
+                  ? formatFailure(error)
+                  : error instanceof Error
+                    ? error.message
+                    : "An error occurred.",
               }),
             );
           };

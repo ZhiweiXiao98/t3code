@@ -11,22 +11,51 @@ const mocks = vi.hoisted(() => ({
   resize: Symbol("preview-resize"),
   runAtomCommand: vi.fn(),
   updatePreviewServerSnapshot: vi.fn(),
+  readWebI18n: vi.fn(() => ({ locale: "en" as "en" | "zh-CN" })),
+  addToast: vi.fn(),
 }));
 
 vi.mock("@t3tools/client-runtime/state/runtime", () => ({
   runAtomCommand: mocks.runAtomCommand,
   squashAtomCommandFailure: (result: { readonly error: unknown }) => result.error,
 }));
+vi.mock("~/i18n/readWebI18n", () => ({ readWebI18n: mocks.readWebI18n }));
 vi.mock("~/rpc/atomRegistry", () => ({ appAtomRegistry: {} }));
 vi.mock("~/state/preview", () => ({ previewEnvironment: { resize: mocks.resize } }));
 vi.mock("~/previewStateStore", () => ({
   updatePreviewServerSnapshot: mocks.updatePreviewServerSnapshot,
 }));
-vi.mock("~/components/ui/toast", () => ({ toastManager: { add: vi.fn() } }));
+vi.mock("~/components/ui/toast", () => ({ toastManager: { add: mocks.addToast } }));
 
 import { commitBrowserViewportChange, queueBrowserViewportCommit } from "./browserViewportActions";
 
 describe("browserViewportActions", () => {
+  it.each([
+    { locale: "en", title: "Unable to resize browser viewport", description: "An error occurred." },
+    { locale: "zh-CN", title: "无法调整浏览器视口大小", description: "发生错误。" },
+  ] as const)(
+    "localizes failure copy in $locale and preserves the original failure",
+    async ({ locale, title, description }) => {
+      const error = { detail: "raw backend failure" };
+      mocks.runAtomCommand.mockResolvedValueOnce({ _tag: "Failure", error });
+      mocks.readWebI18n.mockReturnValueOnce({ locale });
+      await expect(
+        commitBrowserViewportChange(
+          {
+            threadRef: {
+              environmentId: EnvironmentId.make("env-failure"),
+              threadId: ThreadId.make("thread-failure"),
+            },
+            tabId: "tab-failure",
+            runtimeTabId: `runtime-failure-${locale}`,
+          },
+          { _tag: "fill" },
+        ),
+      ).rejects.toBe(error);
+      expect(mocks.addToast).toHaveBeenLastCalledWith({ type: "error", title, description });
+    },
+  );
+
   it("commits viewport changes in order for each tab", async () => {
     let releaseFirst: (() => void) | undefined;
     let markFirstStarted: (() => void) | undefined;

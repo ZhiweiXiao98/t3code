@@ -1,5 +1,5 @@
 import { useI18n } from "~/i18n/WebI18nContext";
-import { translateWebSource } from "~/i18n/messages";
+import { translateWebMessage, translateWebSource } from "~/i18n/messages";
 import { scopedThreadKey } from "@t3tools/client-runtime/environment";
 import { settlePromise } from "@t3tools/client-runtime/state/runtime";
 import { previewStreamDownloadUrl } from "@t3tools/client-runtime/preview/server-browser-stream";
@@ -111,8 +111,9 @@ interface Props {
 function previewProfileName(
   profiles: ReadonlyArray<{ readonly id: string; readonly name: string }>,
   profileId: string,
+  removedProfile: string,
 ): string {
-  return profiles.find((profile) => profile.id === profileId)?.name ?? "Removed profile";
+  return profiles.find((profile) => profile.id === profileId)?.name ?? removedProfile;
 }
 
 const localApi = typeof window === "undefined" ? null : ensureLocalApi();
@@ -226,7 +227,11 @@ export function PreviewView({
   const browserDefaults = useBrowserDefaults();
   // IPC interprets undefined profile ids as all profiles.
   const activeProfileId = snapshot?.profileId ?? DEFAULT_BROWSER_PROFILE_ID;
-  const activeProfileName = previewProfileName(browserDefaults.profiles, activeProfileId);
+  const activeProfileName = previewProfileName(
+    browserDefaults.profiles,
+    activeProfileId,
+    translateWebSource(locale, "Removed profile"),
+  );
   const panelRect = useBrowserSurfaceStore((state) =>
     runtimeTabId ? (state.byTabId[runtimeTabId]?.rect ?? null) : null,
   );
@@ -313,7 +318,7 @@ export function PreviewView({
       const error = squashAtomCommandFailure(result);
       toastManager.add({
         type: "error",
-        title: "Unable to change the browser tab",
+        title: translateWebSource(locale, "Unable to change the browser tab"),
         description:
           error instanceof Error ? error.message : translateWebSource(locale, "An error occurred."),
       });
@@ -392,7 +397,11 @@ export function PreviewView({
     snapshot,
   );
   const moveLabel =
-    moveTarget === "server" ? `Open in ${environmentLabel}'s browser` : "Open on this computer";
+    moveTarget === "server"
+      ? translateWebMessage(locale, "preview.openInEnvironmentBrowser", {
+          environment: environmentLabel,
+        })
+      : translateWebSource(locale, "Open on this computer");
   const handleMoveTab = async () => {
     if (!moveTarget || !tabId || !snapshot) return;
     const result = await openPreviewSession({
@@ -415,7 +424,7 @@ export function PreviewView({
       const error = squashAtomCommandFailure(result);
       toastManager.add({
         type: "error",
-        title: "Unable to move the browser tab",
+        title: translateWebSource(locale, "Unable to move the browser tab"),
         description:
           error instanceof Error ? error.message : translateWebSource(locale, "An error occurred."),
       });
@@ -485,7 +494,7 @@ export function PreviewView({
     void operation(runtimeTabId).catch((error) => {
       toastManager.add({
         type: "error",
-        title: "Unable to update popped-out preview",
+        title: translateWebSource(locale, "Unable to update popped-out preview"),
         description:
           error instanceof Error ? error.message : translateWebSource(locale, "An error occurred."),
       });
@@ -508,8 +517,8 @@ export function PreviewView({
                 toastId,
                 stackedThreadToast({
                   type: "error",
-                  title: "Unable to copy recording path",
-                  description: "Clipboard API unavailable.",
+                  title: translateWebSource(locale, "Unable to copy recording path"),
+                  description: translateWebSource(locale, "Clipboard API unavailable."),
                   actionProps: revealAction,
                 }),
               );
@@ -530,7 +539,7 @@ export function PreviewView({
                   toastId,
                   stackedThreadToast({
                     type: "error",
-                    title: "Unable to copy recording path",
+                    title: translateWebSource(locale, "Unable to copy recording path"),
                     description:
                       error instanceof Error
                         ? error.message
@@ -551,11 +560,13 @@ export function PreviewView({
               toastId,
               stackedThreadToast({
                 type: "success",
-                title: "Recording saved",
+                title: translateWebSource(locale, "Recording saved"),
                 actionProps: revealAction,
                 data: {
                   secondaryActionProps: {
-                    children: pathCopied ? "Copied!" : "Copy path",
+                    children: pathCopied
+                      ? translateWebSource(locale, "Copied!")
+                      : translateWebSource(locale, "Copy path"),
                     disabled: pathCopied,
                     onClick: copyPath,
                   },
@@ -568,11 +579,11 @@ export function PreviewView({
           toastId = toastManager.add(
             stackedThreadToast({
               type: "success",
-              title: "Recording saved",
+              title: translateWebSource(locale, "Recording saved"),
               actionProps: revealAction,
               data: {
                 secondaryActionProps: {
-                  children: "Copy path",
+                  children: translateWebSource(locale, "Copy path"),
                   onClick: copyPath,
                 },
                 secondaryActionVariant: "outline",
@@ -583,7 +594,7 @@ export function PreviewView({
         (error) => {
           toastManager.add({
             type: "error",
-            title: "Unable to stop recording",
+            title: translateWebSource(locale, "Unable to stop recording"),
             description:
               error instanceof Error
                 ? error.message
@@ -595,11 +606,12 @@ export function PreviewView({
     }
     if (record) {
       void startBrowserRecording(runtimeTabId, threadRef, tabId).catch((error) => {
-        const description = error instanceof Error ? error.message : "An error occurred.";
+        const description =
+          error instanceof Error ? error.message : translateWebSource(locale, "An error occurred.");
         if (isBrowserRecordingStartCancelledError(error)) return;
         toastManager.add({
           type: "error",
-          title: "Unable to start recording",
+          title: translateWebSource(locale, "Unable to start recording"),
           description,
         });
       });
@@ -617,7 +629,7 @@ export function PreviewView({
 
         const updateScreenshotToast = (
           type: "success" | "error" = "success",
-          title = "Screenshot saved",
+          title = translateWebSource(locale, "Screenshot saved"),
           description?: string,
         ) => {
           toastManager.update(
@@ -627,7 +639,9 @@ export function PreviewView({
               title,
               description,
               actionProps: {
-                children: imageCopied ? "Copied!" : "Copy image",
+                children: imageCopied
+                  ? translateWebSource(locale, "Copied!")
+                  : translateWebSource(locale, "Copy image"),
                 disabled: imageCopied,
                 onClick: copyImage,
               },
@@ -636,7 +650,9 @@ export function PreviewView({
                   {
                     id: "copy-path",
                     props: {
-                      children: pathCopied ? "Copied!" : "Copy path",
+                      children: pathCopied
+                        ? translateWebSource(locale, "Copied!")
+                        : translateWebSource(locale, "Copy path"),
                       disabled: pathCopied,
                       onClick: copyPath,
                     },
@@ -655,8 +671,8 @@ export function PreviewView({
           if (!navigator.clipboard?.writeText) {
             updateScreenshotToast(
               "error",
-              "Unable to copy screenshot path",
-              "Clipboard API unavailable.",
+              translateWebSource(locale, "Unable to copy screenshot path"),
+              translateWebSource(locale, "Clipboard API unavailable."),
             );
             return;
           }
@@ -673,7 +689,7 @@ export function PreviewView({
             (error) => {
               updateScreenshotToast(
                 "error",
-                "Unable to copy screenshot path",
+                translateWebSource(locale, "Unable to copy screenshot path"),
                 error instanceof Error
                   ? error.message
                   : translateWebSource(locale, "An error occurred."),
@@ -695,7 +711,7 @@ export function PreviewView({
             (error) => {
               updateScreenshotToast(
                 "error",
-                "Unable to copy screenshot",
+                translateWebSource(locale, "Unable to copy screenshot"),
                 error instanceof Error
                   ? error.message
                   : translateWebSource(locale, "An error occurred."),
@@ -707,9 +723,9 @@ export function PreviewView({
         toastId = toastManager.add(
           stackedThreadToast({
             type: "success",
-            title: "Screenshot saved",
+            title: translateWebSource(locale, "Screenshot saved"),
             actionProps: {
-              children: "Copy image",
+              children: translateWebSource(locale, "Copy image"),
               onClick: copyImage,
             },
             data: {
@@ -717,7 +733,7 @@ export function PreviewView({
                 {
                   id: "copy-path",
                   props: {
-                    children: "Copy path",
+                    children: translateWebSource(locale, "Copy path"),
                     onClick: copyPath,
                   },
                 },
@@ -733,7 +749,7 @@ export function PreviewView({
       (error) => {
         toastManager.add({
           type: "error",
-          title: "Unable to capture screenshot",
+          title: translateWebSource(locale, "Unable to capture screenshot"),
           description:
             error instanceof Error
               ? error.message
@@ -801,8 +817,11 @@ export function PreviewView({
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "Could not capture the picked element",
-            description: "The annotation was kept without the screenshot.",
+            title: translateWebSource(locale, "Could not capture the picked element"),
+            description: translateWebSource(
+              locale,
+              "The annotation was kept without the screenshot.",
+            ),
           }),
         );
       }
@@ -879,7 +898,14 @@ export function PreviewView({
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- subscribes to preview actions while the view is visible
   useEffect(() => {
     if (!visible) return;
-    return subscribePreviewAction((action) => onPreviewAction(action));
+    const unsubscribeAction = subscribePreviewAction((action) => onPreviewAction(action));
+    const unsubscribeMenu = window.desktopBridge?.onMenuAction((action) => {
+      if (action === "preview.focusUrl") onPreviewAction("focus-url");
+    });
+    return () => {
+      unsubscribeAction();
+      unsubscribeMenu?.();
+    };
   }, [visible]);
 
   return (
@@ -914,7 +940,12 @@ export function PreviewView({
         pickActive={pickActive}
         pickDisabled={!tabId || isUnreachable}
         pickDisabledReason={
-          isUnreachable ? "Page didn't load. Pick is unavailable until the page renders" : undefined
+          isUnreachable
+            ? translateWebSource(
+                locale,
+                "Page didn't load. Pick is unavailable until the page renders",
+              )
+            : undefined
         }
         leadingActions={
           activeProfileId !== browserDefaults.profileId ? (
@@ -1013,7 +1044,7 @@ export function PreviewView({
           ) : (
             <div className="flex h-full items-center justify-center p-8 text-center">
               <p className="max-w-sm text-sm text-muted-foreground">
-                This tab is open in the T3 Code desktop app.
+                {translateWebSource(locale, "This tab is open in the T3 Code desktop app.")}
               </p>
             </div>
           )

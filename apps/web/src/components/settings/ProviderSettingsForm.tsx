@@ -1,3 +1,4 @@
+import { translateWebSource } from "../../i18n/messages";
 import { useState, type ReactNode } from "react";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
@@ -208,7 +209,11 @@ function configuredCommandArgs(value: ProviderSettingsFormProps["value"]) {
 function ProviderCommandArguments({
   value,
   onChange,
-}: Pick<ProviderSettingsFormProps, "value" | "onChange">) {
+  managedReason,
+}: Pick<ProviderSettingsFormProps, "value" | "onChange"> & {
+  readonly managedReason: string | undefined;
+}) {
+  const { locale, t } = useI18n();
   const args = configuredCommandArgs(value);
   const [storedDraft, setDraft] = useState(() => seedRowsDraft(args, toCommandArgumentRows));
   const draft = reconcileRowsDraft(storedDraft, args, commandArgumentsEqual, toCommandArgumentRows);
@@ -225,8 +230,9 @@ function ProviderCommandArguments({
 
   return (
     <SettingsRow
-      title="Arguments"
-      description="One literal argument per row, in launch order."
+      title={translateWebSource(locale, "Arguments")}
+      description={translateWebSource(locale, "One literal argument per row, in launch order.")}
+      managed={managedReason}
       control={
         <Button
           type="button"
@@ -235,41 +241,47 @@ function ProviderCommandArguments({
           onClick={() => updateArguments([...rows, makeCommandArgumentDraftRow("")])}
         >
           <PlusIcon />
-          Add argument
+          {translateWebSource(locale, "Add argument")}
         </Button>
       }
     >
       {rows.length > 0 ? (
         <div className="mt-3 min-w-0 space-y-2 pb-2">
-          {rows.map((argument, index) => (
-            <div key={argument.id} className="flex min-w-0 items-center gap-1.5">
-              <DraftInput
-                size="sm"
-                font="mono"
-                value={argument.value}
-                onCommit={(next) =>
-                  updateArguments(
-                    rows.map((current) =>
-                      current.id === argument.id ? { ...current, value: next } : current,
-                    ),
-                  )
-                }
-                aria-label={`Argument ${index + 1}`}
-                spellCheck={false}
-              />
-              <Button
-                type="button"
-                size="icon-micro"
-                variant="ghost-destructive"
-                onClick={() =>
-                  updateArguments(rows.filter((current) => current.id !== argument.id))
-                }
-                aria-label={`Remove argument ${index + 1}`}
-              >
-                <XIcon />
-              </Button>
-            </div>
-          ))}
+          {rows.map((argument, index) =>
+            managedReason !== undefined ? (
+              <code key={argument.id} className="block min-w-0 truncate text-xs">
+                {argument.value}
+              </code>
+            ) : (
+              <div key={argument.id} className="flex min-w-0 items-center gap-1.5">
+                <DraftInput
+                  size="sm"
+                  font="mono"
+                  value={argument.value}
+                  onCommit={(next) =>
+                    updateArguments(
+                      rows.map((current) =>
+                        current.id === argument.id ? { ...current, value: next } : current,
+                      ),
+                    )
+                  }
+                  aria-label={t("settingsControls.argument", { count: index + 1 })}
+                  spellCheck={false}
+                />
+                <Button
+                  type="button"
+                  size="icon-micro"
+                  variant="ghost-destructive"
+                  onClick={() =>
+                    updateArguments(rows.filter((current) => current.id !== argument.id))
+                  }
+                  aria-label={t("settingsControls.removeArgument", { count: index + 1 })}
+                >
+                  <XIcon />
+                </Button>
+              </div>
+            ),
+          )}
         </div>
       ) : null}
     </SettingsRow>
@@ -394,6 +406,18 @@ function localizeProviderSettingsField(
       placeholder: t("providers.config.optional"),
     };
   }
+  if (
+    definition.driverKind === "acpRegistry" &&
+    field.key === "commandPath" &&
+    field.label === "Executable"
+  ) {
+    return {
+      ...field,
+      label: t("settingsControls.executable"),
+      description: t("settingsControls.executableDescription"),
+      placeholder: t("settingsControls.executableExample"),
+    };
+  }
   return field;
 }
 
@@ -403,6 +427,8 @@ interface ProviderSettingsFormProps {
   readonly idPrefix: string;
   readonly variant: "card" | "dialog" | "settings";
   readonly onChange: (nextConfig: Record<string, unknown> | undefined) => void;
+  /** Config keys an administrator's policy pins, shown inert with the reason. */
+  readonly managed?: { readonly keys: ReadonlySet<string>; readonly reason: string } | undefined;
   /** Where the secret providers offered for `SettingsSecretValue` fields are configured. */
   readonly environmentId?: EnvironmentId | undefined;
 }
@@ -518,6 +544,7 @@ interface ProviderSettingsFieldRowProps {
   readonly idPrefix: string;
   readonly variant: ProviderSettingsFormProps["variant"];
   readonly onChange: ProviderSettingsFormProps["onChange"];
+  readonly managedReason?: string | undefined;
   readonly environmentId: EnvironmentId | undefined;
 }
 
@@ -527,6 +554,7 @@ function ProviderSettingsFieldRow({
   idPrefix,
   variant,
   onChange,
+  managedReason,
   environmentId,
 }: ProviderSettingsFieldRowProps) {
   const { locale } = useI18n();
@@ -633,6 +661,7 @@ function ProviderSettingsFieldRow({
           field.description ? <span id={descriptionId}>{field.description}</span> : undefined
         }
         control={control}
+        managed={managedReason}
       />
     );
   }
@@ -741,6 +770,7 @@ export function ProviderSettingsForm({
   idPrefix,
   variant,
   onChange,
+  managed,
   environmentId,
 }: ProviderSettingsFormProps) {
   const { t } = useI18n();
@@ -766,10 +796,17 @@ export function ProviderSettingsForm({
           idPrefix={idPrefix}
           variant={variant}
           onChange={onChange}
+          managedReason={managed?.keys.has(field.key) ? managed.reason : undefined}
           environmentId={environmentId}
         />
       ))}
-      {isLocalAcp ? <ProviderCommandArguments value={value} onChange={onChange} /> : null}
+      {isLocalAcp ? (
+        <ProviderCommandArguments
+          value={value}
+          onChange={onChange}
+          managedReason={managed?.keys.has("commandArgs") ? managed.reason : undefined}
+        />
+      ) : null}
     </>
   );
 }

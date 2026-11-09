@@ -1,4 +1,7 @@
+import { translateWebExtraSource } from "~/i18n/webExtraMessages";
 import { useState } from "react";
+import { useI18n } from "~/i18n/WebI18nContext";
+import { translateWebSource } from "~/i18n/messages";
 
 import {
   desktopCliCommandStateAtom,
@@ -12,6 +15,7 @@ import { SettingsRow } from "./settingsLayout";
 import { searchableSetting } from "./settingsSearch";
 
 export function CliCommandSettingsRow() {
+  const { locale, t } = useI18n();
   const bridge = getDesktopCliCommandBridge();
   const query = useEnvironmentQuery(bridge ? desktopCliCommandStateAtom : null);
   const state = query.data;
@@ -26,8 +30,14 @@ export function CliCommandSettingsRow() {
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: action === "install" ? "Could not install t3" : "Could not remove t3",
-            description: error instanceof Error ? error.message : "Something went wrong.",
+            title: translateWebExtraSource(
+              locale,
+              action === "install" ? "Could not install t3" : "Could not remove t3",
+            ),
+            description:
+              error instanceof Error
+                ? error.message
+                : translateWebSource(locale, "Something went wrong."),
           }),
         );
       })
@@ -37,25 +47,25 @@ export function CliCommandSettingsRow() {
   if (!bridge || !state?.supported) return null;
   const installed = state.installedPath !== null;
   const description = state.shadowedBy
-    ? `Another t3 at ${state.shadowedBy} runs first in a new terminal. Remove it to use T3 Code's.`
+    ? t("webExtra.cli.shadowed", { path: state.shadowedBy })
     : !installed
-      ? "Run T3 Code's CLI as `t3` from any terminal."
+      ? translateWebExtraSource(locale, "Run T3 Code's CLI as `t3` from any terminal.")
       : state.onPath
-        ? `Installed at ${state.installedPath}. Open a new terminal to use it.`
-        : `Installed at ${state.installedPath}, which is not on your PATH yet. Add its folder to your PATH to run \`t3\`.`;
+        ? t("webExtra.cli.installed", { path: state.installedPath ?? "" })
+        : t("webExtra.cli.notOnPath", { path: state.installedPath ?? "" });
 
   return (
     <SettingsRow
-      {...searchableSetting("cli-command")}
+      {...searchableSetting("cli-command", locale)}
       description={description}
       control={
         <Button
           size="sm"
           variant="outline"
-          disabled={pending || query.isPending}
+          disabled={pending || query.isPending || (!installed && Boolean(state.shadowedBy))}
           onClick={() => change(installed ? "uninstall" : "install")}
         >
-          {installed ? "Remove" : "Install"}
+          {translateWebSource(locale, installed ? "Remove" : "Install")}
         </Button>
       }
     />

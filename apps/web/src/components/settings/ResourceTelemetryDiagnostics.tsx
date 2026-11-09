@@ -1,3 +1,4 @@
+import { translateWebSource } from "../../i18n/messages";
 import { ProcessSignalActions } from "./ProcessSignalActions";
 import { AuthEnvironmentMaintainScope } from "@t3tools/contracts";
 import { RefreshIcon } from "~/components/ui/refresh-icon";
@@ -45,8 +46,7 @@ import { ensureLocalApi } from "../../localApi";
 import { serverEnvironment } from "../../state/server";
 import { readEnvironmentScope, useEnvironmentScope } from "../../state/session";
 import { useAtomCommand } from "../../state/use-atom-command";
-import { useI18n, type WebTranslate } from "../../i18n/WebI18nContext";
-import { splitWebTranslation } from "../../i18n/WebI18nContext";
+import { splitWebTranslation, useI18n, type WebTranslate } from "../../i18n/WebI18nContext";
 import { useRelativeTimeState } from "../../hooks/useRelativeTimeState";
 import { Button } from "../ui/button";
 import { MorphIcon } from "~/components/MorphIcon";
@@ -409,9 +409,10 @@ function HistoryWindowSelector({
   selectedWindowMs: number;
   onSelect: (windowMs: number) => void;
 }) {
+  const { locale } = useI18n();
   return (
     <ToggleGroup
-      aria-label="Resource history period"
+      aria-label={translateWebSource(locale, "Resource history period")}
       variant="segmented"
       value={[String(selectedWindowMs)]}
       onValueChange={(next) => {
@@ -421,7 +422,7 @@ function HistoryWindowSelector({
     >
       {HISTORY_WINDOWS.map((option) => (
         <Toggle key={option.windowMs} value={String(option.windowMs)}>
-          {option.label}
+          {translateWebSource(locale, option.label)}
         </Toggle>
       ))}
     </ToggleGroup>
@@ -433,7 +434,7 @@ function ResourceHistoryChart({
 }: {
   buckets: ReadonlyArray<ResourceTelemetryHistoryBucket>;
 }) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const maxCpu = resourceHistoryCpuScaleMax(buckets);
   const maxIo = Math.max(1, ...buckets.map((bucket) => bucket.ioReadBytes + bucket.ioWriteBytes));
 
@@ -448,7 +449,8 @@ function ResourceHistoryChart({
           <span className="h-1.5 w-3 rounded-full bg-info/70" /> {t("diagnostics.metric.ioReads")}
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-1.5 w-3 rounded-full bg-warning/80" /> I/O writes
+          <span className="h-1.5 w-3 rounded-full bg-warning/80" />{" "}
+          {translateWebSource(locale, "I/O writes")}
         </span>
       </div>
       <div className="flex h-32 items-end gap-1 overflow-hidden rounded-lg border border-border/40 bg-muted/8 px-2 pt-3 pb-2">
@@ -490,8 +492,16 @@ function ResourceHistoryChart({
               />
               <TooltipPopup side="top" className="text-left">
                 <div className="space-y-0.5">
-                  <div>CPU avg {bucket.avgCpuPercent.toFixed(1)}%</div>
-                  <div>CPU peak {bucket.maxCpuPercent.toFixed(1)}%</div>
+                  <div>
+                    {t("diagnostics.resource.cpuAverageValue", {
+                      value: bucket.avgCpuPercent.toFixed(1),
+                    })}
+                  </div>
+                  <div>
+                    {t("diagnostics.resource.cpuPeakValue", {
+                      value: bucket.maxCpuPercent.toFixed(1),
+                    })}
+                  </div>
                   <div>
                     {t("diagnostics.column.read")} {formatBytes(bucket.ioReadBytes)}
                   </div>
@@ -517,6 +527,7 @@ function ProcessTreeName({
   collapsed: boolean;
   onToggle: (process: ResourceTelemetryProcess) => void;
 }) {
+  const { t } = useI18n();
   const name = formatProcessName(process);
   const hasChildren = process.childPids.length > 0;
   return (
@@ -529,7 +540,10 @@ function ProcessTreeName({
           size="icon-micro"
           variant="ghost-muted"
           onClick={() => onToggle(process)}
-          aria-label={collapsed ? `Expand ${name}` : `Collapse ${name}`}
+          aria-label={t(
+            collapsed ? "diagnostics.process.expandName" : "diagnostics.process.collapseName",
+            { name },
+          )}
         >
           <MorphIcon className="size-3.5" icon={collapsed ? ChevronRight : ChevronDown} />
         </Button>
@@ -908,7 +922,12 @@ function ResourceTelemetryDiagnosticsBody({
   environmentId: EnvironmentId | null;
 }) {
   const registry = useContext(RegistryContext);
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
+  const [identityBefore, identityAfter] = splitWebTranslation(
+    t,
+    "diagnostics.resource.identityValue",
+    "identity",
+  );
   const [windowMs, setWindowMs] = useState(15 * 60_000);
   const selectedWindow =
     HISTORY_WINDOWS.find((option) => option.windowMs === windowMs) ?? HISTORY_WINDOWS[1];
@@ -1037,9 +1056,11 @@ function ResourceTelemetryDiagnosticsBody({
       .catch((error: unknown) => {
         toastManager.add({
           type: "error",
-          title: "Could not restart resource monitor",
+          title: translateWebSource(locale, "Could not restart resource monitor"),
           description:
-            error instanceof Error ? error.message : "The resource monitor retry failed.",
+            error instanceof Error
+              ? error.message
+              : translateWebSource(locale, "The resource monitor retry failed."),
         });
       })
       .finally(() => {
@@ -1097,7 +1118,7 @@ function ResourceTelemetryDiagnosticsBody({
           <div className="flex flex-col gap-3 border-b border-border/60 bg-linear-to-r from-muted/45 via-muted/20 to-transparent px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
             <div>
               <div className="text-3xs font-semibold uppercase tracking-widest text-muted-foreground/70">
-                T3 system footprint
+                {translateWebSource(locale, "T3 system footprint")}
               </div>
               <p className="mt-1 max-w-xl text-xs leading-relaxed text-muted-foreground">
                 {t("diagnostics.resource.systemDescription")}
@@ -1105,7 +1126,9 @@ function ResourceTelemetryDiagnosticsBody({
             </div>
             <div className="flex items-center gap-2 text-3xs text-muted-foreground/65">
               <span className="size-1.5 rounded-full bg-success" />
-              Sampling every {snapshot ? formatSampleInterval(snapshot.sampleIntervalMs, t) : "..."}
+              {t("diagnostics.resource.samplingEvery", {
+                interval: snapshot ? formatSampleInterval(snapshot.sampleIntervalMs, t) : "...",
+              })}
             </div>
           </div>
           <div className="grid grid-cols-2 divide-x divide-y divide-border/55 md:grid-cols-3">
@@ -1192,7 +1215,7 @@ function ResourceTelemetryDiagnosticsBody({
                   ? snapshot.power.thermalState === "unknown"
                     ? t("diagnostics.resource.thermalStateUnknown")
                     : t("diagnostics.resource.thermalState", {
-                        state: snapshot.power.thermalState,
+                        state: translateWebSource(locale, snapshot.power.thermalState),
                       })
                   : undefined
               }
@@ -1234,7 +1257,7 @@ function ResourceTelemetryDiagnosticsBody({
           collectorNeedsRetry ? (
             <Button size="xs" variant="outline" disabled={isRetrying} onClick={retryCollector}>
               <RefreshIcon size="xs" refreshing={isRetrying} />
-              Retry monitor
+              {translateWebSource(locale, "Retry monitor")}
             </Button>
           ) : null
         }
@@ -1250,44 +1273,62 @@ function ResourceTelemetryDiagnosticsBody({
             {hasHostPowerSignal && snapshot ? (
               <>
                 <DetailRow
-                  label="Power source"
-                  value={booleanStateLabel(snapshot.power.onBattery, {
-                    true: "Battery",
-                    false: "External power",
-                  })}
+                  label={translateWebSource(locale, "Power source")}
+                  value={translateWebSource(
+                    locale,
+                    booleanStateLabel(snapshot.power.onBattery, {
+                      true: "Battery",
+                      false: "External power",
+                    }),
+                  )}
                 />
                 <DetailRow
-                  label="Low power mode"
-                  value={booleanStateLabel(snapshot.power.lowPowerMode, {
-                    true: "Enabled",
-                    false: "Disabled",
-                  })}
+                  label={translateWebSource(locale, "Low power mode")}
+                  value={translateWebSource(
+                    locale,
+                    booleanStateLabel(snapshot.power.lowPowerMode, {
+                      true: "Enabled",
+                      false: "Disabled",
+                    }),
+                  )}
                 />
                 <DetailRow
-                  label="Idle"
-                  value={`${booleanStateLabel(snapshot.power.idle, {
-                    true: "Idle",
-                    false: "Active",
-                  })}${
-                    snapshot.power.idleSeconds === null
-                      ? ""
-                      : ` · ${Math.round(snapshot.power.idleSeconds)}s`
-                  }`}
-                />
-                <DetailRow
-                  label="Session"
+                  label={translateWebSource(locale, "Idle")}
                   value={
-                    snapshot.power.suspended
-                      ? "Suspended"
-                      : booleanStateLabel(snapshot.power.locked, {
-                          true: "Locked",
-                          false: "Unlocked",
+                    snapshot.power.idleSeconds === null
+                      ? translateWebSource(
+                          locale,
+                          booleanStateLabel(snapshot.power.idle, { true: "Idle", false: "Active" }),
+                        )
+                      : t("diagnostics.resource.idleStateDuration", {
+                          state: translateWebSource(
+                            locale,
+                            booleanStateLabel(snapshot.power.idle, {
+                              true: "Idle",
+                              false: "Active",
+                            }),
+                          ),
+                          seconds: Math.round(snapshot.power.idleSeconds),
                         })
                   }
                 />
                 <DetailRow
-                  label="Thermal"
-                  value={snapshot.power.thermalState}
+                  label={translateWebSource(locale, "Session")}
+                  value={
+                    snapshot.power.suspended
+                      ? translateWebSource(locale, "Suspended")
+                      : translateWebSource(
+                          locale,
+                          booleanStateLabel(snapshot.power.locked, {
+                            true: "Locked",
+                            false: "Unlocked",
+                          }),
+                        )
+                  }
+                />
+                <DetailRow
+                  label={translateWebSource(locale, "Thermal")}
+                  value={translateWebSource(locale, snapshot.power.thermalState)}
                   valueClassName={
                     snapshot.power.thermalState === "serious" ||
                     snapshot.power.thermalState === "critical"
@@ -1302,8 +1343,10 @@ function ResourceTelemetryDiagnosticsBody({
                   {t("diagnostics.resource.hostDisconnected")}
                 </div>
                 <p className="mt-1.5 max-w-sm text-2xs leading-relaxed text-muted-foreground/70">
-                  Power, idle, lock, and thermal state are supplied by the desktop host. Process
-                  telemetry remains fully active in this browser session.
+                  {translateWebSource(
+                    locale,
+                    "Power, idle, lock, and thermal state are supplied by the desktop host. Process telemetry remains fully active in this browser session.",
+                  )}
                 </p>
               </div>
             )}
@@ -1406,7 +1449,9 @@ function ResourceTelemetryDiagnosticsBody({
         headerAction={
           snapshot ? (
             <span className="text-3xs text-muted-foreground/55">
-              Identity: <span className="font-mono">PID + start time</span>
+              {identityBefore}
+              <span className="font-mono">{translateWebSource(locale, "PID + start time")}</span>
+              {identityAfter}
             </span>
           ) : null
         }
@@ -1432,9 +1477,10 @@ function ResourceTelemetryDiagnosticsBody({
       >
         <div className="overflow-hidden rounded-[inherit]">
           <div className="bg-muted/15 px-4 py-3 text-2xs leading-relaxed text-muted-foreground sm:px-5">
-            Native counters identify which process is reading or writing. These application-level
-            counters identify known T3 operations so process spikes can be correlated with specific
-            persistence and logging paths.
+            {translateWebSource(
+              locale,
+              "Native counters identify which process is reading or writing. These application-level counters identify known T3 operations so process spikes can be correlated with specific persistence and logging paths.",
+            )}
           </div>
           <AttributionTable entries={snapshot?.attribution.entries ?? []} />
         </div>

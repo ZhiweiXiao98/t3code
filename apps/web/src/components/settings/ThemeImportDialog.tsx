@@ -1,9 +1,11 @@
+import { useStableCallback } from "../../hooks/useStableCallback";
+import { translateWebSource } from "../../i18n/messages";
 import { DownloadIcon, PlusIcon } from "lucide-react";
 import type { ChangeEvent, DragEvent, UIEvent } from "react";
 import { settlePromise } from "@t3tools/client-runtime/state/runtime";
 import { useRef, useState } from "react";
 import { cn } from "../../lib/utils";
-import { useI18n } from "../../i18n/WebI18nContext";
+import { useI18n, type WebTranslate } from "../../i18n/WebI18nContext";
 import {
   getCustomThemes,
   installCustomTheme,
@@ -15,9 +17,8 @@ import {
 } from "../../themePalette";
 import {
   humanizeThemeName,
-  isVsCodeThemeFile,
   pairVsCodeThemes,
-  parseVsCodeThemeFile,
+  parseThemeImport,
   resolveThemeLabelCollisions,
 } from "../../vscodeThemeImport";
 import { Alert } from "../ui/alert";
@@ -41,8 +42,13 @@ function formatByteSize(bytes: number): string {
   return `${bytes} bytes`;
 }
 
-function describeOversizedThemeFile(bytes: number): string | null {
+function describeOversizedThemeFile(bytes: number, t?: WebTranslate): string | null {
   if (bytes <= MAX_THEME_FILE_BYTES) return null;
+  if (t)
+    return t("settingsControls.themeTooLarge", {
+      size: formatByteSize(bytes),
+      limit: formatByteSize(MAX_THEME_FILE_BYTES),
+    });
   return `That file is ${formatByteSize(bytes)}. Theme files are only a few KB, so this one was not read (limit ${formatByteSize(MAX_THEME_FILE_BYTES)}).`;
 }
 
@@ -204,7 +210,9 @@ function ThemeImportBody({
   session: AbortController;
   onClose: () => void;
 }) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
+  const translateAsync = useStableCallback(t);
+  const translateNotice = useStableCallback((source: string) => translateWebSource(locale, source));
   const { signal } = session;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [json, setJson] = useState("");
@@ -219,7 +227,7 @@ function ThemeImportBody({
     requestId === importRequestRef.current && !signal.aborted;
 
   const readThemeFile = async (file: ImportableThemeFile) => {
-    const oversized = describeOversizedThemeFile(file.size);
+    const oversized = describeOversizedThemeFile(file.size, translateAsync);
     if (oversized) {
       setError(oversized);
       return;
@@ -231,7 +239,7 @@ function ThemeImportBody({
     if (!isCurrentRequest(requestId)) return;
     setIsReading(false);
     if (fileText._tag === "Failure") {
-      setError("Could not read that file. Paste the JSON below instead.");
+      setError(translateNotice("Could not read that file. Paste the JSON below instead."));
       return;
     }
     setJson(fileText.value);
@@ -254,20 +262,19 @@ function ThemeImportBody({
     const failures: string[] = [];
     const parsed: Array<{ theme: ThemeDefinition; sourceName: string }> = [];
     for (const file of files) {
-      const oversized = describeOversizedThemeFile(file.size);
+      const oversized = describeOversizedThemeFile(file.size, translateAsync);
       if (oversized) {
-        failures.push(`${file.name}: too large`);
+        failures.push(translateAsync("settingsControls.themeFileTooLarge", { name: file.name }));
         continue;
       }
       try {
-        const value: unknown = JSON.parse(await file.text());
         parsed.push({
           sourceName: file.name,
-          theme: isVsCodeThemeFile(value) ? parseVsCodeThemeFile(value) : parseThemeFile(value),
+          theme: parseThemeImport(await file.text()),
         });
       } catch (cause) {
         failures.push(
-          `${file.name}: ${cause instanceof Error ? cause.message : "not a theme file"}`,
+          `${file.name}: ${cause instanceof Error ? cause.message : translateNotice("not a theme file")}`,
         );
       }
     }
@@ -283,7 +290,7 @@ function ThemeImportBody({
         installed.push(installCustomTheme(theme));
       } catch (cause) {
         failures.push(
-          `${theme.label}: ${cause instanceof Error ? cause.message : "could not install"}`,
+          `${theme.label}: ${cause instanceof Error ? cause.message : translateNotice("could not install")}`,
         );
       }
     }
@@ -359,7 +366,7 @@ function ThemeImportBody({
       if (getCustomThemes().some((existing) => existing.id === candidate.id)) continue;
       return candidate;
     }
-    throw new Error(`Too many copies of "${theme.label}".`);
+    throw new Error(translateAsync("settingsControls.tooManyThemeCopies", { name: theme.label }));
   };
 
   const resolveConflicts = (mode: "update" | "copy") => {
@@ -385,7 +392,9 @@ function ThemeImportBody({
             : installCustomTheme(versionedCopy(theme, preferredName)),
         );
       } catch (cause) {
-        failures.push(`${theme.label}: ${cause instanceof Error ? cause.message : "failed"}`);
+        failures.push(
+          `${theme.label}: ${cause instanceof Error ? cause.message : translateNotice("failed")}`,
+        );
       }
     }
     if (resolved.length > 0) onImportedMany(resolved, { updated: mode === "update" });
@@ -395,16 +404,13 @@ function ThemeImportBody({
   };
 
   const handleSubmit = () => {
-    const oversized = describeOversizedThemeFile(json.length);
+    const oversized = describeOversizedThemeFile(json.length, translateAsync);
     if (oversized) {
       setError(oversized);
       return;
     }
     try {
-      const parsed: unknown = JSON.parse(json);
-      const theme = isVsCodeThemeFile(parsed)
-        ? parseVsCodeThemeFile(parsed)
-        : parseThemeFile(parsed);
+      const theme = parseThemeImport(json);
       if (getCustomThemes().some((existing) => existing.id === theme.id)) {
         setError(null);
         setConflicts([theme]);
@@ -415,12 +421,14 @@ function ThemeImportBody({
         try {
           removeCustomTheme(installedTheme.id);
         } catch {}
-        setError("Theme added, but it could not be selected. Try again.");
+        setError(translateNotice("Theme added, but it could not be selected. Try again."));
         return;
       }
       onClose();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "That theme file is invalid.");
+      setError(
+        cause instanceof Error ? cause.message : translateNotice("That theme file is invalid."),
+      );
     }
   };
 
@@ -437,7 +445,7 @@ function ThemeImportBody({
       <div className="flex items-center gap-3" aria-hidden>
         <div className="h-px flex-1 bg-border" />
         <span className="text-muted-foreground text-2xs uppercase tracking-wider">
-          or import a file
+          {translateWebSource(locale, "or import a file")}
         </span>
         <div className="h-px flex-1 bg-border" />
       </div>

@@ -178,6 +178,7 @@ function UsageModelDialogHost({
 
 export function UsagePage() {
   const { locale, t } = useI18n();
+  const translate = (source: string) => translateWebSource(locale, source);
   const [preferences, setPreferences] = useState(readUsagePagePreferences);
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
   const hour12 = usePrimarySettings((settings) => resolveHour12(settings.timestampFormat));
@@ -410,7 +411,7 @@ export function UsagePage() {
             tabs so dropping it never moves them. */}
         {showingLimits ? null : (
           <ToggleGroup
-            aria-label="Usage period"
+            aria-label={translate("Usage period")}
             variant="segmented"
             value={[String(windowDays)]}
             onValueChange={(next) => {
@@ -420,7 +421,7 @@ export function UsagePage() {
           >
             {WINDOW_OPTIONS.map((option) => (
               <Toggle key={option.days} value={String(option.days)} title={shortcutTitle(option)}>
-                {option.label}
+                {optionLabel(option)}
               </Toggle>
             ))}
           </ToggleGroup>
@@ -455,13 +456,15 @@ export function UsagePage() {
         {showingLimits ? null : (
           <Select value={String(windowDays)} onValueChange={(value) => selectWindow(Number(value))}>
             <SelectTrigger
-              aria-label="Usage period"
+              aria-label={translate("Usage period")}
               size="compact"
               variant="ghost"
               className="w-auto min-w-0"
             >
               <SelectValue>
-                {WINDOW_OPTIONS.find((option) => option.days === windowDays)?.label}
+                {windowDays === 1
+                  ? t("usage.window.past24h")
+                  : t("usage.window.days", { count: windowDays })}
               </SelectValue>
             </SelectTrigger>
             <SelectPopup align="end" alignItemWithTrigger={false}>
@@ -471,7 +474,7 @@ export function UsagePage() {
                   value={String(option.days)}
                   title={shortcutTitle(option)}
                 >
-                  {option.label}
+                  {optionLabel(option)}
                 </SelectItem>
               ))}
             </SelectPopup>
@@ -514,7 +517,7 @@ export function UsagePage() {
   );
 
   return (
-    <AppRouteModal label="Usage">
+    <AppRouteModal label={translate("Usage")}>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <header className="@container/usage-header flex min-h-12 shrink-0 items-center gap-1 border-b ps-5 pe-2">
           {topbarContent}
@@ -893,20 +896,20 @@ function UsageOverview({
         >
           {metric === "tokens" ? (
             <UsageShareBar
-              label="Tokens by type"
+              label={translateWebSource(uiLocale, "Tokens by type")}
               segments={tokenTypeSegments(merged)}
               format={formatTokens}
             />
           ) : (
             <>
               <UsageShareBar
-                label="Cost by type"
+                label={translateWebSource(uiLocale, "Cost by type")}
                 segments={costTypeSegments(merged.categoryCost)}
                 format={formatUsd}
               />
               {merged.speedCost.fast + merged.speedCost.ultrafast > 0 ? (
                 <UsageShareBar
-                  label="Cost by speed"
+                  label={translateWebSource(uiLocale, "Cost by speed")}
                   segments={speedCostSegments(merged.speedCost)}
                   format={formatUsd}
                   aside={<SpeedPremium premiumUsd={merged.speedCost.premium} />}
@@ -1124,7 +1127,7 @@ function CursorEnableButton({
   label,
   onEnabled,
   tooltip,
-  buttonText = "Enable",
+  buttonText,
 }: {
   readonly environmentId: EnvironmentId;
   readonly label: string;
@@ -1132,8 +1135,10 @@ function CursorEnableButton({
   readonly tooltip: boolean;
   readonly buttonText?: string;
 }) {
+  const { locale, t } = useI18n();
+  const translate = (source: string) => translateWebSource(locale, source);
   const updateSettings = useAtomCommand(serverEnvironment.updateSettings, {
-    label: "enable Cursor account usage",
+    label: translate("enable Cursor account usage"),
   });
   const [pending, setPending] = useState(false);
   const enable = async () => {
@@ -1149,10 +1154,10 @@ function CursorEnableButton({
     <InlineButton
       disabled={pending}
       aria-busy={pending}
-      aria-label={`Enable Cursor usage from ${label}`}
+      aria-label={t("coreResidual.enableCursor", { name: label })}
       onClick={() => void enable()}
     >
-      {buttonText}
+      {buttonText ?? translate("Enable")}
     </InlineButton>
   ) : (
     <Button
@@ -1160,17 +1165,17 @@ function CursorEnableButton({
       variant="outline"
       disabled={pending}
       aria-busy={pending}
-      aria-label={`Enable Cursor usage from ${label}`}
+      aria-label={t("coreResidual.enableCursor", { name: label })}
       onClick={() => void enable()}
     >
-      {buttonText}
+      {buttonText ?? translate("Enable")}
     </Button>
   );
   if (!tooltip) return button;
   return (
     <Tooltip>
       <TooltipTrigger render={button} />
-      <TooltipPopup>{CURSOR_KEYCHAIN_COPY}</TooltipPopup>
+      <TooltipPopup>{translate(CURSOR_KEYCHAIN_COPY)}</TooltipPopup>
     </Tooltip>
   );
 }
@@ -1214,6 +1219,9 @@ function CursorEnableLimits({
   readonly environments: readonly EnvironmentUsageStatus[];
   readonly onEnabled: () => void;
 }) {
+  const { locale, t } = useI18n();
+  const translate = (source: string) => translateWebSource(locale, source);
+
   return (
     <section className="flex flex-col gap-3">
       <h2 className="flex items-center gap-2 text-sm font-medium text-foreground">
@@ -1227,14 +1235,18 @@ function CursorEnableLimits({
         Cursor
       </h2>
       <div className="flex flex-col items-start gap-3 rounded-lg border border-border/60 p-4">
-        <p className="text-xs text-muted-foreground">{CURSOR_KEYCHAIN_COPY}</p>
+        <p className="text-xs text-muted-foreground">{translate(CURSOR_KEYCHAIN_COPY)}</p>
         <div className="flex flex-wrap gap-2">
           {environments.map((environment) => (
             <CursorEnableButton
               key={environment.environmentId}
               environmentId={environment.environmentId}
               label={environment.label}
-              buttonText={environments.length > 1 ? `Enable on ${environment.label}` : "Enable"}
+              buttonText={
+                environments.length > 1
+                  ? t("coreResidual.enableOn", { name: environment.label })
+                  : translate("Enable")
+              }
               onEnabled={onEnabled}
               tooltip={false}
             />
@@ -1296,7 +1308,7 @@ function UsageCoverageNotice({
   readonly duplicateSources: readonly string[];
   readonly contractMismatches: MergedUsage["contractMismatches"];
 }) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const failed = environments.filter((environment) => environment.error !== null);
   const mismatchByEnvironment = new Map(
     contractMismatches.map((mismatch) => [mismatch.environmentId, mismatch]),
@@ -1318,7 +1330,11 @@ function UsageCoverageNotice({
       ))}
       {incompatible.map(({ environment, mismatch }) => (
         <span key={environment.environmentId}>
-          {formatUsageContractMismatch(environment.label, mismatch)}
+          {locale === "zh-CN"
+            ? mismatch.direction === "serverBehind"
+              ? `${environment.label} 的服务器版本较旧，未计入总量。`
+              : `此客户端的版本早于 ${environment.label} 上的服务器，其用量未计入总量。`
+            : formatUsageContractMismatch(environment.label, mismatch)}
         </span>
       ))}
       {duplicateSources.length > 0 ? (
@@ -1413,7 +1429,9 @@ function UsageEnvironmentFilter({
                     : progress.phase === "stale"
                       ? translate("Refreshing…")
                       : progress.phase === "partway"
-                        ? updatingProvidersLabel(progress.providers, providerLabel)
+                        ? locale === "zh-CN"
+                          ? `正在更新 ${progress.providers.map(providerLabel).join("、")}…`
+                          : updatingProvidersLabel(progress.providers, providerLabel)
                         : translate("Ready");
           return (
             <MenuCheckboxItem
@@ -1506,7 +1524,7 @@ function UsageProviderFilter({
           closeOnClick={false}
           onCheckedChange={(checked) => onChange(checked ? [] : PROVIDER_ORDER)}
         >
-          All providers
+          {translate("All providers")}
         </MenuCheckboxItem>
         <MenuSeparator />
         {PROVIDER_ORDER.map((provider) => (

@@ -34,10 +34,10 @@ export function DeviceHostUpdates({
               <p className="whitespace-pre-wrap break-words text-muted-foreground">
                 {status.detail ??
                   (failed
-                    ? "Device support could not start."
+                    ? translateWebSource(newCopyLocale, "Device support could not start.")
                     : status.status === "installing"
-                      ? "Installing device tools…"
-                      : "Starting device tools…")}
+                      ? translateWebSource(newCopyLocale, "Installing device tools…")
+                      : translateWebSource(newCopyLocale, "Starting device tools…"))}
               </p>
               {failed ? (
                 <p className="mt-1 text-muted-foreground">
@@ -60,7 +60,9 @@ export function DeviceHostUpdates({
                   );
                 }}
               >
-                {pending === host.id ? "Retrying…" : "Retry"}
+                {pending === host.id
+                  ? translateWebSource(newCopyLocale, "Retrying…")
+                  : translateWebSource(newCopyLocale, "Retry")}
               </Button>
             ) : null}
           </div>

@@ -1,3 +1,6 @@
+import { zhCN } from "@daypicker/react/locale/zh-CN";
+import { useI18n } from "../i18n/WebI18nContext";
+import { translateWebSource } from "../i18n/messages";
 import { useEffect, useId, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { create } from "zustand";
@@ -63,6 +66,7 @@ export function CustomSnoozeDialogHost() {
 }
 
 function CustomSnoozeDialog() {
+  const { locale } = useI18n();
   const id = useId();
   const navigate = useNavigate();
   const [initial] = useState(() => new Date(Date.now() + 3_600_000));
@@ -94,8 +98,8 @@ function CustomSnoozeDialog() {
             if (!snoozedUntil) {
               setError(
                 mode === "date"
-                  ? "Choose a valid date and time in the future."
-                  : "Enter a positive duration.",
+                  ? translateWebSource(locale, "Choose a valid date and time in the future.")
+                  : translateWebSource(locale, "Enter a positive duration."),
               );
               return;
             }
@@ -103,13 +107,15 @@ function CustomSnoozeDialog() {
           }}
         >
           <DialogHeader>
-            <DialogTitle>Custom snooze</DialogTitle>
-            <DialogDescription>Choose when snoozed threads return to your inbox.</DialogDescription>
+            <DialogTitle>{translateWebSource(locale, "Custom snooze")}</DialogTitle>
+            <DialogDescription>
+              {translateWebSource(locale, "Choose when snoozed threads return to your inbox.")}
+            </DialogDescription>
           </DialogHeader>
           <DialogPanel>
             <div className="flex flex-col gap-4">
               <ToggleGroup
-                aria-label="Schedule type"
+                aria-label={translateWebSource(locale, "Schedule type")}
                 className="w-full *:flex-1"
                 value={[mode]}
                 onValueChange={(next) => {
@@ -118,14 +124,14 @@ function CustomSnoozeDialog() {
                   setError(null);
                 }}
               >
-                <Toggle value="date">Date and time</Toggle>
-                <Toggle value="duration">Duration</Toggle>
+                <Toggle value="date">{translateWebSource(locale, "Date and time")}</Toggle>
+                <Toggle value="duration">{translateWebSource(locale, "Duration")}</Toggle>
               </ToggleGroup>
               <div className="flex flex-col gap-4">
                 {mode === "date" ? (
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div className="flex min-w-0 flex-col gap-1.5">
-                      <Label htmlFor={`${id}-date`}>Date</Label>
+                    <div className="flex min-w-0 flex-col gap-2">
+                      <Label htmlFor={`${id}-date`}>{translateWebSource(locale, "Date")}</Label>
                       <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                         <PopoverTrigger
                           render={
@@ -136,16 +142,24 @@ function CustomSnoozeDialog() {
                             />
                           }
                         >
-                          {date.toLocaleDateString(undefined, {
+                          {date.toLocaleDateString(locale, {
                             month: "short",
                             day: "numeric",
                             year: "numeric",
                           })}
                           <CalendarIcon className="size-4 text-muted-foreground" />
                         </PopoverTrigger>
-                        <PopoverPopup align="start" aria-label="Choose snooze date">
+                        <PopoverPopup
+                          align="start"
+                          aria-label={translateWebSource(locale, "Choose snooze date")}
+                        >
                           <Calendar
                             mode="single"
+                            locale={locale === "zh-CN" ? zhCN : undefined}
+                            formatters={{
+                              formatMonthDropdown: (month) =>
+                                month.toLocaleDateString(locale, { month: "short" }),
+                            }}
                             required
                             selected={date}
                             defaultMonth={date}
@@ -161,7 +175,7 @@ function CustomSnoozeDialog() {
                       </Popover>
                     </div>
                     <Label className="flex min-w-0 flex-col items-stretch" htmlFor={`${id}-time`}>
-                      Time
+                      {translateWebSource(locale, "Time")}
                       <Input
                         nativeInput
                         id={`${id}-time`}
@@ -188,18 +202,28 @@ function CustomSnoozeDialog() {
                         setError(null);
                       }}
                     >
-                      <Label htmlFor={`${id}-amount`}>Snooze for</Label>
+                      <Label htmlFor={`${id}-amount`}>
+                        {translateWebSource(locale, "Snooze for")}
+                      </Label>
                       <NumberFieldGroup>
-                        <NumberFieldDecrement aria-label="Decrease duration" />
+                        <NumberFieldDecrement
+                          aria-label={translateWebSource(locale, "Decrease duration")}
+                        />
                         <NumberFieldInput required />
-                        <NumberFieldIncrement aria-label="Increase duration" />
+                        <NumberFieldIncrement
+                          aria-label={translateWebSource(locale, "Increase duration")}
+                        />
                       </NumberFieldGroup>
                     </NumberField>
                     <Label className="flex min-w-0 flex-col items-stretch" htmlFor={`${id}-unit`}>
-                      Unit
+                      {translateWebSource(locale, "Unit")}
                       <Select
                         value={unit}
-                        items={{ minutes: "Minutes", hours: "Hours", days: "Days" }}
+                        items={{
+                          minutes: translateWebSource(locale, "Minutes"),
+                          hours: translateWebSource(locale, "Hours"),
+                          days: translateWebSource(locale, "Days"),
+                        }}
                         onValueChange={(value) => {
                           if (value === "minutes" || value === "hours" || value === "days")
                             setUnit(value);
@@ -210,9 +234,13 @@ function CustomSnoozeDialog() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectPopup>
-                          <SelectItem value="minutes">Minutes</SelectItem>
-                          <SelectItem value="hours">Hours</SelectItem>
-                          <SelectItem value="days">Days</SelectItem>
+                          <SelectItem value="minutes">
+                            {translateWebSource(locale, "Minutes")}
+                          </SelectItem>
+                          <SelectItem value="hours">
+                            {translateWebSource(locale, "Hours")}
+                          </SelectItem>
+                          <SelectItem value="days">{translateWebSource(locale, "Days")}</SelectItem>
                         </SelectPopup>
                       </Select>
                     </Label>
@@ -240,12 +268,12 @@ function CustomSnoozeDialog() {
               }}
             >
               <Settings2Icon />
-              Edit snooze options
+              {translateWebSource(locale, "Edit snooze options")}
             </Button>
             <Button type="button" variant="outline" onClick={() => finish(null)}>
-              Cancel
+              {translateWebSource(locale, "Cancel")}
             </Button>
-            <Button type="submit">Snooze</Button>
+            <Button type="submit">{translateWebSource(locale, "Snooze")}</Button>
           </DialogFooter>
         </form>
       </DialogPopup>

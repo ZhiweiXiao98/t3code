@@ -1,6 +1,7 @@
 import { MousePointer2Icon, PaintbrushIcon, PlusIcon, XIcon } from "lucide-react";
 import { ChevronDown, ChevronUp } from "lucide";
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 import {
   applyThemeColorPreview,
   THEME_COLOR_ROLES,
@@ -26,6 +27,7 @@ import { useViewportSize } from "../../hooks/useViewportSize";
 import { cn } from "../../lib/utils";
 import { useI18n, type WebTranslate } from "../../i18n/WebI18nContext";
 import type { WebMessageKey } from "../../i18n/messages";
+import { translateThemeEditorSource } from "../../i18n/themeEditorMessages";
 import { Button } from "../ui/button";
 import { MorphIcon } from "~/components/MorphIcon";
 import { Input } from "../ui/input";
@@ -254,9 +256,13 @@ function getThemeEditorColorFamily(role: ThemeColorRole): ThemeEditorColorFamily
   return THEME_EDITOR_COLOR_FAMILY_BY_ROLE.get(role) ?? null;
 }
 
-function getLocalizedThemeEditorColorLabel(role: ThemeColorRole, t: WebTranslate): string {
+function getLocalizedThemeEditorColorLabel(
+  role: ThemeColorRole,
+  t: WebTranslate,
+  locale: ResolvedAppLocale,
+): string {
   const family = getThemeEditorColorFamily(role);
-  return family ? t(family.labelKey) : getThemeRoleLabel(role);
+  return family ? t(family.labelKey) : getThemeRoleLabel(role, locale);
 }
 
 type ThemeEditorColors = ThemeColors;
@@ -349,7 +355,7 @@ export function ThemeEditorPanel({
   seedName?: string | undefined;
   restoreTheme: () => void;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const isEditing = editingTheme !== null;
   const [name, setName] = useState("");
   const [activeAppearance, setActiveAppearance] = useState<ThemeAppearance>(initialAppearance);
@@ -372,6 +378,11 @@ export function ThemeEditorPanel({
   const [position, setPosition] = useState<{ x: number; y: number; width: number } | null>(null);
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const colorEditSnapshotRef = useRef<{
+    colorsByAppearance: ThemeEditorColorsByAppearance;
+    simpleColorsDirtyByAppearance: Record<ThemeAppearance, boolean>;
+    shouldRegenerateGuidedColors: boolean;
+  } | null>(null);
   const dragOffsetRef = useRef<{ dx: number; dy: number; width: number } | null>(null);
   const resizeStartRef = useRef<{
     pointerX: number;
@@ -430,10 +441,20 @@ export function ThemeEditorPanel({
 
   const appearanceLockReason = (appearance: ThemeAppearance): string | null => {
     if (editableAppearances && !editableAppearances.includes(appearance)) {
-      return `“${editingTheme?.label}” has no ${appearance} palette. Create a theme with the same name to add one.`;
+      return t("appearance.themeEditor.paletteMissing", {
+        theme: String(editingTheme?.label),
+        appearance: t(
+          appearance === "light" ? "appearance.themeEditor.light" : "appearance.themeEditor.dark",
+        ).toLowerCase(),
+      });
     }
     if (!isEditing && takenAppearances.includes(appearance)) {
-      return `“${mergeTarget?.label}” already has a ${appearance} palette.`;
+      return t("appearance.themeEditor.paletteExists", {
+        theme: String(mergeTarget?.label),
+        appearance: t(
+          appearance === "light" ? "appearance.themeEditor.light" : "appearance.themeEditor.dark",
+        ).toLowerCase(),
+      });
     }
     return null;
   };
@@ -488,6 +509,25 @@ export function ThemeEditorPanel({
       }));
     }
     if (isAdvanced) setShouldRegenerateGuidedColors(true);
+  };
+
+  // A color edit also rewrites derived roles, so cancelling restores the whole snapshot rather than
+  // replaying the previous value through updateColor.
+  const startColorEdit = () => {
+    colorEditSnapshotRef.current = {
+      colorsByAppearance,
+      simpleColorsDirtyByAppearance,
+      shouldRegenerateGuidedColors,
+    };
+  };
+
+  const cancelColorEdit = () => {
+    const snapshot = colorEditSnapshotRef.current;
+    colorEditSnapshotRef.current = null;
+    if (!snapshot) return;
+    setColorsByAppearance(snapshot.colorsByAppearance);
+    setSimpleColorsDirtyByAppearance(snapshot.simpleColorsDirtyByAppearance);
+    setShouldRegenerateGuidedColors(snapshot.shouldRegenerateGuidedColors);
   };
 
   const selectThemeRole = (role: ThemeColorRole, reveal = false) => {
@@ -616,7 +656,10 @@ export function ThemeEditorPanel({
     };
     const showInspection = (inspection: ThemeElementInspection) => {
       hoverInspection = inspection;
-      showThemeInspectorHover(inspection, getLocalizedThemeEditorColorLabel(inspection.role, t));
+      showThemeInspectorHover(
+        inspection,
+        getLocalizedThemeEditorColorLabel(inspection.role, t, locale),
+      );
     };
     const handlePointerOver = (event: PointerEvent) => {
       const target = event.target;
@@ -681,7 +724,7 @@ export function ThemeEditorPanel({
         if (hoverInspection) {
           showThemeInspectorHover(
             hoverInspection,
-            getLocalizedThemeEditorColorLabel(hoverInspection.role, t),
+            getLocalizedThemeEditorColorLabel(hoverInspection.role, t, locale),
           );
         }
       });
@@ -707,7 +750,7 @@ export function ThemeEditorPanel({
       if (hoverFrame !== null) cancelAnimationFrame(hoverFrame);
       clearThemeInspectorHover();
     };
-  }, [clearInspectorSelection, isInspecting, open, selectThemeRole, t]);
+  }, [clearInspectorSelection, isInspecting, locale, open, selectThemeRole, t]);
 
   const handleAdvancedChange = (checked: boolean) => {
     setIsAdvanced(checked);
@@ -738,7 +781,7 @@ export function ThemeEditorPanel({
 
   const handleSubmit = () => {
     if (!name.trim()) {
-      setError("Name your theme first.");
+      setError(translateThemeEditorSource(locale, "Name your theme first."));
       return;
     }
 
@@ -761,7 +804,16 @@ export function ThemeEditorPanel({
         const editedModes = getThemeModes(editingTheme);
         const collision = editedModes.find((mode) => takenAppearances.includes(mode));
         if (collision) {
-          setError(`“${mergeTarget.label}” already has a ${collision} palette. Pick another name.`);
+          setError(
+            t("appearance.themeEditor.paletteCollision", {
+              theme: mergeTarget.label,
+              appearance: t(
+                collision === "light"
+                  ? "appearance.themeEditor.light"
+                  : "appearance.themeEditor.dark",
+              ).toLowerCase(),
+            }),
+          );
           return;
         }
         mergedAppearance = editedModes[0] ?? null;
@@ -801,9 +853,7 @@ export function ThemeEditorPanel({
         });
       } else if (mergeTarget) {
         if (takenAppearances.includes(activeAppearance)) {
-          setError(
-            `“${mergeTarget.label}” already has light and dark palettes. Pick another name.`,
-          );
+          setError(t("appearance.themeEditor.palettesFull", { theme: mergeTarget.label }));
           return;
         }
         mergedAppearance = activeAppearance;
@@ -849,7 +899,12 @@ export function ThemeEditorPanel({
             if (retiredTheme) installCustomTheme(retiredTheme);
           } catch {}
         }
-        setError("Theme saved, but it could not be made active. Try again.");
+        setError(
+          translateThemeEditorSource(
+            locale,
+            "Theme saved, but it could not be made active. Try again.",
+          ),
+        );
         return;
       }
       onOpenChange(false);
@@ -858,8 +913,8 @@ export function ThemeEditorPanel({
         cause instanceof Error
           ? cause.message
           : isEditing
-            ? "Could not save the theme."
-            : "Could not create the theme.",
+            ? translateThemeEditorSource(locale, "Could not save the theme.")
+            : translateThemeEditorSource(locale, "Could not create the theme."),
       );
     }
   };
@@ -887,7 +942,7 @@ export function ThemeEditorPanel({
     // Use aria-disabled so locked modes remain hoverable for explanatory tooltips.
     const button = (
       <Toggle aria-disabled={lockReason !== null} value={appearance}>
-        {appearance === "light" ? "Light" : "Dark"}
+        {t(appearance === "light" ? "appearance.themeEditor.light" : "appearance.themeEditor.dark")}
       </Toggle>
     );
     if (lockReason === null) return button;
@@ -903,7 +958,7 @@ export function ThemeEditorPanel({
     <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] items-center gap-3">
       <span className="text-sm font-medium">{t("appearance.themeEditor.appearance")}</span>
       <ToggleGroup
-        aria-label="Theme appearance"
+        aria-label={t("appearance.themeEditor.appearanceGroup")}
         variant="segmented"
         value={[activeAppearance]}
         onValueChange={(next) => {
@@ -963,6 +1018,8 @@ export function ThemeEditorPanel({
           key={family.id}
           label={t(family.labelKey)}
           onChange={updateColor}
+          onEditCancel={cancelColorEdit}
+          onEditStart={startColorEdit}
           onSelect={selectThemeRole}
           onToggleSelected={toggleThemeRole}
           role={family.role}
@@ -980,7 +1037,13 @@ export function ThemeEditorPanel({
       families: group.families.filter(
         (family) =>
           !query ||
-          [t(family.labelKey), ...family.roles.map((role) => getThemeRoleLabel(role))]
+          [
+            t(family.labelKey),
+            ...family.roles.flatMap((role) => [
+              getThemeRoleLabel(role),
+              getThemeRoleLabel(role, locale),
+            ]),
+          ]
             .join(" ")
             .toLowerCase()
             .includes(query),
@@ -1016,6 +1079,8 @@ export function ThemeEditorPanel({
           <ThemeColorField
             key={role}
             onChange={updateColor}
+            onEditCancel={cancelColorEdit}
+            onEditStart={startColorEdit}
             onSelect={selectThemeRole}
             onToggleSelected={toggleThemeRole}
             role={role}
@@ -1155,7 +1220,7 @@ export function ThemeEditorPanel({
                         ? "appearance.themeEditor.usageOne"
                         : "appearance.themeEditor.usageMany",
                       {
-                        label: getLocalizedThemeEditorColorLabel(selectedRole, t),
+                        label: getLocalizedThemeEditorColorLabel(selectedRole, t, locale),
                         count: usageCount ?? 0,
                       },
                     )

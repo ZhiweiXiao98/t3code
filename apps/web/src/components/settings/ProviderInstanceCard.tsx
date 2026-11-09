@@ -2,7 +2,7 @@
 
 import { translateWebSource } from "../../i18n/messages";
 
-import { useI18n } from "../../i18n/WebI18nContext";
+import { useI18n, splitWebTranslation } from "../../i18n/WebI18nContext";
 
 import { Spinner } from "~/components/ui/spinner";
 
@@ -53,6 +53,9 @@ import { DraftInput } from "../ui/draft-input";
 import { SecretSourceInput, type SecretSource } from "./SecretSourceInput";
 import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
 import { Switch } from "../ui/switch";
+import { ManagedControl, ManagedNotice } from "../ManagedPolicy";
+import { managedInstanceLocks, useManagedPolicy } from "../../state/managedPolicy";
+import { disallowedProviderMessage, isManagedDriverAllowed } from "@t3tools/contracts";
 import { stackedThreadToast, toastManager } from "../ui/toast";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import type {
@@ -284,15 +287,20 @@ function ProviderEnvironmentFieldRow(props: {
     secret: SecretReference | undefined,
   ) => void;
   readonly onRemove: (field: ProviderEnvironmentField) => void;
+  readonly managedReason?: string | undefined;
   readonly secretSources: ReadonlyArray<SecretSource>;
 }) {
+  const { locale, t } = useI18n();
   const inputId = `${props.idPrefix}-environment-${props.field.name}`;
   const value = props.variable?.valueRedacted ? "" : (props.variable?.value ?? "");
 
   return (
     <SettingsRow
-      title={<label htmlFor={inputId}>{props.field.label}</label>}
-      description={props.field.description}
+      title={<label htmlFor={inputId}>{translateWebSource(locale, props.field.label)}</label>}
+      description={
+        props.field.description ? translateWebSource(locale, props.field.description) : undefined
+      }
+      managed={props.managedReason}
       control={
         <div className="flex w-full min-w-0 items-center gap-2 @min-[32rem]/settings-row:w-56">
           {props.field.sensitive === false ? (
@@ -303,7 +311,11 @@ function ProviderEnvironmentFieldRow(props: {
               autoComplete="off"
               value={typeof value === "string" ? value : ""}
               onCommit={(next) => props.onCommit(props.field, next)}
-              placeholder={props.field.placeholder}
+              placeholder={
+                props.field.placeholder
+                  ? translateWebSource(locale, props.field.placeholder)
+                  : undefined
+              }
               spellCheck={false}
             />
           ) : (
@@ -313,10 +325,14 @@ function ProviderEnvironmentFieldRow(props: {
               className="min-w-0 flex-1"
               value={value}
               onCommit={(next) => props.onCommit(props.field, next)}
-              placeholder={props.field.placeholder}
+              placeholder={
+                props.field.placeholder
+                  ? translateWebSource(locale, props.field.placeholder)
+                  : undefined
+              }
               configured={props.variable?.valueRedacted === true}
               spellCheck={false}
-              aria-label={props.field.label}
+              aria-label={translateWebSource(locale, props.field.label)}
               sources={props.secretSources}
               onSecretChange={(secret) => props.onSecretChange(props.field, secret)}
             />
@@ -327,7 +343,9 @@ function ProviderEnvironmentFieldRow(props: {
               size="icon-sm"
               variant="ghost-destructive"
               onClick={() => props.onRemove(props.field)}
-              aria-label={`Clear ${props.field.label}`}
+              aria-label={t("settingsResidual.clearField", {
+                field: translateWebSource(locale, props.field.label),
+              })}
             >
               <XIcon className="size-3.5" />
             </Button>
@@ -341,6 +359,8 @@ function ProviderEnvironmentFieldRow(props: {
 export function ProviderEnvironmentSection(props: {
   readonly environment: ReadonlyArray<ProviderInstanceEnvironmentVariable>;
   readonly onChange: (environment: ReadonlyArray<ProviderInstanceEnvironmentVariable>) => void;
+  /** Variables an administrator's policy pins: listed by name, never editable or removable. */
+  readonly managed?: { readonly names: ReadonlySet<string>; readonly reason: string } | undefined;
   readonly secretSources?: ReadonlyArray<SecretSource>;
 }) {
   const { t, locale } = useI18n();
@@ -382,6 +402,8 @@ export function ProviderEnvironmentSection(props: {
   };
 
   const updateVariable = (id: string, patch: Partial<Omit<EnvironmentDraftRow, "id">>) => {
+    // A row named like a pinned variable renders as the policy's, with no way to edit or remove it.
+    if (patch.name !== undefined && props.managed?.names.has(patch.name)) return;
     const nextRows = rows.map((row) =>
       row.id === id
         ? {
@@ -424,8 +446,11 @@ export function ProviderEnvironmentSection(props: {
 
   return (
     <SettingsRow
-      title="Variables"
-      description="API keys, base URLs, and other per-instance CLI settings."
+      title={translateWebSource(locale, "Variables")}
+      description={translateWebSource(
+        locale,
+        "API keys, base URLs, and other per-instance CLI settings.",
+      )}
       control={
         <Button type="button" size="sm" variant="outline" onClick={addVariable}>
           <PlusIcon className="size-3" />
@@ -436,6 +461,16 @@ export function ProviderEnvironmentSection(props: {
       {rows.length > 0 ? (
         <div className="mt-3 min-w-0 space-y-2 pb-2">
           {rows.map((variable, index) => {
+            if (props.managed?.names.has(variable.name)) {
+              return (
+                <div key={variable.id} className="flex min-w-0 flex-wrap items-center gap-1.5">
+                  <code className="min-w-0 truncate text-xs sm:w-44 sm:shrink-0">
+                    {variable.name}
+                  </code>
+                  <span className="text-xs text-muted-foreground">{props.managed.reason}</span>
+                </div>
+              );
+            }
             const nameInput = (
               <DraftInput
                 size="sm"
@@ -443,6 +478,7 @@ export function ProviderEnvironmentSection(props: {
                 className="min-w-0 flex-1"
                 value={variable.name}
                 onCommit={(name) => updateVariable(variable.id, { name: name.trim() })}
+                disabled={variable.valueRedacted === true}
                 placeholder="VARIABLE_NAME"
                 spellCheck={false}
                 aria-label={
@@ -476,6 +512,7 @@ export function ProviderEnvironmentSection(props: {
                         type="button"
                         size="icon-micro"
                         variant="ghost-muted"
+                        disabled={variable.valueRedacted === true}
                         onClick={() => {
                           const sensitive = !variable.sensitive;
                           updateVariable(variable.id, {
@@ -568,6 +605,9 @@ export function ProviderEnvironmentSection(props: {
           })}
           <p className="text-xs text-muted-foreground">
             {tx("Sensitive values are stored separately and never returned to the app.")}
+            {rows.some((row) => row.valueRedacted === true)
+              ? ` ${tx("Enter a new value to rename a saved one or make it plain text.")}`
+              : null}
           </p>
         </div>
       ) : null}
@@ -582,6 +622,7 @@ function ProjectOverrideInheritance({
   readonly projectEnabled: boolean;
   readonly deviceEnabled: boolean;
 }) {
+  const { locale } = useI18n();
   const layers = [
     { key: "project", label: "Project", enabled: projectEnabled, effective: true },
     { key: "device", label: "Device", enabled: deviceEnabled, effective: false },
@@ -596,7 +637,10 @@ function ProjectOverrideInheritance({
                 <Button
                   size="icon-micro"
                   variant="ghost-muted"
-                  aria-label="Overridden for this project. Show where this value comes from"
+                  aria-label={translateWebSource(
+                    locale,
+                    "Overridden for this project. Show where this value comes from",
+                  )}
                 />
               }
             />
@@ -604,7 +648,9 @@ function ProjectOverrideInheritance({
         >
           <LayersIcon className="size-3 text-primary" />
         </TooltipTrigger>
-        <TooltipPopup side="top">Overridden for this project</TooltipPopup>
+        <TooltipPopup side="top">
+          {translateWebSource(locale, "Overridden for this project")}
+        </TooltipPopup>
       </Tooltip>
       <PopoverPopup align="end" width="md" padding="none">
         <ol role="list" className="px-3 py-2.5 text-sm">
@@ -622,7 +668,7 @@ function ProjectOverrideInheritance({
                   layer.effective ? "font-medium text-foreground" : "text-muted-foreground",
                 )}
               >
-                {layer.label}
+                {translateWebSource(locale, layer.label)}
               </span>
               <span
                 className={cn(
@@ -630,7 +676,7 @@ function ProjectOverrideInheritance({
                   layer.effective ? "text-foreground" : "text-muted-foreground",
                 )}
               >
-                {layer.enabled ? "On" : "Off"}
+                {translateWebSource(locale, layer.enabled ? "On" : "Off")}
                 {layer.effective ? (
                   <CheckIcon aria-hidden className="size-3.5 shrink-0 text-primary" />
                 ) : (
@@ -730,7 +776,12 @@ export function ProviderInstanceCard({
   secretSources = NO_SECRET_SOURCES,
   projectOverride,
 }: ProviderInstanceCardProps) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
+  const [driverBefore, driverAfter] = splitWebTranslation(
+    t,
+    "settingsResidual.unavailableDriver",
+    "driver",
+  );
   const enabled = projectOverride?.effectiveEnabled ?? resolveProviderInstanceEnabled(instance);
   const effectiveProvider = liveProvider && { ...liveProvider, enabled };
   const compatibility = enabled ? liveProvider?.compatibilityAdvisory : undefined;
@@ -757,7 +808,7 @@ export function ProviderInstanceCard({
   const updateProgress = isUpdating
     ? ((updateState?.status === "queued" || updateState?.status === "running"
         ? updateState.message
-        : null) ?? "Starting update")
+        : null) ?? translateWebSource(locale, "Starting update"))
     : null;
   const updateProblem =
     !isUpdating && (updateState?.status === "failed" || updateState?.status === "unchanged")
@@ -777,6 +828,14 @@ export function ProviderInstanceCard({
   const displayName =
     instance.displayName?.trim() || driverOption?.label || String(instance.driver);
   const accentColor = normalizeProviderAccentColor(instance.accentColor);
+  const managedPolicy = useManagedPolicy(environmentId);
+  const instanceLocks = managedInstanceLocks(managedPolicy, instance.driver, t);
+  const managedDriverReason = isManagedDriverAllowed(managedPolicy, instance.driver)
+    ? undefined
+    : disallowedProviderMessage(
+        managedPolicy?.organization,
+        driverOption?.label ?? String(instance.driver),
+      );
   const { copyToClipboard } = useCopyToClipboard<{ providerName: string }>({
     onCopy: ({ providerName }) => {
       toastManager.add({
@@ -932,10 +991,10 @@ export function ProviderInstanceCard({
   const statusDiagnostic = hasCompatibilityWarning && needsAttention ? summary.detail : null;
   const inlineStatusDetail = hasCompatibilityWarning
     ? compatibility?.status === "broken"
-      ? "Incompatible"
+      ? translateWebSource(locale, "Incompatible")
       : compatibility?.status === "unsupported"
-        ? "Unsupported"
-        : "Limited support"
+        ? translateWebSource(locale, "Unsupported")
+        : translateWebSource(locale, "Limited support")
     : summary.detail;
   const editorStatusNode =
     isAuthenticated && authEmail ? (
@@ -969,7 +1028,11 @@ export function ProviderInstanceCard({
                   size={mode === "list" ? "icon-micro" : "icon-xs"}
                   variant="ghost-muted"
                   className={mode === "list" ? "pointer-events-auto relative shrink-0" : undefined}
-                  aria-label={`${updateProgress ? "Updating" : versionAdvisory.title}, view details`}
+                  aria-label={t("settingsResidual.viewUpdateDetails", {
+                    status: updateProgress
+                      ? translateWebSource(locale, "Updating")
+                      : versionAdvisory.title,
+                  })}
                 >
                   {updateProgress ? (
                     <Spinner tone="muted" {...(mode === "list" ? { size: "sm" as const } : {})} />
@@ -987,7 +1050,7 @@ export function ProviderInstanceCard({
           }
         />
         <TooltipPopup side="top">
-          {updateProgress ? "Updating" : versionAdvisory.title}
+          {updateProgress ? translateWebSource(locale, "Updating") : versionAdvisory.title}
         </TooltipPopup>
       </Tooltip>
       <PopoverPopup side="bottom" align="end" width="md" aria-label={versionAdvisory.title}>
@@ -1016,10 +1079,14 @@ export function ProviderInstanceCard({
             >
               {isUpdating ? <Spinner /> : <DownloadIcon />}
               {isUpdating
-                ? "Updating"
+                ? translateWebSource(locale, "Updating")
                 : versionAdvisory.targetVersion
-                  ? `Install ${getProviderVersionLabel(versionAdvisory.targetVersion)}`
-                  : "Update now"}
+                  ? t("settingsResidual.installVersion", {
+                      version:
+                        getProviderVersionLabel(versionAdvisory.targetVersion) ??
+                        versionAdvisory.targetVersion,
+                    })
+                  : translateWebSource(locale, "Update now")}
             </Button>
           ) : null}
           {updateProgress || updateProblem ? (
@@ -1036,7 +1103,7 @@ export function ProviderInstanceCard({
           {onRunVersionAction && updateCommand ? (
             <div className="flex items-center gap-2 text-3xs font-medium uppercase tracking-wider text-muted-foreground">
               <span aria-hidden className="h-px flex-1 bg-border" />
-              or, update manually using
+              {translateWebSource(locale, "or, update manually using")}
               <span aria-hidden className="h-px flex-1 bg-border" />
             </div>
           ) : null}
@@ -1054,13 +1121,13 @@ export function ProviderInstanceCard({
                       variant="ghost-muted"
                       className="shrink-0"
                       onClick={() => copyToClipboard(updateCommand, { providerName: displayName })}
-                      aria-label="Copy update command"
+                      aria-label={translateWebSource(locale, "Copy update command")}
                     >
                       <CopyIcon className="size-3" />
                     </Button>
                   }
                 />
-                <TooltipPopup side="top">Copy command</TooltipPopup>
+                <TooltipPopup side="top">{translateWebSource(locale, "Copy command")}</TooltipPopup>
               </Tooltip>
             </div>
           ) : null}
@@ -1088,7 +1155,7 @@ export function ProviderInstanceCard({
             type="button"
             className="pointer-events-auto absolute inset-0 cursor-pointer rounded-md outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
             onClick={onSelect}
-            aria-label={`Select ${displayName}`}
+            aria-label={t("settingsResidual.selectProvider", { name: displayName })}
             aria-pressed={selected}
           />
           {titleIconNode}
@@ -1113,7 +1180,7 @@ export function ProviderInstanceCard({
                   className="pointer-events-auto line-clamp-2 [overflow-wrap:anywhere]"
                 >
                   {updateProgress ? (
-                    `Updating · ${updateProgress}`
+                    t("settingsResidual.updateProgress", { progress: updateProgress })
                   ) : (
                     <>
                       {summary.headline}
@@ -1133,19 +1200,22 @@ export function ProviderInstanceCard({
                 deviceEnabled={resolveProviderInstanceEnabled(instance)}
               />
               <SettingResetButton
-                label={`${displayName} enablement`}
-                tooltip="Reset to the device setting"
+                label={t("settingsResidual.providerEnablement", { name: displayName })}
+                tooltip={translateWebSource(locale, "Reset to the device setting")}
                 disabled={readOnly || !canWriteSettings}
                 onClick={projectOverride.onReset}
               />
             </span>
           ) : null}
-          <Switch
-            checked={enabled}
-            disabled={readOnly || (projectOverride !== undefined && !canWriteSettings)}
-            onCheckedChange={(checked) => updateEnabled(Boolean(checked))}
-            aria-label={t("providers.action.enable", { provider: displayName })}
-          />
+          {/* The policy refuses switching it on; switching it off stays the user's call. */}
+          <ManagedControl reason={enabled ? undefined : managedDriverReason}>
+            <Switch
+              checked={enabled}
+              disabled={readOnly || (projectOverride !== undefined && !canWriteSettings)}
+              onCheckedChange={(checked) => updateEnabled(Boolean(checked))}
+              aria-label={t("providers.action.enable", { provider: displayName })}
+            />
+          </ManagedControl>
         </span>
       </div>
     );
@@ -1213,7 +1283,7 @@ export function ProviderInstanceCard({
             disabled={readOnly}
           >
             <ExternalLinkIcon />
-            Continue authentication
+            {translateWebSource(locale, "Continue authentication")}
           </Button>
         </div>
       ) : null}
@@ -1227,15 +1297,17 @@ export function ProviderInstanceCard({
       idPrefix={`provider-instance-${instanceId}`}
       variant="settings"
       onChange={updateConfig}
+      managed={instanceLocks && { keys: instanceLocks.configKeys, reason: instanceLocks.reason }}
       environmentId={environmentId}
     />
   ) : (
     <SettingsRow
-      title="Driver"
+      title={translateWebSource(locale, "Driver")}
       description={
         <span>
-          This instance uses <code className="text-foreground">{String(instance.driver)}</code>,
-          which is not available in this build. Its configuration is preserved.
+          {driverBefore}
+          <code className="text-foreground">{String(instance.driver)}</code>
+          {driverAfter}
         </span>
       }
     />
@@ -1243,10 +1315,15 @@ export function ProviderInstanceCard({
 
   return (
     <>
-      <SettingsSection title={displayName} icon={titleIconNode} headerAction={editorHeaderAction}>
-        <SettingsRow title="Status" status={statusContent} />
+      <SettingsSection
+        title={displayName}
+        localizeTitle={false}
+        icon={titleIconNode}
+        headerAction={editorHeaderAction}
+      >
+        <SettingsRow title={translateWebSource(locale, "Status")} status={statusContent} />
         <SettingsRow
-          title="Display name"
+          title={translateWebSource(locale, "Display name")}
           control={
             <div
               inert={readOnly}
@@ -1277,7 +1354,7 @@ export function ProviderInstanceCard({
       </SettingsSection>
 
       {setup || environmentFields.length > 0 ? (
-        <SettingsSection title="Setup">
+        <SettingsSection title={translateWebSource(locale, "Setup")}>
           {setup}
           {environmentFields.length > 0 ? (
             <div
@@ -1294,6 +1371,12 @@ export function ProviderInstanceCard({
                   onCommit={updateEnvironmentField}
                   onSecretChange={updateEnvironmentFieldSecret}
                   onRemove={removeEnvironmentField}
+                  managedReason={
+                    instanceLocks?.wholeEnvironment ||
+                    instanceLocks?.environmentNames.has(field.name)
+                      ? instanceLocks.reason
+                      : undefined
+                  }
                   secretSources={secretSources}
                 />
               ))}
@@ -1311,7 +1394,7 @@ export function ProviderInstanceCard({
           <FoldedSettingsSection
             key={instanceId}
             id={`provider-instance-${instanceId}-runtime`}
-            title="Runtime"
+            title={translateWebSource(locale, "Runtime")}
             headerPlacement="outside"
           >
             {runtime ?? runtimeFields}
@@ -1319,7 +1402,7 @@ export function ProviderInstanceCard({
         </div>
       ) : !driverOption || deriveProviderSettingsFields(driverOption).length > 0 ? (
         <SettingsSection
-          title="Runtime"
+          title={translateWebSource(locale, "Runtime")}
           inert={readOnly}
           aria-disabled={readOnly || undefined}
           className={readOnly ? "opacity-50 select-none" : undefined}
@@ -1329,16 +1412,27 @@ export function ProviderInstanceCard({
       ) : null}
 
       <SettingsSection
-        title="Environment"
-        inert={readOnly}
-        aria-disabled={readOnly || undefined}
+        title={translateWebSource(locale, "Environment")}
+        inert={readOnly || instanceLocks?.wholeEnvironment}
+        aria-disabled={readOnly || instanceLocks?.wholeEnvironment || undefined}
         className={readOnly ? "opacity-50 select-none" : undefined}
       >
-        <ProviderEnvironmentSection
-          environment={genericEnvironment}
-          onChange={updateGenericEnvironment}
-          secretSources={secretSources}
-        />
+        {instanceLocks?.wholeEnvironment ? (
+          <ManagedNotice>{instanceLocks.reason}</ManagedNotice>
+        ) : null}
+        <div className={instanceLocks?.wholeEnvironment ? "opacity-50" : undefined}>
+          <ProviderEnvironmentSection
+            environment={genericEnvironment}
+            onChange={updateGenericEnvironment}
+            secretSources={secretSources}
+            managed={
+              instanceLocks && {
+                names: instanceLocks.environmentNames,
+                reason: instanceLocks.reason,
+              }
+            }
+          />
+        </div>
       </SettingsSection>
       {environmentId !== undefined && liveProvider?.driver === "acpRegistry" ? (
         <AcpSessionManagementSection
@@ -1351,11 +1445,13 @@ export function ProviderInstanceCard({
       ) : null}
 
       {driverOption !== undefined ? (
-        <SettingsSection title="Models">
+        <SettingsSection title={translateWebSource(locale, "Models")}>
           <div className="px-3 py-3 sm:px-4">
             <p className="mb-3 text-xs text-muted-foreground">
-              Model preferences and custom models are saved on the selected environment and shared
-              across connected devices.
+              {translateWebSource(
+                locale,
+                "Model preferences and custom models are saved on the selected environment and shared across connected devices.",
+              )}
             </p>
             <ProviderModelsSection
               canManageCustomModels={!readOnly}

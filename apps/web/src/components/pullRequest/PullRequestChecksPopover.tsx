@@ -194,7 +194,10 @@ export function PullRequestChecksPopover({
           <>
             {checks !== undefined && incompleteCount > 0 ? (
               <span className="tabular-nums">
-                {checks.length - incompleteCount}/{checks.length} checks
+                {t("pullRequests.checks.completeRatio", {
+                  complete: checks.length - incompleteCount,
+                  total: checks.length,
+                })}
               </span>
             ) : failedCount > 0 ? (
               <span className="tabular-nums">

@@ -1,5 +1,6 @@
 import { settlePromise } from "@t3tools/client-runtime/state/runtime";
 import { useState } from "react";
+import { useI18n } from "../../i18n/WebI18nContext";
 
 import {
   hasDesktopNotifications,
@@ -13,6 +14,7 @@ import { searchableSetting } from "./settingsSearch";
 import { useScopedSettings, useUpdateScopedSettings } from "./useScopedSettings";
 
 export function NotificationSettings() {
+  const { locale } = useI18n();
   const mode = useScopedSettings((settings) => settings.notificationMode);
   const updateSettings = useUpdateScopedSettings();
   const [permissionMessage, setPermissionMessage] = useState<string | null>(null);
@@ -20,7 +22,7 @@ export function NotificationSettings() {
 
   return (
     <SettingsRow
-      {...searchableSetting("thread-notifications")}
+      {...searchableSetting("thread-notifications", locale)}
       description={
         permissionMessage ??
         "System alerts when a thread finishes, fails, or needs input or approval. Applies to this device while T3 Code is open."
@@ -65,7 +67,11 @@ export function NotificationSettings() {
             updateSettings({ notificationMode: value });
           }}
         >
-          <SelectTrigger size="sm" className="w-full sm:w-56" aria-label="Thread notifications">
+          <SelectTrigger
+            size="sm"
+            className="w-full sm:w-56"
+            aria-label={searchableSetting("thread-notifications", locale).title}
+          >
             <SelectValue>{NOTIFICATION_MODE_LABELS[mode]}</SelectValue>
           </SelectTrigger>
           <SelectPopup align="end" alignItemWithTrigger={false}>

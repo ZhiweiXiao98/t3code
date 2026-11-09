@@ -1,3 +1,6 @@
+import { useStableCallback } from "~/hooks/useStableCallback";
+import { translateWebSource } from "~/i18n/messages";
+import { useI18n } from "~/i18n/WebI18nContext";
 /* oxlint-disable react/no-array-index-key -- Text spans retain their order within an immutable page. */
 /* oxlint-disable react/no-unstable-nested-components -- These callbacks return overlays, and are invoked as render functions. */
 import { Tooltip, TooltipTrigger, TooltipPopup } from "~/components/ui/tooltip";
@@ -16,6 +19,7 @@ import {
 
 type Opened = {
   pages: readonly WordPageSize[];
+  loading: boolean;
   paint: PaintPage;
   engine: ReturnType<typeof createWorkerClient<WordMethods>>;
 };
@@ -25,6 +29,11 @@ export default function WordDocument(props: {
   onDetails: (text: string) => void;
   onError: (cause: unknown) => void;
 }) {
+  const { locale, t } = useI18n();
+  const translateCount = useStableCallback((count: string | number) =>
+    t("files.residual.pages", { count }),
+  );
+  const translateSource = useStableCallback((source: string) => translateWebSource(locale, source));
   const { onError, bytes, onDetails } = props;
   const [opened, setOpened] = useState<Opened>();
   const scroll = useRef<((index: number, y?: number) => void) | null>(null);
@@ -62,16 +71,17 @@ export default function WordDocument(props: {
       .call("open", { bytes: buffer }, { transfer: [buffer], signal: controller.signal })
       .then(async (first) => {
         if (controller.signal.aborted) return;
-        setOpened({ pages: first.pages, paint, engine });
-        onDetails(`${first.pages.length}${first.loading ? "+" : ""} pages`);
+        setOpened({ pages: first.pages, loading: first.loading, paint, engine });
+        onDetails(translateCount(`${first.pages.length}${first.loading ? "+" : ""}`));
         if (!first.loading) return;
         await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         while (!controller.signal.aborted) {
           const step = await engine.call("layout", undefined, { signal: controller.signal });
           if (!step.done) continue;
-          if (step.pages.length > 1000) throw new Error("Preview limited to 1,000 pages.");
-          setOpened({ pages: step.pages, paint, engine });
-          onDetails(`${step.pages.length} pages`);
+          if (step.pages.length > 1000)
+            throw new Error(translateSource("Preview limited to 1,000 pages."));
+          setOpened({ pages: step.pages, loading: false, paint, engine });
+          onDetails(translateCount(step.pages.length));
           break;
         }
       })
@@ -80,7 +90,14 @@ export default function WordDocument(props: {
       controller.abort();
       engine.close();
     };
-  }, [bytes, onDetails, onError]);
+  }, [bytes, onDetails, onError, translateSource, translateCount]);
+  const details = opened
+    ? t("files.residual.pages", { count: `${opened.pages.length}${opened.loading ? "+" : ""}` })
+    : null;
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Refresh the parent caption when its localized text changes without restarting the document worker.
+  useEffect(() => {
+    if (details !== null) onDetails(details);
+  }, [details, onDetails]);
   if (!opened) return <FileSurfaceLoading />;
   const follow = (link: WordLink) => {
     if (link.kind === "external") {
@@ -98,7 +115,7 @@ export default function WordDocument(props: {
     <OfficePages
       pages={opened.pages}
       paint={opened.paint}
-      label="Page"
+      label={translateWebSource(locale, "Page")}
       scrollRef={scroll}
       onError={onError}
       overlay={(index) => (

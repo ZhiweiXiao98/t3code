@@ -1,3 +1,5 @@
+import type { WebTranslate } from "../../i18n/WebI18nContext";
+import { translateWebMessage } from "../../i18n/messages";
 import * as DateTime from "effect/DateTime";
 
 import { resolveDesktopPairingUrl, resolveHostedPairingUrl } from "./pairingUrls";
@@ -95,12 +97,15 @@ export function isWslSettingsRowVisible(input: {
  * Once client/server versions match, this passive Version label follows the sidebar update action,
  * including retryable failures. Rechecks retain downloaded-update labels; `state` is null outside desktop.
  */
-export function resolveLocalVersionStatusLabel(state: DesktopUpdateState | null): string {
-  if (!state) return "Up to date";
+export function resolveLocalVersionStatusLabel(
+  state: DesktopUpdateState | null,
+  t: WebTranslate = (key, values) => translateWebMessage("en", key, values),
+): string {
+  if (!state) return t("connections.version.current");
   if (state.status === "downloading") {
     return state.availableVersion
-      ? `Downloading update ${state.availableVersion}`
-      : "Downloading update";
+      ? t("connections.version.downloadingNamed", { version: state.availableVersion })
+      : t("connections.version.downloading");
   }
   const action = resolveDesktopUpdateButtonAction(state);
   if (
@@ -109,14 +114,16 @@ export function resolveLocalVersionStatusLabel(state: DesktopUpdateState | null)
     (state.status === "checking" && state.downloadedVersion !== null)
   ) {
     const version = getDesktopUpdateDownloadedVersion(state);
-    return version ? `Update ${version} downloaded` : "Update downloaded";
+    return version
+      ? t("connections.version.downloadedNamed", { version })
+      : t("connections.version.downloaded");
   }
   if (action === "download") {
     return state.availableVersion
-      ? `Update ${state.availableVersion} available`
-      : "Update available";
+      ? t("connections.version.availableNamed", { version: state.availableVersion })
+      : t("connections.version.available");
   }
-  return "Up to date";
+  return t("connections.version.current");
 }
 
 export type QrEndpointOption = {

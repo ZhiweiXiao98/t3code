@@ -1,3 +1,4 @@
+import { useI18n } from "~/i18n/WebI18nContext";
 import type { ScopedThreadRef } from "@t3tools/contracts";
 import { MinusIcon, PlusIcon, XIcon } from "lucide-react";
 import { useRef, useState } from "react";
@@ -12,6 +13,7 @@ export function HtmlRenderDialog(props: {
   readonly threadRef?: ScopedThreadRef | undefined;
   readonly onClose: () => void;
 }) {
+  const { t: controlsT } = useI18n();
   const [zoom, setZoom] = useState(1);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   return (
@@ -23,11 +25,13 @@ export function HtmlRenderDialog(props: {
         className="row-start-1"
         initialFocus={closeButtonRef}
       >
-        <DialogTitle className="sr-only">Expanded {props.title} preview</DialogTitle>
+        <DialogTitle className="sr-only">
+          {controlsT("chatControls.expandedPreview", { name: props.title })}
+        </DialogTitle>
         <div className="relative w-[92vw]">
           <Button
             ref={closeButtonRef}
-            aria-label="Close"
+            aria-label={controlsT("chatControls.copy15")}
             size="icon-xs"
             variant="media-close"
             className="absolute right-0 -top-10 z-20"
@@ -49,7 +53,7 @@ export function HtmlRenderDialog(props: {
             <span className="truncate">{props.title}</span>
             <div className="flex shrink-0 items-center gap-1">
               <Button
-                aria-label="Zoom out"
+                aria-label={controlsT("chatControls.copy16")}
                 size="icon-sm"
                 variant="overlay"
                 disabled={zoom === 0.5}
@@ -58,7 +62,7 @@ export function HtmlRenderDialog(props: {
                 <MinusIcon />
               </Button>
               <Button
-                aria-label="Reset zoom"
+                aria-label={controlsT("chatControls.copy17")}
                 size="sm"
                 variant="overlay"
                 onClick={() => setZoom(1)}
@@ -66,7 +70,7 @@ export function HtmlRenderDialog(props: {
                 {Math.round(zoom * 100)}%
               </Button>
               <Button
-                aria-label="Zoom in"
+                aria-label={controlsT("chatControls.copy18")}
                 size="icon-sm"
                 variant="overlay"
                 disabled={zoom === 2}

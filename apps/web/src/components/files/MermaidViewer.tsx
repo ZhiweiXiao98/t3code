@@ -1,9 +1,12 @@
+import { translateWebSource } from "~/i18n/messages";
+import { useI18n } from "~/i18n/WebI18nContext";
 import { useState } from "react";
 
 import { MermaidDiagram } from "../chat/MermaidDiagram";
 import { ExpandedImageDialog } from "../chat/ExpandedImageDialog";
 
 export default function MermaidViewer(props: { readonly text: string }) {
+  const { locale } = useI18n();
   const [expanded, setExpanded] = useState<string | null>(null);
   // Mermaid lays out DOM before sanitizing its SVG. Refuse resource and config
   // syntax before that pass so standalone files cannot initiate requests. Node
@@ -15,8 +18,10 @@ export default function MermaidViewer(props: { readonly text: string }) {
   )
     return (
       <div role="alert" className="p-6 text-xs text-muted-foreground">
-        This diagram contains resource URLs, markup, node metadata, or custom configuration. Show
-        Mermaid source to inspect it safely.
+        {translateWebSource(
+          locale,
+          "This diagram contains resource URLs, markup, node metadata, or custom configuration. Show Mermaid source to inspect it safely.",
+        )}
       </div>
     );
   return (
@@ -24,7 +29,10 @@ export default function MermaidViewer(props: { readonly text: string }) {
       <MermaidDiagram source={props.text} onExpand={setExpanded} />
       {expanded ? (
         <ExpandedImageDialog
-          preview={{ images: [{ src: expanded, name: "Mermaid diagram" }], index: 0 }}
+          preview={{
+            images: [{ src: expanded, name: translateWebSource(locale, "Mermaid diagram") }],
+            index: 0,
+          }}
           onClose={() => setExpanded(null)}
         />
       ) : null}

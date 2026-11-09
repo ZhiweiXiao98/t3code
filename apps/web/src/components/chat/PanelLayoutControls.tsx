@@ -1,3 +1,4 @@
+import { useI18n } from "~/i18n/WebI18nContext";
 import { PanelBottomIcon, PanelRightIcon, SquareMenuIcon } from "lucide-react";
 import { Maximize2, Minimize2 } from "lucide";
 import { MorphIcon } from "~/components/MorphIcon";
@@ -44,17 +45,18 @@ export const PanelLayoutControls = memo(function PanelLayoutControls({
   rightPanelAvailable,
   rightPanelOpen,
   rightPanelShortcutLabel,
-  rightPanelUnavailableLabel = "Right panel is unavailable",
+  rightPanelUnavailableLabel,
   onToggleTerminal,
   onToggleThreadPanel,
   onToggleRightPanel,
 }: PanelLayoutControlsProps) {
+  const { t: controlsT } = useI18n();
   const threadPanelToggle = (
     <Toggle
       className="relative shrink-0 [-webkit-app-region:no-drag]"
       pressed={threadPanelOpen}
       onPressedChange={threadPanelPresentation === "popover" ? undefined : onToggleThreadPanel}
-      aria-label="Toggle thread details panel"
+      aria-label={controlsT("chatControls.copy42")}
       variant="ghost"
       size="sm"
     >
@@ -71,7 +73,7 @@ export const PanelLayoutControls = memo(function PanelLayoutControls({
         )}
       </TooltipTrigger>
       <TooltipPopup side="bottom">
-        Toggle thread details
+        {controlsT("chatControls.copy43")}
         {threadPanelShortcutLabel ? ` (${threadPanelShortcutLabel})` : ""}
       </TooltipPopup>
     </Tooltip>
@@ -90,7 +92,7 @@ export const PanelLayoutControls = memo(function PanelLayoutControls({
               className="shrink-0 [-webkit-app-region:no-drag]"
               pressed={terminalOpen}
               onPressedChange={onToggleTerminal}
-              aria-label="Toggle terminal drawer"
+              aria-label={controlsT("chatControls.copy44")}
               variant="ghost"
               size="sm"
               disabled={!terminalAvailable}
@@ -100,8 +102,10 @@ export const PanelLayoutControls = memo(function PanelLayoutControls({
           </TooltipTrigger>
           <TooltipPopup side="bottom">
             {terminalAvailable
-              ? `Toggle terminal drawer${terminalShortcutLabel ? ` (${terminalShortcutLabel})` : ""}`
-              : "Terminal drawer is unavailable"}
+              ? controlsT("chatControls.toggleTerminal", {
+                  shortcut: terminalShortcutLabel ? ` (${terminalShortcutLabel})` : "",
+                })
+              : controlsT("chatControls.copy45")}
           </TooltipPopup>
         </Tooltip>
       ) : null}
@@ -112,7 +116,7 @@ export const PanelLayoutControls = memo(function PanelLayoutControls({
               className="shrink-0 [-webkit-app-region:no-drag]"
               pressed={rightPanelOpen}
               onPressedChange={onToggleRightPanel}
-              aria-label="Toggle right panel"
+              aria-label={controlsT("chatControls.copy46")}
               data-right-panel-toggle
               variant="ghost"
               size="sm"
@@ -123,8 +127,10 @@ export const PanelLayoutControls = memo(function PanelLayoutControls({
           </TooltipTrigger>
           <TooltipPopup side="bottom">
             {rightPanelAvailable
-              ? `Toggle right panel${rightPanelShortcutLabel ? ` (${rightPanelShortcutLabel})` : ""}`
-              : rightPanelUnavailableLabel}
+              ? controlsT("chatControls.toggleRight", {
+                  shortcut: rightPanelShortcutLabel ? ` (${rightPanelShortcutLabel})` : "",
+                })
+              : (rightPanelUnavailableLabel ?? controlsT("chatControls.copy41"))}
           </TooltipPopup>
         </Tooltip>
       ) : null}
@@ -139,7 +145,8 @@ export const RightPanelMaximizeControl = memo(function RightPanelMaximizeControl
   maximized: boolean;
   onToggle: () => void;
 }) {
-  const label = maximized ? "Restore panel size" : "Maximize panel";
+  const { t: controlsT } = useI18n();
+  const label = maximized ? controlsT("chatControls.copy47") : controlsT("chatControls.copy48");
   return (
     <Tooltip>
       <TooltipTrigger
@@ -190,9 +197,11 @@ export function WorkspaceTitlebarControls(props: {
       {props.showMaximizeControl ? (
         <span
           aria-hidden={!props.rightPanelOpen}
+          // Fading out on close would show it beside the thread details toggle that replaces it.
           className={cn(
             "flex shrink-0",
-            props.animationsActive &&
+            props.rightPanelOpen &&
+              props.animationsActive &&
               "motion-safe:transition-opacity motion-safe:duration-(--panel-animation-duration) motion-safe:ease-out",
             props.rightPanelOpen
               ? "pointer-events-auto opacity-100"

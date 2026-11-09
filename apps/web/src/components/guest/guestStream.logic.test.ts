@@ -259,3 +259,49 @@ describe("guestFilesProblem", () => {
     expect(guestFilesProblem([file("text/plain", 0)])).toMatch(/cannot be attached/);
   });
 });
+
+describe("guest localized validation", () => {
+  const now = Date.parse("2026-10-23T00:00:00.000Z");
+  it("keeps expiry boundaries while translating the visible unit", () => {
+    for (const [seconds, en, zh] of [
+      [-1, "Expired", "已过期"],
+      [59, "Expired", "已过期"],
+      [60, "1m left", "剩余 1 分钟"],
+      [3599, "59m left", "剩余 59 分钟"],
+      [3600, "1h left", "剩余 1 小时"],
+      [86399, "23h left", "剩余 23 小时"],
+    ] as const) {
+      const expiry = new Date(now + seconds * 1000).toISOString();
+      expect(formatGuestExpiry(expiry, now)).toBe(en);
+      expect(formatGuestExpiry(expiry, now, "en")).toBe(en);
+      expect(formatGuestExpiry(expiry, now, "zh-CN")).toBe(zh);
+    }
+  });
+  it("keeps attachment limits and their validation order in both languages", () => {
+    const image = { type: "image/png", size: 1 };
+    expect(
+      guestFilesProblem(
+        Array.from({ length: 5 }, () => image),
+        "zh-CN",
+      ),
+    ).toBe("每条消息最多可附加 4 个文件。");
+    expect(guestFilesProblem([{ ...image, size: 10 * 1024 * 1024 + 1 }], "zh-CN")).toBe(
+      "每条消息的附件总大小不能超过 10 MB。",
+    );
+    expect(guestFilesProblem([{ type: "image/svg+xml", size: 1 }], "zh-CN")).toBe(
+      "无法附加此文件。图片必须为 PNG、JPEG、GIF 或 WebP 格式。",
+    );
+    for (const locale of ["en", "zh-CN"] as const) {
+      expect(guestFilesProblem([{ ...image, size: 10 * 1024 * 1024 }], locale)).toBeNull();
+      expect(
+        guestFilesProblem(
+          Array.from({ length: 4 }, () => image),
+          locale,
+        ),
+      ).toBeNull();
+      expect(guestFilesProblem([], locale)).toBeNull();
+      expect(guestFilesProblem([{ type: "application/pdf", size: 20 }], locale)).toBeNull();
+      expect(guestFilesProblem([{ type: "text/plain", size: 0 }], locale)).not.toBeNull();
+    }
+  });
+});
