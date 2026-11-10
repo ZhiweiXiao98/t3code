@@ -1,0 +1,99 @@
+name: Diagnose unchanged repaired AppImage on Ubuntu24
+'on':
+  push:
+    branches:
+    - validation/v0.1.7-linux-sandbox-diagnostic
+permissions:
+  contents: read
+  actions: read
+jobs:
+  diagnose:
+    name: Read-only Ubuntu24 launch diagnostics
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+    - name: Checkout exact repaired source
+      shell: bash
+      run: 'set -euo pipefail
+
+        git init .
+
+        git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+
+        git fetch --no-tags --depth=1 origin 94049a79366352504974c4b0c83aab08b1093bd5
+
+        git checkout --detach FETCH_HEAD
+
+        test "$(git rev-parse HEAD^{tree})" = 2f12d067a84efcbefae246d61bc581a02c5b7993'
+    - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      with:
+        node-version: 26.12.1
+    - name: Verify and download exact failed-run installer
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: "python3 - <<'PYTHON'\nimport hashlib,json,os,pathlib,urllib.request,urllib.parse,urllib.error,zipfile,io\n\
+        out=pathlib.Path(os.environ['RUNNER_TEMP'])/'sandbox-diagnostic';out.mkdir()\nbase='https://api.github.com/repos/ZhiweiXiao98/t3code'\n\
+        class NoRedirect(urllib.request.HTTPRedirectHandler):\n def redirect_request(self,*a,**kw):return None\n\
+        opener=urllib.request.build_opener(NoRedirect())\ndef request(path):return urllib.request.Request(base+path,headers={'Authorization':'Bearer\
+        \ '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})\ndef api(path):\n with opener.open(request(path),timeout=60)\
+        \ as r:return json.load(r)\nrun=api('/actions/runs/42754800430');assert run['head_sha']=='e93d924b513df35b92a9eac0580371f12e04dbb5'\
+        \ and run['run_attempt']==1 and run['status']=='completed' and run['conclusion']=='failure'\na=api('/actions/artifacts/13735591309');assert\
+        \ a['name']=='client-linux-x64' and not a['expired'] and a['workflow_run']['id']==42754800430 and a['workflow_run']['head_sha']==run['head_sha']\n\
+        assert a['size_in_bytes']==347977693 and a['digest']=='sha256:09e970ce7399955c51ace86e5763f157d5c195734fa198bc7191e3c900741637'\n\
+        commit=api('/git/commits/94049a79366352504974c4b0c83aab08b1093bd5');assert commit['tree']['sha']=='2f12d067a84efcbefae246d61bc581a02c5b7993'\n\
+        try:opener.open(request('/actions/artifacts/13735591309/zip'),timeout=60);raise AssertionError('Expected\
+        \ signed redirect')\nexcept urllib.error.HTTPError as e:\n assert e.code==302;url=e.headers['Location']\n\
+        u=urllib.parse.urlparse(url);assert u.scheme=='https' and any(u.hostname.endswith(s) for s in ['.blob.core.windows.net','.actions.githubusercontent.com','.githubusercontent.com','.amazonaws.com'])\n\
+        archive=out/'original-installers.zip';h=hashlib.sha256();size=0\nwith urllib.request.urlopen(url,timeout=60)\
+        \ as r,archive.open('wb') as f:\n while chunk:=r.read(1024*1024):\n  size+=len(chunk);assert size<=347977693;h.update(chunk);f.write(chunk)\n\
+        assert size==347977693 and h.hexdigest()==a['digest'][7:]\nexpected={'T3-Code-0.1.7-zh.1-x86_64.AppImage':(190316514,'ebbb4707f4578b4eda98b762fe14126d773cadda0e701c7ec14a752dc8983e95'),'T3-Code-0.1.7-zh.1-amd64.deb':(158255108,'6dfd9e085fa097ff75f679962fc05306be8aa5a40c645ab1d7961170183ca344')}\n\
+        with zipfile.ZipFile(archive) as z:\n assert set(z.namelist())==set(expected) and len(z.infolist())==2\n\
+        \ for name,(length,digest) in expected.items():\n  assert z.getinfo(name).file_size==length;data=z.read(name);assert\
+        \ len(data)==length and hashlib.sha256(data).hexdigest()==digest\n  if name.endswith('.AppImage'):(out/name).write_bytes(data)\n\
+        archive.unlink()\n(out/'provenance.json').write_text(json.dumps({'source_sha':commit['sha'],'source_tree':commit['tree']['sha'],'run':run,'artifact':a,'installer_members':expected},indent=2))\n\
+        PYTHON\n"
+    - name: Install official non-security QA dependencies
+      shell: bash
+      run: 'set -euo pipefail
+
+        sudo apt-get update
+
+        sudo apt-get install -y fonts-noto-cjk fontconfig xvfb libfuse2t64
+
+        npm install --prefix "$RUNNER_TEMP/acceptance-tools" --no-save --ignore-scripts playwright-core@1.60.0
+
+        test -c /dev/fuse'
+    - name: Capture real normal FUSE launch and strong-driver diagnostics
+      shell: bash
+      run: "cat > \"$RUNNER_TEMP/diagnose.py\" <<'PYTHON'\nimport subprocess,json,pathlib,os,hashlib,signal,tempfile\n\
+        out=pathlib.Path(os.environ['RUNNER_TEMP'])/'sandbox-diagnostic';assert os.getuid()!=0\nasset=out/'T3-Code-0.1.7-zh.1-x86_64.AppImage';assert\
+        \ hashlib.sha256(asset.read_bytes()).hexdigest()=='ebbb4707f4578b4eda98b762fe14126d773cadda0e701c7ec14a752dc8983e95';asset.chmod(0o755)\n\
+        def command(args):\n try:\n  r=subprocess.run(args,capture_output=True,text=True,timeout=15);return {'argv':args,'exit_code':r.returncode,'stdout':r.stdout,'stderr':r.stderr}\n\
+        \ except Exception as e:return {'argv':args,'error':str(e)}\nhost={'runner':{k:os.environ.get(k) for k in\
+        \ ['RUNNER_OS','RUNNER_ARCH','RUNNER_NAME','ImageOS','ImageVersion']},'observations':[command(a) for a in\
+        \ [['uname','-a'],['cat','/etc/os-release'],['getconf','GNU_LIBC_VERSION'],['cat','/sys/module/apparmor/parameters/enabled'],['cat','/proc/self/attr/current'],['sysctl','kernel.unprivileged_userns_clone','user.max_user_namespaces','kernel.apparmor_restrict_unprivileged_userns'],['unshare','-Ur','true'],['fc-match','sans-serif:lang=zh-cn']]]}\n\
+        (out/'host-observations.json').write_text(json.dumps(host,indent=2))\ndef capture(name,args,env,limit):\n\
+        \ child=subprocess.Popen(args,stdout=subprocess.PIPE,stderr=subprocess.PIPE,env=env,start_new_session=True);timed_out=False\n\
+        \ try:stdout,stderr=child.communicate(timeout=limit)\n except subprocess.TimeoutExpired:\n  timed_out=True;os.killpg(child.pid,signal.SIGTERM)\n\
+        \  try:stdout,stderr=child.communicate(timeout=5)\n  except subprocess.TimeoutExpired:os.killpg(child.pid,signal.SIGKILL);stdout,stderr=child.communicate()\n\
+        \ (out/(name+'.stdout')).write_bytes(stdout);(out/(name+'.stderr')).write_bytes(stderr)\n return {'argv':args,'exit_code':child.returncode,'timed_out':timed_out,'stdout_sha256':hashlib.sha256(stdout).hexdigest(),'stderr_sha256':hashlib.sha256(stderr).hexdigest()}\n\
+        home=pathlib.Path(tempfile.mkdtemp(prefix='t3-raw-sandbox-'));env=os.environ.copy();env.update({'T3CODE_HOME':str(home/'t3'),'XDG_CONFIG_HOME':str(home/'config'),'XDG_DATA_HOME':str(home/'data'),'T3CODE_TELEMETRY_ENABLED':'false','T3CODE_DISABLE_AUTO_UPDATE':'true','ELECTRON_ENABLE_LOGGING':'1'})\n\
+        raw=capture('raw-fuse',[str(asset),'--user-data-dir='+str(home/'electron-profile')],env,45)\ndriver=pathlib.Path('.github/scripts/check-clean-desktop-first-start.mjs');assert\
+        \ hashlib.sha256(driver.read_bytes()).hexdigest()=='1cfb62bf02d1c4063362b1ffed1cea17c6dfe532e4bf05e7b5bfe0f153362375'\n\
+        env=os.environ.copy();env.update({'DEBUG':'pw:browser*','ELECTRON_ENABLE_LOGGING':'1'})\nstrong=capture('strong-driver',['node',str(driver),'--executable',str(asset),'--platform','Linux','--playwright-module',str(pathlib.Path(os.environ['RUNNER_TEMP'])/'acceptance-tools/node_modules/playwright-core/index.mjs'),'--artifacts-dir',str(out/'strong-driver')],env,100)\n\
+        assert hashlib.sha256(asset.read_bytes()).hexdigest()=='ebbb4707f4578b4eda98b762fe14126d773cadda0e701c7ec14a752dc8983e95'\n\
+        (out/'diagnostic-result.json').write_text(json.dumps({'scope':'Diagnostic observation only; successful collection\
+        \ is not acceptance success. No host policy changed.','raw_fuse':raw,'strong_driver':strong,'source_sha':'94049a79366352504974c4b0c83aab08b1093bd5','driver_sha256':hashlib.sha256(driver.read_bytes()).hexdigest()},indent=2))\n\
+        asset.unlink()\nPYTHON\nxvfb-run -a python3 \"$RUNNER_TEMP/diagnose.py\"\n"
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      if: always()
+      with:
+        name: ubuntu24-appimage-diagnostics
+        path: '${{ runner.temp }}/sandbox-diagnostic
+
+          !${{ runner.temp }}/sandbox-diagnostic/*.AppImage
+
+          !${{ runner.temp }}/sandbox-diagnostic/*.zip'
+        if-no-files-found: error
+        retention-days: 14
