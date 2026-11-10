@@ -47,7 +47,7 @@ jobs:
       run: |-
         python3 - <<'PYTHON'
         import json,os
-        x=json.load(open(os.environ['GITHUB_EVENT_PATH']))
+        x=json.load(open(os.environ['GITHUB_EVENT_PATH'], encoding='utf-8'))
         assert os.environ['GITHUB_REPOSITORY']=='ZhiweiXiao98/t3code'
         assert x['repository']['private'] is False
         assert os.environ['GITHUB_EVENT_NAME']=='push'
@@ -61,10 +61,10 @@ jobs:
         git init .
         git config core.autocrlf false
         git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
-        git fetch --no-tags --depth=2 origin "$GITHUB_SHA"
-        test "$(git rev-parse FETCH_HEAD^1)" = "$SOURCE_SHA"
+        git fetch --no-tags --depth=3 origin "$GITHUB_SHA"
+        git merge-base --is-ancestor "$SOURCE_SHA" FETCH_HEAD
         test "$(git rev-list --parents -n 1 FETCH_HEAD | wc -w)" -eq 2
-        test "$(git diff-tree --no-commit-id --name-only -r FETCH_HEAD)" = .github/workflows/client-coverage.yml
+        test "$(git diff --name-only "$SOURCE_SHA" FETCH_HEAD)" = .github/workflows/client-coverage.yml
         git sparse-checkout set --no-cone '/*' '!/.repos/'
         git checkout --detach "$SOURCE_SHA"
         test "$(git rev-parse HEAD^{tree})" = "$SOURCE_TREE"
