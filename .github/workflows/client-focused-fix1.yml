@@ -1,8 +1,8 @@
-name: Focused v0.1.7 regression checks
+name: Focused v0.1.7 fix2 regression checks
 
 on:
   push:
-    branches: [validation/v0.1.7-fix1-02042b79]
+    branches: [validation/v0.1.7-fix2-e84162ae]
     paths:
       - "**"
 
@@ -16,14 +16,15 @@ concurrency:
 env:
   CI: "true"
   BASE_SHA: 02042b793702b19417ad512c867b71456c7be889
-  EXPECTED_BRANCH: validation/v0.1.7-fix1-02042b79
+  PARENT_SHA: e84162ae168b360e20368969b9a6893e8ff92cbb
+  EXPECTED_BRANCH: validation/v0.1.7-fix2-e84162ae
   VP_REMOTE_CACHE: "off"
   VP_REMOTE_CACHE_URL: ""
 
 jobs:
   focused:
     name: Focused checks (${{ matrix.suite }})
-    runs-on: ubuntu-24.04
+    runs-on: ${{ matrix.suite == 'html-render' && 'ubuntu-22.04' || 'ubuntu-24.04' }}
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -31,6 +32,7 @@ jobs:
         suite: [web-regressions, html-render, changed-files]
     env:
       SUITE: ${{ matrix.suite }}
+      RUNNER_LABEL: ${{ matrix.suite == 'html-render' && 'ubuntu-22.04' || 'ubuntu-24.04' }}
     steps:
       - name: Verify public repository and exact push
         shell: bash
@@ -44,7 +46,7 @@ jobs:
           assert os.environ['GITHUB_REF'] == 'refs/heads/' + os.environ['EXPECTED_BRANCH']
           assert re.fullmatch('[0-9a-f]{40}', os.environ['GITHUB_SHA'])
           assert event['after'] == os.environ['GITHUB_SHA']
-          assert os.environ['GITHUB_SHA'] != os.environ['BASE_SHA']
+          assert os.environ['GITHUB_SHA'] != os.environ['PARENT_SHA']
           PYTHON
       - name: Checkout exact source without credentials
         shell: bash
@@ -55,16 +57,16 @@ jobs:
           git init .
           git config core.autocrlf false
           git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
-          git fetch --no-tags --depth=2 origin "$GITHUB_SHA"
+          git fetch --no-tags --depth=3 origin "$GITHUB_SHA"
           git sparse-checkout set --no-cone '/*' '!/.repos/'
           git checkout --detach FETCH_HEAD
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          test "$(git rev-parse HEAD^1)" = "$BASE_SHA"
+          test "$(git rev-parse HEAD^1)" = "$PARENT_SHA"
           test "$(git rev-list --parents -n 1 HEAD | wc -w)" -eq 2
           git merge-base --is-ancestor "$BASE_SHA" HEAD
           git diff --exit-code
           git diff --cached --exit-code
-          printf 'Source commit: %s\nSource tree: %s\nBase commit: %s\n' "$GITHUB_SHA" "$(git rev-parse HEAD^{tree})" "$BASE_SHA" >> "$GITHUB_STEP_SUMMARY"
+          printf 'Source commit: %s\nSource tree: %s\nParent commit: %s\nCheck base: %s\n' "$GITHUB_SHA" "$(git rev-parse HEAD^{tree})" "$PARENT_SHA" "$BASE_SHA" >> "$GITHUB_STEP_SUMMARY"
       - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
         with:
           node-version-file: package.json
@@ -112,6 +114,7 @@ jobs:
           const runtime = {
             node_version: process.version, bundled_undici: process.versions.undici,
             platform: process.platform, arch: process.arch,
+            os_release: fs.readFileSync('/etc/os-release', 'utf8'),
             playwright_version: pw.version, test_headless_shell: browser,
             browser_version: cp.execFileSync(browser, ['--version'], {encoding:'utf8'}).trim(),
             browser_sha256: crypto.createHash('sha256').update(fs.readFileSync(browser)).digest('hex'),
@@ -164,7 +167,7 @@ jobs:
           exit_code = int(os.environ['CHECK_EXIT_CODE'])
           require(exit_code == 0, 'check command failed')
           require(git('rev-parse', 'HEAD') == os.environ['GITHUB_SHA'], 'source HEAD changed')
-          require(git('rev-parse', 'HEAD^1') == os.environ['BASE_SHA'], 'source parent changed')
+          require(git('rev-parse', 'HEAD^1') == os.environ['PARENT_SHA'], 'source parent changed')
           clean = not git('diff', '--name-only') and not git('diff', '--cached', '--name-only')
           require(clean, 'tracked source changed during checks')
           expected = {
@@ -219,7 +222,7 @@ jobs:
           runtime = json.loads((temp / 'focused-runtime.json').read_text())
           require(runtime['sandbox_disabled'] is False, 'sandbox disabled')
           source = {'sha': git('rev-parse', 'HEAD'), 'tree': git('rev-parse', 'HEAD^{tree}'),
-                    'parent': os.environ['BASE_SHA'], 'source_unchanged': clean}
+                    'parent': os.environ['PARENT_SHA'], 'comparison_base': os.environ['BASE_SHA'], 'source_unchanged': clean}
           proof = {
               'schema_version': 1, 'evidence_type': 'focused-regression-checks',
               'repository': os.environ['GITHUB_REPOSITORY'], 'passed': not problems,
@@ -227,7 +230,7 @@ jobs:
               'workflow': {'path': '.github/workflows/client-focused-fix1.yml',
                            'branch': os.environ['EXPECTED_BRANCH'], 'sha': os.environ['GITHUB_SHA'],
                            'run_id': int(os.environ['GITHUB_RUN_ID']), 'run_attempt': int(os.environ['GITHUB_RUN_ATTEMPT'])},
-              'suite': suite, 'job_name': 'Focused checks (' + suite + ')', 'runner_label': 'ubuntu-24.04',
+              'suite': suite, 'job_name': 'Focused checks (' + suite + ')', 'runner_label': os.environ['RUNNER_LABEL'],
               'runtime': runtime, 'check_exit_code': exit_code, 'files': files, 'problems': problems,
           }
           (temp / 'focused-proof.json').write_text(json.dumps(proof, indent=2) + '\n')

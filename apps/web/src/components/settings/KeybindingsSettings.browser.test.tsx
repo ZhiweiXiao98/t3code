@@ -95,49 +95,47 @@ describe("Esc in a shortcut recorder", () => {
         await expect.element(chineseNewField).toHaveAttribute("placeholder", "未分配");
       },
     },
-  ])("leaves the $name field without closing Settings", async ({
-    locale,
-    field,
-    open,
-    expectReset,
-  }) => {
-    const onOpenChange = vi.fn();
-    await using _screen = await render(
-      <WebI18nContext
-        value={{
-          locale,
-          appLocale: locale,
-          setAppLocale: () => undefined,
-          t: (key, values) => translateWebMessage(locale, key, values),
-        }}
-      >
-        <Dialog open onOpenChange={onOpenChange}>
-          <DialogPopup>
-            <DialogTitle>Settings</DialogTitle>
-            <KeybindingsSettingsPanel />
-          </DialogPopup>
-        </Dialog>
-      </WebI18nContext>,
-    );
+  ])(
+    "leaves the $name field without closing Settings",
+    async ({ locale, field, open, expectReset }) => {
+      const onOpenChange = vi.fn();
+      await using _screen = await render(
+        <WebI18nContext
+          value={{
+            locale,
+            appLocale: locale,
+            setAppLocale: () => undefined,
+            t: (key, values) => translateWebMessage(locale, key, values),
+          }}
+        >
+          <Dialog open onOpenChange={onOpenChange}>
+            <DialogPopup>
+              <DialogTitle>Settings</DialogTitle>
+              <KeybindingsSettingsPanel />
+            </DialogPopup>
+          </Dialog>
+        </WebI18nContext>,
+      );
 
-    await open();
-    await userEvent.keyboard("{Control>}k{/Control}");
-    await expect.element(field).not.toHaveValue("");
-    await userEvent.tab();
-    await activate(field, "focus");
-    await expect
-      .element(field)
-      .toHaveAttribute("placeholder", locale === "en" ? "Press shortcut" : "按下快捷键");
+      await open();
+      await userEvent.keyboard("{Control>}k{/Control}");
+      await expect.element(field).not.toHaveValue("");
+      await userEvent.tab();
+      await activate(field, "focus");
+      await expect
+        .element(field)
+        .toHaveAttribute("placeholder", locale === "en" ? "Press shortcut" : "按下快捷键");
 
-    await userEvent.keyboard("{Escape}");
+      await userEvent.keyboard("{Escape}");
 
-    expect(onOpenChange).not.toHaveBeenCalled();
-    expect(document.activeElement?.matches("[data-keybinding-capture]")).toBe(false);
-    await expectReset();
+      expect(onOpenChange).not.toHaveBeenCalled();
+      expect(document.activeElement?.matches("[data-keybinding-capture]")).toBe(false);
+      await expectReset();
 
-    await userEvent.keyboard("{Escape}");
-    expect(onOpenChange).toHaveBeenCalledWith(false, expect.anything());
-  });
+      await userEvent.keyboard("{Escape}");
+      expect(onOpenChange).toHaveBeenCalledWith(false, expect.anything());
+    },
+  );
 });
 
 it("re-enables Save when a When editor closes on an expression it could not parse", async () => {

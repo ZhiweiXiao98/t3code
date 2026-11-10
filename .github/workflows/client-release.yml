@@ -179,7 +179,8 @@ jobs:
   tests:
     name: Tests (${{ matrix.suite }})
     needs: [source, bundle, linux, desktop, android]
-    runs-on: ubuntu-24.04
+    # Ubuntu 24.04 blocks the server's normal Chromium sandbox through AppArmor.
+    runs-on: ${{ startsWith(matrix.suite, 'server-') && 'ubuntu-22.04' || 'ubuntu-24.04' }}
     timeout-minutes: 45
     strategy:
       fail-fast: false

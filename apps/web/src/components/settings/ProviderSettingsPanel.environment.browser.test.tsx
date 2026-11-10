@@ -432,45 +432,45 @@ describe("EnvironmentProviderSettings instance removal", () => {
   it.each([
     { locale: "en", removeLabel: `Delete instance ${customId}` },
     { locale: "zh-CN", removeLabel: `删除服务提供方实例 ${customId}` },
-  ] as const)("deletes a custom instance only once the user confirms ($locale)", async ({
-    locale,
-    removeLabel,
-  }) => {
-    await setup();
-    state.settings = {
-      ...DEFAULT_UNIFIED_SETTINGS,
-      providerInstances: {
-        [customId]: { driver: ProviderDriverKind.make("codex"), enabled: true },
-      },
-    };
-    await using _screen = await render(
-      <WebI18nContext
-        value={{
-          locale,
-          appLocale: locale,
-          setAppLocale: () => undefined,
-          t: (key, values) => translateWebMessage(locale, key, values),
-        }}
-      >
-        {panel({ targetInstanceId: customId })}
-      </WebI18nContext>,
-    );
-    const remove = page.getByRole("button", { name: removeLabel });
-    await userEvent.click(remove);
+  ] as const)(
+    "deletes a custom instance only once the user confirms ($locale)",
+    async ({ locale, removeLabel }) => {
+      await setup();
+      state.settings = {
+        ...DEFAULT_UNIFIED_SETTINGS,
+        providerInstances: {
+          [customId]: { driver: ProviderDriverKind.make("codex"), enabled: true },
+        },
+      };
+      await using _screen = await render(
+        <WebI18nContext
+          value={{
+            locale,
+            appLocale: locale,
+            setAppLocale: () => undefined,
+            t: (key, values) => translateWebMessage(locale, key, values),
+          }}
+        >
+          {panel({ targetInstanceId: customId })}
+        </WebI18nContext>,
+      );
+      const remove = page.getByRole("button", { name: removeLabel });
+      await userEvent.click(remove);
 
-    expect(state.mutateProviderInstance).not.toHaveBeenCalled();
-    expect(state.confirm).toHaveBeenCalledOnce();
+      expect(state.mutateProviderInstance).not.toHaveBeenCalled();
+      expect(state.confirm).toHaveBeenCalledOnce();
 
-    state.confirm.mockResolvedValue(true);
-    await userEvent.click(remove);
-    await vi.waitFor(() =>
-      expect(state.mutateProviderInstance).toHaveBeenCalledWith({
-        operation: "remove",
-        instanceId: customId,
-      }),
-    );
-    expect(state.mutateProviderInstance).toHaveBeenCalledOnce();
-  });
+      state.confirm.mockResolvedValue(true);
+      await userEvent.click(remove);
+      await vi.waitFor(() =>
+        expect(state.mutateProviderInstance).toHaveBeenCalledWith({
+          operation: "remove",
+          instanceId: customId,
+        }),
+      );
+      expect(state.mutateProviderInstance).toHaveBeenCalledOnce();
+    },
+  );
 });
 
 describe("EnvironmentProviderSettings health check interval", () => {
