@@ -8757,6 +8757,9 @@ const ZH_CN_SOURCE_MESSAGES: Readonly<Record<string, string>> = {
   "Could not load mobile clients": "无法加载移动客户端",
   "T3 Code collects anonymous usage data to help us improve it.":
     "T3 Code 会收集匿名使用数据，以帮助我们改进产品。",
+  "To read more about how your data is used and how to opt out, see our":
+    "如需了解数据的使用方式以及如何退出，请参阅我们的",
+  "To read more about how your data is used, see our": "如需了解数据的使用方式，请参阅我们的",
   "privacy policy": "隐私政策",
   "Dismiss notification": "关闭通知",
   "enable Cursor account usage": "启用 Cursor 账号用量",

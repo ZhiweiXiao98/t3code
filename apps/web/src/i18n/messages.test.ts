@@ -1,8 +1,30 @@
+import * as NodeFS from "node:fs";
+
 import { describe, expect, it } from "vite-plus/test";
 
 import { translateWebMessage, translateWebSource } from "./messages";
 
 describe("translateWebMessage", () => {
+  it("localizes both privacy clauses selected by the onboarding telemetry policy", () => {
+    const source = NodeFS.readFileSync(
+      new URL("../components/onboarding/WelcomeWizard.tsx", import.meta.url),
+      "utf8",
+    );
+    const clauses = source.match(/telemetryOff === undefined\s*\? "([^"]+)"\s*: "([^"]+)"/);
+    expect(clauses).not.toBeNull();
+    const [, optionalTelemetry, managedTelemetry] = clauses!;
+
+    expect(translateWebSource("zh-CN", optionalTelemetry!)).toBe(
+      "如需了解数据的使用方式以及如何退出，请参阅我们的",
+    );
+    expect(translateWebSource("zh-CN", managedTelemetry!)).toBe(
+      "如需了解数据的使用方式，请参阅我们的",
+    );
+    for (const clause of [optionalTelemetry!, managedTelemetry!]) {
+      expect(translateWebSource("en", clause)).toBe(clause);
+    }
+  });
+
   it("localizes shared account and settings controls without changing English", () => {
     for (const [source, chinese] of [
       ["Continue with ChatGPT", "使用 ChatGPT 继续"],

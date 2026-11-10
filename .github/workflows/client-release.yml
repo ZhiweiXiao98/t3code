@@ -688,7 +688,8 @@ jobs:
           sha256sum "$asset" | tee "$RUNNER_TEMP/acceptance-artifacts/asset-sha256.txt"
           echo "T3_CANDIDATE_ASSET=$asset" >> "$GITHUB_ENV"
           sudo apt-get update
-          sudo apt-get install -y xvfb libfuse2t64
+          sudo apt-get install -y xvfb libfuse2t64 fonts-noto-cjk
+          fc-match sans-serif:lang=zh-cn
       - name: Install DEB through apt and launch installed entry
         if: matrix.kind == 'deb'
         shell: bash
