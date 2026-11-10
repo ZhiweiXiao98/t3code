@@ -233,10 +233,16 @@ describe("ServerBrowserSurface history", () => {
   });
 });
 
-it.each(["clipboard", "file chooser"] as const)(
-  "%s failure uses the language selected while the request was pending",
-  async (operation) => {
+it.each([
+  ["clipboard", "en", "zh-CN"],
+  ["clipboard", "zh-CN", "en"],
+  ["file chooser", "en", "zh-CN"],
+  ["file chooser", "zh-CN", "en"],
+] as const)(
+  "%s failure uses the current language after switching from %s to %s",
+  async (operation, initialLocale, nextLocale) => {
     setup();
+    mocks.locale = initialLocale;
     const { screen, input } = await renderSurface("you");
     await using _screen = screen;
     let reject!: (error: Error) => void;
@@ -248,6 +254,7 @@ it.each(["clipboard", "file chooser"] as const)(
     const handlers = mocks.createClient.mock.calls.at(-1)![1];
     if (operation === "clipboard") {
       await act(() => handlers.onClipboard?.("copied page text"));
+      expect(_write).toHaveBeenCalledExactlyOnceWith("copied page text");
     } else {
       await act(() =>
         handlers.onFileChooser?.({
@@ -269,19 +276,27 @@ it.each(["clipboard", "file chooser"] as const)(
       });
       expect(mocks.uploadFiles).toHaveBeenCalledWith(expect.anything(), [file]);
     }
-    mocks.locale = "zh-CN";
+    expect(mocks.addToast).not.toHaveBeenCalled();
+    mocks.locale = nextLocale;
     await act(async () => {
       reject(new Error("REMOTE opaque failure"));
       await pending.catch(() => undefined);
     });
-    expect(mocks.addToast).toHaveBeenCalledWith(
+    expect(mocks.addToast).toHaveBeenCalledExactlyOnceWith(
       operation === "clipboard"
         ? expect.objectContaining({
-            title: "页面已复制文本",
-            actionProps: expect.objectContaining({ children: "复制" }),
+            type: "info",
+            title: nextLocale === "zh-CN" ? "网页已复制文本" : "The page copied text",
+            actionProps: expect.objectContaining({
+              children: nextLocale === "zh-CN" ? "复制" : "Copy",
+            }),
           })
         : expect.objectContaining({
-            title: "无法将文件发送到页面",
+            type: "error",
+            title:
+              nextLocale === "zh-CN"
+                ? "无法将文件发送到网页"
+                : "Could not send the files to the page",
             description: "REMOTE opaque failure",
           }),
     );

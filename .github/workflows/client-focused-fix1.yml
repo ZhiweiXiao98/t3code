@@ -1,0 +1,247 @@
+name: Focused v0.1.7 regression checks
+
+on:
+  push:
+    branches: [validation/v0.1.7-fix1-02042b79]
+    paths:
+      - "**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: focused-v017-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CI: "true"
+  BASE_SHA: 02042b793702b19417ad512c867b71456c7be889
+  EXPECTED_BRANCH: validation/v0.1.7-fix1-02042b79
+  VP_REMOTE_CACHE: "off"
+  VP_REMOTE_CACHE_URL: ""
+
+jobs:
+  focused:
+    name: Focused checks (${{ matrix.suite }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [web-regressions, html-render, changed-files]
+    env:
+      SUITE: ${{ matrix.suite }}
+    steps:
+      - name: Verify public repository and exact push
+        shell: bash
+        run: |
+          python3 - <<'PYTHON'
+          import json, os, re
+          event = json.load(open(os.environ['GITHUB_EVENT_PATH']))
+          assert os.environ['GITHUB_REPOSITORY'] == 'ZhiweiXiao98/t3code'
+          assert event['repository']['private'] is False
+          assert os.environ['GITHUB_EVENT_NAME'] == 'push'
+          assert os.environ['GITHUB_REF'] == 'refs/heads/' + os.environ['EXPECTED_BRANCH']
+          assert re.fullmatch('[0-9a-f]{40}', os.environ['GITHUB_SHA'])
+          assert event['after'] == os.environ['GITHUB_SHA']
+          assert os.environ['GITHUB_SHA'] != os.environ['BASE_SHA']
+          PYTHON
+      - name: Checkout exact source without credentials
+        shell: bash
+        env:
+          GIT_TERMINAL_PROMPT: "0"
+        run: |
+          set -euo pipefail
+          git init .
+          git config core.autocrlf false
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          git fetch --no-tags --depth=2 origin "$GITHUB_SHA"
+          git sparse-checkout set --no-cone '/*' '!/.repos/'
+          git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD^1)" = "$BASE_SHA"
+          test "$(git rev-list --parents -n 1 HEAD | wc -w)" -eq 2
+          git merge-base --is-ancestor "$BASE_SHA" HEAD
+          git diff --exit-code
+          git diff --cached --exit-code
+          printf 'Source commit: %s\nSource tree: %s\nBase commit: %s\n' "$GITHUB_SHA" "$(git rev-parse HEAD^{tree})" "$BASE_SHA" >> "$GITHUB_STEP_SUMMARY"
+      - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
+        with:
+          node-version-file: package.json
+          cache: true
+          run-install: false
+      - name: Install locked dependencies
+        id: dependencies
+        run: vp install --frozen-lockfile
+      - name: Install Chromium and expose the exact server headless shell
+        shell: bash
+        run: |
+          set -euo pipefail
+          browser_cli=apps/server/node_modules/playwright-core/cli.js
+          if [[ "$SUITE" != html-render ]]; then
+            browser_cli=apps/web/node_modules/playwright/cli.js
+          fi
+          node "$browser_cli" install --with-deps --only-shell chromium
+          # Both workspace pins are 1.60.0. Resolve the server's exact revision,
+          # never the first browser in an arbitrary cache directory.
+          test "$(node -p "require('./apps/server/node_modules/playwright-core/package.json').version")" = "$(node -p "require('./apps/server/package.json').dependencies['playwright-core']")"
+          browser_revision=$(node -p "require('./apps/server/node_modules/playwright-core/browsers.json').browsers.find(browser => browser.name === 'chromium-headless-shell').revision")
+          mapfile -t browsers < <(find "$HOME/.cache/ms-playwright/chromium_headless_shell-$browser_revision" -type f -name chrome-headless-shell)
+          test "${#browsers[@]}" -eq 1
+          browser="${browsers[0]}"
+          test -x "$browser"
+          test "${T3CODE_SERVER_BROWSER_SANDBOX:-1}" != 0
+          echo "T3CODE_TEST_HEADLESS_SHELL=$browser" >> "$GITHUB_ENV"
+          "$browser" --version
+          sha256sum "$browser"
+      - name: Record runtime and source version
+        shell: bash
+        run: |
+          node --input-type=commonjs - <<'JS'
+          const fs = require('node:fs');
+          const crypto = require('node:crypto');
+          const cp = require('node:child_process');
+          const root = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          if (process.versions.node !== root.engines.node || root.engines.node !== '26.12.1') throw new Error('Wrong Node runtime');
+          const workflow = fs.readFileSync('.github/workflows/client-release.yml', 'utf8');
+          if (!/^  CLIENT_VERSION: 0\.1\.7-zh\.1$/m.test(workflow)) throw new Error('Wrong client version');
+          const pw = JSON.parse(fs.readFileSync('apps/server/node_modules/playwright-core/package.json', 'utf8'));
+          const web = JSON.parse(fs.readFileSync('apps/web/node_modules/playwright/package.json', 'utf8'));
+          if (pw.version !== '1.60.0' || web.version !== pw.version) throw new Error('Wrong Playwright pins');
+          const browser = process.env.T3CODE_TEST_HEADLESS_SHELL;
+          const runtime = {
+            node_version: process.version, bundled_undici: process.versions.undici,
+            platform: process.platform, arch: process.arch,
+            playwright_version: pw.version, test_headless_shell: browser,
+            browser_version: cp.execFileSync(browser, ['--version'], {encoding:'utf8'}).trim(),
+            browser_sha256: crypto.createHash('sha256').update(fs.readFileSync(browser)).digest('hex'),
+            sandbox_disabled: process.env.T3CODE_SERVER_BROWSER_SANDBOX === '0'
+          };
+          if (runtime.sandbox_disabled) throw new Error('Browser sandbox must remain enabled');
+          fs.writeFileSync(`${process.env.RUNNER_TEMP}/focused-runtime.json`, JSON.stringify(runtime, null, 2));
+          console.log(JSON.stringify(runtime));
+          JS
+      - name: Run focused checks
+        id: checks
+        shell: bash
+        run: |
+          set +e
+          if [[ "$SUITE" == web-regressions ]]; then
+            cd apps/web
+            vp test run --project browser \
+              src/browser/ServerBrowserSurface.browser.test.tsx \
+              src/components/settings/KeybindingsSettings.browser.test.tsx \
+              src/components/settings/ProviderSettingsPanel.environment.browser.test.tsx \
+              --reporter=default --reporter=json --outputFile.json="$RUNNER_TEMP/focused-result.json"
+            result=$?
+          elif [[ "$SUITE" == html-render ]]; then
+            cd apps/server
+            vp test run src/htmlRender/HtmlRender.test.ts \
+              --reporter=default --reporter=json --outputFile.json="$RUNNER_TEMP/focused-result.json"
+            result=$?
+          else
+            vp run check:changed "$BASE_SHA" --concurrency 2 2>&1 | tee "$RUNNER_TEMP/check-changed.log"
+            result=${PIPESTATUS[0]}
+          fi
+          echo "exit_code=$result" >> "$GITHUB_OUTPUT"
+          exit "$result"
+      - name: Verify named results and record exact source proof
+        if: ${{ !cancelled() && steps.checks.outcome != 'skipped' }}
+        shell: bash
+        env:
+          CHECK_EXIT_CODE: ${{ steps.checks.outputs.exit_code }}
+        run: |
+          python3 - <<'PYTHON'
+          import hashlib, json, os, pathlib, subprocess
+          root = pathlib.Path.cwd()
+          temp = pathlib.Path(os.environ['RUNNER_TEMP'])
+          suite = os.environ['SUITE']
+          problems = []
+          def require(ok, note):
+              if not ok: problems.append(note)
+          def git(*args):
+              return subprocess.check_output(['git', *args], text=True).strip()
+          exit_code = int(os.environ['CHECK_EXIT_CODE'])
+          require(exit_code == 0, 'check command failed')
+          require(git('rev-parse', 'HEAD') == os.environ['GITHUB_SHA'], 'source HEAD changed')
+          require(git('rev-parse', 'HEAD^1') == os.environ['BASE_SHA'], 'source parent changed')
+          clean = not git('diff', '--name-only') and not git('diff', '--cached', '--name-only')
+          require(clean, 'tracked source changed during checks')
+          expected = {
+            'web-regressions': {
+              'apps/web/src/browser/ServerBrowserSurface.browser.test.tsx': 10,
+              'apps/web/src/components/settings/KeybindingsSettings.browser.test.tsx': 4,
+              'apps/web/src/components/settings/ProviderSettingsPanel.environment.browser.test.tsx': 10,
+            },
+            'html-render': {'apps/server/src/htmlRender/HtmlRender.test.ts': 12},
+            'changed-files': {},
+          }[suite]
+          files = []
+          report_path = temp / 'focused-result.json'
+          if expected:
+              report = json.loads(report_path.read_text())
+              require(report.get('success') is True, 'test reporter did not succeed')
+              require(report.get('numTotalTests') == sum(expected.values()), 'unexpected report total')
+              require(report.get('numPassedTests') == sum(expected.values()), 'not all tests passed')
+              for key in ['numFailedTests', 'numPendingTests', 'numTodoTests']:
+                  require(report.get(key, 0) == 0, key + ' must be zero')
+              results = report.get('testResults', [])
+              require(len(results) == len(expected), 'unexpected file report count')
+              found = set()
+              for result in results:
+                  path = str(pathlib.Path(result['name']).relative_to(root))
+                  require(path in expected and path not in found, 'unexpected or duplicate test file: ' + path)
+                  if path not in expected or path in found: continue
+                  found.add(path)
+                  assertions = result.get('assertionResults', [])
+                  require(len(assertions) == expected[path], 'unexpected assertion count: ' + path)
+                  require(all(a['status'] == 'passed' for a in assertions), 'failed, skipped or pending assertion: ' + path)
+                  names = [a.get('fullName') or a['title'] for a in assertions]
+                  require(len(set(names)) == len(names), 'duplicate assertion names: ' + path)
+                  if suite == 'html-render':
+                      titles = {a['title'] for a in assertions if a['status'] == 'passed'}
+                      require({
+                          'matches preview media queries and text colors to the requested appearance',
+                          'keeps every local file but the page itself out of the browser',
+                          "keeps the page off this machine's local network",
+                      } <= titles, 'missing browser-dependent assertion')
+                  data = (root / path).read_bytes()
+                  files.append({
+                      'path': path, 'git_blob_sha': git('rev-parse', 'HEAD:' + path),
+                      'sha256': hashlib.sha256(data).hexdigest(),
+                      'counts': {'total': len(assertions), 'passed': sum(a['status'] == 'passed' for a in assertions),
+                                 'failed': sum(a['status'] == 'failed' for a in assertions),
+                                 'skipped': sum(a['status'] in ['pending', 'skipped'] for a in assertions),
+                                 'todo': sum(a['status'] == 'todo' for a in assertions)},
+                      'assertions': [{'title': a['title'], 'full_name': a.get('fullName'), 'status': a['status']} for a in assertions],
+                  })
+              require(found == set(expected), 'missing expected file')
+          runtime = json.loads((temp / 'focused-runtime.json').read_text())
+          require(runtime['sandbox_disabled'] is False, 'sandbox disabled')
+          source = {'sha': git('rev-parse', 'HEAD'), 'tree': git('rev-parse', 'HEAD^{tree}'),
+                    'parent': os.environ['BASE_SHA'], 'source_unchanged': clean}
+          proof = {
+              'schema_version': 1, 'evidence_type': 'focused-regression-checks',
+              'repository': os.environ['GITHUB_REPOSITORY'], 'passed': not problems,
+              'source': source,
+              'workflow': {'path': '.github/workflows/client-focused-fix1.yml',
+                           'branch': os.environ['EXPECTED_BRANCH'], 'sha': os.environ['GITHUB_SHA'],
+                           'run_id': int(os.environ['GITHUB_RUN_ID']), 'run_attempt': int(os.environ['GITHUB_RUN_ATTEMPT'])},
+              'suite': suite, 'job_name': 'Focused checks (' + suite + ')', 'runner_label': 'ubuntu-24.04',
+              'runtime': runtime, 'check_exit_code': exit_code, 'files': files, 'problems': problems,
+          }
+          (temp / 'focused-proof.json').write_text(json.dumps(proof, indent=2) + '\n')
+          print(json.dumps(proof, indent=2))
+          if problems: raise SystemExit('\n'.join(problems))
+          PYTHON
+      - name: Upload focused evidence
+        if: ${{ !cancelled() && steps.checks.outcome != 'skipped' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: focused-proof-${{ matrix.suite }}
+          path: |
+            ${{ runner.temp }}/focused-proof.json
+            ${{ runner.temp }}/focused-result.json
+            ${{ runner.temp }}/check-changed.log
+          if-no-files-found: error
+          retention-days: 30

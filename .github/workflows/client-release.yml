@@ -225,6 +225,20 @@ jobs:
             browser_cli=apps/web/node_modules/playwright/cli.js
           fi
           node "$browser_cli" install --with-deps --only-shell chromium
+          if [[ "$SUITE" == server-* ]]; then
+            test "$(node -p "require('./apps/server/node_modules/playwright-core/package.json').version")" = "$(node -p "require('./apps/server/package.json').dependencies['playwright-core']")"
+            browser_revision=$(node -p "require('./apps/server/node_modules/playwright-core/browsers.json').browsers.find(browser => browser.name === 'chromium-headless-shell').revision")
+            browser_root="$HOME/.cache/ms-playwright/chromium_headless_shell-$browser_revision"
+            mapfile -t browsers < <(find "$browser_root" -type f -name chrome-headless-shell)
+            test "${#browsers[@]}" -eq 1
+            browser="${browsers[0]}"
+            test -x "$browser"
+            test "${T3CODE_SERVER_BROWSER_SANDBOX:-1}" != 0
+            echo "T3CODE_TEST_HEADLESS_SHELL=$browser" >> "$GITHUB_ENV"
+            node -p "JSON.stringify({node: process.version, undici: process.versions.undici, playwright: require('./apps/server/node_modules/playwright-core/package.json').version})"
+            "$browser" --version
+            sha256sum "$browser"
+          fi
       - name: Check release and preview orchestration helpers
         if: matrix.suite == 'clients'
         run: |

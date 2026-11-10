@@ -1108,7 +1108,7 @@ function useNewKeybindingDraft({
     undefined,
     commandLabel,
   );
-  const commandLabelText = commandDraft ? commandLabel(commandDraft) : t("keybindings.add");
+  const commandLabelText = commandDraft ? commandLabel(commandDraft) : t("keybindings.newBinding");
   const canSave = Boolean(commandDraft) && keyDraft.trim().length > 0 && isWhenDraftValid;
 
   const save = () => {

@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from "vite-plus/test";
 import { page, userEvent, type Locator } from "vite-plus/test/browser";
 
 import { render } from "../../../test/render";
+import { WebI18nContext } from "../../i18n/WebI18nContext";
+import { translateWebMessage } from "../../i18n/messages";
 
 vi.mock(import("../../state/session"), async (original) => ({
   ...(await original()),
@@ -46,16 +48,19 @@ async function activate(locator: Locator, action: "click" | "focus") {
 const existingField = page.getByRole("textbox", { name: "Keybinding for Sidebar: Toggle" });
 const existingPill = page.getByRole("button", { name: /^Edit shortcut for Sidebar: Toggle:/ });
 const newField = page.getByRole("textbox", { name: "Keybinding for new keybinding" });
+const chineseNewField = page.getByRole("textbox", { name: "新快捷键 的快捷键" });
 
 describe("Esc in a shortcut recorder", () => {
   it.each<{
     name: string;
+    locale: "en" | "zh-CN";
     field: Locator;
     open: () => Promise<void>;
     expectReset: () => Promise<void>;
   }>([
     {
       name: "existing binding",
+      locale: "en",
       field: existingField,
       open: () => activate(existingPill, "click"),
       expectReset: async () => {
@@ -66,6 +71,7 @@ describe("Esc in a shortcut recorder", () => {
     },
     {
       name: "new binding",
+      locale: "en",
       field: newField,
       open: async () => {
         await activate(page.getByRole("button", { name: "Add keybinding" }), "click");
@@ -76,15 +82,42 @@ describe("Esc in a shortcut recorder", () => {
         await expect.element(newField).toHaveAttribute("placeholder", "Unassigned");
       },
     },
-  ])("leaves the $name field without closing Settings", async ({ field, open, expectReset }) => {
+    {
+      name: "new binding in Simplified Chinese",
+      locale: "zh-CN",
+      field: chineseNewField,
+      open: async () => {
+        await activate(page.getByRole("button", { name: "添加快捷键" }), "click");
+        await activate(chineseNewField, "focus");
+      },
+      expectReset: async () => {
+        await expect.element(chineseNewField).toHaveValue("");
+        await expect.element(chineseNewField).toHaveAttribute("placeholder", "未分配");
+      },
+    },
+  ])("leaves the $name field without closing Settings", async ({
+    locale,
+    field,
+    open,
+    expectReset,
+  }) => {
     const onOpenChange = vi.fn();
     await using _screen = await render(
-      <Dialog open onOpenChange={onOpenChange}>
-        <DialogPopup>
-          <DialogTitle>Settings</DialogTitle>
-          <KeybindingsSettingsPanel />
-        </DialogPopup>
-      </Dialog>,
+      <WebI18nContext
+        value={{
+          locale,
+          appLocale: locale,
+          setAppLocale: () => undefined,
+          t: (key, values) => translateWebMessage(locale, key, values),
+        }}
+      >
+        <Dialog open onOpenChange={onOpenChange}>
+          <DialogPopup>
+            <DialogTitle>Settings</DialogTitle>
+            <KeybindingsSettingsPanel />
+          </DialogPopup>
+        </Dialog>
+      </WebI18nContext>,
     );
 
     await open();
@@ -92,7 +125,9 @@ describe("Esc in a shortcut recorder", () => {
     await expect.element(field).not.toHaveValue("");
     await userEvent.tab();
     await activate(field, "focus");
-    await expect.element(field).toHaveAttribute("placeholder", "Press shortcut");
+    await expect
+      .element(field)
+      .toHaveAttribute("placeholder", locale === "en" ? "Press shortcut" : "按下快捷键");
 
     await userEvent.keyboard("{Escape}");
 

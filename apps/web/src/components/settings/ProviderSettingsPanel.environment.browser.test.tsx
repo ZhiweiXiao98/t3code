@@ -16,6 +16,8 @@ import { page, userEvent } from "vite-plus/test/browser";
 
 import "~/index.css";
 import { act, render } from "../../../test/render";
+import { WebI18nContext } from "../../i18n/WebI18nContext";
+import { translateWebMessage } from "../../i18n/messages";
 
 const state = vi.hoisted(() => ({
   providers: null as unknown as Atom.Writable<ReadonlyArray<ServerProvider>>,
@@ -427,7 +429,13 @@ describe("EnvironmentProviderSettings instance removal", () => {
     expect(state.mutateProviderInstance).not.toHaveBeenCalled();
   });
 
-  it("deletes a custom instance only once the user confirms", async () => {
+  it.each([
+    { locale: "en", removeLabel: `Delete instance ${customId}` },
+    { locale: "zh-CN", removeLabel: `删除服务提供方实例 ${customId}` },
+  ] as const)("deletes a custom instance only once the user confirms ($locale)", async ({
+    locale,
+    removeLabel,
+  }) => {
     await setup();
     state.settings = {
       ...DEFAULT_UNIFIED_SETTINGS,
@@ -435,8 +443,19 @@ describe("EnvironmentProviderSettings instance removal", () => {
         [customId]: { driver: ProviderDriverKind.make("codex"), enabled: true },
       },
     };
-    await using _screen = await render(panel({ targetInstanceId: customId }));
-    const remove = page.getByRole("button", { name: `Delete instance ${customId}` });
+    await using _screen = await render(
+      <WebI18nContext
+        value={{
+          locale,
+          appLocale: locale,
+          setAppLocale: () => undefined,
+          t: (key, values) => translateWebMessage(locale, key, values),
+        }}
+      >
+        {panel({ targetInstanceId: customId })}
+      </WebI18nContext>,
+    );
+    const remove = page.getByRole("button", { name: removeLabel });
     await userEvent.click(remove);
 
     expect(state.mutateProviderInstance).not.toHaveBeenCalled();
@@ -450,6 +469,7 @@ describe("EnvironmentProviderSettings instance removal", () => {
         instanceId: customId,
       }),
     );
+    expect(state.mutateProviderInstance).toHaveBeenCalledOnce();
   });
 });
 
