@@ -1,31 +1,18 @@
+# LOCAL DISABLED PROPOSAL. Do not activate before focused guest and independent review.
 name: 简体中文客户端验证与构建
-
-on:
-  push:
-    branches: [maintenance/v0.1.7-zh-cloud]
-  workflow_dispatch:
-    inputs:
-      expected_sha:
-        description: Exact full commit SHA to validate and build
-        required: true
-        type: string
-
 permissions:
   contents: read
-
+  actions: read
 concurrency:
   group: community-clients-${{ github.ref }}
   cancel-in-progress: true
-
 env:
   CLIENT_VERSION: 0.1.7-zh.1
   CI: "true"
   CSC_IDENTITY_AUTO_DISCOVERY: "false"
   T3CODE_DESKTOP_SIGNED: "false"
-  # Public distribution endpoints, never production relay credentials.
   ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
   ELECTRON_BUILDER_BINARIES_MIRROR: https://github.com/electron-userland/electron-builder-binaries/releases/download/
-
 jobs:
   source:
     name: Validate exact source
@@ -39,28 +26,23 @@ jobs:
         env:
           EXPECTED_SHA: ${{ inputs.expected_sha }}
         with:
-          script: |
-            if (context.repo.owner !== 'ZhiweiXiao98' || context.repo.repo !== 't3code') {
-              throw new Error('This workflow is scoped to ZhiweiXiao98/t3code.');
-            }
-            if (context.payload.repository.private !== false) {
-              throw new Error('Standard hosted runners are free for public repositories only.');
-            }
-            if (context.ref !== 'refs/heads/maintenance/v0.1.7-zh-cloud') {
-              throw new Error('Dispatch must select maintenance/v0.1.7-zh-cloud.');
-            }
-            if (context.eventName === 'workflow_dispatch' &&
-                (!/^[0-9a-f]{40}$/.test(process.env.EXPECTED_SHA || '') ||
-                 process.env.EXPECTED_SHA !== context.sha)) {
-              throw new Error('Expected SHA must equal the selected branch commit exactly.');
-            }
-            core.setOutput('sha', context.sha);
-            core.summary.addRaw(`Source: ${context.sha}\nVersion: 0.1.7-zh.1\n`);
-            await core.summary.write();
-
+          script:
+            "if (context.repo.owner !== 'ZhiweiXiao98' || context.repo.repo !== 't3code') {\n  throw new Error('This workflow\
+            \ is scoped to ZhiweiXiao98/t3code.');\n}\nif (context.payload.repository.private !== false) {\n  throw new Error('Standard\
+            \ hosted runners are free for public repositories only.');\n}\nif (context.ref !== 'refs/heads/maintenance/v0.1.7-zh-cloud')\
+            \ {\n  throw new Error('Dispatch must select maintenance/v0.1.7-zh-cloud.');\n}\nif (context.eventName === 'workflow_dispatch'\
+            \ &&\n    (!/^[0-9a-f]{40}$/.test(process.env.EXPECTED_SHA || '') ||\n     process.env.EXPECTED_SHA !== context.sha))\
+            \ {\n  throw new Error('Expected SHA must equal the selected branch commit exactly.');\n}\ncore.setOutput('sha',\
+            \ context.sha);\ncore.summary.addRaw(`Source: ${context.sha}\\nVersion: 0.1.7-zh.1\\n`);\nawait core.summary.write();\n"
   quality:
     name: Lint and typecheck
-    needs: [source, bundle, linux, desktop, android, tests]
+    needs:
+      - source
+      - bundle
+      - linux
+      - desktop
+      - android
+      - tests
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -76,15 +58,22 @@ jobs:
         env:
           SOURCE_SHA: ${{ needs.source.outputs.sha }}
           GIT_TERMINAL_PROMPT: "0"
-        run: |
-          set -euo pipefail
+        run: 'set -euo pipefail
+
           git init .
+
           git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+
           git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
-          git sparse-checkout set --no-cone '/*' '!/.repos/'
+
+          git sparse-checkout set --no-cone ''/*'' ''!/.repos/''
+
           git checkout --detach FETCH_HEAD
+
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
-      - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
+
+          '
+      - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
         with:
           node-version-file: package.json
           cache: true
@@ -93,12 +82,9 @@ jobs:
         id: dependencies
         run: vp install --frozen-lockfile
       - name: Reject repository-owned PR assets
-        run: |
-          files="$(git ls-files .github/pr-assets)"
-          if test -n "$files"; then
-            printf 'PR evidence must be uploaded to GitHub, not committed:\n%s\n' "$files" >&2
-            exit 1
-          fi
+        run:
+          "files=\"$(git ls-files .github/pr-assets)\"\nif test -n \"$files\"; then\n  printf 'PR evidence must be uploaded\
+          \ to GitHub, not committed:\\n%s\\n' \"$files\" >&2\n  exit 1\nfi\n"
       - run: vp run --filter @t3tools/desktop ensure:electron
       - if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
         run: vp run knip:check
@@ -108,14 +94,33 @@ jobs:
         run: vp run --filter t3 generate --check
       - if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
         run: node scripts/release-smoke.ts
+      - name: Validate Linux QA helper regressions
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
+        timeout-minutes: 5
+        shell: bash
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: "set -euo pipefail
+
+          python3 -m unittest discover -s .github/scripts/debian-guest/tests -p 'test_*.py' -v
+
+          node .github/scripts/debian-guest/tests/test-privacy-driver.mjs
+
+          node .github/scripts/debian-guest/tests/test-typed-driver.mjs
+
+          "
       - if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
         run: vp check
       - if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
         run: vp run -r --concurrency-limit 2 typecheck
-
   native-rust-quality:
     name: Rust native formatting and tests
-    needs: [source, bundle, linux, desktop, android]
+    needs:
+      - source
+      - bundle
+      - linux
+      - desktop
+      - android
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -124,27 +129,36 @@ jobs:
         env:
           SOURCE_SHA: ${{ needs.source.outputs.sha }}
           GIT_TERMINAL_PROMPT: "0"
-        run: |
-          set -euo pipefail
+        run: 'set -euo pipefail
+
           git init .
+
           git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+
           git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
-          git sparse-checkout set --no-cone '/*' '!/.repos/'
+
+          git sparse-checkout set --no-cone ''/*'' ''!/.repos/''
+
           git checkout --detach FETCH_HEAD
+
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+
+          '
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
         with:
           components: rustfmt
       - name: Check all native Rust crates
-        run: |
-          for crate in resource-monitor kde-snap-shot hyprland-snap-shot; do
-            cargo fmt --manifest-path "native/$crate/Cargo.toml" -- --check
-            cargo test --locked --manifest-path "native/$crate/Cargo.toml"
-          done
-
+        run:
+          "for crate in resource-monitor kde-snap-shot hyprland-snap-shot; do\n  cargo fmt --manifest-path \"native/$crate/Cargo.toml\"\
+          \ -- --check\n  cargo test --locked --manifest-path \"native/$crate/Cargo.toml\"\ndone\n"
   mobile-native-quality:
     name: Mobile native static analysis
-    needs: [source, bundle, linux, desktop, android]
+    needs:
+      - source
+      - bundle
+      - linux
+      - desktop
+      - android
     runs-on: macos-15-intel
     timeout-minutes: 30
     steps:
@@ -153,15 +167,22 @@ jobs:
         env:
           SOURCE_SHA: ${{ needs.source.outputs.sha }}
           GIT_TERMINAL_PROMPT: "0"
-        run: |
-          set -euo pipefail
+        run: 'set -euo pipefail
+
           git init .
+
           git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+
           git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
-          git sparse-checkout set --no-cone '/*' '!/.repos/'
+
+          git sparse-checkout set --no-cone ''/*'' ''!/.repos/''
+
           git checkout --detach FETCH_HEAD
+
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
-      - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
+
+          '
+      - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
         with:
           node-version-file: package.json
           cache: true
@@ -175,32 +196,47 @@ jobs:
         run: vp run lint:mobile
       - name: Run native review diff Swift regressions
         run: bash apps/mobile/modules/t3-review-diff/tests/run-ios.sh
-
   tests:
     name: Tests (${{ matrix.suite }})
-    needs: [source, bundle, linux, desktop, android]
-    # Ubuntu 24.04 blocks the server's normal Chromium sandbox through AppArmor.
+    needs:
+      - source
+      - bundle
+      - linux
+      - desktop
+      - android
     runs-on: ${{ startsWith(matrix.suite, 'server-') && 'ubuntu-22.04' || 'ubuntu-24.04' }}
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        suite: [clients, web, server-1, server-2, server-3]
+        suite:
+          - clients
+          - web
+          - server-1
+          - server-2
+          - server-3
     steps:
       - name: Checkout exact source without credentials
         shell: bash
         env:
           SOURCE_SHA: ${{ needs.source.outputs.sha }}
           GIT_TERMINAL_PROMPT: "0"
-        run: |
-          set -euo pipefail
+        run: 'set -euo pipefail
+
           git init .
+
           git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+
           git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
-          git sparse-checkout set --no-cone '/*' '!/.repos/'
+
+          git sparse-checkout set --no-cone ''/*'' ''!/.repos/''
+
           git checkout --detach FETCH_HEAD
+
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
-      - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
+
+          '
+      - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
         with:
           node-version-file: package.json
           cache: true
@@ -209,9 +245,11 @@ jobs:
         id: dependencies
         run: vp install --frozen-lockfile
       - name: Install Linux native build libraries
-        run: |
-          sudo apt-get update
+        run: "sudo apt-get update
+
           sudo apt-get install -y libsecret-1-dev pkg-config build-essential imagemagick
+
+          "
       - run: vp run --filter @t3tools/desktop ensure:electron
         if: matrix.suite == 'clients'
       - name: Install Chromium for web and server browser tests
@@ -219,56 +257,41 @@ jobs:
         shell: bash
         env:
           SUITE: ${{ matrix.suite }}
-        run: |
-          set -euo pipefail
-          browser_cli=apps/server/node_modules/playwright-core/cli.js
-          if [[ "$SUITE" == web ]]; then
-            browser_cli=apps/web/node_modules/playwright/cli.js
-          fi
-          node "$browser_cli" install --with-deps --only-shell chromium
-          if [[ "$SUITE" == server-* ]]; then
-            test "$(node -p "require('./apps/server/node_modules/playwright-core/package.json').version")" = "$(node -p "require('./apps/server/package.json').dependencies['playwright-core']")"
-            browser_revision=$(node -p "require('./apps/server/node_modules/playwright-core/browsers.json').browsers.find(browser => browser.name === 'chromium-headless-shell').revision")
-            browser_root="$HOME/.cache/ms-playwright/chromium_headless_shell-$browser_revision"
-            mapfile -t browsers < <(find "$browser_root" -type f -name chrome-headless-shell)
-            test "${#browsers[@]}" -eq 1
-            browser="${browsers[0]}"
-            test -x "$browser"
-            test "${T3CODE_SERVER_BROWSER_SANDBOX:-1}" != 0
-            echo "T3CODE_TEST_HEADLESS_SHELL=$browser" >> "$GITHUB_ENV"
-            node -p "JSON.stringify({node: process.version, undici: process.versions.undici, playwright: require('./apps/server/node_modules/playwright-core/package.json').version})"
-            "$browser" --version
-            sha256sum "$browser"
-          fi
+        run:
+          "set -euo pipefail\nbrowser_cli=apps/server/node_modules/playwright-core/cli.js\nif [[ \"$SUITE\" == web ]]; then\n\
+          \  browser_cli=apps/web/node_modules/playwright/cli.js\nfi\nnode \"$browser_cli\" install --with-deps --only-shell\
+          \ chromium\nif [[ \"$SUITE\" == server-* ]]; then\n  test \"$(node -p \"require('./apps/server/node_modules/playwright-core/package.json').version\"\
+          )\" = \"$(node -p \"require('./apps/server/package.json').dependencies['playwright-core']\")\"\n  browser_revision=$(node\
+          \ -p \"require('./apps/server/node_modules/playwright-core/browsers.json').browsers.find(browser => browser.name ===\
+          \ 'chromium-headless-shell').revision\")\n  browser_root=\"$HOME/.cache/ms-playwright/chromium_headless_shell-$browser_revision\"\
+          \n  mapfile -t browsers < <(find \"$browser_root\" -type f -name chrome-headless-shell)\n  test \"${#browsers[@]}\"\
+          \ -eq 1\n  browser=\"${browsers[0]}\"\n  test -x \"$browser\"\n  test \"${T3CODE_SERVER_BROWSER_SANDBOX:-1}\" != 0\n\
+          \  echo \"T3CODE_TEST_HEADLESS_SHELL=$browser\" >> \"$GITHUB_ENV\"\n  node -p \"JSON.stringify({node: process.version,\
+          \ undici: process.versions.undici, playwright: require('./apps/server/node_modules/playwright-core/package.json').version})\"\
+          \n  \"$browser\" --version\n  sha256sum \"$browser\"\nfi\n"
       - name: Check release and preview orchestration helpers
         if: matrix.suite == 'clients'
-        run: |
-          python3 -B .github/scripts/stage-preview-bundle.test.py
+        run: "python3 -B .github/scripts/stage-preview-bundle.test.py
+
           node --test .github/scripts/check-nightly-release.test.cjs .github/scripts/vercel-deployment-output.test.cjs
+
+          "
       - name: Run tests
         shell: bash
         env:
           SUITE: ${{ matrix.suite }}
           T3CODE_TRANSFER_BUDGET_REPORT_PATH: ${{ runner.temp }}/t3code-transfer-budget.md
           T3CODE_TRANSFER_BUDGET_RESULT_PATH: ${{ runner.temp }}/thread-transfer-result.json
-        run: |
-          set -euo pipefail
-          if [[ "$SUITE" == clients ]]; then
-            vp run --parallel --concurrency-limit 2 --filter '!t3' --filter '!@t3tools/monorepo' --filter '!@t3tools/web' test
-          elif [[ "$SUITE" == web ]]; then
-            vp run --filter @t3tools/web test
-          else
-            vp run --filter t3 test --shard "${SUITE#server-}/3"
-          fi
-
+        run:
+          "set -euo pipefail\nif [[ \"$SUITE\" == clients ]]; then\n  vp run --parallel --concurrency-limit 2 --filter '!t3'\
+          \ --filter '!@t3tools/monorepo' --filter '!@t3tools/web' test\nelif [[ \"$SUITE\" == web ]]; then\n  vp run --filter\
+          \ @t3tools/web test\nelse\n  vp run --filter t3 test --shard \"${SUITE#server-}/3\"\nfi\n"
       - name: Detect transfer budget report
         id: transfer_budget
         if: always() && startsWith(matrix.suite, 'server-')
-        run: |
-          if test -s "$RUNNER_TEMP/thread-transfer-result.json"; then
-            echo "present=true" >> "$GITHUB_OUTPUT"
-            cat "$RUNNER_TEMP/t3code-transfer-budget.md" >> "$GITHUB_STEP_SUMMARY"
-          fi
+        run:
+          "if test -s \"$RUNNER_TEMP/thread-transfer-result.json\"; then\n  echo \"present=true\" >> \"$GITHUB_OUTPUT\"\n\
+          \  cat \"$RUNNER_TEMP/t3code-transfer-budget.md\" >> \"$GITHUB_STEP_SUMMARY\"\nfi\n"
       - uses: actions/upload-artifact@v7
         if: always() && steps.transfer_budget.outputs.present == 'true'
         with:
@@ -276,13 +299,13 @@ jobs:
           path: ${{ runner.temp }}/thread-transfer-result.json
           if-no-files-found: error
           retention-days: 30
-
       - name: Boot the built web client
         if: matrix.suite == 'web'
-        run: |
-          vp run --filter @t3tools/web build
+        run: "vp run --filter @t3tools/web build
+
           node apps/web/scripts/verify-built-boot.ts
 
+          "
   bundle:
     name: Build validated desktop bundle
     needs: source
@@ -294,15 +317,22 @@ jobs:
         env:
           SOURCE_SHA: ${{ needs.source.outputs.sha }}
           GIT_TERMINAL_PROMPT: "0"
-        run: |
-          set -euo pipefail
+        run: 'set -euo pipefail
+
           git init .
+
           git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+
           git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
-          git sparse-checkout set --no-cone '/*' '!/.repos/'
+
+          git sparse-checkout set --no-cone ''/*'' ''!/.repos/''
+
           git checkout --detach FETCH_HEAD
+
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
-      - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
+
+          '
+      - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
         with:
           node-version-file: package.json
           cache: true
@@ -311,24 +341,29 @@ jobs:
         id: dependencies
         run: vp install --frozen-lockfile
       - name: Install Linux native build libraries
-        run: |
-          sudo apt-get update
+        run: "sudo apt-get update
+
           sudo apt-get install -y libsecret-1-dev pkg-config build-essential imagemagick
+
+          "
       - run: node scripts/update-release-package-versions.ts "$CLIENT_VERSION"
       - run: vp run build:desktop
       - run: node apps/desktop/scripts/verify-preload-bundle.mjs
       - uses: actions/upload-artifact@v7
         with:
           name: community-js-bundle
-          path: |
-            apps/server/dist
+          path: "apps/server/dist
+
             apps/desktop/dist-electron
+
+            "
           if-no-files-found: error
           retention-days: 7
-
   linux:
     name: Linux x64 and embedded Windows WSL runtime
-    needs: [source, bundle]
+    needs:
+      - source
+      - bundle
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
@@ -337,15 +372,22 @@ jobs:
         env:
           SOURCE_SHA: ${{ needs.source.outputs.sha }}
           GIT_TERMINAL_PROMPT: "0"
-        run: |
-          set -euo pipefail
+        run: 'set -euo pipefail
+
           git init .
+
           git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+
           git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
-          git sparse-checkout set --no-cone '/*' '!/.repos/'
+
+          git sparse-checkout set --no-cone ''/*'' ''!/.repos/''
+
           git checkout --detach FETCH_HEAD
+
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
-      - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
+
+          '
+      - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
         with:
           node-version-file: package.json
           cache: true
@@ -354,10 +396,12 @@ jobs:
         id: dependencies
         run: vp install --frozen-lockfile
       - name: Install Linux native build libraries
-        run: |
-          sudo apt-get update
+        run: "sudo apt-get update
+
           sudo apt-get install -y libsecret-1-dev pkg-config build-essential imagemagick
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+
+          "
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
         with:
           toolchain: stable
           targets: x86_64-unknown-linux-gnu
@@ -367,15 +411,23 @@ jobs:
           name: community-js-bundle
           path: apps
       - name: Package Linux client
-        run: vp run dist:desktop:artifact --platform linux --target AppImage --arch x64 --build-version "$CLIENT_VERSION" --skip-build --verbose
+        run:
+          vp run dist:desktop:artifact --platform linux --target AppImage --arch x64 --build-version "$CLIENT_VERSION" --skip-build
+          --verbose
       - name: Launch packaged Linux client
-        run: |
-          set -euo pipefail
+        run: 'set -euo pipefail
+
           sudo apt-get install -y xvfb
+
           appimage=$(ls "$GITHUB_WORKSPACE"/release/*.AppImage)
+
           chmod +x "$appimage"
+
           (cd "$RUNNER_TEMP" && "$appimage" --appimage-extract >/dev/null)
+
           xvfb-run -a node scripts/smoke-desktop-app.ts --artifacts-dir "$RUNNER_TEMP/desktop-launch-check" --executable "$RUNNER_TEMP/squashfs-root/t3code"
+
+          '
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
@@ -386,11 +438,16 @@ jobs:
       - name: Build embedded WSL executable
         run: node apps/server/scripts/cli.ts build-exe --verbose
       - name: Package and smoke-test embedded WSL runtime
-        run: |
-          mkdir -p "$RUNNER_TEMP/cli-resource-monitor/linux-x64"
+        run: 'mkdir -p "$RUNNER_TEMP/cli-resource-monitor/linux-x64"
+
           cp native/resource-monitor/target/x86_64-unknown-linux-gnu/release/t3-resource-monitor "$RUNNER_TEMP/cli-resource-monitor/linux-x64/"
-          node scripts/build-cli-archive.ts --platform linux --arch x64 --version "$CLIENT_VERSION" --resource-monitor-dir "$RUNNER_TEMP/cli-resource-monitor" --output-dir wsl-runtime
+
+          node scripts/build-cli-archive.ts --platform linux --arch x64 --version "$CLIENT_VERSION" --resource-monitor-dir "$RUNNER_TEMP/cli-resource-monitor"
+          --output-dir wsl-runtime
+
           node scripts/smoke-cli-archive.ts --archive wsl-runtime/* --expect-version "$CLIENT_VERSION"
+
+          '
       - uses: actions/upload-artifact@v7
         with:
           name: community-wsl-runtime
@@ -400,15 +457,42 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: client-linux-x64
-          path: |
-            release/*.AppImage
+          path: "release/*.AppImage
+
             release/*.deb
+
+            "
           if-no-files-found: error
           retention-days: 14
+        name: Upload Linux installers (upload-artifact)
+      - name: Record exact Linux build proof
+        shell: bash
+        run: 'set -euo pipefail
 
+          mkdir -p "$RUNNER_TEMP/linux-build-proof"
+
+          git rev-parse HEAD > "$RUNNER_TEMP/linux-build-proof/source-sha.txt"
+
+          git rev-parse HEAD^{tree} > "$RUNNER_TEMP/linux-build-proof/source-tree.txt"
+
+          sha256sum release/*.AppImage release/*.deb > "$RUNNER_TEMP/linux-build-proof/installers.sha256"
+
+          sha256sum .github/scripts/check-clean-desktop-first-start.mjs > "$RUNNER_TEMP/linux-build-proof/driver.sha256"
+
+          '
+      - name: Upload Linux build proof (upload-artifact)
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: linux-build-proof
+          path: ${{ runner.temp }}/linux-build-proof
+          if-no-files-found: error
+          retention-days: 14
   desktop:
     name: Desktop ${{ matrix.platform }} ${{ matrix.arch }} (integrity checked)
-    needs: [source, bundle, linux]
+    needs:
+      - source
+      - bundle
+      - linux
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 120
     defaults:
@@ -439,15 +523,22 @@ jobs:
         env:
           SOURCE_SHA: ${{ needs.source.outputs.sha }}
           GIT_TERMINAL_PROMPT: "0"
-        run: |
-          set -euo pipefail
+        run: 'set -euo pipefail
+
           git init .
+
           git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+
           git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
-          git sparse-checkout set --no-cone '/*' '!/.repos/'
+
+          git sparse-checkout set --no-cone ''/*'' ''!/.repos/''
+
           git checkout --detach FETCH_HEAD
+
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
-      - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
+
+          '
+      - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
         with:
           node-version-file: package.json
           cache: true
@@ -455,19 +546,25 @@ jobs:
       - name: Install locked dependencies
         id: dependencies
         run: vp install --frozen-lockfile
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
         with:
           toolchain: stable
           targets: ${{ matrix.rust_target }}
       - name: Install Windows Spectre-mitigated runtime
         if: matrix.platform == 'win'
         shell: pwsh
-        run: |
-          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+        run: '$vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+
           $installPath = & $vswhere -products * -latest -property installationPath
+
           $setup = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\setup.exe"
-          $proc = Start-Process $setup -ArgumentList "modify", "--installPath", "`"$installPath`"", "--add", "Microsoft.VisualStudio.Component.VC.Runtimes.x86.x64.Spectre", "--quiet", "--norestart" -Wait -PassThru
+
+          $proc = Start-Process $setup -ArgumentList "modify", "--installPath", "`"$installPath`"", "--add", "Microsoft.VisualStudio.Component.VC.Runtimes.x86.x64.Spectre",
+          "--quiet", "--norestart" -Wait -PassThru
+
           if ($proc.ExitCode -notin @(0, 3010)) { throw "VS installer failed: $($proc.ExitCode)" }
+
+          '
       - run: node scripts/update-release-package-versions.ts "$CLIENT_VERSION"
       - uses: actions/download-artifact@v8
         with:
@@ -483,57 +580,65 @@ jobs:
           PLATFORM: ${{ matrix.platform }}
           TARGET: ${{ matrix.target }}
           ARCH: ${{ matrix.arch }}
-        run: |
-          set -euo pipefail
-          args=(--platform "$PLATFORM" --target "$TARGET" --arch "$ARCH" --build-version "$CLIENT_VERSION" --skip-build --verbose)
-          if [[ "$PLATFORM" == win ]]; then
-            args+=(--wsl-runtime "$GITHUB_WORKSPACE/wsl-runtime/t3-$CLIENT_VERSION-linux-x64.tar.gz")
-          fi
-          vp run dist:desktop:artifact "${args[@]}"
-          echo "Community build: macOS uses ad-hoc integrity signing without Developer ID or notarization. Strict bundle integrity is required; Gatekeeper trust is reported separately. Windows is not Authenticode signed." >> "$GITHUB_STEP_SUMMARY"
+        run:
+          "set -euo pipefail\nargs=(--platform \"$PLATFORM\" --target \"$TARGET\" --arch \"$ARCH\" --build-version \"$CLIENT_VERSION\"\
+          \ --skip-build --verbose)\nif [[ \"$PLATFORM\" == win ]]; then\n  args+=(--wsl-runtime \"$GITHUB_WORKSPACE/wsl-runtime/t3-$CLIENT_VERSION-linux-x64.tar.gz\"\
+          )\nfi\nvp run dist:desktop:artifact \"${args[@]}\"\necho \"Community build: macOS uses ad-hoc integrity signing without\
+          \ Developer ID or notarization. Strict bundle integrity is required; Gatekeeper trust is reported separately. Windows\
+          \ is not Authenticode signed.\" >> \"$GITHUB_STEP_SUMMARY\"\n"
       - name: Verify macOS integrity and report quarantined Gatekeeper trust
         if: matrix.platform == 'mac'
-        run: |
-          set -euo pipefail
+        run: 'set -euo pipefail
+
           mount="$RUNNER_TEMP/desktop-launch-dmg"
+
           hdiutil attach -nobrowse -readonly -mountpoint "$mount" "$(ls "$GITHUB_WORKSPACE"/release/*.dmg)"
-          trap 'hdiutil detach "$mount" -force >/dev/null || true' EXIT
+
+          trap ''hdiutil detach "$mount" -force >/dev/null || true'' EXIT
+
           app=$(ls -d "$mount"/*.app)
+
           mkdir -p "$RUNNER_TEMP/desktop-launch-check"
+
           bash .github/scripts/verify-macos-distribution.sh "$app" --signature-only 2>&1 | tee "$RUNNER_TEMP/desktop-launch-check/signature.log"
+
           copy_root=$(mktemp -d "$RUNNER_TEMP/desktop-gatekeeper.XXXXXX")
+
           copy="$copy_root/$(basename "$app")"
+
           ditto "$app" "$copy"
+
           # Simulate a browser download on a disposable CI copy; never clear quarantine or change Gatekeeper.
-          quarantine=$(printf '0081;%x;T3CodeCI;' "$(date +%s)")
+
+          quarantine=$(printf ''0081;%x;T3CodeCI;'' "$(date +%s)")
+
           xattr -w com.apple.quarantine "$quarantine" "$copy"
+
           bash .github/scripts/verify-macos-distribution.sh "$copy" 2>&1 | tee "$RUNNER_TEMP/desktop-launch-check/gatekeeper.log"
+
           cp "$RUNNER_TEMP/desktop-launch-check/gatekeeper.log" "release/MACOS-TRUST-${{ matrix.arch }}.txt"
+
           cat "$RUNNER_TEMP/desktop-launch-check/gatekeeper.log" >> "$GITHUB_STEP_SUMMARY"
+
           executable=$(/usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" "$app/Contents/Info.plist")
+
           node scripts/smoke-desktop-app.ts --artifacts-dir "$RUNNER_TEMP/desktop-launch-check" --executable "$app/Contents/MacOS/$executable"
+
+          '
       - name: Launch installed Windows client
         if: matrix.platform == 'win'
         shell: pwsh
         timeout-minutes: 10
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $installer = Join-Path $env:GITHUB_WORKSPACE "release/T3-Code-$env:CLIENT_VERSION-x64.exe"
-          $installDir = Join-Path $env:RUNNER_TEMP ("t3-installed-" + [guid]::NewGuid().ToString('N'))
-          if (-not (Test-Path -LiteralPath $installer -PathType Leaf)) {
-            throw "Expected installer missing: $installer"
-          }
-          # NSIS requires /D last and its value without literal quote characters.
-          $process = Start-Process -FilePath $installer -ArgumentList "/S /D=$installDir" -Wait -PassThru
-          if ($process.ExitCode -ne 0) {
-            throw "Installer failed with exit code $($process.ExitCode)"
-          }
-          $executable = Join-Path $installDir 'T3 Code (Beta).exe'
-          if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) {
-            throw "Installed application missing: $executable"
-          }
-          node scripts/smoke-desktop-app.ts --artifacts-dir "$env:RUNNER_TEMP/desktop-launch-check" --executable "$executable"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        run:
+          "$ErrorActionPreference = 'Stop'\n$installer = Join-Path $env:GITHUB_WORKSPACE \"release/T3-Code-$env:CLIENT_VERSION-x64.exe\"\
+          \n$installDir = Join-Path $env:RUNNER_TEMP (\"t3-installed-\" + [guid]::NewGuid().ToString('N'))\nif (-not (Test-Path\
+          \ -LiteralPath $installer -PathType Leaf)) {\n  throw \"Expected installer missing: $installer\"\n}\n# NSIS requires\
+          \ /D last and its value without literal quote characters.\n$process = Start-Process -FilePath $installer -ArgumentList\
+          \ \"/S /D=$installDir\" -Wait -PassThru\nif ($process.ExitCode -ne 0) {\n  throw \"Installer failed with exit code\
+          \ $($process.ExitCode)\"\n}\n$executable = Join-Path $installDir 'T3 Code (Beta).exe'\nif (-not (Test-Path -LiteralPath\
+          \ $executable -PathType Leaf)) {\n  throw \"Installed application missing: $executable\"\n}\nnode scripts/smoke-desktop-app.ts\
+          \ --artifacts-dir \"$env:RUNNER_TEMP/desktop-launch-check\" --executable \"$executable\"\nif ($LASTEXITCODE -ne 0)\
+          \ { exit $LASTEXITCODE }\n"
       - uses: actions/upload-artifact@v7
         if: failure() && (matrix.platform == 'mac' || matrix.platform == 'win')
         with:
@@ -544,17 +649,26 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: client-${{ matrix.platform }}-${{ matrix.arch }}
-          path: |
-            release/*.dmg
+          path: "release/*.dmg
+
             release/*.zip
+
             release/*.exe
+
             release/MACOS-TRUST-*.txt
+
+            "
           if-no-files-found: error
           retention-days: 14
-
   mac-clean-install:
     name: Clean macOS ${{ matrix.arch }} ${{ matrix.format }} first start
-    needs: [source, desktop, quality, native-rust-quality, mobile-native-quality, tests]
+    needs:
+      - source
+      - desktop
+      - quality
+      - native-rust-quality
+      - mobile-native-quality
+      - tests
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
     strategy:
@@ -579,14 +693,21 @@ jobs:
         env:
           SOURCE_SHA: ${{ needs.source.outputs.sha }}
           GIT_TERMINAL_PROMPT: "0"
-        run: |
-          set -euo pipefail
+        run: 'set -euo pipefail
+
           git init .
+
           git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+
           git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
-          git sparse-checkout set --no-cone '/*' '!/.repos/'
+
+          git sparse-checkout set --no-cone ''/*'' ''!/.repos/''
+
           git checkout --detach FETCH_HEAD
+
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+
+          '
       - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
         with:
           node-version-file: package.json
@@ -602,26 +723,20 @@ jobs:
         env:
           ARCH: ${{ matrix.arch }}
           FORMAT: ${{ matrix.format }}
-        run: |
-          set -euo pipefail
-          install_root=$(mktemp -d "$RUNNER_TEMP/t3-clean-install.XXXXXX")
-          asset="$GITHUB_WORKSPACE/candidate/T3-Code-$CLIENT_VERSION-$ARCH.$FORMAT"
-          mkdir -p "$RUNNER_TEMP/acceptance-artifacts"
-          shasum -a 256 "$asset" | tee "$RUNNER_TEMP/acceptance-artifacts/asset-sha256.txt"
-          if [[ "$FORMAT" == dmg ]]; then
-            mount="$RUNNER_TEMP/t3-candidate-mount"
-            hdiutil attach -nobrowse -readonly -mountpoint "$mount" "$asset"
-            trap 'hdiutil detach "$mount" >/dev/null || true' EXIT
-            ditto "$mount/T3 Code (Beta).app" "$install_root/T3 Code (Beta).app"
-          else
-            ditto -x -k "$asset" "$install_root"
-          fi
-          app="$install_root/T3 Code (Beta).app"
-          bash .github/scripts/verify-macos-distribution.sh "$app" --signature-only 2>&1 | tee "$RUNNER_TEMP/acceptance-artifacts/signature.txt"
-          executable=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Contents/Info.plist")
-          echo "T3_CANDIDATE_EXECUTABLE=$app/Contents/MacOS/$executable" >> "$GITHUB_ENV"
+        run:
+          "set -euo pipefail\ninstall_root=$(mktemp -d \"$RUNNER_TEMP/t3-clean-install.XXXXXX\")\nasset=\"$GITHUB_WORKSPACE/candidate/T3-Code-$CLIENT_VERSION-$ARCH.$FORMAT\"\
+          \nmkdir -p \"$RUNNER_TEMP/acceptance-artifacts\"\nshasum -a 256 \"$asset\" | tee \"$RUNNER_TEMP/acceptance-artifacts/asset-sha256.txt\"\
+          \nif [[ \"$FORMAT\" == dmg ]]; then\n  mount=\"$RUNNER_TEMP/t3-candidate-mount\"\n  hdiutil attach -nobrowse -readonly\
+          \ -mountpoint \"$mount\" \"$asset\"\n  trap 'hdiutil detach \"$mount\" >/dev/null || true' EXIT\n  ditto \"$mount/T3\
+          \ Code (Beta).app\" \"$install_root/T3 Code (Beta).app\"\nelse\n  ditto -x -k \"$asset\" \"$install_root\"\nfi\napp=\"\
+          $install_root/T3 Code (Beta).app\"\nbash .github/scripts/verify-macos-distribution.sh \"$app\" --signature-only 2>&1\
+          \ | tee \"$RUNNER_TEMP/acceptance-artifacts/signature.txt\"\nexecutable=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable'\
+          \ \"$app/Contents/Info.plist\")\necho \"T3_CANDIDATE_EXECUTABLE=$app/Contents/MacOS/$executable\" >> \"$GITHUB_ENV\"\
+          \n"
       - name: Launch with empty data and normal sandbox
-        run: node .github/scripts/check-clean-desktop-first-start.mjs --executable "$T3_CANDIDATE_EXECUTABLE" --platform macOS --playwright-module "$RUNNER_TEMP/acceptance-tools/node_modules/playwright-core/index.mjs" --artifacts-dir "$RUNNER_TEMP/acceptance-artifacts"
+        run:
+          node .github/scripts/check-clean-desktop-first-start.mjs --executable "$T3_CANDIDATE_EXECUTABLE" --platform macOS
+          --playwright-module "$RUNNER_TEMP/acceptance-tools/node_modules/playwright-core/index.mjs" --artifacts-dir "$RUNNER_TEMP/acceptance-artifacts"
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -629,12 +744,18 @@ jobs:
           path: ${{ runner.temp }}/acceptance-artifacts
           if-no-files-found: warn
           retention-days: 14
-
   desktop-clean-install:
-    name: Clean desktop ${{ matrix.kind }} first start
-    needs: [source, linux, desktop, quality, native-rust-quality, mobile-native-quality, tests]
+    name: Clean desktop ${{ matrix.display }} first start
+    needs:
+      - source
+      - linux
+      - desktop
+      - quality
+      - native-rust-quality
+      - mobile-native-quality
+      - tests
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 25
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -643,28 +764,42 @@ jobs:
             kind: deb
             artifact: client-linux-x64
             suffix: amd64.deb
+            display: deb
           - runner: ubuntu-24.04
             kind: appimage
             artifact: client-linux-x64
             suffix: x86_64.AppImage
+            display: appimage Debian 13 guest (Ubuntu 24.04 host)
           - runner: windows-2022
             kind: nsis
             artifact: client-win-x64
             suffix: x64.exe
+            display: nsis
     steps:
+      - name: Reserve bounded validation and upload budget
+        if: runner.os == 'Linux'
+        shell: bash
+        run: python3 -c 'import os,time; open(os.environ["GITHUB_ENV"],"a").write("T3_VALIDATION_DEADLINE="+str(time.monotonic()+39*60)+"\n")'
       - name: Checkout exact source without credentials
         shell: bash
         env:
           SOURCE_SHA: ${{ needs.source.outputs.sha }}
           GIT_TERMINAL_PROMPT: "0"
-        run: |
-          set -euo pipefail
+        run: 'set -euo pipefail
+
           git init .
+
           git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+
           git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
-          git sparse-checkout set --no-cone '/*' '!/.repos/'
+
+          git sparse-checkout set --no-cone ''/*'' ''!/.repos/''
+
           git checkout --detach FETCH_HEAD
+
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+
+          '
       - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
         with:
           node-version-file: package.json
@@ -673,74 +808,111 @@ jobs:
         with:
           name: ${{ matrix.artifact }}
           path: candidate
+        if: matrix.kind == 'nsis'
       - name: Install pinned acceptance driver
         shell: bash
         run: npm install --prefix "$RUNNER_TEMP/acceptance-tools" --no-save --ignore-scripts playwright-core@1.60.0
-      - name: Prepare Linux clean install
+        if: matrix.kind == 'nsis'
+      - timeout-minutes: 5
+        name: Install official Linux validation dependencies
+        if: runner.os == 'Linux'
+        shell: bash
+        run:
+          "set -euo pipefail\nsudo apt-get update\nsudo apt-get install --no-install-recommends -y xvfb xauth dbus-x11 fonts-noto-cjk\
+          \ fontconfig\nif [ '${{ matrix.kind }}' = appimage ]; then\n  sudo apt-get install --no-install-recommends -y qemu-system-x86\
+          \ qemu-utils genisoimage\nfi\n"
+      - timeout-minutes: 5
+        name: Verify own-run Linux producer and original ZIPs
         if: runner.os == 'Linux'
         shell: bash
         env:
-          SUFFIX: ${{ matrix.suffix }}
-        run: |
-          set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/acceptance-artifacts"
-          asset="$GITHUB_WORKSPACE/candidate/T3-Code-$CLIENT_VERSION-$SUFFIX"
-          sha256sum "$asset" | tee "$RUNNER_TEMP/acceptance-artifacts/asset-sha256.txt"
-          echo "T3_CANDIDATE_ASSET=$asset" >> "$GITHUB_ENV"
-          sudo apt-get update
-          sudo apt-get install -y xvfb libfuse2t64 fonts-noto-cjk
-          fc-match sans-serif:lang=zh-cn
-      - name: Install DEB through apt and launch installed entry
-        if: matrix.kind == 'deb'
-        shell: bash
-        run: |
-          set -euo pipefail
-          package=$(dpkg-deb -f "$T3_CANDIDATE_ASSET" Package)
-          sudo apt-get install -y "$T3_CANDIDATE_ASSET"
-          dpkg-query -W "$package" | tee "$RUNNER_TEMP/acceptance-artifacts/installed-package.txt"
-          executable=$(command -v t3code)
-          xvfb-run -a node .github/scripts/check-clean-desktop-first-start.mjs --executable "$executable" --platform Linux --playwright-module "$RUNNER_TEMP/acceptance-tools/node_modules/playwright-core/index.mjs" --artifacts-dir "$RUNNER_TEMP/acceptance-artifacts"
-      - name: Launch ordinary AppImage entry with FUSE
+          GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
+        run: 'set -euo pipefail
+
+          python3 .github/scripts/debian-guest/prepare_live.py --kind ''${{ matrix.kind }}'' --source "$GITHUB_WORKSPACE" --work
+          "$RUNNER_TEMP/live-inputs" --execute-authorized
+
+          '
+      - timeout-minutes: 32
+        name: Validate Debian 13 guest AppImage clean start and Chinese persistence
         if: matrix.kind == 'appimage'
         shell: bash
-        run: |
-          set -euo pipefail
-          chmod u+x "$T3_CANDIDATE_ASSET"
-          test -c /dev/fuse
-          xvfb-run -a node .github/scripts/check-clean-desktop-first-start.mjs --executable "$T3_CANDIDATE_ASSET" --platform Linux --playwright-module "$RUNNER_TEMP/acceptance-tools/node_modules/playwright-core/index.mjs" --artifacts-dir "$RUNNER_TEMP/acceptance-artifacts"
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          T3_STANDARD_RUNNER_LABEL: ubuntu-24.04
+        run: 'set -euo pipefail
+
+          python3 .github/scripts/debian-guest/host.py --manifest "$RUNNER_TEMP/live-inputs/manifest.json" --source-checkout
+          "$GITHUB_WORKSPACE" --artifact-zip "$RUNNER_TEMP/live-inputs/installers.zip" --proof-zip "$RUNNER_TEMP/live-inputs/proof.zip"
+          --playwright-tar "$RUNNER_TEMP/live-inputs/playwright.tgz" --workdir "$RUNNER_TEMP/linux-live-proof" --execute-authorized
+
+          '
+      - name: Validate native Ubuntu 24.04 DEB clean start and Chinese persistence
+        if: matrix.kind == 'deb'
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: 'set -euo pipefail
+
+          python3 .github/scripts/debian-guest/native_deb.py --inputs "$RUNNER_TEMP/live-inputs" --source "$GITHUB_WORKSPACE"
+          --work "$RUNNER_TEMP/linux-live-proof" --execute-authorized
+
+          '
       - name: Install NSIS and launch clean installed entry
         if: matrix.kind == 'nsis'
         shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
+        run: '$ErrorActionPreference = ''Stop''
+
           $asset = Join-Path $env:GITHUB_WORKSPACE "candidate/T3-Code-$env:CLIENT_VERSION-x64.exe"
-          $artifacts = Join-Path $env:RUNNER_TEMP 'acceptance-artifacts'
+
+          $artifacts = Join-Path $env:RUNNER_TEMP ''acceptance-artifacts''
+
           New-Item -ItemType Directory -Force -Path $artifacts | Out-Null
-          Get-FileHash -Algorithm SHA256 $asset | Format-List | Out-File (Join-Path $artifacts 'asset-sha256.txt')
-          $installDir = Join-Path $env:RUNNER_TEMP ('t3-clean-install-' + [guid]::NewGuid().ToString('N'))
+
+          Get-FileHash -Algorithm SHA256 $asset | Format-List | Out-File (Join-Path $artifacts ''asset-sha256.txt'')
+
+          $installDir = Join-Path $env:RUNNER_TEMP (''t3-clean-install-'' + [guid]::NewGuid().ToString(''N''))
+
           $installer = Start-Process -FilePath $asset -ArgumentList "/S /D=$installDir" -Wait -PassThru
+
           if ($installer.ExitCode -ne 0) { throw "NSIS failed: $($installer.ExitCode)" }
-          $executable = Join-Path $installDir 'T3 Code (Beta).exe'
-          if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) { throw 'Installed executable missing' }
-          node .github/scripts/check-clean-desktop-first-start.mjs --executable $executable --platform Windows --playwright-module "$env:RUNNER_TEMP/acceptance-tools/node_modules/playwright-core/index.mjs" --artifacts-dir $artifacts
+
+          $executable = Join-Path $installDir ''T3 Code (Beta).exe''
+
+          if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) { throw ''Installed executable missing'' }
+
+          node .github/scripts/check-clean-desktop-first-start.mjs --executable $executable --platform Windows --playwright-module
+          "$env:RUNNER_TEMP/acceptance-tools/node_modules/playwright-core/index.mjs" --artifacts-dir $artifacts
+
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - uses: actions/upload-artifact@v7
+
+          '
+      - name: Collect bounded Linux proof
+        if: always() && runner.os == 'Linux'
+        shell: bash
+        run: 'set -euo pipefail
+
+          python3 .github/scripts/debian-guest/collect_evidence.py --workdir "$RUNNER_TEMP/linux-live-proof" --out "$RUNNER_TEMP/acceptance-artifacts"
+
+          '
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
           name: clean-install-${{ matrix.kind }}
           path: ${{ runner.temp }}/acceptance-artifacts
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 14
-
   android:
     name: Android arm64 unsigned candidate (NOT installable)
-    needs: [source, bundle]
+    needs:
+      - source
+      - bundle
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     env:
       APP_VARIANT: community
       T3CODE_MOBILE_VERSION: 0.1.7-zh.1
-      # Monotonic community code; signing remains isolated from this build job.
       T3CODE_MOBILE_VERSION_CODE: "1000414"
       T3CODE_MOBILE_UPDATES_ENABLED: "0"
       EXPO_NO_GIT_STATUS: "1"
@@ -751,15 +923,22 @@ jobs:
         env:
           SOURCE_SHA: ${{ needs.source.outputs.sha }}
           GIT_TERMINAL_PROMPT: "0"
-        run: |
-          set -euo pipefail
+        run: 'set -euo pipefail
+
           git init .
+
           git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+
           git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
-          git sparse-checkout set --no-cone '/*' '!/.repos/'
+
+          git sparse-checkout set --no-cone ''/*'' ''!/.repos/''
+
           git checkout --detach FETCH_HEAD
+
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
-      - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
+
+          '
+      - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
         with:
           node-version-file: package.json
           cache: true
@@ -769,10 +948,12 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: |
-            21
+          java-version: "21
+
             17
-      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+
+            "
+      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407
         with:
           packages: platform-tools
           accept-android-sdk-licenses: false
@@ -781,60 +962,51 @@ jobs:
         run: vp exec expo prebuild --platform android --no-install
       - name: Run Android native unit regressions
         working-directory: apps/mobile/android
-        run: |
-          printf '\norg.gradle.java.installations.paths=%s,%s\n' "$JAVA_HOME_17_X64" "$JAVA_HOME_21_X64" >> gradle.properties
-          ./gradlew -q javaToolchains --no-daemon
-          ./gradlew projects --no-daemon
-          ./gradlew :t3-widget-expiry:testDebugUnitTest :t3-agent-notifications:testDebugUnitTest \
-            :t3-composer-editor:testDebugUnitTest :t3tools-mobile-review-diff-native:testDebugUnitTest \
-            :t3tools-mobile-terminal-native:testDebugUnitTest \
-            --no-daemon --max-workers=2
+        run:
+          "printf '\\norg.gradle.java.installations.paths=%s,%s\\n' \"$JAVA_HOME_17_X64\" \"$JAVA_HOME_21_X64\" >> gradle.properties\n\
+          ./gradlew -q javaToolchains --no-daemon\n./gradlew projects --no-daemon\n./gradlew :t3-widget-expiry:testDebugUnitTest\
+          \ :t3-agent-notifications:testDebugUnitTest \\\n  :t3-composer-editor:testDebugUnitTest :t3tools-mobile-review-diff-native:testDebugUnitTest\
+          \ \\\n  :t3tools-mobile-terminal-native:testDebugUnitTest \\\n  --no-daemon --max-workers=2\n"
       - name: Run standalone Android review geometry and viewport regressions
         working-directory: apps/mobile
         run: GRADLE="$PWD/android/gradlew" modules/t3-review-diff/tests/run-android.sh --no-daemon --max-workers=2
       - name: Explicitly disable ALL release signing
-        run: |
-          cat > "$RUNNER_TEMP/unsigned-release.init.gradle" <<'GRADLE'
-          gradle.beforeProject { project ->
-            if (project.path == ":app") {
-              project.pluginManager.withPlugin("com.android.application") {
-                project.extensions.getByName("androidComponents").finalizeDsl { android ->
-                  android.buildTypes.getByName("release").signingConfig = null
-                }
-              }
-            }
-          }
-          GRADLE
+        run:
+          "cat > \"$RUNNER_TEMP/unsigned-release.init.gradle\" <<'GRADLE'\ngradle.beforeProject { project ->\n  if (project.path\
+          \ == \":app\") {\n    project.pluginManager.withPlugin(\"com.android.application\") {\n      project.extensions.getByName(\"\
+          androidComponents\").finalizeDsl { android ->\n        android.buildTypes.getByName(\"release\").signingConfig = null\n\
+          \      }\n    }\n  }\n}\nGRADLE\n"
       - name: Assemble unsigned release candidate
         working-directory: apps/mobile/android
-        run: |
-          ./gradlew :app:assembleRelease --no-daemon --max-workers=2 \
-            -PreactNativeArchitectures=arm64-v8a \
-            -Pt3codeVersionName="$T3CODE_MOBILE_VERSION" \
-            -Pt3codeVersionCode="$T3CODE_MOBILE_VERSION_CODE" \
-            -I "$GITHUB_WORKSPACE/scripts/android-release-version.init.gradle" \
-            -I "$RUNNER_TEMP/unsigned-release.init.gradle"
+        run:
+          "./gradlew :app:assembleRelease --no-daemon --max-workers=2 \\\n  -PreactNativeArchitectures=arm64-v8a \\\n  -Pt3codeVersionName=\"\
+          $T3CODE_MOBILE_VERSION\" \\\n  -Pt3codeVersionCode=\"$T3CODE_MOBILE_VERSION_CODE\" \\\n  -I \"$GITHUB_WORKSPACE/scripts/android-release-version.init.gradle\"\
+          \ \\\n  -I \"$RUNNER_TEMP/unsigned-release.init.gradle\"\n"
       - name: Verify unsigned APK and record blocker
-        run: |
-          set -euo pipefail
-          apk=apps/mobile/android/app/build/outputs/apk/release/app-release-unsigned.apk
-          test -s "$apk"
-          build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
-          test -x "$build_tools/apksigner"
-          if "$build_tools/apksigner" verify "$apk"; then
-            echo 'Unexpected signed APK: refusing candidate upload.' >&2
-            exit 1
-          fi
-          unzip -t "$apk"
-          "$build_tools/aapt" dump badging "$apk" | tee "$RUNNER_TEMP/android-badging.txt"
-          grep -F "package: name='com.zhiweixiao.t3code.zhcn' versionCode='$T3CODE_MOBILE_VERSION_CODE' versionName='$CLIENT_VERSION'" "$RUNNER_TEMP/android-badging.txt"
-          mkdir -p android-candidate
-          cp "$apk" "android-candidate/T3-Code-zh-CN-Android-$CLIENT_VERSION-arm64-UNSIGNED-NOT-INSTALLABLE.apk"
-          printf '%s\n' 'UNSIGNED: This build artifact is not installable. Publication requires the separate fixed-identity signing and APK verification gates. No private signing material is included in this artifact.' > android-candidate/SIGNING-BLOCKER.txt
-          cat android-candidate/SIGNING-BLOCKER.txt >> "$GITHUB_STEP_SUMMARY"
+        run:
+          "set -euo pipefail\napk=apps/mobile/android/app/build/outputs/apk/release/app-release-unsigned.apk\ntest -s \"\
+          $apk\"\nbuild_tools=\"$(find \"$ANDROID_HOME/build-tools\" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)\"\n\
+          test -x \"$build_tools/apksigner\"\nif \"$build_tools/apksigner\" verify \"$apk\"; then\n  echo 'Unexpected signed\
+          \ APK: refusing candidate upload.' >&2\n  exit 1\nfi\nunzip -t \"$apk\"\n\"$build_tools/aapt\" dump badging \"$apk\"\
+          \ | tee \"$RUNNER_TEMP/android-badging.txt\"\ngrep -F \"package: name='com.zhiweixiao.t3code.zhcn' versionCode='$T3CODE_MOBILE_VERSION_CODE'\
+          \ versionName='$CLIENT_VERSION'\" \"$RUNNER_TEMP/android-badging.txt\"\nmkdir -p android-candidate\ncp \"$apk\" \"\
+          android-candidate/T3-Code-zh-CN-Android-$CLIENT_VERSION-arm64-UNSIGNED-NOT-INSTALLABLE.apk\"\nprintf '%s\\n' 'UNSIGNED:\
+          \ This build artifact is not installable. Publication requires the separate fixed-identity signing and APK verification\
+          \ gates. No private signing material is included in this artifact.' > android-candidate/SIGNING-BLOCKER.txt\ncat android-candidate/SIGNING-BLOCKER.txt\
+          \ >> \"$GITHUB_STEP_SUMMARY\"\n"
       - uses: actions/upload-artifact@v7
         with:
           name: android-UNSIGNED-NOT-INSTALLABLE
           path: android-candidate/*
           if-no-files-found: error
           retention-days: 14
+"on":
+  push:
+    branches:
+      - maintenance/v0.1.7-zh-cloud
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact full commit SHA to validate and build
+        required: true
+        type: string
