@@ -16,31 +16,35 @@ jobs:
       OPERATION_BASE_SHA: 94049a79366352504974c4b0c83aab08b1093bd5
       BOOTSTRAP_DIR: ${{ github.workspace }}/.github/scripts/debian-guest
       MANIFEST: ${{ github.workspace }}/.github/scripts/debian-guest/focused-94049a7-manifest.REVIEW-ONLY.json
-      SOURCE_CHECKOUT: ${{ runner.temp }}/t3-guest-exact-source
-      ARTIFACT_ZIP: ${{ runner.temp }}/t3-guest-original-installers.zip
-      PROOF_ZIP: ${{ runner.temp }}/t3-guest-original-build-proof.zip
-      PLAYWRIGHT_TAR: ${{ runner.temp }}/t3-guest-playwright-core-1.60.0.tgz
     steps:
       - name: Checkout exact reviewed operation without stored credentials
         shell: bash
         run: |
           set -euo pipefail
+          echo "SOURCE_CHECKOUT=$RUNNER_TEMP/t3-guest-exact-source" >> "$GITHUB_ENV"
+          echo "ARTIFACT_ZIP=$RUNNER_TEMP/t3-guest-original-installers.zip" >> "$GITHUB_ENV"
+          echo "PROOF_ZIP=$RUNNER_TEMP/t3-guest-original-build-proof.zip" >> "$GITHUB_ENV"
+          echo "PLAYWRIGHT_TAR=$RUNNER_TEMP/t3-guest-playwright-core-1.60.0.tgz" >> "$GITHUB_ENV"
           test "$GITHUB_REPOSITORY" = ZhiweiXiao98/t3code
           test "$GITHUB_EVENT_NAME" = push
           test "$GITHUB_REF" = refs/heads/validation/v0.1.7-debian13-sandbox
           [[ "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]]
           git init .
           git remote add origin "https://github.com/$GITHUB_REPOSITORY.git"
-          git fetch --no-tags --depth=2 origin "$GITHUB_SHA"
+          git fetch --no-tags --depth=3 origin "$GITHUB_SHA"
           git checkout --detach FETCH_HEAD
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           test "$(git cat-file -p HEAD | grep -c '^parent ')" = 1
-          test "$(git rev-parse HEAD^1)" = "$OPERATION_BASE_SHA"
+          test "$(git rev-parse HEAD^1)" = 5c5d4e48fd3fb219e91097d43077233c6c614254
+          test "$(git cat-file -p HEAD^1 | grep -c '^parent ')" = 1
+          test "$(git rev-parse HEAD^1^1)" = "$OPERATION_BASE_SHA"
           python3 - <<'VERIFY_OPERATION'
           import hashlib,pathlib,subprocess
           pins={'.github/scripts/debian-guest/common.py': '78ee963de278730877892b106822bf37956f8b53bc8a0aeb370f91c3ff0db046', '.github/scripts/debian-guest/host.py': 'a24cbec4ea0e74f9c8c6ccf58383dfe8466cb6392d8c9c6e65442e96ee2b2c60', '.github/scripts/debian-guest/guest.py': 'c1bcf7881e3a2006ef885f911dbf69d09888002446ab0593d01b90573151e038', '.github/scripts/debian-guest/decode_serial.py': '407f262a07d3b21b072c2f11c522c1a90f19557b40f5ca7fa8bd9e549f267dd2', '.github/scripts/debian-guest/png_validation.py': '7a8854ab7ac5922639e370e0de9c90b5ec0b9227d53decaf42ddccff5a90a087', '.github/scripts/debian-guest/collect_evidence.py': 'ba4fc5f8d855181deb1c7c415a112df985c427320c754e9daa575b9b216f2594', '.github/scripts/debian-guest/check-debian-cjk-ui.mjs': 'ad5ee86d2e4fa8fa5dbc98a75fcf35eb324b38eb17d9acbfac609cf11f0e37f1', '.github/scripts/debian-guest/focused-94049a7-manifest.REVIEW-ONLY.json': 'e4b27d650c0456bb7901226d9489a916c7cfd630b5300239266f57ef5800a123'}
+          immediate=subprocess.check_output(['git','diff','--name-only','HEAD^1','HEAD'],text=True).splitlines()
+          assert immediate==['.github/workflows/focused-debian13-guest.yml'],immediate
           expected=set(pins)|{'.github/workflows/focused-debian13-guest.yml'}
-          actual=set(subprocess.check_output(['git','diff','--name-only','HEAD^1','HEAD'],text=True).splitlines())
+          actual=set(subprocess.check_output(['git','diff','--name-only','94049a79366352504974c4b0c83aab08b1093bd5','HEAD'],text=True).splitlines())
           assert actual==expected,(actual,expected)
           for name,digest in pins.items():assert hashlib.sha256(pathlib.Path(name).read_bytes()).hexdigest()==digest,name
           VERIFY_OPERATION
