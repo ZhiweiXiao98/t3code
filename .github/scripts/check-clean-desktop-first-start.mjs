@@ -31,6 +31,7 @@ if (macProfile) {
   NodeAssert.ok(!NodeFS.existsSync(macProfile), "macOS CI runner profile must start empty");
 }
 const report = {
+  schemaVersion: 2,
   executable: NodePath.resolve(values.executable),
   fixtureData: false,
   testHome: home,
@@ -65,8 +66,22 @@ try {
     timeout: 60_000,
   });
   report.spawnArgs = app.process().spawnargs;
+  report.effectiveSandbox = {
+    switches: await app.evaluate(({ app }) => ({
+      noSandbox: app.commandLine.hasSwitch("no-sandbox"),
+      disableSetuidSandbox: app.commandLine.hasSwitch("disable-setuid-sandbox"),
+      disableSeccompFilterSandbox: app.commandLine.hasSwitch("disable-seccomp-filter-sandbox"),
+      disableGpuSandbox: app.commandLine.hasSwitch("disable-gpu-sandbox"),
+    })),
+  };
+  NodeAssert.deepEqual(report.effectiveSandbox.switches, {
+    noSandbox: false,
+    disableSetuidSandbox: false,
+    disableSeccompFilterSandbox: false,
+    disableGpuSandbox: false,
+  });
   report.cliSandboxOverride = report.spawnArgs.some((arg) =>
-    /--(?:no-sandbox|disable-setuid-sandbox|appimage-extract)/.test(arg),
+    /--(?:no-sandbox|disable-setuid-sandbox|disable-seccomp-filter-sandbox|disable-gpu-sandbox|appimage-extract)/.test(arg),
   );
   NodeAssert.equal(report.cliSandboxOverride, false);
   report.packaged = await app.evaluate(({ app }) => ({
@@ -100,6 +115,41 @@ try {
     .first()
     .waitFor({ state: "visible", timeout: 60_000 });
   await page.getByRole("button").first().waitFor({ state: "visible", timeout: 60_000 });
+  // Electron documents world 999 as the context-isolated preload world.
+  // Read the existing world only. Never inject a preload or change preferences.
+  const browserWindow = await app.browserWindow(page);
+  try {
+    report.effectiveSandbox.preferences = await browserWindow.evaluate((window) => {
+      const preferences = window.webContents.getLastWebPreferences();
+      return {
+        sandbox: preferences.sandbox,
+        contextIsolation: preferences.contextIsolation,
+        nodeIntegration: preferences.nodeIntegration,
+      };
+    });
+    NodeAssert.deepEqual(report.effectiveSandbox.preferences, {
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false,
+    });
+    report.effectiveSandbox.renderer = await browserWindow.evaluate(async (window) => {
+      const observation = await window.webContents.executeJavaScriptInIsolatedWorld(999, [{
+        code: `({
+          processType: typeof process === "object" ? process.type : null,
+          sandboxed: typeof process === "object" && typeof process.sandboxed === "boolean" ? process.sandboxed : null,
+          contextIsolated: typeof process === "object" && typeof process.contextIsolated === "boolean" ? process.contextIsolated : null
+        })`,
+      }]);
+      return observation;
+    });
+    NodeAssert.deepEqual(report.effectiveSandbox.renderer, {
+      processType: "renderer",
+      sandboxed: true,
+      contextIsolated: true,
+    });
+  } finally {
+    await browserWindow.dispose();
+  }
   report.bodyText = await page.locator("body").innerText();
   NodeAssert.ok(report.bodyText.trim().length > 0);
   NodeAssert.deepEqual(errors, []);

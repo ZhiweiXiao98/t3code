@@ -1,0 +1,180 @@
+name: Effective sandbox instrumentation probe
+'on':
+  push:
+    branches:
+    - validation/sandbox-probe-98ac4dc
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: sandbox-probe-${{ github.ref }}
+  cancel-in-progress: false
+env:
+  CI: 'true'
+  SOURCE_SHA: 98ac4dc26fa013c008c3c5afd8012a60cb1d9135
+  SOURCE_TREE: acdf2b80d00fb3404432f314be0a4a9e4904330f
+  LANG: en_US.UTF-8
+  LC_ALL: en_US.UTF-8
+jobs:
+  probe:
+    name: Original DEB effective sandbox probe
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+    - name: Checkout reviewed validation operation
+      shell: bash
+      run: |
+        set -euo pipefail
+        git init .
+        git config core.autocrlf false
+        git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+        git fetch --no-tags --depth=2 origin "$GITHUB_SHA"
+        git checkout --detach FETCH_HEAD
+        test "$(git rev-parse HEAD^1)" = "$SOURCE_SHA"
+        test "$(git diff --name-only "$SOURCE_SHA" HEAD | sort)" = "$(printf '%s\n' .github/scripts/check-clean-desktop-first-start.mjs .github/workflows/sandbox-probe.yml | sort)"
+        git diff --exit-code
+        git diff --cached --exit-code
+    - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      with:
+        node-version: 26.12.1
+    - name: Verify and download exact original installer archive
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |-
+        python3 - <<'PYTHON'
+        import hashlib,json,os,pathlib,stat,urllib.request,urllib.error,urllib.parse,zipfile
+        root=pathlib.Path(os.environ['RUNNER_TEMP']);out=root/'cjk-evidence';out.mkdir()
+        repo='ZhiweiXiao98/t3code';base='https://api.github.com/repos/'+repo
+        class NoRedirect(urllib.request.HTTPRedirectHandler):
+         def redirect_request(self,*args,**kwargs):return None
+        opener=urllib.request.build_opener(NoRedirect())
+        def api(s):
+         request=urllib.request.Request(base+s,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
+         with opener.open(request,timeout=60) as response:return json.load(response)
+        event=json.load(open(os.environ['GITHUB_EVENT_PATH'],encoding='utf-8'))
+        assert event['repository']['private'] is False and os.environ['GITHUB_REPOSITORY']==repo
+        assert os.environ['GITHUB_EVENT_NAME']=='push' and os.environ['GITHUB_REF']=='refs/heads/validation/sandbox-probe-98ac4dc'
+        assert event['after']==os.environ['GITHUB_SHA']
+        run=api('/actions/runs/42740589754');assert run['status']=='completed' and run['conclusion']=='success' and run['run_attempt']==2
+        assert run['head_sha']==os.environ['SOURCE_SHA'] and run['head_branch']=='maintenance/v0.1.7-zh-cloud'
+        assert api('/git/ref/heads/maintenance/v0.1.7-zh-cloud')['object']['sha']==os.environ['SOURCE_SHA']
+        assert api('/git/commits/'+os.environ['SOURCE_SHA'])['tree']['sha']==os.environ['SOURCE_TREE']
+        a=api('/actions/artifacts/13729387369')
+        assert a['name']=='client-linux-x64' and a['expired'] is False and a['size_in_bytes']==347979051
+        assert a['digest']=='sha256:d06a5ddab1bedccdab0f009e2650e54ef4450f4b553d23f758e74591fc7388c3'
+        assert a['workflow_run']['id']==42740589754 and a['workflow_run']['head_sha']==os.environ['SOURCE_SHA']
+        request=urllib.request.Request(base+'/actions/artifacts/13729387369/zip',headers={'Authorization':'Bearer '+os.environ['GH_TOKEN']})
+        try:opener.open(request,timeout=60)
+        except urllib.error.HTTPError as error:
+         assert error.code==302;location=error.headers['Location']
+        else:raise AssertionError('Expected temporary artifact redirect')
+        u=urllib.parse.urlparse(location);assert u.scheme=='https' and u.hostname and any(u.hostname.endswith(s) for s in ['.blob.core.windows.net','.githubusercontent.com','.actions.githubusercontent.com'])
+        archive=root/'original-linux.zip';sha=hashlib.sha256();size=0
+        with opener.open(location,timeout=60) as response,archive.open('xb') as f:
+         while chunk:=response.read(1024*1024):
+          size+=len(chunk);assert size<=347979051;sha.update(chunk);f.write(chunk)
+        assert size==347979051 and sha.hexdigest()==a['digest'][7:]
+        assets={'T3-Code-0.1.7-zh.1-amd64.deb':(158254656,'1b9713cc9d9da734392df8aba0d444d129e0db19fc8cc07a65ebfd5b94063dbe'),'T3-Code-0.1.7-zh.1-x86_64.AppImage':(190316565,'769eddb1bc03c5e1895d372eaf4e0307bc4001394b4b005181b9da0f10d9c284')}
+        candidate=root/'original-installers';candidate.mkdir()
+        with zipfile.ZipFile(archive) as z:
+         assert len(z.infolist())==2 and set(z.namelist())==set(assets)
+         for entry in z.infolist():
+          expected_size,expected_hash=assets[entry.filename]
+          assert entry.file_size==expected_size and not entry.is_dir() and not(entry.flag_bits&1) and stat.S_IFMT(entry.external_attr>>16) in [0,stat.S_IFREG]
+          h=hashlib.sha256();n=0
+          with z.open(entry) as src,(candidate/entry.filename).open('xb') as dst:
+           while chunk:=src.read(1024*1024):h.update(chunk);n+=len(chunk);assert n<=expected_size;dst.write(chunk)
+          assert n==expected_size and h.hexdigest()==expected_hash
+        (out/'original-artifact-provenance.json').write_text(json.dumps({'source_sha':os.environ['SOURCE_SHA'],'source_tree':os.environ['SOURCE_TREE'],'baseline_run':{'id':run['id'],'attempt':run['run_attempt'],'conclusion':run['conclusion']},'artifact':a,'archive_sha256':sha.hexdigest(),'retained_original_producer_attempt':1,'retained_original_producer_job_id':129581217030,'installers':assets},indent=2))
+
+        PYTHON
+    - name: Record initial CJK font inventory
+      shell: bash
+      env:
+        FONT_PHASE: before
+      run: |-
+        python3 - <<'PYTHON'
+        import json,subprocess,pathlib,os,shutil
+        out=pathlib.Path(os.environ['RUNNER_TEMP'])/'cjk-evidence';out.mkdir(exist_ok=True)
+        phase=os.environ['FONT_PHASE']
+        def run(args):
+         if not shutil.which(args[0]):return {'argv':args,'available':False}
+         p=subprocess.run(args,capture_output=True,text=True);return {'argv':args,'available':True,'returncode':p.returncode,'stdout':p.stdout,'stderr':p.stderr}
+        data={'cjk_font_inventory':run(['fc-list',':lang=zh']),'font_packages':run(['dpkg-query','-W','-f','${Package}\t${Version}\n','fonts-*']),'match':run(['fc-match','-f','%{family}\n%{file}\n','sans-serif:lang=zh-cn'])}
+        (out/('fonts-'+phase+'.json')).write_text(json.dumps(data,indent=2))
+        if phase=='after':
+         assert data['match']['returncode']==0 and 'Noto' in data['match']['stdout'] and 'CJK' in data['match']['stdout']
+         assert data['cjk_font_inventory']['returncode']==0 and 'Noto' in data['cjk_font_inventory']['stdout']
+         installed=run(['dpkg-query','-W','-f','${Package}\t${Version}\t${Status}\n','fonts-noto-cjk']);assert installed['returncode']==0 and 'install ok installed' in installed['stdout']
+         policy=run(['apt-cache','policy','fonts-noto-cjk'])
+         (out/'font-evidence.json').write_text(json.dumps({'before':json.loads((out/'fonts-before.json').read_text()),'after':data,'installed_package':installed,'apt_policy':policy,'scope':'New runner inventory only; does not establish fonts installed on previous runner.'},indent=2))
+
+        PYTHON
+    - name: Install official Ubuntu fonts and unchanged acceptance dependencies
+      shell: bash
+      run: |
+        set -euo pipefail
+        sudo apt-get update
+        sudo apt-get install -y fonts-noto-cjk fontconfig xvfb libfuse2t64
+        fc-cache -f
+        npm install --prefix "$RUNNER_TEMP/acceptance-tools" --no-save --ignore-scripts playwright-core@1.60.0
+        test "$(node -p "require(process.env.RUNNER_TEMP + '/acceptance-tools/node_modules/playwright-core/package.json').version")" = 1.60.0
+    - name: Verify actual CJK font selection
+      shell: bash
+      env:
+        FONT_PHASE: after
+      run: |-
+        python3 - <<'PYTHON'
+        import json,subprocess,pathlib,os,shutil
+        out=pathlib.Path(os.environ['RUNNER_TEMP'])/'cjk-evidence';out.mkdir(exist_ok=True)
+        phase=os.environ['FONT_PHASE']
+        def run(args):
+         if not shutil.which(args[0]):return {'argv':args,'available':False}
+         p=subprocess.run(args,capture_output=True,text=True);return {'argv':args,'available':True,'returncode':p.returncode,'stdout':p.stdout,'stderr':p.stderr}
+        data={'cjk_font_inventory':run(['fc-list',':lang=zh']),'font_packages':run(['dpkg-query','-W','-f','${Package}\t${Version}\n','fonts-*']),'match':run(['fc-match','-f','%{family}\n%{file}\n','sans-serif:lang=zh-cn'])}
+        (out/('fonts-'+phase+'.json')).write_text(json.dumps(data,indent=2))
+        if phase=='after':
+         assert data['match']['returncode']==0 and 'Noto' in data['match']['stdout'] and 'CJK' in data['match']['stdout']
+         assert data['cjk_font_inventory']['returncode']==0 and 'Noto' in data['cjk_font_inventory']['stdout']
+         installed=run(['dpkg-query','-W','-f','${Package}\t${Version}\t${Status}\n','fonts-noto-cjk']);assert installed['returncode']==0 and 'install ok installed' in installed['stdout']
+         policy=run(['apt-cache','policy','fonts-noto-cjk'])
+         (out/'font-evidence.json').write_text(json.dumps({'before':json.loads((out/'fonts-before.json').read_text()),'after':data,'installed_package':installed,'apt_policy':policy,'scope':'New runner inventory only; does not establish fonts installed on previous runner.'},indent=2))
+
+        PYTHON
+    - name: Install DEB through apt
+      shell: bash
+      run: |
+        set -euo pipefail
+        asset="$RUNNER_TEMP/original-installers/T3-Code-0.1.7-zh.1-amd64.deb"
+        sudo apt-get install -y "$asset"
+        package=$(dpkg-deb -f "$asset" Package)
+        dpkg-query -W "$package" > "$RUNNER_TEMP/cjk-evidence/installed-package.txt"
+        executable=$(command -v t3code)
+        test "$executable" = /usr/bin/t3code
+        echo "T3_CANDIDATE_EXECUTABLE=$executable" >> "$GITHUB_ENV"
+        echo "T3_CANDIDATE_ASSET=$asset" >> "$GITHUB_ENV"
+        sha256sum "$asset" > "$RUNNER_TEMP/cjk-evidence/asset-sha256.txt"
+    - name: Probe actual effective sandbox with unchanged installed DEB
+      shell: bash
+      run: |
+        set -euo pipefail
+        sha256sum .github/scripts/check-clean-desktop-first-start.mjs > "$RUNNER_TEMP/cjk-evidence/driver-sha256.txt"
+        python3 - <<'PYTHON'
+        import os,json,pathlib
+        out=pathlib.Path(os.environ['RUNNER_TEMP'])/'cjk-evidence'
+        (out/'probe-operation.json').write_text(json.dumps({'source_sha':os.environ['SOURCE_SHA'],'source_tree':os.environ['SOURCE_TREE'],'operation_sha':os.environ['GITHUB_SHA'],'run_id':int(os.environ['GITHUB_RUN_ID']),'run_attempt':int(os.environ['GITHUB_RUN_ATTEMPT']),'purpose':'unchanged original DEB positive instrumentation validation'},indent=2))
+        PYTHON
+        xvfb-run -a node .github/scripts/check-clean-desktop-first-start.mjs --executable "$T3_CANDIDATE_EXECUTABLE" --platform Linux --playwright-module "$RUNNER_TEMP/acceptance-tools/node_modules/playwright-core/index.mjs" --artifacts-dir "$RUNNER_TEMP/cjk-evidence"
+        git diff --exit-code
+        git diff --cached --exit-code
+    - name: Upload sandbox instrumentation evidence
+      if: always()
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: sandbox-probe-deb
+        path: ${{ runner.temp }}/cjk-evidence
+        if-no-files-found: error
+        retention-days: 14
+    env:
+      PROBE_KIND: deb
