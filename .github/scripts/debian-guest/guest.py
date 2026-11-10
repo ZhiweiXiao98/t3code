@@ -19,13 +19,30 @@ def serial_archive(root):
         raise ValueError('Result archive exceeds 16MiB')
     return (f'\nT3_RESULT_BEGIN {len(packed)} {hashlib.sha256(packed).hexdigest()}\n'.encode()+base64.encodebytes(packed)+b'\nT3_RESULT_END\n')
 
+def write_all(writer,data,timeout=120):
+    """Complete a bounded frame despite short/interrupted unbuffered writes."""
+    view=memoryview(data);offset=0;deadline=time.monotonic()+timeout;interruptions=0
+    if len(view)>24*1024*1024:raise ValueError('Transport frame exceeds bounded budget')
+    while offset<len(view):
+        if time.monotonic()>=deadline:raise TimeoutError('Result frame write deadline exceeded')
+        chunk=view[offset:offset+32768]
+        try:written=writer.write(chunk)
+        except InterruptedError:
+            interruptions+=1
+            if interruptions>256:raise TimeoutError('Repeated interrupted result writes')
+            continue
+        if type(written) is not int or written<=0 or written>len(chunk):
+            raise OSError('Result transport made no valid forward progress')
+        offset+=written
+    return offset
+
 def emit(root):
     try:data=serial_archive(root)
     except Exception as error:
         small=BASE/'overflow';small.mkdir(exist_ok=True)
         (small/'status.json').write_text(json.dumps({'result':'failed','exitCode':1,'error':str(error)}))
         data=serial_archive(small)
-    with open('/dev/virtio-ports/org.t3.result','wb',buffering=0) as serial:serial.write(data)
+    with open('/dev/virtio-ports/org.t3.result','wb',buffering=0) as serial:write_all(serial,data)
 
 def capture(command):
     return subprocess.check_output(command,stderr=subprocess.STDOUT,text=True,timeout=30)

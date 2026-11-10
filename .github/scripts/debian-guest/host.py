@@ -89,7 +89,23 @@ def download_job_log(repo,job_id):
 
 def seed_config(payload_hashes):
     # Dedicated virtio serial is isolated from console output and UART baud limits.
-    code='''import base64,hashlib,io,json,os,pathlib,subprocess,sys,tarfile,tempfile,traceback
+    code='''import base64,hashlib,io,json,os,pathlib,subprocess,sys,tarfile,tempfile,traceback,time
+def write_all(writer,data,timeout=120):
+    """Complete a bounded frame despite short/interrupted unbuffered writes."""
+    view=memoryview(data);offset=0;deadline=time.monotonic()+timeout;interruptions=0
+    if len(view)>24*1024*1024:raise ValueError('Transport frame exceeds bounded budget')
+    while offset<len(view):
+        if time.monotonic()>=deadline:raise TimeoutError('Result frame write deadline exceeded')
+        chunk=view[offset:offset+32768]
+        try:written=writer.write(chunk)
+        except InterruptedError:
+            interruptions+=1
+            if interruptions>256:raise TimeoutError('Repeated interrupted result writes')
+            continue
+        if type(written) is not int or written<=0 or written>len(chunk):
+            raise OSError('Result transport made no valid forward progress')
+        offset+=written
+    return offset
 p=pathlib.Path('/mnt/t3-payload')
 rc=1
 try:
@@ -111,7 +127,7 @@ except BaseException as error:
    info=tarfile.TarInfo('status.json');info.size=len(b);t.addfile(info,io.BytesIO(b))
   packed=buf.getvalue()
   with open('/dev/virtio-ports/org.t3.result','wb',buffering=0) as s:
-   s.write(('\\nT3_RESULT_BEGIN %d %s\\n'%(len(packed),hashlib.sha256(packed).hexdigest())).encode()+base64.encodebytes(packed)+b'\\nT3_RESULT_END\\n')
+   write_all(s,('\\nT3_RESULT_BEGIN %d %s\\n'%(len(packed),hashlib.sha256(packed).hexdigest())).encode()+base64.encodebytes(packed)+b'\\nT3_RESULT_END\\n')
  except BaseException as transport_error:
   print('T3 failure frame unavailable: '+str(transport_error)[:2048],file=sys.stderr)
 finally:
