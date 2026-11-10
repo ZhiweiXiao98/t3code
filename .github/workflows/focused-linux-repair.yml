@@ -1,0 +1,347 @@
+name: Focused fail-closed Linux candidate (NOT RELEASE APPROVAL)
+'on':
+  push:
+    branches:
+    - validation/v0.1.7-linux-sandbox-repair
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: focused-linux-sandbox-${{ github.ref }}
+  cancel-in-progress: false
+env:
+  CLIENT_VERSION: 0.1.7-zh.1
+  CI: 'true'
+  CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+  T3CODE_DESKTOP_SIGNED: 'false'
+  ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
+  ELECTRON_BUILDER_BINARIES_MIRROR: https://github.com/electron-userland/electron-builder-binaries/releases/download/
+  SOURCE_SHA: 94049a79366352504974c4b0c83aab08b1093bd5
+jobs:
+  source:
+    name: Verify reviewed seven-file source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      sha: ${{ steps.source.outputs.sha }}
+    steps:
+    - id: source
+      shell: bash
+      run: 'set -euo pipefail
+
+        [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+
+        test "$GITHUB_REPOSITORY" = ZhiweiXiao98/t3code
+
+        python3 - <<''PYTHON''
+
+        import json,os
+
+        assert json.load(open(os.environ[''GITHUB_EVENT_PATH'']))[''repository''][''private''] is False
+
+        PYTHON
+
+        git init .
+
+        git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+
+        git fetch --no-tags --depth=2 origin "$SOURCE_SHA"
+
+        git checkout --detach FETCH_HEAD
+
+        test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+
+        test "$(git rev-parse HEAD^1)" = 98ac4dc26fa013c008c3c5afd8012a60cb1d9135
+
+        python3 - <<''PYTHON''
+
+        import hashlib,json,pathlib,subprocess
+
+        pins={''patches/app-builder-lib@26.16.1.patch'': ''fdd98816540724e92fcb439851354e91246084e6cc369d5dd29bbe0bbded11fd'',
+        ''pnpm-lock.yaml'': ''6033c99312a84507ce157d9090ddc7e742dac266f289deae891b28661412c7ea'', ''apps/desktop/scripts/appimage-sandbox.test.mjs'':
+        ''1a4ac801de3fe015e11ac7a453eb192c039bdda57b4bc778240413885f11cd1e'', ''apps/web/src/i18n/messages.ts'':
+        ''5a4bf080e152ca03d7e29eb7768b2d70aaaadd5fe1ae41e2ef4623fc68811142'', ''apps/web/src/i18n/messages.test.ts'':
+        ''d3e7411acc5e414da37a2e3df0a1fb513fed751bc1a9309f33b87f1d543210db'', ''.github/scripts/check-clean-desktop-first-start.mjs'':
+        ''1cfb62bf02d1c4063362b1ffed1cea17c6dfe532e4bf05e7b5bfe0f153362375'', ''.github/workflows/client-release.yml'':
+        ''e827682c06d463649fdcc45e652b4088385e303fb78bfd2122929ef2552b1a92''}
+
+        actual=subprocess.check_output([''git'',''diff'',''--name-only'',''HEAD^'',''HEAD''],text=True).splitlines()
+
+        assert sorted(actual)==sorted(pins)
+
+        for name,digest in pins.items():assert hashlib.sha256(pathlib.Path(name).read_bytes()).hexdigest()==digest,name
+
+        PYTHON
+
+        echo "sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
+
+        '
+  bundle:
+    name: Build validated desktop bundle
+    needs: source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+    - name: Checkout exact source without credentials
+      shell: bash
+      env:
+        SOURCE_SHA: ${{ needs.source.outputs.sha }}
+        GIT_TERMINAL_PROMPT: '0'
+      run: 'set -euo pipefail
+
+        git init .
+
+        git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+
+        git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
+
+        git sparse-checkout set --no-cone ''/*'' ''!/.repos/''
+
+        git checkout --detach FETCH_HEAD
+
+        test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+
+        '
+    - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
+      with:
+        node-version-file: package.json
+        cache: true
+        run-install: false
+    - name: Install locked dependencies
+      id: dependencies
+      run: vp install --frozen-lockfile
+    - name: Run launcher and privacy regressions
+      run: vp test run apps/desktop/scripts/appimage-sandbox.test.mjs apps/web/src/i18n/messages.test.ts
+    - name: Install Linux native build libraries
+      run: 'sudo apt-get update
+
+        sudo apt-get install -y libsecret-1-dev pkg-config build-essential imagemagick
+
+        '
+    - run: node scripts/update-release-package-versions.ts "$CLIENT_VERSION"
+    - run: vp run build:desktop
+    - run: node apps/desktop/scripts/verify-preload-bundle.mjs
+    - uses: actions/upload-artifact@v7
+      with:
+        name: community-js-bundle
+        path: 'apps/server/dist
+
+          apps/desktop/dist-electron
+
+          '
+        if-no-files-found: error
+        retention-days: 7
+  linux:
+    name: Build new Linux candidate, never publish
+    needs:
+    - source
+    - bundle
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+    - name: Checkout exact source without credentials
+      shell: bash
+      env:
+        SOURCE_SHA: ${{ needs.source.outputs.sha }}
+        GIT_TERMINAL_PROMPT: '0'
+      run: 'set -euo pipefail
+
+        git init .
+
+        git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+
+        git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
+
+        git sparse-checkout set --no-cone ''/*'' ''!/.repos/''
+
+        git checkout --detach FETCH_HEAD
+
+        test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+
+        '
+    - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
+      with:
+        node-version-file: package.json
+        cache: true
+        run-install: false
+    - name: Install locked dependencies
+      id: dependencies
+      run: vp install --frozen-lockfile
+    - name: Install Linux native build libraries
+      run: 'sudo apt-get update
+
+        sudo apt-get install -y libsecret-1-dev pkg-config build-essential imagemagick
+
+        '
+    - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+      with:
+        toolchain: stable
+        targets: x86_64-unknown-linux-gnu
+    - run: node scripts/update-release-package-versions.ts "$CLIENT_VERSION"
+    - uses: actions/download-artifact@v8
+      with:
+        name: community-js-bundle
+        path: apps
+    - name: Package Linux client
+      run: vp run dist:desktop:artifact --platform linux --target AppImage --arch x64 --build-version "$CLIENT_VERSION"
+        --skip-build --verbose
+    - name: Hash exact new installers and source
+      shell: bash
+      run: 'set -euo pipefail
+
+        mkdir -p focused-build-proof
+
+        sha256sum release/*.AppImage release/*.deb > focused-build-proof/installers.sha256
+
+        printf ''%s\n'' "$SOURCE_SHA" > focused-build-proof/source-sha.txt
+
+        git rev-parse HEAD^{tree} > focused-build-proof/source-tree.txt
+
+        sha256sum .github/scripts/check-clean-desktop-first-start.mjs > focused-build-proof/driver.sha256
+
+        '
+    - uses: actions/upload-artifact@v7
+      with:
+        name: client-linux-x64
+        path: 'release/*.AppImage
+
+          release/*.deb'
+        if-no-files-found: error
+        retention-days: 14
+    - uses: actions/upload-artifact@v7
+      with:
+        name: focused-linux-build-proof
+        path: focused-build-proof
+        if-no-files-found: error
+        retention-days: 14
+  clean:
+    name: Real sandbox Ubuntu24 (${{ matrix.kind }})
+    needs:
+    - source
+    - linux
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - runner: ubuntu-24.04
+          kind: deb
+          artifact: client-linux-x64
+          suffix: amd64.deb
+        - runner: ubuntu-24.04
+          kind: appimage
+          artifact: client-linux-x64
+          suffix: x86_64.AppImage
+    steps:
+    - name: Checkout exact source without credentials
+      shell: bash
+      env:
+        SOURCE_SHA: ${{ needs.source.outputs.sha }}
+        GIT_TERMINAL_PROMPT: '0'
+      run: 'set -euo pipefail
+
+        git init .
+
+        git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+
+        git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
+
+        git sparse-checkout set --no-cone ''/*'' ''!/.repos/''
+
+        git checkout --detach FETCH_HEAD
+
+        test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+
+        '
+    - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
+      with:
+        node-version-file: package.json
+        run-install: false
+    - uses: actions/download-artifact@v8
+      with:
+        name: ${{ matrix.artifact }}
+        path: candidate
+    - uses: actions/download-artifact@v8
+      with:
+        name: focused-linux-build-proof
+        path: focused-build-proof
+    - name: Verify source, driver and package hashes before launch
+      shell: bash
+      run: 'set -euo pipefail
+
+        test "$(cat focused-build-proof/source-sha.txt)" = "$SOURCE_SHA"
+
+        test "$(cat focused-build-proof/source-tree.txt)" = "$(git rev-parse HEAD^{tree})"
+
+        sha256sum --check focused-build-proof/driver.sha256
+
+        sed ''s@  release/@  candidate/@'' focused-build-proof/installers.sha256 > "$RUNNER_TEMP/installers.sha256"
+
+        sha256sum --check "$RUNNER_TEMP/installers.sha256"
+
+        '
+    - name: Install pinned acceptance driver
+      shell: bash
+      run: npm install --prefix "$RUNNER_TEMP/acceptance-tools" --no-save --ignore-scripts playwright-core@1.60.0
+    - name: Prepare Linux clean install
+      if: runner.os == 'Linux'
+      shell: bash
+      env:
+        SUFFIX: ${{ matrix.suffix }}
+      run: 'set -euo pipefail
+
+        mkdir -p "$RUNNER_TEMP/acceptance-artifacts"
+
+        asset="$GITHUB_WORKSPACE/candidate/T3-Code-$CLIENT_VERSION-$SUFFIX"
+
+        sha256sum "$asset" | tee "$RUNNER_TEMP/acceptance-artifacts/asset-sha256.txt"
+
+        echo "T3_CANDIDATE_ASSET=$asset" >> "$GITHUB_ENV"
+
+        sudo apt-get update
+
+        sudo apt-get install -y xvfb libfuse2t64 fonts-noto-cjk
+
+        fc-match sans-serif:lang=zh-cn
+
+        '
+    - name: Install DEB through apt and launch installed entry
+      if: matrix.kind == 'deb'
+      shell: bash
+      run: 'set -euo pipefail
+
+        package=$(dpkg-deb -f "$T3_CANDIDATE_ASSET" Package)
+
+        sudo apt-get install -y "$T3_CANDIDATE_ASSET"
+
+        dpkg-query -W "$package" | tee "$RUNNER_TEMP/acceptance-artifacts/installed-package.txt"
+
+        executable=$(command -v t3code)
+
+        xvfb-run -a node .github/scripts/check-clean-desktop-first-start.mjs --executable "$executable" --platform
+        Linux --playwright-module "$RUNNER_TEMP/acceptance-tools/node_modules/playwright-core/index.mjs" --artifacts-dir
+        "$RUNNER_TEMP/acceptance-artifacts"
+
+        '
+    - name: Launch ordinary AppImage entry with FUSE
+      if: matrix.kind == 'appimage'
+      shell: bash
+      run: 'set -euo pipefail
+
+        chmod u+x "$T3_CANDIDATE_ASSET"
+
+        test -c /dev/fuse
+
+        xvfb-run -a node .github/scripts/check-clean-desktop-first-start.mjs --executable "$T3_CANDIDATE_ASSET"
+        --platform Linux --playwright-module "$RUNNER_TEMP/acceptance-tools/node_modules/playwright-core/index.mjs"
+        --artifacts-dir "$RUNNER_TEMP/acceptance-artifacts"
+
+        '
+    - uses: actions/upload-artifact@v7
+      if: always()
+      with:
+        name: clean-install-${{ matrix.kind }}
+        path: ${{ runner.temp }}/acceptance-artifacts
+        if-no-files-found: warn
+        retention-days: 14
