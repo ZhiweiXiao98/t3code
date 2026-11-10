@@ -1,8 +1,16 @@
 {
   "enabled": true,
-  "candidate_run_id": 41193465754,
-  "candidate_attempt": 1,
-  "candidate_source_sha": "40fd1d260c26c77d347de42b7315dd6380c8fb4d",
-  "candidate_artifact_id": 13040393151,
-  "candidate_artifact_zip_sha256": "a4a6217d6f59ed7f9eddae4b09a5ab45cd7877875106f2864b64fdd9b72b67ff"
+  "candidate_run_id": 42740589754,
+  "candidate_attempt": 2,
+  "candidate_source_sha": "98ac4dc26fa013c008c3c5afd8012a60cb1d9135",
+  "candidate_source_tree_sha": "acdf2b80d00fb3404432f314be0a4a9e4904330f",
+  "candidate_artifact_id": 13730447491,
+  "candidate_artifact_zip_sha256": "9521ed5620033e03ee2f471bb8c500d975f604a0664b543761ac20032e1cb06c",
+  "candidate_unsigned_apk_sha256": "fcd8e6ac000502ea3fb2dab1b21edde54e291b4af55c9d3ffb635804b6146128",
+  "candidate_unsigned_apk_size": 104986380,
+  "candidate_producer_job_id": 129581217062,
+  "candidate_producer_attempt": 1,
+  "candidate_producer_started_at": "2026-11-10T02:10:07Z",
+  "candidate_producer_completed_at": "2026-11-10T02:42:03Z",
+  "candidate_artifact_zip_size": 50105124
 }
