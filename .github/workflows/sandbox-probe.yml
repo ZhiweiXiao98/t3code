@@ -28,9 +28,9 @@ jobs:
         git init .
         git config core.autocrlf false
         git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
-        git fetch --no-tags --depth=2 origin "$GITHUB_SHA"
+        git fetch --no-tags --depth=3 origin "$GITHUB_SHA"
         git checkout --detach FETCH_HEAD
-        test "$(git rev-parse HEAD^1)" = "$SOURCE_SHA"
+        git merge-base --is-ancestor "$SOURCE_SHA" HEAD
         test "$(git diff --name-only "$SOURCE_SHA" HEAD | sort)" = "$(printf '%s\n' .github/scripts/check-clean-desktop-first-start.mjs .github/workflows/sandbox-probe.yml | sort)"
         git diff --exit-code
         git diff --cached --exit-code
