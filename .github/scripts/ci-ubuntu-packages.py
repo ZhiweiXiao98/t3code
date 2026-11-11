@@ -81,6 +81,22 @@ def prepare(root, output):
     return before
 
 
+def node_interpreter():
+    shim = shutil.which('node')
+    assert shim, 'Node is not on PATH'
+    expression = 'JSON.stringify({execPath:process.execPath,version:process.version,release:process.release.name})'
+    environment = {key: value for key, value in os.environ.items() if key not in {'NODE_OPTIONS', 'NODE_PATH'}}
+    # Preserve the shim basename: vp multiplexes node by argv[0].
+    info = json.loads(subprocess.check_output([shim, '-p', expression], env=environment, text=True, timeout=15))
+    assert info.get('release') == 'node' and re.fullmatch(r'v[0-9]+\.[0-9]+\.[0-9]+', info.get('version', '')), 'Unexpected Node runtime'
+    executable = pathlib.Path(info['execPath'])
+    assert executable.is_absolute() and executable.is_file() and os.access(executable, os.X_OK), 'Node reported an invalid executable'
+    executable = executable.resolve(strict=True)
+    verified = json.loads(subprocess.check_output([str(executable), '-p', expression], env=environment, text=True, timeout=15))
+    assert verified == info, 'Resolved interpreter does not match the selected Node runtime'
+    return executable
+
+
 def command_plan(mode, values, config, no_recommends=False):
     if mode == 'packages':
         assert values and all(re.fullmatch(r'[a-z0-9][a-z0-9+.-]*(?::[a-z0-9]+)?', value) for value in values), 'Expected Debian package names only'
@@ -91,7 +107,7 @@ def command_plan(mode, values, config, no_recommends=False):
     assert cli.name == 'cli.js'
     package = json.loads(cli.with_name('package.json').read_text())
     assert package['name'] in {'playwright', 'playwright-core'} and package['version'] == '1.64.1', 'Unexpected browser dependency installer'
-    node = pathlib.Path(shutil.which('node')).resolve(strict=True)
+    node = node_interpreter()
     return [['sudo', 'env', 'APT_CONFIG=' + str(config), 'NODE_OPTIONS=', 'NODE_PATH=', str(node), str(cli), 'install-deps', 'chromium']]
 
 def main():

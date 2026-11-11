@@ -1,4 +1,5 @@
-import importlib.util,json,os,pathlib,subprocess,tempfile,unittest
+import importlib.util,json,os,pathlib,shlex,shutil,subprocess,tempfile,unittest
+from unittest import mock
 ROOT=pathlib.Path(__file__).resolve().parents[2]
 spec=importlib.util.spec_from_file_location('helper', ROOT/'.github/scripts/ci-ubuntu-packages.py');helper=importlib.util.module_from_spec(spec);spec.loader.exec_module(helper)
 CLI=ROOT/'apps/server/node_modules/playwright-core/cli.js'
@@ -20,6 +21,33 @@ class HelperTests(unittest.TestCase):
   with tempfile.TemporaryDirectory() as d:
    p=pathlib.Path(d)/'cli.js';p.write_text('');p.with_name('package.json').write_text('{"name":"other","version":"1.64.1"}')
    with self.assertRaises(AssertionError):helper.command_plan('playwright',[str(p)],'/tmp/test.conf')
+ def test_node_multiplexer_uses_actual_interpreter(self):
+  clean={k:v for k,v in os.environ.items() if k not in {'NODE_OPTIONS','NODE_PATH'}}
+  real_node=pathlib.Path(subprocess.check_output(['node','-p','process.execPath'],env=clean,text=True).strip()).resolve()
+  self.assertTrue(real_node.is_absolute() and os.access(real_node,os.X_OK))
+  with tempfile.TemporaryDirectory() as d:
+   root=pathlib.Path(d);mux=root/'vp';shim=root/'node'
+   mux.write_text('#!/bin/sh\ncase "${0##*/}" in node) exec '+shlex.quote(str(real_node))+' "$@" ;; *) echo "vp: unknown command" >&2; exit 2 ;; esac\n');mux.chmod(0o755);shim.symlink_to(mux)
+   env={'PATH':str(root)+os.pathsep+os.environ['PATH'],'NODE_OPTIONS':'--require /missing-must-not-load','NODE_PATH':'/missing-must-not-load'}
+   with mock.patch.dict(os.environ,env):
+    plan=helper.command_plan('playwright',[str(CLI)],'/tmp/test.conf')
+   actual=pathlib.Path(plan[0][-4]);self.assertEqual(actual,real_node)
+   executed=json.loads(subprocess.check_output([str(actual),'-p','JSON.stringify({execPath:process.execPath,release:process.release.name})'],text=True))
+   self.assertEqual(executed['release'],'node');self.assertEqual(pathlib.Path(executed['execPath']).resolve(),actual)
+ def test_node_discovery_rejects_bad_metadata(self):
+  for info in [{'execPath':'relative/node','release':'node','version':'v26.12.1'},{'execPath':'/missing/node','release':'node','version':'v26.12.1'},{'execPath':'/bin/sh','release':'python','version':'v26.12.1'},{'execPath':'/bin/sh','release':'node','version':'not-semver'}]:
+   with mock.patch.object(helper.subprocess,'check_output',return_value=json.dumps(info)):
+    with self.assertRaises(AssertionError):helper.node_interpreter()
+ def test_node_discovery_rejects_nonexecutable(self):
+  with tempfile.TemporaryDirectory() as d:
+   executable=pathlib.Path(d)/'node';executable.write_text('not executable');executable.chmod(0o644)
+   info={'execPath':str(executable),'release':'node','version':'v26.12.1'}
+   with mock.patch.object(helper.subprocess,'check_output',return_value=json.dumps(info)):
+    with self.assertRaises(AssertionError):helper.node_interpreter()
+ def test_node_discovery_rejects_runtime_mismatch(self):
+  executable=helper.node_interpreter();first={'execPath':str(executable),'release':'node','version':'v26.12.1'};second=dict(first,version='v24.22.2')
+  with mock.patch.object(helper.subprocess,'check_output',side_effect=[json.dumps(first),json.dumps(second)]):
+   with self.assertRaises(AssertionError):helper.node_interpreter()
  def test_actual_pinned_cli_dryrun_capture(self):
   for platform in ['ubuntu22.04-x64','ubuntu24.04-x64']:
    with tempfile.TemporaryDirectory() as d:
