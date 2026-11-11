@@ -14,6 +14,10 @@ describe("translateWebMessage", () => {
 
   it("localizes shared account and settings controls without changing English", () => {
     for (const [source, chinese] of [
+      [
+        "T3 Code collects anonymous usage data to improve the app.",
+        "T3 Code 会收集匿名使用数据，以改进应用。",
+      ],
       ["Continue with ChatGPT", "使用 ChatGPT 继续"],
       ["Reconnect ChatGPT", "重新连接 ChatGPT"],
       ["Any local files", "任何本地文件"],

@@ -8794,6 +8794,8 @@ const ZH_CN_SOURCE_MESSAGES: Readonly<Record<string, string>> = {
   "No mobile clients": "没有移动客户端",
   "Mobile clients": "移动客户端",
   "Could not load mobile clients": "无法加载移动客户端",
+  "T3 Code collects anonymous usage data to improve the app.":
+    "T3 Code 会收集匿名使用数据，以改进应用。",
   "T3 Code collects anonymous usage data to help us improve it.":
     "T3 Code 会收集匿名使用数据，以帮助我们改进产品。",
   "To read more about how your data is used and how to opt out, see our":
