@@ -30,7 +30,15 @@ def validate_snapshot(c,s,pins,log):
     require((r['id'],r['run_attempt'],r['head_sha'])==(c.run_id,c.attempt,c.head_sha),'Wrong run/attempt/head')
     require(r.get('head_branch')=='maintenance/v0.1.8-zh-cloud' and r.get('path')=='.github/workflows/client-release.yml','Wrong source branch/workflow')
     require(r.get('repository',{}).get('full_name')==c.repository and r.get('head_repository',{}).get('full_name')==c.repository,'Wrong run repository')
-    require(r['status']=='in_progress' and r.get('conclusion') is None or r['status']=='completed' and r.get('conclusion')=='success','Run failed/cancelled/not started')
+    # The aggregate run may be queued while other matrix jobs are executing.
+    # Successful producer and active/successful consumer checks below prove it started.
+    require(r['status'] in ('queued','in_progress') and r.get('conclusion') is None or r['status']=='completed' and r.get('conclusion')=='success','Run failed/cancelled/not started')
+    if r['status']=='queued':
+        require(consumer['status']=='in_progress' and consumer.get('conclusion') is None,'Queued run requires an active consumer')
+        started=r.get('run_started_at')
+        require(isinstance(started,str) and bool(started),'Queued run has no start timestamp')
+        started=datetime.fromisoformat(started.replace('Z','+00:00'))
+        require(started.tzinfo is not None and started<=datetime.now(timezone.utc),'Invalid queued run start timestamp')
     for job,ident in ((j,c.producer_job_id),(consumer,c.consumer_job_id)):
         require((job['id'],job['run_id'],job['run_attempt'],job['head_sha'])==(ident,c.run_id,c.attempt,c.head_sha),'Wrong job identity')
     require(j.get('head_branch')=='maintenance/v0.1.8-zh-cloud' and consumer.get('head_branch')=='maintenance/v0.1.8-zh-cloud','Wrong job source branch')

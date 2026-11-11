@@ -17,7 +17,26 @@ def fixture():
  return c,s,p,log
 class Tests(unittest.TestCase):
  def test_live_run_no_deadlock(self):
-  c,s,p,l=fixture();validate_pair(c,s,copy.deepcopy(s),p,l,l)
+  # GitHub run 42993148429 was queued while its Linux producer had succeeded
+  # and its AppImage consumer was running; aggregate status is not job status.
+  for status in ('in_progress','queued'):
+   with self.subTest(status=status):
+    c,s,p,l=fixture();s['run'].update(status=status,run_started_at='2026-11-10T00:00:00Z')
+    validate_pair(c,s,copy.deepcopy(s),p,l,l)
+    after=copy.deepcopy(s);after['run']['status']='in_progress'
+    validate_pair(c,s,after,p,l,l)
+    for section,key,value in [('run','conclusion','failure'),('run','conclusion','cancelled'),('run','status','requested'),('run','status','waiting'),('run','status','completed'),('producer','status','queued'),('producer','conclusion','cancelled'),('consumer','status','queued'),('consumer','status','waiting'),('consumer','status','completed'),('consumer','conclusion','cancelled'),('consumer','conclusion','failure'),('consumer','id',99),('consumer','run_attempt',2),('consumer','head_sha','f'*40)]:
+     with self.subTest(section=section,key=key,value=value):
+      bad=copy.deepcopy(s);bad[section][key]=value
+      if section=='consumer' and key=='conclusion':bad['consumer']['status']='completed'
+      with self.assertRaises(ValueError):validate_snapshot(c,bad,p,l)
+    if status=='queued':
+     for value in (None,'','not-a-date','2026-11-10T00:00:00','2099-01-01T00:00:00Z'):
+      with self.subTest(run_started_at=value):
+       bad=copy.deepcopy(s);bad['run']['run_started_at']=value
+       with self.assertRaises(ValueError):validate_snapshot(c,bad,p,l)
+     bad=copy.deepcopy(s);bad['consumer'].update(status='completed',conclusion='success')
+     with self.assertRaises(ValueError):validate_snapshot(c,bad,p,l)
  def test_completed_green(self):
   c,s,p,l=fixture();s['run'].update(status='completed',conclusion='success');validate_snapshot(c,s,p,l)
  def test_negative_mutations(self):
