@@ -1,0 +1,106 @@
+# Exact-source operation-only probe; does not satisfy release gates.
+name: Verify real Node interpreter for Playwright dependencies
+'on':
+  push:
+    branches:
+    - validation/v0.1.9-node-interpreter-6001de884ad1
+permissions:
+  contents: read
+env:
+  SOURCE_SHA: 6001de884ad1cba520432150f97d19bcd24f1aaa
+  SOURCE_TREE: a7aac1965433f8ab7582767b593077b82c3a242b
+  EXPECTED_BRANCH: validation/v0.1.9-node-interpreter-6001de884ad1
+  VP_REMOTE_CACHE: 'off'
+  VP_REMOTE_CACHE_URL: ''
+concurrency:
+  group: node-interpreter-probe-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  probe:
+    name: Interpreter probe (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        runner:
+        - ubuntu-22.04
+        - ubuntu-24.04
+    steps:
+    - name: Verify public exact-source operation
+      shell: bash
+      run: |
+        set -euo pipefail
+        python3 - <<'PYTHON'
+        import json,os,re
+        x=json.load(open(os.environ['GITHUB_EVENT_PATH']))
+        assert os.environ['GITHUB_REPOSITORY']=='ZhiweiXiao98/t3code' and x['repository']['private'] is False
+        assert os.environ['GITHUB_EVENT_NAME']=='push' and os.environ['GITHUB_REF']=='refs/heads/'+os.environ['EXPECTED_BRANCH']
+        assert x['after']==os.environ['GITHUB_SHA']
+        assert re.fullmatch('[a-f0-9]{40}',os.environ['SOURCE_SHA']) and re.fullmatch('[a-f0-9]{40}',os.environ['SOURCE_TREE'])
+        PYTHON
+        git init .
+        git config core.autocrlf false
+        git remote add origin https://github.com/ZhiweiXiao98/t3code.git
+        git fetch --no-tags --depth=2 origin "$GITHUB_SHA"
+        test "$(git rev-parse FETCH_HEAD^)" = "$SOURCE_SHA"
+        test "$(git rev-list --parents -n 1 FETCH_HEAD | wc -w)" -eq 2
+        test "$(git diff --name-only "$SOURCE_SHA" FETCH_HEAD)" = .github/workflows/validate-v019-node-interpreter.yml
+        git sparse-checkout set --no-cone '/*' '!/.repos/'
+        git checkout --detach "$SOURCE_SHA"
+        test "$(git rev-parse HEAD^{tree})" = "$SOURCE_TREE"
+    - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
+      with:
+        node-version: 26.12.1
+        run-install: false
+        cache: true
+    - name: Install exact frozen repository dependencies
+      shell: bash
+      run: vp install --frozen-lockfile
+    - name: Run Node-interpreter and scoped-APT unit tests
+      shell: bash
+      run: python3 -B .github/scripts/ci-ubuntu-packages.test.py
+    - name: Record real vp-selected Node interpreter
+      shell: bash
+      run: |
+        set -euo pipefail
+        mkdir -p "$RUNNER_TEMP/node-interpreter-evidence"
+        python3 -B - <<'PYTHON'
+        import importlib.util,json,os,pathlib,shutil,subprocess
+        spec=importlib.util.spec_from_file_location('helper','.github/scripts/ci-ubuntu-packages.py');helper=importlib.util.module_from_spec(spec);spec.loader.exec_module(helper)
+        node=helper.node_interpreter()
+        info=json.loads(subprocess.check_output([str(node),'-p','JSON.stringify({execPath:process.execPath,version:process.version,release:process.release.name})'],text=True))
+        assert info['version']=='v26.12.1' and info['release']=='node'
+        info.update(path_entry=shutil.which('node'),source_sha=os.environ['SOURCE_SHA'],source_tree=os.environ['SOURCE_TREE'],operation_sha=os.environ['GITHUB_SHA'])
+        p=pathlib.Path(os.environ['RUNNER_TEMP'])/'node-interpreter-evidence/runtime.json';p.write_text(json.dumps(info,indent=2));print(json.dumps(info,indent=2))
+        PYTHON
+    - name: Install official Playwright dependencies through actual interpreter
+      id: dependencies
+      timeout-minutes: 10
+      shell: bash
+      run: python3 .github/scripts/ci-ubuntu-packages.py playwright apps/server/node_modules/playwright-core/cli.js
+    - name: Verify unchanged source and record outcome
+      if: always()
+      shell: bash
+      env:
+        DEPENDENCY_OUTCOME: ${{ steps.dependencies.outcome }}
+      run: |
+        set -euo pipefail
+        test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+        test "$(git rev-parse HEAD^{tree})" = "$SOURCE_TREE"
+        git diff --exit-code
+        git diff --cached --exit-code
+        mkdir -p "$RUNNER_TEMP/node-interpreter-evidence"
+        python3 - <<'PYTHON'
+        import json,os,pathlib
+        record={'source_sha':os.environ['SOURCE_SHA'],'source_tree':os.environ['SOURCE_TREE'],'operation_sha':os.environ['GITHUB_SHA'],'run_id':os.environ['GITHUB_RUN_ID'],'attempt':os.environ['GITHUB_RUN_ATTEMPT'],'dependency_install_outcome':os.environ['DEPENDENCY_OUTCOME'],'application_tests_run':False,'browser_downloaded':False}
+        (pathlib.Path(os.environ['RUNNER_TEMP'])/'node-interpreter-evidence/result.json').write_text(json.dumps(record,indent=2))
+        assert record['dependency_install_outcome']=='success'
+        PYTHON
+    - uses: actions/upload-artifact@v7
+      if: always()
+      with:
+        name: node-interpreter-${{ matrix.runner }}-${{ github.run_id }}-${{ github.run_attempt }}
+        path: ${{ runner.temp }}/node-interpreter-evidence/
+        if-no-files-found: error
+        retention-days: 7
