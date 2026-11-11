@@ -247,11 +247,7 @@ jobs:
         id: dependencies
         run: vp install --frozen-lockfile
       - name: Install Linux native build libraries
-        run: "sudo apt-get update
-
-          sudo apt-get install -y libsecret-1-dev pkg-config build-essential imagemagick
-
-          "
+        run: python3 .github/scripts/ci-ubuntu-packages.py packages libsecret-1-dev pkg-config build-essential imagemagick
       - run: vp run --filter @t3tools/desktop ensure:electron
         if: matrix.suite == 'clients'
       - name: Install Chromium for web and server browser tests
@@ -261,7 +257,7 @@ jobs:
           SUITE: ${{ matrix.suite }}
         run:
           "set -euo pipefail\nbrowser_cli=apps/server/node_modules/playwright-core/cli.js\nif [[ \"$SUITE\" == web ]]; then\n\
-          \  browser_cli=apps/web/node_modules/playwright/cli.js\nfi\nnode \"$browser_cli\" install --with-deps --only-shell\
+          \  browser_cli=apps/web/node_modules/playwright/cli.js\nfi\npython3 .github/scripts/ci-ubuntu-packages.py playwright \"$browser_cli\"\nnode \"$browser_cli\" install --only-shell\
           \ chromium\nif [[ \"$SUITE\" == server-* ]]; then\n  test \"$(node -p \"require('./apps/server/node_modules/playwright-core/package.json').version\"\
           )\" = \"$(node -p \"require('./apps/server/package.json').dependencies['playwright-core']\")\"\n  browser_revision=$(node\
           \ -p \"require('./apps/server/node_modules/playwright-core/browsers.json').browsers.find(browser => browser.name ===\
@@ -273,7 +269,9 @@ jobs:
           \n  \"$browser\" --version\n  sha256sum \"$browser\"\nfi\n"
       - name: Check release and preview orchestration helpers
         if: matrix.suite == 'clients'
-        run: "python3 -B .github/scripts/stage-preview-bundle.test.py
+        run: "python3 -B .github/scripts/ci-ubuntu-packages.test.py
+
+          python3 -B .github/scripts/stage-preview-bundle.test.py
 
           node --test .github/scripts/check-nightly-release.test.cjs .github/scripts/vercel-deployment-output.test.cjs
 
@@ -343,11 +341,7 @@ jobs:
         id: dependencies
         run: vp install --frozen-lockfile
       - name: Install Linux native build libraries
-        run: "sudo apt-get update
-
-          sudo apt-get install -y libsecret-1-dev pkg-config build-essential imagemagick
-
-          "
+        run: python3 .github/scripts/ci-ubuntu-packages.py packages libsecret-1-dev pkg-config build-essential imagemagick
       - run: node scripts/update-release-package-versions.ts "$CLIENT_VERSION"
       - run: vp run build:desktop
       - run: node apps/desktop/scripts/verify-preload-bundle.mjs
@@ -398,11 +392,7 @@ jobs:
         id: dependencies
         run: vp install --frozen-lockfile
       - name: Install Linux native build libraries
-        run: "sudo apt-get update
-
-          sudo apt-get install -y libsecret-1-dev pkg-config build-essential imagemagick
-
-          "
+        run: python3 .github/scripts/ci-ubuntu-packages.py packages libsecret-1-dev pkg-config build-essential imagemagick
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
         with:
           toolchain: stable
@@ -419,7 +409,7 @@ jobs:
       - name: Launch packaged Linux client
         run: 'set -euo pipefail
 
-          sudo apt-get install -y xvfb
+          python3 .github/scripts/ci-ubuntu-packages.py packages xvfb
 
           appimage=$(ls "$GITHUB_WORKSPACE"/release/*.AppImage)
 
@@ -802,8 +792,8 @@ jobs:
         if: runner.os == 'Linux'
         shell: bash
         run:
-          "set -euo pipefail\nsudo apt-get update\nsudo apt-get install --no-install-recommends -y xvfb xauth dbus-x11 fonts-noto-cjk\
-          \ fontconfig\nif [ '${{ matrix.kind }}' = appimage ]; then\n  sudo apt-get install --no-install-recommends -y qemu-system-x86\
+          "set -euo pipefail\npython3 .github/scripts/ci-ubuntu-packages.py packages --no-install-recommends xvfb xauth dbus-x11 fonts-noto-cjk\
+          \ fontconfig\nif [ '${{ matrix.kind }}' = appimage ]; then\n  python3 .github/scripts/ci-ubuntu-packages.py packages --no-install-recommends qemu-system-x86\
           \ qemu-utils genisoimage\nfi\n"
       - timeout-minutes: 5
         name: Verify own-run Linux producer and original ZIPs
