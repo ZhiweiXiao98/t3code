@@ -39,9 +39,8 @@ for (const key of ["producerRunId", "producerRunAttempt", "artifactId"])
   NodeAssert.ok(Number.isSafeInteger(manifest[key]) && manifest[key] > 0);
 NodeAssert.equal(manifest.playwrightVersion, "1.60.0");
 const approvedPrivacyClauses = {
-  "To read more about how your data is used, see our": "如需了解数据的使用方式，请参阅我们的",
-  "To read more about how your data is used and how to opt out, see our":
-    "如需了解数据的使用方式以及如何退出，请参阅我们的",
+  "See the": "请参阅",
+  "To opt out, see the": "如需退出，请参阅",
 };
 NodeAssert.deepEqual(manifest.privacyClauses, approvedPrivacyClauses);
 const expected = { installer: manifest.installerSha256 };
@@ -114,6 +113,42 @@ const report = {
   scope:
     "Same-full-run typed Linux installer CJK proof with real distro fonts, language selection and persisted restart; not release approval.",
 };
+function backendSignalExits(text) {
+  return text
+    .split("\n")
+    .filter((line) => line.trim())
+    .flatMap((line) => {
+      const record = JSON.parse(line);
+      const annotations = record.annotations;
+      if (
+        record.level !== "ERROR" ||
+        annotations?.component !== "desktop-backend-child" ||
+        annotations.phase !== "END"
+      )
+        return [];
+      const match = /^pid=(\d+) killed by (SIG[A-Z0-9]+)$/.exec(annotations.details ?? "");
+      return match
+        ? [
+            {
+              pid: Number(match[1]),
+              signal: match[2],
+              timestamp: record.timestamp,
+              runId: annotations.runId,
+            },
+          ]
+        : [];
+    });
+}
+function readBackendSignalExits() {
+  const directory = NodePath.join(t3Home, "userdata", "logs");
+  // Failure snapshots are lazy; a healthy backend need not create a log file.
+  if (!NodeFS.existsSync(directory)) return [];
+  return NodeFS.readdirSync(directory)
+    .filter((name) => /^server-child\.log(?:\.\d+)?$/.test(name))
+    .flatMap((name) =>
+      backendSignalExits(NodeFS.readFileSync(NodePath.join(directory, name), "utf8")),
+    );
+}
 let app, page;
 async function screenshot(name) {
   const file = NodePath.join(artifacts, name);
@@ -126,6 +161,8 @@ async function screenshot(name) {
 }
 async function launch() {
   const session = { page_errors: [], console_errors: [] };
+  // Previous session's own graceful close is outside this launch's observation.
+  session.backendSignalBaseline = readBackendSignalExits();
   report.sessions.push(session);
   app = await _electron.launch({
     executablePath: NodePath.resolve(values.executable),
@@ -184,9 +221,8 @@ async function launch() {
   await page.waitForURL(/^(?:t3code:\/\/app\/|https?:\/\/(?:127\.0\.0\.1|localhost):\d+\/)/, {
     timeout: 60000,
   });
-  await page.getByRole("dialog").first().waitFor({ state: "visible", timeout: 60000 });
+  await page.waitForLoadState("domcontentloaded");
   await observeSandbox(session);
-  await page.getByRole("dialog").first().waitFor({ state: "visible", timeout: 60000 });
   session.url = page.url();
   return session;
 }
@@ -334,27 +370,36 @@ async function actualFonts(text) {
     await cdp.detach();
   }
 }
+async function navigate(path) {
+  const url = new URL(page.url());
+  // Packaged Electron uses hash history, including its localhost fallback origin.
+  url.hash = path;
+  await page.goto(url.href, { waitUntil: "domcontentloaded", timeout: 60_000 });
+}
 async function assertChinese(session) {
   await page.waitForFunction(() => document.documentElement.lang === "zh-CN", null, {
     timeout: 30000,
   });
-  for (const text of ["设置 T3 Code", "连接你的设备", "要设置的设备", "添加设备"])
-    await page
-      .getByText(text, { exact: true })
-      .first()
-      .waitFor({ state: "visible", timeout: 30000 });
   await page.getByRole("combobox", { name: "应用语言", exact: true }).waitFor({ state: "visible" });
   NodeAssert.equal(
     (await page.getByRole("combobox", { name: "应用语言", exact: true }).innerText()).trim(),
     "简体中文",
   );
-  await page.getByRole("button", { name: "继续", exact: true }).waitFor({ state: "visible" });
+  await navigate("/welcome");
+  await page
+    .getByRole("heading", { name: "欢迎使用 T3 Code", exact: true })
+    .waitFor({ state: "visible", timeout: 30000 });
+  await page
+    .getByRole("button", { name: "暂不配置 Agent，直接开始", exact: true })
+    .waitFor({ state: "visible", timeout: 30000 });
+  await page
+    .getByRole("button", { name: "启动", exact: true })
+    .waitFor({ state: "visible", timeout: 30000 });
   const observation = report.privacy_observation;
   NodeAssert.ok(observation?.observed_before_language_selection);
   const expectedPrivacy = approvedPrivacyClauses[observation.source_clause];
   NodeAssert.equal(expectedPrivacy, observation.expected_translation);
   await page
-    .getByRole("dialog")
     .locator("p")
     .filter({ hasText: expectedPrivacy })
     .first()
@@ -366,6 +411,7 @@ async function assertChinese(session) {
   };
   session.locale = await page.locator("html").getAttribute("lang");
   session.body_text = await page.locator("body").innerText();
+  session.url = page.url();
   NodeAssert.ok(
     !/could not start|failed to start the server|无法启动服务器/i.test(session.body_text),
   );
@@ -373,8 +419,26 @@ async function assertChinese(session) {
     NodeAssert.ok(!session.body_text.includes(source), "Untranslated onboarding privacy clause");
   for (const translation of Object.values(approvedPrivacyClauses))
     if (translation !== expectedPrivacy)
-      NodeAssert.ok(!session.body_text.includes(translation), "Privacy clause variant changed");
-  session.rendered_chinese_fonts = await actualFonts("连接你的设备");
+      NodeAssert.ok(
+        !(
+          expectedPrivacy.includes(translation)
+            ? session.body_text.replaceAll(expectedPrivacy, "")
+            : session.body_text
+        ).includes(translation),
+        "Privacy clause variant changed",
+      );
+  session.rendered_chinese_fonts = await actualFonts("欢迎使用 T3 Code");
+  const previousSignals = new Set(
+    session.backendSignalBaseline.map((record) => JSON.stringify(record)),
+  );
+  session.backendSignalExits = readBackendSignalExits().filter(
+    (record) => !previousSignals.has(JSON.stringify(record)),
+  );
+  NodeAssert.deepEqual(
+    session.backendSignalExits,
+    [],
+    "Unexpected backend signal exit before session close",
+  );
   NodeAssert.deepEqual(session.page_errors, []);
   NodeAssert.ok(
     !session.console_errors.some((x) =>
@@ -404,9 +468,9 @@ async function close() {
 try {
   const first = await launch();
   await page
-    .getByRole("combobox", { name: "App language", exact: true })
-    .waitFor({ state: "visible", timeout: 30000 });
-  const englishDialogText = await page.getByRole("dialog").innerText();
+    .getByRole("heading", { name: "Welcome to T3 Code", exact: true })
+    .waitFor({ state: "visible", timeout: 60000 });
+  const englishDialogText = await page.locator("body").innerText();
   const observedSources = Object.keys(approvedPrivacyClauses).filter((source) =>
     englishDialogText.includes(source),
   );
@@ -416,10 +480,7 @@ try {
     "Expected exactly one approved English privacy clause before language selection",
   );
   const observedSource = observedSources[0];
-  const privacyParagraph = page
-    .getByRole("dialog")
-    .locator("p")
-    .filter({ hasText: observedSource });
+  const privacyParagraph = page.locator("p").filter({ hasText: observedSource });
   NodeAssert.equal(await privacyParagraph.count(), 1, "Expected one actual privacy paragraph");
   await privacyParagraph.waitFor({ state: "visible", timeout: 30000 });
   report.privacy_observation = {
@@ -430,12 +491,16 @@ try {
     english_paragraph: await privacyParagraph.innerText(),
   };
   await screenshot("01-fonts-installed-english.png");
+  await page.getByRole("button", { name: "Start without an agent", exact: true }).click();
+  await page.waitForURL((url) => url.hash !== "#/welcome", { timeout: 60000 });
+  await navigate("/settings/general");
   await page.getByRole("combobox", { name: "App language", exact: true }).click();
   await page.getByRole("option", { name: "简体中文", exact: true }).click();
   await assertChinese(first);
   await screenshot("02-chinese-selected.png");
   await close();
   const restarted = await launch();
+  await navigate("/settings/general");
   await assertChinese(restarted);
   await screenshot("03-chinese-after-restart.png");
   NodeAssert.equal(restarted.packaged.userData, first.packaged.userData);
@@ -449,6 +514,9 @@ try {
   process.exitCode = 1;
   if (page) await screenshot("failure.png").catch(() => {});
 } finally {
+  const logs = NodePath.join(t3Home, "userdata", "logs");
+  if (NodeFS.existsSync(logs))
+    NodeFS.cpSync(logs, NodePath.join(artifacts, "logs"), { recursive: true });
   if (app) {
     const child = app.process();
     const timer = setTimeout(() => child.kill("SIGKILL"), 10000);

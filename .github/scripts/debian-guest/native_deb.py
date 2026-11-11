@@ -3,6 +3,7 @@ import argparse,json,os,pathlib,shutil,subprocess
 from common import *
 from host import validate_source,bounded_operation
 from live_io import context,snapshot,validate_snapshot,validate_pair,emit_provenance
+from guest import collect_diagnostics
 HERE=pathlib.Path(__file__).resolve().parent
 
 def main(a):
@@ -42,6 +43,10 @@ def main(a):
         after,after_log=snapshot(m);validate_pair(ctx,before,after,m,log,after_log);(work/'github-evidence-after.json').write_text(json.dumps(after,indent=2));emit_provenance(work,m,before)
     except BaseException:
         status.update(result='failed',exitCode=1);raise
-    finally:(results/'status.json').write_text(json.dumps(status,indent=2))
+    finally:
+        try:collect_diagnostics(results)
+        except Exception as error:
+            (results/'diagnostics.json').write_text(json.dumps({'status':'collection-failed','errorType':type(error).__name__}))
+        (results/'status.json').write_text(json.dumps(status,indent=2))
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('--inputs',required=True);p.add_argument('--source',required=True);p.add_argument('--work',required=True);p.add_argument('--execute-authorized',action='store_true');a=p.parse_args();bounded_operation(lambda:main(a))

@@ -1,5 +1,5 @@
 """Guest-only bootstrap. NEVER invoke locally; loaded by NoCloud after mounting payload."""
-import base64, glob, hashlib, io, json, os, pathlib, pwd, shutil, subprocess, tarfile, threading, time, traceback
+import base64, glob, hashlib, io, json, os, pathlib, pwd, re, selectors, shutil, subprocess, tarfile, threading, time, traceback
 from common import validate_manifest, require, sha, run, unpack_tar, validate_results
 BASE=pathlib.Path('/var/tmp/t3-validation')
 RESULT=BASE/'results'
@@ -46,6 +46,87 @@ def emit(root):
 
 def capture(command):
     return subprocess.check_output(command,stderr=subprocess.STDOUT,text=True,timeout=30)
+
+def diagnostic_command(command, limit=65536, timeout=5):
+    """Bound pipe reads and terminate only the child this call started."""
+    data=bytearray();process=None;state='complete';deadline=time.monotonic()+timeout
+    try:
+        process=subprocess.Popen(command,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,
+                                 env={'PATH':'/usr/bin:/bin','LANG':'C','LC_ALL':'C','SYSTEMD_COLORS':'0'})
+        with selectors.DefaultSelector() as selector:
+            selector.register(process.stdout,selectors.EVENT_READ)
+            while True:
+                remaining=deadline-time.monotonic()
+                if remaining<=0:state='timeout';break
+                if not selector.select(remaining):state='timeout';break
+                chunk=os.read(process.stdout.fileno(),min(8192,limit+1-len(data)))
+                if not chunk:break
+                data.extend(chunk)
+                if len(data)>limit:state='truncated';break
+        if state=='complete':
+            try:process.wait(timeout=max(.001,deadline-time.monotonic()))
+            except subprocess.TimeoutExpired:state='timeout'
+    except OSError as error:
+        state='unavailable';return {'status':state,'errorType':type(error).__name__}
+    finally:
+        if process is not None:
+            if process.poll() is None:
+                process.kill()
+                try:process.wait(timeout=1)
+                except subprocess.TimeoutExpired:state='cleanup-timeout'
+            if process.stdout is not None:process.stdout.close()
+    return {'status':state,'exitCode':process.returncode,'text':bytes(data[:limit]).decode('utf-8','replace')}
+
+def diagnostic_file(path,limit):
+    try:
+        with open(path,'rb') as stream:data=stream.read(limit+1)
+        return {'status':'truncated' if len(data)>limit else 'complete','text':data[:limit].decode('utf-8','replace')}
+    except OSError as error:return {'status':'unavailable','errorType':type(error).__name__}
+
+def collect_diagnostics(root,proc=pathlib.Path('/proc')):
+    report={'scope':'read-only crash diagnostics; limits belong to the collector, not the crashed child',
+            'corePattern':diagnostic_file(proc/'sys/kernel/core_pattern',4096),
+            'collectorLimits':diagnostic_file(proc/'self/limits',8192)}
+    cpu=diagnostic_file(proc/'cpuinfo',65536)
+    report['cpu']={'status':cpu['status'],'text':'\n'.join(line for line in cpu.get('text','').split('\n\n',1)[0].splitlines()
+        if line.split(':',1)[0].strip() in ('vendor_id','cpu family','model','model name','stepping','flags'))}
+    commands={
+        'kernel':['journalctl','--no-pager','-b','-k','-n','100','-o','short-iso',
+                  '--grep=segfault|general protection|trap|Out of memory|Killed process'],
+        'crashJournal':['journalctl','--no-pager','-b','-n','100','-o','short-iso','_COMM=systemd-coredump'],
+        'coredumps':['coredumpctl','--no-pager','--no-legend','--boot=0','list'],
+    }
+    for name,command in commands.items():report[name]=diagnostic_command(command)
+    report['backendLogs']=[];report['backendSignals']=[]
+    for lane in ('clean','cjk'):
+        directory=root/lane/'logs'
+        safe=not directory.is_symlink() and not any(parent.is_symlink() for parent in directory.parents if parent!=root.parent)
+        candidates=[];scan_status='complete'
+        if not safe:scan_status='symlink-omitted'
+        else:
+            try:
+                with os.scandir(directory) as entries:
+                    for index,entry in enumerate(entries):
+                        if index>=128:scan_status='entry-limit';break
+                        if re.fullmatch(r'server-child\.log(?:\.[0-9]+)?',entry.name):candidates.append(pathlib.Path(entry.path))
+            except OSError:scan_status='unavailable'
+        report['backendLogs'].append({'lane':lane,'directoryStatus':scan_status,'fileLimitReached':len(candidates)>8})
+        for log in sorted(candidates)[:8]:
+            child=diagnostic_file(log,128*1024) if log.is_file() and not log.is_symlink() else {'status':'nonregular-omitted'}
+            member=str(log.relative_to(root));report['backendLogs'].append({'member':member,'status':child['status']})
+            for line in child.get('text','').splitlines():
+                try:
+                    event=json.loads(line)
+                    if not isinstance(event,dict):continue
+                    annotation=event.get('annotations',{})
+                    if not isinstance(annotation,dict):continue
+                    match=re.fullmatch(r'pid=(\d+) killed by (SIG[A-Z0-9]+)',str(annotation.get('details','')))
+                    if annotation.get('phase')=='END' and match and len(report['backendSignals'])<100:
+                        report['backendSignals'].append({'member':member,'pid':int(match[1]),'signal':match[2],
+                            'timestamp':str(event.get('timestamp',''))[:64]})
+                except (ValueError,TypeError):continue
+    (root/'diagnostics.json').write_text(json.dumps(report,indent=2))
+    return report
 
 def observer(stop,exe,m):
     evidence={'observed':False,'artifactSha256':m['appimageSha256'],'method':'nonroot process exe + APPIMAGE environment + fuse mountinfo'}
@@ -135,6 +216,9 @@ def main():
     finally:
         stop.set()
         if watch:watch.join(5)
+        try:collect_diagnostics(RESULT)
+        except Exception as error:
+            (RESULT/'diagnostics.json').write_text(json.dumps({'status':'collection-failed','errorType':type(error).__name__}))
         (RESULT/'status.json').write_text(json.dumps(status,indent=2))
         emit(RESULT)
     return status['exitCode']

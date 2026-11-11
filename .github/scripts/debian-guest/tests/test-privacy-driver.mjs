@@ -6,6 +6,7 @@ const driver = NodeFS.readFileSync(new URL("../check-debian-cjk-ui.mjs", import.
 const map = new Function(
   "return (" + driver.match(/const approvedPrivacyClauses = (\{[\s\S]*?\n\});/)[1] + ")",
 )();
+NodeAssert.deepEqual(map, { "See the": "请参阅", "To opt out, see the": "如需退出，请参阅" });
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
 const firstStart = driver.indexOf("  const englishDialogText =");
 const firstEnd = driver.indexOf(
@@ -32,6 +33,7 @@ const check = new AsyncFunction(
 );
 function pageFor(text) {
   return {
+    url: () => "t3code://app/#/welcome",
     getByRole() {
       return {
         innerText: async () => text,
@@ -54,7 +56,11 @@ function pageFor(text) {
       };
     },
     locator() {
-      return { getAttribute: async () => "zh-CN", innerText: async () => text };
+      return {
+        ...this.getByRole().locator(),
+        getAttribute: async () => "zh-CN",
+        innerText: async () => text,
+      };
     },
   };
 }

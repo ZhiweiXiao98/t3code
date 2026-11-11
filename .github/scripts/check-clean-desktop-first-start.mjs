@@ -43,6 +43,53 @@ const report = {
   downloadTrustDialogs:
     "Browser-origin security dialogs, Finder approval and Windows SmartScreen are not covered by this CI check.",
 };
+function backendSignalExits(text) {
+  return text
+    .split("\n")
+    .filter((line) => line.trim())
+    .flatMap((line) => {
+      const record = JSON.parse(line);
+      const annotations = record.annotations;
+      if (
+        record.level !== "ERROR" ||
+        annotations?.component !== "desktop-backend-child" ||
+        annotations.phase !== "END"
+      )
+        return [];
+      const match = /^pid=(\d+) killed by (SIG[A-Z0-9]+)$/.exec(annotations.details ?? "");
+      return match
+        ? [
+            {
+              pid: Number(match[1]),
+              signal: match[2],
+              timestamp: record.timestamp,
+              runId: annotations.runId,
+            },
+          ]
+        : [];
+    });
+}
+function readBackendSignalExits() {
+  const directory = NodePath.join(t3Home, "userdata", "logs");
+  // Failure snapshots are lazy; a healthy backend need not create a log file.
+  if (!NodeFS.existsSync(directory)) return [];
+  return NodeFS.readdirSync(directory)
+    .filter((name) => /^server-child\.log(?:\.\d+)?$/.test(name))
+    .flatMap((name) =>
+      backendSignalExits(NodeFS.readFileSync(NodePath.join(directory, name), "utf8")),
+    );
+}
+async function waitForWelcome(page) {
+  await page
+    .getByRole("heading", { name: "Welcome to T3 Code", exact: true })
+    .waitFor({ state: "visible", timeout: 60_000 });
+  await page
+    .getByRole("button", { name: "Start without an agent", exact: true })
+    .waitFor({ state: "visible", timeout: 60_000 });
+  await page
+    .getByRole("button", { name: "Start", exact: true })
+    .waitFor({ state: "visible", timeout: 60_000 });
+}
 let app;
 let page;
 try {
@@ -112,12 +159,7 @@ try {
   await page.waitForURL(/^(?:t3code:\/\/app\/|https?:\/\/(?:127\.0\.0\.1|localhost):\d+\/)/, {
     timeout: 60_000,
   });
-  await page
-    .getByRole("main")
-    .or(page.getByRole("dialog"))
-    .first()
-    .waitFor({ state: "visible", timeout: 60_000 });
-  await page.getByRole("button").first().waitFor({ state: "visible", timeout: 60_000 });
+  await waitForWelcome(page);
   report.firstRender = {
     bodyText: await page.locator("body").innerText(),
     windowUrl: page.url(),
@@ -243,12 +285,7 @@ try {
   } finally {
     await browserWindow.dispose();
   }
-  await page
-    .getByRole("main")
-    .or(page.getByRole("dialog"))
-    .first()
-    .waitFor({ state: "visible", timeout: 60_000 });
-  await page.getByRole("button").first().waitFor({ state: "visible", timeout: 60_000 });
+  await waitForWelcome(page);
   report.bodyText = await page.locator("body").innerText();
   NodeAssert.ok(report.bodyText.trim().length > 0);
   NodeAssert.deepEqual(errors, []);
@@ -261,6 +298,13 @@ try {
     path: NodePath.join(artifacts, "clean-first-start.png"),
     animations: "disabled",
   });
+  // Inspect before our own graceful close: a recovered crash is still a failure.
+  report.backendSignalExits = readBackendSignalExits();
+  NodeAssert.deepEqual(
+    report.backendSignalExits,
+    [],
+    "Unexpected backend signal exit before acceptance completed",
+  );
   report.result = "passed";
 } catch (error) {
   report.result = "failed";

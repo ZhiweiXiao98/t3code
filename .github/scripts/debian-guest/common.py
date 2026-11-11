@@ -1,10 +1,10 @@
 """Fail-closed manifest, bounded execution, archive and acceptance primitives."""
 import base64, hashlib, io, json, os, pathlib, re, signal, subprocess, tarfile, time
-CLEAN_SHA='1cfb62bf02d1c4063362b1ffed1cea17c6dfe532e4bf05e7b5bfe0f153362375'
+CLEAN_SHA='6a8e96df7a6533355af7616345ba47a4ded70d9a957585bd03568395c1d61d3c'
 IMAGE_URL='https://cloud.debian.org/cdimage/cloud/trixie/20261001-2618/debian-13-genericcloud-amd64-20261001-2618.qcow2'
 IMAGE_SHA='f46f0671a6e5bdec5291ab8972bae2f10e5408c2f64a74078f11efc2f06a436a9d0313ed50e0472542eeabf780e9f7c792ac0a314c6c20507fcd9fd81b468c3d'
-CJK_SHA='47c04119861e432afdde9ceac99163182b349a73e23271e1813331293dca6a8e'
-PRIVACY_CLAUSES={'To read more about how your data is used, see our': '如需了解数据的使用方式，请参阅我们的', 'To read more about how your data is used and how to opt out, see our': '如需了解数据的使用方式以及如何退出，请参阅我们的'}
+CJK_SHA='25942708434495e6657d030fa95c8d020e4f77c29534b8941d6750c3864911cd'
+PRIVACY_CLAUSES={'See the': '请参阅', 'To opt out, see the': '如需退出，请参阅'}
 
 def require(value, message):
     if not value: raise ValueError(message)
@@ -169,6 +169,7 @@ def validate_results(root,m):
     first=clean.get('firstRender',{});body(first.get('bodyText'));app_url(first.get('windowUrl'))
     require(first.get('screenshot')=='clean-first-render.png','Wrong first render screenshot')
     require('error' not in clean and isinstance(clean.get('windowTitle'),str),'Invalid clean success report')
+    require(clean.get('backendSignalExits')==[],'Unexpected or unobserved backend signal exits')
     body(clean.get('bodyText'));app_url(clean.get('windowUrl'))
     png(root/'clean/clean-first-render.png');png(root/'clean/clean-first-start.png')
     cjk=read_json(root/'cjk/linux-chinese-ui.json')
@@ -197,20 +198,21 @@ def validate_results(root,m):
     paragraph=observation.get('english_paragraph');require(isinstance(paragraph,str) and [source for source in PRIVACY_CLAUSES if source in paragraph]==[source_clause],'English privacy observation ambiguous or mismatched')
     sessions=cjk.get('sessions',[]);require(len(sessions)==2,'Missing CJK sessions')
     for session in sessions:
+        require(session.get('backendSignalExits')==[],'Unexpected or unobserved CJK backend signal exits')
         sandbox(session.get('effectiveSandbox',{}),True);probe(session)
         require(session.get('requested_chromium_sandbox') is True,'CJK sandbox not requested')
         launch_args(session.get('spawn_args'),executable,chome)
         packaged=session.get('packaged',{});require(packaged.get('isPackaged') is True and packaged.get('noSandbox') is False and under(packaged.get('userData',''),chome),'CJK packaged/profile mismatch')
         require(session.get('locale')=='zh-CN' and session.get('page_errors')==[],'CJK locale/page errors')
         body(session.get('body_text'));app_url(session.get('url'))
-        require(all(label in session['body_text'] for label in ['设置 T3 Code','连接你的设备','要设置的设备','添加设备',expected_privacy]),'Missing Chinese/privacy labels')
+        require(all(label in session['body_text'] for label in ['欢迎使用 T3 Code','暂不配置 Agent，直接开始','启动',expected_privacy]),'Missing Chinese/privacy labels')
         require(not any(source in session['body_text'] for source in PRIVACY_CLAUSES),'Untranslated privacy clause')
-        require(not any(translation in session['body_text'] for translation in PRIVACY_CLAUSES.values() if translation!=expected_privacy),'Wrong/switched Chinese privacy variant')
+        require(not any(translation in (session['body_text'].replace(expected_privacy,'') if translation in expected_privacy else session['body_text']) for translation in PRIVACY_CLAUSES.values() if translation!=expected_privacy),'Wrong/switched Chinese privacy variant')
         require(strict_dict(session.get('privacy_clause'),{'source':source_clause,'expected':expected_privacy,'visible':True}),'Privacy clause missing')
-        fonts=session.get('rendered_chinese_fonts',{});require(fonts.get('text')=='连接你的设备','Wrong actual-font target')
+        fonts=session.get('rendered_chinese_fonts',{});require(fonts.get('text')=='欢迎使用 T3 Code','Wrong actual-font target')
         require(all(isinstance(font.get('familyName'),str) and type(font.get('glyphCount')) is int and font['glyphCount']>=0 for font in fonts.get('fonts',[])),'Invalid actual-font record')
         glyphs=sum(font.get('glyphCount',0) for font in fonts.get('fonts',[]) if re.search(r'Noto.*CJK',font.get('familyName',''),re.I))
-        require(glyphs>=len('连接你的设备'),'Insufficient actual CJK glyphs')
+        require(glyphs>=4,'Insufficient actual CJK glyphs')
         require(not any(re.search('client.settings.*persist failed|could not start|无法启动',err,re.I) for err in session.get('console_errors',[])),'CJK persistence console failure')
     require(sessions[0]['packaged']['userData']==sessions[1]['packaged']['userData'],'Restart used different profile')
     expected_names=['01-fonts-installed-english.png','02-chinese-selected.png','03-chinese-after-restart.png']

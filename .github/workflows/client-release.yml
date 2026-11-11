@@ -106,6 +106,8 @@ jobs:
 
           node .github/scripts/debian-guest/tests/test-privacy-driver.mjs
 
+          node .github/scripts/debian-guest/tests/test-welcome-driver.mjs
+
           node .github/scripts/debian-guest/tests/test-typed-driver.mjs
 
           "
@@ -744,16 +746,12 @@ jobs:
           path: ${{ runner.temp }}/acceptance-artifacts
           if-no-files-found: warn
           retention-days: 14
-  desktop-clean-install:
+  # Linux acceptance needs only its own producer; publication still requires every gate.
+  linux-clean-install:
     name: Clean desktop ${{ matrix.display }} first start
     needs:
       - source
       - linux
-      - desktop
-      - quality
-      - native-rust-quality
-      - mobile-native-quality
-      - tests
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     strategy:
@@ -770,11 +768,6 @@ jobs:
             artifact: client-linux-x64
             suffix: x86_64.AppImage
             display: appimage Debian 13 guest (Ubuntu 24.04 host)
-          - runner: windows-2022
-            kind: nsis
-            artifact: client-win-x64
-            suffix: x64.exe
-            display: nsis
     steps:
       - name: Reserve bounded validation and upload budget
         if: runner.os == 'Linux'
@@ -804,15 +797,6 @@ jobs:
         with:
           node-version-file: package.json
           run-install: false
-      - uses: actions/download-artifact@v8
-        with:
-          name: ${{ matrix.artifact }}
-          path: candidate
-        if: matrix.kind == 'nsis'
-      - name: Install pinned acceptance driver
-        shell: bash
-        run: npm install --prefix "$RUNNER_TEMP/acceptance-tools" --no-save --ignore-scripts playwright-core@1.60.0
-        if: matrix.kind == 'nsis'
       - timeout-minutes: 5
         name: Install official Linux validation dependencies
         if: runner.os == 'Linux'
@@ -859,6 +843,76 @@ jobs:
           --work "$RUNNER_TEMP/linux-live-proof" --execute-authorized
 
           '
+      - name: Collect bounded Linux proof
+        if: always() && runner.os == 'Linux'
+        shell: bash
+        run: 'set -euo pipefail
+
+          python3 .github/scripts/debian-guest/collect_evidence.py --workdir "$RUNNER_TEMP/linux-live-proof" --out "$RUNNER_TEMP/acceptance-artifacts"
+
+          '
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: clean-install-${{ matrix.kind }}
+          path: ${{ runner.temp }}/acceptance-artifacts
+          if-no-files-found: error
+          retention-days: 14
+  desktop-clean-install:
+    name: Clean desktop ${{ matrix.display }} first start
+    needs:
+      - source
+      - linux
+      - desktop
+      - quality
+      - native-rust-quality
+      - mobile-native-quality
+      - tests
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-2022
+            kind: nsis
+            artifact: client-win-x64
+            suffix: x64.exe
+            display: nsis
+    steps:
+      - name: Checkout exact source without credentials
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ needs.source.outputs.sha }}
+          GIT_TERMINAL_PROMPT: "0"
+        run: 'set -euo pipefail
+
+          git init .
+
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+
+          git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
+
+          git sparse-checkout set --no-cone ''/*'' ''!/.repos/''
+
+          git checkout --detach FETCH_HEAD
+
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+
+          '
+      - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
+        with:
+          node-version-file: package.json
+          run-install: false
+      - uses: actions/download-artifact@v8
+        with:
+          name: ${{ matrix.artifact }}
+          path: candidate
+        if: matrix.kind == 'nsis'
+      - name: Install pinned acceptance driver
+        shell: bash
+        run: npm install --prefix "$RUNNER_TEMP/acceptance-tools" --no-save --ignore-scripts playwright-core@1.60.0
+        if: matrix.kind == 'nsis'
       - name: Install NSIS and launch clean installed entry
         if: matrix.kind == 'nsis'
         shell: pwsh
@@ -886,14 +940,6 @@ jobs:
           "$env:RUNNER_TEMP/acceptance-tools/node_modules/playwright-core/index.mjs" --artifacts-dir $artifacts
 
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-          '
-      - name: Collect bounded Linux proof
-        if: always() && runner.os == 'Linux'
-        shell: bash
-        run: 'set -euo pipefail
-
-          python3 .github/scripts/debian-guest/collect_evidence.py --workdir "$RUNNER_TEMP/linux-live-proof" --out "$RUNNER_TEMP/acceptance-artifacts"
 
           '
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
