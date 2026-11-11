@@ -1,10 +1,15 @@
 import type { ConfirmDialogOptions, ContextMenuItem, LocalApi } from "@t3tools/contracts";
 
 import { requestConfirmDialog } from "./confirmDialog";
-import { dismissContextMenu, showContextMenuFallback } from "./contextMenuFallback";
 import { readBrowserClientSettings, writeBrowserClientSettings } from "./clientPersistenceStorage";
 
 let cachedApi: LocalApi | undefined;
+let contextMenuFallback: Promise<typeof import("./contextMenuFallback")> | undefined;
+
+function loadContextMenuFallback() {
+  // Share the loading promise so overlapping show/close calls retain their order.
+  return (contextMenuFallback ??= import("./contextMenuFallback"));
+}
 
 export function createLocalApi(): LocalApi {
   return {
@@ -47,11 +52,13 @@ export function createLocalApi(): LocalApi {
         if (window.desktopBridge) {
           return window.desktopBridge.showContextMenu(items, position) as Promise<T | null>;
         }
+        const { showContextMenuFallback } = await loadContextMenuFallback();
         return showContextMenuFallback(items, position);
       },
       // Unlike native menus, the DOM fallback needs dismissal when underlying state disappears.
       close: async () => {
         if (!window.desktopBridge) {
+          const { dismissContextMenu } = await loadContextMenuFallback();
           dismissContextMenu();
         }
       },
