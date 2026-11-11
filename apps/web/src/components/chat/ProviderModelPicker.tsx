@@ -126,7 +126,7 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
   effortColumn?: ReactNode;
   footer?: ReactNode;
 }) {
-  const { t: controlsT } = useI18n();
+  const { locale, t: controlsT } = useI18n();
   const composerFloatingLayerProps = useComposerMenuProps();
   const [uncontrolledIsMenuOpen, setUncontrolledIsMenuOpen] = useState(false);
   const isMenuOpen = props.open ?? uncontrolledIsMenuOpen;
@@ -167,12 +167,12 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
       ? undefined
       : selectedInstanceOptions[0]);
   const triggerTitle = selectedModel
-    ? getTriggerDisplayModelName(selectedModel, activeEntry?.driverKind)
+    ? getTriggerDisplayModelName(selectedModel, activeEntry?.driverKind, locale)
     : props.model === ANTIGRAVITY_DEFAULT_MODEL
       ? controlsT("chatControls.copy49")
       : props.model || controlsT("chatControls.copy49");
   const triggerLabel = selectedModel
-    ? `${getDisplayModelName(selectedModel)}${selectedModel.isUnavailable ? controlsT("chatControls.copy50") : ""}`
+    ? `${getDisplayModelName(selectedModel, { driverKind: activeEntry?.driverKind, locale })}${selectedModel.isUnavailable ? controlsT("chatControls.copy50") : ""}`
     : triggerTitle;
   const showInstanceBadge =
     activeEntry !== null && shouldShowInstanceBadge(activeEntry, props.instanceEntries);
@@ -242,9 +242,11 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
       ...selection,
       entry,
       label: model
-        ? `${getTriggerDisplayModelName(model, entry?.driverKind)}${unavailable}`
+        ? `${getTriggerDisplayModelName(model, entry?.driverKind, locale)}${unavailable}`
         : selection.model,
-      fullLabel: model ? `${getDisplayModelName(model)}${unavailable}` : selection.model,
+      fullLabel: model
+        ? `${getDisplayModelName(model, { driverKind: entry?.driverKind, locale })}${unavailable}`
+        : selection.model,
     };
   });
   const multipleLabel = selectedEntries

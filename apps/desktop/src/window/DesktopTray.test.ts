@@ -136,6 +136,16 @@ describe("DesktopTray", () => {
           assert.equal(openCount, 2);
           assert.equal(quitCount, 1);
 
+          const clientSettings = yield* DesktopClientSettings.DesktopClientSettings;
+          yield* clientSettings.set({ ...DEFAULT_CLIENT_SETTINGS, appLocale: "en" });
+          yield* tray.refresh;
+          assert.equal(electronMocks.trayInstances.length, 1);
+          assert.equal(electronMocks.menuTemplates.at(-1)?.[0]?.label, "Open T3 Code (Beta)");
+          assert.equal(electronMocks.menuTemplates.at(-1)?.[2]?.label, "Quit T3 Code (Beta)");
+          assert.isTrue(tray.shouldHideOnClose());
+          trayInstance.listeners.get("click")?.();
+          assert.equal(openCount, 3);
+
           tray.markQuitRequested();
           assert.isFalse(tray.shouldHideOnClose());
           assert.isFalse(trayInstance.destroyed);

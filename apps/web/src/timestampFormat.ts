@@ -11,7 +11,7 @@ function getTimestampFormatOptions(
   };
 
   if (timestampFormat === "locale") {
-    return baseOptions;
+    return { ...baseOptions, hourCycle: timestampHourCycle };
   }
 
   return {
@@ -39,6 +39,9 @@ function readHostSystemLocale(): string | null {
 }
 
 const timestampLocale = resolveTimestampLocale(readHostSystemLocale());
+const timestampHourCycle = new Intl.DateTimeFormat(timestampLocale, {
+  hour: "numeric",
+}).resolvedOptions().hourCycle;
 
 const WEEKDAY_INDEXES = [0, 1, 2, 3, 4, 5, 6] as const;
 type WeekdayIndex = (typeof WEEKDAY_INDEXES)[number];
@@ -74,14 +77,15 @@ function getTimestampFormatter(
   timestampFormat: TimestampFormat,
   includeSeconds: boolean,
   timeZone?: string,
+  locale: string | undefined = timestampLocale,
 ): Intl.DateTimeFormat {
-  const cacheKey = `${timestampFormat}:${includeSeconds ? "seconds" : "minutes"}:${timeZone ?? ""}`;
+  const cacheKey = `${locale ?? ""}:${timestampFormat}:${includeSeconds ? "seconds" : "minutes"}:${timeZone ?? ""}`;
   const cachedFormatter = timestampFormatterCache.get(cacheKey);
   if (cachedFormatter) {
     return cachedFormatter;
   }
 
-  const formatter = new Intl.DateTimeFormat(timestampLocale, {
+  const formatter = new Intl.DateTimeFormat(locale, {
     ...getTimestampFormatOptions(timestampFormat, includeSeconds),
     ...(timeZone ? { timeZone } : {}),
   });
@@ -121,20 +125,28 @@ function ordinalSuffix(day: number): string {
 export function formatChatTimestampTooltip(
   isoDate: string,
   timestampFormat: TimestampFormat,
+  locale?: string,
 ): string {
   const date = parseTimestampDate(isoDate);
   if (!date) return "";
-  const time = formatShortTimestamp(isoDate, timestampFormat);
+  const time = formatShortTimestamp(isoDate, timestampFormat, locale);
+  if (locale === "zh-CN") {
+    return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日 ${time}`;
+  }
   const day = date.getDate();
   const month = monthNameFormatter.format(date);
   const year = date.getFullYear();
   return `${time}, ${day}${ordinalSuffix(day)} ${month} ${year}`;
 }
 
-export function formatShortTimestamp(isoDate: string, timestampFormat: TimestampFormat): string {
+export function formatShortTimestamp(
+  isoDate: string,
+  timestampFormat: TimestampFormat,
+  locale?: string,
+): string {
   const date = parseTimestampDate(isoDate);
   if (!date) return "";
-  return getTimestampFormatter(timestampFormat, false).format(date);
+  return getTimestampFormatter(timestampFormat, false, undefined, locale).format(date);
 }
 
 const numericDateOptions: Intl.DateTimeFormatOptions = { month: "numeric", day: "numeric" };
@@ -171,14 +183,27 @@ function calendarDay(date: Date, timeZone: string | undefined): CalendarDay {
   return { year, index: Date.UTC(year, part("month") - 1, part("day")) / 86_400_000 };
 }
 
-function formatNumericDate(date: Date, sameYear: boolean, timeZone: string | undefined): string {
-  if (!timeZone) {
+const numericDateFormatterCache = new Map<string, Intl.DateTimeFormat>();
+
+function formatNumericDate(
+  date: Date,
+  sameYear: boolean,
+  timeZone: string | undefined,
+  locale?: string,
+): string {
+  if (!timeZone && locale === undefined) {
     return (sameYear ? numericDateFormatter : numericDateWithYearFormatter).format(date);
   }
-  return new Intl.DateTimeFormat(timestampLocale, {
-    ...(sameYear ? numericDateOptions : numericDateWithYearOptions),
-    timeZone,
-  }).format(date);
+  const key = `${locale ?? timestampLocale ?? ""}:${sameYear}:${timeZone ?? ""}`;
+  let formatter = numericDateFormatterCache.get(key);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat(locale ?? timestampLocale, {
+      ...(sameYear ? numericDateOptions : numericDateWithYearOptions),
+      ...(timeZone ? { timeZone } : {}),
+    });
+    numericDateFormatterCache.set(key, formatter);
+  }
+  return formatter.format(date);
 }
 
 export function formatDayAwareTimestamp(
@@ -186,18 +211,19 @@ export function formatDayAwareTimestamp(
   timestampFormat: TimestampFormat,
   nowMs: number = Date.now(),
   timeZone?: string,
+  locale?: string,
 ): string {
   const date = parseTimestampDate(isoDate);
   if (!date) return "";
-  const time = getTimestampFormatter(timestampFormat, false, timeZone).format(date);
+  const time = getTimestampFormatter(timestampFormat, false, timeZone, locale).format(date);
 
   const today = calendarDay(new Date(nowMs), timeZone);
   const messageDay = calendarDay(date, timeZone);
   const dayDiff = today.index - messageDay.index;
 
   if (dayDiff <= 0) return time;
-  if (dayDiff === 1) return `yesterday at ${time}`;
-  return `${formatNumericDate(date, messageDay.year === today.year, timeZone)} ${time}`;
+  if (dayDiff === 1) return locale === "zh-CN" ? `昨天 ${time}` : `yesterday at ${time}`;
+  return `${formatNumericDate(date, messageDay.year === today.year, timeZone, locale)} ${time}`;
 }
 
 /** `timeZone` overrides the zone the formatters cached when they were built. */
@@ -206,19 +232,21 @@ export function formatUpcomingTimestamp(
   timestampFormat: TimestampFormat,
   nowMs: number = Date.now(),
   timeZone?: string,
+  locale?: string,
 ): string {
   const date = parseTimestampDate(isoDate);
   if (!date) return "";
-  const time = getTimestampFormatter(timestampFormat, false, timeZone).format(date);
+  const time = getTimestampFormatter(timestampFormat, false, timeZone, locale).format(date);
 
   const today = calendarDay(new Date(nowMs), timeZone);
   const targetDay = calendarDay(date, timeZone);
   const dayDiff = targetDay.index - today.index;
 
-  if (dayDiff < 0) return formatDayAwareTimestamp(isoDate, timestampFormat, nowMs, timeZone);
+  if (dayDiff < 0)
+    return formatDayAwareTimestamp(isoDate, timestampFormat, nowMs, timeZone, locale);
   if (dayDiff === 0) return time;
-  if (dayDiff === 1) return `tomorrow at ${time}`;
-  return `${formatNumericDate(date, targetDay.year === today.year, timeZone)} ${time}`;
+  if (dayDiff === 1) return locale === "zh-CN" ? `明天 ${time}` : `tomorrow at ${time}`;
+  return `${formatNumericDate(date, targetDay.year === today.year, timeZone, locale)} ${time}`;
 }
 
 type RelativeTimeParts = { value: string; suffix: string | null };

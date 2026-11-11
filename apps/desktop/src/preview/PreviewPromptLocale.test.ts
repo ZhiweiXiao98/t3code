@@ -53,7 +53,11 @@ describe("PreviewPromptLocale", () => {
         path: "/test/client-settings.json",
         cause: new Error("unavailable"),
       });
-      for (const get of [Effect.succeedNone, Effect.fail(unavailable)]) {
+      for (const get of [
+        Effect.succeedNone,
+        Effect.fail(unavailable),
+        Effect.die("settings unavailable"),
+      ]) {
         const getMessages = yield* makePreviewPromptMessages.pipe(
           withLocaleServices(get, Effect.succeed("zh-SG")),
         );

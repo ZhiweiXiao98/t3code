@@ -36,6 +36,7 @@ export function sourceControlHostIcon(
 
 /** The input's trailing submit button for the add-project, clone, and new-project flows. */
 export function CommandPaletteSubmitButton(props: {
+  readonly id: string;
   readonly label: ReactNode;
   readonly shortcutLabel: string;
   readonly ariaLabel: string;
@@ -48,9 +49,9 @@ export function CommandPaletteSubmitButton(props: {
       <TooltipTrigger
         render={
           <Button
+            id={props.id}
             variant="outline"
             size="xs"
-            tabIndex={-1}
             className="absolute inset-e-2.5 top-1/2 -translate-y-1/2"
             aria-label={props.ariaLabel}
             disabled={props.disabled}
@@ -135,6 +136,7 @@ export function NewProjectSummary(props: {
   readonly projectsRoot: string | null;
   readonly environmentLabel: string | null;
 }) {
+  const { t } = useI18n();
   return (
     <div className="p-2 pb-0">
       <div className="flex min-h-8 items-center gap-2 rounded-sm px-2 py-1.5">
@@ -143,13 +145,15 @@ export function NewProjectSummary(props: {
         </CommandPaletteTitleIcon>
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="truncate text-foreground text-sm">
-            {props.name.length > 0 ? props.name : "New project"}
+            {props.name.length > 0 ? props.name : t("sidebar.newProject")}
           </span>
           <span className="truncate text-muted-foreground/85 text-xs">
             {props.name.length > 0
-              ? `Creates ${props.pathPreview}`
-              : `Goes in ${props.projectsRoot}`}
-            {props.environmentLabel === null ? null : ` on ${props.environmentLabel}`}
+              ? t("newProject.createsAt", { path: props.pathPreview })
+              : t("newProject.goesIn", { path: props.projectsRoot ?? "" })}
+            {props.environmentLabel === null
+              ? null
+              : t("newProject.onEnvironment", { environment: props.environmentLabel })}
           </span>
         </span>
       </div>

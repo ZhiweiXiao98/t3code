@@ -1,3 +1,5 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { AsyncResult } from "effect/reactivity";
 import { useAtomRefresh } from "@effect/atom-react";
 import { StackActions, useNavigation, type StaticScreenProps } from "@react-navigation/native";
@@ -184,7 +186,7 @@ export function PullRequestReviewSheet({
         selection={completions.selection}
         onSelectionChange={completions.onSelectionChange}
         onBlur={completions.onBlur}
-        accessibilityLabel={reviewing ? "Review summary" : "Comment"}
+        accessibilityLabel={reviewing ? "Review summary" : localizeMobileString("Comment")}
         placeholder={
           reviewing
             ? summaryRequired
@@ -203,8 +205,10 @@ export function PullRequestReviewSheet({
       {reviewing && store.draft.comments.length ? (
         <View className="gap-2">
           <Text className="text-sm font-t3-medium">
-            {store.draft.comments.length} pending line{" "}
-            {store.draft.comments.length === 1 ? "comment" : "comments"}
+            {formatMobileMessage("{0} pending line {1}", [
+              store.draft.comments.length,
+              store.draft.comments.length === 1 ? "comment" : "comments",
+            ])}
           </Text>
           {store.draft.comments.map((draft) => (
             <Pressable
@@ -232,10 +236,10 @@ export function PullRequestReviewSheet({
               }}
               className="gap-1 rounded-[20px] bg-grouped-card p-4"
             >
-              <Text className="font-mono text-xs text-foreground-muted">
-                {draft.path} · {reviewPositionLabel(draft.position)}
+              <Text localize={false} className="font-mono text-xs text-foreground-muted">
+                {draft.path} · {localizeMobileString(reviewPositionLabel(draft.position))}
               </Text>
-              <Text numberOfLines={3} className="text-sm">
+              <Text localize={false} numberOfLines={3} className="text-sm">
                 {draft.body}
               </Text>
               <Text className="text-2xs text-foreground-muted">
@@ -254,9 +258,14 @@ export function PullRequestReviewSheet({
       ) : null}
       {reviewing && !canSubmitComments ? (
         <Text className="text-sm text-danger-foreground">
-          You can no longer submit line comments on this{" "}
-          {sourceControlClients.get(result.data?.provider).changeRequest.singular}. Your drafts are
-          kept here.
+          {formatMobileMessage(
+            "You can no longer submit line comments on this {0}. Your drafts are kept here.",
+            [
+              localizeMobileString(
+                sourceControlClients.get(result.data?.provider).changeRequest.singular,
+              ),
+            ],
+          )}
         </Text>
       ) : null}
       {submission.error || result.error || store.error ? (

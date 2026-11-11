@@ -40,6 +40,7 @@ import * as Electron from "electron";
 
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import * as DesktopClientSettings from "../settings/DesktopClientSettings.ts";
+import { readDesktopLocale } from "../settings/DesktopLocale.ts";
 import * as DesktopWindow from "../window/DesktopWindow.ts";
 import { startGlobalShiftShortcutProcess } from "./GlobalShiftShortcutProcess.ts";
 import { startMacModifierPairShortcutProcess } from "./MacModifierPairShortcutProcess.ts";
@@ -1269,6 +1270,10 @@ export const make = Effect.gen(function* () {
         shortcutMessage: null,
         message: null,
       });
+      const locale = yield* readDesktopLocale(
+        Effect.succeedSome(settings),
+        Effect.sync(() => Electron.app.getSystemLocale()),
+      );
       yield* Effect.tryPromise({
         try: async () => {
           const { PortalCaptureShortcut } = await import("./PortalCaptureShortcut.ts");
@@ -1292,6 +1297,7 @@ export const make = Effect.gen(function* () {
             },
             undefined,
             hyprland,
+            locale === "zh-CN" ? "截取窗口" : "Capture a window",
           );
         },
         catch: shortcutFailure,
@@ -1762,15 +1768,32 @@ export const make = Effect.gen(function* () {
         ),
     ),
     setAnimationDestination: Effect.fn("DesktopSnapShot.setAnimationDestination")(
-      function (id, destination) {
-        return Effect.promise(async () => {
+      function* (id, destination) {
+        const details = destination.details;
+        const displayDestination =
+          details?.windowTitle === ""
+            ? {
+                ...destination,
+                details: {
+                  ...details,
+                  windowTitle:
+                    (yield* readDesktopLocale(
+                      clientSettings.get,
+                      Effect.sync(() => Electron.app.getSystemLocale()),
+                    )) === "zh-CN"
+                      ? "已捕获的窗口"
+                      : "Captured window",
+                },
+              }
+            : destination;
+        return yield* Effect.promise(async () => {
           if (linuxFeedback?.id === id && destination.relativeFrame) {
             await linuxFeedback.feedback
               .animateTo(destination.relativeFrame)
               .catch(() => closeLinuxFeedback(id));
             return;
           }
-          transition.animateTo(id, destination);
+          transition.animateTo(id, displayDestination);
           await transition.waitForLanding(id);
         });
       },

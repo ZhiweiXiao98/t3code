@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../i18n/mobileStrings";
 import type { ModelSelection, ProviderDriverKind } from "@t3tools/contracts";
 import {
   buildTraitsTriggerDisplay,
@@ -7,7 +8,7 @@ import type { ModelOption } from "../lib/modelOptions";
 import { resolveProviderOptionDescriptors } from "../lib/providerOptions";
 import { AppText as Text } from "./ui/AppText";
 import { ComposerInlineControl } from "./ComposerToolbar";
-import { ProviderIcon, ProviderInstanceIcon } from "./ProviderIcon";
+import { ProviderIcon, ProviderInstanceIcon, providerInstanceNameLabel } from "./ProviderIcon";
 
 export function ComposerModelControl(props: {
   readonly modelOption: ModelOption | null;
@@ -35,15 +36,26 @@ export function ComposerModelControl(props: {
         reportedModelSelection: props.reportedSelection,
       }).label
     : "";
+  const localizedSummary = localizeMobileString(summary);
   const badge = props.modelOption?.providerBadge;
-  const label = props.modelOption?.label ?? props.selection?.model ?? "Choose model";
+  const label =
+    props.modelOption?.label ?? props.selection?.model ?? localizeMobileString("Choose model");
+  const providerNameLabel = badge
+    ? providerInstanceNameLabel({
+        provider: props.modelOption?.providerDriver,
+        iconUrl: props.modelOption?.providerIconUrl,
+        displayName: badge.displayName,
+        showBadge: badge.showBadge,
+      })
+    : null;
+  const shortLabel = props.modelOption?.shortName ?? label;
   return (
     <ComposerInlineControl
       accessibilityLabel={[
-        "Model and reasoning settings",
+        localizeMobileString("Model and reasoning settings"),
         label,
         badge?.showBadge ? badge.displayName : null,
-        summary,
+        localizedSummary,
       ]
         .filter(Boolean)
         .join(", ")}
@@ -69,11 +81,15 @@ export function ComposerModelControl(props: {
           />
         )
       }
-      label={props.modelOption?.shortName ?? label}
+      label={providerNameLabel ?? shortLabel}
+      localizeLabel={false}
+      labelEllipsizeMode={providerNameLabel ? "middle" : undefined}
       iconOnly={props.iconOnly}
+      suffixWidth={providerNameLabel ? 96 : undefined}
       suffix={
-        summary ? (
+        providerNameLabel ? (
           <Text
+            localize={false}
             className={
               props.size === "large"
                 ? "text-sm text-foreground-muted"
@@ -81,7 +97,20 @@ export function ComposerModelControl(props: {
             }
             numberOfLines={1}
           >
-            {summary}
+            {shortLabel}
+            {localizedSummary ? ` · ${localizedSummary}` : ""}
+          </Text>
+        ) : localizedSummary ? (
+          <Text
+            localize={false}
+            className={
+              props.size === "large"
+                ? "text-sm text-foreground-muted"
+                : "text-xs text-foreground-muted"
+            }
+            numberOfLines={1}
+          >
+            {localizedSummary}
           </Text>
         ) : undefined
       }

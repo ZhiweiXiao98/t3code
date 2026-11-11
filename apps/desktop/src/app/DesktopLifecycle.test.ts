@@ -69,6 +69,7 @@ const layerElectronTheme = Layer.succeed(ElectronTheme.ElectronTheme, {
 });
 
 const layerDesktopTray = Layer.succeed(DesktopTray.DesktopTray, {
+  refresh: Effect.void,
   ensure: () => Effect.succeed(false),
   markQuitRequested: () => undefined,
   shouldHideOnClose: () => false,

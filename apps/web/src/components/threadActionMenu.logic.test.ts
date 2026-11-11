@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vite-plus/test";
 import { translateWebMessage } from "../i18n/messages";
 
-import { buildThreadActionMenuItems, type ThreadActionMenuState } from "./threadActionMenu.logic";
+import {
+  buildDraftActionMenuItems,
+  buildThreadActionMenuItems,
+  type ThreadActionMenuState,
+} from "./threadActionMenu.logic";
+
+const english: Parameters<typeof buildThreadActionMenuItems>[1] = (key, values) =>
+  translateWebMessage("en", key, values);
+const chinese: Parameters<typeof buildThreadActionMenuItems>[1] = (key, values) =>
+  translateWebMessage("zh-CN", key, values);
 
 const baseState: ThreadActionMenuState = {
   canOperate: true,
@@ -39,9 +48,9 @@ describe("buildThreadActionMenuItems", () => {
     expect(
       buildThreadActionMenuItems(state, translate).find((item) => item.id === "share-guest")?.label,
     ).toBe("与访客共享");
-    expect(buildThreadActionMenuItems(state).find((item) => item.id === "share-guest")?.label).toBe(
-      "Share with guest",
-    );
+    expect(
+      buildThreadActionMenuItems(state, english).find((item) => item.id === "share-guest")?.label,
+    ).toBe("Share with guest");
   });
 
   it("localizes snooze presets while preserving their formatted wake time", () => {
@@ -51,13 +60,13 @@ describe("buildThreadActionMenuItems", () => {
     const preset = items
       .find((item) => item.id === "snooze")
       ?.children?.find((item) => item.id === "snooze:hour");
-    expect(preset?.label).toBe("1 小时后 (3:00 PM)");
-    const englishItems = buildThreadActionMenuItems(baseState);
+    expect(preset).toMatchObject({ label: "1 小时后", detail: "3:00 PM" });
+    const englishItems = buildThreadActionMenuItems(baseState, english);
     expect(
       englishItems
         .find((item) => item.id === "snooze")
-        ?.children?.find((item) => item.id === "snooze:hour")?.label,
-    ).toBe("In 1 hour (3:00 PM)");
+        ?.children?.find((item) => item.id === "snooze:hour"),
+    ).toMatchObject({ label: "In 1 hour", detail: "3:00 PM" });
   });
 
   it.each([
@@ -74,25 +83,28 @@ describe("buildThreadActionMenuItems", () => {
     expect(
       translated
         .find((item) => item.id === "snooze")
-        ?.children?.find((item) => item.id === `snooze:${id}`)?.label,
-    ).toBe(`${chinese} (3:00 PM)`);
+        ?.children?.find((item) => item.id === `snooze:${id}`),
+    ).toMatchObject({ label: chinese, detail: "3:00 PM" });
     expect(
-      buildThreadActionMenuItems(state)
+      buildThreadActionMenuItems(state, english)
         .find((item) => item.id === "snooze")
-        ?.children?.find((item) => item.id === `snooze:${id}`)?.label,
-    ).toBe(`${label} (3:00 PM)`);
+        ?.children?.find((item) => item.id === `snooze:${id}`),
+    ).toMatchObject({ label, detail: "3:00 PM" });
   });
 
   it.each([false, true])(
     "disables both lifecycle directions without permission (reversed: %s)",
     (reversed) => {
-      const items = buildThreadActionMenuItems({
-        ...baseState,
-        canOperate: false,
-        isPinned: reversed,
-        isSettled: reversed,
-        isSnoozed: reversed,
-      });
+      const items = buildThreadActionMenuItems(
+        {
+          ...baseState,
+          canOperate: false,
+          isPinned: reversed,
+          isSettled: reversed,
+          isSnoozed: reversed,
+        },
+        english,
+      );
       const expected = reversed
         ? [
             "unpin",
@@ -123,12 +135,75 @@ describe("buildThreadActionMenuItems", () => {
   );
 
   it("disables archive and turning into a project while the thread is running", () => {
-    const items = buildThreadActionMenuItems({
-      ...baseState,
-      isRunning: true,
-      canTurnIntoProject: true,
-    });
+    const items = buildThreadActionMenuItems(
+      {
+        ...baseState,
+        isRunning: true,
+        canTurnIntoProject: true,
+      },
+      english,
+    );
     expect(items.find((item) => item.id === "archive")?.disabled).toBe(true);
     expect(items.find((item) => item.id === "turn-into-project")?.disabled).toBe(true);
   });
 });
+
+it.each([false, true])(
+  "localizes the complete menu without changing action state (reversed: %s)",
+  (reversed) => {
+    const state = {
+      ...baseState,
+      branch: "develop",
+      projectFilter: { label: "example-team/example-project", isActive: reversed },
+      isPinned: reversed,
+      isSettled: reversed,
+      isSnoozed: reversed,
+      isRegeneratingTitle: reversed,
+      autoSettleEnabled: !reversed,
+    };
+    const en = buildThreadActionMenuItems(state, english);
+    const zh = buildThreadActionMenuItems(state, chinese);
+    const withoutLabels = (items: typeof en): unknown =>
+      items.map(({ label: _label, children, ...item }) => ({
+        ...item,
+        ...(children ? { children: withoutLabels(children) } : {}),
+      }));
+    expect(withoutLabels(zh)).toEqual(withoutLabels(en));
+    expect(zh.find((item) => item.id === "new-thread-on-branch")?.label).toBe(
+      "在 develop 分支新建任务",
+    );
+    expect(zh.find((item) => item.id === "project-settings")?.label).toBe("项目设置");
+    expect(zh.find((item) => item.id === "filter-by-project")?.label).toBe(
+      reversed ? "显示所有项目" : "按 example-team/example-project 筛选",
+    );
+    for (const item of zh) {
+      expect(item.label).not.toBe(en.find((entry) => entry.id === item.id)?.label);
+      for (const child of item.children ?? []) {
+        expect(child.label).not.toBe(
+          en.find((entry) => entry.id === item.id)?.children?.find((entry) => entry.id === child.id)
+            ?.label,
+        );
+      }
+    }
+  },
+);
+
+it.each([false, true])(
+  "localizes draft actions while keeping unavailable paths and projects hidden (%s)",
+  (available) => {
+    const options = { hasPath: available, hasBranch: available, hasProject: available };
+    const en = buildDraftActionMenuItems(options, english);
+    const zh = buildDraftActionMenuItems(options, chinese);
+    expect(zh.map(({ id, disabled }) => ({ id, disabled }))).toEqual(
+      en.map(({ id, disabled }) => ({ id, disabled })),
+    );
+    expect(zh.find((item) => item.id === "copy")?.label).toBe("复制");
+    expect(zh.find((item) => item.id === "copy")?.children?.map((item) => item.label)).toEqual(
+      available ? ["路径", "分支"] : [],
+    );
+    expect(zh.find((item) => item.id === "discard")?.label).toBe("丢弃草稿");
+    expect(zh.find((item) => item.id === "project-settings")?.label).toBe(
+      available ? "项目设置" : undefined,
+    );
+  },
+);

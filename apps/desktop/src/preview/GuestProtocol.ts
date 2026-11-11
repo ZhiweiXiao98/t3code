@@ -1,3 +1,5 @@
+import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
+
 export const START_PICK_CHANNEL = "preview:start-pick";
 export const CANCEL_PICK_CHANNEL = "preview:cancel-pick";
 export const ELEMENT_PICKED_CHANNEL = "preview:element-picked";
@@ -16,3 +18,7 @@ export const PASSKEY_GET_CHANNEL = "preview:passkey-get";
 export const PASSKEY_BRIDGE_ARGUMENT = "--t3code-preview-passkey-bridge";
 export const ANNOTATION_VOICE_EVENT_CHANNEL = "preview:annotation-voice-event";
 export const ANNOTATION_VOICE_STATE_CHANNEL = "preview:annotation-voice-state";
+
+// Only the main process chooses the application locale; guest page language is unrelated.
+export const readAnnotationLocale = (value: unknown): ResolvedAppLocale =>
+  value === "zh-CN" ? "zh-CN" : "en";

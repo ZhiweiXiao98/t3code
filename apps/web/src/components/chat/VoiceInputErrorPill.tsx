@@ -1,3 +1,5 @@
+import { useI18n } from "../../i18n/WebI18nContext";
+import { translateVoiceSettingsError } from "../../i18n/voiceSettingsMessages";
 import { useChatUpdateTranslation } from "./v018Messages";
 import { MICROPHONE_PERMISSION_ERROR } from "@t3tools/client-runtime/voice-input";
 import { useNavigate } from "@tanstack/react-router";
@@ -28,7 +30,10 @@ const VOICE_ERROR_LABELS: Record<string, string> = {
 };
 
 function voiceErrorLabel(error: string | null): string {
-  return (error && VOICE_ERROR_LABELS[error]) || "Voice input failed";
+  return (
+    (error && Object.hasOwn(VOICE_ERROR_LABELS, error) && VOICE_ERROR_LABELS[error]) ||
+    "Voice input failed"
+  );
 }
 
 export function VoiceInputErrorPill(props: {
@@ -40,6 +45,8 @@ export function VoiceInputErrorPill(props: {
   onDismiss(): void;
 }) {
   const tx = useChatUpdateTranslation();
+  const { locale } = useI18n();
+  const errorMessage = translateVoiceSettingsError(locale, props.error ?? "Voice input failed");
   const navigate = useNavigate();
   const openSettings = props.errorAction === "settings";
   const actionLabel = openSettings
@@ -76,14 +83,14 @@ export function VoiceInputErrorPill(props: {
             <span
               tabIndex={0}
               role="status"
-              aria-label={props.error ?? "Voice input failed"}
+              aria-label={errorMessage}
               className="min-w-0 flex-1 truncate text-sm text-destructive"
             />
           }
         >
           {tx(voiceErrorLabel(props.error))}
         </TooltipTrigger>
-        <TooltipPopup side="top">{props.error ?? "Voice input failed"}</TooltipPopup>
+        <TooltipPopup side="top">{errorMessage}</TooltipPopup>
       </Tooltip>
       {props.errorAction ? (
         <Tooltip>

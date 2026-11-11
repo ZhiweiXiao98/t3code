@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import { Button } from "../../components/ui/Button";
 import type { ChatAttachment, EnvironmentId } from "@t3tools/contracts";
@@ -94,12 +95,12 @@ function QueuedEditAttachmentChip(props: {
           />
         </View>
       )}
-      <Text className="min-w-0 shrink text-xs text-foreground" numberOfLines={1}>
+      <Text localize={false} className="min-w-0 shrink text-xs text-foreground" numberOfLines={1}>
         {attachment.name}
       </Text>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Remove ${attachment.name}`}
+        accessibilityLabel={formatMobileMessage("Remove {0}", [attachment.name])}
         disabled={props.disabled}
         hitSlop={8}
         onPress={() => props.onRemove(attachment.id)}

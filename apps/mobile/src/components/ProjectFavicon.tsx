@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../i18n/mobileDisplayStrings";
 import { SymbolView } from "./ui/AppSymbol";
 import { AppText } from "./ui/AppText";
 import { Image } from "expo-image";
@@ -193,7 +194,7 @@ function ProjectFaviconImage(props: {
           }
           cachePolicy={faviconRequest.faviconUrl.startsWith("data:") ? "memory" : "memory-disk"}
           recyclingKey={faviconRequest.cacheKey}
-          accessibilityLabel={`${props.projectTitle} favicon`}
+          accessibilityLabel={formatMobileMessage("{0} favicon", [props.projectTitle])}
           style={{
             width: props.size,
             height: props.size,

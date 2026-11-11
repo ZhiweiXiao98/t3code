@@ -24,6 +24,7 @@ import type {
   DesktopPreviewTabDefaults,
   PreviewForwardedShortcut,
 } from "@t3tools/contracts";
+import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import { matchesKeybindingShortcut } from "@t3tools/shared/keybindings";
 import { normalizePreviewUrl } from "@t3tools/shared/preview";
@@ -60,6 +61,10 @@ import * as Schedule from "effect/Schedule";
 import * as Scope from "effect/Scope";
 import * as SynchronizedRef from "effect/SynchronizedRef";
 
+import * as ElectronApp from "../electron/ElectronApp.ts";
+import * as DesktopClientSettings from "../settings/DesktopClientSettings.ts";
+import { readDesktopLocale } from "../settings/DesktopLocale.ts";
+import { annotationMessages } from "./AnnotationMessages.ts";
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import * as DesktopRendererHistory from "../telemetry/DesktopRendererHistory.ts";
 import {
@@ -161,9 +166,14 @@ const DEFAULT_ANNOTATION_THEME: DesktopPreviewAnnotationTheme = {
   fontMono: "ui-monospace, monospace",
 };
 
-const buildPreviewPictureInPictureDataUrl = (): string => {
+const buildPreviewPictureInPictureDataUrl = (locale: ResolvedAppLocale): string => {
+  const alt = annotationMessages(locale)
+    .livePreview.replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
   const html = `<!doctype html>
-<html>
+<html lang="${locale}">
   <head>
     <meta charset="utf-8">
     <meta
@@ -178,7 +188,7 @@ const buildPreviewPictureInPictureDataUrl = (): string => {
     </style>
   </head>
   <body>
-    <img id="preview-frame" alt="Live browser preview">
+    <img id="preview-frame" alt="${alt}">
     <script>
       const frame = document.getElementById("preview-frame");
       window.previewPictureInPicture.onFrame((next) => {
@@ -543,6 +553,9 @@ const makeNativeOperations = Effect.fn("PreviewManager.makeOperations")(function
   const random = yield* SecureRandom.SecureRandom;
   const parentScope = yield* Scope.Scope;
   const browserHost = yield* DesktopBrowserHost.DesktopBrowserHost;
+  const clientSettings = yield* DesktopClientSettings.DesktopClientSettings;
+  const electronApp = yield* ElectronApp.ElectronApp;
+  const getLocale = readDesktopLocale(clientSettings.get, electronApp.systemLocale);
   const passkeys = yield* PreviewPasskeys.PreviewPasskeys;
   const context = yield* Effect.context<never>();
   const runFork = Effect.runForkWith(context);
@@ -2125,6 +2138,7 @@ const makeNativeOperations = Effect.fn("PreviewManager.makeOperations")(function
     const wc = yield* requireWebContents(tabId);
     yield* cancelPickElement(tabId);
     const annotationTheme = yield* Ref.get(annotationThemeRef);
+    const locale = yield* getLocale;
     return yield* Effect.callback<PreviewAnnotationSubmissionResult | null, PreviewManagerError>(
       (resume) => {
         const session: PickSession = {
@@ -2289,6 +2303,7 @@ const makeNativeOperations = Effect.fn("PreviewManager.makeOperations")(function
               annotationTheme,
               annotationSendEnabled.get(tabId) === true,
               voice,
+              locale,
             );
           });
         });
@@ -2833,6 +2848,8 @@ const makeNativeOperations = Effect.fn("PreviewManager.makeOperations")(function
           },
           () => wc.getTitle().trim(),
         );
+        const locale = yield* getLocale;
+        const messages = annotationMessages(locale);
         const pictureInPictureWindow = yield* attempt(
           {
             operation: "pictureInPicture.create",
@@ -2845,7 +2862,7 @@ const makeNativeOperations = Effect.fn("PreviewManager.makeOperations")(function
               height: PICTURE_IN_PICTURE_INITIAL_HEIGHT,
               minWidth: PICTURE_IN_PICTURE_MIN_WIDTH,
               minHeight: PICTURE_IN_PICTURE_MIN_HEIGHT,
-              title: title.length > 0 ? `Preview · ${title}` : "Browser preview",
+              title: messages.previewTitle(title),
               show: false,
               alwaysOnTop: true,
               autoHideMenuBar: true,
@@ -2941,7 +2958,7 @@ const makeNativeOperations = Effect.fn("PreviewManager.makeOperations")(function
             copy.set(tabId, session);
           }),
         );
-        return { kind: "created" as const, session };
+        return { kind: "created" as const, session, locale };
       }),
     );
     const pictureInPictureSession = claim.session;
@@ -2977,7 +2994,8 @@ const makeNativeOperations = Effect.fn("PreviewManager.makeOperations")(function
           tabId,
           webContentsId: pictureInPictureSession.webContentsId,
         },
-        () => pictureInPictureSession.window.loadURL(buildPreviewPictureInPictureDataUrl()),
+        () =>
+          pictureInPictureSession.window.loadURL(buildPreviewPictureInPictureDataUrl(claim.locale)),
       );
       const currentWebContents = yield* requireWebContents(tabId);
       if (

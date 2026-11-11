@@ -1,3 +1,5 @@
+import { WebI18nContext } from "~/i18n/WebI18nContext";
+import { translateWebMessage } from "~/i18n/messages";
 import { SourceControlProviderKind } from "@t3tools/contracts";
 import { EnvironmentId, ProjectId, type PullRequestDetailView } from "@t3tools/contracts";
 import { expect, it, vi } from "vite-plus/test";
@@ -185,3 +187,44 @@ it("leaves description checkboxes read-only without the right to edit it", async
     true,
   );
 });
+
+it.each(["en", "zh-CN"] as const)(
+  "reveals the checks anchor independently of its translated title in %s",
+  async (locale) => {
+    setup();
+    const onRevealSettled = vi.fn();
+    const revealUrl = `${detail.url}/checks`;
+    await using screen = await renderUi(
+      <WebI18nContext
+        value={{
+          locale,
+          appLocale: locale,
+          setAppLocale: () => {},
+          t: (key, values) => translateWebMessage(locale, key, values),
+        }}
+      >
+        <PullRequestSummaryTab
+          scrollerRef={() => {}}
+          environmentId={EnvironmentId.make("environment")}
+          threadRef={null}
+          reference={detail}
+          detail={detail}
+          activityPending={false}
+          activityError={null}
+          onRefresh={() => {}}
+          revealUrl={revealUrl}
+          onRevealSettled={onRevealSettled}
+        />
+      </WebI18nContext>,
+    );
+    await vi.waitFor(() => expect(onRevealSettled).toHaveBeenCalledWith(revealUrl));
+    await expect
+      .element(
+        screen.getByRole("region", {
+          name: translateWebMessage(locale, "pullRequests.checks.title"),
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+  },
+);

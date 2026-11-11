@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import { useIsFocused } from "@react-navigation/native";
 import type { EnvironmentId, PreviewSessionSnapshot, ThreadId } from "@t3tools/contracts";
@@ -101,7 +102,7 @@ function FloatingBrowserPlayer(props: {
     >
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Open browser, ${browserTabTitle(props.tab)}`}
+        accessibilityLabel={formatMobileMessage("Open browser, {0}", [browserTabTitle(props.tab)])}
         accessibilityHint={localizeMobileString("Opens the browser tab full screen")}
         onPress={props.onOpen}
         className="flex-1"

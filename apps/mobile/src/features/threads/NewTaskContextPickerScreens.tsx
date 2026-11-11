@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { NativeScrollView } from "../../native/NativeScrollViewMarker";
 import { Button } from "../../components/ui/Button";
 import * as Dialog from "../../components/ui/Dialog";
@@ -85,7 +86,11 @@ function EnvironmentPickerRow(props: {
             tintColorClassName="accent-icon-muted"
           />
           <View className="min-w-0 flex-1 gap-1">
-            <Text className="text-base font-t3-medium text-foreground" numberOfLines={1}>
+            <Text
+              localize={false}
+              className="text-base font-t3-medium text-foreground"
+              numberOfLines={1}
+            >
               {props.title}
             </Text>
             <View className="flex-row items-center gap-1.5">
@@ -122,7 +127,9 @@ function EnvironmentPickerRow(props: {
           )}
           {state.retryAt ? (
             <Text className="text-sm text-foreground-muted">
-              Next reconnect at {new Date(state.retryAt).toLocaleTimeString()}
+              {formatMobileMessage("Next reconnect at {0}", [
+                new Date(state.retryAt).toLocaleTimeString(),
+              ])}
             </Text>
           ) : null}
           {connection?.phase !== "connected" ? (

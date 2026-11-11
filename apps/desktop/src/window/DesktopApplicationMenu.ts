@@ -1,4 +1,3 @@
-import { DEFAULT_APP_LOCALE_PREFERENCE } from "@t3tools/contracts";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -12,6 +11,7 @@ import * as ElectronApp from "../electron/ElectronApp.ts";
 import * as ElectronDialog from "../electron/ElectronDialog.ts";
 import * as ElectronMenu from "../electron/ElectronMenu.ts";
 import * as DesktopClientSettings from "../settings/DesktopClientSettings.ts";
+import { readDesktopLocale } from "../settings/DesktopLocale.ts";
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import * as DesktopUpdates from "../updates/DesktopUpdates.ts";
 import {
@@ -91,7 +91,10 @@ const checkForUpdatesFromMenu = Effect.fn("desktop.menu.checkForUpdates")(functi
       type: "warning",
       title: messages.updateCheckFailedTitle,
       message: messages.updateCheckFailedMessage,
-      detail: updateState.message ?? messages.unknownUpdateError,
+      detail:
+        updateState.message == null
+          ? messages.unknownUpdateError
+          : messages.updateDetail(updateState.message),
       buttons: [messages.ok],
     });
   }
@@ -110,7 +113,7 @@ const handleCheckForUpdatesMenuClick = Effect.fn("desktop.menu.handleCheckForUpd
         type: "info",
         title: messages.updatesUnavailableTitle,
         message: messages.updatesUnavailableMessage,
-        detail: disabledReason.value,
+        detail: messages.updateDetail(disabledReason.value),
         buttons: [messages.ok],
       });
       return;
@@ -149,19 +152,8 @@ export const make = Effect.gen(function* () {
   };
 
   const configure = Effect.gen(function* () {
-    const settings = yield* clientSettings.get.pipe(
-      Effect.catch((error) =>
-        logMenuError("Could not read the desktop language setting.", { error }).pipe(
-          Effect.as(Option.none()),
-        ),
-      ),
-    );
-    const systemLocale = yield* electronApp.systemLocale;
-    const appLocale = Option.match(settings, {
-      onNone: () => DEFAULT_APP_LOCALE_PREFERENCE,
-      onSome: (value) => value.appLocale,
-    });
-    const messages = resolveDesktopApplicationMenuMessages(appLocale, [systemLocale]);
+    const locale = yield* readDesktopLocale(clientSettings.get, electronApp.systemLocale);
+    const messages = resolveDesktopApplicationMenuMessages(locale, []);
     const checkForUpdatesClick = () => {
       runMenuEffect("check-for-updates", handleCheckForUpdatesMenuClick(messages));
     };
@@ -227,7 +219,7 @@ export const make = Effect.gen(function* () {
                 { type: "separator" as const },
               ]),
           {
-            label: "Close Developer Tools",
+            label: messages.closeDeveloperTools,
             accelerator: "CmdOrCtrl+W",
             visible: false,
             click: () => {

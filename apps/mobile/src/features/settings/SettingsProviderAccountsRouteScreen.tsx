@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import * as Dialog from "../../components/ui/Dialog";
 import {
   isAtomCommandInterrupted,
@@ -359,7 +360,7 @@ function ProviderAccount({
     <ControlPill
       variant="pill"
       label="Cancel"
-      accessibilityLabel={`Cancel ${name} sign-in`}
+      accessibilityLabel={formatMobileMessage("Cancel {0} sign-in", [name])}
       disabled={disabled}
       onPress={() => {
         void run(() => cancel({ environmentId, input: { instanceId, flowId: state.flowId! } }));
@@ -369,29 +370,38 @@ function ProviderAccount({
     <Menu
       accessible
       accessibilityRole="button"
-      accessibilityLabel={`${name} account options`}
+      accessibilityLabel={formatMobileMessage("{0} account options", [name])}
       title={name}
       actions={accountActions}
       onPressAction={({ nativeEvent }) => onMenuAction(nativeEvent.event)}
     >
-      <ControlPill icon="ellipsis" accessibilityLabel={`${name} account options`} />
+      <ControlPill
+        icon="ellipsis"
+        accessibilityLabel={formatMobileMessage("{0} account options", [name])}
+      />
     </Menu>
   ) : canSignIn && !signedIn && methodActions.length > 1 && !signInDisabled ? (
     <Menu
       accessible
       accessibilityRole="button"
-      accessibilityLabel={`Sign in to ${name}`}
+      accessibilityLabel={formatMobileMessage("Sign in to {0}", [name])}
       title="Sign in with"
       actions={[...methodActions, ...removeActions]}
       onPressAction={({ nativeEvent }) => onMenuAction(nativeEvent.event)}
     >
-      <ControlPill variant="primary" label="Sign in" accessibilityLabel={`Sign in to ${name}`} />
+      <ControlPill
+        variant="primary"
+        label="Sign in"
+        accessibilityLabel={formatMobileMessage("Sign in to {0}", [name])}
+      />
     </Menu>
   ) : canSignIn && !signedIn ? (
     <ControlPill
       variant="primary"
       label={usesCredentials ? "Connect" : "Sign in"}
-      accessibilityLabel={usesCredentials ? `Connect to ${name}` : `Sign in to ${name}`}
+      accessibilityLabel={
+        usesCredentials ? `Connect to ${name}` : formatMobileMessage("Sign in to {0}", [name])
+      }
       disabled={signInDisabled}
       onPress={() => startSignIn()}
     />

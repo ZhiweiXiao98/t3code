@@ -24,7 +24,7 @@ on:
 permissions: {}
 
 concurrency:
-  group: publish-community-client-v0.1.8-zh.1
+  group: publish-community-client-v0.1.9-zh.1
   cancel-in-progress: false
 
 jobs:
@@ -55,7 +55,7 @@ jobs:
           import datetime, hashlib, json, os, pathlib, re, shutil, stat, subprocess, zipfile
 
           repo = 'ZhiweiXiao98/t3code'
-          branch = 'maintenance/v0.1.8-zh-cloud'
+          branch = 'maintenance/v0.1.9-zh-cloud'
           run_id = os.environ['CANDIDATE_RUN_ID']
           sha = os.environ['EXPECTED_SHA']
           attempt = os.environ['EXPECTED_ATTEMPT']
@@ -105,7 +105,7 @@ jobs:
               assert matches[0]['head_sha'] == sha and matches[0]['run_id'] == int(run_id)
           assert api('/commits/' + sha)['sha'] == sha
           assert api('/git/ref/heads/' + branch)['object']['sha'] == sha, 'Maintenance branch moved; review again'
-          prefix = 'T3-Code-0.1.8-zh.1-'
+          prefix = 'T3-Code-0.1.9-zh.1-'
           specifications = {
               'client-linux-x64': ({prefix + 'x86_64.AppImage', prefix + 'amd64.deb'}, set()),
               'client-win-x64': ({prefix + 'x64.exe'}, set()),
@@ -166,7 +166,7 @@ jobs:
           assert run_snapshot() == run, 'Candidate was rerun or changed during verification'
           assert artifacts_snapshot() == artifacts, 'Candidate artifacts changed during verification'
           asset_records.sort(key=lambda a: a['name'])
-          manifest = {'repository': repo, 'version': '0.1.8-zh.1', 'source_sha': sha,
+          manifest = {'repository': repo, 'version': '0.1.9-zh.1', 'source_sha': sha,
                       'run_url': f'https://github.com/{repo}/actions/runs/{run_id}/attempts/{run["run_attempt"]}',
                       'run': run, 'artifacts': artifacts, 'assets': asset_records}
           manifest_path = output / 'BUILD-PROVENANCE.json'
@@ -216,8 +216,8 @@ jobs:
             const assert = require('node:assert/strict');
             const hash = data => crypto.createHash('sha256').update(data).digest('hex');
             const repo = {owner: 'ZhiweiXiao98', repo: 't3code'};
-            const branch = 'maintenance/v0.1.8-zh-cloud';
-            const tag = 'v0.1.8-zh.1';
+            const branch = 'maintenance/v0.1.9-zh-cloud';
+            const tag = 'v0.1.9-zh.1';
             assert.equal(context.repo.owner, repo.owner);
             assert.equal(context.repo.repo, repo.repo);
             assert.equal(context.ref, `refs/heads/${branch}`);
@@ -227,14 +227,14 @@ jobs:
             assert.equal(hash(manifestBytes), process.env.MANIFEST_SHA256);
             const m = JSON.parse(manifestBytes);
             assert.equal(m.repository, 'ZhiweiXiao98/t3code');
-            assert.equal(m.version, '0.1.8-zh.1');
+            assert.equal(m.version, '0.1.9-zh.1');
             assert.equal(m.source_sha, process.env.EXPECTED_SHA);
             assert.equal(String(m.run.id), process.env.CANDIDATE_RUN_ID);
             assert.equal(m.run.run_attempt, Number(process.env.EXPECTED_ATTEMPT));
             assert.match(m.source_sha, /^[0-9a-f]{40}$/);
-            const mandatory = ['T3-Code-0.1.8-zh.1-x86_64.AppImage', 'T3-Code-0.1.8-zh.1-amd64.deb',
-              'T3-Code-0.1.8-zh.1-x64.exe', 'T3-Code-0.1.8-zh.1-arm64.dmg', 'T3-Code-0.1.8-zh.1-x64.dmg',
-              'T3-Code-0.1.8-zh.1-arm64.zip', 'T3-Code-0.1.8-zh.1-x64.zip',
+            const mandatory = ['T3-Code-0.1.9-zh.1-x86_64.AppImage', 'T3-Code-0.1.9-zh.1-amd64.deb',
+              'T3-Code-0.1.9-zh.1-x64.exe', 'T3-Code-0.1.9-zh.1-arm64.dmg', 'T3-Code-0.1.9-zh.1-x64.dmg',
+              'T3-Code-0.1.9-zh.1-arm64.zip', 'T3-Code-0.1.9-zh.1-x64.zip',
               'MACOS-TRUST-arm64.txt', 'MACOS-TRUST-x64.txt'];
             const allowed = new Set(mandatory);
             const names = m.assets.map(a => a.name);
@@ -288,9 +288,10 @@ jobs:
             assert(!releases.some(r => r.tag_name === tag), 'Existing draft/release; refusing replacement');
             // Atomic ref creation prevents accidentally publishing on a raced existing tag.
             await github.rest.git.createRef({...repo, ref: `refs/tags/${tag}`, sha: m.source_sha});
-            const body = `基于上游稳定版 v0.1.8 的简体中文社区桌面正式发布：${m.version}。\n\n` +
-              `精确源码：${m.source_sha}\n构建记录：${m.run_url}\n上游版本：https://github.com/pingdotgg/t3code/releases/tag/v0.1.8\n\n` +
-              '本版基于上游稳定版 v0.1.8 合并简体中文社区改动。\n\n' +
+            const body = `基于上游稳定版 v0.1.9 的简体中文社区桌面正式发布：${m.version}。\n\n` +
+              `精确源码：${m.source_sha}\n构建记录：${m.run_url}\n上游版本：https://github.com/pingdotgg/t3code/releases/tag/v0.1.9\n\n` +
+              '本版基于上游稳定版 v0.1.9，补全任务右键菜单、设置分类及新任务默认值说明的简体中文显示。\n\n' +
+              'v0.1.9 包含消息搜索索引迁移（081）。升级前请备份数据；如需回退，请使用升级前的备份，不要假定旧版本可以安全打开已升级的数据库。\n\n' +
               '从 V1 升级必读：V2 首次启动会复制并导入 V1 数据，两个版本此后的数据不会互相同步。请先备份数据并更新所有连接的服务器和客户端；V1 客户端无法连接 V2 服务器。OpenCode 2 会迁移其共享数据库，不要与 OpenCode 1 并行运行。详细迁移说明：https://github.com/pingdotgg/t3code/issues/14871 。\n\n' +
               '提供 Windows x64、macOS Apple Silicon / Intel、Linux x64 共七个安装包。Windows 未做 Authenticode 签名；macOS 已做 ad-hoc 完整性签名并通过严格校验，但没有 Developer ID 商业签名或 Apple 公证。Gatekeeper 仍可能因未公证而阻止打开，这与安装包损坏是不同的检查结果；随附 MACOS-TRUST-*.txt 记录实际信任检查。升级前建议备份现有数据。\n\n' +
               'Android 新版本独立验证和发布，必须沿用已备份并通过恢复验证的固定签名身份；本桌面发布不包含未签名候选 APK。\n\n' +

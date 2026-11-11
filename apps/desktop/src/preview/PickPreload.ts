@@ -18,6 +18,9 @@ import type {
   PreviewAnnotationSubmission,
 } from "@t3tools/contracts";
 
+import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
+
+import { annotationMessages } from "./AnnotationMessages.ts";
 import { createAnnotationIdSource } from "./AnnotationIds.ts";
 import { resolveAnnotationSubmission } from "./AnnotationKeyboard.ts";
 import { previewAnnotationStyles } from "./AnnotationStyles.generated.ts";
@@ -39,6 +42,7 @@ import {
   RECORDING_INPUT_CHANNEL,
   RECORDING_CONTROLLER_CHANNEL,
   START_PICK_CHANNEL,
+  readAnnotationLocale,
 } from "./GuestProtocol.ts";
 const OVERLAY_ATTRIBUTE = "data-t3code-annotation-ui";
 const INPUT_LAYER_ATTRIBUTE = "data-t3code-annotation-input";
@@ -458,13 +462,14 @@ function createButton(label: string, title: string): HTMLButtonElement {
   button.type = "button";
   button.textContent = label;
   button.title = title;
+  if (!label) button.setAttribute("aria-label", title);
   button.className =
     "inline-flex h-7 cursor-pointer items-center justify-center rounded-md border border-transparent px-2 font-sans text-xs font-medium text-foreground outline-none hover:bg-accent disabled:pointer-events-none disabled:opacity-60";
   return button;
 }
 
-function styleControl(input: HTMLInputElement | HTMLSelectElement): void {
-  input.setAttribute("aria-label", input.getAttribute("aria-label") ?? "Style value");
+function styleControl(input: HTMLInputElement | HTMLSelectElement, label: string): void {
+  input.setAttribute("aria-label", input.getAttribute("aria-label") ?? label);
   input.className =
     "h-7 min-w-0 w-full appearance-none rounded-md border border-input bg-background px-2 font-mono text-xs text-foreground shadow-xs outline-none";
 }
@@ -489,7 +494,7 @@ function createField(
     "grid min-h-7 grid-cols-[82px_minmax(0,1fr)] items-center gap-2 font-sans text-xs font-medium text-muted-foreground";
   const text = document.createElement("span");
   text.textContent = labelText;
-  styleControl(input);
+  styleControl(input, labelText);
   label.append(
     text,
     input instanceof HTMLInputElement && input.dataset.unit ? createUnitControl(input) : input,
@@ -543,12 +548,15 @@ function strokeBounds(
 function startAnnotation(
   sendEnabled: boolean,
   voice: DesktopPreviewAnnotationVoiceConfig | undefined,
+  locale: ResolvedAppLocale,
 ): void {
   activeSession?.teardown(false);
+  const messages = annotationMessages(locale);
   let finished = false;
   const host = document.createElement("div");
   host.setAttribute(OVERLAY_ATTRIBUTE, "");
   host.setAttribute("dir", "ltr");
+  host.setAttribute("lang", locale);
   host.style.cssText = `position:fixed;inset:0;z-index:${Z_INDEX_OVERLAY};pointer-events:none`;
   applyAnnotationTheme(host, annotationTheme);
   const shadowRoot = host.attachShadow({ mode: "closed" });
@@ -597,8 +605,8 @@ function startAnnotation(
   const composerRow = document.createElement("div");
   composerRow.className = "flex items-start gap-2 p-2";
 
-  const adjust = createButton("", "Expand annotation editor");
-  adjust.setAttribute("aria-label", "Expand annotation editor");
+  const adjust = createButton("", messages.expandEditor);
+  adjust.setAttribute("aria-label", messages.expandEditor);
   adjust.setAttribute("aria-expanded", "false");
   adjust.className +=
     " h-8 w-8 shrink-0 bg-muted p-0 text-muted-foreground hover:bg-accent hover:text-accent-foreground";
@@ -607,7 +615,8 @@ function startAnnotation(
   composerRow.appendChild(adjust);
 
   const comment = document.createElement("textarea");
-  comment.placeholder = "Describe the change…";
+  comment.placeholder = messages.describeChange;
+  comment.setAttribute("aria-label", messages.describeChange);
   comment.setAttribute("dir", "auto");
   comment.rows = 1;
   comment.className =
@@ -623,25 +632,25 @@ function startAnnotation(
   let voiceKeyCode: string | null = null;
   let pendingVoiceSubmission: PreviewAnnotationSubmission | null = null;
   let voiceSubmissionReady = false;
-  const voiceButton = createButton("", "Start voice input");
+  const voiceButton = createButton("", messages.startVoice);
   voiceButton.innerHTML =
     '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19v3"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><rect x="9" y="2" width="6" height="13" rx="3"/></svg>';
   voiceButton.className += " h-8 w-8 shrink-0 p-0 text-muted-foreground";
   voiceButton.hidden = true;
-  voiceButton.setAttribute("aria-label", "Start voice input");
+  voiceButton.setAttribute("aria-label", messages.startVoice);
   composerRow.appendChild(voiceButton);
   const voiceRow = document.createElement("div");
   voiceRow.className = "flex min-w-0 items-center justify-end gap-1 px-2 pb-2";
   voiceRow.hidden = true;
   const voicePill = document.createElement("div");
-  const voiceCancel = createButton("", "Cancel voice input");
+  const voiceCancel = createButton("", messages.cancelVoice);
   voiceCancel.innerHTML =
     '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="m18 6-12 12M6 6l12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
   voiceCancel.className += " h-7 w-7 shrink-0 rounded-full p-0";
-  const voiceFinish = createButton("", "Finish voice input");
+  const voiceFinish = createButton("", messages.finishVoice);
   voiceFinish.className +=
     " h-7 w-7 shrink-0 rounded-full border-primary bg-primary p-0 text-primary-foreground hover:bg-primary/90";
-  const voiceSkip = createButton("Skip", "Skip transcript cleanup");
+  const voiceSkip = createButton(messages.skip, messages.skipCleanup);
   voiceSkip.className += " h-7 shrink-0 rounded-full px-2.5";
   // createButton's rounded-md sorts after rounded-full in the generated CSS, so it would win.
   for (const button of [voiceCancel, voiceFinish, voiceSkip]) button.classList.remove("rounded-md");
@@ -759,7 +768,7 @@ function startAnnotation(
     const wasActive = voicePill.parentElement === composerRow;
     voiceButton.hidden = !state.available || active;
     voiceButton.disabled = voiceBusy;
-    const label = voiceSettings ? "Open voice settings" : "Start voice input";
+    const label = voiceSettings ? messages.voiceSettings : messages.startVoice;
     voiceButton.title =
       !voiceSettings && state.shortcutLabel ? `${label} (${state.shortcutLabel})` : label;
     voiceButton.setAttribute("aria-label", label);
@@ -777,10 +786,9 @@ function startAnnotation(
     // A draft that arrived while the textarea was sr-only was measured at 1px wide.
     if (wasActive && !active) resizeComment();
     else if (phaseChanged) queueEditorLayout();
-    voiceCancel.title =
-      state.phase === "error" ? "Dismiss voice input error" : "Cancel voice input";
+    voiceCancel.title = state.phase === "error" ? messages.dismissVoiceError : messages.cancelVoice;
     voiceCancel.setAttribute("aria-label", voiceCancel.title);
-    voiceStatus.setAttribute("aria-label", state.status ?? "Voice input");
+    voiceStatus.setAttribute("aria-label", state.status ?? messages.voiceInput);
     voiceStatus.setAttribute("aria-live", recording ? "off" : "polite");
     voiceStatusText.textContent = state.status;
     voiceStatusText.style.color = state.phase === "error" ? "var(--t3-destructive)" : "";
@@ -809,7 +817,7 @@ function startAnnotation(
     voiceSkip.hidden = state.phase !== "post-processing";
     voiceFinish.hidden = !active || state.phase === "post-processing";
     voiceFinish.disabled = !recording;
-    voiceFinish.title = recording ? "Finish voice input" : (state.status ?? "Voice input is busy");
+    voiceFinish.title = recording ? messages.finishVoice : (state.status ?? messages.voiceBusy);
     if (recording && state.shortcutLabel) voiceFinish.title += ` (${state.shortcutLabel})`;
     voiceFinish.setAttribute("aria-label", voiceFinish.title);
     if (phaseChanged)
@@ -836,16 +844,15 @@ function startAnnotation(
   const dragHandle = document.createElement("button");
   dragHandle.type = "button";
   dragHandle.textContent = "⠿";
-  dragHandle.title = "Drag annotation editor";
+  dragHandle.title = messages.dragEditor;
+  dragHandle.setAttribute("aria-label", messages.dragEditor);
   dragHandle.className =
     "hidden h-8 w-6 shrink-0 cursor-grab select-none border-0 bg-transparent p-0 font-sans text-lg font-bold leading-5 text-muted-foreground";
   composerRow.appendChild(dragHandle);
 
-  const submit = createButton("Attach", "Attach annotation and screenshot (Enter)");
+  const submit = createButton(messages.attach, messages.attachHint);
   const updateSendHint = () => {
-    submit.title = sendEnabled
-      ? "Attach annotation and screenshot (Enter). Send with Cmd/Ctrl+Enter."
-      : "Attach annotation and screenshot (Enter)";
+    submit.title = sendEnabled ? messages.sendHint : messages.attachHint;
   };
   updateSendHint();
   submit.className +=
@@ -1003,14 +1010,14 @@ function startAnnotation(
   stylePanel.append(textSection, colorsSection, bordersSection, sizingSection);
 
   const fontFamily = document.createElement("select");
-  for (const value of ["inherit", "system-ui", "sans-serif", "serif", "monospace"]) {
+  for (const value of ["inherit", "system-ui", "sans-serif", "serif", "monospace"] as const) {
     const option = document.createElement("option");
     option.value = value;
-    option.textContent = value;
+    option.textContent = messages.fontFamilies[value];
     fontFamily.appendChild(option);
   }
   fontFamily.addEventListener("change", () => setStyleForSelected("font-family", fontFamily.value));
-  textSection.appendChild(createField("Font", fontFamily));
+  textSection.appendChild(createField(messages.font, fontFamily));
 
   const fontSize = createUnitInput("px", "16");
   fontSize.min = "1";
@@ -1018,7 +1025,7 @@ function startAnnotation(
   fontSize.addEventListener("input", () => {
     if (fontSize.value) setStyleForSelected("font-size", `${fontSize.value}px`);
   });
-  textSection.appendChild(createField("Font size", fontSize));
+  textSection.appendChild(createField(messages.fontSize, fontSize));
 
   const fontWeight = document.createElement("select");
   for (const value of ["300", "400", "500", "600", "700", "800", "900"]) {
@@ -1028,7 +1035,7 @@ function startAnnotation(
     fontWeight.appendChild(option);
   }
   fontWeight.addEventListener("change", () => setStyleForSelected("font-weight", fontWeight.value));
-  textSection.appendChild(createField("Font weight", fontWeight));
+  textSection.appendChild(createField(messages.fontWeight, fontWeight));
 
   const lineHeight = document.createElement("input");
   lineHeight.type = "text";
@@ -1036,7 +1043,7 @@ function startAnnotation(
   lineHeight.addEventListener("change", () => {
     if (lineHeight.value.trim()) setStyleForSelected("line-height", lineHeight.value.trim());
   });
-  textSection.appendChild(createField("Line height", lineHeight));
+  textSection.appendChild(createField(messages.lineHeight, lineHeight));
 
   const createColorRow = (
     labelText: string,
@@ -1058,7 +1065,7 @@ function startAnnotation(
       "width:20px;height:20px;padding:0;border:0;border-radius:5px;overflow:hidden;background:transparent;cursor:pointer";
     const text = document.createElement("input");
     text.type = "text";
-    text.setAttribute("aria-label", `${labelText} value`);
+    text.setAttribute("aria-label", messages.colorValue(labelText));
     text.className =
       "min-w-0 w-full border-0 bg-transparent font-mono text-xs text-foreground outline-none";
     color.addEventListener("input", () => {
@@ -1077,8 +1084,8 @@ function startAnnotation(
     return { row, color, text };
   };
 
-  const textColor = createColorRow("Text color", "color", colorsSection);
-  const backgroundColor = createColorRow("Background", "background-color", colorsSection);
+  const textColor = createColorRow(messages.textColor, "color", colorsSection);
+  const backgroundColor = createColorRow(messages.background, "background-color", colorsSection);
 
   const opacity = document.createElement("input");
   opacity.type = "range";
@@ -1088,7 +1095,7 @@ function startAnnotation(
   opacity.value = "1";
   opacity.style.accentColor = PRIMARY;
   opacity.addEventListener("input", () => setStyleForSelected("opacity", opacity.value));
-  colorsSection.appendChild(createField("Opacity", opacity));
+  colorsSection.appendChild(createField(messages.opacity, opacity));
 
   const radius = createUnitInput("px", "0");
   radius.min = "0";
@@ -1096,9 +1103,9 @@ function startAnnotation(
   radius.addEventListener("input", () => {
     if (radius.value) setStyleForSelected("border-radius", `${radius.value}px`);
   });
-  bordersSection.appendChild(createField("Radius", radius));
+  bordersSection.appendChild(createField(messages.radius, radius));
 
-  const borderColor = createColorRow("Border color", "border-color", bordersSection);
+  const borderColor = createColorRow(messages.borderColor, "border-color", bordersSection);
 
   const borderWidth = createUnitInput("px", "0");
   borderWidth.min = "0";
@@ -1109,21 +1116,25 @@ function startAnnotation(
       setStyleForSelected("border-width", `${borderWidth.value}px`);
     }
   });
-  bordersSection.appendChild(createField("Border width", borderWidth));
+  bordersSection.appendChild(createField(messages.borderWidth, borderWidth));
 
   const dimensions = document.createElement("div");
   dimensions.style.cssText =
     "display:grid;grid-template-columns:82px minmax(0,1fr);gap:8px;align-items:center";
   const dimensionLabel = document.createElement("div");
   dimensionLabel.className = "grid gap-2 font-sans text-xs font-medium text-muted-foreground";
-  dimensionLabel.innerHTML = "<span>Width</span><span>Height</span>";
+  for (const label of [messages.width, messages.height]) {
+    const span = document.createElement("span");
+    span.textContent = label;
+    dimensionLabel.appendChild(span);
+  }
   const dimensionControls = document.createElement("div");
   dimensionControls.style.cssText = "position:relative;display:grid;gap:3px;padding-left:22px";
   const widthInput = createUnitInput("px", "auto");
   const heightInput = createUnitInput("px", "auto");
-  styleControl(widthInput);
-  styleControl(heightInput);
-  const aspectLock = createButton("", "Lock aspect ratio");
+  styleControl(widthInput, messages.width);
+  styleControl(heightInput, messages.height);
+  const aspectLock = createButton("", messages.lockAspectRatio);
   aspectLock.setAttribute("aria-pressed", "true");
   aspectLock.style.cssText +=
     ";position:absolute;left:0;top:50%;transform:translateY(-50%);width:18px;height:38px;padding:0";
@@ -1143,6 +1154,8 @@ function startAnnotation(
       ? '<svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true"><path d="M8 6.5 9.5 5A3.5 3.5 0 0 1 14.5 10l-1.5 1.5M12 13.5 10.5 15A3.5 3.5 0 0 1 5.5 10L7 8.5M7.5 12.5l5-5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>'
       : '<svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true"><path d="m6 6 8 8M8 6.5 9.5 5A3.5 3.5 0 0 1 14 9M12 13.5 10.5 15A3.5 3.5 0 0 1 6 11" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
     aspectLock.setAttribute("aria-pressed", String(aspectLocked));
+    aspectLock.title = aspectLocked ? messages.unlockAspectRatio : messages.lockAspectRatio;
+    aspectLock.setAttribute("aria-label", aspectLock.title);
     aspectLock.classList.toggle("bg-primary/10", aspectLocked);
     aspectLock.classList.toggle("text-primary", aspectLocked);
     aspectLock.classList.toggle("bg-muted", !aspectLocked);
@@ -1188,9 +1201,9 @@ function startAnnotation(
     sizingSection.appendChild(createField(label, input));
     return input;
   };
-  const padding = addSpacingField("Padding", "padding", "0 0 0 0");
-  const margin = addSpacingField("Margin", "margin", "0 0 0 0");
-  const gap = addSpacingField("Gap", "gap", "0px");
+  const padding = addSpacingField(messages.padding, "padding", "0 0 0 0");
+  const margin = addSpacingField(messages.margin, "margin", "0 0 0 0");
+  const gap = addSpacingField(messages.gap, "gap", "0px");
 
   const syncStyleControls = (): void => {
     const first = selected.values().next().value as SelectedElement | undefined;
@@ -1220,10 +1233,10 @@ function startAnnotation(
   };
 
   const tools: ReadonlyArray<[AnnotationTool, string, string]> = [
-    ["select", "Select", "Select elements (V)"],
-    ["marquee", "Region", "Draw a region or marquee-select elements (R)"],
-    ["draw", "Draw", "Draw freehand (D)"],
-    ["erase", "Erase", "Remove an annotation target (E)"],
+    ["select", messages.select, messages.selectHint],
+    ["marquee", messages.region, messages.regionHint],
+    ["draw", messages.draw, messages.drawHint],
+    ["erase", messages.erase, messages.eraseHint],
   ];
   for (const [candidate, label, title] of tools) {
     const button = createButton(label, title);
@@ -1319,8 +1332,8 @@ function startAnnotation(
       stylePanel.style.display = selected.size > 0 ? "grid" : "none";
       dragHandle.style.display = "block";
       adjust.setAttribute("aria-expanded", "true");
-      adjust.title = "Collapse annotation editor";
-      adjust.setAttribute("aria-label", "Collapse annotation editor");
+      adjust.title = messages.collapseEditor;
+      adjust.setAttribute("aria-label", messages.collapseEditor);
       if (selected.size > 0) syncStyleControls();
     } else {
       editorExpanded = false;
@@ -1328,8 +1341,8 @@ function startAnnotation(
       stylePanel.style.display = "none";
       dragHandle.style.display = "none";
       adjust.setAttribute("aria-expanded", "false");
-      adjust.title = "Expand annotation editor";
-      adjust.setAttribute("aria-label", "Expand annotation editor");
+      adjust.title = messages.expandEditor;
+      adjust.setAttribute("aria-label", messages.expandEditor);
     }
     queueEditorLayout();
   });
@@ -1683,7 +1696,7 @@ function startAnnotation(
       return;
     pendingCapture = true;
     submit.disabled = true;
-    submit.textContent = "Capturing…";
+    submit.textContent = messages.capturing;
     // Snapshot the submitted comment before context lookup lets the user edit it.
     const submittedComment = comment.value.trim();
     const submittedRegions = [...regions];
@@ -1795,9 +1808,10 @@ ipcRenderer.on(
     theme: DesktopPreviewAnnotationTheme | undefined,
     sendEnabled?: boolean,
     voice?: DesktopPreviewAnnotationVoiceConfig,
+    locale?: unknown,
   ) => {
     if (theme) annotationTheme = theme;
-    startAnnotation(sendEnabled === true, voice);
+    startAnnotation(sendEnabled === true, voice, readAnnotationLocale(locale));
   },
 );
 ipcRenderer.on(ANNOTATION_SEND_ENABLED_CHANNEL, (_event, enabled: boolean) => {

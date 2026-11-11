@@ -66,7 +66,7 @@ export function usageLimitRecoveryBannerItem(props: RecoveryProps): ComposerBann
       ? snoozedUntil
       : resetAt;
   const resetDescription = displayAt
-    ? `${resumes ? tx("Resumes") : tx("Resets")} ${formatUpcomingTimestamp(displayAt, timestampFormat)}`
+    ? `${resumes ? tx("Resumes") : tx("Resets")} ${formatUpcomingTimestamp(displayAt, timestampFormat, undefined, undefined, locale)}`
     : tx("Reset time unavailable; retry manually");
   if (!chatGptLimit) {
     return {

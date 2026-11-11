@@ -117,9 +117,25 @@ it("does not reopen a superseded helper when its initial probe completes", async
     iconPaths,
     () => pending.promise,
   );
-  await open();
+  await helper.show(
+    "accessibility",
+    "/bundle/mac-permission-preload.cjs",
+    null,
+    iconPaths,
+    undefined,
+    "zh-CN",
+  );
+  expect(decodeURIComponent(mocks.loadURL.mock.calls[0]![0])).toContain('<html lang="zh-CN">');
+  expect(decodeURIComponent(mocks.loadURL.mock.calls[0]![0])).toContain(
+    "将 T3 Code 拖到上方列表中",
+  );
   pending.resolve(false);
   await first;
   expect(windows).toHaveLength(1);
   expect(windows[0]!.destroyed).toBe(false);
+  await open();
+  expect(decodeURIComponent(mocks.loadURL.mock.calls[1]![0])).toContain('<html lang="en">');
+  expect(decodeURIComponent(mocks.loadURL.mock.calls[1]![0])).toContain(
+    "Drag T3 Code into the list above",
+  );
 });

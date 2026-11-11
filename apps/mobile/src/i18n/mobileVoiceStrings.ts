@@ -1,3 +1,5 @@
+import { CLOUD_SPEECH_PROVIDER_NAMES, type CloudSpeechProvider } from "@t3tools/contracts";
+import { formatMobileMessage } from "./mobileDisplayStrings";
 import { localizeMobileString, MOBILE_LOCALE, type MobileLocale } from "./mobileStrings";
 
 const VOICE_ERROR_MESSAGES = new Set<string>([
@@ -37,4 +39,23 @@ export function localizeMobileVoiceError(
   locale: MobileLocale = MOBILE_LOCALE,
 ): string {
   return VOICE_ERROR_MESSAGES.has(message) ? localizeMobileString(message, locale) : message;
+}
+
+/** App-owned disclosure templates keep environment and provider names opaque. */
+export function mobileCloudSpeechDisclosure(
+  provider: CloudSpeechProvider,
+  environment: string,
+  locale: MobileLocale = MOBILE_LOCALE,
+): string {
+  return provider === "openrouter"
+    ? formatMobileMessage(
+        "After you stop, {0} sends the recording to OpenRouter. OpenRouter chooses who runs your model. T3 requests zero data retention; your OpenRouter account may allow safety retention.",
+        [environment],
+        locale,
+      )
+    : formatMobileMessage(
+        "After you stop, {0} sends your recording and vocabulary hints, including project names, to {1}.",
+        [environment, CLOUD_SPEECH_PROVIDER_NAMES[provider]],
+        locale,
+      );
 }

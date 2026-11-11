@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
 import Animated from "react-native-reanimated";
@@ -167,8 +168,8 @@ export function PullRequestActionToolbar(props: {
               >
                 <View pointerEvents="none">
                   <IconButton
-                    icon="sparkles"
-                    accessibilityLabel={`${shortLabel} agent actions`}
+                    icon="ellipsis.bubble"
+                    accessibilityLabel={formatMobileMessage("{0} agent actions", [shortLabel])}
                     disabled={agent.disabled}
                   />
                 </View>
@@ -242,9 +243,9 @@ export function PullRequestActionToolbar(props: {
   const agentControl = showAgentControls ? (
     <Toolbar.Menu
       identifier="pull-request-agent"
-      icon="sparkles"
+      icon="ellipsis.bubble"
       title="AI helpers"
-      accessibilityLabel={`${shortLabel} agent actions`}
+      accessibilityLabel={formatMobileMessage("{0} agent actions", [shortLabel])}
       disabled={agent.disabled}
       separateBackground
     >

@@ -3,8 +3,26 @@ import base64, hashlib, io, json, os, pathlib, re, signal, subprocess, tarfile, 
 CLEAN_SHA='6a8e96df7a6533355af7616345ba47a4ded70d9a957585bd03568395c1d61d3c'
 IMAGE_URL='https://cloud.debian.org/cdimage/cloud/trixie/20261001-2618/debian-13-genericcloud-amd64-20261001-2618.qcow2'
 IMAGE_SHA='f46f0671a6e5bdec5291ab8972bae2f10e5408c2f64a74078f11efc2f06a436a9d0313ed50e0472542eeabf780e9f7c792ac0a314c6c20507fcd9fd81b468c3d'
-CJK_SHA='25942708434495e6657d030fa95c8d020e4f77c29534b8941d6750c3864911cd'
+CJK_SHA='fa81bf91c18a1c80792c71a62d8b25610ea14434beee4f6e5fd7273333e8fcf3'
 PRIVACY_CLAUSES={'See the': '请参阅', 'To opt out, see the': '如需退出，请参阅'}
+THREAD_SETTINGS={
+    'zh-CN':{
+        'ghq-clone-layout':['克隆的仓库按 github.com/owner/repo 结构存放在上述目录下，与 ghq 类似。'],
+        'default-model':['新任务默认使用自动选择的模型，项目可以单独覆盖。','新任务使用的默认模型，项目可以单独覆盖。'],
+        'default-permissions':['新任务的默认权限，项目可以单独覆盖。'],
+        'new-threads':['新任务的起始位置，项目设置及其 t3.json 可以覆盖此项。'],
+    },
+    'en':{
+        'ghq-clone-layout':['Clones go to github.com/owner/repo under the folder above, like ghq.'],
+        'default-model':['Default model for new threads, selected automatically. Projects can override it.','Default model for new threads. Projects can override it.'],
+        'default-permissions':['Default permissions for new threads. Projects can override them.'],
+        'new-threads':['Where new threads start. Projects and their t3.json can override it.'],
+    },
+}
+
+SETTINGS_OVERVIEWS=[('general','language'),('appearance','appearance'),('chat','composer'),('diffs','diffs'),('keybindings','keybindings'),('voice','voice-input'),('threads','ghq-clone-layout'),('browser','browser-agent-access'),('devices','devices'),('source-control','source-control'),('worktrees','worktree-creation'),('connections','remote-environments'),('maintenance','updates'),('labs','beta'),('about','about'),('archived','archive')]
+SETTINGS_UNVISITED=['/settings/providers','/settings/projects','/settings/scheduled-tasks','/settings/snap-shot','/settings/access','/settings/secrets','/settings/diagnostics']
+SETTINGS_OVERVIEW_SCOPE='read-only initial settings overviews in the packaged Linux shared UI'
 
 def require(value, message):
     if not value: raise ValueError(message)
@@ -198,6 +216,7 @@ def validate_results(root,m):
     paragraph=observation.get('english_paragraph');require(isinstance(paragraph,str) and [source for source in PRIVACY_CLAUSES if source in paragraph]==[source_clause],'English privacy observation ambiguous or mismatched')
     sessions=cjk.get('sessions',[]);require(len(sessions)==2,'Missing CJK sessions')
     for session in sessions:
+        require(session.get('application_env')=={'home':chome,'forbidden_keys':[]},'Application inherited external credentials or HOME')
         require(session.get('backendSignalExits')==[],'Unexpected or unobserved CJK backend signal exits')
         sandbox(session.get('effectiveSandbox',{}),True);probe(session)
         require(session.get('requested_chromium_sandbox') is True,'CJK sandbox not requested')
@@ -215,7 +234,30 @@ def validate_results(root,m):
         require(glyphs>=4,'Insufficient actual CJK glyphs')
         require(not any(re.search('client.settings.*persist failed|could not start|无法启动',err,re.I) for err in session.get('console_errors',[])),'CJK persistence console failure')
     require(sessions[0]['packaged']['userData']==sessions[1]['packaged']['userData'],'Restart used different profile')
-    expected_names=['01-fonts-installed-english.png','02-chinese-selected.png','03-chinese-after-restart.png']
+    settings=cjk.get('settings_roundtrip',[])
+    require([s.get('locale') for s in settings]==['zh-CN','en','zh-CN'],'Missing settings language roundtrip')
+    for s in settings:
+        locale=s['locale'];descriptions=s.get('descriptions',{});text=s.get('body_text');body(text);app_url(s.get('url'))
+        require(s['url'].endswith('#/settings/threads'),'Wrong settings route')
+        require(set(descriptions)==set(THREAD_SETTINGS[locale]),'Missing settings descriptions')
+        for key,alternatives in THREAD_SETTINGS[locale].items():require(descriptions[key] in alternatives and descriptions[key] in text,'Wrong/unrendered settings description')
+        other='en' if locale=='zh-CN' else 'zh-CN'
+        require(not any(label in text for alternatives in THREAD_SETTINGS[other].values() for label in alternatives),'Mixed-language settings descriptions')
+        require(s.get('navigation')==(['语音'] if locale=='zh-CN' else ['Voice']),'Missing settings navigation')
+        require(s.get('groups')==(['智能体','代码','连接'] if locale=='zh-CN' else ['Agents','Code','Connections']),'Missing settings groups')
+    audit=cjk.get('settings_audit',{});routes=audit.get('routes',[])
+    require(audit.get('scope')==SETTINGS_OVERVIEW_SCOPE and audit.get('unvisited')==SETTINGS_UNVISITED,'Missing or overstated settings coverage')
+    limits=audit.get('limitations',[])
+    require(isinstance(limits,list) and len(limits)==5 and all(isinstance(item,str) and item for item in limits),'Missing settings limitations')
+    require('not covered' in ' '.join(limits) and 'Linux shared UI' in ' '.join(limits),'Missing stateful/native coverage limits')
+    require([(r.get('route'),r.get('marker')) for r in routes]==[('/settings/'+name,marker) for name,marker in SETTINGS_OVERVIEWS],'Missing/wrong settings overview routes')
+    for r in routes:
+        require(r.get('locale')=='zh-CN','Wrong settings overview locale');app_url(r.get('url'));body(r.get('body_text'))
+        require(r['url'].endswith('#'+r['route']),'Wrong settings overview URL')
+        require(isinstance(r.get('ready_text'),str) and re.search('[\u3400-\u9fff]',r['ready_text']) and r['ready_text'] in r['body_text'],'Missing Chinese settings readiness evidence')
+        require(r.get('screenshot')=='settings-'+r['route'].removeprefix('/settings/')+'-zh-CN.png','Wrong settings overview screenshot')
+        require(isinstance(r.get('ascii_lines_for_review'),list) and all(isinstance(line,str) for line in r['ascii_lines_for_review']),'Missing settings text review evidence')
+    expected_names=['01-fonts-installed-english.png','02-chinese-selected.png','03-chinese-after-restart.png','04-chinese-thread-settings.png','05-english-thread-settings.png','06-chinese-thread-settings-restored.png']+['settings-'+name+'-zh-CN.png' for name,_ in SETTINGS_OVERVIEWS]
     screenshots=cjk.get('screenshots',[]);require([item.get('name') for item in screenshots]==expected_names,'Missing CJK screenshot set')
     for item in screenshots:
         path=root/'cjk'/item['name'];png(path)

@@ -80,6 +80,7 @@ export class PortalCaptureShortcut {
   private readonly onStateChanged: () => void;
   private readonly bus: MessageBus;
   private readonly managedByHyprland: boolean;
+  private readonly captureDescription: string;
 
   constructor(
     appId: string,
@@ -88,11 +89,13 @@ export class PortalCaptureShortcut {
     onStateChanged: () => void,
     bus: MessageBus = sessionBus(),
     managedByHyprland = false,
+    captureDescription = "Capture a window",
   ) {
     this.onCapture = onCapture;
     this.onStateChanged = onStateChanged;
     this.bus = bus;
     this.managedByHyprland = managedByHyprland;
+    this.captureDescription = captureDescription;
     if (managedByHyprland)
       this.state = {
         shortcutRegistered: false,
@@ -411,7 +414,7 @@ export class PortalCaptureShortcut {
         [
           this.shortcutId,
           {
-            description: new Variant("s", "Capture a window"),
+            description: new Variant("s", this.captureDescription),
             ...(!this.managedByHyprland ? { preferred_trigger: new Variant("s", trigger) } : {}),
           },
         ],

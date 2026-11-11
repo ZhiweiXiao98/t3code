@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../../i18n/mobileDisplayStrings";
 import { useState } from "react";
 import { Pressable, View } from "react-native";
 import type { FileDiffMetadata } from "@pierre/diffs";
@@ -61,7 +62,10 @@ export function ReviewGuideExcerpt({
       <View className="overflow-hidden rounded-lg border border-border-subtle">
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`Open ${excerpt.path} at line ${excerpt.start} in full diff`}
+          accessibilityLabel={formatMobileMessage("Open {0} at line {1} in full diff", [
+            excerpt.path,
+            excerpt.start,
+          ])}
           onPress={onOpen}
           className="min-h-11 flex-row items-center gap-3 border-b border-border-subtle px-3 py-2 active:opacity-60"
         >

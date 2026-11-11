@@ -1,4 +1,5 @@
 import { assert, it } from "@effect/vitest";
+import { DEFAULT_CLIENT_SETTINGS } from "@t3tools/contracts";
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
@@ -7,6 +8,7 @@ import * as Layer from "effect/Layer";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
 import * as HttpClient from "effect/http/HttpClient";
+import { ChildProcessSpawner } from "effect/process";
 import * as NetService from "@t3tools/shared/Net";
 import * as Fiber from "effect/Fiber";
 import * as Option from "effect/Option";
@@ -214,6 +216,7 @@ it.effect.each([false, true])(
         Effect.provide(
           Layer.mergeAll(
             Layer.mock(BrowserImport.BrowserImport, {}),
+            Layer.mock(ChildProcessSpawner.ChildProcessSpawner, {}),
             Layer.mock(DesktopBackendConfiguration.DesktopBackendConfiguration, {}),
             Layer.mock(DesktopCliCommand.DesktopCliCommand, {}),
             Layer.mock(DesktopClientSettings.DesktopClientSettings, {}),
@@ -274,4 +277,81 @@ it.effect.each([false, true])(
       assert.isTrue(yield* shutdown.isComplete);
       assert.isTrue(yield* Deferred.isDone(registrationStopped));
     }).pipe(Effect.provide(DesktopShutdown.layer)),
+);
+
+it.effect.each([
+  { appLocale: "zh-CN", source: "saved", osLocale: "en-US", chinese: true },
+  { appLocale: "en", source: "saved", osLocale: "zh-CN", chinese: false },
+  { appLocale: "system", source: "saved", osLocale: "zh-SG", chinese: true },
+  { appLocale: "system", source: "absent", osLocale: "zh-CN", chinese: true },
+  { appLocale: "system", source: "failed", osLocale: "zh-CN", chinese: true },
+  { appLocale: "system", source: "defect", osLocale: "zh-CN", chinese: true },
+  { appLocale: "system", source: "absent", osLocale: "unavailable", chinese: false },
+] as const)(
+  "reports fatal startup failures safely with $source settings and $osLocale",
+  ({ appLocale, source, osLocale, chinese }) =>
+    Effect.gen(function* () {
+      const events: string[] = [];
+      const boxes: Array<{ title: string; content: string }> = [];
+      const error = new Error("ENOENT /tmp/t3/state.json");
+      error.stack = "Error: ENOENT /tmp/t3/state.json\n    at bootstrap (main.cjs:1:2)";
+      const run = Effect.gen(function* () {
+        yield* DesktopApp.handleFatalStartupError("bootstrap", error);
+        yield* DesktopApp.handleFatalStartupError("whenReady", error);
+        assert.equal(boxes.length, 1);
+        assert.equal(boxes[0]?.title, chinese ? "T3 Code 启动失败" : "T3 Code failed to start");
+        assert.equal(
+          boxes[0]?.content,
+          `${chinese ? "阶段：" : "Stage: "}bootstrap\n${error.message}\n${error.stack}`,
+        );
+        assert.deepEqual(events, ["dialog", "shutdown", "quit", "shutdown", "quit"]);
+      }).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            DesktopState.layer,
+            Layer.mock(DesktopShutdown.DesktopShutdown)({
+              request: Effect.sync(() => {
+                events.push("shutdown");
+              }),
+            }),
+            Layer.mock(ElectronApp.ElectronApp)({
+              systemLocale:
+                osLocale === "unavailable"
+                  ? Effect.die("OS locale unavailable")
+                  : Effect.succeed(osLocale),
+              quit: Effect.sync(() => {
+                events.push("quit");
+              }),
+            }),
+            Layer.mock(ElectronDialog.ElectronDialog)({
+              showErrorBox: (title, content) =>
+                Effect.sync(() => {
+                  boxes.push({ title, content });
+                  events.push("dialog");
+                }),
+            }),
+          ),
+        ),
+      );
+      if (source === "absent") yield* run;
+      else
+        yield* run.pipe(
+          Effect.provide(
+            Layer.mock(DesktopClientSettings.DesktopClientSettings)({
+              get:
+                source === "failed"
+                  ? Effect.fail(
+                      new DesktopClientSettings.DesktopClientSettingsReadError({
+                        operation: "read-file",
+                        path: "/tmp/client-settings.json",
+                        cause: "unavailable",
+                      }),
+                    )
+                  : source === "defect"
+                    ? Effect.die("settings unavailable")
+                    : Effect.succeedSome({ ...DEFAULT_CLIENT_SETTINGS, appLocale }),
+            }),
+          ),
+        );
+    }),
 );

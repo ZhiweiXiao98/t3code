@@ -90,7 +90,7 @@ export function WorktreesDirectoryRow() {
           aria-label={translateWebSource(translationLocale, "Worktree location")}
           autoCapitalize="none"
           spellCheck={false}
-          placeholder={mixed ? "Mixed" : "Default"}
+          placeholder={translateWebSource(translationLocale, mixed ? "Mixed" : "Default")}
           defaultValue={mixed ? "" : settings.worktreesDirectory}
           onFocus={(event) => {
             draft.current = event.target.value;

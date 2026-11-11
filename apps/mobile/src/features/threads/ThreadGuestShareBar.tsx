@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { useAtomValue } from "@effect/atom-react";
 import {
   type AtomCommandResult,
@@ -161,7 +162,7 @@ export function ThreadGuestPendingMessage(props: {
       <GuestMessageName name={guestName} />
       <View className={GUEST_PENDING_BUBBLE_CLASS_NAME} style={{ maxWidth: props.bubbleMaxWidth }}>
         {message.text ? (
-          <Text selectable className="text-base text-foreground">
+          <Text localize={false} selectable className="text-base text-foreground">
             {message.text}
           </Text>
         ) : null}
@@ -172,14 +173,14 @@ export function ThreadGuestPendingMessage(props: {
           <Button
             label="Dismiss"
             tone="secondary"
-            accessibilityLabel={`Dismiss message from ${guestName}`}
+            accessibilityLabel={formatMobileMessage("Dismiss message from {0}", [guestName])}
             disabled={busy}
             onPress={() => void resolve("dismiss")}
           />
           <Button
             label="Send"
             tone="primary"
-            accessibilityLabel={`Send message from ${guestName}`}
+            accessibilityLabel={formatMobileMessage("Send message from {0}", [guestName])}
             disabled={busy}
             onPress={() => void resolve("send")}
           />

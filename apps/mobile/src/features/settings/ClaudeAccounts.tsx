@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import type { MenuAction } from "@react-native-menu/menu";
 import {
   isAtomCommandInterrupted,
@@ -116,7 +117,7 @@ export function ClaudeAccount({
     <View className="border-t border-border-subtle">
       <View className="min-h-16 flex-row items-center gap-3 px-4 py-3">
         <View className="min-w-0 shrink grow gap-0.5">
-          <Text textRole="body" className="text-foreground" numberOfLines={1}>
+          <Text localize={false} textRole="body" className="text-foreground" numberOfLines={1}>
             {name}
           </Text>
           <Text textRole="footnote" className="text-foreground-muted" numberOfLines={2}>
@@ -127,7 +128,7 @@ export function ClaudeAccount({
           <Menu
             accessible
             accessibilityRole="button"
-            accessibilityLabel={`${name} options`}
+            accessibilityLabel={formatMobileMessage("{0} options", [name])}
             title={name}
             actions={actions}
             onPressAction={({ nativeEvent }) => {
@@ -138,7 +139,7 @@ export function ClaudeAccount({
           >
             <ControlPill
               icon="ellipsis"
-              accessibilityLabel={`${name} options`}
+              accessibilityLabel={formatMobileMessage("{0} options", [name])}
               disabled={pending}
             />
           </Menu>

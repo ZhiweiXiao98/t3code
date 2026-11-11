@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../../i18n/mobileDisplayStrings";
 import { localizeMobileString } from "../../../i18n/mobileStrings";
 import { Button } from "../../../components/ui/Button";
 import type { PullRequestReviewGuide } from "@t3tools/contracts";
@@ -25,9 +26,14 @@ export function GuideOutline({
     <View>
       <View className="mb-5 flex-row items-center justify-between">
         <View className="flex-row items-baseline gap-2">
-          <Text className="text-base font-t3-semibold">{guide.stops.length} stops</Text>
+          <Text className="text-base font-t3-semibold">
+            {formatMobileMessage("{0} stops", [guide.stops.length])}
+          </Text>
           <Text className="text-sm text-foreground-muted">
-            through {files.size} {files.size === 1 ? "file" : "files"}
+            {formatMobileMessage("through {0} {1}", [
+              files.size,
+              files.size === 1 ? "file" : "files",
+            ])}
           </Text>
         </View>
         <Menu
@@ -71,7 +77,7 @@ export function GuideOutline({
           <Pressable
             key={`${guide.headSha}:${JSON.stringify(stop)}`}
             accessibilityRole="button"
-            accessibilityLabel={`Stop ${position + 1}: ${stop.title}`}
+            accessibilityLabel={formatMobileMessage("Stop {0}: {1}", [position + 1, stop.title])}
             onPress={() => onOpen(position)}
             className="flex-row gap-4 active:opacity-60"
           >

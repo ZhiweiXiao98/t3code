@@ -14,6 +14,30 @@ describe("translateWebMessage", () => {
 
   it("localizes shared account and settings controls without changing English", () => {
     for (const [source, chinese] of [
+      ["Use in another app (MCP)", "在其他应用中使用（MCP）"],
+      ["New thread each run", "每次运行新建会话"],
+      ["One thread, continuing the conversation", "使用同一会话，继续之前的对话"],
+      ["One thread, fresh session each run", "使用同一会话，每次运行开启全新会话上下文"],
+      ["Started by the first run", "首次运行时创建"],
+      ["Destination thread", "目标会话"],
+      ["Search all threads...", "搜索所有会话..."],
+      ["No threads found.", "未找到会话。"],
+      ["Untitled thread", "未命名会话"],
+      ["Thread {id}", "会话 {id}"],
+      [
+        "The first run starts a thread with the workspace and model below. Later runs continue that conversation.",
+        "首次运行使用下方工作区和模型创建会话，后续运行继续该对话。",
+      ],
+      [
+        "The first run starts a thread with the workspace and model below. Later runs post there, each in a fresh session without earlier runs' context.",
+        "首次运行使用下方工作区和模型创建会话。后续运行仍在该会话中进行，但每次都使用全新上下文，不包含之前运行的内容。",
+      ],
+      [
+        "Each run starts a fresh session in this thread, without earlier runs' context.",
+        "每次运行都在此会话中开启全新上下文，不包含之前运行的内容。",
+      ],
+      ["Deleting the thread also deletes this task.", "删除此会话也会删除该定时任务。"],
+
       [
         "T3 Code collects anonymous usage data to improve the app.",
         "T3 Code 会收集匿名使用数据，以改进应用。",
@@ -25,6 +49,26 @@ describe("translateWebMessage", () => {
       ["Queue", "排队"],
       ["Blue & orange", "蓝色和橙色"],
       ["Collapsed", "折叠"],
+      ["Clone into host folders", "按主机名分目录克隆"],
+      [
+        "Clones go to github.com/owner/repo under the folder above, like ghq.",
+        "克隆的仓库按 github.com/owner/repo 结构存放在上述目录下，与 ghq 类似。",
+      ],
+      [
+        "Default model for new threads, selected automatically. Projects can override it.",
+        "新任务默认使用自动选择的模型，项目可以单独覆盖。",
+      ],
+      [
+        "Default permissions for new threads. Projects can override them.",
+        "新任务的默认权限，项目可以单独覆盖。",
+      ],
+      [
+        "Where new threads start. Projects and their t3.json can override it.",
+        "新任务的起始位置，项目设置及其 t3.json 可以覆盖此项。",
+      ],
+      ["Model for new threads in this project.", "此项目中新任务使用的模型。"],
+      ["Permissions for new threads in this project.", "此项目中新任务的权限。"],
+      ["Where new threads in this project start.", "此项目中新任务的起始位置。"],
     ]) {
       expect(translateWebSource("zh-CN", source!)).toBe(chinese);
       expect(translateWebSource("en", source!)).toBe(source);
@@ -308,5 +352,43 @@ describe("source translation own-property lookup", () => {
     expect(translateWebSource("zh-CN", "User_原文 /tmp/file.ts {count}")).toBe(
       "User_原文 /tmp/file.ts {count}",
     );
+  });
+});
+
+describe("localized workflow details", () => {
+  it("preserves user names, paths, and errors inside complete translated notices", () => {
+    const source = "Ready";
+    const environment = "My Mac / develop";
+    const path = "/Users/name/Open/jiusheng-code";
+    expect(translateWebMessage("zh-CN", "newProject.createsAt", { path })).toBe(`创建于 ${path}`);
+    expect(translateWebMessage("en", "newProject.createsAt", { path })).toBe(`Creates ${path}`);
+    expect(translateWebMessage("zh-CN", "settings.inheritedFrom", { environment })).toBe(
+      `继承自 ${environment}`,
+    );
+    expect(translateWebMessage("zh-CN", "storage.database.lastFailure", { error: source })).toBe(
+      "上次尝试失败：Ready",
+    );
+    expect(translateWebMessage("zh-CN", "secrets.removeUnused", { source })).toBe(
+      "没有设置从 Ready 读取密钥。密钥本身不会被更改。",
+    );
+    expect(translateWebMessage("en", "secrets.removeUnused", { source })).toBe(
+      "Nothing reads from Ready. The secrets themselves are untouched.",
+    );
+    expect(
+      translateWebMessage("zh-CN", "device.discovery.incompleteMany", {
+        platforms: "iOS 和 Android",
+        environment,
+      }),
+    ).toBe(`${environment} 上的 iOS 和 Android 列表可能不完整。`);
+    expect(translateWebMessage("zh-CN", "sidebar.snoozeFailedMany", { count: 2 })).toBe(
+      "无法稍后处理 2 个任务",
+    );
+    expect(translateWebMessage("en", "sidebar.snoozeFailedMany", { count: 2 })).toBe(
+      "Failed to snooze 2 threads",
+    );
+    expect(translateWebMessage("zh-CN", "sidebar.bulk.settleCount", { count: 2 })).toBe(
+      "收起（2）",
+    );
+    expect(translateWebMessage("en", "sidebar.bulk.settleCount", { count: 2 })).toBe("Settle (2)");
   });
 });

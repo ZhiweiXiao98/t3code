@@ -15,9 +15,9 @@ if (APP_VARIANT === "community") {
   process.env.EXPO_PUBLIC_APP_LOCALE = "zh-CN";
 }
 const appVersion =
-  repoEnv.T3CODE_MOBILE_VERSION?.trim() || (APP_VARIANT === "community" ? "0.1.6" : "2.2.0");
+  repoEnv.T3CODE_MOBILE_VERSION?.trim() || (APP_VARIANT === "community" ? "0.1.9-zh.1" : "2.3.0");
 const androidVersionCode = Number.parseInt(
-  APP_VARIANT === "community" ? (repoEnv.T3CODE_MOBILE_VERSION_CODE?.trim() ?? "1000413") : "1",
+  APP_VARIANT === "community" ? (repoEnv.T3CODE_MOBILE_VERSION_CODE?.trim() ?? "1000416") : "1",
   10,
 );
 if (!Number.isSafeInteger(androidVersionCode) || androidVersionCode <= 0) {

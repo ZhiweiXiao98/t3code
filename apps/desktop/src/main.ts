@@ -140,11 +140,11 @@ const layerElectron = Layer.mergeAll(
   ElectronTheme.layer,
   ElectronUpdater.layer,
   ElectronWindow.layer,
-  DesktopIpc.layer(Electron.ipcMain),
+  DesktopIpc.layer(Electron.ipcMain).pipe(Layer.provide(ElectronWindow.layer)),
 );
 
 const layerDesktopFoundation = Layer.mergeAll(
-  MacPermissions.layer,
+  MacPermissions.layer.pipe(Layer.provide(DesktopClientSettings.layer)),
   DesktopManagedPolicy.layer,
   DesktopState.layer,
   DesktopShutdown.layer,

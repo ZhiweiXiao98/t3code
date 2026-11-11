@@ -241,12 +241,15 @@ function SnoozePresetList(props: {
   const tx = (source: string) => translateWebSource(locale, source);
   const nowMinute = useNowMinute();
   const now = new Date(`${nowMinute}Z`);
+  const timestampLocale = locale === "zh-CN" ? locale : undefined;
   const formatTime = (date: Date) =>
-    formatShortTimestamp(date.toISOString(), props.timestampFormat);
+    formatShortTimestamp(date.toISOString(), props.timestampFormat, timestampLocale);
+  const formatWeekday = (date: Date) =>
+    date.toLocaleDateString(timestampLocale, { weekday: "short" });
   const seenIds = new Set<string>();
   const seenWakes = new Set<string>();
   const previews = props.presets.map((preset) => {
-    const resolved = resolveSnoozePreset(preset, now, formatTime);
+    const resolved = resolveSnoozePreset(preset, now, formatTime, formatWeekday);
     if (resolved === null) return { tone: "muted", text: tx("Passed for today") } as const;
     if (seenIds.has(resolved.id)) {
       return { tone: "muted", text: tx("Duplicate of an option above") } as const;
@@ -263,7 +266,11 @@ function SnoozePresetList(props: {
     } as const;
   });
 
-  const menuPresets = resolveSnoozePresets(now, { presets: props.presets, formatTime });
+  const menuPresets = resolveSnoozePresets(now, {
+    presets: props.presets,
+    formatTime,
+    formatWeekday,
+  });
   const repeatedLabels = new Set(
     menuPresets
       .map((preset) => preset.label)

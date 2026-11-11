@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { managedCapabilityDenial } from "../../i18n/managedPolicyMessages";
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import * as Dialog from "../../components/ui/Dialog";
@@ -284,7 +285,7 @@ function WebhookFilterRows(props: {
             <Text className="min-w-0 flex-1 text-sm text-foreground-muted">Filter {index + 1}</Text>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`Remove filter ${index + 1}`}
+              accessibilityLabel={formatMobileMessage("Remove filter {0}", [index + 1])}
               disabled={props.disabled}
               hitSlop={8}
               onPress={() => props.onChange(removeWebhookFilterDraft(props.filters, filter.id))}
@@ -1062,7 +1063,9 @@ function TaskForm({
             <>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`Time, ${formatTime(draft.schedule.timeOfDay)}`}
+                accessibilityLabel={formatMobileMessage("Time, {0}", [
+                  formatTime(draft.schedule.timeOfDay),
+                ])}
                 onPress={() => setTimePickerOpen((open) => !open)}
                 className="min-h-14 flex-row items-center gap-3 border-t border-border-subtle px-4 py-3 active:opacity-70"
               >
@@ -1495,7 +1498,7 @@ function EnvironmentTasks({
           >
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`Edit ${task.title}`}
+              accessibilityLabel={formatMobileMessage("Edit {0}", [task.title])}
               onPress={() => {
                 onEdit(task);
               }}
@@ -1571,7 +1574,7 @@ function EnvironmentTasks({
             >
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`Actions for ${task.title}`}
+                accessibilityLabel={formatMobileMessage("Actions for {0}", [task.title])}
                 className="h-11 w-11 items-center justify-center"
               >
                 <SymbolView

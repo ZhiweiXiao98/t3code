@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 
 import { AppText as Text } from "../../components/ui/AppText";
@@ -29,11 +30,19 @@ function CompletionRow({ completion }: { readonly completion: PullRequestComplet
     return (
       <>
         <PullRequestAvatar actor={actor} size={20} />
-        <Text className="shrink-0 text-base font-t3-medium text-foreground" numberOfLines={1}>
+        <Text
+          localize={false}
+          className="shrink-0 text-base font-t3-medium text-foreground"
+          numberOfLines={1}
+        >
           {actor.login}
         </Text>
         {actor.name && actor.name !== actor.login ? (
-          <Text className="min-w-0 flex-1 text-xs text-foreground-muted" numberOfLines={1}>
+          <Text
+            localize={false}
+            className="min-w-0 flex-1 text-xs text-foreground-muted"
+            numberOfLines={1}
+          >
             {actor.name}
           </Text>
         ) : null}
@@ -46,7 +55,11 @@ function CompletionRow({ completion }: { readonly completion: PullRequestComplet
       <Text className="shrink-0 text-base font-t3-medium text-foreground" numberOfLines={1}>
         {candidate.reference}
       </Text>
-      <Text className="min-w-0 flex-1 text-sm text-foreground-muted" numberOfLines={1}>
+      <Text
+        localize={false}
+        className="min-w-0 flex-1 text-sm text-foreground-muted"
+        numberOfLines={1}
+      >
         {candidate.title}
       </Text>
       <Text className="shrink-0 text-xs text-foreground-tertiary">
@@ -81,7 +94,7 @@ export function PullRequestCompletionSuggestions({
             <Pressable
               key={completion.token}
               accessibilityRole="button"
-              accessibilityLabel={`Insert ${completion.token}`}
+              accessibilityLabel={formatMobileMessage("Insert {0}", [completion.token])}
               onPress={() => completions.select(completion)}
               className="flex-row items-center gap-2.5 border-border px-3.5 py-2.5 active:opacity-60"
               style={{

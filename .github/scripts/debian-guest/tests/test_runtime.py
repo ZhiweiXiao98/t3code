@@ -133,8 +133,8 @@ class Results(unittest.TestCase):
         renderer={'processType':'renderer','sandboxed':True,'contextIsolated':True}
         probe={'method':'CDP existing preload lexical scope','reloadSameFreshProfile':True,'preloadScripts':['/tmp/.mount_test/preload.cjs'],'preloadSha256':'1'*64,'breakpoint':{'lineNumber':1,'columnNumber':0}}
         executable='/var/tmp/t3-validation/work/app.AppImage';home='/tmp/t3-clean-first-start-synthetic';chome='/tmp/t3-cjk-check-synthetic'
-        session={'backendSignalExits':[],'effectiveSandbox':{'renderer':renderer,'preferences':{'sandbox':True,'contextIsolation':True,'nodeIntegration':False},'switches':{'no-sandbox':False,'disable-setuid-sandbox':False,'disable-seccomp-filter-sandbox':False,'disable-gpu-sandbox':False}},'privacy_clause':{'source':privacy_source,'expected':privacy_translation,'visible':True},'rendered_chinese_fonts':{'text':'欢迎使用 T3 Code','fonts':[{'familyName':'Noto Sans CJK SC','glyphCount':6}]},'rendererProbe':probe,'requested_chromium_sandbox':True,'spawn_args':[executable,'--user-data-dir='+chome+'/electron-profile'],'packaged':{'isPackaged':True,'noSandbox':False,'userData':chome+'/config/app'},'locale':'zh-CN','page_errors':[],'console_errors':[],'url':'t3code://app/#/welcome','body_text':'欢迎使用 T3 Code 暂不配置 Agent，直接开始 启动 '+privacy_translation}
-        names=['01-fonts-installed-english.png','02-chinese-selected.png','03-chinese-after-restart.png']
+        session={'application_env':{'home':chome,'forbidden_keys':[]},'backendSignalExits':[],'effectiveSandbox':{'renderer':renderer,'preferences':{'sandbox':True,'contextIsolation':True,'nodeIntegration':False},'switches':{'no-sandbox':False,'disable-setuid-sandbox':False,'disable-seccomp-filter-sandbox':False,'disable-gpu-sandbox':False}},'privacy_clause':{'source':privacy_source,'expected':privacy_translation,'visible':True},'rendered_chinese_fonts':{'text':'欢迎使用 T3 Code','fonts':[{'familyName':'Noto Sans CJK SC','glyphCount':6}]},'rendererProbe':probe,'requested_chromium_sandbox':True,'spawn_args':[executable,'--user-data-dir='+chome+'/electron-profile'],'packaged':{'isPackaged':True,'noSandbox':False,'userData':chome+'/config/app'},'locale':'zh-CN','page_errors':[],'console_errors':[],'url':'t3code://app/#/welcome','body_text':'欢迎使用 T3 Code 暂不配置 Agent，直接开始 启动 '+privacy_translation}
+        names=['01-fonts-installed-english.png','02-chinese-selected.png','03-chinese-after-restart.png','04-chinese-thread-settings.png','05-english-thread-settings.png','06-chinese-thread-settings-restored.png']+['settings-'+name+'-zh-CN.png' for name,_ in common.SETTINGS_OVERVIEWS]
         screenshots=[]
         for name in names:
             (root/'cjk'/name).write_bytes(png);screenshots.append({'name':name,'size':len(png),'sha256':hashlib.sha256(png).hexdigest()})
@@ -142,16 +142,54 @@ class Results(unittest.TestCase):
         values={'security-defaults.json':{'kernel/unprivileged_userns_clone':'1','kernel/apparmor_restrict_unprivileged_userns':None,'user/max_user_namespaces':'100','apparmor_enabled':'Y'},'status.json':{'execution':{'id':'debian','versionId':'13','glibc':'glibc 2.41','architecture':'x86_64','securityDefaultsMember':'results/security-defaults.json','uid':65534,'executableSha256':m['executableSha256']},'result':'passed','exitCode':0,'sourceSha':m['sourceSha'],'appimageSha256':m['appimageSha256'],'cleanDriverSha256':common.CLEAN_SHA,'cjkDriverSha256':common.CJK_SHA},'clean/clean-first-start.json':{'backendSignalExits':[],'result':'passed','schemaVersion':2,'fixtureData':False,'requestedChromiumSandbox':True,'cliSandboxOverride':False,'profileIsolation':'unique temporary directory','testHome':home,'executable':executable,'spawnArgs':[executable,'--user-data-dir='+home+'/electron-profile'],'packaged':{'isPackaged':True,'userData':home+'/config/app'},'rendererProbe':probe,'firstRender':{'bodyText':'Synthetic only','windowUrl':'t3code://app/#/welcome','screenshot':'clean-first-render.png'},'bodyText':'Synthetic only','windowTitle':'Synthetic','windowUrl':'t3code://app/#/welcome','effectiveSandbox':{'renderer':renderer,'preferences':{'sandbox':True,'contextIsolation':True,'nodeIntegration':False},'switches':{'noSandbox':False,'disableSetuidSandbox':False,'disableSeccompFilterSandbox':False,'disableGpuSandbox':False}}},'cjk/linux-chinese-ui.json':{'kind':m['kind'],'evidence_type':m['mode'],'executable':{'path':executable,'sha256':m['executableSha256']},'schema_version':2,'passed':True,'persisted_restart':True,'source':{'sha':m['sourceSha'],'tree':m['sourceTree']},'producer':{'run_id':m['producerRunId'],'run_attempt':m['producerRunAttempt'],'artifact_id':m['artifactId']},'asset':{'sha256':m['appimageSha256'],'size':100},'driver_sha256':common.CJK_SHA,'playwright_version':'1.60.0','environment':{'distro':{'ID':'debian','VERSION_ID':'13'},'uid':65534,'kernel':'synthetic-kernel'},'profile':{'home':chome,'t3Home':chome+'/t3','initially_empty':True,'restart_reuses_same_profile':True},'language_selection':'actual combobox and option clicks','privacy_observation':{'source_clause':privacy_source,'expected_translation':privacy_translation,'observed_before_language_selection':True,'visible':True,'english_paragraph':privacy_source+' privacy policy.'},'sessions':[session,copy.deepcopy(session)],'screenshots':screenshots},'fuse.json':{'observed':True,'artifactSha256':m['appimageSha256'],'uid':65534,'exe':'/tmp/.mount_synthetic/app','mountinfo':['synthetic fuse record']}}
         fonts={'distro':'ID=debian\nVERSION_ID=\"13\"\n','font_match':'Noto Sans CJK SC','noto_package':'fonts-noto-cjk synthetic'}
         values['cjk/font-evidence.json']=fonts;values['cjk/linux-chinese-ui.json']['font_environment']=fonts
+        values['cjk/linux-chinese-ui.json']['settings_roundtrip']=[{'locale':locale,'url':'t3code://app/#/settings/threads','descriptions':{key:alternatives[0] for key,alternatives in rows.items()},'body_text':' '.join(alternatives[0] for alternatives in rows.values()),'navigation':['语音'] if locale=='zh-CN' else ['Voice'],'groups':['智能体','代码','连接'] if locale=='zh-CN' else ['Agents','Code','Connections']} for locale,rows in common.THREAD_SETTINGS.items()]
+        c=values['cjk/linux-chinese-ui.json'];c['settings_roundtrip'].append(copy.deepcopy(c['settings_roundtrip'][0]))
+        c['settings_audit']={'scope':common.SETTINGS_OVERVIEW_SCOPE,'unvisited':common.SETTINGS_UNVISITED,'limitations':['Initial viewports only.','ASCII text needs review.','No mutating actions.','Stateful flows not covered.','Linux shared UI is not native OS coverage.'],'routes':[{'route':'/settings/'+name,'marker':marker,'locale':'zh-CN','url':'t3code://app/#/settings/'+name,'ready_text':'合成设置说明','body_text':'合成设置说明','screenshot':'settings-'+name+'-zh-CN.png','ascii_lines_for_review':[]} for name,marker in common.SETTINGS_OVERVIEWS]}
         for name,v in values.items():(root/name).write_text(json.dumps(v))
         return m,values
     def test_pass(self):
         with tempfile.TemporaryDirectory() as d:
             root=pathlib.Path(d);m,_=self.fixture(root);common.validate_results(root,m)
     def test_failure_cannot_pass(self):
-        for filename,key,value in [('status.json','exitCode',1),('status.json','result','failed'),('clean/clean-first-start.json','result','failed'),('clean/clean-first-start.json','backendSignalExits',[{'pid':4865,'signal':'SIGSEGV'}]),('clean/clean-first-start.json','backendSignalExits',None),('cjk/linux-chinese-ui.json','persisted_restart',False),('fuse.json','observed',False)]:
+        for filename,key,value in [('status.json','exitCode',1),('status.json','result','failed'),('clean/clean-first-start.json','result','failed'),('clean/clean-first-start.json','backendSignalExits',[{'pid':4865,'signal':'SIGSEGV'}]),('clean/clean-first-start.json','backendSignalExits',None),('cjk/linux-chinese-ui.json','persisted_restart',False),('cjk/linux-chinese-ui.json','settings_roundtrip',[]),('fuse.json','observed',False)]:
             with self.subTest(filename=filename,key=key),tempfile.TemporaryDirectory() as d:
                 root=pathlib.Path(d);m,values=self.fixture(root);values[filename][key]=value;(root/filename).write_text(json.dumps(values[filename]))
                 with self.assertRaises(ValueError):common.validate_results(root,m)
+    def test_settings_roundtrip_rejects_untranslated_or_incomplete_evidence(self):
+        for fault in ('wrong_locale','wrong_route','missing_row','english_description','unrendered_description','mixed_languages','missing_navigation','wrong_group'):
+            with self.subTest(fault=fault),tempfile.TemporaryDirectory() as d:
+                root=pathlib.Path(d);m,v=self.fixture(root);c=v['cjk/linux-chinese-ui.json'];s=c['settings_roundtrip'][0]
+                if fault=='wrong_locale':s['locale']='en'
+                elif fault=='wrong_route':s['url']='t3code://app/#/welcome'
+                elif fault=='missing_row':del s['descriptions']['default-model']
+                elif fault=='english_description':s['descriptions']['ghq-clone-layout']=common.THREAD_SETTINGS['en']['ghq-clone-layout'][0]
+                elif fault=='unrendered_description':s['body_text']='语音 代码'
+                elif fault=='mixed_languages':s['body_text']+=' '+common.THREAD_SETTINGS['en']['default-permissions'][0]
+                elif fault=='missing_navigation':s['navigation']=[]
+                else:s['groups']=['Agent','Code']
+                (root/'cjk/linux-chinese-ui.json').write_text(json.dumps(c))
+                with self.assertRaises(ValueError):common.validate_results(root,m)
+    def test_settings_overview_evidence_is_required(self):
+        for fault in ('missing_route','duplicate_route','wrong_marker','wrong_locale','wrong_url','english_ready','missing_screenshot','unreported_limits','overclaimed_coverage'):
+            with self.subTest(fault=fault),tempfile.TemporaryDirectory() as d:
+                root=pathlib.Path(d);m,v=self.fixture(root);c=v['cjk/linux-chinese-ui.json'];a=c['settings_audit'];r=a['routes'][0]
+                if fault=='missing_route':a['routes'].pop()
+                elif fault=='duplicate_route':a['routes'][1]=copy.deepcopy(r)
+                elif fault=='wrong_marker':r['marker']='unknown'
+                elif fault=='wrong_locale':r['locale']='en'
+                elif fault=='wrong_url':r['url']='t3code://app/#/welcome'
+                elif fault=='english_ready':r['ready_text']='Untranslated ready';r['body_text']='Untranslated ready'
+                elif fault=='missing_screenshot':r['screenshot']='missing.png'
+                elif fault=='unreported_limits':a['limitations']=[]
+                else:a['unvisited']=[]
+                (root/'cjk/linux-chinese-ui.json').write_text(json.dumps(c))
+                with self.assertRaises(ValueError):common.validate_results(root,m)
+    def test_settings_ordinary_default_model_is_valid(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=pathlib.Path(d);m,v=self.fixture(root);c=v['cjk/linux-chinese-ui.json']
+            for s in c['settings_roundtrip']:
+                alternatives=common.THREAD_SETTINGS[s['locale']]['default-model'];s['descriptions']['default-model']=alternatives[1];s['body_text']=s['body_text'].replace(alternatives[0],alternatives[1])
+            (root/'cjk/linux-chinese-ui.json').write_text(json.dumps(c));common.validate_results(root,m)
     def test_second_privacy_clause_required(self):
         with tempfile.TemporaryDirectory() as d:
             root=pathlib.Path(d);m,v=self.fixture(root);v['cjk/linux-chinese-ui.json']['sessions'][1]['privacy_clause']['visible']=False;(root/'cjk/linux-chinese-ui.json').write_text(json.dumps(v['cjk/linux-chinese-ui.json']))
@@ -166,10 +204,12 @@ class Results(unittest.TestCase):
                 root=pathlib.Path(d);m,v=self.fixture(root);v[filename][key]=value;(root/filename).write_text(json.dumps(v[filename]))
                 with self.assertRaises(ValueError):common.validate_results(root,m)
     def test_real_glyphs_and_png_hashes_required(self):
-        for fault in ('glyphs','pnghash','locale','backendSignal','missingBackendSignal'):
+        for fault in ('glyphs','pnghash','locale','backendSignal','missingBackendSignal','credentialEnv','externalHome'):
             with self.subTest(fault=fault),tempfile.TemporaryDirectory() as d:
                 root=pathlib.Path(d);m,v=self.fixture(root);c=v['cjk/linux-chinese-ui.json']
                 if fault=='glyphs':c['sessions'][1]['rendered_chinese_fonts']['fonts'][0]['glyphCount']=0
+                elif fault=='credentialEnv':c['sessions'][1]['application_env']['forbidden_keys']=['GITHUB_TOKEN']
+                elif fault=='externalHome':c['sessions'][1]['application_env']['home']='/home/runner'
                 elif fault=='pnghash':c['screenshots'][1]['sha256']='0'*64
                 elif fault=='backendSignal':c['sessions'][1]['backendSignalExits']=[{'pid':4865,'signal':'SIGSEGV'}]
                 elif fault=='missingBackendSignal':del c['sessions'][1]['backendSignalExits']

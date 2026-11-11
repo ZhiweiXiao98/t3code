@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
+import * as webI18n from "./i18n/readWebI18n";
+import { translateWebMessage } from "./i18n/messages";
+
 import { showContextMenuFallback } from "./contextMenuFallback";
 
 type FakeListener = (event: FakeDomEvent) => void;
@@ -237,4 +240,27 @@ describe("showContextMenuFallback", () => {
 
     await expect(selectionPromise).resolves.toBe("rename");
   });
+
+  it.each([
+    ["zh-CN", "上下文菜单"],
+    ["en", "Context menu"],
+    ["zh-CN", "上下文菜单"],
+  ] as const)(
+    "uses the current %s menu name while preserving supplied label and detail",
+    (locale, menuName) => {
+      using _locale = vi.spyOn(webI18n, "readWebI18n").mockReturnValue({
+        locale,
+        t: (key, values) => translateWebMessage(locale, key, values),
+      });
+      void showContextMenuFallback([{ id: "snooze:hour", label: "In 1 hour", detail: "3:00 PM" }]);
+      const button = findButton("In 1 hour");
+
+      const menu = (document as unknown as FakeDocument)
+        .querySelectorAll("div")
+        .find((element) => element.attributes.get("role") === "menu");
+      expect(menu?.attributes.get("aria-label")).toBe(menuName);
+      expect(button?.textContent).toBe("In 1 hour3:00 PM");
+      expect(button?.attributes.get("aria-label")).toBe("In 1 hour, 3:00 PM");
+    },
+  );
 });

@@ -407,6 +407,35 @@ describe("resolveSnoozePresets", () => {
     ).toEqual(["In 3 hours 23:00", "In 6 hours Thu 2:00", "Tomorrow 21:00", "Next week Mon 18:00"]);
   });
 
+  it("localizes weekday hints without changing preset identity, wake times, or ordering", () => {
+    const now = localDate(2026, 4, 8, 20);
+    const presets: ReadonlyArray<SnoozePresetSetting> = [
+      { kind: "at", day: "monday", time: "18:00" },
+      { kind: "after", minutes: 360 },
+      { kind: "at", day: "tomorrow", time: "21:00" },
+    ];
+    const formatWeekday = (date: Date) => date.toLocaleDateString("zh-CN", { weekday: "short" });
+    const original = resolveSnoozePresets(now, { presets, formatTime });
+    const localized = resolveSnoozePresets(now, { presets, formatTime, formatWeekday });
+    expect(localized.map((preset) => preset.whenLabel)).toEqual([
+      "周四 2:00",
+      "21:00",
+      "周一 18:00",
+    ]);
+    expect(localized.map(({ whenLabel: _, ...preset }) => preset)).toEqual(
+      original.map(({ whenLabel: _, ...preset }) => preset),
+    );
+    const picked = pickSnoozePreset({
+      shown: localized,
+      id: "after:360",
+      now,
+      presets,
+      formatTime,
+      formatWeekday,
+    });
+    expect(picked).toEqual(localized[0]);
+  });
+
   it("drops a today preset once its time passes and moves a weekday on that day to next week", () => {
     // Monday 18:30.
     const now = localDate(2026, 4, 13, 18, 30);

@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import { DraftEnvironmentControl } from "./DraftEnvironmentControl";
 import { NativeScrollEdgeEffectsContext } from "../../native/NativeScrollViewMarker";
@@ -526,7 +527,7 @@ export function NewTaskDraftScreen(props: {
   const selectedEnvironmentLabel =
     flow.environments.find(
       (environment) => environment.environmentId === flow.selectedEnvironmentId,
-    )?.environmentLabel ?? "Environment";
+    )?.environmentLabel ?? localizeMobileString("Environment");
   const availableCurrentBranchName =
     flow.availableBranches.find((branch) => branch.current)?.name ??
     flow.availableBranches.find((branch) => branch.isDefault)?.name ??
@@ -761,7 +762,9 @@ export function NewTaskDraftScreen(props: {
           What should we build
         </Text>
         <View className="max-w-full flex-row items-center justify-center">
-          <Text className="text-2xl font-t3-medium tracking-tight text-foreground">in </Text>
+          <Text className="text-2xl font-t3-medium tracking-tight text-foreground">
+            {formatMobileMessage("in {0}", [""])}
+          </Text>
           <Pressable
             accessibilityHint={localizeMobileString("Opens the project picker")}
             accessibilityLabel={selectedProjectLabel ?? selectedProject.title}
@@ -771,6 +774,7 @@ export function NewTaskDraftScreen(props: {
             className="min-w-0 max-w-[250px] border-b border-foreground-muted active:opacity-65"
           >
             <Text
+              localize={false}
               className="text-2xl font-t3-medium tracking-tight text-foreground"
               numberOfLines={1}
             >
@@ -823,25 +827,29 @@ export function NewTaskDraftScreen(props: {
     );
 
   const contextProjectLabel = flow.isScratchDraft
-    ? "No project"
+    ? localizeMobileString("No project")
     : (selectedProjectLabel ?? selectedProject.title);
   const contextControls = (
     <View className="flex-row items-center gap-1 px-2">
       <View className="min-w-0 shrink">
         <ComposerInlineControl
           accessibilityHint={localizeMobileString("Opens the project picker")}
-          accessibilityLabel={`Project: ${contextProjectLabel}`}
+          accessibilityLabel={formatMobileMessage("Project: {0}", [contextProjectLabel])}
           chevronDirection="right"
           disabled={isComposerInteractionLocked}
           icon="folder"
           label={contextProjectLabel}
+          localizeLabel={false}
           maxWidth="100%"
           onPress={chooseProject}
         />
       </View>
       <View className="min-w-0 shrink">
         <ComposerInlineControl
-          accessibilityLabel={`Choose environment, ${selectedEnvironmentLabel}, ${connectionState === "connected" ? "Connected" : "Offline"}`}
+          accessibilityLabel={formatMobileMessage("Choose environment, {0}, {1}", [
+            selectedEnvironmentLabel,
+            localizeMobileString(connectionState === "connected" ? "Connected" : "Offline"),
+          ])}
           chevronDirection="right"
           disabled={isComposerInteractionLocked}
           renderIcon={(size) => (
@@ -852,6 +860,7 @@ export function NewTaskDraftScreen(props: {
             />
           )}
           label={selectedEnvironmentLabel}
+          localizeLabel={false}
           maxWidth="100%"
           onPress={() => openContextPicker("NewTaskEnvironment")}
           suffix={
@@ -893,7 +902,10 @@ export function NewTaskDraftScreen(props: {
           chevronDirection="right"
           disabled={isComposerInteractionLocked || !flow.isGitRepo}
           icon="arrow.triangle.branch"
-          label={showBranchLoading ? "Loading branches…" : selectedBranchLabel}
+          label={
+            showBranchLoading ? localizeMobileString("Loading branches…") : selectedBranchLabel
+          }
+          localizeLabel={false}
           maxWidth="100%"
           onPress={() => openContextPicker("NewTaskBranch")}
         />

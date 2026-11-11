@@ -34,7 +34,9 @@ export function AssistantTimelineRow({ row }: { row: Extract<TimelineRow, { kind
     row.projectedItem?.item.id,
   );
   const text = liveText ?? row.message.text;
-  const messageText = text || (row.message.streaming ? "" : controlsT("chatControls.copy79"));
+  const messageText =
+    text ||
+    (row.message.streaming || row.suppressEmptyResponse ? "" : controlsT("chatControls.copy79"));
 
   return (
     <>
@@ -166,6 +168,7 @@ function AssistantMessageMeta({
   copyStreaming: boolean;
   alwaysVisible?: boolean;
 }) {
+  const { locale } = useI18n();
   const ctx = use(TimelineRowCtx);
 
   return (
@@ -194,10 +197,16 @@ function AssistantMessageMeta({
       {!message.streaming && (
         <Tooltip>
           <TooltipTrigger render={<p className="text-muted-foreground text-xs tabular-nums" />}>
-            {formatDayAwareTimestamp(message.updatedAt, ctx.timestampFormat)}
+            {formatDayAwareTimestamp(
+              message.updatedAt,
+              ctx.timestampFormat,
+              undefined,
+              undefined,
+              locale,
+            )}
           </TooltipTrigger>
           <TooltipPopup>
-            {formatChatTimestampTooltip(message.updatedAt, ctx.timestampFormat)}
+            {formatChatTimestampTooltip(message.updatedAt, ctx.timestampFormat, locale)}
           </TooltipPopup>
         </Tooltip>
       )}

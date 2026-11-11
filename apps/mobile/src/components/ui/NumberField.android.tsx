@@ -1,3 +1,5 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { View } from "react-native";
 
 import { AppText } from "./AppText";
@@ -20,7 +22,9 @@ export function NumberField(props: NumberFieldProps) {
       />
       <IconButton
         icon="minus"
-        accessibilityLabel={`Decrease ${props.label}`}
+        accessibilityLabel={formatMobileMessage("Decrease {0}", [
+          localizeMobileString(props.label ?? ""),
+        ])}
         disabled={props.disabled || props.value <= props.min}
         onPress={() => adjust(-1)}
       />
@@ -35,7 +39,9 @@ export function NumberField(props: NumberFieldProps) {
       </AppText>
       <IconButton
         icon="plus"
-        accessibilityLabel={`Increase ${props.label}`}
+        accessibilityLabel={formatMobileMessage("Increase {0}", [
+          localizeMobileString(props.label ?? ""),
+        ])}
         disabled={props.disabled || props.value >= props.max}
         onPress={() => adjust(1)}
       />

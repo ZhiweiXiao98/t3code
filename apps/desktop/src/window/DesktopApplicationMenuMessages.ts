@@ -17,11 +17,14 @@ export interface DesktopApplicationMenuMessages {
   readonly open: (appName: string) => string;
   readonly quit: (appName: string) => string;
   readonly closeWindow: string;
+  readonly closeDeveloperTools: string;
+  readonly connectingToWsl: string;
   readonly undo: string;
   readonly redo: string;
   readonly cut: string;
   readonly copy: string;
   readonly copyLink: string;
+  readonly copyEmailAddress: string;
   readonly copyImage: string;
   readonly noSpellingSuggestions: string;
   readonly paste: string;
@@ -50,6 +53,7 @@ export interface DesktopApplicationMenuMessages {
   readonly unknownUpdateError: string;
   readonly updatesUnavailableTitle: string;
   readonly updatesUnavailableMessage: string;
+  readonly updateDetail: (detail: string) => string;
 }
 
 const messages = {
@@ -69,11 +73,14 @@ const messages = {
     open: (appName) => `Open ${appName}`,
     quit: (appName) => `Quit ${appName}`,
     closeWindow: "Close Window",
+    closeDeveloperTools: "Close Developer Tools",
+    connectingToWsl: "Connecting to WSL…",
     undo: "Undo",
     redo: "Redo",
     cut: "Cut",
     copy: "Copy",
     copyLink: "Copy Link",
+    copyEmailAddress: "Copy Email Address",
     copyImage: "Copy Image",
     noSpellingSuggestions: "No suggestions",
     paste: "Paste",
@@ -102,6 +109,7 @@ const messages = {
     unknownUpdateError: "An unknown error occurred. Please try again later.",
     updatesUnavailableTitle: "Updates unavailable",
     updatesUnavailableMessage: "Automatic updates are not available right now.",
+    updateDetail: (detail) => detail,
   },
   "zh-CN": {
     file: "文件",
@@ -119,11 +127,14 @@ const messages = {
     open: (appName) => `打开 ${appName}`,
     quit: (appName) => `退出 ${appName}`,
     closeWindow: "关闭窗口",
+    closeDeveloperTools: "关闭开发者工具",
+    connectingToWsl: "正在连接 WSL…",
     undo: "撤销",
     redo: "重做",
     cut: "剪切",
     copy: "复制",
     copyLink: "复制链接",
+    copyEmailAddress: "复制电子邮件地址",
     copyImage: "复制图片",
     noSpellingSuggestions: "无拼写建议",
     paste: "粘贴",
@@ -152,6 +163,40 @@ const messages = {
     unknownUpdateError: "发生未知错误，请稍后重试。",
     updatesUnavailableTitle: "暂时无法更新",
     updatesUnavailableMessage: "目前无法使用自动更新。",
+    updateDetail: (detail) => {
+      const fixed: Record<string, string> = {
+        "Updates are turned off on this machine.": "此电脑已关闭更新。",
+        "Automatic updates are not available because no update feed is configured.":
+          "未配置更新源，无法使用自动更新。",
+        "Automatic updates are only available in packaged production builds.":
+          "自动更新仅适用于打包的正式版本。",
+        "Automatic updates are disabled by the T3CODE_DISABLE_AUTO_UPDATE setting.":
+          "T3CODE_DISABLE_AUTO_UPDATE 设置已禁用自动更新。",
+        "Automatic updates on Linux require the AppImage or the .deb package.":
+          "Linux 上的自动更新需要使用 AppImage 或 .deb 安装包。",
+        "Nightly updates are turned off on this machine.": "此电脑已关闭每日构建版更新。",
+      };
+      const switchChannel = " Switch to the stable channel to keep getting updates.";
+      const reason = detail.endsWith(switchChannel)
+        ? detail.slice(0, -switchChannel.length)
+        : detail;
+      const managed =
+        /^(.*) manages T3 Code updates\.( Only stable releases can be installed\.)?$/.exec(reason);
+      const failedPolicy =
+        /^Updates are off because T3 Code cannot use the managed policy at (.*)\. Contact your administrator\.$/.exec(
+          reason,
+        );
+      const translated =
+        fixed[reason] ??
+        (managed
+          ? `${managed[1]} 负责管理 T3 Code 更新。${managed[2] ? "仅可安装稳定版本。" : ""}`
+          : failedPolicy
+            ? `T3 Code 无法使用位于 ${failedPolicy[1]} 的受管策略，因此已关闭更新。请联系管理员。`
+            : reason);
+      return (
+        translated + (detail.endsWith(switchChannel) ? "请切换到稳定版通道，以继续获取更新。" : "")
+      );
+    },
   },
 } satisfies Record<ResolvedAppLocale, DesktopApplicationMenuMessages>;
 

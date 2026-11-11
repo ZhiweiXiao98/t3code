@@ -101,3 +101,42 @@ it("leaves thread shortcuts and their hints to the preview when their rules excl
   );
   await whileHoldingControl(() => expect(jumpHint()).not.toBeNull());
 });
+
+it("uses the current language each time a sidebar context menu opens", async () => {
+  const thread = threadWithHistory("locale-menu", 1);
+  using _environment = installFakeEnvironment([thread]);
+  const settings = {
+    ...DEFAULT_CLIENT_SETTINGS,
+    onboardingCompletedAt: "2026-01-01T00:00:00.000Z",
+  };
+  __setClientSettingsForTests({ ...settings, appLocale: "zh-CN" });
+  await page.viewport(1400, 900);
+  const router = getRouter(
+    createMemoryHistory({ initialEntries: [`/${ENVIRONMENT_ID}/${thread.id}`] }),
+  );
+  await router.load();
+  await using _app = await render(<AppRoot router={router} />, {
+    // AppRoot brings its own router.
+    router: false,
+  });
+  const row = page.getByText(`Thread ${thread.id}`, { exact: true }).first();
+  await expect.element(row).toBeVisible();
+  await userEvent.click(row, { button: "right" });
+  await expect
+    .element(page.getByRole("menuitem", { name: "在 main 分支新建任务", exact: true }))
+    .toBeVisible();
+  await expect.element(page.getByRole("menuitem", { name: "置顶任务", exact: true })).toBeVisible();
+  await expect.element(page.getByRole("menuitem", { name: "项目设置", exact: true })).toBeVisible();
+  await userEvent.keyboard("{Escape}");
+  await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
+  await act(() => __setClientSettingsForTests({ ...settings, appLocale: "en" }));
+  await userEvent.click(row, { button: "right" });
+  await expect
+    .element(page.getByRole("menuitem", { name: "New thread on main", exact: true }))
+    .toBeVisible();
+  await expect
+    .element(page.getByRole("menuitem", { name: "Project settings", exact: true }))
+    .toBeVisible();
+  await userEvent.keyboard("{Escape}");
+  expect(router.history.location.pathname).toBe(`/${ENVIRONMENT_ID}/${thread.id}`);
+});

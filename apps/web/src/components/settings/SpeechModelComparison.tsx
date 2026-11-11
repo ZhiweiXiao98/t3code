@@ -1,3 +1,6 @@
+import { useI18n } from "../../i18n/WebI18nContext";
+import { translateVoiceSettingsMessage } from "../../i18n/voiceSettingsMessages";
+import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 import type { EnvironmentSpeechModel, SpeechBenchmarkTier } from "@t3tools/contracts";
 import { CheckIcon } from "lucide-react";
 
@@ -35,13 +38,17 @@ const commonLanguages = [
   "yo",
 ];
 
-export function orderSpeechLanguages(languages: readonly string[], preferred: readonly string[]) {
+export function orderSpeechLanguages(
+  languages: readonly string[],
+  preferred: readonly string[],
+  locale: ResolvedAppLocale = "en",
+) {
   const order = [...new Set([...preferred, ...commonLanguages])];
   const rank = new Map(order.map((code, index) => [code, index]));
   return languages.toSorted(
     (left, right) =>
       (rank.get(left) ?? order.length) - (rank.get(right) ?? order.length) ||
-      languageLabel(left).localeCompare(languageLabel(right)),
+      languageLabel(left, locale).localeCompare(languageLabel(right, locale), locale),
   );
 }
 
@@ -82,6 +89,8 @@ export function ModelBenchmarks({
   /** Plain facts, such as language count and size, shown after the scores. */
   facts: readonly string[];
 }) {
+  const { locale } = useI18n();
+  const t = translateVoiceSettingsMessage.bind(null, locale);
   const data = model.benchmark;
   const seconds = data?.secondsPer30s[tier];
   const visible = !data
@@ -97,24 +106,24 @@ export function ModelBenchmarks({
         const score = data?.accuracy[code];
         return (
           <span key={code}>
-            {languageLabel(code)}:{" "}
+            {languageLabel(code, locale)}:{" "}
             {score ? (
               <>
                 <strong className="font-medium text-foreground">{score.grade}</strong> (
-                {score.errorPercent}% error)
+                {t("{percent}% error)", { percent: score.errorPercent })}
               </>
             ) : (
-              "not benchmarked"
+              t("not benchmarked")
             )}
           </span>
         );
       })}
       <span>
-        Speed:{" "}
+        {t("Speed:")}{" "}
         {tier === "cpu" && data && data.secondsPer30s.cpu === undefined ? (
-          "update server"
+          t("update server")
         ) : seconds == null ? (
-          "not benchmarked"
+          t("not benchmarked")
         ) : (
           <>
             <strong className="font-medium text-foreground">{seconds} s</strong> / 30 s

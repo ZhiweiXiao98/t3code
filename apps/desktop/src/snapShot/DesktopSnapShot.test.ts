@@ -13,6 +13,7 @@ import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Path from "effect/Path";
+import * as Ref from "effect/Ref";
 import * as PlatformError from "effect/PlatformError";
 import * as Schema from "effect/Schema";
 import * as TestClock from "effect/testing/TestClock";
@@ -2201,4 +2202,42 @@ it.effect.each([false, true])(
       ),
     );
   },
+);
+
+it.effect("fills only blank animation titles from the current native language", () =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      using animateTo = vi
+        .spyOn(SnapShotTransition.prototype, "animateTo")
+        .mockImplementation(() => undefined);
+      const settings = yield* Ref.make(DEFAULT_CLIENT_SETTINGS);
+      const service = yield* DesktopSnapShot.make.pipe(
+        Effect.provide(
+          layerTest("darwin", {}, Option.none(), Ref.get(settings).pipe(Effect.asSome)),
+        ),
+      );
+      for (const [appLocale, windowTitle, expected] of [
+        ["zh-CN", "", "已捕获的窗口"],
+        ["en", "", "Captured window"],
+        ["zh-CN", "Report <draft> /tmp/document.md", "Report <draft> /tmp/document.md"],
+        ["zh-CN", "  ", "  "],
+      ] as const) {
+        yield* Ref.set(settings, { ...DEFAULT_CLIENT_SETTINGS, appLocale });
+        const destination = {
+          frame: { x: 100, y: 400, width: 208, height: 112 },
+          backgroundColor: "#fff",
+          borderColor: "#ccc",
+          borderWidth: 1,
+          cornerRadius: 8,
+          scaleFactor: 1,
+          details: { appName: "Editor", windowTitle },
+        };
+        yield* service.setAnimationDestination("capture-1", destination);
+        const passed = animateTo.mock.calls.at(-1)?.[1];
+        assert.equal(passed?.details?.windowTitle, expected);
+        assert.equal(destination.details.windowTitle, windowTitle);
+        if (windowTitle !== "") assert.strictEqual(passed, destination);
+      }
+    }),
+  ),
 );

@@ -11,6 +11,7 @@ import { RowPressable } from "./RowPressable";
 
 export function ListChoiceRow(props: {
   readonly label: string;
+  readonly localizeLabel?: boolean;
   readonly leading?: ReactNode;
   readonly description?: string;
   readonly meta?: ReactNode;
@@ -23,7 +24,9 @@ export function ListChoiceRow(props: {
   return (
     <RowPressable
       accessibilityRole="radio"
-      accessibilityLabel={localizeMobileString(props.label)}
+      accessibilityLabel={
+        props.localizeLabel === false ? props.label : localizeMobileString(props.label)
+      }
       accessibilityHint={
         props.description === undefined ? undefined : localizeMobileString(props.description)
       }
@@ -37,6 +40,7 @@ export function ListChoiceRow(props: {
     >
       <ListRowLayout
         label={props.label}
+        localizeLabel={props.localizeLabel}
         leading={props.leading}
         description={props.description}
         meta={props.meta}

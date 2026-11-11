@@ -251,3 +251,45 @@ describe("ScheduledTasksSettings", () => {
     await expect.element(name).toHaveValue("My draft");
   });
 });
+
+it("localizes the destination picker and deletion consequence while preserving the selected thread", async () => {
+  setup();
+  const settings = (locale: "en" | "zh-CN") => (
+    <WebI18nContext
+      value={{
+        locale,
+        appLocale: locale,
+        setAppLocale: () => undefined,
+        t: (key, values) => translateWebMessage(locale, key, values),
+      }}
+    >
+      <ScheduledTasksSettings taskId={task.id} />
+    </WebI18nContext>
+  );
+  await using screen = await render(settings("zh-CN"));
+  const dialog = page.getByRole("dialog");
+  await expect.element(dialog.getByText("Fix login bug", { exact: true })).toBeVisible();
+  await expect
+    .element(dialog.getByText("删除此会话也会删除该定时任务。", { exact: true }))
+    .toBeVisible();
+  await userEvent.click(dialog.getByText("Fix login bug", { exact: true }));
+  const search = page.getByPlaceholder("搜索所有会话...");
+  await expect.element(search).toBeVisible();
+  await userEvent.fill(search, "no matching thread");
+  await expect.element(page.getByText("未找到会话。", { exact: true })).toBeVisible();
+  await userEvent.keyboard("{Escape}");
+  await expect.element(dialog.getByText("Fix login bug", { exact: true })).toBeVisible();
+  await userEvent.click(dialog.getByText("Fix login bug", { exact: true }));
+  await expect.element(page.getByPlaceholder("搜索所有会话...")).toHaveValue("");
+  await expect
+    .element(page.getByRole("option", { name: "每次运行新建会话", exact: true }))
+    .toBeVisible();
+  await userEvent.keyboard("{Escape}");
+  await screen.rerender(settings("en"));
+  await expect.element(dialog.getByText("Fix login bug", { exact: true })).toBeVisible();
+  await expect
+    .element(dialog.getByText("Deleting the thread also deletes this task.", { exact: true }))
+    .toBeVisible();
+  await userEvent.keyboard("{Escape}");
+  await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+});

@@ -45,7 +45,7 @@ export function DatabaseStorageNotice({
 }: {
   environments: ReadonlyArray<{ readonly environmentId: EnvironmentId; readonly label: string }>;
 }) {
-  const { locale: sourceLocale } = useI18n();
+  const { locale: sourceLocale, t } = useI18n();
 
   const environmentIds = environments.map((environment) => environment.environmentId);
   const recommendations = useAtomValue(
@@ -75,11 +75,12 @@ export function DatabaseStorageNotice({
     <SettingsSection id="storage-database" title={translateWebSource(sourceLocale, "Database")}>
       <SettingsRow
         title={translateWebSource(sourceLocale, "Reclaim freed database space")}
-        description={`These databases still hold space freed by history cleanup.${
+        description={translateWebSource(
+          sourceLocale,
           visible.every((recommendation) => recommendation.reclaimable)
-            ? ""
-            : " Run the command on each machine to reclaim it. It restarts the background service. Quit the desktop app first if it hosts the environment."
-        }`}
+            ? "These databases still hold space freed by history cleanup."
+            : "These databases still hold space freed by history cleanup. Run the command on each machine to reclaim it. It restarts the background service. Quit the desktop app first if it hosts the environment.",
+        )}
       />
       {visible.map(({ environmentId, status, label, reclaimable }) => {
         const dismiss = (
@@ -102,7 +103,10 @@ export function DatabaseStorageNotice({
         ) : (
           <SettingsRow
             key={environmentId}
-            title={`${formatGiB(status.reclaimableBytes)} on ${label}`}
+            title={t("storage.database.amountOn", {
+              amount: formatGiB(status.reclaimableBytes),
+              environment: label,
+            })}
             description={<code className="select-text break-all">{status.compactCommand}</code>}
             control={
               <div className="flex flex-wrap items-center gap-1.5">
@@ -134,6 +138,7 @@ function ReclaimRow({
   readonly status: DatabaseStorageStatus;
   readonly dismiss: ReactNode;
 }) {
+  const { locale, t } = useI18n();
   const reclaim = useAtomCommand(serverEnvironment.reclaimDatabaseSpace);
   const [confirming, setConfirming] = useState(false);
   const [requested, setRequested] = useState(false);
@@ -148,8 +153,8 @@ function ReclaimRow({
     if (result._tag === "Success") {
       toastManager.add({
         type: "success",
-        title: `Reclaiming ${amount} on ${label}`,
-        description: `T3 Code there restarts and is back in about ${minutes} min.`,
+        title: t("storage.database.reclaiming", { amount, environment: label }),
+        description: t("storage.database.restartingMinutes", { minutes }),
       });
       return;
     }
@@ -158,17 +163,17 @@ function ReclaimRow({
     const error = squashAtomCommandFailure(result);
     toastManager.add({
       type: "error",
-      title: `Could not reclaim space on ${label}`,
-      description: error instanceof Error ? error.message : "An error occurred.",
+      title: t("storage.database.reclaimFailed", { environment: label }),
+      description: error instanceof Error ? error.message : t("common.error"),
     });
   };
   return (
     <SettingsRow
-      title={`${amount} on ${label}`}
+      title={t("storage.database.amountOn", { amount, environment: label })}
       description={
         status.reclaimFailure === undefined
-          ? `Restarts T3 Code there. It is offline for about ${minutes} min.`
-          : `The last attempt failed: ${status.reclaimFailure}`
+          ? t("storage.database.offlineMinutes", { minutes })
+          : t("storage.database.lastFailure", { error: status.reclaimFailure })
       }
       control={
         <div className="flex flex-wrap items-center gap-1.5">
@@ -178,23 +183,26 @@ function ReclaimRow({
             disabled={restarting}
             onClick={() => setConfirming(true)}
           >
-            {restarting ? "Restarting…" : "Reclaim"}
+            {translateWebSource(locale, restarting ? "Restarting…" : "Reclaim")}
           </Button>
           {dismiss}
           <AlertDialog open={confirming} onOpenChange={setConfirming}>
             <AlertDialogPopup>
               <AlertDialogHeader>
                 <AlertDialogTitle>
-                  Reclaim {amount} on {label}?
+                  {t("storage.database.confirmTitle", { amount, environment: label })}
                 </AlertDialogTitle>
                 <AlertDialogDescription>
-                  T3 Code on {label} stops, rebuilds its database, and starts again. It is offline
-                  for about {minutes} min. Running agents stop when it restarts.
+                  {t("storage.database.confirmDescription", { environment: label, minutes })}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogClose render={<Button variant="outline" />}>Cancel</AlertDialogClose>
-                <Button onClick={() => void start()}>Restart and reclaim</Button>
+                <AlertDialogClose render={<Button variant="outline" />}>
+                  {t("common.cancel")}
+                </AlertDialogClose>
+                <Button onClick={() => void start()}>
+                  {translateWebSource(locale, "Restart and reclaim")}
+                </Button>
               </AlertDialogFooter>
             </AlertDialogPopup>
           </AlertDialog>

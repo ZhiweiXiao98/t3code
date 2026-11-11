@@ -79,6 +79,7 @@ export function modelFallbackBannerItem(
     fallbackModelName,
     defaultProviderName,
     defaultModelName,
+    locale,
     resetsAt,
     timestampFormat,
     onUseDefault,
@@ -87,6 +88,7 @@ export function modelFallbackBannerItem(
     readonly fallbackModelName: string;
     readonly defaultProviderName: string;
     readonly defaultModelName: string;
+    readonly locale?: string;
     readonly resetsAt: string | null;
     readonly timestampFormat: TimestampFormat;
     readonly onUseDefault: () => void;
@@ -103,7 +105,7 @@ export function modelFallbackBannerItem(
       provider: defaultProviderName,
       reset: resetsAt
         ? controlsT("chatControls.resetAt", {
-            time: formatUpcomingTimestamp(resetsAt, timestampFormat),
+            time: formatUpcomingTimestamp(resetsAt, timestampFormat, undefined, undefined, locale),
           })
         : "",
     }),

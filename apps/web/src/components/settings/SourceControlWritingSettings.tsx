@@ -213,7 +213,7 @@ export function SourceControlWritingSettingsSection() {
   return (
     <SettingsSection
       id="source-control-text-generation"
-      title={translateWebSource(locale, "Writing & review")}
+      title={translateWebSource(locale, "Commits & pull requests")}
     >
       <SettingsRow
         serverScoped
@@ -285,7 +285,7 @@ export function SourceControlWritingSettingsSection() {
                   rows={4}
                   aria-label={translateWebSource(
                     locale,
-                    "Custom source control instructions for all selected environments",
+                    "Custom commit and pull request instructions for all selected environments",
                   )}
                   placeholder={translateWebSource(
                     locale,
@@ -337,7 +337,7 @@ export function SourceControlWritingSettingsSection() {
               }}
               rows={4}
               placeholder={t("sourceControl.writingStyle.customPlaceholder")}
-              aria-label={t("sourceControl.writingStyle.custom")}
+              aria-label={translateWebSource(locale, "Custom commit and pull request instructions")}
             />
           </div>
         ) : null}
@@ -569,7 +569,7 @@ export function SourceControlWritingSettingsSection() {
           {...searchableSetting("source-control-writer-model")}
           description={translateWebSource(
             locale,
-            "Model for source control text and branch or bookmark names. When disabled, use the text generation model configured for this environment.",
+            "Model for commit messages, pull request text, and branch or bookmark names. When disabled, use the text generation model configured for this environment.",
           )}
           control={
             !hasServerTargets ? (

@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { AppText as Text } from "../../components/ui/AppText";
 import { cn } from "../../lib/cn";
 import { copyTextWithHaptic } from "../../lib/copyTextWithHaptic";
@@ -19,7 +20,7 @@ export function ConnectionTraceId({
         accessibilityHint={
           activation === "longPress" ? "Long press to copy the trace ID" : "Copies the trace ID"
         }
-        accessibilityLabel={`Copy trace ID ${traceId}`}
+        accessibilityLabel={formatMobileMessage("Copy trace ID {0}", [traceId])}
         accessibilityRole="button"
         accessibilityActions={[{ name: "activate", label: "Copy trace ID" }]}
         onAccessibilityAction={(event) => {

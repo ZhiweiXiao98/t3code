@@ -1,3 +1,6 @@
+import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
+import { WebI18nContext } from "../../i18n/WebI18nContext";
+import { translateWebMessage } from "../../i18n/messages";
 import { EnvironmentId, ProjectId, ThreadId } from "@t3tools/contracts";
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import type { EnvironmentProject } from "@t3tools/client-runtime/state/shell";
@@ -16,6 +19,7 @@ const state = vi.hoisted(() => ({
   confirm: vi.fn(async (_message: string) => true),
   connectPairing: vi.fn(async (_input: { pairingUrl: string }) => ({ _tag: "Success" })),
   localEnvironmentDisabled: false,
+  locale: "en" as ResolvedAppLocale,
 }));
 
 // One connected primary environment that can read pull requests. Its project list and
@@ -146,6 +150,7 @@ const pairLink = `t3code://pair?pairingUrl=${encodeURIComponent(pairingUrl)}`;
 function setup() {
   vi.clearAllMocks();
   state.confirm.mockResolvedValue(true);
+  state.locale = "en";
   state.localEnvironmentDisabled = false;
   state.projects = [];
   state.routeParams = {};
@@ -178,7 +183,16 @@ async function mount(...urls: string[]) {
   stack.use(
     await render(
       <AppAtomRegistryProvider>
-        <DesktopWebLinkCoordinator />
+        <WebI18nContext
+          value={{
+            locale: state.locale,
+            appLocale: state.locale,
+            setAppLocale: () => undefined,
+            t: (key, values) => translateWebMessage(state.locale, key, values),
+          }}
+        >
+          <DesktopWebLinkCoordinator />
+        </WebI18nContext>
       </AppAtomRegistryProvider>,
     ),
   );
@@ -277,48 +291,66 @@ it("opens a plain commit the workspace lacks like any other delivered link", asy
   expect(useRightPanelStore.getState().byThreadKey).toEqual({});
 });
 
-it("adds the backend from a pairing link after the user confirms its host", async () => {
-  setup();
-  await using _coordinator = await mount(pairLink);
-  await vi.waitFor(() =>
-    expect(state.connectPairing).toHaveBeenCalledExactlyOnceWith({ pairingUrl }),
-  );
-  expect(state.confirm).toHaveBeenCalledExactlyOnceWith(
-    "Add the backend at https://vps.example.com?",
-  );
-  expect(state.navigate).not.toHaveBeenCalled();
-});
+it.each([
+  ["en", "http://vps.example.com:8080", "Add the backend at http://vps.example.com:8080?"],
+  ["en", "https://vps.example.com", "Add the backend at https://vps.example.com?"],
+  ["zh-CN", "http://vps.example.com:8080", "添加位于 http://vps.example.com:8080 的后端？"],
+  ["zh-CN", "https://vps.example.com", "添加位于 https://vps.example.com 的后端？"],
+] as const)(
+  "confirms the complete %s backend origin %s before pairing",
+  async (locale, origin, message) => {
+    setup();
+    state.locale = locale;
+    const pairingUrl = `${origin}/pair#token=ABC123`;
+    await using _coordinator = await mount(
+      `t3code://pair?pairingUrl=${encodeURIComponent(pairingUrl)}`,
+    );
+    await vi.waitFor(() =>
+      expect(state.connectPairing).toHaveBeenCalledExactlyOnceWith({ pairingUrl }),
+    );
+    expect(state.confirm).toHaveBeenCalledExactlyOnceWith(message);
+    expect(state.navigate).not.toHaveBeenCalled();
+  },
+);
 
-it("does not spend the pairing token when the user declines", async () => {
-  setup();
-  const otherPairingUrl = "https://other.example.com/pair#token=XYZ789";
-  state.confirm.mockResolvedValueOnce(false);
-  await using _coordinator = await mount(
-    pairLink,
-    `t3code://pair?pairingUrl=${encodeURIComponent(otherPairingUrl)}`,
-  );
-  await vi.waitFor(() => expect(state.connectPairing).toHaveBeenCalled());
-  expect(state.confirm).toHaveBeenCalledTimes(2);
-  expect(state.connectPairing).toHaveBeenCalledExactlyOnceWith({ pairingUrl: otherPairingUrl });
-});
+it.each(["en", "zh-CN"] as const)(
+  "does not spend the pairing token when the user declines (%s)",
+  async (locale) => {
+    setup();
+    state.locale = locale;
+    const otherPairingUrl = "https://other.example.com/pair#token=XYZ789";
+    state.confirm.mockResolvedValueOnce(false);
+    await using _coordinator = await mount(
+      pairLink,
+      `t3code://pair?pairingUrl=${encodeURIComponent(otherPairingUrl)}`,
+    );
+    await vi.waitFor(() => expect(state.connectPairing).toHaveBeenCalled());
+    expect(state.confirm).toHaveBeenCalledTimes(2);
+    expect(state.connectPairing).toHaveBeenCalledExactlyOnceWith({ pairingUrl: otherPairingUrl });
+  },
+);
 
-it("skips a repeat of a pairing link that already paired", async () => {
-  setup();
-  const otherPairingUrl = "https://other.example.com/pair#token=XYZ789";
-  await using _coordinator = await mount(
-    pairLink,
-    pairLink,
-    `t3code://pair?pairingUrl=${encodeURIComponent(otherPairingUrl)}`,
-  );
-  await vi.waitFor(() =>
-    expect(state.connectPairing).toHaveBeenLastCalledWith({ pairingUrl: otherPairingUrl }),
-  );
-  expect(state.confirm).toHaveBeenCalledTimes(2);
-  expect(state.connectPairing.mock.calls).toEqual([
-    [{ pairingUrl }],
-    [{ pairingUrl: otherPairingUrl }],
-  ]);
-});
+it.each(["en", "zh-CN"] as const)(
+  "skips a repeat of a pairing link that already paired (%s)",
+  async (locale) => {
+    setup();
+    state.locale = locale;
+    const otherPairingUrl = "https://other.example.com/pair#token=XYZ789";
+    await using _coordinator = await mount(
+      pairLink,
+      pairLink,
+      `t3code://pair?pairingUrl=${encodeURIComponent(otherPairingUrl)}`,
+    );
+    await vi.waitFor(() =>
+      expect(state.connectPairing).toHaveBeenLastCalledWith({ pairingUrl: otherPairingUrl }),
+    );
+    expect(state.confirm).toHaveBeenCalledTimes(2);
+    expect(state.connectPairing.mock.calls).toEqual([
+      [{ pairingUrl }],
+      [{ pairingUrl: otherPairingUrl }],
+    ]);
+  },
+);
 
 it("pairs with Local environment disabled, where there is no primary environment to wait for", async () => {
   setup();

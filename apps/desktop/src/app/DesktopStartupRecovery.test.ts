@@ -1,4 +1,4 @@
-import type { DesktopUpdateState } from "@t3tools/contracts";
+import { DEFAULT_CLIENT_SETTINGS, type DesktopUpdateState } from "@t3tools/contracts";
 import { describe, expect, it } from "@effect/vitest";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
@@ -178,12 +178,15 @@ it.effect.each([
         once: () => {},
         webContents: { setWindowOpenHandler: () => {}, on: () => {} },
       } as unknown as Electron.BrowserWindow;
+      const savedSettings = yield* Ref.make(DEFAULT_CLIENT_SETTINGS);
       const state = yield* DesktopState.DesktopState;
       if (started) yield* SubscriptionRef.set(state.primaryBackendStartup, { _tag: "Ready" });
       yield* listen.pipe(
         Effect.provide(
           Layer.mergeAll(
-            DesktopClientSettings.layerTest(),
+            Layer.mock(DesktopClientSettings.DesktopClientSettings)({
+              get: Ref.get(savedSettings).pipe(Effect.asSome),
+            }),
             FileSystem.layerNoop({
               readFileString: () => Effect.succeed("0.1.2"),
               writeFileString: () => Deferred.succeed(remembered, undefined).pipe(Effect.asVoid),
@@ -222,6 +225,7 @@ it.effect.each([
           ),
         ),
       );
+      yield* Ref.set(savedSettings, { ...DEFAULT_CLIENT_SETTINGS, appLocale: "zh-CN" as const });
       appListeners.get("browser-window-created")?.({}, main);
       if (started) yield* Deferred.await(remembered);
       yield* SubscriptionRef.set(state.primaryBackendStartup, {
@@ -234,6 +238,8 @@ it.effect.each([
       expect(loaded.length).toBe(shouldRecover ? 1 : 0);
       if (shouldRecover) {
         expect(decodeURIComponent(loaded[0]!)).toContain("Failure details");
+        expect(decodeURIComponent(loaded[0]!)).toContain('<html lang="zh-CN">');
+        expect(decodeURIComponent(loaded[0]!)).toContain("T3 Code 无法启动");
         if (closeMain) yield* Ref.set(mainRef, Option.none());
         yield* SubscriptionRef.set(state.primaryBackendStartup, { _tag: "Ready" });
         yield* Deferred.await(remembered);
@@ -242,6 +248,10 @@ it.effect.each([
           if (closeMain) {
             yield* Ref.set(mainRef, Option.some(main));
             mainVisible = false;
+            yield* Ref.set(savedSettings, {
+              ...DEFAULT_CLIENT_SETTINGS,
+              appLocale: "zh-CN" as const,
+            });
             appListeners.get("browser-window-created")?.({}, main);
           }
           mainListeners.get("ready-to-show")?.();

@@ -1,3 +1,5 @@
+import { localizeMobileString } from "../../../i18n/mobileStrings";
+import { formatMobileMessage } from "../../../i18n/mobileDisplayStrings";
 import { useEffectEvent, useState } from "react";
 import { View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
@@ -35,10 +37,14 @@ export function SettingsDragHandle(props: {
         collapsable={false}
         accessible
         accessibilityRole="adjustable"
-        accessibilityLabel={`Reorder ${props.title}`}
+        accessibilityLabel={formatMobileMessage("Reorder {0}", [props.title])}
         accessibilityActions={[
-          ...(props.canMoveUp ? [{ name: "decrement", label: "Move up" }] : []),
-          ...(props.canMoveDown ? [{ name: "increment", label: "Move down" }] : []),
+          ...(props.canMoveUp
+            ? [{ name: "decrement", label: localizeMobileString("Move up") }]
+            : []),
+          ...(props.canMoveDown
+            ? [{ name: "increment", label: localizeMobileString("Move down") }]
+            : []),
         ]}
         onAccessibilityAction={({ nativeEvent }) => {
           if (nativeEvent.actionName === "decrement" && props.canMoveUp) props.onStep("up");

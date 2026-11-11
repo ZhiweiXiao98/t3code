@@ -1,5 +1,5 @@
-import { DEFAULT_APP_LOCALE_PREFERENCE, type DesktopUpdateState } from "@t3tools/contracts";
-import { resolveAppLocale, type ResolvedAppLocale } from "@t3tools/shared/appLocale";
+import { type DesktopUpdateState } from "@t3tools/contracts";
+import { type ResolvedAppLocale } from "@t3tools/shared/appLocale";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Option from "effect/Option";
@@ -19,6 +19,7 @@ import * as DesktopEnvironment from "./DesktopEnvironment.ts";
 import * as DesktopObservability from "./DesktopObservability.ts";
 import * as DesktopState from "./DesktopState.ts";
 import * as DesktopClientSettings from "../settings/DesktopClientSettings.ts";
+import { readDesktopLocale } from "../settings/DesktopLocale.ts";
 import { resolveStartupRecoveryMessages } from "./DesktopStartupRecoveryMessages.ts";
 
 // Chinese preview builds have no update feed; manual recovery stays on this fork.
@@ -177,15 +178,7 @@ export const listen: Effect.Effect<
   const electronWindow = yield* ElectronWindow.ElectronWindow;
   const fileSystem = yield* FileSystem.FileSystem;
   const clientSettings = yield* DesktopClientSettings.DesktopClientSettings;
-  const settings = yield* clientSettings.get.pipe(Effect.orElseSucceed(() => Option.none()));
-  const locale = resolveAppLocale(
-    Option.match(settings, {
-      onNone: () => DEFAULT_APP_LOCALE_PREFERENCE,
-      onSome: (value) => value.appLocale,
-    }),
-    [yield* electronApp.systemLocale],
-  );
-  const messages = resolveStartupRecoveryMessages(locale, []);
+  const getLocale = readDesktopLocale(clientSettings.get, electronApp.systemLocale);
   const runFork = Effect.runForkWith(yield* Effect.context<never>());
 
   const lastStartedVersionPath = environment.path.join(
@@ -221,7 +214,7 @@ export const listen: Effect.Effect<
     const failure = yield* Ref.get(failureRef);
     if (Option.isNone(window) || Option.isNone(failure) || window.value.isDestroyed()) return;
     const html = buildStartupRecoveryHtml({
-      locale,
+      locale: yield* getLocale,
       appVersion: environment.appVersion,
       failure: failure.value,
       offer: yield* offer,
@@ -284,9 +277,11 @@ export const listen: Effect.Effect<
         return;
       const existing = yield* Ref.get(windowRef);
       if (Option.isSome(existing) && !existing.value.isDestroyed()) {
+        yield* render;
         yield* electronWindow.reveal(existing.value);
         return;
       }
+      const messages = resolveStartupRecoveryMessages(yield* getLocale, []);
       const shouldUseDarkColors = yield* electronTheme.shouldUseDarkColors;
       const window = yield* electronWindow.create(
         {

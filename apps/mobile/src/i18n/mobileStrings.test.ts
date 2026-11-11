@@ -1,7 +1,9 @@
+import { CloudSpeechProvider } from "@t3tools/contracts";
+import { cloudSpeechDisclosure } from "@t3tools/shared/speech";
 import { describe, expect, it } from "vite-plus/test";
 
 import { localizeAlertArguments, localizeMobileString } from "./mobileStrings";
-import { localizeMobileVoiceError } from "./mobileVoiceStrings";
+import { mobileCloudSpeechDisclosure, localizeMobileVoiceError } from "./mobileVoiceStrings";
 
 describe("mobile strings", () => {
   it("localizes v0.1.8 session, transcription, merge-back and diagram controls", () => {
@@ -13,6 +15,7 @@ describe("mobile strings", () => {
       "Audio stays on this device and is transcribed here.": "音频保留在此设备上，并在此处转写。",
       "Show diagram": "显示图表",
       "Close inspector": "关闭检查面板",
+      "Open file": "打开文件",
       "Save image": "保存图片",
       "Fast worktree checkout": "快速检出工作树",
     };
@@ -66,6 +69,59 @@ describe("mobile strings", () => {
 
   it("translates stable settings, review, and side-chat controls while preserving English", () => {
     const messages = {
+      "Open example sheet": "打开示例面板",
+      "Example name": "示例名称",
+      "Search examples": "搜索示例",
+      "Example back": "示例返回",
+      "Example search": "示例搜索",
+      "Watch and control devices open in this thread": "查看和控制此任务中打开的设备",
+      "New chat": "新建对话",
+      "Discussion reply": "讨论回复",
+      "Inline review comment": "行内审查评论",
+      "Choose pull request environment": "选择拉取请求环境",
+      "Filter by state": "按状态筛选",
+      "Filter by involvement": "按参与情况筛选",
+      "Filter by label": "按标签筛选",
+      "Filter by author": "按作者筛选",
+      "Double tap to open. Touch and hold for quick actions.": "轻点两次打开，长按显示快捷操作。",
+      "Loading pull request details": "正在加载拉取请求详情",
+      "Reviewer ID": "审查者 ID",
+      "Loading more pull requests": "正在加载更多拉取请求",
+      "Retry loading more pull requests": "重试加载更多拉取请求",
+      "Opens the project website": "打开项目网站",
+      "Save project name": "保存项目名称",
+      "Copy webhook URL": "复制 Webhook URL",
+      "Copies the URL to the clipboard": "将 URL 复制到剪贴板",
+      "Sets both light and dark appearances": "同时设置浅色和深色外观",
+      "Branch prefix": "分支前缀",
+      "Branch naming instructions": "分支命名说明",
+      "ChatGPT token sharing is active": "ChatGPT 令牌共享已启用",
+      "Cancel editing queued message": "取消编辑排队消息",
+      "Copy plan": "复制方案",
+      "Move up and Move down reorder within this section. Other actions move between sections.":
+        "“上移”和“下移”可在此分区内重新排序，其他操作可在分区之间移动。",
+      "Choose how to send this message": "选择此消息的发送方式",
+      "Fork from this response": "从此回复创建分支对话",
+      "Edit pending message": "编辑待发送消息",
+      "Opens this turn's subagents": "打开本轮对话的子 Agent",
+      Compacting: "正在压缩",
+      "New branch name": "新分支名称",
+      "Worktree base branch": "工作树基础分支",
+      "Worktree branch name": "工作树分支名称",
+      "Show provider account": "显示提供商账户",
+      "Close thread": "关闭任务",
+      "Long press to copy.": "长按复制。",
+      "Cancel worktree setup": "取消工作树设置",
+      "Setup script output": "设置脚本输出",
+      "Shows dictation controls": "显示听写控件",
+      "Hides dictation controls": "隐藏听写控件",
+      "Saved comments are private until you submit your review.":
+        "提交审查前，已保存的评论仅你可见。",
+      "Notifications require T3 Connect in this app build.":
+        "此应用版本需要 T3 Connect 才能使用通知。",
+      "License notices are unavailable in this build.": "此版本中无法查看许可证声明。",
+      "Editing queued message": "正在编辑排队消息",
+      "Compacting…": "正在压缩…",
       "Agent browser access": "Agent 浏览器访问",
       "Reset tabs": "重置标签页",
       "Resume after usage limits": "用量限制解除后继续",
@@ -293,4 +349,31 @@ describe("mobile strings", () => {
       buttons: [{ text: "取消" }, { text: "确认" }],
     });
   });
+});
+
+it("translates finite reset-credit choices while preserving unrecognized provider descriptions", () => {
+  expect(localizeMobileString("Fable reset · 2 left · expires in 1d 2h", "zh-CN")).toBe(
+    "Fable 额度重置 · 剩余 2 个 · 将在 1 天 2 小时后过期",
+  );
+  expect(
+    localizeMobileString(
+      "Fable reset: Refills your Fable allowance and gives back what Fable used on your weekly limit. It doesn't reset your whole week. This cannot be undone.",
+      "zh-CN",
+    ),
+  ).toContain("这不会重置整周额度。此操作无法撤销。");
+  const opaque = "Fable reset: Provider-specific instruction. This cannot be undone.";
+  expect(localizeMobileString(opaque, "zh-CN")).toBe(opaque);
+});
+
+it("preserves cloud disclosure recipients and English semantics for every provider", () => {
+  const name = "Settings {1} $& /host";
+  for (const provider of CloudSpeechProvider.literals) {
+    expect(mobileCloudSpeechDisclosure(provider, name, "en")).toBe(
+      cloudSpeechDisclosure(provider, name),
+    );
+    expect(mobileCloudSpeechDisclosure(provider, name, "zh-CN")).toContain(name);
+  }
+  expect(mobileCloudSpeechDisclosure("openrouter", name, "zh-CN")).toContain(
+    "可能允许出于安全目的留存数据",
+  );
 });

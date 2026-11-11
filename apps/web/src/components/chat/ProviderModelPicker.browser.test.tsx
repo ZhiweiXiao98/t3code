@@ -6,6 +6,8 @@ import { page, userEvent } from "vite-plus/test/browser";
 import "~/index.css";
 
 import { render } from "../../../test/render";
+import { WebI18nContext } from "../../i18n/WebI18nContext";
+import { translateWebMessage } from "../../i18n/messages";
 import { deriveProviderInstanceEntries } from "../../providerInstances";
 import { ProviderModelPicker } from "./ProviderModelPicker";
 
@@ -169,3 +171,68 @@ it("keeps a docked picker open after a pick and hands focus to that model's effo
   await userEvent.keyboard("{Escape}");
   await expect.element(search).not.toBeInTheDocument();
 });
+
+it.each([
+  ["cursor", "auto"],
+  ["kiro", "default"],
+] as const)(
+  "keeps the reserved %s model ID when selecting localized automatic mode and switching locale",
+  async (driver, modelId) => {
+    const instanceId = ProviderInstanceId.make(driver);
+    const entries = deriveProviderInstanceEntries([
+      {
+        instanceId,
+        driver: ProviderDriverKind.make(driver),
+        enabled: true,
+        installed: true,
+        version: null,
+        status: "ready",
+        auth: { status: "authenticated" },
+        checkedAt: "2026-01-01T00:00:00.000Z",
+        models: [
+          {
+            slug: modelId,
+            name: "Auto",
+            isDefault: true,
+            aliases: ["auto"],
+            isCustom: false,
+            capabilities: {},
+          },
+        ],
+        slashCommands: [],
+        skills: [],
+      },
+    ]);
+    const onSelect = vi.fn();
+    const picker = (locale: "en" | "zh-CN") => (
+      <WebI18nContext
+        value={{
+          locale,
+          appLocale: locale,
+          setAppLocale: () => undefined,
+          t: (key, values) => translateWebMessage(locale, key, values),
+        }}
+      >
+        <ProviderModelPicker
+          environmentId={null}
+          activeInstanceId={instanceId}
+          model={modelId}
+          lockedProvider={null}
+          instanceEntries={entries}
+          modelOptionsByInstance={new Map([[instanceId, entries[0]!.models]])}
+          onInstanceModelChange={onSelect}
+        />
+      </WebI18nContext>
+    );
+    await using screen = await render(picker("zh-CN"));
+    await userEvent.click(screen.getByRole("button", { name: "自动", exact: true }));
+    await userEvent.click(page.getByRole("option", { name: /自动/ }));
+    expect(onSelect).toHaveBeenCalledWith(instanceId, modelId);
+    await userEvent.keyboard("{Escape}");
+    await screen.rerender(picker("en"));
+    await expect.element(screen.getByRole("button", { name: "Auto", exact: true })).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Auto", exact: true }));
+    await expect.element(page.getByRole("option", { name: /Auto/ })).toBeVisible();
+    await userEvent.keyboard("{Escape}");
+  },
+);

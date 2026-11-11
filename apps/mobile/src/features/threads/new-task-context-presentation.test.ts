@@ -49,6 +49,26 @@ describe("resolveNewTaskWorkspaceSelection", () => {
 });
 
 describe("resolveNewTaskBranchLabel", () => {
+  it("localizes selection copy without translating a branch name or re-interpolating it", () => {
+    const base = {
+      branchName: "Chat {0} $&",
+      startFromOrigin: false,
+      workspaceMode: "local" as const,
+      locale: "zh-CN" as const,
+    };
+    expect(resolveNewTaskBranchLabel(base)).toBe("Chat {0} $&");
+    expect(resolveNewTaskBranchLabel({ ...base, branchName: "Chat" })).toBe("Chat");
+    expect(resolveNewTaskBranchLabel({ ...base, workspaceMode: "worktree" })).toBe(
+      "基于 Chat {0} $&",
+    );
+    expect(
+      resolveNewTaskBranchLabel({ ...base, workspaceMode: "worktree", startFromOrigin: true }),
+    ).toBe("基于 Chat {0} $&（远程）");
+    expect(resolveNewTaskBranchLabel({ ...base, branchName: null })).toBe("选择分支");
+    expect(resolveNewTaskBranchLabel({ ...base, locale: "en", workspaceMode: "worktree" })).toBe(
+      "From Chat {0} $&",
+    );
+  });
   it.each([
     ["https://github.com/acme/repo/pull/123", "From PR #123"],
     ["https://gitlab.com/acme/repo/-/merge_requests/123", "From MR #123"],

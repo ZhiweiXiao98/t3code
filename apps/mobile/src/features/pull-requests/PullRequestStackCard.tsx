@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { useState } from "react";
 import { View } from "react-native";
 import { useOpenWorkspaceDetail } from "../layout/useOpenWorkspaceDetail";
@@ -79,7 +80,10 @@ export function PullRequestStackCard(props: {
             );
           })}
           <Text className="px-4 py-3 text-xs text-foreground-muted">
-            Base: {stack.base}. Open a layer to review it or merge the stack through that layer.
+            {formatMobileMessage(
+              "Base: {0}. Open a layer to review it or merge the stack through that layer.",
+              [stack.base],
+            )}
           </Text>
         </View>
       ) : null}

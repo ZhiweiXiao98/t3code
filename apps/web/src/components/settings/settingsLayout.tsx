@@ -390,8 +390,8 @@ export function SettingsRow({
     source === "environment" && context?.scope.environmentIds.length === 1
       ? (context.environments.find(
           (environment) => environment.environmentId === context.scope.environmentIds[0],
-        )?.label ?? "environment")
-      : "environment";
+        )?.label ?? translateWebSource(locale, "Environment"))
+      : translateWebSource(locale, "Environment");
   const environmentSettingsById = new Map(
     (context?.connectedEnvironments ?? []).flatMap((environment) =>
       environment.serverConfig
@@ -441,20 +441,29 @@ export function SettingsRow({
         : unavailable && control
           ? inertControl(
               !canWriteSettings
-                ? `This connection lacks permission to change settings on ${
-                    context
+                ? t("settings.accessDeniedOn", {
+                    environment: context
                       ? context.connectedEnvironments
                           .filter((target) => !writableIds.has(target.environmentId))
                           .map((target) => target.label)
-                          .join(", ") || "the selected environment"
-                      : (primaryEnvironment?.label ?? "the primary environment")
-                  }.`
+                          .join(", ") || translateWebSource(locale, "the selected environment")
+                      : (primaryEnvironment?.label ??
+                        translateWebSource(locale, "the primary environment")),
+                  })
                 : context
-                  ? "Reconnect the selected environment to change this setting."
-                  : PRIMARY_SETTINGS_UNAVAILABLE_MESSAGE,
+                  ? translateWebSource(
+                      locale,
+                      "Reconnect the selected environment to change this setting.",
+                    )
+                  : translateWebSource(locale, PRIMARY_SETTINGS_UNAVAILABLE_MESSAGE),
             )
           : environmentWide && control
-            ? inertControl("Environment-wide setting. Select an environment to change it.")
+            ? inertControl(
+                translateWebSource(
+                  locale,
+                  "Environment-wide setting. Select an environment to change it.",
+                ),
+              )
             : control;
   const customized =
     context !== null &&
@@ -474,7 +483,12 @@ export function SettingsRow({
       : source === "t3.json"
         ? { state: "inherited", summary: "Inherited from the repository's t3.json" }
         : source === "environment" && scopedKeys.length > 0
-          ? { state: "inherited", summary: `Inherited from ${inheritedFrom}` }
+          ? {
+              state: "inherited",
+              summary: t("settings.inheritedFrom", {
+                environment: inheritedFrom,
+              }),
+            }
           : customized
             ? { state: "environment", summary: "Set on the environment" }
             : { state: "default", summary: "Built-in default" };
@@ -482,7 +496,7 @@ export function SettingsRow({
     context && serverScoped && settingKeys.length > 0 ? (
       <SettingInheritance
         state={inheritance.state}
-        summary={inheritance.summary}
+        summary={translateWebSource(locale, inheritance.summary)}
         targets={context.targets}
         environments={context.connectedEnvironments}
         keys={settingKeys}
@@ -591,7 +605,7 @@ export function SettingResetButton({
           </Button>
         }
       />
-      <TooltipPopup side="top">{tooltip}</TooltipPopup>
+      <TooltipPopup side="top">{translateWebSource(locale, tooltip)}</TooltipPopup>
     </Tooltip>
   );
 }

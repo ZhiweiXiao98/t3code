@@ -1,6 +1,7 @@
 import { it as effectIt } from "@effect/vitest";
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
+import { DEFAULT_CLIENT_SETTINGS } from "@t3tools/contracts";
 import type {
   DesktopPreviewRecordingInputEvent,
   PreviewAnnotationPayload,
@@ -16,6 +17,7 @@ import * as Exit from "effect/Exit";
 import * as FileSystem from "effect/FileSystem";
 import * as Fiber from "effect/Fiber";
 import * as Queue from "effect/Queue";
+import * as Ref from "effect/Ref";
 import * as Stream from "effect/Stream";
 import * as Layer from "effect/Layer";
 import * as Logger from "effect/Logger";
@@ -25,6 +27,8 @@ import type * as Scope from "effect/Scope";
 import { TestClock } from "effect/testing";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
+import * as ElectronApp from "../electron/ElectronApp.ts";
+import * as DesktopClientSettings from "../settings/DesktopClientSettings.ts";
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import * as DesktopRendererHistory from "../telemetry/DesktopRendererHistory.ts";
 import * as ElectronWindow from "../electron/ElectronWindow.ts";
@@ -230,8 +234,20 @@ const layerFileSystem = FileSystem.layerNoop({
     }),
 });
 
-const managerLayer = (platform: NodeJS.Platform = "darwin") =>
+interface TestLocaleSources {
+  readonly get: DesktopClientSettings.DesktopClientSettings["Service"]["get"];
+  readonly systemLocale: Effect.Effect<string>;
+}
+
+const managerLayer = (
+  platform: NodeJS.Platform = "darwin",
+  locale: TestLocaleSources = { get: Effect.succeedNone, systemLocale: Effect.succeed("en") },
+) =>
   PreviewManager.layer.pipe(
+    Layer.provideMerge(
+      Layer.mock(DesktopClientSettings.DesktopClientSettings)({ get: locale.get }),
+    ),
+    Layer.provideMerge(Layer.mock(ElectronApp.ElectronApp)({ systemLocale: locale.systemLocale })),
     Layer.provideMerge(
       Layer.succeed(DesktopRendererHistory.DesktopRendererHistory, {
         register: () => Effect.void,
@@ -260,11 +276,12 @@ const withManager = <A>(
     manager: PreviewManager.PreviewManager["Service"],
   ) => Effect.Effect<A, PreviewManager.PreviewManagerError, Scope.Scope>,
   platform: NodeJS.Platform = "darwin",
+  locale?: TestLocaleSources,
 ) =>
   Effect.gen(function* () {
     const manager = yield* PreviewManager.PreviewManager;
     return yield* use(manager);
-  }).pipe(Effect.provide(managerLayer(platform)), Effect.scoped);
+  }).pipe(Effect.provide(managerLayer(platform, locale)), Effect.scoped);
 
 interface TestCapturedPreviewImage {
   readonly toJPEG: () => Buffer;
@@ -517,7 +534,9 @@ const flushMicrotasks = function* () {
   for (let turn = 0; turn < 30; turn++) yield* Effect.promise(() => Promise.resolve());
 };
 
-const makeTestPictureInPictureWindow = (loadURL: () => Promise<void> = async () => undefined) => {
+const makeTestPictureInPictureWindow = (
+  loadURL: (url: string) => Promise<void> = async () => undefined,
+) => {
   const listeners = new Map<string, () => void>();
   const webContentsListeners = new Map<string, () => void>();
   const send = vi.fn();
@@ -611,6 +630,8 @@ describe("PreviewManager", () => {
             Layer.mergeAll(
               layerEnvironment,
               layerBrowserSession,
+              Layer.mock(DesktopClientSettings.DesktopClientSettings)({ get: Effect.succeedNone }),
+              Layer.mock(ElectronApp.ElectronApp)({ systemLocale: Effect.succeed("en") }),
               Layer.mock(DesktopBrowserHost.DesktopBrowserHost)({
                 attach: () => {},
                 detach: () => {},
@@ -2588,6 +2609,82 @@ describe("PreviewManager", () => {
         expect(yield* Fiber.join(pick)).toBeNull();
       }),
     ),
+  );
+
+  effectIt.effect("resolves current app language for each annotation and detached preview", () =>
+    Effect.gen(function* () {
+      const settings = yield* Ref.make(DEFAULT_CLIENT_SETTINGS);
+      yield* withManager(
+        (manager) =>
+          Effect.gen(function* () {
+            const starts = yield* Queue.unbounded<ReadonlyArray<unknown>>();
+            let pageTitle = "原始 Page <title>";
+            const guest = {
+              ...makeTestPreviewWebContents(async () => ({
+                toJPEG: () => Buffer.from("frame"),
+                getSize: () => ({ width: 1280, height: 720 }),
+              })),
+              getTitle: () => pageTitle,
+              isFocused: () => true,
+              send: (channel: string, ...args: unknown[]) => {
+                if (channel === "preview:start-pick") Queue.offerUnsafe(starts, args);
+              },
+              once: vi.fn(),
+              ipc: { on: vi.fn(), off: vi.fn(), removeListener: vi.fn() },
+            };
+            fromId.mockReturnValue(guest as never);
+            yield* manager.createTab("tab_locale");
+            yield* manager.registerWebview("tab_locale", 42);
+            for (const [appLocale, expectedLocale, title, sourceTitle] of [
+              ["zh-CN", "zh-CN", "预览 · 原始 Page <title>", "原始 Page <title>"],
+              ["en", "en", "Preview · 原始 Page <title>", "原始 Page <title>"],
+              ["system", "zh-CN", "预览 · 原始 Page <title>", "原始 Page <title>"],
+              ["zh-CN", "zh-CN", "浏览器预览", ""],
+              ["en", "en", "Browser preview", ""],
+            ] as const) {
+              pageTitle = sourceTitle;
+              yield* Ref.set(settings, { ...DEFAULT_CLIENT_SETTINGS, appLocale });
+              const voice = { sessionId: appLocale, shortcuts: [] };
+              const pick = yield* manager.pickElement("tab_locale", voice).pipe(Effect.forkChild);
+              const [, sendEnabled, sentVoice, locale] = yield* Queue.take(starts);
+              expect(locale).toBe(expectedLocale);
+              expect(sendEnabled).toBe(false);
+              expect(sentVoice).toEqual(voice);
+              yield* manager.cancelPickElement("tab_locale");
+              expect(yield* Fiber.join(pick)).toBeNull();
+
+              const { pictureInPictureWindow } = makeTestPictureInPictureWindow();
+              browserWindowConstructor.mockImplementationOnce(function () {
+                return pictureInPictureWindow;
+              });
+              yield* manager.openPictureInPicture("tab_locale");
+              expect(browserWindowConstructor).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                  title,
+                  webPreferences: expect.objectContaining({
+                    contextIsolation: true,
+                    nodeIntegration: false,
+                    sandbox: true,
+                  }),
+                }),
+              );
+              const dataUrl = pictureInPictureWindow.loadURL.mock.calls[0]![0];
+              const html = decodeURIComponent(dataUrl.slice(dataUrl.indexOf(",") + 1));
+              expect(html).toContain(`<html lang="${expectedLocale}">`);
+              expect(html).toContain(
+                `alt="${expectedLocale === "zh-CN" ? "实时浏览器预览" : "Live browser preview"}"`,
+              );
+              expect(html).toContain(
+                "default-src 'none'; img-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'",
+              );
+              expect(html).not.toContain("原始 Page");
+              yield* manager.closePictureInPicture("tab_locale");
+            }
+          }),
+        "darwin",
+        { get: Ref.get(settings).pipe(Effect.asSome), systemLocale: Effect.succeed("zh-SG") },
+      );
+    }),
   );
 
   effectIt.effect("delivers annotation voice state only to the pick session that owns it", () =>

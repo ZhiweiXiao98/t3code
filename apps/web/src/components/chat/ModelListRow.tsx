@@ -16,6 +16,8 @@ export const ModelListRow = memo(function ModelListRow(props: {
   index: number;
   slug: string;
   name: string;
+  aliases?: ReadonlyArray<string> | undefined;
+  isDefault?: boolean | undefined;
   subProvider?: string | undefined;
   instanceId: ProviderInstanceId;
   driverKind: ProviderDriverKind;
@@ -35,10 +37,12 @@ export const ModelListRow = memo(function ModelListRow(props: {
   disabledReason?: string | null;
   onToggleFavorite: (instanceId: ProviderInstanceId, slug: string) => void;
 }) {
-  const { t: controlsT } = useI18n();
+  const { locale, t: controlsT } = useI18n();
   const model = {
     slug: props.slug,
     name: props.name,
+    aliases: props.aliases,
+    isDefault: props.isDefault,
     subProvider: props.subProvider,
   };
 
@@ -74,10 +78,13 @@ export const ModelListRow = memo(function ModelListRow(props: {
           // Names the row in full on hover only when it is cut off.
           onPointerEnter={(event) => {
             const name = event.currentTarget;
-            name.title = name.scrollWidth > name.clientWidth ? getDisplayModelName(model) : "";
+            name.title =
+              name.scrollWidth > name.clientWidth
+                ? getDisplayModelName(model, { driverKind: props.driverKind, locale })
+                : "";
           }}
         >
-          {getDisplayModelName(model)}
+          {getDisplayModelName(model, { driverKind: props.driverKind, locale })}
           {/* The logo is decorative, so name the provider for screen readers. */}
           <span className="sr-only">, {props.providerDisplayName}</span>
         </div>

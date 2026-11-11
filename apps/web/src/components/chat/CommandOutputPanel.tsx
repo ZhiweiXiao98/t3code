@@ -71,33 +71,31 @@ export function CommandOutputPanel(props: {
   // Parse after all hooks to preserve the text/theme compiler cache.
   const spans = terminalOutputSpans(text, TERMINAL_PALETTES[resolvedTheme]);
   return (
-    <div>
+    <div
+      ref={scrollRef}
+      onScroll={(event) => {
+        const element = event.currentTarget;
+        followRef.current =
+          element.scrollHeight - element.scrollTop - element.clientHeight <= FOLLOW_SLACK_PX;
+      }}
+      className="max-h-80 overflow-auto text-muted-foreground"
+    >
       {data?.output.truncated ? (
-        <div className="text-muted-foreground italic">
+        <div className="italic">
           {translateWebSource(newCopyLocale, "Earlier output not shown")}
         </div>
       ) : null}
-      <div
-        ref={scrollRef}
-        onScroll={(event) => {
-          const element = event.currentTarget;
-          followRef.current =
-            element.scrollHeight - element.scrollTop - element.clientHeight <= FOLLOW_SLACK_PX;
-        }}
-        className="max-h-80 overflow-auto text-muted-foreground"
-      >
-        {spans.map((span, index) =>
-          span.style === null ? (
-            span.text
-          ) : (
-            // Spans never reorder and are rebuilt on each update.
-            // oxlint-disable-next-line react/no-array-index-key
-            <span key={index} style={span.style}>
-              {span.text}
-            </span>
-          ),
-        )}
-      </div>
+      {spans.map((span, index) =>
+        span.style === null ? (
+          span.text
+        ) : (
+          // Spans never reorder and are rebuilt on each update.
+          // oxlint-disable-next-line react/no-array-index-key
+          <span key={index} style={span.style}>
+            {span.text}
+          </span>
+        ),
+      )}
     </div>
   );
 }

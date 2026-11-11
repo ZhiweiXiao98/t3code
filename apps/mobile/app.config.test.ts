@@ -6,7 +6,12 @@ import assetLinks from "../web/public/.well-known/assetlinks.json";
 
 // Keep config parsing independent of local env files and build credentials.
 vi.mock("../../scripts/lib/public-config.ts", () => ({
-  loadRepoEnv: () => ({ APP_VARIANT: process.env.APP_VARIANT }),
+  loadRepoEnv: () =>
+    Object.fromEntries(
+      ["APP_VARIANT", "T3CODE_MOBILE_VERSION", "T3CODE_MOBILE_VERSION_CODE"]
+        .filter((key) => process.env[key] !== undefined)
+        .map((key) => [key, process.env[key]]),
+    ),
 }));
 
 afterEach(() => {
@@ -33,6 +38,8 @@ it.each([
   ["production", "com.t3tools.t3code"],
 ])("keeps the iOS and Android identifiers for APP_VARIANT=%j", async (value, identifier) => {
   const config = await loadConfig(value);
+  expect(config.version).toBe("2.3.0");
+  expect(config.android?.versionCode).toBe(1);
   expect(config.ios?.bundleIdentifier).toBe(identifier);
   expect(config.android?.package).toBe(identifier);
   // Copied thread links open this app only while app.t3.codes lists it.
@@ -52,7 +59,16 @@ it("keeps the community identity and Chinese defaults separate from official var
   const config = await loadConfig("community");
   expect(config.ios?.bundleIdentifier).toBe("com.zhiweixiao.t3code.zhcn");
   expect(config.android?.package).toBe("com.zhiweixiao.t3code.zhcn");
-  expect(config.version).toBe("0.1.6");
-  expect(config.android?.versionCode).toBe(1000413);
+  expect(config.version).toBe("0.1.9-zh.1");
+  expect(config.android?.versionCode).toBe(1000416);
   expect(process.env.EXPO_PUBLIC_APP_LOCALE).toBe("zh-CN");
+});
+
+it("uses explicit community build metadata without changing official identifiers", async () => {
+  vi.stubEnv("T3CODE_MOBILE_VERSION", "0.1.9-zh.1");
+  vi.stubEnv("T3CODE_MOBILE_VERSION_CODE", "1000416");
+  const config = await loadConfig("community");
+  expect(config.version).toBe("0.1.9-zh.1");
+  expect(config.android?.versionCode).toBe(1000416);
+  expect(config.android?.package).toBe("com.zhiweixiao.t3code.zhcn");
 });

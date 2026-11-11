@@ -7,6 +7,7 @@ import {
   type SnoozePreset,
 } from "@t3tools/client-runtime/state/thread-settled";
 
+import { readWebI18n } from "../i18n/readWebI18n";
 import { appAtomRegistry } from "../rpc/atomRegistry";
 import { serverEnvironment } from "../state/server";
 import { formatShortTimestamp } from "../timestampFormat";
@@ -37,21 +38,26 @@ export function pickSnoozePreset(
     ...snoozeOptions(timestampFormat, environmentId),
   });
   if (!picked) {
+    const { t } = readWebI18n();
     toastManager.add({
       type: "warning",
-      title: "Could not snooze thread",
-      description: "That snooze time has passed. Choose another time.",
+      title: t("sidebar.snooze.unavailable"),
+      description: t("sidebar.snooze.timePassed"),
     });
   }
   return picked;
 }
 
 function snoozeOptions(timestampFormat: TimestampFormat, environmentId: EnvironmentId) {
+  const { locale } = readWebI18n();
+  const timestampLocale = locale === "zh-CN" ? locale : undefined;
   const presets = appAtomRegistry.get(
     serverEnvironment.settingsValueAtom(environmentId),
   )?.snoozePresets;
   return {
     ...(presets ? { presets } : {}),
-    formatTime: (date: Date) => formatShortTimestamp(date.toISOString(), timestampFormat),
+    formatTime: (date: Date) =>
+      formatShortTimestamp(date.toISOString(), timestampFormat, timestampLocale),
+    formatWeekday: (date: Date) => date.toLocaleDateString(timestampLocale, { weekday: "short" }),
   };
 }

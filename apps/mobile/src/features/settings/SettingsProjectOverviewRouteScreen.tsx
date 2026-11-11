@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import { ScreenScrollView as ScrollView } from "../../components/ui/ScreenScrollView";
 import { AppText as Text, AppTextInput } from "../../components/ui/AppText";
@@ -384,6 +385,7 @@ function ProjectOverviewContent(props: {
               className={index === 0 ? "gap-1 p-4" : "gap-1 border-t border-border-subtle p-4"}
             >
               <Text
+                localize={!environment}
                 className={
                   Platform.OS === "android"
                     ? "text-base text-foreground"
@@ -393,11 +395,15 @@ function ProjectOverviewContent(props: {
                 {environment?.label ?? "Environment"}
               </Text>
               {environment?.displayUrl ? (
-                <Text className="text-sm leading-normal text-foreground-muted">
+                <Text localize={false} className="text-sm leading-normal text-foreground-muted">
                   {environment.displayUrl}
                 </Text>
               ) : null}
-              <Text className="text-sm leading-normal text-foreground-muted" selectable>
+              <Text
+                localize={false}
+                className="text-sm leading-normal text-foreground-muted"
+                selectable
+              >
                 {member.workspaceRoot}
               </Text>
               {props.members.length > 1 || props.hasOtherMembers ? (
@@ -447,7 +453,7 @@ function RemoveCheckoutAction(props: {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Remove checkout ${props.member.workspaceRoot}`}
+      accessibilityLabel={formatMobileMessage("Remove checkout {0}", [props.member.workspaceRoot])}
       disabled={props.disabled || !canRemove}
       onPress={props.onPress}
       className="self-start rounded-full border border-border bg-card px-3 py-1.5 disabled:opacity-40"

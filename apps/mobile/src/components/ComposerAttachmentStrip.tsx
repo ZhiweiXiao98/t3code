@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../i18n/mobileDisplayStrings";
 import { FilePreviewGallery, useFilePreviewGallery } from "./ui/FilePreviewGallery";
 import { composerImageGallery } from "../lib/composerImageGallery";
 import { SymbolView } from "./ui/AppSymbol";
@@ -139,7 +140,7 @@ function ComposerImageAttachment(
     <PresentationSource identifier={sourceIdentifier}>
       <Pressable
         accessibilityRole="imagebutton"
-        accessibilityLabel={`Open ${attachment.name}`}
+        accessibilityLabel={formatMobileMessage("Open {0}", [attachment.name])}
         disabled={!props.onPressPreview}
         onPress={() =>
           props.onPressPreview?.(
@@ -205,7 +206,7 @@ function ComposerFileAttachment(
       <PresentationSource identifier={sourceIdentifier}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`Open ${attachment.name}`}
+          accessibilityLabel={formatMobileMessage("Open {0}", [attachment.name])}
           disabled={!canPreview && onPressDocument === undefined}
           onPress={() =>
             canPreview
@@ -226,7 +227,11 @@ function ComposerFileAttachment(
         >
           <PierreEntryIcon path={attachment.name} kind="file" size={props.compact ? 15 : 22} />
           {!props.compact ? (
-            <Text className="w-full text-center text-2xs text-foreground" numberOfLines={1}>
+            <Text
+              localize={false}
+              className="w-full text-center text-2xs text-foreground"
+              numberOfLines={1}
+            >
               {attachment.name}
             </Text>
           ) : null}
@@ -309,7 +314,7 @@ export function ComposerAttachmentStrip(props: ComposerAttachmentStripProps) {
               />
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`Remove ${attachment.name}`}
+                accessibilityLabel={formatMobileMessage("Remove {0}", [attachment.name])}
                 className="absolute h-[22px] w-[22px] items-center justify-center rounded-[11px] bg-black/55"
                 style={{
                   top: removeButtonPlacement === "gutter" ? 0 : 4,

@@ -1,7 +1,11 @@
 import { useI18n } from "~/i18n/WebI18nContext";
 import { useChatUpdateTranslation } from "./v018Messages";
 import { useStableCallback } from "~/hooks/useStableCallback";
-import { listBrowserMicrophones, type BrowserMicrophone } from "../../speech/browserMicrophones";
+import {
+  browserMicrophoneLabel,
+  listBrowserMicrophones,
+  type BrowserMicrophone,
+} from "../../speech/browserMicrophones";
 import type {
   EnvironmentId,
   EnvironmentSpeechModel,
@@ -68,9 +72,11 @@ export function VoiceInputSetup(props: {
   const selectedIsUnavailable = Boolean(
     selectedMicrophone && !microphones.some((device) => device.deviceId === selectedMicrophone),
   );
+  const selectedDevice = microphones.find((device) => device.deviceId === selectedMicrophone);
   const selectedMicrophoneLabel = selectedMicrophone
-    ? (microphones.find((device) => device.deviceId === selectedMicrophone)?.label ??
-      tx("Selected microphone (Unavailable)"))
+    ? selectedDevice
+      ? browserMicrophoneLabel(selectedDevice, locale)
+      : tx("Selected microphone (Unavailable)")
     : tx("System default");
   const status = props.status?.supported ? props.status : null;
   const model = props.model;
@@ -104,7 +110,7 @@ export function VoiceInputSetup(props: {
                     {model?.recommended && props.language ? (
                       <span className="text-xs font-medium text-primary">
                         {locale === "zh-CN" ? "推荐语言：" : "Recommended for "}
-                        {languageLabel(props.language)}
+                        {languageLabel(props.language, locale)}
                       </span>
                     ) : null}
                   </div>
@@ -191,7 +197,7 @@ export function VoiceInputSetup(props: {
                       ) : null}
                       {microphones.map((device) => (
                         <SelectItem key={device.deviceId} value={`device:${device.deviceId}`}>
-                          {device.label}
+                          {browserMicrophoneLabel(device, locale)}
                         </SelectItem>
                       ))}
                     </SelectPopup>

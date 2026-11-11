@@ -1,6 +1,104 @@
 import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 
 const EN_MESSAGES = {
+  "contextMenu.title": "Context menu",
+  "v019.startModelFailed": "Could not start {model}",
+  "v019.addFolderFailed": "Unable to add folder",
+  "v019.folderPathFailed": 'Couldn\'t get the path of "{name}"',
+  "sidebar.threadFallback": "Thread",
+  "v019.checkingMoreUpdates": "Checking for more…",
+  "v019.backgroundTaskKind": "background task",
+  "v019.backgroundMonitor": "monitor",
+  "v019.backgroundCommandKind": "command",
+  "v019.backgroundSubagent": "subagent",
+  "v019.resetFullDescription": "Refills your 5-hour and weekly limits.",
+  "v019.resetFableDescription":
+    "Refills your Fable allowance and gives back what Fable used on your weekly limit. It doesn't reset your whole week.",
+  "v019.resetWeeklyDescription": "Refills your weekly limit.",
+  "v019.resetSessionDescription": "Refills your 5-hour limit.",
+  "v019.resetFull": "Full reset",
+  "v019.resetFable": "Fable reset",
+  "v019.resetWeekly": "Weekly reset",
+  "v019.resetSession": "5-hour reset",
+  "v019.attachmentUploadFailed": "Attachment '{name}' failed to upload.",
+  "v019.retryUploads": "Retry or remove failed uploads before sending.",
+  "v019.preparing": "Preparing",
+  "v019.imageAttachment": "Image attachment",
+  "v019.backgroundDetails": "Details",
+  "v019.backgroundOpen": "Open thread",
+  "v019.backgroundRunning": "Running",
+  "v019.backgroundWaiting": "Waiting",
+  "v019.backgroundCommand": "Command",
+  "v019.backgroundWork": "Background work",
+  "v019.moreInThread": "More in the thread.",
+  "v019.searching": "Searching for {label}",
+  "v019.searchingWeb": "Searching the web for {label}",
+  "v019.editing": "Editing {label}",
+  "v019.usingResetCredit": "Using reset credit…",
+  "v019.creditOptionConfirm": "{name}: {description} This cannot be undone.",
+  "v019.useCreditOption": "Use",
+  "v019.creditsLeft": "{count} left",
+  "v019.creditsBankedCompact": "{count} banked",
+  "v019.steerUnreadHelp":
+    "Waiting for the agent to read this. It reads steers between steps, after a running command finishes.",
+  "v019.steerUnread": "Steer · waiting to be read",
+  "v019.openParentOn": "Open parent agent on {name}",
+  "secrets.removeUnused": "Nothing reads from {source}. The secrets themselves are untouched.",
+  "secrets.removeUsed":
+    "These read from {source} and will be unset. The secrets themselves are untouched.",
+  "commandPalette.currentProject": "Current",
+  "device.discovery.incompleteOne": "{platforms} list on {environment} may be incomplete.",
+  "device.discovery.incompleteMany": "{platforms} lists on {environment} may be incomplete.",
+  "device.discovery.warning": "Device discovery on {environment} reported a warning.",
+  "device.discovery.retry": "Retry device discovery on {environment}",
+  "device.discovery.details": "Details for {environment}",
+  "device.discovery.dismiss": "Dismiss device warning for {environment}",
+
+  "settings.scope.chooseSupported":
+    "{setting} requires a supporting environment. Choose one to continue.",
+  "settings.scope.connectSupported":
+    "{setting} requires a supporting environment. Connect or update an environment to continue.",
+  "settings.scope.chooseOwner":
+    "{setting} is not available for the selected target. Choose its owning scope to continue.",
+  "storage.database.amountOn": "{amount} on {environment}",
+  "storage.database.reclaiming": "Reclaiming {amount} on {environment}",
+  "storage.database.restartingMinutes":
+    "T3 Code there restarts and is back in about {minutes} min.",
+  "storage.database.reclaimFailed": "Could not reclaim space on {environment}",
+  "storage.database.offlineMinutes":
+    "Restarts T3 Code there. It will be offline for about {minutes} min.",
+  "storage.database.lastFailure": "The last attempt failed: {error}",
+  "storage.database.confirmTitle": "Reclaim {amount} on {environment}?",
+  "storage.database.confirmDescription":
+    "T3 Code on {environment} stops, rebuilds its database, and starts again. It will be offline for about {minutes} min. Running agents stop when it restarts.",
+
+  "sidebar.snoozeFailedOne": "Failed to snooze {count} thread",
+  "sidebar.snoozeFailedMany": "Failed to snooze {count} threads",
+  "sidebar.draftAttachmentOne": "{count} attachment",
+  "sidebar.draftAttachmentMany": "{count} attachments",
+  "settings.sendShortcut.multiline": "{modifier} + Enter for multiline prompts",
+  "settings.sendShortcut.always": "{modifier} + Enter always",
+  "settings.accessDeniedOn":
+    "This connection lacks permission to change settings on {environment}.",
+  "settings.inheritedFrom": "Inherited from {environment}",
+  "root.notFoundDescription":
+    "This link doesn't point to a page in {app}. Go home to choose a project or start a thread.",
+  "newProject.createsAt": "Creates {path}",
+  "newProject.goesIn": "Goes in {path}",
+
+  "sidebar.snooze.unavailable": "Could not snooze thread",
+  "sidebar.snooze.timePassed": "That snooze time has passed. Choose another time.",
+  "settings.group.agents": "Agents",
+  "sidebar.action.projectSettings": "Project settings",
+  "sidebar.snooze.custom": "Custom…",
+  "sidebar.bulk.settleCount": "Settle ({count})",
+  "sidebar.bulk.snooze": "Snooze ({count})",
+  "sidebar.bulk.markUnread": "Mark unread ({count})",
+  "sidebar.bulk.delete": "Delete ({count})",
+  "sidebar.bulk.unpin": "Unpin ({count})",
+  "sidebar.bulk.regenerating": "Regenerating… ({count})",
+  "sidebar.bulk.regenerateTitlesCount": "Regenerate titles ({count})",
+
   "upstream.sidebar.followSettings": "Follow settings",
   "upstream.sidebar.never": "Never",
   "onboarding.skippedComputers": "Skipped unavailable computers: {computers}.",
@@ -1545,21 +1643,21 @@ const EN_MESSAGES = {
   "sourceControl.versionControl": "Version Control",
   "sourceControl.providers": "Source Control Providers",
   "sourceControl.textGeneration": "Text generation",
-  "sourceControl.writingStyle.title": "Source control writing style",
+  "sourceControl.writingStyle.title": "Commit and pull request writing",
   "sourceControl.writingStyle.repoConventions": "Repository conventions",
   "sourceControl.writingStyle.repoConventionsDescription":
-    "In each project, matches recent change descriptions and change request titles.",
+    "Commit messages and pull request titles and descriptions match each project's history.",
   "sourceControl.writingStyle.conventionalCommits": "Conventional Commits",
   "sourceControl.writingStyle.conventionalCommitsDescription":
-    "Uses Conventional Commit prefixes for change descriptions; change request titles and descriptions stay concise.",
+    "Conventional Commit prefixes, with short pull request titles and descriptions.",
   "sourceControl.writingStyle.custom": "Custom instructions",
   "sourceControl.writingStyle.customDescription":
-    "Applies your instructions to change descriptions and change request titles and descriptions in every project.",
+    "Your instructions shape commit messages and pull request titles and descriptions.",
   "sourceControl.writingStyle.customPlaceholder":
-    "Keep titles concise. Use short bullet points in descriptions.",
-  "sourceControl.followTemplates.title": "Follow change request templates",
+    "Keep commit subjects under 60 characters. Keep pull request descriptions short and plain.",
+  "sourceControl.followTemplates.title": "Follow pull request templates",
   "sourceControl.followTemplates.description":
-    "Structures change request descriptions using the current repository's template when one is available.",
+    "Use the repository's pull request template when it has one.",
   "sourceControl.writerModel.title": "Source control writer model",
   "sourceControl.writerModel.description":
     "Optional model override for change descriptions, change request titles and descriptions, and branch or bookmark names. Off uses the global text generation model.",
@@ -3463,7 +3561,7 @@ const EN_MESSAGES = {
   "chatControls.copy88": "Dismiss update notice",
   "chatControls.zoomableImage": "{name}, zoomable image",
   "chatControls.zoomInstructions":
-    "Click to zoom in or return to fit. Scroll to zoom, drag to pan. Use Enter to toggle zoom, plus or minus to zoom, and 0 to fit.",
+    "Click to zoom in or return to fit. Pinch or Ctrl+scroll to zoom, scroll or drag to pan. Use Enter to toggle zoom, plus or minus to zoom, and 0 to fit.",
   "chatControls.zoomPercent": "{percent}% zoom",
   "chatControls.copy64": "Workspace",
   "chatControls.copy65": "Version Control",
@@ -4184,6 +4282,97 @@ export type WebMessages = Readonly<Record<WebMessageKey, string>>;
 export type WebMessageValues = Readonly<Record<string, string | number>>;
 
 const ZH_CN_MESSAGES = {
+  "contextMenu.title": "上下文菜单",
+  "v019.startModelFailed": "无法启动 {model}",
+  "v019.addFolderFailed": "无法添加文件夹",
+  "v019.folderPathFailed": "无法获取“{name}”的路径",
+  "sidebar.threadFallback": "任务",
+  "v019.checkingMoreUpdates": "正在检查更多更新…",
+  "v019.backgroundTaskKind": "后台任务",
+  "v019.backgroundMonitor": "监控任务",
+  "v019.backgroundCommandKind": "命令",
+  "v019.backgroundSubagent": "子 Agent",
+  "v019.resetFullDescription": "恢复你的 5 小时和每周额度。",
+  "v019.resetFableDescription":
+    "恢复你的 Fable 额度，并返还 Fable 消耗的每周额度。这不会重置整周额度。",
+  "v019.resetWeeklyDescription": "恢复你的每周额度。",
+  "v019.resetSessionDescription": "恢复你的 5 小时额度。",
+  "v019.resetFull": "全部额度重置",
+  "v019.resetFable": "Fable 额度重置",
+  "v019.resetWeekly": "每周额度重置",
+  "v019.resetSession": "5 小时额度重置",
+  "v019.attachmentUploadFailed": "附件“{name}”上传失败。",
+  "v019.retryUploads": "请重试或移除上传失败的附件后再发送。",
+  "v019.preparing": "准备中",
+  "v019.imageAttachment": "图片附件",
+  "v019.backgroundDetails": "详情",
+  "v019.backgroundOpen": "打开会话",
+  "v019.backgroundRunning": "运行中",
+  "v019.backgroundWaiting": "等待中",
+  "v019.backgroundCommand": "命令",
+  "v019.backgroundWork": "后台任务",
+  "v019.moreInThread": "更多内容请查看会话。",
+  "v019.searching": "正在搜索 {label}",
+  "v019.searchingWeb": "正在网页中搜索 {label}",
+  "v019.editing": "正在编辑 {label}",
+  "v019.usingResetCredit": "正在使用重置额度…",
+  "v019.creditOptionConfirm": "{name}：{description} 此操作无法撤销。",
+  "v019.useCreditOption": "使用",
+  "v019.creditsLeft": "剩余 {count} 个",
+  "v019.creditsBankedCompact": "已存 {count} 个",
+  "v019.steerUnreadHelp":
+    "正在等待 Agent 阅读。Agent 会在执行中的命令结束后，于步骤之间阅读引导消息。",
+  "v019.steerUnread": "引导 · 等待阅读",
+  "v019.openParentOn": "打开 {name} 上的父 Agent",
+  "secrets.removeUnused": "没有设置从 {source} 读取密钥。密钥本身不会被更改。",
+  "secrets.removeUsed": "以下设置从 {source} 读取密钥，移除后将取消这些设置。密钥本身不会被更改。",
+  "commandPalette.currentProject": "当前",
+  "device.discovery.incompleteOne": "{environment} 上的 {platforms} 列表可能不完整。",
+  "device.discovery.incompleteMany": "{environment} 上的 {platforms} 列表可能不完整。",
+  "device.discovery.warning": "{environment} 上的设备发现报告了警告。",
+  "device.discovery.retry": "重试 {environment} 上的设备发现",
+  "device.discovery.details": "{environment} 的详细信息",
+  "device.discovery.dismiss": "关闭 {environment} 的设备警告",
+
+  "settings.scope.chooseSupported": "“{setting}”需要受支持的环境。请选择一个环境以继续。",
+  "settings.scope.connectSupported": "“{setting}”需要受支持的环境。请连接或更新一个环境以继续。",
+  "settings.scope.chooseOwner": "“{setting}”不适用于所选目标。请选择该设置所属的范围以继续。",
+  "storage.database.amountOn": "{environment} 上的 {amount}",
+  "storage.database.reclaiming": "正在回收 {environment} 上的 {amount} 空间",
+  "storage.database.restartingMinutes":
+    "该设备上的 T3 Code 正在重启，预计约 {minutes} 分钟后恢复。",
+  "storage.database.reclaimFailed": "无法回收 {environment} 上的空间",
+  "storage.database.offlineMinutes": "将重启该设备上的 T3 Code，预计离线约 {minutes} 分钟。",
+  "storage.database.lastFailure": "上次尝试失败：{error}",
+  "storage.database.confirmTitle": "回收 {environment} 上的 {amount} 空间？",
+  "storage.database.confirmDescription":
+    "{environment} 上的 T3 Code 将停止运行、重建数据库，然后重新启动，预计离线约 {minutes} 分钟。重启时会停止正在运行的 Agent。",
+
+  "sidebar.snoozeFailedOne": "无法稍后处理 {count} 个任务",
+  "sidebar.snoozeFailedMany": "无法稍后处理 {count} 个任务",
+  "sidebar.draftAttachmentOne": "{count} 个附件",
+  "sidebar.draftAttachmentMany": "{count} 个附件",
+  "settings.sendShortcut.multiline": "多行提示使用 {modifier} + Enter",
+  "settings.sendShortcut.always": "始终使用 {modifier} + Enter",
+  "settings.accessDeniedOn": "当前连接无权更改 {environment} 上的设置。",
+  "settings.inheritedFrom": "继承自 {environment}",
+  "root.notFoundDescription": "此链接未指向 {app} 中的页面。请返回首页以选择项目或新建任务。",
+  "newProject.createsAt": "创建于 {path}",
+  "newProject.goesIn": "存放于 {path}",
+
+  "sidebar.snooze.unavailable": "无法稍后处理任务",
+  "sidebar.snooze.timePassed": "所选提醒时间已过，请选择其他时间。",
+  "settings.group.agents": "智能体",
+  "sidebar.action.projectSettings": "项目设置",
+  "sidebar.snooze.custom": "自定义…",
+  "sidebar.bulk.settleCount": "收起（{count}）",
+  "sidebar.bulk.snooze": "稍后处理（{count}）",
+  "sidebar.bulk.markUnread": "标记为未读（{count}）",
+  "sidebar.bulk.delete": "删除（{count}）",
+  "sidebar.bulk.unpin": "取消置顶（{count}）",
+  "sidebar.bulk.regenerating": "正在重新生成…（{count}）",
+  "sidebar.bulk.regenerateTitlesCount": "重新生成标题（{count}）",
+
   "upstream.sidebar.followSettings": "跟随设置",
   "upstream.sidebar.never": "从不",
   "onboarding.skippedComputers": "已跳过不可用的计算机：{computers}。",
@@ -5652,20 +5841,20 @@ const ZH_CN_MESSAGES = {
   "sourceControl.versionControl": "版本控制",
   "sourceControl.providers": "源代码管理服务提供方",
   "sourceControl.textGeneration": "文本生成",
-  "sourceControl.writingStyle.title": "源代码管理写作风格",
+  "sourceControl.writingStyle.title": "提交与拉取请求写作",
   "sourceControl.writingStyle.repoConventions": "遵循仓库惯例",
   "sourceControl.writingStyle.repoConventionsDescription":
-    "在每个项目中，参考最近的更改说明和变更请求标题。",
+    "提交信息以及拉取请求的标题和说明遵循各项目的历史风格。",
   "sourceControl.writingStyle.conventionalCommits": "Conventional Commits",
   "sourceControl.writingStyle.conventionalCommitsDescription":
-    "更改说明使用 Conventional Commit 前缀，变更请求的标题和说明保持简洁。",
+    "使用 Conventional Commit 前缀，并保持拉取请求标题和说明简短。",
   "sourceControl.writingStyle.custom": "自定义说明",
   "sourceControl.writingStyle.customDescription":
-    "在每个项目中，将你的说明应用于更改说明以及变更请求的标题和说明。",
-  "sourceControl.writingStyle.customPlaceholder": "标题保持简洁，说明使用简短的项目符号。",
-  "sourceControl.followTemplates.title": "遵循变更请求模板",
-  "sourceControl.followTemplates.description":
-    "仓库提供模板时，使用当前仓库的模板组织变更请求说明。",
+    "使用你的说明来撰写提交信息以及拉取请求的标题和说明。",
+  "sourceControl.writingStyle.customPlaceholder":
+    "提交标题不超过 60 个字符，拉取请求说明保持简短直白。",
+  "sourceControl.followTemplates.title": "遵循拉取请求模板",
+  "sourceControl.followTemplates.description": "仓库有拉取请求模板时使用该模板。",
   "sourceControl.writerModel.title": "源代码管理写作模型",
   "sourceControl.writerModel.description":
     "可为更改说明、变更请求标题与说明，以及分支或书签名称指定专用模型。关闭时使用全局文本生成模型。",
@@ -7490,7 +7679,7 @@ const ZH_CN_MESSAGES = {
   "chatControls.copy88": "关闭更新提示",
   "chatControls.zoomableImage": "{name}，可缩放图片",
   "chatControls.zoomInstructions":
-    "点击放大或恢复适应大小。滚动以缩放，拖动以平移。按 Enter 切换缩放，按加号或减号缩放，按 0 适应大小。",
+    "点击放大或恢复适应大小。双指捏合或按住 Ctrl 滚动以缩放，滚动或拖动以平移。按 Enter 切换缩放，按加号或减号缩放，按 0 适应大小。",
   "chatControls.zoomPercent": "缩放 {percent}%",
   "chatControls.copy64": "工作区",
   "chatControls.copy65": "版本控制",
@@ -8196,6 +8385,150 @@ for (const [key, source] of Object.entries(EN_MESSAGES) as ReadonlyArray<
 // New upstream settings copy can be localized here before it receives a stable
 // message key. Settings containers and search both consume this same table.
 const ZH_CN_SOURCE_MESSAGES: Readonly<Record<string, string>> = {
+  "Refresh failed.": "刷新失败。",
+  "Could not check provider updates": "无法检查提供商更新",
+  "Check this address": "请检查此地址",
+  "This app cannot confirm it is one of your machines. The pairing code you paste is sent there.":
+    "此应用无法确认该地址是否属于你的设备。你粘贴的配对码将发送到该地址。",
+  "Screen reader announcements": "屏幕阅读器播报",
+  "Status only": "仅状态",
+  "Status and messages": "状态和消息",
+  Everything: "全部",
+  "What a screen reader hears from the open thread: a turn starting, needing you, and ending. Status and messages adds what the agent writes before its last message. Everything adds each step.":
+    "设置屏幕阅读器对当前任务的播报内容：轮次开始、需要你处理以及轮次结束。“状态和消息”还会播报 Agent 在最终消息之前写下的内容。“全部”还包括每个步骤。",
+  "Commits & pull requests": "提交与拉取请求",
+  "Custom commit and pull request instructions for all selected environments":
+    "所有选中环境的自定义提交与拉取请求说明",
+  "Custom commit and pull request instructions": "自定义提交与拉取请求说明",
+  "Model for commit messages, pull request text, and branch or bookmark names. When disabled, use the text generation model configured for this environment.":
+    "用于提交信息、拉取请求文本以及分支或书签名称的模型。关闭后使用为此环境配置的文本生成模型。",
+
+  "Use in another app (MCP)": "在其他应用中使用（MCP）",
+  "New thread each run": "每次运行新建会话",
+  "One thread, continuing the conversation": "使用同一会话，继续之前的对话",
+  "One thread, fresh session each run": "使用同一会话，每次运行开启全新会话上下文",
+  "Started by the first run": "首次运行时创建",
+  "Destination thread": "目标会话",
+  "Search all threads...": "搜索所有会话...",
+  "No threads found.": "未找到会话。",
+  "Untitled thread": "未命名会话",
+  "Thread {id}": "会话 {id}",
+  "The first run starts a thread with the workspace and model below. Later runs continue that conversation.":
+    "首次运行使用下方工作区和模型创建会话，后续运行继续该对话。",
+  "The first run starts a thread with the workspace and model below. Later runs post there, each in a fresh session without earlier runs' context.":
+    "首次运行使用下方工作区和模型创建会话。后续运行仍在该会话中进行，但每次都使用全新上下文，不包含之前运行的内容。",
+  "Each run starts a fresh session in this thread, without earlier runs' context.":
+    "每次运行都在此会话中开启全新上下文，不包含之前运行的内容。",
+  "Deleting the thread also deletes this task.": "删除此会话也会删除该定时任务。",
+
+  "Showing tracked changes. Untracked changes could not be loaded. Refresh to retry.":
+    "正在显示已跟踪的更改。无法加载未跟踪的更改，请刷新重试。",
+  "Showing tracked changes. Checking untracked files...":
+    "正在显示已跟踪的更改，正在检查未跟踪的文件…",
+  "Totals include all changes.": "统计包含全部更改。",
+  "Stop this action when the thread settles": "任务收起时停止此操作",
+  "Showing access for": "正在显示以下环境的访问权限",
+  "Remove connection": "移除连接",
+
+  "These databases still hold space freed by history cleanup.":
+    "这些数据库仍占用历史清理后释放的空间。",
+  "These databases still hold space freed by history cleanup. Run the command on each machine to reclaim it. It restarts the background service. Quit the desktop app first if it hosts the environment.":
+    "这些数据库仍占用历史清理后释放的空间。请在各设备上运行命令以回收空间；命令会重启后台服务。如果桌面应用托管了该环境，请先退出桌面应用。",
+  "Restarting…": "正在重启…",
+  Reclaim: "回收空间",
+  "Restart and reclaim": "重启并回收空间",
+  "An unexpected router error occurred.": "路由出现了意外错误。",
+  "Font smoothing": "字体平滑",
+
+  "default model": "默认模型",
+  "default workspace": "默认工作区",
+  "default permissions": "默认权限",
+  "default automatic pull": "默认自动拉取",
+  "agent credit removal": "Agent 署名移除",
+  "default merge method": "默认合并方式",
+  "worktree submodules": "工作树子模块",
+  Notifications: "通知",
+  "project order": "项目顺序",
+  Display: "显示",
+  Composer: "输入区",
+  "rich text composer": "富文本输入区",
+  "send shortcut": "发送快捷键",
+  "Follow-ups": "追加消息",
+  "follow-up behavior": "追加消息行为",
+  "tool calls in chat": "对话中的工具调用",
+  "Tool calls in chat": "对话中的工具调用",
+  "diff colors": "差异颜色",
+  Diffs: "差异",
+  "default diff file state": "差异文件默认状态",
+  "compact idle threads": "压缩空闲任务",
+  "Auto-settle": "自动收起",
+  "response streaming": "流式响应",
+  Updates: "更新",
+  "continue threads after restarts": "重启后继续任务",
+  Legal: "法律信息",
+  "Hide the commands, edits, and searches agents run. Hide successful keeps failures. Zen shows only final answers. Approvals, questions, and errors always show.":
+    "隐藏 Agent 执行的命令、编辑和搜索。“隐藏成功项”会保留失败项；“专注模式”仅显示最终回答。审批、问题和错误始终显示。",
+  "Show all": "显示全部",
+  "Hide successful": "隐藏成功项",
+  "Hide all": "全部隐藏",
+  Zen: "专注模式",
+  "See your agents, import projects, and set up your phone.":
+    "查看你的 Agent、导入项目并设置手机。",
+  "worktree location": "工作树位置",
+  Cleanup: "清理",
+  "Last run": "上次运行",
+  "Remove unused worktrees when active or archived threads are deleted. Worktrees with local changes are kept.":
+    "删除活动或已归档任务时，移除不再使用的工作树。有本地更改的工作树会保留。",
+  "Remove worktrees whose pull request is merged and whose commits are included in the default branch.":
+    "移除拉取请求已合并且提交已包含在默认分支中的工作树。",
+  "Delete inactive worktrees": "删除不活跃的工作树",
+  "Remove worktrees after their threads have been inactive for this many days. Branches and thread history are kept.":
+    "任务不活跃达到指定天数后移除其工作树。分支和任务历史会保留。",
+  "Delete settled worktrees": "删除已收起任务的工作树",
+  "Remove worktrees this many days after their thread settles. Set 0 days to remove them at the next cleanup. Branches and thread history are kept.":
+    "任务收起达到指定天数后移除其工作树。设为 0 天则在下次清理时移除。分支和任务历史会保留。",
+  "Remove worktrees with no commits beyond the default branch.":
+    "移除没有超出默认分支的提交的工作树。",
+  "Artifacts and logs": "产物和日志",
+  "Wrap long lines in code blocks, diffs, and file previews by default.":
+    "默认在代码块、差异和文件预览中对长行自动换行。",
+  "Wrap code, diffs, and file previews by default": "默认在代码、差异和文件预览中自动换行",
+  "Set the prompt, code, and terminal fonts separately instead of one monospace font.":
+    "分别设置提示输入、代码和终端字体，而不是共用一种等宽字体。",
+  "the selected environment": "所选环境",
+  "the primary environment": "主环境",
+  "Reconnect the selected environment to change this setting.":
+    "重新连接所选环境后即可更改此设置。",
+  "Mixed across selected environments": "所选环境的设置不一致",
+  "Inherited from the repository's t3.json": "继承仓库的 t3.json",
+  "Set on the environment": "在环境中设置",
+  "Built-in default": "内置默认值",
+  "Page not found": "未找到页面",
+  "Go home": "返回首页",
+  "Reload app": "重新加载应用",
+  "Error report": "错误报告",
+  "Copy error": "复制错误",
+
+  "Setting up": "正在设置",
+  "Remove recognized agent credit lines from merge and squash messages on hosts that support it, keeping human co-authors. Includes auto-merge. Excludes merge queues, stack merges, and existing commits.":
+    "在支持此功能的托管平台上，从合并及压缩合并消息中移除可识别的 Agent 署名，并保留人类共同作者。适用于自动合并，不适用于合并队列、堆叠合并和已有提交。",
+  "For thread titles and other generated text. Source control has its own setting. Text generators from Providers also appear here.":
+    "用于任务标题及其他生成文本。源代码管理使用独立设置；服务提供方中配置的文本生成器也会显示在这里。",
+  Voice: "语音",
+  "Clone into host folders": "按主机名分目录克隆",
+  "clone into host folders": "按主机名分目录克隆",
+  "Clones go to github.com/owner/repo under the folder above, like ghq.":
+    "克隆的仓库按 github.com/owner/repo 结构存放在上述目录下，与 ghq 类似。",
+  "Default model for new threads, selected automatically. Projects can override it.":
+    "新任务默认使用自动选择的模型，项目可以单独覆盖。",
+  "Default permissions for new threads. Projects can override them.":
+    "新任务的默认权限，项目可以单独覆盖。",
+  "Where new threads start. Projects and their t3.json can override it.":
+    "新任务的起始位置，项目设置及其 t3.json 可以覆盖此项。",
+  "Model for new threads in this project.": "此项目中新任务使用的模型。",
+  "Permissions for new threads in this project.": "此项目中新任务的权限。",
+  "Where new threads in this project start.": "此项目中新任务的起始位置。",
+
   "Welcome to T3 Code": "欢迎使用 T3 Code",
   "Finishing setup": "正在完成设置",
   "One moment.": "请稍候。",

@@ -23,6 +23,8 @@ import { useEnvironmentScope } from "../../state/session";
 import { toastManager } from "../ui/toast";
 import { SettingsScopeProvider } from "./SettingsScopeContext";
 import { SpeechLanguageSelect } from "./SpeechLanguageSelect";
+import { WebI18nContext } from "../../i18n/WebI18nContext";
+import { translateWebMessage } from "../../i18n/messages";
 import { VoiceSettingsPanel } from "./VoiceSettingsPanel";
 
 vi.mock(import("../../speech/useEnvironmentSpeechInput"), { spy: true });
@@ -550,22 +552,50 @@ it("keeps a missing destination selected without claiming it cannot transcribe",
   await expect.element(screen.getByText(/can’t transcribe audio/)).not.toBeInTheDocument();
 });
 
-it("shows the model's effective language and restores the saved preference when supported again", async () => {
-  const previous = getClientSettings();
-  using cleanup = new DisposableStack();
-  cleanup.defer(() => __setClientSettingsForTests(previous));
-  __setClientSettingsForTests({ ...previous, speechLanguage: "fr" });
-  await using screen = await render(<SpeechLanguageSelect model={{ languages: ["en"] }} />);
-  const picker = screen.getByRole("combobox", { name: "Transcription language" });
-  await expect.element(picker).toHaveTextContent("English (French unavailable)");
-  await screen.rerender(
-    <SpeechLanguageSelect model={{ languages: ["en", "de"], supportsLanguageDetection: true }} />,
-  );
-  await expect.element(picker).toHaveTextContent("Auto-detect (French unavailable)");
-  await screen.rerender(<SpeechLanguageSelect model={{ languages: ["en", "fr"] }} />);
-  await expect.element(picker).toHaveTextContent("French");
-  expect(getClientSettings().speechLanguage).toBe("fr");
-});
+it.each([
+  {
+    locale: "en",
+    name: "Transcription language",
+    fixed: "English (French unavailable)",
+    detected: "Auto-detect (French unavailable)",
+    restored: "French",
+  },
+  {
+    locale: "zh-CN",
+    name: "转写语言",
+    fixed: "英语（法语不可用）",
+    detected: "自动检测（法语不可用）",
+    restored: "法语",
+  },
+] as const)(
+  "restores the saved language preference across model and $locale display changes",
+  async ({ locale, name, fixed, detected, restored }) => {
+    const previous = getClientSettings();
+    using cleanup = new DisposableStack();
+    cleanup.defer(() => __setClientSettingsForTests(previous));
+    __setClientSettingsForTests({ ...previous, speechLanguage: "fr" });
+    const pickerUi = (model: Parameters<typeof SpeechLanguageSelect>[0]["model"]) => (
+      <WebI18nContext
+        value={{
+          locale,
+          appLocale: locale,
+          setAppLocale: () => undefined,
+          t: (key, values) => translateWebMessage(locale, key, values),
+        }}
+      >
+        <SpeechLanguageSelect model={model} />
+      </WebI18nContext>
+    );
+    await using screen = await render(pickerUi({ languages: ["en"] }));
+    const picker = screen.getByRole("combobox", { name });
+    await expect.element(picker).toHaveTextContent(fixed);
+    await screen.rerender(pickerUi({ languages: ["en", "de"], supportsLanguageDetection: true }));
+    await expect.element(picker).toHaveTextContent(detected);
+    await screen.rerender(pickerUi({ languages: ["en", "fr"] }));
+    await expect.element(picker).toHaveTextContent(restored);
+    expect(getClientSettings().speechLanguage).toBe("fr");
+  },
+);
 
 it("keeps punctuation in a saved dictionary term and its alias", async () => {
   const previous = getClientSettings();

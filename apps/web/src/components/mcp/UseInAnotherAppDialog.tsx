@@ -1,3 +1,8 @@
+import { useI18n } from "~/i18n/WebI18nContext";
+import { translateConnectAgentSource } from "~/i18n/connectAgentMessages";
+import { managedCapabilityDenial, managedRuntimeModeDenial } from "~/i18n/managedPolicyMessages";
+import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
+import type { WebMessageValues } from "~/i18n/messages";
 import { useAuth } from "@clerk/react";
 import { useAtomValue } from "@effect/atom-react";
 import { offersLinkedEnvironments } from "@t3tools/client-runtime/link-request";
@@ -7,13 +12,11 @@ import {
   AuthRelayReadScope,
   type EnvironmentConnectReachability,
   type EnvironmentId,
-  managedCapabilityDenial,
-  managedRuntimeModeDenial,
   mcpClientScopes,
   sessionGrantsScope,
 } from "@t3tools/contracts";
 import { useNavigate } from "@tanstack/react-router";
-import { Check, Copy } from "lucide";
+import { CheckIcon, CopyIcon } from "lucide-react";
 import * as Option from "effect/Option";
 import { Atom } from "effect/reactivity";
 import * as Result from "effect/Result";
@@ -45,7 +48,6 @@ import { useEnvironmentScope, useEnvironmentSessionState } from "~/state/session
 import { useAtomCommand } from "~/state/use-atom-command";
 import { useT3ConnectAuthPrompt } from "../clerk/useT3ConnectAuthPrompt";
 import { CommandBlock } from "../CommandBlock";
-import { MorphIcon } from "../MorphIcon";
 import { AccessOption, accessConfig } from "../auth/ConnectAgentSurface";
 import { useAccessEnvironment } from "../settings/useAccessEnvironment";
 import { Button } from "../ui/button";
@@ -76,8 +78,11 @@ export function UseInAnotherAppDialogHost() {
 }
 
 function UseInAnotherAppDialog({ requested }: { readonly requested: EnvironmentId | null }) {
+  const { locale } = useI18n();
+  const tx = (source: string, values?: WebMessageValues) =>
+    translateConnectAgentSource(locale, source, values);
   const { environment, label } = useAccessEnvironment(requested);
-  const title = `Use T3 Code in another app (MCP) · ${label ?? "T3 Code"}`;
+  const title = tx("Use T3 Code in another app (MCP) · {name}", { name: label ?? "T3 Code" });
   return (
     <Dialog open onOpenChange={(open) => (open ? undefined : close())}>
       <WizardPopup>
@@ -90,8 +95,8 @@ function UseInAnotherAppDialog({ requested }: { readonly requested: EnvironmentI
               <GateMessage
                 title={
                   environment === null
-                    ? "Connect to an environment first."
-                    : "T3 Connect is not available in this build."
+                    ? tx("Connect to an environment first.")
+                    : tx("T3 Connect is not available in this build.")
                 }
               />
             </WizardPanel>
@@ -103,6 +108,7 @@ function UseInAnotherAppDialog({ requested }: { readonly requested: EnvironmentI
 }
 
 const STEPS = ["App", "Access", "Connect"] as const;
+const HOSTED_APPROVAL_STEPS = ["App", "Connect"] as const;
 type Step = 0 | 1 | 2;
 type Choice = McpApp | "other";
 
@@ -113,6 +119,9 @@ function Wizard({
   readonly environment: EnvironmentPresentation;
   readonly title: string;
 }) {
+  const { locale } = useI18n();
+  const tx = (source: string, values?: WebMessageValues) =>
+    translateConnectAgentSource(locale, source, values);
   const gate = useGate(environment);
   const levels = useGrantableLevels(environment);
   const [step, setStep] = useState<Step>(0);
@@ -120,16 +129,22 @@ function Wizard({
   const [picked, setPicked] = useState<AuthMcpClientAccess | null>(null);
   const access = picked ?? DEFAULT_LEVELS.find((level) => levels.get(level) === undefined) ?? null;
   const open = gate.gate.kind === "open";
-  const appName = choice === null || choice === "other" ? "the app" : choice.name;
+  // The level is picked on the sign-in page, so the wizard neither asks for it nor needs a code.
+  const hostedApproval =
+    environment.serverConfig?.environment.capabilities.mcpHostedApproval === true;
+  const steps = hostedApproval ? HOSTED_APPROVAL_STEPS : STEPS;
+  const shownStep = hostedApproval && step === 2 ? 1 : step;
+  const next = () => setStep(step === 0 ? (hostedApproval ? 2 : 1) : 2);
+  const appName = choice === null || choice === "other" ? tx("the app") : choice.name;
   return (
     <>
       <WizardHeader title={title}>
         {open ? (
           <WizardSteps
-            steps={STEPS}
-            currentStep={step}
-            isStepDisabled={(index) => index > step}
-            onStepChange={(index) => setStep(index as Step)}
+            steps={steps.map((label) => tx(label))}
+            currentStep={shownStep}
+            isStepDisabled={(index) => index > shownStep}
+            onStepChange={(index) => setStep(hostedApproval && index === 1 ? 2 : (index as Step))}
           />
         ) : null}
       </WizardHeader>
@@ -140,9 +155,9 @@ function Wizard({
           <AppStep choice={choice} onChoose={setChoice} />
         ) : step === 1 ? (
           <section className="space-y-3">
-            <h3 className="text-sm font-medium">What can {appName} do?</h3>
+            <h3 className="text-sm font-medium">{tx("What can {app} do?", { app: appName })}</h3>
             <RadioGroup
-              aria-label={`What can ${appName} do?`}
+              aria-label={tx("What can {app} do?", { app: appName })}
               value={access}
               onValueChange={(value) => setPicked(value as AuthMcpClientAccess)}
             >
@@ -159,12 +174,12 @@ function Wizard({
               ))}
             </RadioGroup>
           </section>
-        ) : choice !== null && access !== null ? (
+        ) : choice !== null && (hostedApproval || access !== null) ? (
           <ConnectStep
             environment={environment}
             mcpUrl={gate.gate.mcpUrl}
             choice={choice}
-            access={access}
+            access={hostedApproval ? null : access}
           />
         ) : null}
       </WizardPanel>
@@ -174,17 +189,14 @@ function Wizard({
         >
           {step === 1 ? (
             <Button variant="outline" onClick={() => setStep(0)}>
-              Back
+              {tx("Back")}
             </Button>
           ) : null}
           {step === 2 ? (
-            <Button onClick={close}>Done</Button>
+            <Button onClick={close}>{tx("Done")}</Button>
           ) : (
-            <Button
-              disabled={step === 0 ? choice === null : access === null}
-              onClick={() => setStep(step === 0 ? 1 : 2)}
-            >
-              Next
+            <Button disabled={step === 0 ? choice === null : access === null} onClick={next}>
+              {tx("Next")}
             </Button>
           )}
         </WizardFooter>
@@ -203,24 +215,29 @@ const DEFAULT_LEVELS: readonly AuthMcpClientAccess[] = [
 
 /** Why each level cannot be granted on this environment; absent when it can. */
 function useGrantableLevels(environment: EnvironmentPresentation) {
+  const { locale, t } = useI18n();
+  const tx = (source: string, values?: WebMessageValues) =>
+    translateConnectAgentSource(locale, source, values);
   const environmentId = environment.environmentId;
   const session = useEnvironmentSessionState(environmentId).data;
   const canMint = useEnvironmentScope(environmentId, AuthAccessWriteScope);
   const policy = useManagedPolicy(environmentId);
   // The server refuses codes for any level when its policy keeps remote clients out.
-  const remoteDenial = managedCapabilityDenial(policy, "remoteClients");
+  const remoteDenial = managedCapabilityDenial(policy, "remoteClients", t);
   return new Map(
     AuthMcpClientAccess.literals.flatMap((level) => {
       const reason =
         remoteDenial ??
         (!canMint
-          ? `This device needs the Manage access permission on ${environment.label}.`
+          ? tx("This device needs the Manage access permission on {name}.", {
+              name: environment.label,
+            })
           : session === null ||
               !mcpClientScopes(level).every((scope) => sessionGrantsScope(session, scope))
-            ? `This device cannot grant this on ${environment.label}.`
+            ? tx("This device cannot grant this on {name}.", { name: environment.label })
             : level === "read-only"
               ? undefined
-              : managedRuntimeModeDenial(policy, level));
+              : managedRuntimeModeDenial(policy, level, t));
       return reason === undefined ? [] : [[level, reason] as const];
     }),
   );
@@ -356,12 +373,15 @@ function GateScreen({
   readonly environment: EnvironmentPresentation;
   readonly gate: Gate;
 }) {
+  const { locale } = useI18n();
+  const tx = (source: string, values?: WebMessageValues) =>
+    translateConnectAgentSource(locale, source, values);
   const name = environment.label;
   const turnOnHere = useT3ConnectTurnOn(environment.environmentId);
   const { openAuthPrompt } = useT3ConnectAuthPrompt();
   const retry = (onClick: () => void) => (
     <Button variant="outline" onClick={onClick}>
-      Check again
+      {tx("Check again")}
     </Button>
   );
   const checkAgain = retry(() => void check());
@@ -370,16 +390,21 @@ function GateScreen({
       return (
         <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
           <Spinner size="sm" tone="muted" />
-          Checking T3 Connect…
+          {tx("Checking T3 Connect…")}
         </p>
       );
     case "sign-in":
       return (
         <GateMessage
-          title="Sign in to T3 Connect"
+          title={tx("Sign in to T3 Connect")}
           lines={[
-            `Apps like Poke and Claude run in the cloud. They need a public address to reach ${name}.`,
-            `T3 Connect gives ${name} that address. Each app still needs your approval.`,
+            tx(
+              "Apps like Poke and Claude run in the cloud. They need a public address to reach {name}.",
+              { name },
+            ),
+            tx("T3 Connect gives {name} that address. Each app still needs your approval.", {
+              name,
+            }),
           ]}
         >
           {/* Clerk's sign-in is its own modal, so this dialog closes first. */}
@@ -389,36 +414,39 @@ function GateScreen({
               openAuthPrompt();
             }}
           >
-            Sign in to T3 Connect
+            {tx("Sign in to T3 Connect")}
           </Button>
         </GateMessage>
       );
     case "disconnected":
       return gate.relay === null ? (
-        <GateMessage title={`Connect to ${name} first.`} />
+        <GateMessage title={tx("Connect to {name} first.", { name })} />
       ) : (
         <GateMessage
           title={
             gate.relay === "offline"
-              ? `${name}'s T3 Connect is offline`
-              : `Can't check T3 Connect on ${name}`
+              ? tx("{name}'s T3 Connect is offline", { name })
+              : tx("Can't check T3 Connect on {name}", { name })
           }
         >
           {retry(refreshList)}
         </GateMessage>
       );
     case "update":
-      return <GateMessage title={`Update T3 Code on ${name}`} />;
+      return <GateMessage title={tx("Update T3 Code on {name}", { name })} />;
     case "no-relay-read":
       return (
         <GateMessage
-          title={`Can't check T3 Connect on ${name}`}
-          lines={[`This device needs the View relay permission on ${name}.`]}
+          title={tx("Can't check T3 Connect on {name}", { name })}
+          lines={[tx("This device needs the View relay permission on {name}.", { name })]}
         />
       );
     case "error":
       return (
-        <GateMessage title={`Can't check T3 Connect on ${name}`} lines={[gate.message]}>
+        <GateMessage
+          title={tx("Can't check T3 Connect on {name}", { name })}
+          lines={[gate.message]}
+        >
           {checkAgain}
         </GateMessage>
       );
@@ -429,9 +457,13 @@ function GateScreen({
         return (
           <GateMessage
             title={
-              reachability ? `${name}'s T3 Connect is offline` : `Can't check T3 Connect on ${name}`
+              reachability
+                ? tx("{name}'s T3 Connect is offline", { name })
+                : tx("Can't check T3 Connect on {name}", { name })
             }
-            lines={reachability ? [reachability.reason, `Fix: ${reachability.fix}`] : []}
+            lines={
+              reachability ? [reachability.reason, tx("Fix: {fix}", { fix: reachability.fix })] : []
+            }
           >
             {checkAgain}
           </GateMessage>
@@ -439,16 +471,16 @@ function GateScreen({
       }
       return (
         <GateMessage
-          title={`Turn on T3 Connect for ${name}`}
+          title={tx("Turn on T3 Connect for {name}", { name })}
           lines={[
-            `${name} gets a public https address, with no router setup.`,
-            "Only apps you approve can use it. You can turn it off in Settings.",
+            tx("{name} gets a public https address, with no router setup.", { name }),
+            tx("Only apps you approve can use it. You can turn it off in Settings."),
           ]}
         >
           {turnOnHere.kind === "here" ? (
             <div className="space-y-2">
               <Button disabled={connecting} onClick={() => void turnOn()}>
-                {connecting ? "Connecting…" : "Turn on"}
+                {tx(connecting ? "Connecting…" : "Turn on")}
               </Button>
               {operationError ? (
                 <p className="text-xs text-destructive-foreground">{operationError}</p>
@@ -456,7 +488,7 @@ function GateScreen({
               {tunnelLimit !== null ? (
                 <>
                   <p className="text-sm text-destructive-foreground">
-                    Your T3 Connect account is out of tunnels.
+                    {tx("Your T3 Connect account is out of tunnels.")}
                   </p>
                   <ManageAccessButton environment={environment} label="Manage tunnels" />
                 </>
@@ -467,7 +499,7 @@ function GateScreen({
           ) : (
             <div className="space-y-2 text-sm">
               <CommandBlock command="t3 connect link" />
-              <p>Restart T3 Code on {name}.</p>
+              <p>{tx("Restart T3 Code on {name}.", { name })}</p>
               {checkAgain}
             </div>
           )}
@@ -510,9 +542,12 @@ function AppStep({
   readonly choice: Choice | null;
   readonly onChoose: (choice: Choice) => void;
 }) {
+  const { locale } = useI18n();
+  const tx = (source: string, values?: WebMessageValues) =>
+    translateConnectAgentSource(locale, source, values);
   return (
     <section className="space-y-3">
-      <h3 className="text-sm font-medium">Which app?</h3>
+      <h3 className="text-sm font-medium">{tx("Which app?")}</h3>
       <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
         {MCP_APPS.filter((app) => !app.hidden).map((app) => (
           <button
@@ -539,7 +574,7 @@ function AppStep({
         onClick={() => onChoose("other")}
         className="w-full rounded-lg border border-border px-3 py-2.5 text-sm font-medium outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring aria-pressed:border-primary aria-pressed:bg-primary/8"
       >
-        Something else…
+        {tx("Something else…")}
       </button>
     </section>
   );
@@ -554,18 +589,30 @@ function ConnectStep({
   readonly environment: EnvironmentPresentation;
   readonly mcpUrl: string;
   readonly choice: Choice;
-  readonly access: AuthMcpClientAccess;
+  /** Null when the sign-in page asks for the level, so no code is needed. */
+  readonly access: AuthMcpClientAccess | null;
 }) {
+  const { locale } = useI18n();
+  const tx = (source: string, values?: WebMessageValues) =>
+    translateConnectAgentSource(locale, source, values);
   const [anotherWay, setAnotherWay] = useState(choice === "other");
   const app = choice === "other" ? null : choice;
-  const code = (
-    <ApprovalCode
-      key={access}
-      environmentId={environment.environmentId}
-      name={environment.label}
-      access={access}
-    />
-  );
+  const code =
+    access === null ? (
+      <p className="text-sm text-muted-foreground">
+        {tx(
+          "When {app} opens the sign-in page, choose what it may do and approve with your T3 Connect account.",
+          { app: app?.name ?? tx("the app") },
+        )}
+      </p>
+    ) : (
+      <ApprovalCode
+        key={access}
+        environmentId={environment.environmentId}
+        name={environment.label}
+        access={access}
+      />
+    );
   if (anotherWay || app === null) {
     const message = app?.handoff.kind === "copy-message" ? app.handoff.message(mcpUrl) : null;
     return (
@@ -574,20 +621,22 @@ function ConnectStep({
         {message ? <CopyRow label="Message" value={message} /> : null}
         <ol className="list-decimal space-y-1 ps-5 text-sm">
           {(app?.steps ?? OTHER_MCP_APP_STEPS).map((step) => (
-            <li key={step}>{step}</li>
+            <li key={step}>{tx(step)}</li>
           ))}
         </ol>
         {app === null ? (
           <p className="text-xs text-muted-foreground">
-            Apps that require their own client ID cannot connect.
+            {tx("Apps that require their own client ID cannot connect.")}
           </p>
         ) : app.docs ? (
-          <TextButton onClick={() => openLink(app.docs ?? "")}>{app.name} help</TextButton>
+          <TextButton onClick={() => openLink(app.docs ?? "", locale)}>
+            {tx("{app} help", { app: app.name })}
+          </TextButton>
         ) : null}
         {code}
         {app === null ? null : (
           <TextButton onClick={() => setAnotherWay(false)}>
-            {app.handoff.kind === "commands" ? "Back to commands" : "Back to one click"}
+            {tx(app.handoff.kind === "commands" ? "Back to commands" : "Back to one click")}
           </TextButton>
         )}
         <LinkedLine environment={environment} access={access} />
@@ -599,7 +648,7 @@ function ConnectStep({
       <PrimaryAction app={app} mcpUrl={mcpUrl} />
       <CopyRow label="URL" value={mcpUrl} />
       {code}
-      <TextButton onClick={() => setAnotherWay(true)}>Set up another way</TextButton>
+      <TextButton onClick={() => setAnotherWay(true)}>{tx("Set up another way")}</TextButton>
       <LinkedLine environment={environment} access={access} />
     </section>
   );
@@ -623,21 +672,24 @@ function TextButton({
   );
 }
 
-function openLink(url: string) {
+function openLink(url: string, locale: ResolvedAppLocale) {
   void readLocalApi()
     ?.shell.openExternal(url)
     .catch((error: unknown) =>
       toastManager.add({
         type: "error",
-        title: "Could not open the link",
+        title: translateConnectAgentSource(locale, "Could not open the link"),
         description: error instanceof Error ? error.message : url,
       }),
     );
 }
 
 function PrimaryAction({ app, mcpUrl }: { readonly app: McpApp; readonly mcpUrl: string }) {
+  const { locale } = useI18n();
+  const tx = (source: string, values?: WebMessageValues) =>
+    translateConnectAgentSource(locale, source, values);
   const action = mcpHandoffAction(app, mcpUrl);
-  const note = app.note ? <p className="text-xs text-muted-foreground">{app.note}</p> : null;
+  const note = app.note ? <p className="text-xs text-muted-foreground">{tx(app.note)}</p> : null;
   if (action === null) {
     return (
       <div className="space-y-2">
@@ -646,39 +698,65 @@ function PrimaryAction({ app, mcpUrl }: { readonly app: McpApp; readonly mcpUrl:
               .commands(mcpUrl)
               .map((command) => <CommandBlock key={command} command={command} />)
           : null}
-        <p className="text-xs text-muted-foreground">Run these where {app.name} runs.</p>
+        <p className="text-xs text-muted-foreground">
+          {tx("Run these where {app} runs.", { app: app.name })}
+        </p>
         {note}
       </div>
     );
   }
-  const { copy, link } = action;
+  const { copy, link, appLink } = action;
+  // The desktop app reports a link nothing opens and falls back; a browser cannot tell, and
+  // opens an app link in place (a new tab for it would stay blank), so its toast keeps the web.
+  const openApp = () => {
+    if (appLink === null) return openLink(link, locale);
+    if (!isElectron) return window.location.assign(appLink);
+    void readLocalApi()
+      ?.shell.openExternal(appLink)
+      .catch(() => openLink(link, locale));
+  };
   const handOff = async () => {
     if (copy !== null) {
       // The app opens only once the copy lands, so it never gets an older clipboard.
-      const copied = await writeTextToClipboard(copy.text, copy.title).catch(() => false);
+      const copied = await writeTextToClipboard(copy.text, tx(copy.title)).catch(() => false);
       if (!copied) {
         toastManager.add({
           type: "error",
-          title: "Could not copy",
-          description: "Use Set up another way.",
+          title: tx("Could not copy"),
+          description: tx("Use Set up another way."),
         });
         return;
       }
       toastManager.add({
         type: "success",
-        title: copy.title,
-        // A browser can block an open that follows the copy; this keeps a way through.
-        ...(isElectron
+        title: tx(copy.title),
+        // A browser can block an open that follows the copy, and no platform reliably reports an
+        // app link nothing handles (Linux says it opened), so these keep a way through.
+        ...(isElectron && appLink === null
           ? {}
-          : { actionProps: { children: `Open ${app.name}`, onClick: () => openLink(link) } }),
+          : {
+              actionProps: {
+                children: tx(appLink === null ? "Open {app}" : "Open {app} on the web", {
+                  app: app.name,
+                }),
+                onClick: () => openLink(link, locale),
+              },
+            }),
       });
     }
-    openLink(link);
+    openApp();
   };
   return (
     <div className="space-y-2">
       <Button className="w-full" onClick={() => void handOff()}>
-        {action.label}
+        {tx(
+          app.handoff.kind === "open"
+            ? "Open in {app}"
+            : app.handoff.kind === "copy-url"
+              ? "Copy URL and open {app}"
+              : "Copy message and open {app}",
+          { app: app.name },
+        )}
       </Button>
       {note}
     </div>
@@ -695,6 +773,9 @@ function ApprovalCode({
   readonly name: string;
   readonly access: AuthMcpClientAccess;
 }) {
+  const { locale } = useI18n();
+  const tx = (source: string, values?: WebMessageValues) =>
+    translateConnectAgentSource(locale, source, values);
   const [code, setCode] = useState<{
     readonly credential: string;
     readonly expiresAt: number;
@@ -714,19 +795,24 @@ function ApprovalCode({
         expiresAt: result.success.expiresAt.epochMilliseconds,
       });
     } else {
-      setError(`Could not get a code from ${name}. Try again.`);
+      setError(tx("Could not get a code from {name}. Try again.", { name }));
     }
   };
+  const [beforeAccess, afterAccess] = tx("Code to approve {access}", { access: "\u0000" }).split(
+    "\u0000",
+  );
   const left = code === null ? 0 : Math.max(0, Math.floor((code.expiresAt - now) / 1000));
   return (
     <div className="space-y-1.5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-sm">
-          Code to approve <span className="font-medium">{accessConfig[access].label}</span>
+          {beforeAccess}
+          <span className="font-medium">{tx(accessConfig[access].label)}</span>
+          {afterAccess}
         </span>
         {live ? null : (
           <Button size="sm" variant="outline" disabled={pending} onClick={() => void mint()}>
-            {pending ? "Getting code…" : code === null ? "Get code" : "New code"}
+            {tx(pending ? "Getting code…" : code === null ? "Get code" : "New code")}
           </Button>
         )}
       </div>
@@ -735,11 +821,13 @@ function ApprovalCode({
           <>
             <CopyRow label="Code" value={code.credential} />
             <p className="text-xs text-muted-foreground">
-              Expires {Math.floor(left / 60)}:{String(left % 60).padStart(2, "0")} · one use
+              {tx("Expires {time} · one use", {
+                time: `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`,
+              })}
             </p>
           </>
         ) : (
-          <p className="text-xs text-muted-foreground">The code expired.</p>
+          <p className="text-xs text-muted-foreground">{tx("The code expired.")}</p>
         )
       ) : null}
       {error ? <p className="text-xs text-destructive-foreground">{error}</p> : null}
@@ -748,18 +836,21 @@ function ApprovalCode({
 }
 
 function CopyRow({ label, value }: { readonly label: string; readonly value: string }) {
-  const { copyToClipboard, isCopied } = useCopyToClipboard({ timeout: 1500, target: label });
+  const { locale } = useI18n();
+  const tx = (source: string, values?: WebMessageValues) =>
+    translateConnectAgentSource(locale, source, values);
+  const { copyToClipboard, isCopied } = useCopyToClipboard({ timeout: 1500, target: tx(label) });
   return (
     <div className="flex min-w-0 items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2">
-      <span className="shrink-0 text-xs text-muted-foreground">{label}</span>
+      <span className="shrink-0 text-xs text-muted-foreground">{tx(label)}</span>
       <span className="min-w-0 flex-1 truncate font-mono text-sm">{value}</span>
       <Button
         size="icon-xs"
         variant="ghost"
-        aria-label={`Copy ${label}`}
+        aria-label={tx("Copy {label}", { label: tx(label) })}
         onClick={() => copyToClipboard(value, undefined)}
       >
-        <MorphIcon className="size-3.5" icon={isCopied ? Check : Copy} />
+        {isCopied ? <CheckIcon className="size-3.5" /> : <CopyIcon className="size-3.5" />}
       </Button>
     </div>
   );
@@ -773,8 +864,12 @@ function LinkedLine({
   access,
 }: {
   readonly environment: EnvironmentPresentation;
-  readonly access: AuthMcpClientAccess;
+  /** Null when the level is picked later; each link then shows its own. */
+  readonly access: AuthMcpClientAccess | null;
 }) {
+  const { locale } = useI18n();
+  const tx = (source: string, values?: WebMessageValues) =>
+    translateConnectAgentSource(locale, source, values);
   const offered = offersLinkedEnvironments(environment.serverConfig);
   const links = useEnvironmentQuery(
     offered
@@ -788,10 +883,15 @@ function LinkedLine({
       identities.find((identity) => identity.environmentId === link.environmentId)?.label ??
       link.label;
     // A forwarded call keeps the lower of the app's level and the link's own.
-    const level = levelRank(link.access) < levelRank(access) ? link.access : access;
-    return `${name} · ${link.status === "expired" ? "Expired" : accessConfig[level].label}`;
+    const level =
+      access === null || levelRank(link.access) < levelRank(access) ? link.access : access;
+    return `${name} · ${tx(link.status === "expired" ? "Expired" : accessConfig[level].label)}`;
   });
-  return <p className="text-xs text-muted-foreground">Linked: {named.join(", ")}</p>;
+  return (
+    <p className="text-xs text-muted-foreground">
+      {tx("Linked: {names}", { names: named.join(", ") })}
+    </p>
+  );
 }
 
 /** Opens Sharing & access on this environment, where its clients and T3 Connect tunnels live. */
@@ -802,6 +902,9 @@ function ManageAccessButton({
   readonly environment: EnvironmentPresentation;
   readonly label?: string;
 }) {
+  const { locale } = useI18n();
+  const tx = (source: string, values?: WebMessageValues) =>
+    translateConnectAgentSource(locale, source, values);
   const navigate = useNavigate();
   return (
     <Button
@@ -811,7 +914,7 @@ function ManageAccessButton({
         void navigate({ to: "/settings/access", search: { machine: environment.environmentId } });
       }}
     >
-      {label}
+      {tx(label)}
     </Button>
   );
 }

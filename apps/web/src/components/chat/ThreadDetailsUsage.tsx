@@ -180,7 +180,7 @@ function LimitRow({
           {window.resetsAt && resetsAt > now ? (
             <span className="text-muted-foreground">
               {t("usage.details.resetsIn", { duration: formatDuration(resetsAt - now) })} ·{" "}
-              {formatUpcomingTimestamp(window.resetsAt, timestampFormat, now)}
+              {formatUpcomingTimestamp(window.resetsAt, timestampFormat, now, undefined, locale)}
             </span>
           ) : null}
           {pace ? (

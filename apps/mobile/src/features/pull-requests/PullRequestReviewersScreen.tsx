@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import { AppBar, type AppBarSearch } from "../../components/ui/AppBar";
 import { AsyncResult } from "effect/reactivity";
@@ -168,7 +169,10 @@ export function PullRequestReviewersScreen({ route }: StaticScreenProps<PullRequ
               </Text>
               {!allowed ? (
                 <Text className="text-xs text-foreground-muted">
-                  Requesting reviews requires write access and an open {singular}.
+                  {formatMobileMessage(
+                    "Requesting reviews requires write access and an open {0}.",
+                    [localizeMobileString(singular)],
+                  )}
                 </Text>
               ) : null}
               {error ? (

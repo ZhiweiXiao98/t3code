@@ -7,6 +7,8 @@ import * as Electron from "electron";
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import { MacPermissionHelper } from "./MacPermissionHelper.ts";
 import type { MacPermission } from "./MacPermission.ts";
+import * as DesktopClientSettings from "../settings/DesktopClientSettings.ts";
+import { readDesktopLocale } from "../settings/DesktopLocale.ts";
 
 export class MacPermissions extends Context.Service<
   MacPermissions,
@@ -33,11 +35,16 @@ export const layer = Layer.effect(
   Effect.gen(function* () {
     const environment = yield* DesktopEnvironment.DesktopEnvironment;
     const path = yield* Path.Path;
+    const clientSettings = yield* DesktopClientSettings.DesktopClientSettings;
     const helper = new MacPermissionHelper();
     yield* Effect.addFinalizer(() => Effect.sync(() => helper.close()));
     return MacPermissions.of({
       showHelper: Effect.fn("MacPermissions.showHelper")(function* (permission, owner, isGranted) {
         if (environment.platform !== "darwin" || !environment.isPackaged) return;
+        const locale = yield* readDesktopLocale(
+          clientSettings.get,
+          Effect.sync(() => Electron.app.getSystemLocale()),
+        );
         yield* Effect.tryPromise({
           try: () =>
             helper.show(
@@ -46,6 +53,7 @@ export const layer = Layer.effect(
               owner,
               environment.resolveResourcePathCandidates("icon.png"),
               isGranted,
+              locale,
             ),
           catch: (cause) => new MacPermissionHelperError({ cause }),
         }).pipe(

@@ -1,3 +1,5 @@
+import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
+import { translateWebSource } from "../../i18n/messages";
 import type { ProviderDriverKind } from "@t3tools/contracts";
 import { resolveModelShortName } from "@t3tools/client-runtime/provider-clients";
 
@@ -29,16 +31,36 @@ function stripLeadingQualifier(value: string, qualifier: string | null | undefin
 
 export function getDisplayModelName(
   model: ModelEsque,
-  options?: { preferShortName?: boolean },
+  options?: {
+    preferShortName?: boolean;
+    driverKind?: ProviderDriverKind | null | undefined;
+    locale?: ResolvedAppLocale | undefined;
+  },
 ): string {
   const name = options?.preferShortName && model.shortName ? model.shortName : model.name;
+  if (
+    (model.slug === "auto" ||
+      (options?.driverKind === "kiro" &&
+        model.slug === "default" &&
+        model.isDefault === true &&
+        model.aliases?.includes("auto"))) &&
+    name === "Auto" &&
+    !model.subProvider &&
+    (options?.driverKind === "cursor" || options?.driverKind === "kiro")
+  ) {
+    return translateWebSource(options.locale ?? "en", "Auto");
+  }
   return stripLeadingQualifier(name, model.subProvider);
 }
 
 export function getTriggerDisplayModelName(
   model: ModelEsque,
   driverKind: ProviderDriverKind | null | undefined,
+  locale?: ResolvedAppLocale,
 ): string {
   const shortName = resolveModelShortName(model, driverKind);
-  return getDisplayModelName({ ...model, shortName }, { preferShortName: true });
+  return getDisplayModelName(
+    { ...model, shortName },
+    { preferShortName: true, driverKind, locale },
+  );
 }

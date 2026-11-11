@@ -30,6 +30,7 @@ import * as DesktopSnapShot from "../snapShot/DesktopSnapShot.ts";
 import * as DesktopUpdates from "../updates/DesktopUpdates.ts";
 import { resolveDesktopApplicationMenuMessages } from "./DesktopApplicationMenuMessages.ts";
 import * as DesktopWindow from "./DesktopWindow.ts";
+import * as DesktopTray from "./DesktopTray.ts";
 
 const environmentInput = {
   dirname: "/repo/apps/desktop/dist-electron",
@@ -604,7 +605,13 @@ describe("DesktopApplicationMenu", () => {
         ...DEFAULT_CLIENT_SETTINGS,
         appLocale: "en" as const,
       };
+      const trayRefresh = yield* Ref.make(0);
       const layer = Layer.mergeAll(
+        Layer.mock(DesktopTray.DesktopTray)({
+          markQuitRequested: () => undefined,
+          shouldHideOnClose: () => false,
+          refresh: Ref.update(trayRefresh, (count) => count + 1),
+        }),
         DesktopClientSettings.layerTest(Option.some(initialSettings)),
         Layer.mock(DesktopSnapShot.DesktopSnapShot)({ configure: () => Effect.void }),
         Layer.succeed(DesktopApplicationMenu.DesktopApplicationMenu, {
@@ -616,12 +623,15 @@ describe("DesktopApplicationMenu", () => {
       yield* Effect.gen(function* () {
         yield* setClientSettings.handler({ ...initialSettings, wordWrap: false });
         assert.equal(yield* Ref.get(configureCount), 0);
+        assert.equal(yield* Ref.get(trayRefresh), 0);
 
         yield* setClientSettings.handler(chineseSettings);
         assert.equal(yield* Ref.get(configureCount), 1);
+        assert.equal(yield* Ref.get(trayRefresh), 1);
 
         yield* setClientSettings.handler({ ...chineseSettings, wordWrap: true });
         assert.equal(yield* Ref.get(configureCount), 1);
+        assert.equal(yield* Ref.get(trayRefresh), 1);
       }).pipe(Effect.provide(layer));
     }),
   );
@@ -664,11 +674,19 @@ describe("DesktopApplicationMenu", () => {
 
   it.effect("never binds Cmd/Ctrl+W to closing the window", () =>
     Effect.gen(function* () {
-      for (const platform of ["darwin", "linux", "win32"] as const) {
+      for (const [platform, appLocale, label] of [
+        ["darwin", "en", "Close Developer Tools"],
+        ["linux", "en", "Close Developer Tools"],
+        ["win32", "en", "Close Developer Tools"],
+        ["darwin", "zh-CN", "关闭开发者工具"],
+        ["linux", "zh-CN", "关闭开发者工具"],
+        ["win32", "zh-CN", "关闭开发者工具"],
+      ] as const) {
         const applicationMenuTemplate =
           yield* Deferred.make<readonly Electron.MenuItemConstructorOptions[]>();
         yield* configureMenu(yield* Deferred.make<string>(), applicationMenuTemplate, {
           platform,
+          appLocale,
         });
 
         const items: Electron.MenuItemConstructorOptions[] = [];
@@ -690,7 +708,7 @@ describe("DesktopApplicationMenu", () => {
           platform,
         );
         const closeTools = items.find((item) => item.accelerator === "CmdOrCtrl+W");
-        assert.equal(closeTools?.label, "Close Developer Tools", platform);
+        assert.equal(closeTools?.label, label, platform);
         assert.isFunction(closeTools?.click);
         const appContents = {
           isDestroyed: () => false,
@@ -771,3 +789,50 @@ describe("DesktopApplicationMenu", () => {
     }),
   );
 });
+
+it.effect.each([
+  [
+    "Automatic updates are disabled by the T3CODE_DISABLE_AUTO_UPDATE setting.",
+    "T3CODE_DISABLE_AUTO_UPDATE 设置已禁用自动更新。",
+  ],
+  [
+    "Updates are off because T3 Code cannot use the managed policy at C:\\Program Files\\T3\\policy.json. Contact your administrator.",
+    "T3 Code 无法使用位于 C:\\Program Files\\T3\\policy.json 的受管策略，因此已关闭更新。请联系管理员。",
+  ],
+  [
+    "Acme manages T3 Code updates. Only stable releases can be installed. Switch to the stable channel to keep getting updates.",
+    "Acme 负责管理 T3 Code 更新。仅可安装稳定版本。请切换到稳定版通道，以继续获取更新。",
+  ],
+  [
+    "ERR_CONNECTION_RESET at https://updates.example.test/feed",
+    "ERR_CONNECTION_RESET at https://updates.example.test/feed",
+  ],
+] as const)(
+  "localizes update explanations while preserving diagnostics: %s",
+  ([detail, expected]) =>
+    Effect.gen(function* () {
+      const selectedAction = yield* Deferred.make<string>();
+      const template = yield* Deferred.make<readonly Electron.MenuItemConstructorOptions[]>();
+      const shown = yield* Deferred.make<Electron.MessageBoxOptions>();
+      yield* configureMenu(selectedAction, template, {
+        appLocale: "zh-CN",
+        desktopUpdates: { ...desktopUpdates, disabledReason: Effect.succeedSome(detail) },
+        electronDialog: {
+          ...electronDialog,
+          showMessageBox: (options) =>
+            Deferred.succeed(shown, options).pipe(
+              Effect.as({ response: 0, checkboxChecked: false }),
+            ),
+        },
+      });
+      const help = (yield* Deferred.await(template)).find((item) => item.label === "帮助");
+      assert.isTrue(Array.isArray(help?.submenu));
+      if (!Array.isArray(help?.submenu)) return;
+      help.submenu
+        .find((item) => item.label === "检查更新...")
+        ?.click?.({} as Electron.MenuItem, undefined, {} as KeyboardEvent);
+      const dialog = yield* Deferred.await(shown);
+      assert.equal(dialog.detail, expected);
+      assert.deepEqual(dialog.buttons, ["确定"]);
+    }),
+);

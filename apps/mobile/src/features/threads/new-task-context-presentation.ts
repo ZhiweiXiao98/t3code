@@ -1,3 +1,5 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
+import { MOBILE_LOCALE, localizeMobileString, type MobileLocale } from "../../i18n/mobileStrings";
 import { sanitizeNewRefName } from "@t3tools/shared/git";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
 import { resolveSendEnvMode } from "@t3tools/shared/projectSettings";
@@ -77,13 +79,20 @@ export function resolveNewTaskBranchLabel(input: {
   readonly startFromOrigin: boolean;
   readonly workspaceMode: WorkspaceMode;
   readonly pullRequestReference?: string;
+  readonly locale?: MobileLocale;
 }): string {
+  const locale = input.locale ?? MOBILE_LOCALE;
   if (input.workspaceMode === "worktree" && input.pullRequestReference) {
     const parsed = sourceControlClients.parseChangeRequestUrl(input.pullRequestReference);
-    if (parsed) return `From ${parsed.definition.changeRequest.shortLabel} #${parsed.link.number}`;
+    if (parsed)
+      return formatMobileMessage(
+        "From {0}",
+        [`${parsed.definition.changeRequest.shortLabel} #${parsed.link.number}`],
+        locale,
+      );
   }
   if (!input.branchName) {
-    return "Choose branch";
+    return localizeMobileString("Choose branch", locale);
   }
 
   if (input.workspaceMode === "local") {
@@ -91,7 +100,11 @@ export function resolveNewTaskBranchLabel(input: {
   }
 
   // Only the server can determine a local branch's configured remote.
-  return input.startFromOrigin ? `From ${input.branchName} (remote)` : `From ${input.branchName}`;
+  return formatMobileMessage(
+    input.startFromOrigin ? "From {0} (remote)" : "From {0}",
+    [input.branchName],
+    locale,
+  );
 }
 
 export function shouldCheckoutNewTaskBranch(input: {

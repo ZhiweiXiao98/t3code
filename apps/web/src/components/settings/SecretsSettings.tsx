@@ -260,19 +260,18 @@ function SecretProviderUses({
   readonly id: SecretProviderId;
   readonly label: string;
 }) {
+  const { t } = useI18n();
   const uses = secretProviderUses(useEnvironmentSettings(environmentId), id);
   if (uses.length === 0) {
     return (
       <AlertDialogDescription>
-        Nothing reads from {label}. The secrets themselves are untouched.
+        {t("secrets.removeUnused", { source: label })}
       </AlertDialogDescription>
     );
   }
   return (
     <>
-      <AlertDialogDescription>
-        These read from {label} and will be unset. The secrets themselves are untouched.
-      </AlertDialogDescription>
+      <AlertDialogDescription>{t("secrets.removeUsed", { source: label })}</AlertDialogDescription>
       <ul className="max-h-48 list-disc space-y-0.5 overflow-y-auto ps-5 text-sm wrap-anywhere">
         {uses.map((use) => (
           <li key={use.id}>{use.label}</li>

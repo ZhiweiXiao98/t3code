@@ -72,6 +72,8 @@ type ModelPickerItem = {
   slug: string;
   name: string;
   shortName?: string;
+  aliases?: ReadonlyArray<string> | undefined;
+  isDefault?: boolean | undefined;
   subProvider?: string;
   badge?: "new";
   instanceId: ProviderInstanceId;
@@ -547,6 +549,8 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
         out.push({
           slug: model.slug,
           name: model.name,
+          aliases: model.aliases,
+          isDefault: model.isDefault,
           ...(model.shortName ? { shortName: model.shortName } : {}),
           ...(model.subProvider ? { subProvider: model.subProvider } : {}),
           ...(model.badge ? { badge: model.badge } : {}),
@@ -1028,6 +1032,8 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
                     index={index}
                     slug={model.slug}
                     name={model.name}
+                    aliases={model.aliases}
+                    isDefault={model.isDefault}
                     subProvider={model.subProvider}
                     instanceId={model.instanceId}
                     driverKind={model.driverKind}

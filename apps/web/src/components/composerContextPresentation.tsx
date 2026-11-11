@@ -17,10 +17,8 @@ import { ComposerContextActionsContext } from "./composerContextActions";
 import type { ComposerFileAttachment, ComposerImageAttachment } from "~/composerDraftStore";
 import { composerFileNeedsReattach } from "~/composerDraftStore";
 import { useTheme } from "~/hooks/useTheme";
-import {
-  formatAttachmentUploadProgress,
-  type AttachmentUploadState,
-} from "~/lib/attachmentUploadState";
+import type { AttachmentUploadState } from "~/lib/attachmentUploadState";
+import { useAttachmentUploadProgress } from "~/hooks/useAttachmentUploadProgress";
 import { PullRequestGlyph } from "~/components/pullRequest/pullRequestIcons";
 import {
   fileContextReference,
@@ -169,13 +167,14 @@ function ContextChip(props: {
   );
 }
 
-function uploadStatusSuffix(
+function useUploadStatusSuffix(
+  key: string,
   upload: AttachmentUploadState | undefined,
-  translate: (source: string) => string = (source) => source,
+  translate: (source: string) => string,
 ): string | null {
-  if (upload?.status === "uploading") return formatAttachmentUploadProgress(upload.progress);
+  const progress = useAttachmentUploadProgress(key, upload);
   if (upload?.status === "failed") return translate("upload failed");
-  return null;
+  return progress;
 }
 
 function attachmentTooltip(
@@ -194,6 +193,7 @@ function ImageContextChip(props: {
   const { locale } = useI18n();
   const translate = (source: string) => translateWebSource(locale, source);
   const actions = use(ComposerContextActionsContext);
+  const suffix = useUploadStatusSuffix(props.record.id, props.upload, translate);
   return (
     <Tooltip>
       <TooltipTrigger
@@ -202,7 +202,7 @@ function ImageContextChip(props: {
             name={props.record.name}
             previewUrl={props.record.previewUrl}
             size={formatAttachmentSize(props.record.sizeBytes)}
-            suffix={uploadStatusSuffix(props.upload, translate)}
+            suffix={suffix}
             onClick={() => actions.expandImage(props.record.id)}
           />
         }
@@ -223,9 +223,8 @@ function FileContextChip(props: {
   const actions = use(ComposerContextActionsContext);
   const { resolvedTheme } = useTheme();
   const needsReattach = composerFileNeedsReattach(props.record);
-  const suffix = needsReattach
-    ? translate("attach again")
-    : uploadStatusSuffix(props.upload, translate);
+  const uploadSuffix = useUploadStatusSuffix(props.record.id, props.upload, translate);
+  const suffix = needsReattach ? translate("attach again") : uploadSuffix;
   const size = formatAttachmentSize(props.record.sizeBytes);
   const isVideo = videoMimeType(props.record) !== null;
   return (

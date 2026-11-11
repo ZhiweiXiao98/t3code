@@ -1,3 +1,5 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
+import { parsePullRequestAnchor } from "@t3tools/shared/pullRequestAnchor";
 import { usePullRequestConnected } from "./usePullRequestConnected";
 import { useAtomValue } from "@effect/atom-react";
 import { useNavigation } from "@react-navigation/native";
@@ -102,7 +104,13 @@ export function PullRequestStatusMenu(props: RowProps) {
 }
 
 export function PullRequestChecksRow(props: RowProps) {
-  const [expanded, setExpanded] = useState(false);
+  const linked = parsePullRequestAnchor(props.params.navigationUrl)?.kind === "checks";
+  const [expanded, setExpanded] = useState(linked);
+  const [seenNavigation, setSeenNavigation] = useState(props.params.navigationId);
+  if (props.params.navigationId !== seenNavigation) {
+    setSeenNavigation(props.params.navigationId);
+    if (linked) setExpanded(true);
+  }
   const checks = pullRequestChecksSummary(props.pr);
   const action = usePullRequestAction(props.params, props.pr);
   const definition = sourceControlClients.get(props.pr.provider);
@@ -309,7 +317,7 @@ export function PullRequestReviewersRow(props: RowProps) {
             .map((reviewer) => (
               <View
                 key={reviewer.login}
-                accessibilityLabel={`${reviewer.login}, Review requested`}
+                accessibilityLabel={formatMobileMessage("{0}, Review requested", [reviewer.login])}
                 className="min-h-14 flex-row items-center gap-3 px-4 py-2"
               >
                 <SymbolView name="clock" size={18} tintColorClassName="accent-icon-muted" />

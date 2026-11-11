@@ -139,6 +139,7 @@ export const PullRequestListRow = memo(
                 </Text>
               </View>
               <Text
+                localize={false}
                 className={cn("text-base leading-5 font-t3-medium", foreground)}
                 numberOfLines={2}
                 ellipsizeMode="tail"
@@ -164,6 +165,7 @@ export const PullRequestListRow = memo(
                           />
                         ) : null}
                         <Text
+                          localize={false}
                           className={cn("shrink text-2xs font-t3-medium", mutedForeground)}
                           numberOfLines={1}
                         >

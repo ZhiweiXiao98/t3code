@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { createContext, useContext, useState } from "react";
 import {
   pullRequestMediaSource,
@@ -122,7 +123,7 @@ export function PullRequestImageAttachment(props: {
     <>
       <Pressable
         accessibilityRole="imagebutton"
-        accessibilityLabel={`View attachment: ${props.caption}`}
+        accessibilityLabel={formatMobileMessage("View attachment: {0}", [props.caption])}
         onPress={() => setPreview({ ...props.source, gallery: props.gallery })}
         className="gap-2 active:opacity-70"
         style={{ width: 176 }}

@@ -46,3 +46,18 @@ export function mobileRunsOn(environment: string, locale: MobileLocale = MOBILE_
     () => environment,
   );
 }
+
+/** Translate UI templates before inserting opaque names, paths, commands, or user text. */
+export function formatMobileMessage(
+  template: string,
+  values: ReadonlyArray<string | number | boolean | null | undefined>,
+  locale: MobileLocale = MOBILE_LOCALE,
+): string {
+  return localizeMobileString(template, locale).replace(
+    /\{(\d+)\}/g,
+    (placeholder, key: string) => {
+      const index = Number(key);
+      return index < values.length ? String(values[index]) : placeholder;
+    },
+  );
+}

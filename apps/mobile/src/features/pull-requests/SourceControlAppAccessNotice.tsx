@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { EnvironmentId } from "@t3tools/contracts";
 import {
   readHostCredentialSettings,
@@ -45,14 +46,18 @@ export function SourceControlAppAccessNotice(props: {
   return (
     <View className="mb-4 gap-1 rounded-2xl bg-grouped-card px-4 py-3">
       <Text className="text-sm text-foreground-muted">
-        {appSignIn.appName} isn't installed on {owner}, so requests here use your own GitHub login
-        and its lower rate limit.
+        {formatMobileMessage(
+          "{0} isn't installed on {1}, so requests here use your own GitHub login and its lower rate limit.",
+          [appSignIn.appName, owner],
+        )}
       </Text>
       <Pressable
         accessibilityRole="link"
         onPress={() => void Linking.openURL(appSignIn.installUrl).catch(() => undefined)}
       >
-        <Text className="text-sm font-t3-bold text-foreground">Install on {owner}</Text>
+        <Text className="text-sm font-t3-bold text-foreground">
+          {formatMobileMessage("Install on {0}", [owner])}
+        </Text>
       </Pressable>
     </View>
   );

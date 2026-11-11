@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import { SheetHeader } from "../../components/ui/SheetHeader";
 import { appAtomRegistry } from "../../state/atom-registry";
@@ -128,7 +129,7 @@ function DragHandle(props: {
         collapsable={false}
         accessible
         accessibilityRole="adjustable"
-        accessibilityLabel={`Reorder ${props.title}`}
+        accessibilityLabel={formatMobileMessage("Reorder {0}", [props.title])}
         accessibilityHint={localizeMobileString(
           "Move up and Move down reorder within this section. Other actions move between sections.",
         )}
@@ -476,7 +477,7 @@ function ThreadArrangementSheet(props: { onClose: () => void }) {
                       >
                         {thread ? (
                           <>
-                            <Text numberOfLines={2} className="flex-1 text-base">
+                            <Text localize={false} numberOfLines={2} className="flex-1 text-base">
                               {thread.title}
                             </Text>
                             <DragHandle
@@ -568,6 +569,7 @@ function ThreadArrangementSheet(props: { onClose: () => void }) {
                     style={{ top: 0, height: rowHeight, transform: [{ translateY }] }}
                   >
                     <Text
+                      localize={false}
                       numberOfLines={visiblePreview.destination?.section ? 1 : 2}
                       className="text-base font-t3-medium"
                     >

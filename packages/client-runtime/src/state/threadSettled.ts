@@ -218,6 +218,11 @@ export interface SnoozePreset {
 export interface SnoozePresetOptions {
   readonly presets?: ReadonlyArray<SnoozePresetSetting>;
   readonly formatTime?: (date: Date) => string;
+  readonly formatWeekday?: (date: Date) => string;
+}
+
+function snoozeWeekdayLabel(date: Date): string {
+  return date.toLocaleDateString(undefined, { weekday: "short" });
 }
 
 function snoozeTimeOfDayLabel(date: Date): string {
@@ -279,6 +284,7 @@ export function resolveSnoozePreset(
   setting: SnoozePresetSetting,
   now: Date,
   formatTime: (date: Date) => string = snoozeTimeOfDayLabel,
+  formatWeekday: (date: Date) => string = snoozeWeekdayLabel,
 ): SnoozePreset | null {
   let wake: Date;
   let daysAhead = 0;
@@ -301,7 +307,7 @@ export function resolveSnoozePreset(
     whenLabel:
       labelNamesDay || wake.toDateString() === now.toDateString()
         ? time
-        : `${wake.toLocaleDateString(undefined, { weekday: "short" })} ${time}`,
+        : `${formatWeekday(wake)} ${time}`,
     snoozedUntil: wake.toISOString(),
   };
 }
@@ -317,7 +323,10 @@ export function resolveSnoozePresets(
   const seen = new Set<number>();
   return (
     (options.presets ?? DEFAULT_SNOOZE_PRESETS)
-      .flatMap((setting) => resolveSnoozePreset(setting, now, options.formatTime) ?? [])
+      .flatMap(
+        (setting) =>
+          resolveSnoozePreset(setting, now, options.formatTime, options.formatWeekday) ?? [],
+      )
       // flatMap returned a new array; Hermes has no `toSorted`.
       .sort((a, b) => wakeMinute(a) - wakeMinute(b))
       .filter((preset) => {
@@ -338,6 +347,7 @@ export function pickSnoozePreset(input: {
   readonly now: Date;
   readonly presets?: ReadonlyArray<SnoozePresetSetting>;
   readonly formatTime?: (date: Date) => string;
+  readonly formatWeekday?: (date: Date) => string;
 }): SnoozePreset | undefined {
   const original = input.shown.find((preset) => preset.id === input.id);
   const ahead =
@@ -345,7 +355,10 @@ export function pickSnoozePreset(input: {
   const setting = (input.presets ?? DEFAULT_SNOOZE_PRESETS).find(
     (candidate) => candidate.kind === "after" && snoozePresetId(candidate) === input.id,
   );
-  return (setting && resolveSnoozePreset(setting, input.now, input.formatTime)) ?? ahead;
+  return (
+    (setting && resolveSnoozePreset(setting, input.now, input.formatTime, input.formatWeekday)) ??
+    ahead
+  );
 }
 
 export function snoozeWakeLabel(snoozedUntil: string, options: { readonly now: string }): string {

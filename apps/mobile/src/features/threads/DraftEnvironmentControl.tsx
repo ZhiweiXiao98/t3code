@@ -1,4 +1,6 @@
 import { Pressable } from "react-native";
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import type { EnvironmentMachineKind } from "@t3tools/contracts";
 import type { EnvironmentConnectionPhase } from "@t3tools/client-runtime/connection";
 import { EnvironmentMachineSymbol } from "../../components/EnvironmentMachineSymbol";
@@ -18,7 +20,10 @@ export function DraftEnvironmentControl(props: {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Choose environment, ${props.label}, ${disconnected ? "Offline" : "Connected"}`}
+      accessibilityLabel={formatMobileMessage("Choose environment, {0}, {1}", [
+        props.label,
+        localizeMobileString(disconnected ? "Offline" : "Connected"),
+      ])}
       disabled={props.disabled}
       onPress={props.onChooseEnvironment}
       className="flex-row items-center gap-1.5 rounded-xl px-3 py-2 active:opacity-65"
@@ -28,8 +33,8 @@ export function DraftEnvironmentControl(props: {
         size={13}
         tintColorClassName="accent-icon-muted"
       />
-      <Text className="shrink text-sm text-foreground-muted" numberOfLines={1}>
-        on {props.label}
+      <Text localize={false} className="shrink text-sm text-foreground-muted" numberOfLines={1}>
+        {formatMobileMessage("on {0}", [props.label])}
       </Text>
       <SymbolView name="chevron.right" size={11} tintColorClassName="accent-icon-muted" />
       {disconnected ? <ConnectionStatusDot state="error" pulse={false} size={6} /> : null}

@@ -321,12 +321,14 @@ function RemoteSubagentRow(props: {
             </span>
           </span>
           <span
-            className={`shrink-0 text-2xs ${failed ? "text-destructive" : "text-muted-foreground"}`}
+            className={`flex max-w-1/2 shrink-0 gap-1 text-2xs ${failed ? "text-destructive" : "text-muted-foreground"}`}
           >
-            {residualT("chatResidual.onStatus", {
-              name: remoteChild.label,
-              status: translateChatSource(locale, threadRelationshipStatusLabel(status)),
-            })}
+            <span className="truncate">
+              {residualT("chatResidual.on", { name: remoteChild.label })}
+            </span>
+            <span className="shrink-0">
+              · {translateChatSource(locale, threadRelationshipStatusLabel(status))}
+            </span>
           </span>
         </TooltipTrigger>
         <TooltipPopup side="left">
@@ -389,7 +391,7 @@ function DelegatedFromRow(props: {
             </span>
           </span>
           {label ? (
-            <span className="shrink-0 text-2xs text-muted-foreground">
+            <span className="max-w-1/2 shrink-0 truncate text-2xs text-muted-foreground">
               {residualT("chatResidual.on", { name: label })}
             </span>
           ) : null}
@@ -402,7 +404,7 @@ function DelegatedFromRow(props: {
                 ? residualT("chatResidual.delegated", {
                     name: label ?? residualT("chatResidual.linkedEnvironment"),
                   })
-                : residualT("chatCorrection.openParent")
+                : residualT("v019.openParentOn", { name: environment.label })
             }
           />
         </TooltipPopup>

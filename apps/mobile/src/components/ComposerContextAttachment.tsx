@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../i18n/mobileDisplayStrings";
 import { Button } from "./ui/Button";
 import { settlePromise, squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
 import { AsyncResult } from "effect/reactivity";
@@ -83,7 +84,7 @@ export function ComposerContextAttachment(props: {
       {record.kind === "image" && uri ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`Preview ${record.name}`}
+          accessibilityLabel={formatMobileMessage("Preview {0}", [record.name])}
           onPress={() => setPreviewOpen(true)}
         >
           <Image
