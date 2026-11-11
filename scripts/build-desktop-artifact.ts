@@ -752,6 +752,7 @@ const WindowsPackagedPayloadValidationReason = Schema.Literals([
   "wsl-runtime-missing",
   "wsl-runtime-invalid",
   "file-limit-exceeded",
+  "compile-cache-file-limit-exceeded",
 ]);
 
 export class WindowsPackagedPayloadValidationError extends Schema.TaggedError<WindowsPackagedPayloadValidationError>()(
@@ -766,8 +767,11 @@ export class WindowsPackagedPayloadValidationError extends Schema.TaggedError<Wi
   },
 ) {
   override get message(): string {
+    if (this.reason === "compile-cache-file-limit-exceeded") {
+      return `Windows prepared compile cache contains ${String(this.fileCount)} files; expected at most ${String(this.fileLimit)}.`;
+    }
     if (this.reason === "file-limit-exceeded") {
-      return `Windows packaged payload contains ${String(this.fileCount)} files; expected at most ${String(this.fileLimit)}.`;
+      return `Windows packaged runtime payload contains ${String(this.fileCount)} files; expected at most ${String(this.fileLimit)}.`;
     }
     if (this.reason === "unpacked-native-missing") {
       return `Windows server sidecar is missing ${String(this.missingFiles?.length ?? 0)} unpacked native files.`;
@@ -1062,6 +1066,8 @@ export function resolveWindowsServerAsarIgnoreGlobs(arch: typeof BuildArch.Type)
 }
 
 export const WINDOWS_PACKAGED_PAYLOAD_FILE_LIMIT = 80;
+// Prepared bytecode adds one file per server chunk (21 plus a manifest in v0.1.8).
+const WINDOWS_PREPARED_COMPILE_CACHE_FILE_LIMIT = 32;
 export const WINDOWS_SERVER_RESOURCE_SOURCE_DIR = "apps/desktop/prod-resources/windows-server";
 export const WINDOWS_SERVER_EXTRA_RESOURCES = [
   {
@@ -3208,7 +3214,9 @@ const countPayloadFiles = Effect.fn("desktopArtifact.countPayloadFiles")(functio
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const pendingDirectories = [root];
-  let count = 0;
+  const compileCacheDir = path.join(root, "resources", "server-compile-cache");
+  let fileCount = 0;
+  let compileCacheFileCount = 0;
 
   while (pendingDirectories.length > 0) {
     const directory = pendingDirectories.pop();
@@ -3220,12 +3228,15 @@ const countPayloadFiles = Effect.fn("desktopArtifact.countPayloadFiles")(functio
       if (stat.type === "Directory") {
         pendingDirectories.push(entryPath);
       } else if (stat.type === "File") {
-        count += 1;
+        fileCount += 1;
+        if (directory === compileCacheDir && /^(?:[a-f0-9]{8}|manifest\.json)$/.test(entry)) {
+          compileCacheFileCount += 1;
+        }
       }
     }
   }
 
-  return count;
+  return { fileCount, compileCacheFileCount };
 });
 
 export const verifyWindowsPrimaryFffNativeLoad = Effect.fn(
@@ -3535,12 +3546,21 @@ export const validateWindowsPackagedPayload = Effect.fn(
     }
   }
 
-  const fileCount = yield* countPayloadFiles(packagedAppDir);
-  if (fileCount > fileLimit) {
+  const { fileCount, compileCacheFileCount } = yield* countPayloadFiles(packagedAppDir);
+  if (compileCacheFileCount > WINDOWS_PREPARED_COMPILE_CACHE_FILE_LIMIT) {
+    return yield* new WindowsPackagedPayloadValidationError({
+      reason: "compile-cache-file-limit-exceeded",
+      packagedAppDir,
+      fileCount: compileCacheFileCount,
+      fileLimit: WINDOWS_PREPARED_COMPILE_CACHE_FILE_LIMIT,
+    });
+  }
+  const runtimeFileCount = fileCount - compileCacheFileCount;
+  if (runtimeFileCount > fileLimit) {
     return yield* new WindowsPackagedPayloadValidationError({
       reason: "file-limit-exceeded",
       packagedAppDir,
-      fileCount,
+      fileCount: runtimeFileCount,
       fileLimit,
     });
   }
@@ -3553,7 +3573,7 @@ export const validateWindowsPackagedPayload = Effect.fn(
   });
 
   yield* Effect.log(
-    `[desktop-artifact] Validated Windows payload (${String(fileCount)} files, ${String(unpackedFiles.length)} sidecar natives).`,
+    `[desktop-artifact] Validated Windows payload (${String(fileCount)} files, ${String(runtimeFileCount)} runtime files, ${String(compileCacheFileCount)} prepared cache files, ${String(unpackedFiles.length)} sidecar natives).`,
   );
   return { packagedAppDir, fileCount, unpackedFiles } as const;
 });

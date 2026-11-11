@@ -1710,6 +1710,74 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
     ),
   );
 
+  it.effect("budgets prepared Windows bytecode separately from runtime files", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        const path = yield* Path.Path;
+        const fixture = yield* makeWindowsPayloadFixture({ copyUnpackedNatives: true });
+        const input = {
+          stageDistDir: fixture.stageDistDir,
+          appExecutableName: fixture.appExecutableName,
+          targetArch: "x64" as const,
+          appVersion: WINDOWS_PAYLOAD_FIXTURE_VERSION,
+        };
+        const initial = yield* validateWindowsPackagedPayload(input);
+        const cacheDir = path.join(fixture.packagedAppDir, "resources/server-compile-cache");
+        yield* fs.makeDirectory(cacheDir);
+        yield* fs.writeFileString(path.join(cacheDir, "manifest.json"), "{}");
+        for (let index = 0; index < 21; index++) {
+          yield* fs.writeFileString(
+            path.join(cacheDir, index.toString(16).padStart(8, "0")),
+            "bytecode",
+          );
+        }
+        for (let index = initial.fileCount; index < 70; index++) {
+          yield* fs.writeFileString(
+            path.join(fixture.packagedAppDir, `runtime-${index}.dll`),
+            "runtime",
+          );
+        }
+        assert.equal((yield* validateWindowsPackagedPayload(input)).fileCount, 92);
+        for (let index = 70; index < WINDOWS_PACKAGED_PAYLOAD_FILE_LIMIT; index++) {
+          yield* fs.writeFileString(
+            path.join(fixture.packagedAppDir, `runtime-${index}.dll`),
+            "runtime",
+          );
+        }
+        yield* validateWindowsPackagedPayload(input);
+        for (const relativePath of [
+          "extra.dll",
+          "resources/server-compile-cache/extra.js",
+          "resources/server-compile-cache/nested/00000000",
+          "resources/server-compile-cache-other/00000000",
+        ]) {
+          const overflow = path.join(fixture.packagedAppDir, relativePath);
+          yield* fs.makeDirectory(path.dirname(overflow), { recursive: true });
+          yield* fs.writeFileString(overflow, "unexpected runtime");
+          const runtimeError = yield* validateWindowsPackagedPayload(input).pipe(Effect.flip);
+          assert.instanceOf(runtimeError, WindowsPackagedPayloadValidationError);
+          assert.equal(runtimeError.reason, "file-limit-exceeded");
+          assert.equal(runtimeError.fileCount, WINDOWS_PACKAGED_PAYLOAD_FILE_LIMIT + 1);
+          yield* fs.remove(overflow);
+        }
+        for (let index = 21; index < 31; index++) {
+          yield* fs.writeFileString(
+            path.join(cacheDir, index.toString(16).padStart(8, "0")),
+            "bytecode",
+          );
+        }
+        yield* validateWindowsPackagedPayload(input);
+        yield* fs.writeFileString(path.join(cacheDir, "0000001f"), "extra bytecode");
+        const cacheError = yield* validateWindowsPackagedPayload(input).pipe(Effect.flip);
+        assert.instanceOf(cacheError, WindowsPackagedPayloadValidationError);
+        assert.equal(cacheError.reason, "compile-cache-file-limit-exceeded");
+        assert.equal(cacheError.fileCount, 33);
+        assert.equal(cacheError.fileLimit, 32);
+      }),
+    ).pipe(Effect.provideService(HostProcess.Platform, "linux")),
+  );
+
   it.effect("rejects a Windows payload that regresses above the file-count budget", () =>
     Effect.scoped(
       Effect.gen(function* () {
