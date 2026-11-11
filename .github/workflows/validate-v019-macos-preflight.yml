@@ -1,0 +1,94 @@
+name: Independent v0.1.9 macOS native preflight
+'on':
+  push:
+    branches:
+    - validation/v0.1.9-macos-preflight-0791378a335a
+permissions:
+  contents: read
+concurrency:
+  group: v019-macos-preflight-${{ github.ref }}
+  cancel-in-progress: false
+env:
+  CLIENT_VERSION: 0.1.9-zh.1
+  CI: 'true'
+  CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+  T3CODE_DESKTOP_SIGNED: 'false'
+  ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
+  ELECTRON_BUILDER_BINARIES_MIRROR: https://github.com/electron-userland/electron-builder-binaries/releases/download/
+  SOURCE_SHA: 0791378a335a6094a0cf2d100ef32732a951e597
+  SOURCE_TREE: bae76b57c1ecd8e26546aefbfe97276c1bdd6047
+  EXPECTED_BRANCH: validation/v0.1.9-macos-preflight-0791378a335a
+jobs:
+  mobile-native-preflight:
+    name: Independent macOS mobile-native preflight (not a release gate)
+    runs-on: macos-15-intel
+    timeout-minutes: 30
+    steps:
+    - name: Verify exact public source and single-file operation ancestry
+      id: operation
+      shell: bash
+      run: "set -euo pipefail\npython3 - <<'PYTHON'\nimport json,os\nx=json.load(open(os.environ['GITHUB_EVENT_PATH']))\n\
+        assert os.environ['GITHUB_REPOSITORY']=='ZhiweiXiao98/t3code'\nassert x['repository']['private'] is False\nassert\
+        \ os.environ['GITHUB_EVENT_NAME']=='push'\nassert os.environ['GITHUB_REF']=='refs/heads/'+os.environ['EXPECTED_BRANCH']\n\
+        assert x['after']==os.environ['GITHUB_SHA']\nPYTHON\nmkdir \"$RUNNER_TEMP/macos-preflight-operation\"\ncd \"$RUNNER_TEMP/macos-preflight-operation\"\
+        \ngit init .\ngit remote add origin https://github.com/ZhiweiXiao98/t3code.git\ngit fetch --filter=blob:none --no-tags\
+        \ --depth=2 origin \"$GITHUB_SHA\"\ntest \"$(git rev-parse FETCH_HEAD^)\" = \"$SOURCE_SHA\"\ntest \"$(git rev-list\
+        \ --parents -n 1 FETCH_HEAD | wc -w | tr -d ' ')\" = 2\ntest \"$(git rev-parse \"$SOURCE_SHA^{tree}\")\" = \"$SOURCE_TREE\"\
+        \ntest \"$(git diff --name-status \"$SOURCE_SHA\" FETCH_HEAD)\" = $'A\t.github/workflows/validate-v019-macos-preflight.yml'\n\
+        test \"$(git ls-remote origin refs/heads/maintenance/v0.1.9-zh-cloud | cut -f1)\" = \"$SOURCE_SHA\"\n"
+    - name: Checkout exact source without credentials
+      shell: bash
+      env:
+        SOURCE_SHA: 0791378a335a6094a0cf2d100ef32732a951e597
+        GIT_TERMINAL_PROMPT: '0'
+      run: |
+        set -euo pipefail
+        git init .
+        git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+        git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
+        git sparse-checkout set --no-cone '/*' '!/.repos/'
+        git checkout --detach FETCH_HEAD
+        test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+        test "$(git rev-parse HEAD^{tree})" = "$SOURCE_TREE"
+        git diff --exit-code
+        git diff --cached --exit-code
+      id: source
+    - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
+      with:
+        node-version-file: package.json
+        cache: true
+        run-install: false
+    - name: Install locked dependencies
+      id: dependencies
+      run: vp install --frozen-lockfile --filter @t3tools/scripts...
+    - name: Install mobile native static analysis tools
+      run: brew bundle install --file apps/mobile/Brewfile
+    - name: Lint Swift and Kotlin sources
+      run: vp run lint:mobile
+      id: native_lint
+    - name: Run native review diff Swift regressions
+      run: bash apps/mobile/modules/t3-review-diff/tests/run-ios.sh
+      id: native_regressions
+    - name: Verify unchanged source and mandatory preflight outcomes
+      if: always() && steps.source.outcome == 'success'
+      shell: bash
+      env:
+        LINT_OUTCOME: ${{ steps.native_lint.outcome }}
+        REGRESSIONS_OUTCOME: ${{ steps.native_regressions.outcome }}
+      run: |
+        set -euo pipefail
+        test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+        test "$(git rev-parse HEAD^{tree})" = "$SOURCE_TREE"
+        git diff --exit-code
+        git diff --cached --exit-code
+        test "$(git ls-remote origin refs/heads/maintenance/v0.1.9-zh-cloud | cut -f1)" = "$SOURCE_SHA"
+        test "$(git ls-remote origin "refs/heads/$EXPECTED_BRANCH" | cut -f1)" = "$GITHUB_SHA"
+        printf 'Exact source: %s
+        Tree: %s
+        Native lint: %s
+        Swift regressions: %s
+        ' "$SOURCE_SHA" "$SOURCE_TREE" "$LINT_OUTCOME" "$REGRESSIONS_OUTCOME" >> "$GITHUB_STEP_SUMMARY"
+        printf '%s
+        ' 'Independent macOS preflight only. Does not replace any of the 22 release gates, certify an installer, sign an app, or authorize publication.' >> "$GITHUB_STEP_SUMMARY"
+        test "$LINT_OUTCOME" = success
+        test "$REGRESSIONS_OUTCOME" = success
