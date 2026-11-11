@@ -84,20 +84,20 @@ it("restores collapsed and expanded desktop state after remounting", async () =>
   );
   {
     await using screen = await render(layout(), { router: false /* no routes involved */ });
-    const trigger = screen.getByRole("button", { name: "Toggle Sidebar" });
+    const trigger = screen.getByRole("button", { name: "Toggle main sidebar" });
     await expect.element(trigger).toHaveAttribute("aria-pressed", "true");
     await userEvent.click(trigger);
     await expect.element(trigger).toHaveAttribute("aria-pressed", "false");
   }
   {
     await using screen = await render(layout(), { router: false /* no routes involved */ });
-    const trigger = screen.getByRole("button", { name: "Toggle Sidebar" });
+    const trigger = screen.getByRole("button", { name: "Toggle main sidebar" });
     await expect.element(trigger).toHaveAttribute("aria-pressed", "false");
     await userEvent.click(trigger);
   }
   await using screen = await render(layout(), { router: false /* no routes involved */ });
   await expect
-    .element(screen.getByRole("button", { name: "Toggle Sidebar" }))
+    .element(screen.getByRole("button", { name: "Toggle main sidebar" }))
     .toHaveAttribute("aria-pressed", "true");
   localStorage.removeItem(storageKey);
 });
@@ -113,7 +113,7 @@ it("keeps the mobile sheet closed and leaves the saved desktop state alone", asy
       </SidebarProvider>,
       { router: false /* no routes involved */ },
     );
-    const trigger = screen.getByRole("button", { name: "Toggle Sidebar" });
+    const trigger = screen.getByRole("button", { name: "Toggle main sidebar" });
     await expect.element(trigger).toHaveAttribute("aria-pressed", "false");
     await userEvent.click(trigger);
     await expect.element(trigger).toHaveAttribute("aria-pressed", "true");
@@ -126,7 +126,7 @@ it("keeps the mobile sheet closed and leaves the saved desktop state alone", asy
     { router: false /* no routes involved */ },
   );
   await expect
-    .element(screen.getByRole("button", { name: "Toggle Sidebar" }))
+    .element(screen.getByRole("button", { name: "Toggle main sidebar" }))
     .toHaveAttribute("aria-pressed", "false");
   localStorage.removeItem(storageKey);
 });
