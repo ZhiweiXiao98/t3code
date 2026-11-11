@@ -24,7 +24,7 @@ export function MediaActionsMenu(props: {
       shouldOpenOnLongPress={props.children !== undefined}
       actions={props.media.actions.map(({ id, title, disabled }) => ({
         id,
-        title,
+        title: localizeMobileString(title),
         attributes: { disabled: disabled ?? false },
       }))}
       onPressAction={({ nativeEvent }) => {

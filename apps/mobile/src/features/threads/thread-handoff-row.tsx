@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import * as Dialog from "../../components/ui/Dialog";
 import { useAtomValue } from "@effect/atom-react";
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
@@ -179,7 +180,7 @@ function HandoffEndpoint(props: {
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityHint="Show provider account"
+      accessibilityHint={localizeMobileString("Show provider account")}
       className="min-h-6 max-w-full flex-row items-center justify-center gap-1.5"
       hitSlop={{ top: 8, bottom: 8 }}
       onPress={() =>

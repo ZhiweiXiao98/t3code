@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { settlePromise } from "@t3tools/client-runtime/state/runtime";
 import { AsyncResult } from "effect/reactivity";
 import * as Dialog from "../../components/ui/Dialog";
@@ -15,6 +16,8 @@ import { usePullRequestReviewDraft } from "./usePullRequestReviewDraft";
 import { reviewPositionLabel } from "./pullRequestDiffComments";
 import { pullRequestTarget, type PullRequestParams } from "./usePullRequestDiff";
 import { usePullRequestPermissions } from "./usePullRequestPermissions";
+import { PullRequestCompletionSuggestions } from "./PullRequestCompletionSuggestions";
+import { usePullRequestCompletions } from "./usePullRequestCompletions";
 
 export type InlineCommentParams = PullRequestParams & {
   readonly draftId?: string;
@@ -33,6 +36,13 @@ export function PullRequestInlineCommentScreen({ route }: StaticScreenProps<Inli
   const body = editedBody ?? saved?.body ?? "";
   const detail = useEnvironmentQuery(composerPullRequests.detail(pullRequestTarget(params)));
   const { refresh: refreshDetail } = detail;
+  const completions = usePullRequestCompletions({
+    environmentId: params.environmentId,
+    projectId: params.projectId,
+    value: body,
+    onChangeValue: setBody,
+    support: detail.data?.capabilities ?? null,
+  });
   useFocusEffect(refreshDetail);
   const permissions = usePullRequestPermissions(params, detail.data);
   const stale = detail.data && detail.data.headSha !== params.headSha;
@@ -101,11 +111,15 @@ export function PullRequestInlineCommentScreen({ route }: StaticScreenProps<Inli
           {params.code}
         </Text>
       </View>
+      <PullRequestCompletionSuggestions completions={completions} />
       <TextInput
         multiline
+        selection={completions.selection}
+        onSelectionChange={completions.onSelectionChange}
+        onBlur={completions.onBlur}
         editable={store.ready && !busy}
         autoFocus
-        accessibilityLabel="Inline review comment"
+        accessibilityLabel={localizeMobileString("Inline review comment")}
         placeholder="Write feedback on this line…"
         placeholderTextColorClassName="accent-foreground-muted"
         maxLength={65536}

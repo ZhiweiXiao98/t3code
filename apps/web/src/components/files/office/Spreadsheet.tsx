@@ -1,6 +1,7 @@
 import { useStableCallback } from "~/hooks/useStableCallback";
 import { translateWebSource } from "~/i18n/messages";
 import { useI18n } from "~/i18n/WebI18nContext";
+import * as Schema from "effect/Schema";
 import { observeResize } from "~/lib/observeResize";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -35,6 +36,8 @@ import {
   type Painted,
 } from "./sheet-paint";
 import { externalUrl } from "./links";
+
+const isSupersededError = Schema.is(SupersededError);
 
 type Client = ReturnType<typeof createWorkerClient<SheetMethods>>;
 type Opened = {
@@ -282,7 +285,7 @@ function SpreadsheetGrid(props: {
             schedule();
           })
           .catch((cause: unknown) => {
-            if (!(cause instanceof SupersededError) && !controller.signal.aborted)
+            if (!isSupersededError(cause) && !controller.signal.aborted)
               setNotice(translateSource("These cells could not be drawn."));
           });
       }

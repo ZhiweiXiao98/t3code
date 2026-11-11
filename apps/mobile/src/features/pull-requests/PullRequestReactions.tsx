@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { useNavigation } from "@react-navigation/native";
 import {
   applyPendingPullRequestReactions,
@@ -89,7 +90,7 @@ function ReactionPills(props: {
       ))}
       {props.canReact ? (
         <Menu
-          accessibilityLabel="Add a reaction"
+          accessibilityLabel={localizeMobileString("Add a reaction")}
           actions={PULL_REQUEST_REACTION_ORDER.map((content) => ({
             id: content,
             title: `${pullRequestReactionEmoji(content)}  ${pullRequestReactionName(content)}`,
@@ -169,7 +170,7 @@ export function PullRequestCommentFooter(props: {
       {canEdit && editableKind !== null ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Edit comment"
+          accessibilityLabel={localizeMobileString("Edit comment")}
           onPress={() => {
             props.onEdit?.();
             navigation.navigate("PullRequestEdit", {

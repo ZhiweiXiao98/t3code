@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { NativeAppBarExample } from "./NativeAppBarExample";
 import { Toast } from "../../components/ui/Toast";
 import { Progress } from "../../components/ui/Progress";
@@ -59,7 +60,7 @@ export function ComponentCatalogScreen() {
   };
   return (
     <View className="flex-1 bg-screen">
-      <AppBar title="UI components" onBack={() => navigation.goBack()} sidebar={false} />
+      <AppBar title="UI components" onBack={() => navigation.goBack()} />
       <ScreenScrollView
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{ padding: 16, gap: 20, paddingBottom: 40 }}
@@ -159,7 +160,7 @@ export function ComponentCatalogScreen() {
                 <Button label="Disabled" disabled onPress={announceAction} />
                 <Button label="Loading" loading onPress={announceAction} />
                 <IconButton
-                  accessibilityLabel="Open example sheet"
+                  accessibilityLabel={localizeMobileString("Open example sheet")}
                   icon="plus"
                   variant="tonal"
                   onPress={() => setSheet(true)}
@@ -172,7 +173,7 @@ export function ComponentCatalogScreen() {
           <View className="gap-3">
             <AppText className="text-lg font-t3-semibold">Forms</AppText>
             <AppTextInput
-              accessibilityLabel="Example name"
+              accessibilityLabel={localizeMobileString("Example name")}
               placeholder="Name"
               value={text}
               onChangeText={setText}
@@ -180,7 +181,7 @@ export function ComponentCatalogScreen() {
             <View className="flex-row">
               <SearchField
                 inputRef={searchRef}
-                accessibilityLabel="Search examples"
+                accessibilityLabel={localizeMobileString("Search examples")}
                 clearAccessibilityLabel="Clear examples search"
                 placeholder="Search examples"
                 value={search}

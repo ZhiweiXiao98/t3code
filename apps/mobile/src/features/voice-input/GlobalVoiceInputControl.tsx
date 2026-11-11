@@ -112,7 +112,7 @@ function EdgeDictationPill(props: {
           >
             <Pressable
               accessibilityLabel={`${presentation.statusLabel}, dictating into ${label}`}
-              accessibilityHint="Shows dictation controls"
+              accessibilityHint={localizeMobileString("Shows dictation controls")}
               accessibilityRole="button"
               className="flex-1 flex-row items-center justify-center gap-1.5 active:opacity-70"
               hitSlop={{ top: 6, bottom: 6, left: 6 }}
@@ -161,7 +161,7 @@ function EdgeDictationPill(props: {
             </Pressable>
             <Pressable
               accessibilityLabel={isError ? (presentation.statusLabel ?? label) : label}
-              accessibilityHint="Hides dictation controls"
+              accessibilityHint={localizeMobileString("Hides dictation controls")}
               accessibilityRole="button"
               className="min-w-0 flex-1 justify-center self-stretch active:opacity-70"
               onPress={() => setExpanded(false)}

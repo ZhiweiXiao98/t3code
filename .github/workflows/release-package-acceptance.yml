@@ -1,5 +1,7 @@
-name: Existing package clean-install acceptance
+name: Historical v0.1.5 package clean-install acceptance
 
+# Historical published bytes and hashes only. Not a v0.1.8 candidate gate.
+# New candidates use all seven same-run clean-install lanes in client-release.yml.
 on:
   push:
     branches: [maintenance/v0.1.5-zh-cloud]

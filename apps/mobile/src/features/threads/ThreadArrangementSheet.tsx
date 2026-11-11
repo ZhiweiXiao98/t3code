@@ -129,7 +129,9 @@ function DragHandle(props: {
         accessible
         accessibilityRole="adjustable"
         accessibilityLabel={`Reorder ${props.title}`}
-        accessibilityHint="Move up and Move down reorder within this section. Other actions move between sections."
+        accessibilityHint={localizeMobileString(
+          "Move up and Move down reorder within this section. Other actions move between sections.",
+        )}
         accessibilityState={{ disabled: props.disabled }}
         accessibilityActions={[
           ...props.sectionActions,

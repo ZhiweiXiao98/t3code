@@ -286,7 +286,7 @@ export function ConnectionEnvironmentRow(props: {
 
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Reconnect environment"
+                accessibilityLabel={localizeMobileString("Reconnect environment")}
                 accessibilityState={{ disabled: !enabled }}
                 className="h-[42px] w-[42px] items-center justify-center rounded-[14px] border border-input-border bg-input active:opacity-70 disabled:opacity-40"
                 disabled={!enabled}
@@ -302,7 +302,7 @@ export function ConnectionEnvironmentRow(props: {
 
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Remove environment"
+                accessibilityLabel={localizeMobileString("Remove environment")}
                 className="h-[42px] w-[42px] items-center justify-center rounded-[14px] border border-danger-border bg-danger active:opacity-70"
                 onPress={() => props.onRemove(props.environment.environmentId)}
               >

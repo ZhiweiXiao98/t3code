@@ -1,6 +1,8 @@
 import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 
 const EN_MESSAGES = {
+  "upstream.sidebar.followSettings": "Follow settings",
+  "upstream.sidebar.never": "Never",
   "onboarding.skippedComputers": "Skipped unavailable computers: {computers}.",
   "managedPolicy.telemetryOff": "{organization} turned off anonymous usage data.",
   "project.pinAction": "Pin {name}",
@@ -4182,6 +4184,8 @@ export type WebMessages = Readonly<Record<WebMessageKey, string>>;
 export type WebMessageValues = Readonly<Record<string, string | number>>;
 
 const ZH_CN_MESSAGES = {
+  "upstream.sidebar.followSettings": "跟随设置",
+  "upstream.sidebar.never": "从不",
   "onboarding.skippedComputers": "已跳过不可用的计算机：{computers}。",
   "managedPolicy.telemetryOff": "{organization} 已关闭匿名使用数据。",
   "project.pinAction": "置顶 {name}",
@@ -8192,6 +8196,41 @@ for (const [key, source] of Object.entries(EN_MESSAGES) as ReadonlyArray<
 // New upstream settings copy can be localized here before it receives a stable
 // message key. Settings containers and search both consume this same table.
 const ZH_CN_SOURCE_MESSAGES: Readonly<Record<string, string>> = {
+  "Welcome to T3 Code": "欢迎使用 T3 Code",
+  "Finishing setup": "正在完成设置",
+  "One moment.": "请稍候。",
+  Welcome: "欢迎",
+  Phone: "手机",
+  "Turn on": "启用",
+  "Set up": "设置",
+  Update: "更新",
+  Details: "详情",
+  "This connection cannot manage agents.": "当前连接无权管理 Agent。",
+  "Add more agents": "添加更多 Agent",
+  "Set up an agent": "设置 Agent",
+  "More agents in the ACP Registry": "在 ACP Registry 中查找更多 Agent",
+  Browse: "浏览",
+  "Import projects and their threads": "导入项目及其会话",
+  Hide: "隐藏",
+  "Use T3 Code on your phone": "在手机上使用 T3 Code",
+  "Scan with your phone to get the app.": "使用手机扫码下载应用。",
+  "T3 Code app for iPhone and Android": "适用于 iPhone 和 Android 的 T3 Code 应用",
+  "Checking T3 Connect…": "正在检查 T3 Connect…",
+  "Could not check T3 Connect.": "无法检查 T3 Connect。",
+  "Check T3 Connect": "检查 T3 Connect",
+  "Your phone can reach this computer. Sign in to the app with the same account.":
+    "手机可以连接这台电脑。请在手机应用中登录同一账号。",
+  "T3 Connect is on for this computer. Sign in to the app with the same account.":
+    "这台电脑已启用 T3 Connect。请在手机应用中登录同一账号。",
+  "T3 Connect is on, but the app cannot reach this computer.":
+    "T3 Connect 已启用，但手机应用无法连接这台电脑。",
+  "Signed in. Share this computer so the app can reach it.":
+    "已登录。请共享这台电脑，以便手机应用连接。",
+  "Set up T3 Connect": "设置 T3 Connect",
+  "Could not save Codex setup": "无法保存 Codex 设置",
+  "This connection cannot import projects or thread history.": "当前连接无权导入项目或会话历史。",
+  "Add to PATH": "添加到 PATH",
+
   failures: "失败",
   completions: "完成",
   "input requests": "输入请求",

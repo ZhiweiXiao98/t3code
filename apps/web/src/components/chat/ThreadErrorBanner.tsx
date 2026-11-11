@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { useStableCallback } from "~/hooks/useStableCallback";
 import type { WebTranslate } from "~/i18n/WebI18nContext";
 import { useI18n } from "~/i18n/WebI18nContext";
@@ -17,7 +18,7 @@ import { OpenAI } from "../Icons";
 import { ChatGptUsageButton } from "../settings/ChatGptUsageButton";
 import { ExpandableText } from "../settings/ExpandableText";
 
-function copyAdminRequest(controlsT: WebTranslate) {
+export function copyAdminRequest(controlsT: WebTranslate = readWebI18n().t) {
   void writeTextToClipboard(CHATGPT_WORKSPACE_ADMIN_REQUEST, "admin request").then(
     () =>
       toastManager.add({
@@ -101,11 +102,7 @@ export const ThreadErrorBanner = memo(function ThreadErrorBanner({
           {chatGptLimit ? (
             <div className="space-y-1">
               <p className="font-medium">{controlsT("chatControls.copy70")}</p>
-              <p>
-                {workspaceLimit
-                  ? controlsT("chatControls.copy71")
-                  : controlsT("chatControls.copy72")}
-              </p>
+              {workspaceLimit ? <p>{controlsT("chatControls.copy71")}</p> : null}
             </div>
           ) : (
             <ExpandableText text={error} collapsedText={getThreadErrorBannerMessage(error)} />

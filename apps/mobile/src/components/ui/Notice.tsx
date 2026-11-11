@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { useEffect } from "react";
 import { AccessibilityInfo, Platform, Pressable, View } from "react-native";
 
@@ -19,7 +20,8 @@ export function Notice(props: {
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- announces the message to VoiceOver through AccessibilityInfo
   useEffect(() => {
     // Live regions reach TalkBack; VoiceOver needs an explicit announcement.
-    if (Platform.OS === "ios") AccessibilityInfo.announceForAccessibility(props.message);
+    if (Platform.OS === "ios")
+      AccessibilityInfo.announceForAccessibility(localizeMobileString(props.message));
   }, [props.message]);
 
   const content = (
@@ -52,7 +54,7 @@ export function Notice(props: {
       {props.onDismiss ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={props.dismissLabel ?? "Dismiss message"}
+          accessibilityLabel={localizeMobileString(props.dismissLabel ?? "Dismiss message")}
           onPress={props.onDismiss}
           hitSlop={10}
           className="min-h-6 min-w-6 items-center justify-center active:opacity-60"

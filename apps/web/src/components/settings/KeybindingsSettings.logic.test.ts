@@ -1,10 +1,8 @@
 import { DEFAULT_RESOLVED_KEYBINDINGS } from "@t3tools/shared/keybindings";
 import {
   buildKeybindingCommandOptions,
-  buildWhenVariableOptions,
   commandLabel,
   filterKeybindingRows,
-  unknownWhenVariables,
   whenNodeRemoveLabel,
 } from "./KeybindingsSettings.logic";
 import { assert, describe, expect, it } from "vite-plus/test";
@@ -20,11 +18,13 @@ import { translateWebMessage } from "../../i18n/messages";
 
 import {
   buildKeybindingRows,
+  buildWhenVariableOptions,
   keybindingConflictLabels,
   keybindingFromKeyboardEvent,
   localizedCommandLabel,
   parseWhenExpressionDraft,
   shortcutToKeybindingInput,
+  unknownWhenVariables,
   whenAstToExpression,
 } from "./KeybindingsSettings.logic";
 
@@ -284,6 +284,10 @@ describe("KeybindingsSettings.logic", () => {
         },
       },
     });
+    const previewOpenDraft = parseWhenExpressionDraft("previewOpen && !previewFocus");
+    assert(previewOpenDraft.ok);
+    expect(unknownWhenVariables(previewOpenDraft.value)).toEqual([]);
+    expect(buildWhenVariableOptions()).toContain("previewOpen");
     expect(parseWhenExpressionDraft("editorFocus &&")).toEqual({
       ok: false,
       message: "Use variables with !, &&, ||, and parentheses.",

@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { Button } from "../../components/ui/Button";
 import type { ChatAttachment, EnvironmentId } from "@t3tools/contracts";
 import { Image } from "expo-image";
@@ -21,7 +22,7 @@ export function ComposerQueuedEditBanner(props: {
       <Button
         label="Cancel"
         tone="text"
-        accessibilityLabel="Cancel editing queued message"
+        accessibilityLabel={localizeMobileString("Cancel editing queued message")}
         disabled={props.saving}
         onPress={props.onCancel}
       />

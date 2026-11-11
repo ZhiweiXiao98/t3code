@@ -1,13 +1,12 @@
+import { localizeMobileString } from "../../../i18n/mobileStrings";
 import { sanitizeFeatureBranchName } from "@t3tools/shared/git";
 import { useNavigation, type StaticScreenProps } from "@react-navigation/native";
 import { useState } from "react";
 import { Platform, Pressable, ScrollView, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { AndroidSheetHeader } from "../../../components/ui/AndroidScreenHeader";
 import { SheetHeader } from "../../../components/ui/SheetHeader";
 import { ScreenContent } from "../../../components/ui/ScreenContent";
-import { NativeStackScreenOptions } from "../../../native/StackHeader";
 import { AppText as Text, AppTextInput as TextInput } from "../../../components/ui/AppText";
 import { cn } from "../../../lib/cn";
 import { useEnvironmentQuery } from "../../../state/query";
@@ -35,7 +34,7 @@ export function GitBranchesSheet(_props: GitBranchesSheetProps) {
 
   const gitStatus = useEnvironmentQuery(
     selectedThread !== null && selectedThreadCwd !== null
-      ? vcsEnvironment.status({
+      ? vcsEnvironment.branch({
           environmentId: selectedThread.environmentId,
           input: { cwd: selectedThreadCwd },
         })
@@ -66,35 +65,14 @@ export function GitBranchesSheet(_props: GitBranchesSheetProps) {
   return (
     <View
       collapsable={false}
-      className="bg-sheet ios:flex-1"
+      className="bg-sheet ios:flex-1 android:flex-col-reverse"
       style={Platform.OS === "android" ? { maxHeight: windowHeight * 0.92 } : undefined}
     >
-      {Platform.OS === "android" ? (
-        <NativeStackScreenOptions
-          options={{
-            sheetCornerRadius: 28,
-            sheetAllowedDetents: "fitToContents",
-          }}
-        />
-      ) : null}
-      {Platform.OS === "android" ? (
-        <AndroidSheetHeader
-          title="Branches & worktrees"
-          onBack={() => navigation.goBack()}
-          hideBottomBorder
-        />
-      ) : (
-        <SheetHeader
-          presentation="native"
-          title="Branches & worktrees"
-          onClose={() => navigation.goBack()}
-        />
-      )}
       <ScreenContent fitToContents>
         <ScrollView
           nestedScrollEnabled
           className="android:shrink android:grow-0 ios:flex-1"
-          contentInsetAdjustmentBehavior={Platform.OS === "ios" ? "automatic" : "never"}
+          contentInsetAdjustmentBehavior="automatic"
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           contentInset={{ bottom: Math.max(insets.bottom, 18) + 18 }}
@@ -113,7 +91,7 @@ export function GitBranchesSheet(_props: GitBranchesSheetProps) {
               value={newBranchName}
               onChangeText={setNewBranchName}
               placeholder="feature/mobile-polish"
-              accessibilityLabel="New branch name"
+              accessibilityLabel={localizeMobileString("New branch name")}
               className="android:rounded-xl android:bg-sheet-solid ios:rounded-[18px]"
             />
             <SheetActionButton
@@ -144,7 +122,7 @@ export function GitBranchesSheet(_props: GitBranchesSheetProps) {
               value={worktreeBaseBranch}
               onChangeText={setWorktreeBaseBranchOverride}
               placeholder="main"
-              accessibilityLabel="Worktree base branch"
+              accessibilityLabel={localizeMobileString("Worktree base branch")}
               className="android:rounded-xl android:bg-sheet-solid ios:rounded-[18px]"
             />
             {Platform.OS === "android" ? (
@@ -154,7 +132,7 @@ export function GitBranchesSheet(_props: GitBranchesSheetProps) {
               value={worktreeBranchName}
               onChangeText={setWorktreeBranchName}
               placeholder="feature/mobile-thread"
-              accessibilityLabel="Worktree branch name"
+              accessibilityLabel={localizeMobileString("Worktree branch name")}
               className="android:rounded-xl android:bg-sheet-solid ios:rounded-[18px]"
             />
             <SheetActionButton
@@ -241,6 +219,7 @@ export function GitBranchesSheet(_props: GitBranchesSheetProps) {
           </View>
         </ScrollView>
       </ScreenContent>
+      <SheetHeader title="Branches & worktrees" onClose={() => navigation.goBack()} />
     </View>
   );
 }

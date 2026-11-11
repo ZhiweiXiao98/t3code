@@ -3,7 +3,6 @@ import { SheetHeader } from "../../components/ui/SheetHeader";
 import { AppActivityIndicator } from "../../components/ui/AppActivityIndicator";
 import * as Dialog from "../../components/ui/Dialog";
 import { useIsFocused, useNavigation, type StaticScreenProps } from "@react-navigation/native";
-import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { EnvironmentId, ThreadId, type PreviewSessionSnapshot } from "@t3tools/contracts";
 import { normalizePreviewUrl, previewPdfAssetUrl } from "@t3tools/shared/preview";
 import * as Option from "effect/Option";
@@ -13,7 +12,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ControlPill } from "../../components/ui/ControlPill";
 import { useAppForeground } from "../../lib/appState";
-import { AppBar } from "../../components/ui/AppBar";
 
 import { useThreadServerBrowserTabs } from "../../state/preview";
 import { usePreparedConnection } from "../../state/session";
@@ -25,8 +23,6 @@ import {
   type PreviewPictureInPictureState,
   type PreviewStreamRef,
 } from "./PreviewStreamWebView";
-
-const BrowserPreviewStack = createNativeStackNavigator<{ BrowserPreview: undefined }>();
 
 const NO_PICTURE_IN_PICTURE: PreviewPictureInPictureState = { supported: false, active: false };
 
@@ -40,28 +36,12 @@ export function BrowserPreviewRouteScreen({ route }: BrowserPreviewRouteScreenPr
   const navigation = useNavigation();
   const onClose = () => navigation.goBack();
   return (
-    <View collapsable={false} className="flex-1 bg-sheet">
-      <BrowserPreviewStack.Navigator
-        screenOptions={{
-          headerShown: Platform.OS === "ios",
-          headerBackVisible: false,
-          headerShadowVisible: false,
-          headerTransparent: false,
-          headerTitleStyle: { fontSize: 17, fontWeight: "600" },
-        }}
-      >
-        <BrowserPreviewStack.Screen name="BrowserPreview">
-          {() => (
-            <BrowserPreviewScreen
-              environmentId={EnvironmentId.make(route.params.environmentId)}
-              threadId={ThreadId.make(route.params.threadId)}
-              initialTabId={route.params.tabId ?? null}
-              onClose={onClose}
-            />
-          )}
-        </BrowserPreviewStack.Screen>
-      </BrowserPreviewStack.Navigator>
-    </View>
+    <BrowserPreviewScreen
+      environmentId={EnvironmentId.make(route.params.environmentId)}
+      threadId={ThreadId.make(route.params.threadId)}
+      initialTabId={route.params.tabId ?? null}
+      onClose={onClose}
+    />
   );
 }
 
@@ -112,11 +92,10 @@ function BrowserPreviewScreen({
 
   return (
     <View className="flex-1 bg-sheet" style={{ paddingBottom: insets.bottom }}>
-      <AppBar
+      <SheetHeader
         title={tab ? browserTabTitle(tab) : "Browser"}
-        sidebar={false}
-        onBack={onClose}
-        options={{ headerBackVisible: false }}
+        onClose={onClose}
+        accessibilityLabel={localizeMobileString("Close browser")}
         actions={
           // Android WebView cannot play video in picture in picture.
           Platform.OS === "ios" &&
@@ -155,13 +134,6 @@ function BrowserPreviewScreen({
             : []
         }
       />
-      {Platform.OS === "ios" ? (
-        <SheetHeader
-          title={tab ? browserTabTitle(tab) : "Browser"}
-          onClose={onClose}
-          accessibilityLabel={localizeMobileString("Close browser")}
-        />
-      ) : null}
       {tab ? (
         <>
           <BrowserAddressBar

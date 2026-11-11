@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../../../i18n/mobileStrings";
 import { BranchNamingMode, type ServerSettingsPatch } from "@t3tools/contracts";
 import { useEffect, useEffectEvent, useRef } from "react";
 import { View } from "react-native";
@@ -78,7 +79,7 @@ export function BranchNamingSettings(props: {
           </Text>
           <AppTextInput
             key={props.prefix}
-            accessibilityLabel="Branch prefix"
+            accessibilityLabel={localizeMobileString("Branch prefix")}
             onChangeText={(text) => edit("branchNamePrefix", text)}
             defaultValue={props.prefix ?? ""}
             placeholder={props.prefix === null ? "Mixed" : "No prefix"}
@@ -97,7 +98,7 @@ export function BranchNamingSettings(props: {
           </Text>
           <AppTextInput
             key={props.instructions}
-            accessibilityLabel="Branch naming instructions"
+            accessibilityLabel={localizeMobileString("Branch naming instructions")}
             onChangeText={(text) => edit("branchNameInstructions", text)}
             defaultValue={props.instructions ?? ""}
             placeholder={

@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { useAtomValue } from "@effect/atom-react";
 import {
   isAtomCommandInterrupted,
@@ -59,7 +60,7 @@ export function ProposedPlanCard(props: {
         <Text accessibilityRole="header" className="flex-1 font-t3-bold text-base text-foreground">
           {proposedPlanTitle(props.markdown) ?? "Proposed plan"}
         </Text>
-        <CopyTextButton accessibilityLabel="Copy plan" text={contents} />
+        <CopyTextButton accessibilityLabel={localizeMobileString("Copy plan")} text={contents} />
       </View>
       {props.renderMarkdown(stripDisplayedPlanMarkdown(props.markdown))}
       <View className="flex-row">

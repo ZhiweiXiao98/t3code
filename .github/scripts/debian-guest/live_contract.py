@@ -28,12 +28,12 @@ def validate_snapshot(c,s,pins,log):
     require(s['repo']['private'] is False and s['repo']['full_name']==c.repository,'Not public expected repo')
     r=s['run']; j=s['producer']; consumer=s['consumer']
     require((r['id'],r['run_attempt'],r['head_sha'])==(c.run_id,c.attempt,c.head_sha),'Wrong run/attempt/head')
-    require(r.get('head_branch')=='maintenance/v0.1.7-zh-cloud' and r.get('path')=='.github/workflows/client-release.yml','Wrong source branch/workflow')
+    require(r.get('head_branch')=='maintenance/v0.1.8-zh-cloud' and r.get('path')=='.github/workflows/client-release.yml','Wrong source branch/workflow')
     require(r.get('repository',{}).get('full_name')==c.repository and r.get('head_repository',{}).get('full_name')==c.repository,'Wrong run repository')
     require(r['status']=='in_progress' and r.get('conclusion') is None or r['status']=='completed' and r.get('conclusion')=='success','Run failed/cancelled/not started')
     for job,ident in ((j,c.producer_job_id),(consumer,c.consumer_job_id)):
         require((job['id'],job['run_id'],job['run_attempt'],job['head_sha'])==(ident,c.run_id,c.attempt,c.head_sha),'Wrong job identity')
-    require(j.get('head_branch')=='maintenance/v0.1.7-zh-cloud' and consumer.get('head_branch')=='maintenance/v0.1.7-zh-cloud','Wrong job source branch')
+    require(j.get('head_branch')=='maintenance/v0.1.8-zh-cloud' and consumer.get('head_branch')=='maintenance/v0.1.8-zh-cloud','Wrong job source branch')
     require(j['name']=='Linux x64 and embedded Windows WSL runtime' and j['status']=='completed' and j['conclusion']=='success','Producer not successfully complete')
     require(consumer['name']==('Clean desktop appimage Debian 13 guest (Ubuntu 24.04 host) first start' if c.mode==MODE else 'Clean desktop deb first start'),'Wrong consumer lane')
     require('ubuntu-24.04' in consumer['labels'],'Not standard Ubuntu host')
@@ -45,7 +45,7 @@ def validate_snapshot(c,s,pins,log):
     require(pins['artifactId']!=pins['proofArtifactId'] and pins['packageUploadStepNumber']!=pins['proofUploadStepNumber'],'Distinct uploads required')
     for a,name,idkey,hashkey,stepkey in ((s['installer'],'client-linux-x64','artifactId','artifactZipSha256','packageUploadStepNumber'),(s['proof'],'linux-build-proof','proofArtifactId','proofZipSha256','proofUploadStepNumber')):
         require(a['id']==pins[idkey] and a['name']==name and a['expired'] is False,'Wrong artifact')
-        require(a['workflow_run']['id']==c.run_id and a['workflow_run']['head_sha']==c.head_sha and a['workflow_run'].get('head_branch')=='maintenance/v0.1.7-zh-cloud','Artifact outside current run')
+        require(a['workflow_run']['id']==c.run_id and a['workflow_run']['head_sha']==c.head_sha and a['workflow_run'].get('head_branch')=='maintenance/v0.1.8-zh-cloud','Artifact outside current run')
         require(re.fullmatch('[0-9a-f]{64}',pins[hashkey]) and a['digest']=='sha256:'+pins[hashkey],'Artifact digest mismatch')
         require(date(a['expires_at'])>datetime.now(timezone.utc),'Expired artifact timestamp')
         require(type(a['size_in_bytes']) is int and a['size_in_bytes']>0,'Artifact size missing')

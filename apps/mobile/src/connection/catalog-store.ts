@@ -33,6 +33,8 @@ function catalogError(operation: string, cause: unknown) {
   });
 }
 
+const decodeCatalogJson = Schema.decodeUnknownEffect(Schema.fromJsonString(Schema.Unknown));
+const encodeCatalogJson = Schema.encodeUnknownEffect(Schema.fromJsonString(Schema.Unknown));
 const EncodedConnectionCatalogDocument = Schema.toEncoded(ConnectionCatalogDocument);
 const decodeEncodedConnectionCatalogDocument = Schema.decodeUnknownEffect(
   EncodedConnectionCatalogDocument,
@@ -104,10 +106,9 @@ function hydrateCatalog(catalog: EncodedConnectionCatalog): ConnectionCatalogDoc
 }
 
 const decodeCatalog = Effect.fn("mobile.connectionStorage.decodeCatalog")(function* (raw: string) {
-  const parsed = yield* Effect.try({
-    try: () => JSON.parse(raw) as unknown,
-    catch: (cause) => catalogError("parse", cause),
-  });
+  const parsed = yield* decodeCatalogJson(raw).pipe(
+    Effect.mapError((cause) => catalogError("parse", cause)),
+  );
   const catalog = yield* decodeEncodedConnectionCatalogDocument(parsed).pipe(
     Effect.mapError((cause) => catalogError("decode", cause)),
   );
@@ -120,10 +121,9 @@ const decodeCatalog = Effect.fn("mobile.connectionStorage.decodeCatalog")(functi
 const encodeCatalog = Effect.fn("mobile.connectionStorage.encodeCatalog")(function* (
   catalog: ConnectionCatalogDocumentType,
 ) {
-  return yield* Effect.try({
-    try: () => JSON.stringify(catalog),
-    catch: (cause) => catalogError("encode", cause),
-  });
+  return yield* encodeCatalogJson(catalog).pipe(
+    Effect.mapError((cause) => catalogError("encode", cause)),
+  );
 });
 
 interface CatalogStore {

@@ -1,9 +1,10 @@
 import { translateWebMessage } from "../../i18n/messages";
-import type { DesktopUpdateState, DesktopWslState } from "@t3tools/contracts";
+import { type DesktopUpdateState, type DesktopWslState, EnvironmentId } from "@t3tools/contracts";
 import { describe, expect, it, vi } from "vite-plus/test";
 import {
   resolveLocalVersionStatusLabel,
   applyWslEnableSelection,
+  resolveAccessEnvironmentId,
   resolveTailscaleServeBaseUrl,
   selectQrEndpointOption,
   togglePairingScopeSelection,
@@ -203,5 +204,61 @@ describe("localized local version status", () => {
         translateWebMessage("zh-CN", key, values),
       ),
     ).toBe(chinese);
+  });
+});
+
+describe("resolveAccessEnvironmentId", () => {
+  const primary = EnvironmentId.make("primary");
+  const service = EnvironmentId.make("service");
+  const laptop = EnvironmentId.make("laptop");
+  it.each([
+    {
+      label: "defaults to the primary environment",
+      primaryEnvironmentId: primary,
+      environments: [
+        { environmentId: primary, connected: true },
+        { environmentId: service, connected: true },
+      ],
+      selected: null,
+      expected: primary,
+    },
+    {
+      label: "falls back to a connected saved environment without a primary",
+      primaryEnvironmentId: null,
+      environments: [
+        { environmentId: laptop, connected: false },
+        { environmentId: service, connected: true },
+      ],
+      selected: null,
+      expected: service,
+    },
+    {
+      label: "keeps an explicit choice",
+      primaryEnvironmentId: primary,
+      environments: [
+        { environmentId: primary, connected: true },
+        { environmentId: laptop, connected: false },
+      ],
+      selected: laptop,
+      expected: laptop,
+    },
+    {
+      label: "drops a choice that is no longer listed",
+      primaryEnvironmentId: null,
+      environments: [{ environmentId: service, connected: true }],
+      selected: laptop,
+      expected: service,
+    },
+    {
+      label: "has nothing to show without environments",
+      primaryEnvironmentId: null,
+      environments: [],
+      selected: null,
+      expected: null,
+    },
+  ])("$label", ({ primaryEnvironmentId, environments, selected, expected }) => {
+    expect(resolveAccessEnvironmentId({ primaryEnvironmentId, environments, selected })).toBe(
+      expected,
+    );
   });
 });

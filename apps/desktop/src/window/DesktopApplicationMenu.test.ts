@@ -11,7 +11,12 @@ import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Ref from "effect/Ref";
 
-import type * as Electron from "electron";
+import * as Electron from "electron";
+import { vi } from "vite-plus/test";
+
+vi.mock("electron", () => ({
+  webContents: { getAllWebContents: vi.fn(() => []) },
+}));
 
 import * as ElectronApp from "../electron/ElectronApp.ts";
 import * as ElectronDialog from "../electron/ElectronDialog.ts";
@@ -43,6 +48,7 @@ const layerElectronApp = (systemLocale = "en-US") =>
     metadata: Effect.die("unexpected metadata read"),
     name: Effect.succeed("T3 Code"),
     systemLocale: Effect.succeed(systemLocale),
+    preferredSystemLanguages: Effect.succeed([systemLocale]),
     whenReady: Effect.void,
     requestSingleInstanceLock: Effect.succeed(true),
     quit: Effect.void,
@@ -683,10 +689,32 @@ describe("DesktopApplicationMenu", () => {
           items.find((item) => item.role === "windowMenu" && item.submenu === undefined),
           platform,
         );
-        assert.isUndefined(
-          items.find((item) => item.accelerator?.toLowerCase().endsWith("+w")),
-          platform,
-        );
+        const closeTools = items.find((item) => item.accelerator === "CmdOrCtrl+W");
+        assert.equal(closeTools?.label, "Close Developer Tools", platform);
+        assert.isFunction(closeTools?.click);
+        const appContents = {
+          isDestroyed: () => false,
+          isDevToolsFocused: () => false,
+          closeDevTools: vi.fn(),
+        };
+        const inspectedContents = {
+          ...appContents,
+          isDevToolsFocused: () => true,
+          closeDevTools: vi.fn(),
+        };
+        using allContents = vi
+          .spyOn(Electron.webContents, "getAllWebContents")
+          .mockReturnValue([
+            appContents as unknown as Electron.WebContents,
+            inspectedContents as unknown as Electron.WebContents,
+          ]);
+        closeTools?.click?.({} as Electron.MenuItem, undefined, {} as KeyboardEvent);
+        assert.equal(inspectedContents.closeDevTools.mock.calls.length, 1);
+        assert.equal(appContents.closeDevTools.mock.calls.length, 0);
+
+        allContents.mockReturnValue([appContents as unknown as Electron.WebContents]);
+        closeTools?.click?.({} as Electron.MenuItem, undefined, {} as KeyboardEvent);
+        assert.equal(appContents.closeDevTools.mock.calls.length, 0);
       }
     }),
   );

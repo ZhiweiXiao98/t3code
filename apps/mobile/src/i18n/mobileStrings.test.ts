@@ -4,6 +4,24 @@ import { localizeAlertArguments, localizeMobileString } from "./mobileStrings";
 import { localizeMobileVoiceError } from "./mobileVoiceStrings";
 
 describe("mobile strings", () => {
+  it("localizes v0.1.8 session, transcription, merge-back and diagram controls", () => {
+    const messages = {
+      "Keep the current session": "保留当前会话",
+      "Start a fresh session": "开始全新会话",
+      "Merge back to source": "合并回源任务",
+      "Transcribe on": "转写位置",
+      "Audio stays on this device and is transcribed here.": "音频保留在此设备上，并在此处转写。",
+      "Show diagram": "显示图表",
+      "Close inspector": "关闭检查面板",
+      "Save image": "保存图片",
+      "Fast worktree checkout": "快速检出工作树",
+    };
+    for (const [source, translated] of Object.entries(messages)) {
+      expect(localizeMobileString(source, "zh-CN")).toBe(translated);
+      expect(localizeMobileString(source, "en")).toBe(source);
+    }
+  });
+
   it("localizes the new native child work and one-time scheduling copy in Chinese only", () => {
     const messages = {
       "Approval from": "批准请求来自",

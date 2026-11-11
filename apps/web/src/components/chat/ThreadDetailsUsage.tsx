@@ -1,3 +1,4 @@
+import { formatContextWindowCompactionMessage } from "./compaction.logic";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
 import type {
@@ -18,7 +19,8 @@ import type { ReactNode } from "react";
 
 import { usePrimarySettings } from "../../hooks/useSettings";
 import { useNowMinute } from "../../hooks/useNowMinute";
-import { type ContextWindowSnapshot, formatContextWindowTokens } from "../../lib/contextWindow";
+import type { ContextWindowSnapshot } from "@t3tools/client-runtime/state/context-window";
+import { formatContextWindowTokens } from "../../lib/contextWindow";
 import { cn } from "../../lib/utils";
 import { formatUpcomingTimestamp } from "../../timestampFormat";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
@@ -137,7 +139,7 @@ export function ThreadDetailsContext({ usage }: { readonly usage: ContextWindowS
               ) : null}
               {threshold !== null && threshold > 0 ? (
                 <span className="text-muted-foreground">
-                  {t("usage.details.autoCompactAt", { tokens: threshold.toLocaleString() })}
+                  {formatContextWindowCompactionMessage(threshold, incrementalLocale)}
                 </span>
               ) : null}
             </>

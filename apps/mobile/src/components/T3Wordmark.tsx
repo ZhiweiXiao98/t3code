@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../i18n/mobileStrings";
 import type { ColorValue } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { withUniwind } from "uniwind";
@@ -12,7 +13,7 @@ export function T3Wordmark(props: {
   const aspectRatio = 94.3941 / 56.96;
   return (
     <Svg
-      accessibilityLabel="T3"
+      accessibilityLabel={localizeMobileString("T3")}
       height={props.height}
       width={props.height * aspectRatio}
       viewBox="15.5309 37 94.3941 56.96"

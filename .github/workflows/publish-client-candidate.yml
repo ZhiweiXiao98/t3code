@@ -24,7 +24,7 @@ on:
 permissions: {}
 
 concurrency:
-  group: publish-community-client-v0.1.6-zh.1
+  group: publish-community-client-v0.1.8-zh.1
   cancel-in-progress: false
 
 jobs:
@@ -55,7 +55,7 @@ jobs:
           import datetime, hashlib, json, os, pathlib, re, shutil, stat, subprocess, zipfile
 
           repo = 'ZhiweiXiao98/t3code'
-          branch = 'maintenance/v0.1.6-zh-cloud'
+          branch = 'maintenance/v0.1.8-zh-cloud'
           run_id = os.environ['CANDIDATE_RUN_ID']
           sha = os.environ['EXPECTED_SHA']
           attempt = os.environ['EXPECTED_ATTEMPT']
@@ -66,6 +66,7 @@ jobs:
           assert os.environ['GITHUB_REPOSITORY'] == repo
           assert os.environ['GITHUB_REF'] == 'refs/heads/' + branch
           assert os.environ['GITHUB_EVENT_NAME'] == 'workflow_dispatch'
+          assert os.environ['GITHUB_SHA'] == sha, 'Publisher source must match the reviewed candidate exactly'
           base = f'repos/{repo}'
           def api(path):
               return json.loads(subprocess.check_output(['gh', 'api', base + path]))
@@ -94,7 +95,7 @@ jobs:
               'Desktop win x64 (integrity checked)', 'Desktop mac arm64 (integrity checked)', 'Desktop mac x64 (integrity checked)',
               'Clean macOS arm64 dmg first start', 'Clean macOS arm64 zip first start',
               'Clean macOS x64 dmg first start', 'Clean macOS x64 zip first start',
-              'Clean desktop deb first start', 'Clean desktop appimage first start', 'Clean desktop nsis first start',
+              'Clean desktop deb first start', 'Clean desktop appimage Debian 13 guest (Ubuntu 24.04 host) first start', 'Clean desktop nsis first start',
               'Android arm64 unsigned candidate (NOT installable)',
           }
           assert jobs['total_count'] == len(required_jobs) == len(jobs['jobs']), 'Missing or unexpected candidate jobs'
@@ -104,7 +105,7 @@ jobs:
               assert matches[0]['head_sha'] == sha and matches[0]['run_id'] == int(run_id)
           assert api('/commits/' + sha)['sha'] == sha
           assert api('/git/ref/heads/' + branch)['object']['sha'] == sha, 'Maintenance branch moved; review again'
-          prefix = 'T3-Code-0.1.6-zh.1-'
+          prefix = 'T3-Code-0.1.8-zh.1-'
           specifications = {
               'client-linux-x64': ({prefix + 'x86_64.AppImage', prefix + 'amd64.deb'}, set()),
               'client-win-x64': ({prefix + 'x64.exe'}, set()),
@@ -165,7 +166,7 @@ jobs:
           assert run_snapshot() == run, 'Candidate was rerun or changed during verification'
           assert artifacts_snapshot() == artifacts, 'Candidate artifacts changed during verification'
           asset_records.sort(key=lambda a: a['name'])
-          manifest = {'repository': repo, 'version': '0.1.6-zh.1', 'source_sha': sha,
+          manifest = {'repository': repo, 'version': '0.1.8-zh.1', 'source_sha': sha,
                       'run_url': f'https://github.com/{repo}/actions/runs/{run_id}/attempts/{run["run_attempt"]}',
                       'run': run, 'artifacts': artifacts, 'assets': asset_records}
           manifest_path = output / 'BUILD-PROVENANCE.json'
@@ -215,24 +216,25 @@ jobs:
             const assert = require('node:assert/strict');
             const hash = data => crypto.createHash('sha256').update(data).digest('hex');
             const repo = {owner: 'ZhiweiXiao98', repo: 't3code'};
-            const branch = 'maintenance/v0.1.6-zh-cloud';
-            const tag = 'v0.1.6-zh.1';
+            const branch = 'maintenance/v0.1.8-zh-cloud';
+            const tag = 'v0.1.8-zh.1';
             assert.equal(context.repo.owner, repo.owner);
             assert.equal(context.repo.repo, repo.repo);
             assert.equal(context.ref, `refs/heads/${branch}`);
             assert.equal(context.eventName, 'workflow_dispatch');
+            assert.equal(context.sha, process.env.EXPECTED_SHA);
             const manifestBytes = fs.readFileSync('assets/BUILD-PROVENANCE.json');
             assert.equal(hash(manifestBytes), process.env.MANIFEST_SHA256);
             const m = JSON.parse(manifestBytes);
             assert.equal(m.repository, 'ZhiweiXiao98/t3code');
-            assert.equal(m.version, '0.1.6-zh.1');
+            assert.equal(m.version, '0.1.8-zh.1');
             assert.equal(m.source_sha, process.env.EXPECTED_SHA);
             assert.equal(String(m.run.id), process.env.CANDIDATE_RUN_ID);
             assert.equal(m.run.run_attempt, Number(process.env.EXPECTED_ATTEMPT));
             assert.match(m.source_sha, /^[0-9a-f]{40}$/);
-            const mandatory = ['T3-Code-0.1.6-zh.1-x86_64.AppImage', 'T3-Code-0.1.6-zh.1-amd64.deb',
-              'T3-Code-0.1.6-zh.1-x64.exe', 'T3-Code-0.1.6-zh.1-arm64.dmg', 'T3-Code-0.1.6-zh.1-x64.dmg',
-              'T3-Code-0.1.6-zh.1-arm64.zip', 'T3-Code-0.1.6-zh.1-x64.zip',
+            const mandatory = ['T3-Code-0.1.8-zh.1-x86_64.AppImage', 'T3-Code-0.1.8-zh.1-amd64.deb',
+              'T3-Code-0.1.8-zh.1-x64.exe', 'T3-Code-0.1.8-zh.1-arm64.dmg', 'T3-Code-0.1.8-zh.1-x64.dmg',
+              'T3-Code-0.1.8-zh.1-arm64.zip', 'T3-Code-0.1.8-zh.1-x64.zip',
               'MACOS-TRUST-arm64.txt', 'MACOS-TRUST-x64.txt'];
             const allowed = new Set(mandatory);
             const names = m.assets.map(a => a.name);
@@ -286,17 +288,18 @@ jobs:
             assert(!releases.some(r => r.tag_name === tag), 'Existing draft/release; refusing replacement');
             // Atomic ref creation prevents accidentally publishing on a raced existing tag.
             await github.rest.git.createRef({...repo, ref: `refs/tags/${tag}`, sha: m.source_sha});
-            const body = `基于上游稳定版 v0.1.6 的简体中文社区桌面正式发布：${m.version}。\n\n` +
-              `精确源码：${m.source_sha}\n构建记录：${m.run_url}\n上游版本：https://github.com/pingdotgg/t3code/releases/tag/v0.1.6\n\n` +
-              '本版增量同步 v0.1.6，保留已有汉化及上游功能，补齐侧聊、项目置顶与归档、模型和思考强度选择、密钥设置等新增界面文案，并保留中文桌面菜单、Windows 关闭窗口后驻留托盘等社区功能。\n\n' +
+            const body = `基于上游稳定版 v0.1.8 的简体中文社区桌面正式发布：${m.version}。\n\n` +
+              `精确源码：${m.source_sha}\n构建记录：${m.run_url}\n上游版本：https://github.com/pingdotgg/t3code/releases/tag/v0.1.8\n\n` +
+              '本版基于上游稳定版 v0.1.8 合并简体中文社区改动。\n\n' +
               '从 V1 升级必读：V2 首次启动会复制并导入 V1 数据，两个版本此后的数据不会互相同步。请先备份数据并更新所有连接的服务器和客户端；V1 客户端无法连接 V2 服务器。OpenCode 2 会迁移其共享数据库，不要与 OpenCode 1 并行运行。详细迁移说明：https://github.com/pingdotgg/t3code/issues/14871 。\n\n' +
               '提供 Windows x64、macOS Apple Silicon / Intel、Linux x64 共七个安装包。Windows 未做 Authenticode 签名；macOS 已做 ad-hoc 完整性签名并通过严格校验，但没有 Developer ID 商业签名或 Apple 公证。Gatekeeper 仍可能因未公证而阻止打开，这与安装包损坏是不同的检查结果；随附 MACOS-TRUST-*.txt 记录实际信任检查。升级前建议备份现有数据。\n\n' +
               'Android 新版本独立验证和发布，必须沿用已备份并通过恢复验证的固定签名身份；本桌面发布不包含未签名候选 APK。\n\n' +
-              '该精确提交的 22 项门禁全部通过，覆盖 lint、类型检查、完整测试、原生静态与回归检查、桌面打包、Android 未签名候选构建及七个桌面安装包的云端干净安装和首次启动验收（空白用户数据、正常沙箱）。这不是人工 Finder 操作验收，也不代表未经公证的 macOS 软件已获得系统信任。桌面产物校验后原样发布，没有重新构建。SHA256SUMS.txt 和 BUILD-PROVENANCE.json 记录完整性与来源，不代表商业签名。请手动下载，本版不提供自动更新源。\n';
+              '该精确提交的 22 项门禁全部通过，覆盖 lint、类型检查、完整测试、原生静态与回归检查、桌面打包、Android 未签名候选构建及七个桌面安装包的云端干净安装和首次启动验收（空白用户数据、正常沙箱）。Linux AppImage 在标准 Ubuntu 24.04 runner 上的 Debian 13 虚拟机内通过 FUSE 验收，DEB 在原生 Ubuntu 24.04 验收；AppImage 的结果不代表 Ubuntu 24.04 原生启动已通过。没有关闭沙箱或降低宿主系统安全设置。这不是人工 Finder 操作验收，也不代表未经公证的 macOS 软件已获得系统信任。桌面产物校验后原样发布，没有重新构建。SHA256SUMS.txt 和 BUILD-PROVENANCE.json 记录完整性与来源，不代表商业签名。请手动下载，本版不提供自动更新源。\n';
             const {data: release} = await github.rest.repos.createRelease({...repo, tag_name: tag,
               target_commitish: m.source_sha, name: `T3 Code 中文版 ${m.version} (community desktop clients)`,
               body, draft: true, prerelease: false, make_latest: 'false'});
             // A failure leaves a draft for investigation; never overwrite or auto-delete it.
+            const expectedAssets = [];
             for (const name of files) {
               const data = fs.readFileSync(`assets/${name}`);
               const {data: asset} = await github.rest.repos.uploadReleaseAsset({...repo,
@@ -304,11 +307,20 @@ jobs:
               assert.equal(asset.state, 'uploaded');
               assert.equal(asset.size, data.length);
               assert.equal(asset.digest, `sha256:${hash(data)}`);
+              expectedAssets.push({id: asset.id, name, state: 'uploaded', size: data.length, digest: `sha256:${hash(data)}`});
             }
             await recheck();
             assert.equal((await github.rest.git.getRef({...repo, ref: `tags/${tag}`})).data.object.sha, m.source_sha);
             const {data: uploaded} = await github.rest.repos.listReleaseAssets({...repo, release_id: release.id, per_page: 100});
-            assert.deepEqual(uploaded.map(a => a.name).sort(), files);
+            assert.deepEqual(
+              uploaded.map(({id, name, state, size, digest}) => ({id, name, state, size, digest})).sort((a, b) => a.name.localeCompare(b.name)),
+              expectedAssets.sort((a, b) => a.name.localeCompare(b.name)));
+            const {data: currentRelease} = await github.rest.repos.getRelease({...repo, release_id: release.id});
+            assert.equal(currentRelease.tag_name, tag);
+            assert.equal(currentRelease.target_commitish, m.source_sha);
+            assert.equal(currentRelease.body, body);
+            assert.equal(currentRelease.draft, true);
+            assert.equal(currentRelease.prerelease, false);
             const {data: published} = await github.rest.repos.updateRelease({...repo, release_id: release.id,
               draft: false, prerelease: false, make_latest: 'true'});
             assert.equal(published.draft, false);

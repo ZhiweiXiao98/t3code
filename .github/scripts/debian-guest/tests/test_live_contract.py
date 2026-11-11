@@ -8,12 +8,12 @@ def fixture():
  t='2026-11-10T00:00:00Z';steps=[];arts=[];logs=[]
  for n,name,aid,digest in [(1,'client-linux-x64',4,'c'*64),(2,'linux-build-proof',5,'d'*64)]:
   steps.append(dict(number=n,name='Run actions/upload-artifact@v7',status='completed',conclusion='success',started_at=t,completed_at=t))
-  arts.append(dict(id=aid,name=name,expired=False,workflow_run=dict(id=1,head_sha=c.head_sha,head_branch='maintenance/v0.1.7-zh-cloud'),digest='sha256:'+digest,size_in_bytes=100,created_at=t,updated_at=t,expires_at='2099-01-01T00:00:00Z'))
+  arts.append(dict(id=aid,name=name,expired=False,workflow_run=dict(id=1,head_sha=c.head_sha,head_branch='maintenance/v0.1.8-zh-cloud'),digest='sha256:'+digest,size_in_bytes=100,created_at=t,updated_at=t,expires_at='2099-01-01T00:00:00Z'))
   logs.extend([f'{t} ##[group]Run actions/upload-artifact@v7',f'{t}   name: {name}',f'{t} Artifact ID: {aid}',f'{t} {digest}',f'{t} Artifact {name} has been successfully uploaded! Final size is 100 bytes. Artifact ID is {aid}'])
  log='\n'.join(logs);p['producerLogSha256']=hashlib.sha256(log.encode()).hexdigest()
  s=dict(repo=dict(private=False,full_name=c.repository),run=dict(id=1,run_attempt=1,head_sha=c.head_sha,status='in_progress',conclusion=None),producer=dict(id=2,run_id=1,run_attempt=1,head_sha=c.head_sha,name='Linux x64 and embedded Windows WSL runtime',status='completed',conclusion='success',steps=steps),consumer=dict(id=3,run_id=1,run_attempt=1,head_sha=c.head_sha,name='Clean desktop appimage Debian 13 guest (Ubuntu 24.04 host) first start',labels=['ubuntu-24.04'],status='in_progress'),installer=arts[0],proof=arts[1])
- s['run'].update(head_branch='maintenance/v0.1.7-zh-cloud',path='.github/workflows/client-release.yml',repository={'full_name':c.repository},head_repository={'full_name':c.repository})
- s['producer'].update(head_branch='maintenance/v0.1.7-zh-cloud',started_at=t,completed_at=t);s['consumer']['head_branch']='maintenance/v0.1.7-zh-cloud'
+ s['run'].update(head_branch='maintenance/v0.1.8-zh-cloud',path='.github/workflows/client-release.yml',repository={'full_name':c.repository},head_repository={'full_name':c.repository})
+ s['producer'].update(head_branch='maintenance/v0.1.8-zh-cloud',started_at=t,completed_at=t);s['consumer']['head_branch']='maintenance/v0.1.8-zh-cloud'
  return c,s,p,log
 class Tests(unittest.TestCase):
  def test_live_run_no_deadlock(self):
@@ -26,7 +26,7 @@ class Tests(unittest.TestCase):
     c,s,p,l=fixture();s[section][key]=value
     with self.assertRaises(ValueError):validate_snapshot(c,s,p,l)
  def test_provenance_windows_and_expiry(self):
-  for target,key,value in [('run','head_branch','other'),('run','path','other.yml'),('run','repository',{'full_name':'other/repo'}),('producer','head_branch','other'),('producer','completed_at','2025-01-01T00:00:00Z'),('proof','expires_at','2000-01-01T00:00:00Z')]:
+  for target,key,value in [('run','head_branch','maintenance/v0.1.7-zh-cloud'),('producer','head_branch','maintenance/v0.1.7-zh-cloud'),('run','head_branch','other'),('run','path','other.yml'),('run','repository',{'full_name':'other/repo'}),('producer','head_branch','other'),('producer','completed_at','2025-01-01T00:00:00Z'),('proof','expires_at','2000-01-01T00:00:00Z')]:
    with self.subTest(target=target,key=key):
     c,s,p,l=fixture();s[target][key]=value
     with self.assertRaises(ValueError):validate_snapshot(c,s,p,l)

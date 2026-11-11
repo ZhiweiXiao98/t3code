@@ -1,10 +1,11 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { useAtomValue } from "@effect/atom-react";
 import { sortProjectsByGroupOrder } from "@t3tools/client-runtime/state/project-grouping";
 import type { ScopedProjectRef, SidebarProjectGroupingMode } from "@t3tools/contracts";
 import { Atom } from "effect/reactivity";
 import { Platform, ScrollView } from "react-native";
 import type { MenuProps } from "../../components/ui/Menu.types";
-import { ListFilterMenu } from "../workspace/ListFilterMenu";
+import { ListFilterMenu } from "../layout/workspace/ListFilterMenu";
 import { environmentProjects } from "../../state/projects";
 import { environmentThreadShells } from "../../state/threads";
 import { useMobileProjectGroupingSettings } from "../../state/project-grouping";
@@ -357,6 +358,7 @@ export function PullRequestListFilters(props: {
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
+      style={{ overflow: "visible" }}
       // In the Android sidebar the first pill lines up with the rows' content instead
       // (8dp row margin + 12dp padding).
       contentContainerStyle={
@@ -378,7 +380,7 @@ export function PullRequestListFilters(props: {
       {props.filters.environmentLabel !== null ? (
         <ListFilterMenu
           label={props.filters.environmentLabel}
-          accessibilityLabel="Choose pull request environment"
+          accessibilityLabel={localizeMobileString("Choose pull request environment")}
           actions={props.filters.environmentActions}
           onSelect={select}
         />
@@ -386,28 +388,28 @@ export function PullRequestListFilters(props: {
       <ListFilterMenu
         label={STATES[props.filters.state]}
         active={props.filters.state !== "open"}
-        accessibilityLabel="Filter by state"
+        accessibilityLabel={localizeMobileString("Filter by state")}
         actions={props.filters.stateActions}
         onSelect={select}
       />
       <ListFilterMenu
         label={INVOLVEMENT[props.filters.involvement]}
         active={props.filters.involvement !== "all"}
-        accessibilityLabel="Filter by involvement"
+        accessibilityLabel={localizeMobileString("Filter by involvement")}
         actions={props.filters.involvementActions}
         onSelect={select}
       />
       <ListFilterMenu
         label={selectedLabelCount ? `Labels ${selectedLabelCount}` : "Labels"}
         active={selectedLabelCount > 0}
-        accessibilityLabel="Filter by label"
+        accessibilityLabel={localizeMobileString("Filter by label")}
         actions={props.filters.labelActions}
         onSelect={select}
       />
       <ListFilterMenu
         label={author === "me" ? "By you" : (author ?? "Author")}
         active={Boolean(author)}
-        accessibilityLabel="Filter by author"
+        accessibilityLabel={localizeMobileString("Filter by author")}
         actions={props.filters.authorActions}
         onSelect={select}
       />

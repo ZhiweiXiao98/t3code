@@ -1,4 +1,4 @@
-# LOCAL DISABLED PROPOSAL. Do not activate before focused guest and independent review.
+# Exact-SHA candidate only. Publication requires separate reviewed-artifact gates.
 name: 简体中文客户端验证与构建
 permissions:
   contents: read
@@ -7,7 +7,7 @@ concurrency:
   group: community-clients-${{ github.ref }}
   cancel-in-progress: true
 env:
-  CLIENT_VERSION: 0.1.7-zh.1
+  CLIENT_VERSION: 0.1.8-zh.1
   CI: "true"
   CSC_IDENTITY_AUTO_DISCOVERY: "false"
   T3CODE_DESKTOP_SIGNED: "false"
@@ -29,11 +29,11 @@ jobs:
           script:
             "if (context.repo.owner !== 'ZhiweiXiao98' || context.repo.repo !== 't3code') {\n  throw new Error('This workflow\
             \ is scoped to ZhiweiXiao98/t3code.');\n}\nif (context.payload.repository.private !== false) {\n  throw new Error('Standard\
-            \ hosted runners are free for public repositories only.');\n}\nif (context.ref !== 'refs/heads/maintenance/v0.1.7-zh-cloud')\
-            \ {\n  throw new Error('Dispatch must select maintenance/v0.1.7-zh-cloud.');\n}\nif (context.eventName === 'workflow_dispatch'\
+            \ hosted runners are free for public repositories only.');\n}\nif (context.ref !== 'refs/heads/maintenance/v0.1.8-zh-cloud')\
+            \ {\n  throw new Error('Dispatch must select maintenance/v0.1.8-zh-cloud.');\n}\nif (context.eventName === 'workflow_dispatch'\
             \ &&\n    (!/^[0-9a-f]{40}$/.test(process.env.EXPECTED_SHA || '') ||\n     process.env.EXPECTED_SHA !== context.sha))\
             \ {\n  throw new Error('Expected SHA must equal the selected branch commit exactly.');\n}\ncore.setOutput('sha',\
-            \ context.sha);\ncore.summary.addRaw(`Source: ${context.sha}\\nVersion: 0.1.7-zh.1\\n`);\nawait core.summary.write();\n"
+            \ context.sha);\ncore.summary.addRaw(`Source: ${context.sha}\\nVersion: 0.1.8-zh.1\\n`);\nawait core.summary.write();\n"
   quality:
     name: Lint and typecheck
     needs:
@@ -912,8 +912,8 @@ jobs:
     timeout-minutes: 120
     env:
       APP_VARIANT: community
-      T3CODE_MOBILE_VERSION: 0.1.7-zh.1
-      T3CODE_MOBILE_VERSION_CODE: "1000414"
+      T3CODE_MOBILE_VERSION: 0.1.8-zh.1
+      T3CODE_MOBILE_VERSION_CODE: "1000415"
       T3CODE_MOBILE_UPDATES_ENABLED: "0"
       EXPO_NO_GIT_STATUS: "1"
       EXPO_NO_TELEMETRY: "1"
@@ -1003,7 +1003,7 @@ jobs:
 "on":
   push:
     branches:
-      - maintenance/v0.1.7-zh-cloud
+      - maintenance/v0.1.8-zh-cloud
   workflow_dispatch:
     inputs:
       expected_sha:

@@ -1,6 +1,6 @@
 import { translateWebSource } from "../../i18n/messages";
 import { useI18n } from "../../i18n/WebI18nContext";
-import type { SecretProviderConfig, SecretProviderId } from "@t3tools/contracts";
+import type { EnvironmentId, SecretProviderConfig, SecretProviderId } from "@t3tools/contracts";
 import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 
@@ -20,6 +20,7 @@ import {
 import { Button } from "../ui/button";
 import { SecretProviderDialog } from "./SecretProviderDialog";
 import { classifySecretProvider } from "./SecretProviderDialog.logic";
+import { secretProviderUses } from "./SecretsSettings.logic";
 import {
   classifyProviderEnvironmentAccess,
   resolveRemoteOperateAccess,
@@ -177,6 +178,8 @@ function EnvironmentSecretProviders({
                         </Button>
                       ) : null}
                       <RemoveSecretProviderButton
+                        environmentId={environmentId}
+                        id={id}
                         label={config.label}
                         onConfirm={() => updateSettings({ secretProviders: { [id]: null } })}
                       />
@@ -202,9 +205,13 @@ function EnvironmentSecretProviders({
 }
 
 function RemoveSecretProviderButton({
+  environmentId,
+  id,
   label,
   onConfirm,
 }: {
+  readonly environmentId: EnvironmentId;
+  readonly id: SecretProviderId;
   readonly label: string;
   readonly onConfirm: () => void;
 }) {
@@ -222,11 +229,7 @@ function RemoveSecretProviderButton({
             <AlertDialogTitle>
               {locale === "zh-CN" ? `移除 ${label}？` : `Remove ${label}?`}
             </AlertDialogTitle>
-            <AlertDialogDescription>
-              {locale === "zh-CN"
-                ? `读取 ${label} 的提供商变量将无法解析，直到重新添加同名提供商。密钥本身不会受到影响。`
-                : `Provider variables that read from ${label} stop resolving until a provider with the same name is added again. The secrets themselves are untouched.`}
-            </AlertDialogDescription>
+            <SecretProviderUses environmentId={environmentId} id={id} label={label} />
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogClose render={<Button variant="outline" />}>
@@ -244,6 +247,37 @@ function RemoveSecretProviderButton({
           </AlertDialogFooter>
         </AlertDialogPopup>
       </AlertDialog>
+    </>
+  );
+}
+
+function SecretProviderUses({
+  environmentId,
+  id,
+  label,
+}: {
+  readonly environmentId: EnvironmentId;
+  readonly id: SecretProviderId;
+  readonly label: string;
+}) {
+  const uses = secretProviderUses(useEnvironmentSettings(environmentId), id);
+  if (uses.length === 0) {
+    return (
+      <AlertDialogDescription>
+        Nothing reads from {label}. The secrets themselves are untouched.
+      </AlertDialogDescription>
+    );
+  }
+  return (
+    <>
+      <AlertDialogDescription>
+        These read from {label} and will be unset. The secrets themselves are untouched.
+      </AlertDialogDescription>
+      <ul className="max-h-48 list-disc space-y-0.5 overflow-y-auto ps-5 text-sm wrap-anywhere">
+        {uses.map((use) => (
+          <li key={use.id}>{use.label}</li>
+        ))}
+      </ul>
     </>
   );
 }

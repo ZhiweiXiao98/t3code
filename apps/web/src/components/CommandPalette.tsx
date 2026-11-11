@@ -12,7 +12,8 @@ import {
   canCreateProjectInEnvironment,
   getCloneDestinationBrowsePath,
   getCloneDestinationPath,
-  getCloneDirectoryName,
+  getCloneDirectoryLeafName,
+  getCloneDirectoryPath,
   getDefaultCloneUrl,
   getNewProjectPathPreview,
   getNewProjectPublishTarget,
@@ -74,6 +75,7 @@ import {
   MonitorIcon,
   PinIcon,
   PinOffIcon,
+  PlugIcon,
   SquarePenIcon,
   TextSearchIcon,
   UserPlusIcon,
@@ -152,6 +154,7 @@ import {
   hasTrailingPathSeparator,
   inferProjectTitleFromPath,
   isExplicitRelativeProjectPath,
+  isFilesystemBrowseQuery,
   isScratchProject,
   isUnsupportedWindowsProjectPath,
   resolveProjectPathForDispatch,
@@ -217,7 +220,7 @@ import {
 } from "./CommandPalette.logic";
 import { resolveEnvironmentOptionLabel } from "./BranchToolbar.logic";
 import { isSidebarHiddenThread } from "./Sidebar.logic";
-import { CommandPaletteContent } from "./CommandPaletteContent";
+import { CommandPaletteContent, type PendingInputSelection } from "./CommandPaletteContent";
 import {
   selectCommandPaletteClientSettings,
   useEnvironmentLookups,
@@ -248,6 +251,7 @@ import { ProjectFilePicker } from "./files/ProjectFilePicker";
 import { openLinkPullRequestDialog } from "./pullRequest/LinkPullRequestDialog";
 import { canShareWithGuestAtom } from "./chat/guestShareAvailability";
 import { openGuestShareDialog } from "./chat/guestShareDialogState";
+import { openUseInAnotherApp } from "./mcp/UseInAnotherAppDialog";
 import { ProjectContentSearchDialog } from "./search/ProjectContentSearchDialog";
 import {
   settingsForThisPlatform,
@@ -449,6 +453,8 @@ function OpenCommandPaletteDialog(props: {
   const resultListRef = useRef<LegendListRef | null>(null);
   // A pushed view drops the typed highlight until the user moves it again.
   const highlightClearedRef = useRef(viewStack.length > 0);
+  // Entering or leaving browse mode remounts the input; carry the caret across it.
+  const remountSelectionRef = useRef<PendingInputSelection | null>(null);
   function clearTypedHighlight(): void {
     highlightClearedRef.current = true;
     setHighlightedItemValue(null);
@@ -659,7 +665,11 @@ function OpenCommandPaletteDialog(props: {
   const isRemoteProjectRepositoryStep = addProjectCloneFlow?.step === "repository";
   const pinnedCloneDirectoryName =
     addProjectCloneFlow?.step === "confirm"
-      ? getCloneDirectoryName(
+      ? getCloneDirectoryLeafName(
+          addProjectCloneFlow.remoteUrl,
+          environments.find(
+            (candidate) => candidate.environmentId === addProjectCloneFlow.environmentId,
+          )?.serverConfig?.settings.ghqCloneLayout === true,
           addProjectCloneFlow.repository?.nameWithOwner ?? addProjectCloneFlow.remoteUrl,
         )
       : "";
@@ -839,8 +849,15 @@ function OpenCommandPaletteDialog(props: {
     (() => {
       const isScratch = (project: CommandPaletteProject) =>
         isScratchProject(project, scratchWorkspaceRootFor(project.environmentId));
+      const currentEntry =
+        currentProjectId === null
+          ? undefined
+          : projectPickerEntries.find((entry) => entry.isPreferred);
       const projectItems = buildNewThreadInProjectItems({
         projects: pickerProjects.filter((project) => !isScratch(project)),
+        currentProjectKey: currentEntry
+          ? `${currentEntry.targetProject.environmentId}:${currentEntry.targetProject.id}`
+          : null,
         projectGroupByTargetKey,
         locationByEnvironmentId: projectEnvironmentLocationById,
         pin: projectPin,
@@ -939,10 +956,25 @@ function OpenCommandPaletteDialog(props: {
     setHighlightedItemValue(null);
   }
 
-  function handleQueryChange(nextQuery: string): void {
+  function handleQueryChange(nextQuery: string, source: EventTarget | null): void {
     browseNavigation.invalidate();
     clearTypedHighlight();
-    setQuery(canBrowsePaths ? resolvePastedPath(query, nextQuery) : nextQuery);
+    const resolvedQuery = canBrowsePaths ? resolvePastedPath(query, nextQuery) : nextQuery;
+    // A rewritten paste has no matching offsets, so its caret lands at the end.
+    if (
+      source instanceof HTMLInputElement &&
+      resolvedQuery === nextQuery &&
+      (canBrowsePaths && isFilesystemBrowseQuery(resolvedQuery, browseEnvironmentPlatform)) !==
+        isBrowsing
+    ) {
+      remountSelectionRef.current = {
+        value: resolvedQuery,
+        start: source.selectionStart,
+        end: source.selectionEnd,
+        direction: source.selectionDirection,
+      };
+    }
+    setQuery(resolvedQuery);
     if (nextQuery === "" && currentView?.initialQuery) {
       popView();
     }
@@ -1626,6 +1658,34 @@ function OpenCommandPaletteDialog(props: {
 
   actionItems.push({
     kind: "action",
+    value: "action:use-in-another-app",
+    searchTerms: [
+      "mcp",
+      "connector",
+      "another app",
+      "poke",
+      "claude",
+      "chatgpt",
+      "grok",
+      "muse",
+      "instinct",
+      "openclaw",
+      "hermes",
+    ],
+    title: "Use T3 Code in another app (MCP)",
+    icon: <PlugIcon className={ITEM_ICON_CLASS} />,
+    run: async () => {
+      openUseInAnotherApp(
+        currentProjectEnvironmentId ??
+          (paletteRouteTarget?.kind === "server"
+            ? paletteRouteTarget.threadRef.environmentId
+            : null),
+      );
+    },
+  });
+
+  actionItems.push({
+    kind: "action",
     value: "action:usage",
     searchTerms: ["usage", "use", "tokens", "cost", "spend", "limits", "stats", "analytics"],
     title: translateWebSource(uiLocale, "Open usage"),
@@ -2010,8 +2070,20 @@ function OpenCommandPaletteDialog(props: {
     if (created.value) setOpen(false);
   }
 
-  function getDefaultCloneParentPath(environmentId: EnvironmentId): string {
-    return getAddProjectInitialQueryForEnvironment(environmentId);
+  function getDefaultCloneDestination(
+    environmentId: EnvironmentId,
+    remoteUrl: string,
+    repository: string,
+  ): string {
+    const environment = environments.find((candidate) => candidate.environmentId === environmentId);
+    return getCloneDestinationPath(
+      getAddProjectInitialQueryForEnvironment(environmentId),
+      getCloneDirectoryPath(
+        remoteUrl,
+        environment?.serverConfig?.settings.ghqCloneLayout === true,
+        repository,
+      ),
+    );
   }
 
   async function submitAddProjectCloneFlow(destinationPathInput?: string): Promise<void> {
@@ -2052,9 +2124,11 @@ function OpenCommandPaletteDialog(props: {
 
       const provider = addProjectRemoteSourceProvider(addProjectCloneFlow.source);
       if (!provider) {
-        const destinationPath = getCloneDestinationPath(
-          getDefaultCloneParentPath(addProjectCloneFlow.environmentId),
-          getCloneDirectoryName(rawRepository),
+        const remoteUrl = normalizePastedCloneUrl(rawRepository);
+        const destinationPath = getDefaultCloneDestination(
+          addProjectCloneFlow.environmentId,
+          remoteUrl,
+          rawRepository,
         );
         setAddProjectCloneFlow({
           step: "confirm",
@@ -2062,7 +2136,7 @@ function OpenCommandPaletteDialog(props: {
           source: addProjectCloneFlow.source,
           repositoryInput: rawRepository,
           repository: null,
-          remoteUrl: normalizePastedCloneUrl(rawRepository),
+          remoteUrl,
         });
         setHighlightedItemValue(null);
         setQuery(destinationPath);
@@ -2094,9 +2168,11 @@ function OpenCommandPaletteDialog(props: {
         return;
       }
       const repository = lookupResult.value;
-      const destinationPath = getCloneDestinationPath(
-        getDefaultCloneParentPath(addProjectCloneFlow.environmentId),
-        getCloneDirectoryName(repository.nameWithOwner),
+      const remoteUrl = getDefaultCloneUrl(repository);
+      const destinationPath = getDefaultCloneDestination(
+        addProjectCloneFlow.environmentId,
+        remoteUrl,
+        repository.nameWithOwner,
       );
       setAddProjectCloneFlow({
         step: "confirm",
@@ -2104,7 +2180,7 @@ function OpenCommandPaletteDialog(props: {
         source: addProjectCloneFlow.source,
         repositoryInput: rawRepository,
         repository,
-        remoteUrl: getDefaultCloneUrl(repository),
+        remoteUrl,
       });
       setHighlightedItemValue(null);
       setQuery(destinationPath);
@@ -2935,7 +3011,8 @@ function OpenCommandPaletteDialog(props: {
           scrollCommandPaletteRowIntoView(resultListRef.current, rowIndex);
         }
       }}
-      onValueChange={handleQueryChange}
+      onValueChange={(nextQuery, { event }) => handleQueryChange(nextQuery, event.target)}
+      pendingSelectionRef={remountSelectionRef}
       showBackHint={isSubmenu}
       value={query}
     >

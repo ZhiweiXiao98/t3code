@@ -1,5 +1,7 @@
 name: Mobile Android APK
 
+# Upstream Play mirror only, never the community signing or publication path.
+# Community candidates stay unsigned until the existing identity is restored and verified.
 # Checks closed testing hourly. Each new beta gets one versioned prerelease.
 # Unchanged checks publish nothing.
 on:
