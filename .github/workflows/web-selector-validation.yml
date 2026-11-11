@@ -1,0 +1,113 @@
+name: Focused web selector validation
+
+on:
+  push:
+    branches:
+      - validation/v0.1.8-web-selectors
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-selector-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: "true"
+  EXPECTED_SOURCE_SHA: "02e7515dc47a975b9e7cf45cf88c31e9852c54cf"
+
+jobs:
+  browser-selectors:
+    if: >-
+      github.repository == 'ZhiweiXiao98/t3code' &&
+      github.event.repository.private == false &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/validation/v0.1.8-web-selectors'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Verify public repository and exact validation branch
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, re
+          with open(os.environ['GITHUB_EVENT_PATH']) as stream:
+              event = json.load(stream)
+          assert os.environ['GITHUB_REPOSITORY'] == 'ZhiweiXiao98/t3code'
+          assert event['repository']['full_name'] == 'ZhiweiXiao98/t3code'
+          assert event['repository']['private'] is False
+          assert os.environ['GITHUB_EVENT_NAME'] == 'push'
+          assert os.environ['GITHUB_REF'] == 'refs/heads/validation/v0.1.8-web-selectors'
+          assert event['ref'] == os.environ['GITHUB_REF']
+          assert re.fullmatch(r'[0-9a-f]{40}', os.environ['GITHUB_SHA'])
+          assert re.fullmatch(r'[0-9a-f]{40}', os.environ['EXPECTED_SOURCE_SHA'])
+          assert event['after'] == os.environ['GITHUB_SHA']
+          PY
+
+      - name: Checkout exact commit without credentials and verify source
+        id: source
+        env:
+          GIT_TERMINAL_PROMPT: "0"
+        run: |
+          set -euo pipefail
+          test "$GITHUB_SERVER_URL" = https://github.com
+          git init .
+          git remote add origin https://github.com/ZhiweiXiao98/t3code.git
+          git -c credential.helper= fetch --no-tags --depth=2 origin "$GITHUB_SHA"
+          git sparse-checkout set --no-cone '/*' '!/.repos/'
+          git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git show -s --format=%P HEAD)" = "$EXPECTED_SOURCE_SHA"
+          test "$(git diff-tree --no-commit-id --name-status -r HEAD)" = \
+            $'A\t.github/workflows/web-selector-validation.yml'
+          git diff --exit-code "$EXPECTED_SOURCE_SHA" HEAD -- . ':!.github/workflows/web-selector-validation.yml'
+          git log -2 --format='%H %s'
+          printf 'Source tree: %s\nValidation tree: %s\n' \
+            "$(git rev-parse "$EXPECTED_SOURCE_SHA^{tree}")" "$(git rev-parse HEAD^{tree})"
+
+      - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
+        with:
+          node-version-file: package.json
+          cache: true
+          run-install: false
+
+      - name: Install locked dependencies
+        run: vp install --frozen-lockfile
+
+      - name: Install workspace-pinned Chromium headless shell
+        run: |
+          set -euo pipefail
+          test "$(node -p "require('./apps/web/node_modules/playwright/package.json').version")" = \
+            "$(node -p "require('./apps/web/package.json').devDependencies.playwright")"
+          node --version
+          vp --version
+          node apps/web/node_modules/playwright/cli.js --version
+          node apps/web/node_modules/playwright/cli.js install --with-deps --only-shell chromium
+
+      - name: Run the two browser regression files with default app setup
+        id: tests
+        working-directory: apps/web
+        run: |
+          set -euo pipefail
+          vp test run --project browser --reporter verbose \
+            src/components/ui/sidebar.browser.test.tsx \
+            src/components/settings/SourceControlWritingSettings.browser.test.tsx
+
+      - name: Record focused validation result
+        if: always()
+        env:
+          SOURCE_OUTCOME: ${{ steps.source.outcome }}
+          TEST_OUTCOME: ${{ steps.tests.outcome }}
+        run: |
+          {
+            printf '### Focused browser selector validation\n\n'
+            printf -- '- Workflow commit: `%s`\n' "$GITHUB_SHA"
+            printf -- '- Expected test-fix source commit: `%s`\n' "$EXPECTED_SOURCE_SHA"
+            printf -- '- Source verification: %s\n' "$SOURCE_OUTCOME"
+            printf -- '- Two-file browser test step: %s\n' "$TEST_OUTCOME"
+            printf -- '- Uses the existing browser project and test/browserSetup.ts.\n'
+            printf -- '- This focused run does not replace full release CI.\n'
+          } >> "$GITHUB_STEP_SUMMARY"
