@@ -159,9 +159,26 @@ jobs:
             const sums = fs.readFileSync('release-assets/SHA256SUMS.txt','utf8').trim().split('\n').sort();
             assert.deepEqual(sums, [`${hash(apk)}  ${apkName}`,`${hash(manifestBytes)}  BUILD-PROVENANCE.json`].sort());
             async function publicAPI(path) {
-              const r = await fetch(`https://api.github.com/repos/ZhiweiXiao98/t3code${path}`, {headers:{Accept:'application/vnd.github+json'},redirect:'error'});
-              assert(r.ok, `Public API check failed: ${r.status}`);
-              return r.json();
+              // Keep the same anonymous public read. Never retry an ambiguous access denial.
+              const url = `https://api.github.com/repos/ZhiweiXiao98/t3code${path}`;
+              for (let attempt = 0; attempt < 2; attempt++) {
+                const r = await fetch(url, {headers:{Accept:'application/vnd.github+json'},redirect:'error'});
+                if (r.ok) return r.json();
+                const header = name => r.headers.get(name) || '';
+                const remaining = header('x-ratelimit-remaining');
+                const reset = header('x-ratelimit-reset');
+                const retryAfter = header('retry-after');
+                // Only expose bounded public response metadata, never response bodies or credentials.
+                const detail = JSON.stringify({path,status:r.status,remaining:remaining.slice(0,32),reset:reset.slice(0,32),retryAfter:retryAfter.slice(0,32),requestId:header('x-github-request-id').slice(0,128)});
+                const quota = (r.status === 403 || r.status === 429) && (remaining === '0' || /^\d+$/.test(retryAfter));
+                const delay = /^\d+$/.test(retryAfter) ? Number(retryAfter) * 1000 :
+                  remaining === '0' && /^\d+$/.test(reset) ? Math.max(1000, Number(reset) * 1000 - Date.now() + 1000) : NaN;
+                if (quota && attempt === 0 && Number.isFinite(delay) && delay >= 0 && delay <= 60000) {
+                  await new Promise(resolve => setTimeout(resolve, delay));
+                  continue;
+                }
+                throw new Error(`Public API check failed: ${detail}; no access-denial fallback`);
+              }
             }
             async function recheck() {
               const coverage = JSON.parse(require('node:child_process').execFileSync('python', ['docs/tools/android-cloud-signing/verify_supplemental.py', '--pins', 'docs/tools/android-cloud-signing/supplemental-pin.json', '--json'], {encoding:'utf8', stdio:'pipe', timeout:240000}));

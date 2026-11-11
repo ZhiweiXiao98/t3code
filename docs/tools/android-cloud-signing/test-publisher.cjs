@@ -62,4 +62,30 @@ async function scenario(mode) {
  else {assert(failed,mode+' should fail');assert(!writes.includes('publish'));if(['bad-upload','later-gate-failure','coverage-late-failed','same-name-replacement','release-tag-drift','release-draft-drift','release-target-drift'].includes(mode))assert(writes.includes('draft'));else assert.equal(writes.length,0);}
  console.log('PASS publisher mock '+mode);
 }
-(async()=>{for(const mode of ['success-retained-artifact','bad-hash','wrong-source','wrong-tree','wrong-apk','wrong-cert','disabled','changed-proof','extra-file','existing-tag','existing-release','existing-draft','bad-upload','private-repo','running','later-attempt','partial-gates','duplicate-gate','skipped-gate','old-gate','later-gate-failure','changed-original','branch-moved','signed-expired','artifact-outside-job','artifact-outside-upload','recovery-failed','coverage-failed','coverage-late-failed','same-name-replacement','release-tag-drift','release-draft-drift','release-target-drift'])await scenario(mode);})().catch(e=>{console.error(e);process.exitCode=1;});
+(async()=>{await testPublicAPI();for(const mode of ['success-retained-artifact','bad-hash','wrong-source','wrong-tree','wrong-apk','wrong-cert','disabled','changed-proof','extra-file','existing-tag','existing-release','existing-draft','bad-upload','private-repo','running','later-attempt','partial-gates','duplicate-gate','skipped-gate','old-gate','later-gate-failure','changed-original','branch-moved','signed-expired','artifact-outside-job','artifact-outside-upload','recovery-failed','coverage-failed','coverage-late-failed','same-name-replacement','release-tag-drift','release-draft-drift','release-target-drift'])await scenario(mode);})().catch(e=>{console.error(e);process.exitCode=1;});
+
+async function testPublicAPI() {
+ const helper=script.slice(script.indexOf('async function publicAPI(path)'),script.indexOf('async function recheck()'));
+ const make=(status,headers={})=>({ok:status===200,status,headers:{get:k=>headers[k]||null},json:async()=>({verified:true})});
+ const cases=[
+  ['success',[make(200)],1,0,true],
+  ['ambiguous-403',[make(403)],1,0,false],
+  ['denied-403',[make(403,{'x-ratelimit-remaining':'49'})],1,0,false],
+  ['unauthorized',[make(401,{'retry-after':'1'})],1,0,false],
+  ['not-found',[make(404)],1,0,false],
+  ['quota-once',[make(403,{'x-ratelimit-remaining':'0','x-ratelimit-reset':'1'}),make(200)],2,1,true],
+  ['secondary-quota',[make(403,{'retry-after':'1'}),make(200)],2,1,true],
+  ['quota-exhausted',[make(429,{'retry-after':'1'}),make(429,{'retry-after':'1'})],2,1,false],
+  ['long-wait',[make(403,{'x-ratelimit-remaining':'0','retry-after':'3600'})],1,0,false],
+  ['bad-header',[make(403,{'x-ratelimit-remaining':'0','retry-after':'NaN'})],1,0,false],
+  ['denied-after-quota',[make(429,{'retry-after':'0'}),make(403)],2,1,false],
+ ];
+ for(const [name,responses,calls,waits,success] of cases){
+  let n=0,w=0,error;
+  const fakeFetch=async(url,opts)=>{assert.equal(url,'https://api.github.com/repos/ZhiweiXiao98/t3code/test');assert.deepEqual(opts,{headers:{Accept:'application/vnd.github+json'},redirect:'error'});assert(n<responses.length);return responses[n++];};
+  const timeout=(fn,ms)=>{assert(ms>=0&&ms<=60000);w++;fn();};
+  try{const out=await new Function('fetch','setTimeout',helper+';return publicAPI("/test");')(fakeFetch,timeout);assert.deepEqual(out,{verified:true});}catch(e){error=e;}
+  assert.equal(!error,success,name);if(error)assert.match(error.message,/Public API check failed:.*\"path\":\"\/test\"/);
+  assert.equal(n,calls,name);assert.equal(w,waits,name);console.log('PASS public API '+name);
+ }
+}
