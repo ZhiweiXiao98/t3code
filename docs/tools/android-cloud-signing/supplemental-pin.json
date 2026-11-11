@@ -1,16 +1,16 @@
 {
   "source": {
-    "sha": "98ac4dc26fa013c008c3c5afd8012a60cb1d9135",
-    "tree": "acdf2b80d00fb3404432f314be0a4a9e4904330f",
-    "branch": "maintenance/v0.1.7-zh-cloud",
-    "baseline_run_id": 42740589754,
-    "baseline_run_attempt": 2
+    "sha": "3270444c64826f67c953c2816dd1fd8f10d87953",
+    "tree": "4eb59e49773d95fc7be03f51f6a3493f343864f6",
+    "branch": "maintenance/v0.1.8-zh-cloud",
+    "baseline_run_id": 42994944772,
+    "baseline_run_attempt": 1
   },
   "workflow": {
     "path": ".github/workflows/client-coverage.yml",
-    "branch": "validation/v0.1.7-coverage-98ac4dc26fa0",
-    "sha": "f6d3ac3c9225c334c5edbe99ca96c710de1c9cd5",
-    "run_id": 42743750539,
+    "branch": "validation/v0.1.8-coverage-3270444c6482",
+    "sha": "49e8636ecdb4d1c4d2d4a96ba8703834af3b1b9a",
+    "run_id": 43023798313,
     "run_attempt": 1
   },
   "required_jobs": [
@@ -22,89 +22,89 @@
     "Collect supplemental coverage proof"
   ],
   "artifact": {
-    "id": 13729604838,
+    "id": 13855584758,
     "name": "supplemental-coverage-proof",
-    "size": 4028,
-    "sha256": "73962bd896d7ef2edb1afd579e9ff06cda5675b539d4fd52159956a8acbec285",
-    "manifest_sha256": "b290a12a29584c94b22492fac07df8a137206e6b3983bab487bcfd21ea0b3fe5",
-    "producer_job_id": 129592192697,
-    "producer_log_sha256": "9fbb9386243d0f5fd5fdc5b08b596099d4d4ce1e5da1fdcab6a702289d9f6ad3",
+    "size": 4719,
+    "sha256": "fdda8d2b15f2061ee26af667c8f4b2c61bf1a7326b557c7c94b4be75d4fe21de",
+    "manifest_sha256": "d519d6c0975a7fb82a2f27e7eb69afc44de98172f06ec3256994eed2994df2a4",
+    "producer_job_id": 130535060597,
+    "producer_log_sha256": "10d79a24bc374b29531ae47e7800919fba76b3f7752c1dd17ea7234e8f5b322c",
     "job_name": "Collect supplemental coverage proof",
     "upload_step_name": "Upload supplemental coverage proof",
     "member": "coverage-manifest.json",
-    "member_sha256": "b290a12a29584c94b22492fac07df8a137206e6b3983bab487bcfd21ea0b3fe5",
-    "created_at": "2026-11-10T02:38:46Z"
+    "member_sha256": "d519d6c0975a7fb82a2f27e7eb69afc44de98172f06ec3256994eed2994df2a4",
+    "created_at": "2026-11-11T12:54:08Z"
   },
   "raw_reports": {
     "linux-node24": {
-      "id": 13730890613,
+      "id": 13856820691,
       "name": "supplemental-report-linux-node24",
-      "size": 783,
-      "sha256": "6cd24154553bcac7994a5cf8336df7e7cca390881052c93a1bf78650ee3ed10d",
-      "manifest_sha256": "1a478cc3146001a4043b1f9ce741d5d9e53b6e6c05436fb0aec075b8eada0452",
-      "producer_job_id": 129590814876,
-      "producer_log_sha256": "cde8cd06a67536876cf9975710ef655865af540105428b7f6d4ea354aeb4d46a",
+      "size": 779,
+      "sha256": "2450e7593bc8214ea24d36896258fee0ff1398e3a699ca56f83699a19729255a",
+      "manifest_sha256": "25a9c8ea85c163030936dd05a0fa80202e5a8510c501c5ec6b20e4c7a8dc0f8d",
+      "producer_job_id": 130533285508,
+      "producer_log_sha256": "b07a8a0b812ee8bd81e2dab22e825432ade0eea57770ded702ccce70fb013af5",
       "job_name": "Supplemental Linux Node 24",
       "upload_step_name": "Preserve raw test report",
       "member": "coverage-result.json",
-      "member_sha256": "1a478cc3146001a4043b1f9ce741d5d9e53b6e6c05436fb0aec075b8eada0452",
-      "created_at": "2026-11-10T02:36:01Z"
+      "member_sha256": "25a9c8ea85c163030936dd05a0fa80202e5a8510c501c5ec6b20e4c7a8dc0f8d",
+      "created_at": "2026-11-11T12:51:36Z"
     },
     "linux-node26": {
-      "id": 13729694969,
+      "id": 13856761222,
       "name": "supplemental-report-linux-node26",
-      "size": 1479,
-      "sha256": "4e63c730a20b42a6e9a76c67de2fc46378d4af3847cf2ca30527c47ff4122fd2",
-      "manifest_sha256": "d3c19113a80251af957fedc55af250ede6d68e81c9a80c6e688cdbe3ec1dcdb2",
-      "producer_job_id": 129590814557,
-      "producer_log_sha256": "bc0b6107a5acb2fcf37084564ed4ed04d9dff6a1bd123ecb94d7a7e3b493140b",
+      "size": 1627,
+      "sha256": "a463b364f137d77d2ac51c14e9639c594fd01a4dd3211ce0fed2d28ac4b68b7f",
+      "manifest_sha256": "b78d2c8b6b29e834e11d9090f2dab5f45523fbcdc2d8f4fad6f4b466838bf8f7",
+      "producer_job_id": 130533285360,
+      "producer_log_sha256": "2b6fa7b001773c5a7e9d9c55773518d19bc50b99ffd92adb17c75f2e7deb1899",
       "job_name": "Supplemental Linux Node 26",
       "upload_step_name": "Preserve raw test report",
       "member": "coverage-result.json",
-      "member_sha256": "d3c19113a80251af957fedc55af250ede6d68e81c9a80c6e688cdbe3ec1dcdb2",
-      "created_at": "2026-11-10T02:36:51Z"
+      "member_sha256": "b78d2c8b6b29e834e11d9090f2dab5f45523fbcdc2d8f4fad6f4b466838bf8f7",
+      "created_at": "2026-11-11T12:52:06Z"
     },
     "linux-nushell": {
-      "id": 13730636212,
+      "id": 13856431571,
       "name": "supplemental-report-linux-nushell",
-      "size": 2766,
-      "sha256": "6f639273337fb6d63280f413e057e87374638be63e296f001ab1b23d8af5dbce",
-      "manifest_sha256": "e04b994b253a42f3fcc6f341f11966f1bf31f952ece7674da78ff144bc036a72",
-      "producer_job_id": 129590814955,
-      "producer_log_sha256": "1282a7e386e7c1dbd0ced995c728e220546fa0494540aaa3231b76461f92874a",
+      "size": 3726,
+      "sha256": "abdc4df01cdbbd313755eb506d1a14d130fc8a3f31b58d93251733b9cae96edc",
+      "manifest_sha256": "db5e191f7067d6ad5d6de1008e46e9ebb77ca53138ce65cc83976217a938b091",
+      "producer_job_id": 130533285134,
+      "producer_log_sha256": "60c23a6293b03ec55eb37d0dfb5dc2576a614167aa2a1f4b2c551610a584fa60",
       "job_name": "Supplemental Linux Nushell",
       "upload_step_name": "Preserve raw test report",
       "member": "coverage-result.json",
-      "member_sha256": "e04b994b253a42f3fcc6f341f11966f1bf31f952ece7674da78ff144bc036a72",
-      "created_at": "2026-11-10T02:36:23Z"
+      "member_sha256": "db5e191f7067d6ad5d6de1008e46e9ebb77ca53138ce65cc83976217a938b091",
+      "created_at": "2026-11-11T12:52:23Z"
     },
     "windows-shared": {
-      "id": 13730806273,
+      "id": 13855878776,
       "name": "supplemental-report-windows-shared",
-      "size": 2983,
-      "sha256": "b084b223527c4a7a58d590f5ec6358cfbc9f57e0ef3c2588f54d84f5b06b7d6d",
-      "manifest_sha256": "441ac13fa3778498745613eda46cb140edb657b623ae833e2f5ff2dade585378",
-      "producer_job_id": 129590814913,
-      "producer_log_sha256": "77192d436ecbb0ba947b29f52b9cfac461a48a4c1119930ea03e3f65baff2b52",
+      "size": 3885,
+      "sha256": "cddd0df10dfe7875f5d363c2aebc6da6f3a9542a456e59358d175d0774d2d658",
+      "manifest_sha256": "e5868f416ebd17cca94d2a979e05316677eacdcb019c00ea9f7513b5c93516a8",
+      "producer_job_id": 130533285516,
+      "producer_log_sha256": "84f4c5cb4fe43cd01520f1267067f649e8cdb5f6544f44ee5a67460ba02290b1",
       "job_name": "Supplemental Windows shared",
       "upload_step_name": "Preserve raw test report",
       "member": "coverage-result.json",
-      "member_sha256": "441ac13fa3778498745613eda46cb140edb657b623ae833e2f5ff2dade585378",
-      "created_at": "2026-11-10T02:38:38Z"
+      "member_sha256": "e5868f416ebd17cca94d2a979e05316677eacdcb019c00ea9f7513b5c93516a8",
+      "created_at": "2026-11-11T12:54:00Z"
     },
     "windows-uninstall": {
-      "id": 13730876086,
+      "id": 13855858878,
       "name": "supplemental-report-windows-uninstall",
-      "size": 670,
-      "sha256": "fdc131024cce0ec67eb6026490c0960ff8f926eec47445b95a3d3da197972fa0",
-      "manifest_sha256": "65378168d9cd200579dc66887cedb0bfa525e72a6250ddd588ae9716f8779050",
-      "producer_job_id": 129590814962,
-      "producer_log_sha256": "109ef41d95b582dd4375ea0320c2b68e6a56d322aa301c4d1482c11c7283c889",
+      "size": 674,
+      "sha256": "93e46b52e7ac6ddb0fdf0c1fefc34a160a9dd1bc43b038737c2c27964d666b79",
+      "manifest_sha256": "97d882276f40195000936964cd52f1de3ce300a1aa4680237c74c5d3f256d754",
+      "producer_job_id": 130533285457,
+      "producer_log_sha256": "e8554a769549b94d1d4550fe8c508343f3e92ce8d89ee7d85084d4d70f3e018c",
       "job_name": "Supplemental Windows uninstall",
       "upload_step_name": "Preserve raw test report",
       "member": "coverage-result.json",
-      "member_sha256": "65378168d9cd200579dc66887cedb0bfa525e72a6250ddd588ae9716f8779050",
-      "created_at": "2026-11-10T02:38:34Z"
+      "member_sha256": "97d882276f40195000936964cd52f1de3ce300a1aa4680237c74c5d3f256d754",
+      "created_at": "2026-11-11T12:53:59Z"
     }
   }
 }

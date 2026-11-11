@@ -15,20 +15,20 @@ import zipfile
 import verify_supplemental
 
 REPO = 'ZhiweiXiao98/t3code'
-BRANCH = 'maintenance/v0.1.7-zh-cloud'
-SOURCE_SHA = '98ac4dc26fa013c008c3c5afd8012a60cb1d9135'
-SOURCE_TREE = 'acdf2b80d00fb3404432f314be0a4a9e4904330f'
-CANDIDATE_RUN = 42740589754
-CANDIDATE_ATTEMPT = 2
+BRANCH = 'maintenance/v0.1.8-zh-cloud'
+SOURCE_SHA = '3270444c64826f67c953c2816dd1fd8f10d87953'
+SOURCE_TREE = '4eb59e49773d95fc7be03f51f6a3493f343864f6'
+CANDIDATE_RUN = 42994944772
+CANDIDATE_ATTEMPT = 1
 ANDROID_JOB = 'Android arm64 unsigned candidate (NOT installable)'
 RECOVERY_RUN = 40649758501
 RECOVERY_ARTIFACT = 12799615493
 RECOVERY_ZIP_SHA256 = 'b2c345e3b7566e2c6cd3efa8be8213b464f1c3a04497967c96228d3797769fdd'
 CERT = '82f2437cbceb94fe6fe4a60a1c0de99f643124c64a648a27de9ce92bd39ecd88'
 KEY_HASH = '7e4922f7de02c1c739e627eb3ef87fa1fb639329ed27613dff8b4f0fdad2d397'
-APK_NAME = 'T3-Code-zh-CN-Android-0.1.7-zh.1-arm64-v8a.apk'
-UNSIGNED_APK_NAME = 'T3-Code-zh-CN-Android-0.1.7-zh.1-arm64-UNSIGNED-NOT-INSTALLABLE.apk'
-JOBS = set(['Android arm64 unsigned candidate (NOT installable)', 'Build validated desktop bundle', 'Clean desktop appimage first start', 'Clean desktop deb first start', 'Clean desktop nsis first start', 'Clean macOS arm64 dmg first start', 'Clean macOS arm64 zip first start', 'Clean macOS x64 dmg first start', 'Clean macOS x64 zip first start', 'Desktop mac arm64 (integrity checked)', 'Desktop mac x64 (integrity checked)', 'Desktop win x64 (integrity checked)', 'Lint and typecheck', 'Linux x64 and embedded Windows WSL runtime', 'Mobile native static analysis', 'Rust native formatting and tests', 'Tests (clients)', 'Tests (server-1)', 'Tests (server-2)', 'Tests (server-3)', 'Tests (web)', 'Validate exact source'])
+APK_NAME = 'T3-Code-zh-CN-Android-0.1.8-zh.1-arm64-v8a.apk'
+UNSIGNED_APK_NAME = 'T3-Code-zh-CN-Android-0.1.8-zh.1-arm64-UNSIGNED-NOT-INSTALLABLE.apk'
+JOBS = set(['Android arm64 unsigned candidate (NOT installable)', 'Build validated desktop bundle', 'Clean desktop appimage Debian 13 guest (Ubuntu 24.04 host) first start', 'Clean desktop deb first start', 'Clean desktop nsis first start', 'Clean macOS arm64 dmg first start', 'Clean macOS arm64 zip first start', 'Clean macOS x64 dmg first start', 'Clean macOS x64 zip first start', 'Desktop mac arm64 (integrity checked)', 'Desktop mac x64 (integrity checked)', 'Desktop win x64 (integrity checked)', 'Lint and typecheck', 'Linux x64 and embedded Windows WSL runtime', 'Mobile native static analysis', 'Rust native formatting and tests', 'Tests (clients)', 'Tests (server-1)', 'Tests (server-2)', 'Tests (server-3)', 'Tests (web)', 'Validate exact source'])
 
 
 def require(condition, message):
@@ -68,7 +68,7 @@ def read_input(path):
             manifest['candidate_attempt'] == CANDIDATE_ATTEMPT and
             manifest['candidate_source_sha'] == SOURCE_SHA and
             manifest['candidate_source_tree_sha'] == SOURCE_TREE,
-            'Input is not this exact reviewed v0.1.7 candidate')
+            'Input is not this exact reviewed v0.1.8 candidate')
     require(manifest['candidate_producer_attempt'] <= manifest['candidate_attempt'], 'Producer attempt is in the future')
     return manifest
 
@@ -199,7 +199,7 @@ def run(command):
 
 
 def check_badging(text):
-    require("package: name='com.zhiweixiao.t3code.zhcn' versionCode='1000414' versionName='0.1.7-zh.1'" in text, 'APK package/version mismatch')
+    require("package: name='com.zhiweixiao.t3code.zhcn' versionCode='1000415' versionName='0.1.8-zh.1'" in text, 'APK package/version mismatch')
     natives = re.findall(r'^native-code:\s*(.*)$', text, re.M)
     require(natives == ["'arm64-v8a'"], 'APK must contain exactly arm64-v8a native code')
 
@@ -364,7 +364,7 @@ def sign(input_path, workspace, destination):
         proof.update({'signed_apk_sha256': digest(signed), 'apk_signature_verified': True,
                       'source_sha': manifest['candidate_source_sha'],
                       'candidate_artifact_sha256': manifest['candidate_artifact_zip_sha256'],
-                      'package_name': 'com.zhiweixiao.t3code.zhcn', 'version_name': '0.1.7-zh.1', 'version_code': 1000414})
+                      'package_name': 'com.zhiweixiao.t3code.zhcn', 'version_name': '0.1.8-zh.1', 'version_code': 1000415})
         (out / 'BUILD-PROVENANCE.json').write_text(json.dumps(proof, indent=2) + '\n')
         (out / 'SHA256SUMS.txt').write_text(digest(signed) + '  ' + APK_NAME + '\n' + digest(out / 'BUILD-PROVENANCE.json') + '  BUILD-PROVENANCE.json\n')
     finally:

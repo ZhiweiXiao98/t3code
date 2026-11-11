@@ -155,7 +155,7 @@ class ReviewedSigningTests(unittest.TestCase):
             with self.subTest(race=race),tempfile.TemporaryDirectory() as folder:
                 root=Path(folder);inp=root/'input.json'
                 m,original,latest,artifact=self.producer_fixture()
-                latest=dict(original,id=900003,run_attempt=signer.CANDIDATE_ATTEMPT)
+                latest=dict(original,run_attempt=signer.CANDIDATE_ATTEMPT)
                 m.update(candidate_artifact_zip_sha256=hashlib.sha256(candidate).hexdigest(),candidate_artifact_zip_size=len(candidate),
                          candidate_unsigned_apk_sha256=hashlib.sha256(apk).hexdigest(),candidate_unsigned_apk_size=len(apk))
                 inp.write_text(json.dumps(m))
@@ -172,12 +172,13 @@ class ReviewedSigningTests(unittest.TestCase):
                                 head_sha=signer.SOURCE_SHA,head_branch=signer.BRANCH,path='.github/workflows/client-release.yml',event='push',
                                 repository={'full_name':signer.REPO,'private':False},head_repository={'full_name':signer.REPO},
                                 head_commit={'tree_id':signer.SOURCE_TREE},status='completed',conclusion='success')
-                        if '/attempts/'+str(signer.CANDIDATE_ATTEMPT)+'/jobs?' in url:return {'total_count':22,'jobs':jobs}
-                        if '/attempts/1/jobs?' in url:
+                        if '/attempts/'+str(signer.CANDIDATE_ATTEMPT)+'/jobs?' in url:
                             reads['producer']+=1
-                            observed=dict(original)
-                            if race=='changed-producer' and reads['producer']>1:observed['completed_at']='2026-11-09T16:08:00Z'
-                            return {'total_count':1,'jobs':[observed]}
+                            observed=[dict(j) for j in jobs]
+                            if race=='changed-producer' and reads['producer']==4:
+                                for job in observed:
+                                    if job['name']==signer.ANDROID_JOB:job['completed_at']='2026-11-09T16:08:00Z'
+                            return {'total_count':22,'jobs':observed}
                         if url.startswith('/git/ref/'):return {'object':{'sha':signer.SOURCE_SHA}}
                         if url=='/actions/runs/'+str(signer.RECOVERY_RUN):return dict(status='completed',conclusion='success',head_branch='signing/android-bootstrap',
                             head_sha='8fc8b21abd2380926242fc49e7f488cb4b3aa0b8',repository={'full_name':signer.REPO},path='.github/workflows/android-signing-recovery.yml')
@@ -192,7 +193,7 @@ class ReviewedSigningTests(unittest.TestCase):
                         Path(target).write_bytes(recovery if artifact_id==signer.RECOVERY_ARTIFACT else candidate)
                 with patch.object(signer,'Api',FakeApi),patch.object(signer,'RECOVERY_ZIP_SHA256',hashlib.sha256(recovery).hexdigest()), \
                      patch.object(signer,'tools',return_value=Path('/PUBLIC-MOCK')), \
-                     patch.object(signer,'run',return_value="package: name='com.zhiweixiao.t3code.zhcn' versionCode='1000414' versionName='0.1.7-zh.1'\nnative-code: 'arm64-v8a'\n"), \
+                     patch.object(signer,'run',return_value="package: name='com.zhiweixiao.t3code.zhcn' versionCode='1000415' versionName='0.1.8-zh.1'\nnative-code: 'arm64-v8a'\n"), \
                      patch.object(signer.subprocess,'run',return_value=SimpleNamespace(returncode=1,stdout='DOES NOT VERIFY',stderr='')):
                     if race:
                         with self.assertRaises(ValueError):signer.prepare(inp,root/'work')
@@ -212,9 +213,9 @@ class ReviewedSigningTests(unittest.TestCase):
             signer.copy_limited(io.BytesIO(b'abcde'),io.BytesIO(),4)
 
     def test_apk_badging_is_exact(self):
-        valid = "package: name='com.zhiweixiao.t3code.zhcn' versionCode='1000414' versionName='0.1.7-zh.1'\nnative-code: 'arm64-v8a'\n"
+        valid = "package: name='com.zhiweixiao.t3code.zhcn' versionCode='1000415' versionName='0.1.8-zh.1'\nnative-code: 'arm64-v8a'\n"
         signer.check_badging(valid)
-        for wrong in [valid.replace('1000414','10103'), valid.replace('arm64-v8a','x86_64'), valid.replace("'arm64-v8a'", "'arm64-v8a' 'armeabi-v7a'")]:
+        for wrong in [valid.replace('1000415','10103'), valid.replace('arm64-v8a','x86_64'), valid.replace("'arm64-v8a'", "'arm64-v8a' 'armeabi-v7a'")]:
             with self.assertRaises(ValueError): signer.check_badging(wrong)
 
     def test_unsigned_gate_requires_expected_verifier_failure(self):
@@ -274,7 +275,7 @@ class ReviewedSigningTests(unittest.TestCase):
             elif '-f' in command:
                 Path(command[-1]).write_bytes(b'PUBLIC MOCK ALIGNED')
             elif 'badging' in command:
-                return "package: name='com.zhiweixiao.t3code.zhcn' versionCode='1000414' versionName='0.1.7-zh.1'\nnative-code: 'arm64-v8a'\n"
+                return "package: name='com.zhiweixiao.t3code.zhcn' versionCode='1000415' versionName='0.1.8-zh.1'\nnative-code: 'arm64-v8a'\n"
             return ''
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder); work=root/'work';work.mkdir();output=root/'output';inp=root/'input.json'
@@ -290,7 +291,7 @@ class ReviewedSigningTests(unittest.TestCase):
             report=json.loads((output/'BUILD-PROVENANCE.json').read_text())
             self.assertEqual(report['source_sha'],signer.SOURCE_SHA)
             self.assertEqual(report['candidate_artifact_sha256'],m['candidate_artifact_zip_sha256'])
-            self.assertEqual(report['version_code'],1000414)
+            self.assertEqual(report['version_code'],1000415)
             self.assertEqual(len((output/'SHA256SUMS.txt').read_text().splitlines()),2)
             self.assertNotIn('PUBLIC-NOT-A-SECRET-',repr(commands))
 

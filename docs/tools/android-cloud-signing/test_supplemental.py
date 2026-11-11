@@ -49,7 +49,7 @@ def fixture(transform=None, member="coverage-manifest.json"):
         with zipfile.ZipFile(out,'w') as z:z.writestr('coverage-result.json',report)
         content=out.getvalue();ident=200+index
         pin=pins['raw_reports'][lane['lane']]
-        pin.update(id=ident,size=len(content),sha256=hashlib.sha256(content).hexdigest(),member_sha256=hashlib.sha256(report).hexdigest(),producer_job_id=100+job_index)
+        pin.update(manifest_sha256=hashlib.sha256(report).hexdigest(),created_at='2026-11-10T00:09:15Z',id=ident,size=len(content),sha256=hashlib.sha256(content).hexdigest(),member_sha256=hashlib.sha256(report).hexdigest(),producer_job_id=100+job_index)
         blobs[ident]=content;upload_log(pin)
         data['raw_artifacts'][ident]={**copy.deepcopy(artifact),'id':ident,'name':pin['name'],'size_in_bytes':len(content),'digest':'sha256:'+pin['sha256']}
         jobs[job_index]['steps']=[{**jobs[-1]['steps'][0],'name':pin['upload_step_name']}]
