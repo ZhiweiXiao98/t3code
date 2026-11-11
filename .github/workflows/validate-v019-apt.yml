@@ -1,0 +1,187 @@
+name: Probe official Ubuntu APT fallback
+'on':
+  push:
+    branches:
+    - validation/v0.1.9-apt-probe-0791378a335a
+permissions:
+  contents: read
+concurrency:
+  group: v019-apt-probe-${{ github.ref }}
+  cancel-in-progress: false
+env:
+  SOURCE_SHA: 0791378a335a6094a0cf2d100ef32732a951e597
+  SOURCE_TREE: bae76b57c1ecd8e26546aefbfe97276c1bdd6047
+  EXPECTED_BRANCH: validation/v0.1.9-apt-probe-0791378a335a
+jobs:
+  probe:
+    name: Ubuntu APT probe (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 14
+    strategy:
+      fail-fast: false
+      matrix:
+        runner:
+        - ubuntu-22.04
+        - ubuntu-24.04
+    steps:
+    - name: Verify exact operation source
+      shell: bash
+      run: |
+        set -euo pipefail
+        python3 - <<'PYTHON'
+        import json,os
+        x=json.load(open(os.environ['GITHUB_EVENT_PATH']))
+        assert os.environ['GITHUB_REPOSITORY']=='ZhiweiXiao98/t3code'
+        assert x['repository']['private'] is False
+        assert os.environ['GITHUB_EVENT_NAME']=='push'
+        assert os.environ['GITHUB_REF']=='refs/heads/'+os.environ['EXPECTED_BRANCH']
+        assert x['after']==os.environ['GITHUB_SHA']
+        PYTHON
+        git init .
+        git remote add origin https://github.com/ZhiweiXiao98/t3code.git
+        git fetch --no-tags --depth=2 origin "$GITHUB_SHA"
+        test "$(git rev-parse FETCH_HEAD^)" = "$SOURCE_SHA"
+        test "$(git rev-list --parents -n 1 FETCH_HEAD | wc -w)" -eq 2
+        test "$(git rev-parse "$SOURCE_SHA^{tree}")" = "$SOURCE_TREE"
+        test "$(git diff --name-only "$SOURCE_SHA" FETCH_HEAD)" = .github/workflows/validate-v019-apt.yml
+    - name: Prepare command-scoped official Ubuntu source copies
+      shell: bash
+      run: |
+        set -euo pipefail
+        umask 022
+        probe="$(mktemp -d /tmp/t3-apt-probe.XXXXXX)"
+        chmod 755 "$probe"
+        echo "APT_PROBE=$probe" >> "$GITHUB_ENV"
+        cat > "$probe/prepare_sources.py" <<'PYTHON'
+        import hashlib
+        import json
+        import pathlib
+        import re
+        import sys
+
+        MIRROR = 'mirror+file:/etc/apt/apt-mirrors.txt'
+        OFFICIAL = {'https://archive.ubuntu.com/ubuntu', 'https://security.ubuntu.com/ubuntu'}
+        DIRECT = {'http://azure.archive.ubuntu.com/ubuntu', 'http://archive.ubuntu.com/ubuntu', 'http://security.ubuntu.com/ubuntu', *OFFICIAL}
+
+        def rewrite(text, suffix, mirror_uri):
+            def uri(value):
+                value = value.rstrip('/')
+                if value == MIRROR:
+                    return mirror_uri
+                if value in DIRECT:
+                    return 'https://security.ubuntu.com/ubuntu' if 'security.' in value else 'https://archive.ubuntu.com/ubuntu'
+                raise ValueError('Unrecognized Ubuntu source URI')
+            if suffix == '.list':
+                output = []
+                for line in text.splitlines():
+                    match = re.match(r'^(\s*deb(?:-src)?\s+(?:\[[^\]]*\]\s+)?)(\S+)(\s+.*)$', line)
+                    if not match or match[2].rstrip('/') not in DIRECT | {MIRROR}:
+                        continue
+                    assert not re.search(r'(?:trusted|allow-insecure|allow-weak|allow-downgrade-to-insecure)\s*=\s*yes', line, re.I)
+                    output.append(match[1] + uri(match[2]) + match[3])
+                return '\n'.join(output) + '\n' if output else ''
+            output = []
+            for block in re.split(r'\n\s*\n', text.strip()):
+                match = re.search(r'^URIs:\s*(.+)$', block, re.M | re.I)
+                if not match:
+                    continue
+                values = match[1].split()
+                if not any(x.rstrip('/') in DIRECT | {MIRROR} for x in values):
+                    continue
+                assert all(x.rstrip('/') in DIRECT | {MIRROR} for x in values), 'Mixed Ubuntu and unknown URI stanza'
+                assert not re.search(r'^(?:Trusted|Allow-Insecure|Allow-Weak|Allow-Downgrade-To-Insecure):\s*yes\s*$', block, re.M | re.I)
+                assert not re.match(r'\n[ \t]+\S', block[match.end():]), 'Multiline URIs unsupported'
+                output.append(block[:match.start()] + 'URIs: ' + ' '.join(uri(x) for x in values) + block[match.end():])
+            return '\n\n'.join(output) + '\n' if output else ''
+
+        def prepare(root, output):
+            root, output = pathlib.Path(root), pathlib.Path(output)
+            output.mkdir(exist_ok=True)
+            parts = output / 'sources.list.d'
+            parts.mkdir()
+            paths = [root / 'sources.list'] + sorted((root / 'sources.list.d').glob('*.list')) + sorted((root / 'sources.list.d').glob('*.sources'))
+            mirror = root / 'apt-mirrors.txt'
+            urls = []
+            if mirror.exists():
+                urls = [line.split()[0].rstrip('/') for line in mirror.read_text().splitlines() if line.strip() and not line.lstrip().startswith('#')]
+                urls = list(dict.fromkeys(x for x in urls if x in OFFICIAL))
+            copied = output / 'official-mirrors.txt'
+            copied.write_text('\n'.join(urls) + '\n')
+            sources = []
+            before = {str(mirror): hashlib.sha256(mirror.read_bytes()).hexdigest()} if mirror.exists() else {}
+            for path in paths:
+                if not path.exists():
+                    continue
+                raw = path.read_bytes()
+                before[str(path)] = hashlib.sha256(raw).hexdigest()
+                converted = rewrite(raw.decode(), path.suffix, 'mirror+file:' + str(copied))
+                if converted.strip():
+                    if MIRROR in raw.decode():
+                        assert urls, 'No existing official HTTPS fallback mirror'
+                    target = output / 'sources.list' if path.name == 'sources.list' else parts / path.name
+                    target.write_text(converted)
+                    sources.append(str(target))
+            assert sources, 'No recognized Ubuntu sources'
+            (output / 'sources.list').touch(exist_ok=True)
+            assert before == {path: hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest() for path in before}
+            (output / 'source-inventory.json').write_text(json.dumps({'original_sha256': before, 'copied_sources': sources, 'official_mirrors': urls}, indent=2))
+            return before
+
+        if __name__ == '__main__':
+            prepare(sys.argv[1], sys.argv[2])
+        PYTHON
+        python3 "$probe/prepare_sources.py" /etc/apt "$probe/sources"
+        mkdir -p "$probe/lists/partial" "$probe/cache/archives/partial" "$RUNNER_TEMP/apt-evidence"
+        sudo chown _apt:root "$probe/lists/partial" "$probe/cache/archives/partial"
+        cp "$probe/sources/source-inventory.json" "$RUNNER_TEMP/apt-evidence/"
+        cat /etc/os-release
+    - name: Probe existing official HTTPS mirrors
+      timeout-minutes: 2
+      shell: bash
+      run: |
+        set -euo pipefail
+        . /etc/os-release
+        for host in archive.ubuntu.com security.ubuntu.com; do
+          echo "DNS probe: $host"
+          timeout 10s getent ahosts "$host" || echo 'DNS probe did not resolve within budget'
+          echo "HTTPS metadata probe: $host $VERSION_CODENAME"
+          if curl --fail --silent --show-error --connect-timeout 10 --max-time 20 "https://$host/ubuntu/dists/$VERSION_CODENAME/InRelease" -o "$APT_PROBE/$host.InRelease"; then
+            sha256sum "$APT_PROBE/$host.InRelease"
+          else
+            echo 'HTTPS probe failed; signed APT verification below remains mandatory'
+          fi
+        done
+    - name: Verify signed Ubuntu metadata with scoped sources
+      timeout-minutes: 4
+      shell: bash
+      run: |
+        set -euo pipefail
+        options=(-o "Dir::Etc::sourcelist=$APT_PROBE/sources/sources.list" -o "Dir::Etc::sourceparts=$APT_PROBE/sources/sources.list.d" -o "Dir::State::lists=$APT_PROBE/lists" -o "Dir::Cache=$APT_PROBE/cache" -o Acquire::Retries=1 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 -o APT::Update::Error-Mode=any)
+        timeout --kill-after=15s 180s sudo apt-get "${options[@]}" update 2>&1 | tee "$RUNNER_TEMP/apt-evidence/update.log"
+    - name: Install representative signed build and browser packages
+      timeout-minutes: 6
+      shell: bash
+      run: |
+        set -euo pipefail
+        options=(-o "Dir::Etc::sourcelist=$APT_PROBE/sources/sources.list" -o "Dir::Etc::sourceparts=$APT_PROBE/sources/sources.list.d" -o "Dir::State::lists=$APT_PROBE/lists" -o "Dir::Cache=$APT_PROBE/cache" -o Acquire::Retries=1 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 -o APT::Update::Error-Mode=any)
+        timeout --kill-after=15s 300s sudo apt-get "${options[@]}" install -y libsecret-1-dev pkg-config build-essential imagemagick fonts-noto-color-emoji 2>&1 | tee "$RUNNER_TEMP/apt-evidence/install.log"
+        dpkg-query -W libsecret-1-dev pkg-config build-essential imagemagick fonts-noto-color-emoji > "$RUNNER_TEMP/apt-evidence/packages.txt"
+    - name: Verify original APT source files unchanged
+      if: always() && env.APT_PROBE != ''
+      shell: bash
+      run: |
+        set -euo pipefail
+        python3 - <<'PYTHON'
+        import hashlib,json,os,pathlib
+        p=pathlib.Path(os.environ['APT_PROBE'])/'sources/source-inventory.json'
+        x=json.loads(p.read_text())
+        assert x['original_sha256']=={name:hashlib.sha256(pathlib.Path(name).read_bytes()).hexdigest() for name in x['original_sha256']}
+        print('Original APT source bytes unchanged; no DNS, proxy, keyring, TLS or signature setting modified.')
+        PYTHON
+    - uses: actions/upload-artifact@v7
+      if: always()
+      with:
+        name: apt-probe-${{ matrix.runner }}-${{ github.run_id }}-${{ github.run_attempt }}
+        path: ${{ runner.temp }}/apt-evidence/
+        if-no-files-found: error
+        retention-days: 7
