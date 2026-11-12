@@ -87,7 +87,7 @@ def check_pins(pins):
     for obj, fields in ((source, ('sha', 'tree')), (workflow, ('sha',))):
         for key in fields:
             require(isinstance(obj.get(key), str) and re.fullmatch('[a-f0-9]{40}', obj[key]), 'Unreviewed coverage source/workflow pin')
-    require(source.get('branch') == 'maintenance/v0.1.8-zh-cloud' and workflow.get('branch') == 'validation/v0.1.8-coverage-' + source['sha'][:12], 'Coverage branch pin mismatch')
+    require(source.get('branch') == 'maintenance/v0.1.9-zh-cloud' and workflow.get('branch') == 'validation/v0.1.9-coverage-' + source['sha'][:12], 'Coverage branch pin mismatch')
     require(workflow.get('path') == '.github/workflows/client-coverage.yml', 'Coverage workflow path mismatch')
     for obj, fields in ((source, ('baseline_run_id', 'baseline_run_attempt')), (workflow, ('run_id', 'run_attempt')), (artifact, ('id', 'size', 'producer_job_id'))):
         for key in fields:

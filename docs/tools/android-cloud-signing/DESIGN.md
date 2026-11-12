@@ -1,3 +1,15 @@
+# v0.1.9 partial-platform release policy
+
+This adaptation is bound to source042eacb54f19c3bbc452e4ae271794f4c5fc524e, main run43163372855 attempt1. The owner explicitly approved releasing passed platforms while withholding AppImage and continuing its crash investigation. Exactly22 distinct expected jobs must still exist and be completed. Exactly the AppImage job131002278005 must have conclusion failure; all other21 jobs must succeed with the same source/run/attempt. A missing, skipped, cancelled, replaced or rerun gate is not covered by the exception. This is21/22, not an all-gates pass. The original22-success policy below is historical baseline context and is superseded only by this exact documented exception.
+
+Fresh coverage run43163681839 must pass all five lanes with166 passed and5 exact prerequisite skips, verified from original producers, raw reports, named assertions, artifact digests and upload intervals. UI run43169912982 must prove139 exact files/1791 passed tests and the61-step real web scenario/five screenshots, with immutable archive and member hashes and live before/after verification. These supplementary results do not claim installed Android or every real device was tested.
+
+The fixed certificate, encrypted backup identity and recovery evidence remain unchanged. Candidate APK integrity, arm64-only native ABI, package/version and unsigned status are checked without signing secrets, using build-tools36.0.0, before the original recovered identity signs. The resulting APK must pass signature/certificate verification. Release android-v0.1.9-zh.1 remains non-Latest and cannot replace existing releases, drafts, tags or assets.
+
+Preparation remains disabled in reviewed-signing-input.json and by an unconditional publisher guard until independent review and explicit final enabling. Tests remove the latter guard only inside the in-memory offline publisher fixture; test fixtures are not release evidence.
+
+## Original baseline design
+
 # Cloud Android signing bootstrap — review draft
 
 No fixed user computer, local JDK, password in chat, or long-lived cloud machine is

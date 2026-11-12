@@ -13,12 +13,13 @@ import urllib.parse
 import urllib.request
 import zipfile
 import verify_supplemental
+import verify_ui
 
 REPO = 'ZhiweiXiao98/t3code'
-BRANCH = 'maintenance/v0.1.8-zh-cloud'
-SOURCE_SHA = '3270444c64826f67c953c2816dd1fd8f10d87953'
-SOURCE_TREE = '4eb59e49773d95fc7be03f51f6a3493f343864f6'
-CANDIDATE_RUN = 42994944772
+BRANCH = 'maintenance/v0.1.9-zh-cloud'
+SOURCE_SHA = '042eacb54f19c3bbc452e4ae271794f4c5fc524e'
+SOURCE_TREE = '7879a15522881c2c953a650ca2062848111a742d'
+CANDIDATE_RUN = 43163372855
 CANDIDATE_ATTEMPT = 1
 ANDROID_JOB = 'Android arm64 unsigned candidate (NOT installable)'
 RECOVERY_RUN = 40649758501
@@ -26,8 +27,11 @@ RECOVERY_ARTIFACT = 12799615493
 RECOVERY_ZIP_SHA256 = 'b2c345e3b7566e2c6cd3efa8be8213b464f1c3a04497967c96228d3797769fdd'
 CERT = '82f2437cbceb94fe6fe4a60a1c0de99f643124c64a648a27de9ce92bd39ecd88'
 KEY_HASH = '7e4922f7de02c1c739e627eb3ef87fa1fb639329ed27613dff8b4f0fdad2d397'
-APK_NAME = 'T3-Code-zh-CN-Android-0.1.8-zh.1-arm64-v8a.apk'
-UNSIGNED_APK_NAME = 'T3-Code-zh-CN-Android-0.1.8-zh.1-arm64-UNSIGNED-NOT-INSTALLABLE.apk'
+APK_NAME = 'T3-Code-zh-CN-Android-0.1.9-zh.1-arm64-v8a.apk'
+UNSIGNED_APK_NAME = 'T3-Code-zh-CN-Android-0.1.9-zh.1-arm64-UNSIGNED-NOT-INSTALLABLE.apk'
+DEFERRED_APPIMAGE = 'Clean desktop appimage Debian 13 guest (Ubuntu 24.04 host) first start'
+DEFERRED_JOB_ID = 131002278005
+PARTIAL_RELEASE = {'scope':'Android release; AppImage withheld by owner approval', 'passed':21, 'total':22, 'deferred_job_id':DEFERRED_JOB_ID, 'deferred_job_name':DEFERRED_APPIMAGE, 'deferred_conclusion':'failure'}
 JOBS = set(['Android arm64 unsigned candidate (NOT installable)', 'Build validated desktop bundle', 'Clean desktop appimage Debian 13 guest (Ubuntu 24.04 host) first start', 'Clean desktop deb first start', 'Clean desktop nsis first start', 'Clean macOS arm64 dmg first start', 'Clean macOS arm64 zip first start', 'Clean macOS x64 dmg first start', 'Clean macOS x64 zip first start', 'Desktop mac arm64 (integrity checked)', 'Desktop mac x64 (integrity checked)', 'Desktop win x64 (integrity checked)', 'Lint and typecheck', 'Linux x64 and embedded Windows WSL runtime', 'Mobile native static analysis', 'Rust native formatting and tests', 'Tests (clients)', 'Tests (server-1)', 'Tests (server-2)', 'Tests (server-3)', 'Tests (web)', 'Validate exact source'])
 
 
@@ -68,7 +72,7 @@ def read_input(path):
             manifest['candidate_attempt'] == CANDIDATE_ATTEMPT and
             manifest['candidate_source_sha'] == SOURCE_SHA and
             manifest['candidate_source_tree_sha'] == SOURCE_TREE,
-            'Input is not this exact reviewed v0.1.8 candidate')
+            'Input is not this exact reviewed v0.1.9 candidate')
     require(manifest['candidate_producer_attempt'] <= manifest['candidate_attempt'], 'Producer attempt is in the future')
     return manifest
 
@@ -122,7 +126,7 @@ def check_run(run, manifest):
     require(run.get('id') == manifest['candidate_run_id'] and run.get('run_attempt') == manifest['candidate_attempt'], 'Run/attempt mismatch')
     require(run.get('head_sha') == manifest['candidate_source_sha'] and run.get('head_branch') == BRANCH, 'Source/ref mismatch')
     require(run.get('path') == '.github/workflows/client-release.yml' and run.get('event') in ('push', 'workflow_dispatch'), 'Workflow/event mismatch')
-    require(run.get('repository', {}).get('full_name') == REPO and run.get('status') == 'completed' and run.get('conclusion') == 'success', 'Candidate run not successful')
+    require(run.get('repository', {}).get('full_name') == REPO and run.get('status') == 'completed' and run.get('conclusion') == 'failure', 'Candidate must be the exact reviewed partial-release run')
     require(run.get('head_repository', {}).get('full_name') == REPO, 'Candidate source repository mismatch')
     require(run.get('head_commit', {}).get('tree_id') == manifest['candidate_source_tree_sha'], 'Candidate source tree mismatch')
     require(run.get('repository', {}).get('private') is False, 'Standard hosted runner requires public repository')
@@ -130,7 +134,10 @@ def check_run(run, manifest):
 
 def check_jobs(jobs, manifest):
     require(len(jobs) == 22 and {x.get('name') for x in jobs} == JOBS, 'Expected exactly all 22 release gates')
-    require(all(x.get('status') == 'completed' and x.get('conclusion') == 'success' for x in jobs), 'A release gate did not succeed')
+    require(all(x.get('status') == 'completed' for x in jobs), 'Incomplete release gate')
+    deferred = [x for x in jobs if x.get('name') == DEFERRED_APPIMAGE]
+    require(len(deferred)==1 and deferred[0].get('id')==DEFERRED_JOB_ID and deferred[0].get('conclusion')=='failure', 'Only the exact approved AppImage failure may be deferred')
+    require(all(x.get('conclusion')=='success' for x in jobs if x.get('name')!=DEFERRED_APPIMAGE), 'A non-AppImage release gate did not succeed')
     require(all(x.get('run_id') == manifest['candidate_run_id'] and
                 x.get('run_attempt') == manifest['candidate_attempt'] and
                 x.get('head_sha') == manifest['candidate_source_sha'] for x in jobs), 'Release job source/attempt mismatch')
@@ -199,7 +206,7 @@ def run(command):
 
 
 def check_badging(text):
-    require("package: name='com.zhiweixiao.t3code.zhcn' versionCode='1000415' versionName='0.1.8-zh.1'" in text, 'APK package/version mismatch')
+    require("package: name='com.zhiweixiao.t3code.zhcn' versionCode='1000416' versionName='0.1.9-zh.1'" in text, 'APK package/version mismatch')
     natives = re.findall(r'^native-code:\s*(.*)$', text, re.M)
     require(natives == ["'arm64-v8a'"], 'APK must contain exactly arm64-v8a native code')
 
@@ -229,10 +236,12 @@ def check_recovery_artifact(artifact):
             artifact.get('name') == 'android-public-recovery-evidence-' + str(RECOVERY_RUN) and
             artifact.get('digest') == 'sha256:' + RECOVERY_ZIP_SHA256,
             'Public recovery evidence binding mismatch')
+    require(stamp(artifact.get('expires_at')) > datetime.now(timezone.utc), 'Public recovery evidence expired by timestamp')
 
 
 def current_candidate(api, manifest):
     supplemental = verify_supplemental.verify(supplemental_pins())
+    ui = verify_ui.verify()
     run_data = api.json('/actions/runs/' + str(manifest['candidate_run_id']))
     check_run(run_data, manifest)
     jobs = api.json('/actions/runs/' + str(manifest['candidate_run_id']) + '/attempts/' + str(manifest['candidate_attempt']) + '/jobs?per_page=100')
@@ -240,7 +249,7 @@ def current_candidate(api, manifest):
     check_jobs(jobs['jobs'], manifest)
     require(api.json('/git/ref/heads/' + BRANCH).get('object', {}).get('sha') == manifest['candidate_source_sha'],
             'Candidate branch moved after review')
-    return {**jobs, 'supplemental_coverage': supplemental}
+    return {**jobs, 'supplemental_coverage': supplemental, 'ui_validation':ui}
 
 
 def prepare(input_path, workspace):
@@ -318,12 +327,18 @@ def prepare(input_path, workspace):
     require(len(fresh_originals) == 1 and fresh_originals[0] == originals[0],
             'Candidate original producer changed during inspection')
     producer = check_artifact_producer(fresh_artifact, jobs['jobs'], fresh_originals[0], manifest)
+    fresh_recovery = api.json('/actions/runs/' + str(RECOVERY_RUN) + '/artifacts?per_page=100')
+    fresh_matches = [x for x in fresh_recovery.get('artifacts', []) if x.get('id') == RECOVERY_ARTIFACT]
+    require(len(fresh_matches)==1, 'Fresh recovery evidence missing')
+    check_recovery_artifact(fresh_matches[0])
+    require(fresh_matches[0]==matches[0], 'Recovery evidence changed before signing')
     proof = {**manifest, 'unsigned_apk_sha256': digest(unsigned), 'recovery_run_id': RECOVERY_RUN,
              'certificate_sha256': CERT, 'encrypted_container_sha256': KEY_HASH,
              'candidate_apk_zip_entry': entry.filename, 'producer': producer,
-             'supplemental_coverage': jobs['supplemental_coverage'],
+             'supplemental_coverage': jobs['supplemental_coverage'], 'ui_validation':jobs['ui_validation'],
+             'partial_release':PARTIAL_RELEASE,
              'validated_release_jobs': [{'id': x['id'], 'name': x['name'], 'run_attempt': x['run_attempt'],
-                                         'started_at': x['started_at'], 'completed_at': x['completed_at']}
+                                         'started_at': x['started_at'], 'completed_at': x['completed_at'], 'conclusion':x['conclusion']}
                                         for x in jobs['jobs']]}
     (out / 'reviewed-provenance.json').write_text(json.dumps(proof, indent=2) + '\n')
     for path in (evidence_zip, archive_path):
@@ -364,7 +379,7 @@ def sign(input_path, workspace, destination):
         proof.update({'signed_apk_sha256': digest(signed), 'apk_signature_verified': True,
                       'source_sha': manifest['candidate_source_sha'],
                       'candidate_artifact_sha256': manifest['candidate_artifact_zip_sha256'],
-                      'package_name': 'com.zhiweixiao.t3code.zhcn', 'version_name': '0.1.8-zh.1', 'version_code': 1000415})
+                      'package_name': 'com.zhiweixiao.t3code.zhcn', 'version_name': '0.1.9-zh.1', 'version_code': 1000416})
         (out / 'BUILD-PROVENANCE.json').write_text(json.dumps(proof, indent=2) + '\n')
         (out / 'SHA256SUMS.txt').write_text(digest(signed) + '  ' + APK_NAME + '\n' + digest(out / 'BUILD-PROVENANCE.json') + '  BUILD-PROVENANCE.json\n')
     finally:

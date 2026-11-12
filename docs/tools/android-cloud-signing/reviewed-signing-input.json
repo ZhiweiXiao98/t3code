@@ -1,16 +1,16 @@
 {
   "enabled": true,
-  "candidate_run_id": 42994944772,
+  "candidate_run_id": 43163372855,
   "candidate_attempt": 1,
-  "candidate_source_sha": "3270444c64826f67c953c2816dd1fd8f10d87953",
-  "candidate_source_tree_sha": "4eb59e49773d95fc7be03f51f6a3493f343864f6",
-  "candidate_artifact_id": 13845727133,
-  "candidate_artifact_zip_sha256": "c4b31a36f758d213f22a84c43cad224eeeb18433e19ac5ee4b7ae409f79f3b2c",
-  "candidate_unsigned_apk_sha256": "fdfb859607493e5062d30068807c0fdc2e7fa1c3c7fafd23ebc63d4df6fa0105",
-  "candidate_unsigned_apk_size": 99653116,
-  "candidate_producer_job_id": 130437616876,
+  "candidate_source_sha": "042eacb54f19c3bbc452e4ae271794f4c5fc524e",
+  "candidate_source_tree_sha": "7879a15522881c2c953a650ca2062848111a742d",
+  "candidate_artifact_id": 13920462054,
+  "candidate_artifact_zip_sha256": "4c14f25747e5b976745b7098d21d4362335d3704c40af757db1a34fc5fc10e88",
+  "candidate_unsigned_apk_sha256": "1dd302cd0e40843d0dc42b3bde3252ec968e57f81648e733c1893c32d2fee22e",
+  "candidate_unsigned_apk_size": 100159092,
+  "candidate_producer_job_id": 131000285044,
   "candidate_producer_attempt": 1,
-  "candidate_producer_started_at": "2026-11-11T09:26:57Z",
-  "candidate_producer_completed_at": "2026-11-11T10:00:03Z",
-  "candidate_artifact_zip_size": 46410853
+  "candidate_producer_started_at": "2026-11-12T05:46:41Z",
+  "candidate_producer_completed_at": "2026-11-12T06:19:15Z",
+  "candidate_artifact_zip_size": 46693309
 }

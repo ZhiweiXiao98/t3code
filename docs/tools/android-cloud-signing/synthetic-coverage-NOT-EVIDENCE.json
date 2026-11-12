@@ -4,13 +4,13 @@
   "repository": "ZhiweiXiao98/t3code",
   "passed": true,
   "source": {
-    "sha": "3270444c64826f67c953c2816dd1fd8f10d87953",
-    "tree": "4eb59e49773d95fc7be03f51f6a3493f343864f6",
-    "branch": "maintenance/v0.1.8-zh-cloud"
+    "sha": "042eacb54f19c3bbc452e4ae271794f4c5fc524e",
+    "tree": "7879a15522881c2c953a650ca2062848111a742d",
+    "branch": "maintenance/v0.1.9-zh-cloud"
   },
   "workflow": {
     "path": ".github/workflows/client-coverage.yml",
-    "branch": "validation/v0.1.8-coverage-3270444c6482",
+    "branch": "validation/v0.1.9-coverage-042eacb54f19",
     "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     "run_id": 1,
     "run_attempt": 1
@@ -27,14 +27,15 @@
         "arch": "x64",
         "has_socket_set_type_of_service": true,
         "browser": {
-          "playwright_version": "1.60.0",
-          "revision": "1223",
-          "version": "Chromium 148.0.7778.96",
+          "playwright_version": "1.64.1",
+          "revision": "1248",
+          "version": "156.0.8078.4",
           "executable_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
           "test_headless_shell": "/test/chrome-headless-shell",
           "sandbox_disabled": false
         },
-        "nushell": null
+        "nushell": null,
+        "has_posix_bash": true
       },
       "source_unchanged": true,
       "test_exit_code": 0,
@@ -175,7 +176,8 @@
         "arch": "x64",
         "has_socket_set_type_of_service": true,
         "browser": null,
-        "nushell": null
+        "nushell": null,
+        "has_posix_bash": true
       },
       "source_unchanged": true,
       "test_exit_code": 0,
@@ -227,7 +229,8 @@
         "arch": "x64",
         "has_socket_set_type_of_service": true,
         "browser": null,
-        "nushell": null
+        "nushell": null,
+        "has_posix_bash": false
       },
       "source_unchanged": true,
       "test_exit_code": 0,
@@ -275,18 +278,19 @@
           "executable_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
           "archive_sha256": "9f73a6913f9515a621bd916dc91d7f3e0494e488161c2d686f6b98ffa0555945",
           "download_url": "https://github.com/nushell/nushell/releases/download/0.116.0/nu-0.116.0-x86_64-unknown-linux-gnu.tar.gz"
-        }
+        },
+        "has_posix_bash": true
       },
       "source_unchanged": true,
       "test_exit_code": 0,
       "files": [
         {
           "path": "packages/shared/src/shell.test.ts",
-          "git_blob_sha": "d4e831f2af4bd105330995b41a2cd9fba220b39a",
-          "sha256": "3fbabc2468df1219ba266d83f663df7ef68a005fb7a783bda41cf01d6647123b",
+          "git_blob_sha": "83561c8daced452fce523af0f411e98cd15d6b7a",
+          "sha256": "54356bf4b7cfbccbe542641634a2397ca6760386f5e2109f03573d9e6c1e55bb",
           "counts": {
-            "total": 70,
-            "passed": 69,
+            "total": 71,
+            "passed": 70,
             "failed": 0,
             "skipped": 1,
             "todo": 0
@@ -294,6 +298,11 @@
           "assertions": [
             {
               "title": "captures Nushell PATH and multiline values without external tools",
+              "status": "passed",
+              "skip_reason": null
+            },
+            {
+              "title": "ignores probe markers a bash DEBUG trap echoes into the terminal title",
               "status": "passed",
               "skip_reason": null
             },
@@ -657,20 +666,21 @@
         "arch": "x64",
         "has_socket_set_type_of_service": true,
         "browser": null,
-        "nushell": null
+        "nushell": null,
+        "has_posix_bash": false
       },
       "source_unchanged": true,
       "test_exit_code": 0,
       "files": [
         {
           "path": "packages/shared/src/shell.test.ts",
-          "git_blob_sha": "d4e831f2af4bd105330995b41a2cd9fba220b39a",
-          "sha256": "3fbabc2468df1219ba266d83f663df7ef68a005fb7a783bda41cf01d6647123b",
+          "git_blob_sha": "83561c8daced452fce523af0f411e98cd15d6b7a",
+          "sha256": "54356bf4b7cfbccbe542641634a2397ca6760386f5e2109f03573d9e6c1e55bb",
           "counts": {
-            "total": 70,
+            "total": 71,
             "passed": 69,
             "failed": 0,
-            "skipped": 1,
+            "skipped": 2,
             "todo": 0
           },
           "assertions": [
@@ -678,6 +688,11 @@
               "title": "captures Nushell PATH and multiline values without external tools",
               "status": "skipped",
               "skip_reason": "requires T3_TEST_NU_PATH; covered on Linux"
+            },
+            {
+              "title": "ignores probe markers a bash DEBUG trap echoes into the terminal title",
+              "status": "skipped",
+              "skip_reason": "requires /bin/bash; covered on Linux"
             },
             {
               "title": "extracts multiple environment variables from a login shell command",
