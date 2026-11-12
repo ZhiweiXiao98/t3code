@@ -1,5 +1,7 @@
 # Install T3 Code
 
+> **简体中文社区版：** 请使用[本仓库下载入口](../../README.md#下载中文版)安装当前桌面和 Android 汉化版。以下安装脚本、包管理器和应用商店入口面向官方原版；iOS 仅有官方原版（未汉化）。社区版目前手动更新，Linux 本次仅提供 x64 DEB，AppImage 暂缓发布。
+
 T3 Code runs coding agents on your computer and lets you control them from its
 desktop, web, or mobile app. Set up the machine where the agents will work first.
 

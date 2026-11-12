@@ -1,5 +1,7 @@
 # Updating T3 Code
 
+> **简体中文社区版：** 当前不提供自动更新源，Android 也已关闭官方 OTA。请从[本仓库下载入口](../../README.md#下载中文版)手动安装新版，并先阅读[升级前必读](../../README.zh-CN.md#升级前必读)，备份数据后再升级；v0.1.9 包含消息搜索索引迁移（081），回退请使用升级前的备份。以下自动更新和应用商店说明面向官方原版，不代表社区安装包具备这些更新渠道。
+
 The app you use and the server running your agents can be on different machines.
 When a server is behind your web or desktop app, the update button at the bottom
 of the sidebar and **Settings → Environments** offer to update it.
