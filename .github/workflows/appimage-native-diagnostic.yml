@@ -1,0 +1,86 @@
+name: Diagnose pinned AppImage renderer crash
+on:
+  push:
+    branches: [validation/v0.1.9-appimage-native-diagnostic]
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: t3-appimage-crash-diagnostic-2ed0419
+  cancel-in-progress: false
+jobs:
+  diagnose:
+    if: github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 100
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Verify and test reviewed diagnostic helpers
+        working-directory: diagnostics/appimage
+        run: |
+          set -euo pipefail
+          echo 'a50b4c485fa06f06872b5b76bf58867173721073fe9ae9fd99a52b90cb550eca  operation.json' | sha256sum -c -
+          python3 verify_payload.py
+          python3 -m unittest test_operation test_privacy_transport test_cancel -v
+          node test-hook.cjs
+          node test-inspector-order.cjs
+      - name: Fetch pinned existing packages without building an application
+        working-directory: diagnostics/appimage
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 download_inputs.py "$RUNNER_TEMP/diagnostic-inputs"
+      - name: Prepare official diagnostic tools
+        working-directory: diagnostics/appimage
+        run: |
+          set -euo pipefail
+          timeout 300 sudo apt-get update
+          timeout 900 sudo apt-get install --no-install-recommends -y qemu-system-x86 qemu-utils genisoimage
+          mkdir "$RUNNER_TEMP/diagnostic-tools"
+          cd "$RUNNER_TEMP/diagnostic-tools"
+          curl --proto '=https' --proto-redir '=https' --fail --location --max-time 300 https://github.com/electron/electron/releases/download/v44.10.1/electron-v44.10.1-linux-x64-symbols.zip -o symbols.zip
+          echo '9c497198ec2e5b0c097a5a10434255d26d10e467c6670b3115e4c00df68e0d43  symbols.zip' | sha256sum -c -
+          curl --proto '=https' --proto-redir '=https' --fail --location --max-time 120 https://static.crates.io/crates/minidump-stackwalk/minidump-stackwalk-0.27.0.crate -o stackwalk.crate
+          echo 'e9527f1e47fc491d3645f7d372d10bed80307774209489fd7828291c71b0237a  stackwalk.crate' | sha256sum -c -
+          tar --extract --gzip --file stackwalk.crate --no-same-owner
+          timeout 900 cargo build --release --locked --manifest-path minidump-stackwalk-0.27.0/Cargo.toml
+          curl --proto '=https' --proto-redir '=https' --fail --location --max-time 120 https://registry.npmjs.org/playwright-core/-/playwright-core-1.60.0.tgz -o playwright.tgz
+          echo '8b1df81ba75e90a41eb5c996350ea7ecc1c915ea643ec55138f91c949c5a25bf  playwright.tgz' | sha256sum -c -
+      - name: Test pinned controller transformation
+        working-directory: diagnostics/appimage
+        run: |
+          set -euo pipefail
+          mkdir "$RUNNER_TEMP/diagnostic-tools/test-pw"
+          tar -xzf "$RUNNER_TEMP/diagnostic-tools/playwright.tgz" -C "$RUNNER_TEMP/diagnostic-tools/test-pw"
+          TEST_PLAYWRIGHT_BUNDLE="$RUNNER_TEMP/diagnostic-tools/test-pw/package/lib/coreBundle.js" python3 -m unittest test_helpers -v
+      - name: Execute each bounded diagnostic cell once
+        working-directory: diagnostics/appimage
+        run: |
+          set -euo pipefail
+          tools="$RUNNER_TEMP/diagnostic-tools"
+          binary="$tools/minidump-stackwalk-0.27.0/target/release/minidump-stackwalk"
+          binary_hash="$(sha256sum "$binary" | cut -d' ' -f1)"
+          mkdir "$RUNNER_TEMP/diagnostic-public"
+          for cell in candidate control; do
+            timeout --kill-after=40s 2700 python3 diagnostic_host.py --execute-reviewed-operation --cell "$cell" \
+              --work "$RUNNER_TEMP/diagnostic-$cell" \
+              --installer-zip "$RUNNER_TEMP/diagnostic-inputs/$cell-installer.zip" \
+              --proof-zip "$RUNNER_TEMP/diagnostic-inputs/$cell-proof.zip" \
+              --playwright-tar "$tools/playwright.tgz" --symbols-zip "$tools/symbols.zip" \
+              --stackwalker "$binary" --stackwalker-sha256 "$binary_hash"
+            python3 retain_public.py "$RUNNER_TEMP/diagnostic-$cell" "$RUNNER_TEMP/diagnostic-public/$cell"
+          done
+          python3 compare_cells.py "$RUNNER_TEMP/diagnostic-public"
+      - name: Upload only validated diagnostic exports
+        if: success()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: appimage-crash-diagnostic-2ed0419
+          path: |
+            ${{ runner.temp }}/diagnostic-public/candidate/diagnostic.json
+            ${{ runner.temp }}/diagnostic-public/candidate/manifest.json
+            ${{ runner.temp }}/diagnostic-public/control/diagnostic.json
+            ${{ runner.temp }}/diagnostic-public/control/manifest.json
+          if-no-files-found: error
+          retention-days: 7
