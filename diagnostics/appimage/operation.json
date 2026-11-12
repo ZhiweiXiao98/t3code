@@ -1,0 +1,346 @@
+{
+  "schemaVersion": 1,
+  "purpose": "root-cause diagnostic only; never release acceptance",
+  "state": "local draft; full-chain independent review required; not executed",
+  "maxExecutionsPerCell": 1,
+  "maxParallel": 1,
+  "timeoutMinutesPerCell": 45,
+  "runner": "ubuntu-24.04",
+  "permissions": {
+    "contents": "read",
+    "actions": "read"
+  },
+  "cells": [
+    {
+      "repository": "ZhiweiXiao98/t3code",
+      "source": {
+        "sha": "042eacb54f19c3bbc452e4ae271794f4c5fc524e",
+        "tree": "7879a15522881c2c953a650ca2062848111a742d"
+      },
+      "producer": {
+        "run_id": 43163372855,
+        "run_attempt": 1,
+        "artifact_id": 13919565810
+      },
+      "installer": {
+        "id": 13919565810,
+        "name": "client-linux-x64",
+        "size_in_bytes": 389038624,
+        "digest": "sha256:b50aeb51ccfa0a2494e9f4dbc57c4efa2958f9a784d5a6632fbf710b3c0d128b",
+        "workflow_run": {
+          "id": 43163372855,
+          "repository_id": 1333196089,
+          "head_repository_id": 1333196089,
+          "head_branch": "maintenance/v0.1.9-zh-cloud",
+          "head_sha": "042eacb54f19c3bbc452e4ae271794f4c5fc524e"
+        }
+      },
+      "proof": {
+        "id": 13919830030,
+        "name": "linux-build-proof",
+        "size_in_bytes": 836,
+        "digest": "sha256:d24bda0992ba33bccf3a3dd43f28e6cc746bea90c617d4dfd11ba198bee69575",
+        "workflow_run": {
+          "id": 43163372855,
+          "repository_id": 1333196089,
+          "head_repository_id": 1333196089,
+          "head_branch": "maintenance/v0.1.9-zh-cloud",
+          "head_sha": "042eacb54f19c3bbc452e4ae271794f4c5fc524e"
+        }
+      },
+      "appimage": {
+        "name": "app.AppImage",
+        "sha256": "dbcf82f732a0df96513ad32f2bd10177a06b5e4f8c64143d38b6c66724cf493b",
+        "size": 214784465
+      },
+      "guestImageSha512": "f46f0671a6e5bdec5291ab8972bae2f10e5408c2f64a74078f11efc2f06a436a9d0313ed50e0472542eeabf780e9f7c792ac0a314c6c20507fcd9fd81b468c3d",
+      "accelerator": [
+        "-accel",
+        "tcg,thread=multi",
+        "-cpu",
+        "max"
+      ],
+      "playwrightTarSha256": "8b1df81ba75e90a41eb5c996350ea7ecc1c915ea643ec55138f91c949c5a25bf",
+      "label": "candidate",
+      "enableLocalCrashCapture": true
+    },
+    {
+      "repository": "ZhiweiXiao98/t3code",
+      "source": {
+        "sha": "042eacb54f19c3bbc452e4ae271794f4c5fc524e",
+        "tree": "7879a15522881c2c953a650ca2062848111a742d"
+      },
+      "producer": {
+        "run_id": 43163372855,
+        "run_attempt": 1,
+        "artifact_id": 13919565810
+      },
+      "installer": {
+        "id": 13919565810,
+        "name": "client-linux-x64",
+        "size_in_bytes": 389038624,
+        "digest": "sha256:b50aeb51ccfa0a2494e9f4dbc57c4efa2958f9a784d5a6632fbf710b3c0d128b",
+        "workflow_run": {
+          "id": 43163372855,
+          "repository_id": 1333196089,
+          "head_repository_id": 1333196089,
+          "head_branch": "maintenance/v0.1.9-zh-cloud",
+          "head_sha": "042eacb54f19c3bbc452e4ae271794f4c5fc524e"
+        }
+      },
+      "proof": {
+        "id": 13919830030,
+        "name": "linux-build-proof",
+        "size_in_bytes": 836,
+        "digest": "sha256:d24bda0992ba33bccf3a3dd43f28e6cc746bea90c617d4dfd11ba198bee69575",
+        "workflow_run": {
+          "id": 43163372855,
+          "repository_id": 1333196089,
+          "head_repository_id": 1333196089,
+          "head_branch": "maintenance/v0.1.9-zh-cloud",
+          "head_sha": "042eacb54f19c3bbc452e4ae271794f4c5fc524e"
+        }
+      },
+      "appimage": {
+        "name": "app.AppImage",
+        "sha256": "dbcf82f732a0df96513ad32f2bd10177a06b5e4f8c64143d38b6c66724cf493b",
+        "size": 214784465
+      },
+      "guestImageSha512": "f46f0671a6e5bdec5291ab8972bae2f10e5408c2f64a74078f11efc2f06a436a9d0313ed50e0472542eeabf780e9f7c792ac0a314c6c20507fcd9fd81b468c3d",
+      "accelerator": [
+        "-accel",
+        "tcg,thread=multi",
+        "-cpu",
+        "max"
+      ],
+      "playwrightTarSha256": "8b1df81ba75e90a41eb5c996350ea7ecc1c915ea643ec55138f91c949c5a25bf",
+      "label": "control",
+      "enableLocalCrashCapture": false
+    }
+  ],
+  "sequence": {
+    "sourceSha": "042eacb54f19c3bbc452e4ae271794f4c5fc524e",
+    "cleanDriverSha256": "6a8e96df7a6533355af7616345ba47a4ded70d9a957585bd03568395c1d61d3c",
+    "cjkDriverSha256": "606bc590f5a8d330cb00c9f4848e1224760ea41b29d5665c5456ca9589ecf368",
+    "supplementalAudit": true,
+    "driverBytesUnchanged": true,
+    "expectedObservedScreens": 57,
+    "note": "2 clean plus 55 CJK from current exact-source baseline; scroll sample count remains dynamic and all original assertions remain",
+    "phaseBudgetSeconds": {
+      "language-roundtrip": 480,
+      "settings-overviews": 180,
+      "supplemental-audit": 240
+    },
+    "totalCjkBudgetSeconds": 900
+  },
+  "toolchain": {
+    "electron": "44.10.1",
+    "symbolsURL": "https://github.com/electron/electron/releases/download/v44.10.1/electron-v44.10.1-linux-x64-symbols.zip",
+    "symbolsSha256": "9c497198ec2e5b0c097a5a10434255d26d10e467c6670b3115e4c00df68e0d43",
+    "checksumSource": "https://github.com/electron/electron/releases/download/v44.10.1/SHASUMS256.txt",
+    "stackwalker": "minidump-stackwalk",
+    "stackwalkerVersion": "0.27.0",
+    "crateURL": "https://static.crates.io/crates/minidump-stackwalk/minidump-stackwalk-0.27.0.crate",
+    "crateSha256": "e9527f1e47fc491d3645f7d372d10bed80307774209489fd7828291c71b0237a",
+    "registryIndex": "https://index.crates.io/mi/ni/minidump-stackwalk",
+    "build": "cargo build --release --locked --manifest-path <verified-crate>/Cargo.toml",
+    "execute": [
+      "minidump-stackwalk",
+      "--json",
+      "--no-interactive",
+      "--output-file",
+      "<private-json>",
+      "<private-minidump>",
+      "<verified-local-symbols>"
+    ],
+    "noSymbolsURL": true
+  },
+  "output": {
+    "files": [
+      "diagnostic.json",
+      "manifest.json"
+    ],
+    "maxBytes": 65536,
+    "rawDumpUpload": false,
+    "arbitraryLogUpload": false,
+    "dumpDirectory": "/tmp/t3-local-crash-<pid>",
+    "persistentTelemetry": false
+  },
+  "security": {
+    "sandboxUnchanged": true,
+    "systemSettingsUnchanged": true,
+    "cpuUnchanged": true,
+    "appimageUnchanged": true,
+    "freshCredentialFreeProfiles": true,
+    "uploadToServer": false,
+    "submitURL": null,
+    "packageVersionListsMustMatch": true
+  },
+  "helpers": [
+    {
+      "name": "ci-ubuntu-packages.py",
+      "sha256": "350becdbabe87332c477a04ba729610c1aed33e1e893a7e1175673ec3b42f124",
+      "bytes": 8673
+    },
+    {
+      "name": "cjk_budget.py",
+      "sha256": "496ba97a8b6bcc4bb95994c5a3f33796c17ce47c9e095861e0df66c5c50e5597",
+      "bytes": 3823
+    },
+    {
+      "name": "clean-driver.mjs",
+      "sha256": "6a8e96df7a6533355af7616345ba47a4ded70d9a957585bd03568395c1d61d3c",
+      "bytes": 12817
+    },
+    {
+      "name": "compare_cells.py",
+      "sha256": "5e6028734c941536f6731a3728d8adaf8e1ae1514d927fa386162913bfc253dd",
+      "bytes": 455
+    },
+    {
+      "name": "control-driver.mjs",
+      "sha256": "606bc590f5a8d330cb00c9f4848e1224760ea41b29d5665c5456ca9589ecf368",
+      "bytes": 35327
+    },
+    {
+      "name": "decode_diagnostic.py",
+      "sha256": "29366e606a8e41c828c84daf7240e43a9ef9ff67b022518fa33692301cbb6d9a",
+      "bytes": 3975
+    },
+    {
+      "name": "diagnostic-driver.mjs",
+      "sha256": "606bc590f5a8d330cb00c9f4848e1224760ea41b29d5665c5456ca9589ecf368",
+      "bytes": 35327
+    },
+    {
+      "name": "diagnostic_guest.py",
+      "sha256": "80531fe98c7971d018e3e8bbd52832bf6f814c561c47f0ac57415ba91083fcd3",
+      "bytes": 9026
+    },
+    {
+      "name": "diagnostic_host.py",
+      "sha256": "516b1028f7a9102118f40747699228451d3b7aad57b861c0f01b5bc563154218",
+      "bytes": 8709
+    },
+    {
+      "name": "download_inputs.py",
+      "sha256": "6c2e95a56ec5cf6ae117c93ebf40a9e3eea4dd673b9239d1e834f44a2dc433e4",
+      "bytes": 1119
+    },
+    {
+      "name": "early-hook.cjs",
+      "sha256": "08bb5e58817cd62d39d2d538c3b15e2bf5c710bbe3300206df70b2aea92ab8a9",
+      "bytes": 770
+    },
+    {
+      "name": "patch_playwright.py",
+      "sha256": "01227363d52fa692d335d4c62cfc8a2e97a0d1f43b1fbaee768bb99a892b46ac",
+      "bytes": 2302
+    },
+    {
+      "name": "prepare_driver.py",
+      "sha256": "0c4e389fcca65c6846b0ecadf0e73299b4f8633b9c94d7e57d6f203933602aa4",
+      "bytes": 303
+    },
+    {
+      "name": "progress_summary.py",
+      "sha256": "5deaec42ed504839e39a178bfab84d95164686a48d9bfa8fedb3791b8c759515",
+      "bytes": 1937
+    },
+    {
+      "name": "retain_public.py",
+      "sha256": "2abb13882c169462a8a840068e4be0bcd1dab6ad9d7d03471d9b245be404f523",
+      "bytes": 882
+    },
+    {
+      "name": "sanitize_stack.py",
+      "sha256": "7f3e1fe4fd22ab6763eded90374206790b344f1d9391ec048ef331b3d77db93c",
+      "bytes": 2752
+    },
+    {
+      "name": "test-hook.cjs",
+      "sha256": "2234076ba3144201d353d2540a4711e3045591e3df19ab38d3591cd87497fae9",
+      "bytes": 1503
+    },
+    {
+      "name": "test-inspector-order.cjs",
+      "sha256": "fa39cea7213ae00a5d5c990e00e485b46b93b44488643f52d9eae51a863b6438",
+      "bytes": 2291
+    },
+    {
+      "name": "test_cancel.py",
+      "sha256": "c0bbc430a54509987d79f96592193a097ef8f5848b7693dbb8fff631de755bf4",
+      "bytes": 1541
+    },
+    {
+      "name": "test_helpers.py",
+      "sha256": "1fc42a8befe5ceffe2c833471b716a4852722b546e5a0e626ab079d0a92703e6",
+      "bytes": 2439
+    },
+    {
+      "name": "test_operation.py",
+      "sha256": "468a3bf199ce4040d791c033c5ade29ef0f4a7160114216b357b4a03795f3410",
+      "bytes": 2807
+    },
+    {
+      "name": "test_privacy_transport.py",
+      "sha256": "61d318e342cd3d8b55d5cbbe8e32e236d3ae79894131392856be9a951a428118",
+      "bytes": 2294
+    },
+    {
+      "name": "test_progress.py",
+      "sha256": "0bd1306a90212fa6e944c89a0962c4f27d0bf2ad23b5160389836fe9f1642b86",
+      "bytes": 1325
+    },
+    {
+      "name": "transport.py",
+      "sha256": "473bef2b2d4496beca3919396ed769a2c8749375c0bb51e3d83e89e3e89ffb03",
+      "bytes": 1266
+    },
+    {
+      "name": "validate_export.py",
+      "sha256": "83debb12f20a6fc0cb5009209d7f419f7f88a6746e15639587fe882b4e73a077",
+      "bytes": 3014
+    },
+    {
+      "name": "vendor/common.py",
+      "sha256": "359ec023e6ba8dd12d43bd0351bb1062d5f0bdf4d21b1ca4f75b5770138c94bb",
+      "bytes": 29026
+    },
+    {
+      "name": "vendor/decode_serial.py",
+      "sha256": "407f262a07d3b21b072c2f11c522c1a90f19557b40f5ca7fa8bd9e549f267dd2",
+      "bytes": 3940
+    },
+    {
+      "name": "vendor/host.py",
+      "sha256": "5b7333103c6667cd86da5d2148a1d48b5254c9ceae579385c55d90455949ea58",
+      "bytes": 17291
+    },
+    {
+      "name": "vendor/live_contract.py",
+      "sha256": "199fc1b562b05bc4c289a6ad43da7e6c0b2c6eeec9202846397c2d2a375b96ff",
+      "bytes": 6028
+    },
+    {
+      "name": "vendor/live_io.py",
+      "sha256": "552cae94d1fce8db200250b8b2720f1d4de45a6526c72f20d54af5ad6e000876",
+      "bytes": 4254
+    },
+    {
+      "name": "vendor/png_validation.py",
+      "sha256": "7a8854ab7ac5922639e370e0de9c90b5ec0b9227d53decaf42ddccff5a90a087",
+      "bytes": 2288
+    },
+    {
+      "name": "vendor/upload_binding.py",
+      "sha256": "82a246b60fdcaf2f01589b8d32f5fe3440112fe3538ba73c072a6245f965e195",
+      "bytes": 2898
+    },
+    {
+      "name": "verify_payload.py",
+      "sha256": "c0eedf6f404ec4e557452cc36abe1f685ea1676a0d19749074aca090ebc5bf07",
+      "bytes": 401
+    }
+  ]
+}
