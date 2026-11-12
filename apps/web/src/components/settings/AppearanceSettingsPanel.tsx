@@ -1,3 +1,4 @@
+import { chatWidthLabel } from "./settingsFollowupPresentation";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
 import type { CSSProperties } from "react";
@@ -5,7 +6,6 @@ import { useState } from "react";
 import {
   DEFAULT_ENVIRONMENT_IDENTIFICATION_MODE,
   DEFAULT_UNIFIED_SETTINGS,
-  type ChatWidth,
   type EffortDisplay,
   type EnvironmentIdentificationMode,
   MAX_APPEARANCE_CONTRAST,
@@ -74,12 +74,6 @@ function environmentIdentificationOptions(
     ["dev-artwork", "Dev artwork"],
   ];
 }
-
-const CHAT_WIDTH_LABELS: Record<ChatWidth, string> = {
-  comfortable: "Comfortable",
-  wide: "Wide",
-  full: "Full",
-};
 
 const EFFORT_DISPLAY_LABELS: Record<EffortDisplay, string> = {
   label: "Word",
@@ -299,16 +293,14 @@ export function AppearanceSettingsPanel() {
                   className="w-full min-w-0"
                   aria-label={translateWebSource(locale, "Chat width")}
                 >
-                  <SelectValue>
-                    {translateWebSource(locale, CHAT_WIDTH_LABELS[settings.chatWidth])}
-                  </SelectValue>
+                  <SelectValue>{chatWidthLabel(locale, settings.chatWidth)}</SelectValue>
                 </SelectTrigger>
                 <SelectPopup align="end" alignItemWithTrigger={false}>
                   <SelectItem value="comfortable">
                     {translateWebSource(locale, "Comfortable (default)")}
                   </SelectItem>
-                  <SelectItem value="wide">{translateWebSource(locale, "Wide")}</SelectItem>
-                  <SelectItem value="full">{translateWebSource(locale, "Full")}</SelectItem>
+                  <SelectItem value="wide">{chatWidthLabel(locale, "wide")}</SelectItem>
+                  <SelectItem value="full">{chatWidthLabel(locale, "full")}</SelectItem>
                 </SelectPopup>
               </Select>
             </div>

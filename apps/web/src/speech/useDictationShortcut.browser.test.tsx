@@ -3,7 +3,15 @@ import { expect, it, vi } from "vite-plus/test";
 import { render } from "../../test/render";
 import { useDictationShortcut } from "./useDictationShortcut";
 
-vi.mock("../hooks/useSettings", () => ({ useClientSettings: () => "hold" }));
+vi.mock("../hooks/useSettings", async () => {
+  const { DEFAULT_CLIENT_SETTINGS } = await import("@t3tools/contracts/settings");
+  const settings = { ...DEFAULT_CLIENT_SETTINGS, voiceShortcutMode: "hold" as const };
+  return {
+    getClientSettings: () => settings,
+    useClientSettings: <T,>(select: (settings: typeof DEFAULT_CLIENT_SETTINGS) => T) =>
+      select(settings),
+  };
+});
 
 function Probe({ speech }: { speech: Parameters<typeof useDictationShortcut>[0]["speech"] }) {
   useDictationShortcut({

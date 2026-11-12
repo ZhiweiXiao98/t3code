@@ -725,7 +725,9 @@ async function auditSupplementalSettings(page, navigate, capture) {
     });
     let last = -1;
     const samples = [];
-    for (let step = 0; step < 12; step++) {
+    // Real 1100x780 keybindings DOM needs 15 samples (6428px / 454px).
+    // 32 is a bounded headroom, never permission to accept a truncated page.
+    for (let step = 0; step < 32; step++) {
       const state = await scroller.evaluate((element) => {
         const maximum = Math.max(0, element.scrollHeight - element.clientHeight);
         element.scrollTop = Math.min(
@@ -744,6 +746,10 @@ async function auditSupplementalSettings(page, navigate, capture) {
       if (state.top >= state.maximum) break;
     }
     NodeAssert.ok(samples.length > 0);
+    NodeAssert.ok(
+      samples.at(-1).top >= samples.at(-1).maximum,
+      "Incomplete supplemental scroll coverage",
+    );
     result.scrolls.push({
       route,
       samples,

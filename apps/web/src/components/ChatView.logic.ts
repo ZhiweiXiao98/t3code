@@ -1,3 +1,5 @@
+import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
+import { translateWebSource } from "../i18n/messages";
 import { type OrchestrationV2ProviderTurn, type RunAttemptId } from "@t3tools/contracts";
 import {
   deriveLatestThreadRun,
@@ -1515,4 +1517,13 @@ export function deriveAvailableRevertTurnCounts(projection: ThreadStructure | nu
     if (providerTurn?.providerThreadId === providerThread.id) available.add(run.ordinal);
   }
   return available;
+}
+
+/** Only local draft titles are application-owned placeholders. */
+export function threadHeaderTitle(
+  title: string,
+  isServerThread: boolean,
+  locale: ResolvedAppLocale,
+): string {
+  return isServerThread ? title : translateWebSource(locale, "New thread");
 }

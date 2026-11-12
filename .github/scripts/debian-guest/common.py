@@ -3,7 +3,7 @@ import base64, hashlib, io, json, os, pathlib, re, signal, subprocess, tarfile, 
 CLEAN_SHA='6a8e96df7a6533355af7616345ba47a4ded70d9a957585bd03568395c1d61d3c'
 IMAGE_URL='https://cloud.debian.org/cdimage/cloud/trixie/20261001-2618/debian-13-genericcloud-amd64-20261001-2618.qcow2'
 IMAGE_SHA='f46f0671a6e5bdec5291ab8972bae2f10e5408c2f64a74078f11efc2f06a436a9d0313ed50e0472542eeabf780e9f7c792ac0a314c6c20507fcd9fd81b468c3d'
-CJK_SHA='e975c3b27fa4518a64590f124a0d9621307bf189aa3e69d67de6bed0078bb3c3'
+CJK_SHA='606bc590f5a8d330cb00c9f4848e1224760ea41b29d5665c5456ca9589ecf368'
 PRIVACY_CLAUSES={'See the': '请参阅', 'To opt out, see the': '如需退出，请参阅'}
 THREAD_SETTINGS={
     'zh-CN':{
@@ -51,13 +51,13 @@ def validate_supplemental(root, audit):
     require([r.get('route') for r in audit.get('scrolls',[])]==['/settings/'+n for n in SUPPLEMENTAL_SCROLLS],'Missing scroll coverage')
     for r,n in zip(audit['scrolls'],SUPPLEMENTAL_SCROLLS):
         require(set(r)=={'route','samples','reached_bottom'} and isinstance(r['reached_bottom'],bool),'Unsafe scroll fields')
-        require(1<=len(r['samples'])<=12,'Unbounded scroll captures');last=-1
+        require(1<=len(r['samples'])<=32,'Unbounded scroll captures');last=-1
         for i,s in enumerate(r['samples']):
             require(set(s)=={'top','maximum','height','screenshot'},'Unsafe scroll sample fields')
             require(all(isinstance(s[k],(int,float)) and not isinstance(s[k],bool) for k in ('top','maximum','height')),'Invalid scroll metrics')
             require(s['height']>0 and s['maximum']>=s['top']>last,'Invalid scroll progress');last=s['top']
             name=f'supplemental-{n}-scroll-{i}.png';require(s['screenshot']==name,'Wrong scroll screenshot');names.append(name)
-        require(r['reached_bottom']==(r['samples'][-1]['top']>=r['samples'][-1]['maximum']),'Overstated scroll coverage')
+        require(r['reached_bottom'] is True and r['samples'][-1]['top']>=r['samples'][-1]['maximum'],'Incomplete scroll coverage')
     require([(r.get('route'),r.get('row')) for r in audit.get('menus',[])]==[('/settings/'+n,i) for n,i in SUPPLEMENTAL_MENUS],'Missing menus')
     for r,(n,i) in zip(audit['menus'],SUPPLEMENTAL_MENUS):
         require(set(r)=={'route','row','opened','closed','value_unchanged','screenshot'} and all(r[k] is True for k in ('opened','closed','value_unchanged')),'Menu mutation/unclosed popup')

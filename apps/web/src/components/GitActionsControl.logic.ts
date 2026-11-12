@@ -510,3 +510,12 @@ export function resolveChangesTotals(
     baseRef: selected.baseRef,
   };
 }
+
+/** A base ref is opaque repository data, not translatable UI copy. */
+export function changesBaseLabel(baseRef: string | null, locale: ResolvedAppLocale): string {
+  return baseRef === null
+    ? translateWebSource(locale, "Uncommitted")
+    : locale === "zh-CN"
+      ? `对比 ${baseRef}`
+      : `vs ${baseRef}`;
+}

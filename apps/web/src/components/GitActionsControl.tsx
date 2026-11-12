@@ -1,3 +1,4 @@
+import { changesBaseLabel as formatChangesBaseLabel } from "./GitActionsControl.logic";
 import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 import type { WebTranslate } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
@@ -1106,9 +1107,7 @@ export default function GitActionsControl({
   const resolvedChangesTotals = resolveChangesTotals(gitStatusForActions);
   const changesTotals = resolvedChangesTotals ?? { insertions: 0, deletions: 0 };
   const changesBaseLabel = resolvedChangesTotals
-    ? resolvedChangesTotals.baseRef === null
-      ? "Uncommitted"
-      : `vs ${resolvedChangesTotals.baseRef}`
+    ? formatChangesBaseLabel(resolvedChangesTotals.baseRef, locale)
     : null;
 
   const allFiles = gitStatusForActions?.workingTree.files ?? [];

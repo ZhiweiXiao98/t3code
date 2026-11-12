@@ -1,3 +1,8 @@
+import {
+  cleanupRunPresentation,
+  cleanupPendingDescription,
+  cleanupLastRunSummary,
+} from "./settingsFollowupPresentation";
 import { translateWebSource } from "../../i18n/messages";
 import { useI18n } from "../../i18n/WebI18nContext";
 import type {
@@ -17,7 +22,6 @@ import { formatBytes } from "../../lib/formatBytes";
 import { environmentAtomList, environmentIdsKey } from "../../state/environmentAtomList";
 import { serverEnvironment } from "../../state/server";
 import { useAtomCommand } from "../../state/use-atom-command";
-import { formatRelativeTimeLabel } from "../../timestampFormat";
 import { useNowMinute } from "../../hooks/useNowMinute";
 import { useDebouncedValue } from "../../state/queries";
 import { AnimatedHeight } from "../AnimatedHeight";
@@ -189,19 +193,6 @@ const KEEP_WHEN_LABELS = {
   "tracked-changes": "Edited tracked files",
 } as const;
 
-function lastRunSummary(
-  entries: readonly { readonly label: string; readonly counts: string }[],
-  machineCount: number,
-) {
-  const first = entries[0];
-  if (!first) return "";
-  if (machineCount <= 1) return first.counts;
-  if (entries.length === machineCount && entries.every((entry) => entry.counts === first.counts)) {
-    return `${first.counts} on every machine`;
-  }
-  return entries.map((entry) => `${entry.label}: ${entry.counts}`).join(" · ");
-}
-
 function CleanupResults({
   report,
   environmentLabel,
@@ -355,16 +346,10 @@ function CleanupSection() {
       environment,
       report,
       label: settingsScopeEnvironmentLabel(environment, connectedEnvironments),
-      counts: report
-        ? `${report.counts.removed} removed, ${report.counts.kept} kept${report.counts.failed > 0 ? `, ${report.counts.failed} failed` : ""}`
-        : "",
+      counts: report ? cleanupRunPresentation(translationLocale, report, nowMs).counts : "",
       description: report
-        ? `Last run ${formatRelativeTimeLabel(report.finishedAt, nowMs)}. ${formatBytes(report.bytesFreed)} recovered.${report.counts.failed > 0 ? ` ${report.counts.failed} ${report.counts.failed === 1 ? "item" : "items"} couldn't be removed.` : ""}`
-        : query?.failed
-          ? "Could not load the last run."
-          : query?.loading
-            ? "Loading last run…"
-            : "Cleanup hasn't run yet.",
+        ? cleanupRunPresentation(translationLocale, report, nowMs).description
+        : cleanupPendingDescription(translationLocale, query),
     };
   });
   const deleteNow = async () => {
@@ -429,11 +414,12 @@ function CleanupSection() {
       {summaries.some(({ report }) => report !== null) && (
         <FoldedSettingsSection
           id="storage-cleanup-last-run"
-          title="Last run"
+          title={translateWebSource(translationLocale, "Last run")}
           headerPlacement="inside"
-          summary={lastRunSummary(
+          summary={cleanupLastRunSummary(
             summaries.filter(({ report }) => report !== null),
             connectedEnvironments.length,
+            translationLocale,
           )}
         >
           {summaries.map(

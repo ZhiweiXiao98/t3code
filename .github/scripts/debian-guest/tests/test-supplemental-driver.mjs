@@ -34,7 +34,11 @@ async function fixture(fault) {
       clicks.push(selector);
     },
     evaluate: async (fn) => {
-      const element = { scrollTop: top, scrollHeight: 1600, clientHeight: 600 };
+      const element = {
+        scrollTop: top,
+        scrollHeight: fault === "long" ? 7078 : fault === "overflow" ? 100000 : 1600,
+        clientHeight: fault === "long" ? 650 : 600,
+      };
       const result = fn(element);
       top = element.scrollTop;
       return result;
@@ -74,7 +78,7 @@ async function fixture(fault) {
   NodeAssert.equal(result.routes.length, 4);
   NodeAssert.equal(result.scrolls.length, 7);
   NodeAssert.equal(result.menus.length, 2);
-  NodeAssert.equal(result.screenshots.length, 27);
+  NodeAssert.equal(result.screenshots.length, fault === "long" ? 111 : 27);
   NodeAssert.equal(clicks.length, 2);
   NodeAssert.ok(result.scrolls.every((x) => x.reached_bottom));
   NodeAssert.ok(!JSON.stringify(result).includes(canary));
@@ -85,7 +89,8 @@ async function fixture(fault) {
   return result;
 }
 await fixture();
-for (const fault of ["anchor", "secret-redirect", "secret-nav", "mutation"])
+await fixture("long");
+for (const fault of ["anchor", "secret-redirect", "secret-nav", "mutation", "overflow"])
   await NodeAssert.rejects(fixture(fault));
 NodeAssert.match(source, /if \(page && !supplementalPhase\) await screenshot\("failure.png"\)/);
 NodeAssert.match(
@@ -97,5 +102,5 @@ NodeAssert.match(
   /mask: \[page.locator\('input, textarea, \[contenteditable="true"\], canvas'\)\]/,
 );
 console.log(
-  "5 supplemental driver fixtures passed; canary absent from report; no app execution or sensitive-route capture",
+  "7 supplemental driver fixtures passed; canary absent from report; no app execution or sensitive-route capture",
 );

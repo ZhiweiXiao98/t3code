@@ -1,6 +1,24 @@
 import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 
 const EN_MESSAGES = {
+  "providers.status.codexDefaultCliMissing":
+    "Could not start Codex CLI (`codex`). Check Settings → Providers → Codex → Binary path on the server. Installing ChatGPT or Codex desktop may not add codex to PATH.",
+  "providers.status.claudeCliMissing": "Claude Agent CLI (`claude`) was not found on PATH.",
+  "providers.status.claudeHealthCheckFailed": "Failed to execute Claude Agent CLI health check.",
+  "providers.status.claudeCliTimedOut":
+    "Claude Agent CLI is installed but failed to run. Timed out while running command.",
+  "providers.status.claudeCliFailed": "Claude Agent CLI is installed but failed to run.",
+  "providers.status.claudeStatusUnchecked":
+    "Claude provider status has not been checked in this session yet.",
+  "providers.status.codexStatusUnchecked":
+    "Codex provider status has not been checked in this session yet.",
+  "providers.status.codexLoginRequired":
+    "Codex CLI is not authenticated. Run `codex login` and try again.",
+  "providers.status.codexStatusTimedOut":
+    "Timed out while checking Codex app-server provider status.",
+  "providers.status.codexModelCatalogTimedOut": "Codex did not return its model catalog in time.",
+  "settings.followup.connectEnvironment": "Connect an environment to set up its providers.",
+  "settings.followup.reconnectEnvironment": "Reconnect {environment} to set up its providers.",
   "sourceControl.auth.accessTokenConfigured": "An access token is configured.",
   "sourceControl.auth.apiTokenConfigured": "An API token is configured.",
   "sourceControl.install.origin":
@@ -4333,6 +4351,19 @@ export type WebMessages = Readonly<Record<WebMessageKey, string>>;
 export type WebMessageValues = Readonly<Record<string, string | number>>;
 
 const ZH_CN_MESSAGES = {
+  "providers.status.codexDefaultCliMissing":
+    "无法启动 Codex CLI（`codex`）。请检查服务器上的“设置 → 服务提供方 → Codex → 程序路径”。安装 ChatGPT 或 Codex 桌面应用可能不会将 codex 加入 PATH。",
+  "providers.status.claudeCliMissing": "在 PATH 中找不到 Claude Agent CLI（`claude`）。",
+  "providers.status.claudeHealthCheckFailed": "无法执行 Claude Agent CLI 健康检查。",
+  "providers.status.claudeCliTimedOut": "Claude Agent CLI 已安装，但运行失败。执行命令超时。",
+  "providers.status.claudeCliFailed": "Claude Agent CLI 已安装，但运行失败。",
+  "providers.status.claudeStatusUnchecked": "本次会话尚未检查 Claude 提供商状态。",
+  "providers.status.codexStatusUnchecked": "本次会话尚未检查 Codex 提供商状态。",
+  "providers.status.codexLoginRequired": "Codex CLI 尚未登录。请运行 `codex login` 后重试。",
+  "providers.status.codexStatusTimedOut": "检查 Codex app-server 提供商状态超时。",
+  "providers.status.codexModelCatalogTimedOut": "Codex 未及时返回模型目录。",
+  "settings.followup.connectEnvironment": "连接环境以设置其服务提供方。",
+  "settings.followup.reconnectEnvironment": "重新连接 {environment} 以设置其服务提供方。",
   "sourceControl.auth.accessTokenConfigured": "已配置访问令牌。",
   "sourceControl.auth.apiTokenConfigured": "已配置 API 令牌。",
   "sourceControl.install.origin":
@@ -8486,6 +8517,41 @@ for (const [key, source] of Object.entries(EN_MESSAGES) as ReadonlyArray<
 // New upstream settings copy can be localized here before it receives a stable
 // message key. Settings containers and search both consume this same table.
 const ZH_CN_SOURCE_MESSAGES: Readonly<Record<string, string>> = {
+  Comfortable: "舒适",
+  "Preview & diff": "预览与差异",
+  Other: "其他",
+  "Capture a window and attach it to your current draft.": "截取窗口并附加到当前草稿。",
+  "Automatic capture isn't available here. Choose a window instead.":
+    "此处不支持自动截取，请选择一个窗口。",
+  "SnapShots require a Wayland session. X11 capture is not supported.":
+    "快照需要 Wayland 会话。不支持在 X11 下截取。",
+  "SnapShots are not supported on this platform.": "此平台不支持快照。",
+  "Could not load the last run.": "无法加载上次运行结果。",
+  "Loading last run…": "正在加载上次运行结果…",
+  "Cleanup hasn't run yet.": "尚未运行清理。",
+  "Checking snapshots…": "正在检查快照…",
+  "Not supported on this platform.": "此平台不支持此功能。",
+  "Turn this on to set up snapshots.": "开启此项以设置快照。",
+  "Capture needs attention": "截取需要处理",
+  "Check capture access in setup": "请在设置中检查截取权限",
+  "Install the capture helper to continue": "请安装截取辅助程序以继续",
+  "Set up active-window snapshots": "设置活动窗口快照",
+  "Manual capture only. You'll choose a window each time": "仅支持手动截取，每次都需要选择窗口。",
+  "Enable capture to continue": "请启用截取以继续",
+  "Connecting your shortcut…": "正在关联快捷键…",
+  "Waiting for shortcut permission": "正在等待快捷键权限",
+  "Ready to capture": "可以截取",
+  "Use your shortcut from another app": "请在其他应用中使用快捷键",
+  "Finish shortcut setup": "完成快捷键设置",
+  "Capture effects aren't available on this desktop.": "此桌面不支持截取效果。",
+  "Install or update the capture helper to enable effects.": "安装或更新截取辅助程序以启用效果。",
+  "Capture effects aren't available on Niri.": "Niri 不支持截取效果。",
+  "Update the GNOME extension, then sign out and back in to enable effects.":
+    "更新 GNOME 扩展后，注销并重新登录以启用效果。",
+  "Finish extension setup to enable effects.": "完成扩展设置以启用效果。",
+  "This desktop only provides a screenshot.": "此桌面仅提供截图。",
+  "Update the desktop app to use snapshots.": "请更新桌面应用以使用快照。",
+  "Updating capture settings…": "正在更新截取设置…",
   "System alerts when a thread finishes, fails, or needs input or approval. Applies to this device while T3 Code is open.":
     "会话完成、失败或需要输入或批准时发出系统提醒。仅在本设备打开 T3 Code 时生效。",
   "Your default browser": "系统默认浏览器",

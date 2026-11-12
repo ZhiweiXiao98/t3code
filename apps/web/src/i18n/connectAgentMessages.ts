@@ -23,6 +23,9 @@ const ZH_CN_CONNECT_AGENT_SOURCE: Readonly<Record<string, string>> = {
     "当 {app} 打开登录页面时，请选择允许执行的操作，并使用你的 T3 Connect 账号批准。",
   "Could not reach that environment through T3 Connect with this account.":
     "无法使用此账号通过 T3 Connect 连接该环境。",
+  // OAuth approval grants access; it is not the composer's one-time tool approval.
+  Approve: "批准",
+  "Approving…": "正在批准…",
   App: "应用",
   "Copy command": "复制命令",
   Access: "访问权限",

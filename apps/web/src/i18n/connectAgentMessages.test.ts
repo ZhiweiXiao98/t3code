@@ -2,8 +2,15 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { MCP_APPS, OTHER_MCP_APP_STEPS, mcpHandoffAction } from "../components/mcp/mcpApps";
 import { translateConnectAgentSource as tx } from "./connectAgentMessages";
+import { translateWebMessage } from "./messages";
 
 describe("connection and generator localization", () => {
+  it("keeps OAuth access approval distinct from one-time tool approval", () => {
+    expect(tx("zh-CN", "Approve")).toBe("批准");
+    expect(tx("zh-CN", "Approving…")).toBe("正在批准…");
+    expect(tx("en", "Approve")).toBe("Approve");
+    expect(translateWebMessage("zh-CN", "composer.approval.approveOnce")).toBe("仅允许一次");
+  });
   it("translates every app's setup instructions without translating commands or handoff payloads", () => {
     const url = "https://example.test:8443/mcp?opaque=%7Bname%7D";
     for (const app of MCP_APPS) {

@@ -10,6 +10,31 @@ const translateProviderEnglish: WebTranslate = (key, values) =>
   translateWebMessage("en", key, values);
 
 function translateProviderMessage(message: string, t: WebTranslate): string {
+  if (
+    message ===
+    "Could not start Codex CLI (`codex`). Check Settings \u2192 Providers \u2192 Codex \u2192 Binary path on the server. Installing ChatGPT or Codex desktop may not add codex to PATH."
+  )
+    return t("providers.status.codexDefaultCliMissing");
+  if (message === "Claude Agent CLI (`claude`) was not found on PATH.")
+    return t("providers.status.claudeCliMissing");
+  if (message === "Failed to execute Claude Agent CLI health check.")
+    return t("providers.status.claudeHealthCheckFailed");
+  if (
+    message === "Claude Agent CLI is installed but failed to run. Timed out while running command."
+  )
+    return t("providers.status.claudeCliTimedOut");
+  if (message === "Claude Agent CLI is installed but failed to run.")
+    return t("providers.status.claudeCliFailed");
+  if (message === "Claude provider status has not been checked in this session yet.")
+    return t("providers.status.claudeStatusUnchecked");
+  if (message === "Codex provider status has not been checked in this session yet.")
+    return t("providers.status.codexStatusUnchecked");
+  if (message === "Codex CLI is not authenticated. Run `codex login` and try again.")
+    return t("providers.status.codexLoginRequired");
+  if (message === "Timed out while checking Codex app-server provider status.")
+    return t("providers.status.codexStatusTimedOut");
+  if (message === "Codex did not return its model catalog in time.")
+    return t("providers.status.codexModelCatalogTimedOut");
   const disabledMatch = /^(.+?) is disabled in T3 Code settings\.$/.exec(message);
   if (disabledMatch) {
     return t("providers.status.disabledMessage", { provider: disabledMatch[1]! });

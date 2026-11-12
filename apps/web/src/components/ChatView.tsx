@@ -333,6 +333,7 @@ import {
 } from "./chat/draftHeroTransition";
 import {
   buildLocalDraftThread,
+  threadHeaderTitle,
   deriveCommittedServerUserMessageIds,
   dismissBranchMismatchForSession,
   shouldRenderPreviewMiniPlayer,
@@ -3335,7 +3336,7 @@ export default function ChatView(props: ChatViewProps) {
               activeThreadEnvironmentId={activeThread.environmentId}
               activeThreadId={activeThread.id}
               isServerThread={isServerThread}
-              activeThreadTitle={activeThread.title}
+              activeThreadTitle={threadHeaderTitle(activeThread.title, isServerThread, uiLocale)}
               activeThreadLinkOrigin={activeThreadShell?.linkOrigin?.label ?? null}
               activeProject={activeProject ?? null}
               parentThreadLink={headerParentThreadLink}

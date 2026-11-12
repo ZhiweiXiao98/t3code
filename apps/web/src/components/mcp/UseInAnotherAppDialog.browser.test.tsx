@@ -16,7 +16,16 @@ const state = vi.hoisted(() => ({
   hostedApproval: false,
 }));
 vi.mock("@clerk/react", () => ({ useAuth: () => ({ isSignedIn: true }) }));
-vi.mock("../../cloud/publicConfig", () => ({ hasCloudPublicConfig: () => true }));
+vi.mock("../../cloud/publicConfig", () => ({
+  hasCloudPublicConfig: () => true,
+  resolveCloudPublicConfig: () => ({
+    clerkPublishableKey: "pk_test_Zml4dHVyZS5leGFtcGxlLnRlc3Qk",
+    clerkJwtTemplate: "fixture",
+    relayUrl: "https://relay.example.test",
+    relayTracing: { tracesUrl: null, tracesDataset: null, tracesToken: null },
+  }),
+  resolveRelayTracingConfig: () => null,
+}));
 vi.mock("../../cloud/cloudLinkState", () => ({ readCachedCloudLinkState: () => null }));
 vi.mock("../../cloud/linkEnvironmentAtoms", () => ({ checkReachability: {}, readLinkState: {} }));
 vi.mock("../../cloud/useCloudLinkController", () => ({
