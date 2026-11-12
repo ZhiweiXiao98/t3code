@@ -1,0 +1,94 @@
+name: Benchmark official indexed symbols in unchanged TCG
+on:
+  push:
+    branches: [validation/v0.1.9-indexed-symbol-benchmark-042e]
+permissions:
+  contents: read
+concurrency:
+  group: t3-public-indexed-symbol-benchmark-042e
+  cancel-in-progress: false
+jobs:
+  benchmark:
+    if: github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Fetch exact reviewed helpers without initializing historical gitlinks
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$GITHUB_REPOSITORY" == "ZhiweiXiao98/t3code" ]]
+          timeout 300 gh api "repos/$GITHUB_REPOSITORY/tarball/$GITHUB_SHA" > "$RUNNER_TEMP/diagnostic-source.tar.gz"
+          python3 - "$RUNNER_TEMP/diagnostic-source.tar.gz" "$GITHUB_WORKSPACE" <<'PYEXTRACT'
+          import pathlib,sys,tarfile
+          archive=pathlib.Path(sys.argv[1]);workspace=pathlib.Path(sys.argv[2]).resolve()
+          if archive.stat().st_size>512*1024**2:raise ValueError('Source archive budget exceeded')
+          selected=[];seen=set();total=0
+          with tarfile.open(archive,'r:gz') as source:
+           for count,member in enumerate(source):
+            if count>=100000:raise ValueError('Source member budget exceeded')
+            path=pathlib.PurePosixPath(member.name)
+            if path.is_absolute() or '..' in path.parts or '\\' in member.name:raise ValueError('Unsafe source path')
+            if len(path.parts)<4 or path.parts[1:3]!=('diagnostics','appimage'):continue
+            relative=pathlib.PurePosixPath(*path.parts[1:])
+            if member.isdir():continue
+            if not member.isfile() or member.issym() or member.islnk() or member.sparse is not None:raise ValueError('Unsafe diagnostic member')
+            if str(relative) in seen or member.size<0 or member.size>2*1024**2:raise ValueError('Duplicate or oversized diagnostic member')
+            seen.add(str(relative));total+=member.size
+            if total>8*1024**2:raise ValueError('Diagnostic payload budget exceeded')
+            data=source.extractfile(member).read(member.size+1)
+            if len(data)!=member.size:raise ValueError('Truncated diagnostic member')
+            selected.append((relative,data))
+          if len(selected)!=46:raise ValueError('Unexpected diagnostic file count')
+          if (workspace/'diagnostics').exists():raise ValueError('Workspace must have no pre-existing diagnostic files')
+          for relative,data in selected:
+           target=workspace/relative;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(data);target.chmod(0o644)
+          PYEXTRACT
+      - name: Verify public-only benchmark helpers
+        working-directory: diagnostics/appimage
+        run: |
+          set -euo pipefail
+          echo '90b37eef90caee7ad4790e5bb61b66529a4821f26a9babad45729c3d6c2a8bac  benchmark.json' | sha256sum -c -
+          python3 verify_benchmark.py
+          curl --proto '=https' --proto-redir '=https' --fail --location --max-time 60 https://raw.githubusercontent.com/rust-minidump/rust-minidump/4adf5555b2ab844f23c52982fc202357ff882695/testdata/test.dmp -o "$RUNNER_TEMP/public-symbol-test.dmp"
+          echo '24b0ea7794b2d2523c46c9aea72c03ccbb0ab88ad76d8258d3752c7b71d233ff  '"$RUNNER_TEMP/public-symbol-test.dmp" | sha256sum -c -
+          PUBLIC_FIXTURE="$RUNNER_TEMP/public-symbol-test.dmp" python3 -m unittest test_symbol_index test_cancel test_privacy_transport -v
+      - name: Prepare official diagnostic tools
+        working-directory: diagnostics/appimage
+        run: |
+          set -euo pipefail
+          python3 ci-ubuntu-packages.py packages --no-install-recommends qemu-system-x86 qemu-utils genisoimage
+          mkdir "$RUNNER_TEMP/diagnostic-tools"
+          cd "$RUNNER_TEMP/diagnostic-tools"
+          curl --proto '=https' --proto-redir '=https' --fail --location --max-time 300 https://github.com/electron/electron/releases/download/v44.10.1/electron-v44.10.1-linux-x64-symbols.zip -o symbols.zip
+          echo '9c497198ec2e5b0c097a5a10434255d26d10e467c6670b3115e4c00df68e0d43  symbols.zip' | sha256sum -c -
+          curl --proto '=https' --proto-redir '=https' --fail --location --max-time 120 https://static.crates.io/crates/minidump-stackwalk/minidump-stackwalk-0.27.0.crate -o stackwalk.crate
+          echo 'e9527f1e47fc491d3645f7d372d10bed80307774209489fd7828291c71b0237a  stackwalk.crate' | sha256sum -c -
+          tar --extract --gzip --file stackwalk.crate --no-same-owner
+          timeout 900 cargo build --release --locked --manifest-path minidump-stackwalk-0.27.0/Cargo.toml
+      - name: Verify indexed aliases with real pinned supplier and public fixture
+        working-directory: diagnostics/appimage
+        run: |
+          set -euo pipefail
+          tools="$RUNNER_TEMP/diagnostic-tools"
+          python3 test_index_supplier.py --binary "$tools/minidump-stackwalk-0.27.0/target/release/minidump-stackwalk" --fixture "$RUNNER_TEMP/public-symbol-test.dmp"
+      - name: Benchmark official large symbols once in unchanged TCG guest
+        working-directory: diagnostics/appimage
+        run: |
+          set -euo pipefail
+          tools="$RUNNER_TEMP/diagnostic-tools"
+          binary="$tools/minidump-stackwalk-0.27.0/target/release/minidump-stackwalk"
+          binary_hash="$(sha256sum "$binary" | cut -d' ' -f1)"
+          timeout --kill-after=40s 1800 python3 benchmark_host.py --execute-reviewed-benchmark             --work "$RUNNER_TEMP/public-symbol-benchmark" --out "$RUNNER_TEMP/public-benchmark-result"             --symbols-zip "$tools/symbols.zip" --stackwalker "$binary" --stackwalker-sha256 "$binary_hash"             --fixture "$RUNNER_TEMP/public-symbol-test.dmp"
+      - name: Upload exact public benchmark summary only
+        if: success()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: public-indexed-symbol-benchmark-042e
+          path: |
+            ${{ runner.temp }}/public-benchmark-result/diagnostic.json
+            ${{ runner.temp }}/public-benchmark-result/manifest.json
+          if-no-files-found: error
+          retention-days: 7
