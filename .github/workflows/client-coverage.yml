@@ -1,0 +1,327 @@
+name: Supplemental client coverage
+'on':
+  push:
+    branches:
+    - validation/v0.1.9-coverage-372d279fe81e
+permissions:
+  contents: read
+concurrency:
+  group: supplemental-${{ github.ref }}
+  cancel-in-progress: false
+env:
+  CI: 'true'
+  SOURCE_SHA: 372d279fe81e7be0dccc09a13d907651d6f7aafe
+  SOURCE_TREE: 6d9f9b3ef1363f998ad0299a6d30370e86637a04
+  EXPECTED_BRANCH: validation/v0.1.9-coverage-372d279fe81e
+  VP_REMOTE_CACHE: 'off'
+  VP_REMOTE_CACHE_URL: ''
+jobs:
+  coverage:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - lane: linux-node26
+          name: Supplemental Linux Node 26
+          runner: ubuntu-22.04
+          node: 26.12.1
+        - lane: linux-node24
+          name: Supplemental Linux Node 24
+          runner: ubuntu-22.04
+          node: 24.22.2
+        - lane: windows-uninstall
+          name: Supplemental Windows uninstall
+          runner: windows-2025
+          node: 26.12.1
+        - lane: linux-nushell
+          name: Supplemental Linux Nushell
+          runner: ubuntu-22.04
+          node: 26.12.1
+        - lane: windows-shared
+          name: Supplemental Windows shared
+          runner: windows-2025
+          node: 26.12.1
+    env:
+      LANE: ${{ matrix.lane }}
+      JOB_NAME: ${{ matrix.name }}
+      RUNNER_LABEL: ${{ matrix.runner }}
+      TEST_NODE: ${{ matrix.node }}
+    steps:
+    - name: Verify public repository and exact event
+      shell: bash
+      run: 'python3 - <<''PYTHON''
+
+        import json,os,re
+
+        x=json.load(open(os.environ[''GITHUB_EVENT_PATH''], encoding=''utf-8''))
+
+        assert re.fullmatch(''[a-f0-9]{40}'', os.environ[''SOURCE_SHA'']), ''Unreviewed v019 source SHA''
+
+        assert re.fullmatch(''[a-f0-9]{40}'', os.environ[''SOURCE_TREE'']), ''Unreviewed v019 source tree''
+
+        assert os.environ[''GITHUB_REPOSITORY'']==''ZhiweiXiao98/t3code''
+
+        assert x[''repository''][''private''] is False
+
+        assert os.environ[''GITHUB_EVENT_NAME'']==''push''
+
+        assert os.environ[''GITHUB_REF'']==''refs/heads/''+os.environ[''EXPECTED_BRANCH'']
+
+        assert x[''after'']==os.environ[''GITHUB_SHA'']
+
+        PYTHON'
+    - name: Checkout unchanged candidate separately from operation
+      shell: bash
+      run: 'set -euo pipefail
+
+        git init .
+
+        git config core.autocrlf false
+
+        git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+
+        git fetch --no-tags --depth=5 origin "$GITHUB_SHA"
+
+        test "$(git rev-parse FETCH_HEAD^)" = "$SOURCE_SHA"
+
+        test "$(git rev-list --parents -n 1 FETCH_HEAD | wc -w)" -eq 2
+
+        test "$(git diff --name-only "$SOURCE_SHA" FETCH_HEAD)" = .github/workflows/client-coverage.yml
+
+        git sparse-checkout set --no-cone ''/*'' ''!/.repos/''
+
+        git checkout --detach "$SOURCE_SHA"
+
+        test "$(git rev-parse HEAD^{tree})" = "$SOURCE_TREE"
+
+        git diff --exit-code
+
+        git diff --cached --exit-code
+
+        '
+    - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
+      with:
+        node-version: 26.12.1
+        run-install: false
+        cache: true
+    - name: Install locked dependencies with candidate runtime
+      shell: bash
+      run: vp install --frozen-lockfile
+    - name: Install sandboxed test browser
+      if: matrix.lane == 'linux-node26'
+      shell: bash
+      run: 'set -euo pipefail
+
+        python3 .github/scripts/ci-ubuntu-packages.py playwright apps/server/node_modules/playwright-core/cli.js
+
+        node apps/server/node_modules/playwright-core/cli.js install --only-shell chromium
+
+        revision=$(node -p "require(''./apps/server/node_modules/playwright-core/browsers.json'').browsers.find(b=>b.name===''chromium-headless-shell'').revision")
+
+        test "$revision" = 1248
+
+        mapfile -t browsers < <(find "$HOME/.cache/ms-playwright/chromium_headless_shell-$revision" -type f -name chrome-headless-shell)
+
+        test "${#browsers[@]}" -eq 1
+
+        test -x "${browsers[0]}"
+
+        echo "T3CODE_TEST_HEADLESS_SHELL=${browsers[0]}" >> "$GITHUB_ENV"
+
+        '
+    - name: Install checksum-pinned official Nushell
+      if: matrix.lane == 'linux-nushell'
+      shell: bash
+      run: 'set -euo pipefail
+
+        archive="$RUNNER_TEMP/nushell.tar.gz"
+
+        curl --fail --location --silent --show-error https://github.com/nushell/nushell/releases/download/0.116.0/nu-0.116.0-x86_64-unknown-linux-gnu.tar.gz
+        -o "$archive"
+
+        echo "9f73a6913f9515a621bd916dc91d7f3e0494e488161c2d686f6b98ffa0555945  $archive" | sha256sum --check --strict
+
+        mkdir "$RUNNER_TEMP/nushell"
+
+        tar -xzf "$archive" -C "$RUNNER_TEMP/nushell"
+
+        mapfile -t binaries < <(find "$RUNNER_TEMP/nushell" -type f -name nu)
+
+        test "${#binaries[@]}" -eq 1
+
+        test -x "${binaries[0]}"
+
+        test "$("${binaries[0]}" --version)" = 0.116.0
+
+        echo "T3_TEST_NU_PATH=${binaries[0]}" >> "$GITHUB_ENV"
+
+        '
+    - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      with:
+        node-version: ${{ matrix.node }}
+    - name: Run complete files under exact runtime and verify named results
+      shell: bash
+      run: "node --input-type=commonjs - <<'JS'\nconst fs = require('node:fs');\nconst path = require('node:path');\nconst\
+        \ cp = require('node:child_process');\nconst crypto = require('node:crypto');\nconst assert = require('node:assert/strict');\n\
+        const net = require('node:net');\nconst pins = {\"apps/server/src/outboundHttp.test.ts\": {\"blob\": \"ed3b09abaa5e649e07cfe97b540f347a8e174837\"\
+        , \"sha256\": \"8f600beae2c4a80091876f3f5164042e9a9c91eccea93f3e3f0c9b000c45a11a\"}, \"apps/server/src/cli/uninstall.test.ts\"\
+        : {\"blob\": \"4dcdc59e30a7873e60bc150cf1ee6d7536e42187\", \"sha256\": \"e86e10be49afc6d395943efbc7e258e392aa3352232c37058fa95adf279323ca\"\
+        }, \"apps/server/src/htmlRender/HtmlRender.test.ts\": {\"blob\": \"859491e800029247dc1fff5f4847fd433325a704\", \"\
+        sha256\": \"db4d36d123ca82415ae79fb20e9b6a2b43d6321900c5c7d6ad47e5c4a5150230\"}, \"packages/shared/src/managedPolicyFile.test.ts\"\
+        : {\"blob\": \"2ab3ea710e3ecdd0a580638b37f057cf00d6ff6a\", \"sha256\": \"bc98e7f88db35af4cd44031f7b2aeb08f970c3462e77ba96e6f0d464dd3e03bc\"\
+        }, \"packages/shared/src/shell.test.ts\": {\"blob\": \"83561c8daced452fce523af0f411e98cd15d6b7a\", \"sha256\": \"\
+        54356bf4b7cfbccbe542641634a2397ca6760386f5e2109f03573d9e6c1e55bb\"}};\nconst titles = {\"apps/server/src/outboundHttp.test.ts\"\
+        : [\"makes the global dispatcher negotiate HTTP/1.1 and keeps the env proxy agent\", \"moves the built-in fetch off\
+        \ HTTP/2\", \"swallows only an Error with code EINVAL on macOS\", \"keeps built-in fetch working when setTypeOfService\
+        \ throws EINVAL\"], \"apps/server/src/cli/uninstall.test.ts\": [\"claims only a launcher that points into this home's\
+        \ runtime tree\", \"t3 uninstall has cmd.exe remove the runtime directory, preserving spaces and literal environment-variable\
+        \ syntax\"], \"apps/server/src/htmlRender/HtmlRender.test.ts\": [\"inlines local images by absolute path and leaves\
+        \ URLs and relative paths alone\", \"rejects viewport height units, which make the fitted frame grow without end\"\
+        , \"inlines an SVG behind processing instructions and a doctype subset\", \"lists every local image it cannot read\"\
+        , \"publishes the prepared page as an html thread attachment\", \"publishes a page from an .html file as a snapshot\
+        \ that path calls recover\", \"refuses anything but a regular, singly linked .html file of at most 25 MiB\", \"refuses\
+        \ an .html symlink to another file\", \"removes the page when publishing is interrupted\", \"reports a typed preview\
+        \ error\", \"asks the browser to close when the preview finishes instead of signalling it\", \"names this server's\
+        \ home in the browser setup command\", \"matches preview media queries and text colors to the requested appearance\"\
+        , \"keeps every local file but the page itself out of the browser\", \"keeps the page off this machine's local network\"\
+        ], \"packages/shared/src/managedPolicyFile.test.ts\": [\"reads a macOS configuration profile, and refuses one beside\
+        \ a policy file\", \"reads a Policy value of JSON from the registry, and treats only an absent key as none\", \"builds\
+        \ the policy from the values the Group Policy template writes\", \"lists registry values and subkeys through the Win32\
+        \ API\"], \"packages/shared/src/shell.test.ts\": [\"captures Nushell PATH and multiline values without external tools\"\
+        , \"ignores probe markers a bash DEBUG trap echoes into the terminal title\", \"extracts multiple environment variables\
+        \ from a login shell command\", \"omits environment variables that are missing or empty\", \"preserves multiline values\
+        \ and surrounding whitespace\", \"returns env shell, user shell, then the platform fallback without duplicates\",\
+        \ \"prefers login-shell PATH entries and keeps inherited extras\", \"yields while the native shell probe is pending\"\
+        , \"tries both shells and preserves baseline PATH repair\", \"returns an empty environment after both shell candidates\
+        \ fail\", \"does not launch a shell when no variables are requested\", \"kills the native probe child on interruption\
+        \ without trying the next shell\", \"gives up on a shell that survives the kill and holds stdout open\", \"extracts\
+        \ environment variables from a PowerShell command\", \"strips CRLF delimiters from captured PowerShell values\", \"\
+        omits -NoProfile when loadProfile is enabled\", \"falls back to Windows PowerShell when pwsh.exe is unavailable\"\
+        , \"sanitizes and dedupes Windows entries while preserving preferred order\", \"removes stray quotes from Windows\
+        \ entries\", \"dedupes case-sensitively on POSIX\", \"still visits a PATH entry that differs only in case\", \"resolves\
+        \ lowercase executable files for audit-command in a case-sensitive Windows PATH directory\", \"resolves lowercase\
+        \ executable files for audit-command.CMD in a case-sensitive Windows PATH directory\", \"probes only listed PATH names\
+        \ and relists a directory that changes\", \"Git for Windows [\\\"rev-parse\\\",\\\"--git-path\\\",\\\"index\\\"] without\
+        \ a console: true\", \"Git for Windows [\\\"--git-dir\\\",\\\"C:\\\\\\\\repo\\\\\\\\.git\\\",\\\"symbolic-ref\\\"\
+        ,\\\"refs/remotes/origin/HEAD\\\"] without a console: true\", \"Git for Windows [\\\"remote\\\",\\\"get-url\\\",\\\
+        \"--\\\",\\\"origin\\\"] without a console: true\", \"Git for Windows [\\\"config\\\",\\\"--get\\\",\\\"branch.main.pushRemote\\\
+        \"] without a console: true\", \"Git for Windows [\\\"symbolic-ref\\\",\\\"--quiet\\\",\\\"HEAD\\\"] without a console:\
+        \ true\", \"Git for Windows [\\\"rev-parse\\\",\\\"--abbrev-ref\\\",\\\"--symbolic-full-name\\\",\\\"@{upstream}\\\
+        \"] without a console: true\", \"Git for Windows [\\\"rev-parse\\\",\\\"HEAD\\\"] without a console: false\", \"Git\
+        \ for Windows [\\\"symbolic-ref\\\",\\\"HEAD\\\",\\\"refs/heads/x\\\"] without a console: false\", \"Git for Windows\
+        \ [\\\"symbolic-ref\\\",\\\"-qd\\\",\\\"refs/remotes/origin/HEAD\\\"] without a console: false\", \"Git for Windows\
+        \ [\\\"config\\\",\\\"--get\\\",\\\"--edit\\\"] without a console: false\", \"Git for Windows [\\\"-c\\\",\\\"core.pager=x\\\
+        \",\\\"config\\\",\\\"--get\\\",\\\"user.name\\\"] without a console: false\", \"keeps the console on win32 for C:\\\
+        \\Program Files\\\\Git\\\\cmd\\\\git.exe\", \"keeps the console on win32 for C:\\\\Users\\\\x\\\\scoop\\\\shims\\\\\
+        git.exe\", \"keeps the console on linux for C:\\\\Program Files\\\\Git\\\\ucrt64\\\\bin\\\\git.exe\", \"runs the git.exe\
+        \ Git for Windows' launcher would start\", \"keeps the launcher when MSYSTEM is set\", \"leaves other gits and other\
+        \ launchers alone\", \"finds the executable npm's shim runs\", \"keeps a shim that does more than run the executable\"\
+        , \"keeps a shim CMD would read differently\", \"keeps the shim when its executable is missing or it is not a .cmd\"\
+        , \"runs Windows executables directly without a shell\", \"runs the executable behind an npm shim directly when asked\"\
+        , \"builds one escaped cmd.exe line for Windows command shims\", \"resolves against the effective environment when\
+        \ extending host env\", \"runs the git behind the xcrun shim and looks it up once\", \"keeps git when PATH has another\
+        \ git or the host is not macOS\", \"keeps git when xcrun fails or names a missing file\", \"looks again when the resolved\
+        \ git disappears\", \"does not fall back to a shell for unresolved Windows commands\", \"uses known CLI directories\
+        \ as a fallback without changing shell PATH priority\", \"probes node with one PATH key when inherited environment\
+        \ records have mixed casing\", \"loads the PowerShell profile when baseline env cannot resolve node\", \"keeps the\
+        \ baseline env when profiled probe still does not resolve node\", \"applies shell updates with win32 PATH semantics\"\
+        , \"applies shell updates with linux PATH semantics\", \"applies shell updates with darwin PATH semantics\", \"/home/theo/.local/bin\
+        \ with /bin/bash on linux\", \"/Users/theo/.local/bin with /usr/bin/fish on linux\", \"/opt/t3/bin with /bin/zsh on\
+        \ linux\", \"/Users/theo/.local/bin with /bin/tcsh on darwin\", \"/Users/theo/.local/bin with /bin/bash on darwin\"\
+        , \"C:\\\\Users\\\\theo\\\\.local\\\\bin with pwsh on win32\", \"/Users/theo/it's here with /bin/zsh on darwin\",\
+        \ \"/opt/a$PWD/bin with /bin/zsh on linux\", \"bin with /bin/zsh on linux\", \"writes the startup file fish and zsh\
+        \ read, under XDG_CONFIG_HOME or ZDOTDIR\"]};\nconst root = process.cwd();\nconst temp = process.env.RUNNER_TEMP;\n\
+        const lane = process.env.LANE;\nconst git = (...args) => cp.execFileSync('git', args, {encoding:'utf8'}).trim();\n\
+        const hash = bytes => crypto.createHash('sha256').update(bytes).digest('hex');\nconst clean = () => {\n  assert.equal(git('rev-parse','HEAD'),process.env.SOURCE_SHA);\n\
+        \  assert.equal(git('rev-parse','HEAD^{tree}'),process.env.SOURCE_TREE);\n  assert.equal(git('diff','--name-only'),'');\n\
+        \  assert.equal(git('diff','--cached','--name-only'),'');\n};\nclean();\nassert.equal(process.versions.node,process.env.TEST_NODE);\n\
+        assert.equal(process.arch,'x64');\nassert.equal(process.platform,lane.startsWith('windows-')?'win32':'linux');\nconst\
+        \ undici = Number(process.versions.undici.split('.')[0]);\nconst hasToS = typeof net.Socket.prototype.setTypeOfService\
+        \ === 'function';\nif(lane==='linux-node24') { assert.equal(undici,7); assert.ok(hasToS); }\nelse assert.ok(undici>=8);\n\
+        let browser=null;\nif(lane==='linux-node26') {\n  const pw = require(path.join(root,'apps/server/node_modules/playwright-core/package.json'));\n\
+        \  const revision = require(path.join(root,'apps/server/node_modules/playwright-core/browsers.json')).browsers.find(b=>b.name==='chromium-headless-shell').revision;\n\
+        \  const exe=process.env.T3CODE_TEST_HEADLESS_SHELL;\n  assert.equal(pw.version,'1.64.1');assert.equal(revision,'1248');assert.ok(exe);\n\
+        \  assert.notEqual(process.env.T3CODE_SERVER_BROWSER_SANDBOX,'0');\n  browser={playwright_version:pw.version,revision,version:cp.execFileSync(exe,['--version'],{encoding:'utf8'}).trim(),executable_sha256:hash(fs.readFileSync(exe)),test_headless_shell:exe,sandbox_disabled:false};\n\
+        }\nlet nushell=null;\nif(lane==='linux-nushell') {\n  const exe=process.env.T3_TEST_NU_PATH;assert.ok(exe);\n  const\
+        \ version=cp.execFileSync(exe,['--version'],{encoding:'utf8'}).trim();assert.equal(version,'0.116.0');\n  nushell={version,executable:exe,executable_sha256:hash(fs.readFileSync(exe)),archive_sha256:'9f73a6913f9515a621bd916dc91d7f3e0494e488161c2d686f6b98ffa0555945',download_url:'https://github.com/nushell/nushell/releases/download/0.116.0/nu-0.116.0-x86_64-unknown-linux-gnu.tar.gz'};\n\
+        } else assert.equal(process.env.T3_TEST_NU_PATH,undefined);\nconst hasBash=fs.existsSync('/bin/bash');assert.equal(hasBash,process.platform==='linux');\n\
+        const runtime={has_posix_bash:hasBash,node_version:process.version,bundled_undici:process.versions.undici,platform:process.platform,arch:process.arch,has_socket_set_type_of_service:hasToS,browser,nushell};\n\
+        console.log(JSON.stringify(runtime));\nconst selected={\n  'linux-node26':['apps/server/src/htmlRender/HtmlRender.test.ts','apps/server/src/outboundHttp.test.ts'],\n\
+        \  'linux-node24':['apps/server/src/outboundHttp.test.ts'],\n  'windows-uninstall':['apps/server/src/cli/uninstall.test.ts'],\n\
+        \  'linux-nushell':['packages/shared/src/shell.test.ts'],\n  'windows-shared':['packages/shared/src/shell.test.ts','packages/shared/src/managedPolicyFile.test.ts']\n\
+        }[lane];\nconst shared=lane==='linux-nushell'||lane==='windows-shared';\nconst testCwd=shared?root:path.join(root,'apps/server');\n\
+        for(const file of selected) { assert.equal(git('rev-parse','HEAD:'+file),pins[file].blob);assert.equal(hash(fs.readFileSync(file)),pins[file].sha256);\
+        \ }\n// Assert actual Node in every test worker/child without modifying test sources.\nconst probe=path.join(temp,'coverage-runtime-probe.cjs');\n\
+        fs.writeFileSync(probe,`if(process.versions.node !== ${JSON.stringify(process.env.TEST_NODE)}) throw new Error('Unexpected\
+        \ test-worker Node '+process.version);\\n`);\nconst reportPath=path.join(temp,'coverage-result.json');\nconst args=[path.join(root,'node_modules/vite-plus/bin/vp'),'test','run',...selected.map(f=>shared?f:f.replace('apps/server/','')),'--reporter=default','--reporter=json','--outputFile.json='+reportPath];\n\
+        const result=cp.spawnSync(process.execPath,args,{cwd:testCwd,stdio:'inherit',env:{...process.env,NODE_OPTIONS:`--require=${JSON.stringify(probe)}`}});\n\
+        assert.equal(result.status,0,`Test command failed: ${result.error || result.signal || result.status}`);\nclean();\n\
+        const report=JSON.parse(fs.readFileSync(reportPath,'utf8'));\nassert.equal(report.success,true);\nconst expectedTotal=selected.reduce((s,f)=>s+titles[f].length,0);\n\
+        const skipped=lane==='windows-uninstall'?0:lane==='windows-shared'?2:1;\nassert.equal(report.numTotalTests,expectedTotal);assert.equal(report.numPassedTests,expectedTotal-skipped);assert.equal(report.numFailedTests,0);assert.equal(report.numPendingTests,skipped);assert.equal(report.numTodoTests||0,0);\n\
+        assert.equal(report.testResults.length,selected.length);\nconst seen=new Set();\nconst files=report.testResults.map(r=>{\n\
+        \  const file=path.relative(root,r.name).split(path.sep).join('/');\n  assert.ok(selected.includes(file));assert.ok(!seen.has(file));seen.add(file);\n\
+        \  assert.equal(r.assertionResults.length,titles[file].length);\n  assert.deepEqual(r.assertionResults.map(a=>a.title).sort(),[...titles[file]].sort());\n\
+        \  const skips={\n    'linux-node26':{'keeps built-in fetch working when setTypeOfService throws EINVAL':'requires\
+        \ built-in undici 7 and Socket.setTypeOfService'},\n    'linux-node24':{'moves the built-in fetch off HTTP/2':'requires\
+        \ built-in undici >= 8'},\n    'windows-uninstall':{},\n    'linux-nushell':{'runs the executable behind an npm shim\
+        \ directly when asked':'requires native Windows'},\n    'windows-shared':{'captures Nushell PATH and multiline values\
+        \ without external tools':'requires T3_TEST_NU_PATH; covered on Linux', 'ignores probe markers a bash DEBUG trap echoes\
+        \ into the terminal title':'requires /bin/bash; covered on Linux'}\n  }[lane];\n  const assertions=r.assertionResults.map(a=>{\n\
+        \    const shouldSkip=Object.hasOwn(skips,a.title);\n    if(shouldSkip) assert.ok(['pending','skipped'].includes(a.status));else\
+        \ assert.equal(a.status,'passed');\n    return {title:a.title,status:shouldSkip?'skipped':'passed',skip_reason:shouldSkip?skips[a.title]:null};\n\
+        \  });\n  const n=assertions.filter(a=>a.status==='skipped').length;\n  assert.equal(hash(fs.readFileSync(file)),pins[file].sha256);\n\
+        \  return {path:file,git_blob_sha:pins[file].blob,sha256:pins[file].sha256,counts:{total:assertions.length,passed:assertions.length-n,failed:0,skipped:n,todo:0},assertions};\n\
+        });\nconst evidence={lane,job_name:process.env.JOB_NAME,runner_label:process.env.RUNNER_LABEL,runtime,source_unchanged:true,test_exit_code:0,files};\n\
+        const envelope={source_sha:process.env.SOURCE_SHA,source_tree:process.env.SOURCE_TREE,workflow_sha:process.env.GITHUB_SHA,branch:process.env.EXPECTED_BRANCH,run_id:Number(process.env.GITHUB_RUN_ID),run_attempt:Number(process.env.GITHUB_RUN_ATTEMPT),evidence};\n\
+        fs.mkdirSync(path.join(temp,'proof'),{recursive:true});\nfs.writeFileSync(path.join(temp,'proof','lane.json'),JSON.stringify(envelope,null,2));\n\
+        \nJS"
+    - name: Upload immutable lane evidence
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: supplemental-lane-${{ matrix.lane }}
+        path: ${{ runner.temp }}/proof/lane.json
+        if-no-files-found: error
+        retention-days: 14
+    - name: Preserve raw test report
+      if: always()
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: supplemental-report-${{ matrix.lane }}
+        path: ${{ runner.temp }}/coverage-result.json
+        if-no-files-found: warn
+        retention-days: 14
+  collect:
+    name: Collect supplemental coverage proof
+    needs:
+    - coverage
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+      with:
+        pattern: supplemental-lane-*
+        path: ${{ runner.temp }}/lanes
+    - name: Collect exact source and operation evidence
+      shell: bash
+      run: "python3 - <<'PYTHON'\nimport json,os,pathlib\np=pathlib.Path(os.environ['RUNNER_TEMP'])\nexpected={'linux-node26':('Supplemental\
+        \ Linux Node 26','ubuntu-22.04'),'linux-node24':('Supplemental Linux Node 24','ubuntu-22.04'),'windows-uninstall':('Supplemental\
+        \ Windows uninstall','windows-2025'),'linux-nushell':('Supplemental Linux Nushell','ubuntu-22.04'),'windows-shared':('Supplemental\
+        \ Windows shared','windows-2025')}\nlanes=[]\nfiles=list((p/'lanes').glob('*/lane.json'))\nassert len(files)==5\n\
+        for f in files:\n x=json.loads(f.read_text()); e=x['evidence']; name=e['lane']; assert name in expected\n assert x['source_sha']==os.environ['SOURCE_SHA']\
+        \ and x['source_tree']==os.environ['SOURCE_TREE']\n assert x['workflow_sha']==os.environ['GITHUB_SHA'] and x['branch']==os.environ['EXPECTED_BRANCH']\n\
+        \ assert x['run_id']==int(os.environ['GITHUB_RUN_ID']) and x['run_attempt']==int(os.environ['GITHUB_RUN_ATTEMPT'])\n\
+        \ assert (e['job_name'],e['runner_label'])==expected.pop(name)\n assert e['source_unchanged'] is True and e['test_exit_code']==0\n\
+        \ lanes.append(e)\nassert not expected\nmanifest={'schema_version':2,'evidence_type':'supplemental-test-coverage','repository':'ZhiweiXiao98/t3code','passed':True,'source':{'sha':os.environ['SOURCE_SHA'],'tree':os.environ['SOURCE_TREE'],'branch':'maintenance/v0.1.9-zh-cloud'},'workflow':{'path':'.github/workflows/client-coverage.yml','branch':os.environ['EXPECTED_BRANCH'],'sha':os.environ['GITHUB_SHA'],'run_id':int(os.environ['GITHUB_RUN_ID']),'run_attempt':int(os.environ['GITHUB_RUN_ATTEMPT'])},'lanes':sorted(lanes,key=lambda\
+        \ x:x['lane'])}\nout=p/'final-proof';out.mkdir();data=json.dumps(manifest,indent=2);assert len(data.encode())<=128*1024;(out/'coverage-manifest.json').write_text(data)\n\
+        \nPYTHON"
+    - name: Upload supplemental coverage proof
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: supplemental-coverage-proof
+        path: ${{ runner.temp }}/final-proof/coverage-manifest.json
+        if-no-files-found: error
+        retention-days: 14
