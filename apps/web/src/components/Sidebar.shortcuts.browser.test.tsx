@@ -1,5 +1,5 @@
 import { createMemoryHistory } from "@tanstack/react-router";
-import { scopeThreadRef } from "@t3tools/client-runtime/environment";
+import { scopeThreadRef, scopedThreadKey } from "@t3tools/client-runtime/environment";
 import { DEFAULT_CLIENT_SETTINGS } from "@t3tools/contracts/settings";
 import type * as Context from "effect/Context";
 import { expect, it, vi } from "vite-plus/test";
@@ -8,7 +8,7 @@ import { page, userEvent } from "vite-plus/test/browser";
 import { AppRoot } from "~/AppRoot";
 // The thread route loads ChatView lazily; its first transform would eat the test's timeout.
 import "~/components/ChatView";
-import { __setClientSettingsForTests } from "~/hooks/useSettings";
+import { __setClientSettingsForTests, updateClientSettings } from "~/hooks/useSettings";
 import { useRightPanelStore } from "~/rightPanelStore";
 import { getRouter } from "~/router";
 import {
@@ -119,7 +119,16 @@ it("uses the current language each time a sidebar context menu opens", async () 
     // AppRoot brings its own router.
     router: false,
   });
-  const row = page.getByText(`Thread ${thread.id}`, { exact: true }).first();
+  // The title also has an sr-only duplicate. Click the actual context-menu owner.
+  const threadKey = scopedThreadKey(scopeThreadRef(ENVIRONMENT_ID, thread.id));
+  const rowElement = await vi.waitFor(() => {
+    const element = document.querySelector<HTMLElement>(
+      `[data-sidebar-row="${CSS.escape(threadKey)}"]`,
+    );
+    expect(element).not.toBeNull();
+    return element!;
+  });
+  const row = page.elementLocator(rowElement);
   await expect.element(row).toBeVisible();
   await userEvent.click(row, { button: "right" });
   await expect
@@ -129,7 +138,8 @@ it("uses the current language each time a sidebar context menu opens", async () 
   await expect.element(page.getByRole("menuitem", { name: "项目设置", exact: true })).toBeVisible();
   await userEvent.keyboard("{Escape}");
   await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
-  await act(() => __setClientSettingsForTests({ ...settings, appLocale: "en" }));
+  // Mounted subscribers must observe the same update path as the language setting.
+  await act(() => updateClientSettings({ appLocale: "en" }));
   await userEvent.click(row, { button: "right" });
   await expect
     .element(page.getByRole("menuitem", { name: "New thread on main", exact: true }))
