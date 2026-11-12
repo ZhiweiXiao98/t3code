@@ -110,33 +110,49 @@ it("uses the current language each time a sidebar context menu opens", async () 
     onboardingCompletedAt: "2026-01-01T00:00:00.000Z",
   };
   __setClientSettingsForTests({ ...settings, appLocale: "zh-CN" });
+  console.log("v019-sidebar-stage-01");
   await page.viewport(1400, 900);
   const router = getRouter(
     createMemoryHistory({ initialEntries: [`/${ENVIRONMENT_ID}/${thread.id}`] }),
   );
+  console.log("v019-sidebar-stage-02");
   await router.load();
+  console.log("v019-sidebar-stage-03");
   await using _app = await render(<AppRoot router={router} />, {
     // AppRoot brings its own router.
     router: false,
   });
   const row = page.getByText(`Thread ${thread.id}`, { exact: true }).first();
+  console.log("v019-sidebar-stage-04");
   await expect.element(row).toBeVisible();
+  console.log("v019-sidebar-stage-05");
   await userEvent.click(row, { button: "right" });
+  console.log("v019-sidebar-stage-06");
   await expect
     .element(page.getByRole("menuitem", { name: "在 main 分支新建任务", exact: true }))
     .toBeVisible();
+  console.log("v019-sidebar-stage-07");
   await expect.element(page.getByRole("menuitem", { name: "置顶任务", exact: true })).toBeVisible();
+  console.log("v019-sidebar-stage-08");
   await expect.element(page.getByRole("menuitem", { name: "项目设置", exact: true })).toBeVisible();
+  console.log("v019-sidebar-stage-09");
   await userEvent.keyboard("{Escape}");
+  console.log("v019-sidebar-stage-10");
   await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
+  console.log("v019-sidebar-stage-11");
   await act(() => __setClientSettingsForTests({ ...settings, appLocale: "en" }));
+  console.log("v019-sidebar-stage-12");
   await userEvent.click(row, { button: "right" });
+  console.log("v019-sidebar-stage-13");
   await expect
     .element(page.getByRole("menuitem", { name: "New thread on main", exact: true }))
     .toBeVisible();
+  console.log("v019-sidebar-stage-14");
   await expect
     .element(page.getByRole("menuitem", { name: "Project settings", exact: true }))
     .toBeVisible();
+  console.log("v019-sidebar-stage-15");
   await userEvent.keyboard("{Escape}");
   expect(router.history.location.pathname).toBe(`/${ENVIRONMENT_ID}/${thread.id}`);
+  console.log("v019-sidebar-stage-complete");
 });
