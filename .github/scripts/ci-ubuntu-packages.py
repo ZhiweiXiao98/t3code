@@ -10,7 +10,7 @@ import shlex
 import subprocess
 import tempfile
 
-KERNEL = 'https://mirrors.kernel.org/ubuntu'
+MIRRORS = ['https://archive.ubuntu.com/ubuntu', 'https://security.ubuntu.com/ubuntu', 'https://ftp.osuosl.org/pub/ubuntu']
 MIRROR = 'mirror+file:/etc/apt/apt-mirrors.txt'
 OFFICIAL = {'https://archive.ubuntu.com/ubuntu', 'https://security.ubuntu.com/ubuntu'}
 DIRECT = {'http://azure.archive.ubuntu.com/ubuntu', 'http://archive.ubuntu.com/ubuntu', 'http://security.ubuntu.com/ubuntu', *OFFICIAL}
@@ -21,7 +21,7 @@ def rewrite(text, suffix, mirror_uri):
         if value == MIRROR:
             return mirror_uri
         if value in DIRECT:
-            return KERNEL
+            return mirror_uri
         raise ValueError('Unrecognized Ubuntu source URI')
     if suffix == '.list':
         output = []
@@ -57,7 +57,7 @@ def prepare(root, output):
     if mirror.exists():
         urls = [line.split()[0].rstrip('/') for line in mirror.read_text().splitlines() if line.strip() and not line.lstrip().startswith('#')]
         urls = list(dict.fromkeys(x for x in urls if x in OFFICIAL))
-    urls = [KERNEL]
+    urls = MIRRORS
     copied = output / 'official-mirrors.txt'
     copied.write_text('\n'.join(urls) + '\n')
     sources = []
@@ -77,7 +77,7 @@ def prepare(root, output):
     assert sources, 'No recognized Ubuntu sources'
     (output / 'sources.list').touch(exist_ok=True)
     assert before == {path: hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest() for path in before}
-    (output / 'source-inventory.json').write_text(json.dumps({'original_sha256': before, 'copied_sources': sources, 'official_mirrors': urls, 'mirror_evidence': ['https://packages.ubuntu.com/jammy/amd64/global/download', 'https://mirrors.edge.kernel.org/']}, indent=2))
+    (output / 'source-inventory.json').write_text(json.dumps({'original_sha256': before, 'copied_sources': sources, 'official_mirrors': urls, 'mirror_evidence': ['https://packages.ubuntu.com/jammy/amd64/global/download', 'https://ftp.osuosl.org/pub/ubuntu/']}, indent=2))
     return before
 
 

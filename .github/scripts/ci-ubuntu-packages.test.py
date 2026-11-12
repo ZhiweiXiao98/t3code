@@ -70,9 +70,9 @@ class SourcesTest(unittest.TestCase):
   text='Types: deb deb-src\nURIs: mirror+file:/etc/apt/apt-mirrors.txt\nSuites: noble noble-updates noble-backports noble-security\nComponents: main restricted universe multiverse\nSigned-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg\n'
   self.assertEqual(helper.rewrite(text,'.sources','mirror+file:/tmp/probe/mirrors.txt'),text.replace('mirror+file:/etc/apt/apt-mirrors.txt','mirror+file:/tmp/probe/mirrors.txt'))
  def test_direct(self):
-  self.assertEqual(helper.rewrite('deb http://azure.archive.ubuntu.com/ubuntu/ jammy main\n','.list','unused'),'deb https://mirrors.kernel.org/ubuntu jammy main\n')
+  self.assertEqual(helper.rewrite('deb http://azure.archive.ubuntu.com/ubuntu/ jammy main\n','.list','mirror+file:/tmp/probe/mirrors.txt'),'deb mirror+file:/tmp/probe/mirrors.txt jammy main\n')
  def test_security(self):
-  self.assertEqual(helper.rewrite('deb http://security.ubuntu.com/ubuntu jammy-security main\n','.list','unused'),'deb https://mirrors.kernel.org/ubuntu jammy-security main\n')
+  self.assertEqual(helper.rewrite('deb http://security.ubuntu.com/ubuntu jammy-security main\n','.list','mirror+file:/tmp/probe/mirrors.txt'),'deb mirror+file:/tmp/probe/mirrors.txt jammy-security main\n')
  def test_trust_rejected(self):
   for text,suffix in [('deb [trusted=yes] http://archive.ubuntu.com/ubuntu jammy main','.list'),('Types: deb\nURIs: https://archive.ubuntu.com/ubuntu\nTrusted: yes\nSuites: noble\nComponents: main','.sources')]:
    with self.assertRaises(AssertionError): helper.rewrite(text,suffix,'unused')
@@ -86,12 +86,17 @@ class SourcesTest(unittest.TestCase):
   with tempfile.TemporaryDirectory() as d:
    root=pathlib.Path(d)/'etc-apt';root.mkdir();(root/'sources.list.d').mkdir();(root/'sources.list').write_text('deb mirror+file:/etc/apt/apt-mirrors.txt jammy main universe\n');(root/'apt-mirrors.txt').write_text('http://azure.archive.ubuntu.com/ubuntu priority:1\nhttps://archive.ubuntu.com/ubuntu priority:2\nhttps://security.ubuntu.com/ubuntu priority:3\n')
    original={str(x):x.read_bytes() for x in root.rglob('*') if x.is_file()};output=pathlib.Path(d)/'copy';helper.prepare(root,output)
-   self.assertEqual(original,{str(x):x.read_bytes() for x in root.rglob('*') if x.is_file()});self.assertEqual((output/'official-mirrors.txt').read_text(),'https://mirrors.kernel.org/ubuntu\n')
+   self.assertEqual(original,{str(x):x.read_bytes() for x in root.rglob('*') if x.is_file()});self.assertEqual((output/'official-mirrors.txt').read_text(),'https://archive.ubuntu.com/ubuntu\nhttps://security.ubuntu.com/ubuntu\nhttps://ftp.osuosl.org/pub/ubuntu\n')
  def test_no_network_security_changes(self):
   text='Types: deb\nURIs: mirror+file:/etc/apt/apt-mirrors.txt\nSuites: noble noble-security\nComponents: main universe\nSigned-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg\n'
   result=helper.rewrite(text,'.sources','mirror+file:/tmp/copy')
   self.assertEqual(result.replace('mirror+file:/tmp/copy','mirror+file:/etc/apt/apt-mirrors.txt'),text)
-
-
+ def test_direct_deb822_preserves_signed_by_and_suites(self):
+  for host in ['http://azure.archive.ubuntu.com/ubuntu', 'https://archive.ubuntu.com/ubuntu', 'https://security.ubuntu.com/ubuntu']:
+   original='Types: deb\nURIs: '+host+'\nSuites: noble noble-updates noble-backports noble-security\nComponents: main restricted universe multiverse\nSigned-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg\n'
+   self.assertEqual(helper.rewrite(original,'.sources','mirror+file:/tmp/copy'),original.replace(host,'mirror+file:/tmp/copy'))
+ def test_mirror_candidates_are_exact_verified_https_hosts(self):
+  self.assertEqual(helper.MIRRORS,['https://archive.ubuntu.com/ubuntu','https://security.ubuntu.com/ubuntu','https://ftp.osuosl.org/pub/ubuntu'])
+  self.assertTrue(all(x.startswith('https://') for x in helper.MIRRORS))
 
 unittest.main()
