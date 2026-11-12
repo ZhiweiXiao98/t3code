@@ -201,8 +201,13 @@ def main():
         with open(RESULT/'clean-driver.log','wb') as log:
             run(prefix+['dbus-run-session','--','xvfb-run','-a','node',str(PAYLOAD/'clean.mjs'),'--platform','Linux','--executable',str(exe),'--playwright-module',str(pw),'--artifacts-dir',str(clean)],300,stdout=log,stderr=subprocess.STDOUT)
         status['phase']='chinese-persistence'
-        with open(RESULT/'cjk-driver.log','wb') as log:
-            run(prefix+['dbus-run-session','--','xvfb-run','-a','node',str(PAYLOAD/'cjk.mjs'),'--manifest',str(PAYLOAD/'manifest.json'),'--kind','appimage','--asset',str(exe),'--executable',str(exe),'--playwright-module',str(pw),'--artifacts-dir',str(cjk)],360,stdout=log,stderr=subprocess.STDOUT)
+        from cjk_budget import CjkBudget,TOTAL_SECONDS
+        cjk_budget=CjkBudget(RESULT);cjk_complete=False
+        try:
+            with open(RESULT/'cjk-driver.log','wb') as log:
+                run(prefix+['dbus-run-session','--','xvfb-run','-a','node',str(PAYLOAD/'cjk.mjs'),'--manifest',str(PAYLOAD/'manifest.json'),'--kind','appimage','--asset',str(exe),'--executable',str(exe),'--playwright-module',str(pw),'--artifacts-dir',str(cjk)],TOTAL_SECONDS,progress=cjk_budget.tick,stdout=log,stderr=subprocess.STDOUT)
+            cjk_budget.tick();cjk_complete=True
+        finally:cjk_budget.finish(cjk_complete)
         stop.set();watch.join(5)
         require(sha(exe)==m['appimageSha256'],'AppImage changed during test')
         require(not glob.glob('/etc/ssh/ssh_host_*'),'Guest generated SSH keys')

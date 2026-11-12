@@ -102,7 +102,7 @@ def safe_name(name):
     require(not p.is_absolute() and '..' not in p.parts and str(p) not in ('','.','/'),'Unsafe path')
     return str(p)
 
-def run(command, timeout, **kw):
+def run(command, timeout, progress=None, **kw):
     """Bound binary driver logs and kill subprocess groups on timeout/interruption."""
     import selectors
     output=kw.get('stdout');capture=hasattr(output,'fileno')
@@ -113,6 +113,7 @@ def run(command, timeout, **kw):
             selector=selectors.DefaultSelector();selector.register(p.stdout,selectors.EVENT_READ)
             deadline=time.monotonic()+timeout;total=0
             while selector.get_map():
+                if progress is not None:progress()
                 remaining=deadline-time.monotonic()
                 if remaining<=0:raise subprocess.TimeoutExpired(command,timeout)
                 for key,event in selector.select(min(0.25,remaining)):
@@ -120,7 +121,17 @@ def run(command, timeout, **kw):
                     if not chunk:selector.unregister(key.fileobj);break
                     require(total+len(chunk)<=16*1024*1024,'Command log exceeds 16MiB budget')
                     output.write(chunk);output.flush();total+=len(chunk)
-            rc=p.wait(timeout=max(0.001,deadline-time.monotonic()))
+            # A child may close its log pipe before exiting. Continue supervising
+            # phase budgets rather than blocking until only the total expires.
+            if progress is not None:
+                while p.poll() is None:
+                    progress()
+                    remaining=deadline-time.monotonic()
+                    if remaining<=0:raise subprocess.TimeoutExpired(command,timeout)
+                    try:p.wait(timeout=min(0.25,remaining))
+                    except subprocess.TimeoutExpired:pass
+                rc=p.returncode
+            else:rc=p.wait(timeout=max(0.001,deadline-time.monotonic()))
         else:rc=p.wait(timeout=timeout)
     except BaseException as error:
         try:os.killpg(p.pid,signal.SIGKILL)

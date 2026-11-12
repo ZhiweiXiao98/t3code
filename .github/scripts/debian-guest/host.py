@@ -198,7 +198,7 @@ def main_impl():
     (work/'github-evidence.json').write_text(json.dumps(evidence,indent=2))
     payload=work/'payload';payload.mkdir();extract_artifact(args.artifact_zip,args.proof_zip,payload,m)
     shutil.copyfile(driver,payload/'clean.mjs');shutil.copyfile(HERE/'check-debian-cjk-ui.mjs',payload/'cjk.mjs');shutil.copyfile(args.playwright_tar,payload/'playwright.tgz')
-    for name in ('common.py','guest.py','png_validation.py'):shutil.copyfile(HERE/name,payload/name)
+    for name in ('common.py','guest.py','png_validation.py','cjk_budget.py'):shutil.copyfile(HERE/name,payload/name)
     (payload/'manifest.json').write_text(json.dumps(m,ensure_ascii=False,indent=2))
     hashes={f.name:sha(f) for f in payload.iterdir()}
     seed=work/'seed';seed.mkdir();config=seed_config(hashes)
