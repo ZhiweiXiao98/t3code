@@ -1,0 +1,1220 @@
+name: Publish owner-approved verified platforms; defer AppImage
+permissions: {}
+concurrency:
+  group: publish-community-client-v0.1.9-zh.1
+  cancel-in-progress: false
+jobs:
+  verify:
+    name: Verify reviewed candidate without rebuilding
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      manifest_sha256: ${{ steps.verify.outputs.manifest_sha256 }}
+    steps:
+    - name: Prepare reviewed release-pins.json part 1
+      run: |
+        cat > "$RUNNER_TEMP/release-pins.json" <<'REVIEWED_BLOCK'
+        {
+          "source": "042eacb54f19c3bbc452e4ae271794f4c5fc524e",
+          "source_tree": "7879a15522881c2c953a650ca2062848111a742d",
+          "operation_branch": "release/v0.1.9-zh.1-reviewed-platforms-042e-logs",
+          "operation_path": ".github/workflows/publish-v019-reviewed-platforms.yml",
+          "excluded_name": "T3-Code-0.1.9-zh.1-x86_64.AppImage",
+          "deferred_job": "Clean desktop appimage Debian 13 guest (Ubuntu 24.04 host) first start",
+          "evidence": [
+            {
+              "label": "main",
+              "run": {
+                "id": 43163372855,
+                "workflow_id": 371287124,
+                "run_attempt": 1,
+                "head_sha": "042eacb54f19c3bbc452e4ae271794f4c5fc524e",
+                "head_branch": "maintenance/v0.1.9-zh-cloud",
+                "path": ".github/workflows/client-release.yml",
+                "status": "completed",
+                "conclusion": "failure",
+                "updated_at": "2026-11-12T06:33:24Z",
+                "run_started_at": "2026-11-12T05:44:23Z"
+              },
+              "jobs": [
+                {
+                  "id": 130999587171,
+                  "name": "Validate exact source",
+                  "run_id": 43163372855,
+                  "run_attempt": 1,
+                  "head_sha": "042eacb54f19c3bbc452e4ae271794f4c5fc524e",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-12T05:44:41Z",
+                  "completed_at": "2026-11-12T05:44:44Z"
+                },
+                {
+                  "id": 130999616327,
+                  "name": "Build validated desktop bundle",
+                  "run_id": 43163372855,
+                  "run_attempt": 1,
+                  "head_sha": "042eacb54f19c3bbc452e4ae271794f4c5fc524e",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-12T05:44:46Z",
+                  "completed_at": "2026-11-12T05:46:39Z"
+                },
+                {
+                  "id": 131000285044,
+                  "name": "Android arm64 unsigned candidate (NOT installable)",
+                  "run_id": 43163372855,
+                  "run_attempt": 1,
+                  "head_sha": "042eacb54f19c3bbc452e4ae271794f4c5fc524e",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-12T05:46:41Z",
+                  "completed_at": "2026-11-12T06:19:15Z"
+                },
+                {
+                  "id": 131000285045,
+                  "name": "Linux x64 and embedded Windows WSL runtime",
+                  "run_id": 43163372855,
+                  "run_attempt": 1,
+                  "head_sha": "042eacb54f19c3bbc452e4ae271794f4c5fc524e",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-12T05:46:42Z",
+                  "completed_at": "2026-11-12T05:52:23Z"
+                },
+                {
+                  "id": 131002278005,
+                  "name": "Clean desktop appimage Debian 13 guest (Ubuntu 24.04 host) first start",
+                  "run_id": 43163372855,
+                  "run_attempt": 1,
+                  "head_sha": "042eacb54f19c3bbc452e4ae271794f4c5fc524e",
+                  "status": "completed",
+                  "conclusion": "failure",
+                  "started_at": "2026-11-12T05:52:25Z",
+                  "completed_at": "2026-11-12T06:10:56Z"
+                },
+                {
+                  "id": 131002278056,
+                  "name": "Clean desktop deb first start",
+                  "run_id": 43163372855,
+                  "run_attempt": 1,
+                  "head_sha": "042eacb54f19c3bbc452e4ae271794f4c5fc524e",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-12T05:52:25Z",
+                  "completed_at": "2026-11-12T05:54:10Z"
+                },
+                {
+                  "id": 131002278065,
+                  "name": "Desktop mac arm64 (integrity checked)",
+                  "run_id": 43163372855,
+                  "run_attempt": 1,
+                  "head_sha": "042eacb54f19c3bbc452e4ae271794f4c5fc524e",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-12T05:52:25Z",
+                  "completed_at": "2026-11-12T05:58:18Z"
+                },
+                {
+                  "id": 131002278070,
+                  "name": "Desktop win x64 (integrity checked)",
+                  "run_id": 43163372855,
+                  "run_attempt": 1,
+                  "head_sha": "042eacb54f19c3bbc452e4ae271794f4c5fc524e",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-12T05:52:26Z",
+                  "completed_at": "2026-11-12T06:01:13Z"
+                },
+                {
+                  "id": 131002278074,
+                  "name": "Desktop mac x64 (integrity checked)",
+                  "run_id": 43163372855,
+                  "run_attempt": 1,
+                  "head_sha": "042eacb54f19c3bbc452e4ae271794f4c5fc524e",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-12T05:52:26Z",
+                  "completed_at": "2026-11-12T06:09:06Z"
+                },
+                {
+                  "id": 131012078086,
+                  "name": "Rust native formatting and tests",
+                  "run_id": 43163372855,
+                  "run_attempt": 1,
+                  "head_sha": "042eacb54f19c3bbc452e4ae271794f4c5fc524e",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-12T06:19:18Z",
+                  "completed_at": "2026-11-12T06:20:27Z"
+                },
+                {
+                  "id": 131012078126,
+                  "name": "Mobile native static analysis",
+                  "run_id": 43163372855,
+                  "run_attempt": 1,
+                  "head_sha": "042eacb54f19c3bbc452e4ae271794f4c5fc524e",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-12T06:19:20Z",
+                  "completed_at": "2026-11-12T06:26:03Z"
+                },
+                {
+                  "id": 131012078177,
+                  "name": "Tests (web)",
+                  "run_id": 43163372855,
+                  "run_attempt": 1,
+                  "head_sha": "042eacb54f19c3bbc452e4ae271794f4c5fc524e",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-12T06:19:18Z",
+                  "completed_at": "2026-11-12T06:27:52Z"
+                },
+                {
+                  "id": 131012078221,
+                  "name": "Tests (server-3)",
+                  "run_id": 43163372855,
+                  "run_attempt": 1,
+                  "head_sha": "042eacb54f19c3bbc452e4ae271794f4c5fc524e",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-12T06:19:18Z",
+                  "completed_at": "2026-11-12T06:28:05Z"
+                },
+                {
+                  "id": 131012078235,
+                  "name": "Tests (server-2)",
+                  "run_id": 43163372855,
+                  "run_attempt": 1,
+                  "head_sha": "042eacb54f19c3bbc452e4ae271794f4c5fc524e",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-12T06:19:18Z",
+                  "completed_at": "2026-11-12T06:27:14Z"
+                },
+                {
+                  "id": 131012078239,
+                  "name": "Tests (server-1)",
+                  "run_id": 43163372855,
+                  "run_attempt": 1,
+                  "head_sha": "042eacb54f19c3bbc452e4ae271794f4c5fc524e",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-12T06:19:18Z",
+                  "completed_at": "2026-11-12T06:28:27Z"
+                },
+                {
+                  "id": 131012078391,
+                  "name": "Tests (clients)",
+                  "run_id": 43163372855,
+                  "run_attempt": 1,
+                  "head_sha": "042eacb54f19c3bbc452e4ae271794f4c5fc524e",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-12T06:19:18Z",
+                  "completed_at": "2026-11-12T06:26:45Z"
+                },
+                {
+                  "id": 131015510287,
+                  "name": "Lint and typecheck",
+                  "run_id": 43163372855,
+                  "run_attempt": 1,
+                  "head_sha": "042eacb54f19c3bbc452e4ae271794f4c5fc524e",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-12T06:28:29Z",
+                  "completed_at": "2026-11-12T06:31:15Z"
+                },
+                {
+                  "id": 131016572896,
+                  "name": "Clean desktop nsis first start",
+                  "run_id": 43163372855,
+                  "run_attempt": 1,
+                  "head_sha": "042eacb54f19c3bbc452e4ae271794f4c5fc524e",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-12T06:31:18Z",
+                  "completed_at": "2026-11-12T06:33:08Z"
+                },
+                {
+                  "id": 131016572903,
+                  "name": "Clean macOS x64 zip first start",
+                  "run_id": 43163372855,
+                  "run_attempt": 1,
+                  "head_sha": "042eacb54f19c3bbc452e4ae271794f4c5fc524e",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-12T06:31:17Z",
+                  "completed_at": "2026-11-12T06:33:23Z"
+                },
+                {
+                  "id": 131016572934,
+                  "name": "Clean macOS arm64 dmg first start",
+                  "run_id": 43163372855,
+                  "run_attempt": 1,
+                  "head_sha": "042eacb54f19c3bbc452e4ae271794f4c5fc524e",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-12T06:31:17Z",
+                  "completed_at": "2026-11-12T06:32:19Z"
+                },
+                {
+                  "id": 131016572945,
+                  "name": "Clean macOS arm64 zip first start",
+                  "run_id": 43163372855,
+                  "run_attempt": 1,
+                  "head_sha": "042eacb54f19c3bbc452e4ae271794f4c5fc524e",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-12T06:31:18Z",
+                  "completed_at": "2026-11-12T06:32:40Z"
+                },
+                {
+                  "id": 131016572985,
+                  "name": "Clean macOS x64 dmg first start",
+                  "run_id": 43163372855,
+                  "run_attempt": 1,
+                  "head_sha": "042eacb54f19c3bbc452e4ae271794f4c5fc524e",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-12T06:31:18Z",
+                  "completed_at": "2026-11-12T06:32:57Z"
+                }
+              ],
+              "artifacts": [
+                {
+                  "id": 13921560332,
+                  "name": "clean-install-mac-arm64-dmg",
+                  "size_in_bytes": 242477,
+                  "digest": "sha256:bd214d996c09091c8389f595093fab9fef93beec3b1e1b32c7b8b350a5614bd3",
+                  "created_at": "2026-11-12T06:32:14Z",
+                  "updated_at": "2026-11-12T06:32:14Z",
+                  "expires_at": "2026-11-26T06:32:13Z",
+                  "producer_id": 131016572934,
+                  "upload_step": {
+                    "name": "Run actions/upload-artifact@v7",
+                    "status": "completed",
+                    "conclusion": "success",
+                    "number": 8,
+                    "started_at": "2026-11-12T06:32:13Z",
+                    "completed_at": "2026-11-12T06:32:14Z"
+                  }
+                },
+                {
+                  "id": 13921132471,
+                  "name": "clean-install-mac-x64-zip",
+                  "size_in_bytes": 264103,
+        REVIEWED_BLOCK
+    - name: Prepare reviewed release-pins.json part 2
+      run: |
+        cat >> "$RUNNER_TEMP/release-pins.json" <<'REVIEWED_BLOCK'
+                  "digest": "sha256:28826030710887f79f125754f7a7a0794782030b202abb64eba670488dbf767b",
+                  "created_at": "2026-11-12T06:33:19Z",
+                  "updated_at": "2026-11-12T06:33:19Z",
+                  "expires_at": "2026-11-26T06:33:18Z",
+                  "producer_id": 131016572903,
+                  "upload_step": {
+                    "name": "Run actions/upload-artifact@v7",
+                    "status": "completed",
+                    "conclusion": "success",
+                    "number": 8,
+                    "started_at": "2026-11-12T06:33:17Z",
+                    "completed_at": "2026-11-12T06:33:19Z"
+                  }
+                },
+                {
+                  "id": 13921072558,
+                  "name": "clean-install-mac-x64-dmg",
+                  "size_in_bytes": 251965,
+                  "digest": "sha256:5aaba298db5a9e58e7608885f120ffa31979b9ef214ee96fe407e6257b7e4a80",
+                  "created_at": "2026-11-12T06:32:55Z",
+                  "updated_at": "2026-11-12T06:32:55Z",
+                  "expires_at": "2026-11-26T06:32:53Z",
+                  "producer_id": 131016572985,
+                  "upload_step": {
+                    "name": "Run actions/upload-artifact@v7",
+                    "status": "completed",
+                    "conclusion": "success",
+                    "number": 8,
+                    "started_at": "2026-11-12T06:32:52Z",
+                    "completed_at": "2026-11-12T06:32:55Z"
+                  }
+                },
+                {
+                  "id": 13920803948,
+                  "name": "clean-install-mac-arm64-zip",
+                  "size_in_bytes": 242626,
+                  "digest": "sha256:937c5395dbb29f451eae788bdb0f089d8276c47971e350cccbe18defc9fb4d54",
+                  "created_at": "2026-11-12T06:32:37Z",
+                  "updated_at": "2026-11-12T06:32:37Z",
+                  "expires_at": "2026-11-26T06:32:35Z",
+                  "producer_id": 131016572945,
+                  "upload_step": {
+                    "name": "Run actions/upload-artifact@v7",
+                    "status": "completed",
+                    "conclusion": "success",
+                    "number": 8,
+                    "started_at": "2026-11-12T06:32:34Z",
+                    "completed_at": "2026-11-12T06:32:36Z"
+                  }
+                },
+                {
+                  "id": 13920799071,
+                  "name": "clean-install-nsis",
+                  "size_in_bytes": 248959,
+                  "digest": "sha256:083af0d65c5c8acf2354b1a5324920abbc5704d7fe6cc0e88a33420eb50965de",
+                  "created_at": "2026-11-12T06:33:05Z",
+                  "updated_at": "2026-11-12T06:33:05Z",
+                  "expires_at": "2026-11-26T06:33:04Z",
+                  "producer_id": 131016572896,
+                  "upload_step": {
+                    "name": "Run actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
+                    "status": "completed",
+                    "conclusion": "success",
+                    "number": 7,
+                    "started_at": "2026-11-12T06:33:04Z",
+                    "completed_at": "2026-11-12T06:33:05Z"
+                  }
+                },
+                {
+                  "id": 13919761466,
+                  "name": "client-win-x64",
+                  "size_in_bytes": 328195275,
+                  "digest": "sha256:ebcd4603298d1c2f2c8cbd2edd066b4241089e3780ded73808c5a1f936e65b86",
+                  "created_at": "2026-11-12T06:01:11Z",
+                  "updated_at": "2026-11-12T06:01:11Z",
+                  "expires_at": "2026-11-26T06:01:04Z",
+                  "producer_id": 131002278070,
+                  "upload_step": {
+                    "name": "Run actions/upload-artifact@v7",
+                    "status": "completed",
+                    "conclusion": "success",
+                    "number": 14,
+                    "started_at": "2026-11-12T06:01:04Z",
+                    "completed_at": "2026-11-12T06:01:12Z"
+                  }
+                },
+                {
+                  "id": 13919565810,
+                  "name": "client-linux-x64",
+                  "size_in_bytes": 389038624,
+                  "digest": "sha256:b50aeb51ccfa0a2494e9f4dbc57c4efa2958f9a784d5a6632fbf710b3c0d128b",
+                  "created_at": "2026-11-12T05:52:20Z",
+                  "updated_at": "2026-11-12T05:52:20Z",
+                  "expires_at": "2026-11-26T05:52:08Z",
+                  "producer_id": 131000285045,
+                  "upload_step": {
+                    "name": "Upload Linux installers (upload-artifact)",
+                    "status": "completed",
+                    "conclusion": "success",
+                    "number": 15,
+                    "started_at": "2026-11-12T05:52:08Z",
+                    "completed_at": "2026-11-12T05:52:20Z"
+                  }
+                },
+                {
+                  "id": 13919483982,
+                  "name": "client-mac-x64",
+                  "size_in_bytes": 398192093,
+                  "digest": "sha256:05c00d8efa064bb2e07aa264acc6a1c7944615c8132afedcccece87d21f9ac1a",
+                  "created_at": "2026-11-12T06:09:01Z",
+                  "updated_at": "2026-11-12T06:09:01Z",
+                  "expires_at": "2026-11-26T06:08:19Z",
+                  "producer_id": 131002278074,
+                  "upload_step": {
+                    "name": "Run actions/upload-artifact@v7",
+                    "status": "completed",
+                    "conclusion": "success",
+                    "number": 14,
+                    "started_at": "2026-11-12T06:08:18Z",
+                    "completed_at": "2026-11-12T06:09:01Z"
+                  }
+                },
+                {
+                  "id": 13919268602,
+                  "name": "client-mac-arm64",
+                  "size_in_bytes": 384346807,
+                  "digest": "sha256:141c29bade6f62f260b4d45c3810a433e2a711894955674eeb2966c470d35a38",
+                  "created_at": "2026-11-12T05:58:14Z",
+                  "updated_at": "2026-11-12T05:58:14Z",
+                  "expires_at": "2026-11-26T05:58:01Z",
+                  "producer_id": 131002278065,
+                  "upload_step": {
+                    "name": "Run actions/upload-artifact@v7",
+                    "status": "completed",
+                    "conclusion": "success",
+                    "number": 14,
+                    "started_at": "2026-11-12T05:58:00Z",
+                    "completed_at": "2026-11-12T05:58:14Z"
+                  }
+                },
+                {
+                  "id": 13918724493,
+                  "name": "clean-install-deb",
+                  "size_in_bytes": 4987477,
+                  "digest": "sha256:43e399b513c8921543bad70785e88716a0fa9530181abef94906447caaf489b3",
+                  "created_at": "2026-11-12T05:54:08Z",
+                  "updated_at": "2026-11-12T05:54:08Z",
+                  "expires_at": "2026-11-26T05:54:07Z",
+                  "producer_id": 131002278056,
+                  "upload_step": {
+                    "name": "Run actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
+                    "status": "completed",
+                    "conclusion": "success",
+                    "number": 10,
+                    "started_at": "2026-11-12T05:54:07Z",
+                    "completed_at": "2026-11-12T05:54:08Z"
+                  }
+                }
+              ]
+            },
+            {
+              "label": "ui",
+              "run": {
+                "id": 43169912982,
+                "workflow_id": 414857116,
+                "run_attempt": 1,
+                "head_sha": "67d01cd6539fe192fb53b3e6927230e368df7c6f",
+                "head_branch": "validation/v0.1.9-zh.1-ui-042eacb54f19-lifecycle",
+                "path": ".github/workflows/validate-v019-zh-ui.yml",
+                "status": "completed",
+                "conclusion": "success",
+                "updated_at": "2026-11-12T06:47:28Z",
+                "run_started_at": "2026-11-12T06:41:35Z"
+              },
+              "jobs": [
+                {
+                  "id": 131020468314,
+                  "name": "Selected localization tests and real web scenario",
+                  "run_id": 43169912982,
+                  "run_attempt": 1,
+                  "head_sha": "67d01cd6539fe192fb53b3e6927230e368df7c6f",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-12T06:41:37Z",
+                  "completed_at": "2026-11-12T06:47:27Z"
+                }
+              ],
+              "artifacts": [
+                {
+                  "id": 13921583217,
+                  "name": "v019-zh-ui-43169912982-1",
+                  "size_in_bytes": 1253890,
+                  "digest": "sha256:613b399e24cf179fa4701e6d59c173ad841b2c8734c50c96b1bd64c73a5e05c3",
+                  "created_at": "2026-11-12T06:47:05Z",
+                  "updated_at": "2026-11-12T06:47:05Z",
+                  "expires_at": "2026-11-26T06:47:04Z",
+                  "producer_id": 131020468314,
+                  "upload_step": {
+                    "name": "Upload only sanitized reports and reviewed viewport PNGs",
+                    "status": "completed",
+                    "conclusion": "success",
+                    "number": 20,
+                    "started_at": "2026-11-12T06:47:04Z",
+                    "completed_at": "2026-11-12T06:47:05Z"
+                  }
+                }
+              ]
+            },
+            {
+              "label": "coverage",
+              "run": {
+                "id": 43163681839,
+                "workflow_id": 412799956,
+                "run_attempt": 1,
+                "head_sha": "eb500b1e19a693d48a097fb6715958e13f188f17",
+                "head_branch": "validation/v0.1.9-coverage-042eacb54f19",
+                "path": ".github/workflows/client-coverage.yml",
+                "status": "completed",
+                "conclusion": "success",
+                "updated_at": "2026-11-12T05:52:18Z",
+                "run_started_at": "2026-11-12T05:47:12Z"
+              },
+              "jobs": [
+                {
+                  "id": 131000472658,
+                  "name": "Supplemental Linux Node 26",
+                  "run_id": 43163681839,
+                  "run_attempt": 1,
+                  "head_sha": "eb500b1e19a693d48a097fb6715958e13f188f17",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-12T05:47:14Z",
+                  "completed_at": "2026-11-12T05:49:19Z"
+                },
+                {
+                  "id": 131000472816,
+                  "name": "Supplemental Windows shared",
+                  "run_id": 43163681839,
+                  "run_attempt": 1,
+                  "head_sha": "eb500b1e19a693d48a097fb6715958e13f188f17",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-12T05:48:41Z",
+                  "completed_at": "2026-11-12T05:52:00Z"
+                },
+                {
+                  "id": 131000472872,
+                  "name": "Supplemental Windows uninstall",
+                  "run_id": 43163681839,
+                  "run_attempt": 1,
+                  "head_sha": "eb500b1e19a693d48a097fb6715958e13f188f17",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-12T05:48:40Z",
+                  "completed_at": "2026-11-12T05:51:57Z"
+                },
+                {
+                  "id": 131000472929,
+                  "name": "Supplemental Linux Nushell",
+                  "run_id": 43163681839,
+                  "run_attempt": 1,
+                  "head_sha": "eb500b1e19a693d48a097fb6715958e13f188f17",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-12T05:47:14Z",
+                  "completed_at": "2026-11-12T05:48:58Z"
+                },
+                {
+                  "id": 131000473099,
+                  "name": "Supplemental Linux Node 24",
+                  "run_id": 43163681839,
+                  "run_attempt": 1,
+                  "head_sha": "eb500b1e19a693d48a097fb6715958e13f188f17",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-12T05:47:14Z",
+                  "completed_at": "2026-11-12T05:48:53Z"
+                },
+                {
+                  "id": 131002142533,
+        REVIEWED_BLOCK
+    - name: Prepare reviewed release-pins.json part 3
+      run: |
+        cat >> "$RUNNER_TEMP/release-pins.json" <<'REVIEWED_BLOCK'
+                  "name": "Collect supplemental coverage proof",
+                  "run_id": 43163681839,
+                  "run_attempt": 1,
+                  "head_sha": "eb500b1e19a693d48a097fb6715958e13f188f17",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "started_at": "2026-11-12T05:52:02Z",
+                  "completed_at": "2026-11-12T05:52:17Z"
+                }
+              ],
+              "artifacts": [
+                {
+                  "id": 13919545508,
+                  "name": "supplemental-report-windows-uninstall",
+                  "size_in_bytes": 673,
+                  "digest": "sha256:dd75d4c7af8f7cbaa468abea8d8dcbb13369f2c029292baa78fe9f176fff8cb6",
+                  "created_at": "2026-11-12T05:51:06Z",
+                  "updated_at": "2026-11-12T05:51:06Z",
+                  "expires_at": "2026-11-26T05:51:05Z",
+                  "producer_id": 131000472872,
+                  "upload_step": {
+                    "name": "Preserve raw test report",
+                    "status": "completed",
+                    "conclusion": "success",
+                    "number": 11,
+                    "started_at": "2026-11-12T05:51:05Z",
+                    "completed_at": "2026-11-12T05:51:06Z"
+                  }
+                },
+                {
+                  "id": 13919535474,
+                  "name": "supplemental-lane-windows-uninstall",
+                  "size_in_bytes": 882,
+                  "digest": "sha256:c61cb20f208318fd129362518fd18b2b413a42d85d1ef11ca377581b7b93e2f6",
+                  "created_at": "2026-11-12T05:51:05Z",
+                  "updated_at": "2026-11-12T05:51:05Z",
+                  "expires_at": "2026-11-26T05:51:04Z",
+                  "producer_id": 131000472872,
+                  "upload_step": {
+                    "name": "Upload immutable lane evidence",
+                    "status": "completed",
+                    "conclusion": "success",
+                    "number": 10,
+                    "started_at": "2026-11-12T05:51:03Z",
+                    "completed_at": "2026-11-12T05:51:05Z"
+                  }
+                },
+                {
+                  "id": 13919525656,
+                  "name": "supplemental-coverage-proof",
+                  "size_in_bytes": 4804,
+                  "digest": "sha256:695ada7a385cbb0131cabf9553952ae16480986f55ded84ea3a423b7b3833800",
+                  "created_at": "2026-11-12T05:52:15Z",
+                  "updated_at": "2026-11-12T05:52:15Z",
+                  "expires_at": "2026-11-26T05:52:14Z",
+                  "producer_id": 131002142533,
+                  "upload_step": {
+                    "name": "Upload supplemental coverage proof",
+                    "status": "completed",
+                    "conclusion": "success",
+                    "number": 4,
+                    "started_at": "2026-11-12T05:52:14Z",
+                    "completed_at": "2026-11-12T05:52:15Z"
+                  }
+                },
+                {
+                  "id": 13919212712,
+                  "name": "supplemental-lane-windows-shared",
+                  "size_in_bytes": 2837,
+                  "digest": "sha256:fa66d3581ac91855a432f5b0dc5915080f7f4f8498fefa542c943d1df3602ee1",
+                  "created_at": "2026-11-12T05:51:24Z",
+                  "updated_at": "2026-11-12T05:51:24Z",
+                  "expires_at": "2026-11-26T05:51:24Z",
+                  "producer_id": 131000472816,
+                  "upload_step": {
+                    "name": "Upload immutable lane evidence",
+                    "status": "completed",
+                    "conclusion": "success",
+                    "number": 10,
+                    "started_at": "2026-11-12T05:51:23Z",
+                    "completed_at": "2026-11-12T05:51:25Z"
+                  }
+                },
+                {
+                  "id": 13919052416,
+                  "name": "supplemental-report-linux-node24",
+                  "size_in_bytes": 786,
+                  "digest": "sha256:052f76f33c683f44725fff86692bb9bb3be92b820594d089b93be726af327530",
+                  "created_at": "2026-11-12T05:48:30Z",
+                  "updated_at": "2026-11-12T05:48:30Z",
+                  "expires_at": "2026-11-26T05:48:29Z",
+                  "producer_id": 131000473099,
+                  "upload_step": {
+                    "name": "Preserve raw test report",
+                    "status": "completed",
+                    "conclusion": "success",
+                    "number": 11,
+                    "started_at": "2026-11-12T05:48:29Z",
+                    "completed_at": "2026-11-12T05:48:30Z"
+                  }
+                },
+                {
+                  "id": 13919037508,
+                  "name": "supplemental-lane-linux-node26",
+                  "size_in_bytes": 1748,
+                  "digest": "sha256:7a97ad3726d0da0f6fc9063deaf7ea4534170b86fe1b3d230970f51aee6db00c",
+                  "created_at": "2026-11-12T05:48:58Z",
+                  "updated_at": "2026-11-12T05:48:58Z",
+                  "expires_at": "2026-11-26T05:48:57Z",
+                  "producer_id": 131000472658,
+                  "upload_step": {
+                    "name": "Upload immutable lane evidence",
+                    "status": "completed",
+                    "conclusion": "success",
+                    "number": 10,
+                    "started_at": "2026-11-12T05:48:57Z",
+                    "completed_at": "2026-11-12T05:48:59Z"
+                  }
+                },
+                {
+                  "id": 13918872804,
+                  "name": "supplemental-report-linux-nushell",
+                  "size_in_bytes": 3763,
+                  "digest": "sha256:3c8947b213b9c99e226084d83bbe66cbd1a85917d2c508b202ef03226895bba8",
+                  "created_at": "2026-11-12T05:48:44Z",
+                  "updated_at": "2026-11-12T05:48:44Z",
+                  "expires_at": "2026-11-26T05:48:43Z",
+                  "producer_id": 131000472929,
+                  "upload_step": {
+                    "name": "Preserve raw test report",
+                    "status": "completed",
+                    "conclusion": "success",
+                    "number": 11,
+                    "started_at": "2026-11-12T05:48:43Z",
+                    "completed_at": "2026-11-12T05:48:44Z"
+                  }
+                },
+                {
+                  "id": 13918739090,
+                  "name": "supplemental-report-windows-shared",
+                  "size_in_bytes": 3946,
+                  "digest": "sha256:c110b524242fd60d03f547db47a16f66bef2709079fecf0012b51793a6888fae",
+                  "created_at": "2026-11-12T05:51:26Z",
+                  "updated_at": "2026-11-12T05:51:26Z",
+                  "expires_at": "2026-11-26T05:51:25Z",
+                  "producer_id": 131000472816,
+                  "upload_step": {
+                    "name": "Preserve raw test report",
+                    "status": "completed",
+                    "conclusion": "success",
+                    "number": 11,
+                    "started_at": "2026-11-12T05:51:25Z",
+                    "completed_at": "2026-11-12T05:51:26Z"
+                  }
+                },
+                {
+                  "id": 13918528743,
+                  "name": "supplemental-lane-linux-node24",
+                  "size_in_bytes": 960,
+                  "digest": "sha256:9c67f364c985fef74818f938bfb72a4ed93986cf5e66ddc3712de2f0e1b58765",
+                  "created_at": "2026-11-12T05:48:29Z",
+                  "updated_at": "2026-11-12T05:48:29Z",
+                  "expires_at": "2026-11-26T05:48:28Z",
+                  "producer_id": 131000473099,
+                  "upload_step": {
+                    "name": "Upload immutable lane evidence",
+                    "status": "completed",
+                    "conclusion": "success",
+                    "number": 10,
+                    "started_at": "2026-11-12T05:48:28Z",
+                    "completed_at": "2026-11-12T05:48:29Z"
+                  }
+                },
+                {
+                  "id": 13918319348,
+                  "name": "supplemental-lane-linux-nushell",
+                  "size_in_bytes": 2770,
+                  "digest": "sha256:9d7283de265f9cd6305639ee1a13222f0603d38714feab57540d8bb6f4efebcf",
+                  "created_at": "2026-11-12T05:48:43Z",
+                  "updated_at": "2026-11-12T05:48:43Z",
+                  "expires_at": "2026-11-26T05:48:43Z",
+                  "producer_id": 131000472929,
+                  "upload_step": {
+                    "name": "Upload immutable lane evidence",
+                    "status": "completed",
+                    "conclusion": "success",
+                    "number": 10,
+                    "started_at": "2026-11-12T05:48:42Z",
+                    "completed_at": "2026-11-12T05:48:43Z"
+                  }
+                },
+                {
+                  "id": 13918104472,
+                  "name": "supplemental-report-linux-node26",
+                  "size_in_bytes": 1630,
+                  "digest": "sha256:5d72ba0c5e79340e82ab4720da54af4fc528bf67168fbfda7097dda764aa1e8d",
+                  "created_at": "2026-11-12T05:49:00Z",
+                  "updated_at": "2026-11-12T05:49:00Z",
+                  "expires_at": "2026-11-26T05:48:59Z",
+                  "producer_id": 131000472658,
+                  "upload_step": {
+                    "name": "Preserve raw test report",
+                    "status": "completed",
+                    "conclusion": "success",
+                    "number": 11,
+                    "started_at": "2026-11-12T05:48:59Z",
+                    "completed_at": "2026-11-12T05:49:00Z"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+        REVIEWED_BLOCK
+    - name: Prepare reviewed release-verify.py part 1
+      run: |
+        cat > "$RUNNER_TEMP/release-verify.py" <<'REVIEWED_BLOCK'
+        import datetime, hashlib, json, os, pathlib, re, shutil, stat, subprocess, zipfile
+
+        PINS = json.loads(pathlib.Path(os.environ['RUNNER_TEMP'], 'release-pins.json').read_text())
+        repo = 'ZhiweiXiao98/t3code'
+        branch = 'maintenance/v0.1.9-zh-cloud'
+        run_id = os.environ['CANDIDATE_RUN_ID']
+        sha = os.environ['EXPECTED_SHA']
+        attempt = os.environ['EXPECTED_ATTEMPT']
+        assert re.fullmatch(r'[1-9][0-9]{0,8}', attempt), 'Invalid reviewed attempt'
+        assert re.fullmatch(r'[1-9][0-9]{0,17}', run_id), 'Invalid run ID'
+        assert re.fullmatch(r'[0-9a-f]{40}', sha), 'Expected full lowercase SHA'
+        assert os.environ['REVIEWED_ARTIFACTS'] == 'true', 'Review the actual candidate artifacts before dispatch'
+        assert os.environ['GITHUB_REPOSITORY'] == repo
+        assert os.environ['GITHUB_REF'] == 'refs/heads/' + PINS['operation_branch']
+        assert os.environ['GITHUB_EVENT_NAME'] == 'push'
+        assert os.environ['GITHUB_RUN_ATTEMPT'] == '1', 'Operation runs only once'
+        assert sha == PINS['source'] and run_id == '43163372855' and attempt == '1', 'Only the reviewed source/run/attempt is authorized'
+        base = f'repos/{repo}'
+        def api(path):
+            return json.loads(subprocess.check_output(['gh', 'api', base + path]))
+        assert api('')['private'] is False, 'Public repository required'
+
+        def operation_snapshot():
+            op = api('/git/commits/' + os.environ['GITHUB_SHA'])
+            assert op['sha'] == os.environ['GITHUB_SHA'] and [p['sha'] for p in op['parents']] == [sha], 'Publisher must be a direct single child of source'
+            assert api('/git/commits/' + sha)['tree']['sha'] == PINS['source_tree']
+            diff = api('/compare/' + sha + '...' + op['sha'])
+            assert diff['total_commits'] == 1 and len(diff['commits']) == 1 and diff['commits'][0]['sha'] == op['sha']
+            assert len(diff['files']) == 1 and diff['files'][0]['filename'] == PINS['operation_path'] and diff['files'][0]['status'] == 'added', 'Operation may only add its reviewed publisher'
+            return {'sha': op['sha'], 'tree': op['tree']['sha'], 'parent': sha, 'path': PINS['operation_path']}
+        operation = operation_snapshot()
+        def moment(s):
+            return datetime.datetime.fromisoformat(s.replace('Z', '+00:00')).timestamp()
+        def reviewed_evidence(check_bytes=False):
+            for group in PINS['evidence']:
+                expected_run = group['run']; rid = expected_run['id']
+                actual = api('/actions/runs/' + str(rid))
+                assert all(actual[k] == v for k, v in expected_run.items()), 'Reviewed run changed'
+                assert actual['repository']['full_name'] == repo and actual['head_repository']['full_name'] == repo
+                jj = api('/actions/runs/' + str(rid) + '/attempts/1/jobs?per_page=100')
+                assert jj['total_count'] == len(group['jobs']) == len(jj['jobs'])
+                for expected in group['jobs']:
+                    matches = [j for j in jj['jobs'] if j['id'] == expected['id']]
+                    assert len(matches) == 1 and all(matches[0][k] == v for k, v in expected.items()), 'Reviewed job changed'
+                aa = api('/actions/runs/' + str(rid) + '/artifacts?per_page=100')
+                assert aa['total_count'] <= 100
+                if group['label'] != 'main':
+                    assert {a['id'] for a in aa['artifacts']} == {a['id'] for a in group['artifacts']}, 'Supplemental artifact set changed'
+                    commit = api('/git/commits/' + actual['head_sha'])
+                    assert [p['sha'] for p in commit['parents']] == [sha], 'Supplemental source ancestry changed'
+                logs = {}
+                for expected in group['artifacts']:
+                    matches = [a for a in aa['artifacts'] if a['id'] == expected['id']]
+                    assert len(matches) == 1; a = matches[0]
+                    assert not a['expired'] and moment(a['expires_at']) > datetime.datetime.now(datetime.timezone.utc).timestamp() + 3600
+                    assert all(a[k] == expected[k] for k in ('id','name','size_in_bytes','digest','created_at','updated_at','expires_at'))
+                    assert a['workflow_run']['id'] == rid and a['workflow_run']['head_sha'] == actual['head_sha'] and a['workflow_run']['head_branch'] == actual['head_branch']
+                    job = next(j for j in jj['jobs'] if j['id'] == expected['producer_id'])
+                    step = expected['upload_step']; live = [s for s in job['steps'] if s['number'] == step['number']]
+                    assert live == [step] and step['status'] == 'completed' and step['conclusion'] == 'success'
+                    # API job/step times have whole-second precision; artifact events may finalize in the following second.
+                    assert moment(job['started_at']) <= moment(a['created_at']) <= moment(job['completed_at']) + 2
+                    assert moment(step['started_at']) - 1 <= moment(a['created_at']) <= moment(step['completed_at']) + 2
+                    if check_bytes:
+                        if job['id'] not in logs:
+                            logs[job['id']] = subprocess.check_output(['gh','api',base + '/actions/jobs/' + str(job['id']) + '/logs','--allow-escape-sequences'], timeout=120).decode('utf-8')
+                        log = logs[job['id']]
+                        digest_line = 'SHA256 digest of uploaded artifact is ' + a['digest'].removeprefix('sha256:')
+                        final_line = 'Artifact ' + a['name'] + ' successfully finalized. Artifact ID ' + str(a['id'])
+                        assert digest_line in log and final_line in log, 'Original producer upload receipt missing'
+                        assert 'Final size is ' + str(a['size_in_bytes']) + ' bytes. Artifact ID is ' + str(a['id']) in log
+                        # Build archives are checked below; rehash reviewed clean/UI/coverage ZIPs without executing their content.
+                        if not a['name'].startswith('client-'):
+                            target = pathlib.Path(os.environ['RUNNER_TEMP']) / ('evidence-' + str(a['id']) + '.zip')
+                            with target.open('xb') as f:
+                                subprocess.run(['gh','api',base + '/actions/artifacts/' + str(a['id']) + '/zip'], stdout=f, check=True, timeout=180)
+                            assert target.stat().st_size == a['size_in_bytes']
+                            with target.open('rb') as f: assert 'sha256:' + hashlib.file_digest(f,'sha256').hexdigest() == a['digest']
+                            target.unlink()
+        reviewed_evidence(True)
+
+        run_path = '/actions/runs/' + run_id
+        def run_snapshot():
+            r = api(run_path)
+            assert r['repository']['full_name'] == repo and r['head_repository']['full_name'] == repo
+            workflow_path = '.github/workflows/client-release.yml'
+            assert r['path'] in {workflow_path, workflow_path + '@' + branch,
+                                 workflow_path + '@refs/heads/' + branch, workflow_path + '@' + sha}
+            assert api('/actions/workflows/' + str(r['workflow_id']))['path'] == workflow_path
+            assert r['head_branch'] == branch and r['head_sha'] == sha
+            assert r['event'] in ('push', 'workflow_dispatch')
+            assert r['status'] == 'completed' and r['conclusion'] == 'failure'
+            assert isinstance(r['run_attempt'], int) and r['run_attempt'] == int(attempt), 'Run attempt differs from reviewed artifacts'
+            return {k: r[k] for k in ('id', 'workflow_id', 'run_attempt', 'head_sha', 'head_branch', 'path', 'status', 'conclusion', 'updated_at', 'run_started_at')}
+        run = run_snapshot()
+        # A green run can contain skipped jobs. Require all actual build/check jobs.
+        jobs = api(run_path + '/attempts/' + str(run['run_attempt']) + '/jobs?per_page=100')
+        assert jobs['total_count'] <= 100, 'Unexpected job count'
+        required_jobs = {
+            'Validate exact source', 'Lint and typecheck', 'Mobile native static analysis', 'Rust native formatting and tests', 'Build validated desktop bundle',
+            'Linux x64 and embedded Windows WSL runtime',
+            'Tests (clients)', 'Tests (web)', 'Tests (server-1)', 'Tests (server-2)', 'Tests (server-3)',
+            'Desktop win x64 (integrity checked)', 'Desktop mac arm64 (integrity checked)', 'Desktop mac x64 (integrity checked)',
+            'Clean macOS arm64 dmg first start', 'Clean macOS arm64 zip first start',
+            'Clean macOS x64 dmg first start', 'Clean macOS x64 zip first start',
+            'Clean desktop deb first start', 'Clean desktop appimage Debian 13 guest (Ubuntu 24.04 host) first start', 'Clean desktop nsis first start',
+            'Android arm64 unsigned candidate (NOT installable)',
+        }
+        assert jobs['total_count'] == len(required_jobs) == len(jobs['jobs']), 'Missing or unexpected candidate jobs'
+        for name in required_jobs:
+            matches = [j for j in jobs['jobs'] if j['name'] == name]
+            assert len(matches) == 1 and matches[0]['conclusion'] == ('failure' if name == PINS['deferred_job'] else 'success') and matches[0]['status'] == 'completed', name
+            assert matches[0]['head_sha'] == sha and matches[0]['run_id'] == int(run_id)
+        assert api('/commits/' + sha)['sha'] == sha
+        assert api('/git/ref/heads/' + branch)['object']['sha'] == sha, 'Maintenance branch moved; review again'
+        prefix = 'T3-Code-0.1.9-zh.1-'
+        specifications = {
+            'client-linux-x64': ({prefix + 'x86_64.AppImage', prefix + 'amd64.deb'}, set()),
+            'client-win-x64': ({prefix + 'x64.exe'}, set()),
+            'client-mac-arm64': ({prefix + 'arm64.dmg', prefix + 'arm64.zip', 'MACOS-TRUST-arm64.txt'}, set()),
+            'client-mac-x64': ({prefix + 'x64.dmg', prefix + 'x64.zip', 'MACOS-TRUST-x64.txt'}, set()),
+        }
+        def artifacts_snapshot():
+            result = api(run_path + '/artifacts?per_page=100')
+            assert result['total_count'] <= 100, 'Unexpected artifact count'
+            result = result['artifacts']
+            assert {a['name'] for a in result if a['name'].startswith('client-')} == set(specifications)
+            selected = []
+            for name in specifications:
+                matches = [a for a in result if a['name'] == name]
+                assert len(matches) == 1, 'Missing or duplicate artifact: ' + name
+                a = matches[0]
+                assert type(a['id']) is int and a['id'] > 0
+                assert not a['expired'] and 0 < a['size_in_bytes'] <= 2 * 1024**3
+                assert datetime.datetime.fromisoformat(a['expires_at'].replace('Z', '+00:00')) > datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
+                assert a['workflow_run']['id'] == int(run_id) and a['workflow_run']['head_sha'] == sha
+                assert a['workflow_run']['head_branch'] == branch
+                assert re.fullmatch(r'sha256:[0-9a-f]{64}', a.get('digest', '')), 'Missing archive SHA-256'
+                # Reject retained artifacts from an earlier failed attempt.
+                assert a['created_at'] >= run['run_started_at'], 'Artifact predates current run attempt'
+                selected.append({k: a[k] for k in ('id', 'name', 'size_in_bytes', 'digest', 'created_at', 'updated_at', 'expires_at')})
+            assert len({a['id'] for a in selected}) == 4
+            return selected
+        artifacts = artifacts_snapshot()
+        REVIEWED_BLOCK
+    - name: Prepare reviewed release-verify.py part 2
+      run: |
+        cat >> "$RUNNER_TEMP/release-verify.py" <<'REVIEWED_BLOCK'
+        output = pathlib.Path('verified-assets')
+        output.mkdir()
+        asset_records = []
+        for a in artifacts:
+            archive = pathlib.Path(os.environ['RUNNER_TEMP']) / (str(a['id']) + '.zip')
+            with archive.open('xb') as f:
+                subprocess.run(['gh', 'api', base + '/actions/artifacts/' + str(a['id']) + '/zip'], stdout=f, check=True)
+            assert archive.stat().st_size == a['size_in_bytes'] and archive.stat().st_size <= 2 * 1024**3
+            assert 'sha256:' + hashlib.file_digest(archive.open('rb'), 'sha256').hexdigest() == a['digest'], 'Archive digest mismatch'
+            required, optional = specifications[a['name']]
+            with zipfile.ZipFile(archive) as z:
+                entries = z.infolist()
+                names = [e.filename for e in entries]
+                assert len(names) == len(set(names)), 'Duplicate ZIP entries'
+                assert required <= set(names) <= required | optional, 'Unexpected paths or platform assets'
+                for entry in entries:
+                    mode = entry.external_attr >> 16
+                    assert not entry.is_dir() and stat.S_IFMT(mode) in (0, stat.S_IFREG), 'Non-regular ZIP entry'
+                    assert not entry.flag_bits & 1, 'Encrypted ZIP entry'
+                    assert 0 < entry.file_size <= 2 * 1024**3
+                    if entry.filename == PINS['excluded_name']:
+                        assert a['name'] == 'client-linux-x64', 'Deferred asset in wrong group'
+                        continue  # Never extract or publish the unpassed AppImage.
+                    target = output / entry.filename
+                    # Exact allowlists above reject traversal, backslashes, option-like names,
+                    # updater feeds, APKs, shell metacharacters and cross-platform substitutes.
+                    with z.open(entry) as src, target.open('xb') as dst:
+                        shutil.copyfileobj(src, dst)
+                    assert target.stat().st_size == entry.file_size
+                    digest = hashlib.file_digest(target.open('rb'), 'sha256').hexdigest()
+                    asset_records.append({'name': entry.filename, 'size': entry.file_size, 'sha256': digest, 'artifact_id': a['id']})
+            archive.unlink()
+        assert run_snapshot() == run, 'Candidate was rerun or changed during verification'
+        assert artifacts_snapshot() == artifacts, 'Candidate artifacts changed during verification'
+        assert operation_snapshot() == operation
+        reviewed_evidence(False)
+        assert len(asset_records) == 8 and all(a['name'] != PINS['excluded_name'] for a in asset_records)
+        asset_records.sort(key=lambda a: a['name'])
+        manifest = {'repository': repo, 'version': '0.1.9-zh.1', 'source_sha': sha,
+                    'run_url': f'https://github.com/{repo}/actions/runs/{run_id}/attempts/{run["run_attempt"]}',
+                    'run': run, 'artifacts': artifacts, 'assets': asset_records,
+                    'operation': operation, 'reviewed_evidence': PINS['evidence'],
+                    'release_scope': {'published_platforms':['windows-x64','mac-arm64','mac-x64','linux-x64-deb'],
+                                      'deferred_asset':PINS['excluded_name'], 'deferred_gate':PINS['deferred_job'],
+                                      'deferred_conclusion':'failure', 'successful_required_gates':21,
+                                      'authorization':'Owner explicitly approved releasing the passed platforms while deferring AppImage; AppImage has not passed acceptance.'}}
+        manifest_path = output / 'BUILD-PROVENANCE.json'
+        manifest_path.write_text(json.dumps(manifest, indent=2) + '\n')
+        manifest_digest = hashlib.file_digest(manifest_path.open('rb'), 'sha256').hexdigest()
+        checksums = ''.join(a['sha256'] + '  ' + a['name'] + '\n' for a in asset_records)
+        (output / 'SHA256SUMS.txt').write_text(checksums + manifest_digest + '  BUILD-PROVENANCE.json\n')
+        with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+            f.write('manifest_sha256=' + manifest_digest + '\n')
+        with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
+            f.write('Verified reviewed candidate: ' + manifest['run_url'] + '\n\nSource: ' + sha + '\n\n' + checksums)
+        REVIEWED_BLOCK
+    - name: Verify exact reviewed evidence and extract only passed assets
+      id: verify
+      env:
+        GH_TOKEN: ${{ github.token }}
+        EXPECTED_ATTEMPT: '1'
+        EXPECTED_SHA: 042eacb54f19c3bbc452e4ae271794f4c5fc524e
+        CANDIDATE_RUN_ID: '43163372855'
+        REVIEWED_ARTIFACTS: 'true'
+        OPERATION_BRANCH: release/v0.1.9-zh.1-reviewed-platforms-042e-logs
+        OPERATION_PATH: .github/workflows/publish-v019-reviewed-platforms.yml
+        SOURCE_TREE: 7879a15522881c2c953a650ca2062848111a742d
+      run: python3 "$RUNNER_TEMP/release-verify.py"
+    - name: Transfer only verified desktop files
+      id: upload
+      uses: actions/upload-artifact@v7
+      with:
+        name: verified-desktop-release
+        path: verified-assets/*
+        if-no-files-found: error
+        retention-days: 1
+    if: github.run_attempt == 1
+  publish:
+    name: Publish verified desktop release
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+    - uses: actions/download-artifact@v8
+      with:
+        artifact-ids: ${{ needs.verify.outputs.artifact_id }}
+        path: assets
+        merge-multiple: true
+    - name: Reverify provenance and publish without running candidate code
+      uses: actions/github-script@v8
+      env:
+        EXPECTED_ATTEMPT: '1'
+        EXPECTED_SHA: 042eacb54f19c3bbc452e4ae271794f4c5fc524e
+        CANDIDATE_RUN_ID: '43163372855'
+        REVIEWED_ARTIFACTS: 'true'
+        OPERATION_BRANCH: release/v0.1.9-zh.1-reviewed-platforms-042e-logs
+        OPERATION_PATH: .github/workflows/publish-v019-reviewed-platforms.yml
+        SOURCE_TREE: 7879a15522881c2c953a650ca2062848111a742d
+        MANIFEST_SHA256: ${{ needs.verify.outputs.manifest_sha256 }}
+      with:
+        script: |
+          const fs = require('node:fs');
+          const crypto = require('node:crypto');
+          const assert = require('node:assert/strict');
+          const hash = data => crypto.createHash('sha256').update(data).digest('hex');
+          const repo = {owner: 'ZhiweiXiao98', repo: 't3code'};
+          const branch = 'maintenance/v0.1.9-zh-cloud';
+          const tag = 'v0.1.9-zh.1';
+          assert.equal(context.repo.owner, repo.owner);
+          assert.equal(context.repo.repo, repo.repo);
+          assert.equal(context.ref, 'refs/heads/'+process.env.OPERATION_BRANCH);
+          assert.equal(context.eventName, 'push');
+          assert.equal(process.env.GITHUB_RUN_ATTEMPT, '1');
+          assert.equal(process.env.EXPECTED_SHA, '042eacb54f19c3bbc452e4ae271794f4c5fc524e');
+          assert.equal(process.env.CANDIDATE_RUN_ID, '43163372855');
+          assert.equal(process.env.EXPECTED_ATTEMPT, '1');
+          const manifestBytes = fs.readFileSync('assets/BUILD-PROVENANCE.json');
+          assert.equal(hash(manifestBytes), process.env.MANIFEST_SHA256);
+          const m = JSON.parse(manifestBytes);
+          assert.equal(m.repository, 'ZhiweiXiao98/t3code');
+          assert.equal(m.version, '0.1.9-zh.1');
+          assert.equal(m.source_sha, process.env.EXPECTED_SHA);
+          assert.equal(String(m.run.id), process.env.CANDIDATE_RUN_ID);
+          assert.equal(m.run.run_attempt, Number(process.env.EXPECTED_ATTEMPT));
+          assert.match(m.source_sha, /^[0-9a-f]{40}$/);
+          assert.equal(m.operation.sha, context.sha);
+          assert.equal(m.operation.parent, m.source_sha);
+          assert.equal(m.operation.path, process.env.OPERATION_PATH);
+          assert.deepEqual(m.release_scope, {"published_platforms": ["windows-x64", "mac-arm64", "mac-x64", "linux-x64-deb"], "deferred_asset": "T3-Code-0.1.9-zh.1-x86_64.AppImage", "deferred_gate": "Clean desktop appimage Debian 13 guest (Ubuntu 24.04 host) first start", "deferred_conclusion": "failure", "successful_required_gates": 21, "authorization": "Owner explicitly approved releasing the passed platforms while deferring AppImage; AppImage has not passed acceptance."});
+          assert.equal(m.run.status,'completed'); assert.equal(m.run.conclusion,'failure');
+          const mandatory = ['T3-Code-0.1.9-zh.1-amd64.deb',
+            'T3-Code-0.1.9-zh.1-x64.exe', 'T3-Code-0.1.9-zh.1-arm64.dmg', 'T3-Code-0.1.9-zh.1-x64.dmg',
+            'T3-Code-0.1.9-zh.1-arm64.zip', 'T3-Code-0.1.9-zh.1-x64.zip',
+            'MACOS-TRUST-arm64.txt', 'MACOS-TRUST-x64.txt'];
+          const allowed = new Set(mandatory);
+          const names = m.assets.map(a => a.name);
+          assert.equal(new Set(names).size, names.length);
+          assert(mandatory.every(n => names.includes(n)) && names.every(n => allowed.has(n)));
+          const files = [...names, 'BUILD-PROVENANCE.json', 'SHA256SUMS.txt'].sort();
+          assert.deepEqual(fs.readdirSync('assets').sort(), files);
+          for (const name of files) assert(fs.lstatSync(`assets/${name}`).isFile());
+          for (const a of m.assets) {
+            assert(a.size > 0 && a.size === fs.statSync(`assets/${a.name}`).size);
+            assert.equal(hash(fs.readFileSync(`assets/${a.name}`)), a.sha256);
+          }
+          assert.equal(fs.readFileSync('assets/SHA256SUMS.txt', 'utf8'),
+            m.assets.map(a => `${a.sha256}  ${a.name}\n`).join('') + `${hash(manifestBytes)}  BUILD-PROVENANCE.json\n`);
+          // This job has no actions:read permission. Recheck the PUBLIC repository
+          // through unauthenticated, fixed-origin REST requests; fail closed on errors.
+          async function publicAPI(path) {
+            const response = await fetch(`https://api.github.com/repos/ZhiweiXiao98/t3code${path}`, {
+              headers: {'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28'},
+              redirect: 'error'
+            });
+            assert(response.ok, `Public API check failed: ${response.status}`);
+            return response.json();
+          }
+          async function recheck() {
+            assert.equal((await publicAPI('')).private, false);
+
+            const op = await publicAPI(`/git/commits/${context.sha}`);
+            assert.deepEqual(op.parents.map(p=>p.sha), [m.source_sha]); assert.equal(op.tree.sha,m.operation.tree);
+            const diff = await publicAPI(`/compare/${m.source_sha}...${context.sha}`);
+            assert.equal(diff.total_commits,1); assert.equal(diff.commits.length,1); assert.equal(diff.commits[0].sha,context.sha);
+            assert.equal(diff.files.length,1); assert.equal(diff.files[0].filename,process.env.OPERATION_PATH); assert.equal(diff.files[0].status,'added');
+            assert.equal((await publicAPI(`/git/commits/${m.source_sha}`)).tree.sha,process.env.SOURCE_TREE);
+            assert.equal(m.reviewed_evidence.length,3);
+            assert.deepEqual(m.reviewed_evidence.map(g=>[g.label,g.run.id,g.run.head_sha]), [['main',43163372855,'042eacb54f19c3bbc452e4ae271794f4c5fc524e'],['ui',43169912982,'67d01cd6539fe192fb53b3e6927230e368df7c6f'],['coverage',43163681839,'eb500b1e19a693d48a097fb6715958e13f188f17']]);
+            for (const group of m.reviewed_evidence) {
+              const rr = await publicAPI(`/actions/runs/${group.run.id}`);
+              for (const [k,v] of Object.entries(group.run)) assert.deepEqual(rr[k],v);
+              assert.equal(rr.repository.full_name,m.repository); assert.equal(rr.head_repository.full_name,m.repository);
+              const jj = await publicAPI(`/actions/runs/${group.run.id}/attempts/1/jobs?per_page=100`);
+              assert.equal(jj.total_count,group.jobs.length); assert.equal(jj.jobs.length,group.jobs.length);
+              for (const pin of group.jobs) { const found=jj.jobs.filter(j=>j.id===pin.id); assert.equal(found.length,1); for(const[k,v]of Object.entries(pin))assert.deepEqual(found[0][k],v); }
+              if(group.label==='main') { assert.equal(jj.jobs.length,22); assert.equal(jj.jobs.filter(j=>j.conclusion==='success').length,21); const failed=jj.jobs.filter(j=>j.conclusion!=='success'); assert.equal(failed.length,1); assert.equal(failed[0].name,m.release_scope.deferred_gate); assert.equal(failed[0].conclusion,'failure'); }
+              else { assert.equal(rr.status,'completed'); assert.equal(rr.conclusion,'success'); assert(jj.jobs.every(j=>j.status==='completed'&&j.conclusion==='success')); }
+              const aa=await publicAPI(`/actions/runs/${group.run.id}/artifacts?per_page=100`);assert(aa.total_count<=100);
+              if(group.label!=='main')assert.deepEqual(aa.artifacts.map(a=>a.id).sort(),group.artifacts.map(a=>a.id).sort());
+              for(const pin of group.artifacts){const found=aa.artifacts.filter(a=>a.id===pin.id);assert.equal(found.length,1);const a=found[0];assert.equal(a.expired,false);assert(Date.parse(a.expires_at)>Date.now());for(const k of ['id','name','size_in_bytes','digest','created_at','updated_at','expires_at'])assert.deepEqual(a[k],pin[k]);assert.equal(a.workflow_run.id,rr.id);assert.equal(a.workflow_run.head_sha,rr.head_sha);const j=jj.jobs.find(j=>j.id===pin.producer_id);assert(j);assert.deepEqual(j.steps.filter(s=>s.number===pin.upload_step.number),[pin.upload_step]);}
+            }
+
+            const run = await publicAPI(`/actions/runs/${m.run.id}`);
+            for (const [key, value] of Object.entries(m.run)) assert.equal(run[key], value);
+            assert.equal(run.repository.full_name, m.repository);
+            assert.equal(run.head_repository.full_name, m.repository);
+            assert.equal((await publicAPI(`/git/ref/heads/${branch}`)).object.sha, m.source_sha);
+            const artifacts = await publicAPI(`/actions/runs/${m.run.id}/artifacts?per_page=100`);
+            assert(artifacts.total_count <= 100);
+            assert.equal(artifacts.artifacts.filter(a => a.name.startsWith('client-')).length, 4);
+            for (const expected of m.artifacts) {
+              const found = artifacts.artifacts.filter(a => a.id === expected.id);
+              assert.equal(found.length, 1);
+              assert.equal(found[0].expired, false);
+              assert(Date.parse(found[0].expires_at) > Date.now());
+              for (const [key, value] of Object.entries(expected)) assert.equal(found[0][key], value);
+            }
+          }
+          await recheck();
+          async function requireAbsent(request) {
+            try { await request(); } catch (e) { if (e.status === 404) return; throw e; }
+            throw new Error('Existing release/tag; refusing replacement');
+          }
+          await requireAbsent(() => github.rest.git.getRef({...repo, ref: `tags/${tag}`}));
+          await requireAbsent(() => github.rest.repos.getReleaseByTag({...repo, tag}));
+          const releases = await github.paginate(github.rest.repos.listReleases, {...repo, per_page: 100});
+          assert(!releases.some(r => r.tag_name === tag), 'Existing draft/release; refusing replacement');
+          // Atomic ref creation prevents accidentally publishing on a raced existing tag.
+          await github.rest.git.createRef({...repo, ref: `refs/tags/${tag}`, sha: m.source_sha});
+          const body = `基于上游稳定版 v0.1.9 的简体中文社区桌面正式发布：${m.version}。\n\n` +
+            `精确源码：${m.source_sha}\n构建记录：${m.run_url}\n上游版本：https://github.com/pingdotgg/t3code/releases/tag/v0.1.9\n\n` +
+            '本版基于上游稳定版 v0.1.9，补全任务右键菜单、设置分类及新任务默认值说明的简体中文显示。\n\n' +
+            'v0.1.9 包含消息搜索索引迁移（081）。升级前请备份数据；如需回退，请使用升级前的备份，不要假定旧版本可以安全打开已升级的数据库。\n\n' +
+            '从 V1 升级必读：V2 首次启动会复制并导入 V1 数据，两个版本此后的数据不会互相同步。请先备份数据并更新所有连接的服务器和客户端；V1 客户端无法连接 V2 服务器。OpenCode 2 会迁移其共享数据库，不要与 OpenCode 1 并行运行。详细迁移说明：https://github.com/pingdotgg/t3code/issues/14871 。\n\n' +
+            '提供 Windows x64、macOS Apple Silicon / Intel、Linux x64 共六个安装包（本次仅提供 DEB 格式的 Linux 安装包）。Windows 未做 Authenticode 签名；macOS 已做 ad-hoc 完整性签名并通过严格校验，但没有 Developer ID 商业签名或 Apple 公证。Gatekeeper 仍可能因未公证而阻止打开，这与安装包损坏是不同的检查结果；随附 MACOS-TRUST-*.txt 记录实际信任检查。升级前建议备份现有数据。\n\n' +
+            'Android 新版本独立验证和发布，必须沿用已备份并通过恢复验证的固定签名身份；本桌面发布不包含未签名候选 APK。\n\n' +
+            '本次先发布已通过验收的平台：该精确提交的 22 项构建与质量门禁中，除 AppImage 外的 21 项均成功，覆盖完整测试、规范与类型检查、原生检查、各平台构建和本次六个安装包的干净首次启动（空白用户数据、正常沙箱）。另有 139 个 UI 测试文件、1791 项测试和 61 步真实界面场景全部通过；补充覆盖 166 项通过、5 项为已核验的预期条件跳过。\n\n' +
+            'AppImage 暂缓发布：其 Debian 13 虚拟机验收发生渲染进程崩溃，尚未通过验收，原因仍在调查；不能认定仅为仿真性能问题。本发布不包含 AppImage，也不声称该门禁通过。Linux DEB 在原生 Ubuntu 24.04 验收通过。已知快捷键加号的空白键帽显示问题来自官方 v0.1.9，未在本次更改其行为。\n\n' +
+            '没有关闭沙箱或降低宿主系统安全设置。这不是人工 Finder 操作验收，也不代表未经公证的 macOS 软件已获得系统信任。桌面产物校验后原样发布，没有重新构建。SHA256SUMS.txt 和 BUILD-PROVENANCE.json 记录完整性、来源与本次 AppImage 暂缓例外，不代表商业签名。请手动下载，本版不提供自动更新源。\n';
+          const {data: release} = await github.rest.repos.createRelease({...repo, tag_name: tag,
+            target_commitish: m.source_sha, name: `T3 Code 中文版 ${m.version} (community desktop clients)`,
+            body, draft: true, prerelease: false, make_latest: 'false'});
+          // A failure leaves a draft for investigation; never overwrite or auto-delete it.
+          const expectedAssets = [];
+          for (const name of files) {
+            const data = fs.readFileSync(`assets/${name}`);
+            const {data: asset} = await github.rest.repos.uploadReleaseAsset({...repo,
+              release_id: release.id, name, data, headers: {'content-type': 'application/octet-stream', 'content-length': data.length}});
+            assert.equal(asset.state, 'uploaded');
+            assert.equal(asset.size, data.length);
+            assert.equal(asset.digest, `sha256:${hash(data)}`);
+            expectedAssets.push({id: asset.id, name, state: 'uploaded', size: data.length, digest: `sha256:${hash(data)}`});
+          }
+          await recheck();
+          assert.equal((await github.rest.git.getRef({...repo, ref: `tags/${tag}`})).data.object.sha, m.source_sha);
+          const {data: uploaded} = await github.rest.repos.listReleaseAssets({...repo, release_id: release.id, per_page: 100});
+          assert.deepEqual(
+            uploaded.map(({id, name, state, size, digest}) => ({id, name, state, size, digest})).sort((a, b) => a.name.localeCompare(b.name)),
+            expectedAssets.sort((a, b) => a.name.localeCompare(b.name)));
+          const {data: currentRelease} = await github.rest.repos.getRelease({...repo, release_id: release.id});
+          assert.equal(currentRelease.tag_name, tag);
+          assert.equal(currentRelease.target_commitish, m.source_sha);
+          assert.equal(currentRelease.body, body);
+          assert.equal(currentRelease.draft, true);
+          assert.equal(currentRelease.prerelease, false);
+          const {data: published} = await github.rest.repos.updateRelease({...repo, release_id: release.id,
+            draft: false, prerelease: false, make_latest: 'true'});
+          assert.equal(published.draft, false);
+          assert.equal(published.prerelease, false);
+          core.summary.addLink('Desktop release', published.html_url);
+          await core.summary.write();
+    if: github.run_attempt == 1
+'on':
+  push:
+    branches:
+    - release/v0.1.9-zh.1-reviewed-platforms-042e-logs
