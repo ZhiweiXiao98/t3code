@@ -2,6 +2,7 @@
 import glob,hashlib,json,os,pathlib,pwd,resource,shutil,subprocess,sys,time
 from common import require,sha,run,unpack_tar
 from sanitize_stack import sanitize
+from diagnostic_errors import observe,failure_kind
 P=pathlib.Path('/mnt/t3-payload');BASE=pathlib.Path('/var/tmp/t3-diagnostic')
 def main():
  require(os.geteuid()==0 and pathlib.Path('/run/cloud-init').exists(),'Guest only')
@@ -44,21 +45,27 @@ def main():
   m={'kind':'appimage','mode':'same-full-run-debian13-v1','sourceSha':cell['source']['sha'],'sourceTree':cell['source']['tree'],'installerSha256':cell['appimage']['sha256'],'executableSha256':cell['appimage']['sha256'],'cjkDriverSha256':sha(P/'diagnostic-driver.mjs'),'playwrightTreeSha256':cell['playwrightTarSha256'],'producerRunId':cell['producer']['run_id'],'producerRunAttempt':cell['producer']['run_attempt'],'artifactId':cell['installer']['id'],'playwrightVersion':'1.60.0','privacyClauses':{'See the':'请参阅','To opt out, see the':'如需退出，请参阅'}}
   (private/'manifest.json').write_text(json.dumps(m));result['phase']='clean-first-start'
   with open(private/'clean-driver.log','wb') as log:
-   run(prefix+['dbus-run-session','--','xvfb-run','-a','node',str(P/'clean-driver.mjs'),'--platform','Linux','--executable',str(exe),'--playwright-module',str(pw/'index.mjs'),'--artifacts-dir',str(clean)],300,stdout=log,stderr=subprocess.STDOUT)
-  result['phase']='full-cjk-sequence'
-  from cjk_budget import CjkBudget,TOTAL_SECONDS
-  budget=CjkBudget(private,emit=lambda *a,**k:None);complete=False
-  with open(private/'driver.log','wb') as log:
-   try:
-    run(prefix+['dbus-run-session','--','xvfb-run','-a','node',str(P/'diagnostic-driver.mjs'),'--manifest',str(private/'manifest.json'),'--kind','appimage','--asset',str(exe),'--executable',str(exe),'--playwright-module',str(pw/'index.mjs'),'--artifacts-dir',str(artifacts)],TOTAL_SECONDS,progress=budget.tick,stdout=log,stderr=subprocess.STDOUT)
-    budget.tick();complete=True;result['driverExitCode']=0
-   except subprocess.CalledProcessError as error:result['driverExitCode']=error.returncode
-   except TimeoutError:result['outcome']='driver-timeout'
-   finally:budget.finish(complete)
+   clean_result=observe(run,prefix+['dbus-run-session','--','xvfb-run','-a','node',str(P/'clean-driver.mjs'),'--platform','Linux','--executable',str(exe),'--playwright-module',str(pw/'index.mjs'),'--artifacts-dir',str(clean)],300,stdout=log,stderr=subprocess.STDOUT)
+  result['cleanResult']=clean_result
+  if clean_result.get('exitCode')==0:
+   result['phase']='full-cjk-sequence'
+   from cjk_budget import CjkBudget,TOTAL_SECONDS
+   budget=CjkBudget(private,emit=lambda *a,**k:None);complete=False
+   with open(private/'driver.log','wb') as log:
+    try:
+     cjk_result=observe(run,prefix+['dbus-run-session','--','xvfb-run','-a','node',str(P/'diagnostic-driver.mjs'),'--manifest',str(private/'manifest.json'),'--kind','appimage','--asset',str(exe),'--executable',str(exe),'--playwright-module',str(pw/'index.mjs'),'--artifacts-dir',str(artifacts)],TOTAL_SECONDS,progress=budget.tick,stdout=log,stderr=subprocess.STDOUT)
+     result['cjkResult']=cjk_result
+     if cjk_result.get('exitCode')==0:budget.tick();complete=True
+     if 'exitCode' in cjk_result:result['driverExitCode']=cjk_result['exitCode']
+     if cjk_result.get('failureCode')=='timeout':result['outcome']='driver-timeout'
+    finally:budget.finish(complete)
+   from progress_summary import summarize
+   result['progress']=summarize(private)
+   result['completedScreens']=result['progress']['cjkScreens']+result['progress']['cleanScreens']
+  else:
+   result['failed']=True
+   if clean_result.get('failureCode')=='timeout':result['outcome']='driver-timeout'
   require(sha(exe)==cell['appimage']['sha256'],'AppImage changed')
-  from progress_summary import summarize
-  result['progress']=summarize(private)
-  result['completedScreens']=result['progress']['cjkScreens']+result['progress']['cleanScreens']
   memory={}
   for line in pathlib.Path('/proc/meminfo').read_text().splitlines():
    key,_,value=line.partition(':')
@@ -66,36 +73,45 @@ def main():
   result['resourceObservation']={'memoryTotalKiB':memory['MemTotal'],'memoryAvailableKiB':memory['MemAvailable'],'logicalCpus':os.cpu_count()}
   # Crashpad flushes on process exit; bounded grace, no retries of the application.
   time.sleep(3)
+  result['phase']='dump-discovery'
   dumps=[]
   for root in pathlib.Path('/tmp').glob('t3-local-crash-*'):
    if root.is_symlink() or root.stat().st_uid!=65534:continue
    for d in root.rglob('*.dmp'):
     if d.is_file() and not d.is_symlink() and d.stat().st_uid==65534:dumps.append(d)
   require(len(dumps)<=4 and all(d.stat().st_size<=256*1024**2 for d in dumps),'Dump budget exceeded')
-  result['phase']='offline-symbolization'
-  symbol_ids={}
+  result['dumpCount']=len(dumps)
+  result['phase']='symbol-discovery'
+  symbol_ids={};symbol_files=[]
   for symbol in (P/'symbols').rglob('*.sym'):
    with open(symbol,'r',errors='strict') as stream:header=stream.readline(1024).split()
    if len(header)==5 and header[:3]==['MODULE','Linux','x86_64']:
     identity=header[3].replace('-','').upper()
     require(identity not in symbol_ids or symbol_ids[identity]==header[4],'Conflicting symbol identity')
-    symbol_ids[identity]=header[4]
+    symbol_ids[identity]=header[4];symbol_files.append(str(symbol))
   require(bool(symbol_ids),'No verified symbol identities')
+  result['officialSymbolCount']=len(symbol_files)
   def cap():resource.setrlimit(resource.RLIMIT_FSIZE,(32*1024**2,32*1024**2))
   for i,dump in enumerate(dumps):
    raw=private/f'stack-{i}.json'
+   result['phase']='stackwalk-execution'
    with open(private/f'stack-{i}.log','wb') as log:
-    subprocess.run([str(P/'minidump-stackwalk'),'--json','--no-interactive','--output-file',str(raw),str(dump),str(P/'symbols')],check=True,timeout=90,stdout=log,stderr=subprocess.STDOUT,env={'PATH':'/usr/bin:/bin','LANG':'C'},preexec_fn=cap)
+    subprocess.run([str(P/'minidump-stackwalk'),'--json','--no-interactive','--output-file',str(raw),str(dump),*symbol_files],check=True,timeout=90,stdout=log,stderr=subprocess.STDOUT,env={'PATH':'/usr/bin:/bin','LANG':'C'},preexec_fn=cap)
+   result['phase']='stackwalk-output-parse'
    require(raw.stat().st_size<=32*1024**2,'Stack output budget')
    parsed=json.loads(raw.read_text())
+   result['phase']='symbol-match-validation'
    require(any(str(module.get('debug_id','')).replace('-','').upper() in symbol_ids and module.get('loaded_symbols') is True for module in parsed['modules']),'No matching loaded official symbols')
+   result['phase']='stack-sanitize'
    result['stacks'].append(sanitize(parsed,symbol_ids))
   if dumps:result['outcome']='crash-captured'
   elif result.get('driverExitCode')==0:result['outcome']='not-reproduced'
   elif result['outcome']=='driver-timeout':pass
   else:result['outcome']='capture-unavailable'
   result['phase']='complete'
- except Exception:
+ except Exception as error:
+  result['failureCode']=failure_kind(error)
+  if isinstance(error,subprocess.CalledProcessError) and type(error.returncode) is int and -255<=error.returncode<=255:result['failedCommandExitCode']=error.returncode
   # The exception may contain argv or private paths; never emit it.
   result['failed']=True
  from validate_export import check

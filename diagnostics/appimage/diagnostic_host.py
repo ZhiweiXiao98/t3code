@@ -71,7 +71,7 @@ def main(a):
    out.parent.mkdir(parents=True,exist_ok=True)
    with z.open(i) as src,open(out,'wb') as dst:shutil.copyfileobj(src,dst,1024**2)
  require(any(symbols.rglob('*.sym')),'Missing Breakpad symbols')
- for name in ['early-hook.cjs','patch_playwright.py','sanitize_stack.py','transport.py','validate_export.py','diagnostic-driver.mjs','clean-driver.mjs','cjk_budget.py','progress_summary.py']:
+ for name in ['early-hook.cjs','patch_playwright.py','sanitize_stack.py','transport.py','validate_export.py','diagnostic-driver.mjs','clean-driver.mjs','cjk_budget.py','progress_summary.py','diagnostic_errors.py']:
   shutil.copyfile(HERE/name,payload/name)
  shutil.copyfile(HERE/'diagnostic_guest.py',payload/'guest.py')
  shutil.copyfile(HERE/'vendor/common.py',payload/'common.py');shutil.copyfile(HERE/'vendor/png_validation.py',payload/'png_validation.py')

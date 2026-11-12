@@ -1,12 +1,12 @@
 name: Diagnose pinned AppImage renderer crash
 on:
   push:
-    branches: [validation/v0.1.9-appimage-full-diagnostic-042e]
+    branches: [validation/v0.1.9-appimage-symbols-diagnostic-042e]
 permissions:
   contents: read
   actions: read
 concurrency:
-  group: t3-appimage-full-diagnostic-042e
+  group: t3-appimage-symbols-diagnostic-042e
   cancel-in-progress: false
 jobs:
   diagnose:
@@ -42,7 +42,7 @@ jobs:
             data=source.extractfile(member).read(member.size+1)
             if len(data)!=member.size:raise ValueError('Truncated diagnostic member')
             selected.append((relative,data))
-          if len(selected)!=34:raise ValueError('Unexpected diagnostic file count')
+          if len(selected)!=37:raise ValueError('Unexpected diagnostic file count')
           if (workspace/'diagnostics').exists():raise ValueError('Workspace must have no pre-existing diagnostic files')
           for relative,data in selected:
            target=workspace/relative;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(data);target.chmod(0o644)
@@ -51,9 +51,9 @@ jobs:
         working-directory: diagnostics/appimage
         run: |
           set -euo pipefail
-          echo '12aeb677f98061ace8f5a4790bb21a8aa3fb9d50ee5f826c01bd7e7c4ef82d56  operation.json' | sha256sum -c -
+          echo '191943962e8530e46acb5b77b2ac6363068be06a1f9ec91897a905c1a9b2ab73  operation.json' | sha256sum -c -
           python3 verify_payload.py
-          python3 -m unittest test_operation test_privacy_transport test_cancel test_progress -v
+          python3 -m unittest test_operation test_privacy_transport test_cancel test_progress test_diagnostic_errors -v
           node test-hook.cjs
           node test-inspector-order.cjs
       - name: Fetch pinned existing packages without building an application
@@ -83,6 +83,14 @@ jobs:
           mkdir "$RUNNER_TEMP/diagnostic-tools/test-pw"
           tar -xzf "$RUNNER_TEMP/diagnostic-tools/playwright.tgz" -C "$RUNNER_TEMP/diagnostic-tools/test-pw"
           TEST_PLAYWRIGHT_BUNDLE="$RUNNER_TEMP/diagnostic-tools/test-pw/package/lib/coreBundle.js" python3 -m unittest test_helpers -v
+      - name: Prove symbol supplier lookup using public fixture before any app run
+        working-directory: diagnostics/appimage
+        run: |
+          set -euo pipefail
+          tools="$RUNNER_TEMP/diagnostic-tools"
+          curl --proto '=https' --proto-redir '=https' --fail --location --max-time 60 https://raw.githubusercontent.com/rust-minidump/rust-minidump/4adf5555b2ab844f23c52982fc202357ff882695/testdata/test.dmp -o "$tools/public-test.dmp"
+          echo '24b0ea7794b2d2523c46c9aea72c03ccbb0ab88ad76d8258d3752c7b71d233ff  '"$tools/public-test.dmp" | sha256sum -c -
+          python3 test_symbol_supplier.py --binary "$tools/minidump-stackwalk-0.27.0/target/release/minidump-stackwalk" --fixture "$tools/public-test.dmp"
       - name: Execute each bounded diagnostic cell once
         working-directory: diagnostics/appimage
         run: |
@@ -105,7 +113,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: appimage-full-diagnostic-042e
+          name: appimage-symbols-diagnostic-042e
           path: |
             ${{ runner.temp }}/diagnostic-public/candidate/diagnostic.json
             ${{ runner.temp }}/diagnostic-public/candidate/manifest.json

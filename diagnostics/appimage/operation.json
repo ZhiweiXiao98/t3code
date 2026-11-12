@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "purpose": "root-cause diagnostic only; never release acceptance",
-  "state": "local draft; full-chain independent review required; not executed",
+  "state": "local symbol lookup and diagnostic classification fix; independent review pending; not executed",
   "maxExecutionsPerCell": 1,
   "maxParallel": 1,
   "timeoutMinutesPerCell": 45,
@@ -151,9 +151,11 @@
       "--output-file",
       "<private-json>",
       "<private-minidump>",
-      "<verified-local-symbols>"
+      "<verified-direct-symbol-file>"
     ],
-    "noSymbolsURL": true
+    "noSymbolsURL": true,
+    "symbolLookup": "direct verified official .sym files; pinned supplier checks module debug identity",
+    "preflight": "actual pinned stackwalker against public upstream fixture; nested-root negative, direct-file positive, wrong-debug-ID negative; all before application execution"
   },
   "output": {
     "files": [
@@ -213,14 +215,19 @@
       "bytes": 35327
     },
     {
+      "name": "diagnostic_errors.py",
+      "sha256": "b2bb5b80c86c9b714daf1b615f610418566fffc0fcf5e7c0079b1d9468a9a3e1",
+      "bytes": 998
+    },
+    {
       "name": "diagnostic_guest.py",
-      "sha256": "80531fe98c7971d018e3e8bbd52832bf6f814c561c47f0ac57415ba91083fcd3",
-      "bytes": 9026
+      "sha256": "e209eedd7cefb78ee0d3e391a5bc2d7d6d90c596c0b70f0bd5b694fd87906144",
+      "bytes": 9924
     },
     {
       "name": "diagnostic_host.py",
-      "sha256": "516b1028f7a9102118f40747699228451d3b7aad57b861c0f01b5bc563154218",
-      "bytes": 8709
+      "sha256": "a00430bae7329b6c1a9efe34fbdf937b6cdc04b39b785a826e2ec50c84ba865f",
+      "bytes": 8732
     },
     {
       "name": "download_inputs.py",
@@ -273,6 +280,11 @@
       "bytes": 1541
     },
     {
+      "name": "test_diagnostic_errors.py",
+      "sha256": "d5e9eae6255db843b76808d87a0bcda63f1ff2706b0b919e8f2dec426ab60049",
+      "bytes": 2234
+    },
+    {
       "name": "test_helpers.py",
       "sha256": "1fc42a8befe5ceffe2c833471b716a4852722b546e5a0e626ab079d0a92703e6",
       "bytes": 2439
@@ -293,14 +305,19 @@
       "bytes": 1325
     },
     {
+      "name": "test_symbol_supplier.py",
+      "sha256": "0a877d040b93fdc3e0abd06c7c4cf3ba7eaf17ae07f8cf11de994a7f3d008ad5",
+      "bytes": 1849
+    },
+    {
       "name": "transport.py",
       "sha256": "473bef2b2d4496beca3919396ed769a2c8749375c0bb51e3d83e89e3e89ffb03",
       "bytes": 1266
     },
     {
       "name": "validate_export.py",
-      "sha256": "83debb12f20a6fc0cb5009209d7f419f7f88a6746e15639587fe882b4e73a077",
-      "bytes": 3014
+      "sha256": "2196403ff36b43c6510c8383d1d2194d796ed4cb0a176475226101711e457e42",
+      "bytes": 3947
     },
     {
       "name": "vendor/common.py",

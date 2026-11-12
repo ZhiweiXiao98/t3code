@@ -1,13 +1,13 @@
 """Validate the complete public schema; reject every unrecognized string/field."""
 import re
 H40=re.compile('[0-9a-f]{40}');H64=re.compile('[0-9a-f]{64}');HEX=re.compile('0x[0-9a-fA-F]{1,16}')
-PHASES={'preflight','dependencies','language-roundtrip','clean-first-start','full-cjk-sequence','offline-symbolization','complete'}
+PHASES={'preflight','dependencies','language-roundtrip','clean-first-start','full-cjk-sequence','offline-symbolization','dump-discovery','symbol-discovery','stackwalk-execution','stackwalk-output-parse','symbol-match-validation','stack-sanitize','complete'}
 OUTCOMES={'capture-unavailable','driver-timeout','crash-captured','not-reproduced'}
 SECURITY={'kernel/unprivileged_userns_clone','kernel/apparmor_restrict_unprivileged_userns','user/max_user_namespaces','apparmor_enabled'}
 def check(record,cell,trusted_modules):
  def need(ok):
   if not ok:raise ValueError('Diagnostic schema rejected')
- need(isinstance(record,dict));need(set(record)<= {'schemaVersion','diagnosticOnly','outcome','phase','stacks','source','appimageSha256','packageListSha256','securityDefaults','driverExitCode','completedScreens','failed','progress','resourceObservation'})
+ need(isinstance(record,dict));need(set(record)<= {'schemaVersion','diagnosticOnly','outcome','phase','stacks','source','appimageSha256','packageListSha256','securityDefaults','driverExitCode','completedScreens','failed','progress','resourceObservation','failureCode','failedCommandExitCode','cleanResult','cjkResult','dumpCount','officialSymbolCount'})
  need(record.get('schemaVersion')==1 and record.get('diagnosticOnly') is True)
  need(record.get('source')==cell['source'] and record.get('appimageSha256')==cell['appimage']['sha256'])
  need(record.get('outcome') in OUTCOMES and record.get('phase') in PHASES)
@@ -16,6 +16,16 @@ def check(record,cell,trusted_modules):
   need(isinstance(record['securityDefaults'],dict) and set(record['securityDefaults'])==SECURITY)
   for key,value in record['securityDefaults'].items():
    need(value is None or isinstance(value,str) and (value in {'Y','N'} if key=='apparmor_enabled' else re.fullmatch('[0-9]{1,12}',value)))
+ from diagnostic_errors import KINDS
+ if 'failureCode' in record:need(record['failureCode'] in KINDS)
+ for key,bound in [('dumpCount',4),('officialSymbolCount',16)]:
+  if key in record:need(type(record[key]) is int and 0<=record[key]<=bound)
+ if 'failedCommandExitCode' in record:need(type(record['failedCommandExitCode']) is int and -255<=record['failedCommandExitCode']<=255)
+ for key in ['cleanResult','cjkResult']:
+  if key in record:
+   value=record[key];need(isinstance(value,dict) and bool(value) and set(value)<={'exitCode','failureCode'})
+   if 'exitCode' in value:need(type(value['exitCode']) is int and -255<=value['exitCode']<=255)
+   if 'failureCode' in value:need(value['failureCode'] in KINDS)
  if 'resourceObservation' in record:
   r=record['resourceObservation'];need(isinstance(r,dict) and set(r)=={'memoryTotalKiB','memoryAvailableKiB','logicalCpus'})
   for k,v in r.items():need(type(v) is int and 0<=v<=(64 if k=='logicalCpus' else 8*1024*1024))
