@@ -19,11 +19,15 @@ class Errors(unittest.TestCase):
    with self.subTest(key=key),self.assertRaises(ValueError):check({**r,key:value},CELL,TRUST)
  def test_exception_strings_never_in_classification(self):
   for e in [ValueError(CANARY),KeyError(CANARY),OSError(CANARY),RuntimeError(CANARY),subprocess.CalledProcessError(17,[CANARY])]:self.assertNotIn(CANARY,failure_kind(e))
- def test_direct_symbol_file_args_and_strict_match_retained(self):
+ def test_indexed_symbol_args_and_strict_match_retained(self):
   s=(pathlib.Path(__file__).parent/'diagnostic_guest.py').read_text()
-  self.assertIn("str(dump),*symbol_files]",s)
+  self.assertIn("str(dump),str(symbol_root)]",s)
   self.assertNotIn("str(dump),str(P/'symbols')]",s)
   self.assertIn("module.get('loaded_symbols') is True",s)
+  self.assertIn("module.get('corrupt_symbols') is False",s)
+  self.assertIn("set(symbol_ids)=={ID}",s)
+  self.assertIn("timeout=90",s)
+  self.assertIn("signal.alarm(300)",s)
   self.assertIn("result['phase']='stackwalk-output-parse'",s)
   self.assertIn("result['phase']='symbol-match-validation'",s)
 if __name__=='__main__':unittest.main()

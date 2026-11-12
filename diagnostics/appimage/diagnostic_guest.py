@@ -1,5 +1,5 @@
 """Disposable guest only. No raw dump, app output or symbolizer output is transported."""
-import glob,hashlib,json,os,pathlib,pwd,resource,shutil,subprocess,sys,time
+import glob,hashlib,json,os,pathlib,pwd,resource,shutil,subprocess,sys,time,signal
 from common import require,sha,run,unpack_tar
 from sanitize_stack import sanitize
 from diagnostic_errors import observe,failure_kind
@@ -91,17 +91,25 @@ def main():
     symbol_ids[identity]=header[4];symbol_files.append(str(symbol))
   require(bool(symbol_ids),'No verified symbol identities')
   result['officialSymbolCount']=len(symbol_files)
+  from symbol_index import build_index,ID
+  require(len(symbol_files)==1 and set(symbol_ids)=={ID},'Exactly one pinned official symbol required')
+  symbol_root=None
+  if dumps:
+   previous=signal.signal(signal.SIGALRM,lambda *args:(_ for _ in ()).throw(TimeoutError('Bounded index construction')))
+   signal.alarm(300)
+   try:symbol_root=build_index(symbol_files[0],private/'indexed-symbols')
+   finally:signal.alarm(0);signal.signal(signal.SIGALRM,previous)
   def cap():resource.setrlimit(resource.RLIMIT_FSIZE,(32*1024**2,32*1024**2))
   for i,dump in enumerate(dumps):
    raw=private/f'stack-{i}.json'
    result['phase']='stackwalk-execution'
    with open(private/f'stack-{i}.log','wb') as log:
-    subprocess.run([str(P/'minidump-stackwalk'),'--json','--no-interactive','--output-file',str(raw),str(dump),*symbol_files],check=True,timeout=90,stdout=log,stderr=subprocess.STDOUT,env={'PATH':'/usr/bin:/bin','LANG':'C'},preexec_fn=cap)
+    subprocess.run([str(P/'minidump-stackwalk'),'--json','--no-interactive','--output-file',str(raw),str(dump),str(symbol_root)],check=True,timeout=90,stdout=log,stderr=subprocess.STDOUT,env={'PATH':'/usr/bin:/bin','LANG':'C'},preexec_fn=cap)
    result['phase']='stackwalk-output-parse'
    require(raw.stat().st_size<=32*1024**2,'Stack output budget')
    parsed=json.loads(raw.read_text())
    result['phase']='symbol-match-validation'
-   require(any(str(module.get('debug_id','')).replace('-','').upper() in symbol_ids and module.get('loaded_symbols') is True for module in parsed['modules']),'No matching loaded official symbols')
+   require(any(str(module.get('debug_id','')).replace('-','').upper() in symbol_ids and module.get('loaded_symbols') is True and module.get('corrupt_symbols') is False for module in parsed['modules']),'No matching loaded official symbols')
    result['phase']='stack-sanitize'
    result['stacks'].append(sanitize(parsed,symbol_ids))
   if dumps:result['outcome']='crash-captured'
