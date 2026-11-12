@@ -170,7 +170,7 @@ console.log(
 
 const overviewsStart = s.indexOf("const settingsOverviews = [");
 const auditStart = s.indexOf("async function auditSettingsOverviews() {");
-const auditEnd = s.indexOf("\ntry {", auditStart);
+const auditEnd = s.indexOf("\n// Separate from the frozen", auditStart);
 NodeAssert.ok(overviewsStart > 0 && auditStart > overviewsStart && auditEnd > auditStart);
 const overviews = new Function(s.slice(overviewsStart, auditStart) + "return settingsOverviews;")();
 NodeAssert.equal(overviews.length, 16);

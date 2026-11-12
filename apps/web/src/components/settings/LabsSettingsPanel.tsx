@@ -181,12 +181,13 @@ function LinkedEnvironmentsRow() {
 }
 
 function PromptSuggestionsRow() {
+  const { locale } = useI18n();
   const settings = useScopedSettings();
   const updateSettings = useUpdateScopedSettings();
   return (
     <SettingsRow
       serverScoped
-      {...searchableSetting("prompt-suggestions-beta")}
+      {...searchableSetting("prompt-suggestions-beta", locale)}
       settingKeys={["promptSuggestionsEnabled"]}
       description="Show a predicted next message in the empty composer after a Claude or Codex turn. Tab uses it. Each is an extra cached request on your plan. Needs Codex 0.165+. Claude threads update on restart."
       control={
@@ -196,7 +197,7 @@ function PromptSuggestionsRow() {
           onCheckedChange={(checked) =>
             updateSettings({ promptSuggestionsEnabled: Boolean(checked) })
           }
-          aria-label="Suggest next prompt"
+          aria-label={translateWebSource(locale, "Suggest next prompt")}
         />
       }
     />

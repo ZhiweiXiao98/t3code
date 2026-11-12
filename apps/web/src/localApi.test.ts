@@ -72,3 +72,64 @@ describe("LocalApi", () => {
     await expect(createLocalApi().dialogs.confirm("Delete this thread?")).resolves.toBe(false);
   });
 });
+
+describe("lazy browser context menus", () => {
+  it("does not initialize the fallback for settings persistence or desktop menus", async () => {
+    const initialized = vi.fn();
+    vi.doMock("./contextMenuFallback", () => {
+      initialized();
+      return {
+        showContextMenuFallback: showContextMenuFallbackMock,
+        dismissContextMenu: dismissContextMenuMock,
+      };
+    });
+    const { createLocalApi } = await import("./localApi");
+    const api = createLocalApi();
+    await expect(api.persistence.getClientSettings()).resolves.toBeNull();
+    expect(initialized).not.toHaveBeenCalled();
+    const show = vi.fn().mockResolvedValue("rename");
+    Object.defineProperty(testWindow(), "desktopBridge", {
+      configurable: true,
+      value: { showContextMenu: show },
+    });
+    const items = [{ id: "rename", label: "Rename" }];
+    await expect(api.contextMenu.show(items, { x: 10, y: 20 })).resolves.toBe("rename");
+    await api.contextMenu.close();
+    expect(show).toHaveBeenCalledWith(items, { x: 10, y: 20 });
+    expect(initialized).not.toHaveBeenCalled();
+  });
+
+  it("preserves show, replacement and close order while the fallback is loading", async () => {
+    const events: string[] = [];
+    let finishLoading!: () => void;
+    const loading = new Promise<void>((resolve) => {
+      finishLoading = resolve;
+    });
+    let dismiss: (() => void) | undefined;
+    vi.doMock("./contextMenuFallback", async () => {
+      await loading;
+      return {
+        showContextMenuFallback: (items: readonly ContextMenuItem<string>[]) => {
+          events.push(`show:${items[0]?.id}`);
+          dismiss?.();
+          return new Promise<null>((resolve) => {
+            dismiss = () => resolve(null);
+          });
+        },
+        dismissContextMenu: () => {
+          events.push("close");
+          dismiss?.();
+        },
+      };
+    });
+    const { createLocalApi } = await import("./localApi");
+    const api = createLocalApi();
+    const first = api.contextMenu.show([{ id: "first", label: "First" }]);
+    const second = api.contextMenu.show([{ id: "second", label: "Second" }]);
+    const closed = api.contextMenu.close();
+    expect(events).toEqual([]);
+    finishLoading();
+    await expect(Promise.all([first, second, closed])).resolves.toEqual([null, null, undefined]);
+    expect(events).toEqual(["show:first", "show:second", "close"]);
+  });
+});

@@ -40,7 +40,7 @@ def main(a):
         status.update(result='passed',exitCode=0,execution={'id':'ubuntu','versionId':'24.04','glibc':subprocess.check_output(['getconf','GNU_LIBC_VERSION'],text=True).strip(),'uid':os.geteuid(),'executableSha256':sha(exe),'architecture':subprocess.check_output(['uname','-m'],text=True).strip(),'securityDefaultsMember':'results/security-defaults.json'})
         (results/'status.json').write_text(json.dumps(status,indent=2));validate_results(results,m)
         validate_source(a.source,m);require(sha(HERE/'check-debian-cjk-ui.mjs')==CJK_SHA,'Typed driver changed during native run')
-        after,after_log=snapshot(m);validate_pair(ctx,before,after,m,log,after_log);(work/'github-evidence-after.json').write_text(json.dumps(after,indent=2));emit_provenance(work,m,before)
+        after,after_log=snapshot(m);validate_pair(ctx,before,after,m,log,after_log);(work/'github-evidence-after.json').write_text(json.dumps(after,indent=2))
     except BaseException:
         status.update(result='failed',exitCode=1);raise
     finally:
@@ -48,5 +48,7 @@ def main(a):
         except Exception as error:
             (results/'diagnostics.json').write_text(json.dumps({'status':'collection-failed','errorType':type(error).__name__}))
         (results/'status.json').write_text(json.dumps(status,indent=2))
+    # Diagnostics and final status are evidence producers too.
+    emit_provenance(work,m,before)
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('--inputs',required=True);p.add_argument('--source',required=True);p.add_argument('--work',required=True);p.add_argument('--execute-authorized',action='store_true');a=p.parse_args();bounded_operation(lambda:main(a))

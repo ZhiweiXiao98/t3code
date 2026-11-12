@@ -1542,14 +1542,16 @@ export function DiffsSettingsPanel() {
                 className="w-full sm:w-40"
                 aria-label={translateWebSource(translationLocale, "Diff layout")}
               >
-                <SelectValue>{DIFF_LAYOUT_LABELS[settings.diffLayout]}</SelectValue>
+                <SelectValue>
+                  {translateWebSource(translationLocale, DIFF_LAYOUT_LABELS[settings.diffLayout])}
+                </SelectValue>
               </SelectTrigger>
               <SelectPopup align="end" alignItemWithTrigger={false}>
                 <SelectItem hideIndicator value="stacked">
-                  {DIFF_LAYOUT_LABELS.stacked}
+                  {translateWebSource(translationLocale, DIFF_LAYOUT_LABELS.stacked)}
                 </SelectItem>
                 <SelectItem hideIndicator value="split">
-                  {DIFF_LAYOUT_LABELS.split}
+                  {translateWebSource(translationLocale, DIFF_LAYOUT_LABELS.split)}
                 </SelectItem>
               </SelectPopup>
             </Select>

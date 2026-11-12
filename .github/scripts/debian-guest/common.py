@@ -3,7 +3,7 @@ import base64, hashlib, io, json, os, pathlib, re, signal, subprocess, tarfile, 
 CLEAN_SHA='6a8e96df7a6533355af7616345ba47a4ded70d9a957585bd03568395c1d61d3c'
 IMAGE_URL='https://cloud.debian.org/cdimage/cloud/trixie/20261001-2618/debian-13-genericcloud-amd64-20261001-2618.qcow2'
 IMAGE_SHA='f46f0671a6e5bdec5291ab8972bae2f10e5408c2f64a74078f11efc2f06a436a9d0313ed50e0472542eeabf780e9f7c792ac0a314c6c20507fcd9fd81b468c3d'
-CJK_SHA='fa81bf91c18a1c80792c71a62d8b25610ea14434beee4f6e5fd7273333e8fcf3'
+CJK_SHA='e975c3b27fa4518a64590f124a0d9621307bf189aa3e69d67de6bed0078bb3c3'
 PRIVACY_CLAUSES={'See the': '请参阅', 'To opt out, see the': '如需退出，请参阅'}
 THREAD_SETTINGS={
     'zh-CN':{
@@ -32,6 +32,44 @@ def sha(path, algorithm='sha256'):
     with open(path,'rb') as stream:
         for chunk in iter(lambda:stream.read(1024*1024),b''): h.update(chunk)
     return h.hexdigest()
+
+SUPPLEMENTAL_ROUTES=['providers','projects','scheduled-tasks','snap-shot']
+SUPPLEMENTAL_SCROLLS=['threads','source-control','worktrees','keybindings','voice','maintenance','appearance']
+SUPPLEMENTAL_MENUS=[('general','thread-notifications'),('browser','browser-link-target')]
+def validate_supplemental(root, audit):
+    require(isinstance(audit,dict) and audit.get('schema_version')==1,'Missing supplemental audit')
+    require(set(audit)=={'schema_version','scope','routes','scrolls','menus','screenshots','not_captured','limitations','secrets'},'Unexpected supplemental fields')
+    require(audit.get('scope')=='packaged isolated-profile supplemental settings; not all UI or native OS coverage','Wrong supplemental scope')
+    require([r.get('route') for r in audit.get('routes',[])]==['/settings/'+n for n in SUPPLEMENTAL_ROUTES],'Missing supplemental routes')
+    names=[]
+    for r,n in zip(audit['routes'],SUPPLEMENTAL_ROUTES):
+        require(set(r)=={'route','marker','locale','static_anchor','screenshot'} and r['locale']=='zh-CN','Unsafe supplemental route fields')
+        require(r['marker']==({'providers':'#providers','snap-shot':'#snap-shot'}.get(n)),'Wrong supplemental anchor')
+        require(r['static_anchor']=={'providers':'服务提供方','projects':'选择项目以管理其名称、图标、检出目录和操作。','scheduled-tasks':'定时任务','snap-shot':'快照'}[n],'Wrong static anchor')
+        name='supplemental-'+n+'-overview.png';require(r['screenshot']==name,'Wrong supplemental screenshot');names.append(name)
+    require(audit.get('secrets')=={'route':'/settings/secrets','status':'feature-disabled-redirect-verified','redirect':'/settings/general','captured':False},'Secrets route must remain disabled and uncaptured')
+    require([r.get('route') for r in audit.get('scrolls',[])]==['/settings/'+n for n in SUPPLEMENTAL_SCROLLS],'Missing scroll coverage')
+    for r,n in zip(audit['scrolls'],SUPPLEMENTAL_SCROLLS):
+        require(set(r)=={'route','samples','reached_bottom'} and isinstance(r['reached_bottom'],bool),'Unsafe scroll fields')
+        require(1<=len(r['samples'])<=12,'Unbounded scroll captures');last=-1
+        for i,s in enumerate(r['samples']):
+            require(set(s)=={'top','maximum','height','screenshot'},'Unsafe scroll sample fields')
+            require(all(isinstance(s[k],(int,float)) and not isinstance(s[k],bool) for k in ('top','maximum','height')),'Invalid scroll metrics')
+            require(s['height']>0 and s['maximum']>=s['top']>last,'Invalid scroll progress');last=s['top']
+            name=f'supplemental-{n}-scroll-{i}.png';require(s['screenshot']==name,'Wrong scroll screenshot');names.append(name)
+        require(r['reached_bottom']==(r['samples'][-1]['top']>=r['samples'][-1]['maximum']),'Overstated scroll coverage')
+    require([(r.get('route'),r.get('row')) for r in audit.get('menus',[])]==[('/settings/'+n,i) for n,i in SUPPLEMENTAL_MENUS],'Missing menus')
+    for r,(n,i) in zip(audit['menus'],SUPPLEMENTAL_MENUS):
+        require(set(r)=={'route','row','opened','closed','value_unchanged','screenshot'} and all(r[k] is True for k in ('opened','closed','value_unchanged')),'Menu mutation/unclosed popup')
+        name=f'supplemental-{n}-{i}-options.png';require(r['screenshot']==name,'Wrong menu screenshot');names.append(name)
+    require(audit['not_captured']==[
+        {'route':'/settings/access','reason':'Pairing credentials and client details require separately validated structural redaction.'},
+        {'route':'/settings/diagnostics','reason':'Process, endpoint and log data require separately validated structural redaction.'}], 'Missing sensitive-route limitations')
+    require(isinstance(audit['limitations'],list) and len(audit['limitations'])==5 and all(isinstance(x,str) and x for x in audit['limitations']),'Missing supplemental limitations')
+    require([s.get('name') for s in audit.get('screenshots',[])]==names,'Supplemental image inventory mismatch')
+    for s in audit['screenshots']:
+        require(set(s)=={'name','size','sha256'},'Unexpected image metadata');path=root/'cjk'/s['name'];png(path)
+        require(path.stat().st_size==s['size'] and sha(path)==s['sha256'],'Supplemental image hash mismatch')
 
 def validate_manifest(m):
     require(m.get('schemaVersion')==1,'Invalid schema')
@@ -257,6 +295,7 @@ def validate_results(root,m):
         require(isinstance(r.get('ready_text'),str) and re.search('[\u3400-\u9fff]',r['ready_text']) and r['ready_text'] in r['body_text'],'Missing Chinese settings readiness evidence')
         require(r.get('screenshot')=='settings-'+r['route'].removeprefix('/settings/')+'-zh-CN.png','Wrong settings overview screenshot')
         require(isinstance(r.get('ascii_lines_for_review'),list) and all(isinstance(line,str) for line in r['ascii_lines_for_review']),'Missing settings text review evidence')
+    validate_supplemental(root,cjk.get('supplemental_settings_audit'))
     expected_names=['01-fonts-installed-english.png','02-chinese-selected.png','03-chinese-after-restart.png','04-chinese-thread-settings.png','05-english-thread-settings.png','06-chinese-thread-settings-restored.png']+['settings-'+name+'-zh-CN.png' for name,_ in SETTINGS_OVERVIEWS]
     screenshots=cjk.get('screenshots',[]);require([item.get('name') for item in screenshots]==expected_names,'Missing CJK screenshot set')
     for item in screenshots:

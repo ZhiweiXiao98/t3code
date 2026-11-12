@@ -39,7 +39,7 @@ export function MobileAppSettingsRow() {
             <Popover key={store}>
               <PopoverTrigger render={<Button size="sm" variant="outline" />}>
                 <Icon />
-                {label}
+                {translateWebSource(sourceLocale, label)}
               </PopoverTrigger>
               <PopoverPopup align="end">
                 <div className="flex flex-col items-center gap-3">

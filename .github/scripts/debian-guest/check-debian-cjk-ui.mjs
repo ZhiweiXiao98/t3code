@@ -624,6 +624,163 @@ async function auditSettingsOverviews() {
     ],
   };
 }
+// Separate from the frozen 16-route/22-image settings_audit contract.
+// Sensitive access/diagnostics views are deliberately not navigated or captured.
+async function auditSupplementalSettings(page, navigate, capture) {
+  const result = {
+    schema_version: 1,
+    scope: "packaged isolated-profile supplemental settings; not all UI or native OS coverage",
+    routes: [],
+    scrolls: [],
+    menus: [],
+    screenshots: [],
+    not_captured: [
+      {
+        route: "/settings/access",
+        reason:
+          "Pairing credentials and client details require separately validated structural redaction.",
+      },
+      {
+        route: "/settings/diagnostics",
+        reason: "Process, endpoint and log data require separately validated structural redaction.",
+      },
+    ],
+    limitations: [
+      "Only isolated fresh-profile overview states; no provider authentication or project/task creation.",
+      "Inputs and canvas are masked; reports contain static anchor labels, not full DOM text.",
+      "No permissions, settings values, capture setup, credentials or accounts changed.",
+      "Bounded scroll samples and two open/close menus do not prove all nested states.",
+      "Secrets must remain disabled in the actual release; no feature flag is enabled.",
+    ],
+  };
+  const content = page.locator('[data-workspace-area="settings"]');
+  const visible = async (locator) => locator.waitFor({ state: "visible", timeout: 30000 });
+  const enter = async (name) => {
+    const route = `/settings/${name}`;
+    await navigate(route);
+    await page.waitForFunction(() => document.documentElement.lang === "zh-CN", null, {
+      timeout: 30000,
+    });
+    NodeAssert.equal(new URL(page.url()).hash, `#${route}`);
+    await visible(page.locator(`[data-settings-section="${route}"][aria-selected="true"]`));
+    return route;
+  };
+  const shot = async (name) => {
+    // No arbitrary filename, route URL, exception text or input value enters the report.
+    NodeAssert.match(name, /^supplemental-[a-z0-9-]+\.png$/);
+    const evidence = await capture(name);
+    result.screenshots.push(evidence);
+    return name;
+  };
+  for (const [name, marker, label] of [
+    ["providers", "#providers", "服务提供方"],
+    ["projects", null, "选择项目以管理其名称、图标、检出目录和操作。"],
+    ["scheduled-tasks", null, "定时任务"],
+    ["snap-shot", "#snap-shot", "快照"],
+  ]) {
+    const route = await enter(name);
+    await visible(
+      marker
+        ? content.locator(marker)
+        : name === "projects"
+          ? content.getByText(label, { exact: true })
+          : content.getByRole("heading", { name: label, exact: true }),
+    );
+    result.routes.push({
+      route,
+      marker,
+      locale: "zh-CN",
+      static_anchor: label,
+      screenshot: await shot(`supplemental-${name}-overview.png`),
+    });
+  }
+  // Do not capture or read text while testing this potentially sensitive route.
+  await navigate("/settings/secrets");
+  await page.waitForFunction(() => new URL(location.href).hash === "#/settings/general", null, {
+    timeout: 30000,
+  });
+  NodeAssert.equal(new URL(page.url()).hash, "#/settings/general");
+  NodeAssert.equal(await page.locator('[data-settings-section="/settings/secrets"]').count(), 0);
+  result.secrets = {
+    route: "/settings/secrets",
+    status: "feature-disabled-redirect-verified",
+    redirect: "/settings/general",
+    captured: false,
+  };
+
+  for (const name of [
+    "threads",
+    "source-control",
+    "worktrees",
+    "keybindings",
+    "voice",
+    "maintenance",
+    "appearance",
+  ]) {
+    const route = await enter(name);
+    const scroller = content.locator("[data-settings-page-scroll]");
+    await visible(scroller);
+    await scroller.evaluate((element) => {
+      element.scrollTop = 0;
+    });
+    let last = -1;
+    const samples = [];
+    for (let step = 0; step < 12; step++) {
+      const state = await scroller.evaluate((element) => {
+        const maximum = Math.max(0, element.scrollHeight - element.clientHeight);
+        element.scrollTop = Math.min(
+          maximum,
+          element.scrollTop + Math.max(1, Math.floor(element.clientHeight * 0.7)),
+        );
+        return { top: element.scrollTop, maximum, height: element.clientHeight };
+      });
+      NodeAssert.ok(state.height > 0 && state.top >= last);
+      if (state.top === last) break;
+      last = state.top;
+      await page.evaluate(
+        () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+      );
+      samples.push({ ...state, screenshot: await shot(`supplemental-${name}-scroll-${step}.png`) });
+      if (state.top >= state.maximum) break;
+    }
+    NodeAssert.ok(samples.length > 0);
+    result.scrolls.push({
+      route,
+      samples,
+      reached_bottom: samples.at(-1).top >= samples.at(-1).maximum,
+    });
+  }
+  for (const [name, id] of [
+    ["general", "thread-notifications"],
+    ["browser", "browser-link-target"],
+  ]) {
+    const route = await enter(name);
+    const trigger = content.locator(`#${id}`).locator('[data-slot="select-trigger"]');
+    await trigger.scrollIntoViewIfNeeded();
+    await visible(trigger);
+    const before = await trigger.innerText();
+    await trigger.click();
+    const popup = page.getByRole("listbox");
+    await visible(popup);
+    const screenshot = await shot(`supplemental-${name}-${id}-options.png`);
+    await page.keyboard.press("Escape");
+    await popup.waitFor({ state: "hidden", timeout: 10000 });
+    NodeAssert.equal(await trigger.innerText(), before);
+    result.menus.push({
+      route,
+      row: id,
+      opened: true,
+      closed: true,
+      value_unchanged: true,
+      screenshot,
+    });
+  }
+  await enter("general");
+  return result;
+}
+
+let supplementalPhase = false;
+
 try {
   const first = await launch();
   await page
@@ -677,6 +834,21 @@ try {
   await screenshot("06-chinese-thread-settings-restored.png");
   report.settings_roundtrip = [chineseSettings, englishSettings, restoredSettings];
   report.settings_audit = await auditSettingsOverviews();
+  supplementalPhase = true;
+  report.supplemental_settings_audit = await auditSupplementalSettings(
+    page,
+    navigate,
+    async (name) => {
+      const file = NodePath.join(artifacts, name);
+      await page.screenshot({
+        path: file,
+        animations: "disabled",
+        mask: [page.locator('input, textarea, [contenteditable="true"], canvas')],
+        maskColor: "#808080",
+      });
+      return { name, sha256: digest(NodeFS.readFileSync(file)), size: NodeFS.statSync(file).size };
+    },
+  );
   const previousSignals = new Set(
     restarted.backendSignalBaseline.map((record) => JSON.stringify(record)),
   );
@@ -691,9 +863,11 @@ try {
   NodeAssert.equal(digest(NodeFS.readFileSync(values.asset)), expected.installer);
   report.passed = true;
 } catch (error) {
-  report.error = String(error);
+  report.error = supplementalPhase
+    ? "Supplemental settings validation failed; no page content captured on failure."
+    : String(error);
   process.exitCode = 1;
-  if (page) await screenshot("failure.png").catch(() => {});
+  if (page && !supplementalPhase) await screenshot("failure.png").catch(() => {});
 } finally {
   const logs = NodePath.join(t3Home, "userdata", "logs");
   if (NodeFS.existsSync(logs))

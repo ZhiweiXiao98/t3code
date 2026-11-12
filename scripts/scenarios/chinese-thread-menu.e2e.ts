@@ -10,7 +10,11 @@ test(
       "README.md": "# example-team/example-project\n",
     });
     await t3.thread({ project, title: "Chat", messages: ["first"], model: "multi-turn" });
-    await t3.open("/settings/general");
+    await t3.open();
+    // Pairing reloads the app asynchronously; wait for the real signed-in fixture first.
+    const thread = screen.getByRole("button", /^Chat, /);
+    await expect(thread).toBeVisible();
+    await app.open("/settings/general");
 
     // Use the real preference control, not browser storage or application internals.
     const language = screen.getByRole("combobox", /^(App language|应用语言)$/);
@@ -21,7 +25,6 @@ test(
 
     // Sidebar rows expose the literal title, optional status, and project in their name.
     // Chat deliberately collides with an English application label.
-    const thread = screen.getByRole("button", /^Chat, /);
     const fixtureName = /^Chat, (?:.*?, )?example-team\/example-project$/;
     const menu = screen.getByRole("menu", /^(Context menu|上下文菜单)$/);
     const renameZh = screen.getByRole("menuitem", "重命名任务");

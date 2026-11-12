@@ -229,12 +229,13 @@ def main_impl():
             after,after_log=snapshot(m)
             validate_pair(ctx,evidence,after,m,job_log,after_log)
             (work/'github-evidence-after.json').write_text(json.dumps(after,indent=2))
-            emit_provenance(work,m,evidence)
     finally:
         if process and process.poll() is None:
             os.killpg(process.pid,signal.SIGTERM)
             try:process.wait(timeout=15)
             except subprocess.TimeoutExpired:os.killpg(process.pid,signal.SIGKILL);process.wait()
+    # QEMU can append shutdown diagnostics, so hash evidence only after it exits.
+    emit_provenance(work,m,evidence)
     print('Debian13 guest validation passed; this is NOT an Ubuntu AppImage result')
 
 OPERATION_DEADLINE=None

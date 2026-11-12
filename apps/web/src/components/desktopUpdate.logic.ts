@@ -169,7 +169,11 @@ export function getDesktopUpdateDisabledReason(
 ): string | null {
   if (managedDenial !== undefined) return managedDenial;
   if (!state || (state.enabled && state.status !== "disabled")) return null;
-  return state.message?.trim() || t("desktopUpdate.unavailableDescription");
+  const message = state.message?.trim();
+  if (message === "Automatic updates are not available because no update feed is configured.") {
+    return t("desktopUpdate.noFeedDescription");
+  }
+  return message || t("desktopUpdate.unavailableDescription");
 }
 
 export function getDesktopUpdateIdleTooltip(

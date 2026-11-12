@@ -110,6 +110,8 @@ jobs:
 
           node .github/scripts/debian-guest/tests/test-typed-driver.mjs
 
+          node .github/scripts/debian-guest/tests/test-supplemental-driver.mjs
+
           "
       - if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
         run: vp check

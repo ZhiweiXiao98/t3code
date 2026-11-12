@@ -1,3 +1,7 @@
+import {
+  sourceControlUnknownAuthSummary,
+  translateSourceControlInstallHint,
+} from "../../i18n/sourceControlInstallMessages";
 import { translateWebSource } from "../../i18n/messages";
 import { RefreshIcon } from "~/components/ui/refresh-icon";
 import { ChevronDownIcon } from "lucide-react";
@@ -94,7 +98,7 @@ function localizeInstallHint(hint: string, t: ReturnType<typeof useI18n>["t"]): 
   if (hint.startsWith("Set T3CODE_BITBUCKET_EMAIL")) {
     return t("sourceControl.hint.bitbucket");
   }
-  return hint;
+  return translateSourceControlInstallHint(hint, t);
 }
 
 function authPresentation(
@@ -247,10 +251,12 @@ function itemSummary({
     const authDetail = optionLabel(auth.detail);
     return (
       <span>
-        {t("sourceControl.summary.verifyFailed", {
-          provider: item.label,
-          hint: authDetail ?? localizeInstallHint(item.installHint, t),
-        })}
+        {sourceControlUnknownAuthSummary(
+          item.label,
+          authDetail,
+          localizeInstallHint(item.installHint, t),
+          t,
+        )}
       </span>
     );
   }

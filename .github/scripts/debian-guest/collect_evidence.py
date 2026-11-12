@@ -27,3 +27,6 @@ def collect(work,out):
     return report
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('--workdir',required=True);p.add_argument('--out',required=True);a=p.parse_args();collect(a.workdir,a.out)
+    if (pathlib.Path(a.workdir)/'provenance.json').exists():
+        from validate_receipt import validate
+        validate(a.out)

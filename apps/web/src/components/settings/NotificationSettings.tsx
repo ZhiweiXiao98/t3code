@@ -1,5 +1,6 @@
 import { settlePromise } from "@t3tools/client-runtime/state/runtime";
 import { useState } from "react";
+import { translateWebSource } from "../../i18n/messages";
 import { useI18n } from "../../i18n/WebI18nContext";
 
 import {
@@ -72,12 +73,12 @@ export function NotificationSettings() {
             className="w-full sm:w-56"
             aria-label={searchableSetting("thread-notifications", locale).title}
           >
-            <SelectValue>{NOTIFICATION_MODE_LABELS[mode]}</SelectValue>
+            <SelectValue>{translateWebSource(locale, NOTIFICATION_MODE_LABELS[mode])}</SelectValue>
           </SelectTrigger>
           <SelectPopup align="end" alignItemWithTrigger={false}>
             {Object.entries(NOTIFICATION_MODE_LABELS).map(([value, label]) => (
               <SelectItem key={value} hideIndicator value={value}>
-                {label}
+                {translateWebSource(locale, label)}
               </SelectItem>
             ))}
           </SelectPopup>
