@@ -1,0 +1,873 @@
+# Operation-only FREE public GitHub Actions supplement. Never place on the source branch.
+# Freeze ALL placeholders against the final source before uploading as its ONE direct child.
+# No workflow_dispatch, secrets, write permissions, native/device claims, retries, or prior-result reuse.
+name: Validate v0.1.9 Chinese web UI
+'on':
+  push:
+    branches:
+    - validation/v0.1.9-zh.1-ui-11f1515421b6
+permissions:
+  contents: read
+concurrency:
+  group: v019-zh-ui-${{ github.ref }}
+  cancel-in-progress: false
+env:
+  CI: 'true'
+  SOURCE_BRANCH: maintenance/v0.1.9-zh-cloud
+  SOURCE_SHA: "11f1515421b64a9ccc5b32b09bd60787d7118691"
+  SOURCE_TREE: "a297771ac919869164f216f689d7e8eaebfc2fa3"
+  TEST_FILES_JSON: "[\"apps/desktop/src/app/DesktopApp.test.ts\",\"apps/desktop/src/app/DesktopLifecycle.test.ts\",\"apps/desktop/src/app/DesktopStartupRecovery.test.ts\",\"apps/desktop/src/backend/DesktopBackendPool.test.ts\",\"apps/desktop/src/permissions/MacPermissionHelper.test.ts\",\"apps/desktop/src/preview/GuestProtocol.test.ts\",\"apps/desktop/src/preview/Manager.test.ts\",\"apps/desktop/src/preview/PreviewPromptLocale.test.ts\",\"apps/desktop/src/snapShot/DesktopSnapShot.test.ts\",\"apps/desktop/src/snapShot/PortalCaptureShortcut.test.ts\",\"apps/desktop/src/window/DesktopApplicationMenu.test.ts\",\"apps/desktop/src/window/DesktopTray.test.ts\",\"apps/desktop/src/window/DesktopWindow.test.ts\",\"apps/mobile/app.config.test.ts\",\"apps/mobile/src/components/ComposerToolbar.test.tsx\",\"apps/mobile/src/components/ProjectFavicon.test.tsx\",\"apps/mobile/src/components/ui/AppBar.android.test.tsx\",\"apps/mobile/src/components/ui/FilePreviewSession.test.tsx\",\"apps/mobile/src/features/connection/ConnectionsNewRouteScreen.test.tsx\",\"apps/mobile/src/features/projects/AddProjectScreen.logic.test.ts\",\"apps/mobile/src/features/projects/AddProjectScreen.test.ts\",\"apps/mobile/src/features/settings/components/SettingsDragHandle.test.tsx\",\"apps/mobile/src/features/threads/PendingUserInputCard.test.tsx\",\"apps/mobile/src/features/threads/new-task-context-presentation.test.ts\",\"apps/mobile/src/i18n/mobileDisplayStrings.test.ts\",\"apps/mobile/src/i18n/mobileStrings.test.ts\",\"apps/mobile/src/lib/threadActivity.test.ts\",\"apps/web/src/components/AddProjectToMachineDialog.browser.test.tsx\",\"apps/web/src/components/BranchToolbar.logic.test.ts\",\"apps/web/src/components/ChatMarkdown.browser.test.tsx\",\"apps/web/src/components/ChatMarkdown.permissions.browser.test.tsx\",\"apps/web/src/components/ChatView.browser.test.tsx\",\"apps/web/src/components/ChatView.logic.browser.test.ts\",\"apps/web/src/components/ChatView.logic.test.ts\",\"apps/web/src/components/ChatView.modelPick.browser.test.tsx\",\"apps/web/src/components/CommandPalette.browser.test.tsx\",\"apps/web/src/components/CommandPalette.composition.browser.test.tsx\",\"apps/web/src/components/CommandPalette.logic.test.ts\",\"apps/web/src/components/DiffFilePathCopyButton.browser.test.tsx\",\"apps/web/src/components/DiffPanel.browser.test.tsx\",\"apps/web/src/components/GitActionsControl.logic.test.ts\",\"apps/web/src/components/InstallT3Commands.browser.test.tsx\",\"apps/web/src/components/ProviderUpdatesAction.browser.test.tsx\",\"apps/web/src/components/RightPanelTabs.browser.test.tsx\",\"apps/web/src/components/RightPanelTabs.test.tsx\",\"apps/web/src/components/Sidebar.browser.test.tsx\",\"apps/web/src/components/Sidebar.drag.browser.test.tsx\",\"apps/web/src/components/Sidebar.drag.test.ts\",\"apps/web/src/components/Sidebar.logic.browser.test.tsx\",\"apps/web/src/components/Sidebar.logic.test.ts\",\"apps/web/src/components/Sidebar.pointer.browser.test.tsx\",\"apps/web/src/components/Sidebar.shortcuts.browser.test.tsx\",\"apps/web/src/components/ThreadNotificationCoordinator.badge.browser.test.ts\",\"apps/web/src/components/ThreadNotificationCoordinator.logic.test.ts\",\"apps/web/src/components/ThreadTerminalDrawer.browser.test.tsx\",\"apps/web/src/components/ThreadTerminalDrawer.test.ts\",\"apps/web/src/components/auth/ApproveAgentSurface.browser.test.tsx\",\"apps/web/src/components/auth/ConnectAgentSurface.browser.test.tsx\",\"apps/web/src/components/auth/ConnectAgentSurface.logic.test.ts\",\"apps/web/src/components/chat/AssistantCitationChip.browser.test.tsx\",\"apps/web/src/components/chat/BackgroundWorkDetails.browser.test.tsx\",\"apps/web/src/components/chat/ChatHeader.browser.test.tsx\",\"apps/web/src/components/chat/ComposerPendingUserInputPanel.direction.browser.test.tsx\",\"apps/web/src/components/chat/ComposerPendingUserInputPanel.navigation.browser.test.tsx\",\"apps/web/src/components/chat/ExpandedImageDialog.browser.test.tsx\",\"apps/web/src/components/chat/HtmlRenderDialog.browser.test.tsx\",\"apps/web/src/components/chat/HtmlRenderFrame.browser.test.tsx\",\"apps/web/src/components/chat/MessagesTimeline.active-tools.test.ts\",\"apps/web/src/components/chat/MessagesTimeline.browser.test.tsx\",\"apps/web/src/components/chat/MessagesTimeline.logic.test.ts\",\"apps/web/src/components/chat/ProviderModelPicker.browser.test.tsx\",\"apps/web/src/components/chat/ProviderModelPicker.composition.browser.test.tsx\",\"apps/web/src/components/chat/ThreadActivityAnnouncer.browser.test.tsx\",\"apps/web/src/components/chat/ThreadDetailsPrRow.browser.test.tsx\",\"apps/web/src/components/chat/ThreadRelationshipsControl.browser.test.tsx\",\"apps/web/src/components/chat/ThreadServersPanel.browser.test.tsx\",\"apps/web/src/components/chat/UsageLimitRecoveryBanner.test.tsx\",\"apps/web/src/components/chat/WorktreeSetupCard.browser.test.tsx\",\"apps/web/src/components/chat/providerIconUtils.test.ts\",\"apps/web/src/components/chat/turnDetailAnnouncement.test.ts\",\"apps/web/src/components/chat/useThreadLifecycle.browser.test.tsx\",\"apps/web/src/components/composerContextPresentation.test.ts\",\"apps/web/src/components/desktop/DesktopWebLinkCoordinator.browser.test.tsx\",\"apps/web/src/components/device/DevicePanel.browser.test.tsx\",\"apps/web/src/components/device/DeviceSetup.test.ts\",\"apps/web/src/components/files/AttachmentFilePreview.browser.test.tsx\",\"apps/web/src/components/files/FileBrowserPanel.browser.test.tsx\",\"apps/web/src/components/files/FilePreviewPanel.browser.test.tsx\",\"apps/web/src/components/files/FilePreviewPanel.test.ts\",\"apps/web/src/components/mcp/UseInAnotherAppDialog.browser.test.tsx\",\"apps/web/src/components/preview/PreviewView.browser.test.tsx\",\"apps/web/src/components/projectScriptEditor.browser.test.tsx\",\"apps/web/src/components/pullRequest/PullRequestActionsMenu.browser.test.tsx\",\"apps/web/src/components/pullRequest/PullRequestCodeTab.browser.test.tsx\",\"apps/web/src/components/pullRequest/PullRequestDetailPanel.permissions.browser.test.tsx\",\"apps/web/src/components/pullRequest/PullRequestGuideTab.browser.test.tsx\",\"apps/web/src/components/pullRequest/PullRequestLinkPreview.browser.test.tsx\",\"apps/web/src/components/pullRequest/PullRequestSummaryTab.browser.test.tsx\",\"apps/web/src/components/pullRequest/PullRequestTimelineTab.browser.test.tsx\",\"apps/web/src/components/settings/AuthorizedClientsSettings.browser.test.tsx\",\"apps/web/src/components/settings/CloudVoiceConfiguration.browser.test.tsx\",\"apps/web/src/components/settings/ConnectionsSettings.logic.test.ts\",\"apps/web/src/components/settings/ProviderInstanceCard.environment.browser.test.tsx\",\"apps/web/src/components/settings/ProviderInstanceCard.test.ts\",\"apps/web/src/components/settings/ResourceTelemetryDiagnostics.logic.test.ts\",\"apps/web/src/components/settings/ScheduledTasksSettings.browser.test.tsx\",\"apps/web/src/components/settings/SecretsSettings.logic.test.ts\",\"apps/web/src/components/settings/SettingsPanels.logic.test.ts\",\"apps/web/src/components/settings/SettingsSidebarNav.composition.browser.test.tsx\",\"apps/web/src/components/settings/SnoozePresetsSettings.logic.test.ts\",\"apps/web/src/components/settings/SourceControlWritingSettings.browser.test.tsx\",\"apps/web/src/components/settings/StorageSettings.browser.test.tsx\",\"apps/web/src/components/settings/TextGeneratorsSettings.browser.test.tsx\",\"apps/web/src/components/settings/ThemeEditorPanel.browser.test.tsx\",\"apps/web/src/components/settings/TypographySettings.browser.test.tsx\",\"apps/web/src/components/settings/VoiceSettingsPanel.browser.test.tsx\",\"apps/web/src/components/settings/settingsSearch.test.ts\",\"apps/web/src/components/sidebar/SidebarDraftBlock.browser.test.tsx\",\"apps/web/src/components/sidebar/SidebarUpdatePill.browser.test.tsx\",\"apps/web/src/components/threadActionMenu.logic.test.ts\",\"apps/web/src/components/ui/sidebar.browser.test.tsx\",\"apps/web/src/components/ui/toast.browser.test.tsx\",\"apps/web/src/components/usage/UsageLimitsPooled.browser.test.tsx\",\"apps/web/src/composerDraftStore.test.ts\",\"apps/web/src/contextMenuFallback.keyboard.browser.test.ts\",\"apps/web/src/contextMenuFallback.test.ts\",\"apps/web/src/hooks/useThreadActionMenu.test.ts\",\"apps/web/src/i18n/connectAgentMessages.test.ts\",\"apps/web/src/i18n/messages.test.ts\",\"apps/web/src/i18n/settingsReleaseCopy.test.ts\",\"apps/web/src/i18n/voiceSettingsMessages.test.ts\",\"apps/web/src/lib/openPullRequestLink.browser.test.tsx\",\"apps/web/src/localApi.test.ts\",\"apps/web/src/speech/browserMicrophones.test.ts\",\"apps/web/src/timestampFormat.test.ts\",\"packages/client-runtime/src/state/threadSnoozed.test.ts\"]"
+  TEST_FILES_SHA256: "4dccc138048bb64a8272aaab99f5b9b52dc58e1ec8a7ced35b30e704b34281ba"
+  SCENARIO_SHA256: "4dffda96664fc2c493b4fb936284d678174478cda03169df6a2e151a6fe3250d"
+  SCENARIO_CAPTURES_JSON: "[\"menu-zh-open\",\"menu-zh-copy\",\"menu-zh-reopened\",\"menu-en-open\",\"menu-zh-roundtrip\"]"
+jobs:
+  supplemental:
+    name: Selected localization tests and real web scenario
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+    - name: Prepare isolated validation directories
+      shell: bash
+      run: |
+        set -euo pipefail
+        umask 077
+        export PLAYWRIGHT_BROWSERS_PATH="$RUNNER_TEMP/v019-browsers"
+        printf '%s\n' "PLAYWRIGHT_BROWSERS_PATH=$PLAYWRIGHT_BROWSERS_PATH" >> "$GITHUB_ENV"
+        mkdir "$RUNNER_TEMP/v019-tools" "$RUNNER_TEMP/v019-private" "$RUNNER_TEMP/v019-evidence" "$PLAYWRIGHT_BROWSERS_PATH"
+    - name: Prepare isolated helper contracts.mjs
+      shell: bash
+      run: |
+        set -euo pipefail
+        umask 077
+        cat > "$RUNNER_TEMP/v019-tools/contracts.mjs" <<'V019_NODE'
+        import assert from 'node:assert/strict';
+        import fs from 'node:fs';
+        import path from 'node:path';
+        import crypto from 'node:crypto';
+
+        export const REPOSITORY = 'ZhiweiXiao98/t3code';
+        export const SOURCE_BRANCH = 'maintenance/v0.1.9-zh-cloud';
+        export const OPERATION_BRANCH = 'validation/v0.1.9-zh.1-ui-11f1515421b6';
+        export const WORKFLOW_PATH = '.github/workflows/validate-v019-zh-ui.yml';
+        export const SCENARIO = 'scripts/scenarios/chinese-thread-menu.e2e.ts';
+        export const MAX_TEST_FILES = 256;
+        export const sha256 = value => crypto.createHash('sha256').update(value).digest('hex');
+        export const json = file => JSON.parse(fs.readFileSync(file, 'utf8'));
+        export const writeJson = (file, value) => fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`, {mode: 0o600});
+        export function relativeFile(value) {
+          assert.equal(typeof value, 'string');
+          assert(value.length <= 300 && /^[A-Za-z0-9_./-]+$/.test(value));
+          assert(!value.startsWith('/') && !value.split('/').some(part => ['', '.', '..'].includes(part)));
+          return value;
+        }
+        export function testFiles(value) {
+          const files = typeof value === 'string' ? JSON.parse(value) : value;
+          assert(Array.isArray(files) && files.length > 0 && files.length <= MAX_TEST_FILES);
+          assert.equal(new Set(files).size, files.length);
+          assert.deepEqual([...files].sort(), files, 'Test list must be sorted');
+          for (const file of files) {
+            relativeFile(file);
+            assert(file === 'apps/mobile/app.config.test.ts' || /^(apps\/(web|mobile|desktop)\/src|packages\/(shared|client-runtime)\/src)\/.+\.test\.tsx?$/.test(file), `Out-of-scope test: ${file}`);
+          }
+          assert(files.some(file => file.startsWith('apps/web/src/') && /\.browser\.test\.tsx?$/.test(file)), 'Actual Chromium browser tests are mandatory');
+          return files;
+        }
+        export function frozen(env) {
+          assert.equal(env.SOURCE_BRANCH, SOURCE_BRANCH);
+          for (const key of ['SOURCE_SHA', 'SOURCE_TREE']) assert.match(env[key] ?? '', /^[0-9a-f]{40}$/);
+          for (const key of ['TEST_FILES_SHA256', 'SCENARIO_SHA256']) assert.match(env[key] ?? '', /^[0-9a-f]{64}$/);
+          const files = testFiles(env.TEST_FILES_JSON);
+          assert.equal(sha256(JSON.stringify(files)), env.TEST_FILES_SHA256);
+          const captures = JSON.parse(env.SCENARIO_CAPTURES_JSON);
+          assert(Array.isArray(captures) && captures.length >= 3 && captures.length <= 20);
+          assert.equal(new Set(captures).size, captures.length);
+          for (const capture of captures) assert.match(capture, /^[a-z][a-z0-9-]{2,70}$/);
+          return {files, captures};
+        }
+        export function operationGuard({env, context, repository, sourceRef, sourceCommit, operationRef, operationCommit, comparison}) {
+          frozen(env);
+          assert.equal(`${context.repo.owner}/${context.repo.repo}`, REPOSITORY);
+          assert.equal(repository.full_name, REPOSITORY);
+          assert.equal(repository.private, false, 'Only free public repository runners');
+          assert.equal(context.eventName, 'push');
+          assert.equal(context.ref, `refs/heads/${OPERATION_BRANCH}`);
+          assert.match(context.sha, /^[0-9a-f]{40}$/);
+          assert.equal(sourceRef.object.sha, env.SOURCE_SHA, 'Source branch moved');
+          assert.equal(sourceCommit.sha, env.SOURCE_SHA);
+          assert.equal(sourceCommit.tree.sha, env.SOURCE_TREE);
+          assert.equal(operationRef.object.sha, context.sha, 'Operation branch moved');
+          assert.equal(operationCommit.sha, context.sha);
+          assert.deepEqual(operationCommit.parents.map(parent => parent.sha), [env.SOURCE_SHA], 'Operation must be one direct child of final source');
+          assert.equal(comparison.status, 'ahead');
+          assert.equal(comparison.ahead_by, 1);
+          assert.equal(comparison.behind_by, 0);
+          assert.equal(comparison.total_commits, 1);
+          assert.deepEqual(comparison.commits.map(commit => commit.sha), [context.sha]);
+          assert.equal(comparison.files.length, 1);
+          assert.equal(comparison.files[0].filename, WORKFLOW_PATH);
+          assert.equal(comparison.files[0].status, 'added');
+          assert.match(comparison.files[0].sha, /^[0-9a-f]{40}$/);
+          return {operationSha: context.sha, operationTree: operationCommit.tree.sha, workflowBlob: comparison.files[0].sha};
+        }
+        export function checkedFile(root, relative) {
+          relativeFile(relative);
+          const file = path.join(root, relative);
+          let current = root;
+          for (const segment of relative.split('/')) {
+            current = path.join(current, segment);
+            assert(!fs.lstatSync(current).isSymbolicLink(), 'No symlink paths in evidence or source files');
+          }
+          assert(fs.statSync(file).isFile());
+          assert(fs.realpathSync(file).startsWith(`${fs.realpathSync(root)}${path.sep}`));
+          return file;
+        }
+        export function safeEnv(host, {home, browserPath, temp}) {
+          for (const value of [home, browserPath, temp]) assert(path.isAbsolute(value));
+          // Deliberate positive allowlist. Never spread host into a child process.
+          const env = {};
+          for (const key of ['PATH', 'LANG', 'LC_ALL', 'LC_CTYPE', 'TZ', 'DISPLAY', 'WAYLAND_DISPLAY']) {
+            if (typeof host[key] === 'string') env[key] = host[key];
+          }
+          assert(env.PATH && path.isAbsolute(env.PATH.split(path.delimiter)[0]));
+          Object.assign(env, {
+            HOME: home, XDG_CONFIG_HOME: path.join(home, '.config'), XDG_CACHE_HOME: path.join(home, '.cache'),
+            XDG_DATA_HOME: path.join(home, '.local/share'), XDG_STATE_HOME: path.join(home, '.local/state'),
+            TMPDIR: temp, TMP: temp, TEMP: temp, CI: '1', NO_COLOR: '1', FORCE_COLOR: '0',
+            E2E_TELEMETRY_DISABLED: '1', DO_NOT_TRACK: '1', PLAYWRIGHT_BROWSERS_PATH: browserPath,
+            PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1', PLAYWRIGHT_SKIP_BROWSER_GC: '1',
+            T3CODE_AUTO_BOOTSTRAP_PROJECT_FROM_CWD: '0', T3CODE_DEV_SEED: '0',
+            GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null', GIT_TERMINAL_PROMPT: '0',
+          });
+          return env;
+        }
+        export function credentialValues(repo) {
+          const credentialFile = path.join(repo, '.t3/scenarios/pairing-path');
+          if (!fs.existsSync(credentialFile)) return [];
+          const value = fs.readFileSync(credentialFile, 'utf8').trim();
+          const url = new URL(value, 'http://127.0.0.1');
+          const secrets = [value, url.href];
+          for (const [key, item] of url.searchParams) if (/token|code|secret|key|credential/i.test(key)) secrets.push(item);
+          const hashParams = new URLSearchParams(url.hash.replace(/^#/, ''));
+          for (const [key, item] of hashParams) if (/token|code|secret|key|credential/i.test(key)) secrets.push(item);
+          return secrets.filter(value => value.length >= 8).sort((a, b) => b.length - a.length);
+        }
+        export function sanitize(value, credentials = []) {
+          let clean = String(value).replace(/\u001b\[[0-9;]*m/g, '');
+          for (const secret of credentials) {
+            for (const version of [secret, encodeURIComponent(secret)]) clean = clean.split(version).join('[REDACTED]');
+          }
+          // Redact the whole pairing/navigation label, not just its query argument.
+          clean = clean.replace(/[^\s"'<>]*(?:token|pairing|auth[_-]?code|credential|secret)[^\s"'<>]*[=:][^\s"'<>]+/gi, '[REDACTED-CREDENTIAL]');
+          clean = clean.replace(/\b[A-Fa-f0-9]{64}\b/g, '[REDACTED-OPAQUE]');
+          clean = clean.replace(/\b(?:gh[pousr]_|github_pat_|sk-)[A-Za-z0-9_-]+\b/g, '[REDACTED-SECRET]');
+          for (const secret of credentials) assert(!clean.includes(secret));
+          return clean;
+        }
+        export function scenarioArgs() {
+          return ['run', SCENARIO.slice('scripts/'.length), '--target', 'web', '--workers', '1', '--retries', '0', '--repeat-each', '1', '--no-cache', '--trace', 'off', '--video', 'off', '--reporter', 'list', '--output', '.e2e'];
+        }
+        export function inspectReport(report, {startedAt, sourceSha, captures, credentials = []}) {
+          assert.equal(report.schemaVersion, 'report-1');
+          const run = report.run;
+          assert.equal(run.runner.version, '0.23.0');
+          assert(Date.parse(run.startedAt) >= startedAt - 1000, 'Stale scenario result');
+          assert(run.finishedAt && Date.parse(run.finishedAt) >= Date.parse(run.startedAt));
+          // e2e reports every declared target, including unselected iOS; only web may execute.
+          assert.deepEqual(run.targets.map(t => [t.id, t.platform]), [['web', 'web'], ['ios', 'ios']]);
+          assert.equal(run.targets[0].engine.name, 'web');
+          assert.equal(run.targets[0].engine.version, '0.15.5');
+          assert.equal(run.summary.selected, 1);
+          assert(run.results.every(result => result.targetId === 'web' || (result.attempts.length === 0 && result.selected === false)), 'No selected or executed mobile target');
+          if (run.vcs) {
+            assert.equal(run.vcs.commit, sourceSha);
+            assert.notEqual(run.vcs.dirty, true);
+          }
+          assert(!run.carried, 'No reused previous results');
+          assert.equal(run.serialGroups.length, 0);
+          assert.equal(run.usage.modelTokens, 0);
+          assert.equal(run.usage.maxModelCallsInStep, 0);
+          assert.equal(run.usage.estimatedCostUsd ?? 0, 0);
+          const executed = run.results.filter(result => result.attempts.length > 0);
+          assert.equal(executed.length, 1, 'Exactly one executed scenario required');
+          const result = executed[0];
+          assert.equal(result.file, SCENARIO.slice('scripts/'.length));
+          assert.equal(result.kind, 'test');
+          assert.equal(result.platform, 'web');
+          assert.equal(result.targetId, 'web');
+          assert(!result.expectedFailure);
+          assert([undefined, 'default'].includes(result.agent), 'No configured model agent');
+          assert.equal(result.attempts.length, 1, 'Retries are prohibited');
+          assert.equal(result.repeat ?? 0, 0);
+          const attempt = result.attempts[0];
+          assert.equal(attempt.index, 0);
+          assert(!attempt.expectedFailure);
+          const captureSteps = [];
+          for (const step of attempt.steps) {
+            assert(step.kind !== 'agent' && !step.api.startsWith('agent.') && !step.model, 'No paid model or agent assertions');
+            assert.equal(step.metrics?.modelCalls ?? 0, 0);
+            if (step.api === 'app.screenshot' && captures.includes(step.label) && step.status === 'passed') captureSteps.push(step);
+          }
+          const screenshots = [];
+          for (const step of captureSteps) {
+            const artifacts = attempt.artifacts.filter(a => a.kind === 'screenshot' && a.producer?.kind === 'step' && a.producer.stepId === step.id);
+            assert.equal(artifacts.length, 1);
+            const artifact = artifacts[0];
+            assert.equal(artifact.redaction, 'complete');
+            assert.equal(artifact.mediaType, 'image/png');
+            relativeFile(artifact.path);
+            assert(artifact.path.endsWith('.png') && artifact.size > 0);
+            assert.match(artifact.sha256, /^[a-f0-9]{64}$/);
+            screenshots.push({label: step.label, artifact});
+          }
+          assert.equal(new Set(screenshots.map(item => item.label)).size, screenshots.length);
+          const passed = run.status === 'passed' && run.exitCode === 0 && result.status === 'passed' && attempt.status === 'passed' && attempt.cleanup === 'complete' && run.errors.length === 0 && attempt.secondaryErrors.length === 0 && !attempt.error;
+          if (passed) {
+            assert.deepEqual(screenshots.map(s => s.label).sort(), [...captures].sort(), 'All reviewed screenshots are mandatory for success');
+            assert.equal(run.summary.executed, 1);
+            assert.equal(run.summary.passed, 1);
+            assert.equal(run.summary.failed + run.summary.flaky + run.summary.interrupted, 0);
+          }
+          return {passed, screenshots, report: {
+            schema: 'sanitized-v019-scenario-1', sourceSha, runId: run.id,
+            startedAt: run.startedAt, finishedAt: run.finishedAt,
+            target: 'web', runner: 'e2e@0.23.0', engine: '@e2e-dev/web@0.15.5',
+            runStatus: run.status, exitCode: run.exitCode, resultStatus: result.status, attemptStatus: attempt.status,
+            cleanup: attempt.cleanup, noModelCalls: true, noRetries: true,
+            title: sanitize(result.titlePath.join(' > '), credentials),
+            error: attempt.error ? sanitize(`${attempt.error.code}: ${attempt.error.message}`, credentials) : undefined,
+            steps: attempt.steps.map(s => ({api: s.api, label: sanitize(s.label, credentials), status: s.status})),
+            exportedCaptures: screenshots.map(s => s.label),
+            excluded: 'Raw report, app log, traces, automatic failure screenshots, sessions, credentials and all .t3/HOME. Video disabled because upstream marks it unredacted.',
+            scope: 'One real web scenario plus separately listed localization unit/browser tests. Not native/device UI or the mandatory separate 22 release gates.',
+          }};
+        }
+
+        V019_NODE
+    - name: Prepare isolated helper run-suite.mjs
+      shell: bash
+      run: |
+        set -euo pipefail
+        umask 077
+        cat > "$RUNNER_TEMP/v019-tools/run-suite.mjs" <<'V019_NODE'
+        import assert from 'node:assert/strict';
+        import fs from 'node:fs';
+        import path from 'node:path';
+        import {spawn} from 'node:child_process';
+        import {createRequire} from 'node:module';
+        import {publicProgress} from './progress-public.mjs';
+        import {checkedFile, credentialValues, frozen, inspectReport, json, safeEnv, sanitize, scenarioArgs, SCENARIO, sha256, writeJson} from './contracts.mjs';
+
+        const [mode] = process.argv.slice(2);
+        assert(['unit', 'scenario'].includes(mode));
+        const root = process.cwd();
+        const privateRoot = path.join(process.env.RUNNER_TEMP, 'v019-private');
+        const publicRoot = path.join(process.env.RUNNER_TEMP, 'v019-evidence');
+        const {files, captures} = frozen(process.env);
+        const home = path.join(privateRoot, `${mode}-home`);
+        const temp = path.join(privateRoot, `${mode}-tmp`);
+        fs.mkdirSync(home, {mode: 0o700});
+        fs.mkdirSync(temp, {mode: 0o700});
+        const env = safeEnv(process.env, {home, temp, browserPath: process.env.PLAYWRIGHT_BROWSERS_PATH});
+        let command, args, cwd;
+        if (mode === 'unit') {
+          assert.equal(process.version, 'v26.12.1');
+          const vp = fs.realpathSync(path.join(root, 'node_modules/vite-plus/package.json'));
+          assert.equal(json(vp).version, '1.4.0');
+          const pkg = createRequire(vp).resolve('vitest/package.json');
+          const meta = json(pkg); assert.equal(meta.version, '5.0.5');
+          const cli = path.resolve(path.dirname(pkg), typeof meta.bin === 'string' ? meta.bin : meta.bin.vitest);
+          assert(fs.statSync(cli).isFile());
+          const binding = {root, output: path.join(privateRoot, 'unit-progress.json'), sourceSha: process.env.SOURCE_SHA, runId: process.env.GITHUB_RUN_ID, runAttempt: Number(process.env.GITHUB_RUN_ATTEMPT), subsetId: 'full-reviewed', reviewedFiles: files, selectedFiles: files};
+          const config = path.join(privateRoot, 'unit-progress-config.json'); writeJson(config, binding);
+          Object.assign(env, {V019_DIAGNOSTIC_CONFIG: config, JS_RUNTIME_VERSION: '26.12.1', JS_RUNTIME_NAME: 'node', NODE_PACKAGE_MANAGER: 'vite-plus'});
+          env.PATH = path.dirname(process.execPath) + path.delimiter + env.PATH;
+          command = process.execPath; cwd = root;
+          args = [cli, 'run', ...files, '--maxWorkers=2', '--retry=0', '--reporter=default', '--reporter=json', '--reporter=junit', `--reporter=${path.join(import.meta.dirname, 'incremental-reporter.mjs')}`, `--outputFile.json=${path.join(privateRoot, 'unit.json')}`, `--outputFile.junit=${path.join(privateRoot, 'junit.xml')}`];
+        } else {
+          command = process.execPath; cwd = path.join(root, 'scripts');
+          const cli = path.join(root, 'scripts/node_modules/e2e/dist/cli/bin.js');
+          assert(fs.statSync(cli).isFile());
+          assert.equal(json(path.join(root, 'scripts/node_modules/e2e/package.json')).version, '0.23.0');
+          assert.equal(sha256(fs.readFileSync(checkedFile(root, SCENARIO))), process.env.SCENARIO_SHA256);
+          for (const item of ['scripts/.e2e', '.t3/scenarios', '.t3/scenarios-mobile']) assert(!fs.existsSync(path.join(root, item)), 'Scenario state/output must be fresh');
+          args = [cli, ...scenarioArgs()];
+        }
+        writeJson(path.join(publicRoot, `${mode}-environment.json`), {inheritedKeys: Object.keys(env).sort(), isolatedHome: true, noAmbientCredentials: true});
+        writeJson(path.join(publicRoot, `${mode}-command.json`), {command: mode === 'unit' ? 'verified Node26.12.1 + vite-plus dependency Vitest5.0.5' : 'node scripts/node_modules/e2e/dist/cli/bin.js', args: mode === 'unit' ? args.map(arg => arg.replaceAll(privateRoot, '<private-output>')) : scenarioArgs(), cwd: mode === 'unit' ? '.' : 'scripts', scope: 'Supplemental selected localization validation, not all tests or native/device UI'});
+        const startedAt = Date.now();
+        const rawLog = path.join(privateRoot, `${mode}.raw.log`);
+        const fd = fs.openSync(rawLog, 'wx', 0o600);
+        const child = spawn(command, args, {cwd, env, shell: false, detached: true, stdio: ['ignore', fd, fd]});
+        let timedOut = false;
+        let killTimer;
+        const stop = () => {
+          if (!child.pid) return;
+          try {process.kill(-child.pid, 'SIGTERM');} catch {}
+          killTimer = setTimeout(() => {try {process.kill(-child.pid, 'SIGKILL');} catch {}}, 15_000);
+        };
+        const timeout = setTimeout(() => {timedOut = true; stop();}, (mode === 'unit' ? 16 : 7) * 60_000);
+        const forward = () => stop();
+        process.once('SIGTERM', forward);
+        process.once('SIGINT', forward);
+        const result = await new Promise(resolve => {
+          child.once('error', error => resolve({code: null, signal: null, spawnError: error.code ?? 'spawn-error'}));
+          child.once('close', (code, signal) => resolve({code, signal}));
+        });
+        clearTimeout(timeout);
+        if (killTimer) clearTimeout(killTimer);
+        if (timedOut && child.pid) {try {process.kill(-child.pid, 'SIGKILL');} catch {}}
+        process.off('SIGTERM', forward);
+        process.off('SIGINT', forward);
+        fs.closeSync(fd);
+        const credentials = credentialValues(root);
+        const logSize = fs.statSync(rawLog).size;
+        assert(logSize < 64 * 1024 * 1024, 'Output exceeded private log budget');
+        fs.writeFileSync(path.join(publicRoot, `${mode}.log`), sanitize(fs.readFileSync(rawLog, 'utf8'), credentials), {mode: 0o600});
+        // No raw child stdout/stderr is ever streamed to the Actions console, including failures.
+        const status = {...result, timedOut, startedAt: new Date(startedAt).toISOString(), finishedAt: new Date().toISOString(), sourceSha: process.env.SOURCE_SHA};
+        writeJson(path.join(publicRoot, `${mode}-exit.json`), status);
+        let progress;
+        if (mode === 'unit') {
+          try {
+            progress = publicProgress(json(path.join(privateRoot, 'unit-progress.json')), {sourceSha: process.env.SOURCE_SHA, runId: process.env.GITHUB_RUN_ID, runAttempt: Number(process.env.GITHUB_RUN_ATTEMPT), subsetId: 'full-reviewed', reviewedFiles: files, selectedFiles: files});
+          } catch {
+            progress = {schema: 'v019-progress-unavailable-1', sourceSha: process.env.SOURCE_SHA, snapshotAvailable: false, missing: files, diagnosticOnly: true, releaseAccepted: false, error: 'Missing or invalid incremental snapshot; no counts inferred'};
+          }
+          writeJson(path.join(publicRoot, 'unit-progress.json'), progress);
+        }
+        let valid = false;
+        try {
+          if (mode === 'unit') {
+            const report = json(path.join(privateRoot, 'unit.json'));
+            assert.equal(progress.schema, 'v019-vitest-incremental-1');
+            assert.equal(progress.integrityError, null);
+            assert.equal(progress.countsComplete, true);
+            assert.equal(progress.unhandledErrorCount, 0);
+            assert.equal(progress.runEndReason, 'passed');
+            assert.deepEqual(progress.missing, []); assert.deepEqual(progress.inFlight, []); assert.deepEqual(progress.failedModules, []);
+            assert.equal(progress.observedCounts.passed, report.numPassedTests);
+            assert.equal(progress.observedCounts.failed, report.numFailedTests);
+            assert.equal(progress.observedCounts.skipped, report.numPendingTests);
+            assert.equal(progress.observedCounts.todo, report.numTodoTests ?? 0);
+            assert.equal(progress.observedCounts.pending, 0);
+            assert(report.testResults.length > 0 && report.numTotalTests > 0);
+            const reported = report.testResults.map(item => path.relative(root, item.name)).sort();
+            assert.deepEqual(reported, files, 'Every reviewed test file must actually run; no silent exclusions or extra files');
+            assert(report.testResults.every(item => item.status === 'passed'));
+            assert.equal(report.numFailedTests, 0);
+            assert.equal(report.numFailedTestSuites, 0);
+            assert.equal(report.success, true);
+            const browserTests = reported.filter(file => /\.browser\.test\.tsx?$/.test(file));
+            assert(browserTests.length > 0);
+            for (const item of report.testResults) {
+              assert(item.assertionResults.some(test => test.status === 'passed'), 'Each reviewed file must execute at least one passing assertion');
+            }
+            writeJson(path.join(publicRoot, 'unit-summary.json'), {sourceSha: process.env.SOURCE_SHA, files: reported, browserFiles: browserTests, totalTests: report.numTotalTests, passedTests: report.numPassedTests, skippedTests: report.numPendingTests, todoTests: report.numTodoTests ?? 0, unfinishedTests: progress.observedCounts.pending, incrementalCountsMatched: true, success: report.success, caveat: 'Browser component tests and non-native unit tests only; real web scenario is separate'});
+            const junit = fs.readFileSync(path.join(privateRoot, 'junit.xml'), 'utf8');
+            fs.writeFileSync(path.join(publicRoot, 'junit.xml'), sanitize(junit, credentials), {mode: 0o600});
+            valid = true;
+          } else {
+            const report = json(checkedFile(path.join(root, 'scripts/.e2e'), 'report.json'));
+            const reviewed = inspectReport(report, {startedAt, sourceSha: process.env.SOURCE_SHA, captures, credentials});
+            const exports = [];
+            // Only explicitly reviewed, post-authentication viewport captures. Never automatic failure images.
+            for (const {label, artifact} of reviewed.screenshots) {
+              const file = checkedFile(path.join(root, 'scripts/.e2e/results'), artifact.path);
+              const bytes = fs.readFileSync(file);
+              assert.equal(bytes.length, artifact.size);
+              assert.equal(sha256(bytes), artifact.sha256);
+              assert(bytes.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10])));
+              assert.equal(bytes.readUInt32BE(16), 1280, 'Only the configured app viewport, not a desktop capture');
+              assert.equal(bytes.readUInt32BE(20), 800);
+              const name = `${label}.png`;
+              fs.writeFileSync(path.join(publicRoot, name), bytes, {flag: 'wx', mode: 0o600});
+              exports.push({file: name, sha256: artifact.sha256, bytes: bytes.length});
+            }
+            writeJson(path.join(publicRoot, 'scenario-report.json'), {...reviewed.report, artifacts: exports});
+            valid = reviewed.passed;
+          }
+        } catch (error) {
+          writeJson(path.join(publicRoot, `${mode}-verification-error.json`), {message: sanitize(error.message, credentials), sourceSha: process.env.SOURCE_SHA, resultAccepted: false});
+        }
+        const success = result.code === 0 && !result.signal && !result.spawnError && !timedOut && valid;
+        writeJson(path.join(publicRoot, `${mode}-verdict.json`), {success, sourceSha: process.env.SOURCE_SHA, independentlyVerified: valid});
+        console.log(`${mode}: ${success ? 'passed' : 'failed or could not be verified'}; sanitized evidence saved.`);
+        if (!success) process.exitCode = 1;
+
+        V019_NODE
+    - name: Prepare isolated helper verify-runtime.mjs
+      shell: bash
+      run: |
+        set -euo pipefail
+        umask 077
+        cat > "$RUNNER_TEMP/v019-tools/verify-runtime.mjs" <<'V019_NODE'
+        import assert from 'node:assert/strict';
+        import fs from 'node:fs';
+        import path from 'node:path';
+        import {createRequire} from 'node:module';
+        import {execFileSync} from 'node:child_process';
+        import {json, sha256, writeJson} from './contracts.mjs';
+        const root = process.cwd();
+        assert.equal(process.version, 'v26.12.1');
+        assert.equal(json('package.json').engines.node, '26.12.1');
+        assert.equal(json('package.json').packageManager, 'pnpm@12.14.0');
+        assert.equal(json('apps/desktop/package.json').dependencies.electron, '44.10.1');
+        assert.equal(json('apps/desktop/node_modules/electron/package.json').version, '44.10.1');
+        assert.equal(fs.readFileSync('apps/desktop/node_modules/electron/dist/version', 'utf8').trim(), '44.10.1');
+        assert.equal(json('scripts/node_modules/e2e/package.json').version, '0.23.0');
+        assert.equal(json('scripts/node_modules/@e2e-dev/web/package.json').version, '0.15.5');
+        const browserPath = path.join(process.env.RUNNER_TEMP, 'v019-browsers');
+        assert.equal(process.env.PLAYWRIGHT_BROWSERS_PATH, browserPath);
+        const reports = [];
+        for (const workspace of ['apps/web', 'scripts']) {
+          const require = createRequire(path.join(root, workspace, 'package.json'));
+          const name = workspace === 'scripts' ? 'playwright-core' : 'playwright';
+          const pkg = require.resolve(`${name}/package.json`);
+          assert.equal(json(pkg).version, '1.64.1');
+          assert.equal(json(path.join(root, workspace, 'package.json'))[workspace === 'scripts' ? 'dependencies' : 'devDependencies'][name], '1.64.1');
+          const fromPackage = createRequire(pkg);
+          const core = path.dirname(fromPackage.resolve('playwright-core/package.json'));
+          const browsers = json(path.join(core, 'browsers.json')).browsers;
+          const pinned = browsers.find(item => item.name === 'chromium-headless-shell');
+          assert.equal(pinned.revision, '1248');
+          assert.equal(pinned.browserVersion, '156.0.8078.4');
+          assert.equal(browsers.find(item => item.name === 'ffmpeg').revision, '1013');
+          const directory = path.join(browserPath, 'chromium_headless_shell-1248');
+          assert(fs.existsSync(path.join(directory, 'INSTALLATION_COMPLETE')));
+          const executables = fs.readdirSync(directory, {recursive: true}).filter(file => file.endsWith('/chrome-headless-shell'));
+          assert.equal(executables.length, 1);
+          const executable = path.join(directory, executables[0]);
+          fs.accessSync(executable, fs.constants.X_OK);
+          const version = execFileSync(executable, ['--version'], {encoding: 'utf8'}).trim();
+          assert(version.includes('156.0.8078.4'));
+          reports.push({workspace, playwright: '1.64.1', revision: '1248', version, sha256: sha256(fs.readFileSync(executable))});
+        }
+        const ffmpeg = path.join(browserPath, 'ffmpeg-1013');
+        assert(fs.existsSync(path.join(ffmpeg, 'INSTALLATION_COMPLETE')));
+        writeJson(path.join(process.env.RUNNER_TEMP, 'v019-evidence/runtime.json'), {node: process.version, pnpm: '12.14.0', electron: '44.10.1', e2e: '0.23.0', webEngine: '0.15.5', browsers: reports, ffmpegRevision: '1013', lockfileSha256: sha256(fs.readFileSync('pnpm-lock.yaml'))});
+        console.log('Pinned Node, Electron, e2e, Chromium and ffmpeg verified.');
+
+        V019_NODE
+    - name: Prepare isolated helper audit-artifacts.mjs
+      shell: bash
+      run: |
+        set -euo pipefail
+        umask 077
+        cat > "$RUNNER_TEMP/v019-tools/audit-artifacts.mjs" <<'V019_NODE'
+        import assert from 'node:assert/strict';
+        import fs from 'node:fs';
+        import path from 'node:path';
+        import {checkedFile, credentialValues, frozen, sha256, writeJson} from './contracts.mjs';
+        const out = path.join(process.env.RUNNER_TEMP, 'v019-evidence');
+        const {captures} = frozen(process.env);
+        const allowed = new Set(['provenance.json', 'runtime.json', 'final-status.json', 'unit-summary.json', 'unit-progress.json', 'junit.xml', 'scenario-report.json', ...['unit','scenario'].flatMap(mode => [`${mode}-environment.json`, `${mode}-command.json`, `${mode}.log`, `${mode}-exit.json`, `${mode}-verification-error.json`, `${mode}-verdict.json`]), ...captures.map(label => `${label}.png`)]);
+        const credentials = credentialValues(process.cwd());
+        const inventory = [];
+        for (const name of fs.readdirSync(out)) {
+          assert(allowed.has(name), 'Unexpected artifact name; nothing will be uploaded');
+          const file = checkedFile(out, name);
+          const bytes = fs.readFileSync(file);
+          assert(bytes.length <= 64 * 1024 * 1024);
+          if (!name.endsWith('.png')) {
+            const text = bytes.toString('utf8');
+            for (const secret of credentials) assert(!text.includes(secret) && !text.includes(encodeURIComponent(secret)), 'Credential in public output');
+            assert(!/\b(?:gh[pousr]_|github_pat_|sk-)[A-Za-z0-9_-]+\b/.test(text), 'Credential pattern in public output');
+            assert(!/[?&#](?:token|access_token|auth_code|secret)=[^\s"<>]+/i.test(text), 'Pairing URL in public output');
+          }
+          inventory.push({file: name, bytes: bytes.length, sha256: sha256(bytes)});
+        }
+        assert(inventory.some(file => file.file === 'final-status.json'));
+        writeJson(path.join(out, 'artifact-manifest.json'), {sourceSha: process.env.SOURCE_SHA, sourceTree: process.env.SOURCE_TREE, files: inventory, screenshots: 'Only explicit, reviewed post-authentication page.screenshot PNGs. No browser chrome, desktop capture or automatic failure capture.', excluded: 'All raw e2e reports, app logs, sessions, traces, videos, .t3 state and HOME credentials.'});
+        console.log(`Artifact privacy allowlist passed (${inventory.length} files).`);
+
+        V019_NODE
+    - name: Prepare isolated helper incremental-reporter.mjs
+      shell: bash
+      run: |
+        set -euo pipefail
+        umask 077
+        cat > "$RUNNER_TEMP/v019-tools/incremental-reporter.mjs" <<'V019_NODE'
+        import fs from 'node:fs';
+        import path from 'node:path';
+        import crypto from 'node:crypto';
+
+        const states = ['passed', 'failed', 'skipped', 'pending', 'todo'];
+        const counts = () => Object.fromEntries(states.map(s => [s, 0]));
+        function requireThat(condition, code) { if (!condition) throw new Error(`diagnostic:${code}`); }
+        function fileList(value) {
+          requireThat(Array.isArray(value) && value.length > 0 && value.length <= 256, 'file-list');
+          requireThat(new Set(value).size === value.length, 'duplicate-path');
+          requireThat(value.every(s => typeof s === 'string' && s.length <= 300 && /^[A-Za-z0-9_./-]+\.test\.[cm]?[jt]sx?$/.test(s) && !s.startsWith('/') && !s.split('/').some(p => ['', '.', '..'].includes(p))), 'unsafe-path');
+          requireThat(JSON.stringify(value) === JSON.stringify([...value].sort()), 'unsorted-paths');
+          return value;
+        }
+        /** Atomic replacement on the same filesystem. Caller supplies a fresh private directory. */
+        export function atomicSnapshot(output, data) {
+          const tmp = `${output}.next`;
+          const fd = fs.openSync(tmp, 'wx', 0o600);
+          try { fs.writeFileSync(fd, JSON.stringify(data, null, 2) + '\n'); fs.fsyncSync(fd); }
+          finally { fs.closeSync(fd); }
+          fs.renameSync(tmp, output);
+          const dir = fs.openSync(path.dirname(output), 'r');
+          try { fs.fsyncSync(dir); } finally { fs.closeSync(dir); }
+        }
+        export default class IncrementalReporter {
+          constructor(options) {
+            this.options = options?.reviewedFiles ? options : JSON.parse(fs.readFileSync(process.env.V019_DIAGNOSTIC_CONFIG, 'utf8'));
+            const o = this.options;
+            this.reviewed = fileList(o.reviewedFiles);
+            this.selected = fileList(o.selectedFiles);
+            requireThat(this.selected.every(f => this.reviewed.includes(f)), 'unreviewed-selection');
+            requireThat(/^[a-f0-9]{40}$/.test(o.sourceSha), 'source-sha');
+            requireThat(path.isAbsolute(o.root) && path.isAbsolute(o.output), 'absolute-paths');
+            requireThat(typeof o.runId === 'string' && /^[0-9]{1,24}$/.test(o.runId), 'run-id');
+            requireThat(Number.isInteger(o.runAttempt) && o.runAttempt > 0, 'run-attempt');
+            requireThat(typeof o.subsetId === 'string' && /^[a-z0-9-]{1,60}$/.test(o.subsetId), 'subset-id');
+            this.root = fs.realpathSync(o.root);
+            requireThat(!fs.existsSync(o.output) && !fs.existsSync(`${o.output}.next`), 'fresh-output-required');
+            this.rows = new Map(this.reviewed.map(file => [file, {file, selected: this.selected.includes(file), queued: false, collected: false, started: false, ended: false, activeHooks: {beforeAll:0,afterAll:0,beforeEach:0,afterEach:0}, hookStarts:0, hookEnds:0, counts: null, moduleState: null, moduleErrorCount: 0}]));
+            this.refs = new Map(); this.previousTests = new Map(); this.caseEvents = new Set();
+            this.phase = 'initialized'; this.sequence = 0; this.fault = null; this.unhandledErrorCount = null;
+            this.signals = new Map();
+            for (const [signal, code] of [['SIGTERM', 143], ['SIGINT', 130]]) {
+              const handler = () => { this.phase = 'interrupted'; this.signal = signal; this.flush(); process.exit(code); };
+              this.signals.set(signal, handler); process.on(signal, handler);
+            }
+            this.exitHandler = () => { if (!['ended', 'interrupted'].includes(this.phase)) this.phase = 'exited-incomplete'; this.flush(); };
+            process.on('exit', this.exitHandler);
+            this.flush();
+          }
+          dispose() { for (const [signal, handler] of this.signals) process.off(signal, handler); process.off('exit', this.exitHandler); }
+          guard(action) {
+            try { requireThat(!this.fault, 'previous-fault'); return action(); }
+            catch (error) { this.fault = /^diagnostic:[a-z-]+$/.test(error.message) ? error.message.slice(11) : 'api-or-io-failure'; this.flush(); throw new Error(`diagnostic:${this.fault}`); }
+          }
+          identify(entity) {
+            requireThat(typeof entity.moduleId === 'string' && path.isAbsolute(entity.moduleId), 'invalid-module-path');
+            const file = path.relative(this.root, entity.moduleId);
+            requireThat(path.join(this.root, file) === entity.moduleId && this.selected.includes(file), 'unexpected-module');
+            return file;
+          }
+          observe(module) {
+            const file = this.identify(module); const row = this.rows.get(file);
+            const next = new Map(); const total = counts();
+            for (const test of module.children.allTests()) {
+              requireThat(typeof test.id === 'string' && !next.has(test.id), 'duplicate-test');
+              let state = test.result().state;
+              requireThat(states.includes(state) && state !== 'todo', 'invalid-test-state');
+              if (test.options.mode === 'todo') { requireThat(state === 'skipped', 'contradictory-todo'); state = 'todo'; }
+              next.set(test.id, state); total[state]++;
+            }
+            const previous = this.previousTests.get(file);
+            if (previous) {
+              requireThat(previous.size === next.size && [...previous.keys()].every(id => next.has(id)), 'changed-collection');
+              for (const [id, state] of previous) requireThat(state === 'pending' || state === next.get(id), 'contradictory-test-state');
+            }
+            this.previousTests.set(file, next);
+            row.counts = total;
+            row.moduleErrorCount = module.errors().length;
+            row.moduleState = module.state();
+            requireThat(['queued', 'pending', 'passed', 'failed', 'skipped'].includes(row.moduleState), 'invalid-module-state');
+            requireThat(!(row.moduleState === 'passed' && (total.failed || row.moduleErrorCount)), 'contradictory-module-state');
+          }
+          flush() {
+            const files = [...this.rows.values()].map(row => ({...row, status: !row.selected ? 'not-selected' : row.ended ? 'ended' : row.queued || row.collected || row.started ? 'in-flight' : 'missing'}));
+            const totals = counts();
+            for (const row of files) if (row.counts) for (const state of states) totals[state] += row.counts[state];
+            atomicSnapshot(this.options.output, {
+              schema: 'v019-vitest-incremental-1', runner: 'vitest@5.0.5', sourceSha: this.options.sourceSha,
+              runId: this.options.runId, runAttempt: this.options.runAttempt, subsetId: this.options.subsetId,
+              reviewedFilesSha256: crypto.createHash('sha256').update(JSON.stringify(this.reviewed)).digest('hex'),
+              selectedFilesSha256: crypto.createHash('sha256').update(JSON.stringify(this.selected)).digest('hex'),
+              diagnosticOnly: true, releaseAccepted: false, scope: this.selected.length === this.reviewed.length ? 'reviewed-set' : 'diagnostic-subset',
+              sequence: ++this.sequence, updatedAt: new Date().toISOString(), phase: this.phase, signal: this.signal ?? null,
+              integrityError: this.fault, runEndReason: this.reason ?? null, unhandledErrorCount: this.unhandledErrorCount,
+              reviewedCount: this.reviewed.length, selectedCount: this.selected.length, observedCounts: totals,
+              countsComplete: !this.fault && this.phase === 'ended' && files.filter(f => f.selected).every(f => f.ended && f.counts && f.counts.pending === 0),
+              missing: files.filter(f => f.status === 'missing').map(f => f.file),
+              inFlight: files.filter(f => f.status === 'in-flight').map(f => f.file),
+              failedModules: files.filter(f => f.moduleState === 'failed' || f.moduleErrorCount > 0).map(f => f.file), files,
+            });
+          }
+          onInit(vitest) { this.guard(() => { requireThat(vitest.version === '5.0.5', 'runner-version'); }); }
+          onTestRunStart(specs) { this.guard(() => {
+            requireThat(this.phase === 'initialized', 'duplicate-run');
+            const actual = specs.map(s => this.identify(s)).sort();
+            requireThat(JSON.stringify(actual) === JSON.stringify(this.selected), 'specification-mismatch');
+            this.phase = 'running'; this.flush();
+          }); }
+          event(module, event) { this.guard(() => {
+            requireThat(this.phase === 'running', 'event-outside-run');
+            const file = this.identify(module), row = this.rows.get(file);
+            requireThat(!row[event] && !row.ended, 'duplicate-or-late-event');
+            if (event !== 'queued') requireThat(row.queued, 'event-before-queue');
+            if (event === 'collected') requireThat(!row.started, 'collection-after-start');
+            if (event === 'ended') requireThat(row.started, 'end-before-start');
+            row[event] = true; row[`${event}At`] = new Date().toISOString();
+            this.refs.set(file, module);
+            if (event !== 'queued') this.observe(module);
+            if (event === 'ended') requireThat(['passed', 'failed', 'skipped'].includes(row.moduleState), 'nonterminal-module-end');
+            this.flush();
+          }); }
+          onTestModuleQueued(m) { this.event(m, 'queued'); }
+          onTestModuleCollected(m) { this.event(m, 'collected'); }
+          onTestModuleStart(m) { this.event(m, 'started'); }
+          onTestModuleEnd(m) { this.event(m, 'ended'); }
+          onTestCaseResult(test) { this.guard(() => {
+            const file = this.identify(test.module), row = this.rows.get(file);
+            requireThat(this.phase === 'running' && row.started && !row.ended, 'case-outside-module');
+            const key = `${file}\0${test.id}`;
+            requireThat(!this.caseEvents.has(key), 'duplicate-case-result');
+            requireThat(test.result().state !== 'pending', 'pending-case-result');
+            this.caseEvents.add(key); this.observe(test.module); this.flush();
+          }); }
+          hook(hook, delta) { this.guard(() => {
+            requireThat(['beforeAll','afterAll','beforeEach','afterEach'].includes(hook.name), 'invalid-hook');
+            const module = hook.entity.type === 'module' ? hook.entity : hook.entity.module;
+            const row = this.rows.get(this.identify(module));
+            requireThat(this.phase === 'running' && row.started && !row.ended, 'hook-outside-module');
+            requireThat(delta === 1 || row.activeHooks[hook.name] > 0, 'hook-end-before-start');
+            row.activeHooks[hook.name] += delta;
+            row[delta === 1 ? 'hookStarts' : 'hookEnds']++;
+            this.flush();
+          }); }
+          onHookStart(hook) { this.hook(hook, 1); }
+          onHookEnd(hook) { this.hook(hook, -1); }
+          onTestRunEnd(modules, errors, reason) { this.guard(() => {
+            requireThat(this.phase === 'running' && ['passed', 'failed', 'interrupted'].includes(reason), 'invalid-run-end');
+            const actual = modules.map(m => this.identify(m));
+            requireThat(new Set(actual).size === actual.length, 'duplicate-final-module');
+            for (const module of modules) { const row = this.rows.get(this.identify(module)); requireThat(row.ended || reason === 'interrupted', 'unended-final-module'); this.observe(module); }
+            requireThat([...this.rows.values()].filter(r => r.ended).every(r => actual.includes(r.file)), 'omitted-final-module');
+            this.unhandledErrorCount = errors.length; this.reason = reason;
+            requireThat(reason !== 'passed' || (!errors.length && this.selected.every(f => { const r = this.rows.get(f); return r.ended && ['passed','skipped'].includes(r.moduleState) && !r.counts.failed && !r.counts.pending && !r.moduleErrorCount; })), 'contradictory-run-result');
+            this.phase = 'ended'; this.flush();
+          }); }
+        }
+
+        V019_NODE
+    - name: Prepare isolated helper progress-public.mjs
+      shell: bash
+      run: |
+        set -euo pipefail
+        umask 077
+        cat > "$RUNNER_TEMP/v019-tools/progress-public.mjs" <<'V019_NODE'
+        import assert from 'node:assert/strict';
+        import {createHash} from 'node:crypto';
+        const hash=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
+        const number=x=>{assert(Number.isSafeInteger(x)&&x>=0&&x<=10000000);return x;};
+        const nullableNumber=x=>x===null?null:number(x);
+        const enumeration=(x,allowed)=>{assert(allowed.includes(x));return x;};
+        const bool=x=>{assert.equal(typeof x,'boolean');return x;};
+        const timestamp=x=>{assert(typeof x==='string'&&/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(x));return x;};
+        const countNames=['passed','failed','skipped','pending','todo'];
+        const counts=x=>Object.fromEntries(countNames.map(k=>[k,number(x[k])]));
+        export function publicProgress(s,{sourceSha,runId,runAttempt,subsetId,reviewedFiles,selectedFiles}) {
+         assert.equal(s.schema,'v019-vitest-incremental-1'); assert.equal(s.runner,'vitest@5.0.5');
+         for(const [key,value] of Object.entries({sourceSha,runId,runAttempt,subsetId,reviewedCount:reviewedFiles.length,selectedCount:selectedFiles.length,reviewedFilesSha256:hash(reviewedFiles),selectedFilesSha256:hash(selectedFiles),diagnosticOnly:true,releaseAccepted:false}))assert.deepEqual(s[key],value);
+         assert.deepEqual(s.files.map(x=>x.file),reviewedFiles);
+         const files=s.files.map(x=>{const row={file:x.file,selected:bool(x.selected),queued:bool(x.queued),collected:bool(x.collected),started:bool(x.started),ended:bool(x.ended),counts:x.counts===null?null:counts(x.counts),moduleState:enumeration(x.moduleState,[null,'queued','pending','passed','failed','skipped']),moduleErrorCount:number(x.moduleErrorCount),hookStarts:number(x.hookStarts),hookEnds:number(x.hookEnds),activeHooks:Object.fromEntries(['beforeAll','afterAll','beforeEach','afterEach'].map(k=>[k,number(x.activeHooks[k])])),status:enumeration(x.status,['not-selected','missing','in-flight','ended'])};assert.equal(row.selected,selectedFiles.includes(row.file));for(const e of ['queued','collected','started','ended'])if(x[e+'At']!==undefined)row[e+'At']=timestamp(x[e+'At']);return row;});
+         const expectedScope=selectedFiles.length===reviewedFiles.length?'reviewed-set':'diagnostic-subset';assert.equal(s.scope,expectedScope);
+         const totals=Object.fromEntries(countNames.map(k=>[k,0]));
+         for(const row of files){
+          assert.equal(row.status,!row.selected?'not-selected':row.ended?'ended':row.queued||row.collected||row.started?'in-flight':'missing');
+          assert(!row.collected||row.queued);assert(!row.started||row.queued);assert(!row.ended||row.started);
+          for(const e of ['queued','collected','started','ended'])assert.equal(row[e],row[e+'At']!==undefined);
+          assert(row.hookEnds<=row.hookStarts);assert.equal(Object.values(row.activeHooks).reduce((a,b)=>a+b,0),row.hookStarts-row.hookEnds);
+          if(!row.selected)assert(!row.queued&&!row.collected&&!row.started&&!row.ended&&row.counts===null&&row.moduleState===null&&row.moduleErrorCount===0&&row.hookStarts===0);
+          if(row.ended)assert(['passed','failed','skipped'].includes(row.moduleState));
+          if(row.counts){for(const k of countNames)totals[k]+=row.counts[k];if(row.moduleState==='passed')assert(row.counts.failed===0&&row.moduleErrorCount===0);}
+         }
+         assert.deepEqual(counts(s.observedCounts),totals);
+         assert.deepEqual(s.missing,files.filter(f=>f.status==='missing').map(f=>f.file));
+         assert.deepEqual(s.inFlight,files.filter(f=>f.status==='in-flight').map(f=>f.file));
+         assert.deepEqual(s.failedModules,files.filter(f=>f.moduleState==='failed'||f.moduleErrorCount>0).map(f=>f.file));
+         assert.equal(s.countsComplete,s.integrityError===null&&s.phase==='ended'&&files.filter(f=>f.selected).every(f=>f.ended&&f.counts!==null&&f.counts.pending===0));
+         const list=k=>{assert(Array.isArray(s[k])&&new Set(s[k]).size===s[k].length&&s[k].every(f=>selectedFiles.includes(f)));return s[k];};
+         assert([null, 'absolute-paths', 'api-or-io-failure', 'case-outside-module', 'changed-collection', 'collection-after-start', 'contradictory-module-state', 'contradictory-run-result', 'contradictory-test-state', 'contradictory-todo', 'duplicate-case-result', 'duplicate-final-module', 'duplicate-or-late-event', 'duplicate-path', 'duplicate-run', 'duplicate-test', 'end-before-start', 'event-before-queue', 'event-outside-run', 'file-list', 'fresh-output-required', 'hook-end-before-start', 'hook-outside-module', 'invalid-hook', 'invalid-module-path', 'invalid-module-state', 'invalid-run-end', 'invalid-test-state', 'nonterminal-module-end', 'omitted-final-module', 'pending-case-result', 'previous-fault', 'run-attempt', 'run-id', 'runner-version', 'source-sha', 'specification-mismatch', 'subset-id', 'unended-final-module', 'unexpected-module', 'unreviewed-selection', 'unsafe-path', 'unsorted-paths'].includes(s.integrityError));
+         return {schema:s.schema,runner:s.runner,sourceSha,runId,runAttempt,subsetId,diagnosticOnly:true,releaseAccepted:false,scope:enumeration(s.scope,['reviewed-set','diagnostic-subset']),reviewedCount:reviewedFiles.length,selectedCount:selectedFiles.length,reviewedFilesSha256:s.reviewedFilesSha256,selectedFilesSha256:s.selectedFilesSha256,sequence:number(s.sequence),updatedAt:timestamp(s.updatedAt),phase:enumeration(s.phase,['initialized','running','ended','interrupted','exited-incomplete']),signal:enumeration(s.signal,[null,'SIGTERM','SIGINT']),integrityError:s.integrityError,runEndReason:enumeration(s.runEndReason,[null,'passed','failed','interrupted']),unhandledErrorCount:nullableNumber(s.unhandledErrorCount),observedCounts:counts(s.observedCounts),countsComplete:bool(s.countsComplete),missing:list('missing'),inFlight:list('inFlight'),failedModules:list('failedModules'),files};
+        }
+
+        V019_NODE
+    - name: Verify free public repo, final source and operation-only direct child
+      id: provenance
+      uses: actions/github-script@v8
+      with:
+        script: |-
+          const {operationGuard, frozen, writeJson} = await import(`file://${process.env.RUNNER_TEMP}/v019-tools/contracts.mjs`);
+          const repo = {owner: 'ZhiweiXiao98', repo: 't3code'};
+          const repository = (await github.rest.repos.get(repo)).data;
+          const sourceRef = (await github.rest.git.getRef({...repo, ref: `heads/${process.env.SOURCE_BRANCH}`})).data;
+          const sourceCommit = (await github.rest.git.getCommit({...repo, commit_sha: process.env.SOURCE_SHA})).data;
+          const operationRef = (await github.rest.git.getRef({...repo, ref: 'heads/validation/v0.1.9-zh.1-ui-11f1515421b6'})).data;
+          const operationCommit = (await github.rest.git.getCommit({...repo, commit_sha: context.sha})).data;
+          const comparison = (await github.rest.repos.compareCommitsWithBasehead({...repo, basehead: `${process.env.SOURCE_SHA}...${context.sha}`})).data;
+          const operation = operationGuard({env: process.env, context, repository, sourceRef, sourceCommit, operationRef, operationCommit, comparison});
+          const path = require('node:path');
+          const {files, captures} = frozen(process.env);
+          writeJson(path.join(process.env.RUNNER_TEMP, 'v019-evidence/provenance.json'), {
+            repository: 'ZhiweiXiao98/t3code', sourceBranch: process.env.SOURCE_BRANCH,
+            sourceSha: process.env.SOURCE_SHA, sourceTree: process.env.SOURCE_TREE,
+            ...operation, runId: context.runId, runAttempt: Number(process.env.GITHUB_RUN_ATTEMPT),
+            testFiles: files, testFilesSha256: process.env.TEST_FILES_SHA256,
+            scenario: 'scripts/scenarios/chinese-thread-menu.e2e.ts', scenarioSha256: process.env.SCENARIO_SHA256,
+            reviewedCaptureLabels: captures, target: 'web', runner: 'ubuntu-24.04',
+            scope: 'Supplemental localization unit/browser tests and one real web scenario. Separate 22-gate release CI remains mandatory. Not installed desktop, Android, or iOS acceptance.',
+          });
+    - name: Checkout and verify immutable source without credentials
+      env:
+        GIT_TERMINAL_PROMPT: '0'
+      shell: bash
+      run: |
+        set -euo pipefail
+        git init .
+        git remote add origin https://github.com/ZhiweiXiao98/t3code.git
+        git -c credential.helper= -c protocol.allow=never -c protocol.https.allow=always fetch --no-tags --depth=2 origin "$GITHUB_SHA"
+        test "$(git rev-parse FETCH_HEAD^)" = "$SOURCE_SHA"
+        test "$(git rev-list --parents -n 1 FETCH_HEAD | wc -w)" -eq 2
+        test "$(git diff-tree --no-commit-id --name-status -r "$SOURCE_SHA" FETCH_HEAD)" = $'A\t.github/workflows/validate-v019-zh-ui.yml'
+        git sparse-checkout set --no-cone '/*' '!/.repos/'
+        git checkout --detach "$SOURCE_SHA"
+        test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+        test "$(git rev-parse HEAD^{tree})" = "$SOURCE_TREE"
+        test -z "$(git status --porcelain --untracked-files=no)"
+        node --input-type=module <<'NODE'
+        import assert from 'node:assert/strict';
+        import fs from 'node:fs';
+        import path from 'node:path';
+        import {execFileSync} from 'node:child_process';
+        const {frozen, checkedFile, sha256, SCENARIO} = await import(`file://${process.env.RUNNER_TEMP}/v019-tools/contracts.mjs`);
+        const {files} = frozen(process.env);
+        const tracked = new Set(execFileSync('git', ['ls-files', '-z'], {encoding: 'utf8', maxBuffer: 64 * 1024 * 1024}).split('\0'));
+        for (const file of [...files, SCENARIO, 'scripts/e2e.config.ts', 'scripts/scenarios/t3.ts', 'scripts/scenarios/start-app.ts']) {
+          assert(tracked.has(file)); checkedFile(process.cwd(), file);
+        }
+        assert.equal(sha256(fs.readFileSync(SCENARIO)), process.env.SCENARIO_SHA256);
+        const scenario = fs.readFileSync(SCENARIO, 'utf8');
+        assert(!/agent\.(act|assert)|t3-mobile|\bIOS\b|test\.skip|test\.fail/.test(scenario));
+        assert(scenario.includes('WEB') && scenario.includes('app.screenshot('));
+        assert.equal(JSON.parse(fs.readFileSync('package.json')).engines.node, '26.12.1');
+        NODE
+    - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
+      with:
+        node-version: 26.12.1
+        cache: true
+        run-install: false
+    - name: Install exact frozen lockfile dependencies
+      timeout-minutes: 12
+      shell: bash
+      run: |
+        set -euo pipefail
+        test "$(node --version)" = v26.12.1
+        vp install --frozen-lockfile
+    - name: Install Linux test libraries
+      timeout-minutes: 4
+      shell: bash
+      run: |
+        set -euo pipefail
+        python3 .github/scripts/ci-ubuntu-packages.py packages libsecret-1-dev pkg-config build-essential imagemagick
+    - name: Prepare locked Electron 44.10.1 for unit tests only
+      timeout-minutes: 4
+      shell: bash
+      run: |
+        set -euo pipefail
+        vp run --filter @t3tools/desktop ensure:electron
+    - name: Install and verify locked Chromium and runtime versions
+      id: browser
+      timeout-minutes: 6
+      shell: bash
+      run: |
+        set -euo pipefail
+        python3 .github/scripts/ci-ubuntu-packages.py playwright apps/web/node_modules/playwright/cli.js
+        node apps/web/node_modules/playwright/cli.js install --only-shell chromium
+        node scripts/node_modules/playwright-core/cli.js install --only-shell chromium ffmpeg
+        node "$RUNNER_TEMP/v019-tools/verify-runtime.mjs"
+    - name: Run every explicitly reviewed localization test file once
+      id: unit
+      timeout-minutes: 18
+      shell: bash
+      run: |
+        set -euo pipefail
+        node "$RUNNER_TEMP/v019-tools/run-suite.mjs" unit
+    - name: Run only reviewed real web scenario once with no model credentials
+      id: scenario
+      if: ${{ !cancelled() && steps.browser.outcome == 'success' }}
+      timeout-minutes: 9
+      shell: bash
+      run: |
+        set -euo pipefail
+        node "$RUNNER_TEMP/v019-tools/run-suite.mjs" scenario
+    - name: Recheck exact source, direct-child operation and mandatory outcomes
+      if: ${{ always() }}
+      uses: actions/github-script@v8
+      env:
+        PRIOR_JOB_STATUS: ${{ job.status }}
+        UNIT_OUTCOME: ${{ steps.unit.outcome }}
+        SCENARIO_OUTCOME: ${{ steps.scenario.outcome }}
+      with:
+        script: |-
+          const assert = require('node:assert/strict');
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const out = path.join(process.env.RUNNER_TEMP, 'v019-evidence');
+          fs.mkdirSync(out, {recursive: true});
+          const record = {sourceSha: process.env.SOURCE_SHA, sourceTree: process.env.SOURCE_TREE,
+            operationSha: context.sha, priorJobStatus: process.env.PRIOR_JOB_STATUS,
+            unitOutcome: process.env.UNIT_OUTCOME, scenarioOutcome: process.env.SCENARIO_OUTCOME,
+            supplementalOnly: true, separate22ReleaseGatesRequired: true, installedAppAcceptance: false};
+          try {
+          const {operationGuard, frozen, writeJson} = await import(`file://${process.env.RUNNER_TEMP}/v019-tools/contracts.mjs`);
+          const repo = {owner: 'ZhiweiXiao98', repo: 't3code'};
+          const repository = (await github.rest.repos.get(repo)).data;
+          const sourceRef = (await github.rest.git.getRef({...repo, ref: `heads/${process.env.SOURCE_BRANCH}`})).data;
+          const sourceCommit = (await github.rest.git.getCommit({...repo, commit_sha: process.env.SOURCE_SHA})).data;
+          const operationRef = (await github.rest.git.getRef({...repo, ref: 'heads/validation/v0.1.9-zh.1-ui-11f1515421b6'})).data;
+          const operationCommit = (await github.rest.git.getCommit({...repo, commit_sha: context.sha})).data;
+          const comparison = (await github.rest.repos.compareCommitsWithBasehead({...repo, basehead: `${process.env.SOURCE_SHA}...${context.sha}`})).data;
+          const operation = operationGuard({env: process.env, context, repository, sourceRef, sourceCommit, operationRef, operationCommit, comparison});
+            const {execFileSync} = require('node:child_process');
+            const git = (...args) => execFileSync('git', args, {encoding: 'utf8', maxBuffer: 64 * 1024 * 1024}).trim();
+            assert.equal(git('rev-parse', 'HEAD'), process.env.SOURCE_SHA);
+            assert.equal(git('rev-parse', 'HEAD^{tree}'), process.env.SOURCE_TREE);
+            assert.equal(git('status', '--porcelain', '--untracked-files=no'), '', 'Tracked source changed');
+            record.sourceUnchanged = true;
+            const provenance = JSON.parse(fs.readFileSync(path.join(out, 'provenance.json'), 'utf8'));
+            assert.equal(provenance.operationSha, operation.operationSha);
+            assert.equal(provenance.operationTree, operation.operationTree);
+            assert.equal(provenance.workflowBlob, operation.workflowBlob);
+            for (const mode of ['unit', 'scenario']) {
+              const verdict = JSON.parse(fs.readFileSync(path.join(out, `${mode}-verdict.json`), 'utf8'));
+              assert.equal(verdict.sourceSha, process.env.SOURCE_SHA);
+              assert.equal(verdict.success, true, `${mode} did not pass`);
+            }
+            assert.equal(process.env.UNIT_OUTCOME, 'success');
+            assert.equal(process.env.SCENARIO_OUTCOME, 'success');
+            assert.equal(process.env.PRIOR_JOB_STATUS, 'success');
+            record.accepted = true;
+          } catch (error) {
+            record.accepted = false;
+            record.sourceUnchanged ??= false;
+            // Do not include arbitrary raw errors or report bodies in public provenance.
+            record.error = 'Exact-source or mandatory supplemental result verification failed; see sanitized diagnostics.';
+            core.setFailed(record.error);
+          } finally {
+            fs.writeFileSync(path.join(out, 'final-status.json'), JSON.stringify(record, null, 2));
+            core.summary.addRaw(`Supplemental localization: ${record.accepted ? 'passed' : 'not accepted'}\nSource: ${record.sourceSha}\nTree: ${record.sourceTree}\nOne real web scenario; no native/device UI claim. Mandatory 22 release gates remain separate.\n`);
+            await core.summary.write();
+          }
+    - name: Enforce final artifact filename, path and credential allowlist
+      id: artifact_safety
+      if: ${{ always() }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        node "$RUNNER_TEMP/v019-tools/audit-artifacts.mjs"
+    - name: Upload only sanitized reports and reviewed viewport PNGs
+      if: ${{ always() && steps.artifact_safety.outcome == 'success' }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: v019-zh-ui-${{ github.run_id }}-${{ github.run_attempt }}
+        path: ${{ runner.temp }}/v019-evidence/*
+        if-no-files-found: error
+        retention-days: 14
+        include-hidden-files: false
