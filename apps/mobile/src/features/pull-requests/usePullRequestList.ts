@@ -1,3 +1,8 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
+import {
+  mobilePullRequestListFailure,
+  mobilePullRequestListFailures,
+} from "../../i18n/mobileDisplayStrings";
 import { RegistryContext, useAtomMount, useAtomSubscribe, useAtomValue } from "@effect/atom-react";
 import { executeAtomQuery, squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
 import type { EnvironmentId, PullRequestDiffStat, PullRequestListInput } from "@t3tools/contracts";
@@ -95,7 +100,7 @@ async function loadNextPages(
         JSON.stringify(Object.entries(input.cursors).sort()) ===
           JSON.stringify(Object.entries(next.nextCursors).sort())
       )
-        throw new Error("Couldn't advance the list. Try again.");
+        throw new Error(localizeMobileString("Couldn't advance the list. Try again."));
     }),
   );
   return requestErrors(responses);
@@ -310,7 +315,7 @@ export function usePullRequestList(targets: readonly ListTarget[]) {
           {
             environmentId: target.environmentId,
             projectTitle: "",
-            message: cause instanceof Error ? cause.message : "Couldn't load pull requests.",
+            message: mobilePullRequestListFailure(cause),
           },
         ];
       }),
@@ -340,19 +345,7 @@ export function usePullRequestList(targets: readonly ListTarget[]) {
 }
 
 function requestErrors(results: readonly PromiseSettledResult<unknown>[]) {
-  return (
-    results
-      .flatMap((result) =>
-        result.status === "rejected"
-          ? [
-              result.reason instanceof Error
-                ? result.reason.message
-                : "Couldn't load pull requests.",
-            ]
-          : [],
-      )
-      .join("\n") || null
-  );
+  return mobilePullRequestListFailures(results);
 }
 
 type StatsAnswer = {

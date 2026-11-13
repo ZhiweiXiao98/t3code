@@ -277,12 +277,15 @@ describe("buildNativeReviewDiffData row bound", () => {
   }
 
   it("caps each huge file excerpt while preserving full counts and ordinary files", () => {
-    const data = buildNativeReviewDiffData(
-      buildReviewParsedDiff(
-        [singleFilePatch("huge.ts", 200_000), singleFilePatch("ordinary.ts", 1_000)].join("\n"),
-        "native-review-row-bound",
-      ),
+    const parsedDiff = buildReviewParsedDiff(
+      [singleFilePatch("huge.ts", 200_000), singleFilePatch("ordinary.ts", 1_000)].join("\n"),
+      "native-review-row-bound",
     );
+    const data = buildNativeReviewDiffData({ parsedDiff, locale: "en" });
+    const chinese = buildNativeReviewDiffData({ parsedDiff, locale: "zh-CN" });
+    expect(chinese.rows.filter((row) => row.kind === "notice").map((row) => row.text)).toEqual([
+      "此差异内容过大，无法完整显示。",
+    ]);
     const hugeHeader = data.rows.find((row) => row.kind === "file" && row.filePath === "huge.ts");
     const ordinaryHeader = data.rows.find(
       (row) => row.kind === "file" && row.filePath === "ordinary.ts",
@@ -369,5 +372,119 @@ describe("buildNativeReviewDiffData word comparison bound", () => {
         row.wordDiffRanges?.map((range) => row.content!.slice(range.start, range.end)),
       ).toEqual([row.change === "delete" ? "before" : "after"]);
     }
+  });
+});
+
+it("localizes generated native notices and isolates both caches by locale", () => {
+  const parsed = buildReviewParsedDiff(filesPatch(["Settings.ts"]), "localized-native-notices");
+  if (parsed.kind !== "files") throw new Error("Expected parsed fixture");
+  const source = parsed.files[0]!;
+  const variants = [
+    {
+      file: { ...source, rows: [], path: "image.png" },
+      en: "Unsupported format. Diff contents are not available.",
+      zh: "格式不受支持，无法显示差异内容。",
+    },
+    {
+      file: { ...source, rows: [], changeType: "rename-pure" as const },
+      en: "This file was renamed without modifications.",
+      zh: "此文件仅被重命名，内容未修改。",
+    },
+    {
+      file: { ...source, noEOFCRDeletions: true },
+      en: "Old file has no newline at end of file.",
+      zh: "原文件末尾没有换行符。",
+    },
+    {
+      file: { ...source, noEOFCRAdditions: true },
+      en: "New file has no newline at end of file.",
+      zh: "新文件末尾没有换行符。",
+    },
+    {
+      file: { ...source, noEOFCRAdditions: true, noEOFCRDeletions: true },
+      en: "Old and new files have no newline at end of file.",
+      zh: "原文件和新文件末尾都没有换行符。",
+    },
+    ...[
+      [
+        "File preview exceeds the size limit. Counts include all changes.",
+        "文件预览超过大小限制，统计包含全部更改。",
+      ],
+      ["Could not display file preview.", "无法显示文件预览。"],
+      ["Could not load diff. Select the file to retry.", "无法加载差异，请选择此文件重试。"],
+      ["Loading diff…", "正在加载差异…"],
+    ].map(([en, zh]) => ({ file: { ...source, notice: en! }, en: en!, zh: zh! })),
+  ];
+  for (const { file, en, zh } of variants) {
+    const input = { ...parsed, files: [file] };
+    const english = getCachedNativeReviewDiffData({ parsedDiff: input, locale: "en" });
+    const chinese = getCachedNativeReviewDiffData({ parsedDiff: input, locale: "zh-CN" });
+    expect(english.rows.filter((row) => row.kind === "notice").map((row) => row.text)).toEqual([
+      en,
+    ]);
+    expect(chinese.rows.filter((row) => row.kind === "notice").map((row) => row.text)).toEqual([
+      zh,
+    ]);
+    expect(getCachedNativeReviewDiffData({ parsedDiff: input, locale: "en" })).toBe(english);
+    expect(getCachedNativeReviewDiffData({ parsedDiff: input, locale: "zh-CN" })).toBe(chinese);
+    // A distinct parsed object sharing the file exercises the separate file-row cache.
+    expect(buildNativeReviewDiffData({ parsedDiff: { ...input }, locale: "en" }).rows).toEqual(
+      english.rows,
+    );
+    expect(buildNativeReviewDiffData({ parsedDiff: { ...input }, locale: "zh-CN" }).rows).toEqual(
+      chinese.rows,
+    );
+    expect(chinese.rows.filter((row) => row.kind !== "notice")).toEqual(
+      english.rows.filter((row) => row.kind !== "notice"),
+    );
+    expect(chinese.commentTargetsByRowId).toEqual(english.commentTargetsByRowId);
+    expect(chinese.additions).toBe(english.additions);
+  }
+});
+
+it("preserves opaque notice, diff text, paths and comments even when they collide with UI copy", () => {
+  const parsed = buildReviewParsedDiff(filesPatch(["Settings.ts"]), "opaque-native-notices");
+  if (parsed.kind !== "files") throw new Error("Expected parsed fixture");
+  const file = parsed.files[0]!;
+  const unknown = "Settings";
+  const comment = {
+    ...makeComment("Loading diff…"),
+    filePath: file.path,
+    rangeLabel: "Settings",
+    sectionTitle: "Loading diff…",
+  };
+  const input = {
+    ...parsed,
+    files: [
+      {
+        ...file,
+        notice: unknown,
+        previousPath: "Loading diff…",
+        rows: file.rows.map((row) =>
+          row.kind === "line"
+            ? { ...row, content: "Loading diff…" }
+            : { ...row, context: "Loading diff…" },
+        ),
+      },
+    ],
+  };
+  const data = buildNativeReviewDiffData({
+    parsedDiff: input,
+    comments: [comment],
+    locale: "zh-CN",
+  });
+  expect(data.rows.find((row) => row.kind === "notice")?.text).toBe(unknown);
+  expect(data.rows.find((row) => row.kind === "file")).toMatchObject({
+    filePath: "Settings.ts",
+    previousPath: "Loading diff…",
+  });
+  expect(
+    data.rows.filter((row) => row.kind === "line").every((row) => row.content === "Loading diff…"),
+  ).toBe(true);
+  expect(data.rows.find((row) => row.kind === "hunk")?.text).toContain("Loading diff…");
+  expect(data.rows.find((row) => row.kind === "comment")).toMatchObject({
+    commentText: "Loading diff…",
+    commentRangeLabel: "Settings",
+    commentSectionTitle: "Loading diff…",
   });
 });

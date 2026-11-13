@@ -1,3 +1,5 @@
+import { localizeMobileString, MOBILE_LOCALE, type MobileLocale } from "../../i18n/mobileStrings";
+
 import type { NativeReviewDiffRow, NativeReviewDiffTheme } from "../diffs/nativeReviewDiffSurface";
 import type { NativeReviewDiffFile } from "../diffs/nativeReviewDiffTypes";
 import * as Arr from "effect/Array";
@@ -22,6 +24,18 @@ const NATIVE_REVIEW_MAX_WORD_DIFF_COMPARISONS = 1_000;
 // Bound the rows serialized to the native heap before mapping and word matching.
 const NATIVE_REVIEW_MAX_FILE_ROWS = 100_000;
 const TRUNCATED_FILE_NOTICE = "This diff is too large to show in full.";
+const NATIVE_NOTICE_MESSAGES = new Set<string>([
+  "This diff is too large to show in full.",
+  "Unsupported format. Diff contents are not available.",
+  "This file was renamed without modifications.",
+  "Old file has no newline at end of file.",
+  "New file has no newline at end of file.",
+  "Old and new files have no newline at end of file.",
+  "File preview exceeds the size limit. Counts include all changes.",
+  "Could not display file preview.",
+  "Could not load diff. Select the file to retry.",
+  "Loading diff…",
+]);
 const NATIVE_HEX_COLOR = /^#([\da-f]{2})([\da-f]{2})([\da-f]{2})([\da-f]{2})?$/i;
 const NATIVE_RGBA_COLOR =
   /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*([\d.]+))?\s*\)$/;
@@ -121,6 +135,7 @@ export interface NativeReviewDiffCommentTarget {
 
 export interface BuildNativeReviewDiffDataInput {
   readonly parsedDiff: ReviewParsedDiff;
+  readonly locale?: MobileLocale;
   readonly comments?: ReadonlyArray<ReviewInlineComment>;
 }
 
@@ -148,8 +163,14 @@ interface PreparedNativeReviewDiffData extends Omit<NativeReviewDiffData, "rows"
   readonly fileRows: ReadonlyArray<PreparedNativeReviewFileRows>;
 }
 
-const nativeReviewDiffDataCache = new WeakMap<ReviewParsedDiff, CachedNativeReviewDiffData>();
-const nativeReviewFileRowsCache = new WeakMap<ReviewRenderableFile, PreparedNativeReviewFileRows>();
+const nativeReviewDiffDataCache = new WeakMap<
+  ReviewParsedDiff,
+  Map<MobileLocale, CachedNativeReviewDiffData>
+>();
+const nativeReviewFileRowsCache = new WeakMap<
+  ReviewRenderableFile,
+  Map<MobileLocale, PreparedNativeReviewFileRows>
+>();
 
 function buildReviewCommentsCacheKey(comments: ReadonlyArray<ReviewInlineComment>): string {
   if (comments.length === 0) {
@@ -234,17 +255,25 @@ function mapChangeType(file: ReviewRenderableFile): NativeReviewDiffRow["changeT
   }
 }
 
-function createNoticeRow(fileId: string, suffix: string, text: string): NativeReviewDiffRow {
+function createNoticeRow(
+  fileId: string,
+  suffix: string,
+  text: string,
+  locale: MobileLocale,
+): NativeReviewDiffRow {
   return {
     kind: "notice",
     id: `${fileId}:notice:${suffix}`,
     fileId,
-    text,
+    text: NATIVE_NOTICE_MESSAGES.has(text) ? localizeMobileString(text, locale) : text,
   };
 }
 
-function noticeRowsForFile(file: ReviewRenderableFile): ReadonlyArray<NativeReviewDiffRow> {
-  if (file.notice) return [createNoticeRow(file.id, "loading", file.notice)];
+function noticeRowsForFile(
+  file: ReviewRenderableFile,
+  locale: MobileLocale,
+): ReadonlyArray<NativeReviewDiffRow> {
+  if (file.notice) return [createNoticeRow(file.id, "loading", file.notice, locale)];
   if (file.rows.length > 0) {
     return [];
   }
@@ -252,12 +281,19 @@ function noticeRowsForFile(file: ReviewRenderableFile): ReadonlyArray<NativeRevi
   const previewState = getReviewFilePreviewState(file);
   if (previewState.kind === "suppressed" && previewState.reason === "non-text") {
     return [
-      createNoticeRow(file.id, "non-text", "Unsupported format. Diff contents are not available."),
+      createNoticeRow(
+        file.id,
+        "non-text",
+        "Unsupported format. Diff contents are not available.",
+        locale,
+      ),
     ];
   }
 
   if (file.changeType === "rename-pure") {
-    return [createNoticeRow(file.id, "rename", "This file was renamed without modifications.")];
+    return [
+      createNoticeRow(file.id, "rename", "This file was renamed without modifications.", locale),
+    ];
   }
 
   return [];
@@ -373,8 +409,11 @@ function mapLineRow(
   };
 }
 
-function prepareFileRows(file: ReviewRenderableFile): PreparedNativeReviewFileRows {
-  const cached = nativeReviewFileRowsCache.get(file);
+function prepareFileRows(
+  file: ReviewRenderableFile,
+  locale: MobileLocale,
+): PreparedNativeReviewFileRows {
+  const cached = nativeReviewFileRowsCache.get(file)?.get(locale);
   if (cached) return cached;
   const commentTargetsByRowId = new Map<string, NativeReviewDiffCommentTarget>();
   const rowIdByCommentLineId = new Map<string, string>();
@@ -420,16 +459,16 @@ function prepareFileRows(file: ReviewRenderableFile): PreparedNativeReviewFileRo
   });
 
   if (sourceRows !== file.rows) {
-    rows.push(createNoticeRow(file.id, "truncated", TRUNCATED_FILE_NOTICE));
+    rows.push(createNoticeRow(file.id, "truncated", TRUNCATED_FILE_NOTICE, locale));
   }
-  rows.push(...noticeRowsForFile(file));
+  rows.push(...noticeRowsForFile(file, locale));
   if (file.noEOFCRAdditions || file.noEOFCRDeletions) {
     const side = file.noEOFCRAdditions
       ? file.noEOFCRDeletions
         ? "Old and new files have"
         : "New file has"
       : "Old file has";
-    rows.push(createNoticeRow(file.id, "eof", `${side} no newline at end of file.`));
+    rows.push(createNoticeRow(file.id, "eof", `${side} no newline at end of file.`, locale));
   }
   const prepared: PreparedNativeReviewFileRows = {
     fileId: file.id,
@@ -442,7 +481,9 @@ function prepareFileRows(file: ReviewRenderableFile): PreparedNativeReviewFileRo
     rowIdByCommentLineId,
     commentedRows: null,
   };
-  nativeReviewFileRowsCache.set(file, prepared);
+  const byLocale = nativeReviewFileRowsCache.get(file) ?? new Map();
+  byLocale.set(locale, prepared);
+  nativeReviewFileRowsCache.set(file, byLocale);
   return prepared;
 }
 
@@ -493,7 +534,10 @@ function insertFileComments(
   return rows;
 }
 
-function prepareNativeReviewDiffData(parsedDiff: ReviewParsedDiff): PreparedNativeReviewDiffData {
+function prepareNativeReviewDiffData(
+  parsedDiff: ReviewParsedDiff,
+  locale: MobileLocale,
+): PreparedNativeReviewDiffData {
   if (parsedDiff.kind !== "files") {
     return {
       fileRows: [],
@@ -514,7 +558,7 @@ function prepareNativeReviewDiffData(parsedDiff: ReviewParsedDiff): PreparedNati
   }));
   const commentTargetsByRowId = new Map<string, NativeReviewDiffCommentTarget>();
   const rowIdByCommentLineId = new Map<string, string>();
-  const fileRows = parsedDiff.files.map(prepareFileRows);
+  const fileRows = parsedDiff.files.map((file) => prepareFileRows(file, locale));
   for (const file of fileRows) {
     for (const [rowId, target] of file.commentTargetsByRowId) {
       commentTargetsByRowId.set(rowId, target);
@@ -568,21 +612,28 @@ export function buildNativeReviewDiffData(
 ): NativeReviewDiffData {
   const parsedDiff = "parsedDiff" in input ? input.parsedDiff : input;
   const comments = "parsedDiff" in input ? (input.comments ?? []) : [];
-  return buildCommentedNativeReviewDiffData(prepareNativeReviewDiffData(parsedDiff), comments);
+  const locale = "parsedDiff" in input ? (input.locale ?? MOBILE_LOCALE) : MOBILE_LOCALE;
+  return buildCommentedNativeReviewDiffData(
+    prepareNativeReviewDiffData(parsedDiff, locale),
+    comments,
+  );
 }
 
 export function getCachedNativeReviewDiffData(
   input: BuildNativeReviewDiffDataInput,
 ): NativeReviewDiffData {
+  const locale = input.locale ?? MOBILE_LOCALE;
   const comments = input.comments ?? [];
   const commentsKey = buildReviewCommentsCacheKey(comments);
-  const cached = nativeReviewDiffDataCache.get(input.parsedDiff);
+  const cached = nativeReviewDiffDataCache.get(input.parsedDiff)?.get(locale);
   if (cached?.commentsKey === commentsKey) {
     return cached.data;
   }
 
-  const prepared = cached?.prepared ?? prepareNativeReviewDiffData(input.parsedDiff);
+  const prepared = cached?.prepared ?? prepareNativeReviewDiffData(input.parsedDiff, locale);
   const data = buildCommentedNativeReviewDiffData(prepared, comments);
-  nativeReviewDiffDataCache.set(input.parsedDiff, { prepared, commentsKey, data });
+  const byLocale = nativeReviewDiffDataCache.get(input.parsedDiff) ?? new Map();
+  byLocale.set(locale, { prepared, commentsKey, data });
+  nativeReviewDiffDataCache.set(input.parsedDiff, byLocale);
   return data;
 }

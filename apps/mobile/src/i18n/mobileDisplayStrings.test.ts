@@ -2,6 +2,9 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   formatMobileMessage,
+  mobilePullRequestListFailure,
+  mobilePullRequestListFailures,
+  mobileEnvironmentQueryFailure,
   localizeMobileSubagentStatus,
   mobileListPosition,
   mobileRunsOn,
@@ -88,4 +91,52 @@ it("formats sign-in and even-pace copy without translating embedded values", () 
   expect(formatMobileMessage("Even pace: {0}% left by now", [42], "en")).toBe(
     "Even pace: 42% left by now",
   );
+});
+
+it("localizes only the generated PR list error fallback", () => {
+  for (const locale of ["en", "zh-CN"] as const) {
+    expect(mobilePullRequestListFailure(null, locale)).toBe(
+      locale === "en" ? "Couldn't load pull requests." : "无法加载拉取请求。",
+    );
+    for (const message of [
+      "Settings",
+      "Open",
+      "Couldn't load pull requests.",
+      "NativeError: Settings/{0}/$&",
+    ]) {
+      expect(mobilePullRequestListFailure(new Error(message), locale)).toBe(message);
+    }
+  }
+});
+
+it("keeps joined pagination failures literal and translates only generated missing-error fallbacks", () => {
+  for (const locale of ["en", "zh-CN"] as const) {
+    expect(mobilePullRequestListFailures([], locale)).toBeNull();
+    expect(
+      mobilePullRequestListFailures(
+        [
+          { status: "fulfilled", value: null },
+          { status: "rejected", reason: new Error("Settings") },
+          { status: "rejected", reason: new Error("Open") },
+          { status: "rejected", reason: null },
+        ],
+        locale,
+      ),
+    ).toBe(
+      `Settings\nOpen\n${locale === "en" ? "Couldn't load pull requests." : "无法加载拉取请求。"}`,
+    );
+    for (const error of [null, undefined, new Error("  ")]) {
+      expect(mobileEnvironmentQueryFailure(error, locale)).toBe(
+        locale === "en" ? "The environment request failed." : "环境请求失败。",
+      );
+    }
+    for (const text of [
+      "Settings",
+      "Open",
+      "The environment request failed.",
+      " native error/{0}/$& ",
+    ]) {
+      expect(mobileEnvironmentQueryFailure(new Error(text), locale)).toBe(text);
+    }
+  }
 });

@@ -66,6 +66,7 @@ function PullRequestListError(props: { readonly message: string }) {
         tintColorClassName="accent-icon-muted"
       />
       <Text
+        localize={false}
         selectable={expanded}
         numberOfLines={expanded ? undefined : 1}
         ellipsizeMode="tail"
@@ -325,7 +326,7 @@ export function PullRequestsScreen(
                 {result.data.errors.map((error) => (
                   <PullRequestListError
                     key={`${error.environmentId} ${error.projectTitle} ${error.message}`}
-                    message={`${error.projectTitle || environments.find((environment) => environment.environmentId === error.environmentId)?.environmentLabel || "Environment"}: ${error.message}`}
+                    message={`${error.projectTitle || environments.find((environment) => environment.environmentId === error.environmentId)?.environmentLabel || localizeMobileString("Environment")}: ${error.message}`}
                   />
                 ))}
               </View>
@@ -342,7 +343,9 @@ export function PullRequestsScreen(
             </View>
           ) : result.loadMoreError ? (
             <View className="items-center gap-2 px-8 py-4">
-              <Text className="text-xs text-foreground-muted">{result.loadMoreError}</Text>
+              <Text localize={false} className="text-xs text-foreground-muted">
+                {result.loadMoreError}
+              </Text>
               <Button
                 label="Try again"
                 accessibilityLabel={localizeMobileString("Retry loading more pull requests")}
@@ -368,6 +371,7 @@ export function PullRequestsScreen(
           ) : (
             <View className="px-8 py-12">
               <EmptyState
+                localizeDetail={!result.error}
                 title={
                   result.error
                     ? "Couldn't load pull requests"

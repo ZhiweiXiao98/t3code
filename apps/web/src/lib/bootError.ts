@@ -11,6 +11,81 @@ const COPY_BLOCKED = "Copy was blocked. The text is selected so you can copy it 
 const UPDATE_DOWNLOAD_FAILED = "The update download failed. Try Download update again.";
 const UPDATE_INSTALL_FAILED = "The update install failed. Try Restart to update again.";
 
+type BootLocale = "en" | "zh-CN";
+
+const BOOT_MESSAGES: Readonly<Record<string, string>> = {
+  "T3 Code failed to start": "T3 Code 启动失败",
+  "This browser appears to be offline. Check the connection, then reload.":
+    "此浏览器似乎已离线。请检查网络连接，然后重新加载。",
+  "We are not sure why. Try a reload first.": "暂时无法确定原因。请先尝试重新加载。",
+  Reload: "重新加载",
+  "Download update": "下载更新",
+  "Restart to update": "重启以更新",
+  "Copy command": "复制命令",
+  Copied: "已复制",
+  "Copied to clipboard.": "已复制到剪贴板。",
+  "Copy error details": "复制错误详情",
+  "Press ⌘C to copy": "按 ⌘C 复制",
+  "Press Ctrl+C to copy": "按 Ctrl+C 复制",
+  [COPY_BLOCKED]: "复制被阻止。已选中文本，你可以手动复制。",
+  [UPDATE_DOWNLOAD_FAILED]: "更新下载失败。请再次尝试“下载更新”。",
+  [UPDATE_INSTALL_FAILED]: "更新安装失败。请再次尝试“重启以更新”。",
+  "More options if it keeps failing": "如果仍然失败，查看更多选项",
+  "Download and reinstall the latest nightly build": "下载并重新安装最新的每日构建版",
+  "Download and reinstall T3 Code": "下载并重新安装 T3 Code",
+  "Run this on the computer that runs T3 Code. Your agent can check the local logs and help you file a bug report.":
+    "请在运行 T3 Code 的计算机上执行此命令。你的智能体可以检查本地日志，并帮助你提交错误报告。",
+  "Details may include local file paths and names. Check before sharing.":
+    "详情可能包含本地文件路径和名称。请在分享前检查。",
+  "File a bug report on GitHub": "在 GitHub 上提交错误报告",
+};
+
+export function bootMessage(locale: BootLocale, source: string): string {
+  if (locale === "en") return source;
+  if (Object.hasOwn(BOOT_MESSAGES, source)) return BOOT_MESSAGES[source]!;
+  const progress = /^Downloading update \((-?\d+(?:\.\d+)?|NaN|Infinity)%\)$/.exec(source);
+  return progress ? `正在下载更新（${progress[1]}%）` : source;
+}
+
+// Bootstrap must remain independent of settings, React, and the main application bundle.
+export function resolveBootLocale(
+  preference: unknown,
+  runtimeLocales: readonly string[],
+): BootLocale {
+  if (preference === "en" || preference === "zh-CN") return preference;
+  for (const candidate of runtimeLocales) {
+    try {
+      const locale = new Intl.Locale(candidate.trim());
+      if (locale.language === "en") return "en";
+      if (locale.language === "zh") return locale.maximize().script === "Hans" ? "zh-CN" : "en";
+    } catch {
+      // An invalid language tag must not hide the startup error.
+    }
+  }
+  return "en";
+}
+
+export function readBootBrowserPreference(storage: Pick<Storage, "getItem">): unknown {
+  try {
+    const value: unknown = JSON.parse(storage.getItem("t3code:client-settings:v1") ?? "null");
+    return typeof value === "object" && value !== null && "appLocale" in value
+      ? value.appLocale
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function bootRuntimeLocales(bridge: DesktopBridge | undefined): readonly string[] {
+  const browser = navigator.languages?.length ? navigator.languages : [navigator.language];
+  try {
+    const system = bridge?.getSystemLocale?.();
+    return system ? [system, ...browser] : browser;
+  } catch {
+    return browser;
+  }
+}
+
 /** The Windows launcher is a `.cmd` run from PowerShell, which needs `&` to run a quoted path. */
 function launcherCommand(launcherPath: string) {
   if (launcherPath.endsWith(".cmd")) {
@@ -203,17 +278,18 @@ function mountUpdateButton(
   button: HTMLButtonElement,
   note: HTMLParagraphElement,
   announce: (text: string) => void,
+  setText: (node: HTMLElement, source: string) => void,
 ) {
   let action: ReturnType<typeof updateActionFor> = null;
+  let previousFailure = "";
   const render = (state: DesktopUpdateState) => {
     action = updateActionFor(state);
     button.hidden = action === null;
     // aria-disabled keeps keyboard focus on the button while the download runs.
     button.setAttribute("aria-disabled", String(action?.kind === "downloading"));
-    if (action?.kind === "download") button.textContent = "Download update";
-    if (action?.kind === "downloading")
-      button.textContent = `Downloading update (${action.percent}%)`;
-    if (action?.kind === "install") button.textContent = "Restart to update";
+    if (action?.kind === "download") setText(button, "Download update");
+    if (action?.kind === "downloading") setText(button, `Downloading update (${action.percent}%)`);
+    if (action?.kind === "install") setText(button, "Restart to update");
     const failure = !action
       ? ""
       : state.errorContext === "download"
@@ -221,8 +297,9 @@ function mountUpdateButton(
         : state.errorContext === "install"
           ? UPDATE_INSTALL_FAILED
           : "";
-    if (failure === note.textContent) return;
-    note.textContent = failure;
+    if (failure === previousFailure) return;
+    previousFailure = failure;
+    setText(note, failure);
     note.hidden = !failure;
     if (failure) announce(failure);
   };
@@ -262,20 +339,52 @@ export function showBootError(error: unknown) {
   const bridge = window.desktopBridge;
   const environment = readEnvironment(bridge);
   const offline = !bridge && navigator.onLine === false;
+  const runtimeLocales = bootRuntimeLocales(bridge);
+  let preference: unknown;
+  if (!bridge) {
+    try {
+      preference = readBootBrowserPreference(window.localStorage);
+    } catch {
+      // Accessing localStorage itself can fail in restricted browser contexts.
+    }
+  }
+  let locale = resolveBootLocale(preference, runtimeLocales);
+  bootShell.lang = locale;
+  const bindings = new Map<HTMLElement, Map<"textContent" | "title" | "aria-label", string>>();
+  const setCopy = (
+    node: HTMLElement,
+    property: "textContent" | "title" | "aria-label",
+    source: string,
+  ) => {
+    let properties = bindings.get(node);
+    if (!properties) bindings.set(node, (properties = new Map()));
+    properties.set(property, source);
+    const value = bootMessage(locale, source);
+    if (property === "aria-label") node.setAttribute(property, value);
+    else node[property] = value;
+  };
+  const setText = (node: HTMLElement, source: string) => setCopy(node, "textContent", source);
+  const localElement: typeof element = (tag, props = {}, children = []) => {
+    const node = element(tag, props, children);
+    if (tag !== "pre" && tag !== "code" && typeof props.textContent === "string")
+      setText(node, props.textContent);
+    if (typeof props.title === "string") setCopy(node, "title", props.title);
+    return node;
+  };
 
-  const status = element("span", { className: "boot-error-sr" });
+  const status = localElement("span", { className: "boot-error-sr" });
   status.setAttribute("aria-live", "polite");
   // Clearing first makes screen readers announce a repeated message.
   let announcement: ReturnType<typeof setTimeout> | undefined;
   const announce = (text: string) => {
     clearTimeout(announcement);
-    status.textContent = "";
-    announcement = setTimeout(() => (status.textContent = text), 100);
+    setText(status, "");
+    announcement = setTimeout(() => setText(status, text), 100);
   };
 
-  const message = element("div", {}, [
-    element("h1", { textContent: "T3 Code failed to start" }),
-    element("p", {
+  const message = localElement("div", {}, [
+    localElement("h1", { textContent: "T3 Code failed to start" }),
+    localElement("p", {
       textContent: offline
         ? "This browser appears to be offline. Check the connection, then reload."
         : "We are not sure why. Try a reload first.",
@@ -283,37 +392,38 @@ export function showBootError(error: unknown) {
   ]);
   message.setAttribute("role", "alert");
 
-  const reload = element("button", {
+  const reload = localElement("button", {
     id: "boot-error-reload",
     type: "button",
     textContent: "Reload",
   });
   reload.addEventListener("click", () => window.location.reload());
-  const update = element("button", { id: "boot-error-update", type: "button", hidden: true });
-  const updateNote = element("p", { id: "boot-error-update-note", hidden: true });
-  if (bridge) mountUpdateButton(bridge, update, updateNote, announce);
+  const update = localElement("button", { id: "boot-error-update", type: "button", hidden: true });
+  const updateNote = localElement("p", { id: "boot-error-update-note", hidden: true });
+  if (bridge) mountUpdateButton(bridge, update, updateNote, announce, setText);
 
-  const command = element("code", { textContent: FALLBACK_TRIAGE_COMMAND });
-  const copyCommand = element("button", {
+  const command = localElement("code", { textContent: FALLBACK_TRIAGE_COMMAND });
+  const copyCommand = localElement("button", {
     className: "boot-error-icon",
     type: "button",
     title: "Copy command",
     innerHTML: COPY_ICON,
   });
-  copyCommand.setAttribute("aria-label", "Copy command");
+  setCopy(copyCommand, "aria-label", "Copy command");
   copyCommand.addEventListener("click", () =>
     copyText(
       command,
       () => {
+        bindings.get(copyCommand)?.delete("textContent");
         copyCommand.innerHTML = CHECK_ICON;
-        copyCommand.title = "Copied";
-        copyCommand.setAttribute("aria-label", "Copied");
+        setCopy(copyCommand, "title", "Copied");
+        setCopy(copyCommand, "aria-label", "Copied");
         announce("Copied to clipboard.");
       },
       (hint) => {
-        copyCommand.textContent = hint;
-        copyCommand.title = hint;
-        copyCommand.setAttribute("aria-label", hint);
+        setText(copyCommand, hint);
+        setCopy(copyCommand, "title", hint);
+        setCopy(copyCommand, "aria-label", hint);
         announce(COPY_BLOCKED);
       },
     ),
@@ -326,17 +436,21 @@ export function showBootError(error: unknown) {
   } catch (reportError) {
     console.warn("Could not describe the startup error.", reportError);
   }
-  const details = element("pre", { id: "boot-error-details", tabIndex: 0, textContent: report });
-  const copyDetails = element("button", { type: "button", textContent: "Copy error details" });
+  const details = localElement("pre", {
+    id: "boot-error-details",
+    tabIndex: 0,
+    textContent: report,
+  });
+  const copyDetails = localElement("button", { type: "button", textContent: "Copy error details" });
   copyDetails.addEventListener("click", () =>
     copyText(
       details,
       () => {
-        copyDetails.textContent = "Copied";
+        setText(copyDetails, "Copied");
         announce("Copied to clipboard.");
       },
       (hint) => {
-        copyDetails.textContent = hint;
+        setText(copyDetails, hint);
         announce(COPY_BLOCKED);
       },
     ),
@@ -349,11 +463,11 @@ export function showBootError(error: unknown) {
   issue.searchParams.set("version", `${environment.version} (${environment.channel})`);
   issue.searchParams.set("environment", `${environment.surface}, ${environment.platform}`);
   const link = (href: string, textContent: string) =>
-    element("a", { href, textContent, target: "_blank", rel: "noreferrer" });
+    localElement("a", { href, textContent, target: "_blank", rel: "noreferrer" });
   const nightly = environment.channel === "nightly";
 
-  const more = element("details", { open: isRepeatFailure(Date.now()) }, [
-    element("summary", { textContent: "More options if it keeps failing" }),
+  const more = localElement("details", { open: isRepeatFailure(Date.now()) }, [
+    localElement("summary", { textContent: "More options if it keeps failing" }),
     ...(bridge
       ? [
           link(
@@ -364,19 +478,19 @@ export function showBootError(error: unknown) {
           ),
         ]
       : []),
-    element("div", {}, [
-      element("p", {
+    localElement("div", {}, [
+      localElement("p", {
         textContent:
           "Run this on the computer that runs T3 Code. Your agent can check the local logs and help you file a bug report.",
       }),
-      element("div", { id: "boot-error-command" }, [command, copyCommand]),
+      localElement("div", { id: "boot-error-command" }, [command, copyCommand]),
     ]),
-    element("div", {}, [
+    localElement("div", {}, [
       details,
-      element("p", {
+      localElement("p", {
         textContent: "Details may include local file paths and names. Check before sharing.",
       }),
-      element("div", { id: "boot-error-report" }, [
+      localElement("div", { id: "boot-error-report" }, [
         copyDetails,
         link(issue.href, "File a bug report on GitHub"),
       ]),
@@ -384,12 +498,33 @@ export function showBootError(error: unknown) {
   ]);
 
   bootShell.replaceChildren(
-    element("div", { id: "boot-error" }, [
+    localElement("div", { id: "boot-error" }, [
       message,
-      element("div", { id: "boot-error-actions" }, [reload, update]),
+      localElement("div", { id: "boot-error-actions" }, [reload, update]),
       updateNote,
       more,
       status,
     ]),
   );
+  if (bridge) {
+    try {
+      void bridge.getClientSettings().then(
+        (settings) => {
+          locale = resolveBootLocale(settings?.appLocale, runtimeLocales);
+          bootShell.lang = locale;
+          for (const [node, properties] of bindings) {
+            for (const [property, source] of properties) {
+              const value = bootMessage(locale, source);
+              if (property === "aria-label") node.setAttribute(property, value);
+              else if (property === "title") node.title = value;
+              else node.textContent = value;
+            }
+          }
+        },
+        () => undefined,
+      );
+    } catch {
+      // A missing or broken bridge must not prevent the already rendered recovery UI.
+    }
+  }
 }

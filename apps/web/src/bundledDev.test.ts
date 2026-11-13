@@ -118,3 +118,9 @@ console.log("App started with React refresh ready.");`,
     await NodeFSP.rm(root, { recursive: true, force: true });
   }
 });
+
+it("keeps startup recovery independent of runtime application imports", async () => {
+  const source = await NodeFSP.readFile(new URL("./lib/bootError.ts", import.meta.url), "utf8");
+  expect(source.match(/^import (?!type\b).*$/gm)).toBeNull();
+  expect(source).not.toMatch(/\bimport\s*\(/);
+});

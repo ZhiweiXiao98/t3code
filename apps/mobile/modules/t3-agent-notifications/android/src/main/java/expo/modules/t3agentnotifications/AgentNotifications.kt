@@ -173,9 +173,10 @@ object AgentNotifications {
     data: Map<String, String>,
     alertId: String
   ) {
-    val title = data["alert_title"].orEmpty().take(120)
+    val presentation = agentAlertPresentation(data, T3NativeStrings(context))
+    val title = presentation.title.take(120)
     // Grouped alerts list up to five 120-character thread titles.
-    val body = data["alert_body"].orEmpty().take(608)
+    val body = presentation.body.take(608)
     val id = alertId.hashCode()
     val group = data["alert_group"]?.takeIf { it.isNotBlank() } ?: ALERT_TAG
     val notification = base(context, ALERT_CHANNEL)

@@ -1,3 +1,8 @@
+import {
+  localizeMobileString,
+  MOBILE_LOCALE,
+  type MobileLocale,
+} from "../../../i18n/mobileStrings";
 import type { PullRequestReviewGuideResult } from "@t3tools/contracts";
 
 export function reviewGuideState(data: PullRequestReviewGuideResult | null) {
@@ -71,4 +76,14 @@ export function guideNoticeState(state: {
       "Get a tour of the change, with code excerpts and notes on what needs a closer look.",
     action: "Write guide",
   };
+}
+
+/** Failed descriptions come from the server or provider and must remain literal. */
+export function guideNoticeDescription(
+  notice: ReturnType<typeof guideNoticeState>,
+  locale: MobileLocale = MOBILE_LOCALE,
+): string {
+  return notice.kind === "failed" || notice.kind === "unavailable"
+    ? notice.description
+    : localizeMobileString(notice.description, locale);
 }

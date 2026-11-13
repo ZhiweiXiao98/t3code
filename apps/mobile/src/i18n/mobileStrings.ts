@@ -6,6 +6,57 @@ export const MOBILE_LOCALE: MobileLocale =
   process.env.EXPO_PUBLIC_APP_LOCALE === "zh-CN" ? "zh-CN" : "en";
 
 const ZH_CN_MESSAGES = {
+  "Reconnect or ask someone with write access to retry.": "请重新连接，或请有写入权限的人重试。",
+  "Writing a guide requires a connection and write access.": "编写导览需要连接环境并具有写入权限。",
+  "The environment request failed.": "环境请求失败。",
+  "Couldn't advance the list. Try again.": "无法继续加载列表，请重试。",
+
+  "Could not start the review guide.": "无法启动审查导览。",
+  "Rewriting guide": "正在重写导览",
+  "You can keep reading this guide while the agent writes the update.":
+    "智能体更新导览时，你仍可继续阅读当前导览。",
+  "An agent is reading the change and writing the tour. You can leave and come back when it’s ready.":
+    "智能体正在阅读更改并编写导览，你可以先离开，准备好后再回来。",
+  "Rewriting…": "正在重写…",
+  "Writing guide…": "正在编写导览…",
+  "Could not write guide": "无法编写导览",
+  "Could not refresh guide": "无法刷新导览",
+  "Review guide": "审查导览",
+  "Checking for a saved guide…": "正在检查已保存的导览…",
+  "Loading guide…": "正在加载导览…",
+  "New changes since this guide": "此导览之后有新更改",
+  "You can read the previous guide, or rewrite it for the latest changes.":
+    "你可以阅读原导览，或针对最新更改重新编写。",
+  "Rewrite guide": "重写导览",
+  "Get a tour of the change, with code excerpts and notes on what needs a closer look.":
+    "通过代码片段和重点审查提示，了解此次更改。",
+  "Write guide": "编写导览",
+  "Couldn't load pull requests.": "无法加载拉取请求。",
+  "Some file contents are unavailable. Open the change request on its provider to see the full changes.":
+    "部分文件内容不可用，请在托管平台打开更改请求以查看全部更改。",
+  "Unsupported format. Diff contents are not available.": "格式不受支持，无法显示差异内容。",
+  "This file was renamed without modifications.": "此文件仅被重命名，内容未修改。",
+  "Old file has no newline at end of file.": "原文件末尾没有换行符。",
+  "New file has no newline at end of file.": "新文件末尾没有换行符。",
+  "Old and new files have no newline at end of file.": "原文件和新文件末尾都没有换行符。",
+  "File preview exceeds the size limit. Counts include all changes.":
+    "文件预览超过大小限制，统计包含全部更改。",
+  "Could not display file preview.": "无法显示文件预览。",
+  "Could not load diff. Select the file to retry.": "无法加载差异，请选择此文件重试。",
+  "Diff output hit the server size cap. Showing the available excerpt.":
+    "差异输出已达到服务器大小上限，当前仅显示可用片段。",
+  "Diff was truncated before it could be parsed completely. Showing the raw excerpt.":
+    "差异在完整解析前已被截断，当前显示原始片段。",
+  "Unsupported diff format. Showing raw patch.": "差异格式不受支持，当前显示原始补丁。",
+  "Failed to parse patch. Showing raw patch.": "无法解析补丁，当前显示原始补丁。",
+  "This preview exceeds the size limit. Changes shown are incomplete.":
+    "此预览超过大小限制，显示的更改不完整。",
+  "This preview exceeds the size limit. Changes shown are incomplete. Counts include all changes.":
+    "此预览超过大小限制，显示的更改不完整，统计包含全部更改。",
+  "Some file contents are unavailable. Open the pull request on its provider to see the full changes.":
+    "部分文件内容不可用，请在托管平台打开拉取请求以查看全部更改。",
+  "Some file contents are unavailable. Open the merge request on its provider to see the full changes.":
+    "部分文件内容不可用，请在托管平台打开合并请求以查看全部更改。",
   Queue: "排队",
   Restart: "重新开始",
   "Steer now": "立即引导",

@@ -61,3 +61,36 @@ export function formatMobileMessage(
     },
   );
 }
+
+/** Local list failures have an application fallback; actual error messages are opaque. */
+export function mobilePullRequestListFailure(
+  error: unknown,
+  locale: MobileLocale = MOBILE_LOCALE,
+): string {
+  return error instanceof Error
+    ? error.message
+    : localizeMobileString("Couldn't load pull requests.", locale);
+}
+
+/** Keep real environment error messages untouched; only absent/blank failures use UI copy. */
+export function mobileEnvironmentQueryFailure(
+  error: unknown,
+  locale: MobileLocale = MOBILE_LOCALE,
+): string {
+  return error instanceof Error && error.message.trim().length > 0
+    ? error.message
+    : localizeMobileString("The environment request failed.", locale);
+}
+
+export function mobilePullRequestListFailures(
+  results: readonly PromiseSettledResult<unknown>[],
+  locale: MobileLocale = MOBILE_LOCALE,
+): string | null {
+  return (
+    results
+      .flatMap((result) =>
+        result.status === "rejected" ? [mobilePullRequestListFailure(result.reason, locale)] : [],
+      )
+      .join("\n") || null
+  );
+}

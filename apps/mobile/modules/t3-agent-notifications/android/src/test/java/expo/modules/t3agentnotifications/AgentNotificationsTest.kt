@@ -9,11 +9,15 @@ import android.app.NotificationManager
 import android.content.ComponentName
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.ProcessLifecycleOwner
+import org.json.JSONArray
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -65,6 +69,241 @@ abstract class AgentNotificationsFixture {
     "alert_body" to "Done: Test project",
     "alert_path" to "/threads/environment/thread",
   )
+}
+
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [24, 26, 33, 36], manifest = Config.NONE)
+class AgentAlertPresentationTest : AgentNotificationsFixture() {
+  private fun row(
+    phase: String = "completed",
+    threadId: String = "thread",
+    environmentId: String = "environment",
+    updatedAt: String = "2026-11-13T00:00:00.000Z"
+  ) = listOf(environmentId, threadId, phase, updatedAt)
+
+  private fun single(identity: List<String> = row(), status: String = "Done") = mapOf(
+    "alert_id" to JSONArray(identity).toString(),
+    "alert_group" to JSONArray(identity.take(2)).toString(),
+    "alert_title" to "2 agents finished",
+    "alert_body" to "$status: Done: 用户项目, Input",
+    "alert_path" to "/threads/${Uri.encode(identity[0])}/${Uri.encode(identity[1])}",
+  )
+
+  private fun grouped(rows: List<List<String>>, attention: Boolean = false) = mapOf(
+    "alert_id" to JSONArray(rows.map { JSONArray(it) }).toString(),
+    "alert_title" to "${rows.size} agents ${if (attention) "need attention" else "finished"}",
+    "alert_body" to "Done: 用户会话, 2 agents finished, Approval",
+    "alert_path" to "/",
+  )
+
+  private fun assertUnchanged(data: Map<String, String>) {
+    assertEquals(
+      data.toString(),
+      AgentAlertPresentation(data["alert_title"].orEmpty(), data["alert_body"].orEmpty()),
+      agentAlertPresentation(data, T3NativeStrings("zh-CN"))
+    )
+  }
+
+  @Test
+  fun singleAlertsTranslateOnlyTheirVerifiedStatusPrefix() {
+    val phases = listOf(
+      Triple("waiting_for_approval", "Approval", "待审批"),
+      Triple("waiting_for_input", "Input", "待输入"),
+      Triple("completed", "Done", "已完成"),
+      Triple("failed", "Failed", "失败"),
+    )
+    for ((phase, status, chinese) in phases) {
+      val data = single(row(phase, "thread/中文", "env:one"), status)
+      val snapshot = data.toMap()
+      for (locale in listOf(null, "en", "zh-TW", "zh-CN")) {
+        val presentation = agentAlertPresentation(data, T3NativeStrings(locale))
+        assertEquals(data["alert_title"], presentation.title)
+        assertEquals(
+          if (locale == "zh-CN") "$chinese：Done: 用户项目, Input" else data["alert_body"],
+          presentation.body
+        )
+      }
+      assertEquals(snapshot, data)
+    }
+    val whitespace = single() + ("alert_body" to "Done:  Done: project\n用户 ")
+    assertEquals(
+      "已完成： Done: project\n用户 ",
+      agentAlertPresentation(whitespace, T3NativeStrings("zh-CN")).body
+    )
+  }
+
+  @Test
+  fun groupedAlertsTranslateOnlyTheMatchingCountAndPhaseFamily() {
+    val cases = listOf(
+      listOf(row("waiting_for_approval"), row("waiting_for_input", "second")) to true,
+      listOf(row("completed"), row("failed", "second")) to false,
+      (1..5).map { row("completed", "thread-$it") } to false,
+    )
+    for ((rows, attention) in cases) {
+      for (ordered in listOf(rows, rows.reversed())) {
+        val data = grouped(ordered, attention)
+        for (locale in listOf(null, "en", "zh-TW", "zh-CN")) {
+          val presentation = agentAlertPresentation(data, T3NativeStrings(locale))
+          assertEquals(
+            if (locale != "zh-CN") data["alert_title"]
+            else "${rows.size} 个智能体${if (attention) "需要处理" else "已结束"}",
+            presentation.title
+          )
+          assertEquals(data["alert_body"], presentation.body)
+        }
+      }
+    }
+  }
+
+  @Test
+  fun legacyMalformedAndUnknownIdentitiesNeverAuthorizeTranslation() {
+    val data = single()
+    val invalidIds = listOf(
+      "legacy-alert-id",
+      "null",
+      "{}",
+      "[]",
+      "[\"environment\",\"thread\",\"completed\"]",
+      "[\"environment\",\"thread\",\"completed\",\"time\",\"extra\"]",
+      "[\"environment\",\"thread\",\"completed\",123]",
+      "[\"environment\",\"thread\",\"completed\",null]",
+      "[\"environment\",\"thread\",\"completed\",true]",
+      "[environment,thread,completed,time]",
+      "['environment','thread','completed','time']",
+      "[\"environment\",\"thread\",\"completed\",\"time\",]",
+      "/* comment */${data.getValue("alert_id")}",
+      "${data.getValue("alert_id")} garbage",
+      JSONArray(row("running")).toString(),
+      JSONArray(row("starting")).toString(),
+      JSONArray(row("stale")).toString(),
+      JSONArray(row("unknown")).toString(),
+      JSONArray(row(updatedAt = "")).toString(),
+      JSONArray(row(updatedAt = " ")).toString(),
+      JSONArray(row(environmentId = " environment")).toString(),
+      JSONArray(row(threadId = "")).toString(),
+    )
+    for (id in invalidIds) assertUnchanged(data + ("alert_id" to id))
+    for (key in listOf("alert_id", "alert_group", "alert_path", "alert_title", "alert_body")) {
+      assertUnchanged(data - key)
+    }
+    for (group in listOf(
+      "environment/thread",
+      "[\"other\",\"thread\"]",
+      "[\"environment\",123]",
+      "[\"environment\",\"thread\",\"extra\"]",
+      "${data.getValue("alert_group")} garbage",
+    )) assertUnchanged(data + ("alert_group" to group))
+    for (path in listOf(
+      "/", "/threads/environment/other", "/threads/environment/thread?x=1",
+      "/threads/environment/thread#fragment", "//threads/environment/thread",
+      "/threads/environment/thread/", "t3code://threads/environment/thread",
+    )) assertUnchanged(data + ("alert_path" to path))
+    for (body in listOf("Done", "Done:", "Done: ", "Done...", "Failed: project", "User: Done: project")) {
+      assertUnchanged(data + ("alert_body" to body))
+    }
+  }
+
+  @Test
+  fun conflictingOrTruncatedGroupsKeepTheirOriginalTitleAndUserBody() {
+    val rows = listOf(row(), row("failed", "second"))
+    val data = grouped(rows)
+    val invalidRows = listOf(
+      emptyList(),
+      listOf(row()),
+      listOf(row(), row("failed")),
+      listOf(row(), row("waiting_for_input", "second")),
+      listOf(row(), row("unknown", "second")),
+      listOf(row(), listOf("environment", "second", "completed")),
+      (1..6).map { row("completed", "thread-$it") },
+    )
+    for (invalid in invalidRows) {
+      assertUnchanged(data + ("alert_id" to JSONArray(invalid.map { JSONArray(it) }).toString()))
+    }
+    for (title in listOf(
+      "3 agents finished", "2 agents need attention", "2 agents finish...",
+      "2 agents finished ", "My 2 agents finished", "2 个智能体已结束",
+    )) assertUnchanged(data + ("alert_title" to title))
+    for (group in listOf("", "[]", "[\"environment\",\"thread\"]")) {
+      assertUnchanged(data + ("alert_group" to group))
+    }
+    assertUnchanged(data - "alert_path")
+    assertUnchanged(data + ("alert_path" to "/threads/environment/thread"))
+    assertUnchanged(data + ("alert_path" to "/?query=1"))
+    val aggregateFields = mapOf(
+      "activity_phase" to "waiting_for_approval", "activity_count" to "5",
+      "activity_line_0" to "Approval\tUnrelated thread\tUnrelated project",
+    )
+    assertEquals(
+      agentAlertPresentation(data, T3NativeStrings("zh-CN")),
+      agentAlertPresentation(data + aggregateFields, T3NativeStrings("zh-CN"))
+    )
+  }
+
+  @Test
+  fun localizedPostsKeepTheirWireIdentityGroupingLinksAndRetryHistory() {
+    val applicationInfo = context.packageManager.getApplicationInfo(
+      context.packageName,
+      PackageManager.GET_META_DATA
+    )
+    applicationInfo.metaData = Bundle(applicationInfo.metaData ?: Bundle()).apply {
+      putString("T3AppLocale", "zh-CN")
+    }
+    shadowOf(context.packageManager).addOrUpdateApplicationInfo(applicationInfo)
+    val first = update("unused", false) + single()
+    val second = update("unused", false) + single(row(updatedAt = "2026-11-13T00:01:00.000Z"))
+    AgentNotifications.receive(context, first)
+    AgentNotifications.receive(context, second)
+    AgentNotifications.receive(context, second + ("alert_body" to "Retry must not replace text"))
+
+    val children = manager.activeNotifications.filter { it.tag == "t3-agent-alert" }
+    assertEquals(
+      setOf(first.getValue("alert_id").hashCode(), second.getValue("alert_id").hashCode()),
+      children.map { it.id }.toSet()
+    )
+    for (child in children) {
+      assertEquals(first["alert_group"], child.notification.group)
+      assertEquals(first["alert_title"], child.notification.extras.getString(Notification.EXTRA_TITLE))
+      assertEquals(
+        "已完成：Done: 用户项目, Input",
+        child.notification.extras.getString(Notification.EXTRA_BIG_TEXT)
+      )
+      assertEquals(
+        "t3code-dev://threads/environment/thread",
+        shadowOf(child.notification.contentIntent).savedIntent.dataString
+      )
+    }
+    val summary = manager.activeNotifications.single { it.tag != "t3-agent-alert" }
+    assertEquals(
+      "已完成：Done: 用户项目, Input",
+      summary.notification.extras.getString(Notification.EXTRA_TEXT)
+    )
+    assertEquals(null, summary.notification.sound)
+    assertEquals(
+      listOf(first.getValue("alert_id"), second.getValue("alert_id")).joinToString("\n"),
+      context.getSharedPreferences("t3-agent-notifications", 0).getString("seenAlertsOrdered", null)
+    )
+    val aggregate = grouped(listOf(row(), row("failed", "second")))
+    AgentNotifications.receive(
+      context,
+      update("unused", false).filterKeys { !it.startsWith("alert_") } + aggregate
+    )
+    val aggregateAlert = manager.activeNotifications.single {
+      it.tag == "t3-agent-alert" && it.id == aggregate.getValue("alert_id").hashCode()
+    }
+    assertEquals(
+      "2 个智能体已结束",
+      aggregateAlert.notification.extras.getString(Notification.EXTRA_TITLE)
+    )
+    assertEquals(
+      aggregate["alert_body"],
+      aggregateAlert.notification.extras.getString(Notification.EXTRA_BIG_TEXT)
+    )
+    assertEquals("t3-agent-alert", aggregateAlert.notification.group)
+    assertEquals(
+      "t3code-dev://",
+      shadowOf(aggregateAlert.notification.contentIntent).savedIntent.dataString
+    )
+  }
 }
 
 @RunWith(RobolectricTestRunner::class)

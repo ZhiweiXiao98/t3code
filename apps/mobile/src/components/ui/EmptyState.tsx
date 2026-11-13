@@ -7,6 +7,7 @@ import { Button } from "./Button";
 export function EmptyState(props: {
   readonly title: string;
   readonly detail: string;
+  readonly localizeDetail?: boolean;
   readonly actionLabel?: string;
   readonly onAction?: () => void;
   readonly action?: ReactNode;
@@ -19,6 +20,7 @@ export function EmptyState(props: {
           {props.title}
         </Text>
         <Text
+          localize={props.localizeDetail ?? true}
           textRole="body"
           className="mt-2 text-center font-sans leading-normal text-foreground-muted"
         >
@@ -40,7 +42,11 @@ export function EmptyState(props: {
       <Text textRole="headline" className="font-t3-bold text-foreground">
         {props.title}
       </Text>
-      <Text textRole="footnote" className="mt-2 font-sans leading-relaxed text-foreground-muted">
+      <Text
+        localize={props.localizeDetail ?? true}
+        textRole="footnote"
+        className="mt-2 font-sans leading-relaxed text-foreground-muted"
+      >
         {props.detail}
       </Text>
       {props.action ? (

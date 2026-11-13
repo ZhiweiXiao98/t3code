@@ -1,3 +1,4 @@
+import { mobileEnvironmentQueryFailure } from "../i18n/mobileDisplayStrings";
 import { useAtomRefresh, useAtomValue } from "@effect/atom-react";
 import * as Cause from "effect/Cause";
 import { AsyncResult, Atom } from "effect/reactivity";
@@ -18,9 +19,7 @@ export interface EnvironmentQueryView<A> {
 
 function formatError(cause: Cause.Cause<unknown>): string {
   const error = Cause.squash(cause);
-  return error instanceof Error && error.message.trim().length > 0
-    ? error.message
-    : "The environment request failed.";
+  return mobileEnvironmentQueryFailure(error);
 }
 
 export function useEnvironmentQuery<A, E>(
