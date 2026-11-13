@@ -495,7 +495,10 @@ export function UsagePriceOverrides({
                                     <Input
                                       size="compact"
                                       inputMode="decimal"
-                                      aria-label={`${field.label} price for ${row.model || "new model"}`}
+                                      aria-label={t("audit4.price", {
+                                        field: translate(field.label),
+                                        model: row.model || t("audit.price.new"),
+                                      })}
                                       value={value}
                                       placeholder={
                                         row.isNew

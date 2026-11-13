@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { Button, HStack, Picker, Popover, Spacer, Text, VStack } from "@expo/ui/swift-ui";
 import {
   accessibilityLabel,
@@ -41,7 +42,7 @@ export function NumberField(props: NumberFieldProps) {
               buttonStyle("bordered"),
               disabled(props.disabled),
               accessibilityLabel(
-                `${props.label}: ${props.formatValue?.(props.value) ?? props.value}`,
+                `${localizeMobileString(props.label ?? "")}: ${props.formatValue?.(props.value) ?? props.value}`,
               ),
               frame({ minWidth: 64, minHeight: 44 }),
               foregroundStyle(colors["--color-primary-text"]),
@@ -60,7 +61,7 @@ export function NumberField(props: NumberFieldProps) {
             ]}
           >
             <Picker
-              label={props.label}
+              label={props.label === undefined ? undefined : localizeMobileString(props.label)}
               selection={draft}
               onSelectionChange={setDraft}
               modifiers={[pickerStyle("wheel"), frame({ height: 180 })]}
@@ -76,7 +77,7 @@ export function NumberField(props: NumberFieldProps) {
             </Picker>
             <HStack>
               <Button
-                label="Cancel"
+                label={localizeMobileString("Cancel")}
                 systemImage="xmark"
                 onPress={() => setOpen(false)}
                 modifiers={[
@@ -88,7 +89,7 @@ export function NumberField(props: NumberFieldProps) {
               />
               <Spacer />
               <Button
-                label="Done"
+                label={localizeMobileString("Done")}
                 systemImage="checkmark"
                 onPress={() => {
                   setOpen(false);

@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import type { PullRequestDetail } from "@t3tools/contracts";
 import { Menu } from "../../components/ui/Menu";
 import { PullRequestCardRow } from "./PullRequestControls";
@@ -18,7 +19,7 @@ export function PullRequestAgentRow(props: {
     <PullRequestCardRow
       title={props.title ?? action.title}
       icon="hammer"
-      accessibilityLabel={props.title ?? action.title}
+      accessibilityLabel={localizeMobileString(props.title ?? action.title)}
       menu={agent.chooseThread && !action.attributes.disabled}
       onPress={
         action.attributes.disabled || agent.chooseThread ? undefined : () => agent.start(props.task)

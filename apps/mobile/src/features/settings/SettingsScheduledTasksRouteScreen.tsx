@@ -186,6 +186,7 @@ function FormField(props: {
   readonly keyboardType?: "decimal-pad" | "number-pad";
   readonly disabled?: boolean;
   readonly placeholder?: string;
+  readonly localizePlaceholder?: boolean;
   readonly borderTop?: boolean;
 }) {
   return (
@@ -202,7 +203,11 @@ function FormField(props: {
         onChangeText={props.onChange}
         textAlignVertical="center"
         keyboardType={props.keyboardType}
-        placeholder={props.placeholder}
+        placeholder={
+          props.localizePlaceholder && props.placeholder !== undefined
+            ? localizeMobileString(props.placeholder)
+            : props.placeholder
+        }
         placeholderTextColorClassName="accent-foreground-muted"
         className="min-h-8 font-sans text-base text-foreground"
       />
@@ -214,19 +219,22 @@ function SelectRow(props: {
   readonly label: string;
   readonly value: string;
   readonly valueIcon?: ReactNode;
+  readonly localizeValue?: boolean;
   readonly actions: MenuAction[];
   readonly onSelect: (id: string) => void;
   readonly borderTop?: boolean;
 }) {
+  const displayedValue = props.localizeValue ? localizeMobileString(props.value) : props.value;
   const value = (
     <View className="min-w-0 flex-1 flex-row items-center justify-end gap-2">
       {props.valueIcon}
       <Text
+        localize={false}
         textRole="footnote"
         className="shrink text-right text-foreground-muted"
         numberOfLines={1}
       >
-        {props.value}
+        {displayedValue}
       </Text>
     </View>
   );
@@ -253,7 +261,7 @@ function SelectRow(props: {
     >
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${props.label}, ${props.value}`}
+        accessibilityLabel={[localizeMobileString(props.label), displayedValue].join(", ")}
         className={
           props.borderTop
             ? "min-h-14 flex-row items-center gap-3 border-t border-border-subtle px-4 py-3 active:opacity-70"
@@ -310,6 +318,7 @@ function WebhookFilterRows(props: {
           />
           <SelectRow
             label="Test"
+            localizeValue
             value={WEBHOOK_FILTER_OPS.find((option) => option.op === filter.op)?.label ?? ""}
             actions={WEBHOOK_FILTER_OPS.map((option) => ({
               id: option.op,
@@ -365,7 +374,7 @@ function PickerRow(props: {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${props.label}, ${props.value}`}
+      accessibilityLabel={[localizeMobileString(props.label), props.value].join(", ")}
       accessibilityState={{ disabled: props.disabled }}
       disabled={props.disabled}
       onPress={props.onPress}
@@ -379,6 +388,7 @@ function PickerRow(props: {
         {props.label}
       </Text>
       <Text
+        localize={false}
         textRole="footnote"
         className="min-w-0 flex-1 text-right text-foreground-muted"
         numberOfLines={1}
@@ -848,6 +858,7 @@ function TaskForm({
                 : availableTargets.map((target) => ({
                     id: target.environmentId,
                     title: target.label,
+                    localize: false,
                     image:
                       ENVIRONMENT_MACHINE_SYMBOLS[
                         resolveEnvironmentMachineKind(target.serverConfig)
@@ -867,6 +878,7 @@ function TaskForm({
             disabled={saving}
             value={draft.title}
             placeholder="Check for issues"
+            localizePlaceholder
             onChange={(title) => setDraft({ ...draft, title })}
           />
           {promptField}
@@ -877,11 +889,12 @@ function TaskForm({
             label="Project"
             value={
               projects.find((project) => project.id === draft.projectId)?.title ??
-              (projects.length ? "Choose project" : "No projects available")
+              localizeMobileString(projects.length ? "Choose project" : "No projects available")
             }
             actions={projects.map((project) => ({
               id: project.id,
               title: project.title,
+              localize: false,
               state: project.id === draft.projectId ? "on" : undefined,
             }))}
             onSelect={(id) => {
@@ -915,7 +928,7 @@ function TaskForm({
                   option.selection.model === draft.modelSelection?.model,
               )?.label ??
               draft.modelSelection?.model ??
-              (modelOptions.length ? "Choose model" : "No models available")
+              localizeMobileString(modelOptions.length ? "Choose model" : "No models available")
             }
             onPress={() => navigation.navigate("SettingsScheduledTaskModel")}
             disabled={saving || dictationPending || environmentUnavailable}
@@ -941,6 +954,7 @@ function TaskForm({
           {offersThreadModes ? (
             <SelectRow
               label="Runs go to"
+              localizeValue
               value={THREAD_MODE_LABELS[draft.threadMode]}
               actions={(Object.keys(THREAD_MODE_LABELS) as ScheduledTaskThreadMode[]).map(
                 (mode) => ({
@@ -963,7 +977,7 @@ function TaskForm({
               borderTop={offersThreadModes}
               value={
                 draft.threadId === null && draft.threadMode !== "new_thread"
-                  ? "Started by the first run"
+                  ? localizeMobileString("Started by the first run")
                   : destinationLabel
               }
               onPress={() => navigation.navigate("SettingsScheduledTaskThread")}
@@ -975,6 +989,7 @@ function TaskForm({
         <SettingsSection title="Workspace">
           <SelectRow
             label="Run in"
+            localizeValue
             value={
               draft.workspace === "worktree"
                 ? "New worktree"
@@ -1110,6 +1125,7 @@ function TaskForm({
               ) : null}
               <SelectRow
                 label="Repeat"
+                localizeValue
                 value={scheduledRepeatLabel(draft.schedule.weekdays)}
                 borderTop
                 actions={[
@@ -1221,6 +1237,7 @@ function TaskForm({
                 label="Skip requests older than (minutes)"
                 value={draft.schedule.maxDeliveryAgeMinutes}
                 placeholder="Run every request"
+                localizePlaceholder
                 keyboardType="number-pad"
                 disabled={saving}
                 borderTop

@@ -267,6 +267,7 @@ function ProviderAccount({
   const methodActions: MenuAction[] = methods.map((method) => ({
     id: `method:${method.id}`,
     title: method.name,
+    localize: false,
   }));
   const removableMethods = methods.filter((method) => method.canRemove);
   const removeActions: MenuAction[] = removableMethods.length
@@ -278,6 +279,7 @@ function ProviderAccount({
           subactions: removableMethods.map((method) => ({
             id: `remove:${method.id}`,
             title: method.name,
+            localize: false,
             attributes: { destructive: true, disabled: disabled || active || !canRemoveMethod },
           })),
         },
@@ -440,7 +442,7 @@ function ProviderAccount({
                   {interaction.output.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "")}
                 </Text>
               </ScrollView>
-              {field("input", "Terminal response", true)}
+              {field("input", localizeMobileString("Terminal response"), true)}
               <SettingsActionRow
                 icon="arrow.up"
                 label="Send response"
@@ -472,7 +474,7 @@ function ProviderAccount({
           ) : null}
           {showCallback ? (
             <>
-              {field("callback", "Final localhost URL", false)}
+              {field("callback", localizeMobileString("Final localhost URL"), false)}
               <SettingsActionRow
                 icon="arrow.right"
                 label="Continue"

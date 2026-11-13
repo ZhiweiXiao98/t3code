@@ -1,3 +1,4 @@
+import { useI18n } from "~/i18n/WebI18nContext";
 import { memo } from "react";
 import { cn } from "~/lib/utils";
 
@@ -25,11 +26,12 @@ export const DiffStatLabel = memo(function DiffStatLabel(props: {
   className?: string;
   layout?: "aligned" | "inline";
 }) {
+  const { t } = useI18n();
   const { additions, deletions, className, layout = "aligned" } = props;
   return (
     <span
       role="group"
-      aria-label={`${additions} additions, ${deletions} deletions`}
+      aria-label={t("audit4.diffStat", { additions, deletions })}
       className={cn(
         layout === "inline"
           ? "inline-flex items-center gap-1 tabular-nums align-middle"

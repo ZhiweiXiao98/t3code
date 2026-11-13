@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../../../i18n/mobileStrings";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { use, type ComponentProps } from "react";
 import { Platform } from "react-native";
@@ -14,6 +15,7 @@ export function SettingsRow(props: {
   readonly disabled?: boolean;
   readonly icon: ComponentProps<typeof ListRow>["icon"];
   readonly label: string;
+  readonly localizeLabel?: boolean;
   readonly value?: string;
   readonly valuePosition?: "below" | "trailing";
   readonly target?: SettingsPageTarget;
@@ -30,6 +32,7 @@ export function SettingsRow(props: {
   const content = {
     icon: props.icon,
     label: props.label,
+    localizeLabel: props.localizeLabel,
     description: valueBelow ? props.value : undefined,
     detail: valueBelow ? undefined : props.value,
     disabled: props.disabled,
@@ -49,7 +52,12 @@ export function SettingsRow(props: {
     return (
       <RowPressable
         accessibilityRole="button"
-        accessibilityLabel={[props.label, props.value].filter(Boolean).join(", ")}
+        accessibilityLabel={[
+          props.localizeLabel === false ? props.label : localizeMobileString(props.label),
+          props.value,
+        ]
+          .filter(Boolean)
+          .join(", ")}
         accessibilityState={{ disabled: Boolean(props.disabled), selected }}
         disabled={props.disabled}
         onPress={onPress}

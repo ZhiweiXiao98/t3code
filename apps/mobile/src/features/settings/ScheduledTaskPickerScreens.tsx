@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { useNavigation } from "@react-navigation/native";
 import { isListedThreadLineage } from "@t3tools/contracts";
 import * as Haptics from "expo-haptics";
@@ -212,7 +213,15 @@ export function ScheduledTaskThreadPickerRouteScreen() {
 
   const needle = query.trim().toLocaleLowerCase();
   const rows = [
-    ...(needle ? [] : [{ key: "new-thread", title: NEW_THREAD_DESTINATION_LABEL, thread: null }]),
+    ...(needle
+      ? []
+      : [
+          {
+            key: "new-thread",
+            title: localizeMobileString(NEW_THREAD_DESTINATION_LABEL),
+            thread: null,
+          },
+        ]),
     ...(threadId !== null && currentLabel.toLocaleLowerCase().includes(needle)
       ? [{ key: threadId, title: currentLabel, thread: null }]
       : []),
@@ -229,7 +238,7 @@ export function ScheduledTaskThreadPickerRouteScreen() {
       .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
       .map((thread) => ({
         key: thread.id,
-        title: thread.title.trim() || "Untitled thread",
+        title: thread.title.trim() || localizeMobileString("Untitled thread"),
         thread,
       })),
   ];
@@ -258,6 +267,8 @@ export function ScheduledTaskThreadPickerRouteScreen() {
         }
         renderItem={({ item, index }) => (
           <SelectionRow
+            localizeTitle={false}
+            localizeSubtitle={false}
             title={item.title}
             selected={item.key === selectedKey}
             isFirst={index === 0}

@@ -13,7 +13,7 @@ export default function PreviewImageContent(props: {
   readonly mimeType?: string;
   readonly onError?: () => void;
 }) {
-  const { locale: previewLocale } = useI18n();
+  const { locale: previewLocale, t } = useI18n();
   const [failed, setFailed] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [natural, setNatural] = useState({ width: 0, height: 0 });
@@ -88,7 +88,7 @@ export default function PreviewImageContent(props: {
         >
           <button
             type="button"
-            aria-label={`Zoom ${props.name}`}
+            aria-label={t("audit4.zoom", { name: props.name })}
             className="shrink-0 cursor-zoom-in"
             onClick={() => setExpanded(true)}
           >

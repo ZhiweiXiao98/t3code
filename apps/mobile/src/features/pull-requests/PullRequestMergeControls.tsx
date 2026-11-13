@@ -1,3 +1,5 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import * as Dialog from "../../components/ui/Dialog";
 import { useAtomRefresh, useAtomSet, useAtomValue } from "@effect/atom-react";
 import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
@@ -82,9 +84,12 @@ export function PullRequestMergeControls(props: {
   const canMerge = !busy && method !== undefined && !reason;
   const label = method
     ? scope && scope.layers.length > 1
-      ? `${MERGE_METHODS[method].title} stack (${scope.layers.length})`
-      : MERGE_METHODS[method].title
-    : "Merge unavailable";
+      ? formatMobileMessage("{0} stack ({1})", [
+          localizeMobileString(MERGE_METHODS[method].title),
+          scope.layers.length,
+        ])
+      : localizeMobileString(MERGE_METHODS[method].title)
+    : localizeMobileString("Merge unavailable");
   const nextAction =
     pr.state === "closed" ? "reopen" : pr.state === "open" && pr.isDraft ? "ready" : null;
   // States the button itself names, instead of a reason line under it. Draft and
@@ -112,7 +117,9 @@ export function PullRequestMergeControls(props: {
               ? { label: "Resolve conflicts to merge", icon: PullRequestGlyph.conflicting }
               : pr.autoMergeEnabled
                 ? {
-                    label: `Auto-merge pending${pr.autoMergeMethod ? ` (${pr.autoMergeMethod})` : ""}`,
+                    label: pr.autoMergeMethod
+                      ? formatMobileMessage("Auto-merge pending ({0})", [pr.autoMergeMethod])
+                      : localizeMobileString("Auto-merge pending"),
                     icon: "clock",
                   }
                 : checkingStack && !busy
@@ -203,18 +210,22 @@ export function PullRequestMergeControls(props: {
   return (
     <View className="gap-2 border-t border-border-subtle p-3">
       <SplitButton
-        label={
+        label={localizeMobileString(
           busy || stateAction.busy
             ? "Working…"
             : !permissions.connected
               ? "Reconnect to merge"
-              : (status?.label ?? label)
-        }
+              : (status?.label ?? label),
+        )}
         accessibilityLabel={
           status
-            ? status.label
+            ? localizeMobileString(status.label)
             : scope
-              ? `${label}, ${scope.layers.length} stack layers through #${pr.number}`
+              ? formatMobileMessage("{0}, {1} stack layers through #{2}", [
+                  label,
+                  scope.layers.length,
+                  pr.number,
+                ])
               : label
         }
         icon={status?.icon ?? PullRequestGlyph.merged}
@@ -223,7 +234,7 @@ export function PullRequestMergeControls(props: {
         onPress={() =>
           status?.action ? void stateAction.perform(status.action) : confirm("merge")
         }
-        menuTitle="Merge options"
+        menuTitle={localizeMobileString("Merge options")}
         actions={
           status?.final
             ? []

@@ -308,7 +308,7 @@ export function ComposerAttachmentMediaRow({
                           })
                         }
                         disabled={!canOperateThread}
-                        aria-label={`Retry upload for ${image.name}`}
+                        aria-label={t("audit4.retryUpload", { name: image.name })}
                       />
                     }
                   >
@@ -366,7 +366,7 @@ export function ComposerAttachmentMediaRow({
             <button
               type="button"
               className="flex h-full w-full cursor-zoom-in flex-col items-center justify-center gap-1 px-1 text-white"
-              aria-label={`Play ${file.name}`}
+              aria-label={t("audit4.play", { name: file.name })}
               onClick={() => {
                 if (file.file !== null) {
                   const preview = buildExpandedImagePreview([file], file.id);
@@ -406,7 +406,7 @@ export function ComposerAttachmentMediaRow({
                         })
                       }
                       disabled={!canOperateThread}
-                      aria-label={`Retry upload for ${file.name}`}
+                      aria-label={t("audit4.retryUpload", { name: file.name })}
                     />
                   }
                 >
@@ -514,7 +514,7 @@ export function ComposerAttachmentFileList({
                         })
                       }
                       disabled={!canOperateThread}
-                      aria-label={`Retry upload for ${file.name}`}
+                      aria-label={t("audit4.retryUpload", { name: file.name })}
                     />
                   }
                 >

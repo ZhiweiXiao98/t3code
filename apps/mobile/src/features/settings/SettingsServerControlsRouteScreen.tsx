@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { useNavigation } from "@react-navigation/native";
 import { managedSettingsMessage } from "../../i18n/managedPolicyMessages";
 import { SettingsRow } from "./components/SettingsRow";
@@ -519,7 +520,8 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
                         key={target.environmentId}
                         icon="server.rack"
                         label={target.label}
-                        value="Server and provider updates"
+                        localizeLabel={false}
+                        value={localizeMobileString("Server and provider updates")}
                         onPress={() =>
                           navigation.navigate("SettingsEnvironmentDetail", {
                             environmentId: target.environmentId,

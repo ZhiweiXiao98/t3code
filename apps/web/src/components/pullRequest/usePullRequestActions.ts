@@ -335,8 +335,8 @@ export function usePullRequestHandoffs({
       title: translateWebSource(locale, "Asked in a thread"),
       description:
         task.prompt.length > 0
-          ? "The question is in the composer. Read it over, then send."
-          : `The ${terminology.singular} is in the composer. Type your question, then send.`,
+          ? t("audit4.questionReady")
+          : t("audit4.requestReady", { request: translateWebSource(locale, terminology.singular) }),
     });
   };
 
@@ -422,8 +422,12 @@ export function usePullRequestHandoffs({
                   : translateWebSource(locale, "Checked out"),
               description:
                 mode === "local"
-                  ? `This repository is on the ${terminology.singular}'s branch, with a thread open on it.`
-                  : `The ${terminology.singular} is in its own worktree, with a thread open on it.`,
+                  ? t("audit4.checkoutLocal", {
+                      request: translateWebSource(locale, terminology.singular),
+                    })
+                  : t("audit4.checkoutWorktree", {
+                      request: translateWebSource(locale, terminology.singular),
+                    }),
             }
           : offHeadPullRequestCheckoutToast(terminology),
       );

@@ -107,7 +107,7 @@ export function EnvironmentRoutesList({
         onDragEnd={handleDragEnd}
       >
         <SortableContext items={order} strategy={verticalListSortingStrategy}>
-          <ol aria-label={`Routes to ${environment.label}, preferred first`}>
+          <ol aria-label={t("audit4.routes", { label: environment.label })}>
             {routes.map((route, index) => (
               <SortableRouteRow
                 key={connectionRouteId(route.target)}

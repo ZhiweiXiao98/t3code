@@ -16,6 +16,8 @@ describe("localized native menu actions", () => {
           },
           { id: "environment:work", title: "work-host-42", image: "desktopcomputer" },
           { id: "opaque", title: "New tab", subtitle: "Current checkout", localize: false },
+          { id: "method", title: "Link custom", localize: false },
+          { id: "author", title: "Settings", localize: false },
         ],
       },
     ];
@@ -33,6 +35,8 @@ describe("localized native menu actions", () => {
       title: "New tab",
       subtitle: "Current checkout",
     });
+    expect(localized[0]?.subactions?.[3]?.title).toBe("Link custom");
+    expect(localized[0]?.subactions?.[4]?.title).toBe("Settings");
     expect(actions[0]?.title).toBe("Environment");
     expect(localizeMenuActions(actions, "en")[0]?.subactions?.[2]?.title).toBe("New tab");
   });

@@ -660,6 +660,7 @@ function ThreadStatusLabel({
 }
 
 export function ThreadRowLeadingStatus({ thread }: { thread: SidebarThreadSummary }) {
+  const { t } = useI18n();
   const { leaseLiveStatus, rowRef } = useSidebarRowSubscriptionLease(false);
   // A new ref callback would detach and reattach the row, and each reattach sets lease state.
   const statusRef = useStableCallback((node: HTMLSpanElement | null) =>
@@ -746,7 +747,10 @@ export function ThreadRowLeadingStatus({ thread }: { thread: SidebarThreadSummar
       {pendingLink ? (
         <PullRequestGlyph.pullRequest
           className="size-3 text-muted-foreground"
-          aria-label={`${changeRequestTerminologyForUrl(pendingLink.url).shortLabel} #${pendingLink.number}, status pending`}
+          aria-label={t("audit4.pending", {
+            kind: changeRequestTerminologyForUrl(pendingLink.url).shortLabel,
+            number: pendingLink.number,
+          })}
         />
       ) : null}
       {threadStatus ? <ThreadStatusLabel status={threadStatus} /> : null}

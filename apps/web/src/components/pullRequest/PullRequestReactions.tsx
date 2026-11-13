@@ -1,3 +1,7 @@
+import {
+  localizedReactionName,
+  localizedReactionTooltip,
+} from "~/i18n/pullRequestReactionMessages";
 import { useAtomCommand } from "~/state/use-atom-command";
 import type {
   EnvironmentId,
@@ -19,8 +23,6 @@ import {
   applyPendingPullRequestReactions,
   PULL_REQUEST_REACTION_ORDER,
   pullRequestReactionEmoji,
-  pullRequestReactionName,
-  pullRequestReactionTooltip,
   pullRequestReactionsSignature,
 } from "@t3tools/client-runtime/pull-request-reactions";
 
@@ -47,7 +49,7 @@ export function PullRequestReactionBar({
   readonly onRefresh: () => void;
   readonly className?: string | undefined;
 }) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pending, setPending] = useState<{
     readonly signature: string;
@@ -95,7 +97,7 @@ export function PullRequestReactionBar({
               <button
                 type="button"
                 aria-pressed={reaction.viewerHasReacted}
-                aria-label={`${pullRequestReactionName(reaction.content)}, ${reaction.count}`}
+                aria-label={`${localizedReactionName(locale, reaction.content)}, ${reaction.count}`}
                 disabled={!canReact}
                 className={cn(
                   PILL_CLASS,
@@ -111,7 +113,7 @@ export function PullRequestReactionBar({
             <span aria-hidden>{pullRequestReactionEmoji(reaction.content)}</span>
             <span className="tabular-nums">{reaction.count}</span>
           </TooltipTrigger>
-          <TooltipPopup side="top">{pullRequestReactionTooltip(reaction)}</TooltipPopup>
+          <TooltipPopup side="top">{localizedReactionTooltip(locale, reaction)}</TooltipPopup>
         </Tooltip>
       ))}
 
@@ -141,7 +143,7 @@ export function PullRequestReactionBar({
                     key={content}
                     type="button"
                     aria-pressed={reacted}
-                    aria-label={pullRequestReactionName(content)}
+                    aria-label={localizedReactionName(locale, content)}
                     className={cn(
                       "flex size-7 items-center justify-center rounded-md text-base outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
                       reacted && "bg-primary/10",

@@ -280,7 +280,10 @@ export function usePullRequestListFilters(props: {
       ...props.environments.map((environment) => [environment.id, environment.label]),
     ]),
     props.environmentId ?? "",
-  );
+  ).map((action) => ({
+    ...action,
+    localize: action.id === id("environment", ""),
+  }));
   const stateActions = choices("state", STATES, value.state);
   const involvementActions = choices("involvement", INVOLVEMENT, value.involvement);
   const labelActions: MenuProps["actions"] = [
@@ -291,6 +294,7 @@ export function usePullRequestListFilters(props: {
       return {
         id: id("label", label),
         title: label,
+        localize: false,
         state: selectedLabelSet.has(label) ? ("on" as const) : ("off" as const),
         ...(color ? { image: "circle.fill", imageColor: color } : {}),
       };
@@ -306,7 +310,10 @@ export function usePullRequestListFilters(props: {
         ...authors.map((login) => [login, login]),
       ]),
       author ?? "",
-    ),
+    ).map((action) => ({
+      ...action,
+      localize: action.id === id("author", "") || action.id === id("author", "me"),
+    })),
   ];
   const customized = count > 0 || value.sort !== "updated" || props.environmentId !== null;
   // The Android header's filter button opens every filter.

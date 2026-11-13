@@ -1,3 +1,5 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
+import { mobileConnectionHeadline } from "../../i18n/nativeAccessibilityMessages";
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { NativeScrollView } from "../../native/NativeScrollViewMarker";
 import { Button } from "../../components/ui/Button";
@@ -66,9 +68,11 @@ function EnvironmentPickerRow(props: {
   const { diagnosis, state } = useConnectionDiagnosis(props.environmentId, presentation);
   const { onReconnectEnvironment } = useRemoteConnections();
   const connection = presentation?.connection;
-  const status =
-    diagnosis?.headline ??
-    (connection ? environmentStatusText({ ...connection, error: null }) : "Offline");
+  const status = diagnosis
+    ? mobileConnectionHeadline(diagnosis.headline, presentation?.entry.target.label ?? props.title)
+    : localizeMobileString(
+        connection ? environmentStatusText({ ...connection, error: null }) : "Offline",
+      );
   return (
     <View className={cn("bg-grouped-card", !props.isLast && "border-b border-border-subtle")}>
       <View className="flex-row items-center">
@@ -389,6 +393,8 @@ export function BranchPickerScreen(props: {
 
   const renderBranch = ({ item, index }: { readonly item: VcsRef; readonly index: number }) => (
     <SelectionRow
+      localizeTitle={false}
+      localizeSubtitle
       icon="arrow.triangle.branch"
       disabled={props.selectionDisabled ?? false}
       isFirst={index === 0}

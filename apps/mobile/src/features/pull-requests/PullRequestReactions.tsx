@@ -1,3 +1,4 @@
+import { mobileReactionTooltip } from "../../i18n/nativeAccessibilityMessages";
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import { useNavigation } from "@react-navigation/native";
 import {
@@ -5,7 +6,6 @@ import {
   PULL_REQUEST_REACTION_ORDER,
   pullRequestReactionEmoji,
   pullRequestReactionName,
-  pullRequestReactionTooltip,
   pullRequestReactionsSignature,
 } from "@t3tools/client-runtime/pull-request-reactions";
 import type {
@@ -73,7 +73,7 @@ function ReactionPills(props: {
         <Pressable
           key={reaction.content}
           accessibilityRole="button"
-          accessibilityLabel={pullRequestReactionTooltip(reaction)}
+          accessibilityLabel={mobileReactionTooltip(reaction)}
           accessibilityState={{ selected: reaction.viewerHasReacted, disabled: !props.canReact }}
           disabled={!props.canReact}
           onPress={() => void toggle(reaction.content, !reaction.viewerHasReacted)}
@@ -93,7 +93,7 @@ function ReactionPills(props: {
           accessibilityLabel={localizeMobileString("Add a reaction")}
           actions={PULL_REQUEST_REACTION_ORDER.map((content) => ({
             id: content,
-            title: `${pullRequestReactionEmoji(content)}  ${pullRequestReactionName(content)}`,
+            title: `${pullRequestReactionEmoji(content)}  ${localizeMobileString(pullRequestReactionName(content))}`,
             state: shown.some(
               (reaction) => reaction.content === content && reaction.viewerHasReacted,
             )

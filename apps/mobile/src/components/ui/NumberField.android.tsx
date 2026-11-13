@@ -32,7 +32,7 @@ export function NumberField(props: NumberFieldProps) {
         textRole="body"
         className="min-w-8 text-center"
         style={{ fontVariant: ["tabular-nums"] }}
-        accessibilityLabel={`${props.label}: ${props.formatValue?.(props.value) ?? props.value}`}
+        accessibilityLabel={`${localizeMobileString(props.label ?? "")}: ${props.formatValue?.(props.value) ?? props.value}`}
         accessibilityLiveRegion="polite"
       >
         {props.value}

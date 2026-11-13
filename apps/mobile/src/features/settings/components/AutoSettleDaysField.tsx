@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../../i18n/mobileDisplayStrings";
 import {
   MAX_SIDEBAR_AUTO_SETTLE_AFTER_DAYS,
   MIN_SIDEBAR_AUTO_SETTLE_AFTER_DAYS,
@@ -17,7 +18,7 @@ export function AutoSettleDaysField(props: AutoSettleDaysFieldProps) {
       min={MIN_SIDEBAR_AUTO_SETTLE_AFTER_DAYS}
       max={MAX_SIDEBAR_AUTO_SETTLE_AFTER_DAYS}
       label="Days before auto-settle"
-      formatValue={(value) => `${value} ${value === 1 ? "day" : "days"}`}
+      formatValue={(value) => formatMobileMessage(value === 1 ? "{0} day" : "{0} days", [value])}
     />
   );
 }

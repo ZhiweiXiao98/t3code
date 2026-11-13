@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import type { ReactNode } from "react";
 import { Platform, Pressable, View } from "react-native";
 
@@ -19,15 +20,24 @@ export function SelectionRow(props: {
   readonly isFirst?: boolean;
   readonly isLast?: boolean;
   readonly subtitle?: string;
+  readonly localizeSubtitle?: boolean;
   readonly title: string;
+  readonly localizeTitle?: boolean;
 }) {
   const role = props.role ?? "radio";
+  const title = props.localizeTitle === true ? localizeMobileString(props.title) : props.title;
+  const subtitle =
+    props.localizeSubtitle === true && props.subtitle !== undefined
+      ? localizeMobileString(props.subtitle)
+      : props.subtitle;
   const row =
     Platform.OS === "android" ? (
       <NavigationRow
         className="bg-grouped-card"
-        title={props.title}
-        subtitle={props.subtitle}
+        title={title}
+        localizeTitle={false}
+        subtitle={subtitle}
+        localizeSubtitle={false}
         leading={
           props.icon ? (
             <SymbolView name={props.icon} size={24} tintColorClassName="accent-icon-muted" />
@@ -47,7 +57,7 @@ export function SelectionRow(props: {
       />
     ) : (
       <Pressable
-        accessibilityLabel={[props.title, props.subtitle].filter(Boolean).join(", ")}
+        accessibilityLabel={[title, subtitle].filter(Boolean).join(", ")}
         accessibilityRole={role}
         accessibilityState={{ checked: props.selected }}
         className={cn(
@@ -69,12 +79,16 @@ export function SelectionRow(props: {
           (props.leading ?? null)
         )}
         <View className="min-w-0 flex-1 gap-0.5">
-          <Text className="text-base font-t3-medium text-foreground" numberOfLines={1}>
-            {props.title}
+          <Text
+            localize={false}
+            className="text-base font-t3-medium text-foreground"
+            numberOfLines={1}
+          >
+            {title}
           </Text>
-          {props.subtitle ? (
-            <Text className="text-xs text-foreground-muted" numberOfLines={1}>
-              {props.subtitle}
+          {subtitle ? (
+            <Text localize={false} className="text-xs text-foreground-muted" numberOfLines={1}>
+              {subtitle}
             </Text>
           ) : null}
         </View>

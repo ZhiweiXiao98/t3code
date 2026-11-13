@@ -1168,7 +1168,9 @@ function OpenCommandPaletteDialog(props: {
         stackedThreadToast({
           type: "error",
           title: translateWebSource(uiLocale, "Environment unavailable"),
-          description: `${environment?.label ?? "The selected environment"} is not connected.`,
+          description: t("audit4.notConnected", {
+            label: environment?.label ?? t("audit4.selectedEnvironment"),
+          }),
         }),
       );
       return;
@@ -1899,7 +1901,9 @@ function OpenCommandPaletteDialog(props: {
         stackedThreadToast({
           type: "error",
           title: translateWebSource(uiLocale, "Environment unavailable"),
-          description: `${environment?.label ?? "The selected environment"} is not connected.`,
+          description: t("audit4.notConnected", {
+            label: environment?.label ?? t("audit4.selectedEnvironment"),
+          }),
         }),
       );
       return;
@@ -2099,7 +2103,9 @@ function OpenCommandPaletteDialog(props: {
         stackedThreadToast({
           type: "error",
           title: translateWebSource(uiLocale, "Environment unavailable"),
-          description: `${browseEnvironment?.label ?? "The selected environment"} is not connected.`,
+          description: t("audit4.notConnected", {
+            label: browseEnvironment?.label ?? t("audit4.selectedEnvironment"),
+          }),
         }),
       );
       return;

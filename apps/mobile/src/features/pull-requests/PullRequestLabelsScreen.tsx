@@ -105,6 +105,8 @@ export function PullRequestLabelsScreen({ route }: StaticScreenProps<PullRequest
           }
           renderItem={({ item, index }) => (
             <SelectionRow
+              localizeTitle={false}
+              localizeSubtitle={false}
               title={item.name}
               {...(item.description ? { subtitle: item.description } : {})}
               role="checkbox"

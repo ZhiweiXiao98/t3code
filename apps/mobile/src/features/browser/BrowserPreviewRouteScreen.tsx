@@ -223,7 +223,7 @@ function BrowserAddressBar({
         onChangeText={setDraft}
         onBlur={() => setDraft(null)}
         onSubmitEditing={submit}
-        placeholder="Enter a URL"
+        placeholder={localizeMobileString("Enter a URL")}
         placeholderTextColorClassName="accent-placeholder"
         autoCapitalize="none"
         autoCorrect={false}

@@ -41,7 +41,7 @@ export function ScheduledTaskPromptField(props: {
           multiline
           scrollEnabled
           textAlignVertical="top"
-          placeholder="What should the agent do each time?"
+          placeholder={localizeMobileString("What should the agent do each time?")}
           placeholderTextColorClassName="accent-foreground-muted"
           className="max-h-40 min-h-24 min-w-0 flex-1 font-sans text-base text-foreground"
         />

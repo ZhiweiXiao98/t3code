@@ -133,6 +133,8 @@ export function PullRequestFilterSearchScreen({
           contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom }}
           renderItem={({ item, index }) => (
             <SelectionRow
+              localizeTitle={false}
+              localizeSubtitle={false}
               title={item}
               role={kind === "labels" ? "checkbox" : "radio"}
               selected={isSelected(item)}

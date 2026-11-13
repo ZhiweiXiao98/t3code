@@ -1,3 +1,4 @@
+import { mobileSubagentSummary } from "../../i18n/nativeAccessibilityMessages";
 import { useAtomValue } from "@effect/atom-react";
 import { StackActions, useNavigation } from "@react-navigation/native";
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
@@ -15,7 +16,7 @@ import type {
 } from "@t3tools/contracts";
 import { Pressable, View, type ColorValue } from "react-native";
 
-import { mobileRunsOn } from "../../i18n/mobileDisplayStrings";
+import { mobileRunsOn, formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import { AppText as Text } from "../../components/ui/AppText";
 import { SymbolView } from "../../components/ui/AppSymbol";
@@ -134,8 +135,10 @@ export function ThreadSubagentGroup(props: {
     };
   });
   const grouped = agents.length > 1;
-  const label = `${agents.length} subagents`;
-  const summary = summarizeSubagentStatuses(agents.map((agent) => agent.status));
+  const label = formatMobileMessage("{0} subagents", [agents.length]);
+  const summary = mobileSubagentSummary(
+    summarizeSubagentStatuses(agents.map((agent) => agent.status)),
+  );
   const expanded = props.expandedRows[props.anchorKey] ?? false;
   const serverConfigs = useServerConfigs();
   // A task in a linked environment runs a provider instance of that environment.
