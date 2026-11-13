@@ -18,7 +18,7 @@
 | Mac：Apple Silicon（M 系列） | [下载 .dmg](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.9-zh.1/T3-Code-0.1.9-zh.1-arm64.dmg)                                 |
 | Mac：Intel                   | [下载 .dmg](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.9-zh.1/T3-Code-0.1.9-zh.1-x64.dmg)                                   |
 | Linux x64：Debian / Ubuntu   | [下载 .deb](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.9-zh.1/T3-Code-0.1.9-zh.1-amd64.deb)                                 |
-| Linux x64：AppImage          | 暂缓发布：干净启动验收发生渲染进程崩溃，尚未通过验收；请使用上方 .deb。 |
+| Linux x64：AppImage          | 固定禁用发布；请使用上方 .deb。                                                                                                                |
 | Android ARM64                | [下载已签名 .apk](https://github.com/ZhiweiXiao98/t3code/releases/download/android-v0.1.9-zh.1/T3-Code-zh-CN-Android-0.1.9-zh.1-arm64-v8a.apk) |
 
 [桌面文件与发布说明](https://github.com/ZhiweiXiao98/t3code/releases/tag/v0.1.9-zh.1) · [SHA-256 校验值](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.9-zh.1/SHA256SUMS.txt) · [构建来源](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.9-zh.1/BUILD-PROVENANCE.json)
@@ -42,7 +42,7 @@
 
 桌面与 Android 二进制均来自[源码提交 `042eacb54f19c3bbc452e4ae271794f4c5fc524e`](https://github.com/ZhiweiXiao98/t3code/commit/042eacb54f19c3bbc452e4ae271794f4c5fc524e)。该精确提交的 [22 项构建与质量门禁](https://github.com/ZhiweiXiao98/t3code/actions/runs/43163372855/attempts/1)中，除 AppImage 外的 21 项通过，覆盖完整测试、规范与类型检查、原生检查、各平台构建及本次六个桌面安装包的干净首次启动（空白用户数据、正常沙箱）。另有 139 个 UI 测试文件、1791 项测试和 61 步真实界面场景全部通过；补充覆盖 166 项通过、5 项为已核验的预期条件跳过。桌面产物经校验后原样发布，没有重新构建。
 
-**AppImage 暂缓发布。** 其 Debian 13 虚拟机验收发生渲染进程崩溃，尚未通过验收，原因仍在调查；不能认定仅为仿真性能问题，也不声称该门禁通过。Linux DEB 在原生 Ubuntu 24.04 验收通过。已知快捷键加号的空白键帽显示问题来自官方 v0.1.9，本次未更改其行为。
+**AppImage 固定禁用发布，后续不纳入发布门禁。** 历史 Debian 13 虚拟机验收发生渲染进程崩溃，尚未通过验收；禁用发布不代表问题已修复，也不声称该门禁通过。Linux DEB 在原生 Ubuntu 24.04 验收通过。已知快捷键加号的空白键帽显示问题来自官方 v0.1.9，本次未更改其行为。
 
 Windows 未做 Authenticode 签名；macOS 已做 ad-hoc 完整性签名并通过严格校验，但没有 Developer ID 商业签名或 Apple 公证。Gatekeeper 仍可能因未公证而阻止打开，这与安装包损坏不同；发布页附有 `MACOS-TRUST-*.txt` 实际信任检查记录。没有关闭沙箱或降低宿主系统安全设置。云端验证不是人工 Finder 操作验收，也不等于所有系统上的人工安装测试；SHA-256 和构建来源记录不等于商业代码签名。
 

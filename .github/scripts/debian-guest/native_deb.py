@@ -9,7 +9,7 @@ HERE=pathlib.Path(__file__).resolve().parent
 def main(a):
     require(a.execute_authorized,'Disabled proposal')
     require(os.geteuid()!=0 and os.environ.get('GITHUB_ACTIONS')=='true','Nonroot Actions required')
-    inputs=pathlib.Path(a.inputs);m=json.loads((inputs/'manifest.json').read_text());require(m['kind']=='deb' and m['mode']=='same-full-run-native-deb-v1','Wrong native mode')
+    inputs=pathlib.Path(a.inputs);m=validate_manifest(json.loads((inputs/'manifest.json').read_text()));require(m['kind']=='deb' and m['mode']=='same-full-run-native-deb-v1','Wrong native mode')
     work=pathlib.Path(a.work);require(not work.exists(),'Fresh native work directory required');work.mkdir();results=work/'results';results.mkdir()
     clean=results/'clean';cjk=results/'cjk';clean.mkdir();cjk.mkdir()
     ctx=context(m);before,log=snapshot(m);validate_snapshot(ctx,before,m,log)
@@ -17,7 +17,7 @@ def main(a):
     driver=validate_source(a.source,m);asset=inputs/'installer.deb';require(sha(asset)==m['installerSha256'],'DEB bytes mismatch')
     appenv={k:v for k,v in os.environ.items() if k not in ('GITHUB_TOKEN','GH_TOKEN','ACTIONS_RUNTIME_TOKEN','ACTIONS_ID_TOKEN_REQUEST_TOKEN','ACTIONS_ID_TOKEN_REQUEST_URL')}
     appenv.update(DEBUG='pw:browser*',ELECTRON_ENABLE_LOGGING='1')
-    status={'result':'failed','exitCode':1,'sourceSha':m['sourceSha'],'appimageSha256':m['appimageSha256'],'cleanDriverSha256':CLEAN_SHA,'cjkDriverSha256':CJK_SHA}
+    status={'result':'failed','exitCode':1,'sourceSha':m['sourceSha'],'installerSha256':m['installerSha256'],'cleanDriverSha256':CLEAN_SHA,'cjkDriverSha256':CJK_SHA}
     try:
         distro=dict(line.split('=',1) for line in pathlib.Path('/etc/os-release').read_text().splitlines() if '=' in line)
         require(distro['ID']=='ubuntu' and distro['VERSION_ID'].strip('"')=='24.04','Wrong native OS')

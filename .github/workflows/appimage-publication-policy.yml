@@ -1,0 +1,72 @@
+name: Community publication policy checks
+
+on:
+  push:
+    branches:
+      - "maintenance/**"
+      - "validation/disable-appimage-*"
+    paths:
+      - ".github/workflows/appimage-publication-policy.yml"
+      - ".github/workflows/client-release.yml"
+      - ".github/workflows/publish-client-candidate.yml"
+      - ".github/scripts/test_appimage_publication.py"
+      - ".github/scripts/debian-guest/**"
+      - "scripts/build-desktop-artifact*"
+      - "package.json"
+
+permissions:
+  contents: read
+
+jobs:
+  policy:
+    if: github.repository == 'ZhiweiXiao98/t3code' && github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      CI: "true"
+      PYTHONDONTWRITEBYTECODE: "1"
+      VP_REMOTE_CACHE: "off"
+      VP_REMOTE_CACHE_URL: ""
+    steps:
+      - name: Checkout exact source without credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          git fetch --no-tags --depth=2 origin "$GITHUB_SHA"
+          git sparse-checkout set --no-cone '/*' '!/.repos/'
+          git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+      - name: Check publication policy and Linux acceptance regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/policy-check-logs"
+          python3 .github/scripts/test_appimage_publication.py 2>&1 | tee "$RUNNER_TEMP/policy-check-logs/policy.log"
+          python3 -m unittest discover -s .github/scripts/debian-guest/tests -p 'test_*.py' -v 2>&1 | tee "$RUNNER_TEMP/policy-check-logs/linux-regressions.log"
+      - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
+        with:
+          node-version-file: package.json
+          cache: true
+          run-install: false
+      - name: Install locked dependencies
+        run: vp install --frozen-lockfile
+      - name: Verify desktop packaging behavior
+        shell: bash
+        run: |
+          set -euo pipefail
+          vp test run scripts/build-desktop-artifact.test.ts 2>&1 | tee "$RUNNER_TEMP/policy-check-logs/desktop-packaging.log"
+      - name: Run required changed-file checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          vp run check:changed HEAD^1 2>&1 | tee "$RUNNER_TEMP/policy-check-logs/changed-files.log"
+      - name: Preserve check logs on success or failure
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: appimage-publication-policy-checks
+          path: ${{ runner.temp }}/policy-check-logs
+          if-no-files-found: warn
+          retention-days: 14

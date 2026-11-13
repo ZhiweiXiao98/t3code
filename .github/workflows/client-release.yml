@@ -102,6 +102,8 @@ jobs:
           PYTHONDONTWRITEBYTECODE: "1"
         run: "set -euo pipefail
 
+          python3 .github/scripts/test_appimage_publication.py
+
           python3 -m unittest discover -s .github/scripts/debian-guest/tests -p 'test_*.py' -v
 
           node .github/scripts/debian-guest/tests/test-privacy-driver.mjs
@@ -406,20 +408,22 @@ jobs:
           path: apps
       - name: Package Linux client
         run:
-          vp run dist:desktop:artifact --platform linux --target AppImage --arch x64 --build-version "$CLIENT_VERSION" --skip-build
+          vp run dist:desktop:artifact --platform linux --target deb --arch x64 --build-version "$CLIENT_VERSION" --skip-build
           --verbose
       - name: Launch packaged Linux client
         run: 'set -euo pipefail
 
           python3 .github/scripts/ci-ubuntu-packages.py packages xvfb
 
-          appimage=$(ls "$GITHUB_WORKSPACE"/release/*.AppImage)
+          deb=$(ls "$GITHUB_WORKSPACE"/release/*.deb)
 
-          chmod +x "$appimage"
+          dpkg-deb --extract "$deb" "$RUNNER_TEMP/deb-smoke"
 
-          (cd "$RUNNER_TEMP" && "$appimage" --appimage-extract >/dev/null)
+          mapfile -t executables < <(find "$RUNNER_TEMP/deb-smoke/opt" -type f -name t3code)
 
-          xvfb-run -a node scripts/smoke-desktop-app.ts --artifacts-dir "$RUNNER_TEMP/desktop-launch-check" --executable "$RUNNER_TEMP/squashfs-root/t3code"
+          test "${#executables[@]}" -eq 1
+
+          xvfb-run -a node scripts/smoke-desktop-app.ts --artifacts-dir "$RUNNER_TEMP/desktop-launch-check" --executable "${executables[0]}"
 
           '
       - uses: actions/upload-artifact@v7
@@ -451,11 +455,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: client-linux-x64
-          path: "release/*.AppImage
-
-            release/*.deb
-
-            "
+          path: release/*.deb
           if-no-files-found: error
           retention-days: 14
         name: Upload Linux installers (upload-artifact)
@@ -469,7 +469,7 @@ jobs:
 
           git rev-parse HEAD^{tree} > "$RUNNER_TEMP/linux-build-proof/source-tree.txt"
 
-          sha256sum release/*.AppImage release/*.deb > "$RUNNER_TEMP/linux-build-proof/installers.sha256"
+          sha256sum release/*.deb > "$RUNNER_TEMP/linux-build-proof/installers.sha256"
 
           sha256sum .github/scripts/check-clean-desktop-first-start.mjs > "$RUNNER_TEMP/linux-build-proof/driver.sha256"
 
@@ -755,11 +755,6 @@ jobs:
             artifact: client-linux-x64
             suffix: amd64.deb
             display: deb
-          - runner: ubuntu-24.04
-            kind: appimage
-            artifact: client-linux-x64
-            suffix: x86_64.AppImage
-            display: appimage Debian 13 guest (Ubuntu 24.04 host)
     steps:
       - name: Reserve bounded validation and upload budget
         if: runner.os == 'Linux'
@@ -793,10 +788,9 @@ jobs:
         name: Install official Linux validation dependencies
         if: runner.os == 'Linux'
         shell: bash
-        run:
-          "set -euo pipefail\npython3 .github/scripts/ci-ubuntu-packages.py packages --no-install-recommends xvfb xauth dbus-x11 fonts-noto-cjk\
-          \ fontconfig\nif [ '${{ matrix.kind }}' = appimage ]; then\n  python3 .github/scripts/ci-ubuntu-packages.py packages --no-install-recommends qemu-system-x86\
-          \ qemu-utils genisoimage\nfi\n"
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/ci-ubuntu-packages.py packages --no-install-recommends xvfb xauth dbus-x11 fonts-noto-cjk fontconfig
       - timeout-minutes: 5
         name: Verify own-run Linux producer and original ZIPs
         if: runner.os == 'Linux'
@@ -808,20 +802,6 @@ jobs:
 
           python3 .github/scripts/debian-guest/prepare_live.py --kind ''${{ matrix.kind }}'' --source "$GITHUB_WORKSPACE" --work
           "$RUNNER_TEMP/live-inputs" --execute-authorized
-
-          '
-      - timeout-minutes: 32
-        name: Validate Debian 13 guest AppImage clean start and Chinese persistence
-        if: matrix.kind == 'appimage'
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          T3_STANDARD_RUNNER_LABEL: ubuntu-24.04
-        run: 'set -euo pipefail
-
-          python3 .github/scripts/debian-guest/host.py --manifest "$RUNNER_TEMP/live-inputs/manifest.json" --source-checkout
-          "$GITHUB_WORKSPACE" --artifact-zip "$RUNNER_TEMP/live-inputs/installers.zip" --proof-zip "$RUNNER_TEMP/live-inputs/proof.zip"
-          --playwright-tar "$RUNNER_TEMP/live-inputs/playwright.tgz" --workdir "$RUNNER_TEMP/linux-live-proof" --execute-authorized
 
           '
       - name: Validate native Ubuntu 24.04 DEB clean start and Chinese persistence

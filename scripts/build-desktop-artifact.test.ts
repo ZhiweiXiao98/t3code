@@ -814,7 +814,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
       );
       const linux = yield* createBuildConfig(
         "linux",
-        "AppImage",
+        "deb",
         "1.2.3",
         false,
         false,
@@ -893,7 +893,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
         iconSize: 120,
         iconTextSize: 12,
       });
-      assert.deepStrictEqual((linux.linux as Record<string, unknown>).target, ["AppImage", "deb"]);
+      assert.deepStrictEqual((linux.linux as Record<string, unknown>).target, ["deb"]);
       assert.deepStrictEqual((linux.linux as Record<string, unknown>).protocols, [
         { name: "T3 Code", schemes: ["t3code", "t3code-dev"] },
       ]);
@@ -2136,6 +2136,32 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
         assert.equal(hash, `${NodeCrypto.createHash("sha256").update(source).digest("hex")}\n`);
       }),
     ),
+  );
+
+  it.effect("defaults Linux packaging to DEB without changing other platforms", () =>
+    Effect.gen(function* () {
+      for (const [platform, target] of [
+        ["linux", "deb"],
+        ["mac", "dmg"],
+        ["win", "nsis"],
+      ] as const) {
+        const resolved = yield* resolveBuildOptions({
+          platform: Option.some(platform),
+          target: Option.none(),
+          arch: Option.some("x64"),
+          buildVersion: Option.some("1.2.3"),
+          outputDir: Option.none(),
+          skipBuild: Option.none(),
+          keepStage: Option.none(),
+          signed: Option.some(false),
+          verbose: Option.none(),
+          mockUpdates: Option.some(false),
+          mockUpdateServerPort: Option.none(),
+          wslRuntime: Option.none(),
+        }).pipe(Effect.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env: {} }))));
+        assert.equal(resolved.target, target);
+      }
+    }),
   );
 
   it.effect("rejects universal builds on Linux and Windows before staging binaries", () =>
