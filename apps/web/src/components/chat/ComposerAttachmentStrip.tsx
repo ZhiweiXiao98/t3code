@@ -226,7 +226,7 @@ export function ComposerAttachmentMediaRow({
                 <button
                   type="button"
                   className={cn("h-full w-full", ready && "cursor-zoom-in")}
-                  aria-label={`Preview ${image.name}`}
+                  aria-label={t("audit3.previewAttachment", { name: image.name })}
                   disabled={!ready}
                   onClick={() => {
                     const preview = buildExpandedImagePreview(images, image.id);
@@ -328,7 +328,7 @@ export function ComposerAttachmentMediaRow({
                   variant="media-close"
                   size="icon-xs"
                   onClick={() => onRemoveImage(image.id)}
-                  aria-label={`Remove ${image.name}`}
+                  aria-label={t("audit3.removeAttachment", { name: image.name })}
                 >
                   <XIcon />
                 </Button>
@@ -420,7 +420,7 @@ export function ComposerAttachmentMediaRow({
               size="icon-xs"
               className="absolute right-1 top-1"
               onClick={() => onRemoveFile(file.id)}
-              aria-label={`Remove ${file.name}`}
+              aria-label={t("audit3.removeAttachment", { name: file.name })}
             >
               <XIcon />
             </Button>
@@ -455,7 +455,7 @@ export function ComposerAttachmentFileList({
   readonly onPreviewFile: (fileId: string) => void;
   readonly onRemoveFile: (fileId: string) => void;
 }) {
-  const { locale: releaseLocale } = useI18n();
+  const { locale: releaseLocale, t } = useI18n();
 
   const uploadsByImageId = useAttachmentUploadStore((state) => state.uploadsByImageId);
   return (
@@ -527,7 +527,7 @@ export function ComposerAttachmentFileList({
               variant="ghost"
               size="icon-xs"
               onClick={() => onRemoveFile(file.id)}
-              aria-label={`Remove ${file.name}`}
+              aria-label={t("audit3.removeAttachment", { name: file.name })}
             >
               <XIcon />
             </Button>
@@ -601,6 +601,7 @@ export function ComposerRestingImagePreviews({
   readonly onExpandImage: (preview: ExpandedImagePreview) => void;
   readonly onShowMore: () => void;
 }) {
+  const { t } = useI18n();
   const counts = getRestingComposerImagePreviewCounts(images.length);
   const visibleImages = images.slice(0, counts.visibleCount);
   return (
@@ -610,7 +611,7 @@ export function ComposerRestingImagePreviews({
           key={image.id}
           type="button"
           className="relative size-7 shrink-0 cursor-zoom-in overflow-hidden rounded-md border border-border/70 bg-muted/60"
-          aria-label={`Preview ${image.name}`}
+          aria-label={t("audit3.previewAttachment", { name: image.name })}
           onPointerDown={(event) => event.preventDefault()}
           onClick={() => {
             const preview = buildExpandedImagePreview(allImages, image.id);
@@ -655,7 +656,7 @@ export function ComposerRestingImagePreviews({
         <button
           type="button"
           className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md border border-border/70 bg-muted/60 font-medium text-secondary-label text-xs tabular-nums outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
-          aria-label={`Show ${String(counts.overflowCount)} more image attachments`}
+          aria-label={t("audit3.moreImages", { count: counts.overflowCount })}
           onPointerDown={(event) => event.preventDefault()}
           onClick={onShowMore}
         >
@@ -677,6 +678,7 @@ export function ComposerQueuedAttachmentRow({
   }>;
   readonly onRemove: (attachmentId: string) => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="mb-3 flex flex-wrap gap-2">
       {attachments.map(({ attachment, url }) => (
@@ -696,7 +698,7 @@ export function ComposerQueuedAttachmentRow({
             size="icon-xs"
             className="absolute right-1 top-1"
             onClick={() => onRemove(attachment.id)}
-            aria-label={`Remove ${attachment.name}`}
+            aria-label={t("audit3.removeAttachment", { name: attachment.name })}
           >
             <XIcon />
           </Button>

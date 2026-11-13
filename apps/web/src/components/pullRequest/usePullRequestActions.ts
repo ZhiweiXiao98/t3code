@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
 import { useAtomCommand } from "~/state/use-atom-command";
@@ -349,7 +350,9 @@ export function usePullRequestHandoffs({
     // Explicit timeouts survive toast updates and would pin the result after loading.
     const toastId = toastManager.add({
       type: "loading",
-      title: `Preparing the ${terminology.singular} checkout...`,
+      title: readWebI18n().t("audit3.checkoutPreparing", {
+        request: translateWebSource(locale, terminology.singular),
+      }),
     });
     const projectRef = scopeProjectRef(environmentId, detail.projectId);
     // Checkout setup requires the thread to exist first.
@@ -378,7 +381,9 @@ export function usePullRequestHandoffs({
       setHandoff(null);
       toastManager.update(toastId, {
         type: "error",
-        title: `Could not prepare the ${terminology.singular} checkout`,
+        title: readWebI18n().t("audit3.checkoutPrepareFailed", {
+          request: translateWebSource(locale, terminology.singular),
+        }),
         description: checkoutFailureDescription(
           isAtomCommandInterrupted(prepared) ? undefined : squashAtomCommandFailure(prepared),
         ),
@@ -430,8 +435,8 @@ export function usePullRequestHandoffs({
       prepared.value.isOnPullRequestHead
         ? {
             type: "success",
-            title: "Checkout ready",
-            description: "The task is in the composer. Read it over, then send.",
+            title: readWebI18n().t("audit3.checkoutReady"),
+            description: readWebI18n().t("audit3.taskReady"),
           }
         : offHeadPullRequestCheckoutToast(terminology),
     );

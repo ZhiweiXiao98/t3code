@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { pipe } from "effect/Function";
 import {
   SECRET_REQUEST_DEFAULT_PLACEHOLDER,
@@ -188,7 +189,10 @@ function PendingSecretRequestForm(props: {
       ) : (
         <TextInput
           key={source.id}
-          accessibilityLabel={`${item.label} reference in ${source.label}`}
+          accessibilityLabel={formatMobileMessage("{0} reference in {1}", [
+            item.label,
+            source.label,
+          ])}
           placeholder={source.referencePlaceholder}
           value={reference}
           onChangeText={(next) => {

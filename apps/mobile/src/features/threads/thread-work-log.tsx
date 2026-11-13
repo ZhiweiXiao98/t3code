@@ -1047,12 +1047,20 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
         accessibilityRole={
           notifiedSubagentThreadId !== undefined ? "link" : canExpand ? "button" : undefined
         }
-        accessibilityLabel={failed ? `${accessiblePreview}, tool call failed` : accessiblePreview}
+        accessibilityLabel={
+          failed
+            ? formatMobileMessage("{0}, tool call failed", [accessiblePreview])
+            : accessiblePreview
+        }
         accessibilityHint={
           notifiedSubagentThreadId !== undefined
-            ? "Opens this agent's thread. Long press to copy."
+            ? localizeMobileString("Opens this agent's thread. Long press to copy.")
             : canExpand
-              ? `Double tap to ${expanded ? "hide" : "show"} full details. Long press to copy.`
+              ? localizeMobileString(
+                  expanded
+                    ? "Double tap to hide full details. Long press to copy."
+                    : "Double tap to show full details. Long press to copy.",
+                )
               : localizeMobileString("Long press to copy.")
         }
         accessibilityState={canExpand ? { expanded } : undefined}
@@ -1334,7 +1342,9 @@ export function ThreadWorkGroupToggle(props: {
   readonly trailing?: ReactNode;
   readonly onToggle: () => void;
 }) {
-  const statusLabel = props.hasFailure ? `${props.summary}, tool call failed` : props.summary;
+  const statusLabel = props.hasFailure
+    ? formatMobileMessage("{0}, tool call failed", [props.summary])
+    : props.summary;
   const accessibilityLabel = props.thought ? `${props.thought} ${statusLabel}` : statusLabel;
   const icon =
     props.summaryToolIcon ??
@@ -1369,7 +1379,16 @@ export function ThreadWorkGroupToggle(props: {
             accessibilityRole="button"
             accessibilityState={{ expanded: props.expanded }}
             accessibilityLabel={accessibilityLabel}
-            accessibilityHint={`Double tap to ${props.expanded ? "hide" : "show"} ${props.hiddenCount} tool ${props.hiddenCount === 1 ? "call" : "calls"}.`}
+            accessibilityHint={formatMobileMessage(
+              props.expanded
+                ? props.hiddenCount === 1
+                  ? "Double tap to hide {0} tool call."
+                  : "Double tap to hide {0} tool calls."
+                : props.hiddenCount === 1
+                  ? "Double tap to show {0} tool call."
+                  : "Double tap to show {0} tool calls.",
+              [props.hiddenCount],
+            )}
             onPress={() => {
               void Haptics.selectionAsync();
               props.onToggle();

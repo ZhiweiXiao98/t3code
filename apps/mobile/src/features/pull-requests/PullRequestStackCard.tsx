@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { useState } from "react";
 import { View } from "react-native";
@@ -29,7 +30,7 @@ export function PullRequestStackCard(props: {
         <PullRequestCardRow
           title="Stack"
           icon={PullRequestGlyph.stack}
-          value={`${summary.position} of ${summary.size}`}
+          value={formatMobileMessage("{0} of {1}", [summary.position, summary.size])}
           last
         />
       </PullRequestCardGroup>
@@ -41,8 +42,13 @@ export function PullRequestStackCard(props: {
       <PullRequestCardRow
         title="Stack"
         icon={PullRequestGlyph.stack}
-        value={`${position} of ${stack.layers.length}`}
-        accessibilityLabel={`Stack, ${position} of ${stack.layers.length}${props.state.isFresh ? "" : ", showing saved stack"}`}
+        value={formatMobileMessage("{0} of {1}", [position, stack.layers.length])}
+        accessibilityLabel={[
+          formatMobileMessage("Stack, {0} of {1}", [position, stack.layers.length]),
+          props.state.isFresh ? null : localizeMobileString("showing saved stack"),
+        ]
+          .filter(Boolean)
+          .join(", ")}
         expanded={expanded}
         onPress={() => setExpanded(!expanded)}
         last={!expanded}
@@ -62,7 +68,7 @@ export function PullRequestStackCard(props: {
                   icon={status.icon}
                   tint={status.tint}
                   value={selected ? "Current" : status.label}
-                  detail={`#${layer.number} · ${index + 1} of ${stack.layers.length}`}
+                  detail={`#${layer.number} · ${formatMobileMessage("{0} of {1}", [index + 1, stack.layers.length])}`}
                   onPress={
                     selected
                       ? undefined

@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { useI18n } from "~/i18n/WebI18nContext";
 import {
   AuthOrchestrationOperateScope,
@@ -182,7 +183,7 @@ export const ChatHeader = memo(function ChatHeader({
       originalTitle: renamingTitle ?? activeThreadTitle,
     });
     if (resolution.action === "reject-empty") {
-      toastManager.add({ type: "warning", title: "Thread title cannot be empty" });
+      toastManager.add({ type: "warning", title: readWebI18n().t("audit3.emptyThreadTitle") });
       return;
     }
     if (resolution.action === "noop") return;
@@ -194,8 +195,8 @@ export const ChatHeader = memo(function ChatHeader({
         const error = squashAtomCommandFailure(result);
         toastManager.add({
           type: "error",
-          title: "Failed to rename thread",
-          description: error instanceof Error ? error.message : "An error occurred.",
+          title: readWebI18n().t("audit3.renameThread"),
+          description: error instanceof Error ? error.message : readWebI18n().t("audit3.error"),
         });
       }
     });

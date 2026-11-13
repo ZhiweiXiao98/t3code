@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { splitPullRequestBody } from "@t3tools/client-runtime/pull-request-markdown";
 import {
   PullRequestImageAttachment,
@@ -112,7 +113,9 @@ export function PullRequestDescription(props: {
               <Pressable
                 accessibilityRole="button"
                 accessibilityState={{ expanded }}
-                accessibilityLabel={expanded ? "Collapse description" : "Expand description"}
+                accessibilityLabel={localizeMobileString(
+                  expanded ? "Collapse description" : "Expand description",
+                )}
                 onPress={() => {
                   if (expanded) props.onCollapse();
                   onExpandedChange(!expanded);

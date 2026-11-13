@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import {
   parsePullRequestAnchor,
   pullRequestLinkCommit,
@@ -221,7 +222,7 @@ const PullRequestCodeTab = lazy(loadCodeTab);
 function reportCheckoutCommandError(error: Error) {
   toastManager.add({
     type: "error",
-    title: "Could not copy checkout command",
+    title: readWebI18n().t("audit3.checkoutCopyFailed"),
     description: error.message,
   });
 }
@@ -967,8 +968,8 @@ export function PullRequestDetailPanel({
       writeHandoffToComposer(attachTarget, task);
       toastManager.add({
         type: "success",
-        title: "Added to the composer",
-        description: "The task is in the composer. Read it over, then send.",
+        title: readWebI18n().t("audit3.composerAdded"),
+        description: readWebI18n().t("audit3.taskReady"),
       });
       return;
     }
@@ -1080,8 +1081,8 @@ export function PullRequestDetailPanel({
       prepared.value.isOnPullRequestHead
         ? {
             type: "success",
-            title: "Checkout ready",
-            description: "The task is in the composer. Read it over, then send.",
+            title: readWebI18n().t("audit3.checkoutReady"),
+            description: readWebI18n().t("audit3.taskReady"),
           }
         : offHeadPullRequestCheckoutToast(terminology),
     );
@@ -1198,7 +1199,7 @@ export function PullRequestDetailPanel({
     // The active editor may be answering a provider question rather than editing this draft.
     if (!hasReference) store.addReviewComment(attachTarget, reference, { insertAtCaret: false });
     store.addReviewComment(attachTarget, comment, { insertAtCaret: false });
-    toastManager.add({ type: "success", title: "Added to the composer" });
+    toastManager.add({ type: "success", title: readWebI18n().t("audit3.composerAdded") });
   };
 
   const startCheckout = (mode: "worktree" | "local") => {

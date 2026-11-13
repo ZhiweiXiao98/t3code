@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { managedCapabilityDenial } from "../../i18n/managedPolicyMessages";
 import { translateWebSource } from "~/i18n/messages";
 import { useI18n } from "~/i18n/WebI18nContext";
@@ -673,12 +674,16 @@ function ConnectionsSettingsContent({
     if (result._tag === "Success") {
       toastManager.add({
         type: "success",
-        title: result.value === 1 ? "Revoked 1 other client" : `Revoked ${result.value} clients`,
-        description: "Other paired clients will need a new pairing link before reconnecting.",
+        title:
+          result.value === 1
+            ? readWebI18n().t("audit3.revokedOne")
+            : readWebI18n().t("audit3.revokedMany", { count: result.value }),
+        description: readWebI18n().t("audit3.pairedReconnect"),
       });
     } else if (!isAtomCommandInterrupted(result)) {
       const error = squashAtomCommandFailure(result);
-      const message = error instanceof Error ? error.message : "Failed to revoke other clients.";
+      const message =
+        error instanceof Error ? error.message : readWebI18n().t("audit3.revokeFailed");
       setDesktopAccessManagementMutationError(message);
       toastManager.add(
         stackedThreadToast({

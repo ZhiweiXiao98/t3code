@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import { useAtomValue } from "@effect/atom-react";
 import { sortProjectsByGroupOrder } from "@t3tools/client-runtime/state/project-grouping";
@@ -372,7 +373,11 @@ export function PullRequestListFilters(props: {
           label={count ? String(count) : "Filters"}
           icon
           active={count > 0}
-          accessibilityLabel={count ? `Filters, ${count} active` : "More filters"}
+          accessibilityLabel={
+            count
+              ? formatMobileMessage("Filters, {0} active", [count])
+              : localizeMobileString("More filters")
+          }
           actions={[...more, reset(false)]}
           onSelect={select}
         />

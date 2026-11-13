@@ -28,6 +28,62 @@ describe("translateWebMessage", () => {
           ? `Terminal context expired. Remove and re-add ${opaque} to include it in your message.`
           : `终端上下文已失效。请移除并重新添加 ${opaque}，以将其包含在消息中。`,
       );
+      expect(translateWebMessage(locale, "audit3.saveOn", { label: opaque, error: opaque })).toBe(
+        locale === "en"
+          ? `Could not save on ${opaque}: ${opaque}`
+          : `无法在 ${opaque} 保存：${opaque}`,
+      );
+      expect(translateWebMessage(locale, "audit3.traceError", { error: opaque, id: opaque })).toBe(
+        locale === "en" ? `${opaque} Trace ID: ${opaque}` : `${opaque} 跟踪 ID：${opaque}`,
+      );
+      expect(translateWebMessage(locale, "audit3.removeAttachment", { name: opaque })).toBe(
+        locale === "en" ? `Remove ${opaque}` : `移除 ${opaque}`,
+      );
+      expect(
+        translateWebMessage(locale, "audit3.removeRoute", {
+          label: opaque,
+          address: `\n${opaque}`,
+        }),
+      ).toBe(
+        locale === "en"
+          ? `Remove ${opaque} route?\n${opaque}`
+          : `移除 ${opaque} 连接方式？\n${opaque}`,
+      );
+      expect(
+        translateWebMessage(locale, "audit3.threadOtherMachineHelp", {
+          title: opaque,
+          owner: opaque,
+        }),
+      ).toBe(
+        locale === "en"
+          ? `This machine's agent can't read "${opaque}". Remove it, or switch back to ${opaque} to send.`
+          : `此机器的 Agent 无法读取“${opaque}”。请移除该会话，或切回 ${opaque} 后发送。`,
+      );
+      for (const count of [0, 1, 2]) {
+        expect(translateWebMessage(locale, "audit3.copyFiles", { count, label: opaque })).toBe(
+          locale === "en"
+            ? `Could not copy ${count} files to ${opaque}`
+            : `无法将 ${count} 个文件复制到 ${opaque}`,
+        );
+        expect(translateWebMessage(locale, "audit3.moreImages", { count })).toBe(
+          locale === "en" ? `Show ${count} more image attachments` : `再显示 ${count} 个图片附件`,
+        );
+      }
+      expect(translateWebMessage(locale, "audit3.copyOneFile", { label: opaque })).toBe(
+        locale === "en" ? `Could not copy 1 file to ${opaque}` : `无法将 1 个文件复制到 ${opaque}`,
+      );
+      for (const [source, chinese] of [
+        ["Could not load the cited response", "无法加载引用的回复"],
+        ["The cited response is unavailable", "引用的回复不可用"],
+        ["The citation does not refer to an assistant response", "该引用未指向助手回复"],
+        [
+          "Load earlier turns, then click the citation to try again. Your saved quote is unchanged.",
+          "请加载较早的轮次，然后点击引用重试。保存的引文保持不变。",
+        ],
+      ] as const) {
+        expect(translateWebSource(locale, source)).toBe(locale === "en" ? source : chinese);
+      }
+      expect(translateWebSource(locale, opaque)).toBe(opaque);
     }
   });
 

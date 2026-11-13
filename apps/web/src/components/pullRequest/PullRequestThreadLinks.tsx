@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { translateWebSource } from "~/i18n/messages";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { Tooltip, TooltipTrigger, TooltipPopup } from "../ui/tooltip";
@@ -103,7 +104,9 @@ function EnabledPullRequestThreadLinks({
       const error = squashAtomCommandFailure(result);
       toastManager.add({
         type: "error",
-        title: remove ? `Could not unlink the ${term}` : `Could not link the ${term}`,
+        title: remove
+          ? readWebI18n().t("audit3.unlinkFailed", { request: translateWebSource(locale, term) })
+          : readWebI18n().t("audit3.linkFailed", { request: translateWebSource(locale, term) }),
         description: error instanceof Error ? error.message : String(error),
       });
       return;

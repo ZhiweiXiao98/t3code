@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { translateWebExtraSource } from "~/i18n/webExtraMessages";
 import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 import { ThreadContextDragGhost } from "./chat/ThreadContextDragGhost";
@@ -2118,7 +2119,7 @@ function OpenCommandPaletteDialog(props: {
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "Repository name incomplete",
+            title: readWebI18n().t("audit3.repositoryIncomplete"),
             description: incompleteOwnerMessage,
           }),
         );

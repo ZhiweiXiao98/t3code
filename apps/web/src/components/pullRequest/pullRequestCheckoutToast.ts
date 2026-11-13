@@ -1,9 +1,13 @@
+import { translateWebSource } from "~/i18n/messages";
+import { readWebI18n } from "~/i18n/readWebI18n";
 import type { ChangeRequestTerminology } from "@t3tools/client-runtime/source-control-clients";
 
 export function offHeadPullRequestCheckoutToast(terminology: ChangeRequestTerminology) {
   return {
     type: "warning",
-    title: "Checked out, but not confirmed on the latest commit",
-    description: `This checkout could not be confirmed at the ${terminology.singular}'s latest commit, so its code may differ. Local commits or uncommitted work keep a checkout where it is.`,
+    title: readWebI18n().t("audit3.offHead"),
+    description: readWebI18n().t("audit3.offHeadHelp", {
+      request: translateWebSource(readWebI18n().locale, terminology.singular),
+    }),
   } as const;
 }

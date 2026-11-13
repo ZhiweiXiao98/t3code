@@ -43,6 +43,10 @@ describe("mobile UI display strings", () => {
       ["Open resolved discussion in {0}", `打开 ${name} 中已解决的讨论`],
       ["Approved by {0}", `由 ${name} 批准`],
       ["by {0}", `作者：${name}`],
+      ["Request review from {0} team", `请求 ${name} 团队审核`],
+      ["Hide connection details for {0}", `隐藏 ${name} 的连接详情`],
+      ["{0} reference in {1}", `Open 中的 ${name} 引用`],
+      ["{0}, tool call failed", `${name}，工具调用失败`],
     ] as const;
     for (const [template, expected] of nativeMessages) {
       expect(formatMobileMessage(template, [name, "Open"], "zh-CN")).toBe(expected);

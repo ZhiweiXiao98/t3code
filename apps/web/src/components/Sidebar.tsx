@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { translateWebSource } from "~/i18n/messages";
 import { localizeSnoozePresetLabel } from "./threadActionMenu.logic";
 import { attachSidebarTree } from "../lib/sidebarTree";
@@ -874,8 +875,8 @@ function checkThreadOperations(
   if (canOperateThreads(threads)) return true;
   toastManager.add({
     type: "error",
-    title: "Thread action unavailable",
-    description: "This connection cannot change one or more selected threads.",
+    title: readWebI18n().t("audit3.threadUnavailable"),
+    description: readWebI18n().t("audit3.threadPermission"),
   });
   return false;
 }
@@ -2289,7 +2290,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
           toastManager.add(
             stackedThreadToast({
               type: "error",
-              title: "Failed to snooze thread",
+              title: readWebI18n().t("audit3.snoozeFailed"),
               description: formatThreadActionError(outcome.error, releaseLocale, t("common.error")),
             }),
           );
@@ -2789,7 +2790,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
             if (result._tag === "Success") {
               toastManager.add({
                 type: "success",
-                title: "Project created",
+                title: readWebI18n().t("audit3.projectCreated"),
                 description: thread.title,
               });
             } else if (!isAtomCommandInterrupted(result)) {

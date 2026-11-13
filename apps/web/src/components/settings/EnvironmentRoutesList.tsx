@@ -46,7 +46,7 @@ export function EnvironmentRoutesList({
   readonly environment: EnvironmentPresentation;
   readonly onAddRoute: () => void;
 }) {
-  const { locale: sourceLocale } = useI18n();
+  const { locale: sourceLocale, t } = useI18n();
   const saved = connectionRoutes(environment.entry);
   const savedIds = saved.map((route) => connectionRouteId(route.target));
   const [pending, setPending] = useState<ReadonlyArray<string> | null>(null);
@@ -72,7 +72,10 @@ export function EnvironmentRoutesList({
   const confirmRemove = async (route: ConnectionRoute) => {
     const address = connectionRouteAddress(route);
     const confirmed = await requestConfirmDialog(
-      `Remove ${connectionRouteLabel(route)} route?${address === null ? "" : `\n${address}`}`,
+      t("audit3.removeRoute", {
+        label: translateWebSource(sourceLocale, connectionRouteLabel(route)),
+        address: address === null ? "" : `\n${address}`,
+      }),
       { variant: "destructive" },
     );
     if (confirmed !== true) return;
@@ -141,7 +144,7 @@ function SortableRouteRow({
   readonly removable: boolean;
   readonly onRemove: () => void;
 }) {
-  const { locale: sourceLocale } = useI18n();
+  const { locale: sourceLocale, t } = useI18n();
   const id = connectionRouteId(route.target);
   const label = connectionRouteLabel(route);
   const address = connectionRouteAddress(route);
@@ -185,7 +188,10 @@ function SortableRouteRow({
         ref={setActivatorNodeRef}
         {...attributes}
         {...listeners}
-        aria-label={`Reorder ${label}, position ${position}`}
+        aria-label={t("audit3.reorderRoute", {
+          label: translateWebSource(sourceLocale, label),
+          position,
+        })}
         className="flex size-6 shrink-0 cursor-grab touch-none items-center justify-center rounded text-muted-foreground/70 outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring active:cursor-grabbing"
       >
         <GripVerticalIcon className="size-3.5" />
@@ -198,7 +204,9 @@ function SortableRouteRow({
                 type="button"
                 variant="ghost-muted"
                 size="icon-xs"
-                aria-label={`Remove ${label} route`}
+                aria-label={t("audit3.removeRouteLabel", {
+                  label: translateWebSource(sourceLocale, label),
+                })}
                 onClick={onRemove}
               />
             }

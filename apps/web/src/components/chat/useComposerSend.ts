@@ -585,12 +585,15 @@ export function useComposerSend(input: ComposerSendInput) {
     if (strandedThread) {
       const owner =
         readEnvironmentPresentation(strandedThread.environmentId)?.entry.target.label ??
-        "its machine";
+        readWebI18n().t("audit3.itsMachine");
       toastManager.add(
         stackedThreadToast({
           type: "warning",
-          title: "Attached thread is on another machine",
-          description: `This machine's agent can't read "${strandedThread.title}". Remove it, or switch back to ${owner} to send.`,
+          title: readWebI18n().t("audit3.threadOtherMachine"),
+          description: readWebI18n().t("audit3.threadOtherMachineHelp", {
+            title: strandedThread.title,
+            owner,
+          }),
         }),
       );
       return;
@@ -1041,8 +1044,8 @@ export function useComposerSend(input: ComposerSendInput) {
         if (notice !== null) {
           toastManager.add({
             type: "info",
-            title: notice,
-            description: "Send again when it's ready.",
+            title: translateWebSource(uiLocale, notice),
+            description: readWebI18n().t("audit3.sendAgain"),
           });
         }
         return;

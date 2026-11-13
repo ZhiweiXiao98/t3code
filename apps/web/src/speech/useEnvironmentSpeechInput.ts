@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import {
   cancelEnvironmentSpeechModelDownload,
   downloadEnvironmentSpeechModel,
@@ -348,8 +349,8 @@ export function useEnvironmentSpeechInput(input: HookInput) {
       onPostProcessingError: () =>
         toastManager.add({
           type: "warning",
-          title: "Transcript cleanup failed",
-          description: "The original transcript was added.",
+          title: readWebI18n().t("audit3.cleanupFailed"),
+          description: readWebI18n().t("audit3.originalTranscript"),
         }),
       readDraft,
       commitDraft: (text, selection) => {
@@ -506,7 +507,7 @@ export function useEnvironmentSpeechInput(input: HookInput) {
       setQueuedStart(null);
       toastManager.add({
         type: "error",
-        title: "Could not start voice input",
+        title: readWebI18n().t("audit3.voiceStartFailed"),
         description: error instanceof Error ? error.message : String(error),
       });
       return;
@@ -520,7 +521,7 @@ export function useEnvironmentSpeechInput(input: HookInput) {
     if (!latestStatus.supported) {
       toastManager.add({
         type: "error",
-        title: "Voice input is not available",
+        title: readWebI18n().t("audit3.voiceUnavailable"),
         description: latestStatus.reason,
       });
       return;

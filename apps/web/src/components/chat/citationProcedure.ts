@@ -1,3 +1,5 @@
+import { translateWebSource } from "~/i18n/messages";
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { useAtomValue } from "@effect/atom-react";
 import { type AtomCommandSuccess, runAtomCommand } from "@t3tools/client-runtime/state/runtime";
 import { Atom, type AtomRegistry } from "effect/reactivity";
@@ -213,8 +215,8 @@ const citedHistoryAtom = Atom.family(
         if (outcome._tag === "failed") {
           toastManager.add({
             type: "warning",
-            title: outcome.title,
-            description: outcome.description,
+            title: translateWebSource(readWebI18n().locale, outcome.title),
+            description: translateWebSource(readWebI18n().locale, outcome.description),
           });
         }
         get.setSelf({ _tag: outcome._tag });

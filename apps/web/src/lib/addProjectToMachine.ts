@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import {
   executeAtomQuery,
   runAtomCommand,
@@ -193,7 +194,13 @@ export async function addProjectToMachine(input: AddProjectToMachineInput): Prom
         ? null
         : {
             phase: "failed",
-            title: `Could not copy ${failed.length} ${failed.length === 1 ? "file" : "files"} to ${input.target.label}`,
+            title:
+              failed.length === 1
+                ? readWebI18n().t("audit3.copyOneFile", { label: input.target.label })
+                : readWebI18n().t("audit3.copyFiles", {
+                    count: failed.length,
+                    label: input.target.label,
+                  }),
             failures: failed,
           },
     );

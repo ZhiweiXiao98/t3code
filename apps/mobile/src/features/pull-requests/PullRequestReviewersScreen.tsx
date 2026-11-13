@@ -187,7 +187,16 @@ export function PullRequestReviewersScreen({ route }: StaticScreenProps<PullRequ
             return (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`${item.isRequested ? "Remove review request from" : "Request review from"} ${item.login}${item.kind === "team" ? " team" : ""}`}
+                accessibilityLabel={formatMobileMessage(
+                  item.isRequested
+                    ? item.kind === "team"
+                      ? "Remove review request from {0} team"
+                      : "Remove review request from {0}"
+                    : item.kind === "team"
+                      ? "Request review from {0} team"
+                      : "Request review from {0}",
+                  [item.login],
+                )}
                 accessibilityState={{ disabled: !allowed || pending !== null }}
                 disabled={!allowed || pending !== null}
                 onPress={() => void update(item)}
