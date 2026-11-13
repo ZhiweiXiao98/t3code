@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { useRouter } from "@tanstack/react-router";
 import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
 import type { ScopedProjectRef } from "@t3tools/contracts";
@@ -26,8 +27,8 @@ export function useRemoveClonedProject() {
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: "Failed to remove project",
-          description: error instanceof Error ? error.message : "An error occurred.",
+          title: readWebI18n().t("audit6.removeProjectFailed"),
+          description: error instanceof Error ? error.message : readWebI18n().t("common.error"),
         }),
       );
       return false;

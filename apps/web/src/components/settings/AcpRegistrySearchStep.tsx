@@ -267,7 +267,7 @@ function AcpRegistryAgentRow({
   readonly isPreparing: boolean;
   readonly onAdd: (agent: AcpRegistrySearchAgent) => void;
 }) {
-  const { locale: sourceLocale } = useI18n();
+  const { locale: sourceLocale, t } = useI18n();
   const progressLabel = agent.distribution === "binary" ? "Downloading" : "Preparing";
   const aboutUrl = agent.website || agent.repository;
   return (
@@ -298,7 +298,7 @@ function AcpRegistryAgentRow({
                   <Button
                     size="icon-xs"
                     variant="ghost-muted"
-                    aria-label={`About ${agent.name}`}
+                    aria-label={t("audit6.aboutAgent", { name: agent.name })}
                     render={<a href={aboutUrl} target="_blank" rel="noreferrer" />}
                   >
                     <ExternalLinkIcon />
@@ -311,13 +311,22 @@ function AcpRegistryAgentRow({
             </Tooltip>
           ) : null}
           <Button
-            aria-label={`${alreadyAdded ? "Already added" : isPreparing ? progressLabel : "Add"} ${agent.name}`}
+            aria-label={t("audit6.agentAction", {
+              action: translateWebSource(
+                sourceLocale,
+                alreadyAdded ? "Already added" : isPreparing ? progressLabel : "Add",
+              ),
+              name: agent.name,
+            })}
             disabled={!canAdd || alreadyAdded}
             onClick={() => onAdd(agent)}
             size="xs"
             variant={isPreparing ? "secondary" : "outline"}
           >
-            {alreadyAdded ? "Added" : isPreparing ? progressLabel : "Add"}
+            {translateWebSource(
+              sourceLocale,
+              alreadyAdded ? "Added" : isPreparing ? progressLabel : "Add",
+            )}
           </Button>
         </div>
       </div>

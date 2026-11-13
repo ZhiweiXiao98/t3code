@@ -231,8 +231,8 @@ export async function navigateAfterThreadDeletion(navigate: () => Promise<void>)
     toastManager.add(
       stackedThreadToast({
         type: "error",
-        title: "Thread deleted, but navigation failed",
-        description: error instanceof Error ? error.message : "An error occurred.",
+        title: readWebI18n().t("audit6.navigationFailed"),
+        description: error instanceof Error ? error.message : readWebI18n().t("common.error"),
       }),
     );
   }
@@ -327,7 +327,7 @@ function threadOperationFailure(target: ScopedThreadRef, locale: ResolvedAppLoca
 export function useThreadActions() {
   const { locale, t } = useI18n();
   const formatUndoFailure = (error: unknown) =>
-    formatThreadActionError(error, readWebI18n().locale, "An error occurred.");
+    formatThreadActionError(error, readWebI18n().locale, readWebI18n().t("common.error"));
   const archiveThreadMutation = useOrchestrationCommand(threadEnvironment.archive, {
     reportFailure: false,
   });
@@ -721,7 +721,7 @@ export function useThreadActions() {
     if (cleanupFailure) {
       const removalFailed = removeResult._tag === "Failure";
       const error = squashAtomCommandFailure(cleanupFailure);
-      const message = error instanceof Error ? error.message : "An error occurred.";
+      const message = error instanceof Error ? error.message : readWebI18n().t("common.error");
       console.error("Worktree cleanup failed after thread deletion", {
         threadId: threadRef.threadId,
         projectCwd: threadProject.workspaceRoot,

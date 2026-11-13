@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { translateWebExtraSource } from "~/i18n/webExtraMessages";
 import { managedUpdatesDenial, managedUpdatesMessage } from "../../i18n/managedPolicyMessages";
 import { useAtomValue } from "@effect/atom-react";
@@ -2081,7 +2082,7 @@ export function ThreadsSettingsPanel() {
                     if (reason) {
                       toastManager.add({
                         type: "error",
-                        title: "Text generation model not saved",
+                        title: readWebI18n().t("audit6.textModelNotSaved"),
                         description: reason,
                       });
                       return;

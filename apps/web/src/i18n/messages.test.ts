@@ -102,6 +102,93 @@ describe("translateWebMessage", () => {
     }
   });
 
+  it("preserves opaque payloads through dynamic notification and accessible-label templates", () => {
+    const opaque = 'host/{error}/$&/"quoted"\n中文';
+    for (const locale of ["en", "zh-CN"] as const) {
+      for (const [key, values, english, chinese] of [
+        [
+          "audit6.importFailed",
+          { name: opaque },
+          `Couldn't bring ${opaque} into this message`,
+          `无法将 ${opaque} 加入此消息`,
+        ],
+        [
+          "audit6.importHelp",
+          { reason: opaque },
+          `${opaque} Remove the chip or attach the file again.`,
+          `${opaque} 请移除该标签或重新附加文件。`,
+        ],
+        [
+          "audit6.modelApplyHelp",
+          { error: opaque },
+          `This model pick was not saved. ${opaque}`,
+          `此模型选择未保存。${opaque}`,
+        ],
+        [
+          "audit6.cleanupFailed",
+          { label: opaque },
+          `Cleanup failed on ${opaque}`,
+          `在 ${opaque} 上清理失败`,
+        ],
+        [
+          "audit6.pasteAttached",
+          { name: opaque },
+          `Large paste attached as ${opaque}`,
+          `较长的粘贴内容已作为 ${opaque} 附加`,
+        ],
+        [
+          "audit6.pasteHelp",
+          { size: opaque, shortcut: opaque },
+          `${opaque} · Use ${opaque} to keep a large paste inline.`,
+          `${opaque} · 使用 ${opaque} 将较长的粘贴内容保留在正文中。`,
+        ],
+        ["audit6.aboutAgent", { name: opaque }, `About ${opaque}`, `关于 ${opaque}`],
+        [
+          "audit6.providerHeaders",
+          { id: opaque },
+          `${opaque} write-only headers JSON`,
+          `${opaque} 只写请求头 JSON`,
+        ],
+        [
+          "audit6.reconnecting",
+          { label: opaque },
+          `${opaque} is reconnecting`,
+          `${opaque} 正在重新连接`,
+        ],
+      ] as const) {
+        expect(translateWebMessage(locale, key, values)).toBe(locale === "en" ? english : chinese);
+      }
+      for (const count of [1, 2]) {
+        expect(
+          translateWebMessage(locale, count === 1 ? "audit6.startedOne" : "audit6.startedMany", {
+            count,
+          }),
+        ).toBe(
+          locale === "en"
+            ? `Started ${count} thread${count === 1 ? "" : "s"} in background`
+            : `已在后台启动 ${count} 个会话`,
+        );
+        expect(
+          translateWebMessage(locale, count === 1 ? "audit6.stashImage" : "audit6.stashImages", {
+            count,
+          }),
+        ).toBe(
+          locale === "en"
+            ? `That prompt was restored or deleted before ${count} image${count === 1 ? "" : "s"} finished saving. Re-attach ${count === 1 ? "it" : "them"} if you still need ${count === 1 ? "it" : "them"}.`
+            : `在 ${count} 张图片保存完成前，该提示词已被恢复或删除。如仍需使用${count === 1 ? "该" : "这些"}图片，请重新附加。`,
+        );
+      }
+    }
+    for (const [source, chinese] of [
+      ["Needs approval", "需要批准"],
+      ["Needs your input", "需要你输入"],
+      ["Stopped", "已停止"],
+    ]) {
+      expect(translateWebSource("zh-CN", source!)).toBe(chinese);
+      expect(translateWebSource("en", source!)).toBe(source);
+    }
+  });
+
   it("localizes both privacy clauses selected by the onboarding telemetry policy", () => {
     expect(welcomePrivacyClause("zh-CN", false)).toBe("如需退出，请参阅");
     expect(welcomePrivacyClause("zh-CN", true)).toBe("请参阅");

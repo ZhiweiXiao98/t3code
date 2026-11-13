@@ -3,6 +3,12 @@ import { formatMobileMessage } from "./mobileDisplayStrings";
 import { localizeMobileString, MOBILE_LOCALE, type MobileLocale } from "./mobileStrings";
 
 const VOICE_ERROR_MESSAGES = new Set<string>([
+  "The microphone could not start.",
+  "The microphone returned incomplete audio.",
+  "The microphone stopped supplying audio.",
+  "The microphone audio queue did not drain.",
+  "Speech recognition fell behind capture.",
+  "Voice transcription does not support any of your languages.",
   "On-device voice transcription is not available for this device language.",
   "Not enough storage for on-device dictation. Free device storage and retry.",
   "On-device speech quota reached. Let the device rest or charge it, then retry.",

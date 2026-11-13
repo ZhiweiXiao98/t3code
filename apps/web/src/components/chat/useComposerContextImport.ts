@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import {
   ConnectionBlockedError,
   ConnectionTransientError,
@@ -161,15 +162,15 @@ export function useComposerContextImport(input: {
     const fail = (reason: string) => {
       toastManager.add({
         type: "error",
-        title: `Couldn't bring ${record.name} into this message`,
-        description: `${reason} Remove the chip or attach the file again.`,
+        title: readWebI18n().t("audit6.importFailed", { name: record.name }),
+        description: readWebI18n().t("audit6.importHelp", { reason }),
       });
     };
     let file = copiedComposerAttachmentFile(sourceEnvironmentId, record.attachmentId);
     if (!file) {
       const sourceConnection = readPreparedConnection(sourceEnvironmentId);
       if (!sourceConnection) {
-        fail("The environment it came from is not connected.");
+        fail(readWebI18n().t("audit6.importReason0"));
         return;
       }
       const result = await createAssetUrl({
@@ -184,14 +185,14 @@ export function useComposerContextImport(input: {
         const cause = result._tag === "Failure" ? Cause.squash(result.cause) : null;
         fail(
           isUnreachable(cause)
-            ? "The environment it came from is not reachable right now."
-            : "The original attachment is no longer available.",
+            ? readWebI18n().t("audit6.importReason1")
+            : readWebI18n().t("audit6.importReason2"),
         );
         return;
       }
       const blob = await downloadAttachmentBlob(url);
       if (!blob) {
-        fail("Downloading it from the source failed.");
+        fail(readWebI18n().t("audit6.importReason3"));
         return;
       }
       // Question attachments have no inline reference; annotations can own their screenshots.
@@ -229,7 +230,7 @@ export function useComposerContextImport(input: {
       (pendingThreadImportsRef.current.get(importTargetKey) ?? 0) > 0 &&
       countReservedAttachments() >= PROVIDER_SEND_TURN_MAX_ATTACHMENTS
     ) {
-      fail("The attachment limit has been reached.");
+      fail(readWebI18n().t("audit6.importReason4"));
       return;
     }
     if (record.kind === "image") {
@@ -253,8 +254,7 @@ export function useComposerContextImport(input: {
             ) ?? false,
         },
       );
-      if (!accepted.includes(localId))
-        fail("The draft rejected this attachment (duplicate or attachment limit reached).");
+      if (!accepted.includes(localId)) fail(readWebI18n().t("audit6.importReason5"));
     } else {
       const accepted = addComposerFilesToDraft([
         {
@@ -266,8 +266,7 @@ export function useComposerContextImport(input: {
           file,
         },
       ]);
-      if (!accepted.includes(localId))
-        fail("The draft rejected this attachment (duplicate or attachment limit reached).");
+      if (!accepted.includes(localId)) fail(readWebI18n().t("audit6.importReason5"));
     }
   };
   const importAttachmentRecord = async (

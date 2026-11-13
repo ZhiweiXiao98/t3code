@@ -88,3 +88,17 @@ for (index, start) in layout.starts.enumerated() {
 }
 check(reconstructed == ascii)
 print("Passed \(cases) Unicode/width and unwrapped cases, color-update geometry, and ASCII coverage")
+
+// The build locale controls native copy, while serialized range labels remain unchanged.
+do {
+  for locale in [nil, "en", "zh-TW", "zh-CN"] as [String?] {
+    let strings = T3NativeStrings(locale: locale)
+    let chinese = locale == "zh-CN"
+    check(strings.text("Comment", "评论") == (chinese ? "评论" : "Comment"))
+    check(strings.commentRange("line") == (chinese ? "行" : "line"))
+    check(strings.commentRange("12 lines") == (chinese ? "12 行" : "12 lines"))
+    for opaque in ["+7–9", "Old line 5", "user lines", "line with details", ""] {
+      check(strings.commentRange(opaque) == opaque, "Native labels changed opaque range content")
+    }
+  }
+}

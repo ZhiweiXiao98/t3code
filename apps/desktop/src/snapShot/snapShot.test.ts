@@ -514,6 +514,67 @@ describe("isWaylandSession", () => {
 });
 
 describe("snapshot service messages", () => {
+  it("localizes portal and nested helper state while preserving versions, shortcut labels, and external failures", () => {
+    const state = {
+      mode: "portal" as const,
+      shortcut: DEFAULT_CLIENT_SETTINGS.snapShotShortcut,
+      shortcutRegistered: false,
+      shortcutMessage: "Shortcut permission wasn't granted. Open shortcut permissions to allow it.",
+      shortcutLabel: "Ctrl+{label}/$&",
+      message: "Could not capture the active window.",
+      gnomeExtension: {
+        status: "unsupported" as const,
+        message: "The bundled extension supports GNOME 46, 47, 48. This session runs GNOME 49.",
+      },
+      kdeHelper: {
+        status: "error" as const,
+        message: "The KDE capture helper did not respond. Reopen capture setup and check access.",
+      },
+      hyprlandHelper: { status: "error" as const, message: "stderr: provider/{name}/$&" },
+    };
+    const translated = localizeSnapShotStateMessages(state, "linux", true);
+    expect(translated.shortcutMessage).toBe("未授予快捷键权限。请打开快捷键权限设置并允许。");
+    expect(translated.message).toBe("无法截取当前活动窗口。");
+    expect(translated.gnomeExtension?.message).toBe(
+      "随应用附带的扩展支持 GNOME 46, 47, 48。当前会话运行 GNOME 49。",
+    );
+    expect(translated.kdeHelper?.message).toBe(
+      "KDE 截取辅助程序未响应。请重新打开截取设置并检查权限。",
+    );
+    expect(translated.hyprlandHelper).toEqual(state.hyprlandHelper);
+    expect(localizeSnapShotStateMessages(state, "linux", false)).toBe(state);
+    const labelState = { ...state, shortcutMessage: `Desktop shortcut: ${state.shortcutLabel}` };
+    expect(localizeSnapShotStateMessages(labelState, "linux", true).shortcutMessage).toBe(
+      `桌面快捷键：${state.shortcutLabel}`,
+    );
+    expect(
+      localizeSnapShotStateMessages(
+        { ...state, shortcutMessage: "Desktop shortcut: someone else's label" },
+        "linux",
+        true,
+      ).shortcutMessage,
+    ).toBe("Desktop shortcut: someone else's label");
+    for (const message of [
+      "constructor",
+      "The bundled extension supports GNOME 46X This session runs GNOME 49.",
+      "external: The bundled extension supports GNOME 46. This session runs GNOME 49.",
+    ]) {
+      const unknown = {
+        ...state,
+        gnomeExtension: { status: "unsupported" as const, message },
+        kdeHelper: { status: "error" as const, message },
+        message,
+      };
+      const actual = localizeSnapShotStateMessages(unknown, "linux", true);
+      expect(actual.gnomeExtension?.message).toBe(message);
+      expect(actual.kdeHelper?.message).toBe(message);
+      expect(actual.message).toBe(message);
+    }
+    expect(state.gnomeExtension.message).toBe(
+      "The bundled extension supports GNOME 46, 47, 48. This session runs GNOME 49.",
+    );
+  });
+
   it("translates known service fallback without changing unknown errors or source state", () => {
     const state = {
       mode: "portal" as const,
@@ -529,5 +590,35 @@ describe("snapshot service messages", () => {
     const unknown = { ...state, shortcutMessage: "external/{shortcut}/$&", message: "外部错误" };
     expect(localizeSnapShotStateMessages(unknown, "linux", true)).toEqual(unknown);
     expect(state.shortcutMessage).toBe("Could not connect to your desktop's shortcut service.");
+    for (const [source, translated] of [
+      [
+        "The Niri capture endpoint disconnected. Restart T3 Code.",
+        "Niri 截取端点已断开连接。请重启 T3 Code。",
+      ],
+      [
+        "Set up the shortcut to add it to your Niri config.",
+        "请设置快捷键，将其添加到 Niri 配置。",
+      ],
+      [
+        "Could not start the Niri capture endpoint. Another T3 Code instance may be using it.",
+        "无法启动 Niri 截取端点。另一个 T3 Code 实例可能正在使用它。",
+      ],
+      [
+        "Modifier-pair shortcuts aren't available in this Wayland session. Choose another shortcut or use Take snapshot from the command palette.",
+        "此 Wayland 会话不支持双修饰键快捷键。请选择其他快捷键，或使用命令面板中的“截取快照”。",
+      ],
+    ] as const) {
+      const original = { ...state, shortcutMessage: source };
+      expect(localizeSnapShotStateMessages(original, "linux", true).shortcutMessage).toBe(
+        translated,
+      );
+      expect(localizeSnapShotStateMessages(original, "linux", false)).toBe(original);
+      const external = { ...state, shortcutMessage: `external: ${source}` };
+      expect(localizeSnapShotStateMessages(external, "linux", true)).toEqual(external);
+    }
+    expect(
+      localizeSnapShotStateMessages({ ...state, shortcutMessage: "constructor" }, "linux", true)
+        .shortcutMessage,
+    ).toBe("constructor");
   });
 });

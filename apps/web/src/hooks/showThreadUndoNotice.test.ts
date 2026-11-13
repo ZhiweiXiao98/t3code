@@ -11,9 +11,26 @@ import {
 } from "./showThreadUndoNotice";
 import * as ThreadUndo from "@t3tools/client-runtime/state/thread-undo";
 
+const language = vi.hoisted(() => ({ locale: "en" as "en" | "zh-CN" }));
+vi.mock("../i18n/readWebI18n", async () => {
+  const { translateWebMessage } = await import("../i18n/messages");
+  return {
+    readWebI18n: () => ({
+      locale: language.locale,
+      t: (
+        key: Parameters<typeof translateWebMessage>[1],
+        values?: Parameters<typeof translateWebMessage>[2],
+      ) => translateWebMessage(language.locale, key, values),
+    }),
+  };
+});
+
 vi.mock("../lib/announce", () => ({ announce: vi.fn(), cancelAnnouncement: vi.fn() }));
 
-beforeEach(() => vi.useFakeTimers());
+beforeEach(() => {
+  language.locale = "en";
+  vi.useFakeTimers();
+});
 afterEach(() => {
   vi.runAllTimers();
   vi.useRealTimers();
@@ -87,5 +104,39 @@ describe("thread undo notice", () => {
     );
     await notice().undo();
     expect(cancelAnnouncement).toHaveBeenCalledWith("thread-undo-notice");
+    language.locale = "zh-CN";
+    showThreadUndoNotice({ ...options, claim: ThreadUndo.begin("pin", "env/chinese") });
+    expect(announce).toHaveBeenLastCalledWith(
+      expect.stringMatching(/^已取消置顶 1 个会话，/),
+      "thread-undo-notice",
+    );
+    await notice().undo();
+    expect(cancelAnnouncement).toHaveBeenCalledWith("thread-undo-notice");
+  });
+  it("reads locale when undo fails and keeps external errors literal", async () => {
+    const { add, options } = setup();
+    const error = new Error("Settings/{error}/$&/错误");
+    const undo = vi.fn(async () => {
+      throw error;
+    });
+    showThreadUndoNotice({ ...options, failureTitle: "Failed to undo unpin", undo });
+    language.locale = "zh-CN";
+    await notice().undo();
+    expect(undo).toHaveBeenCalledOnce();
+    expect(add).toHaveBeenLastCalledWith(
+      expect.objectContaining({ title: "无法撤销取消置顶", description: error.message }),
+    );
+    showThreadUndoNotice({
+      ...options,
+      claim: ThreadUndo.begin("pin", "env/fallback"),
+      failureTitle: "Restore failed",
+      undo: async () => {
+        throw null;
+      },
+    });
+    await notice().undo();
+    expect(add).toHaveBeenLastCalledWith(
+      expect.objectContaining({ title: "Restore failed", description: "发生错误。" }),
+    );
   });
 });

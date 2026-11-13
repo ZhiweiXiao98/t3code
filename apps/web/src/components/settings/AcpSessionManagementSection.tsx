@@ -114,7 +114,7 @@ function InstanceSessionManagement(
     readonly onProjectChange: (projectId: ProjectId) => void;
   },
 ) {
-  const { locale: sourceLocale } = useI18n();
+  const { locale: sourceLocale, t } = useI18n();
   const canOperate = useEnvironmentScope(props.environmentId, AuthOrchestrationOperateScope);
   const canRead = useEnvironmentScope(props.environmentId, AuthOrchestrationReadScope);
   const { projectId } = props;
@@ -676,7 +676,10 @@ function InstanceSessionManagement(
                           if (value !== null) updateDraft({ apiType: value });
                         }}
                       >
-                        <SelectTrigger aria-label={`${provider.providerId} protocol`} size="sm">
+                        <SelectTrigger
+                          aria-label={t("audit6.providerProtocol", { id: provider.providerId })}
+                          size="sm"
+                        >
                           <SelectValue>{draft.apiType}</SelectValue>
                         </SelectTrigger>
                         <SelectPopup>
@@ -690,7 +693,7 @@ function InstanceSessionManagement(
                       <Input
                         size="sm"
                         type="url"
-                        aria-label={`${provider.providerId} base URL`}
+                        aria-label={t("audit6.providerUrl", { id: provider.providerId })}
                         placeholder={translateWebSource(sourceLocale, "https://api.example.com")}
                         value={draft.baseUrl}
                         disabled={props.readOnly || savingProviderId !== null}
@@ -700,7 +703,7 @@ function InstanceSessionManagement(
                     <Input
                       size="sm"
                       type="password"
-                      aria-label={`${provider.providerId} write-only headers JSON`}
+                      aria-label={t("audit6.providerHeaders", { id: provider.providerId })}
                       placeholder={translateWebSource(
                         sourceLocale,
                         'Write-only headers JSON, e.g. {"Authorization":"Bearer …"}',

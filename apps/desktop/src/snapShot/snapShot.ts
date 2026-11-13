@@ -35,6 +35,119 @@ export const WINDOWS_MODIFIER_PAIR_VIRTUAL_KEYS: Record<
   meta: [0x5b, 0x5c],
 };
 
+const SNAP_SHOT_SHORTCUT_MESSAGES: Readonly<Record<string, string>> = {
+  "Capture shortcut registration closed.": "截取快捷键注册已关闭。",
+  "Shortcut permission request timed out. Try again.": "快捷键权限请求超时。请重试。",
+  "Missing shortcut portal reply.": "未收到快捷键门户回复。",
+  "The desktop shortcut service restarted. Retry the shortcut request.":
+    "桌面快捷键服务已重启。请重试快捷键请求。",
+  "Your desktop closed the capture shortcut. Retry the shortcut request.":
+    "桌面系统已关闭截取快捷键。请重试快捷键请求。",
+  "Invalid shortcut request handle.": "快捷键请求句柄无效。",
+  "Invalid shortcut session handle.": "快捷键会话句柄无效。",
+  "This key isn't supported as a Wayland capture shortcut. Choose another key.":
+    "此按键不支持用作 Wayland 截图快捷键。请选择其他按键。",
+  "Waiting for shortcut permission. Approve the desktop prompt if one appears.":
+    "正在等待快捷键权限。如出现桌面提示，请批准。",
+  "Connecting to Hyprland shortcuts…": "正在连接 Hyprland 快捷键…",
+  "Couldn't connect to Hyprland shortcuts. Make sure xdg-desktop-portal-hyprland is running, then restart T3 Code.":
+    "无法连接 Hyprland 快捷键。请确认 xdg-desktop-portal-hyprland 正在运行，然后重启 T3 Code。",
+  "Could not register the capture shortcut.": "无法注册截取快捷键。",
+  "Shortcut permission wasn't granted. Open shortcut permissions to allow it.":
+    "未授予快捷键权限。请打开快捷键权限设置并允许。",
+  "Shortcut permission wasn't granted. Allow T3 Code in your desktop's shortcut settings.":
+    "未授予快捷键权限。请在桌面快捷键设置中允许 T3 Code。",
+  "Your desktop could not create a capture shortcut session.": "桌面系统无法创建截取快捷键会话。",
+  "Managed by Hyprland. Add the binding to your config and save it.":
+    "由 Hyprland 管理。请将快捷键绑定添加到配置并保存。",
+  "Hyprland did not register the capture action. Check that xdg-desktop-portal-hyprland is running, then restart T3 Code.":
+    "Hyprland 未注册截取操作。请确认 xdg-desktop-portal-hyprland 正在运行，然后重启 T3 Code。",
+  "No shortcut is assigned. Open shortcut permissions to choose one.":
+    "尚未分配快捷键。请打开快捷键权限设置以选择。",
+  "No shortcut is assigned. Choose one in your desktop's shortcut settings.":
+    "尚未分配快捷键。请在桌面快捷键设置中选择。",
+  "Could not connect to your desktop's shortcut service.": "无法连接到桌面快捷键服务。",
+  "The Niri capture endpoint disconnected. Restart T3 Code.":
+    "Niri 截取端点已断开连接。请重启 T3 Code。",
+  "Set up the shortcut to add it to your Niri config.": "请设置快捷键，将其添加到 Niri 配置。",
+  "Could not start the Niri capture endpoint. Another T3 Code instance may be using it.":
+    "无法启动 Niri 截取端点。另一个 T3 Code 实例可能正在使用它。",
+  "Modifier-pair shortcuts aren't available in this Wayland session. Choose another shortcut or use Take snapshot from the command palette.":
+    "此 Wayland 会话不支持双修饰键快捷键。请选择其他快捷键，或使用命令面板中的“截取快照”。",
+};
+
+const SNAP_SHOT_STATE_MESSAGES: Readonly<Record<string, string>> = {
+  "GNOME did not respond. Sign in to a GNOME Wayland session and try again.":
+    "GNOME 未响应。请登录 GNOME Wayland 会话后重试。",
+  "GNOME returned no setup information.": "GNOME 未返回设置信息。",
+  "KDE hasn't granted capture access. Reinstall the capture helper in setup, then try again.":
+    "KDE 尚未授予截取权限。请在设置中重新安装截取辅助程序，然后重试。",
+  "The KDE capture helper did not respond. Reopen capture setup and check access.":
+    "KDE 截取辅助程序未响应。请重新打开截取设置并检查权限。",
+  "Capture helper files must be regular files. Remove the conflicting link before trying again.":
+    "截取辅助程序文件必须是常规文件。请移除冲突的链接后重试。",
+  "Hyprland capture did not respond. Check capture setup and try again.":
+    "Hyprland 截取未响应。请检查截取设置后重试。",
+  "The capture helper must be a regular file, not a link.":
+    "截取辅助程序必须是常规文件，不能是链接。",
+  "Could not check desktop capture support. Check your desktop session and try again.":
+    "无法检查桌面截取支持。请检查桌面会话后重试。",
+  "Could not list pending snapshots.": "无法列出待处理的快照。",
+  "Could not read the snapshot.": "无法读取快照。",
+  "Could not remove the snapshot.": "无法移除快照。",
+  "SnapShots are not supported here.": "此处不支持快照。",
+  "Enable SnapShots in Settings first.": "请先在设置中启用快照。",
+  "No window was selected.": "未选择窗口。",
+  "The active window is not available for capture.": "无法截取当前活动窗口。",
+  "Finish SnapShot setup in Settings → SnapShots.": "请在“设置 → 快照”中完成快照设置。",
+  "Could not capture the active window.": "无法截取当前活动窗口。",
+  "SnapShots require a Wayland session. X11 capture is not supported.":
+    "快照需要 Wayland 会话。不支持 X11 截取。",
+  "SnapShots are not supported on this platform.": "此平台不支持快照。",
+  "Allow Screen Recording in System Settings, then restart T3 Code.":
+    "请在系统设置中允许屏幕录制，然后重启 T3 Code。",
+  "Allow Accessibility in System Settings, then restart T3 Code.":
+    "请在系统设置中允许辅助功能权限，然后重启 T3 Code。",
+  "Allow Accessibility and Screen Recording in System Settings, then restart T3 Code.":
+    "请在系统设置中允许辅助功能和屏幕录制权限，然后重启 T3 Code。",
+  "Install the bundled extension to capture the active window without a picker. No download or administrator password is needed.":
+    "安装随应用附带的扩展，即可直接截取活动窗口，无需选择窗口。无需下载或管理员密码。",
+  "Installed. Save your work, sign out of GNOME and sign back in, then return here to enable the extension. Restarting T3 Code alone is not enough.":
+    "已安装。请保存工作，退出 GNOME 并重新登录，然后返回此处启用扩展。仅重启 T3 Code 不足以生效。",
+  "A newer extension is bundled with this app. Install it, then sign out and back in to load the update.":
+    "此应用附带更新版本的扩展。安装后，请退出并重新登录以加载更新。",
+  "GNOME has disabled user extensions. Turn on Extensions in the GNOME Extensions app, then check again. T3 Code will not enable your other extensions for you.":
+    "GNOME 已禁用用户扩展。请在 GNOME 扩展应用中打开扩展开关，然后重新检查。T3 Code 不会替你启用其他扩展。",
+  "The T3 Code extension is running. Active-window snapshots are available.":
+    "T3 Code 扩展正在运行。现在可以截取活动窗口。",
+  "GNOME could not load the extension. Check GNOME Extensions for details, or sign out and back in.":
+    "GNOME 无法加载扩展。请在 GNOME 扩展应用中查看详情，或退出后重新登录。",
+  "Enable the T3 Code extension to allow active-window snapshots. You can disable it here at any time.":
+    "启用 T3 Code 扩展以截取活动窗口。你可以随时在此禁用。",
+  "Could not check GNOME extension setup.": "无法检查 GNOME 扩展设置。",
+  "Install the bundled helper to capture the window you're using.":
+    "安装随应用附带的辅助程序，以截取正在使用的窗口。",
+  "Install the bundled helper to capture the window you're using without a picker.":
+    "安装随应用附带的辅助程序，即可直接截取正在使用的窗口，无需选择窗口。",
+  "The Hyprland capture helper is missing from this build. Update or reinstall T3 Code.":
+    "此构建缺少 Hyprland 截取辅助程序。请更新或重新安装 T3 Code。",
+  "The capture helper is missing from this build. Update or reinstall T3 Code.":
+    "此构建缺少截取辅助程序。请更新或重新安装 T3 Code。",
+  "Update the bundled capture helper to continue.": "请更新随应用附带的截取辅助程序以继续。",
+  "Helper ready. Hyprland may ask for screen-sharing permission on your first capture.":
+    "辅助程序已就绪。首次截取时，Hyprland 可能会请求屏幕共享权限。",
+  "Couldn't check Hyprland capture access.": "无法检查 Hyprland 截取权限。",
+  "Couldn't check KDE capture access.": "无法检查 KDE 截取权限。",
+  "KDE capture access is ready. Next, choose your shortcut.":
+    "KDE 截取权限已就绪。接下来请选择快捷键。",
+};
+
+function translateKnownStateMessage(message: string): string {
+  return Object.hasOwn(SNAP_SHOT_STATE_MESSAGES, message)
+    ? SNAP_SHOT_STATE_MESSAGES[message]!
+    : message;
+}
+
 export function localizeSnapShotStateMessages(
   state: DesktopSnapShotState,
   platform: NodeJS.Platform,
@@ -44,15 +157,52 @@ export function localizeSnapShotStateMessages(
   const shortcutMessage =
     state.shortcutMessage === snapShotShortcutRegistrationFailureMessage(state.shortcut, platform)
       ? snapShotShortcutRegistrationFailureMessage(state.shortcut, platform, true)
-      : state.shortcutMessage === "Could not connect to your desktop's shortcut service."
-        ? "无法连接到桌面快捷键服务。"
+      : state.shortcutMessage !== null &&
+          Object.hasOwn(SNAP_SHOT_SHORTCUT_MESSAGES, state.shortcutMessage)
+        ? SNAP_SHOT_SHORTCUT_MESSAGES[state.shortcutMessage]!
         : state.shortcutMessage;
-  const message =
-    state.message ===
-    "Could not check desktop capture support. Check your desktop session and try again."
-      ? "无法检查桌面截取支持。请检查桌面会话后重试。"
-      : state.message;
-  return { ...state, shortcutMessage, message };
+  const extension = state.gnomeExtension;
+  const versionMessage =
+    extension?.status === "unsupported"
+      ? /^The bundled extension supports GNOME ([0-9]+(?:, [0-9]+)*)\. This session runs GNOME ([0-9]+)\.$/.exec(
+          extension.message,
+        )
+      : null;
+  return {
+    ...state,
+    shortcutMessage:
+      state.shortcutLabel !== undefined &&
+      shortcutMessage === `Desktop shortcut: ${state.shortcutLabel}`
+        ? `桌面快捷键：${state.shortcutLabel}`
+        : shortcutMessage,
+    message: state.message === null ? null : translateKnownStateMessage(state.message),
+    ...(extension
+      ? {
+          gnomeExtension: {
+            ...extension,
+            message: versionMessage
+              ? `随应用附带的扩展支持 GNOME ${versionMessage[1]}。当前会话运行 GNOME ${versionMessage[2]}。`
+              : translateKnownStateMessage(extension.message),
+          },
+        }
+      : {}),
+    ...(state.kdeHelper
+      ? {
+          kdeHelper: {
+            ...state.kdeHelper,
+            message: translateKnownStateMessage(state.kdeHelper.message),
+          },
+        }
+      : {}),
+    ...(state.hyprlandHelper
+      ? {
+          hyprlandHelper: {
+            ...state.hyprlandHelper,
+            message: translateKnownStateMessage(state.hyprlandHelper.message),
+          },
+        }
+      : {}),
+  };
 }
 
 export function snapShotShortcutRegistrationFailureMessage(

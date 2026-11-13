@@ -22,6 +22,20 @@ import org.robolectric.annotation.GraphicsMode
 @Config(sdk = [35], manifest = Config.NONE)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class ReviewDiffCodeLayoutTest {
+  @Test
+  fun nativeRangeDisplayUsesOnlyTheBuildLocaleAndPreservesOpaqueContent() {
+    for (locale in listOf(null, "en", "zh-TW", "zh-CN")) {
+      val strings = T3NativeStrings(locale)
+      val chinese = locale == "zh-CN"
+      assertEquals(if (chinese) "评论" else "Comment", strings.text("Comment", "评论"))
+      assertEquals(if (chinese) "行" else "line", strings.commentRange("line"))
+      assertEquals(if (chinese) "12 行" else "12 lines", strings.commentRange("12 lines"))
+      for (opaque in listOf("+7–9", "Old line 5", "user lines", "line with details", "")) {
+        assertEquals(opaque, strings.commentRange(opaque))
+      }
+    }
+  }
+
   private val paint = TextPaint().apply {
     color = Color.WHITE
     textSize = 24f

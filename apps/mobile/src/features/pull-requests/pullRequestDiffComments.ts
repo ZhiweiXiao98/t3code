@@ -1,3 +1,5 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
+import { MOBILE_LOCALE, type MobileLocale } from "../../i18n/mobileStrings";
 import type { PullRequestReviewPosition, PullRequestReviewThread } from "@t3tools/contracts";
 import type { NativeReviewDiffRow } from "../diffs/nativeReviewDiffSurface";
 import type { NativeReviewDiffData } from "../review/nativeReviewDiffAdapter";
@@ -18,13 +20,16 @@ export function reviewPosition(row: NativeReviewDiffRow): PullRequestReviewPosit
     };
   return null;
 }
-export function discussionCommentCountLabel(count: number) {
-  return `${count} ${count === 1 ? "comment" : "comments"}`;
+export function discussionCommentCountLabel(count: number, locale: MobileLocale = MOBILE_LOCALE) {
+  return formatMobileMessage(count === 1 ? "{0} comment" : "{0} comments", [count], locale);
 }
-export function reviewPositionLabel(position: PullRequestReviewPosition) {
+export function reviewPositionLabel(
+  position: PullRequestReviewPosition,
+  locale: MobileLocale = MOBILE_LOCALE,
+) {
   const oldSide =
     position.kind === "deleted" || (position.kind === "context" && position.side === "left");
-  return `${oldSide ? "Old line" : "Line"} ${reviewLine(position)}`;
+  return formatMobileMessage(oldSide ? "Old line {0}" : "Line {0}", [reviewLine(position)], locale);
 }
 function reviewLine(position: PullRequestReviewPosition) {
   if (position.kind === "deleted" || (position.kind === "context" && position.side === "left"))

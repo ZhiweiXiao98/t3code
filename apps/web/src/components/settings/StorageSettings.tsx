@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import {
   cleanupRunPresentation,
   cleanupPendingDescription,
@@ -367,13 +368,13 @@ function CleanupSection() {
             if (failures.length > 0)
               toastManager.add({
                 type: "error",
-                title: `Cleanup failed on ${environment.label}`,
+                title: readWebI18n().t("audit6.cleanupFailed", { label: environment.label }),
                 description: failures[0]!.reason,
               });
           } else if (!isAtomCommandInterrupted(result)) {
             toastManager.add({
               type: "error",
-              title: `Could not run cleanup on ${environment.label}`,
+              title: readWebI18n().t("audit6.cleanupRunFailed", { label: environment.label }),
               description: String(squashAtomCommandFailure(result)),
             });
           }

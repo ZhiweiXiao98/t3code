@@ -5,6 +5,7 @@ import type { AnyRouter } from "@tanstack/react-router";
 import type { AtomRegistry } from "effect/reactivity";
 
 import { useComposerDraftStore } from "../composerDraftStore";
+import { readWebI18n } from "../i18n/readWebI18n";
 import { createLiveRegion } from "../hooks/useLiveRegion";
 import { liveShellEnvironmentIdsAtom } from "../state/shell";
 import { environmentThreadShells } from "../state/threads";
@@ -56,7 +57,12 @@ export function startBackgroundThreadAnnouncements(
         snoozed: effectiveSnoozed(thread, { now }),
       });
     }
-    const next = nextBackgroundThreadAnnouncement(memory, snapshots, openThreadKey);
+    const next = nextBackgroundThreadAnnouncement(
+      memory,
+      snapshots,
+      openThreadKey,
+      readWebI18n().locale,
+    );
     memory = next.memory;
     if (next.announcement !== null) backgroundThreadLiveRegion.announce(next.announcement);
   };

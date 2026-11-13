@@ -73,3 +73,19 @@ describe("mobile UI display strings", () => {
     expect(mobileListPosition(2, 4, "en")).toBe("2 of 4");
   });
 });
+
+it("formats sign-in and even-pace copy without translating embedded values", () => {
+  const code = "Settings {0} $&";
+  expect(formatMobileMessage("Enter code {0} on the sign-in page.", [code], "zh-CN")).toBe(
+    `在登录页面输入验证码 ${code}。`,
+  );
+  expect(formatMobileMessage("Enter code {0} on the sign-in page.", [code], "en")).toBe(
+    `Enter code ${code} on the sign-in page.`,
+  );
+  expect(formatMobileMessage("Even pace: {0}% left by now", [42], "zh-CN")).toBe(
+    "均匀使用进度：此时应剩余 42%",
+  );
+  expect(formatMobileMessage("Even pace: {0}% left by now", [42], "en")).toBe(
+    "Even pace: 42% left by now",
+  );
+});

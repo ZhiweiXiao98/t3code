@@ -23,7 +23,7 @@ type UsageConfiguration = {
   claudePeriod?: "auto" | "session" | "weekly";
 };
 
-function SubscriptionUsage(
+export function SubscriptionUsage(
   props: SubscriptionUsageProps,
   widgetEnvironment: WidgetEnvironment<UsageConfiguration> & {
     showsContainerBackground?: boolean;
@@ -31,6 +31,36 @@ function SubscriptionUsage(
 ) {
   "widget";
   // The extension evaluates this function without the app's module scope.
+  const isChinese = process.env.EXPO_PUBLIC_APP_LOCALE === "zh-CN";
+  const copy = (english: string, chinese: string) => (isChinese ? chinese : english);
+  const localizeDetail = (value: string) => {
+    if (!isChinese) return value;
+    const messages: Record<string, string> = {
+      "Open T3 to connect": "打开 T3 以连接",
+      "Open T3 to refresh": "打开 T3 以刷新",
+      "No limits available": "暂无可用额度",
+      "Subscription remaining": "订阅剩余额度",
+    };
+    if (Object.hasOwn(messages, value)) return messages[value]!;
+    const pooled = /^(\d+) accounts · pooled$/.exec(value);
+    return pooled ? `${pooled[1]} 个账户 · 合并额度` : value;
+  };
+  const localizeReset = (value: string) => {
+    if (!isChinese) return value;
+    if (value === "Reset time unavailable") return "重置时间不可用";
+    const reset = /^Next reset (.+)$/.exec(value);
+    return reset ? `下次重置：${reset[1]}` : value;
+  };
+  const remaining = (value: number) => copy(`${value}% left`, `剩余 ${value}%`);
+  const usageLabel = (
+    name: string,
+    window: { label: string; remaining: number; reset: string },
+    detail: string,
+  ) =>
+    copy(
+      `${name}, ${window.label}, ${window.remaining} percent remaining. ${localizeReset(window.reset)}. ${detail}.`,
+      `${name}，${window.label}，剩余百分之 ${window.remaining}。${localizeReset(window.reset)}。${localizeDetail(detail)}。`,
+    );
   const family = widgetEnvironment.widgetFamily;
   // Gallery snapshots can render an old timeline entry after it has expired.
   const now = Math.max(widgetEnvironment.date?.getTime() ?? 0, Date.now());
@@ -90,10 +120,10 @@ function SubscriptionUsage(
               ].slice(0, limit)
             : windows.slice(0, limit);
     const detail = stale
-      ? "Open T3 to refresh"
+      ? copy("Open T3 to refresh", "打开 T3 以刷新")
       : period !== "auto" && windows.length === 0 && provider.windows.length > 0
-        ? `No ${period} limit reported`
-        : provider.detail;
+        ? copy(`No ${period} limit reported`, `未报告${period === "session" ? "会话" : "每周"}额度`)
+        : localizeDetail(provider.detail);
     const barModifiers = [
       progressViewStyle("linear"),
       frame({ height: 4 }),
@@ -109,7 +139,7 @@ function SubscriptionUsage(
             accessibilityElement("ignore"),
             accessibilityLabel(
               tightest
-                ? `${provider.name}, ${tightest.label}, ${tightest.remaining} percent remaining. ${tightest.reset}. ${provider.detail}.`
+                ? usageLabel(provider.name, tightest, provider.detail)
                 : `${provider.name}. ${detail}.`,
             ),
           ]}
@@ -135,10 +165,10 @@ function SubscriptionUsage(
               ]}
             >
               {tightest
-                ? `${tightest.remaining}% left`
+                ? remaining(tightest.remaining)
                 : period !== "auto" && !stale && provider.windows.length > 0
-                  ? "N/A"
-                  : "Open T3"}
+                  ? copy("N/A", "不适用")
+                  : copy("Open T3", "打开 T3")}
             </Text>
           </HStack>
           {tightest ? (
@@ -170,7 +200,7 @@ function SubscriptionUsage(
           <Text
             modifiers={[font({ textStyle: "caption2" }), foregroundStyle(secondary), lineLimit(1)]}
           >
-            {detail === "Subscription remaining" ? " " : detail}
+            {detail === localizeDetail("Subscription remaining") ? " " : detail}
           </Text>
         ) : null}
         {shown.map((window) => (
@@ -180,9 +210,7 @@ function SubscriptionUsage(
             spacing={dense ? 1 : 2}
             modifiers={[
               accessibilityElement("ignore"),
-              accessibilityLabel(
-                `${provider.name}, ${window.label}, ${window.remaining} percent remaining. ${window.reset}. ${provider.detail}.`,
-              ),
+              accessibilityLabel(usageLabel(provider.name, window, provider.detail)),
             ]}
           >
             <HStack spacing={4}>
@@ -212,13 +240,13 @@ function SubscriptionUsage(
                   ),
                 ]}
               >
-                {window.remaining}% left
+                {remaining(window.remaining)}
               </Text>
             </HStack>
             <ProgressView value={window.remaining / 100} modifiers={barModifiers} />
             {!compact ? (
               <Text modifiers={[font({ size: 10 }), foregroundStyle(secondary), lineLimit(1)]}>
-                {window.reset}
+                {localizeReset(window.reset)}
               </Text>
             ) : null}
           </VStack>
@@ -229,9 +257,10 @@ function SubscriptionUsage(
           <Text
             modifiers={[font({ textStyle: "caption2" }), foregroundStyle(secondary), lineLimit(1)]}
           >
-            {(period === "auto" ? (provider.totalWindows ?? windows.length) : windows.length) -
-              limit}{" "}
-            more in T3
+            {copy(
+              `${(period === "auto" ? (provider.totalWindows ?? windows.length) : windows.length) - limit} more in T3`,
+              `在 T3 中查看另外 ${(period === "auto" ? (provider.totalWindows ?? windows.length) : windows.length) - limit} 项`,
+            )}
           </Text>
         ) : null}
       </VStack>
@@ -253,7 +282,7 @@ function SubscriptionUsage(
     >
       {providers.length === 0 ? (
         <Text modifiers={[font({ textStyle: "caption" }), foregroundStyle(secondary)]}>
-          No subscription limits available.
+          {copy("No subscription limits available.", "暂无可用的订阅额度。")}
         </Text>
       ) : compact ? (
         <VStack alignment="leading" spacing={accessory || dense ? 4 : 8}>
@@ -270,8 +299,8 @@ function SubscriptionUsage(
           modifiers={[font({ textStyle: "caption2" }), foregroundStyle(secondary), lineLimit(1)]}
         >
           {props.checkedAt
-            ? `As of ${new Date(props.checkedAt).toLocaleString(undefined, { hour: "numeric", minute: "2-digit", month: "short", day: "numeric" })}`
-            : "Tap to connect in T3"}
+            ? `${copy("As of", "更新于")} ${new Date(props.checkedAt).toLocaleString(isChinese ? "zh-CN" : undefined, { hour: "numeric", minute: "2-digit", month: "short", day: "numeric" })}`
+            : copy("Tap to connect in T3", "点击以在 T3 中连接")}
         </Text>
       ) : null}
     </VStack>

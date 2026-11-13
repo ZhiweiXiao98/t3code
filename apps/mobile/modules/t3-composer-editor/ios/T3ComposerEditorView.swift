@@ -87,8 +87,8 @@ private final class ComposerTextView: UITextView {
   var maxInputChars = Int.max
   var enterBehavior: ComposerEnterBehavior = .send
   /// JS supplies the actual send outcomes so the iPad Command-hold HUD names the configured actions.
-  var submitTitle = "Send Message"
-  var alternateSubmitTitle = "Send Message"
+  var submitTitle = T3NativeStrings.shared.text("Send Message", "发送消息")
+  var alternateSubmitTitle = T3NativeStrings.shared.text("Send Message", "发送消息")
   private var bypassTextPasteInterception = false
 
   override var keyCommands: [UIKeyCommand]? {
@@ -118,7 +118,7 @@ private final class ComposerTextView: UITextView {
         modifierFlags: .shift,
         action: #selector(insertNewline(_:))
       )
-      newline.discoverabilityTitle = "New Line"
+      newline.discoverabilityTitle = T3NativeStrings.shared.text("New Line", "换行")
       newline.wantsPriorityOverSystemBehavior = true
       commands.append(newline)
     } else {
@@ -146,7 +146,7 @@ private final class ComposerTextView: UITextView {
         modifierFlags: [.command, .shift],
         action: #selector(pasteInline(_:))
       )
-      pasteAsText.discoverabilityTitle = "Paste as Text"
+      pasteAsText.discoverabilityTitle = T3NativeStrings.shared.text("Paste as Text", "粘贴为文本")
       pasteAsText.wantsPriorityOverSystemBehavior = true
       commands.append(pasteAsText)
     }
@@ -1381,5 +1381,18 @@ private extension UIColor {
         alpha: 1
       )
     }
+  }
+}
+
+struct T3NativeStrings {
+  static let shared = T3NativeStrings(
+    locale: Bundle.main.object(forInfoDictionaryKey: "T3AppLocale") as? String
+  )
+  private let isChinese: Bool
+
+  init(locale: String?) { isChinese = locale == "zh-CN" }
+
+  func text(_ english: String, _ chinese: String) -> String {
+    isChinese ? chinese : english
   }
 }

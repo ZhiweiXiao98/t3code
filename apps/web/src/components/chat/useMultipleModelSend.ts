@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
 import {
@@ -221,7 +222,10 @@ export function useMultipleModelSend(input: MultipleModelSendInput) {
         toastManager.add(
           stackedThreadToast({
             type: "success",
-            title: `Started ${startedCount} ${startedCount === 1 ? translateWebSource(uiLocale, "thread") : translateWebSource(uiLocale, "threads")} in background`,
+            title: readWebI18n().t(
+              startedCount === 1 ? "audit6.startedOne" : "audit6.startedMany",
+              { count: startedCount },
+            ),
           }),
         );
       }

@@ -8,6 +8,7 @@ import { act, fakeTimers, render as renderUi } from "../../../test/render";
 import type { RemoteOpenState } from "../../remoteOpen";
 
 const state = vi.hoisted(() => ({
+  locale: "en" as "en" | "zh-CN",
   allowed: new Set<string>(),
   remote: { mode: "local-exec" } as RemoteOpenState,
   clientEditors: ["vscode"] as readonly EditorId[],
@@ -18,6 +19,18 @@ const state = vi.hoisted(() => ({
   listeners: new Set<() => void>(),
 }));
 
+vi.mock(import("../../i18n/readWebI18n"), async () => {
+  const { translateWebMessage } = await import("../../i18n/messages");
+  return {
+    readWebI18n: () => ({
+      locale: state.locale,
+      t: (
+        key: Parameters<typeof translateWebMessage>[1],
+        values?: Parameters<typeof translateWebMessage>[2],
+      ) => translateWebMessage(state.locale, key, values),
+    }),
+  };
+});
 vi.mock(import("../../state/session"), async (importOriginal) => {
   const { useSyncExternalStore } = await import("react");
   const readEnvironmentScope = (environmentId: string, scope: string) =>
@@ -206,6 +219,7 @@ describe("remote editor links", () => {
 
 describe("open in editor announcement", () => {
   it("speaks only after the shortcut opened the editor, from the picker or the fallback", async () => {
+    state.locale = "en";
     await using fixture = await setup();
     const { screen, renderPicker, pressOpenFavorite, FavoriteEditorFallback } = fixture;
     state.allowed.add(selected);
@@ -229,10 +243,12 @@ describe("open in editor announcement", () => {
 
     for (const region of regions()) region.textContent = "";
     await act(async () => screen.rerender(<FavoriteEditorFallback />));
+    state.locale = "zh-CN";
     refuse();
     await pressOpenFavorite();
     expect(await spoken()).toBe("");
     await pressOpenFavorite();
-    expect(await spoken()).toBe("Opened in VS Code");
+    expect(await spoken()).toBe("已在 VS Code 中打开");
+    state.locale = "en";
   });
 });

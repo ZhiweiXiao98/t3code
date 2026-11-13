@@ -563,7 +563,7 @@ public final class T3TerminalView: ExpoView, UITextFieldDelegate, UIEditMenuInte
     var children: [UIMenuElement] = Self.pasteCommand(in: suggestedActions).map { [$0] } ?? []
     if let text = menuText {
       children.append(
-        UIAction(title: "Select Text", image: UIImage(systemName: "text.cursor")) { [weak self] _ in
+        UIAction(title: T3NativeStrings.shared.text("Select Text", "选择文本"), image: UIImage(systemName: "text.cursor")) { [weak self] _ in
           self?.presentTextSelection(text)
         })
     }

@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import * as Dialog from "./Dialog";
 import { requireNativeModule } from "expo";
 import { useEffect, useEffectEvent, useId, useRef, useState } from "react";
@@ -57,7 +58,7 @@ function NativeFilePreview(props: FilePreviewViewerProps) {
       delivered.current = images.map((image) => image.uri);
       presentation = NativeControls.presentFiles(
         images.map((image) => image.uri ?? null),
-        images.map((image) => image.name ?? "Preview"),
+        images.map((image) => image.name ?? localizeMobileString("Preview")),
         selectedIndex,
         images.map((image) => image.sourceIdentifier ?? ""),
         identifier,
@@ -66,7 +67,7 @@ function NativeFilePreview(props: FilePreviewViewerProps) {
       const { uri, name, sourceIdentifier } = presented;
       presentation = NativeControls.presentFile(
         uri,
-        name ?? "Preview",
+        name ?? localizeMobileString("Preview"),
         sourceIdentifier ?? "",
         identifier,
       );

@@ -71,6 +71,46 @@ abstract class AgentNotificationsFixture {
 @Config(sdk = [24, 26, 33, 36], manifest = Config.NONE)
 class AgentNotificationsTest : AgentNotificationsFixture() {
   @Test
+  fun localizedPresentationPreservesWireStatesAndUserText() {
+    val data = mapOf(
+      "activity_line_0" to "Approval\tWorking\tDone",
+      "activity_line_1" to "Done\tInput\tDone",
+      "activity_phase" to "waiting_for_approval",
+    )
+    for (locale in listOf(null, "en", "zh-TW", "zh-CN")) {
+      val chinese = locale == "zh-CN"
+      val presentation = ActivityPresentation(data, true, T3NativeStrings(locale))
+      assertEquals(ActivityPhase.APPROVAL, presentation.phase)
+      assertEquals(if (chinese) "1 项需要处理" else "1 needs you", presentation.summary)
+      assertEquals(if (chinese) "审批" else "Approve", presentation.action)
+      val builder = NotificationCompat.Builder(context, "test")
+      presentation.applyTo(builder, context)
+      val card = builder.build()
+      assertEquals(
+        if (chinese) "待审批 Working\n已完成 Input" else "Approval Working\nDone Input",
+        card.extras.getCharSequence(Notification.EXTRA_BIG_TEXT).toString()
+      )
+      assertEquals(
+        if (chinese) "Done · 1 项活跃" else "Done · 1 active",
+        card.extras.getString(Notification.EXTRA_SUB_TEXT)
+      )
+      assertEquals("Approval", activityRows(data).first().status)
+      val unknown = ActivityPresentation(
+        mapOf("activity_line_0" to "Custom status\tWorking\tDone"),
+        true,
+        T3NativeStrings(locale)
+      )
+      val unknownBuilder = NotificationCompat.Builder(context, "test")
+      unknown.applyTo(unknownBuilder, context)
+      assertEquals("Working", unknown.summary)
+      assertEquals(
+        "Custom status Done",
+        unknownBuilder.build().extras.getCharSequence(Notification.EXTRA_BIG_TEXT).toString()
+      )
+    }
+  }
+
+  @Test
   fun alertHistoryEvictsOnlyTheOldestEntryAfterCapacity() {
     lifecycle.currentState = Lifecycle.State.RESUMED
     for (id in 0..64) AgentNotifications.receive(context, update("alert-$id", false))

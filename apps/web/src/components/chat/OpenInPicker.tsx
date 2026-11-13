@@ -1,3 +1,4 @@
+import { readWebI18n } from "../../i18n/readWebI18n";
 import { translateWebSource } from "~/i18n/messages";
 import { ThreadDetailsControl } from "./ThreadDetailsControl";
 import {
@@ -386,7 +387,7 @@ export const OpenInPicker = memo(function OpenInPicker({
           if (!preferredEditor) return;
           const label = editorLabelForPlatform(preferredEditor, navigator.platform);
           void openInEditor(preferredEditor).then((opened) => {
-            if (opened) announce(`Opened in ${label}`);
+            if (opened) announce(readWebI18n().t("audit6.openedInEditor", { label }));
           });
         }}
       >

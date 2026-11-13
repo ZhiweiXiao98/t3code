@@ -36,27 +36,27 @@ public final class T3KeyboardCommandsView: ExpoView {
   public override var keyCommands: [UIKeyCommand]? {
     let isPad = UIDevice.current.userInterfaceIdiom == .pad
     var commands = [
-      enabledCommand("newTask", input: "n", modifiers: .command, action: #selector(newTask), title: "New Task"),
-      enabledCommand("focusSearch", input: "f", modifiers: .command, action: #selector(focusSearch), title: "Find"),
+      enabledCommand("newTask", input: "n", modifiers: .command, action: #selector(newTask), title: T3NativeStrings.shared.text("New Task", "新建任务")),
+      enabledCommand("focusSearch", input: "f", modifiers: .command, action: #selector(focusSearch), title: T3NativeStrings.shared.text("Find", "查找")),
       isPad
-        ? enabledCommand("commandPalette", input: "k", modifiers: .command, action: #selector(openCommandPalette), title: "Command Palette")
-        : enabledCommand("focusSearch", input: "k", modifiers: .command, action: #selector(focusSearch), title: "Focus Search"),
-      enabledCommand("paletteNext", input: UIKeyCommand.inputDownArrow, modifiers: [], action: #selector(paletteNext), title: "Next Result"),
-      enabledCommand("palettePrevious", input: UIKeyCommand.inputUpArrow, modifiers: [], action: #selector(palettePrevious), title: "Previous Result"),
-      enabledCommand("paletteDismiss", input: UIKeyCommand.inputEscape, modifiers: [], action: #selector(paletteDismiss), title: "Close Command Palette"),
-      enabledCommand("back", input: "[", modifiers: .command, action: #selector(goBack), title: "Back"),
-      enabledCommand("files", input: "f", modifiers: [.command, .shift], action: #selector(openFiles), title: "Open Files"),
-      enabledCommand("terminal", input: "t", modifiers: [.command, .shift], action: #selector(openTerminal), title: "Open Terminal"),
-      enabledCommand("review", input: "r", modifiers: [.command, .shift], action: #selector(openReview), title: "Open Review"),
+        ? enabledCommand("commandPalette", input: "k", modifiers: .command, action: #selector(openCommandPalette), title: T3NativeStrings.shared.text("Command Palette", "命令面板"))
+        : enabledCommand("focusSearch", input: "k", modifiers: .command, action: #selector(focusSearch), title: T3NativeStrings.shared.text("Focus Search", "聚焦搜索")),
+      enabledCommand("paletteNext", input: UIKeyCommand.inputDownArrow, modifiers: [], action: #selector(paletteNext), title: T3NativeStrings.shared.text("Next Result", "下一个结果")),
+      enabledCommand("palettePrevious", input: UIKeyCommand.inputUpArrow, modifiers: [], action: #selector(palettePrevious), title: T3NativeStrings.shared.text("Previous Result", "上一个结果")),
+      enabledCommand("paletteDismiss", input: UIKeyCommand.inputEscape, modifiers: [], action: #selector(paletteDismiss), title: T3NativeStrings.shared.text("Close Command Palette", "关闭命令面板")),
+      enabledCommand("back", input: "[", modifiers: .command, action: #selector(goBack), title: T3NativeStrings.shared.text("Back", "返回")),
+      enabledCommand("files", input: "f", modifiers: [.command, .shift], action: #selector(openFiles), title: T3NativeStrings.shared.text("Open Files", "打开文件")),
+      enabledCommand("terminal", input: "t", modifiers: [.command, .shift], action: #selector(openTerminal), title: T3NativeStrings.shared.text("Open Terminal", "打开终端")),
+      enabledCommand("review", input: "r", modifiers: [.command, .shift], action: #selector(openReview), title: T3NativeStrings.shared.text("Open Review", "打开审查")),
       enabledCommand(
         "copyThreadReference",
         input: "c",
         modifiers: [.command, .shift],
         action: #selector(copyThreadReference),
-        title: "Copy PR Link or Thread"
+        title: T3NativeStrings.shared.text("Copy PR Link or Thread", "复制拉取请求链接或会话")
       ),
-      enabledCommand("toggleSidebar", input: "\\", modifiers: .command, action: #selector(handleToggleSidebar), title: "Toggle Sidebar"),
-      enabledCommand("cycleHost", input: "h", modifiers: [.command, .shift], action: #selector(cycleHost), title: "Next Machine"),
+      enabledCommand("toggleSidebar", input: "\\", modifiers: .command, action: #selector(handleToggleSidebar), title: T3NativeStrings.shared.text("Toggle Sidebar", "切换侧边栏")),
+      enabledCommand("cycleHost", input: "h", modifiers: [.command, .shift], action: #selector(cycleHost), title: T3NativeStrings.shared.text("Next Machine", "下一台机器")),
     ].compactMap { $0 }
     if isPad {
       commands += (1...9).compactMap { index in
@@ -65,7 +65,7 @@ public final class T3KeyboardCommandsView: ExpoView {
           input: String(index),
           modifiers: .command,
           action: #selector(jumpToThread(_:)),
-          title: "Go to Thread \(index)"
+          title: T3NativeStrings.shared.text("Go to Thread \(index)", "跳转到会话 \(index)")
         )
       }
     }

@@ -6,6 +6,79 @@ import { localizeAlertArguments, localizeMobileString } from "./mobileStrings";
 import { mobileCloudSpeechDisclosure, localizeMobileVoiceError } from "./mobileVoiceStrings";
 
 describe("mobile strings", () => {
+  it("localizes connection, catalog and native presentation application copy", () => {
+    const messages = {
+      "Waiting for this connection's permissions.": "正在等待此连接的权限。",
+      "Existing terminals will appear here when another client opens one.":
+        "其他客户端打开终端后，已有终端将显示在这里。",
+      "Startup crash records are only kept in store and TestFlight builds.":
+        "仅商店和 TestFlight 构建保留启动崩溃记录。",
+      "Nothing has taken the app down during launch in the last 7 days.":
+        "过去 7 天内未发生启动崩溃。",
+      "The filter checks file names and folder paths.": "筛选器会检查文件名和文件夹路径。",
+      "Show a section to add it back to navigation.": "显示一个分区即可将其重新加入导航。",
+      "Edit navigation tabs": "编辑导航标签",
+      "Manage hidden models": "管理隐藏的模型",
+      "Enter code {0} on the sign-in page.": "在登录页面输入验证码 {0}。",
+      "Even pace: {0}% left by now": "均匀使用进度：此时应剩余 {0}%",
+      "Connecting to {0}...": "正在连接 {0}…",
+      "Reconnecting to {0}...": "正在重新连接 {0}…",
+      "{0} is unavailable": "{0} 不可用",
+      "{0} is disconnected": "{0} 已断开连接",
+      "The app will keep retrying automatically. {0}": "应用将继续自动重试。{0}",
+      "Cached data remains available. The {0} will load when your connection returns.":
+        "缓存数据仍然可用。连接恢复后将加载{0}。",
+      "The {0} will load as soon as the environment is ready.": "环境就绪后将立即加载{0}。",
+      "Reconnect the environment to load the {0}.": "重新连接环境以加载{0}。",
+      "Use compatible versions of the app and server to connect.":
+        "请使用兼容版本的应用和服务器进行连接。",
+      "Theme preview": "主题预览",
+      "Lists and selection": "列表与选择",
+      "Selected option": "已选选项",
+      "Selected filter": "已选筛选条件",
+      Buttons: "按钮",
+      Primary: "主要",
+      Secondary: "次要",
+      Contrast: "对比",
+      Forms: "表单",
+      Count: "数量",
+      "Example count": "示例数量",
+      "Example slider": "示例滑块",
+      "Feedback and presentation": "反馈与展示",
+      "Show notice": "显示提示",
+      Sheet: "面板",
+      Dialog: "对话框",
+      Alert: "提醒",
+      "Example menu": "示例菜单",
+      "Example upload": "示例上传",
+      "Example sheet": "示例面板",
+      "Native app bar": "原生应用栏",
+      "Allow T3 Code to add photos in Settings.": "请在设置中允许 T3 Code 添加照片。",
+      "Photos could not save this image.": "照片应用无法保存此图片。",
+      "The app is not active.": "应用当前不在前台。",
+      "Saving images needs Android 10 or later.": "保存图片需要 Android 10 或更高版本。",
+      "Could not create the image in Pictures.": "无法在图片目录中创建图片。",
+      "The image is no longer available.": "此图片已不可用。",
+      "Could not write the image.": "无法写入图片。",
+      "Voice transcription does not support any of your languages.":
+        "语音转写不支持你选择的任何语言。",
+      "Old line {0}": "原第 {0} 行",
+      "Line {0}": "第 {0} 行",
+      "{0} comment": "{0} 条评论",
+      "{0} comments": "{0} 条评论",
+      "Send Message": "发送消息",
+      Queue: "排队",
+      Restart: "重新开始",
+      "Steer now": "立即引导",
+      "Restart turn": "重新开始此轮",
+      "Update queued message": "更新排队消息",
+    };
+    for (const [source, translated] of Object.entries(messages)) {
+      expect(localizeMobileString(source, "zh-CN")).toBe(translated);
+      expect(localizeMobileString(source, "en")).toBe(source);
+    }
+  });
+
   it("localizes v0.1.8 session, transcription, merge-back and diagram controls", () => {
     const messages = {
       "Keep the current session": "保留当前会话",
@@ -378,4 +451,30 @@ it("preserves cloud disclosure recipients and English semantics for every provid
   expect(mobileCloudSpeechDisclosure("openrouter", name, "zh-CN")).toContain(
     "可能允许出于安全目的留存数据",
   );
+});
+
+it("translates the known unsupported-languages voice error without touching unknown diagnostics", () => {
+  const source = "Voice transcription does not support any of your languages.";
+  expect(localizeMobileVoiceError(source, "zh-CN")).toBe("语音转写不支持你选择的任何语言。");
+  expect(localizeMobileVoiceError(source, "en")).toBe(source);
+  expect(localizeMobileVoiceError("Settings", "zh-CN")).toBe("Settings");
+});
+
+it("localizes exact live microphone failures while preserving prefixes and unknown errors", () => {
+  const messages = {
+    "The microphone could not start.": "无法启动麦克风。",
+    "The microphone returned incomplete audio.": "麦克风返回的音频不完整。",
+    "The microphone stopped supplying audio.": "麦克风已停止提供音频。",
+    "The microphone audio queue did not drain.": "麦克风音频队列未处理完毕。",
+    "Speech recognition fell behind capture.": "语音识别未能跟上音频采集进度。",
+  };
+  for (const [source, translated] of Object.entries(messages)) {
+    expect(localizeMobileVoiceError(source, "zh-CN")).toBe(translated);
+    expect(localizeMobileVoiceError(source, "en")).toBe(source);
+    const prefixed = `NativeError: ${source}`;
+    expect(localizeMobileVoiceError(prefixed, "zh-CN")).toBe(prefixed);
+    const suffixed = `${source} trace: Settings/{0}/$&`;
+    expect(localizeMobileVoiceError(suffixed, "zh-CN")).toBe(suffixed);
+  }
+  expect(localizeMobileVoiceError("Settings", "zh-CN")).toBe("Settings");
 });

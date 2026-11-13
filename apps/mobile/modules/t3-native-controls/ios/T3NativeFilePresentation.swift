@@ -21,7 +21,7 @@ private final class FilePreviewController: QLPreviewController {
 
   override func viewDidLoad() {
     super.viewDidLoad()
-    failure.text = "This image could not be loaded."
+    failure.text = T3NativeStrings.shared.text("This image could not be loaded.", "无法加载此图片。")
     failure.textColor = .secondaryLabel
     failure.textAlignment = .center
     failure.numberOfLines = 0

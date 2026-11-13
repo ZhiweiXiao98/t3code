@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
 import type { ChatComposerProps } from "./ChatComposer";
@@ -593,7 +594,7 @@ export function useComposerStash(input: {
         toastManager.add({
           type: "warning",
           title: t("composer.stash.toast.evictedTitle"),
-          description: `The stash holds ${MAX_STASH_ENTRIES} prompts; the oldest was removed to make room.`,
+          description: readWebI18n().t("audit6.stashFull", { count: MAX_STASH_ENTRIES }),
           data: { hideCopyButton: true },
         });
       }
@@ -643,7 +644,10 @@ export function useComposerStash(input: {
         toastManager.add({
           type: "warning",
           title: t("composer.stash.toast.imagesDidNotAttachTitle"),
-          description: `That prompt was restored or deleted before ${kept.length} image${kept.length === 1 ? "" : "s"} finished saving. Re-attach ${kept.length === 1 ? "it" : "them"} if you still need ${kept.length === 1 ? "it" : "them"}.`,
+          description: readWebI18n().t(
+            kept.length === 1 ? "audit6.stashImage" : "audit6.stashImages",
+            { count: kept.length },
+          ),
           data: { hideCopyButton: true },
         });
       }

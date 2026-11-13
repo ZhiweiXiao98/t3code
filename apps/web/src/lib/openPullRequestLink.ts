@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
 import { parsePullRequestAnchor } from "@t3tools/shared/pullRequestAnchor";
@@ -268,8 +269,8 @@ export function useOpenPrLink(threadRef?: ScopedThreadRef) {
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: "Unable to open pull request link",
-          description: error instanceof Error ? error.message : "An error occurred.",
+          title: readWebI18n().t("audit6.openPrFailed"),
+          description: error instanceof Error ? error.message : readWebI18n().t("common.error"),
         }),
       );
     });

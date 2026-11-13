@@ -733,6 +733,7 @@ internal data class DiffStyle(
 }
 
 private class DiffCanvasView(context: Context) : View(context) {
+  private val strings = T3NativeStrings(context)
   private val density = resources.displayMetrics.density
   private val drawing = ReviewDiffCanvasDrawing(context)
   private val backgroundPaint = drawing.backgroundPaint
@@ -1244,7 +1245,8 @@ private class DiffCanvasView(context: Context) : View(context) {
       size = style.fileHeaderSubtextFontSizePx,
       weight = style.fileHeaderSubtextFontWeight,
     )
-    val title = "Comment on ${row.commentRangeLabel.ifEmpty { "line" }}"
+    val range = strings.commentRange(row.commentRangeLabel.ifEmpty { "line" })
+    val title = strings.text("Comment on $range", "评论：$range")
     canvas.drawText(
       ellipsize(title, textPaint, cardRect.right - chevronRect.right - 20f * density),
       chevronRect.right + 10f * density,
@@ -1256,7 +1258,7 @@ private class DiffCanvasView(context: Context) : View(context) {
       val bodyX = cardRect.left + 18f * density
       canvas.drawText(
         ellipsize(
-          row.commentText.ifEmpty { "Comment" },
+          row.commentText.ifEmpty { strings.text("Comment", "评论") },
           textPaint,
           cardRect.right - bodyX - 18f * density
         ),
@@ -1577,4 +1579,22 @@ private fun rowIndexAtOffset(y: Int, rowOffsets: IntArray, rowCount: Int): Int {
     }
   }
   return low.coerceIn(0, rowCount - 1)
+}
+
+internal class T3NativeStrings(private val locale: String?) {
+  constructor(context: Context) : this(
+    context.packageManager.getApplicationInfo(
+      context.packageName,
+      android.content.pm.PackageManager.GET_META_DATA
+    ).metaData?.getString("T3AppLocale")
+  )
+
+  fun text(english: String, chinese: String) = if (locale == "zh-CN") chinese else english
+
+  fun commentRange(value: String): String = when {
+    locale != "zh-CN" -> value
+    value == "line" -> "行"
+    value.matches(Regex("[0-9]+ lines")) -> "${value.removeSuffix(" lines")} 行"
+    else -> value
+  }
 }

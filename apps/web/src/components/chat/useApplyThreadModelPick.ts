@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { RegistryContext } from "@effect/atom-react";
 import { scopedThreadKey } from "@t3tools/client-runtime/environment";
 import {
@@ -39,8 +40,10 @@ export function useApplyThreadModelPick() {
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: "Could not apply model selection",
-          description: `This model pick was not saved. ${error instanceof Error ? error.message : "Try again."}`,
+          title: readWebI18n().t("audit6.modelApplyFailed"),
+          description: readWebI18n().t("audit6.modelApplyHelp", {
+            error: error instanceof Error ? error.message : readWebI18n().t("audit6.retry"),
+          }),
         }),
       );
     }

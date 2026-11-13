@@ -1,3 +1,5 @@
+import { useI18n } from "../../i18n/WebI18nContext";
+import { threadUndoSummary, type ThreadUndoSummary } from "../../i18n/threadUndoMessages";
 import { useAtomValue } from "@effect/atom-react";
 import { Undo2Icon } from "lucide-react";
 import { useState } from "react";
@@ -14,19 +16,18 @@ import { SidebarMenuItem } from "../ui/sidebar";
 
 /** Fills the free space in the sidebar footer's utility row, so it never moves or covers the list. */
 export function SidebarThreadUndoNotice() {
+  const { locale } = useI18n();
   const notice = useThreadUndoNotice((state) => state.notice);
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
   // Short enough to fit beside the utility icons; screen readers hear the full summary.
-  const summary = notice
-    ? notice.count === 1
-      ? notice.action
-      : `${notice.action} ${notice.count}`
-    : null;
+  const summary = notice ? { action: notice.action, count: notice.count } : null;
 
-  // Keeps the last text on screen while it fades out, then unmounts on transitionend.
-  const [shownSummary, setShownSummary] = useState(summary);
-  if (summary && summary !== shownSummary) setShownSummary(summary);
-  const text = summary ?? shownSummary;
+  // Retain source data, not translated text, so a fading notice also follows locale changes.
+  const [shownSummary, setShownSummary] = useState<ThreadUndoSummary | null>(summary);
+  if (summary && (summary.action !== shownSummary?.action || summary.count !== shownSummary?.count))
+    setShownSummary(summary);
+  const displayed = summary ?? shownSummary;
+  const text = displayed ? threadUndoSummary(locale, displayed, true) : null;
   if (!text) return null;
 
   return (
@@ -52,7 +53,7 @@ export function SidebarThreadUndoNotice() {
               clipped space; once the label is too wide it wraps away and the icon shows. */}
           <span className="flex h-6 min-w-0 flex-wrap justify-end overflow-hidden">
             <Undo2Icon className="-ml-4 h-6 w-4 @max-[1rem]:invisible" />
-            <span>{threadUndoLabel(keybindings)}</span>
+            <span>{threadUndoLabel(keybindings, locale)}</span>
           </span>
         </InlineButton>
         <span>{text},</span>

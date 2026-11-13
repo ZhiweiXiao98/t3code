@@ -187,3 +187,24 @@ describe("resolveBackgroundThreadRequest", () => {
     ).toEqual(["Needs approval: Fix login redirect"]);
   });
 });
+
+describe("localized background announcements", () => {
+  it("translates status before combining opaque titles and does not replay on locale changes", () => {
+    const title = "Needs approval: {status}\n$&/中文";
+    const initial = thread("opaque", title);
+    const baseline = nextBackgroundThreadAnnouncement(new Map(), [initial], null);
+    const pending = { ...initial, request: "approval" as const, requestId: "request-1" };
+    const chinese = nextBackgroundThreadAnnouncement(baseline.memory, [pending], null, "zh-CN");
+    expect(chinese.announcement).toBe(`需要批准：${title}`);
+    expect(
+      nextBackgroundThreadAnnouncement(baseline.memory, [pending], null, "en").announcement,
+    ).toBe(`Needs approval: ${title}`);
+    expect(
+      nextBackgroundThreadAnnouncement(chinese.memory, [pending], null, "en").announcement,
+    ).toBeNull();
+    const completed = { ...pending, request: null, runStatus: "completed" as const };
+    expect(
+      nextBackgroundThreadAnnouncement(chinese.memory, [completed], null, "zh-CN").announcement,
+    ).toBe(`完成：${title}`);
+  });
+});

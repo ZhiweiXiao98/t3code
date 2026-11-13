@@ -1,3 +1,4 @@
+import { readWebI18n } from "../../i18n/readWebI18n";
 import {
   buildRemoteOpenUrl,
   type EditorId,
@@ -83,7 +84,7 @@ export function useOpenFavoriteEditorShortcut({
         });
         if (url === undefined) return;
         void openRemoteEditorUrl(url).then((opened) => {
-          if (opened) announce(`Opened in ${label}`);
+          if (opened) announce(readWebI18n().t("audit6.openedInEditor", { label }));
         });
         return;
       }
@@ -94,7 +95,8 @@ export function useOpenFavoriteEditorShortcut({
           editor: preferredEditor,
         },
       }).then((result) => {
-        if (result._tag === "Success") announce(`Opened in ${label}`);
+        if (result._tag === "Success")
+          announce(readWebI18n().t("audit6.openedInEditor", { label }));
       });
     };
     window.addEventListener("keydown", handler);

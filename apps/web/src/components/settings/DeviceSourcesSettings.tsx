@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { useI18n } from "../../i18n/WebI18nContext";
 import { translateWebSource } from "../../i18n/messages";
 import { useAtomValue } from "@effect/atom-react";
@@ -193,7 +194,9 @@ export function DeviceSourcesSettings(props: {
       toastManager.add({
         type: "error",
         title: failedTitle,
-        description: `This connection cannot change settings on ${unwritable.map((patch) => name(patch.environmentId)).join(", ")}.`,
+        description: readWebI18n().t("audit6.settingsDenied", {
+          labels: unwritable.map((patch) => name(patch.environmentId)).join(", "),
+        }),
       });
       return false;
     }

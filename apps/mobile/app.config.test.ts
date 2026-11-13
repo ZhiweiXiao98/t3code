@@ -38,6 +38,12 @@ it.each([
   ["production", "com.t3tools.t3code"],
 ])("keeps the iOS and Android identifiers for APP_VARIANT=%j", async (value, identifier) => {
   const config = await loadConfig(value);
+  expect(config.plugins).toContainEqual(["./plugins/withAppLocale.cjs", { locale: undefined }]);
+  expect(config.ios?.infoPlist).toMatchObject({
+    NSLocalNetworkUsageDescription:
+      "Allow T3 Code to connect to T3 Code servers on your local network or tailnet.",
+    NSPhotoLibraryAddUsageDescription: "Allow T3 Code to save images to your photo library.",
+  });
   expect(config.version).toBe("2.3.0");
   expect(config.android?.versionCode).toBe(1);
   expect(config.ios?.bundleIdentifier).toBe(identifier);
@@ -62,6 +68,11 @@ it("keeps the community identity and Chinese defaults separate from official var
   expect(config.version).toBe("0.1.9-zh.1");
   expect(config.android?.versionCode).toBe(1000416);
   expect(process.env.EXPO_PUBLIC_APP_LOCALE).toBe("zh-CN");
+  expect(config.plugins).toContainEqual(["./plugins/withAppLocale.cjs", { locale: "zh-CN" }]);
+  expect(config.ios?.infoPlist).toMatchObject({
+    NSLocalNetworkUsageDescription: "允许 T3 Code 连接本地网络或 tailnet 中的 T3 Code 服务器。",
+    NSPhotoLibraryAddUsageDescription: "允许 T3 Code 将图片保存到照片图库。",
+  });
 });
 
 it("uses explicit community build metadata without changing official identifiers", async () => {
@@ -71,4 +82,18 @@ it("uses explicit community build metadata without changing official identifiers
   expect(config.version).toBe("0.1.9-zh.1");
   expect(config.android?.versionCode).toBe(1000416);
   expect(config.android?.package).toBe("com.zhiweixiao.t3code.zhcn");
+});
+
+it("passes an explicit locale to native UI without changing the app identity", async () => {
+  vi.resetModules();
+  vi.stubEnv("APP_VARIANT", "development");
+  vi.stubEnv("EXPO_PUBLIC_APP_LOCALE", "zh-CN");
+  const config = (await import("./app.config.ts")).default;
+  expect(config.ios?.bundleIdentifier).toBe("com.t3tools.t3code.dev");
+  expect(config.android?.package).toBe("com.t3tools.t3code.dev");
+  expect(config.plugins).toContainEqual(["./plugins/withAppLocale.cjs", { locale: "zh-CN" }]);
+  expect(config.ios?.infoPlist).toMatchObject({
+    NSLocalNetworkUsageDescription: "允许 T3 Code 连接本地网络或 tailnet 中的 T3 Code 服务器。",
+    NSPhotoLibraryAddUsageDescription: "允许 T3 Code 将图片保存到照片图库。",
+  });
 });

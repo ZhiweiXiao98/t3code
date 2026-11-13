@@ -120,6 +120,7 @@ class T3WorkspaceNavigationView(
   context: Context,
   appContext: AppContext
 ) : ExpoView(context, appContext) {
+  private val strings = T3NativeStrings(context)
   // Compose must remeasure native children when Yoga resizes the folded window.
   override val shouldUseAndroidLayout = true
 
@@ -287,7 +288,7 @@ class T3WorkspaceNavigationView(
       val railShape = RoundedCornerShape(topEnd = 16.dp * fraction, bottomEnd = 16.dp * fraction)
       if (fraction > 0f) {
         Scrim(
-          contentDescription = "Close navigation rail",
+          contentDescription = strings.text("Close navigation rail", "关闭导航栏"),
           onClick = { expanded = false },
           alpha = { fraction },
         )
@@ -310,7 +311,7 @@ class T3WorkspaceNavigationView(
             onClick = { expanded = !expanded },
             modifier = Modifier.semantics {
               contentDescription =
-                if (expanded) "Collapse navigation rail" else "Expand navigation rail"
+                if (expanded) strings.text("Collapse navigation rail", "收起导航栏") else strings.text("Expand navigation rail", "展开导航栏")
             },
           ) {
             Icon(
@@ -356,7 +357,7 @@ class T3WorkspaceNavigationView(
         .height(FAB_SIZE)
         .width(lerp(FAB_SIZE, EXPANDED_RAIL_WIDTH - RAIL_INSET * 2, fraction))
         .alpha(if (newEnabled) 1f else DISABLED_ALPHA)
-        .semantics { contentDescription = "New thread" },
+        .semantics { contentDescription = strings.text("New thread", "新建会话") },
     ) {
       Row(
         Modifier.padding(start = (FAB_SIZE - ICON_SIZE) / 2).clipToBounds(),
@@ -364,7 +365,7 @@ class T3WorkspaceNavigationView(
       ) {
         Icon(painterResource(R.drawable.t3_new_thread), contentDescription = null)
         Text(
-          "New thread",
+          strings.text("New thread", "新建会话"),
           Modifier.padding(start = 12.dp).alpha(labelAlpha(fraction)).clearAndSetSemantics {},
           style = MaterialTheme.typography.labelLarge,
           fontSize = (14 * textScale).sp,
@@ -413,14 +414,14 @@ class T3WorkspaceNavigationView(
   }
 
   private fun tabTitle(tab: String) = when (tab) {
-    "threads" -> "Chats"
-    "pullRequests" -> "Pulls"
-    "usage" -> "Usage"
-    else -> "Settings"
+    "threads" -> strings.text("Chats", "聊天")
+    "pullRequests" -> strings.text("Pulls", "拉取请求")
+    "usage" -> strings.text("Usage", "用量")
+    else -> strings.text("Settings", "设置")
   }
 
   private fun expandedTabTitle(tab: String) =
-    if (tab == "pullRequests") "Pull Requests" else tabTitle(tab)
+    if (tab == "pullRequests") strings.text("Pull Requests", "拉取请求") else tabTitle(tab)
 
   @Composable
   private fun tabIconPainter(tab: String) = painterResource(
@@ -447,4 +448,15 @@ class T3WorkspaceNavigationView(
     // fade out over the first half of the narrowing, before the surface clips them.
     fun labelAlpha(fraction: Float) = ((fraction - 0.5f) / 0.5f).coerceIn(0f, 1f)
   }
+}
+
+internal class T3NativeStrings(private val locale: String?) {
+  constructor(context: Context) : this(
+    context.packageManager.getApplicationInfo(
+      context.packageName,
+      android.content.pm.PackageManager.GET_META_DATA
+    ).metaData?.getString("T3AppLocale")
+  )
+
+  fun text(english: String, chinese: String) = if (locale == "zh-CN") chinese else english
 }

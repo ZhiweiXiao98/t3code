@@ -16,11 +16,11 @@ final class TerminalTextSelectionViewController: UIViewController {
 
   override func viewDidLoad() {
     super.viewDidLoad()
-    title = "Terminal text"
+    title = T3NativeStrings.shared.text("Terminal text", "终端文本")
     view.backgroundColor = .systemBackground
 
     navigationItem.leftBarButtonItem = UIBarButtonItem(
-      title: "Copy All", style: .plain, target: self, action: #selector(copyAll))
+      title: T3NativeStrings.shared.text("Copy All", "全部复制"), style: .plain, target: self, action: #selector(copyAll))
     navigationItem.rightBarButtonItem = UIBarButtonItem(
       barButtonSystemItem: .done, target: self, action: #selector(close))
 
@@ -33,7 +33,7 @@ final class TerminalTextSelectionViewController: UIViewController {
     textView.isSelectable = true
     // Login flows print auth URLs; tapping one opens it.
     textView.dataDetectorTypes = .link
-    textView.accessibilityLabel = "Terminal output"
+    textView.accessibilityLabel = T3NativeStrings.shared.text("Terminal output", "终端输出")
     textView.textContainerInset = UIEdgeInsets(top: 16, left: 12, bottom: 16, right: 12)
     textView.translatesAutoresizingMaskIntoConstraints = false
     view.addSubview(textView)
@@ -55,5 +55,18 @@ final class TerminalTextSelectionViewController: UIViewController {
   @objc
   private func close() {
     dismiss(animated: !UIAccessibility.isReduceMotionEnabled)
+  }
+}
+
+struct T3NativeStrings {
+  static let shared = T3NativeStrings(
+    locale: Bundle.main.object(forInfoDictionaryKey: "T3AppLocale") as? String
+  )
+  private let isChinese: Bool
+
+  init(locale: String?) { isChinese = locale == "zh-CN" }
+
+  func text(_ english: String, _ chinese: String) -> String {
+    isChinese ? chinese : english
   }
 }

@@ -1,3 +1,11 @@
+import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
+import { readWebI18n } from "../i18n/readWebI18n";
+import {
+  threadUndoSummary,
+  threadUndoShortcutLabel,
+  threadUndoFailureTitle,
+  type ThreadUndoAction,
+} from "../i18n/threadUndoMessages";
 import {
   type AtomCommandResult,
   isAtomCommandInterrupted,
@@ -13,7 +21,7 @@ import { primaryServerKeybindingsAtom } from "../state/server";
 import * as ThreadUndo from "@t3tools/client-runtime/state/thread-undo";
 
 type UndoOptions = {
-  action: "Settled" | "Snoozed" | "Unpinned" | "Archived" | "Discarded";
+  action: ThreadUndoAction;
   undo: () => Promise<AtomCommandResult<unknown, unknown>>;
   failureTitle: string;
   formatFailure?: (error: unknown) => string;
@@ -29,14 +37,11 @@ type UndoNotice = {
 
 export const useThreadUndoNotice = create<{ notice: UndoNotice | null }>(() => ({ notice: null }));
 
-function threadUndoNoticeSummary(notice: Pick<UndoNotice, "action" | "count">): string {
-  const noun = notice.action === "Discarded" ? "draft" : "thread";
-  return `${notice.action} ${notice.count} ${noun}${notice.count === 1 ? "" : "s"}`;
-}
-
-export function threadUndoLabel(keybindings: Parameters<typeof shortcutLabelForCommand>[0]) {
-  const shortcut = shortcutLabelForCommand(keybindings, "thread.undo");
-  return shortcut ? `${shortcut} to undo` : "Undo";
+export function threadUndoLabel(
+  keybindings: Parameters<typeof shortcutLabelForCommand>[0],
+  locale: ResolvedAppLocale = readWebI18n().locale,
+) {
+  return threadUndoShortcutLabel(locale, shortcutLabelForCommand(keybindings, "thread.undo"));
 }
 
 let announcedSummary: string | null = null;
@@ -46,12 +51,13 @@ let announcedSummary: string | null = null;
 // separately from the alert that shows it.
 function setNotice(notice: UndoNotice | null) {
   useThreadUndoNotice.setState({ notice });
-  const summary = notice ? threadUndoNoticeSummary(notice) : null;
+  const { locale, t } = readWebI18n();
+  const summary = notice ? threadUndoSummary(locale, notice) : null;
   if (summary === announcedSummary) return;
   announcedSummary = summary;
   if (summary) {
-    const label = threadUndoLabel(appAtomRegistry.get(primaryServerKeybindingsAtom));
-    announce(`${summary}, ${label}`, "thread-undo-notice");
+    const label = threadUndoLabel(appAtomRegistry.get(primaryServerKeybindingsAtom), locale);
+    announce(t("audit6.undo.announce", { summary, label }), "thread-undo-notice");
   } else {
     cancelAnnouncement("thread-undo-notice");
   }
@@ -91,15 +97,16 @@ function refreshNotice() {
       await Promise.all(
         current.map(async ({ undo, failureTitle, formatFailure }) => {
           const reportFailure = (error: unknown) => {
+            const { locale, t } = readWebI18n();
             toastManager.add(
               stackedThreadToast({
                 type: "error",
-                title: failureTitle,
+                title: threadUndoFailureTitle(locale, failureTitle),
                 description: formatFailure
                   ? formatFailure(error)
                   : error instanceof Error
                     ? error.message
-                    : "An error occurred.",
+                    : t("common.error"),
               }),
             );
           };

@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { translateWebSource } from "~/i18n/messages";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
@@ -1431,15 +1432,15 @@ export function PullRequestsPage() {
         if (didCopy)
           toastManager.add({
             type: "success",
-            title: `${shortLabel} link copied`,
+            title: readWebI18n().t("audit6.prCopied", { kind: shortLabel }),
             description: url,
           });
       },
       (error) => {
         toastManager.add({
           type: "error",
-          title: `Failed to copy ${shortLabel} link`,
-          description: error instanceof Error ? error.message : "An error occurred.",
+          title: readWebI18n().t("audit6.prCopyFailed", { kind: shortLabel }),
+          description: error instanceof Error ? error.message : readWebI18n().t("common.error"),
         });
       },
     );

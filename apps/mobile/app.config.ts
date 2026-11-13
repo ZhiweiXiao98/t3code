@@ -151,7 +151,7 @@ const dmSansFonts = {
   bold: "@expo-google-fonts/dm-sans/700Bold/DMSans_700Bold.ttf",
 } as const;
 
-const widgetCopy = (english: string, chinese: string): string =>
+const appCopy = (english: string, chinese: string): string =>
   process.env.EXPO_PUBLIC_APP_LOCALE === "zh-CN" ? chinese : english;
 
 const widgetsPlugin: NonNullable<ExpoConfig["plugins"]>[number] = [
@@ -166,37 +166,37 @@ const widgetsPlugin: NonNullable<ExpoConfig["plugins"]>[number] = [
     widgets: [
       {
         name: "SubscriptionUsage",
-        displayName: widgetCopy("Subscription usage", "订阅用量"),
-        description: widgetCopy(
+        displayName: appCopy("Subscription usage", "订阅用量"),
+        description: appCopy(
           "Subscription quotas from your connected T3 Code environments.",
           "已连接 T3 Code 环境的订阅额度。",
         ),
         ios: {
           configuration: {
-            title: widgetCopy("Subscription usage", "订阅用量"),
-            description: widgetCopy(
+            title: appCopy("Subscription usage", "订阅用量"),
+            description: appCopy(
               "Both shows Session and Weekly when available. The Lock Screen shows the tightest selected limit.",
               "选择“两者”可同时显示会话和每周额度（若可用）。锁定屏幕显示所选额度中剩余最少的一项。",
             ),
             parameters: {
               codexPeriod: {
-                title: widgetCopy("Codex limits", "Codex 额度"),
+                title: appCopy("Codex limits", "Codex 额度"),
                 type: "enum",
                 default: "auto",
                 values: [
-                  { name: widgetCopy("Both", "两者"), value: "auto" },
-                  { name: widgetCopy("Session", "会话"), value: "session" },
-                  { name: widgetCopy("Weekly", "每周"), value: "weekly" },
+                  { name: appCopy("Both", "两者"), value: "auto" },
+                  { name: appCopy("Session", "会话"), value: "session" },
+                  { name: appCopy("Weekly", "每周"), value: "weekly" },
                 ],
               },
               claudePeriod: {
-                title: widgetCopy("Claude limits", "Claude 额度"),
+                title: appCopy("Claude limits", "Claude 额度"),
                 type: "enum",
                 default: "auto",
                 values: [
-                  { name: widgetCopy("Both", "两者"), value: "auto" },
-                  { name: widgetCopy("Session", "会话"), value: "session" },
-                  { name: widgetCopy("Weekly", "每周"), value: "weekly" },
+                  { name: appCopy("Both", "两者"), value: "auto" },
+                  { name: appCopy("Session", "会话"), value: "session" },
+                  { name: appCopy("Weekly", "每周"), value: "weekly" },
                 ],
               },
             },
@@ -221,8 +221,8 @@ const widgetsPlugin: NonNullable<ExpoConfig["plugins"]>[number] = [
       },
       {
         name: "AgentActivity",
-        displayName: widgetCopy("Agent Activity", "Agent 动态"),
-        description: widgetCopy(
+        displayName: appCopy("Agent Activity", "Agent 动态"),
+        description: appCopy(
           "Shows the current state of active T3 Code agents.",
           "显示活跃 T3 Code Agent 的当前状态。",
         ),
@@ -313,9 +313,14 @@ const config: ExpoConfig = {
       NSAppTransportSecurity: {
         NSAllowsArbitraryLoads: true,
       },
-      NSLocalNetworkUsageDescription:
+      NSLocalNetworkUsageDescription: appCopy(
         "Allow T3 Code to connect to T3 Code servers on your local network or tailnet.",
-      NSPhotoLibraryAddUsageDescription: "Allow T3 Code to save images to your photo library.",
+        "允许 T3 Code 连接本地网络或 tailnet 中的 T3 Code 服务器。",
+      ),
+      NSPhotoLibraryAddUsageDescription: appCopy(
+        "Allow T3 Code to save images to your photo library.",
+        "允许 T3 Code 将图片保存到照片图库。",
+      ),
       // System picture in picture needs background audio to start and survive outside the app.
       UIBackgroundModes: ["audio"],
       ITSAppUsesNonExemptEncryption: false,
@@ -364,6 +369,7 @@ const config: ExpoConfig = {
     favicon: variant.assets.appIcon,
   },
   plugins: [
+    ["./plugins/withAppLocale.cjs", { locale: process.env.EXPO_PUBLIC_APP_LOCALE }],
     "expo-asset",
     [
       "expo-font",

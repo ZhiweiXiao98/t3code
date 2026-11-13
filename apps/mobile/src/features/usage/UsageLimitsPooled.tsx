@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import { useAtomValue } from "@effect/atom-react";
 import { useNavigation, type StaticScreenProps } from "@react-navigation/native";
@@ -602,7 +603,7 @@ export function UsageLimitAccountScreen({ route }: AccountScreenProps) {
               ) : null}
               {evenPace !== null ? (
                 <Text className="text-sm text-foreground-muted">
-                  Even pace: {evenPace}% left by now
+                  {formatMobileMessage("Even pace: {0}% left by now", [evenPace])}
                 </Text>
               ) : null}
               {reset && reset.restoresPercent > 0 ? (

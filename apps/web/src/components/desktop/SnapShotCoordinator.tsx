@@ -1,3 +1,4 @@
+import { localizeSnapShotSetupMessage } from "~/i18n/snapShotSetupMessages";
 import { readWebI18n } from "~/i18n/readWebI18n";
 import {
   type DesktopBridge,
@@ -404,7 +405,7 @@ export function SnapShotCoordinator() {
                   id: item.id,
                   error:
                     error instanceof Error
-                      ? error.message
+                      ? localizeSnapShotSetupMessage(readWebI18n().locale, error.message)
                       : readWebI18n().t("audit.snapshot.retry"),
                 }),
               }),
@@ -421,7 +422,9 @@ export function SnapShotCoordinator() {
             type: "error",
             title: readWebI18n().t("audit.snapshot.failed"),
             description:
-              error instanceof Error ? error.message : readWebI18n().t("audit.snapshot.retry"),
+              error instanceof Error
+                ? localizeSnapShotSetupMessage(readWebI18n().locale, error.message)
+                : readWebI18n().t("audit.snapshot.retry"),
           }),
         );
       })

@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vite-plus/test";
 import type { PullRequestReviewThread } from "@t3tools/contracts";
 import type { NativeReviewDiffData } from "../review/nativeReviewDiffAdapter";
-import { annotatePullRequestDiff, reviewPositionLabel } from "./pullRequestDiffComments";
+import {
+  annotatePullRequestDiff,
+  discussionCommentCountLabel,
+  reviewPositionLabel,
+} from "./pullRequestDiffComments";
 const data: NativeReviewDiffData = {
   rows: [
     { kind: "file", id: "header", fileId: "f", filePath: "a.ts" },
@@ -129,4 +133,18 @@ describe("PR comments in continuous native diffs", () => {
     expect(annotated.rows.at(-1)?.id).toBe("draft:left");
     expect(reviewPositionLabel(position)).toBe("Old line 7");
   });
+});
+
+it("localizes native comment display labels without changing positions", () => {
+  for (const locale of ["en", "zh-CN"] as const) {
+    const zh = locale === "zh-CN";
+    expect(discussionCommentCountLabel(1, locale)).toBe(zh ? "1 条评论" : "1 comment");
+    expect(discussionCommentCountLabel(3, locale)).toBe(zh ? "3 条评论" : "3 comments");
+    expect(reviewPositionLabel({ kind: "deleted", oldLine: 12 }, locale)).toBe(
+      zh ? "原第 12 行" : "Old line 12",
+    );
+    expect(reviewPositionLabel({ kind: "added", newLine: 8 }, locale)).toBe(
+      zh ? "第 8 行" : "Line 8",
+    );
+  }
 });

@@ -1,58 +1,12 @@
+import { noticeTitle, noticeDetail } from "./environmentConnectionCopy";
 import { Button } from "../../components/ui/Button";
 import { AppActivityIndicator } from "../../components/ui/AppActivityIndicator";
 import { ConnectionTraceId } from "./ConnectionTraceId";
-import {
-  type EnvironmentConnectionPhase,
-  type EnvironmentConnectionPresentation,
-} from "@t3tools/client-runtime/connection";
+import { type EnvironmentConnectionPresentation } from "@t3tools/client-runtime/connection";
 import { SymbolView } from "../../components/ui/AppSymbol";
 import { View } from "react-native";
 
 import { AppText as Text } from "../../components/ui/AppText";
-
-function noticeTitle(phase: EnvironmentConnectionPhase, environmentLabel: string): string {
-  switch (phase) {
-    case "offline":
-      return "You are offline";
-    case "connecting":
-      return `Connecting to ${environmentLabel}...`;
-    case "reconnecting":
-      return `Reconnecting to ${environmentLabel}...`;
-    case "unsupported":
-      return "Client not supported";
-    case "error":
-      return `${environmentLabel} is unavailable`;
-    case "available":
-      return `${environmentLabel} is disconnected`;
-    case "connected":
-      return "";
-  }
-}
-
-function noticeDetail(
-  phase: EnvironmentConnectionPhase,
-  resourceName: string,
-  error: string | null,
-): string {
-  if (error) {
-    return phase === "reconnecting" ? `The app will keep retrying automatically. ${error}` : error;
-  }
-
-  switch (phase) {
-    case "offline":
-      return `Cached data remains available. The ${resourceName} will load when your connection returns.`;
-    case "connecting":
-    case "reconnecting":
-      return `The ${resourceName} will load as soon as the environment is ready.`;
-    case "unsupported":
-      return "Use compatible versions of the app and server to connect.";
-    case "available":
-    case "error":
-      return `Reconnect the environment to load the ${resourceName}.`;
-    case "connected":
-      return "";
-  }
-}
 
 export function EnvironmentConnectionNotice(props: {
   readonly environmentLabel: string;
@@ -77,10 +31,10 @@ export function EnvironmentConnectionNotice(props: {
           />
         )}
 
-        <Text className="text-center text-lg font-t3-bold text-foreground">
+        <Text localize={false} className="text-center text-lg font-t3-bold text-foreground">
           {noticeTitle(props.connection.phase, props.environmentLabel)}
         </Text>
-        <Text className="text-center text-sm leading-normal text-foreground-muted">
+        <Text localize={false} className="text-center text-sm leading-normal text-foreground-muted">
           {noticeDetail(props.connection.phase, props.resourceName, props.connection.error)}
           {props.connection.traceId ? (
             <ConnectionTraceId traceId={props.connection.traceId} />

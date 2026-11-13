@@ -2102,7 +2102,7 @@ private final class ReviewDiffContentView: UIView, UIGestureRecognizerDelegate {
   }
 
   private func drawEmptyState(_ rect: CGRect) {
-    let message = "No native diff rows"
+    let message = T3NativeStrings.shared.text("No native diff rows", "没有可显示的差异")
     let attributes: [NSAttributedString.Key: Any] = [
       .font: emptyStateFont,
       .foregroundColor: theme.mutedText,
@@ -2250,7 +2250,8 @@ private final class ReviewDiffContentView: UIView, UIGestureRecognizerDelegate {
     let chevronRect = CGRect(x: cardRect.minX + 10, y: cardRect.minY + 11, width: 16, height: 16)
     drawDisclosureChevron(rect: chevronRect, color: theme.mutedText, collapsed: isCollapsed)
 
-    let title = "Comment on \(row.commentRangeLabel ?? "line")"
+    let range = T3NativeStrings.shared.commentRange(row.commentRangeLabel ?? "line")
+    let title = T3NativeStrings.shared.text("Comment on \(range)", "评论：\(range)")
     drawSingleLineText(
       title,
       rect: CGRect(
@@ -2269,7 +2270,7 @@ private final class ReviewDiffContentView: UIView, UIGestureRecognizerDelegate {
 
     let body = row.commentText?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     drawMultilineText(
-      body.isEmpty ? "Comment" : body,
+      body.isEmpty ? T3NativeStrings.shared.text("Comment", "评论") : body,
       rect: CGRect(
         x: cardRect.minX + 18,
         y: cardRect.minY + 42,
@@ -2936,5 +2937,27 @@ private extension UIColor {
     }
 
     self.init(red: red, green: green, blue: blue, alpha: alpha)
+  }
+}
+
+struct T3NativeStrings {
+  static let shared = T3NativeStrings(
+    locale: Bundle.main.object(forInfoDictionaryKey: "T3AppLocale") as? String
+  )
+  private let isChinese: Bool
+
+  init(locale: String?) { isChinese = locale == "zh-CN" }
+
+  func text(_ english: String, _ chinese: String) -> String {
+    isChinese ? chinese : english
+  }
+
+  func commentRange(_ value: String) -> String {
+    guard isChinese else { return value }
+    if value == "line" { return "行" }
+    if value.range(of: #"^[0-9]+ lines$"#, options: .regularExpression) != nil {
+      return String(value.dropLast(6)) + " 行"
+    }
+    return value
   }
 }

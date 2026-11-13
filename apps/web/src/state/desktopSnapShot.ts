@@ -1,3 +1,6 @@
+import { readWebI18n } from "../i18n/readWebI18n";
+import { translateWebSource } from "../i18n/messages";
+import { localizeSnapShotSetupMessage } from "../i18n/snapShotSetupMessages";
 import type { DesktopSnapShotState } from "@t3tools/contracts";
 import * as Option from "effect/Option";
 import { Atom, type AtomRegistry } from "effect/reactivity";
@@ -10,7 +13,14 @@ export interface SnapShotSetupError {
 }
 
 export function snapShotSetupError(title: string, error: unknown): SnapShotSetupError {
-  return { title, message: error instanceof Error ? error.message : "Try again." };
+  const { locale } = readWebI18n();
+  return {
+    title: translateWebSource(locale, title),
+    message:
+      error instanceof Error
+        ? localizeSnapShotSetupMessage(locale, error.message)
+        : translateWebSource(locale, "Try again."),
+  };
 }
 
 export interface DesktopSnapShotLoad {

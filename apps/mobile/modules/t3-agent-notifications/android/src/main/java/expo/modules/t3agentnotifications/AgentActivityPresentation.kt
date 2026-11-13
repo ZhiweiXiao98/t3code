@@ -86,7 +86,11 @@ internal fun activityPhase(data: Map<String, String>, rows: List<ActivityRow>): 
     else -> rows.firstOrNull()?.let { ActivityPhase.forStatus(it.status) }
   }
 
-internal class ActivityPresentation(data: Map<String, String>, private val active: Boolean) {
+internal class ActivityPresentation(
+  data: Map<String, String>,
+  private val active: Boolean,
+  private val strings: T3NativeStrings
+) {
   private val rows = activityRows(data)
   private val hero = rows.firstOrNull()
   val phase = activityPhase(data, rows)
@@ -104,25 +108,25 @@ internal class ActivityPresentation(data: Map<String, String>, private val activ
 
   val summary = when {
     hero == null -> data["activity_title"]?.takeIf { it.isNotBlank() }?.take(120)
-      ?: "Agent activity"
+      ?: strings.text("Agent activity", "智能体活动")
     rows.size == 1 -> hero.title
-    attentionCount == 1 -> "1 needs you"
-    attentionCount > 1 -> "$attentionCount need you"
-    activeCount > 0 && failedCount > 0 -> "$failedCount failed"
-    activeCount > 0 -> "$activeCount working"
-    failedCount > 0 -> "Finished, $failedCount failed"
-    else -> "All finished"
+    attentionCount == 1 -> strings.text("1 needs you", "1 项需要处理")
+    attentionCount > 1 -> strings.text("$attentionCount need you", "$attentionCount 项需要处理")
+    activeCount > 0 && failedCount > 0 -> strings.text("$failedCount failed", "$failedCount 项失败")
+    activeCount > 0 -> strings.text("$activeCount working", "$activeCount 项正在运行")
+    failedCount > 0 -> strings.text("Finished, $failedCount failed", "已结束，$failedCount 项失败")
+    else -> strings.text("All finished", "全部结束")
   }
 
   val chip = when {
-    !active -> if (phase == ActivityPhase.FAILED) "Failed" else "Done"
-    phase == null -> data["activity_chip"]?.takeIf { it.isNotBlank() }?.take(7) ?: "Active"
+    !active -> phaseText(if (phase == ActivityPhase.FAILED) "Failed" else "Done")
+    phase == null -> data["activity_chip"]?.takeIf { it.isNotBlank() }?.take(7) ?: strings.text("Active", "活跃")
     phase == ActivityPhase.RUNNING && activeCount > 1 ->
-      "${if (activeCount > 9) "9+" else activeCount} live"
-    else -> phase.chip
+      strings.text("${if (activeCount > 9) "9+" else activeCount} live", "${if (activeCount > 9) "9+" else activeCount} 项运行中")
+    else -> phaseText(phase.chip)
   }
 
-  val action = if (active) phase?.action ?: "Open" else null
+  val action = if (active) phaseText(phase?.action ?: "Open") else null
 
   fun applyTo(builder: NotificationCompat.Builder, context: Context) {
     val tint = phase?.let { ContextCompat.getColor(context, it.color) }
@@ -136,7 +140,8 @@ internal class ActivityPresentation(data: Map<String, String>, private val activ
       builder.setSubText(
         listOfNotNull(
           hero!!.project.takeIf { singleProject && it.isNotBlank() },
-          if (activeCount > 0) "$activeCount active" else "$threadCount threads"
+          if (activeCount > 0) strings.text("$activeCount active", "$activeCount 项活跃")
+          else strings.text("$threadCount threads", "$threadCount 个会话")
         ).joinToString(" · ")
       )
     }
@@ -164,7 +169,7 @@ internal class ActivityPresentation(data: Map<String, String>, private val activ
     SpannableStringBuilder().apply {
       val status = ActivityPhase.forStatus(row.status)
       val color = ContextCompat.getColor(context, status?.color ?: R.color.agent_activity_waiting)
-      append(tinted(row.status, color, bold = true))
+      append(tinted(status?.let { phaseText(it.status) } ?: row.status, color, bold = true))
       append(" ").append(row.title)
       // Promoted cards drop text color, so the separator has to do the work of the dimming.
       if (trailing.isNotBlank()) {
@@ -179,9 +184,34 @@ internal class ActivityPresentation(data: Map<String, String>, private val activ
       }
     }
 
+  private fun phaseText(value: String) = strings.text(value, when (value) {
+    "Connecting" -> "正在连接"
+    "Working" -> "正在运行"
+    "Approval" -> "待审批"
+    "Input" -> "待输入"
+    "Waiting" -> "等待中"
+    "Done" -> "已完成"
+    "Failed" -> "失败"
+    "Approve" -> "审批"
+    "Answer" -> "回答"
+    "Open" -> "打开"
+    else -> value
+  })
+
   private fun tinted(text: String, color: Int, bold: Boolean = false) =
     SpannableStringBuilder(text).apply {
       setSpan(ForegroundColorSpan(color), 0, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
       if (bold) setSpan(StyleSpan(Typeface.BOLD), 0, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
     }
+}
+
+internal class T3NativeStrings(private val locale: String?) {
+  constructor(context: Context) : this(
+    context.packageManager.getApplicationInfo(
+      context.packageName,
+      android.content.pm.PackageManager.GET_META_DATA
+    ).metaData?.getString("T3AppLocale")
+  )
+
+  fun text(english: String, chinese: String) = if (locale == "zh-CN") chinese else english
 }

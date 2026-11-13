@@ -431,8 +431,8 @@ function ProviderAccount({
       auth.error ? (
         <View className="gap-2 px-4 pb-3">
           {interaction?.type === "deviceCode" ? (
-            <Text selectable className="text-foreground">
-              Enter code {interaction.userCode} on the sign-in page.
+            <Text localize={false} selectable className="text-foreground">
+              {formatMobileMessage("Enter code {0} on the sign-in page.", [interaction.userCode])}
             </Text>
           ) : null}
           {interaction?.type === "terminal" ? (

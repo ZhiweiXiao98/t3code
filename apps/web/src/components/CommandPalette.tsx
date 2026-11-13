@@ -2903,10 +2903,10 @@ function OpenCommandPaletteDialog(props: {
     newProjectFlow !== null ? (
       <CommandPaletteSubmitButton
         id={submitButtonId}
-        label={isCreatingNewProject ? "Creating" : "Create"}
+        label={translateWebSource(uiLocale, isCreatingNewProject ? "Creating" : "Create")}
         shortcutLabel={createShortcutLabel}
-        ariaLabel={`Create (${createShortcutLabel})`}
-        tooltip={`Create (${createShortcutLabel})`}
+        ariaLabel={t("audit6.createShortcut", { shortcut: createShortcutLabel })}
+        tooltip={t("audit6.createShortcut", { shortcut: createShortcutLabel })}
         disabled={!canSubmitNewProject}
         onSubmit={() => {
           void submitNewProject();
@@ -2915,10 +2915,13 @@ function OpenCommandPaletteDialog(props: {
     ) : addProjectCloneFlow?.step === "repository" ? (
       <CommandPaletteSubmitButton
         id={submitButtonId}
-        label={isRemoteProjectPending ? "Working" : remoteProjectButtonLabel}
+        label={translateWebSource(
+          uiLocale,
+          isRemoteProjectPending ? "Working" : (remoteProjectButtonLabel ?? "Continue"),
+        )}
         shortcutLabel="Enter"
-        ariaLabel={`${remoteProjectButtonLabel ?? "Continue"} (Enter)`}
-        tooltip={`${remoteProjectButtonLabel ?? "Continue"} (Enter)`}
+        ariaLabel={`${translateWebSource(uiLocale, remoteProjectButtonLabel ?? "Continue")} (Enter)`}
+        tooltip={`${translateWebSource(uiLocale, remoteProjectButtonLabel ?? "Continue")} (Enter)`}
         disabled={!canSubmitRemoteProjectFlow}
         onSubmit={() => {
           void submitAddProjectCloneFlow();
@@ -2927,7 +2930,10 @@ function OpenCommandPaletteDialog(props: {
     ) : isBrowsing ? (
       <CommandPaletteSubmitButton
         id={submitButtonId}
-        label={isCloneDestinationStep && isRemoteProjectPending ? "Cloning" : submitActionLabel}
+        label={translateWebSource(
+          uiLocale,
+          isCloneDestinationStep && isRemoteProjectPending ? "Cloning" : submitActionLabel,
+        )}
         shortcutLabel={addShortcutLabel}
         ariaLabel={browseSubmitLabel}
         tooltip={browseSubmitLabel}
