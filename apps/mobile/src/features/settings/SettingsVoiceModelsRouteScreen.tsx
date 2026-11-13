@@ -1,4 +1,5 @@
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { useAtomValue } from "@effect/atom-react";
 import type { StaticScreenProps } from "@react-navigation/native";
 import type { EnvironmentId } from "@t3tools/contracts";
@@ -21,7 +22,7 @@ export function SettingsVoiceModelsRouteScreen({
   const { environments } = useEnvironments();
   const label =
     environments.find((environment) => environment.environmentId === route.params.environmentId)
-      ?.label ?? "This environment";
+      ?.label ?? localizeMobileString("This environment");
   const voice = useVoiceModels(route.params.environmentId, label);
   const benchmarks = new Map(
     (
@@ -67,7 +68,7 @@ export function SettingsVoiceModelsRouteScreen({
           contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom }}
           ListHeaderComponent={
             voice.canManage ? undefined : (
-              <Text className="pb-3 text-xs text-foreground-muted">
+              <Text localize={false} className="pb-3 text-xs text-foreground-muted">
                 {formatMobileMessage("This connection can’t change settings on {0}.", [label])}
               </Text>
             )
@@ -90,8 +91,11 @@ export function SettingsVoiceModelsRouteScreen({
               <EmptyState
                 title={needle ? "No models match" : "No transcription models"}
                 detail={
-                  needle ? "Try another name or language." : `${label} has no models to list.`
+                  needle
+                    ? localizeMobileString("Try another name or language.")
+                    : formatMobileMessage("{0} has no models to list.", [label])
                 }
+                localizeDetail={false}
                 variant="plain"
               />
             )

@@ -1,3 +1,5 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import * as Dialog from "../../components/ui/Dialog";
 import { useOpenPullRequest } from "../../native/useOpenPullRequest";
 import type { AppBarMenu } from "../../components/ui/AppBar.types";
@@ -43,23 +45,23 @@ function compactMenuBranchLabel(branch: string): string {
 
 function compactMenuStatus(gitStatus: VcsStatusResult | null): string {
   if (!gitStatus) {
-    return "Checking status";
+    return localizeMobileString("Checking status");
   }
   if (!gitStatus.isRepo) {
-    return "Not a repo";
+    return localizeMobileString("Not a repo");
   }
 
   const parts: string[] = [];
   if (gitStatus.hasWorkingTreeChanges) {
-    parts.push(`${gitStatus.workingTree.files.length} changed`);
+    parts.push(formatMobileMessage("{0} changed", [gitStatus.workingTree.files.length]));
   } else if (gitStatus.aheadCount === 0 && gitStatus.behindCount === 0) {
-    parts.push("Clean");
+    parts.push(localizeMobileString("Clean"));
   }
   if (gitStatus.aheadCount > 0) {
-    parts.push(`${gitStatus.aheadCount} ahead`);
+    parts.push(formatMobileMessage("{0} ahead", [gitStatus.aheadCount]));
   }
   if (gitStatus.behindCount > 0) {
-    parts.push(`${gitStatus.behindCount} behind`);
+    parts.push(formatMobileMessage("{0} behind", [gitStatus.behindCount]));
   }
   if (gitStatus.pr?.state === "open") {
     const { shortLabel } = sourceControlClients.get(
@@ -113,7 +115,8 @@ function useThreadGitControlModel(props: ThreadGitMenuProps) {
   const threadId = props.threadId;
   const { gitStatus, gitOperationLabel, onPull, onRunAction } = props;
 
-  const currentBranchLabel = gitStatus?.refName ?? props.currentBranch ?? "Detached HEAD";
+  const currentBranchLabel =
+    gitStatus?.refName ?? props.currentBranch ?? localizeMobileString("Detached HEAD");
   const busy = gitOperationLabel !== null;
   const isRepo = gitStatus?.isRepo ?? true;
   const hasPrimaryRemote = gitStatus?.hasPrimaryRemote ?? false;
@@ -159,11 +162,19 @@ function useThreadGitControlModel(props: ThreadGitMenuProps) {
     ).changeRequest;
     const prUrl = gitStatus?.pr?.state === "open" ? gitStatus.pr.url : null;
     if (!prUrl) {
-      Dialog.alert(`No open ${shortLabel}`, `This branch does not have an open ${singular}.`);
+      Dialog.alert(
+        formatMobileMessage("No open {0}", [shortLabel]),
+        formatMobileMessage("This branch does not have an open {0}.", [
+          localizeMobileString(singular),
+        ]),
+      );
       return;
     }
     if (!(await openPullRequest(prUrl))) {
-      Dialog.alert(`Unable to open ${shortLabel}`, `The ${singular} could not be opened.`);
+      Dialog.alert(
+        formatMobileMessage("Unable to open {0}", [shortLabel]),
+        formatMobileMessage("The {0} could not be opened.", [localizeMobileString(singular)]),
+      );
     }
   };
 
@@ -312,6 +323,7 @@ export function useThreadGitMenuDefinition(props: ThreadGitMenuProps): AppBarMen
       {
         id: "git-status",
         title: compactMenuBranchLabel(model.currentBranchLabel),
+        localize: false,
         icon: "point.topleft.down.curvedto.point.bottomright.up",
         disabled: true,
         subtitle: compactMenuStatus(props.gitStatus),
@@ -322,7 +334,8 @@ export function useThreadGitMenuDefinition(props: ThreadGitMenuProps): AppBarMen
         title: model.quickAction.label,
         icon: model.quickActionIcon,
         disabled: model.quickAction.disabled,
-        subtitle: model.quickActionHint ?? undefined,
+        subtitle:
+          model.quickActionHint === null ? undefined : localizeMobileString(model.quickActionHint),
         onPress: () => {
           void model.runQuickAction();
         },

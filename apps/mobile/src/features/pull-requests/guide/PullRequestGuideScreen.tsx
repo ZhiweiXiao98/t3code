@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../../i18n/mobileDisplayStrings";
 import { localizeMobileString } from "../../../i18n/mobileStrings";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
 import { parsePatchFiles } from "@pierre/diffs/utils/parsePatchFiles";
@@ -130,7 +131,10 @@ export function PullRequestGuideStopScreen({ route }: StaticScreenProps<GuideSto
   return (
     <View className="flex-1 bg-screen">
       <AppBar
-        title={`Stop ${route.params.position + 1} of ${guide?.stops.length ?? "…"}`}
+        title={formatMobileMessage("Stop {0} of {1}", [
+          route.params.position + 1,
+          guide?.stops.length ?? "…",
+        ])}
         onBack={() => navigation.goBack()}
         menus={[
           {
@@ -159,11 +163,13 @@ export function PullRequestGuideStopScreen({ route }: StaticScreenProps<GuideSto
             ) : changedGuide ? (
               <Text>This guide was rewritten. Go back to start the new tour.</Text>
             ) : !stop ? (
-              <Text>{state.error ?? "Loading stop…"}</Text>
+              <Text localize={state.error == null}>{state.error ?? "Loading stop…"}</Text>
             ) : (
               <>
                 <GuideNotice state={state} />
-                <Text className="text-2xl leading-8 font-t3-semibold">{stop.title}</Text>
+                <Text localize={false} className="text-2xl leading-8 font-t3-semibold">
+                  {stop.title}
+                </Text>
                 <PullRequestMarkdown lineBreaks={false} markdown={stop.summary} />
                 {stop.attention ? (
                   <View className="gap-3 rounded-xl border border-border bg-grouped-card p-4">
@@ -199,7 +205,11 @@ export function PullRequestGuideStopScreen({ route }: StaticScreenProps<GuideSto
                     />
                   ))
                 )}
-                {diff.error ? <Text className="text-danger-foreground">{diff.error}</Text> : null}
+                {diff.error ? (
+                  <Text localize={false} className="text-danger-foreground">
+                    {diff.error}
+                  </Text>
+                ) : null}
                 {notes.length ? (
                   <View className="gap-4">
                     <Text className="font-t3-semibold">Notes on this stop</Text>
@@ -209,8 +219,10 @@ export function PullRequestGuideStopScreen({ route }: StaticScreenProps<GuideSto
                           <Text className="text-xs font-t3-semibold">{marker}</Text>
                         </View>
                         <View className="min-w-0 flex-1 gap-2">
-                          <Text className="font-t3-semibold">{note.title}</Text>
-                          <Text className="text-xs text-foreground-muted">
+                          <Text localize={false} className="font-t3-semibold">
+                            {note.title}
+                          </Text>
+                          <Text localize={false} className="text-xs text-foreground-muted">
                             {note.path.split("/").at(-1)}:{note.line}
                           </Text>
                           <PullRequestMarkdown lineBreaks={false} markdown={note.body} />
@@ -225,7 +237,9 @@ export function PullRequestGuideStopScreen({ route }: StaticScreenProps<GuideSto
                       <PullRequestCardRow
                         key={file.path}
                         title={file.path}
+                        localizeTitle={false}
                         detail={file.note}
+                        localizeDetail={false}
                         icon="doc"
                         last={index === stop.files.length - 1}
                         onPress={() =>
@@ -275,10 +289,13 @@ export function PullRequestGuideStopScreen({ route }: StaticScreenProps<GuideSto
                   <View className="min-w-0 flex-1 gap-1">
                     <Text className="text-xs text-foreground-muted">
                       {guide && position < guide.stops.length - 1
-                        ? `Next · ${position + 2} of ${guide.stops.length}`
+                        ? formatMobileMessage("Next · {0} of {1}", [
+                            position + 2,
+                            guide.stops.length,
+                          ])
                         : "End of guide"}
                     </Text>
-                    <Text className="text-base font-t3-semibold">
+                    <Text localize={false} className="text-base font-t3-semibold">
                       {guide && position < guide.stops.length - 1
                         ? guide.stops[position + 1]?.title
                         : canReview

@@ -5,6 +5,8 @@ import { expect, it, onTestFinished, vi } from "vite-plus/test";
 import type { ServerConfig } from "@t3tools/contracts";
 
 import type { ZipTreeRow } from "./zipTree";
+import { DelimitedFilePreview } from "./DelimitedFilePreview";
+import * as mobileStrings from "../../i18n/mobileStrings";
 
 const files = vi.hoisted(() => new Map<string, Uint8Array>());
 const navigation = vi.hoisted(() => ({ remove: null as (() => void) | null }));
@@ -12,6 +14,33 @@ const server = vi.hoisted(() => ({
   capabilities: { repositoryIdentity: false } as ServerConfig["environment"]["capabilities"],
   refresh: vi.fn(async () => "file:///first.zip"),
 }));
+
+it("preserves captured table cells that collide with translated application labels", async () => {
+  const localizeMobileString = mobileStrings.localizeMobileString;
+  using _locale = vi
+    .spyOn(mobileStrings, "localizeMobileString")
+    .mockImplementation((value) => localizeMobileString(value, "zh-CN"));
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  try {
+    await act(() =>
+      root.render(
+        <DelimitedFilePreview
+          table={{
+            rows: [
+              ["Settings", "Open"],
+              ["{0}", "$&"],
+            ],
+            truncated: false,
+          }}
+        />,
+      ),
+    );
+    expect(container.textContent).toBe("SettingsOpen{0}$&");
+  } finally {
+    await act(() => root.unmount());
+  }
+});
 
 vi.mock("../../state/entities", () => ({
   useEnvironmentServerConfig: () => ({ environment: { capabilities: server.capabilities } }),

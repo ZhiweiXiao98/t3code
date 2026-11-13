@@ -1,3 +1,4 @@
+import { MOBILE_LOCALE, localizeMobileString } from "../../i18n/mobileStrings";
 import { AsyncResult } from "effect/reactivity";
 import * as Dialog from "../../components/ui/Dialog";
 import { useAtomRefresh } from "@effect/atom-react";
@@ -16,7 +17,6 @@ import { pullRequestTarget, type PullRequestParams } from "./usePullRequestDiff"
 import { usePullRequestPermissions } from "./usePullRequestPermissions";
 import { pullRequestActionFailure } from "./pullRequestMergeDisplay";
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
-import { localizeMobileString } from "../../i18n/mobileStrings";
 
 export function usePullRequestAction(params: PullRequestParams, pr: PullRequestDetail | null) {
   const target = pullRequestTarget(params);
@@ -50,7 +50,7 @@ export function usePullRequestAction(params: PullRequestParams, pr: PullRequestD
     refreshActivity();
   };
   const confirm = (action: PullRequestAction, title: string, message: string) =>
-    Dialog.alert(title, message, [
+    Dialog.alertWithLiteralContent(localizeMobileString(title), message, [
       { text: "Cancel", style: "cancel" },
       {
         text: title,
@@ -62,8 +62,10 @@ export function usePullRequestAction(params: PullRequestParams, pr: PullRequestD
     const terminology = sourceControlClients.get(pr?.provider).changeRequest;
     confirm(
       "close",
-      pullRequestActionLabel("close", terminology),
-      `Close this ${terminology.singular} without merging its changes?`,
+      pullRequestActionLabel("close", terminology, MOBILE_LOCALE),
+      formatMobileMessage("Close this {0} without merging its changes?", [
+        localizeMobileString(terminology.singular),
+      ]),
     );
   };
   return { available, perform, confirm, confirmClose, busy };

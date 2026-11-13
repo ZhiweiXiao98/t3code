@@ -13,6 +13,7 @@ import {
   filePreviewKind,
   officePreviewKind,
   FILE_TEXT_PREVIEW_MAX_BYTES,
+  filePreviewErrorSource,
 } from "@t3tools/shared/filePreview";
 import {
   ChevronRightIcon,
@@ -160,7 +161,7 @@ export function AttachmentFilePreview(props: {
   const [revision, setRevision] = useState(0);
   const [content, setContent] = useState<{ text: string; truncated: boolean } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [contentError, setContentError] = useState<string | null>(null);
+  const [contentError, setContentError] = useState<Error | string | null>(null);
   const copyContents = useRef<(() => Promise<string>) | null>(null);
   const authorizedAt = useRef(0);
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- creates an object URL for the local file and revokes it on cleanup
@@ -239,7 +240,7 @@ export function AttachmentFilePreview(props: {
     })().catch((cause: unknown) => {
       if (!controller.signal.aborted)
         setContentError(
-          cause instanceof Error ? cause.message : translateSource("Could not load this file."),
+          cause instanceof Error ? cause : translateSource("Could not load this file."),
         );
     });
     return () => controller.abort();
@@ -303,9 +304,16 @@ export function AttachmentFilePreview(props: {
     });
   };
 
+  const ownedFailureSource = filePreviewErrorSource(failure);
   const body = failure ? (
     <FileSurfaceFailure
-      message={localizeFilePreviewError(locale, failure)}
+      message={
+        ownedFailureSource !== undefined
+          ? localizeFilePreviewError(locale, ownedFailureSource)
+          : failure instanceof Error
+            ? failure.message
+            : failure
+      }
       onRetry={() => {
         setError(null);
         setRevision((value) => value + 1);

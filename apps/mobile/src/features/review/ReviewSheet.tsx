@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { settlePromise, squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
 import { AsyncResult } from "effect/reactivity";
 import type { EnvironmentId, ThreadId } from "@t3tools/contracts";
@@ -338,7 +339,9 @@ function ReviewFileNavigator({ files, sectionId, onSelectFile, ref }: ReviewFile
     <View className="flex-1 ios:bg-sheet android:bg-header">
       <AppBar
         title="Changed files"
-        subtitle={`${files.length} ${files.length === 1 ? "file" : "files"}`}
+        subtitle={formatMobileMessage(files.length === 1 ? "{0} file" : "{0} files", [
+          files.length,
+        ])}
         hideBottomBorder
       />
       <ScreenContent insetHorizontal>
@@ -604,7 +607,9 @@ export function ReviewSheet(props: ReviewSheetProps) {
     headerDiffSummary.additions,
     headerDiffSummary.deletions,
     pendingReviewCommentCount > 0
-      ? `${pendingReviewCommentCount} comment${pendingReviewCommentCount === 1 ? "" : "s"}`
+      ? formatMobileMessage(pendingReviewCommentCount === 1 ? "{0} comment" : "{0} comments", [
+          pendingReviewCommentCount,
+        ])
       : null,
   ]
     .filter(Boolean)

@@ -1,3 +1,4 @@
+import { pullRequestActionFailure } from "./pullRequestMergeDisplay";
 import { useAtomRefresh, useAtomValue } from "@effect/atom-react";
 import {
   descriptionDraftInForce,
@@ -41,9 +42,9 @@ export function usePullRequestDescription(
     setDraft((current) => settleDescriptionSave(current, detail.url, saved));
     if (AsyncResult.isFailure(response)) {
       const cause = squashAtomCommandFailure(response);
-      Dialog.alert(
+      Dialog.alertWithLiteralMessage(
         "Could not save the description",
-        cause instanceof Error ? cause.message : "Try again.",
+        pullRequestActionFailure(cause),
       );
     }
     if (savesRunning.current === 0) refreshDetail();

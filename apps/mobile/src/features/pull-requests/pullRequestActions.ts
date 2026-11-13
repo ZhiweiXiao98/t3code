@@ -40,30 +40,32 @@ export const MERGE_METHODS = {
 export function pullRequestActionLabel(
   action: PullRequestAction,
   terminology: ChangeRequestTerminology,
+  locale: MobileLocale = "en",
 ): string {
+  const term = localizeMobileString(terminology.singular, locale);
   switch (action) {
     case "merge":
-      return `Merge ${terminology.singular}`;
+      return formatMobileMessage("Merge {0}", [term], locale);
     case "ready":
-      return "Mark ready for review";
+      return localizeMobileString("Mark ready for review", locale);
     case "draft":
-      return "Convert to draft";
+      return localizeMobileString("Convert to draft", locale);
     case "close":
-      return `Close ${terminology.singular}`;
+      return formatMobileMessage("Close {0}", [term], locale);
     case "reopen":
-      return `Reopen ${terminology.singular}`;
+      return formatMobileMessage("Reopen {0}", [term], locale);
     case "update-branch":
-      return "Update branch";
+      return localizeMobileString("Update branch", locale);
     case "enable-auto-merge":
-      return "Enable auto-merge";
+      return localizeMobileString("Enable auto-merge", locale);
     case "disable-auto-merge":
-      return "Disable auto-merge";
+      return localizeMobileString("Disable auto-merge", locale);
     case "revert":
-      return `Create revert ${terminology.singular}`;
+      return formatMobileMessage("Create revert {0}", [term], locale);
     case "delete-branch":
-      return "Delete branch";
+      return localizeMobileString("Delete branch", locale);
     case "approve-workflows":
-      return "Approve workflows";
+      return localizeMobileString("Approve workflows", locale);
   }
 }
 

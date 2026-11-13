@@ -206,6 +206,7 @@ export async function rewindToMessage(input: {
         translateWebSource(readWebI18n().locale, "The environment is not connected."),
       );
     const files = await prepareRevertedMessageAttachments({
+      readLocale: () => readWebI18n().locale,
       message,
       environmentId,
       httpBaseUrl: connection.httpBaseUrl,
@@ -217,24 +218,36 @@ export async function rewindToMessage(input: {
       (draft?.images.length ?? 0) + (draft?.files.length ?? 0) + files.length >
       PROVIDER_SEND_TURN_MAX_ATTACHMENTS
     ) {
-      throw new Error("Make room for this message's attachments in the composer before rewinding.");
+      throw new Error(
+        translateWebSource(
+          readWebI18n().locale,
+          "Make room for this message's attachments in the composer before rewinding.",
+        ),
+      );
     }
     const commandId = CommandId.make(randomUUID());
-    await waitForRevertedMessage(input.routeThreadRef, input.turnCount, commandId, async () => {
-      const result = await input.revertThreadCheckpoint({
-        environmentId,
-        input: {
-          commandId,
-          threadId: input.threadId,
-          turnCount: input.turnCount,
-          restoreFiles: input.restoreFiles,
-          ...(input.checkpoint === undefined
-            ? {}
-            : { checkpointId: input.checkpoint.id, scopeId: input.checkpoint.scopeId }),
-        },
-      });
-      if (result._tag === "Failure") throw squashAtomCommandFailure(result);
-    });
+    await waitForRevertedMessage(
+      input.routeThreadRef,
+      input.turnCount,
+      commandId,
+      async () => {
+        const result = await input.revertThreadCheckpoint({
+          environmentId,
+          input: {
+            commandId,
+            threadId: input.threadId,
+            turnCount: input.turnCount,
+            restoreFiles: input.restoreFiles,
+            ...(input.checkpoint === undefined
+              ? {}
+              : { checkpointId: input.checkpoint.id, scopeId: input.checkpoint.scopeId }),
+          },
+        });
+        if (result._tag === "Failure") throw squashAtomCommandFailure(result);
+      },
+      undefined,
+      () => readWebI18n().locale,
+    );
     const currentPrompt = store.getComposerDraft(draftTarget)?.prompt ?? "";
     const restoredPrompt = recallableComposerPrompt(message.text);
     const nextPrompt =
@@ -315,7 +328,7 @@ export function resolveMultipleModelTargets(input: {
       (entry) => entry.instanceId === selection.instanceId,
     );
     if (!provider?.enabled || !provider.isAvailable || provider.status !== "ready") {
-      return { error: `Provider for ${selection.model} is unavailable.` };
+      return { error: readWebI18n().t("audit15.providerUnavailable", { model: selection.model }) };
     }
     const providerBlockReason = getAntigravitySendBlockReason(provider.snapshot, selection.model);
     if (providerBlockReason) return { error: providerBlockReason };
@@ -366,7 +379,12 @@ export function prepareTurnAttachments(input: {
         return uploaded;
       }
       if (attachment.type !== "image") {
-        throw new Error("This server does not support file attachments.");
+        throw new Error(
+          translateWebSource(
+            readWebI18n().locale,
+            "This server does not support file attachments.",
+          ),
+        );
       }
       return {
         type: "image" as const,

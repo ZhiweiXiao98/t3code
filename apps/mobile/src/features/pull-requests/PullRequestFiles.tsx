@@ -1,3 +1,4 @@
+import { pullRequestFileSummary } from "./pullRequestDisplay";
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import { NativeScrollView } from "../../native/NativeScrollViewMarker";
@@ -79,18 +80,14 @@ function describeFiles(
   parsed: Extract<ReviewParsedDiff, { readonly kind: "files" }>,
   { filter, viewed }: ChangedFiles,
 ) {
-  const noun = (count: number) => (count === 1 ? "file" : "files");
-  return [
-    `${parsed.fileCount} ${filter.hiddenCount ? "visible" : "changed"} ${noun(parsed.fileCount)}`,
-    viewed.supported
-      ? `${parsed.files.filter((file) => viewed.isViewed(file.path)).length} viewed`
+  return pullRequestFileSummary({
+    fileCount: parsed.fileCount,
+    hiddenCount: filter.hiddenCount,
+    hideTestFiles: filter.hideTestFiles,
+    viewedCount: viewed.supported
+      ? parsed.files.filter((file) => viewed.isViewed(file.path)).length
       : null,
-    filter.hideTestFiles
-      ? `${filter.hiddenCount} test ${noun(filter.hiddenCount)} hidden`
-      : "Test files included",
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  });
 }
 
 function FileRow(props: {
@@ -119,17 +116,22 @@ function FileRow(props: {
     >
       <PierreEntryIcon kind="file" path={file.path} size={20} />
       <View className="min-w-0 flex-1 gap-0.5">
-        <Text textRole="footnote" className="font-t3-medium" numberOfLines={2}>
+        <Text localize={false} textRole="footnote" className="font-t3-medium" numberOfLines={2}>
           {file.path.split("/").at(-1)}
         </Text>
         {props.directory ? (
-          <Text textRole="caption" className="text-foreground-muted" numberOfLines={1}>
+          <Text
+            localize={false}
+            textRole="caption"
+            className="text-foreground-muted"
+            numberOfLines={1}
+          >
             {props.directory}
           </Text>
         ) : null}
         {file.previousPath ? (
           <Text textRole="caption" className="text-foreground-muted" numberOfLines={1}>
-            Renamed from {file.previousPath}
+            {formatMobileMessage("Renamed from {0}", [file.previousPath])}
           </Text>
         ) : null}
       </View>
@@ -224,7 +226,7 @@ function FilesFooter({ files }: { readonly files: ChangedFiles }) {
         />
       ) : null}
       {viewed.error ? (
-        <Text textRole="label" className="py-2 text-danger-foreground">
+        <Text localize={false} textRole="label" className="py-2 text-danger-foreground">
           {viewed.error}
         </Text>
       ) : null}
@@ -383,7 +385,7 @@ function DirectoryRow(props: {
   readonly collapsed: boolean;
   readonly onPress: () => void;
 }) {
-  const label = props.directory || "Repository root";
+  const label = props.directory || localizeMobileString("Repository root");
   return (
     <RowPressable
       accessibilityRole="button"
@@ -398,7 +400,12 @@ function DirectoryRow(props: {
         tintColorClassName="accent-icon-muted"
       />
       <SymbolView name="folder" size={16} tintColorClassName="accent-icon-muted" />
-      <Text textRole="label" className="min-w-0 flex-1 text-foreground-muted" numberOfLines={2}>
+      <Text
+        localize={false}
+        textRole="label"
+        className="min-w-0 flex-1 text-foreground-muted"
+        numberOfLines={2}
+      >
         {label}
       </Text>
     </RowPressable>

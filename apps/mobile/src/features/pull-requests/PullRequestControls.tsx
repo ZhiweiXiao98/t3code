@@ -136,8 +136,12 @@ export function PullRequestActionToolbar(props: {
   const { shortLabel } = sourceControlClients.get(
     (props.pr ?? props.params.initialSummary)?.provider,
   ).changeRequest;
-  const threadLabel = agent.threads.length ? "Continue thread" : `Work on ${shortLabel}`;
-  const primaryLabel = pendingReview ? `Submit review · ${draft.comments.length}` : threadLabel;
+  const threadLabel = agent.threads.length
+    ? "Continue thread"
+    : formatMobileMessage("Work on {0}", [shortLabel]);
+  const primaryLabel = pendingReview
+    ? formatMobileMessage("Submit review · {0}", [draft.comments.length])
+    : threadLabel;
   const chooseThread = agent.chooseThread;
   const agentActions = agent.actions.filter((action) => action.task !== "ask");
   const open = (mode: "review" | "comment") =>

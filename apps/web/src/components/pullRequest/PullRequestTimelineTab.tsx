@@ -766,7 +766,7 @@ export function PullRequestTimelineTab({
   onAddToChat?: (subject: PullRequestChatSubject) => void;
   onRefresh: () => void;
 }) {
-  const { t } = useI18n();
+  const { t, locale: uiLocale } = useI18n();
   const events = buildPullRequestTimeline(detail);
   const location = parsePullRequestAnchor(revealUrl);
   const revealAnchor = location?.kind === "timeline" ? location.anchor : null;
@@ -917,7 +917,7 @@ export function PullRequestTimelineTab({
       ListHeaderComponent={
         anchor !== null && targetIndex < 0 && revealUrl === undefined ? (
           <p role="status" className="py-4 text-xs text-muted-foreground">
-            The linked item is not in the loaded activity.
+            {translateWebSource(uiLocale, "The linked item is not in the loaded activity.")}
           </p>
         ) : (
           <div className="h-5" />

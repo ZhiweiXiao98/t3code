@@ -1,3 +1,5 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
+import { translateWebSource } from "~/i18n/messages";
 import { findErrorTraceId } from "@t3tools/client-runtime/errors";
 import {
   isAtomCommandInterrupted,
@@ -15,15 +17,16 @@ import { useAtomCommand } from "../../state/use-atom-command";
 import { toastManager } from "../ui/toast";
 
 function reportFailure(title: string, cause: unknown) {
+  const { locale } = readWebI18n();
   const traceId = findErrorTraceId(cause);
   toastManager.add({
     type: "error",
-    title,
-    description: cause instanceof Error ? cause.message : "Try again.",
+    title: translateWebSource(locale, title),
+    description: cause instanceof Error ? cause.message : translateWebSource(locale, "Try again."),
     data: traceId
       ? {
           secondaryActionProps: {
-            children: "Copy trace ID",
+            children: translateWebSource(locale, "Copy trace ID"),
             onClick: () => void navigator.clipboard?.writeText(traceId),
           },
         }

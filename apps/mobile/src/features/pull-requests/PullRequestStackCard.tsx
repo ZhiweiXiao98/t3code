@@ -65,6 +65,7 @@ export function PullRequestStackCard(props: {
               <View key={layer.number} className={selected ? "bg-thread-selected" : undefined}>
                 <PullRequestCardRow
                   title={layer.title ?? layer.headBranch}
+                  localizeTitle={false}
                   icon={status.icon}
                   tint={status.tint}
                   value={selected ? "Current" : status.label}

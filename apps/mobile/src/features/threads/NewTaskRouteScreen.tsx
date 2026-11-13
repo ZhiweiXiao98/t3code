@@ -1,3 +1,5 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
+import { mobileSharedContentPrompt } from "../../i18n/threadDisplayMessages";
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import { isDraftThreadRoute } from "./thread-route-state";
 import * as Dialog from "../../components/ui/Dialog";
@@ -166,11 +168,7 @@ export function NewTaskRouteScreen({ route }: StaticScreenProps<NewTaskRoutePara
     : route.params?.incomingShareId;
   const incomingShare = routeShareId ? getShare(routeShareId) : null;
   const incomingShareSubtitle = incomingShare
-    ? incomingShare.attachments.length === 0
-      ? "Choose a project for what you shared"
-      : incomingShare.attachments.length === 1
-        ? `Choose a project for the ${incomingShare.attachments[0]?.type === "image" ? "image" : "file"} you shared`
-        : `Choose a project for the ${incomingShare.attachments.length} ${incomingShare.attachments.every((attachment) => attachment.type === "image") ? "images" : "files"} you shared`
+    ? mobileSharedContentPrompt(incomingShare.attachments)
     : null;
   const screenTitle = incomingShare ? "Start a task" : "Choose project";
   const projectEmptyState = deriveProjectEmptyState(catalogState);
@@ -215,11 +213,11 @@ export function NewTaskRouteScreen({ route }: StaticScreenProps<NewTaskRoutePara
       try {
         await releaseShareReservation(incomingShare.id, incomingShare.destination);
       } catch (error) {
-        Dialog.alert(
+        Dialog.alertWithLiteralMessage(
           "Could not change project",
           error instanceof Error
             ? error.message
-            : "The shared content reservation could not be updated.",
+            : localizeMobileString("The shared content reservation could not be updated."),
         );
         return;
       }
@@ -489,7 +487,7 @@ export function NewTaskRouteScreen({ route }: StaticScreenProps<NewTaskRoutePara
                       localizeTitle={false}
                       subtitle={
                         hasMultipleProjects
-                          ? `${scope.projects.length} workspaces`
+                          ? formatMobileMessage("{0} workspaces", [scope.projects.length])
                           : selectionTarget.workspaceRoot
                       }
                       subtitleNumberOfLines={1}
@@ -544,7 +542,7 @@ export function NewTaskRouteScreen({ route }: StaticScreenProps<NewTaskRoutePara
                           numberOfLines={1}
                         >
                           {hasMultipleProjects
-                            ? `${scope.projects.length} workspaces`
+                            ? formatMobileMessage("{0} workspaces", [scope.projects.length])
                             : selectionTarget.workspaceRoot}
                         </Text>
                       </View>

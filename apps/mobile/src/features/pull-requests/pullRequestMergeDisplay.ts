@@ -62,6 +62,7 @@ export function pullRequestMergeConfirmation(
 export function pullRequestActionFailure(
   cause: unknown,
   locale: MobileLocale = MOBILE_LOCALE,
+  fallback = "Try again.",
 ): string {
-  return cause instanceof Error ? cause.message : localizeMobileString("Try again.", locale);
+  return cause instanceof Error ? cause.message : localizeMobileString(fallback, locale);
 }

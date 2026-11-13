@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { useAtomValue } from "@effect/atom-react";
 import { MISSING_FILE_ACCESS_MESSAGE } from "@t3tools/client-runtime/state/assets";
 import type { AssetResource, EnvironmentId } from "@t3tools/contracts";
@@ -157,10 +158,10 @@ export function ThreadMarkdownImageView(props: {
             style={frameStyle}
           >
             {failed ? (
-              <Text className="px-3 text-center text-xs text-foreground-muted">
+              <Text localize={false} className="px-3 text-center text-xs text-foreground-muted">
                 {props.unavailableDetail
-                  ? `Image unavailable. ${props.unavailableDetail}`
-                  : "Image unavailable"}
+                  ? formatMobileMessage("Image unavailable. {0}", [props.unavailableDetail])
+                  : localizeMobileString("Image unavailable")}
               </Text>
             ) : (
               <AppActivityIndicator />
@@ -318,7 +319,7 @@ export function ThreadMarkdownImage(props: {
       unavailable={assetUrl._tag === "Failure"}
       unavailableDetail={
         assetUrl._tag === "Failure" && assetUrl.reason === "missing-file-access"
-          ? MISSING_FILE_ACCESS_MESSAGE
+          ? localizeMobileString(MISSING_FILE_ACCESS_MESSAGE)
           : undefined
       }
       knownSize={assetUrl._tag === "Success" ? assetUrl.imageDimensions : undefined}

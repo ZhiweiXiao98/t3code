@@ -1,3 +1,4 @@
+import { composerRestorationMessages } from "./composerRestorationMessages";
 import { readWebI18n } from "~/i18n/readWebI18n";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
@@ -380,32 +381,14 @@ export function useComposerStash(input: {
       }
     }
 
-    const missingImageReasons: string[] = [];
-    if (entry.droppedImageNames.length > 0) {
-      missingImageReasons.push(
-        `${entry.droppedImageNames.join(", ")} exceeded the stash size limit when this prompt was saved.`,
-      );
-    }
-    if (entry.unreadableImageNames && entry.unreadableImageNames.length > 0) {
-      missingImageReasons.push(
-        `${entry.unreadableImageNames.join(", ")} could not be read when this prompt was saved.`,
-      );
-    }
-    if (unrestoredImageNames.length > 0) {
-      missingImageReasons.push(
-        `${unrestoredImageNames.join(", ")} could not be restored: the composer is at its ${PROVIDER_SEND_TURN_MAX_ATTACHMENTS}-attachment limit.`,
-      );
-    }
-    if (unrestoredFileNames.length > 0) {
-      missingImageReasons.push(
-        `${unrestoredFileNames.join(", ")} could not be restored: the composer is at its ${PROVIDER_SEND_TURN_MAX_ATTACHMENTS}-attachment limit.`,
-      );
-    }
-    if (expiredFileNames.length > 0) {
-      missingImageReasons.push(
-        `${expiredFileNames.join(", ")}: stashed files are kept for 24 hours and this upload expired. Attach the file again.`,
-      );
-    }
+    const missingImageReasons = composerRestorationMessages(readWebI18n().locale, {
+      dropped: entry.droppedImageNames,
+      unreadable: entry.unreadableImageNames ?? [],
+      unrestoredImages: unrestoredImageNames,
+      unrestoredFiles: unrestoredFileNames,
+      expired: expiredFileNames,
+      limit: PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
+    });
     if (missingImageReasons.length > 0) {
       toastManager.add({
         type: "warning",

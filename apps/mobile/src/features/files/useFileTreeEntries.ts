@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { useAtomMount, useAtomSubscribe } from "@effect/atom-react";
 import { executeAtomQuery } from "@t3tools/client-runtime/state/runtime";
 import { ProjectListEntriesError, type EnvironmentId, type ProjectEntry } from "@t3tools/contracts";
@@ -269,7 +270,7 @@ export function useFileTreeEntries(input: {
           validatedDirectories,
           errors: new Map(current.errors).set(
             directoryPath,
-            error instanceof Error ? error.message : "Files unavailable",
+            error instanceof Error ? error.message : localizeMobileString("Files unavailable"),
           ),
         };
       });

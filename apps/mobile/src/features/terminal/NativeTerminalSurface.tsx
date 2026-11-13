@@ -137,6 +137,7 @@ const FallbackTerminalSurface = memo(function FallbackTerminalSurface({
           showsVerticalScrollIndicator={false}
         >
           <Text
+            localize={false}
             selectable
             style={{
               color: theme.foreground,

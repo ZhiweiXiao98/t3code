@@ -90,5 +90,9 @@ it("keeps provider failure messages literal, even when they match application ke
     expect(pullRequestActionFailure({ message: "Settings" }, locale)).toBe(
       locale === "zh-CN" ? "请重试。" : "Try again.",
     );
+    expect(pullRequestActionFailure(new Error("Save"), locale, "Save")).toBe("Save");
+    expect(pullRequestActionFailure({ message: "Save" }, locale, "Save")).toBe(
+      locale === "zh-CN" ? "保存" : "Save",
+    );
   }
 });

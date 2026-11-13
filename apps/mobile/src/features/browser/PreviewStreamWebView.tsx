@@ -1,3 +1,4 @@
+import { offerPreviewDownload } from "./previewDownload";
 import { mobilePreviewUploadFailure } from "../../i18n/mobileNativePresentationStrings";
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { MOBILE_LOCALE, localizeMobileString } from "../../i18n/mobileStrings";
@@ -9,7 +10,6 @@ import {
   previewStreamControlLabel,
   previewStreamHostSetupMessage,
   type PreviewStreamControl,
-  type PreviewStreamDownload,
   type PreviewStreamFileChooser,
   type PreviewStreamInput,
 } from "@t3tools/client-runtime/preview/server-browser-stream";
@@ -28,7 +28,6 @@ import * as Clipboard from "expo-clipboard";
 
 import { AppText } from "../../components/ui/AppText";
 import { PdfPreview } from "../../components/PdfPreview";
-import { downloadAndShareAttachment } from "../../lib/attachmentDownload";
 import { beginForegroundHandoff } from "../../lib/foreground-handoff";
 import { usePreviewStreamAccess } from "../../state/preview";
 import { previewPromptText } from "./previewPromptText";
@@ -93,26 +92,6 @@ async function sendFilesToPage(chooser: PreviewStreamFileChooser, pick: boolean)
     throw new Error(mobilePreviewUploadFailure(response.status, await response.text()));
 }
 
-function offerDownload(download: PreviewStreamDownload) {
-  Dialog.alert(`Downloaded ${download.fileName}`, undefined, [
-    { text: "Not now", style: "cancel" },
-    {
-      text: "Save or share",
-      onPress: () =>
-        void downloadAndShareAttachment({
-          url: download.url,
-          attachment: { name: download.fileName, mimeType: "application/octet-stream" },
-          signal: new AbortController().signal,
-        }).catch((cause: unknown) =>
-          Dialog.alert(
-            "Could not save the download",
-            cause instanceof Error ? cause.message : undefined,
-          ),
-        ),
-    },
-  ]);
-}
-
 const MAX_REFUSALS = 3;
 
 export function PreviewStreamWebView(
@@ -145,12 +124,13 @@ export function PreviewStreamWebView(
       {!props.compact && (
         <>
           <AppText
+            localize={false}
             selectable={!!error}
             className={
               error ? "text-center text-sm text-foreground-muted" : "text-sm text-foreground-muted"
             }
           >
-            {error || "Connecting to browser..."}
+            {error || localizeMobileString("Connecting to browser...")}
           </AppText>
           {error && (
             <View className="items-center">
@@ -292,7 +272,7 @@ function PreviewStreamDocumentView({
     setStatus("error");
   };
   const bootstrapTimedOut = useEffectEvent(() =>
-    fail("Browser viewer could not start. Reconnect to try again."),
+    fail(localizeMobileString("Browser viewer could not start. Reconnect to try again.")),
   );
   const streamEnded = useEffectEvent(() => {
     onStreamingChange?.(false);
@@ -324,7 +304,8 @@ function PreviewStreamDocumentView({
   }));
   const processTerminated = () => {
     if (!active.current || failed.current) return;
-    if (!onRecoverProcess()) fail("Browser viewer stopped. Reconnect to try again.");
+    if (!onRecoverProcess())
+      fail(localizeMobileString("Browser viewer stopped. Reconnect to try again."));
   };
   return (
     <View className="flex-1" style={{ backgroundColor: background }}>
@@ -360,8 +341,12 @@ function PreviewStreamDocumentView({
           allowsPictureInPictureMediaPlayback
           mediaPlaybackRequiresUserAction={false}
           style={{ flex: 1, backgroundColor: background }}
-          onError={() => fail("Browser viewer could not load. Reconnect to try again.")}
-          onHttpError={() => fail("Browser viewer could not load. Reconnect to try again.")}
+          onError={() =>
+            fail(localizeMobileString("Browser viewer could not load. Reconnect to try again."))
+          }
+          onHttpError={() =>
+            fail(localizeMobileString("Browser viewer could not load. Reconnect to try again."))
+          }
           onContentProcessDidTerminate={processTerminated}
           onRenderProcessGone={processTerminated}
           onShouldStartLoadWithRequest={(request) =>
@@ -382,17 +367,21 @@ function PreviewStreamDocumentView({
               }
               case "unauthorized":
                 if (!onUnauthorized()) {
-                  fail("This session can't open the browser stream. Reconnect to try again.");
+                  fail(
+                    localizeMobileString(
+                      "This session can't open the browser stream. Reconnect to try again.",
+                    ),
+                  );
                 }
                 return;
               case "gone":
                 setGone(true);
-                fail("This tab was closed.");
+                fail(localizeMobileString("This tab was closed."));
                 onGone?.();
                 return;
               case "hostSetup":
                 setHostSetup({ need: message.need, command: message.command });
-                fail(previewStreamHostSetupMessage(message));
+                fail(localizeMobileString(previewStreamHostSetupMessage(message)));
                 return;
               case "viewport":
                 onViewport?.(message);
@@ -401,7 +390,7 @@ function PreviewStreamDocumentView({
                 void Clipboard.setStringAsync(message.text).catch(() => undefined);
                 return;
               case "download":
-                offerDownload(message);
+                offerPreviewDownload(message);
                 return;
               case "fileChooser":
                 setFileChooser(message.chooser);
@@ -412,7 +401,7 @@ function PreviewStreamDocumentView({
               case "status":
                 clearBootstrapTimer();
                 if (message.status === "error") {
-                  fail(message.detail ?? "Browser stream failed.");
+                  fail(message.detail ?? localizeMobileString("Browser stream failed."));
                   return;
                 }
                 setStatus(message.status);
@@ -443,7 +432,7 @@ function PreviewStreamDocumentView({
           <View className="flex-row justify-end gap-3">
             <Button label="Cancel" tone="text" onPress={() => answerFileChooser(false)} />
             <Button
-              label={`Choose ${fileChooser.multiple ? "files" : "file"}`}
+              label={fileChooser.multiple ? "Choose files" : "Choose file"}
               tone="secondary"
               onPress={() => answerFileChooser(true)}
             />
@@ -499,10 +488,11 @@ function PreviewStreamDocumentView({
           {status === "connecting" ? <AppActivityIndicator colorClassName="accent-icon" /> : null}
           {compact ? null : (
             <AppText
+              localize={false}
               accessibilityLiveRegion="polite"
               className="text-center text-sm text-foreground-muted"
             >
-              {status === "error" ? error : "Connecting to browser..."}
+              {status === "error" ? error : localizeMobileString("Connecting to browser...")}
             </AppText>
           )}
           {status === "error" && hostSetup && !compact ? (
@@ -514,7 +504,11 @@ function PreviewStreamDocumentView({
                 void Clipboard.setStringAsync(hostSetup.command).catch(() => undefined);
               }}
             >
-              <AppText selectable className="flex-1 font-mono text-sm text-secondary-foreground">
+              <AppText
+                localize={false}
+                selectable
+                className="flex-1 font-mono text-sm text-secondary-foreground"
+              >
                 {hostSetup.command}
               </AppText>
               <AppText className="text-xs text-foreground-muted">Copy</AppText>

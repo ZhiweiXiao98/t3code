@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import { useNavigation, type StaticScreenProps } from "@react-navigation/native";
 import { TextInputWrapper } from "expo-paste-input";
@@ -73,11 +74,11 @@ export function ReviewCommentComposerSheet(props: ReviewCommentComposerSheetProp
   const selectionLabel =
     selectedLines.length === 1
       ? firstNumber !== null
-        ? `Line ${firstNumber}`
+        ? formatMobileMessage("Line {0}", [firstNumber])
         : "File comment"
       : firstNumber !== null && lastNumber !== null
-        ? `Lines ${firstNumber}-${lastNumber}`
-        : `${selectedLines.length} lines selected`;
+        ? formatMobileMessage("Lines {0}-{1}", [firstNumber, lastNumber])
+        : formatMobileMessage("{0} lines selected", [selectedLines.length]);
   const previewHeight = Math.max(
     Math.min(selectedLines.length, REVIEW_COMMENT_PREVIEW_MAX_LINES) * codeSurface.rowHeight,
     codeSurface.rowHeight,
@@ -153,6 +154,7 @@ export function ReviewCommentComposerSheet(props: ReviewCommentComposerSheetProp
                   {selectionLabel}
                 </Text>
                 <Text
+                  localize={false}
                   className="font-mono text-xs leading-snug text-foreground-muted"
                   ellipsizeMode="middle"
                   numberOfLines={2}

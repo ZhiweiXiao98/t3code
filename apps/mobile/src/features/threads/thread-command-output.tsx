@@ -1,3 +1,5 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
+import { mobileOutputFailure } from "../../i18n/threadDisplayMessages";
 import type { EnvironmentId, ThreadId, TurnItemId } from "@t3tools/contracts";
 import { TERMINAL_PALETTES, terminalOutputSpans } from "@t3tools/shared/terminalOutput";
 import type React from "react";
@@ -39,14 +41,17 @@ export function ThreadCommandOutput(props: {
   );
   if (text.length === 0) {
     const message = error
-      ? `Couldn't load output: ${error}`
+      ? mobileOutputFailure(error)
       : data === null
-        ? "Loading output…"
+        ? localizeMobileString("Loading output…")
         : data.running
           ? null
-          : "No output.";
+          : localizeMobileString("No output.");
     return message === null ? null : (
-      <Text className="pt-1.5 font-mono text-2xs leading-normal text-foreground-muted">
+      <Text
+        localize={false}
+        className="pt-1.5 font-mono text-2xs leading-normal text-foreground-muted"
+      >
         {message}
       </Text>
     );
@@ -73,14 +78,18 @@ export function ThreadCommandOutput(props: {
         {data?.output.truncated ? (
           <Text className="pb-0.5 text-3xs text-foreground-subtle">Earlier output not shown</Text>
         ) : null}
-        <Text selectable className="font-mono text-2xs leading-normal text-foreground-muted">
+        <Text
+          localize={false}
+          selectable
+          className="font-mono text-2xs leading-normal text-foreground-muted"
+        >
           {spans.map((span, index) =>
             span.style === null ? (
               span.text
             ) : (
               // Spans are rebuilt from scratch on every update and never reorder.
               // oxlint-disable-next-line react/no-array-index-key
-              <Text key={index} style={span.style}>
+              <Text localize={false} key={index} style={span.style}>
                 {span.text}
               </Text>
             ),

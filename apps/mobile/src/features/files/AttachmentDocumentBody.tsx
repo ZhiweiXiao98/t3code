@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import type { EnvironmentId } from "@t3tools/contracts";
 import { View } from "react-native";
 
@@ -45,6 +46,7 @@ export function AttachmentDocumentBody(props: {
         <EmptyState
           title="File unavailable"
           detail={document.error}
+          localizeDetail={false}
           actionLabel="Try again"
           onAction={document.retry}
         />
@@ -99,9 +101,12 @@ export function AttachmentDocumentBody(props: {
     <View className="flex-1 items-center justify-center bg-sheet px-6">
       <EmptyState
         title="No preview for this file"
+        localizeDetail={false}
         detail={
           props.nativeError ??
-          "No app on this device can show this format. Save or share it to open it elsewhere."
+          localizeMobileString(
+            "No app on this device can show this format. Save or share it to open it elsewhere.",
+          )
         }
         actionLabel="Try again"
         onAction={props.onOpenNative}

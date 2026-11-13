@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import { ChildThreadApprovals } from "./ChildThreadApprovals";
 import { useOpenThreadInspector } from "./thread-inspector-navigation";
@@ -811,7 +812,10 @@ function ThreadDetailBody(
       return {
         kind: "child-input",
         label: childThreadInputsTitle(childThreadInputs),
-        accessibilityLabel: `Open ${childInput.hasPendingApprovals ? "approval" : "question"} from ${childInput.title}`,
+        accessibilityLabel: formatMobileMessage(
+          childInput.hasPendingApprovals ? "Open approval from {0}" : "Open question from {0}",
+          [childInput.title],
+        ),
         onPress: () => {
           Keyboard.dismiss();
           openLinkedThread({ environmentId: childInput.environmentId, threadId: childInput.id });
@@ -841,7 +845,7 @@ function ThreadDetailBody(
         },
         action: {
           label: statusPending ? "Stopping..." : "Stop",
-          accessibilityLabel: "Stop background work",
+          accessibilityLabel: localizeMobileString("Stop background work"),
           disabled: !props.canOperateThread || statusPending,
           onPress: () => void runStatusAction("stop"),
         },
@@ -851,7 +855,9 @@ function ThreadDetailBody(
       const state = lifecycleSnoozed ? "snoozed" : settled ? "settled" : "woke";
       const label =
         lifecycleSnoozed && snoozedUntil !== null
-          ? `Snoozed, wakes in ${snoozeWakeLabel(snoozedUntil, { now: lifecycleNow })}`
+          ? formatMobileMessage("Snoozed, wakes in {0}", [
+              snoozeWakeLabel(snoozedUntil, { now: lifecycleNow }),
+            ])
           : settled
             ? "Settled"
             : "Woke from snooze";

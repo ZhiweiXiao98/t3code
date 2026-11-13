@@ -11,6 +11,7 @@ import { AsyncResult, Atom, AtomRegistry } from "effect/reactivity";
 import type { AtomCommand } from "./runtime.ts";
 import {
   formatAttachmentSize,
+  fileAttachmentTooLargeMessage,
   runAttachmentUploadCycle,
   verifyPersistedAttachmentUpload,
 } from "./attachments.ts";
@@ -144,3 +145,21 @@ describe("formatAttachmentSize", () => {
     expect(formatAttachmentSize(sizeBytes)).toBe(label);
   });
 });
+
+it.each([1, 2, 1023, 1024])(
+  "preserves filename and byte boundaries when displaying a %s-byte attachment limit",
+  (limit) => {
+    const name = "literal/{name}/$&:\n.txt";
+    const englishSize = limit === 1024 ? "1 KB" : `${limit} ${limit === 1 ? "byte" : "bytes"}`;
+    const chineseSize = limit === 1024 ? "1 KB" : `${limit} 字节`;
+    expect(fileAttachmentTooLargeMessage(name, limit)).toBe(
+      `'${name}' exceeds the ${englishSize} attachment limit.`,
+    );
+    expect(fileAttachmentTooLargeMessage(name, limit, "zh-CN")).toBe(
+      `“${name}”超出了 ${chineseSize} 的附件大小限制。`,
+    );
+    expect(fileAttachmentTooLargeMessage(name, limit, "en")).toBe(
+      fileAttachmentTooLargeMessage(name, limit),
+    );
+  },
+);

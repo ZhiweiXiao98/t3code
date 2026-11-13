@@ -70,6 +70,7 @@ export function ReviewGuideExcerpt({
           className="min-h-11 flex-row items-center gap-3 border-b border-border-subtle px-3 py-2 active:opacity-60"
         >
           <Text
+            localize={false}
             className="min-w-0 flex-1 text-xs text-foreground-muted"
             numberOfLines={1}
             ellipsizeMode="middle"
@@ -119,8 +120,12 @@ export function ReviewGuideExcerpt({
         ) : (
           <Text className="p-3 text-xs text-foreground-muted">
             {loading
-              ? `Loading ${excerpt.path}…`
-              : `${excerpt.path}:${excerpt.start}–${excerpt.end} is not in the loaded diff.`}
+              ? formatMobileMessage("Loading {0}…", [excerpt.path])
+              : formatMobileMessage("{0}:{1}–{2} is not in the loaded diff.", [
+                  excerpt.path,
+                  excerpt.start,
+                  excerpt.end,
+                ])}
           </Text>
         )}
       </View>

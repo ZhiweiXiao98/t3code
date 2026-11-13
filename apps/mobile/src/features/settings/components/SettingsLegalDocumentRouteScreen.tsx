@@ -64,7 +64,11 @@ export function SettingsLegalDocumentRouteScreen({
                 localizeMobileString(documentName.toLowerCase()),
               ])}
             </Text>
-            <Text selectable className="text-center text-sm leading-normal text-foreground-muted">
+            <Text
+              localize={false}
+              selectable
+              className="text-center text-sm leading-normal text-foreground-muted"
+            >
               {loadError}
             </Text>
           </View>
@@ -132,12 +136,16 @@ export function SettingsLegalDocumentRouteScreen({
         }}
         onError={(event) => {
           setLoadProgress(0);
-          setLoadError(event.nativeEvent.description || "The page could not be loaded.");
+          setLoadError(
+            event.nativeEvent.description || localizeMobileString("The page could not be loaded."),
+          );
         }}
         onHttpError={(event) => {
           if (!isLegalDocumentUrl(event.nativeEvent.url)) return;
           setLoadProgress(0);
-          setLoadError(`The server returned status ${event.nativeEvent.statusCode}.`);
+          setLoadError(
+            formatMobileMessage("The server returned status {0}.", [event.nativeEvent.statusCode]),
+          );
         }}
         renderLoading={() => (
           <View className="absolute inset-0 items-center justify-center bg-sheet">

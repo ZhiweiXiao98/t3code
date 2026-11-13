@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../i18n/mobileStrings";
 import { useAtomValue } from "@effect/atom-react";
 import { videoMimeType } from "@t3tools/shared/video";
 import * as Effect from "effect/Effect";
@@ -63,7 +64,10 @@ export async function loadLocalAttachmentPreview(
   } catch (cause) {
     release();
     if (signal.aborted) return null;
-    throw new Error("This attachment is no longer available. Attach the file again.", { cause });
+    throw new Error(
+      localizeMobileString("This attachment is no longer available. Attach the file again."),
+      { cause },
+    );
   }
 }
 
@@ -102,7 +106,10 @@ const localAttachmentPreviewFamily = Atom.family((key: LocalAttachmentPreviewKey
         try: (signal) => loadLocalAttachmentPreview(key.attachment, signal),
         catch: (cause) =>
           new LocalAttachmentPreviewLoadError({
-            message: cause instanceof Error ? cause.message : "The local file is unavailable.",
+            message:
+              cause instanceof Error
+                ? cause.message
+                : localizeMobileString("The local file is unavailable."),
             cause,
           }),
       }).pipe(

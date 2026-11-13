@@ -15,12 +15,16 @@ export function ChatGptSharingStatus({ provider }: { provider: ServerProvider | 
         accessibilityLabel={localizeMobileString("ChatGPT token sharing is active")}
         className="min-h-11 flex-row items-center gap-2"
         onPress={() => {
-          Dialog.alert(
+          Dialog.alertWithLiteralMessage(
             "ChatGPT sharing is on",
             [
               provider?.auth.email,
-              "Eligible usage uses your ChatGPT plan. Credit settings and limits are managed in ChatGPT.",
-              "Fast and Ultrafast are unavailable with this ChatGPT connection. Use an existing Codex CLI login for speed options your account supports.",
+              localizeMobileString(
+                "Eligible usage uses your ChatGPT plan. Credit settings and limits are managed in ChatGPT.",
+              ),
+              localizeMobileString(
+                "Fast and Ultrafast are unavailable with this ChatGPT connection. Use an existing Codex CLI login for speed options your account supports.",
+              ),
             ]
               .filter(Boolean)
               .join("\n\n"),

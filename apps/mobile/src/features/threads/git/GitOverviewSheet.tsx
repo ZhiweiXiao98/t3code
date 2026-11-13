@@ -1,3 +1,5 @@
+import { localizeMobileString } from "../../../i18n/mobileStrings";
+import { formatMobileMessage } from "../../../i18n/mobileDisplayStrings";
 import * as Dialog from "../../../components/ui/Dialog";
 import { cn } from "../../../lib/cn";
 import { useOpenPullRequest } from "../../../native/useOpenPullRequest";
@@ -95,7 +97,8 @@ function GitOverviewSheetContent(props: GitOverviewSheetProps) {
       : null,
   );
 
-  const currentBranchLabel = gitStatus.data?.refName ?? selectedThread?.branch ?? "Detached HEAD";
+  const currentBranchLabel =
+    gitStatus.data?.refName ?? selectedThread?.branch ?? localizeMobileString("Detached HEAD");
   const currentStatusSummary = statusSummary(gitStatus.data);
   const currentWorktreePath = selectedThreadWorktreePath;
   const gitOperationLabel = gitState.gitOperationLabel;
@@ -129,11 +132,19 @@ function GitOverviewSheetContent(props: GitOverviewSheetProps) {
   const openExistingPr = async () => {
     const prUrl = gitStatus.data?.pr?.state === "open" ? gitStatus.data.pr.url : null;
     if (!prUrl) {
-      Dialog.alert(`No open ${shortLabel}`, `This branch does not have an open ${singular}.`);
+      Dialog.alert(
+        formatMobileMessage("No open {0}", [shortLabel]),
+        formatMobileMessage("This branch does not have an open {0}.", [
+          localizeMobileString(singular),
+        ]),
+      );
       return;
     }
     if (!(await openPullRequest(prUrl))) {
-      Dialog.alert(`Unable to open ${shortLabel}`, `The ${singular} could not be opened.`);
+      Dialog.alert(
+        formatMobileMessage("Unable to open {0}", [shortLabel]),
+        formatMobileMessage("The {0} could not be opened.", [localizeMobileString(singular)]),
+      );
     }
   };
 
@@ -205,11 +216,13 @@ function GitOverviewSheetContent(props: GitOverviewSheetProps) {
     }
     if (item.dialogAction === "commit" && status.hasWorkingTreeChanges) {
       const fileCount = status.workingTree?.files.length ?? 0;
-      return `${fileCount} file${fileCount === 1 ? "" : "s"} changed`;
+      return formatMobileMessage(fileCount === 1 ? "{0} file changed" : "{0} files changed", [
+        fileCount,
+      ]);
     }
     if (item.dialogAction === "push" && (status.aheadCount ?? 0) > 0) {
       const ahead = status.aheadCount ?? 0;
-      return `${ahead} commit${ahead === 1 ? "" : "s"} ahead`;
+      return formatMobileMessage(ahead === 1 ? "{0} commit ahead" : "{0} commits ahead", [ahead]);
     }
     if (item.kind === "open_pr" && status.pr?.number != null) {
       return `${shortLabel} #${status.pr.number} ${status.pr.state ?? "open"}`;
@@ -261,7 +274,12 @@ function GitOverviewSheetContent(props: GitOverviewSheetProps) {
             label="Pull latest"
             description={
               canWriteSourceControl
-                ? `${behindCount} commit${behindCount === 1 ? "" : "s"} behind upstream`
+                ? formatMobileMessage(
+                    behindCount === 1
+                      ? "{0} commit behind upstream"
+                      : "{0} commits behind upstream",
+                    [behindCount],
+                  )
                 : "This connection cannot change source control."
             }
             disabled={!canWriteSourceControl || busy || !isRepo}
@@ -305,15 +323,23 @@ function GitOverviewSheetContent(props: GitOverviewSheetProps) {
         {linkedPrActions.canLink ? (
           <ListRow
             icon="link"
-            label={`Link ${linkedPrActions.terminology.singular}`}
-            description={`Attach a ${linkedPrActions.terminology.singular} by URL or number`}
+            label={formatMobileMessage("Link {0}", [
+              localizeMobileString(linkedPrActions.terminology.singular),
+            ])}
+            description={formatMobileMessage("Attach a {0} by URL or number", [
+              localizeMobileString(linkedPrActions.terminology.singular),
+            ])}
             onPress={linkedPrActions.promptLink}
           />
         ) : null}
       </ListSection>
 
       {linkedPrLines.length > 0 ? (
-        <ListSection title={`Linked ${linkedPrActions.terminology.plural}`}>
+        <ListSection
+          title={formatMobileMessage("Linked {0}", [
+            localizeMobileString(linkedPrActions.terminology.plural),
+          ])}
+        >
           {linkedPrLines.map((line, index) => (
             <LinkedPullRequestRow
               key={linkedPullRequestKey(line)}
@@ -350,6 +376,7 @@ function GitOverviewSheetContent(props: GitOverviewSheetProps) {
     >
       <AppBar
         title={currentBranchLabel}
+        localizeTitle={false}
         subtitle={currentStatusSummary}
         hideBottomBorder={!isInspector}
         onClose={isInspector ? undefined : () => navigation.goBack()}

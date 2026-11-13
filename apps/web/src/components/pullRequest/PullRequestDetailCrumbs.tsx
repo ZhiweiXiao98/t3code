@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
@@ -23,7 +24,7 @@ const openNumberContextMenu = (event: ReactMouseEvent, detail: CrumbsPullRequest
   event.stopPropagation();
   void showPullRequestLinkContextMenu({
     url: detail.url,
-    openLabel: openOnHostLabel(sourceControlClients.get(detail.provider)),
+    openLabel: openOnHostLabel(sourceControlClients.get(detail.provider), readWebI18n().locale),
     position: { x: event.clientX, y: event.clientY },
   });
 };

@@ -1,5 +1,6 @@
+import { MOBILE_LOCALE, localizeMobileString } from "../../i18n/mobileStrings";
+import { pullRequestActionFailure } from "./pullRequestMergeDisplay";
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
-import { localizeMobileString } from "../../i18n/mobileStrings";
 import { AppBar, type AppBarSearch } from "../../components/ui/AppBar";
 import { AsyncResult } from "effect/reactivity";
 import { AppActivityIndicator } from "../../components/ui/AppActivityIndicator";
@@ -31,12 +32,21 @@ import { pullRequestTarget, type PullRequestParams } from "./usePullRequestDiff"
 
 const TRUNCATED_LABELS: Record<ReviewerTruncation, (error: string | null) => string> = {
   unsearchable: () =>
-    "The provider has more reviewers than it returned. Find additional reviewers on the provider.",
-  searchable: () => "The provider has more reviewers than are listed here. Search to find them.",
+    localizeMobileString(
+      "The provider has more reviewers than it returned. Find additional reviewers on the provider.",
+    ),
+  searchable: () =>
+    localizeMobileString(
+      "The provider has more reviewers than are listed here. Search to find them.",
+    ),
   "search-failed": (error) =>
-    `Only listed reviewers are matched: the provider search failed. ${error ?? ""}`,
+    formatMobileMessage("Only listed reviewers are matched: the provider search failed. {0}", [
+      error ?? "",
+    ]),
   "search-truncated": () =>
-    "More reviewers match than the provider returned. Keep typing to narrow it down.",
+    localizeMobileString(
+      "More reviewers match than the provider returned. Keep typing to narrow it down.",
+    ),
 };
 
 export function PullRequestReviewersScreen({ route }: StaticScreenProps<PullRequestParams>) {
@@ -121,7 +131,11 @@ export function PullRequestReviewersScreen({ route }: StaticScreenProps<PullRequ
     if (AsyncResult.isFailure(response)) {
       const cause = squashAtomCommandFailure(response);
       setError(
-        cause instanceof Error ? cause.message : "Couldn't update this review request. Try again.",
+        pullRequestActionFailure(
+          cause,
+          MOBILE_LOCALE,
+          "Couldn't update this review request. Try again.",
+        ),
       );
       return;
     }
@@ -176,7 +190,7 @@ export function PullRequestReviewersScreen({ route }: StaticScreenProps<PullRequ
                 </Text>
               ) : null}
               {error ? (
-                <Text selectable className="text-sm text-danger-foreground">
+                <Text localize={false} selectable className="text-sm text-danger-foreground">
                   {error}
                 </Text>
               ) : null}
@@ -204,12 +218,16 @@ export function PullRequestReviewersScreen({ route }: StaticScreenProps<PullRequ
               >
                 <PullRequestAvatar actor={item} size={32} />
                 <View className="min-w-0 flex-1 gap-0.5">
-                  <Text className="text-sm font-t3-medium" numberOfLines={1}>
+                  <Text localize={false} className="text-sm font-t3-medium" numberOfLines={1}>
                     {item.name || item.login}
                   </Text>
-                  <Text className="text-xs text-foreground-muted" numberOfLines={1}>
+                  <Text
+                    localize={false}
+                    className="text-xs text-foreground-muted"
+                    numberOfLines={1}
+                  >
                     {item.login}
-                    {item.kind === "team" ? " · Team" : ""}
+                    {item.kind === "team" ? ` · ${localizeMobileString("Team")}` : ""}
                   </Text>
                 </View>
                 {pending === id ? (
@@ -238,6 +256,7 @@ export function PullRequestReviewersScreen({ route }: StaticScreenProps<PullRequ
                         ? "No matching reviewers"
                         : "No reviewers available"
                   }
+                  localizeDetail={queryError == null}
                   detail={queryError ?? "Search people and teams with access to this repository."}
                   variant="plain"
                 />
@@ -252,7 +271,7 @@ export function PullRequestReviewersScreen({ route }: StaticScreenProps<PullRequ
           }
           ListFooterComponent={
             view.truncation ? (
-              <Text className="px-4 py-4 text-xs text-foreground-muted">
+              <Text localize={false} className="px-4 py-4 text-xs text-foreground-muted">
                 {TRUNCATED_LABELS[view.truncation](view.searchError)}
               </Text>
             ) : undefined
@@ -269,8 +288,9 @@ export function PullRequestReviewersScreen({ route }: StaticScreenProps<PullRequ
             detail.isPending ? (
               <AppActivityIndicator />
             ) : (
-              <Text className="text-danger-foreground">
-                {detail.error ?? `Couldn't load this ${singular}.`}
+              <Text localize={false} className="text-danger-foreground">
+                {detail.error ??
+                  formatMobileMessage("Couldn't load this {0}.", [localizeMobileString(singular)])}
               </Text>
             )
           ) : (
@@ -302,7 +322,7 @@ export function PullRequestReviewersScreen({ route }: StaticScreenProps<PullRequ
                 onPress={() => void update({ id: query.trim(), kind: "user", isRequested: true })}
               />
               {error ? (
-                <Text selectable className="text-danger-foreground">
+                <Text localize={false} selectable className="text-danger-foreground">
                   {error}
                 </Text>
               ) : null}

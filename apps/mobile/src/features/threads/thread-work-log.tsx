@@ -1,3 +1,4 @@
+import { mobileOutputFailure } from "../../i18n/threadDisplayMessages";
 import { mobileDisplayDate, mobileUsageLimitLabel } from "../../i18n/mobileDateDisplay";
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { localizeMobileString } from "../../i18n/mobileStrings";
@@ -215,6 +216,7 @@ function ShimmerWorkContent(props: {
   readonly icon: WorkContentIcon;
   readonly iconSubtleColor: ColorValue;
   readonly label: string;
+  readonly localizeLabel?: boolean;
   readonly onTextLayout?: ComponentProps<typeof Text>["onTextLayout"];
   readonly showIcon: boolean;
   readonly themeAppearance?: "light" | "dark";
@@ -242,6 +244,7 @@ function ShimmerWorkContent(props: {
         </View>
       ) : null}
       <Text
+        localize={props.localizeLabel}
         className={cn(
           "min-w-0 shrink",
           props.compact ? "text-xs" : "text-sm",
@@ -265,6 +268,7 @@ export function ShimmeringWorkContent(props: {
   readonly icon: WorkContentIcon;
   readonly iconSubtleColor: ColorValue;
   readonly label: string;
+  readonly localizeLabel?: boolean;
   readonly showIcon: boolean;
   readonly themeAppearance?: "light" | "dark";
   readonly toolIcon?: ToolActivityIcon;
@@ -316,6 +320,7 @@ export function ShimmeringWorkContent(props: {
         icon={props.icon}
         iconSubtleColor={props.iconSubtleColor}
         label={props.label}
+        localizeLabel={props.localizeLabel}
         showIcon={props.showIcon}
         themeAppearance={props.themeAppearance}
         toolIcon={props.toolIcon}
@@ -367,6 +372,7 @@ export function ShimmeringWorkContent(props: {
                 icon={props.icon}
                 iconSubtleColor={props.iconSubtleColor}
                 label={props.label}
+                localizeLabel={props.localizeLabel}
                 showIcon={props.showIcon}
                 themeAppearance={props.themeAppearance}
                 toolIcon={props.toolIcon}
@@ -996,13 +1002,15 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
         ? turnItemOutputText(shownItem)
         : fetchedItem
           ? (turnItemOutputText(fetchedItem) ??
-            (outputImages.length > 0 || viewedImagePath ? null : "No output."))
+            (outputImages.length > 0 || viewedImagePath
+              ? null
+              : localizeMobileString("No output.")))
           : fetchedDetail.error
-            ? `Couldn't load output: ${fetchedDetail.error}`
+            ? mobileOutputFailure(fetchedDetail.error)
             : row.fetchesDetail
               ? fetchedDetail.data
-                ? "Output is no longer available."
-                : "Loading output…"
+                ? localizeMobileString("Output is no longer available.")
+                : localizeMobileString("Loading output…")
               : null;
   const exitLine =
     failedExitCode === null ? null : (
@@ -1233,7 +1241,10 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
                           : null;
                   return language ? (
                     <View key={key}>
-                      <Text className="font-mono text-2xs leading-normal text-foreground-muted">
+                      <Text
+                        localize={false}
+                        className="font-mono text-2xs leading-normal text-foreground-muted"
+                      >
                         {key}
                       </Text>
                       <ToolCodeText
@@ -1254,6 +1265,7 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
                     /* oxlint-disable react/no-array-index-key -- Log lines are stateless positions within this output. */ typeof line ===
                     "string" ? (
                       <Text
+                        localize={false}
                         key={`${index}:${line}`}
                         selectable
                         className="font-mono text-2xs leading-normal text-foreground"
@@ -1269,7 +1281,11 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
                     ) /* oxlint-enable react/no-array-index-key */,
                 )
             ) : fullDetail ? (
-              <Text selectable className="font-mono text-2xs leading-normal text-foreground-muted">
+              <Text
+                localize={false}
+                selectable
+                className="font-mono text-2xs leading-normal text-foreground-muted"
+              >
                 {isJsonToolText(fullDetail) ? (
                   <ToolCodeText code={fullDetail} language="json" theme={props.themeAppearance} />
                 ) : (
@@ -1279,6 +1295,7 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
             ) : null}
             {fetchedOutput ? (
               <Text
+                localize={false}
                 selectable
                 className={cn(
                   "font-mono text-2xs leading-normal text-foreground-muted",

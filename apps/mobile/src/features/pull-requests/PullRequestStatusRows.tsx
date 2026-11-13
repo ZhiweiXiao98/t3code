@@ -1,4 +1,4 @@
-import { localizeMobileString } from "../../i18n/mobileStrings";
+import { MOBILE_LOCALE, localizeMobileString } from "../../i18n/mobileStrings";
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { parsePullRequestAnchor } from "@t3tools/shared/pullRequestAnchor";
 import { usePullRequestConnected } from "./usePullRequestConnected";
@@ -85,7 +85,7 @@ export function PullRequestStatusMenu(props: RowProps) {
       title={formatMobileMessage("{0} status", [localizeMobileString(term)])}
       actions={actions.map((id) => ({
         id,
-        title: pullRequestActionLabel(id, terminology),
+        title: pullRequestActionLabel(id, terminology, MOBILE_LOCALE),
         image: PR_ACTION_ICONS[id],
         attributes: { destructive: id === "close" },
       }))}
@@ -96,8 +96,10 @@ export function PullRequestStatusMenu(props: RowProps) {
         else if (selected === "revert")
           action.confirm(
             selected,
-            pullRequestActionLabel("revert", terminology),
-            `Open a new ${terminology.singular} that reverses these changes?`,
+            pullRequestActionLabel("revert", terminology, MOBILE_LOCALE),
+            formatMobileMessage("Open a new {0} that reverses these changes?", [
+              localizeMobileString(terminology.singular),
+            ]),
           );
         else void action.perform(selected);
       }}
@@ -152,7 +154,10 @@ export function PullRequestChecksRow(props: RowProps) {
                 action.confirm(
                   "approve-workflows",
                   "Approve workflows",
-                  `Allow this ${definition.changeRequest.singular}'s workflows to run? Review the workflow changes first.`,
+                  formatMobileMessage(
+                    "Allow this {0}'s workflows to run? Review the workflow changes first.",
+                    [localizeMobileString(definition.changeRequest.singular)],
+                  ),
                 )
               }
             />
@@ -238,7 +243,11 @@ export function PullRequestBranchRow(props: RowProps) {
       title="Branch"
       actions={[
         ...(canResolve ? [agent.menuAction("conflicts")] : []),
-        ...methods.map((id) => ({ id, title: `Update with ${id}`, image: "arrow.up.circle" })),
+        ...methods.map((id) => ({
+          id,
+          title: localizeMobileString(`Update with ${id}`),
+          image: "arrow.up.circle",
+        })),
       ]}
       onPressAction={({ nativeEvent }) => {
         const method = methods.find((id) => id === nativeEvent.event);

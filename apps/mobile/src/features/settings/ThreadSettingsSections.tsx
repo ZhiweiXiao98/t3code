@@ -1,4 +1,6 @@
 import { managedByMessage } from "../../i18n/managedPolicyMessages";
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { Button } from "../../components/ui/Button";
 import {
   AuthSettingsWriteScope,
@@ -269,7 +271,10 @@ function MachineBetaSection({
   if (supported.length === 0) return null;
   return (
     <View className="gap-3">
-      <SettingsSection title={`Beta: ${title}`}>
+      <SettingsSection
+        title={formatMobileMessage("Beta: {0}", [localizeMobileString(title)])}
+        localizeTitle={false}
+      >
         {supported.map((environment) => {
           const policy = environment.serverConfig?.managedPolicy;
           const managed = isManagedSettingPath(policy, setting);
@@ -278,6 +283,8 @@ function MachineBetaSection({
               key={environment.environmentId}
               icon={icon}
               label={environment.label}
+              localizeLabel={false}
+              localizeDescription={false}
               {...(managed ? { subtitle: managedByMessage(policy?.organization) } : {})}
               value={environment.serverConfig?.settings[setting] === true}
               disabled={managed || !writable.has(environment.environmentId)}

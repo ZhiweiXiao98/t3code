@@ -22,6 +22,7 @@ import {
   defaultScheduledTaskProjectId,
   matchesScheduledTaskScope,
   scheduleFromDraft,
+  scheduleDraftErrors,
   taskToDraft,
   unbindDraftFromThread,
 } from "./scheduledTasksSettings.logic";
@@ -406,4 +407,21 @@ it("rejects dedupe templates without a request placeholder", () => {
   const draft = taskToDraft({ ...legacyTask, schedule: { type: "webhook", signature: null } });
   expect(scheduleFromDraft({ ...draft, replayKey: "literal" })).toBeNull();
   expect(scheduleFromDraft({ ...draft, coalesceKey: "{{body.bad" })).toBeNull();
+});
+
+it("localizes owned webhook validation without accepting invalid schedules or rewriting request templates", () => {
+  const draft = taskToDraft({ ...legacyTask, schedule: { type: "webhook", signature: null } });
+  const invalidAge = { ...draft, maxDeliveryAgeMinutes: "0" };
+  expect(scheduleFromDraft(invalidAge)).toBeNull();
+  expect(scheduleDraftErrors(invalidAge, "en")[0]?.description).toContain(
+    "Enter whole minutes from 1",
+  );
+  expect(scheduleDraftErrors(invalidAge, "zh-CN")[0]?.description).toContain("请输入 1 至");
+  const invalidKey = { ...draft, replayKey: "literal/{body}/$&" };
+  expect(scheduleFromDraft(invalidKey)).toBeNull();
+  expect(scheduleDraftErrors(invalidKey, "zh-CN")[0]?.description).toContain(
+    "必须包含有效的请求占位符",
+  );
+  expect(invalidKey.replayKey).toBe("literal/{body}/$&");
+  expect(scheduleDraftErrors(invalidAge)).toEqual(scheduleDraftErrors(invalidAge, "en"));
 });

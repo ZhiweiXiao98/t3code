@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import { useActiveNewTask } from "../../state/active-new-task";
 import { ThreadUndoNotice } from "../home/ThreadUndoNotice";
@@ -574,7 +575,7 @@ function ThreadNavigationSidebarPane(props: ThreadNavigationSidebarProps) {
               ? "Searching thread messages…"
               : "No matching threads"
             : selectedProjectScope !== null
-              ? `No threads in ${selectedProjectScope.title}`
+              ? formatMobileMessage("No threads in {0}", [selectedProjectScope.title])
               : "No threads yet"}
     </Text>
   );

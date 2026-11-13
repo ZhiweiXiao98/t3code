@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { useAtomValue } from "@effect/atom-react";
 import type { EnvironmentId, OrchestrationV2Subagent } from "@t3tools/contracts";
 import { useState } from "react";
@@ -48,16 +49,28 @@ export function SubagentStopButton(props: {
       <IconButton
         icon="stop.fill"
         variant="danger"
-        accessibilityLabel={`${stopping ? "Stopping" : "Stop"} ${workflow ? "workflow" : "agent"} ${label}`}
+        accessibilityLabel={formatMobileMessage(
+          stopping
+            ? workflow
+              ? "Stopping workflow {0}"
+              : "Stopping agent {0}"
+            : workflow
+              ? "Stop workflow {0}"
+              : "Stop agent {0}",
+          [label],
+        )}
         disabled={stopping}
         onPress={() =>
-          Dialog.confirm({
-            title: workflow ? "Stop workflow?" : "Stop agent?",
-            message: workflow ? `Every running agent in ${label} stops.` : `Stop ${label}?`,
-            confirmText: "Stop",
-            destructive: true,
-            onConfirm: () => void stop(),
-          })
+          Dialog.alertWithLiteralMessage(
+            workflow ? "Stop workflow?" : "Stop agent?",
+            formatMobileMessage(workflow ? "Every running agent in {0} stops." : "Stop {0}?", [
+              label,
+            ]),
+            [
+              { text: "Cancel", style: "cancel" },
+              { text: "Stop", style: "destructive", onPress: () => void stop() },
+            ],
+          )
         }
       />
     </View>

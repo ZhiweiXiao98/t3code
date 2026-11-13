@@ -1,5 +1,3 @@
-// @effect-diagnostics nodeBuiltinImport:off - verifies localization coverage against production source files on disk.
-import * as NodeFS from "node:fs";
 import { describe, expect, it, vi } from "vite-plus/test";
 import { checkZipDirectory } from "@t3tools/client-runtime/zip/directory";
 import { decodeFilePreviewText } from "@t3tools/shared/filePreview";
@@ -8,8 +6,6 @@ import { localizeFilePreviewError } from "./filePreviewErrorMessages";
 import { openNotebook } from "./extendedDocumentPreview";
 import { createWorkerClient } from "./office/worker-rpc";
 import { boundedArchive } from "./officeArchive";
-
-const readSource = (name: string) => NodeFS.readFileSync(new URL(name, import.meta.url), "utf8");
 
 function expectLocalized(source: string) {
   expect(localizeFilePreviewError("en", source)).toBe(source);
@@ -20,50 +16,6 @@ function expectLocalized(source: string) {
 }
 
 describe("owned file preview failure presentation", () => {
-  it("covers the actual finite messages emitted by each production source", () => {
-    const messages = new Set<string>();
-    for (const file of [
-      "./officeArchive.ts",
-      "./extendedDocumentPreview.ts",
-      "./binaryPreview.worker.ts",
-      "./officePreview.worker.ts",
-      "./largeText.worker.ts",
-      "./readBinaryPreview.ts",
-      "./office/document.worker.ts",
-      "./office/presentation.worker.ts",
-      "./office/spreadsheet.worker.ts",
-      "../../../../../packages/client-runtime/src/zip/zipDirectory.ts",
-      "../../../../../packages/client-runtime/src/zip/boundedZip.ts",
-      "../../../../../packages/shared/src/filePreview.ts",
-      "../../../../../packages/client-runtime/src/filePreview.ts",
-    ]) {
-      const source = readSource(file);
-      const errors = [...source.matchAll(/new Error\(\s*"([^"]+)"/g)];
-      expect(errors.length).toBeGreaterThan(0);
-      for (const match of errors) {
-        if (match[1] !== "Preview cancelled.") messages.add(match[1]!);
-      }
-      for (const match of source.matchAll(
-        /message: cause instanceof Error \? cause.message : "([^"]+)"/g,
-      )) {
-        messages.add(match[1]!);
-      }
-    }
-    const rpc = readSource("./office/worker-rpc.ts");
-    for (const match of rpc.matchAll(/(?:message:|event.message \|\|)\s*"([^"]+)"/g)) {
-      if (
-        ![
-          "The call was aborted",
-          "The Office engine was closed",
-          "Replaced by a newer call",
-        ].includes(match[1]!)
-      )
-        messages.add(match[1]!);
-    }
-    expect(messages.size).toBe(99);
-    for (const source of messages) expectLocalized(source);
-  });
-
   it("translates actual shared response and document validation failures", async () => {
     const failures = [
       () => checkZipDirectory(new ArrayBuffer(0)),

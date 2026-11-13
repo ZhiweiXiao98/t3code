@@ -1,6 +1,7 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
+import { localizedFilesystemReadAccess } from "./filePreviewDisplay";
 import { formatFilePathForClipboard } from "@t3tools/client-runtime/media-actions";
 import { resolvePathLinkTarget } from "@t3tools/shared/fileLinks";
-import { resolveFilesystemReadAccess } from "@t3tools/client-runtime/state/filesystem";
 import { environmentSession } from "../../state/session";
 import {
   StackActions,
@@ -121,6 +122,7 @@ function FileHeader(props: {
   return (
     <AppBar
       title={props.title}
+      localizeTitle={false}
       subtitle={props.subtitle}
       onBack={props.onBack}
       hideBottomBorder
@@ -317,7 +319,7 @@ function FileContent(props: {
   if (props.fileError && props.fileContents === null) {
     return (
       <View className="flex-1 items-center justify-center bg-sheet px-6">
-        <EmptyState title="File unavailable" detail={props.fileError} />
+        <EmptyState title="File unavailable" detail={props.fileError} localizeDetail={false} />
       </View>
     );
   }
@@ -411,9 +413,11 @@ function FilesUnavailable({
   title = "Files unavailable",
   detail = "This thread does not have an active workspace path.",
   onBack,
+  localizeDetail,
 }: {
   title?: string;
   detail?: string;
+  localizeDetail?: boolean;
   onBack: () => void;
 }) {
   return (
@@ -421,7 +425,7 @@ function FilesUnavailable({
       <AppBar title="Files" onBack={onBack} onBackToList={onBack} hideBottomBorder />
       <ScreenContent>
         <View className="flex-1 items-center justify-center px-6">
-          <EmptyState title={title} detail={detail} />
+          <EmptyState title={title} detail={detail} localizeDetail={localizeDetail} />
         </View>
       </ScreenContent>
     </View>
@@ -469,7 +473,7 @@ export function ThreadFilesTreeScreen(props: ThreadFilesRouteScreenProps) {
     environmentId !== null ? environmentSession.sessionStateAtom(environmentId) : null,
   );
   const fileEnvironment = useEnvironmentPresentation(environmentId);
-  const fileAccess = resolveFilesystemReadAccess({
+  const fileAccess = localizedFilesystemReadAccess({
     isCatalogReady: fileEnvironment.isReady,
     connection: fileEnvironment.presentation?.connection ?? null,
     session: fileAccessSession.data,
@@ -555,7 +559,8 @@ export function ThreadFilesTreeScreen(props: ThreadFilesRouteScreenProps) {
     }
     return (
       <FilesUnavailable
-        detail={fileAccess.error ?? "This connection cannot read host files."}
+        detail={fileAccess.error ?? localizeMobileString("This connection cannot read host files.")}
+        localizeDetail={false}
         onBack={handleReturnToThread}
       />
     );
@@ -624,7 +629,7 @@ export function ThreadFileScreen(props: ThreadFileRouteScreenProps) {
     environmentId !== null ? environmentSession.sessionStateAtom(environmentId) : null,
   );
   const fileEnvironment = useEnvironmentPresentation(environmentId);
-  const fileAccess = resolveFilesystemReadAccess({
+  const fileAccess = localizedFilesystemReadAccess({
     isCatalogReady: fileEnvironment.isReady,
     connection: fileEnvironment.presentation?.connection ?? null,
     session: fileAccessSession.data,
@@ -953,7 +958,8 @@ export function ThreadFileScreen(props: ThreadFileRouteScreenProps) {
     }
     return withInspector(
       <FilesUnavailable
-        detail={fileAccess.error ?? "This connection cannot read host files."}
+        detail={fileAccess.error ?? localizeMobileString("This connection cannot read host files.")}
+        localizeDetail={false}
         onBack={handleBack}
       />,
     );

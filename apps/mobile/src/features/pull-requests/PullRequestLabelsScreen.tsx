@@ -1,3 +1,5 @@
+import { MOBILE_LOCALE } from "../../i18n/mobileStrings";
+import { pullRequestActionFailure } from "./pullRequestMergeDisplay";
 import { useAtomValue } from "@effect/atom-react";
 import type { StaticScreenProps } from "@react-navigation/native";
 import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
@@ -66,7 +68,9 @@ export function PullRequestLabelsScreen({ route }: StaticScreenProps<PullRequest
     setPending(undefined);
     if (AsyncResult.isFailure(response)) {
       const cause = squashAtomCommandFailure(response);
-      setError(cause instanceof Error ? cause.message : "Couldn't update this label. Try again.");
+      setError(
+        pullRequestActionFailure(cause, MOBILE_LOCALE, "Couldn't update this label. Try again."),
+      );
     }
   };
   return (
@@ -96,7 +100,7 @@ export function PullRequestLabelsScreen({ route }: StaticScreenProps<PullRequest
                   <Text className="text-xs text-foreground-muted">{readOnlyReason}</Text>
                 ) : null}
                 {error ? (
-                  <Text selectable className="text-sm text-danger-foreground">
+                  <Text localize={false} selectable className="text-sm text-danger-foreground">
                     {error}
                   </Text>
                 ) : null}
@@ -132,6 +136,7 @@ export function PullRequestLabelsScreen({ route }: StaticScreenProps<PullRequest
                         ? "No matching labels"
                         : "This repository has no labels"
                   }
+                  localizeDetail={result.error == null}
                   detail={
                     result.error ??
                     (needle

@@ -1,3 +1,5 @@
+import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
+import { translateWebMessage, translateWebSource } from "~/i18n/messages";
 import { isListedThreadLineage, isWebhookDedupeTemplate } from "@t3tools/contracts";
 import {
   EnvironmentId,
@@ -111,7 +113,7 @@ export function toDateTimeLocalValue(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-export function scheduleDraftErrors(draft: DraftState) {
+export function scheduleDraftErrors(draft: DraftState, locale: ResolvedAppLocale = "en") {
   if (draft.scheduleMode === "once") {
     const runAt = new Date(draft.runAt);
     if (Number.isNaN(runAt.getTime()))
@@ -128,7 +130,9 @@ export function scheduleDraftErrors(draft: DraftState) {
     return [
       {
         title: "Invalid age limit",
-        description: `Enter whole minutes from 1 to ${MAX_WEBHOOK_DELIVERY_AGE_MINUTES}, or leave it blank.`,
+        description: translateWebMessage(locale, "audit15.scheduleAge", {
+          max: MAX_WEBHOOK_DELIVERY_AGE_MINUTES,
+        }),
       },
     ];
   const errors: Array<{ title: string; description: string }> = [];
@@ -139,7 +143,9 @@ export function scheduleDraftErrors(draft: DraftState) {
     if (value.trim() && !isWebhookDedupeTemplate(value.trim()))
       errors.push({
         title: "Invalid webhook settings",
-        description: `${label} must contain a valid request placeholder.`,
+        description: translateWebMessage(locale, "audit15.schedulePlaceholder", {
+          label: translateWebSource(locale, label),
+        }),
       });
   }
   const window = draft.coalesceWindowSeconds.trim();

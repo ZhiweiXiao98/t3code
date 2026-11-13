@@ -11,6 +11,7 @@ import {
   useNavigation,
   type StaticScreenProps,
 } from "@react-navigation/native";
+import * as Schema from "effect/Schema";
 import type { EnvironmentId } from "@t3tools/contracts";
 import { useAtomValue } from "@effect/atom-react";
 import { useState } from "react";
@@ -23,7 +24,12 @@ import { useAppearancePreferences } from "../settings/appearance/AppearancePrefe
 import { SettingsScreen } from "../settings/components/SettingsScreen";
 import { AppText as Text, AppTextInput, type AppTextInputProps } from "../../components/ui/AppText";
 import { FrostedCutout } from "../../components/ui/FrostedCutout";
-import { buildPairingUrl, extractPairingUrlFromQrPayload, parsePairingUrl } from "./pairing";
+import {
+  buildPairingUrl,
+  extractPairingUrlFromQrPayload,
+  PairingQrPayloadEmptyError,
+  parsePairingUrl,
+} from "./pairing";
 import { useRemoteConnections } from "../../state/use-remote-environment-registry";
 import { SymbolView } from "../../components/ui/AppSymbol";
 import { hasCloudPublicConfig } from "../cloud/publicConfig";
@@ -32,6 +38,8 @@ import { autoConnectReport, devAutoConnectAttemptAtom } from "./devAutoConnect";
 import { splitEnvironmentSections } from "./environmentSections";
 import { leaveSettingsPage } from "../settings/settings-navigation";
 import { workspaceHasColumns } from "../layout/workspace/workspace-selection-store";
+
+const isPairingQrPayloadEmptyError = Schema.is(PairingQrPayloadEmptyError);
 
 type ConnectionsNewRouteParams = {
   readonly mode?: string;
@@ -140,9 +148,13 @@ function PairingForm({
       setScannerLocked(false);
     } catch (error) {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Dialog.alert(
+      Dialog.alertWithLiteralMessage(
         "Invalid QR code",
-        error instanceof Error ? error.message : "Scanned QR code was not recognized.",
+        isPairingQrPayloadEmptyError(error)
+          ? localizeMobileString("Scanned QR code did not contain a pairing URL.")
+          : error instanceof Error
+            ? error.message
+            : localizeMobileString("Scanned QR code was not recognized."),
       );
       setTimeout(() => {
         setScannerLocked(false);
@@ -241,6 +253,7 @@ function PairingForm({
               />
             </View>
             <Text
+              localize={false}
               accessibilityLiveRegion="polite"
               className={cn(
                 "px-4 text-sm leading-normal",
@@ -248,7 +261,9 @@ function PairingForm({
               )}
             >
               {pairingConnectionError ??
-                "For machines on your local network or tailnet. The machine keeps its own provider credentials."}
+                localizeMobileString(
+                  "For machines on your local network or tailnet. The machine keeps its own provider credentials.",
+                )}
             </Text>
           </View>
 

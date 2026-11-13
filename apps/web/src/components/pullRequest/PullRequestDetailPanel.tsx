@@ -577,7 +577,7 @@ export function PullRequestDetailPanel({
       ? null
       : (sourceControlClients.parseChangeRequestUrl(detail.url)?.link.repositoryUrl ?? null);
   const hostClient = sourceControlClients.get(detail?.provider);
-  const openOnHostText = tx(openOnHostLabel(hostClient));
+  const openOnHostText = tx(openOnHostLabel(hostClient, readWebI18n().locale));
   const markdownContext = pullRequestMarkdownContext(detail, threadRef);
   const authorProfileUrl =
     detail?.author && repositoryUrl !== null
@@ -911,7 +911,7 @@ export function PullRequestDetailPanel({
         title: t("pullRequests.handoff.addedToComposer"),
         description:
           task.prompt.length > 0
-            ? "The question is in the composer. Read it over, then send."
+            ? tx("The question is in the composer. Read it over, then send.")
             : uiLocale === "zh-CN"
               ? "变更请求已添加到输入框。输入问题后发送。"
               : `The ${terminology.singular} is in the composer. Type your question, then send.`,
@@ -951,7 +951,7 @@ export function PullRequestDetailPanel({
       title: t("pullRequests.handoff.askedInThread"),
       description:
         task.prompt.length > 0
-          ? "The question is in the composer. Read it over, then send."
+          ? tx("The question is in the composer. Read it over, then send.")
           : uiLocale === "zh-CN"
             ? "变更请求已添加到输入框。输入问题后发送。"
             : `The ${terminology.singular} is in the composer. Type your question, then send.`,
@@ -1914,6 +1914,7 @@ export function PullRequestDetailPanel({
                     url: unavailableHostUrl,
                     openLabel: openOnHostLabel(
                       sourceControlClients.get(repositoryIdentity?.provider),
+                      readWebI18n().locale,
                     ),
                   },
                 }

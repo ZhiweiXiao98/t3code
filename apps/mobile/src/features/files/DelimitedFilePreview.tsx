@@ -21,6 +21,7 @@ export function DelimitedFilePreview(props: {
               {row.map((cell, columnIndex) => (
                 <View key={columnIndex} className="w-48 border-r border-b border-border px-3 py-2">
                   <Text
+                    localize={false}
                     selectable
                     className={
                       rowIndex === 0

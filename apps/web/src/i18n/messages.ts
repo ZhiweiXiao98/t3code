@@ -1,6 +1,27 @@
 import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 
 const EN_MESSAGES = {
+  "audit15.openEditorFailed": "Could not open in {editor}",
+  "audit15.stashSize": "{names} exceeded the stash size limit when this prompt was saved.",
+  "audit15.stashUnreadable": "{names} could not be read when this prompt was saved.",
+  "audit15.stashLimit":
+    "{names} could not be restored: the composer is at its {count}-attachment limit.",
+  "audit15.stashExpired":
+    "{names}: stashed files are kept for 24 hours and this upload expired. Attach the file again.",
+  "audit15.attachmentCount": "You can attach up to {count} files per message.",
+  "audit15.unsupportedImage":
+    "'{name}' is not a supported image type. Attach GIF, HEIC, HEIF, JPEG, PNG, or WebP images.",
+  "audit15.emptyFile": "'{name}' is empty or could not be read.",
+  "audit15.unreadableImage": "'{name}' could not be read as an image.",
+  "audit15.compressedTooLarge": "'{name}' is too large to attach, even after compression.",
+  "audit15.promptLength":
+    "Prompt is {excess} {unit} over the {max}-character limit. Shorten or split it before sending.",
+  "audit15.providerUnavailable": "Provider for {model} is unavailable.",
+  "audit15.scriptFailed": 'Failed to run script "{name}".',
+  "audit15.restoreAttachment": "Could not restore attachment: {name}",
+  "audit15.reconnectRewind": "Reconnect {environment} before reverting checkpoints.",
+  "audit15.scheduleAge": "Enter whole minutes from 1 to {max}, or leave it blank.",
+  "audit15.schedulePlaceholder": "{label} must contain a valid request placeholder.",
   "audit12.pr.stackShort": "stack",
   "audit12.pr.chainShort": "chain",
   "audit12.link.description":
@@ -4701,6 +4722,25 @@ export type WebMessages = Readonly<Record<WebMessageKey, string>>;
 export type WebMessageValues = Readonly<Record<string, string | number>>;
 
 const ZH_CN_MESSAGES = {
+  "audit15.openEditorFailed": "无法在 {editor} 中打开",
+  "audit15.stashSize": "保存此提示词时，{names} 超出了暂存大小限制。",
+  "audit15.stashUnreadable": "保存此提示词时无法读取 {names}。",
+  "audit15.stashLimit": "无法恢复 {names}：输入框已达到 {count} 个附件的上限。",
+  "audit15.stashExpired": "{names}：暂存文件保留 24 小时，此上传已过期。请重新附加文件。",
+  "audit15.attachmentCount": "每条消息最多可附加 {count} 个文件。",
+  "audit15.unsupportedImage":
+    "“{name}”的图片类型不受支持。请附加 GIF、HEIC、HEIF、JPEG、PNG 或 WebP 图片。",
+  "audit15.emptyFile": "“{name}”为空或无法读取。",
+  "audit15.unreadableImage": "无法将“{name}”读取为图片。",
+  "audit15.compressedTooLarge": "“{name}”在压缩后仍然过大，无法附加。",
+  "audit15.promptLength":
+    "提示词超出了 {max} 个字符的限制，多出 {excess} 个字符。请缩短或拆分后发送。",
+  "audit15.providerUnavailable": "{model} 的提供商不可用。",
+  "audit15.scriptFailed": "无法运行脚本“{name}”。",
+  "audit15.restoreAttachment": "无法恢复附件：{name}",
+  "audit15.reconnectRewind": "请重新连接 {environment} 后再还原检查点。",
+  "audit15.scheduleAge": "请输入 1 至 {max} 之间的整数分钟数，或留空。",
+  "audit15.schedulePlaceholder": "{label}必须包含有效的请求占位符。",
   "audit12.pr.stackShort": "堆叠",
   "audit12.pr.chainShort": "链",
   "audit12.link.description":
@@ -9205,6 +9245,67 @@ for (const [key, source] of Object.entries(EN_MESSAGES) as ReadonlyArray<
 // New upstream settings copy can be localized here before it receives a stable
 // message key. Settings containers and search both consume this same table.
 const ZH_CN_SOURCE_MESSAGES: Readonly<Record<string, string>> = {
+  "Open with": "打开方式",
+  "Open on host": "在托管平台打开",
+  "Could not open file": "无法打开文件",
+  "Waiting for the server before file attachments can send": "正在等待服务器，暂时无法发送文件附件",
+  "This server does not accept file attachments right now. Remove the files to send.":
+    "此服务器目前不接受文件附件。请移除文件后发送。",
+  "Start a new chat to switch providers": "请新建聊天以切换提供商",
+  "This thread does not support switching providers after it has started.":
+    "此会话启动后不支持切换提供商。",
+  "This thread does not support switching providers after it has started. Start a new thread to use this model.":
+    "此会话启动后不支持切换提供商。请新建会话以使用此模型。",
+  "The environment returned an invalid attachment URL.": "环境返回了无效的附件 URL。",
+  "This message has an attachment that cannot be restored.": "此消息包含无法恢复的附件。",
+  "The thread has changed. Select a message to rewind again.":
+    "会话已更改。请重新选择要回退到的消息。",
+  "Timed out waiting for the thread to rewind.": "等待会话回退超时。",
+  "Make room for this message's attachments in the composer before rewinding.":
+    "请先在输入框中为此消息的附件腾出空间，再回退会话。",
+  "This provider does not support reverting conversation history. Start a new thread instead.":
+    "此提供商不支持还原对话历史。请新建会话。",
+  "Interrupt the current turn before reverting checkpoints.": "请先中断当前轮次，再还原检查点。",
+  "The fork was created, but its thread data did not reach this client. Reconnect and try opening it from the sidebar.":
+    "分支会话已创建，但其数据未能到达此客户端。请重新连接，然后尝试从侧边栏打开。",
+  "Could not start linking": "无法开始关联",
+  "Could not unlink T3 Chat": "无法取消关联 T3 Chat",
+  "Could not copy the link": "无法复制链接",
+  "Invalid run time": "运行时间无效",
+  "Pick a date and time.": "请选择日期和时间。",
+  "That time does not exist in your time zone.": "你所在时区不存在此时间。",
+  "Invalid age limit": "有效期限制无效",
+  "Invalid webhook settings": "Webhook 设置无效",
+  "Coalesce window must be whole seconds from 10 to 3600.":
+    "合并时间窗口必须为 10 至 3600 之间的整数秒。",
+  "Show folder threads on two lines: the title, then the branch, pull request, and agent.":
+    "将文件夹中的会话显示为两行：第一行是标题，第二行是分支、拉取请求和 Agent。",
+  "Share a thread with a guest who watches it live in a browser and sends messages you approve. Sign in to T3 Connect to use guest links.":
+    "与访客分享会话，让其在浏览器中实时查看，并发送由你批准的消息。登录 T3 Connect 后即可使用访客链接。",
+  "On a Mac, clone new worktrees from a checkout cached in the T3 home folder instead of writing every file. Uses Git’s normal checkout when it can’t. Turning it off deletes the cache.":
+    "在 Mac 上，从 T3 主目录中缓存的检出副本克隆新工作树，而不逐个写入文件。不可用时使用 Git 的普通检出方式。关闭后会删除缓存。",
+  "Commands that run in this project's checkout or its worktree, with optional shortcuts.":
+    "在此项目的检出目录或工作树中运行的命令，可配置快捷键。",
+  "Different actions across environments": "各环境的操作不同",
+  "Choose one environment to edit its list. Adding an action here adds it on every selected environment.":
+    "选择一个环境以编辑其操作列表。在此添加操作会将其添加到每个选中的环境。",
+  "Reset automatic pull to off": "将自动拉取重置为关闭",
+  "Keep agent credits": "保留 Agent 署名",
+  "Reset to last selected": "重置为上次选择",
+  "provider health check interval": "提供商健康检查间隔",
+  "Cursor account": "Cursor 账户",
+  "Using CURSOR_API_KEY. Remove it from this provider's environment to use browser sign-in.":
+    "当前使用 CURSOR_API_KEY。将其从此提供商的环境中移除后，即可使用浏览器登录。",
+  "Run `t3 connect link` on the host, then restart T3 Code there.":
+    "在主机上运行 `t3 connect link`，然后重新启动该主机上的 T3 Code。",
+  "Must be a coding agent: it reads the pull request over many steps. Off uses the writer model, or Codex or Claude if that model is a text generator.":
+    "必须使用编程 Agent，因为它需要分多步读取拉取请求。关闭时使用写作模型；若该模型是文本生成器，则使用 Codex 或 Claude。",
+  "No hubs configured.": "尚未配置服务中心。",
+  "Reset to inherited value": "重置为继承值",
+  "New session": "新会话",
+  commented: "发表了评论",
+  reviewed: "进行了审查",
+  "The linked item is not in the loaded activity.": "已加载的动态中没有此链接对应的项目。",
   Completed: "已完成",
   "Plan Ready": "计划已就绪",
   Connecting: "正在连接",

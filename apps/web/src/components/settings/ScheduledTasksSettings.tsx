@@ -152,6 +152,7 @@ import {
 
 const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0] as const;
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+const WEEKDAY_ZH = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"] as const;
 const WEEKDAY_SHORT = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"] as const;
 
 // Thread ids are trimmed, so the leading space keeps this from matching one.
@@ -357,7 +358,7 @@ const ONCE_FORMATTER_ZH_CN = new Intl.DateTimeFormat("zh-CN", {
 });
 
 export function scheduleLabel(schedule: ScheduledTaskSchedule, chinese = false): string {
-  if (schedule.type === "webhook") return "On webhook";
+  if (schedule.type === "webhook") return chinese ? "收到 Webhook 时" : "On webhook";
   if (schedule.type === "once") {
     const date = new Date(schedule.runAt);
     return chinese
@@ -367,17 +368,27 @@ export function scheduleLabel(schedule: ScheduledTaskSchedule, chinese = false):
   if (schedule.type === "interval") {
     const minutes = schedule.everyMs / 60_000;
     return Number.isInteger(minutes)
-      ? `Every ${minutes} min`
-      : `Every ${Math.round(schedule.everyMs / 1000)} sec`;
+      ? chinese
+        ? `每 ${minutes} 分钟`
+        : `Every ${minutes} min`
+      : chinese
+        ? `每 ${Math.round(schedule.everyMs / 1000)} 秒`
+        : `Every ${Math.round(schedule.everyMs / 1000)} sec`;
   }
   const weekdays = schedule.weekdays ?? [];
   const days =
     weekdays.length === 0
-      ? "Daily"
+      ? chinese
+        ? "每天"
+        : "Daily"
       : weekdays.length === 5 && weekdays.every((day) => day >= 1 && day <= 5)
-        ? "Weekdays"
-        : weekdays.map((day) => WEEKDAY_LABELS[day]).join(", ");
-  return `${days} at ${schedule.timeOfDay}`;
+        ? chinese
+          ? "工作日"
+          : "Weekdays"
+        : weekdays
+            .map((day) => (chinese ? WEEKDAY_ZH[day] : WEEKDAY_LABELS[day]))
+            .join(chinese ? "、" : ", ");
+  return chinese ? `${days} ${schedule.timeOfDay}` : `${days} at ${schedule.timeOfDay}`;
 }
 
 /** formatRelativeTime handles only the past; upcoming runs need future labels. */
@@ -1609,7 +1620,7 @@ function ScheduledTaskEditorForm({
     }
     const schedule = scheduleFromDraft(draft);
     if (schedule === null) {
-      for (const error of scheduleDraftErrors(draft)) {
+      for (const error of scheduleDraftErrors(draft, sourceLocale)) {
         reportFailure(
           translateWebSource(sourceLocale, error.title),
           translateWebSource(sourceLocale, error.description),
@@ -2304,8 +2315,12 @@ function ScheduledTaskEditorForm({
                   }}
                 >
                   {WEEKDAY_ORDER.map((day) => (
-                    <Toggle key={day} value={String(day)} aria-label={WEEKDAY_LABELS[day]}>
-                      {WEEKDAY_SHORT[day]}
+                    <Toggle
+                      key={day}
+                      value={String(day)}
+                      aria-label={sourceLocale === "zh-CN" ? WEEKDAY_ZH[day] : WEEKDAY_LABELS[day]}
+                    >
+                      {sourceLocale === "zh-CN" ? WEEKDAY_ZH[day] : WEEKDAY_SHORT[day]}
                     </Toggle>
                   ))}
                 </ToggleGroup>

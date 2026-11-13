@@ -16,7 +16,7 @@ import "~/index.css";
 import { act, render } from "../../../test/render";
 import { WebI18nContext } from "../../i18n/WebI18nContext";
 import { translateWebMessage } from "../../i18n/messages";
-import { ScheduledTasksSettings } from "./ScheduledTasksSettings";
+import { ScheduledTasksSettings, scheduleLabel } from "./ScheduledTasksSettings";
 
 const environmentId = EnvironmentId.make("laptop");
 const projectId = ProjectId.make("project");
@@ -292,4 +292,16 @@ it("localizes the destination picker and deletion consequence while preserving t
     .toBeVisible();
   await userEvent.keyboard("{Escape}");
   await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+});
+
+it("localizes all schedule display modes without changing the scheduled time or weekday ordering", () => {
+  const interval = { type: "interval", everyMs: 120_000 } as const;
+  expect(scheduleLabel(interval)).toBe("Every 2 min");
+  expect(scheduleLabel(interval, true)).toBe("每 2 分钟");
+  expect(scheduleLabel({ type: "interval", everyMs: 90_000 }, true)).toBe("每 90 秒");
+  expect(scheduleLabel({ type: "webhook", signature: null }, true)).toBe("收到 Webhook 时");
+  const calendar = { type: "fixed_time", timeOfDay: "09:37", weekdays: [1, 3] } as const;
+  expect(scheduleLabel(calendar, true)).toBe("周一、周三 09:37");
+  expect(scheduleLabel(calendar)).toBe("Mon, Wed at 09:37");
+  expect(calendar.weekdays).toEqual([1, 3]);
 });

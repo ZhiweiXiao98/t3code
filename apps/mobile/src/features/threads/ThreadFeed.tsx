@@ -652,7 +652,7 @@ function MessageAttachmentFile(props: {
     setOpening(true);
     const finish = (message: string | null) => {
       if (message !== null && !controller.signal.aborted) {
-        Dialog.alert("Could not open attachment", message);
+        Dialog.alertWithLiteralMessage("Could not open attachment", message);
       }
       if (openingRef.current === controller) {
         openingRef.current = null;
@@ -674,10 +674,14 @@ function MessageAttachmentFile(props: {
       if (controller.signal.aborted) return finish(null);
       if (result._tag === "Failure") {
         const error = squashAtomCommandFailure(result);
-        return finish(error instanceof Error ? error.message : "The attachment is unavailable.");
+        return finish(
+          error instanceof Error
+            ? error.message
+            : localizeMobileString("The attachment is unavailable."),
+        );
       }
       const url = resolveAssetUrl(httpBaseUrl, result.value.relativeUrl);
-      if (url === null) return finish("The attachment could not be opened.");
+      if (url === null) return finish(localizeMobileString("The attachment could not be opened."));
       const shared = await settlePromise(() =>
         downloadAndShareAttachment({
           url,
@@ -688,7 +692,11 @@ function MessageAttachmentFile(props: {
       );
       if (shared._tag === "Failure") {
         const error = squashAtomCommandFailure(shared);
-        return finish(error instanceof Error ? error.message : "The attachment is unavailable.");
+        return finish(
+          error instanceof Error
+            ? error.message
+            : localizeMobileString("The attachment is unavailable."),
+        );
       }
       finish(null);
     })();
@@ -2394,7 +2402,10 @@ function UserMessageContent(props: UserMessageContentProps) {
       });
       return;
     }
-    setSelected({ contextId: reference.contextId, label: record?.label ?? "Context unavailable" });
+    setSelected({
+      contextId: reference.contextId,
+      label: record?.label ?? localizeMobileString("Context unavailable"),
+    });
   };
   return (
     <>
@@ -2411,7 +2422,7 @@ function UserMessageContent(props: UserMessageContentProps) {
               (item) => item.contextId === reference.contextId,
             );
             return {
-              title: record?.label ?? "Context unavailable",
+              title: record?.label ?? localizeMobileString("Context unavailable"),
               actions: [
                 { id: "open-context", title: "Open context" },
                 { id: "copy-context", title: "Copy context", disabled: !record },

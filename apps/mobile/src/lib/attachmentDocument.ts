@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../i18n/mobileStrings";
 import { useAtomRefresh, useAtomValue } from "@effect/atom-react";
 import { Atom, AsyncResult } from "effect/reactivity";
 import { settlePromise, squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
@@ -36,7 +37,11 @@ interface AttachmentTextKey {
 
 async function readAttachmentText(key: AttachmentTextKey, signal: AbortSignal) {
   if (isLocalUri(key.uri)) {
-    return readFilePreviewResponse({ ok: true, body: new File(key.uri).readableStream() }, signal);
+    return readFilePreviewResponse(
+      { ok: true, body: new File(key.uri).readableStream() },
+      signal,
+      localizeMobileString,
+    );
   }
   // Reauthorize before source reads; the opening URL may have expired.
   let target = key.uri;
@@ -45,7 +50,8 @@ async function readAttachmentText(key: AttachmentTextKey, signal: AbortSignal) {
       key.environmentId === null
         ? null
         : await refreshAssetUrl(key.environmentId, key.resource, signal).catch(() => null);
-    if (!refreshed) throw new Error("Reconnect to this environment and try again.");
+    if (!refreshed)
+      throw new Error(localizeMobileString("Reconnect to this environment and try again."));
     target = refreshed;
   }
   const response = await fetch(target, {
@@ -55,7 +61,7 @@ async function readAttachmentText(key: AttachmentTextKey, signal: AbortSignal) {
       ...(key.revision > 0 ? { "Cache-Control": "no-cache" } : {}),
     },
   });
-  return readFilePreviewResponse(response, signal);
+  return readFilePreviewResponse(response, signal, localizeMobileString);
 }
 
 class AttachmentTextReadError extends Schema.TaggedError<AttachmentTextReadError>()(
@@ -74,7 +80,10 @@ const attachmentTextAtom = Atom.family((key: AttachmentTextKey) =>
       try: (signal) => readAttachmentText(key, signal),
       catch: (cause) =>
         new AttachmentTextReadError({
-          message: cause instanceof Error ? cause.message : "Could not read this file.",
+          message:
+            cause instanceof Error
+              ? cause.message
+              : localizeMobileString("Could not read this file."),
           cause,
         }),
     }),
@@ -133,7 +142,8 @@ export function useAttachmentDocument(input: {
   );
   const content = AsyncResult.isSuccess(text) ? text.value : null;
   const contentError = AsyncResult.isFailure(text)
-    ? (Option.getOrNull(AsyncResult.error(text))?.message ?? "Could not read this file.")
+    ? (Option.getOrNull(AsyncResult.error(text))?.message ??
+      localizeMobileString("Could not read this file."))
     : null;
   const table = content && delimiter ? parseDelimitedPreview(content.text, delimiter) : null;
   const presentation = attachmentDocumentPresentation({
@@ -143,9 +153,11 @@ export function useAttachmentDocument(input: {
     rendered,
   });
   const error = attachment
-    ? localPreview.error && (localPreview.error.message || "The local file is unavailable.")
+    ? localPreview.error &&
+      (localPreview.error.message || localizeMobileString("The local file is unavailable."))
     : AsyncResult.isFailure(remote)
-      ? (Option.getOrNull(AsyncResult.error(remote))?.message ?? "The attachment is unavailable.")
+      ? (Option.getOrNull(AsyncResult.error(remote))?.message ??
+        localizeMobileString("The attachment is unavailable."))
       : null;
   const share = async () => {
     if (!uri || sharing) return;
@@ -165,9 +177,9 @@ export function useAttachmentDocument(input: {
     setSharing(false);
     if (AsyncResult.isFailure(result)) {
       const cause = squashAtomCommandFailure(result);
-      Dialog.alert(
+      Dialog.alertWithLiteralMessage(
         "Could not share file",
-        cause instanceof Error ? cause.message : "Please try again.",
+        cause instanceof Error ? cause.message : localizeMobileString("Please try again."),
       );
     }
   };

@@ -1,10 +1,9 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
+import { attachmentSubtitle } from "./filePreviewDisplay";
 import * as Dialog from "../../components/ui/Dialog";
 import { useNavigation, type StaticScreenProps } from "@react-navigation/native";
 import { EnvironmentId, ThreadId } from "@t3tools/contracts";
-import {
-  clampFileAttachmentUploadBytes,
-  formatAttachmentSize,
-} from "@t3tools/client-runtime/state/attachments";
+import { clampFileAttachmentUploadBytes } from "@t3tools/client-runtime/state/attachments";
 import { useRef, useState } from "react";
 import { View } from "react-native";
 
@@ -83,14 +82,14 @@ export function AttachmentFileScreen(props: AttachmentFileScreenProps) {
     return uri ? { ...base, uri } : null;
   })();
   const handleNativeOpenError = (error: unknown) => {
-    pendingNativeError.current = nativeViewerErrorMessage(error);
+    pendingNativeError.current = localizeMobileString(nativeViewerErrorMessage(error));
   };
   const handleNativeClose = () => {
     setNativeOpen(false);
     const message = pendingNativeError.current;
     pendingNativeError.current = null;
     if (nativeViewer === null) {
-      if (message) Dialog.alert("Could not open document", message);
+      if (message) Dialog.alertWithLiteralMessage("Could not open document", message);
       return;
     }
     if (message) {
@@ -209,7 +208,7 @@ export function AttachmentFileScreen(props: AttachmentFileScreenProps) {
         })),
     ],
   };
-  const subtitle = `${draftKey ? "Draft attachment" : "Attachment"}${sizeBytes > 0 ? ` · ${formatAttachmentSize(sizeBytes)}` : ""}`;
+  const subtitle = attachmentSubtitle(Boolean(draftKey), sizeBytes);
   const refresh = useRefreshAssetUrl(environmentId, resource);
   const capabilities = useEnvironmentServerConfig(environmentId)?.environment.capabilities;
 
@@ -242,7 +241,13 @@ export function AttachmentFileScreen(props: AttachmentFileScreenProps) {
 
   return (
     <View className="flex-1 bg-sheet">
-      <AppBar title={params.name} subtitle={subtitle} onBack={handleBack} menus={[fileMenu]} />
+      <AppBar
+        localizeTitle={false}
+        title={params.name}
+        subtitle={subtitle}
+        onBack={handleBack}
+        menus={[fileMenu]}
+      />
       <AttachmentDocumentBody
         document={document}
         name={params.name}

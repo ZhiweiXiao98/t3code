@@ -1,3 +1,4 @@
+import { pullRequestActionFailure } from "./pullRequestMergeDisplay";
 import { useAtomRefresh } from "@effect/atom-react";
 import {
   maintainerEditsChoiceInForce,
@@ -43,9 +44,9 @@ export function usePullRequestMaintainerEdits(
     if (AsyncResult.isFailure(response)) {
       setChoice(previousChoice);
       const cause = squashAtomCommandFailure(response);
-      Dialog.alert(
+      Dialog.alertWithLiteralMessage(
         "Could not save maintainer access",
-        cause instanceof Error ? cause.message : "Try again.",
+        pullRequestActionFailure(cause),
       );
       return;
     }

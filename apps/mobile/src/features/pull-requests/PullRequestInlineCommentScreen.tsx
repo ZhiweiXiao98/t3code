@@ -106,8 +106,10 @@ export function PullRequestInlineCommentScreen({ route }: StaticScreenProps<Inli
       }
     >
       <View className="gap-2 rounded-[20px] bg-grouped-card p-4">
-        <Text className="font-mono text-xs text-foreground-muted">{params.path}</Text>
-        <Text selectable className="font-mono text-xs">
+        <Text localize={false} className="font-mono text-xs text-foreground-muted">
+          {params.path}
+        </Text>
+        <Text localize={false} selectable className="font-mono text-xs">
           {params.code}
         </Text>
       </View>
@@ -137,7 +139,9 @@ export function PullRequestInlineCommentScreen({ route }: StaticScreenProps<Inli
         </Text>
       ) : null}
       {store.error || detail.error ? (
-        <Text className="text-sm text-danger-foreground">{store.error ?? detail.error}</Text>
+        <Text localize={false} className="text-sm text-danger-foreground">
+          {store.error ?? detail.error}
+        </Text>
       ) : null}
       {saved ? (
         <Button

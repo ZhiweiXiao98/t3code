@@ -21,7 +21,11 @@ export function FilePreviewLoading(props: {
   );
 }
 
-export function FilePreviewNotice(props: { readonly title?: string; readonly children: string }) {
+export function FilePreviewNotice(props: {
+  readonly title?: string;
+  readonly children: string;
+  readonly localizeChildren?: boolean;
+}) {
   return (
     <View className="border-b border-warning-border bg-warning px-4 py-2">
       {props.title ? (
@@ -29,7 +33,12 @@ export function FilePreviewNotice(props: { readonly title?: string; readonly chi
           {props.title}
         </Text>
       ) : null}
-      <Text className="text-xs leading-snug text-warning-foreground">{props.children}</Text>
+      <Text
+        localize={props.localizeChildren}
+        className="text-xs leading-snug text-warning-foreground"
+      >
+        {props.children}
+      </Text>
     </View>
   );
 }

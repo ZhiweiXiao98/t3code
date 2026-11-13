@@ -53,7 +53,11 @@ function CompletionRow({ completion }: { readonly completion: PullRequestComplet
   const { candidate } = completion;
   return (
     <>
-      <Text className="shrink-0 text-base font-t3-medium text-foreground" numberOfLines={1}>
+      <Text
+        localize={false}
+        className="shrink-0 text-base font-t3-medium text-foreground"
+        numberOfLines={1}
+      >
         {candidate.reference}
       </Text>
       <Text

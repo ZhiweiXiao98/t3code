@@ -38,7 +38,9 @@ export function DatabaseStorageNotice({
           key={environmentId}
           icon="doc.on.doc"
           label={targets.find((target) => target.environmentId === environmentId)?.label ?? ""}
+          localizeLabel={false}
           description={status.compactCommand}
+          localizeDescription={false}
           detail={`${(status.reclaimableBytes / 1024 ** 3).toFixed(1)} GiB`}
           onPress={() => copyTextWithHaptic(status.compactCommand, { target: "command" })}
         />

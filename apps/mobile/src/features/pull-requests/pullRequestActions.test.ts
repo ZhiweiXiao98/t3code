@@ -94,6 +94,24 @@ describe("mobile pull request actions", () => {
     expect(pullRequestActionLabel("close", GITHUB)).toBe("Close pull request");
     expect(pullRequestActionLabel("close", GITLAB)).toBe("Close merge request");
     expect(pullRequestActionLabel("revert", GITLAB)).toBe("Create revert merge request");
+    for (const [terminology, translatedTerm] of [
+      [GITHUB, "拉取请求"],
+      [GITLAB, "合并请求"],
+    ] as const) {
+      const snapshot = structuredClone(terminology);
+      for (const [action, prefix] of [
+        ["merge", "合并"],
+        ["close", "关闭"],
+        ["reopen", "重新打开"],
+        ["revert", "创建回退"],
+      ] as const) {
+        expect(pullRequestActionLabel(action, terminology, "zh-CN")).toBe(prefix + translatedTerm);
+        expect(pullRequestActionLabel(action, terminology, "en")).toBe(
+          pullRequestActionLabel(action, terminology),
+        );
+      }
+      expect(terminology).toEqual(snapshot);
+    }
     expect(mergeUnavailableReason(detail({ state: "merged" }), true, GITLAB)).toBe(
       "This merge request has been merged.",
     );

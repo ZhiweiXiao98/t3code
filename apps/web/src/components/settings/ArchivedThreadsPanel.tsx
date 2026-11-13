@@ -1,3 +1,5 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
+import { translateWebSource } from "~/i18n/messages";
 import { splitWebTranslation, useI18n } from "~/i18n/WebI18nContext";
 import { settingsScopeEnvironmentLabels } from "./settingsScopeAxis";
 import { Spinner } from "~/components/ui/spinner";
@@ -145,8 +147,11 @@ export function ArchivedThreadsPanel() {
     toastManager.add(
       stackedThreadToast({
         type: "error",
-        title,
-        description: error instanceof Error ? error.message : "An error occurred.",
+        title: translateWebSource(readWebI18n().locale, title),
+        description:
+          error instanceof Error
+            ? error.message
+            : translateWebSource(readWebI18n().locale, "An error occurred."),
       }),
     );
   };

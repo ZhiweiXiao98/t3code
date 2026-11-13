@@ -1,3 +1,4 @@
+import { filePreviewFailure, pdfHttpFailure } from "../features/files/filePreviewDisplay";
 import { useState } from "react";
 import { View } from "react-native";
 import { WebView } from "react-native-webview";
@@ -8,19 +9,19 @@ export function PdfPreview(props: { readonly uri: string }) {
   const [error, setError] = useState<string | null>(null);
   return (
     <View className="flex-1 bg-card">
-      {error ? <FilePreviewNotice title="Could not load PDF">{error}</FilePreviewNotice> : null}
+      {error ? (
+        <FilePreviewNotice title="Could not load PDF" localizeChildren={false}>
+          {error}
+        </FilePreviewNotice>
+      ) : null}
       <WebView
         source={{ uri: props.uri }}
         originWhitelist={["*"]}
         automaticallyAdjustContentInsets={false}
         contentInsetAdjustmentBehavior="never"
         startInLoadingState
-        onError={(event) =>
-          setError(event.nativeEvent.description || "The PDF could not be loaded.")
-        }
-        onHttpError={(event) =>
-          setError(`The server returned HTTP ${event.nativeEvent.statusCode}.`)
-        }
+        onError={(event) => setError(filePreviewFailure(event.nativeEvent.description, "pdf"))}
+        onHttpError={(event) => setError(pdfHttpFailure(event.nativeEvent.statusCode))}
         renderLoading={() => <FilePreviewLoading message="Loading PDF..." background="card" />}
         style={{ flex: 1, backgroundColor: "transparent" }}
       />

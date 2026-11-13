@@ -1,6 +1,6 @@
 import { browserCloseMessage } from "../i18n/confirmationMessages";
 import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
-import { translateWebSource } from "../i18n/messages";
+import { translateWebMessage, translateWebSource } from "../i18n/messages";
 import { type OrchestrationV2ProviderTurn, type RunAttemptId } from "@t3tools/contracts";
 import {
   deriveLatestThreadRun,
@@ -601,6 +601,7 @@ export function resolveTerminalWorktreePath(input: {
 }
 
 export async function resolveFileAttachmentUrl(input: {
+  readonly readLocale?: () => ResolvedAppLocale;
   attachment: ChatFileAttachment;
   environmentId: EnvironmentId;
   httpBaseUrl: string;
@@ -623,11 +624,18 @@ export async function resolveFileAttachmentUrl(input: {
   });
   if (result._tag === "Failure") throw squashAtomCommandFailure(result);
   const url = resolveAssetUrl(input.httpBaseUrl, result.value.relativeUrl);
-  if (url === null) throw new Error("The environment returned an invalid attachment URL.");
+  if (url === null)
+    throw new Error(
+      translateWebSource(
+        input.readLocale?.() ?? "en",
+        "The environment returned an invalid attachment URL.",
+      ),
+    );
   return url;
 }
 
 export async function prepareRevertedMessageAttachments(input: {
+  readonly readLocale?: () => ResolvedAppLocale;
   message: ChatMessage;
   environmentId: EnvironmentId;
   httpBaseUrl: string;
@@ -636,7 +644,12 @@ export async function prepareRevertedMessageAttachments(input: {
   return Promise.all(
     (input.message.attachments ?? []).map(async (attachment) => {
       if (attachment.type !== "image" && attachment.type !== "file") {
-        throw new Error("This message has an attachment that cannot be restored.");
+        throw new Error(
+          translateWebSource(
+            input.readLocale?.() ?? "en",
+            "This message has an attachment that cannot be restored.",
+          ),
+        );
       }
       const result = await input.createAssetUrl({
         environmentId: input.environmentId,
@@ -651,9 +664,20 @@ export async function prepareRevertedMessageAttachments(input: {
       });
       if (result._tag === "Failure") throw squashAtomCommandFailure(result);
       const url = resolveAssetUrl(input.httpBaseUrl, result.value.relativeUrl);
-      if (url === null) throw new Error("The environment returned an invalid attachment URL.");
+      if (url === null)
+        throw new Error(
+          translateWebSource(
+            input.readLocale?.() ?? "en",
+            "The environment returned an invalid attachment URL.",
+          ),
+        );
       const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
-      if (!response.ok) throw new Error(`Could not restore attachment: ${attachment.name}`);
+      if (!response.ok)
+        throw new Error(
+          translateWebMessage(input.readLocale?.() ?? "en", "audit15.restoreAttachment", {
+            name: attachment.name,
+          }),
+        );
       return new File([await response.blob()], attachment.name, { type: attachment.mimeType });
     }),
   );
@@ -860,6 +884,7 @@ export function deriveLockedProvider(input: {
 }
 
 export function getStartedThreadModelChangeBlockReason(input: {
+  locale?: ResolvedAppLocale;
   hasStartedSession: boolean;
   supportsProviderSwitchingViaHandoff?: boolean;
   currentModelSelection: ModelSelection;
@@ -880,8 +905,11 @@ export function getStartedThreadModelChangeBlockReason(input: {
     return null;
   }
   return {
-    title: "Start a new chat to switch providers",
-    description: "This thread does not support switching providers after it has started.",
+    title: translateWebSource(input.locale ?? "en", "Start a new chat to switch providers"),
+    description: translateWebSource(
+      input.locale ?? "en",
+      "This thread does not support switching providers after it has started.",
+    ),
   };
 }
 
@@ -891,6 +919,7 @@ export async function waitForRevertedMessage(
   requestId: CommandId,
   revert: () => Promise<void>,
   timeoutMs = 120_000,
+  readLocale?: () => ResolvedAppLocale,
 ): Promise<void> {
   const threadAtom = environmentThreadDetails.stateAtom(threadRef);
   const readProjection = () => Option.getOrNull(appAtomRegistry.get(threadAtom).data);
@@ -913,7 +942,12 @@ export async function waitForRevertedMessage(
     return latest === undefined || run.ordinal > latest.ordinal ? run : latest;
   }, undefined);
   if (witness === undefined) {
-    throw new Error("The thread has changed. Select a message to rewind again.");
+    throw new Error(
+      translateWebSource(
+        readLocale?.() ?? "en",
+        "The thread has changed. Select a message to rewind again.",
+      ),
+    );
   }
   return new Promise<void>((resolve, reject) => {
     let settled = false;
@@ -955,7 +989,11 @@ export async function waitForRevertedMessage(
     };
     unsubscribe = appAtomRegistry.subscribe(threadAtom, inspect);
     timeout = globalThis.setTimeout(() => {
-      finish(new Error("Timed out waiting for the thread to rewind."));
+      finish(
+        new Error(
+          translateWebSource(readLocale?.() ?? "en", "Timed out waiting for the thread to rewind."),
+        ),
+      );
     }, timeoutMs);
     Promise.resolve()
       .then(revert)
@@ -1239,7 +1277,12 @@ export function makeModelDisabledReason(
       ...context,
       nextModelSelection: { instanceId, model },
     });
-    return reason ? `${reason.description} Start a new thread to use this model.` : null;
+    return reason
+      ? translateWebSource(
+          context.locale ?? "en",
+          "This thread does not support switching providers after it has started. Start a new thread to use this model.",
+        )
+      : null;
   };
 }
 

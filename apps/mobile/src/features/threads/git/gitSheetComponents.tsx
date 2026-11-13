@@ -1,3 +1,5 @@
+import { localizeMobileString } from "../../../i18n/mobileStrings";
+import { formatMobileMessage } from "../../../i18n/mobileDisplayStrings";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
 import { SymbolView } from "../../../components/ui/AppSymbol";
 import type { ComponentProps } from "react";
@@ -38,31 +40,33 @@ export function statusSummary(
   } | null,
 ): string {
   if (!gitStatus) {
-    return "Loading branch status\u2026";
+    return localizeMobileString("Loading branch status…");
   }
 
   if (!gitStatus.isRepo) {
-    return "Not a git repository";
+    return localizeMobileString("Not a git repository");
   }
 
   const parts: string[] = [];
   if (gitStatus.hasWorkingTreeChanges) {
     const fileCount = gitStatus.workingTree?.files.length ?? 0;
-    parts.push(`${fileCount} file${fileCount === 1 ? "" : "s"} changed`);
+    parts.push(
+      formatMobileMessage(fileCount === 1 ? "{0} file changed" : "{0} files changed", [fileCount]),
+    );
   } else {
-    parts.push("Clean");
+    parts.push(localizeMobileString("Clean"));
   }
   if ((gitStatus.aheadCount ?? 0) > 0) {
-    parts.push(`${gitStatus.aheadCount} ahead`);
+    parts.push(formatMobileMessage("{0} ahead", [gitStatus.aheadCount ?? 0]));
   }
   if ((gitStatus.behindCount ?? 0) > 0) {
-    parts.push(`${gitStatus.behindCount} behind`);
+    parts.push(formatMobileMessage("{0} behind", [gitStatus.behindCount ?? 0]));
   }
   if (gitStatus.pr?.state === "open") {
     const { shortLabel } = sourceControlClients.get(
       gitStatus.sourceControlProvider?.kind,
     ).changeRequest;
-    parts.push(`${shortLabel} #${gitStatus.pr.number} open`);
+    parts.push(formatMobileMessage("{0} #{1} open", [shortLabel, String(gitStatus.pr.number)]));
   }
 
   return parts.join(" \u00b7 ");

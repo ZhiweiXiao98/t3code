@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import { Chip } from "../../components/ui/Chip";
 import { PullRequestSectionHeading } from "./PullRequestSectionHeading";
@@ -73,9 +74,9 @@ export function PullRequestOverviewLoading({
           compact
           title={
             conflicting
-              ? `Conflicts with ${summary.baseBranch}`
+              ? formatMobileMessage("Conflicts with {0}", [summary.baseBranch])
               : clean
-                ? `No conflicts with ${summary.baseBranch}`
+                ? formatMobileMessage("No conflicts with {0}", [summary.baseBranch])
                 : "Branch"
           }
           icon={

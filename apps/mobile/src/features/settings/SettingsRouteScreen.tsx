@@ -1,3 +1,5 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import {
   navigationCustomizationAvailable,
   overflowNavigationTabs,
@@ -113,10 +115,10 @@ function ConfiguredSettingsRouteScreen() {
   const { user } = useUser();
   const { savedConnectionsById } = useSavedRemoteConnections();
   const accountLabel = !isLoaded
-    ? "Checking"
+    ? localizeMobileString("Checking")
     : !isSignedIn
-      ? "Sign in"
-      : (user?.primaryEmailAddress?.emailAddress ?? "Signed in");
+      ? localizeMobileString("Sign in")
+      : (user?.primaryEmailAddress?.emailAddress ?? localizeMobileString("Signed in"));
 
   return (
     <SettingsList
@@ -126,6 +128,7 @@ function ConfiguredSettingsRouteScreen() {
           icon: "person.crop.circle",
           label: "T3 Account",
           value: accountLabel,
+          localizeValue: false,
           disabled: !isLoaded,
           onPress: () => navigation.navigate("SettingsAuth"),
         },
@@ -203,7 +206,8 @@ function SettingsList(props: { readonly connections: readonly SettingsListRow[] 
           <EmptyState
             variant="plain"
             title="No results"
-            detail={`No settings match “${query.trim()}”.`}
+            detail={formatMobileMessage("No settings match “{0}”.", [query.trim()])}
+            localizeDetail={false}
           />
         )}
       </ScrollView>
@@ -227,12 +231,12 @@ function useSettingsIndexSections(): SettingsListSection[] {
           representative: scopedProjectMembers[0]!,
           members: scopedProjectMembers,
         })
-      : (selectedProject?.label ?? "Unavailable project");
+      : (selectedProject?.label ?? localizeMobileString("Unavailable project"));
   const page = (
     target: SettingsPageTarget,
     icon: SettingsListRow["icon"],
     label: string,
-    extra?: Pick<SettingsListRow, "disabled" | "value">,
+    extra?: Pick<SettingsListRow, "disabled" | "value" | "localizeValue">,
   ): SettingsListRow => ({ id: target, icon, label, target, ...extra });
   const serverPage = (target: SettingsPageTarget, icon: SettingsListRow["icon"], label: string) =>
     page(target, icon, label, { disabled: noServerTargets });
@@ -265,7 +269,7 @@ function useSettingsIndexSections(): SettingsListSection[] {
           "SettingsProjectOverview",
           "folder",
           "Projects",
-          selectedProjectKey !== null ? { value: projectLabel } : undefined,
+          selectedProjectKey !== null ? { value: projectLabel, localizeValue: false } : undefined,
         ),
         serverPage("SettingsEnvironmentSourceControl", "arrow.triangle.branch", "Source control"),
         serverPage("SettingsWorktrees", "square.on.square", "Worktrees"),

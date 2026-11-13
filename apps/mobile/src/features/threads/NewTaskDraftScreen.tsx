@@ -627,7 +627,9 @@ export function NewTaskDraftScreen(props: {
     if (draft.attachments.length > PROVIDER_SEND_TURN_MAX_ATTACHMENTS) {
       Dialog.alert(
         "Too many attachments",
-        `Remove attachments until there are at most ${PROVIDER_SEND_TURN_MAX_ATTACHMENTS}.`,
+        formatMobileMessage("Remove attachments until there are at most {0}.", [
+          PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
+        ]),
       );
       return null;
     }
@@ -647,10 +649,13 @@ export function NewTaskDraftScreen(props: {
       const owner =
         flow.environments.find(
           (environment) => environment.environmentId === strandedThread.environmentId,
-        )?.environmentLabel ?? "its machine";
-      Dialog.alert(
+        )?.environmentLabel ?? localizeMobileString("its machine");
+      Dialog.alertWithLiteralMessage(
         "Attached thread unavailable",
-        `"${strandedThread.title}" is on another machine. Switch back to ${owner} or remove it from the draft.`,
+        formatMobileMessage(
+          '"{0}" is on another machine. Switch back to {1} or remove it from the draft.',
+          [strandedThread.title, owner],
+        ),
       );
       return null;
     }
@@ -703,13 +708,13 @@ export function NewTaskDraftScreen(props: {
   const setupBlockReason =
     isIncomingShareReady && !isImportingShare
       ? cloneBlocksStart
-        ? "Wait for the project clone to finish."
+        ? localizeMobileString("Wait for the project clone to finish.")
         : flow.submitting
-          ? "Starting the thread…"
+          ? localizeMobileString("Starting the thread…")
           : flow.workspaceMode === "worktree" && (!flow.selectedBranchName || !flow.isGitRepoKnown)
-            ? "Choose a base branch before creating a worktree."
+            ? localizeMobileString("Choose a base branch before creating a worktree.")
             : null
-      : "Wait for shared content to finish importing.";
+      : localizeMobileString("Wait for shared content to finish importing.");
   const chooseProject = () => {
     if (isComposerInteractionLocked) {
       return;

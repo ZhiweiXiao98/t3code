@@ -246,7 +246,8 @@ export function ThreadQueueSheet({ route }: StaticScreenProps<QueueTarget>) {
           text,
         });
         const title =
-          controls.displayText || (attachments.length > 0 ? "Attachments" : "Queued message");
+          controls.displayText ||
+          localizeMobileString(attachments.length > 0 ? "Attachments" : "Queued message");
         return (
           <View key={run.id} className="flex-row items-center border-b border-border bg-sheet">
             <QueueRowSwipeable
@@ -311,6 +312,7 @@ export function ThreadQueueSheet({ route }: StaticScreenProps<QueueTarget>) {
                         <QueuedRunSender environmentId={target.environmentId} message={message} />
                       ) : null}
                       <Text
+                        localize={false}
                         className={
                           controls.isEditing
                             ? "text-sm text-foreground-muted"
@@ -319,7 +321,10 @@ export function ThreadQueueSheet({ route }: StaticScreenProps<QueueTarget>) {
                         numberOfLines={1}
                       >
                         {context?.guest === undefined ? null : (
-                          <Text className="font-t3-medium text-adaptive-fuchsia-600-300">
+                          <Text
+                            localize={false}
+                            className="font-t3-medium text-adaptive-fuchsia-600-300"
+                          >
                             {`${context.guest.name}  `}
                           </Text>
                         )}

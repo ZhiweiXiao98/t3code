@@ -814,6 +814,7 @@ export function useComposerSend(input: ComposerSendInput) {
       return {
         supportsAttachmentUploads: liveSupportsAttachmentUploads,
         fileBlockReason: fileAttachmentCapabilityBlockReason({
+          locale: readWebI18n().locale,
           files: composerFilesSnapshot,
           attachmentUploadsCapabilityKnown: config !== null,
           supportsAttachmentUploads: liveSupportsAttachmentUploads,
@@ -1393,7 +1394,7 @@ export function useComposerSend(input: ComposerSendInput) {
               title:
                 submissionIntent === "background"
                   ? translateWebSource(uiLocale, "Background task failed")
-                  : "Could not start thread",
+                  : translateWebSource(readWebI18n().locale, "Could not start thread"),
               description:
                 error instanceof Error
                   ? error.message

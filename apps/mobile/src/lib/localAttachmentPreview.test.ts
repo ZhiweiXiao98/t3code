@@ -1,3 +1,4 @@
+import * as mobileStrings from "../i18n/mobileStrings";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const mocks = vi.hoisted(() => ({
@@ -137,14 +138,22 @@ describe("localAttachmentPreviewAtom", () => {
 
   it("reports a missing file as an error", async () => {
     mocks.exists.mockReturnValue(false);
-    const registry = AtomRegistry.make();
-    const reader = settled(registry, { ...attachment, id: "missing" });
-    const state = await reader.state;
-    expect(state.uri).toBeNull();
-    expect(state.error?.message).toBe(
-      "This attachment is no longer available. Attach the file again.",
-    );
-    reader.unsubscribe();
-    registry.dispose();
+    const localizeMobileString = mobileStrings.localizeMobileString;
+    for (const locale of ["en", "zh-CN"] as const) {
+      using _locale = vi
+        .spyOn(mobileStrings, "localizeMobileString")
+        .mockImplementation((value) => localizeMobileString(value, locale));
+      const registry = AtomRegistry.make();
+      const reader = settled(registry, { ...attachment, id: `missing-${locale}` });
+      const state = await reader.state;
+      expect(state.uri).toBeNull();
+      expect(state.error?.message).toBe(
+        locale === "en"
+          ? "This attachment is no longer available. Attach the file again."
+          : "此附件已不可用，请重新附加该文件。",
+      );
+      reader.unsubscribe();
+      registry.dispose();
+    }
   });
 });

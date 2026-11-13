@@ -1,3 +1,5 @@
+import { WebI18nContext } from "../../i18n/WebI18nContext";
+import { translateWebMessage } from "../../i18n/messages";
 import {
   EnvironmentId,
   ProjectId,
@@ -174,3 +176,55 @@ it.each(["review", "issue-comment", "resolved-reply"] as const)(
     await expect.element(screen.getByText("Linked reply", { exact: true })).toBeVisible();
   },
 );
+
+it("localizes owned timeline verbs while preserving comment text and author", async () => {
+  const body = "commented {literal}/$&";
+  const localizedDetail: PullRequestDetailView = {
+    ...detail,
+    commits: [],
+    comments: [
+      {
+        id: "opaque",
+        kind: "issue-comment",
+        author: { login: "reviewed", name: null, avatarUrl: null },
+        body,
+        createdAt: detail.createdAt,
+        url: `${detail.url}#issuecomment-7`,
+        path: null,
+        reviewState: null,
+      },
+    ],
+  };
+  const surface = (locale: "en" | "zh-CN", revealUrl?: string) => (
+    <WebI18nContext
+      value={{
+        locale,
+        appLocale: locale,
+        setAppLocale: () => {},
+        t: (key, values) => translateWebMessage(locale, key, values),
+      }}
+    >
+      <div style={{ height: 600 }}>
+        <PullRequestTimelineTab
+          scrollerRef={() => {}}
+          detail={localizedDetail}
+          environmentId={EnvironmentId.make("environment")}
+          reference={detail}
+          order="oldest"
+          {...(revealUrl ? { revealUrl } : {})}
+          onOpenCommit={() => {}}
+          onRefresh={() => {}}
+        />
+      </div>
+    </WebI18nContext>
+  );
+  await using screen = await render(surface("en", `${detail.url}#issuecomment-999`));
+  await expect.element(screen.getByText("commented", { exact: true })).toBeVisible();
+  await screen.rerender(surface("zh-CN"));
+  await expect.element(screen.getByText("发表了评论", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("已加载的动态中没有此链接对应的项目。")).toBeVisible();
+  await expect.element(screen.getByText(body, { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("reviewed", { exact: true })).toBeVisible();
+  await screen.rerender(surface("en"));
+  await expect.element(screen.getByText("commented", { exact: true })).toBeVisible();
+});

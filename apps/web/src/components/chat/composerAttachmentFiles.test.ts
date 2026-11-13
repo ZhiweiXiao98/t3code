@@ -192,3 +192,46 @@ describe("composer attachment files", () => {
     expect(released.map((attachment) => attachment.id)).toEqual(["image-1", "file-uploading"]);
   });
 });
+
+it("localizes capability denials without changing file eligibility or names", () => {
+  const file = {
+    type: "file",
+    id: "opaque",
+    name: "{name}/$&:\n.txt",
+    mimeType: "text/plain",
+    sizeBytes: 1025,
+  } as ComposerFileAttachment;
+  const input = {
+    files: [file],
+    attachmentUploadsCapabilityKnown: true,
+    supportsAttachmentUploads: true,
+    maxFileAttachmentBytes: 1024,
+  };
+  const english = fileAttachmentCapabilityBlockReason(input);
+  expect(english).toContain(file.name);
+  expect(fileAttachmentCapabilityBlockReason({ ...input, locale: "zh-CN" })).toBe(
+    `“${file.name}”超出了 1 KB 的附件大小限制。`,
+  );
+  expect(fileAttachmentCapabilityBlockReason({ ...input, locale: "en" })).toBe(english);
+  expect(
+    fileAttachmentCapabilityBlockReason({
+      ...input,
+      locale: "zh-CN",
+      maxFileAttachmentBytes: 2048,
+    }),
+  ).toBeNull();
+  expect(
+    fileAttachmentCapabilityBlockReason({
+      ...input,
+      locale: "zh-CN",
+      attachmentUploadsCapabilityKnown: false,
+    }),
+  ).toBe("正在等待服务器，暂时无法发送文件附件");
+  expect(
+    fileAttachmentCapabilityBlockReason({
+      ...input,
+      locale: "zh-CN",
+      supportsAttachmentUploads: false,
+    }),
+  ).toBe("此服务器目前不接受文件附件。请移除文件后发送。");
+});

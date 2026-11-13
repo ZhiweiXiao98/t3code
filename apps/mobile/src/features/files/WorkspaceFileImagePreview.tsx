@@ -1,3 +1,4 @@
+import { filePreviewFailure } from "./filePreviewDisplay";
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { useId, useState } from "react";
@@ -55,7 +56,7 @@ function ResolvedWorkspaceFileImagePreview(props: {
               resizeMode="contain"
               onLoadStart={() => setLoadError(null)}
               onError={(event) => {
-                setLoadError(event.nativeEvent.error || "The image could not be rendered.");
+                setLoadError(filePreviewFailure(event.nativeEvent.error, "image"));
               }}
             />
           </PresentationSource>
@@ -66,7 +67,7 @@ function ResolvedWorkspaceFileImagePreview(props: {
           pointerEvents="none"
           className="absolute inset-0 items-center justify-center bg-card px-6"
         >
-          <EmptyState title="Image unavailable" detail={loadError} />
+          <EmptyState title="Image unavailable" detail={loadError} localizeDetail={false} />
         </View>
       ) : null}
       <FilePreviewModal source={preview} onRequestClose={() => setPreview(null)} />

@@ -253,7 +253,7 @@ it("rerenders a retained primary decision error while preserving the submitted c
   const content = <McpConsent authorization={authorization} transport={transport} acceptsCode />;
   await using screen = await render(surface("en", content));
   await expect.element(screen.getByLabelText("Sign-in code")).toBeVisible();
-  const code = "read-only-q8rz3nwd5ktc";
+  const code = "read-q8rz3nwd5ktc";
   await userEvent.fill(screen.getByLabelText("Sign-in code"), code);
   await expect
     .element(screen.getByRole("button", { name: "Approve Read only", exact: true }))

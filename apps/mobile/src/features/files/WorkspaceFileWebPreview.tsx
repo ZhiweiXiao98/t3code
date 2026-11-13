@@ -1,3 +1,4 @@
+import { filePreviewFailure } from "./filePreviewDisplay";
 import { useState } from "react";
 import { View } from "react-native";
 import { WebView } from "react-native-webview";
@@ -82,7 +83,7 @@ function DocumentWebPreview(props: { readonly uri: string }) {
           }}
           onError={(event) => {
             setLoadProgress(0);
-            setLoadError(event.nativeEvent.description || "The file could not be rendered.");
+            setLoadError(filePreviewFailure(event.nativeEvent.description, "file"));
           }}
           renderLoading={() => (
             <View className="absolute inset-0 items-center justify-center bg-card">

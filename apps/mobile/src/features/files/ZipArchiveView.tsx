@@ -826,7 +826,7 @@ function ZipEntryView(props: {
         <FilePreviewModal
           source={{ kind: viewerKind, name: entry.name, mimeType, uri }}
           onOpenError={(error) => {
-            pendingViewerError.current = nativeViewerErrorMessage(error);
+            pendingViewerError.current = localizeMobileString(nativeViewerErrorMessage(error));
           }}
           onRequestClose={() => {
             setViewerError(pendingViewerError.current);

@@ -1,3 +1,6 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
+import { localizeMobileString } from "../../i18n/mobileStrings";
+import { pullRequestActionFailure } from "./pullRequestMergeDisplay";
 import { useAtomValue } from "@effect/atom-react";
 import { visibleLinkedThreads } from "@t3tools/client-runtime/state/threads";
 import { AsyncResult } from "effect/reactivity";
@@ -99,7 +102,9 @@ export function usePullRequestThreads(
     const result = await settlePromise(async () => {
       if (connected && !thread && !canCheckout)
         throw new Error(
-          `Starting work from this ${terminology.shortLabel} requires source control write access.`,
+          formatMobileMessage("Starting work from this {0} requires source control write access.", [
+            terminology.shortLabel,
+          ]),
         );
       await waitForComposerDraftsLoaded();
       const draftKey = thread
@@ -150,7 +155,9 @@ export function usePullRequestThreads(
           { text: draft.text, start: draft.text.length, end: draft.text.length },
         )
       )
-        throw new Error("Remove some context from this thread's draft, then try again.");
+        throw new Error(
+          localizeMobileString("Remove some context from this thread's draft, then try again."),
+        );
       const withContext = getComposerDraftSnapshot(draftKey);
       setComposerDraftText(
         draftKey,
@@ -169,7 +176,7 @@ export function usePullRequestThreads(
     setBusy(false);
     if (AsyncResult.isFailure(result)) {
       const cause = squashAtomCommandFailure(result);
-      Dialog.alert("Couldn't open a thread", cause instanceof Error ? cause.message : "Try again.");
+      Dialog.alertWithLiteralMessage("Couldn't open a thread", pullRequestActionFailure(cause));
     }
   };
   return {

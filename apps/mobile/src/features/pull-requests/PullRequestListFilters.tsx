@@ -235,7 +235,9 @@ export function usePullRequestListFilters(props: {
     },
     {
       id: "checks",
-      title: value.filters.checks ? `${CHECKS[value.filters.checks]} checks` : "Checks",
+      title: value.filters.checks
+        ? localizeMobileString(`${CHECKS[value.filters.checks]} checks`)
+        : "Checks",
       subactions: choices("checks", CHECKS, value.filters.checks ?? "all"),
     },
     {
@@ -413,7 +415,9 @@ export function PullRequestListFilters(props: {
         onSelect={select}
       />
       <ListFilterMenu
-        label={selectedLabelCount ? `Labels ${selectedLabelCount}` : "Labels"}
+        label={
+          selectedLabelCount ? formatMobileMessage("Labels {0}", [selectedLabelCount]) : "Labels"
+        }
         active={selectedLabelCount > 0}
         accessibilityLabel={localizeMobileString("Filter by label")}
         actions={props.filters.labelActions}

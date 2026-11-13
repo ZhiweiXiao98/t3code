@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { useContentTopInset } from "../../components/ui/useBarInset";
 import { usePaneRole } from "../../components/ui/Pane";
 import { ScreenContent } from "../../components/ui/ScreenContent";
@@ -751,18 +752,21 @@ export function HomeScreen(props: HomeScreenProps) {
     hasSearchQuery && threadSearch.isPending ? undefined : hasSearchQuery ? (
       <EmptyState
         title="No results"
-        detail={`No threads matching "${props.searchQuery}".`}
+        detail={formatMobileMessage('No threads matching "{0}".', [props.searchQuery])}
+        localizeDetail={false}
         variant={Platform.OS === "android" ? "plain" : undefined}
       />
     ) : v2ScopedProjectGroup !== null ? (
       <EmptyState
-        title={`No threads in ${v2ScopedProjectGroup.title}`}
+        title={formatMobileMessage("No threads in {0}", [v2ScopedProjectGroup.title])}
+        localizeTitle={false}
         detail="Choose another project or create a new task."
         variant={Platform.OS === "android" ? "plain" : undefined}
       />
     ) : selectedEnvironmentLabel ? (
       <EmptyState
-        title={`No threads in ${selectedEnvironmentLabel}`}
+        title={formatMobileMessage("No threads in {0}", [selectedEnvironmentLabel])}
+        localizeTitle={false}
         detail="Choose another environment or create a new task."
         variant={Platform.OS === "android" ? "plain" : undefined}
       />

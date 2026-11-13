@@ -1,3 +1,5 @@
+import { browserZoomLabel, browserViewportLabel } from "./browserPreviewDisplay";
+import type { LocalizableMenuAction } from "../../i18n/localizeMenuActions";
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import * as Dialog from "../../components/ui/Dialog";
 import { useAtomValue } from "@effect/atom-react";
@@ -25,7 +27,7 @@ const APPEARANCES = [
 ] as const;
 
 const VIEWPORTS = [
-  { id: "fill", title: "Fit to screen", setting: FILL_PREVIEW_VIEWPORT },
+  { id: "fill", title: localizeMobileString("Fit to screen"), setting: FILL_PREVIEW_VIEWPORT },
   ...(["Phone", "Tablet", "Desktop"] as const).flatMap((category) => {
     const preset = PREVIEW_VIEWPORT_PRESETS.find((candidate) => candidate.category === category);
     if (!preset) return [];
@@ -35,7 +37,9 @@ const VIEWPORTS = [
       width: preset.width,
       height: preset.height,
     };
-    return [{ id: `preset:${preset.id}`, title: `${category} (${preset.label})`, setting }];
+    return [
+      { id: `preset:${preset.id}`, title: browserViewportLabel(category, preset.label), setting },
+    ];
   }),
 ];
 
@@ -75,7 +79,7 @@ export function BrowserTabMenu({
     image: "xmark",
     attributes: { destructive: true, disabled: !canClose },
   };
-  const actions: MenuAction[] = [
+  const actions: LocalizableMenuAction[] = [
     ...(onPaste ? [{ id: "paste", title: "Paste", image: "doc.on.clipboard" }] : []),
     { id: "hard-reload", title: "Hard reload", image: "arrow.clockwise.circle" },
     {
@@ -90,7 +94,8 @@ export function BrowserTabMenu({
     },
     {
       id: "zoom",
-      title: `Zoom (${Math.round(zoomFactor * 100)}%)`,
+      title: browserZoomLabel(zoomFactor),
+      localize: false,
       image: "plus.magnifyingglass",
       subactions: [
         { id: "zoom:in", title: "Zoom in", image: "plus.magnifyingglass" },
@@ -105,6 +110,7 @@ export function BrowserTabMenu({
       subactions: VIEWPORTS.map((option) => ({
         id: `viewport:${option.id}`,
         title: option.title,
+        localize: false,
         state: option.id === viewportId ? "on" : "off",
       })),
     },

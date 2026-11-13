@@ -1,3 +1,5 @@
+import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
+import { translateWebSource } from "~/i18n/messages";
 import {
   type EnvironmentId,
   isProviderSendTurnSupportedImageMimeType,
@@ -17,6 +19,7 @@ import { isWorkspaceImagePreviewPath } from "@t3tools/shared/mediaPreview";
 type ComposerAttachmentFileKind = "image" | "file" | "unsupported-image";
 
 interface FileAttachmentCapabilityState {
+  readonly locale?: ResolvedAppLocale;
   readonly attachmentUploadsCapabilityKnown: boolean;
   readonly supportsAttachmentUploads: boolean;
   readonly maxFileAttachmentBytes: number | null;
@@ -140,15 +143,25 @@ export function fileAttachmentCapabilityBlockReason(
     return null;
   }
   if (!input.attachmentUploadsCapabilityKnown) {
-    return "Waiting for the server before file attachments can send";
+    return translateWebSource(
+      input.locale ?? "en",
+      "Waiting for the server before file attachments can send",
+    );
   }
   const maxFileAttachmentBytes = fileAttachmentStagingLimit(input);
   if (maxFileAttachmentBytes === null) {
-    return "This server does not accept file attachments right now. Remove the files to send.";
+    return translateWebSource(
+      input.locale ?? "en",
+      "This server does not accept file attachments right now. Remove the files to send.",
+    );
   }
   const oversizedFile = input.files.find((file) => file.sizeBytes > maxFileAttachmentBytes);
   if (oversizedFile) {
-    return fileAttachmentTooLargeMessage(oversizedFile.name, maxFileAttachmentBytes);
+    return fileAttachmentTooLargeMessage(
+      oversizedFile.name,
+      maxFileAttachmentBytes,
+      input.locale ?? "en",
+    );
   }
   return null;
 }

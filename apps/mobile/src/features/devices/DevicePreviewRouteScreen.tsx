@@ -1,12 +1,8 @@
+import { deviceRetryLabel, deviceToolsMessage } from "./devicePreviewDisplay";
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import { SheetCloseButton } from "../../components/ui/SheetHeader";
 import { Button } from "../../components/ui/Button";
 import * as Dialog from "../../components/ui/Dialog";
-import {
-  deviceToolVersionLabels,
-  deviceToolUpdateOwnership,
-  deviceToolUpdatePolicy,
-} from "@t3tools/client-runtime/state/device";
 import { useIsFocused, useNavigation, type StaticScreenProps } from "@react-navigation/native";
 import { EnvironmentId, ThreadId } from "@t3tools/contracts";
 import * as Cause from "effect/Cause";
@@ -145,7 +141,10 @@ export function DevicePreviewScreen({
       },
     }).finally(() => setShuttingDown(false));
     if (result._tag === "Failure") {
-      Dialog.alert("Could not shut down device", String(Cause.squash(result.cause)));
+      Dialog.alertWithLiteralMessage(
+        "Could not shut down device",
+        String(Cause.squash(result.cause)),
+      );
     }
   };
 
@@ -157,7 +156,8 @@ export function DevicePreviewScreen({
       )
       .map((host) => ({
         id: `retry-${host.id}`,
-        title: `Retry ${host.label}`,
+        title: deviceRetryLabel(host.label),
+        localize: false,
         icon: "arrow.clockwise" as const,
         onPress: () => {
           void retryHost({ environmentId, input: { retryHostId: host.id } });
@@ -180,22 +180,15 @@ export function DevicePreviewScreen({
       title: "Device tool versions",
       icon: "info.circle",
       onPress: () =>
-        Dialog.alert(
+        Dialog.alertWithLiteralMessage(
           "Device tool versions",
-          deviceToolUpdateOwnership +
-            "\n\n" +
-            deviceToolUpdatePolicy(
-              state.data?.hosts.find((host) => host.id === preview?.session.hostId)?.tools,
-            ) +
-            "\n\n" +
-            deviceToolVersionLabels(
-              state.data?.hosts.find((host) => host.id === preview?.session.hostId)?.tools,
-            ).join("\n") +
-            "\n" +
-            (state.data?.hosts.find((host) => host.id === preview?.session.hostId)
+          deviceToolsMessage(
+            state.data?.hosts.find((host) => host.id === preview?.session.hostId)?.tools,
+            state.data?.hosts.find((host) => host.id === preview?.session.hostId)
               ?.toolInspectionError ??
               state.data?.hostStatuses[preview?.session.hostId ?? ""]?.detail ??
-              ""),
+              "",
+          ),
         ),
     },
     {
@@ -297,7 +290,11 @@ export function DevicePreviewScreen({
         <View className="flex-1 items-center justify-center gap-4 px-6">
           {state.error ? (
             <>
-              <AppText selectable className="text-center text-sm text-foreground-muted">
+              <AppText
+                localize={false}
+                selectable
+                className="text-center text-sm text-foreground-muted"
+              >
                 {state.error}
               </AppText>
               <View className="items-center">
@@ -439,7 +436,11 @@ function OpenDevicePreview({
     <View className="flex-1 items-center justify-center gap-4 px-6">
       {error ? (
         <>
-          <AppText selectable className="text-center text-sm text-foreground-muted">
+          <AppText
+            localize={false}
+            selectable
+            className="text-center text-sm text-foreground-muted"
+          >
             {error}
           </AppText>
           <View className="items-center">

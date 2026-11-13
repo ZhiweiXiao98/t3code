@@ -1,3 +1,5 @@
+import { localizeMobileString } from "../i18n/mobileStrings";
+import { formatMobileMessage } from "../i18n/mobileDisplayStrings";
 import { Button } from "./ui/Button";
 import * as Dialog from "./ui/Dialog";
 import { useOpenPullRequest } from "../native/useOpenPullRequest";
@@ -367,12 +369,19 @@ export function ComposerContextSheet(props: {
             onPress={() => {
               props.onClose();
               void openPullRequest(pullRequestUrl).catch(() =>
-                Dialog.alert(`Could not open ${changeRequestTerm}`, "Try again when connected."),
+                Dialog.alert(
+                  formatMobileMessage("Could not open {0}", [
+                    localizeMobileString(changeRequestTerm),
+                  ]),
+                  "Try again when connected.",
+                ),
               );
             }}
             className="rounded-xl bg-subtle p-4"
           >
-            <Text className="text-foreground">Open {changeRequestTerm}</Text>
+            <Text className="text-foreground">
+              {formatMobileMessage("Open {0}", [localizeMobileString(changeRequestTerm)])}
+            </Text>
           </Pressable>
         ) : null}
         {props.onOpenAttachment ? (
@@ -385,7 +394,7 @@ export function ComposerContextSheet(props: {
         ) : null}
         {props.onOpenPullRequest && !pullRequestUrl ? (
           <Button
-            label={`Open ${changeRequestTerm}`}
+            label={formatMobileMessage("Open {0}", [localizeMobileString(changeRequestTerm)])}
             tone="secondary"
             onPress={props.onOpenPullRequest}
             fullWidth

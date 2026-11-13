@@ -108,6 +108,7 @@ async function submitQueuedRunEdit(input: {
     const validateFiles = () => {
       const config = appAtomRegistry.get(environmentServerConfigsAtom).get(environmentId) ?? null;
       const reason = fileAttachmentCapabilityBlockReason({
+        locale: locale,
         files,
         attachmentUploadsCapabilityKnown: config !== null,
         supportsAttachmentUploads: config !== null,

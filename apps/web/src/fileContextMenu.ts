@@ -1,3 +1,7 @@
+import { useI18n } from "./i18n/WebI18nContext";
+import { readWebI18n } from "./i18n/readWebI18n";
+import { translateWebSource } from "./i18n/messages";
+import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 import {
   EDITORS,
   type ContextMenuItem,
@@ -57,18 +61,19 @@ export interface FileContextMenuCapabilities {
 }
 
 function buildFileContextMenuItems(input: {
+  readonly locale: ResolvedAppLocale;
   readonly hasAbsolutePath: boolean;
   readonly capabilities: FileContextMenuCapabilities;
 }): readonly ContextMenuItem<FileContextMenuAction>[] {
   if (!input.hasAbsolutePath) return [];
   const items: ContextMenuItem<FileContextMenuAction>[] = [];
   if (input.capabilities.canOpenDefault) {
-    items.push({ id: "open", label: "Open", icon: "pencil" });
+    items.push({ id: "open", label: translateWebSource(input.locale, "Open"), icon: "pencil" });
   }
   if (input.capabilities.revealLabel !== undefined) {
     items.push({
       id: "reveal-in-folder",
-      label: input.capabilities.revealLabel,
+      label: translateWebSource(input.locale, input.capabilities.revealLabel),
       icon: "folder-tree",
     });
   }
@@ -76,7 +81,7 @@ function buildFileContextMenuItems(input: {
   if (editorIds.length > 0) {
     items.push({
       id: "open-with",
-      label: "Open with",
+      label: translateWebSource(input.locale, "Open with"),
       children: editorIds.map((editorId) => ({
         id: `editor:${editorId}` as FileContextMenuAction,
         label: EDITOR_LABEL_BY_ID.get(editorId) ?? editorId,
@@ -87,6 +92,7 @@ function buildFileContextMenuItems(input: {
 }
 
 export function useFileContextMenu(environmentId: EnvironmentId | null) {
+  const { locale } = useI18n();
   const openInEditor = useAtomCommand(shellEnvironment.openInEditor, { reportFailure: false });
   const serverConfig = useAtomValue(serverEnvironment.configValueAtom(environmentId));
 
@@ -128,10 +134,12 @@ export function useFileContextMenu(environmentId: EnvironmentId | null) {
       type: "error",
       title:
         action === "open"
-          ? "Could not open file"
+          ? translateWebSource(readWebI18n().locale, "Could not open file")
           : reveal
-            ? "Unable to reveal file"
-            : `Could not open in ${EDITOR_LABEL_BY_ID.get(editor) ?? editor}`,
+            ? translateWebSource(readWebI18n().locale, "Unable to reveal file")
+            : readWebI18n().t("audit15.openEditorFailed", {
+                editor: EDITOR_LABEL_BY_ID.get(editor) ?? editor,
+              }),
       description: absolutePath,
     });
   };
@@ -142,6 +150,7 @@ export function useFileContextMenu(environmentId: EnvironmentId | null) {
   ): Promise<void> => {
     const api = readLocalApi();
     const items = buildFileContextMenuItems({
+      locale,
       hasAbsolutePath: resolveFileContextMenuAbsolutePath(target) !== null,
       capabilities,
     });
@@ -154,6 +163,7 @@ export function useFileContextMenu(environmentId: EnvironmentId | null) {
   return {
     buildItems: (target: FileContextMenuTarget) =>
       buildFileContextMenuItems({
+        locale,
         hasAbsolutePath: resolveFileContextMenuAbsolutePath(target) !== null,
         capabilities,
       }),

@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { translateWebSource } from "~/i18n/messages";
 import type { PullRequestAction } from "@t3tools/contracts";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
@@ -151,7 +152,10 @@ function PullRequestRowImpl({
                 event.stopPropagation();
                 void showPullRequestLinkContextMenu({
                   url: entry.url,
-                  openLabel: openOnHostLabel(sourceControlClients.get(entry.provider)),
+                  openLabel: openOnHostLabel(
+                    sourceControlClients.get(entry.provider),
+                    readWebI18n().locale,
+                  ),
                   position: { x: event.clientX, y: event.clientY },
                 });
               }}

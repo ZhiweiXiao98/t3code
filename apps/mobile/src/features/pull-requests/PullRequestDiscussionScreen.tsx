@@ -1,4 +1,5 @@
-import { localizeMobileString } from "../../i18n/mobileStrings";
+import { MOBILE_LOCALE, localizeMobileString } from "../../i18n/mobileStrings";
+import { pullRequestActionFailure } from "./pullRequestMergeDisplay";
 import {
   parsePullRequestAnchor,
   pullRequestAnchorMatchesUrl,
@@ -98,7 +99,11 @@ function Discussion({ params }: { params: PullRequestParams & { readonly discuss
     if (result && AsyncResult.isFailure(result)) {
       const cause = squashAtomCommandFailure(result);
       setError(
-        cause instanceof Error ? cause.message : "The provider could not complete this action.",
+        pullRequestActionFailure(
+          cause,
+          MOBILE_LOCALE,
+          "The provider could not complete this action.",
+        ),
       );
     }
   };
@@ -272,7 +277,7 @@ function Discussion({ params }: { params: PullRequestParams & { readonly discuss
               />
             ) : null}
             {error || activity.error ? (
-              <Text selectable className="py-4 text-sm text-danger-foreground">
+              <Text localize={false} selectable className="py-4 text-sm text-danger-foreground">
                 {error ?? activity.error}
               </Text>
             ) : null}

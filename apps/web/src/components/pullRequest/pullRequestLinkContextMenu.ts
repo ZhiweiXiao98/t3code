@@ -1,3 +1,6 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
+import { translateWebSource } from "~/i18n/messages";
+import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 import type { ContextMenuItem } from "@t3tools/contracts";
 import {
   type SourceControlDefinition,
@@ -11,14 +14,21 @@ import { toastManager } from "../ui/toast";
 
 export type PullRequestLinkContextMenuAction = "copy-link" | "open-external";
 
-export const openOnHostLabel = (host: SourceControlDefinition): string =>
-  host === UNKNOWN_SOURCE_CONTROL_CLIENT ? "Open on host" : `Open on ${host.label}`;
+export const openOnHostLabel = (
+  host: SourceControlDefinition,
+  locale: ResolvedAppLocale = "en",
+): string =>
+  host === UNKNOWN_SOURCE_CONTROL_CLIENT
+    ? translateWebSource(locale, "Open on host")
+    : locale === "zh-CN"
+      ? `在 ${host.label} 打开`
+      : `Open on ${host.label}`;
 
 function pullRequestLinkContextMenuItems(
   openLabel: string,
 ): readonly ContextMenuItem<PullRequestLinkContextMenuAction>[] {
   return [
-    { id: "copy-link", label: "Copy link", icon: "copy" },
+    { id: "copy-link", label: translateWebSource(readWebI18n().locale, "Copy link"), icon: "copy" },
     { id: "open-external", label: openLabel },
   ];
 }
@@ -46,7 +56,10 @@ export async function showPullRequestLinkContextMenu({
   } catch {
     toastManager.add({
       type: "error",
-      title: action === "copy-link" ? "Could not copy the link" : "Could not open the link",
+      title: translateWebSource(
+        readWebI18n().locale,
+        action === "copy-link" ? "Could not copy the link" : "Could not open the link",
+      ),
     });
   }
 }

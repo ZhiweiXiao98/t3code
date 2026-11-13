@@ -1,4 +1,6 @@
-import { localizeMobileString } from "../../i18n/mobileStrings";
+import { MOBILE_LOCALE, localizeMobileString } from "../../i18n/mobileStrings";
+import { pullRequestActionFailure } from "./pullRequestMergeDisplay";
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { useNavigation, type StaticScreenProps } from "@react-navigation/native";
 import {
   capitalizeTerm,
@@ -82,7 +84,7 @@ export function PullRequestEditScreen({ route }: StaticScreenProps<PullRequestEd
           ? "This device isn't allowed to change source control on this environment."
           : params.field === "comment"
             ? "You can't edit this comment."
-            : `You can't edit this ${singular}.`;
+            : formatMobileMessage("You can't edit this {0}.", [localizeMobileString(singular)]);
   const unchanged = draft === null || draft === original;
   const invalid = params.field === "title" && value.trim().length === 0;
   const save = async () => {
@@ -112,7 +114,7 @@ export function PullRequestEditScreen({ route }: StaticScreenProps<PullRequestEd
     setBusy(false);
     if (AsyncResult.isFailure(result)) {
       const cause = squashAtomCommandFailure(result);
-      setError(cause instanceof Error ? cause.message : "The provider refused the change.");
+      setError(pullRequestActionFailure(cause, MOBILE_LOCALE, "The provider refused the change."));
       return;
     }
     // updateComment refreshes the activity on its own; a title or body lives on the detail.
@@ -151,9 +153,11 @@ export function PullRequestEditScreen({ route }: StaticScreenProps<PullRequestEd
         autoFocus
         accessibilityLabel={
           params.field === "title"
-            ? `${capitalizeTerm(singular)} title`
+            ? formatMobileMessage("{0} title", [localizeMobileString(capitalizeTerm(singular))])
             : params.field === "body"
-              ? `${capitalizeTerm(singular)} description`
+              ? formatMobileMessage("{0} description", [
+                  localizeMobileString(capitalizeTerm(singular)),
+                ])
               : localizeMobileString("Comment")
         }
         placeholder={params.field === "title" ? "Title" : "Write in Markdown…"}
@@ -174,7 +178,7 @@ export function PullRequestEditScreen({ route }: StaticScreenProps<PullRequestEd
         <Text className="text-xs text-foreground-muted">{readOnlyReason}</Text>
       ) : null}
       {error || detail.error ? (
-        <Text selectable className="text-sm text-danger-foreground">
+        <Text localize={false} selectable className="text-sm text-danger-foreground">
           {error ?? detail.error}
         </Text>
       ) : null}

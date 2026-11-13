@@ -223,7 +223,8 @@ import {
 import { cn, isMacPlatform, randomUUID } from "~/lib/utils";
 import {
   getComposerPromptLengthValidationMessage,
-  getComposerSubmissionValidationMessage,
+  getComposerPromptLengthViolation,
+  formatComposerPromptLengthViolation,
   submitComposerDraft,
 } from "./composerSubmission";
 import { ComposerPromptLengthValidation } from "./ComposerPromptLengthValidation";
@@ -749,6 +750,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     maxFileAttachmentBytes,
   });
   const fileCapabilityBlockReason = fileAttachmentCapabilityBlockReason({
+    locale: releaseLocale,
     files: composerFiles,
     attachmentUploadsCapabilityKnown,
     supportsAttachmentUploads,
@@ -998,7 +1000,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
   const isSoftwareKeyboardOpen = useSoftwareKeyboardOpen();
   const [isComposerFocused, setIsComposerFocused] = useState(false);
   const [composerSubmissionError, setComposerSubmissionError] = useState<string | null>(null);
-  const [providerInputSubmissionError, setProviderInputSubmissionError] = useState<string | null>(
+  const [providerInputSubmissionError, setProviderInputSubmissionError] = useState<number | null>(
     null,
   );
   const [composerMenuAnchor, setComposerMenuAnchor] = useState<HTMLDivElement | null>(null);
@@ -1374,7 +1376,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
   }
 
   if (composerSubmissionError !== null) {
-    const nextError = getComposerPromptLengthValidationMessage(prompt);
+    const nextError = getComposerPromptLengthValidationMessage(prompt, releaseLocale);
     if (nextError !== composerSubmissionError) {
       setComposerSubmissionError(nextError);
     }
@@ -2140,6 +2142,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       return false;
     }
     const submission = submitComposerDraft({
+      locale: releaseLocale,
       prompt: promptRef.current,
       submissionTarget: activePendingProgress ? "pending-user-input" : "provider-turn",
       event,
@@ -2757,7 +2760,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
             if (activeThreadId) {
               setThreadError(
                 activeThreadId,
-                `You can attach up to ${PROVIDER_SEND_TURN_MAX_ATTACHMENTS} files per message.`,
+                t("audit15.attachmentCount", { count: PROVIDER_SEND_TURN_MAX_ATTACHMENTS }),
               );
             }
           },
@@ -3118,14 +3121,10 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       }),
       setMultipleModelSelections,
       validateProviderInput: (providerInput: string) => {
-        const validationMessage = getComposerSubmissionValidationMessage({
-          prompt: promptRef.current,
-          providerInput,
-          submissionTarget: "provider-turn",
-        });
-        providerInputRejectedRef.current = validationMessage !== null;
-        setProviderInputSubmissionError(validationMessage);
-        return validationMessage === null;
+        const violation = getComposerPromptLengthViolation(providerInput);
+        providerInputRejectedRef.current = violation !== null;
+        setProviderInputSubmissionError(violation);
+        return violation === null;
       },
     }),
     [
@@ -3571,7 +3570,11 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
             </div>
 
             <ComposerPromptLengthValidation
-              message={providerInputSubmissionError ?? composerSubmissionError}
+              message={
+                providerInputSubmissionError === null
+                  ? composerSubmissionError
+                  : formatComposerPromptLengthViolation(providerInputSubmissionError, releaseLocale)
+              }
             />
 
             {speechInput.preview ? (

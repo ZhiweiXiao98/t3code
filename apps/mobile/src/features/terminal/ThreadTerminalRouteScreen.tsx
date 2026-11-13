@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import * as Dialog from "../../components/ui/Dialog";
 import {
@@ -165,7 +166,9 @@ function TerminalHeader(props: {
                     disabled: !props.canOperateTerminal,
                     title: "Open new terminal",
                     icon: "plus",
-                    subtitle: `Start another shell in ${basename(props.workspaceRoot) ?? "this workspace"}`,
+                    subtitle: formatMobileMessage("Start another shell in {0}", [
+                      basename(props.workspaceRoot) ?? localizeMobileString("this workspace"),
+                    ]),
                     onPress: props.onOpenNewTerminal,
                   },
                 ],

@@ -11,7 +11,11 @@ import {
 } from "@t3tools/shared/assistantCitations";
 import { describe, expect, it, vi } from "vite-plus/test";
 
-import { submitComposerDraft } from "./composerSubmission";
+import {
+  submitComposerDraft,
+  getComposerPromptLengthViolation,
+  formatComposerPromptLengthViolation,
+} from "./composerSubmission";
 
 const assistantCitation = {
   version: 1 as const,
@@ -207,4 +211,38 @@ describe("submitComposerDraft", () => {
     expect(result).toEqual({ validationMessage: null, didDispatch: true });
     expect(onSend).toHaveBeenCalledOnce();
   });
+});
+
+it("keeps rejection and dispatch behavior while changing the displayed prompt-length locale", () => {
+  const prompt = "x".repeat(PROVIDER_SEND_TURN_MAX_INPUT_CHARS + 2);
+  const onSend = vi.fn();
+  const preventDefault = vi.fn();
+  const submit = (locale: "en" | "zh-CN", value = prompt) =>
+    submitComposerDraft({
+      locale,
+      prompt: value,
+      submissionTarget: "provider-turn",
+      event: { preventDefault },
+      onSend,
+    });
+  const english = submit("en");
+  expect(english.didDispatch).toBe(false);
+  expect(english.validationMessage).toContain("2 characters over");
+  expect(submit("zh-CN").validationMessage).toContain("多出 2 个字符");
+  expect(submit("en")).toEqual(english);
+  expect(onSend).not.toHaveBeenCalled();
+  expect(preventDefault).toHaveBeenCalledTimes(3);
+  expect(submit("zh-CN", "literal {value} $&").didDispatch).toBe(true);
+  expect(onSend).toHaveBeenCalledOnce();
+});
+
+it("rerenders the same cached length violation without retaining an English presentation", () => {
+  const excess = getComposerPromptLengthViolation(
+    "x".repeat(PROVIDER_SEND_TURN_MAX_INPUT_CHARS + 1),
+  );
+  expect(excess).toBe(1);
+  if (excess === null) return;
+  const english = formatComposerPromptLengthViolation(excess, "en");
+  expect(formatComposerPromptLengthViolation(excess, "zh-CN")).toContain("多出 1 个字符");
+  expect(formatComposerPromptLengthViolation(excess, "en")).toBe(english);
 });

@@ -1,7 +1,7 @@
-import {
-  clampFileAttachmentUploadBytes,
-  fileAttachmentTooLargeMessage,
-} from "@t3tools/client-runtime/state/attachments";
+import { mobileAttachmentTooLargeMessage } from "../i18n/mobileComposerErrorStrings";
+import { formatMobileMessage } from "../i18n/mobileDisplayStrings";
+import { localizeMobileString } from "../i18n/mobileStrings";
+import { clampFileAttachmentUploadBytes } from "@t3tools/client-runtime/state/attachments";
 import {
   isProviderSendTurnSupportedImageMimeType,
   PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
@@ -53,10 +53,10 @@ export async function createPastedTextComposerAttachment(input: {
 }): Promise<DraftComposerFileAttachment> {
   const bytes = new TextEncoder().encode(input.text).byteLength;
   if (bytes <= 0) {
-    throw new Error("Clipboard is empty.");
+    throw new Error(localizeMobileString("Clipboard is empty."));
   }
   if (bytes > input.maxBytes) {
-    throw new Error(fileAttachmentTooLargeMessage(input.name, input.maxBytes));
+    throw new Error(mobileAttachmentTooLargeMessage(input.name, input.maxBytes));
   }
 
   const { Directory, File, Paths } = await import("expo-file-system");
@@ -152,7 +152,7 @@ export async function persistComposerAttachmentFile(
             }
             copiedBytes += chunk.byteLength;
             if (copiedBytes > maxBytes) {
-              throw new Error(fileAttachmentTooLargeMessage(name, maxBytes));
+              throw new Error(mobileAttachmentTooLargeMessage(name, maxBytes));
             }
             await writer.writeBytes(chunk);
           }
@@ -172,7 +172,7 @@ export async function persistComposerAttachmentFile(
   }
 
   if (maxBytes !== undefined && sourceSize !== null && sourceSize > maxBytes) {
-    throw new Error(fileAttachmentTooLargeMessage(name, maxBytes));
+    throw new Error(mobileAttachmentTooLargeMessage(name, maxBytes));
   }
   try {
     await source.copy(destination);
@@ -197,7 +197,7 @@ export async function persistComposerAttachmentFile(
     } catch (cleanupError) {
       console.warn("[composer-attachments] could not remove an oversized copy", cleanupError);
     }
-    throw new Error(fileAttachmentTooLargeMessage(name, maxBytes));
+    throw new Error(mobileAttachmentTooLargeMessage(name, maxBytes));
   }
   return destination.uri;
 }
@@ -226,17 +226,17 @@ export async function createComposerFileAttachment(input: {
   readonly maxBytes: number;
 }): Promise<DraftComposerFileAttachment> {
   if (input.sizeBytes !== null && input.sizeBytes > input.maxBytes) {
-    throw new Error(fileAttachmentTooLargeMessage(input.name, input.maxBytes));
+    throw new Error(mobileAttachmentTooLargeMessage(input.name, input.maxBytes));
   }
   const { File } = await import("expo-file-system");
   const fileUri = await persistComposerAttachmentFile(input.uri, input.name, input.maxBytes);
   try {
     const sizeBytes = new File(fileUri).size ?? input.sizeBytes ?? 0;
     if (sizeBytes <= 0) {
-      throw new Error(`'${input.name}' is empty or could not be read.`);
+      throw new Error(formatMobileMessage("'{0}' is empty or could not be read.", [input.name]));
     }
     if (sizeBytes > input.maxBytes) {
-      throw new Error(fileAttachmentTooLargeMessage(input.name, input.maxBytes));
+      throw new Error(mobileAttachmentTooLargeMessage(input.name, input.maxBytes));
     }
     return {
       id: uuidv4(),
@@ -328,7 +328,9 @@ export async function pickComposerFiles(input: {
         const base64 = fitted?.base64 ?? original;
         const sizeBytes = estimateBase64ByteSize(base64);
         if (sizeBytes <= 0 || sizeBytes > PROVIDER_SEND_TURN_MAX_IMAGE_BYTES) {
-          throw new Error(`'${name}' exceeds the 10 MB attachment limit.`);
+          throw new Error(
+            mobileAttachmentTooLargeMessage(name, PROVIDER_SEND_TURN_MAX_IMAGE_BYTES),
+          );
         }
         const dataUrl = `data:${mimeType};base64,${base64}`;
         attachments.push({
@@ -357,7 +359,9 @@ async function loadImagePicker() {
   try {
     return await import("expo-image-picker");
   } catch (error) {
-    throw new Error("The photo library is unavailable right now.", { cause: error });
+    throw new Error(localizeMobileString("The photo library is unavailable right now."), {
+      cause: error,
+    });
   }
 }
 
@@ -514,7 +518,7 @@ export async function pickComposerMedia(input: {
 
     const sizeBytes = estimateBase64ByteSize(image.base64);
     if (sizeBytes <= 0 || sizeBytes > PROVIDER_SEND_TURN_MAX_IMAGE_BYTES) {
-      error = `'${name}' exceeds the 10 MB attachment limit.`;
+      error = mobileAttachmentTooLargeMessage(name, PROVIDER_SEND_TURN_MAX_IMAGE_BYTES);
       continue;
     }
 

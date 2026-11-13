@@ -280,7 +280,7 @@ function StageRow({
     stage.status === "pending"
       ? null
       : stage.status === "skipped"
-        ? (stage.detail ?? "skipped")
+        ? (stage.detail ?? localizeMobileString("skipped"))
         : stage.id === "checkout" && stage.status === "running" && stage.percent !== null
           ? `${stage.percent}%`
           : stage.detail;
@@ -316,10 +316,12 @@ function StageRow({
           icon="clock"
           iconSubtleColor="transparent"
           label={label}
+          localizeLabel={false}
           showIcon={false}
         />
       ) : (
         <Text
+          localize={false}
           numberOfLines={1}
           className={
             stage.status === "failed"
@@ -331,7 +333,11 @@ function StageRow({
         </Text>
       )}
       {detail ? (
-        <Text numberOfLines={1} className="max-w-[25%] shrink text-2xs text-foreground-secondary">
+        <Text
+          localize={false}
+          numberOfLines={1}
+          className="max-w-[25%] shrink text-2xs text-foreground-secondary"
+        >
           {detail}
         </Text>
       ) : null}

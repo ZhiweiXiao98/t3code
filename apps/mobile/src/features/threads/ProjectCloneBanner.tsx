@@ -1,9 +1,7 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
+import { mobileCloneProgress } from "../../i18n/threadDisplayMessages";
 import { Button } from "../../components/ui/Button";
-import {
-  projectCloneDisplayName,
-  projectCloneProgressSummary,
-  type ProjectCloneSnapshot,
-} from "@t3tools/contracts";
+import { projectCloneDisplayName, type ProjectCloneSnapshot } from "@t3tools/contracts";
 import { View } from "react-native";
 
 import { AppActivityIndicator } from "../../components/ui/AppActivityIndicator";
@@ -23,11 +21,11 @@ export function ProjectCloneBanner(props: {
       <View className="flex-row items-center gap-3 rounded-2xl border border-border bg-card px-3.5 py-3">
         <AppActivityIndicator size="small" />
         <View className="min-w-0 flex-1">
-          <Text className="font-t3-medium text-sm" numberOfLines={1}>
-            Cloning {name}
+          <Text localize={false} className="font-t3-medium text-sm" numberOfLines={1}>
+            {formatMobileMessage("Cloning {0}", [name])}
           </Text>
-          <Text className="text-xs text-foreground-muted" numberOfLines={1}>
-            {projectCloneProgressSummary(clone)}
+          <Text localize={false} className="text-xs text-foreground-muted" numberOfLines={1}>
+            {mobileCloneProgress(clone)}
           </Text>
         </View>
         <BannerAction label="Cancel" onPress={props.onCancel} />
@@ -43,16 +41,17 @@ export function ProjectCloneBanner(props: {
       )}
     >
       <Text
+        localize={false}
         className={cn(
           "font-t3-medium text-sm",
           cancelled ? "text-warning-foreground" : "text-danger-foreground",
         )}
         numberOfLines={1}
       >
-        {cancelled ? `Cancelled cloning ${name}` : `Failed to clone ${name}`}
+        {formatMobileMessage(cancelled ? "Cancelled cloning {0}" : "Failed to clone {0}", [name])}
       </Text>
       {clone.error ? (
-        <Text className="mt-0.5 text-xs text-danger-foreground" numberOfLines={3}>
+        <Text localize={false} className="mt-0.5 text-xs text-danger-foreground" numberOfLines={3}>
           {clone.error}
         </Text>
       ) : null}

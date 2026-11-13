@@ -168,10 +168,32 @@ export function officePreviewKind(file: {
   return null;
 }
 
-export function decodeFilePreviewText(bytes: Uint8Array, truncated = false) {
+export type FilePreviewTextFailure =
+  | "This file contains binary data and cannot be shown as text."
+  | "This file is not UTF-8 text. Open it in another app to view its contents.";
+
+const ownedFilePreviewErrors = new WeakMap<Error, string>();
+
+export function createFilePreviewError(source: string, message: string = source): Error {
+  const error = new Error(message);
+  ownedFilePreviewErrors.set(error, source);
+  return error;
+}
+
+export function filePreviewErrorSource(error: unknown): string | undefined {
+  return error instanceof Error ? ownedFilePreviewErrors.get(error) : undefined;
+}
+
+export function decodeFilePreviewText(
+  bytes: Uint8Array,
+  truncated = false,
+  translate: (source: FilePreviewTextFailure) => string = (source) => source,
+) {
+  const failure = (source: FilePreviewTextFailure) =>
+    createFilePreviewError(source, translate(source));
   const bounded = bytes.subarray(0, FILE_TEXT_PREVIEW_MAX_BYTES);
   if (bounded.some((byte) => byte === 0))
-    throw new Error("This file contains binary data and cannot be shown as text.");
+    throw failure("This file contains binary data and cannot be shown as text.");
   const decoder = new TextDecoder("utf-8", { fatal: true });
   try {
     return {
@@ -179,7 +201,7 @@ export function decodeFilePreviewText(bytes: Uint8Array, truncated = false) {
       truncated: truncated || bytes.length > bounded.length,
     };
   } catch {
-    throw new Error("This file is not UTF-8 text. Open it in another app to view its contents.");
+    throw failure("This file is not UTF-8 text. Open it in another app to view its contents.");
   }
 }
 

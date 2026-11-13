@@ -1,3 +1,5 @@
+import { localizeMobileString } from "../i18n/mobileStrings";
+import { mobileSkippedThreadWarning } from "../i18n/threadDisplayMessages";
 import * as Dialog from "./ui/Dialog";
 import { ComposerContextId } from "@t3tools/contracts";
 import { useAtomValue } from "@effect/atom-react";
@@ -125,25 +127,27 @@ export function ComposerEditor({
       const warnings: string[] = [];
       if (result.failures.length > 0)
         warnings.push(
-          "Some attachments could not be copied. Reconnect to the source environment and copy them again.",
+          localizeMobileString(
+            "Some attachments could not be copied. Reconnect to the source environment and copy them again.",
+          ),
         );
       if (result.skippedThreads.length > 0)
-        warnings.push(
-          `${result.skippedThreads.map((title) => `"${title}"`).join(", ")} ${result.skippedThreads.length === 1 ? "is" : "are"} on another machine.`,
-        );
+        warnings.push(mobileSkippedThreadWarning(result.skippedThreads));
       if (warnings.length > 0)
-        Dialog.alert(
+        Dialog.alertWithLiteralMessage(
           "Some context is unavailable",
-          [...warnings, "Those references are marked unavailable."].join("\n\n"),
+          [...warnings, localizeMobileString("Those references are marked unavailable.")].join(
+            "\n\n",
+          ),
         );
     });
     operation.finish();
     setComposerContextImporting(draftKey, false);
     if (AsyncResult.isFailure(settled) && !signal.aborted) {
       const error = squashAtomCommandFailure(settled);
-      Dialog.alert(
+      Dialog.alertWithLiteralMessage(
         "Could not paste context",
-        error instanceof Error ? error.message : "Try copying again.",
+        error instanceof Error ? error.message : localizeMobileString("Try copying again."),
       );
     }
   };

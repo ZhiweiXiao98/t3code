@@ -795,6 +795,48 @@ describe("waitForRevertedMessage", () => {
 
   afterEach(() => vi.restoreAllMocks());
 
+  it("reads the locale when its own rewind timeout fires, not when the wait begins", async () => {
+    vi.useFakeTimers();
+    projectionAtom();
+    let locale: "en" | "zh-CN" = "en";
+    const revert = vi.fn(async () => {});
+    const waiting = waitForRevertedMessage(threadRef, 1, requestId, revert, 50, () => locale).then(
+      () => "unexpected success",
+      (error: Error) => error.message,
+    );
+    try {
+      await vi.advanceTimersByTimeAsync(0);
+      expect(revert).toHaveBeenCalledOnce();
+      locale = "zh-CN";
+      await vi.advanceTimersByTimeAsync(50);
+      expect(await waiting).toBe("等待会话回退超时。");
+    } finally {
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    }
+  });
+
+  it("preserves a provider reason that collides with an owned rewind message", async () => {
+    const { state, projection } = projectionAtom();
+    const message = "Timed out waiting for the thread to rewind.";
+    const waiting = waitForRevertedMessage(
+      threadRef,
+      1,
+      requestId,
+      async () => {},
+      undefined,
+      () => "zh-CN",
+    );
+    await Promise.resolve();
+    appAtomRegistry.set(state, {
+      data: Option.some({
+        ...projection,
+        thread: { ...projection.thread, rollbackFailure: { requestId, message } },
+      }),
+    });
+    await expect(waiting).rejects.toThrow(message);
+  });
+
   it("rejects with the projected reason when the rollback fails for good", async () => {
     const { state, projection } = projectionAtom();
     const waiting = waitForRevertedMessage(threadRef, 1, requestId, async () => {});

@@ -181,26 +181,31 @@ export function useComposerAttachmentIntake(input: {
         replacedReattachMarkerIds.add(matchingReattachMarker.id);
       }
       if (!matchingReattachMarker && reservedCount >= PROVIDER_SEND_TURN_MAX_ATTACHMENTS) {
-        error = `You can attach up to ${PROVIDER_SEND_TURN_MAX_ATTACHMENTS} files per message.`;
+        error = readWebI18n().t("audit15.attachmentCount", {
+          count: PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
+        });
         continue;
       }
       if (attachmentKind === "unsupported-image") {
-        error = `'${file.name}' is not a supported image type. Attach GIF, HEIC, HEIF, JPEG, PNG, or WebP images.`;
+        error = readWebI18n().t("audit15.unsupportedImage", { name: file.name });
         continue;
       }
       if (attachmentKind === "image") {
         acceptedImages.push(normalizeComposerImageFileMimeType(file));
       } else {
         if (fileStagingLimit === null) {
-          error = "This server does not support file attachments.";
+          error = translateWebSource(
+            readWebI18n().locale,
+            "This server does not support file attachments.",
+          );
           continue;
         }
         if (file.size <= 0) {
-          error = `'${file.name}' is empty or could not be read.`;
+          error = readWebI18n().t("audit15.emptyFile", { name: file.name });
           continue;
         }
         if (file.size > fileStagingLimit) {
-          error = fileAttachmentTooLargeMessage(file.name, fileStagingLimit);
+          error = fileAttachmentTooLargeMessage(file.name, fileStagingLimit, readWebI18n().locale);
           continue;
         }
         const attachmentFile =
@@ -273,8 +278,8 @@ export function useComposerAttachmentIntake(input: {
         compressionErrors.set(
           id,
           result.reason === "unreadable"
-            ? `'${file.name}' could not be read as an image.`
-            : `'${file.name}' is too large to attach, even after compression.`,
+            ? readWebI18n().t("audit15.unreadableImage", { name: file.name })
+            : readWebI18n().t("audit15.compressedTooLarge", { name: file.name }),
         );
         continue;
       }

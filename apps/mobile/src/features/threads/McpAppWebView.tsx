@@ -1,7 +1,6 @@
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { Button } from "../../components/ui/Button";
 import { AppActivityIndicator } from "../../components/ui/AppActivityIndicator";
-import * as Dialog from "../../components/ui/Dialog";
 import type { EnvironmentId, ThreadId, TurnItemId } from "@t3tools/contracts";
 import {
   makeMcpAppHost,
@@ -45,6 +44,7 @@ import { enqueueThreadOutboxMessage } from "../../state/thread-outbox";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
 import { MCP_APP_INLINE_MAX_HEIGHT, mcpAppInlineHeight } from "./mcpAppSizing";
+import { confirmMcpAppAction } from "./mcpAppConsent";
 
 const ROW_BOTTOM_MARGIN = 8;
 
@@ -75,20 +75,6 @@ const commandFailure = (result: {
       error instanceof Error && error.message.trim() !== "" ? error.message : "Request failed.",
   });
 };
-
-const confirm = (title: string, message: string, action: string) =>
-  new Promise<boolean>((resolve) => {
-    Dialog.alert(
-      title,
-      message,
-      [
-        { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
-        { text: action, onPress: () => resolve(true) },
-      ],
-      // Android dismisses earlier alerts when showing another; decline dismissed requests to release their slots.
-      { cancelable: true, onDismiss: () => resolve(false) },
-    );
-  });
 
 const MAX_DOWNLOAD_BYTES = 25 * 1024 * 1024;
 
@@ -326,11 +312,12 @@ export function ThreadMcpApp(props: {
           throw new McpAppHostRefusal({ message: "This app cannot call that tool." });
         if (
           !info.value.readOnly &&
-          !(await confirm(
-            `Allow ${app.server} to run ${info.value.title ?? name}?`,
-            JSON.stringify(args, null, 2),
-            "Allow",
-          ))
+          !(await confirmMcpAppAction({
+            kind: "tool",
+            server: app.server,
+            tool: info.value.title ?? name,
+            arguments: args,
+          }))
         ) {
           throw new McpAppHostRefusal({ message: "Declined by the user." });
         }
@@ -352,7 +339,7 @@ export function ThreadMcpApp(props: {
       },
       openLink: async (url) => {
         // WebViews cannot prove user activation; confirm links to prevent timer-driven navigation out of T3.
-        if (!(await confirm(`Open a link from ${app.server}?`, url, "Open"))) {
+        if (!(await confirmMcpAppAction({ kind: "link", server: app.server, url }))) {
           throw new McpAppHostRefusal({ message: "Declined by the user." });
         }
         if (!(await tryOpenExternalUrl(url, "mcp-app"))) {
@@ -360,7 +347,7 @@ export function ThreadMcpApp(props: {
         }
       },
       sendMessage: async (text) => {
-        if (!(await confirm(`Send this message from ${app.server}?`, text, "Send"))) {
+        if (!(await confirmMcpAppAction({ kind: "message", server: app.server, text }))) {
           throw new McpAppHostRefusal({ message: "Declined by the user." });
         }
         await enqueueThreadOutboxMessage({
@@ -423,8 +410,13 @@ export function ThreadMcpApp(props: {
         return current.displayMode ?? "inline";
       },
       downloadFile: async (files) => {
-        const names = files.map((file) => file.name).join(", ");
-        if (!(await confirm(`Save a file from ${app.server}?`, names, "Save"))) {
+        if (
+          !(await confirmMcpAppAction({
+            kind: "file",
+            server: app.server,
+            names: files.map((file) => file.name),
+          }))
+        ) {
           throw new McpAppHostRefusal({ message: "Declined by the user." });
         }
         for (const file of files) {
@@ -491,7 +483,7 @@ export function ThreadMcpApp(props: {
         style={{ height, marginBottom: ROW_BOTTOM_MARGIN }}
         className="items-center justify-center rounded-lg border border-border"
       >
-        <Text className="text-sm text-foreground-muted">
+        <Text localize={false} className="text-sm text-foreground-muted">
           {formatMobileMessage("The {0} app is open full screen", [app.server])}
         </Text>
       </View>
@@ -504,7 +496,7 @@ export function ThreadMcpApp(props: {
         style={{ height, marginBottom: ROW_BOTTOM_MARGIN }}
         className="items-center justify-center gap-2 rounded-lg border border-border"
       >
-        <Text className="text-sm text-foreground-muted">
+        <Text localize={false} className="text-sm text-foreground-muted">
           {formatMobileMessage("The {0} app was closed", [app.server])}
         </Text>
         <View className="items-center">
@@ -525,7 +517,7 @@ export function ThreadMcpApp(props: {
     <View style={fullscreen ? { flex: 1 } : { height, marginBottom: ROW_BOTTOM_MARGIN }}>
       {navigatedAway ? (
         <View className="flex-1 items-center justify-center">
-          <Text className="text-sm text-foreground-muted">
+          <Text localize={false} className="text-sm text-foreground-muted">
             {formatMobileMessage("The {0} app left its page and was stopped", [app.server])}
           </Text>
         </View>
@@ -571,7 +563,7 @@ export function ThreadMcpApp(props: {
         />
       ) : asset._tag === "Failure" || crashed ? (
         <View className="flex-1 items-center justify-center">
-          <Text className="text-sm text-foreground-muted">
+          <Text localize={false} className="text-sm text-foreground-muted">
             {formatMobileMessage("Unable to load the {0} app", [app.server])}
           </Text>
         </View>

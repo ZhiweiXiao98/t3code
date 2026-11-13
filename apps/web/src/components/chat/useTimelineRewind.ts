@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
 import type { EnvironmentThreadShell, ThreadStructure } from "@t3tools/client-runtime/state/shell";
@@ -113,19 +114,30 @@ export function useTimelineRewind(input: TimelineRewindInput) {
     if (!supportsConversationRollback) {
       setThreadError(
         activeThread.id,
-        "This provider does not support reverting conversation history. Start a new thread instead.",
+        translateWebSource(
+          readWebI18n().locale,
+          "This provider does not support reverting conversation history. Start a new thread instead.",
+        ),
       );
       return;
     }
     if (activeEnvironmentUnavailable && activeEnvironmentUnavailableLabel) {
       setThreadError(
         activeThread.id,
-        `Reconnect ${activeEnvironmentUnavailableLabel} before reverting checkpoints.`,
+        readWebI18n().t("audit15.reconnectRewind", {
+          environment: activeEnvironmentUnavailableLabel,
+        }),
       );
       return;
     }
     if (phase === "running" || isSendBusy) {
-      setThreadError(activeThread.id, "Interrupt the current turn before reverting checkpoints.");
+      setThreadError(
+        activeThread.id,
+        translateWebSource(
+          readWebI18n().locale,
+          "Interrupt the current turn before reverting checkpoints.",
+        ),
+      );
       return;
     }
     if (restoreFiles === undefined) {
@@ -207,7 +219,10 @@ export function useTimelineRewind(input: TimelineRewindInput) {
     if (!targetThreadReady) {
       setThreadError(
         activeThread.id,
-        "The fork was created, but its thread data did not reach this client. Reconnect and try opening it from the sidebar.",
+        translateWebSource(
+          readWebI18n().locale,
+          "The fork was created, but its thread data did not reach this client. Reconnect and try opening it from the sidebar.",
+        ),
       );
       return;
     }

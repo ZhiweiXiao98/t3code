@@ -1,3 +1,4 @@
+import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 import {
   PROVIDER_SEND_TURN_MAX_FILE_BYTES,
   WS_METHODS,
@@ -199,12 +200,20 @@ export function formatAttachmentSize(sizeBytes: number): string {
   return kilobytes >= 1024 ? `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB` : `${kilobytes} KB`;
 }
 
-export function fileAttachmentTooLargeMessage(name: string, maxUploadBytes: number): string {
+export function fileAttachmentTooLargeMessage(
+  name: string,
+  maxUploadBytes: number,
+  locale: ResolvedAppLocale = "en",
+): string {
   const maxUploadSize =
     maxUploadBytes >= 1024 * 1024 && maxUploadBytes % (1024 * 1024) === 0
       ? `${maxUploadBytes / (1024 * 1024)} MB`
       : maxUploadBytes >= 1024 && maxUploadBytes % 1024 === 0
         ? `${maxUploadBytes / 1024} KB`
-        : `${maxUploadBytes} ${maxUploadBytes === 1 ? "byte" : "bytes"}`;
-  return `'${name}' exceeds the ${maxUploadSize} attachment limit.`;
+        : locale === "zh-CN"
+          ? `${maxUploadBytes} 字节`
+          : `${maxUploadBytes} ${maxUploadBytes === 1 ? "byte" : "bytes"}`;
+  return locale === "zh-CN"
+    ? `“${name}”超出了 ${maxUploadSize} 的附件大小限制。`
+    : `'${name}' exceeds the ${maxUploadSize} attachment limit.`;
 }

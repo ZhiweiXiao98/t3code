@@ -1,3 +1,6 @@
+import { localizeMobileString, MOBILE_LOCALE } from "../../i18n/mobileStrings";
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
+import { pullRequestActionFailure } from "./pullRequestMergeDisplay";
 import * as Dialog from "../../components/ui/Dialog";
 import { RegistryContext, useAtomValue } from "@effect/atom-react";
 import {
@@ -78,7 +81,11 @@ export function usePullRequestListActions(
           !pr.capabilities.reviewers.request ||
           !pr.viewerPermissions.requestReviewers
         )
-          throw new Error(`Review requests aren't available for this ${terminology.singular}.`);
+          throw new Error(
+            formatMobileMessage("Review requests aren't available for this {0}.", [
+              localizeMobileString(terminology.singular),
+            ]),
+          );
         openDetail(
           { name: "PullRequest", params: params(entry) },
           { name: "PullRequestReviewers", params: params(entry) },
@@ -89,7 +96,11 @@ export function usePullRequestListActions(
         !registry.get(composerPullRequests.runAction.permissionAtom(environmentId)) ||
         !canPerformPullRequestAction(pr, action)
       )
-        throw new Error(`This action isn't available for this ${terminology.singular}.`);
+        throw new Error(
+          formatMobileMessage("This action isn't available for this {0}.", [
+            localizeMobileString(terminology.singular),
+          ]),
+        );
       const result = await run({ ...target, input: { ...target.input, action } });
       if (result._tag === "Failure") throw squashAtomCommandFailure(result);
       if (result.value !== undefined) return;
@@ -106,9 +117,11 @@ export function usePullRequestListActions(
     setBusyKey(null);
     if (AsyncResult.isFailure(result)) {
       const cause = squashAtomCommandFailure(result);
-      Dialog.alert(
-        `Couldn't update this ${terminology.singular}`,
-        cause instanceof Error ? cause.message : "Try again.",
+      Dialog.alertWithLiteralMessage(
+        formatMobileMessage("Couldn't update this {0}", [
+          localizeMobileString(terminology.singular),
+        ]),
+        pullRequestActionFailure(cause),
       );
     }
   };
@@ -140,8 +153,9 @@ export function usePullRequestListActions(
     const label = pullRequestActionLabel(
       supported,
       sourceControlClients.get(entry.provider).changeRequest,
+      MOBILE_LOCALE,
     );
-    Dialog.alert(`${label}?`, `#${entry.number} · ${entry.title}`, [
+    Dialog.alertWithLiteralMessage(`${label}?`, `#${entry.number} · ${entry.title}`, [
       { text: "Cancel", style: "cancel" },
       {
         text: label,
@@ -155,7 +169,7 @@ export function usePullRequestListActions(
     return [
       {
         id: "open",
-        title: `Open ${terminology.singular}`,
+        title: formatMobileMessage("Open {0}", [localizeMobileString(terminology.singular)]),
         image: "arrow.up.right",
       },
       ...(writableEnvironments.has(entry.environmentId) && entry.state === "open"
@@ -172,7 +186,7 @@ export function usePullRequestListActions(
             },
             {
               id: "close",
-              title: pullRequestActionLabel("close", terminology),
+              title: pullRequestActionLabel("close", terminology, MOBILE_LOCALE),
               image: "xmark",
               attributes: { destructive: true },
             },
@@ -181,7 +195,7 @@ export function usePullRequestListActions(
           ? [
               {
                 id: "reopen",
-                title: pullRequestActionLabel("reopen", terminology),
+                title: pullRequestActionLabel("reopen", terminology, MOBILE_LOCALE),
                 image: "arrow.clockwise",
               },
             ]

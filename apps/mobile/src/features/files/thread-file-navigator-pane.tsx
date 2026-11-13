@@ -1,4 +1,5 @@
-import { resolveFilesystemReadAccess } from "@t3tools/client-runtime/state/filesystem";
+import { localizeMobileString } from "../../i18n/mobileStrings";
+import { localizedFilesystemReadAccess } from "./filePreviewDisplay";
 import { environmentSession } from "../../state/session";
 import type { EnvironmentId } from "@t3tools/contracts";
 import { AppBar } from "../../components/ui/AppBar";
@@ -26,7 +27,7 @@ export function ThreadFileNavigatorPane(props: {
     environmentSession.sessionStateAtom(props.environmentId),
   );
   const fileEnvironment = useEnvironmentPresentation(props.environmentId);
-  const fileAccess = resolveFilesystemReadAccess({
+  const fileAccess = localizedFilesystemReadAccess({
     isCatalogReady: fileEnvironment.isReady,
     connection: fileEnvironment.presentation?.connection ?? null,
     session: fileAccessSession.data,
@@ -60,7 +61,7 @@ export function ThreadFileNavigatorPane(props: {
           ? entriesQuery.error
           : fileAccess.isPending
             ? null
-            : (fileAccess.error ?? "This connection cannot read host files.")
+            : (fileAccess.error ?? localizeMobileString("This connection cannot read host files."))
       }
       isPending={fileAccess.isPending || entriesQuery.isPending}
       isRefreshing={entriesQuery.isRefreshing}

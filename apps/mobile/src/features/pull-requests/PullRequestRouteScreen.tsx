@@ -1,5 +1,6 @@
+import { MOBILE_LOCALE, localizeMobileString } from "../../i18n/mobileStrings";
+import { pullRequestDiffSubtitle } from "./pullRequestDisplay";
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
-import { localizeMobileString } from "../../i18n/mobileStrings";
 import {
   parsePullRequestAnchor,
   pullRequestAnchorMatchesUrl,
@@ -542,8 +543,11 @@ export function PullRequestRouteScreen({ route }: StaticScreenProps<PullRequestP
     pr &&
     action.confirm(
       "delete-branch",
-      pullRequestActionLabel("delete-branch", terminology),
-      `Delete ${pr.headBranch} from ${pr.headRepositoryNameWithOwner ?? pr.repository}? Local branches and worktrees are not changed.`,
+      pullRequestActionLabel("delete-branch", terminology, MOBILE_LOCALE),
+      formatMobileMessage("Delete {0} from {1}? Local branches and worktrees are not changed.", [
+        pr.headBranch,
+        pr.headRepositoryNameWithOwner ?? pr.repository,
+      ]),
     );
   const stack = usePullRequestStack(params, pr);
   const refreshActivity = useAtomRefresh(composerPullRequests.activity(requestTarget(params)));
@@ -586,11 +590,17 @@ export function PullRequestRouteScreen({ route }: StaticScreenProps<PullRequestP
       <View className="flex-1 android:bg-header ios:bg-screen">
         <AppBar
           title={`#${params.number}`}
-          subtitle={connected ? params.repository : `${params.repository} · Offline`}
+          subtitle={
+            connected
+              ? params.repository
+              : `${params.repository} · ${localizeMobileString("Offline")}`
+          }
           onBack={layout.usesSplitView ? undefined : returnToList}
           menus={[
             {
-              title: `${capitalizeTerm(terminology.singular)} actions`,
+              title: formatMobileMessage("{0} actions", [
+                localizeMobileString(capitalizeTerm(terminology.singular)),
+              ]),
               icon: "ellipsis",
               items: [
                 ...(permissions.verdicts.length
@@ -674,7 +684,7 @@ export function PullRequestRouteScreen({ route }: StaticScreenProps<PullRequestP
                   ? [
                       {
                         id: "state",
-                        title: pullRequestActionLabel(stateAction, terminology),
+                        title: pullRequestActionLabel(stateAction, terminology, MOBILE_LOCALE),
                         icon: PR_ACTION_ICONS[stateAction],
                         destructive: stateAction === "close",
                         onPress: runStateAction,
@@ -685,15 +695,16 @@ export function PullRequestRouteScreen({ route }: StaticScreenProps<PullRequestP
                   ? [
                       {
                         id: "delete-branch",
-                        title: pullRequestActionLabel("delete-branch", terminology),
+                        localize: false,
+                        title: pullRequestActionLabel("delete-branch", terminology, MOBILE_LOCALE),
                         icon: PR_ACTION_ICONS["delete-branch"],
                         destructive: true,
                         disabled: !action.available("delete-branch"),
                         subtitle: action.busy
-                          ? "Deleting…"
+                          ? localizeMobileString("Deleting…")
                           : connected
                             ? pr.headBranch
-                            : "Reconnect to delete this branch.",
+                            : localizeMobileString("Reconnect to delete this branch."),
                         onPress: confirmDeleteBranch,
                       },
                     ]
@@ -1181,7 +1192,11 @@ function PullRequestFileRouteContent({ route }: PullRequestFileRouteProps) {
     <View className="flex-1 android:bg-header ios:bg-screen">
       <AppBar
         title={title}
-        subtitle={`${commit ? commit.slice(0, 7) : `#${route.params.number}`} · ${data.files.length} ${data.files.length === 1 ? "file" : "files"}${filter.hideTestFiles && filter.hiddenCount ? ` · ${filter.hiddenCount} ${filter.hiddenCount === 1 ? "test" : "tests"} hidden` : ""}`}
+        subtitle={pullRequestDiffSubtitle(
+          commit ? commit.slice(0, 7) : `#${route.params.number}`,
+          data.files.length,
+          filter.hideTestFiles ? filter.hiddenCount : 0,
+        )}
         onBack={() => navigation.goBack()}
         menus={[
           {
@@ -1262,7 +1277,9 @@ function PullRequestFileRouteContent({ route }: PullRequestFileRouteProps) {
         </Text>
       ) : null}
       {viewed.error ? (
-        <Text className="px-4 py-2 text-xs text-danger-foreground">{viewed.error}</Text>
+        <Text localize={false} className="px-4 py-2 text-xs text-danger-foreground">
+          {viewed.error}
+        </Text>
       ) : null}
       {staleDiff ? (
         <View
@@ -1384,7 +1401,9 @@ function PullRequestFileRouteContent({ route }: PullRequestFileRouteProps) {
           ) : !result.isPending && !result.error && !seekingFile ? (
             <EmptyState
               title="Diff unavailable"
-              detail={`Open this ${terminology.singular} on its provider to view the changes.`}
+              detail={formatMobileMessage("Open this {0} on its provider to view the changes.", [
+                localizeMobileString(terminology.singular),
+              ])}
               variant="plain"
             />
           ) : null}

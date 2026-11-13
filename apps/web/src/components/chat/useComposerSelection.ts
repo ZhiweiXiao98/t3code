@@ -1,3 +1,5 @@
+import { useI18n } from "~/i18n/WebI18nContext";
+import { readWebI18n } from "~/i18n/readWebI18n";
 import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/shell";
 import type { UnifiedSettings } from "@t3tools/contracts";
 import type { Dispatch } from "react";
@@ -56,6 +58,7 @@ interface ComposerSelectionInput {
  * and where a new thread runs (local or a new worktree, from the remote's tip or not).
  */
 export function useComposerSelection(input: ComposerSelectionInput) {
+  const { locale } = useI18n();
   const {
     environmentId,
     composerDraftTarget,
@@ -110,6 +113,7 @@ export function useComposerSelection(input: ComposerSelectionInput) {
   const getModelDisabledReason = makeModelDisabledReason(
     currentModelSelection
       ? {
+          locale,
           hasStartedSession,
           supportsProviderSwitchingViaHandoff,
           currentModelSelection,
@@ -169,6 +173,7 @@ export function useComposerSelection(input: ComposerSelectionInput) {
         ? { instanceId, model: resolvedModel, options: [...rememberedOptions] }
         : { instanceId, model: resolvedModel };
     const modelChangeBlockReason = getStartedThreadModelChangeBlockReason({
+      locale: readWebI18n().locale,
       hasStartedSession: activeRuntime !== null,
       supportsProviderSwitchingViaHandoff,
       currentModelSelection: activeThread.modelSelection,

@@ -1,3 +1,5 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { AppActivityIndicator } from "../../components/ui/AppActivityIndicator";
 import type { ChangeRequestTerminology } from "@t3tools/client-runtime/source-control-clients";
 import type { PullRequestActor } from "@t3tools/contracts";
@@ -19,8 +21,11 @@ export function PullRequestReadStatus(props: {
     <AppActivityIndicator className="my-12" colorClassName="accent-icon" />
   ) : props.error ? (
     <EmptyState
-      title={`Couldn't load this ${props.terminology.singular}`}
+      title={formatMobileMessage("Couldn't load this {0}", [
+        localizeMobileString(props.terminology.singular),
+      ])}
       detail={props.error}
+      localizeDetail={false}
       variant="plain"
     />
   ) : null;
@@ -57,7 +62,11 @@ export function PullRequestAvatar(props: {
       className="items-center justify-center rounded-full bg-grouped-card"
       style={{ width: size, height: size }}
     >
-      <Text className="font-t3-medium text-foreground-muted" style={{ fontSize: size * 0.45 }}>
+      <Text
+        localize={false}
+        className="font-t3-medium text-foreground-muted"
+        style={{ fontSize: size * 0.45 }}
+      >
         {props.actor?.login.slice(0, 1).toUpperCase() ?? "?"}
       </Text>
     </View>

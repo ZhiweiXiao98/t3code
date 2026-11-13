@@ -1,4 +1,5 @@
-import { localizeMobileString } from "../../i18n/mobileStrings";
+import { MOBILE_LOCALE, localizeMobileString } from "../../i18n/mobileStrings";
+import { pullRequestActionFailure } from "./pullRequestMergeDisplay";
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { AsyncResult } from "effect/reactivity";
 import { useAtomRefresh } from "@effect/atom-react";
@@ -47,9 +48,11 @@ function useActionSubmission(params: PullRequestParams) {
     if (AsyncResult.isFailure(result)) {
       const cause = squashAtomCommandFailure(result);
       setError(
-        cause instanceof Error
-          ? cause.message
-          : "The provider could not complete this action. Try again.",
+        pullRequestActionFailure(
+          cause,
+          MOBILE_LOCALE,
+          "The provider could not complete this action. Try again.",
+        ),
       );
     }
   };
@@ -117,7 +120,9 @@ export function PullRequestReviewSheet({
   const perform = () =>
     submission.submit(async () => {
       if (!canSubmit)
-        throw new Error("Add your feedback and check your permissions before submitting.");
+        throw new Error(
+          localizeMobileString("Add your feedback and check your permissions before submitting."),
+        );
       const submitted = store.draft;
       const response =
         reviewing && verdict
@@ -144,7 +149,7 @@ export function PullRequestReviewSheet({
   return (
     <SheetContent
       title={reviewing ? "Submit review" : "Add comment"}
-      subtitle={`#${params.number}${reviewing && result.data?.headSha ? ` · reviewing ${result.data.headSha.slice(0, 7)}` : ` · ${params.repository}`}`}
+      subtitle={`#${params.number}${reviewing && result.data?.headSha ? ` · ${formatMobileMessage("reviewing {0}", [result.data.headSha.slice(0, 7)])}` : ` · ${params.repository}`}`}
       busy={submission.busy}
       footer={
         <Button
@@ -269,7 +274,7 @@ export function PullRequestReviewSheet({
         </Text>
       ) : null}
       {submission.error || result.error || store.error ? (
-        <Text selectable className="text-sm text-danger-foreground">
+        <Text localize={false} selectable className="text-sm text-danger-foreground">
           {submission.error ?? result.error ?? store.error}
         </Text>
       ) : null}

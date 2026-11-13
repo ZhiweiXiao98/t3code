@@ -201,6 +201,7 @@ function LinkedComment({
 }: {
   subject: Extract<ReturnType<typeof pullRequestLinkSubject>, { kind: "comment" }>;
 }) {
+  const { locale } = useI18n();
   const outcome = pullRequestReviewOutcome(subject.reviewState);
   return (
     <div className="mt-2 min-w-0">
@@ -210,7 +211,7 @@ function LinkedComment({
           {actorLabel(subject.author)}
         </span>
         {outcome === null ? (
-          <span className="shrink-0">commented</span>
+          <span className="shrink-0">{translateWebSource(locale, "commented")}</span>
         ) : (
           <PullRequestReviewOutcomeBadge outcome={outcome} className="shrink-0" />
         )}

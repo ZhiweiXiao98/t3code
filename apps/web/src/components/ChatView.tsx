@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { translateWebSource } from "~/i18n/messages";
 import { ChildThreadApprovals } from "./chat/ChildThreadApprovals";
 import { workspaceAreaProps } from "../lib/workspaceFocus";
@@ -1473,6 +1474,7 @@ export default function ChatView(props: ChatViewProps) {
 
     try {
       const url = await resolveFileAttachmentUrl({
+        readLocale: () => readWebI18n().locale,
         attachment,
         environmentId,
         httpBaseUrl: connection.httpBaseUrl,
