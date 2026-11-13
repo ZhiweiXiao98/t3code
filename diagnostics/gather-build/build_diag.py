@@ -1,6 +1,6 @@
 """Build only frozen synthetic source. Export enums/numbers, never raw diagnostics."""
 import hashlib, json, os, pathlib, re, signal, subprocess, sys, tempfile
-SOURCE_HASHES={'probe.c':'2fe7c26e1b90d2729d066cc1199b530fcc10ba630bfa7be81802ecb886e49855','probe.S':'25f0d4bad6689a253cc87b3c4763f437306872d7ea2a452e4bafb3fbded6fe3f'}
+SOURCE_HASHES={'probe.c':'6f5f4a3aa5c19d65c19ace09ae0563ebe39b685b1f70bdd24609661e78116a1a','probe.S':'25f0d4bad6689a253cc87b3c4763f437306872d7ea2a452e4bafb3fbded6fe3f'}
 REASONS={'unused-result':'ignored_result','implicit-function-declaration':'implicit_declaration','maybe-uninitialized':'maybe_uninitialized','uninitialized':'uninitialized','array-bounds':'array_bounds','stringop-overflow':'string_overflow','format':'format_error'}
 def diagnostic_codes(raw):
     # Only known warning switches and fixed categories leave this function.

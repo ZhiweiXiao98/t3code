@@ -22,7 +22,7 @@ jobs:
           printf '%s\n' '{"schemaVersion":1,"purpose":"synthetic_build_only","stage":"source_fetch","status":"running","probeExecuted":false,"vmStarted":false}' > "$RUNNER_TEMP/gather-build-public/build.json"
           trap 'printf "%s\n" "{\"schemaVersion\":1,\"purpose\":\"synthetic_build_only\",\"stage\":\"source_fetch\",\"status\":\"failed\",\"probeExecuted\":false,\"vmStarted\":false}" > "$RUNNER_TEMP/gather-build-public/build.json"' ERR
           [[ "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]]
-          for path in diagnostics/gather/probe.c diagnostics/gather/probe.S diagnostics/gather-build/build_diag.py diagnostics/gather-build/test_diag.py; do
+          for path in diagnostics/gather-build/probe.c diagnostics/gather-build/probe.S diagnostics/gather-build/build_diag.py diagnostics/gather-build/test_diag.py; do
             timeout --kill-after=2s 15s gh api "repos/$GITHUB_REPOSITORY/contents/$path?ref=$GITHUB_SHA" -H 'Accept: application/vnd.github.raw+json' > "$path"
           done
           printf '%s\n' '{"schemaVersion":1,"stage":"source_fetch","status":"passed","probeExecuted":false,"vmStarted":false}' > "$RUNNER_TEMP/gather-build-public/build.json"
@@ -38,7 +38,7 @@ jobs:
             exit 1
           fi
       - name: Build once without executing probe
-        run: PYTHONDONTWRITEBYTECODE=1 timeout --kill-after=2s 90s python3 diagnostics/gather-build/build_diag.py diagnostics/gather "$RUNNER_TEMP/gather-build-public/build.json"
+        run: PYTHONDONTWRITEBYTECODE=1 timeout --kill-after=2s 90s python3 diagnostics/gather-build/build_diag.py diagnostics/gather-build "$RUNNER_TEMP/gather-build-public/build.json"
       - name: Preserve build-stage receipt even on failure
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
