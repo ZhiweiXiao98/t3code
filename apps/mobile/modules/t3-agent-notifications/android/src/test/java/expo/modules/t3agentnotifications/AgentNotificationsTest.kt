@@ -145,8 +145,11 @@ class AgentAlertPresentationTest : AgentNotificationsFixture() {
         for (locale in listOf(null, "en", "zh-TW", "zh-CN")) {
           val presentation = agentAlertPresentation(data, T3NativeStrings(locale))
           assertEquals(
-            if (locale != "zh-CN") data["alert_title"]
-            else "${rows.size} 个智能体${if (attention) "需要处理" else "已结束"}",
+            if (locale != "zh-CN") {
+              data["alert_title"]
+            } else {
+              "${rows.size} 个智能体${if (attention) "需要处理" else "已结束"}"
+            },
             presentation.title
           )
           assertEquals(data["alert_body"], presentation.body)
@@ -186,19 +189,37 @@ class AgentAlertPresentationTest : AgentNotificationsFixture() {
     for (key in listOf("alert_id", "alert_group", "alert_path", "alert_title", "alert_body")) {
       assertUnchanged(data - key)
     }
-    for (group in listOf(
+    val invalidGroups = listOf(
       "environment/thread",
       "[\"other\",\"thread\"]",
       "[\"environment\",123]",
       "[\"environment\",\"thread\",\"extra\"]",
       "${data.getValue("alert_group")} garbage",
-    )) assertUnchanged(data + ("alert_group" to group))
-    for (path in listOf(
-      "/", "/threads/environment/other", "/threads/environment/thread?x=1",
-      "/threads/environment/thread#fragment", "//threads/environment/thread",
-      "/threads/environment/thread/", "t3code://threads/environment/thread",
-    )) assertUnchanged(data + ("alert_path" to path))
-    for (body in listOf("Done", "Done:", "Done: ", "Done...", "Failed: project", "User: Done: project")) {
+    )
+    for (group in invalidGroups) {
+      assertUnchanged(data + ("alert_group" to group))
+    }
+    val invalidPaths = listOf(
+      "/",
+      "/threads/environment/other",
+      "/threads/environment/thread?x=1",
+      "/threads/environment/thread#fragment",
+      "//threads/environment/thread",
+      "/threads/environment/thread/",
+      "t3code://threads/environment/thread",
+    )
+    for (path in invalidPaths) {
+      assertUnchanged(data + ("alert_path" to path))
+    }
+    val invalidBodies = listOf(
+      "Done",
+      "Done:",
+      "Done: ",
+      "Done...",
+      "Failed: project",
+      "User: Done: project"
+    )
+    for (body in invalidBodies) {
       assertUnchanged(data + ("alert_body" to body))
     }
   }
@@ -219,10 +240,17 @@ class AgentAlertPresentationTest : AgentNotificationsFixture() {
     for (invalid in invalidRows) {
       assertUnchanged(data + ("alert_id" to JSONArray(invalid.map { JSONArray(it) }).toString()))
     }
-    for (title in listOf(
-      "3 agents finished", "2 agents need attention", "2 agents finish...",
-      "2 agents finished ", "My 2 agents finished", "2 个智能体已结束",
-    )) assertUnchanged(data + ("alert_title" to title))
+    val invalidTitles = listOf(
+      "3 agents finished",
+      "2 agents need attention",
+      "2 agents finish...",
+      "2 agents finished ",
+      "My 2 agents finished",
+      "2 个智能体已结束",
+    )
+    for (title in invalidTitles) {
+      assertUnchanged(data + ("alert_title" to title))
+    }
     for (group in listOf("", "[]", "[\"environment\",\"thread\"]")) {
       assertUnchanged(data + ("alert_group" to group))
     }
@@ -230,7 +258,8 @@ class AgentAlertPresentationTest : AgentNotificationsFixture() {
     assertUnchanged(data + ("alert_path" to "/threads/environment/thread"))
     assertUnchanged(data + ("alert_path" to "/?query=1"))
     val aggregateFields = mapOf(
-      "activity_phase" to "waiting_for_approval", "activity_count" to "5",
+      "activity_phase" to "waiting_for_approval",
+      "activity_count" to "5",
       "activity_line_0" to "Approval\tUnrelated thread\tUnrelated project",
     )
     assertEquals(
@@ -241,14 +270,20 @@ class AgentAlertPresentationTest : AgentNotificationsFixture() {
 
   @Test
   fun localizedPostsKeepTheirWireIdentityGroupingLinksAndRetryHistory() {
-    val applicationInfo = context.packageManager.getApplicationInfo(
-      context.packageName,
-      PackageManager.GET_META_DATA
+    val applicationInfo = requireNotNull(
+      shadowOf(context.packageManager).getInternalMutablePackageInfo(context.packageName)
+        .applicationInfo
     )
     applicationInfo.metaData = Bundle(applicationInfo.metaData ?: Bundle()).apply {
       putString("T3AppLocale", "zh-CN")
     }
-    shadowOf(context.packageManager).addOrUpdateApplicationInfo(applicationInfo)
+    assertEquals(
+      "zh-CN",
+      context.packageManager.getApplicationInfo(
+        context.packageName,
+        PackageManager.GET_META_DATA
+      ).metaData?.getString("T3AppLocale")
+    )
     val first = update("unused", false) + single()
     val second = update("unused", false) + single(row(updatedAt = "2026-11-13T00:01:00.000Z"))
     AgentNotifications.receive(context, first)
@@ -262,7 +297,10 @@ class AgentAlertPresentationTest : AgentNotificationsFixture() {
     )
     for (child in children) {
       assertEquals(first["alert_group"], child.notification.group)
-      assertEquals(first["alert_title"], child.notification.extras.getString(Notification.EXTRA_TITLE))
+      assertEquals(
+        first["alert_title"],
+        child.notification.extras.getString(Notification.EXTRA_TITLE)
+      )
       assertEquals(
         "已完成：Done: 用户项目, Input",
         child.notification.extras.getString(Notification.EXTRA_BIG_TEXT)

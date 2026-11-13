@@ -120,9 +120,13 @@ internal class ActivityPresentation(
 
   val chip = when {
     !active -> phaseText(if (phase == ActivityPhase.FAILED) "Failed" else "Done")
-    phase == null -> data["activity_chip"]?.takeIf { it.isNotBlank() }?.take(7) ?: strings.text("Active", "活跃")
+    phase == null -> data["activity_chip"]?.takeIf { it.isNotBlank() }?.take(7)
+      ?: strings.text("Active", "活跃")
     phase == ActivityPhase.RUNNING && activeCount > 1 ->
-      strings.text("${if (activeCount > 9) "9+" else activeCount} live", "${if (activeCount > 9) "9+" else activeCount} 项运行中")
+      strings.text(
+        "${if (activeCount > 9) "9+" else activeCount} live",
+        "${if (activeCount > 9) "9+" else activeCount} 项运行中"
+      )
     else -> phaseText(phase.chip)
   }
 
@@ -140,8 +144,11 @@ internal class ActivityPresentation(
       builder.setSubText(
         listOfNotNull(
           hero!!.project.takeIf { singleProject && it.isNotBlank() },
-          if (activeCount > 0) strings.text("$activeCount active", "$activeCount 项活跃")
-          else strings.text("$threadCount threads", "$threadCount 个会话")
+          if (activeCount > 0) {
+            strings.text("$activeCount active", "$activeCount 项活跃")
+          } else {
+            strings.text("$threadCount threads", "$threadCount 个会话")
+          }
         ).joinToString(" · ")
       )
     }
@@ -184,19 +191,22 @@ internal class ActivityPresentation(
       }
     }
 
-  private fun phaseText(value: String) = strings.text(value, when (value) {
-    "Connecting" -> "正在连接"
-    "Working" -> "正在运行"
-    "Approval" -> "待审批"
-    "Input" -> "待输入"
-    "Waiting" -> "等待中"
-    "Done" -> "已完成"
-    "Failed" -> "失败"
-    "Approve" -> "审批"
-    "Answer" -> "回答"
-    "Open" -> "打开"
-    else -> value
-  })
+  private fun phaseText(value: String) = strings.text(
+    value,
+    when (value) {
+      "Connecting" -> "正在连接"
+      "Working" -> "正在运行"
+      "Approval" -> "待审批"
+      "Input" -> "待输入"
+      "Waiting" -> "等待中"
+      "Done" -> "已完成"
+      "Failed" -> "失败"
+      "Approve" -> "审批"
+      "Answer" -> "回答"
+      "Open" -> "打开"
+      else -> value
+    }
+  )
 
   private fun tinted(text: String, color: Int, bold: Boolean = false) =
     SpannableStringBuilder(text).apply {

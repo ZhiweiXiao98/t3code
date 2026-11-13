@@ -350,7 +350,11 @@ object AgentNotifications {
     if (Build.VERSION.SDK_INT >= 26) {
       manager(context).createNotificationChannels(
         listOf(
-          NotificationChannel(ALERT_CHANNEL, strings.text("Agent alerts", "智能体提醒"), NotificationManager.IMPORTANCE_HIGH),
+          NotificationChannel(
+            ALERT_CHANNEL,
+            strings.text("Agent alerts", "智能体提醒"),
+            NotificationManager.IMPORTANCE_HIGH
+          ),
           NotificationChannel(
             ACTIVITY_CHANNEL,
             strings.text("Ongoing agent activity", "正在进行的智能体活动"),

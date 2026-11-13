@@ -121,6 +121,7 @@ class T3WorkspaceNavigationView(
   appContext: AppContext
 ) : ExpoView(context, appContext) {
   private val strings = T3NativeStrings(context)
+
   // Compose must remeasure native children when Yoga resizes the folded window.
   override val shouldUseAndroidLayout = true
 
@@ -311,7 +312,11 @@ class T3WorkspaceNavigationView(
             onClick = { expanded = !expanded },
             modifier = Modifier.semantics {
               contentDescription =
-                if (expanded) strings.text("Collapse navigation rail", "收起导航栏") else strings.text("Expand navigation rail", "展开导航栏")
+                if (expanded) {
+                  strings.text("Collapse navigation rail", "收起导航栏")
+                } else {
+                  strings.text("Expand navigation rail", "展开导航栏")
+                }
             },
           ) {
             Icon(
