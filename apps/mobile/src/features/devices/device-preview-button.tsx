@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import { Pressable, View } from "react-native";
 
@@ -13,7 +14,11 @@ export function DevicePreviewButton(props: {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={props.count === 1 ? "View device" : `View ${props.count} devices`}
+      accessibilityLabel={
+        props.count === 1
+          ? localizeMobileString("View device")
+          : formatMobileMessage("View {0} devices", [props.count])
+      }
       accessibilityHint={localizeMobileString("Watch and control devices open in this thread")}
       onPress={props.onPress}
       className={
@@ -30,7 +35,9 @@ export function DevicePreviewButton(props: {
       />
       {!compact ? (
         <AppText className="font-t3-medium text-xs text-foreground">
-          {props.count === 1 ? "One device open" : `${props.count} devices open`}
+          {props.count === 1
+            ? localizeMobileString("One device open")
+            : formatMobileMessage("{0} devices open", [props.count])}
         </AppText>
       ) : props.count > 1 ? (
         <View className="absolute right-1.5 top-1.5 min-w-4 items-center rounded-full bg-primary px-1">

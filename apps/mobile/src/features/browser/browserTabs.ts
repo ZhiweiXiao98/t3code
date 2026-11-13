@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import type { PreviewSessionSnapshot } from "@t3tools/contracts";
 
 export function latestBrowserTab(tabs: ReadonlyArray<PreviewSessionSnapshot>) {
@@ -12,7 +13,7 @@ export function browserTabUrl(tab: PreviewSessionSnapshot) {
 }
 
 export function browserTabTitle(tab: PreviewSessionSnapshot) {
-  if (tab.navStatus._tag === "Idle") return "New tab";
+  if (tab.navStatus._tag === "Idle") return localizeMobileString("New tab");
   if (tab.navStatus.title.trim()) return tab.navStatus.title;
   try {
     return new URL(tab.navStatus.url).host || tab.navStatus.url;

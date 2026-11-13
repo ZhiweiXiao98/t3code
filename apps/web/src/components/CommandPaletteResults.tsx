@@ -38,12 +38,11 @@ interface CommandPaletteResultsProps {
 }
 
 function CommandPaletteEmptyState(props: { emptyStateMessage?: string; isActionsOnly: boolean }) {
+  const { t } = useI18n();
   return (
     <div className="py-10 text-center text-sm text-muted-foreground">
       {props.emptyStateMessage ??
-        (props.isActionsOnly
-          ? "No matching actions."
-          : "No matching commands, projects, or threads.")}
+        (props.isActionsOnly ? t("commandPalette.empty.actions") : t("commandPalette.empty.all"))}
     </div>
   );
 }

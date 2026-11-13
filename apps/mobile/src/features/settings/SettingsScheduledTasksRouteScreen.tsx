@@ -1,6 +1,6 @@
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { managedCapabilityDenial } from "../../i18n/managedPolicyMessages";
-import { localizeMobileString } from "../../i18n/mobileStrings";
+import { MOBILE_LOCALE, localizeMobileString } from "../../i18n/mobileStrings";
 import * as Dialog from "../../components/ui/Dialog";
 import { useAtomValue } from "@effect/atom-react";
 import {
@@ -91,6 +91,9 @@ import {
 } from "./scheduled-task-editor-state";
 import { appAtomRegistry } from "../../state/atom-registry";
 import {
+  isScheduledWeekdays,
+  scheduledWeekdayLabel,
+  scheduledRepeatLabel,
   formatNextScheduledTaskRun,
   formatScheduledTaskInterval,
 } from "./scheduledTaskPresentation";
@@ -129,8 +132,13 @@ function describeSchedule(task: ScheduledTask): string {
     );
   }
   if (task.schedule.type === "interval") return formatScheduledTaskInterval(task.schedule.everyMs);
-  const days = task.schedule.weekdays?.length ? repeatLabel(task.schedule.weekdays) : "Every day";
-  return `${days} at ${formatTime(task.schedule.timeOfDay)}`;
+  const days = task.schedule.weekdays?.length
+    ? scheduledRepeatLabel(task.schedule.weekdays)
+    : "Every day";
+  return formatMobileMessage("{0} at {1}", [
+    localizeMobileString(days),
+    formatTime(task.schedule.timeOfDay),
+  ]);
 }
 
 function formatTime(value: string): string {
@@ -138,15 +146,25 @@ function formatTime(value: string): string {
   if (!Number.isInteger(hours) || !Number.isInteger(minutes)) return value;
   const time = new Date();
   time.setHours(hours ?? 9, minutes ?? 0, 0, 0);
-  return time.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  return time.toLocaleTimeString(MOBILE_LOCALE === "zh-CN" ? "zh-CN" : [], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 function formatRunAtDate(value: Date): string {
-  return value.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
+  return value.toLocaleDateString(MOBILE_LOCALE === "zh-CN" ? "zh-CN" : [], {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 function formatRunAtTime(value: Date): string {
-  return value.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  return value.toLocaleTimeString(MOBILE_LOCALE === "zh-CN" ? "zh-CN" : [], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 function timePickerValue(value: string): Date {
@@ -159,17 +177,6 @@ function timePickerValue(value: string): Date {
     0,
   );
   return time;
-}
-
-function repeatLabel(weekdays: ReadonlyArray<number>): string {
-  const days = new Set(weekdays);
-  if (days.size === 7) return "Every day";
-  if (days.size === 5 && [1, 2, 3, 4, 5].every((day) => days.has(day))) return "Weekdays";
-  return (
-    DAYS.filter((day) => days.has(day.index))
-      .map((day) => day.label)
-      .join(", ") || "Choose days"
-  );
 }
 
 function FormField(props: {
@@ -726,7 +733,9 @@ function TaskForm({
     ) {
       Dialog.alert(
         "Invalid age limit",
-        `Enter whole minutes from 1 to ${MAX_WEBHOOK_DELIVERY_AGE_MINUTES}, or leave it blank.`,
+        formatMobileMessage("Enter whole minutes from 1 to {0}, or leave it blank.", [
+          MAX_WEBHOOK_DELIVERY_AGE_MINUTES,
+        ]),
       );
       return;
     }
@@ -918,13 +927,15 @@ function TaskForm({
           footer={
             draft.threadMode === "new_thread"
               ? "Each run starts a new thread."
-              : `${
+              : `${localizeMobileString(
                   draft.threadMode === "continue"
                     ? "Runs continue one conversation."
-                    : "Runs share one thread, each in a fresh session without earlier runs' context."
-                }${
-                  draft.threadId === null ? " The first run starts the thread." : ""
-                } Deleting it also deletes this task.`
+                    : "Runs share one thread, each in a fresh session without earlier runs' context.",
+                )}${
+                  draft.threadId === null
+                    ? ` ${localizeMobileString("The first run starts the thread.")}`
+                    : ""
+                } ${localizeMobileString("Deleting it also deletes this task.")}`
           }
         >
           {offersThreadModes ? (
@@ -1099,7 +1110,7 @@ function TaskForm({
               ) : null}
               <SelectRow
                 label="Repeat"
-                value={repeatLabel(draft.schedule.weekdays)}
+                value={scheduledRepeatLabel(draft.schedule.weekdays)}
                 borderTop
                 actions={[
                   {
@@ -1109,12 +1120,12 @@ function TaskForm({
                   },
                   {
                     id: "weekdays",
-                    title: "Weekdays",
-                    state: repeatLabel(draft.schedule.weekdays) === "Weekdays" ? "on" : undefined,
+                    title: scheduledRepeatLabel([1, 2, 3, 4, 5]),
+                    state: isScheduledWeekdays(draft.schedule.weekdays) ? "on" : undefined,
                   },
                   ...DAYS.map((day) => ({
                     id: String(day.index),
-                    title: day.label,
+                    title: scheduledWeekdayLabel(day.index),
                     attributes: { keepsMenuPresented: true },
                     state: draft.schedule.weekdays.includes(day.index)
                       ? ("on" as const)
@@ -1510,7 +1521,7 @@ function EnvironmentTasks({
               <Text className="text-sm text-foreground-muted" numberOfLines={2}>
                 {describeSchedule(task)}
                 {!task.enabled
-                  ? " · Paused"
+                  ? ` · ${localizeMobileString("Paused")}`
                   : task.nextRunAt
                     ? ` · ${formatNextScheduledTaskRun(task.nextRunAt, now)}`
                     : ""}

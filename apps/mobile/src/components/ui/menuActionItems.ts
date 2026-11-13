@@ -1,3 +1,4 @@
+import type { LocalizableMenuAction } from "../../i18n/localizeMenuActions";
 import type { MenuAction } from "@react-native-menu/menu";
 import type { AppBarMenuItem } from "./AppBar.types";
 
@@ -29,8 +30,10 @@ export function appBarMenuItemsFromActions(
 }
 
 /** Adapts `AppBar` menu items to a `Menu`'s actions; `findAppBarMenuItem` resolves a selection. */
-export function menuActionsFromAppBarItems(items: ReadonlyArray<AppBarMenuItem>): MenuAction[] {
-  return items.flatMap((item): MenuAction[] =>
+export function menuActionsFromAppBarItems(
+  items: ReadonlyArray<AppBarMenuItem>,
+): LocalizableMenuAction[] {
+  return items.flatMap((item): LocalizableMenuAction[] =>
     "items" in item
       ? item.inline && !item.title
         ? menuActionsFromAppBarItems(item.items)
@@ -47,6 +50,7 @@ export function menuActionsFromAppBarItems(items: ReadonlyArray<AppBarMenuItem>)
           {
             id: item.id,
             title: item.title,
+            ...(item.localize === undefined ? {} : { localize: item.localize }),
             subtitle: item.subtitle,
             image: item.icon,
             imageColor: item.iconColor,

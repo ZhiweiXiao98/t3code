@@ -1,3 +1,4 @@
+import { MOBILE_LOCALE } from "../../i18n/mobileStrings";
 import type { DeviceServiceState, ThreadId } from "@t3tools/contracts";
 
 /** Host identity is part of the selection because Android serials repeat across hosts. */
@@ -12,7 +13,15 @@ export function threadDevicePreviews(state: DeviceServiceState | null, threadId:
       return {
         key: JSON.stringify([session.hostId, session.deviceId]),
         session,
-        name: device?.name ?? (session.platform === "ios" ? "iOS Simulator" : "Android Emulator"),
+        name:
+          device?.name ??
+          (MOBILE_LOCALE === "zh-CN"
+            ? session.platform === "ios"
+              ? "iOS 模拟器"
+              : "Android 模拟器"
+            : session.platform === "ios"
+              ? "iOS Simulator"
+              : "Android Emulator"),
         description: [device?.version, host?.label].filter(Boolean).join(" · "),
         serveSimOnly: host?.kind === "simlock",
       };

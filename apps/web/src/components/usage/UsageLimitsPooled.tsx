@@ -619,6 +619,7 @@ function PoolWindowCard({
 }
 
 function PoolSection({ pool, now }: { readonly pool: LimitPool; readonly now: number }) {
+  const { locale } = useI18n();
   const color = barColor(pool.driver);
   const label = providerClients.get(pool.driver)?.label ?? String(pool.driver);
   const windows = displayLimitWindows(pool);
@@ -642,8 +643,8 @@ function PoolSection({ pool, now }: { readonly pool: LimitPool; readonly now: nu
             pool={window}
             color={color}
             now={now}
-            label={details?.label}
-            description={details?.description}
+            label={details ? translateWebSource(locale, details.label) : undefined}
+            description={details ? translateWebSource(locale, details.description) : undefined}
           />
         );
       })}

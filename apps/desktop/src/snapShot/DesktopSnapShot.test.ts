@@ -1829,7 +1829,12 @@ it.effect("an unrelated client-setting change keeps the registered shortcut", ()
 
   return Effect.scoped(
     Effect.gen(function* () {
-      const service = yield* DesktopSnapShot.make;
+      const localeSettings = yield* Ref.make(settings);
+      const service = yield* DesktopSnapShot.make.pipe(
+        Effect.provide(
+          layerTest("win32", {}, Option.none(), Ref.get(localeSettings).pipe(Effect.asSome)),
+        ),
+      );
       yield* service.configure(settings);
       assert.deepEqual(
         registerShortcutMock.mock.calls.map(([accelerator]) => accelerator),
@@ -1850,8 +1855,39 @@ it.effect("an unrelated client-setting change keeps the registered shortcut", ()
         registerShortcutMock.mock.calls.map(([accelerator]) => accelerator),
         ["Control+Alt+K", "Control+Alt+J"],
       );
+      for (const [appLocale, expected] of [
+        ["zh-CN", "此快捷键已被系统或其他应用占用。"],
+        ["en", "This shortcut is already used by the system or another app."],
+      ] as const) {
+        yield* Ref.set(localeSettings, { ...settings, appLocale });
+        registerShortcutMock.mockReturnValueOnce(false);
+        const unavailable = yield* service.checkShortcut(settings.snapShotShortcut);
+        assert.deepEqual(unavailable, { available: false, message: expected });
+        const registrations = registerShortcutMock.mock.calls.length;
+        assert.deepEqual(yield* service.checkShortcut({ ...settings.snapShotShortcut, key: "j" }), {
+          available: true,
+          message: null,
+        });
+        assert.lengthOf(registerShortcutMock.mock.calls, registrations);
+        assert.deepEqual(unregisterShortcutMock.mock.calls, [["Control+Alt+K"]]);
+        const conflict = yield* service.checkShortcut({
+          ...settings.snapShotShortcut,
+          key: "c",
+          ctrlKey: false,
+          altKey: false,
+          modKey: true,
+        });
+        assert.deepEqual(conflict, {
+          available: false,
+          message:
+            appLocale === "zh-CN"
+              ? "此快捷键在大多数应用中用于“复制”。"
+              : "This shortcut is Copy in most apps.",
+        });
+        assert.lengthOf(registerShortcutMock.mock.calls, registrations);
+      }
     }),
-  ).pipe(Effect.provide(layerTest("win32")));
+  );
 });
 
 it.effect("capture fails closed while snapshots are disabled", () => {
@@ -2098,7 +2134,12 @@ it.effect(
     const settings = { ...DEFAULT_CLIENT_SETTINGS, snapShotEnabled: true };
     return Effect.scoped(
       Effect.gen(function* () {
-        const service = yield* DesktopSnapShot.make;
+        const localeSettings = yield* Ref.make(settings);
+        const service = yield* DesktopSnapShot.make.pipe(
+          Effect.provide(
+            layerTest("linux", {}, Option.none(), Ref.get(localeSettings).pipe(Effect.asSome)),
+          ),
+        );
         yield* service.configure(settings);
         assert.lengthOf(portalShortcutInstances, 1);
         const first = portalShortcutInstances[0]!;
@@ -2106,6 +2147,24 @@ it.effect(
         const check = yield* service.checkShortcut(settings.snapShotShortcut);
         assert.isFalse(check.available);
         assert.include(check.message, "Hyprland config");
+        yield* Ref.set(localeSettings, { ...settings, appLocale: "zh-CN" as const });
+        const chineseCheck = yield* service.checkShortcut(settings.snapShotShortcut);
+        assert.isFalse(chineseCheck.available);
+        assert.include(chineseCheck.message, "Hyprland 配置");
+        vi.stubEnv("XDG_CURRENT_DESKTOP", "test-desktop");
+        const invalidKey = yield* service.checkShortcut({
+          key: "UnsupportedKey",
+          ctrlKey: true,
+          shiftKey: false,
+          altKey: false,
+          metaKey: false,
+          modKey: false,
+        });
+        assert.deepEqual(invalidKey, {
+          available: false,
+          message: "此按键不支持用作 Wayland 截图快捷键。请选择其他按键。",
+        });
+        vi.stubEnv("XDG_CURRENT_DESKTOP", "Hyprland");
         yield* service.configure({ ...settings, snapShotPlaySound: false });
         assert.lengthOf(portalShortcutInstances, 1);
         assert.lengthOf(first.close.mock.calls, 0);
@@ -2113,10 +2172,7 @@ it.effect(
         assert.lengthOf(first.close.mock.calls, 1);
         assert.notEqual((yield* service.state).shortcutActionRegistered, true);
       }),
-    ).pipe(
-      Effect.provide(layerTest("linux")),
-      Effect.ensuring(Effect.sync(() => vi.unstubAllEnvs())),
-    );
+    ).pipe(Effect.ensuring(Effect.sync(() => vi.unstubAllEnvs())));
   },
 );
 

@@ -14,7 +14,7 @@ const envelope = (tag: number, payload: number[]) => {
   ];
 };
 
-function viewerFixture(supported: boolean) {
+function viewerFixture(supported: boolean, locale: "en" | "zh-CN" = "en") {
   vi.useFakeTimers();
   const configured: string[] = [];
   vi.stubGlobal(
@@ -61,6 +61,7 @@ function viewerFixture(supported: boolean) {
   });
   vi.stubGlobal("ReactNativeWebView", { postMessage() {} });
   start({
+    locale,
     platform: "ios",
     deviceId: "sim",
     access: {
@@ -83,13 +84,23 @@ function viewerFixture(supported: boolean) {
 
 describe("native iOS simulator viewer", () => {
   it.each([
-    { supported: true, image: "" },
-    { supported: false, image: "/api/device-hub/vendor/serve-sim/helper/sim/stream.mjpeg" },
+    { supported: true, image: "", locale: "en" as const },
+    {
+      supported: false,
+      image: "/api/device-hub/vendor/serve-sim/helper/sim/stream.mjpeg",
+      locale: "zh-CN" as const,
+    },
   ])(
     "streams H.264 when WebCodecs decodes it, else MJPEG (supported: $supported)",
-    async ({ supported, image }) => {
+    async ({ supported, image, locale }) => {
       try {
-        const { configured, requested, videoBodies } = viewerFixture(supported);
+        const { configured, requested, videoBodies } = viewerFixture(supported, locale);
+        expect(document.querySelector('[role="application"]')?.getAttribute("aria-label")).toBe(
+          locale === "zh-CN" ? "iOS 模拟器屏幕" : "iOS Simulator screen",
+        );
+        expect(document.querySelector('[role="status"]')?.textContent).toBe(
+          locale === "zh-CN" ? "正在重新连接设备控制…" : "Reconnecting device controls...",
+        );
         await vi.advanceTimersByTimeAsync(0);
         expect(requested).toContain("/api/device-hub/vendor/serve-sim/helper/sim/stream.avcc");
         videoBodies[0]!.enqueue(new Uint8Array(envelope(1, [1, 0x64, 0x00, 0x33])));

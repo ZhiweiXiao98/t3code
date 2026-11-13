@@ -1,5 +1,5 @@
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
-import { localizeMobileString } from "../../i18n/mobileStrings";
+import { MOBILE_LOCALE, localizeMobileString } from "../../i18n/mobileStrings";
 import { Button } from "../../components/ui/Button";
 import { AppActivityIndicator } from "../../components/ui/AppActivityIndicator";
 import * as Dialog from "../../components/ui/Dialog";
@@ -175,6 +175,7 @@ function AuthorizedPreviewStream({
   const processRetried = useRef(false);
   const unauthorized = useRef(0);
   const configuration = JSON.stringify({
+    locale: MOBILE_LOCALE,
     access: props.access,
     threadId: props.threadId,
     tabId: props.tabId,

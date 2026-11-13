@@ -20,16 +20,16 @@ import type { HeaderBarButtonSearchBarPlacementItem } from "react-native-screens
 import { NativeWorkspaceTabActivityContext } from "./v5-workspace-context";
 import { NativeStackScreenOptions, useScreenOptionsWriter } from "./StackHeader";
 
-function labelFromChildren(children: ReactNode): string {
+function labelFromChildren(children: ReactNode, localize = true): string {
   const parts: string[] = [];
   Children.forEach(children, (child) => {
     if (typeof child === "string" || typeof child === "number") {
       parts.push(String(child));
     } else if (isValidElement<{ children?: ReactNode }>(child)) {
-      parts.push(labelFromChildren(child.props.children));
+      parts.push(labelFromChildren(child.props.children, localize));
     }
   });
-  return localizeMobileString(parts.join(""));
+  return localize ? localizeMobileString(parts.join("")) : parts.join("");
 }
 
 type NativeStackHeaderIcon = NonNullable<
@@ -80,13 +80,15 @@ function convertMenuAction(
 ): NativeStackHeaderItemMenu["menu"]["items"][number] | null {
   const typeName = elementTypeName(element);
   if (typeName === "NativeHeaderToolbarMenuAction") {
-    const label = labelFromChildren(element.props.children);
+    const label = labelFromChildren(element.props.children, element.props.localize !== false);
     return {
       type: "action",
       label,
       description:
         typeof element.props.subtitle === "string"
-          ? localizeMobileString(element.props.subtitle)
+          ? element.props.localize === false
+            ? element.props.subtitle
+            : localizeMobileString(element.props.subtitle)
           : undefined,
       disabled: Boolean(element.props.disabled),
       icon: iconFromProp(element.props.icon),
@@ -329,6 +331,7 @@ function NativeHeaderToolbarMenu(_props: {
 NativeHeaderToolbarMenu.displayName = "NativeHeaderToolbarMenu";
 
 function NativeHeaderToolbarMenuAction(_props: {
+  readonly localize?: boolean;
   readonly children?: ReactNode;
   readonly destructive?: boolean;
   readonly disabled?: boolean;

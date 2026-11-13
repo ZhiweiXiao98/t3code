@@ -15,6 +15,7 @@ describe("localized native menu actions", () => {
             state: "on" as const,
           },
           { id: "environment:work", title: "work-host-42", image: "desktopcomputer" },
+          { id: "opaque", title: "New tab", subtitle: "Current checkout", localize: false },
         ],
       },
     ];
@@ -27,7 +28,12 @@ describe("localized native menu actions", () => {
       state: "on",
     });
     expect(localized[0]?.subactions?.[1]).toEqual(actions[0]?.subactions[1]);
+    expect(localized[0]?.subactions?.[2]).toEqual({
+      id: "opaque",
+      title: "New tab",
+      subtitle: "Current checkout",
+    });
     expect(actions[0]?.title).toBe("Environment");
-    expect(localizeMenuActions(actions, "en")).toEqual(actions);
+    expect(localizeMenuActions(actions, "en")[0]?.subactions?.[2]?.title).toBe("New tab");
   });
 });

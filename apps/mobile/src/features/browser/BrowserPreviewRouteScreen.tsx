@@ -93,6 +93,7 @@ function BrowserPreviewScreen({
   return (
     <View className="flex-1 bg-sheet" style={{ paddingBottom: insets.bottom }}>
       <SheetHeader
+        localizeTitle={!tab}
         title={tab ? browserTabTitle(tab) : "Browser"}
         onClose={onClose}
         accessibilityLabel={localizeMobileString("Close browser")}
@@ -125,6 +126,7 @@ function BrowserPreviewScreen({
                   items: tabs.map((entry) => ({
                     id: entry.tabId,
                     title: browserTabTitle(entry),
+                    localize: false,
                     subtitle: browserTabUrl(entry),
                     selected: entry.tabId === tabId,
                     onPress: () => selectTab(entry.tabId),

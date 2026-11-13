@@ -23,6 +23,7 @@ export type AppBarMenuItem =
   | {
       readonly id: string;
       readonly title: string;
+      readonly localize?: boolean;
       readonly icon?: string;
       /** Android: tints the icon, such as a label's color dot. */
       readonly iconColor?: ColorValue;
@@ -73,6 +74,7 @@ export interface AppBarSearch {
 }
 
 export interface AppBarProps {
+  readonly localizeTitle?: boolean;
   readonly title: string;
   /** Android: replaces the title text, such as the brand title. iOS ignores it. */
   readonly titleContent?: ReactNode;

@@ -43,6 +43,7 @@ function useNativeStackNavigation(): NativeStackNavigationProp<ParamListBase> | 
 
 function normalizeScreenOptions(
   options: AppNativeStackNavigationOptions | undefined,
+  localizeTitle = true,
 ): NativeStackNavigationOptions | undefined {
   if (!options) {
     return options;
@@ -59,7 +60,7 @@ function normalizeScreenOptions(
     normalized.headerTintColor = String(normalized.headerTintColor);
   }
 
-  if (typeof normalized.title === "string") {
+  if (localizeTitle && typeof normalized.title === "string") {
     normalized.title = localizeMobileString(normalized.title);
   }
   if (typeof normalized.headerBackTitle === "string") {
@@ -197,6 +198,7 @@ export function useScreenOptionsWriter() {
 
 export function NativeStackScreenOptions(props: {
   readonly options?: AppNativeStackNavigationOptions;
+  readonly localizeTitle?: boolean;
   /** Reapply factories when captured data changes; source equality misses asynchronous menu content. */
   readonly optionsVersion?: unknown;
   readonly listeners?: Record<string, (event: never) => void>;
@@ -215,7 +217,7 @@ export function NativeStackScreenOptions(props: {
   // tab's header still call the newest closures.
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- writes stabilized header options to the navigator after commit so discarded renders leave no closures
   useLayoutEffect(() => {
-    const normalizedOptions = normalizeScreenOptions(props.options);
+    const normalizedOptions = normalizeScreenOptions(props.options, props.localizeTitle);
     const stableOptions = normalizedOptions
       ? stabilizeOptionFunctions(
           normalizedOptions,
@@ -248,7 +250,7 @@ export function NativeStackScreenOptions(props: {
         optionFunctionWrappersRef.current,
       ) as NativeStackNavigationOptions,
     );
-  }, [setOptions, props.options, props.optionsVersion, tabActive]);
+  }, [setOptions, props.options, props.optionsVersion, props.localizeTitle, tabActive]);
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- subscribes the given listeners to navigator events for the screen's lifetime
   useEffect(() => {

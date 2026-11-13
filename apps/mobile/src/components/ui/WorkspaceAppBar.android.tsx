@@ -27,6 +27,7 @@ const ACTION_SIZE = 48;
 const ACTION_END_INSET = 4;
 
 export interface WorkspaceAppBarProps {
+  readonly localizeTitle?: boolean;
   readonly title: string;
   readonly titleContent?: ReactNode;
   readonly search?: {
@@ -175,7 +176,12 @@ function WorkspaceAppBarView(props: WorkspaceAppBarProps) {
             <RNHostView matchContents={{ vertical: true }}>
               <View collapsable={false} className="justify-center" style={{ height: ACTION_SIZE }}>
                 {props.titleContent ?? (
-                  <AppText textRole="title" numberOfLines={1} className="text-header-foreground">
+                  <AppText
+                    localize={props.localizeTitle}
+                    textRole="title"
+                    numberOfLines={1}
+                    className="text-header-foreground"
+                  >
                     {props.title}
                   </AppText>
                 )}

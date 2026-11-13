@@ -117,6 +117,7 @@ function AppBarView(props: AppBarProps & { readonly searchState?: SearchState })
     const icon = typeof menu?.icon === "string" ? menu.icon : menu?.icon.android;
     return (
       <WorkspaceAppBar
+        localizeTitle={props.localizeTitle}
         title={props.title}
         titleContent={props.titleContent}
         search={
@@ -169,6 +170,7 @@ function AppBarView(props: AppBarProps & { readonly searchState?: SearchState })
   const options =
     props.embedded || props.sheet ? null : (
       <NativeStackScreenOptions
+        localizeTitle={props.localizeTitle}
         options={{
           ...(props.matchSearchSurface
             ? { contentStyle: { backgroundColor: themeVariables["--color-header"] } }
@@ -181,6 +183,7 @@ function AppBarView(props: AppBarProps & { readonly searchState?: SearchState })
     );
   const header = (
     <AndroidScreenHeader
+      localizeTitle={props.localizeTitle}
       title={props.title}
       titleContent={props.titleContent}
       subtitle={props.subtitle}

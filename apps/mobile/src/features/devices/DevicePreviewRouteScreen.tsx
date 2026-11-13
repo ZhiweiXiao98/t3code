@@ -256,6 +256,7 @@ export function DevicePreviewScreen({
             items: previews.map((device) => ({
               id: device.key,
               title: device.name,
+              localize: false,
               subtitle: device.description,
               selected: device.key === preview?.key,
               onPress: () => setSelectedKey(device.key),
@@ -271,6 +272,7 @@ export function DevicePreviewScreen({
       {embedded ? (
         <>
           <AppBar
+            localizeTitle={!preview}
             title={preview?.name ?? "Devices"}
             actions={[
               {
@@ -340,7 +342,11 @@ export function DevicePreviewScreen({
                 accessibilityLabel={localizeMobileString("Close device preview")}
                 onClose={onClose}
               />
-              <AppText numberOfLines={1} className="flex-1 text-center font-t3-medium text-base">
+              <AppText
+                localize={!preview}
+                numberOfLines={1}
+                className="flex-1 text-center font-t3-medium text-base"
+              >
                 {preview?.name ?? "Devices"}
               </AppText>
               <ControlPill

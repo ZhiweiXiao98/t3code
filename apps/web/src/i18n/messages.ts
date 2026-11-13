@@ -1,6 +1,26 @@
 import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 
 const EN_MESSAGES = {
+  "commandPalette.appearance.changed": "Appearance: {mode}",
+  "commandPalette.empty.actions": "No matching actions.",
+  "commandPalette.empty.all": "No matching commands, projects, or threads.",
+  "commandPalette.theme.lightMode": "For light mode",
+  "commandPalette.theme.darkMode": "For dark mode",
+  "projectClone.cloning": "Cloning {name}",
+  "projectClone.cloned": "Cloned {name}",
+  "projectClone.cancelled": "Cancelled cloning {name}",
+  "projectClone.failed": "Failed to clone {name}",
+  "projectClone.cancelFailed": "Failed to cancel clone",
+  "projectClone.retryFailed": "Failed to retry clone",
+  "projectClone.failedFallback": "The clone failed.",
+  "projectClone.copyingFiles": "Copying files",
+  "projectClone.connecting": "Connecting",
+  "projectClone.counting": "Counting objects",
+  "projectClone.receiving": "Receiving objects",
+  "projectClone.resolving": "Resolving deltas",
+  "projectClone.checkout": "Checking out files",
+  "projectClone.stalled": "Stalled",
+
   "providers.status.codexDefaultCliMissing":
     "Could not start Codex CLI (`codex`). Check Settings → Providers → Codex → Binary path on the server. Installing ChatGPT or Codex desktop may not add codex to PATH.",
   "providers.status.claudeCliMissing": "Claude Agent CLI (`claude`) was not found on PATH.",
@@ -4351,6 +4371,26 @@ export type WebMessages = Readonly<Record<WebMessageKey, string>>;
 export type WebMessageValues = Readonly<Record<string, string | number>>;
 
 const ZH_CN_MESSAGES = {
+  "commandPalette.appearance.changed": "外观：{mode}",
+  "commandPalette.empty.actions": "没有匹配的操作。",
+  "commandPalette.empty.all": "没有匹配的命令、项目或任务。",
+  "commandPalette.theme.lightMode": "适用于浅色模式",
+  "commandPalette.theme.darkMode": "适用于深色模式",
+  "projectClone.cloning": "正在克隆 {name}",
+  "projectClone.cloned": "已克隆 {name}",
+  "projectClone.cancelled": "已取消克隆 {name}",
+  "projectClone.failed": "克隆 {name} 失败",
+  "projectClone.cancelFailed": "取消克隆失败",
+  "projectClone.retryFailed": "重试克隆失败",
+  "projectClone.failedFallback": "克隆失败。",
+  "projectClone.copyingFiles": "正在复制文件",
+  "projectClone.connecting": "正在连接",
+  "projectClone.counting": "正在统计对象",
+  "projectClone.receiving": "正在接收对象",
+  "projectClone.resolving": "正在解析增量",
+  "projectClone.checkout": "正在检出文件",
+  "projectClone.stalled": "已停滞",
+
   "providers.status.codexDefaultCliMissing":
     "无法启动 Codex CLI（`codex`）。请检查服务器上的“设置 → 服务提供方 → Codex → 程序路径”。安装 ChatGPT 或 Codex 桌面应用可能不会将 codex 加入 PATH。",
   "providers.status.claudeCliMissing": "在 PATH 中找不到 Claude Agent CLI（`claude`）。",
@@ -8517,6 +8557,16 @@ for (const [key, source] of Object.entries(EN_MESSAGES) as ReadonlyArray<
 // New upstream settings copy can be localized here before it receives a stable
 // message key. Settings containers and search both consume this same table.
 const ZH_CN_SOURCE_MESSAGES: Readonly<Record<string, string>> = {
+  Overall: "总体",
+  "Cursor Models": "Cursor 模型",
+  "Other Models": "其他模型",
+  "Combined usage across both allowances, not a third quota.":
+    "两个额度池的合计用量，并非第三个配额。",
+  "Grok and Composer use this first. Auto can use either pool.":
+    "Grok 和 Composer 优先使用此额度池。Auto 可以使用任一额度池。",
+  "Claude, GPT, and Gemini use this pool. Grok and Composer fall back here.":
+    "Claude、GPT 和 Gemini 使用此额度池。Grok 和 Composer 在首选额度耗尽后使用此处。",
+
   Comfortable: "舒适",
   "Preview & diff": "预览与差异",
   Other: "其他",

@@ -3,6 +3,7 @@ import type { DevicePlatform } from "@t3tools/contracts";
 import type { PlatformOSType } from "react-native";
 
 export interface DeviceStreamConfiguration {
+  readonly locale?: "en" | "zh-CN";
   readonly access: DeviceHubAccess;
   readonly platform: DevicePlatform;
   readonly deviceId: string;

@@ -12,6 +12,7 @@ function renderMenuItems(items: ReadonlyArray<AppBarMenuItem>) {
       <Toolbar.MenuAction
         key={item.id}
         icon={item.icon}
+        localize={item.localize}
         subtitle={item.subtitle}
         disabled={item.disabled}
         destructive={item.destructive}

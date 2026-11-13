@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
 import { BUILT_IN_THEMES } from "@t3tools/shared/themePalettes";
@@ -21,18 +22,19 @@ import {
 } from "./settings/ThemePreviewCircles";
 import { stackedThreadToast, toastManager } from "./ui/toast";
 
-export const APPEARANCE_OPTIONS = [
+const APPEARANCE_OPTIONS = [
   { mode: "system", label: "System", icon: MonitorIcon },
   { mode: "light", label: "Light", icon: SunIcon },
   { mode: "dark", label: "Dark", icon: MoonIcon },
 ] as const;
 
 export function notifyThemeSaveFailure(): void {
+  const { locale, t } = readWebI18n();
   toastManager.add(
     stackedThreadToast({
       type: "error",
-      title: "Couldn't save theme selection",
-      description: "Try again.",
+      title: t("appearance.theme.toast.selectionFailed"),
+      description: translateWebSource(locale, "Try again."),
     }),
   );
 }
@@ -56,7 +58,7 @@ function useThemeCards() {
 }
 
 export function useCommandPaletteThemeItems() {
-  const { locale: uiLocale } = useI18n();
+  const { locale: uiLocale, t } = useI18n();
 
   const {
     theme,
@@ -85,7 +87,14 @@ export function useCommandPaletteThemeItems() {
           kind: "action",
           value: id === null ? "theme:standard" : `theme:palette:${id}`,
           title: label,
-          description: previews.length === 1 ? `For ${previews[0]!.mode} mode` : undefined,
+          description:
+            previews.length === 1
+              ? t(
+                  previews[0]!.mode === "light"
+                    ? "commandPalette.theme.lightMode"
+                    : "commandPalette.theme.darkMode",
+                )
+              : undefined,
           searchTerms: [label, "theme", "appearance"],
           icon: <PaletteIcon className={ITEM_ICON_CLASS} />,
           titleTrailingContent: (
@@ -134,7 +143,7 @@ export function useCommandPaletteThemeItems() {
         items: APPEARANCE_OPTIONS.map(({ mode, label, icon: Icon }) => ({
           kind: "action",
           value: `appearance:${mode}`,
-          title: label,
+          title: t(`appearance.mode.${mode}`),
           searchTerms: [label, "appearance", "mode"],
           icon: <Icon className={ITEM_ICON_CLASS} />,
           titleTrailingContent:

@@ -7,6 +7,7 @@ import type {
 } from "@t3tools/client-runtime/preview/server-browser-stream";
 
 export interface PreviewStreamConfiguration {
+  readonly locale?: "en" | "zh-CN";
   readonly access: DeviceHubAccess;
   readonly threadId: string;
   readonly tabId: string;

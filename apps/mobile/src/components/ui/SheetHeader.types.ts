@@ -14,6 +14,7 @@ type SheetConfirmation = {
 };
 
 export type SheetHeaderProps = SheetDismissAction & {
+  readonly localizeTitle?: boolean;
   readonly title: string;
   readonly subtitle?: string;
   readonly accessibilityLabel?: string;

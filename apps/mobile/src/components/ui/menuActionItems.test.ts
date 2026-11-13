@@ -1,3 +1,4 @@
+import { localizeMenuActions } from "../../i18n/localizeMenuActions";
 import type { MenuAction } from "@react-native-menu/menu";
 import { describe, expect, it, vi } from "vite-plus/test";
 
@@ -56,6 +57,19 @@ describe("appBarMenuItemsFromActions", () => {
         ],
       },
     ]);
+    const opaque = menuActionsFromAppBarItems([
+      {
+        id: "device",
+        title: "New tab",
+        subtitle: "Account name",
+        localize: false,
+        onPress: () => {},
+      },
+    ]);
+    expect(localizeMenuActions(opaque, "zh-CN")[0]).toMatchObject({
+      title: "New tab",
+      subtitle: "Account name",
+    });
     findAppBarMenuItem(items, "label:docs")?.onPress();
     expect(onSelect).toHaveBeenCalledWith("label:docs");
     expect(

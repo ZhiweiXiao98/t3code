@@ -39,7 +39,7 @@ function mailMenuItems(items: ReadonlyArray<AppBarMenuItem>): MailMenu["items"] 
         }
       : {
           type: "action",
-          title: localizeMobileString(item.title),
+          title: item.localize === false ? item.title : localizeMobileString(item.title),
           state: item.selected ? "on" : "off",
           disabled: item.disabled,
           onPress: item.onPress,
@@ -99,6 +99,7 @@ export function AppBar(props: AppBarProps) {
   return (
     <>
       <NativeStackScreenOptions
+        localizeTitle={props.localizeTitle}
         optionsVersion={[props.optionsVersion, compactSearch ? menu : undefined]}
         options={{
           headerShown: true,

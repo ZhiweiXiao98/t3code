@@ -1,3 +1,4 @@
+import { MOBILE_LOCALE } from "../../i18n/mobileStrings";
 import { Button } from "../../components/ui/Button";
 import deviceStreamScript from "@t3tools/mobile-device-stream";
 import {
@@ -42,6 +43,7 @@ export function DeviceStreamWebView({
   const [attempt, setAttempt] = useState(0);
   const processRetried = useRef(false);
   const configuration = JSON.stringify({
+    locale: MOBILE_LOCALE,
     access: props.access,
     platform: props.platform,
     deviceId: props.deviceId,

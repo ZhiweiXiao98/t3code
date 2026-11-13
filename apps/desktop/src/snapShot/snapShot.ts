@@ -37,32 +37,38 @@ export const WINDOWS_MODIFIER_PAIR_VIRTUAL_KEYS: Record<
 export function snapShotShortcutRegistrationFailureMessage(
   shortcut: SnapShotShortcut,
   platform: NodeJS.Platform,
+  chinese = false,
 ): string {
   return isModifierPairShortcut(shortcut)
     ? `${snapShotModifierPairLabel(
         snapShotShortcutModifierPair(shortcut),
         platform === "darwin",
-      )} is not available on this system.`
-    : "This shortcut is already used by the system or another app.";
+      )}${chinese ? " 在此系统上不可用。" : " is not available on this system."}`
+    : chinese
+      ? "此快捷键已被系统或其他应用占用。"
+      : "This shortcut is already used by the system or another app.";
 }
 
-const COMMON_MOD_ACTIONS: Readonly<Record<string, string>> = {
-  a: "Select All",
-  c: "Copy",
-  f: "Find",
-  n: "New",
-  o: "Open",
-  p: "Print",
-  q: "Quit",
-  s: "Save",
-  t: "New Tab",
-  v: "Paste",
-  w: "Close Window",
-  x: "Cut",
-  z: "Undo",
+const COMMON_MOD_ACTIONS: Readonly<Record<string, readonly [string, string]>> = {
+  a: ["Select All", "全选"],
+  c: ["Copy", "复制"],
+  f: ["Find", "查找"],
+  n: ["New", "新建"],
+  o: ["Open", "打开"],
+  p: ["Print", "打印"],
+  q: ["Quit", "退出"],
+  s: ["Save", "保存"],
+  t: ["New Tab", "新建标签页"],
+  v: ["Paste", "粘贴"],
+  w: ["Close Window", "关闭窗口"],
+  x: ["Cut", "剪切"],
+  z: ["Undo", "撤销"],
 };
 
-export function snapShotShortcutSystemConflict(shortcut: SnapShotKeyChord): string | null {
+export function snapShotShortcutSystemConflict(
+  shortcut: SnapShotKeyChord,
+  chinese = false,
+): string | null {
   const modifierCount = [
     shortcut.modKey,
     shortcut.metaKey,
@@ -72,19 +78,28 @@ export function snapShotShortcutSystemConflict(shortcut: SnapShotKeyChord): stri
   ].filter(Boolean).length;
   if (modifierCount !== 1) return null;
   if (shortcut.shiftKey) {
-    return "Shift combinations are used for typing and text selection. Add another modifier.";
+    return chinese
+      ? "Shift 组合键用于输入和选择文字。请再添加一个修饰键。"
+      : "Shift combinations are used for typing and text selection. Add another modifier.";
   }
   const key = shortcut.key.toLowerCase();
   if (shortcut.modKey) {
     const action = COMMON_MOD_ACTIONS[key];
-    return action ? `This shortcut is ${action} in most apps.` : null;
+    return action
+      ? chinese
+        ? `此快捷键在大多数应用中用于“${action[1]}”。`
+        : `This shortcut is ${action[0]} in most apps.`
+      : null;
   }
   if (shortcut.ctrlKey && ["c", "d", "z"].includes(key)) {
-    return "This shortcut controls running commands in terminals.";
+    return chinese
+      ? "此快捷键用于控制终端中正在运行的命令。"
+      : "This shortcut controls running commands in terminals.";
   }
-  if (shortcut.altKey && key === "tab") return "The system uses Alt+Tab to switch apps.";
+  if (shortcut.altKey && key === "tab")
+    return chinese ? "系统使用 Alt+Tab 切换应用。" : "The system uses Alt+Tab to switch apps.";
   if (shortcut.metaKey && ["l", " "].includes(key)) {
-    return "The system already uses this shortcut.";
+    return chinese ? "系统已占用此快捷键。" : "The system already uses this shortcut.";
   }
   return null;
 }

@@ -1,3 +1,4 @@
+import { readWebI18n } from "../i18n/readWebI18n";
 import type { AnyRouter } from "@tanstack/react-router";
 
 import {
@@ -6,7 +7,7 @@ import {
   useCommandPaletteStore,
 } from "../commandPaletteStore";
 import { overlayModeForCommand } from "../components/CommandPalette.logic";
-import { APPEARANCE_OPTIONS, notifyThemeSaveFailure } from "../components/CommandPaletteThemeItems";
+import { notifyThemeSaveFailure } from "../components/CommandPaletteThemeItems";
 import { toggleThemeEditorForTheme } from "../components/settings/themeEditorStore";
 import { toastManager } from "../components/ui/toast";
 import { getThemeSnapshot, setAppearanceMode } from "../hooks/useTheme";
@@ -71,9 +72,10 @@ export function installCommandPaletteCommands(
           notifyThemeSaveFailure();
           return;
         }
+        const { t } = readWebI18n();
         toastManager.add({
           id: "appearance-cycle",
-          title: `Appearance: ${APPEARANCE_OPTIONS.find((option) => option.mode === nextMode)?.label}`,
+          title: t("commandPalette.appearance.changed", { mode: t(`appearance.mode.${nextMode}`) }),
           timeout: 1500,
         });
       },

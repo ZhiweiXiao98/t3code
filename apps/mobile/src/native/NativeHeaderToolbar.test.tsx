@@ -34,9 +34,9 @@ vi.mock("@react-navigation/native", async () => {
       )
         return;
       harness.renderedItems =
-        options.unstable_headerLeftItems?.() ??
-        options.unstable_headerRightItems?.() ??
-        options.unstable_headerToolbarItems?.() ??
+        harness.appliedOptions.unstable_headerLeftItems?.() ??
+        harness.appliedOptions.unstable_headerRightItems?.() ??
+        harness.appliedOptions.unstable_headerToolbarItems?.() ??
         [];
     },
   };
@@ -258,4 +258,49 @@ it("isolates toolbar handlers and ignores retained actions after their toolbar u
   act(() => root!.render(null));
   second.onPress?.();
   expect(onPress).not.toHaveBeenCalled();
+});
+
+it("preserves opaque screen titles and menu names while localizing app-owned labels", async () => {
+  const strings = await import("../i18n/mobileStrings");
+  const original = strings.localizeMobileString;
+  using _locale = vi
+    .spyOn(strings, "localizeMobileString")
+    .mockImplementation((value) => original(value, "zh-CN"));
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  root = createRoot(document.createElement("div"));
+  const onPress = vi.fn();
+  for (const localizeTitle of [false, true]) {
+    act(() =>
+      root!.render(
+        <>
+          <NativeStackScreenOptions localizeTitle={localizeTitle} options={{ title: "New tab" }} />
+          <NativeHeaderToolbar placement="right">
+            <NativeHeaderToolbar.Menu title="File">
+              <NativeHeaderToolbar.MenuAction
+                localize={false}
+                subtitle="Current checkout"
+                onPress={onPress}
+              >
+                Account name
+              </NativeHeaderToolbar.MenuAction>
+              <NativeHeaderToolbar.MenuAction>New tab</NativeHeaderToolbar.MenuAction>
+            </NativeHeaderToolbar.Menu>
+          </NativeHeaderToolbar>
+        </>,
+      ),
+    );
+    expect(harness.appliedOptions).toMatchObject({ title: localizeTitle ? "新标签页" : "New tab" });
+    const menu = harness.renderedItems[0];
+    if (menu?.type !== "menu") throw new Error("Expected native menu");
+    expect(menu.menu.items[0]).toMatchObject({
+      type: "action",
+      label: "Account name",
+      description: "Current checkout",
+    });
+    expect(menu.menu.items[1]).toMatchObject({ type: "action", label: "新标签页" });
+    const action = menu.menu.items[0];
+    if (action?.type !== "action") throw new Error("Expected native action");
+    action.onPress?.();
+  }
+  expect(onPress).toHaveBeenCalledTimes(2);
 });

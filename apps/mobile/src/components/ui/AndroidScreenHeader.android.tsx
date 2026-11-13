@@ -37,6 +37,7 @@ export function AndroidHeaderIconButton(props: {
 }
 
 export function AndroidScreenHeader(props: {
+  readonly localizeTitle?: boolean;
   readonly title: string;
   readonly titleContent?: ReactNode;
   readonly subtitle?: string | null;
@@ -103,7 +104,7 @@ export function AndroidScreenHeader(props: {
               overflow="ellipsis"
               style={titleTypography}
             >
-              {localizeMobileString(props.title)}
+              {props.localizeTitle === false ? props.title : localizeMobileString(props.title)}
             </NativeText>
           ) : (
             <Column>
@@ -113,7 +114,7 @@ export function AndroidScreenHeader(props: {
                 overflow="ellipsis"
                 style={titleTypography}
               >
-                {localizeMobileString(props.title)}
+                {props.localizeTitle === false ? props.title : localizeMobileString(props.title)}
               </NativeText>
               {props.subtitle ? (
                 <NativeText

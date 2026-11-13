@@ -1,3 +1,4 @@
+import { localizedProjectCloneProgressSummary } from "~/i18n/projectCloneMessages";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
 import { useStableCallback } from "../../hooks/useStableCallback";
@@ -11,11 +12,7 @@ import { stackedThreadToast, toastManager } from "../ui/toast";
 import { useRemoveClonedProject } from "../../hooks/useRemoveClonedProject";
 import { sourceControlEnvironment } from "../../state/sourceControl";
 import { useProjectClone } from "../../state/projectClones";
-import {
-  projectCloneDisplayName,
-  projectCloneProgressSummary,
-  type ScopedProjectRef,
-} from "@t3tools/contracts";
+import { projectCloneDisplayName, type ScopedProjectRef } from "@t3tools/contracts";
 import { dismissProjectFileCopy, useProjectFileCopy } from "../../lib/addProjectToMachine";
 import { type ComposerBannerStackItem } from "./ComposerBannerStack";
 import { useAtomCommand } from "../../state/use-atom-command";
@@ -25,7 +22,7 @@ import { Button } from "../ui/button";
  * retry, and remove actions, and the reason sending waits until it is done.
  */
 export function useProjectCloneBanner(activeProjectRef: ScopedProjectRef | null) {
-  const { locale: uiLocale } = useI18n();
+  const { locale: uiLocale, t } = useI18n();
 
   const activeProjectClone = useProjectClone(activeProjectRef);
   const cancelProjectClone = useAtomCommand(sourceControlEnvironment.cancelProjectClone, {
@@ -46,7 +43,10 @@ export function useProjectCloneBanner(activeProjectRef: ScopedProjectRef | null)
         stackedThreadToast({
           type: "error",
           title,
-          description: error instanceof Error ? error.message : "An error occurred.",
+          description:
+            error instanceof Error
+              ? error.message
+              : translateWebSource(uiLocale, "An error occurred."),
         }),
       );
     }
@@ -59,7 +59,7 @@ export function useProjectCloneBanner(activeProjectRef: ScopedProjectRef | null)
       : activeProjectClone !== null && activeProjectClone.phase !== "done"
         ? translateWebSource(uiLocale, "Repository not cloned")
         : activeProjectFileCopy?.phase === "copying"
-          ? "Copying files"
+          ? t("projectClone.copyingFiles")
           : null;
   const projectCloneBannerItem = (() => {
     if (activeProjectFileCopy?.phase === "failed" && activeProjectRef) {
@@ -82,14 +82,14 @@ export function useProjectCloneBanner(activeProjectRef: ScopedProjectRef | null)
         id: `project-clone:${projectId}`,
         variant: "info",
         icon: <DownloadIcon />,
-        title: `Cloning ${name}`,
-        description: projectCloneProgressSummary(activeProjectClone),
+        title: t("projectClone.cloning", { name }),
+        description: localizedProjectCloneProgressSummary(activeProjectClone, t),
         actions: (
           <Button
             size="xs"
             variant="ghost"
             onClick={() =>
-              void runProjectCloneActionStable("Failed to cancel clone", () =>
+              void runProjectCloneActionStable(t("projectClone.cancelFailed"), () =>
                 cancelProjectClone({ environmentId, input: { projectId } }),
               )
             }
@@ -104,7 +104,7 @@ export function useProjectCloneBanner(activeProjectRef: ScopedProjectRef | null)
       id: `project-clone:${projectId}`,
       variant: cancelled ? "warning" : "error",
       icon: <DownloadIcon />,
-      title: cancelled ? `Cancelled cloning ${name}` : `Failed to clone ${name}`,
+      title: cancelled ? t("projectClone.cancelled", { name }) : t("projectClone.failed", { name }),
       description: cancelled
         ? translateWebSource(uiLocale, "Retry to bring in the repository.")
         : activeProjectClone.error,
@@ -121,7 +121,7 @@ export function useProjectCloneBanner(activeProjectRef: ScopedProjectRef | null)
             size="xs"
             variant="ghost"
             onClick={() =>
-              void runProjectCloneActionStable("Failed to retry clone", () =>
+              void runProjectCloneActionStable(t("projectClone.retryFailed"), () =>
                 retryProjectClone({ environmentId, input: { projectId } }),
               )
             }

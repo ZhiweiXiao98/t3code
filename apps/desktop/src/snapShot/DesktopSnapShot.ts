@@ -728,31 +728,46 @@ async function showCaptureFeedback(
 function observedPairMessage(
   shortcut: SnapShotModifierPairShortcut,
   platform: NodeJS.Platform,
+  chinese = false,
 ): string {
   const modifier = snapShotShortcutModifierPair(shortcut);
   const label = snapShotModifierPairLabel(modifier, platform === "darwin");
-  const base = `${label} is observed and cannot be reserved exclusively.`;
+  const base = chinese
+    ? `系统正在监听 ${label}，无法独占此快捷键。`
+    : `${label} is observed and cannot be reserved exclusively.`;
   if (modifier === "meta" && platform !== "darwin") {
-    return `${base} This key can also open the system's own menu.`;
+    return chinese
+      ? `${base}此按键也可能打开系统菜单。`
+      : `${base} This key can also open the system's own menu.`;
   }
   if (modifier === "alt" && platform === "win32") {
-    return `${base} This key can also activate app menu bars.`;
+    return chinese
+      ? `${base}此按键也可能激活应用菜单栏。`
+      : `${base} This key can also activate app menu bars.`;
   }
   return base;
 }
 
-function probeGlobalShortcut(accelerator: string): DesktopSnapShotShortcutAvailability {
+function probeGlobalShortcut(
+  accelerator: string,
+  chinese: boolean,
+): DesktopSnapShotShortcutAvailability {
   try {
     if (!Electron.globalShortcut.register(accelerator, () => undefined)) {
       return {
         available: false,
-        message: "This shortcut is already used by the system or another app.",
+        message: chinese
+          ? "此快捷键已被系统或其他应用占用。"
+          : "This shortcut is already used by the system or another app.",
       };
     }
     Electron.globalShortcut.unregister(accelerator);
     return { available: true, message: null };
   } catch {
-    return { available: false, message: "The system could not register this shortcut." };
+    return {
+      available: false,
+      message: chinese ? "系统无法注册此快捷键。" : "The system could not register this shortcut.",
+    };
   }
 }
 
@@ -1061,25 +1076,42 @@ export const make = Effect.gen(function* () {
   const checkShortcut = Effect.fn("desktop.snapShot.checkShortcut")(function* (
     shortcut: SnapShotShortcut,
   ) {
+    const chinese =
+      (yield* readDesktopLocale(
+        clientSettings.get,
+        Effect.sync(() => Electron.app.getSystemLocale()),
+      )) === "zh-CN";
     const mode = captureMode(environment.platform);
     if (mode === "unavailable") {
-      return { available: false, message: "SnapShots are not supported on this platform." };
+      return {
+        available: false,
+        message: chinese ? "此平台不支持快照。" : "SnapShots are not supported on this platform.",
+      };
     }
     if (mode === "portal" && niriSocketPath()) {
       return {
         available: false,
-        message: "Configure the capture shortcut in your Niri config, not in T3 Code.",
+        message: chinese
+          ? "请在 Niri 配置中设置截图快捷键，而不是在 T3 Code 中设置。"
+          : "Configure the capture shortcut in your Niri config, not in T3 Code.",
       };
     }
     if (mode === "portal" && isHyprlandCaptureSession()) {
       return {
         available: false,
-        message: "Change the capture binding in your Hyprland config, then save it.",
+        message: chinese
+          ? "请修改 Hyprland 配置中的截图快捷键绑定，然后保存。"
+          : "Change the capture binding in your Hyprland config, then save it.",
       };
     }
     if (isModifierPairShortcut(shortcut)) {
       if (mode === "portal") {
-        return { available: false, message: WAYLAND_MODIFIER_PAIR_UNAVAILABLE_MESSAGE };
+        return {
+          available: false,
+          message: chinese
+            ? "此 Wayland 会话不支持双修饰键快捷键。请选择其他快捷键，或使用命令面板中的“拍摄快照”。"
+            : WAYLAND_MODIFIER_PAIR_UNAVAILABLE_MESSAGE,
+        };
       }
       const available = yield* Effect.tryPromise({
         try: () =>
@@ -1097,11 +1129,11 @@ export const make = Effect.gen(function* () {
       return {
         available,
         message: available
-          ? observedPairMessage(shortcut, environment.platform)
-          : snapShotShortcutRegistrationFailureMessage(shortcut, environment.platform),
+          ? observedPairMessage(shortcut, environment.platform, chinese)
+          : snapShotShortcutRegistrationFailureMessage(shortcut, environment.platform, chinese),
       };
     }
-    const systemConflict = snapShotShortcutSystemConflict(shortcut);
+    const systemConflict = snapShotShortcutSystemConflict(shortcut, chinese);
     if (systemConflict) return { available: false, message: systemConflict };
     if (mode === "portal") {
       return yield* Effect.try({
@@ -1111,11 +1143,22 @@ export const make = Effect.gen(function* () {
         Effect.match({
           onSuccess: () => ({
             available: true,
-            message: "Your desktop will confirm this shortcut when you save it.",
+            message: chinese
+              ? "保存时，桌面系统将请你确认此快捷键。"
+              : "Your desktop will confirm this shortcut when you save it.",
           }),
           onFailure: (error) => ({
             available: false,
-            message: error.cause instanceof Error ? error.cause.message : "Unsupported shortcut.",
+            message:
+              error.cause instanceof Error
+                ? chinese &&
+                  error.cause.message ===
+                    "This key isn't supported as a Wayland capture shortcut. Choose another key."
+                  ? "此按键不支持用作 Wayland 截图快捷键。请选择其他按键。"
+                  : error.cause.message
+                : chinese
+                  ? "不支持此快捷键。"
+                  : "Unsupported shortcut.",
           }),
         }),
       );
@@ -1124,7 +1167,7 @@ export const make = Effect.gen(function* () {
     const available =
       registeredAccelerator === accelerator
         ? { available: true, message: null }
-        : probeGlobalShortcut(accelerator);
+        : probeGlobalShortcut(accelerator, chinese);
     return available;
   });
 
