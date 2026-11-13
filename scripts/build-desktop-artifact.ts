@@ -165,7 +165,7 @@ const PLATFORM_CONFIG: Record<typeof BuildPlatform.Type, PlatformConfig> = {
   },
   linux: {
     cliFlag: "--linux",
-    defaultTarget: "AppImage",
+    defaultTarget: "deb",
     archChoices: ["x64", "arm64"],
   },
   win: {
@@ -4191,7 +4191,7 @@ const buildDesktopArtifactCli = Command.make("build-desktop-artifact", {
   ),
   target: Flag.String("target").pipe(
     Flag.withDescription(
-      "Artifact target, for example dmg/AppImage/nsis (env: T3CODE_DESKTOP_TARGET).",
+      "Artifact target, for example dmg/deb/nsis (env: T3CODE_DESKTOP_TARGET).",
     ),
     Flag.optional,
   ),

@@ -2,7 +2,13 @@
 
 > For maintainers. Using T3 Code? See [docs/user](../user/).
 
-This document covers the unified release workflow for stable and nightly desktop releases.
+## Community fork release policy
+
+In `ZhiweiXiao98/t3code`, AppImage publication is permanently disabled unless the owner explicitly requests restoring it. Carry this policy forward when synchronizing a new upstream stable release. Community Linux builds default to DEB; their package, checksum, clean-install and publication allowlists exclude AppImage. Do not add AppImage back as a required gate or infer permission to publish it from a successful diagnostic build. Other Linux formats and other platforms retain their own validation gates. Existing release assets and tags are historical records and remain unchanged.
+
+The community route is `client-release.yml` followed by the reviewed-artifact publisher `publish-client-candidate.yml`. Legacy AppImage diagnostic helpers may remain for historical evidence; they are not publication gates. The upstream `release.yml` entry point is restricted to `pingdotgg/t3code` and cannot publish from this fork.
+
+The remaining sections describe the upstream unified release workflow for stable and nightly desktop releases.
 
 Beta is the product label, not a release channel or version suffix. Release channels
 remain stable and nightly. To ship 0.1.0 Beta, use `channel=stable` and

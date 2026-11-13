@@ -76,7 +76,7 @@ def validate_manifest(m):
     require(m.get('repository')=='ZhiweiXiao98/t3code','Unexpected repository')
     for key in ('sourceSha','sourceTree','workflowSha'):
         require(isinstance(m.get(key),str) and re.fullmatch('[0-9a-f]{40}',m[key]),'Missing/invalid '+key)
-    for key in ('appimageSha256','artifactZipSha256','proofZipSha256','producerLogSha256','playwrightTreeSha256','cjkDriverSha256','cleanDriverSha256'):
+    for key in ('artifactZipSha256','proofZipSha256','producerLogSha256','playwrightTreeSha256','cjkDriverSha256','cleanDriverSha256'):
         require(isinstance(m.get(key),str) and re.fullmatch('[0-9a-f]{64}',m[key]),'Missing/invalid '+key)
     for key in ('producerRunId','producerRunAttempt','producerJobId','artifactId','proofArtifactId','packageUploadStepNumber','proofUploadStepNumber'):
         require(type(m.get(key)) is int and m[key]>0,'Missing/invalid '+key)
@@ -90,10 +90,11 @@ def validate_manifest(m):
     require(m['sourceSha']==m['workflowSha'],'Full-run source/head mismatch')
     require(not any(key.startswith('ubuntu24') for key in m),'Focused failure proof forbidden')
     require(re.fullmatch('[0-9a-f]{64}',m.get('installerSha256','')) and re.fullmatch('[0-9a-f]{64}',m.get('executableSha256','')),'Installer/executable pins required')
-    if m['kind']=='appimage':require(m['installerSha256']==m['appimageSha256']==m['executableSha256'],'Guest asset/executable mismatch')
-    for key in ('appimageZipPath','appimageProofPath'):
-        safe_name(m.get(key))
-    require(m['appimageZipPath'].endswith('.AppImage'),'Not an AppImage')
+    kind=m['kind'];suffix='.AppImage' if kind=='appimage' else '.deb'
+    require(m.get(kind+'Sha256')==m['installerSha256'],'Installer identity mismatch')
+    if kind=='appimage':require(m['installerSha256']==m['executableSha256'],'Guest asset/executable mismatch')
+    for key in (kind+'ZipPath',kind+'ProofPath'):
+        require(safe_name(m.get(key)).endswith(suffix),'Wrong installer kind')
     return m
 
 def safe_name(name):
@@ -215,7 +216,8 @@ def read_json(path):
 def validate_results(root,m):
     root=pathlib.Path(root);status=read_json(root/'status.json')
     require(status.get('result')=='passed' and type(status.get('exitCode')) is int and status.get('exitCode')==0,'Guest did not pass')
-    require(status.get('sourceSha')==m['sourceSha'] and status.get('appimageSha256')==m['appimageSha256'],'Guest input mismatch')
+    identity='appimageSha256' if m['kind']=='appimage' else 'installerSha256'
+    require(status.get('sourceSha')==m['sourceSha'] and status.get(identity)==m['installerSha256'],'Runtime input mismatch')
     require(status.get('cleanDriverSha256')==CLEAN_SHA and status.get('cjkDriverSha256')==CJK_SHA,'Guest driver identities missing')
     execution=status.get('execution',{})
     require(execution.get('id')==('debian' if m['kind']=='appimage' else 'ubuntu') and execution.get('versionId')==('13' if m['kind']=='appimage' else '24.04'),'Wrong actual execution OS')

@@ -25,6 +25,14 @@ def download_artifact(repo,aid,target,expected_size,limit):
             count+=len(chunk);require(count<=expected_size and time.monotonic()-start<180,'Original ZIP download exceeds size/time budget');f.write(chunk)
     require(count==expected_size,'Original ZIP download byte size mismatch')
 
+def validate_installer_entries(infos,checks,expected):
+    require(len(infos)==len(expected) and len({safe_name(i.filename) for i in infos})==len(expected),'Unexpected installer members')
+    require(len(checks)==len(expected),'Unexpected installer checksum entries')
+    for suffix,_ in expected:
+        items=[i for i in infos if i.filename.endswith(suffix)];require(len(items)==1,'Missing exact installer kind')
+        paths=[safe_name(k) for k in checks if pathlib.PurePosixPath(k).name==pathlib.PurePosixPath(items[0].filename).name]
+        require(len(paths)==1 and re.fullmatch('[0-9a-f]{64}',checks[paths[0]]),'Invalid installer proof')
+
 def prepare(kind,source,work):
     require(os.environ.get('GITHUB_ACTIONS')=='true' and os.geteuid()!=0,'Nonroot Actions required')
     work=pathlib.Path(work);require(not work.exists(),'Fresh inputs directory required');work.mkdir()
@@ -62,8 +70,9 @@ def prepare(kind,source,work):
         import stat
         require(all(not i.is_dir() and not(i.flag_bits&1) and stat.S_IFMT(i.external_attr>>16) in (0,stat.S_IFREG) for i in infos),'Encrypted/special installer member')
         require(sum(i.file_size for i in infos)<=1024**3,'Installer expansion exceeds budget')
-        require(len(infos)==2 and len({safe_name(i.filename) for i in infos})==2,'Expected original two installers only')
-        for suffix,prefix in (('.AppImage','appimage'),('.deb','deb')):
+        expected=(('.deb','deb'),) if kind=='deb' else (('.AppImage','appimage'),('.deb','deb'))
+        validate_installer_entries(infos,checks,expected)
+        for suffix,prefix in expected:
             items=[i for i in infos if i.filename.endswith(suffix)];require(len(items)==1,'Missing exact installer kind');i=items[0]
             paths=[k for k in checks if pathlib.PurePosixPath(k).name==pathlib.PurePosixPath(i.filename).name];require(len(paths)==1,'Ambiguous proof filename')
             require(0<i.file_size<=512*1024**2,'Invalid installer size')
@@ -74,6 +83,7 @@ def prepare(kind,source,work):
                     import shutil;shutil.copyfileobj(inp,dest,1024*1024)
                 require(sha(target)==checks[paths[0]],'Installer member digest mismatch');m['installerBytes']=i.file_size;m['installerSha256']=checks[paths[0]]
     m['executableSha256']=m['installerSha256'] # DEB overwritten only after real installation and independent dpkg ownership check.
+    validate_manifest(m)
     tar=work/'playwright.tgz'
     with urllib.request.urlopen('https://registry.npmjs.org/playwright-core/-/playwright-core-1.60.0.tgz',timeout=60) as r:
         data=r.read(m['playwrightSize']+1)

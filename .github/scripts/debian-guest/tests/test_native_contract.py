@@ -7,7 +7,11 @@ class Native(unittest.TestCase):
   m,v=test_runtime.Results().fixture(root)
   old='/var/tmp/t3-validation/work/app.AppImage';exe='/opt/T3 Code/t3code'
   m.update(kind='deb',mode='same-full-run-native-deb-v1',installerSha256='e'*64,executableSha256='f'*64,installedExecutable=exe)
+  m.update(debSha256='e'*64,debZipPath='T3.deb',debProofPath='release/T3.deb')
+  for key in list(m):
+   if key.startswith('appimage'):m.pop(key)
   v=json.loads(json.dumps(v).replace(old,exe))
+  v['status.json'].pop('appimageSha256');v['status.json']['installerSha256']='e'*64
   c=v['cjk/linux-chinese-ui.json'];c.update(kind='deb',evidence_type=m['mode'],executable={'path':exe,'sha256':'f'*64});c['asset']['sha256']='e'*64;c['environment'].update(distro={'ID':'ubuntu','VERSION_ID':'24.04'},uid=1001)
   v['status.json']['execution'].update(id='ubuntu',versionId='24.04',uid=1001,glibc='glibc 2.39',executableSha256='f'*64)
   v['cjk/font-evidence.json']['distro']='ID=ubuntu\nVERSION_ID=\"24.04\"\n';v['cjk/linux-chinese-ui.json']['font_environment']=v['cjk/font-evidence.json']
@@ -16,7 +20,7 @@ class Native(unittest.TestCase):
   return m,v
  def test_native_distinct_installer_executable(self):
   with tempfile.TemporaryDirectory() as d:
-   m,v=self.fixture(pathlib.Path(d));common.validate_results(d,m)
+   m,v=self.fixture(pathlib.Path(d));common.validate_manifest(m);common.validate_results(d,m)
  def test_runtime_kind_os_uid_hash_mismatch(self):
   for key,value in [('kind','appimage'),('evidence_type','same-full-run-debian13-v1'),('environment',{'distro':{'ID':'debian','VERSION_ID':'13'},'uid':1001,'kernel':'x'}),('executable',{'path':'/opt/T3 Code/t3code','sha256':'e'*64})]:
    with self.subTest(key=key),tempfile.TemporaryDirectory() as d:

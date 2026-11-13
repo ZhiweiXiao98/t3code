@@ -18,7 +18,7 @@
 | Mac：Apple Silicon（M 系列） | [下载 .dmg](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.9-zh.1/T3-Code-0.1.9-zh.1-arm64.dmg)                                 |
 | Mac：Intel                   | [下载 .dmg](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.9-zh.1/T3-Code-0.1.9-zh.1-x64.dmg)                                   |
 | Linux x64：Debian / Ubuntu   | [下载 .deb](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.9-zh.1/T3-Code-0.1.9-zh.1-amd64.deb)                                 |
-| Linux x64：AppImage          | 暂缓发布：干净启动验收发生渲染进程崩溃，尚未通过验收；请使用上方 .deb。 |
+| Linux x64：AppImage          | 固定禁用发布；请使用上方 .deb。 |
 | Android ARM64                | [下载已签名 .apk](https://github.com/ZhiweiXiao98/t3code/releases/download/android-v0.1.9-zh.1/T3-Code-zh-CN-Android-0.1.9-zh.1-arm64-v8a.apk) |
 
 [桌面文件与发布说明](https://github.com/ZhiweiXiao98/t3code/releases/tag/v0.1.9-zh.1) · [SHA-256 校验值](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.9-zh.1/SHA256SUMS.txt) · [构建来源](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.9-zh.1/BUILD-PROVENANCE.json)
@@ -32,7 +32,7 @@
 - **常用工作流看中文：** 项目与会话、设置中心、命令面板、Pull Request、用量与常见提示等界面持续完善汉化。
 - **保留准确的技术信息：** Provider 与模型名称、命令、快捷键、路径、URL、Git 标识符保留原文，方便操作与排错。
 - **跟进官方稳定版：** 保留已有翻译，增量补齐新功能和新文案；通过验证后再发布，不把未发布的 main 或 nightly 当稳定更新。
-- **下载与验证可查：** 已发布桌面与 Android 均对应[源码 `042eacb54f19c3bbc452e4ae271794f4c5fc524e`](https://github.com/ZhiweiXiao98/t3code/commit/042eacb54f19c3bbc452e4ae271794f4c5fc524e)。22 项构建与质量门禁中，除 AppImage 外的 21 项通过；本次发布的六个桌面安装包均通过干净首次启动验收。AppImage 在 Debian 13 虚拟机验收时发生渲染进程崩溃，尚未通过验收，本次不提供；Linux DEB 在原生 Ubuntu 24.04 验收通过。发布页分别提供文件校验值和构建来源。后续文档提交不是二进制来源；云端验证不等于所有系统上的人工安装测试。
+- **下载与验证可查：** 已发布桌面与 Android 均对应[源码 `042eacb54f19c3bbc452e4ae271794f4c5fc524e`](https://github.com/ZhiweiXiao98/t3code/commit/042eacb54f19c3bbc452e4ae271794f4c5fc524e)。22 项构建与质量门禁中，除 AppImage 外的 21 项通过；本次发布的六个桌面安装包均通过干净首次启动验收。AppImage 在 Debian 13 虚拟机验收时发生渲染进程崩溃，尚未通过验收。AppImage 已固定禁用发布，后续也不纳入发布门禁；Linux DEB 在原生 Ubuntu 24.04 验收通过。发布页分别提供文件校验值和构建来源。后续文档提交不是二进制来源；云端验证不等于所有系统上的人工安装测试。
 
 [构建与分平台验证](https://github.com/ZhiweiXiao98/t3code/actions/runs/43163372855/attempts/1) · [桌面发布记录](https://github.com/ZhiweiXiao98/t3code/actions/runs/43193470108) · [Android 签名与发布](https://github.com/ZhiweiXiao98/t3code/actions/runs/43194813528) · [查看汉化范围及已知限制](./README.zh-CN.md#已覆盖界面)
 
