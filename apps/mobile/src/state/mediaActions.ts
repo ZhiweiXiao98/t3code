@@ -29,7 +29,11 @@ import {
 } from "../lib/attachmentDownload";
 import { copyTextWithHaptic } from "../lib/copyTextWithHaptic";
 import { loadLocalAttachmentPreview } from "../lib/localAttachmentPreview";
-import { canSaveImageToLibrary, saveImageToLibrary } from "../lib/saveImageToLibrary";
+import {
+  canSaveImageToLibrary,
+  isLegacyPhotoLibraryError,
+  saveImageToLibrary,
+} from "../lib/saveImageToLibrary";
 
 function allowsHostMedia(session: SessionGrantInput | null) {
   return session === null || sessionGrantsScope(session, AuthFilesystemReadScope);
@@ -75,8 +79,10 @@ export function useMediaActions(source: MediaActionsSource | undefined, onOpenFi
     return task(source, request.signal)
       .catch((error: unknown) => {
         if (!request.signal.aborted) {
-          // Native photo failures still mix application guidance and platform diagnostics.
-          (kind === "share" ? Dialog.alertWithLiteralMessage : Dialog.alert)(
+          // Only old native photo clients still erase the distinction between guidance and errors.
+          (kind === "save-image" && isLegacyPhotoLibraryError(error)
+            ? Dialog.alert
+            : Dialog.alertWithLiteralMessage)(
             kind === "share" ? "Could not share file" : "Could not save image",
             error instanceof Error ? error.message : localizeMobileString("Try again."),
           );

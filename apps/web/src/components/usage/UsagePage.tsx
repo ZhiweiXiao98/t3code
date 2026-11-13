@@ -849,20 +849,20 @@ function UsageOverview({
           {metric === "tokens" ? (
             <UsageShareBar
               label={translateWebSource(uiLocale, "Tokens by type")}
-              segments={tokenTypeSegments(merged)}
+              segments={tokenTypeSegments(merged, uiLocale)}
               format={formatTokens}
             />
           ) : (
             <>
               <UsageShareBar
                 label={translateWebSource(uiLocale, "Cost by type")}
-                segments={costTypeSegments(merged.categoryCost)}
+                segments={costTypeSegments(merged.categoryCost, uiLocale)}
                 format={formatUsd}
               />
               {merged.speedCost.fast + merged.speedCost.ultrafast > 0 ? (
                 <UsageShareBar
                   label={translateWebSource(uiLocale, "Cost by speed")}
-                  segments={speedCostSegments(merged.speedCost)}
+                  segments={speedCostSegments(merged.speedCost, uiLocale)}
                   format={formatUsd}
                   aside={<SpeedPremium premiumUsd={merged.speedCost.premium} />}
                 />

@@ -145,7 +145,9 @@ function PendingLinkRequest(props: {
             {translateWebSource(copyLocale, "Decline")}
           </Button>
           <Button type="button" size="xs" disabled={declining} onClick={() => setOpen(true)}>
-            {picksMachine(item) ? "Choose machine…" : "Review link…"}
+            {picksMachine(item)
+              ? translateWebSource(copyLocale, "Choose machine…")
+              : translateWebSource(copyLocale, "Review link…")}
           </Button>
         </div>
       ) : (
@@ -449,7 +451,13 @@ function LinkRequestDialog(props: {
             type="submit"
             disabled={busy || (finishesHere ? !ready : !machineReady)}
           >
-            {busy ? "Linking…" : useExisting ? "Use this link" : finishesHere ? "Link" : "Continue"}
+            {busy
+              ? translateWebSource(copyLocale, "Linking…")
+              : useExisting
+                ? translateWebSource(copyLocale, "Use this link")
+                : finishesHere
+                  ? translateWebSource(copyLocale, "Link")
+                  : translateWebSource(copyLocale, "Continue")}
           </Button>
         </WizardFooter>
       </WizardPopup>

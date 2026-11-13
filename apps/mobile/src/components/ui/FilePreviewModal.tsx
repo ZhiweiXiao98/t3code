@@ -30,6 +30,14 @@ const NativeControls = requireNativeModule<{
     sourceIdentifiers: readonly string[],
     identifier: string,
   ): Promise<void>;
+  presentFilesWithDisplayTitles?(
+    uris: readonly (string | null)[],
+    names: readonly string[],
+    displayTitles: readonly string[],
+    selectedIndex: number,
+    sourceIdentifiers: readonly string[],
+    identifier: string,
+  ): Promise<void>;
   updateFile(identifier: string, index: number, uri: string | null): Promise<void>;
   dismissFile(identifier: string): Promise<void>;
 }>("T3NativeControls");
@@ -56,13 +64,21 @@ function NativeFilePreview(props: FilePreviewViewerProps) {
     if (presented.kind === "image") {
       const { images, selectedIndex } = presented;
       delivered.current = images.map((image) => image.uri);
-      presentation = NativeControls.presentFiles(
-        images.map((image) => image.uri ?? null),
-        images.map((image) => image.name ?? localizeMobileString("Preview")),
-        selectedIndex,
-        images.map((image) => image.sourceIdentifier ?? ""),
-        identifier,
-      );
+      const uris = images.map((image) => image.uri ?? null);
+      const names = images.map((image) => image.name ?? localizeMobileString("Preview"));
+      const sourceIdentifiers = images.map((image) => image.sourceIdentifier ?? "");
+      // Older native clients still receive exactly the original filename-only signature.
+      presentation =
+        typeof NativeControls.presentFilesWithDisplayTitles === "function"
+          ? NativeControls.presentFilesWithDisplayTitles(
+              uris,
+              names,
+              images.map((image, index) => image.displayName ?? names[index]!),
+              selectedIndex,
+              sourceIdentifiers,
+              identifier,
+            )
+          : NativeControls.presentFiles(uris, names, selectedIndex, sourceIdentifiers, identifier);
     } else {
       const { uri, name, sourceIdentifier } = presented;
       presentation = NativeControls.presentFile(

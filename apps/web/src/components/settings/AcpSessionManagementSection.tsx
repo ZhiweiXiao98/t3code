@@ -440,7 +440,9 @@ function InstanceSessionManagement(
                 disabled={props.readOnly || loggingOut}
                 onClick={() => void logoutProvider()}
               >
-                {loggingOut ? "Logging out" : "Log out"}
+                {loggingOut
+                  ? translateWebSource(sourceLocale, "Logging out")
+                  : translateWebSource(sourceLocale, "Log out")}
               </Button>
             ) : null}
             {canList && props.projects.length > 0 ? (
@@ -477,7 +479,11 @@ function InstanceSessionManagement(
                   disabled={!canRead || loading || projectId === null}
                   onClick={() => void loadSessions()}
                 >
-                  {loading ? "Loading" : sessions.length === 0 ? "List sessions" : "Refresh"}
+                  {loading
+                    ? translateWebSource(sourceLocale, "Loading")
+                    : sessions.length === 0
+                      ? translateWebSource(sourceLocale, "List sessions")
+                      : translateWebSource(sourceLocale, "Refresh")}
                 </Button>
               </>
             ) : null}
@@ -515,10 +521,10 @@ function InstanceSessionManagement(
                         onClick={() => void importNativeSession(session)}
                       >
                         {session.importedThreadId !== null
-                          ? "Imported"
+                          ? translateWebSource(sourceLocale, "Imported")
                           : importingSessionId === session.sessionId
-                            ? "Importing"
-                            : "Import"}
+                            ? translateWebSource(sourceLocale, "Importing")
+                            : translateWebSource(sourceLocale, "Import")}
                       </Button>
                       {canDelete ? (
                         <Button
@@ -532,7 +538,9 @@ function InstanceSessionManagement(
                           }
                           onClick={() => void deleteNativeSession(session)}
                         >
-                          {deletingSessionId === session.sessionId ? "Deleting" : "Delete"}
+                          {deletingSessionId === session.sessionId
+                            ? translateWebSource(sourceLocale, "Deleting")
+                            : translateWebSource(sourceLocale, "Delete")}
                         </Button>
                       ) : null}
                     </div>
@@ -550,7 +558,9 @@ function InstanceSessionManagement(
                 disabled={!canRead || loading}
                 onClick={() => void loadSessions(nextCursor)}
               >
-                {loading ? "Loading" : "Load more"}
+                {loading
+                  ? translateWebSource(sourceLocale, "Loading")
+                  : translateWebSource(sourceLocale, "Load more")}
               </Button>
             ) : null}
           </>
@@ -580,7 +590,11 @@ function InstanceSessionManagement(
               }
               onClick={() => void loadProviders()}
             >
-              {loadingProviders ? "Loading" : providers.length === 0 ? "List providers" : "Refresh"}
+              {loadingProviders
+                ? translateWebSource(sourceLocale, "Loading")
+                : providers.length === 0
+                  ? translateWebSource(sourceLocale, "List providers")
+                  : translateWebSource(sourceLocale, "Refresh")}
             </Button>
           </div>
 
@@ -633,8 +647,10 @@ function InstanceSessionManagement(
                           {provider.providerId}
                         </p>
                         <p className="text-3xs text-muted-foreground">
-                          {provider.current === null ? "Disabled" : "Configured"}
-                          {provider.required ? " · Required" : ""}
+                          {provider.current === null
+                            ? translateWebSource(sourceLocale, "Disabled")
+                            : translateWebSource(sourceLocale, "Configured")}
+                          {provider.required ? translateWebSource(sourceLocale, " · Required") : ""}
                         </p>
                       </div>
                       <div className="flex items-center gap-1">
@@ -651,7 +667,9 @@ function InstanceSessionManagement(
                           }
                           onClick={() => void saveProvider(provider)}
                         >
-                          {savingProviderId === provider.providerId ? "Saving" : "Save"}
+                          {savingProviderId === provider.providerId
+                            ? translateWebSource(sourceLocale, "Saving")
+                            : translateWebSource(sourceLocale, "Save")}
                         </Button>
                         {!provider.required && provider.current !== null ? (
                           <Button

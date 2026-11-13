@@ -12,6 +12,7 @@ import androidx.annotation.RequiresApi
 import androidx.core.content.FileProvider
 import androidx.core.view.WindowCompat
 import expo.modules.kotlin.Promise
+import expo.modules.kotlin.exception.CodedException
 import expo.modules.kotlin.functions.Queues
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
@@ -71,12 +72,10 @@ class T3NativeControlsModule : Module() {
     }
 
     AsyncFunction("saveImageToLibrary") { uri: String, mimeType: String, name: String ->
-      val context = appContext.reactContext ?: error("The app is not active.")
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-        saveImageToPictures(context, Uri.parse(uri), mimeType, name)
-      } else {
-        error("Saving images needs Android 10 or later.")
-      }
+      saveImageToLibrary(uri, mimeType, name, codedErrors = false)
+    }
+    AsyncFunction("saveImageToLibraryWithErrorCodes") { uri: String, mimeType: String, name: String ->
+      saveImageToLibrary(uri, mimeType, name, codedErrors = true)
     }
 
     OnActivityResult { _, (requestCode) ->
@@ -118,11 +117,32 @@ class T3NativeControlsModule : Module() {
         ?.writeText(scene)
     }
   }
+
+  private fun saveImageToLibrary(uri: String, mimeType: String, name: String, codedErrors: Boolean) {
+    val context = appContext.reactContext
+      ?: photoFailure("ERR_T3_PHOTOS_APP_INACTIVE", "The app is not active.", codedErrors)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      saveImageToPictures(context, Uri.parse(uri), mimeType, name, codedErrors)
+    } else {
+      photoFailure("ERR_T3_PHOTOS_ANDROID_VERSION", "Saving images needs Android 10 or later.", codedErrors)
+    }
+  }
+}
+
+private fun photoFailure(code: String, message: String, codedErrors: Boolean): Nothing {
+  if (codedErrors) throw CodedException(code, message, null)
+  error(message)
 }
 
 // Android 10+ lets apps add their own media without a storage permission.
 @RequiresApi(Build.VERSION_CODES.Q)
-private fun saveImageToPictures(context: Context, source: Uri, mimeType: String, name: String) {
+private fun saveImageToPictures(
+  context: Context,
+  source: Uri,
+  mimeType: String,
+  name: String,
+  codedErrors: Boolean
+) {
   val resolver = context.contentResolver
   val values = ContentValues().apply {
     put(MediaStore.Images.Media.DISPLAY_NAME, name)
@@ -133,11 +153,13 @@ private fun saveImageToPictures(context: Context, source: Uri, mimeType: String,
   val target = resolver.insert(
     MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY),
     values
-  ) ?: error("Could not create the image in Pictures.")
+  ) ?: photoFailure("ERR_T3_PHOTOS_CREATE_FAILED", "Could not create the image in Pictures.", codedErrors)
   runCatching {
-    val input = resolver.openInputStream(source) ?: error("The image is no longer available.")
+    val input = resolver.openInputStream(source)
+      ?: photoFailure("ERR_T3_PHOTOS_IMAGE_UNAVAILABLE", "The image is no longer available.", codedErrors)
     input.use { from ->
-      val output = resolver.openOutputStream(target) ?: error("Could not write the image.")
+      val output = resolver.openOutputStream(target)
+        ?: photoFailure("ERR_T3_PHOTOS_WRITE_FAILED", "Could not write the image.", codedErrors)
       output.use { from.copyTo(it) }
     }
     resolver.update(

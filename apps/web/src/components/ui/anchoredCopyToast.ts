@@ -1,3 +1,4 @@
+import { clipboardErrorMessage } from "~/i18n/clipboardErrorMessages";
 import { readWebI18n } from "~/i18n/readWebI18n";
 import type { RefObject } from "react";
 import { anchoredToastManager } from "./toast";
@@ -26,6 +27,6 @@ export function showAnchoredCopyErrorToast(ref: RefObject<HTMLButtonElement | nu
       anchor: ref.current,
     },
     title: readWebI18n().t("audit3.copyFailed"),
-    description: error.message,
+    description: clipboardErrorMessage(error, readWebI18n().locale),
   });
 }

@@ -4,6 +4,9 @@ import type { Thread } from "../types";
 import { makeThreadFixture } from "../test-fixtures";
 import {
   newThreadNoProjectIndex,
+  buildRootGroups,
+  buildBrowseGroups,
+  localizeCommandPaletteGroups,
   buildNestedSearchItems,
   resolveCommandPaletteProject,
   buildThreadActionItems,
@@ -960,4 +963,36 @@ describe("newThreadNoProjectIndex", () => {
     expect(newThreadNoProjectIndex([entry(false, true, true), entry()])).toBe(0);
     expect(newThreadNoProjectIndex([entry(true), entry(true, false, true), entry()])).toBe(1);
   });
+});
+
+it("localizes actual root and browse groups without changing action identity or opaque labels", async () => {
+  const onSelect = vi.fn(async () => {});
+  const item = {
+    kind: "action" as const,
+    value: "opaque/{id}/$&",
+    searchTerms: ["opaque"],
+    title: "Actions",
+    icon: null,
+    run: onSelect,
+  };
+  const groups = buildRootGroups({ actionItems: [item], recentThreadItems: [item] });
+  const chinese = localizeCommandPaletteGroups(groups, "zh-CN");
+  expect(chinese.map((group) => group.label)).toEqual(["操作", "最近对话"]);
+  expect(chinese[0]?.items[0]).toBe(item);
+  await item.run();
+  expect(onSelect).toHaveBeenCalledOnce();
+  expect(item.title).toBe("Actions");
+  expect(localizeCommandPaletteGroups(groups, "en")).toEqual(groups);
+  const browse = buildBrowseGroups({
+    browseEntries: [],
+    browseQuery: "opaque/{path}",
+    canBrowseUp: true,
+    upIcon: null,
+    directoryIcon: null,
+    browseUp: onSelect,
+    browseTo: onSelect,
+  });
+  expect(localizeCommandPaletteGroups(browse, "zh-CN")[0]?.label).toBe("目录");
+  const custom = { ...groups[0]!, label: "user/{Actions}/$&" };
+  expect(localizeCommandPaletteGroups([custom], "zh-CN")[0]).toBe(custom);
 });

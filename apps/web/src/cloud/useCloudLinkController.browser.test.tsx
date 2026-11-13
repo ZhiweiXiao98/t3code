@@ -1,3 +1,5 @@
+import { WebI18nContext } from "~/i18n/WebI18nContext";
+import { translateWebMessage } from "~/i18n/messages";
 import {
   AuthRelayReadScope,
   AuthRelayWriteScope,
@@ -118,16 +120,27 @@ function ControllerProbe({ onRender }: { onRender: (controller: Controller) => v
 
 async function mountController() {
   let controller: Controller | null = null;
-  const screen = await render(
-    <ControllerProbe
-      onRender={(value) => {
-        controller = value;
+  const surface = (locale: "en" | "zh-CN") => (
+    <WebI18nContext
+      value={{
+        locale,
+        appLocale: locale,
+        setAppLocale: () => {},
+        t: (key, values) => translateWebMessage(locale, key, values),
       }}
-    />,
+    >
+      <ControllerProbe
+        onRender={(value) => {
+          controller = value;
+        }}
+      />
+    </WebI18nContext>
   );
+  const screen = await render(surface("en"));
   return Object.assign(screen, {
     // Object.assign would copy a getter's value once, so read the latest render through a function.
     controller: () => controller,
+    setLocale: (locale: "en" | "zh-CN") => screen.rerender(surface(locale)),
     async reconcile(desired: CloudLinkDesiredState) {
       let succeeded = false;
       await act(async () => {
@@ -254,4 +267,21 @@ describe("useCloudLinkController", () => {
     expect(screen.controller()?.operationError).toBeNull();
     expect(testState.toast).not.toHaveBeenCalled();
   });
+});
+
+it("relocalizes the actual cached permission refusal without retrying or changing permissions", async () => {
+  using _setup = setup();
+  await using screen = await mountController();
+  testState.scopes.delete(AuthRelayWriteScope);
+  expect(await screen.reconcile({ managedTunnel: true, publish: true })).toBe(false);
+  const english = "This connection needs permission to view and manage T3 Connect settings.";
+  expect(screen.controller()?.operationError).toBe(english);
+  await screen.setLocale("zh-CN");
+  expect(screen.controller()?.operationError).toBe("此连接需要查看和管理 T3 Connect 设置的权限。");
+  await screen.setLocale("en");
+  expect(screen.controller()?.operationError).toBe(english);
+  expectNoMutations();
+  expect(testState.getToken).not.toHaveBeenCalled();
+  expect(testState.toast).toHaveBeenCalledOnce();
+  expect(testState.scopes.has(AuthRelayWriteScope)).toBe(false);
 });

@@ -1,3 +1,5 @@
+import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
+import { translateWebSource } from "~/i18n/messages";
 import {
   foldSearchQuery,
   PALETTE_SECONDARY_LIMIT,
@@ -894,4 +896,26 @@ export function newThreadNoProjectIndex(
   }
   const pinnedCount = projects.filter((entry) => entry.pinned).length;
   return Math.min(pinnedCount + 1, projects.length);
+}
+
+const GROUP_LABELS: Readonly<Record<string, string>> = {
+  "nested-search": "Suggestions",
+  "threads-search": "Threads",
+  "projects-search": "Projects",
+  "settings-search": "Settings",
+  "threads-messages": "In messages",
+  directories: "Directories",
+  actions: "Actions",
+  "recent-threads": "Recent Threads",
+};
+
+export function localizeCommandPaletteGroups(
+  groups: readonly CommandPaletteGroup[],
+  locale: ResolvedAppLocale,
+): CommandPaletteGroup[] {
+  return groups.map((group) =>
+    GROUP_LABELS[group.value] === group.label
+      ? { ...group, label: translateWebSource(locale, group.label) }
+      : group,
+  );
 }

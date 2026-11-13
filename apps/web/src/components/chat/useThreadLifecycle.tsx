@@ -66,7 +66,7 @@ import { useChildThreadInputs, readThreadShell, waitForThreadShell } from "../..
 import { serverEnvironment } from "../../state/server";
 import { environmentShell } from "../../state/shell";
 import { ThreadStatusLine } from "./ThreadStatusLine";
-import { formatRelativeTimeLabel } from "../../timestampFormat";
+import { formatRelativeTime } from "../../timestampFormat";
 import { appAtomRegistry } from "../../rpc/atomRegistry";
 import { readEnvironmentScope } from "../../state/session";
 import { useAtomCommand } from "../../state/use-atom-command";
@@ -620,6 +620,20 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
   // The relative times read the clock; nowMinute re-renders them on the minute.
   const snoozedUntil = activeThreadShell?.snoozedUntil ?? null;
   const settledAt = activeThreadShell?.settledAt ?? null;
+  const settledRelative = settledAt ? formatRelativeTime(settledAt) : null;
+  const settledRelativeLabel =
+    settledRelative === null
+      ? ""
+      : settledRelative.suffix === null
+        ? t("time.relative.justNow")
+        : t(
+            settledRelative.value.endsWith("m")
+              ? "time.relative.minutesAgo"
+              : settledRelative.value.endsWith("h")
+                ? "time.relative.hoursAgo"
+                : "time.relative.daysAgo",
+            { count: settledRelative.value.slice(0, -1) },
+          );
   // Same rounding as the sidebar's snoozed shelf, so both read the same hour.
   const snoozeWake = snoozedUntil
     ? snoozeWakeLabel(snoozedUntil, { now: `${nowMinute}:00.000Z` })
@@ -643,7 +657,9 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
     <ThreadStatusLine
       icon={<CheckCircle2Icon />}
       label={
-        settledAt ? `Settled ${formatRelativeTimeLabel(settledAt)}` : t("sidebar.settledTitle")
+        settledAt
+          ? t("audit19.thread.settledAt", { time: settledRelativeLabel })
+          : t("sidebar.settledTitle")
       }
       clockMinute={nowMinute}
       actionLabel={isUnsettling ? t("composer.banner.unsettling") : t("composer.banner.unsettle")}

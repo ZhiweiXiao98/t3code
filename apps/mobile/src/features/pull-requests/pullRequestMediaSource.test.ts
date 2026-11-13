@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vite-plus/test";
 import { EnvironmentId } from "@t3tools/contracts";
 import { filePreviewGallery, filePreviewName } from "../../lib/filePreviewGallery";
-import { pullRequestImageSource, pullRequestMediaName } from "./pullRequestMediaSource";
+import {
+  pullRequestImageSource,
+  pullRequestMediaName,
+  pullRequestImagePreviewMetadata,
+} from "./pullRequestMediaSource";
 
 const location = {
   environmentId: EnvironmentId.make("test"),
@@ -28,6 +32,17 @@ describe("PR media previews", () => {
     for (const locale of ["en", "zh-CN"] as const) {
       for (const name of ["Settings", "Attachment", "Image", "{0}$&", "Link custom"]) {
         expect(pullRequestMediaName(rootUrl, name, "Attachment", locale)).toBe(name);
+        expect(pullRequestImagePreviewMetadata(rootUrl, name, "Attachment", locale)).toEqual({
+          name,
+        });
+        expect(
+          pullRequestImagePreviewMetadata(
+            `https://example.test/${name}`,
+            undefined,
+            "Image",
+            locale,
+          ),
+        ).toEqual({ name: new URL(`https://example.test/${name}`).pathname.split("/").pop() });
         expect(
           pullRequestMediaName(`https://example.test/${name}`, undefined, "Image", locale),
         ).toBe(new URL(`https://example.test/${name}`).pathname.split("/").pop());
@@ -41,6 +56,16 @@ describe("PR media previews", () => {
       expect(pullRequestMediaName(rootUrl, undefined, "Image", locale)).toBe(
         locale === "zh-CN" ? "图片" : "Image",
       );
+      for (const fallback of ["Attachment", "Image"] as const) {
+        const metadata = pullRequestImagePreviewMetadata(rootUrl, undefined, fallback, locale);
+        const image = { ...pullRequestImageSource(rootUrl, location), ...metadata };
+        expect(metadata).toEqual({
+          name: fallback,
+          displayName: locale === "en" ? fallback : fallback === "Image" ? "图片" : "附件",
+        });
+        expect(filePreviewName(image)).toBe(fallback);
+        expect(filePreviewGallery(image, [image])).toEqual([image]);
+      }
     }
     // Image preview names also select Quick Look's temporary/share filename, not only its title.
     const image = {

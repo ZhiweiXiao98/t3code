@@ -1,3 +1,5 @@
+import { WebI18nContext } from "~/i18n/WebI18nContext";
+import { translateWebMessage } from "~/i18n/messages";
 import { EnvironmentId, ThreadId } from "@t3tools/contracts";
 import { AsyncResult } from "effect/reactivity";
 import { type ReactElement } from "react";
@@ -587,4 +589,31 @@ describe("ChatMarkdown Windows file links", () => {
       expect(fileHrefs(container)).toEqual([]);
     }
   });
+});
+
+it("relocalizes GitHub alert headings without changing Markdown user content", async () => {
+  const text =
+    "> [!NOTE]\n> opaque Note/{user}/$&\n\n> [!TIP]\n> Tip body\n\n> [!IMPORTANT]\n> Important body\n\n> [!WARNING]\n> Warning body\n\n> [!CAUTION]\n> Caution body";
+  const surface = (locale: "en" | "zh-CN") => (
+    <WebI18nContext
+      value={{
+        locale,
+        appLocale: locale,
+        setAppLocale: () => {},
+        t: (key, values) => translateWebMessage(locale, key, values),
+      }}
+    >
+      <ChatMarkdown cwd="/tmp/opaque/{path}/$&" text={text} />
+    </WebI18nContext>
+  );
+  await using screen = await render(surface("en"));
+  for (const label of ["Note", "Tip", "Important", "Warning", "Caution"])
+    await expect.element(screen.getByText(label, { exact: true })).toBeVisible();
+  await screen.rerender(surface("zh-CN"));
+  for (const label of ["说明", "提示", "重要", "警告", "注意"])
+    await expect.element(screen.getByText(label, { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("opaque Note/{user}/$&", { exact: true })).toBeVisible();
+  await screen.rerender(surface("en"));
+  await expect.element(screen.getByText("Warning", { exact: true })).toBeVisible();
+  expect(text).toContain("[!WARNING]");
 });

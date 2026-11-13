@@ -262,9 +262,20 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
   const submitTooltip =
     submitStatus ??
     (compactsBeforeSend
-      ? `Summarize ${compactTokens} tokens of history, then send`
+      ? t("audit19.composer.summarizeTokens", { tokens: compactTokens ?? "" })
       : isRunning && !isEditingQueuedMessage && canSteer
-        ? `Click to ${followUpBehavior}, ${isMacPlatform(navigator.platform) ? "⌘" : "Ctrl"}-click${alternateShortcutLabel ? ` or ${alternateShortcutLabel}` : ""} to ${alternateAction}`
+        ? t("audit19.composer.dispatchHint", {
+            action: t(
+              followUpBehavior === "queue" ? "audit19.composer.queue" : "audit19.composer.steer",
+            ),
+            modifier: isMacPlatform(navigator.platform) ? "⌘" : "Ctrl",
+            shortcut: alternateShortcutLabel
+              ? t("audit19.composer.orShortcut", { shortcut: alternateShortcutLabel })
+              : "",
+            alternate: t(
+              alternateAction === "queue" ? "audit19.composer.queue" : "audit19.composer.steer",
+            ),
+          })
         : submitLabel);
 
   const sendButton = (
@@ -357,10 +368,14 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
         <TooltipPopup>
           <div>
             {keepFullHistory
-              ? `Next send keeps all ${compactTokens} tokens.`
-              : `Next send compacts ${compactTokens} tokens first.`}
+              ? t("audit19.composer.keepTokens", { tokens: compactTokens })
+              : t("audit19.composer.compactTokens", { tokens: compactTokens })}
           </div>
-          <div>{keepFullHistory ? "Click to compact first" : "Click to keep full history"}</div>
+          <div>
+            {keepFullHistory
+              ? translateWebSource(uiLocale, "Click to compact first")
+              : translateWebSource(uiLocale, "Click to keep full history")}
+          </div>
         </TooltipPopup>
       </Tooltip>
       {children}

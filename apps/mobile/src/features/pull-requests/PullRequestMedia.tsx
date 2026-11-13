@@ -4,6 +4,7 @@ import {
   pullRequestMediaSource,
   pullRequestMediaName,
   pullRequestImageSource,
+  pullRequestImagePreviewMetadata,
   type PullRequestMediaLocation,
 } from "./pullRequestMediaSource";
 import { useFilePreviewGallery } from "../../components/ui/FilePreviewGallery";
@@ -55,7 +56,7 @@ export function PullRequestMedia(props: {
   const [image, setImage] = useState<FilePreviewSource | null>(null);
   const [video, setVideo] = useState<VideoPreviewSource | null>(null);
   // Image preview names also determine the temporary/share filename.
-  const name = pullRequestMediaName(props.url, props.caption, "Attachment", "en");
+  const imageMetadata = pullRequestImagePreviewMetadata(props.url, props.caption, "Attachment");
   const displayName = pullRequestMediaName(props.url, props.caption, "Attachment");
   if (props.kind === "image")
     return (
@@ -70,7 +71,7 @@ export function PullRequestMedia(props: {
             setImage(
               withGallery({
                 ...pullRequestImageSource(props.url, context),
-                name,
+                ...imageMetadata,
                 sourceIdentifier: source.sourceIdentifier,
               }),
             )

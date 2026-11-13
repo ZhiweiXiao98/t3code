@@ -205,6 +205,7 @@ import {
   type CommandPaletteView,
   filterCommandPaletteGroups,
   buildNestedSearchItems,
+  localizeCommandPaletteGroups,
   filterPinnedBrowseEntries,
   getCommandPaletteMode,
   ITEM_ICON_CLASS,
@@ -2500,6 +2501,7 @@ function OpenCommandPaletteDialog(props: {
   } else if (isBrowsing) {
     displayedGroups = relativePathNeedsActiveProject ? [] : browseGroups;
   }
+  displayedGroups = localizeCommandPaletteGroups(displayedGroups, locale);
   const resultRows = buildCommandPaletteRows(displayedGroups);
   const autoHighlightsFirstRow =
     !isBrowsing && !isRemoteProjectCloneFlow && newProjectFlow === null;

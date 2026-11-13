@@ -53,7 +53,9 @@ export function TriageDraftHero(props: {
               />
             }
           >
-            {isCopied ? "Copied" : translateWebSource(copyLocale, "or run")}
+            {isCopied
+              ? translateWebSource(copyLocale, "Copied")
+              : translateWebSource(copyLocale, "or run")}
             {isCopied ? null : <code className="ml-1 font-mono text-xs">{TRIAGE_CLI_COMMAND}</code>}
           </TooltipTrigger>
           <TooltipPopup side="bottom">

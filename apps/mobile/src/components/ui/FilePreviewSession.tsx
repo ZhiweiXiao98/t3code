@@ -12,7 +12,12 @@ import {
 } from "../../lib/attachmentDownload";
 import { usePreviewPresentation } from "../../lib/previewPresentation";
 import { refreshAssetUrl } from "../../state/assets";
-import { filePreviewGallery, filePreviewKey, filePreviewName } from "../../lib/filePreviewGallery";
+import {
+  filePreviewDisplayName,
+  filePreviewGallery,
+  filePreviewKey,
+  filePreviewName,
+} from "../../lib/filePreviewGallery";
 import { FilePreviewGallery } from "./FilePreviewGallery";
 import type { MediaActionsSource } from "../../lib/mediaActionsSource";
 import type {
@@ -152,9 +157,11 @@ function ResolvedFilePreview(
     if (!progressiveGallery && uris.some((uri) => uri === undefined)) return null;
     const images = items.map((item, index) => {
       const uri = uris[index];
+      const displayName = filePreviewDisplayName(item);
       return {
         ...item,
         name: filePreviewName(item),
+        ...(displayName !== undefined ? { displayName } : {}),
         ...(uri ? { uri } : uri === null ? { failed: true } : {}),
       };
     });

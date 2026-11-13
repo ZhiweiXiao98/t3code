@@ -1,9 +1,12 @@
+import { WebI18nContext } from "../../i18n/WebI18nContext";
+import { translateWebMessage } from "../../i18n/messages";
+import { SnapShotSetupDialog } from "./SnapShotSetupDialog";
 import {
   DEFAULT_CLIENT_SETTINGS,
   type DesktopCaptureConfigPreview,
   type DesktopSnapShotState,
 } from "@t3tools/contracts";
-import { userEvent } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 import { expect, it, vi } from "vite-plus/test";
 
 import { act, render } from "../../../test/render";
@@ -119,4 +122,82 @@ it("withdraws a stale diff and requires another read instead of retrying its wri
   expect(screen.button("Review changes")).toBeDefined();
   expect(screen.diff()).toBeNull();
   expect(complete).not.toHaveBeenCalled();
+});
+
+it("updates capture setup copy with locale and helper state without changing the requested action", async () => {
+  using _env = setup();
+  const state: DesktopSnapShotState = {
+    mode: "portal",
+    linuxBackend: "kde",
+    shortcut: DEFAULT_CLIENT_SETTINGS.snapShotShortcut,
+    shortcutRegistered: false,
+    shortcutMessage: null,
+    message: null,
+    kdeHelper: { status: "update-required", message: "Helper v2 required" },
+  };
+  const onAction = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+  const onEnable = vi.fn<() => Promise<boolean>>().mockResolvedValue(true);
+  const onRefresh = vi.fn<() => Promise<DesktopSnapShotState>>().mockResolvedValue(state);
+  const localized = (locale: "en" | "zh-CN", current: DesktopSnapShotState) => (
+    <WebI18nContext
+      value={{
+        locale,
+        appLocale: locale,
+        setAppLocale: () => undefined,
+        t: (key, values) => translateWebMessage(locale, key, values),
+      }}
+    >
+      <SnapShotSetupDialog
+        state={current}
+        initialStep="access"
+        wasEnabled={false}
+        includeAccessibility={false}
+        busy={false}
+        error={null}
+        shortcutInput={<input aria-label="User shortcut" defaultValue="Ctrl+Shift+2" />}
+        shortcutStatus={null}
+        shortcutChanged={false}
+        canSaveShortcut={false}
+        onSaveShortcut={async () => true}
+        onEnable={onEnable}
+        onAction={onAction}
+        onRefresh={onRefresh}
+        onClose={async () => undefined}
+        onLeaveStep={() => undefined}
+      />
+    </WebI18nContext>
+  );
+  await using screen = await render(localized("en", state));
+  await expect
+    .element(page.getByRole("heading", { name: "Update the capture helper" }))
+    .toBeVisible();
+  await screen.rerender(localized("zh-CN", state));
+  await expect.element(page.getByRole("heading", { name: "更新捕获助手" })).toBeVisible();
+  await expect
+    .element(
+      page.getByText(
+        "T3 Code 捕获助手可让你截取其他应用的画面并返回草稿。它随 T3 Code 一同提供。",
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await screen.rerender(localized("en", state));
+  await page.getByRole("button", { name: "Update helper", exact: true }).click();
+  expect(onAction).toHaveBeenCalledExactlyOnceWith("install-kde-helper");
+  expect(onEnable).not.toHaveBeenCalled();
+  const ready: DesktopSnapShotState = {
+    ...state,
+    kdeHelper: { status: "ready", message: "Helper ready" },
+  };
+  await screen.rerender(localized("zh-CN", ready));
+  await expect.element(page.getByRole("heading", { name: "捕获已就绪" })).toBeVisible();
+  await expect.element(page.getByText("接下来，请选择快捷键。", { exact: true })).toBeVisible();
+  await screen.rerender(localized("en", ready));
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect.element(page.getByRole("heading", { name: "Choose your shortcut" })).toBeVisible();
+  await expect
+    .element(page.getByRole("textbox", { name: "User shortcut" }))
+    .toHaveValue("Ctrl+Shift+2");
+  expect(onEnable).toHaveBeenCalledOnce();
+  expect(onRefresh).not.toHaveBeenCalled();
 });

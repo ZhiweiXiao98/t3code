@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 private final class FilePreviewItem: NSObject, QLPreviewItem {
   var previewItemURL: URL?
   var previewItemTitle: String?
+  var fileName = ""
 }
 
 private enum FilePreviewState { case loading, ready, failed }
@@ -87,13 +88,17 @@ final class T3NativeFilePresentation: NSObject, QLPreviewControllerDataSource,
 
   /// Downloads the file before presenting so Quick Look can refuse a format the caller should share instead.
   func present(url: URL, title: String, from presenter: UIViewController) {
-    load(urls: [url], titles: [title], selectedIndex: 0, from: presenter, opensWhileLoading: false)
+    load(urls: [url], titles: [(fileName: title, displayTitle: title)], selectedIndex: 0,
+         from: presenter, opensWhileLoading: false)
   }
 
   /// Opens the selected image once it is ready, or a loading page if it is slow, and loads the rest
   /// of the gallery behind it so a slow or broken sibling never holds the viewer back.
-  func present(urls: [URL?], titles: [String], selectedIndex: Int, from presenter: UIViewController) {
-    load(urls: urls, titles: titles, selectedIndex: selectedIndex, from: presenter, opensWhileLoading: true)
+  func present(urls: [URL?], titles: [String], displayTitles: [String]? = nil, selectedIndex: Int, from presenter: UIViewController) {
+    let names = titles.enumerated().map { index, title in
+      (fileName: title, displayTitle: displayTitles?[index] ?? title)
+    }
+    load(urls: urls, titles: names, selectedIndex: selectedIndex, from: presenter, opensWhileLoading: true)
   }
 
   /// Delivers a URL that was still resolving when the gallery opened, or nil when it never will.
@@ -107,11 +112,12 @@ final class T3NativeFilePresentation: NSObject, QLPreviewControllerDataSource,
     loadNext()
   }
 
-  private func load(urls: [URL?], titles: [String], selectedIndex: Int, from presenter: UIViewController,
-                    opensWhileLoading: Bool) {
+  private func load(urls: [URL?], titles: [(fileName: String, displayTitle: String)], selectedIndex: Int,
+                    from presenter: UIViewController, opensWhileLoading: Bool) {
     items = titles.map { title in
       let item = FilePreviewItem()
-      item.previewItemTitle = title
+      item.fileName = title.fileName
+      item.previewItemTitle = title.displayTitle
       return item
     }
     self.urls = urls
@@ -143,11 +149,12 @@ final class T3NativeFilePresentation: NSObject, QLPreviewControllerDataSource,
       download.task.cancel()
     }
     guard let url = urls[next] else { return }
-    let title = items[next].previewItemTitle ?? ""
+    // Display titles never select the copied file or its share-sheet name.
+    let fileName = items[next].fileName
     let task = Task { @MainActor [self] in
       let result: Result<URL, Error>
       do {
-        result = .success(try await Self.prepareFile(url: url, title: title))
+        result = .success(try await Self.prepareFile(url: url, title: fileName))
       } catch {
         result = .failure(error)
       }

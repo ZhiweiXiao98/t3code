@@ -6,6 +6,7 @@ export const MOBILE_LOCALE: MobileLocale =
   process.env.EXPO_PUBLIC_APP_LOCALE === "zh-CN" ? "zh-CN" : "en";
 
 const ZH_CN_MESSAGES = {
+  "Could not save image": "无法保存图片",
   "the Codex CLI": "Codex CLI",
   "{0}, {1}": "{0}、{1}",
   "{0}, and {1}": "{0}和{1}",

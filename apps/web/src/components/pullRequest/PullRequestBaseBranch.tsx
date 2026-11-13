@@ -139,7 +139,9 @@ export function PullRequestBaseBranch({
           </span>
         }
       />
-      <TooltipPopup side="top">{stacked ? `Stacked on ${baseBranch}` : baseBranch}</TooltipPopup>
+      <TooltipPopup side="top">
+        {stacked ? t("pullRequests.detail.stackedOn", { branch: baseBranch }) : baseBranch}
+      </TooltipPopup>
     </Tooltip>
   );
 }

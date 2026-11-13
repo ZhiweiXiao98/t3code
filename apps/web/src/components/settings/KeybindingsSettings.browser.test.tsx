@@ -158,3 +158,36 @@ it("re-enables Save when a When editor closes on an expression it could not pars
   await expect.element(expression).toHaveValue("terminalFocus");
   await expect.element(screen.getByRole("button", { name: "Save" })).toBeEnabled();
 });
+
+it("relocalizes a real invalid when expression while preserving the draft and disabled Save", async () => {
+  const surface = (locale: "en" | "zh-CN") => (
+    <WebI18nContext
+      value={{
+        locale,
+        appLocale: locale,
+        setAppLocale: () => {},
+        t: (key, values) => translateWebMessage(locale, key, values),
+      }}
+    >
+      <RegistryProvider>
+        <KeybindingsSettingsPanel />
+      </RegistryProvider>
+    </WebI18nContext>
+  );
+  await using screen = await render(surface("en"));
+  await screen.getByRole("button", { name: "Edit when clause for Terminal: Toggle" }).click();
+  const expression = screen.getByRole("textbox", { name: "When expression" });
+  await userEvent.type(expression, "terminalFocus &&");
+  await expect
+    .element(screen.getByText("Use variables with !, &&, ||, and parentheses.", { exact: true }))
+    .toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Save", exact: true })).toBeDisabled();
+  await screen.rerender(surface("zh-CN"));
+  await expect
+    .element(screen.getByText("请使用变量以及 !、&&、|| 和括号。", { exact: true }))
+    .toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "保存", exact: true })).toBeDisabled();
+  await screen.rerender(surface("en"));
+  await expect.element(expression).toHaveValue("terminalFocus &&");
+  await expect.element(screen.getByRole("button", { name: "Save", exact: true })).toBeDisabled();
+});

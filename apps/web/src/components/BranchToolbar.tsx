@@ -1,3 +1,5 @@
+import { clipboardErrorMessage } from "~/i18n/clipboardErrorMessages";
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
 
@@ -137,7 +139,8 @@ function showWorkspaceContextMenu(
             stackedThreadToast({
               type: "error",
               title: tx("Failed to copy path"),
-              description: error instanceof Error ? error.message : tx("An error occurred."),
+              description:
+                clipboardErrorMessage(error, readWebI18n().locale) ?? tx("An error occurred."),
             }),
           );
         },

@@ -1158,14 +1158,20 @@ export function PullRequestsPage() {
   const listBody = (
     <>
       {!capabilityKnown ? (
-        <PullRequestListGhost rows={7} caption="Loading pull requests…" />
+        <PullRequestListGhost
+          rows={7}
+          caption={translateWebSource(locale, "Loading pull requests…")}
+        />
       ) : !pullRequestsSupported ? (
         <PullRequestsUnavailableState
           title={translateWebSource(locale, "Pull requests unavailable")}
           error="Update your T3 Code servers to browse pull requests."
         />
       ) : firstLoad ? (
-        <PullRequestListGhost rows={7} caption="Loading pull requests…" />
+        <PullRequestListGhost
+          rows={7}
+          caption={translateWebSource(locale, "Loading pull requests…")}
+        />
       ) : listQuery.error && shownCount === 0 ? (
         <PullRequestsUnavailableState
           error={listQuery.error}

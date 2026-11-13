@@ -183,10 +183,10 @@ it("localizes producer-marked endpoint rows and QR choices without changing sele
     .toHaveAttribute("aria-checked", "false");
   await expect
     .element(screen.getByRole("radio", { name: /^本地网络 / }))
-    .toHaveTextContent("同一局域网内的设备");
+    .toHaveTextContent("本地网络同一局域网内的设备");
   await expect
     .element(screen.getByRole("radio", { name: /^自定义 HTTPS / }))
-    .toHaveTextContent("打开托管应用，无需安装");
+    .toHaveTextContent("自定义 HTTPS打开托管应用，无需安装");
   await screen.getByRole("button", { name: "设为默认", exact: true }).click();
   expect(setDefault).toHaveBeenCalledWith(custom);
   expect(endpointDefaultPreferenceKey(setDefault.mock.calls[0]![0])).toBe(

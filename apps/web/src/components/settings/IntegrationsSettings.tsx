@@ -987,7 +987,9 @@ function DeviceIntegrationControls({
                   .finally(() => setPending(null));
               }}
             >
-              {pending === `update-${tool}` ? "Updating…" : "Update"}
+              {pending === `update-${tool}`
+                ? translateWebSource(locale, "Updating…")
+                : translateWebSource(locale, "Update")}
             </Button>
           ) : null}
           {state.supportsToolInspection ? (

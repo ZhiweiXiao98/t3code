@@ -656,7 +656,7 @@ function WhenExpressionBuilder({
         {parseError ? (
           <div className="flex items-center gap-1.5 text-2xs text-destructive">
             <CircleXIcon className="size-3.5" />
-            {parseError}
+            {translateWebSource(locale, parseError)}
           </div>
         ) : null}
       </div>

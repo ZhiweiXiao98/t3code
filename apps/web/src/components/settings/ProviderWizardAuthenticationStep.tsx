@@ -95,7 +95,9 @@ export function ProviderWizardAuthenticationStep({
           disabled={active}
           onClick={onFinish}
         >
-          {signedIn ? "Done" : "Skip for now"}
+          {signedIn
+            ? translateWebSource(sourceLocale, "Done")
+            : translateWebSource(sourceLocale, "Skip for now")}
         </Button>
       </WizardFooter>
     </>

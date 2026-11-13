@@ -175,14 +175,14 @@ export function PullRequestCommentForm({
                   {submitting === "close"
                     ? translateWebSource(locale, "Closing...")
                     : inlineConfirm.isArmed("close")
-                      ? "Confirm close?"
+                      ? translateWebSource(locale, "Confirm close?")
                       : translateWebSource(locale, "Close with comment")}
                 </span>
               </span>
             ) : submitting === "reopen" ? (
-              "Reopening..."
+              translateWebSource(locale, "Reopening...")
             ) : (
-              "Reopen with comment"
+              translateWebSource(locale, "Reopen with comment")
             )}
           </Button>
         )}

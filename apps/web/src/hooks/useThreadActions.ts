@@ -732,10 +732,13 @@ export function useThreadActions() {
         stackedThreadToast({
           type: "error",
           title: removalFailed
-            ? "Failed to delete worktree"
-            : "Worktree deleted, but Git status refresh failed",
+            ? readWebI18n().t("audit19.worktreeDeleteFailed")
+            : readWebI18n().t("audit19.worktreeRefreshFailed"),
           description: removalFailed
-            ? `Could not remove ${displayWorktreePath ?? orphanedWorktreePath}. ${message}`
+            ? readWebI18n().t("audit19.worktreeRemoveDetail", {
+                path: displayWorktreePath ?? orphanedWorktreePath,
+                error: message,
+              })
             : message,
         }),
       );

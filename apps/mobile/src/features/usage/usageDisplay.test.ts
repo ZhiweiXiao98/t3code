@@ -1,6 +1,32 @@
+import * as NodeModule from "node:module";
+import { act, createElement, type ReactNode } from "react";
+import { createRoot } from "react-dom/client";
+import { UsageCostSection } from "./UsageCostSection";
+
+vi.mock("react-native", () => ({
+  Platform: { OS: "android" },
+  View: ({
+    children,
+    style,
+  }: {
+    children?: ReactNode;
+    style?: { flex?: number; backgroundColor?: string };
+  }) =>
+    createElement(
+      "div",
+      { style: { flex: style?.flex, backgroundColor: style?.backgroundColor } },
+      children,
+    ),
+  Text: ({ children }: { children?: ReactNode }) => createElement("span", null, children),
+  TextInput: "input",
+}));
+vi.mock("../settings/appearance/AppearancePreferencesProvider", () => ({
+  useAppearancePreferences: () => ({ themeAppearance: "light" }),
+}));
+
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it, vi } from "vite-plus/test";
 import { resolveUsageAccess } from "@t3tools/client-runtime/state/usage-access";
 import {
   formatUsageContractMismatch,
@@ -115,4 +141,82 @@ describe("mobile usage display", () => {
       "区段 1，Usage，剩余 80%，额度周期剩余 23.5%",
     );
   });
+});
+
+it("renders owned cost categories in the selected locale without changing amounts, thresholds or the global Input meaning", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  using _globals = { [Symbol.dispose]: () => vi.unstubAllGlobals() };
+  // Worklets injects a CommonJS warning for plain segment.value used in inline styles.
+  const require = NodeModule.createRequire(import.meta.url);
+  const animationPath = require.resolve("react-native-reanimated");
+  const previousAnimation = require.cache[animationPath];
+  const animation = new NodeModule.Module(animationPath);
+  animation.filename = animationPath;
+  animation.exports = { getUseOfValueInStyleWarning: () => "Inline value style" };
+  animation.loaded = true;
+  require.cache[animationPath] = animation;
+  using _animation = {
+    [Symbol.dispose]() {
+      if (previousAnimation) require.cache[animationPath] = previousAnimation;
+      else delete require.cache[animationPath];
+    },
+  };
+  const merged = {
+    costUsd: 20,
+    categoryCost: { input: 2, cacheRead: 3, cacheWrite: 4, output: 5, unsplit: 0.005 },
+    speedCost: { standard: 6, fast: 7, ultrafast: 8, premium: 9 },
+  };
+  const before = structuredClone(merged);
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  try {
+    for (const language of ["en", "zh-CN", "en"] as const) {
+      await act(async () =>
+        root.render(createElement(UsageCostSection, { merged, wide: true, locale: language })),
+      );
+      const labels = Array.from(container.querySelectorAll("span"), (node) => node.textContent);
+      expect(labels).toContain(language === "en" ? "Input" : "输入");
+      expect(labels).toContain(language === "en" ? "Other" : "其他");
+      expect(labels).toContain(language === "en" ? "Standard" : "标准");
+      expect(labels).toContain(language === "en" ? "Fast" : "快速");
+      expect(labels).toContain(language === "en" ? "Ultrafast" : "极速");
+      expect(labels).not.toContain("待输入");
+      for (const cost of [2, 3, 4, 5, 0.005, 6, 7, 8]) expect(labels).toContain(formatUsd(cost));
+      expect(labels).toContain(formatMobileMessage("{0} premium", [formatUsd(9)], language));
+      expect(
+        Array.from(container.querySelectorAll<HTMLElement>("div[style]"), (node) =>
+          Number.parseFloat(node.style.flex),
+        ).filter(Number.isFinite),
+      ).toEqual([2, 3, 4, 5, 0.005, 6, 7, 8]);
+      expect(merged).toEqual(before);
+    }
+    expect(localizeMobileString("Input", "zh-CN")).toBe("待输入");
+    const reduced = {
+      ...merged,
+      categoryCost: { ...merged.categoryCost, cacheWrite: 0, unsplit: 0.004 },
+      speedCost: { standard: 6, fast: 0, ultrafast: 0, premium: 0 },
+    };
+    await act(async () =>
+      root.render(
+        createElement(UsageCostSection, { merged: reduced, wide: false, locale: "zh-CN" }),
+      ),
+    );
+    const labels = Array.from(container.querySelectorAll("span"), (node) => node.textContent);
+    expect(labels).toContain("输入");
+    expect(labels).not.toContain("其他");
+    expect(labels).not.toContain("缓存写入");
+    expect(labels).not.toContain("按速度");
+    await act(async () =>
+      root.render(
+        createElement(UsageCostSection, {
+          merged: { ...merged, costUsd: 0 },
+          wide: false,
+          locale: "zh-CN",
+        }),
+      ),
+    );
+    expect(container.textContent).toBe("");
+  } finally {
+    await act(async () => root.unmount());
+  }
 });

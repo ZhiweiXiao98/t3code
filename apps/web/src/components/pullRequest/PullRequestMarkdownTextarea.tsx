@@ -1,3 +1,5 @@
+import { useI18n } from "~/i18n/WebI18nContext";
+import { translateWebSource } from "~/i18n/messages";
 import type {
   EnvironmentId,
   ProjectId,
@@ -95,6 +97,7 @@ function useCompletions(
 }
 
 function ReferenceStateIcon({ candidate }: { candidate: PullRequestReferenceCandidate }) {
+  const { locale } = useI18n();
   const presentation =
     candidate.kind === "change-request"
       ? resolvePullRequestState({ state: candidate.state, isDraft: false })
@@ -112,7 +115,7 @@ function ReferenceStateIcon({ candidate }: { candidate: PullRequestReferenceCand
   return (
     <presentation.Icon
       role="img"
-      aria-label={presentation.label}
+      aria-label={translateWebSource(locale, presentation.label)}
       className={cn("size-4 shrink-0", presentation.toneClassName)}
     />
   );
@@ -177,6 +180,7 @@ export function PullRequestMarkdownTextarea({
   readonly onValueChange: (value: string) => void;
   readonly completionScope: PullRequestCompletionScope | null;
 }) {
+  const { locale } = useI18n();
   const listId = useId();
   const [element, setElement] = useState<HTMLTextAreaElement | null>(null);
   const [caret, setCaret] = useState<number | null>(null);
@@ -299,7 +303,7 @@ export function PullRequestMarkdownTextarea({
             <div
               id={listId}
               role="listbox"
-              aria-label={EMPTY_STATE[trigger?.kind ?? "mention"].label}
+              aria-label={translateWebSource(locale, EMPTY_STATE[trigger?.kind ?? "mention"].label)}
               className="-mx-1.5"
             >
               {candidates.map((completion, index) => (
@@ -325,11 +329,12 @@ export function PullRequestMarkdownTextarea({
             </div>
           ) : (
             <p className="px-1 text-xs text-muted-foreground">
-              {
+              {translateWebSource(
+                locale,
                 EMPTY_STATE[trigger?.kind ?? "mention"][
                   isPending ? "pending" : failed ? "failed" : "none"
-                ]
-              }
+                ],
+              )}
             </p>
           )}
         </PopoverPopup>

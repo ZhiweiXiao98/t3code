@@ -94,6 +94,20 @@ public final class T3NativeControlsModule: Module {
       file.present(urls: urls, titles: titles, selectedIndex: selectedIndex, from: presenter)
     }.runOnQueue(.main)
 
+    // Additive capability: filenames and Quick Look titles travel separately on new clients.
+    AsyncFunction("presentFilesWithDisplayTitles") { (urls: [URL?], titles: [String], displayTitles: [String], selectedIndex: Int, sourceIdentifiers: [String], identifier: String, promise: Promise) in
+      guard !urls.isEmpty, urls.count == titles.count, urls.count == displayTitles.count,
+        urls.count == sourceIdentifiers.count, urls.indices.contains(selectedIndex)
+      else { throw URLError(.badURL) }
+      let file = try self.makeFilePresentation(sourceIdentifiers: sourceIdentifiers, identifier: identifier,
+                                               promise: promise)
+      guard let presenter = self.appContext?.utilities?.currentViewController() else {
+        file.dismiss()
+        return
+      }
+      file.present(urls: urls, titles: titles, displayTitles: displayTitles, selectedIndex: selectedIndex, from: presenter)
+    }.runOnQueue(.main)
+
     // A nil URL marks the item as one that could not be resolved.
     AsyncFunction("updateFile") { (identifier: String, index: Int, url: URL?) in
       if self.filePresentation?.identifier == identifier { self.filePresentation?.update(index: index, url: url) }
@@ -136,9 +150,12 @@ public final class T3NativeControlsModule: Module {
       try self.shareFile(url: url, title: title, sourceIdentifier: identifier, promise: promise)
     }.runOnQueue(.main)
 
-    // Photos names the asset itself, so iOS ignores the Android display name.
+    // Keep the original asset filename unchanged on both old and new clients.
     AsyncFunction("saveImageToLibrary") { (url: URL, mimeType: String, name: String, promise: Promise) in
       Self.saveImageToLibrary(url: url, mimeType: mimeType, name: name, promise: promise)
+    }
+    AsyncFunction("saveImageToLibraryWithErrorCodes") { (url: URL, mimeType: String, name: String, promise: Promise) in
+      Self.saveImageToLibrary(url: url, mimeType: mimeType, name: name, codedErrors: true, promise: promise)
     }
   }
 
@@ -314,14 +331,10 @@ public final class T3NativeControlsModule: Module {
     if filePresentation?.identifier == identifier { filePresentation?.dismiss() }
   }
 
-  private static func saveImageToLibrary(url: URL, mimeType: String, name: String, promise: Promise) {
+  private static func saveImageToLibrary(url: URL, mimeType: String, name: String, codedErrors: Bool = false, promise: Promise) {
     PHPhotoLibrary.requestAuthorization(for: .addOnly) { status in
       guard status == .authorized || status == .limited else {
-        promise.reject(NSError(
-          domain: "T3NativePhotos",
-          code: 1,
-          userInfo: [NSLocalizedDescriptionKey: "Allow T3 Code to add photos in Settings."]
-        ))
+        Self.rejectPhotoFailure(.permissionDenied, codedErrors: codedErrors, promise: promise)
         return
       }
       PHPhotoLibrary.shared().performChanges({
@@ -333,13 +346,36 @@ public final class T3NativeControlsModule: Module {
         if saved {
           promise.resolve(nil)
         } else {
-          promise.reject(error ?? NSError(
-            domain: "T3NativePhotos",
-            code: 2,
-            userInfo: [NSLocalizedDescriptionKey: "Photos could not save this image."]
-          ))
+          if let error { promise.reject(error) }
+          else { Self.rejectPhotoFailure(.saveFailed, codedErrors: codedErrors, promise: promise) }
         }
       })
+    }
+  }
+
+  private enum PhotoFailure: Int {
+    case permissionDenied = 1
+    case saveFailed = 2
+
+    var code: String {
+      switch self {
+      case .permissionDenied: return "ERR_T3_PHOTOS_PERMISSION_DENIED"
+      case .saveFailed: return "ERR_T3_PHOTOS_SAVE_FAILED"
+      }
+    }
+    var message: String {
+      switch self {
+      case .permissionDenied: return "Allow T3 Code to add photos in Settings."
+      case .saveFailed: return "Photos could not save this image."
+      }
+    }
+  }
+
+  private static func rejectPhotoFailure(_ failure: PhotoFailure, codedErrors: Bool, promise: Promise) {
+    if codedErrors { promise.reject(failure.code, failure.message) }
+    else {
+      promise.reject(NSError(domain: "T3NativePhotos", code: failure.rawValue,
+                             userInfo: [NSLocalizedDescriptionKey: failure.message]))
     }
   }
 

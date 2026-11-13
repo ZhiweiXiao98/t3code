@@ -3,6 +3,8 @@ import { expect, it, vi } from "vite-plus/test";
 import { userEvent } from "vite-plus/test/browser";
 
 import { useInlineActionConfirm } from "./useInlineActionConfirm";
+import { WebI18nContext } from "../../i18n/WebI18nContext";
+import { translateWebMessage } from "../../i18n/messages";
 
 function MergeButton({ scopeKey, onConfirm }: { scopeKey: string; onConfirm: () => void }) {
   const confirm = useInlineActionConfirm(scopeKey);
@@ -82,21 +84,30 @@ it.each(["merge", "enable-auto-merge"] as const)(
   async (primaryAction) => {
     const perform = vi.fn(async () => true);
     const { PullRequestPrimaryAction } = await import("./PullRequestDetailActions");
-    const control = (mergeBlockedReason: string | null) => (
-      <PullRequestPrimaryAction
-        pullRequestKey="owner/repo/7"
-        primaryAction={primaryAction}
-        mergeBlockedReason={mergeBlockedReason}
-        autoMergeArmed={false}
-        armedAutoMergeLabel="Auto-merge enabled"
-        pendingAutoMergeLabel="Auto-merge (squash)"
-        selectedMergeMethod="squash"
-        selectedMergeMethodLabel="Squash and merge"
-        statePresentation={null}
-        pendingAction={null}
-        perform={perform}
-        resolveConflicts={null}
-      />
+    const control = (mergeBlockedReason: string | null, locale: "en" | "zh-CN" = "en") => (
+      <WebI18nContext
+        value={{
+          locale,
+          appLocale: locale,
+          setAppLocale: () => undefined,
+          t: (key, values) => translateWebMessage(locale, key, values),
+        }}
+      >
+        <PullRequestPrimaryAction
+          pullRequestKey="owner/repo/7"
+          primaryAction={primaryAction}
+          mergeBlockedReason={mergeBlockedReason}
+          autoMergeArmed={false}
+          armedAutoMergeLabel="Auto-merge enabled"
+          pendingAutoMergeLabel="Auto-merge (squash)"
+          selectedMergeMethod="squash"
+          selectedMergeMethodLabel="Squash and merge"
+          statePresentation={null}
+          pendingAction={null}
+          perform={perform}
+          resolveConflicts={null}
+        />
+      </WebI18nContext>
     );
     await using screen = await render(control("Checking stack membership…"));
     const button = screen.getByRole("button");
@@ -107,6 +118,14 @@ it.each(["merge", "enable-auto-merge"] as const)(
     expect(perform).not.toHaveBeenCalled();
     await screen.rerender(control(null));
     await userEvent.click(button);
+    expect(perform).not.toHaveBeenCalled();
+    await expect
+      .element(button)
+      .toHaveAccessibleName(primaryAction === "merge" ? "Confirm merge?" : "Confirm auto-merge?");
+    await screen.rerender(control(null, "zh-CN"));
+    await expect
+      .element(button)
+      .toHaveAccessibleName(primaryAction === "merge" ? "确认合并？" : "确认自动合并？");
     expect(perform).not.toHaveBeenCalled();
     await userEvent.click(button);
     expect(perform).toHaveBeenCalledExactlyOnceWith(primaryAction, "squash");

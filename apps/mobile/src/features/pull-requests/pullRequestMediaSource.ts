@@ -42,3 +42,14 @@ export function pullRequestMediaName(
     caption || new URL(url).pathname.split("/").pop() || localizeMobileString(fallback, locale)
   );
 }
+
+/** Track missing-name provenance before the fallback becomes indistinguishable from a real name. */
+export function pullRequestImagePreviewMetadata(
+  url: string,
+  caption: string | undefined,
+  fallback: "Attachment" | "Image",
+  locale: MobileLocale = MOBILE_LOCALE,
+): Pick<FilePreviewItem, "name" | "displayName"> {
+  const name = caption || new URL(url).pathname.split("/").pop();
+  return name ? { name } : { name: fallback, displayName: localizeMobileString(fallback, locale) };
+}

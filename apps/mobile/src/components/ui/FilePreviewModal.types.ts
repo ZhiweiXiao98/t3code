@@ -7,6 +7,8 @@ interface FilePreviewMetadata {
   readonly kind: "image" | "pdf" | "document";
   readonly mimeType?: string;
   readonly name?: string;
+  /** Presentation only; name still determines the temporary and shared filename. */
+  readonly displayName?: string;
   readonly sourceIdentifier?: string;
   readonly srcFragment?: string;
   readonly actionsSource?: MediaActionsSource;

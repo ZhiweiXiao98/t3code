@@ -305,8 +305,12 @@ export function ThreadDetailsPrRow({
             <div className="flex min-w-0 items-center gap-2">
               <FileDiffIcon className="size-3 shrink-0 stroke-muted-foreground" />
               <div className="min-w-0 flex items-baseline gap-1 truncate text-foreground/75">
-                {detail.changedFiles.toLocaleString()}{" "}
-                {detail.changedFiles === 1 ? "file" : "files"}
+                {residualT(
+                  detail.changedFiles === 1
+                    ? "pullRequests.code.fileCountOne"
+                    : "pullRequests.code.fileCountMany",
+                  { count: detail.changedFiles.toLocaleString() },
+                )}
                 <PullRequestDiffStat additions={detail.additions} deletions={detail.deletions} />
               </div>
             </div>

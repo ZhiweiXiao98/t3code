@@ -249,7 +249,7 @@ export function T3ConnectUserProfilePage() {
       stackedThreadToast({
         type: "error",
         title: tx("Could not deregister server"),
-        description: relayFailureReason(cause) ?? message,
+        description: relayFailureReason(cause, locale) ?? message,
         ...(traceId
           ? {
               actionProps: {

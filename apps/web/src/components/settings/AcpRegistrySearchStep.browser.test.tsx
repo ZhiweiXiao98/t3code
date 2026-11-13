@@ -1,3 +1,5 @@
+import { WebI18nContext } from "../../i18n/WebI18nContext";
+import { translateWebMessage } from "../../i18n/messages";
 import { EnvironmentId, ProviderDriverKind, type AcpRegistrySearchAgent } from "@t3tools/contracts";
 import { expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
@@ -124,4 +126,43 @@ it("leaves out Registry agents that T3 Code supports as their own providers", as
 
   expect(page.getByRole("button", { name: "Add Gemini CLI" }).query()).not.toBeNull();
   expect(page.getByRole("button", { name: "Add Codex" }).query()).toBeNull();
+});
+
+it("localizes search transitions and counts while retaining registry identities", async () => {
+  setup();
+  state.isPending = true;
+  const localized = (locale: "en" | "zh-CN") => (
+    <WebI18nContext
+      value={{
+        locale,
+        appLocale: locale,
+        setAppLocale: () => undefined,
+        t: (key, values) => translateWebMessage(locale, key, values),
+      }}
+    >
+      <Step />
+    </WebI18nContext>
+  );
+  await using screen = await render(localized("en"));
+  await expect
+    .element(screen.getByText("Searching the ACP Registry.", { exact: true }))
+    .toBeVisible();
+  await screen.rerender(localized("zh-CN"));
+  await expect.element(screen.getByText("正在搜索 ACP 注册表。", { exact: true })).toBeVisible();
+  state.result = { agents: [gemini] };
+  await screen.rerender(localized("zh-CN"));
+  await expect
+    .element(screen.getByText("正在刷新 ACP 注册表结果。", { exact: true }))
+    .toBeVisible();
+  state.isPending = false;
+  await screen.rerender(localized("zh-CN"));
+  await expect.element(screen.getByText("找到 1 个兼容智能体。", { exact: true })).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "添加 Gemini CLI" })).toBeVisible();
+  state.result = { agents: [gemini, { ...gemini, id: "custom-agent", name: "Custom Agent" }] };
+  await screen.rerender(localized("en"));
+  await expect
+    .element(screen.getByText("2 compatible agents found.", { exact: true }))
+    .toBeVisible();
+  await page.getByRole("button", { name: "Add Custom Agent" }).click();
+  expect(state.prepare).toHaveBeenCalled();
 });

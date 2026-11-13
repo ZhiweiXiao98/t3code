@@ -37,14 +37,17 @@ export default function PreviewImageContent(props: {
     : 1;
   const scale = zoom ?? fit;
   const changeZoom = (factor: number) => setZoom(Math.max(0.05, Math.min(8, scale * factor)));
-  if (failed) return <FileSurfaceFailure message="Unable to load image." />;
+  if (failed)
+    return (
+      <FileSurfaceFailure message={translateWebSource(previewLocale, "Unable to load image.")} />
+    );
   return (
     <>
       <div className="flex min-h-10 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border/60 px-3 py-1 text-xs text-muted-foreground">
         <span className="tabular-nums">
           {natural.width
             ? `${natural.width.toLocaleString()} × ${natural.height.toLocaleString()}`
-            : "Loading image…"}
+            : translateWebSource(previewLocale, "Loading image…")}
         </span>
         <div className="flex items-center gap-1">
           <FileSurfaceAction

@@ -4,7 +4,12 @@ import type { FilePreviewItem } from "../components/ui/FilePreviewModal.types";
 import type { DraftComposerAttachment } from "./composerImages";
 import { composerImageGallery } from "./composerImageGallery";
 import { messageImageGallery } from "../features/threads/messageImageGallery";
-import { filePreviewGallery, filePreviewKey } from "./filePreviewGallery";
+import {
+  filePreviewDisplayName,
+  filePreviewGallery,
+  filePreviewKey,
+  filePreviewName,
+} from "./filePreviewGallery";
 
 vi.mock("./uuid", () => ({}));
 
@@ -87,4 +92,44 @@ describe("image preview groups", () => {
     expect(filePreviewKey(a)).toBe(filePreviewKey(b));
     expect(filePreviewGallery(b, [a])).toEqual([b]);
   });
+});
+
+it("separates missing preview titles from real and empty filenames without changing gallery keys", () => {
+  const missing: FilePreviewItem = {
+    kind: "image",
+    environmentId: EnvironmentId.make("test"),
+    resource: { _tag: "attachment", attachmentId: "a" },
+  };
+  const emptyAttachment: FilePreviewItem = {
+    kind: "image",
+    attachment: {
+      type: "image",
+      id: "a",
+      name: "",
+      mimeType: "image/png",
+      sizeBytes: 1,
+      previewUri: "file:///Image.png",
+      fileUri: "file:///Image.png",
+    },
+  };
+  for (const locale of ["en", "zh-CN"] as const) {
+    expect(filePreviewName(missing)).toBe("Preview");
+    expect(filePreviewDisplayName(missing, locale)).toBe(locale === "en" ? "Preview" : "预览");
+    const titled = { ...missing, displayName: filePreviewDisplayName(missing, locale)! };
+    expect(filePreviewName(titled)).toBe("Preview");
+    expect(filePreviewKey(titled)).toBe(filePreviewKey(missing));
+    expect(filePreviewGallery(titled, [missing])).toEqual([titled]);
+    for (const [source, filename] of [
+      [{ ...missing, name: "Preview" }, "Preview"],
+      [{ ...missing, name: "" }, ""],
+      [{ kind: "image", uri: "https://example.test/Preview" }, "Preview"],
+      [{ kind: "image", uri: "https://example.test/?token=Preview" }, ""],
+      [emptyAttachment, ""],
+    ] as const) {
+      expect(filePreviewDisplayName(source, locale)).toBeUndefined();
+      expect(filePreviewName(source)).toBe(filename);
+    }
+    expect(filePreviewDisplayName({ ...missing, displayName: "" }, locale)).toBe("");
+    expect(filePreviewDisplayName({ ...missing, displayName: "Image" }, locale)).toBe("Image");
+  }
 });

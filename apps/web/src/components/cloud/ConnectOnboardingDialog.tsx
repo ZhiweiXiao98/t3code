@@ -303,7 +303,7 @@ function ConfiguredConnectOnboardingDialog() {
                 disabled={isApplying || !canManageRelay || linkStateData === null}
                 onClick={() => void applyPublishSelection()}
               >
-                {isApplying ? "Enabling…" : t("common.continue")}
+                {isApplying ? translateWebSource(uiLocale, "Enabling…") : t("common.continue")}
               </Button>
             </>
           ) : (

@@ -480,7 +480,9 @@ export function CloudEnvironmentConnectRows({
                   {translateWebSource(uiLocale, "Add")}
                 </Button>
               </TooltipTrigger>
-              <TooltipPopup>{unsupportedDetail ?? "Client not supported"}</TooltipPopup>
+              <TooltipPopup>
+                {unsupportedDetail ?? translateWebSource(uiLocale, "Client not supported")}
+              </TooltipPopup>
             </Tooltip>
           ) : savedConnection ? (
             <Button size="sm" variant="outline" disabled>

@@ -1841,7 +1841,9 @@ export function ThreadsSettingsPanel() {
               value={mixedAddProjectBaseDirectory ? "" : settings.addProjectBaseDirectory}
               onCommit={(next) => updateSettings({ addProjectBaseDirectory: next })}
               normalizeDraft={resolvePastedPath}
-              placeholder={mixedAddProjectBaseDirectory ? "Mixed" : "~/"}
+              placeholder={
+                mixedAddProjectBaseDirectory ? translateWebSource(locale, "Mixed") : "~/"
+              }
               spellCheck={false}
               aria-label={translateWebExtraSource(locale, "Add project base directory")}
             />

@@ -1,3 +1,4 @@
+import { localizeMobileString, type MobileLocale } from "../i18n/mobileStrings";
 import type { FilePreviewItem, FilePreviewSource } from "../components/ui/FilePreviewModal.types";
 
 export function filePreviewKey(source: FilePreviewItem): string {
@@ -42,4 +43,15 @@ export function filePreviewName(source: FilePreviewItem): string {
   return Array.from(filename, (character) =>
     character.charCodeAt(0) < 32 || "/:\\".includes(character) ? "_" : character,
   ).join("");
+}
+
+/** Preserve filename semantics, including empty names, while localizing only an absent-name title. */
+export function filePreviewDisplayName(
+  source: FilePreviewItem,
+  locale?: MobileLocale,
+): string | undefined {
+  if (source.displayName !== undefined) return source.displayName;
+  const uriName = "uri" in source ? source.uri.split(/[?#]/)[0]?.split("/").pop() : undefined;
+  const name = source.name ?? ("attachment" in source ? source.attachment.name : uriName);
+  return name === undefined || name === null ? localizeMobileString("Preview", locale) : undefined;
 }

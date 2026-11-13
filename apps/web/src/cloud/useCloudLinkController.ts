@@ -1,3 +1,5 @@
+import { cloudLinkPreconditionError, cloudLinkFailureMessage } from "./cloudLinkFailureMessages";
+import { useI18n } from "~/i18n/WebI18nContext";
 import { readWebI18n } from "~/i18n/readWebI18n";
 import { useAtomValue } from "@effect/atom-react";
 import { useAuth } from "@clerk/react";
@@ -49,6 +51,7 @@ function tunnelLimitFromLinkFailure(cause: unknown): number | null {
 }
 
 export function useCloudLinkController(environmentId: EnvironmentId | null) {
+  const { locale, t } = useI18n();
   const { getToken, isSignedIn } = useAuth();
   const refreshRelayEnvironments = useAtomCommand(relayEnvironmentDiscovery.refresh, {
     reportFailure: false,
@@ -67,7 +70,18 @@ export function useCloudLinkController(environmentId: EnvironmentId | null) {
   const relayProviderKind = environmentId
     ? relayEnvironments.get(environmentId)?.environment.endpoint.providerKind
     : undefined;
-  const [operationError, setOperationError] = useState<string | null>(null);
+  const [operationFailure, setOperationError] = useState<{
+    cause: unknown;
+    traceId: string | null;
+  } | null>(null);
+  const failureMessage =
+    operationFailure === null
+      ? null
+      : (cloudLinkFailureMessage(operationFailure.cause, locale) ??
+        t("audit3.connectAccessFailed"));
+  const operationError = operationFailure?.traceId
+    ? t("audit3.traceError", { error: failureMessage ?? "", id: operationFailure.traceId })
+    : failureMessage;
   const [tunnelLimit, setTunnelLimit] = useState<number | null>(null);
 
   const reportUpdateFailure = (cause: unknown, reason?: string) => {
@@ -75,14 +89,16 @@ export function useCloudLinkController(environmentId: EnvironmentId | null) {
       cause instanceof Error ? cause.message : readWebI18n().t("audit3.connectAccessFailed");
     const traceId = findErrorTraceId(cause);
     console.error("[t3-connect] Could not update T3 Connect", { message, traceId, cause });
-    setOperationError(
-      traceId ? readWebI18n().t("audit3.traceError", { error: message, id: traceId }) : message,
-    );
+    setOperationError({ cause, traceId });
     toastManager.add(
       stackedThreadToast({
         type: "error",
         title: readWebI18n().t("audit3.connectFailed"),
-        description: reason ?? relayFailureReason(cause) ?? message,
+        description:
+          reason ??
+          relayFailureReason(cause, readWebI18n().locale) ??
+          cloudLinkFailureMessage(cause, readWebI18n().locale) ??
+          message,
         ...(traceId
           ? {
               actionProps: {
@@ -111,7 +127,7 @@ export function useCloudLinkController(environmentId: EnvironmentId | null) {
     setTunnelLimit(null);
     const target = cloudLinkState.target;
     if (!target) {
-      reportUpdateFailure(new Error("Choose an environment first."));
+      reportUpdateFailure(cloudLinkPreconditionError("environment"));
       return false;
     }
     const environmentId = target.environmentId;
@@ -120,9 +136,7 @@ export function useCloudLinkController(environmentId: EnvironmentId | null) {
         !readEnvironmentScope(environmentId, AuthRelayReadScope) ||
         !readEnvironmentScope(environmentId, AuthRelayWriteScope)
       ) {
-        reportUpdateFailure(
-          new Error("This connection needs permission to view and manage T3 Connect settings."),
-        );
+        reportUpdateFailure(cloudLinkPreconditionError("permission"));
         return false;
       }
       return true;
@@ -130,7 +144,7 @@ export function useCloudLinkController(environmentId: EnvironmentId | null) {
     const readLinkState = () => {
       const state = readCachedCloudLinkState(target);
       if (state === null) {
-        reportUpdateFailure(new Error("Wait until the current T3 Connect settings can be read."));
+        reportUpdateFailure(cloudLinkPreconditionError("loading"));
       }
       return state;
     };
@@ -156,9 +170,7 @@ export function useCloudLinkController(environmentId: EnvironmentId | null) {
             isCloudEnvironmentLinkError(cause) && isManagedRelayClientError(cause.cause);
           reportUpdateFailure(
             cause,
-            relayKeptLink
-              ? "Disconnected here, but T3 Connect still lists it. Remove it in Account."
-              : undefined,
+            relayKeptLink ? readWebI18n().t("audit19.relayKeptLink") : undefined,
           );
         }
         cloudLinkState.refresh();
@@ -174,7 +186,7 @@ export function useCloudLinkController(environmentId: EnvironmentId | null) {
       }
       const clerkToken = tokenResult.value;
       if (!clerkToken) {
-        reportUpdateFailure(new Error("Sign in to T3 Connect before enabling this."));
+        reportUpdateFailure(cloudLinkPreconditionError("signin"));
         return false;
       }
       const currentManagedTunnel = isManagedTunnelActive(currentLinkState, relayProviderKind);

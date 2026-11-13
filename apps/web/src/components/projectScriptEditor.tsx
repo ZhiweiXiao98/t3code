@@ -421,7 +421,11 @@ function ProjectScriptEditorForm({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>{isEditing ? "Edit Action" : "Add Action"}</DialogTitle>
+        <DialogTitle>
+          {isEditing
+            ? translateWebSource(uiLocale, "Edit Action")
+            : translateWebSource(uiLocale, "Add Action")}
+        </DialogTitle>
         <DialogDescription>{t("projectAction.dialog.description")}</DialogDescription>
       </DialogHeader>
       <DialogPanel>

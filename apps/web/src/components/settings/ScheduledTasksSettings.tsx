@@ -964,6 +964,7 @@ function ScheduledTaskThreadLink({
   readonly environmentId: EnvironmentId;
   readonly threadId: ThreadId;
 }) {
+  const { locale: sourceLocale } = useI18n();
   const ref = scopeThreadRef(environmentId, threadId);
   const title = useQuietThreadShell(ref)?.title.trim();
   return (
@@ -972,7 +973,7 @@ function ScheduledTaskThreadLink({
       params={buildThreadRouteParams(ref)}
       className="max-w-64 truncate underline underline-offset-2 hover:text-foreground"
     >
-      {title || "Open thread"}
+      {title || translateWebSource(sourceLocale, "Open thread")}
     </Link>
   );
 }
@@ -986,7 +987,7 @@ function WebhookDeliveriesDialog({
   readonly task: ScheduledTask;
   readonly onClose: () => void;
 }) {
-  const { locale: sourceLocale } = useI18n();
+  const { locale: sourceLocale, t } = useI18n();
   const deliveriesQuery = useEnvironmentQuery(
     serverEnvironment.scheduledTaskWebhookDeliveries({
       environmentId,
@@ -1131,9 +1132,12 @@ function WebhookDeliveriesDialog({
                     ) : null}
                     {delivery.missingFields.length > 0 ? (
                       <span className="text-muted-foreground">
-                        {delivery.missingFields.length}{" "}
-                        {translateWebSource(sourceLocale, "empty placeholder")}
-                        {delivery.missingFields.length === 1 ? "" : "s"}
+                        {t(
+                          delivery.missingFields.length === 1
+                            ? "audit19.settings.emptyPlaceholderOne"
+                            : "audit19.settings.emptyPlaceholderMany",
+                          { count: delivery.missingFields.length },
+                        )}
                       </span>
                     ) : null}
                   </button>
@@ -1252,7 +1256,9 @@ function WebhookEndpointField({
           onClick={() => copyToClipboard(url, undefined)}
         >
           <CopyIcon />
-          {isCopied ? "Copied" : "Copy"}
+          {isCopied
+            ? translateWebSource(sourceLocale, "Copied")
+            : translateWebSource(sourceLocale, "Copy")}
         </Button>
         <Button
           size="sm"
@@ -1768,7 +1774,8 @@ function ScheduledTaskEditorForm({
                       kind={resolveEnvironmentMachineKind(environment?.serverConfig ?? null)}
                       className="size-4"
                     />
-                    {environment?.label ?? "Unavailable environment"}
+                    {environment?.label ??
+                      translateWebSource(sourceLocale, "Unavailable environment")}
                   </span>
                 </SelectValue>
               </SelectTrigger>

@@ -1,3 +1,4 @@
+import { translateWebSource } from "~/i18n/messages";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { useChatUpdateTranslation } from "./v018Messages";
 import { useStableCallback } from "~/hooks/useStableCallback";
@@ -141,7 +142,7 @@ export function VoiceInputSetup(props: {
                       </div>
                       <p className="text-xs">
                         {model?.state === "verifying"
-                          ? "Verifying download…"
+                          ? translateWebSource(locale, "Verifying download…")
                           : progress === null
                             ? tx("Starting download…")
                             : locale === "zh-CN"

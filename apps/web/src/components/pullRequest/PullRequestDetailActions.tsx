@@ -307,7 +307,7 @@ export function PullRequestPrimaryAction({
                     pendingAction === "enable-auto-merge"
                       ? t("pullRequests.actions.enabling")
                       : inlineConfirm.isArmed("enable-auto-merge")
-                        ? "Confirm auto-merge?"
+                        ? translateWebSource(locale, "Confirm auto-merge?")
                         : pendingAutoMergeLabel
                   }
                 >
@@ -325,7 +325,7 @@ export function PullRequestPrimaryAction({
                         {pendingAction === "enable-auto-merge"
                           ? t("pullRequests.actions.enabling")
                           : inlineConfirm.isArmed("enable-auto-merge")
-                            ? "Confirm auto-merge?"
+                            ? translateWebSource(locale, "Confirm auto-merge?")
                             : pendingAutoMergeLabel}
                       </span>
                     </span>
@@ -379,7 +379,7 @@ export function PullRequestPrimaryAction({
                     pendingAction === "merge"
                       ? t("pullRequests.actions.merging")
                       : inlineConfirm.isArmed("merge")
-                        ? "Confirm merge?"
+                        ? translateWebSource(locale, "Confirm merge?")
                         : selectedMergeMethodLabel
                   }
                 >
@@ -397,7 +397,7 @@ export function PullRequestPrimaryAction({
                         {pendingAction === "merge"
                           ? t("pullRequests.actions.merging")
                           : inlineConfirm.isArmed("merge")
-                            ? "Confirm merge?"
+                            ? translateWebSource(locale, "Confirm merge?")
                             : selectedMergeMethodLabel}
                       </span>
                     </span>
@@ -455,8 +455,8 @@ export function PullRequestApproveWorkflowsButton({
                 pendingAction === "approve-workflows"
                   ? t("pullRequests.actions.approving")
                   : inlineConfirm.isArmed("approve-workflows")
-                    ? "Confirm approve?"
-                    : "Approve workflows to run"
+                    ? translateWebSource(uiLocale, "Confirm approve?")
+                    : translateWebSource(uiLocale, "Approve workflows to run")
               }
             >
               <PlayIcon aria-hidden className="size-3.5" />
@@ -471,8 +471,8 @@ export function PullRequestApproveWorkflowsButton({
                   {pendingAction === "approve-workflows"
                     ? t("pullRequests.actions.approving")
                     : inlineConfirm.isArmed("approve-workflows")
-                      ? "Confirm approve?"
-                      : "Approve workflows to run"}
+                      ? translateWebSource(uiLocale, "Confirm approve?")
+                      : translateWebSource(uiLocale, "Approve workflows to run")}
                 </span>
               </span>
             </Button>
@@ -483,8 +483,8 @@ export function PullRequestApproveWorkflowsButton({
         {pendingAction === "approve-workflows"
           ? t("pullRequests.actions.approving")
           : inlineConfirm.isArmed("approve-workflows")
-            ? "Confirm approve?"
-            : "Approve workflows to run"}
+            ? translateWebSource(uiLocale, "Confirm approve?")
+            : translateWebSource(uiLocale, "Approve workflows to run")}
       </TooltipPopup>
     </Tooltip>
   );

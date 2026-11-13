@@ -1003,6 +1003,7 @@ const CHAT_MARKDOWN_COMPONENTS = {
     );
   },
   blockquote: function MarkdownBlockquote({ node: _node, children, ...props }) {
+    const { locale } = useI18n();
     const alert =
       GITHUB_ALERT_PRESENTATIONS[String((props as Record<string, unknown>)["data-alert"] ?? "")];
     if (!alert) {
@@ -1019,7 +1020,7 @@ const CHAT_MARKDOWN_COMPONENTS = {
           className={cn("flex items-center gap-1.5 font-medium", alert.titleClassName)}
         >
           <alert.Icon aria-hidden className="size-3.5 shrink-0" />
-          {alert.label}
+          {translateWebSource(locale, alert.label)}
         </p>
         {children}
       </div>
@@ -1078,7 +1079,7 @@ const CHAT_MARKDOWN_COMPONENTS = {
     );
   },
   a: function MarkdownAnchor({ node, href, children, title: _title, ...props }) {
-    const { t } = useI18n();
+    const { t, locale } = useI18n();
     const {
       canOperateHost,
       canOperatePreview,
@@ -1111,7 +1112,7 @@ const CHAT_MARKDOWN_COMPONENTS = {
       return environmentId ? (
         <MarkdownThreadLink environmentId={environmentId} link={threadLink} label={label} />
       ) : (
-        <span>{label ?? "Thread"}</span>
+        <span>{label ?? translateWebSource(locale, "Thread")}</span>
       );
     }
     const contextReference = href ? parseComposerContextHref(href) : null;

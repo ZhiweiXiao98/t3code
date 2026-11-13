@@ -103,3 +103,22 @@ export function mobileUsageSegment(
     parts.push(formatMobileMessage("{0} reset credits banked", [details.credits], locale));
   return parts.join(locale === "zh-CN" ? "，" : ", ");
 }
+
+const USAGE_COST_LABELS = {
+  input: ["Input", "输入"],
+  cacheRead: ["Cache read", "缓存读取"],
+  cacheWrite: ["Cache write", "缓存写入"],
+  output: ["Output", "输出"],
+  other: ["Other", "其他"],
+  standard: ["Standard", "标准"],
+  fast: ["Fast", "快速"],
+  ultrafast: ["Ultrafast", "极速"],
+} as const;
+
+// Only the client-owned usage cost buckets, never provider service-tier labels.
+export function mobileUsageCostLabel(
+  category: keyof typeof USAGE_COST_LABELS,
+  locale: MobileLocale = MOBILE_LOCALE,
+): string {
+  return USAGE_COST_LABELS[category][locale === "zh-CN" ? 1 : 0];
+}

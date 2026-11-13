@@ -1,3 +1,5 @@
+import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
+import { translateWebSource } from "~/i18n/messages";
 import type { UsageTokenTotals } from "@t3tools/contracts";
 import {
   isModelCostUnknown,
@@ -45,31 +47,66 @@ const TYPE_COLORS = {
   other: ink(44),
 };
 
-export function costTypeSegments(cost: CategoryCost): readonly ShareSegment[] {
+export function costTypeSegments(
+  cost: CategoryCost,
+  locale: ResolvedAppLocale = "en",
+): readonly ShareSegment[] {
   return [
-    { label: "Input", value: cost.input, color: TYPE_COLORS.input },
-    { label: "Cache read", value: cost.cacheRead, color: TYPE_COLORS.cacheRead },
-    { label: "Cache write", value: cost.cacheWrite, color: TYPE_COLORS.cacheWrite },
-    { label: "Output", value: cost.output, color: TYPE_COLORS.output },
-    { label: "Other", value: cost.unsplit >= 0.005 ? cost.unsplit : 0, color: TYPE_COLORS.other },
+    { label: translateWebSource(locale, "Input"), value: cost.input, color: TYPE_COLORS.input },
+    {
+      label: translateWebSource(locale, "Cache read"),
+      value: cost.cacheRead,
+      color: TYPE_COLORS.cacheRead,
+    },
+    {
+      label: translateWebSource(locale, "Cache write"),
+      value: cost.cacheWrite,
+      color: TYPE_COLORS.cacheWrite,
+    },
+    { label: translateWebSource(locale, "Output"), value: cost.output, color: TYPE_COLORS.output },
+    {
+      label: translateWebSource(locale, "Other"),
+      value: cost.unsplit >= 0.005 ? cost.unsplit : 0,
+      color: TYPE_COLORS.other,
+    },
   ];
 }
 
 export function tokenTypeSegments(
   tokens: Omit<UsageTokenTotals, "reasoningTokens">,
+  locale: ResolvedAppLocale = "en",
 ): readonly ShareSegment[] {
   return [
-    { label: "Input", value: tokens.uncachedInputTokens, color: TYPE_COLORS.input },
-    { label: "Cache read", value: tokens.cachedInputTokens, color: TYPE_COLORS.cacheRead },
-    { label: "Cache write", value: tokens.cacheCreationTokens, color: TYPE_COLORS.cacheWrite },
-    { label: "Output", value: tokens.outputTokens, color: TYPE_COLORS.output },
+    {
+      label: translateWebSource(locale, "Input"),
+      value: tokens.uncachedInputTokens,
+      color: TYPE_COLORS.input,
+    },
+    {
+      label: translateWebSource(locale, "Cache read"),
+      value: tokens.cachedInputTokens,
+      color: TYPE_COLORS.cacheRead,
+    },
+    {
+      label: translateWebSource(locale, "Cache write"),
+      value: tokens.cacheCreationTokens,
+      color: TYPE_COLORS.cacheWrite,
+    },
+    {
+      label: translateWebSource(locale, "Output"),
+      value: tokens.outputTokens,
+      color: TYPE_COLORS.output,
+    },
   ];
 }
 
-export function speedCostSegments(cost: SpeedCost): readonly ShareSegment[] {
+export function speedCostSegments(
+  cost: SpeedCost,
+  locale: ResolvedAppLocale = "en",
+): readonly ShareSegment[] {
   return [
-    { label: "Standard", value: cost.standard, color: ink(34) },
-    { label: "Fast", value: cost.fast, color: ink(66) },
-    { label: "Ultrafast", value: cost.ultrafast, color: ink(100) },
+    { label: translateWebSource(locale, "Standard"), value: cost.standard, color: ink(34) },
+    { label: translateWebSource(locale, "Fast"), value: cost.fast, color: ink(66) },
+    { label: translateWebSource(locale, "Ultrafast"), value: cost.ultrafast, color: ink(100) },
   ];
 }

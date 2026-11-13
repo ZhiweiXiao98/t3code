@@ -1,3 +1,4 @@
+import { clipboardErrorMessage } from "~/i18n/clipboardErrorMessages";
 import { translateWebSource } from "~/i18n/messages";
 import { workspaceAreaProps } from "../lib/workspaceFocus";
 import { useAtomMount, useAtomValue } from "@effect/atom-react";
@@ -718,6 +719,9 @@ function TerminalSessionViewport({
     translateWebSource(releaseLocale, source),
   );
   const terminalT = useEffectEvent(translateRelease);
+  const localizeClipboardError = useEffectEvent((error: unknown) =>
+    clipboardErrorMessage(error, releaseLocale),
+  );
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- creates the Ghostty terminal in the mount node and subscribes it to the terminal session
   useEffect(() => {
@@ -876,7 +880,10 @@ function TerminalSessionViewport({
         if (requestId !== selectionActionRequestIdRef.current) return;
         const activeTerminal = terminalRef.current;
         if (activeTerminal) {
-          writeSystemMessage(activeTerminal, error instanceof Error ? error.message : fallback);
+          writeSystemMessage(
+            activeTerminal,
+            localizeClipboardError(error) ?? localizeTerminalSource(fallback),
+          );
         }
       };
 
@@ -926,7 +933,7 @@ function TerminalSessionViewport({
               hasSelection: selectionAction !== null,
               canAddToChat: canAddSelectionToChat(),
               readOnly: !hasTerminalWriteAccess(),
-            }),
+            }).map((item) => ({ ...item, label: localizeTerminalSource(item.label) })),
             { x: event.clientX, y: event.clientY },
           );
         } catch (error) {
@@ -977,7 +984,10 @@ function TerminalSessionViewport({
         openSelectionMenuRequestIdRef.current = requestId;
         const clicked = await localApi.contextMenu
           .show(
-            terminalSelectionMenuItems({ canAddToChat: canAddSelectionToChat() }),
+            terminalSelectionMenuItems({ canAddToChat: canAddSelectionToChat() }).map((item) => ({
+              ...item,
+              label: localizeTerminalSource(item.label),
+            })),
             nextAction.position,
           )
           .finally(() => {

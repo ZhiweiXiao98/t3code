@@ -282,7 +282,7 @@ export function PullRequestActionsMenu({
             <span>
               {handoff === "explain"
                 ? translateWebSource(locale, "Opening...")
-                : `Explain this ${terminology.shortLabel}`}
+                : t("audit19.pullRequest.explain", { kind: terminology.shortLabel })}
             </span>
             <span className="text-xs text-muted-foreground">
               {t("pullRequests.actions.explainDescription")}

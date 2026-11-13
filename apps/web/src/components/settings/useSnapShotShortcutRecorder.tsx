@@ -1,3 +1,5 @@
+import { useI18n } from "../../i18n/WebI18nContext";
+import { translateWebSource } from "../../i18n/messages";
 import { readWebI18n } from "../../i18n/readWebI18n";
 import {
   isModifierPairShortcut,
@@ -48,6 +50,7 @@ export function useSnapShotShortcutRecorder({
   onStart?: () => void;
   onError: (message: string) => void;
 }) {
+  const { locale, t } = useI18n();
   const bridge = getDesktopSnapShotBridge();
   const displayShortcut = shortcutLabel ? parseDesktopSnapShotShortcut(shortcutLabel) : shortcut;
   const [recording, setRecording] = useState(false);
@@ -130,8 +133,10 @@ export function useSnapShotShortcutRecorder({
         disabled={disabled}
         aria-label={
           displayShortcut
-            ? `Record snapshot shortcut, currently ${formatSnapShotShortcutLabel(displayShortcut)}`
-            : "Change snapshot shortcut"
+            ? t("audit19.settings.recordShortcut", {
+                shortcut: formatSnapShotShortcutLabel(displayShortcut),
+              })
+            : translateWebSource(locale, "Change snapshot shortcut")
         }
         aria-pressed={recording}
         data-keybinding-capture=""
@@ -141,11 +146,11 @@ export function useSnapShotShortcutRecorder({
         onBlur={stopRecording}
       >
         {recording ? (
-          "Press shortcut…"
+          translateWebSource(locale, "Press shortcut…")
         ) : !displayShortcut ? (
-          "Change shortcut"
+          translateWebSource(locale, "Change shortcut")
         ) : !allowModifierPairs && isModifierPairShortcut(displayShortcut) ? (
-          "Choose shortcut"
+          translateWebSource(locale, "Choose shortcut")
         ) : (
           <SnapShotShortcutKeys shortcut={displayShortcut} />
         )}

@@ -61,7 +61,10 @@ export function UsageModelDialog({
   const hitRate = cacheHitRate(model);
   const perMillion = costPerMillionTokens(model);
   const stats = [
-    { label: "Cost", value: costUnknown ? "Unpriced" : formatUsd(model.costUsd) },
+    {
+      label: "Cost",
+      value: costUnknown ? translateWebSource(sourceLocale, "Unpriced") : formatUsd(model.costUsd),
+    },
     { label: "Tokens", value: formatTokens(model.totalTokens) },
     perMillion === null ? null : { label: "Per 1M tokens", value: formatUsd(perMillion) },
     hitRate === null ? null : { label: "Cache hit", value: formatPercent(hitRate) },
@@ -86,7 +89,9 @@ export function UsageModelDialog({
           </div>
           <DialogDescription>
             {presentation.label}
-            {costUnknown ? "" : ` · ${formatPercent(model.costShare)} of cost`}
+            {costUnknown
+              ? ""
+              : ` · ${sourceLocale === "zh-CN" ? `占费用的 ${formatPercent(model.costShare)}` : `${formatPercent(model.costShare)} of cost`}`}
           </DialogDescription>
         </DialogHeader>
         <DialogPanel>
@@ -94,7 +99,9 @@ export function UsageModelDialog({
             <div className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
               {stats.map((stat) => (
                 <div key={stat.label} className="flex min-w-0 flex-col gap-0.5">
-                  <span className="text-xs text-muted-foreground">{stat.label}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {translateWebSource(sourceLocale, stat.label)}
+                  </span>
                   <span className="text-2xl font-semibold text-foreground">{stat.value}</span>
                 </div>
               ))}
@@ -118,19 +125,19 @@ export function UsageModelDialog({
               {costUnknown ? null : (
                 <UsageShareBar
                   label={translateWebSource(sourceLocale, "Cost by type")}
-                  segments={costTypeSegments(usage.categoryCost)}
+                  segments={costTypeSegments(usage.categoryCost, sourceLocale)}
                   format={formatUsd}
                 />
               )}
               <UsageShareBar
                 label={translateWebSource(sourceLocale, "Tokens by type")}
-                segments={tokenTypeSegments(model.tokens)}
+                segments={tokenTypeSegments(model.tokens, sourceLocale)}
                 format={formatTokens}
               />
               {usage.speedCost.fast + usage.speedCost.ultrafast > 0 ? (
                 <UsageShareBar
                   label={translateWebSource(sourceLocale, "Cost by speed")}
-                  segments={speedCostSegments(usage.speedCost)}
+                  segments={speedCostSegments(usage.speedCost, sourceLocale)}
                   format={formatUsd}
                   aside={<SpeedPremium premiumUsd={usage.speedCost.premium} />}
                 />

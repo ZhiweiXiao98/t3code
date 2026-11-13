@@ -9,7 +9,7 @@ import { PullRequestSectionHeading } from "./PullRequestSectionHeading";
 import { useContext, useMemo, useState, type ComponentProps, type ReactNode } from "react";
 import { Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
-import { pullRequestImageSource } from "./pullRequestMediaSource";
+import { pullRequestImageSource, pullRequestImagePreviewMetadata } from "./pullRequestMediaSource";
 import { parseMarkdownDocument } from "../../lib/markdownDocument";
 import { SymbolView } from "../../components/ui/AppSymbol";
 import { AppText as Text } from "../../components/ui/AppText";
@@ -47,7 +47,7 @@ export function PullRequestDescription(props: {
     .map((attachment) => {
       return {
         ...pullRequestImageSource(attachment.uri, mediaContext),
-        name: new URL(attachment.uri).pathname.split("/").pop() || "Image",
+        ...pullRequestImagePreviewMetadata(attachment.uri, undefined, "Image"),
       };
     });
   const canCollapse = bodyHeight > COLLAPSED_HEIGHT;
