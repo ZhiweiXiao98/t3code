@@ -74,7 +74,11 @@ class T3NativeControlsModule : Module() {
     AsyncFunction("saveImageToLibrary") { uri: String, mimeType: String, name: String ->
       saveImageToLibrary(uri, mimeType, name, codedErrors = false)
     }
-    AsyncFunction("saveImageToLibraryWithErrorCodes") { uri: String, mimeType: String, name: String ->
+    AsyncFunction("saveImageToLibraryWithErrorCodes") {
+        uri: String,
+        mimeType: String,
+        name: String
+      ->
       saveImageToLibrary(uri, mimeType, name, codedErrors = true)
     }
 
@@ -118,13 +122,22 @@ class T3NativeControlsModule : Module() {
     }
   }
 
-  private fun saveImageToLibrary(uri: String, mimeType: String, name: String, codedErrors: Boolean) {
+  private fun saveImageToLibrary(
+    uri: String,
+    mimeType: String,
+    name: String,
+    codedErrors: Boolean
+  ) {
     val context = appContext.reactContext
       ?: photoFailure("ERR_T3_PHOTOS_APP_INACTIVE", "The app is not active.", codedErrors)
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
       saveImageToPictures(context, Uri.parse(uri), mimeType, name, codedErrors)
     } else {
-      photoFailure("ERR_T3_PHOTOS_ANDROID_VERSION", "Saving images needs Android 10 or later.", codedErrors)
+      photoFailure(
+        "ERR_T3_PHOTOS_ANDROID_VERSION",
+        "Saving images needs Android 10 or later.",
+        codedErrors
+      )
     }
   }
 }
@@ -153,10 +166,19 @@ private fun saveImageToPictures(
   val target = resolver.insert(
     MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY),
     values
-  ) ?: photoFailure("ERR_T3_PHOTOS_CREATE_FAILED", "Could not create the image in Pictures.", codedErrors)
+  )
+    ?: photoFailure(
+      "ERR_T3_PHOTOS_CREATE_FAILED",
+      "Could not create the image in Pictures.",
+      codedErrors
+    )
   runCatching {
     val input = resolver.openInputStream(source)
-      ?: photoFailure("ERR_T3_PHOTOS_IMAGE_UNAVAILABLE", "The image is no longer available.", codedErrors)
+      ?: photoFailure(
+        "ERR_T3_PHOTOS_IMAGE_UNAVAILABLE",
+        "The image is no longer available.",
+        codedErrors
+      )
     input.use { from ->
       val output = resolver.openOutputStream(target)
         ?: photoFailure("ERR_T3_PHOTOS_WRITE_FAILED", "Could not write the image.", codedErrors)

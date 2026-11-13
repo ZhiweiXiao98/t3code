@@ -87,6 +87,8 @@ it("changes compaction copy with locale without losing the selected send behavio
   await expectOpenTooltip("Next send compacts 1.2k tokens first.Click to keep full history");
   await compact.click();
   await expect.element(compact).toHaveAttribute("aria-pressed", "false");
+  await userEvent.unhover(compact);
+  await userEvent.hover(compact);
   await expectOpenTooltip("Next send keeps all 1.2k tokens.Click to compact first");
 
   await screen.rerender(<Composer locale="zh-CN" submit={submit} />);
@@ -96,6 +98,8 @@ it("changes compaction copy with locale without losing the selected send behavio
   expect(submit).not.toHaveBeenCalled();
   await localizedCompact.click();
   await expect.element(localizedCompact).toHaveAttribute("aria-pressed", "true");
+  await userEvent.unhover(localizedCompact);
+  await userEvent.hover(localizedCompact);
   await expectOpenTooltip("下次发送将先压缩 1.2k 个 token。点击以保留完整历史记录");
   await screen.getByRole("button", { name: "压缩上下文并发送" }).click();
   expect(submit).toHaveBeenCalledTimes(1);
