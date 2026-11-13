@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../i18n/mobileStrings";
 import type { EnvironmentMachineKind } from "@t3tools/contracts";
 import { SymbolView, type AppSymbolName } from "./ui/AppSymbol";
 
@@ -28,7 +29,7 @@ export function EnvironmentMachineSymbol(props: {
 }) {
   return (
     <SymbolView
-      accessibilityLabel={ENVIRONMENT_MACHINE_KIND_LABELS[props.kind]}
+      accessibilityLabel={localizeMobileString(ENVIRONMENT_MACHINE_KIND_LABELS[props.kind])}
       name={ENVIRONMENT_MACHINE_SYMBOLS[props.kind]}
       size={props.size}
       tintColorClassName={props.tintColorClassName}

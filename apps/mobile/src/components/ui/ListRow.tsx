@@ -23,7 +23,9 @@ export function ListRow(
         props.description === undefined || props.localizeDescription === false
           ? props.description
           : localizeMobileString(props.description),
-        props.detail === undefined ? undefined : localizeMobileString(props.detail),
+        props.detail === undefined || props.localizeDetail === false
+          ? props.detail
+          : localizeMobileString(props.detail),
       ]
         .filter(Boolean)
         .join(", ")}

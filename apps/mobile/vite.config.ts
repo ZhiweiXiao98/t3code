@@ -4,6 +4,10 @@ import { defineConfig, normalizePath } from "vite-plus";
 import "vite-plus/test/config";
 
 const reactTests = [
+  "src/features/layout/workspace/ListFilterMenu.test.tsx",
+  "src/features/threads/ProposedPlanCard.test.tsx",
+  "src/features/settings/components/SourceControlSignInSection.test.tsx",
+  "src/components/ui/ListToggleRow.test.tsx",
   "src/components/ui/SegmentedControl.test.tsx",
   "src/components/ui/SettingsSection.test.tsx",
   "src/features/threads/git/GitBranchesSheet.test.tsx",

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vite-plus/test";
 import { pullRequestReactionTooltip } from "@t3tools/client-runtime/pull-request-reactions";
 import {
   mobileConnectionHeadline,
+  mobileAttachmentUploadLabel,
   mobileReactionTooltip,
   mobileSubagentSummary,
 } from "./nativeAccessibilityMessages";
@@ -43,4 +44,17 @@ describe("native accessibility display messages", () => {
       "provider: E_UNKNOWN",
     );
   });
+});
+
+it("retains upload filenames and progress rounding in accessibility instructions", () => {
+  for (const name of ["Settings", "Title", "Open/{0}/$&", "文件.md"]) {
+    for (const locale of ["en", "zh-CN"] as const) {
+      expect(mobileAttachmentUploadLabel(name, { status: "failed" }, locale)).toBe(
+        locale === "en" ? `Retry uploading ${name}` : `重试上传 ${name}`,
+      );
+      expect(
+        mobileAttachmentUploadLabel(name, { status: "uploading", progress: 0.459 }, locale),
+      ).toBe(locale === "en" ? `Uploading ${name}, 45%` : `正在上传 ${name}，45%`);
+    }
+  }
 });

@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { ChildThreadApprovals } from "./ChildThreadApprovals";
 import { useOpenThreadInspector } from "./thread-inspector-navigation";
 import { useSidebarWorkspaceTabs } from "../layout/workspace/useSystemWorkspaceTabBar";
@@ -737,9 +738,9 @@ function ThreadDetailBody(
     );
     if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
       const error = squashAtomCommandFailure(result);
-      Dialog.alert(
+      Dialog.alertWithLiteralMessage(
         "Could not update thread",
-        error instanceof Error ? error.message : "Try again.",
+        error instanceof Error ? error.message : localizeMobileString("Try again."),
       );
     }
   };
@@ -1354,9 +1355,9 @@ function ThreadDetailBody(
     const edited = await settlePromise(() => editPendingThreadMessage(message));
     if (AsyncResult.isFailure(edited)) {
       const error = squashAtomCommandFailure(edited);
-      Dialog.alert(
+      Dialog.alertWithLiteralMessage(
         "Could not edit message",
-        error instanceof Error ? error.message : "Please try again.",
+        error instanceof Error ? error.message : localizeMobileString("Please try again."),
       );
       return;
     }
@@ -1842,9 +1843,11 @@ function ThreadDetailBody(
                         placeholder={
                           props.activePendingApproval
                             ? props.activePendingApproval.supportsFeedback
-                              ? "Send feedback to decline this request"
-                              : "Send a message to decline and redirect the agent"
-                            : "Ask anything"
+                              ? localizeMobileString("Send feedback to decline this request")
+                              : localizeMobileString(
+                                  "Send a message to decline and redirect the agent",
+                                )
+                            : localizeMobileString("Ask anything")
                         }
                         contentMaxWidth={contentMaxWidth}
                         draftControls={props.draftMode?.controls(draftViewportHeight)}

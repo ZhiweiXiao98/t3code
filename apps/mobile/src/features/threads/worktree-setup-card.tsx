@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import { Button } from "../../components/ui/Button";
 import {
@@ -45,7 +46,7 @@ export function WorktreeSetupCard(props: WorktreeSetupCardProps) {
   const handedOff = turnStarted && worktreeSetupAgentStarted(snapshot);
   const running = snapshot.phase === "running";
   const backgroundSetup = handedOff && running;
-  const scriptName = snapshot.setupScript?.name ?? "Setup script";
+  const scriptName = snapshot.setupScript?.name ?? localizeMobileString("Setup script");
   const [detailsOpen, setDetailsOpen] = useState(false);
   const now = useVisibleSecondClock(running || working);
   const failed =
@@ -85,8 +86,11 @@ export function WorktreeSetupCard(props: WorktreeSetupCardProps) {
           accessibilityRole="button"
           accessibilityLabel={
             backgroundSetup
-              ? `Background setup is still running: ${scriptName}. Show setup progress.`
-              : "Worktree setup details"
+              ? formatMobileMessage(
+                  "Background setup is still running: {0}. Show setup progress.",
+                  [scriptName],
+                )
+              : localizeMobileString("Worktree setup details")
           }
           accessibilityState={{ expanded: detailsOpen }}
           onPress={() => setDetailsOpen(true)}

@@ -11,6 +11,8 @@ import { useRef, useState } from "react";
 import { Linking } from "react-native";
 
 import * as Dialog from "../../../components/ui/Dialog";
+import { formatMobileMessage } from "../../../i18n/mobileDisplayStrings";
+import { localizeMobileString } from "../../../i18n/mobileStrings";
 import { useEnvironmentQuery } from "../../../state/query";
 import { serverEnvironment } from "../../../state/server";
 import { sourceControlEnvironment } from "../../../state/sourceControl";
@@ -80,7 +82,7 @@ function OfferedAppSignIn(props: {
   );
   if (offered !== true) return null;
   return (
-    <SettingsSection title={props.title}>
+    <SettingsSection title={props.title} localizeTitle={false}>
       <AppSignInRow
         environment={props.environment}
         label={props.appSignIn.appName}
@@ -120,9 +122,12 @@ function AppSignInRow(props: {
 
   const showCode = (prompt: SourceControlSignInPrompt) => {
     void Clipboard.setStringAsync(prompt.userCode).catch(() => undefined);
-    Dialog.alert(
+    Dialog.alertWithLiteralContent(
       prompt.userCode,
-      `Enter this code on GitHub, then approve ${appSignIn.appName}. It is copied. The server finishes signing in even if you leave the app.`,
+      formatMobileMessage(
+        "Enter this code on GitHub, then approve {0}. It is copied. The server finishes signing in even if you leave the app.",
+        [appSignIn.appName],
+      ),
       [
         {
           text: "Cancel",
@@ -143,7 +148,7 @@ function AppSignInRow(props: {
     const started = await start({ environmentId, input });
     if (started._tag !== "Success") {
       setPending(null);
-      Dialog.alert("Could not start the sign-in", failureMessage(started.cause));
+      Dialog.alertWithLiteralMessage("Could not start the sign-in", failureMessage(started.cause));
       return;
     }
     const prompt = started.value;
@@ -155,7 +160,7 @@ function AppSignInRow(props: {
     attempt.current = null;
     setPending(null);
     if (finished._tag !== "Success") {
-      Dialog.alert("Sign-in did not finish", failureMessage(finished.cause));
+      Dialog.alertWithLiteralMessage("Sign-in did not finish", failureMessage(finished.cause));
     }
   };
 
@@ -172,9 +177,11 @@ function AppSignInRow(props: {
 
   const onPress = () => {
     if (signedIn) {
-      Dialog.alert(
+      Dialog.alertWithLiteralContent(
         appSignIn.appName,
-        "Signed in. GitHub requests use the app's higher rate limit, in repositories where the app is installed.",
+        localizeMobileString(
+          "Signed in. GitHub requests use the app's higher rate limit, in repositories where the app is installed.",
+        ),
         [
           { text: "Install on an organization", onPress: () => openUrl(appSignIn.installUrl) },
           { text: "Sign out", style: "destructive", onPress: signOut },
@@ -192,14 +199,16 @@ function AppSignInRow(props: {
     <SettingsRow
       icon="person.crop.circle"
       label={props.label}
+      localizeLabel={false}
+      localizeValue={false}
       value={
         signedIn
-          ? "Signed in"
+          ? localizeMobileString("Signed in")
           : pending === "starting"
-            ? "Starting…"
+            ? localizeMobileString("Starting…")
             : pending !== null
-              ? `Enter ${pending.userCode}`
-              : "Sign in"
+              ? formatMobileMessage("Enter {0}", [pending.userCode])
+              : localizeMobileString("Sign in")
       }
       disabled={props.disabled}
       onPress={onPress}

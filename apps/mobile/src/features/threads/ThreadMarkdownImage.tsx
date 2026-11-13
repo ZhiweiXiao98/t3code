@@ -147,7 +147,7 @@ export function ThreadMarkdownImageView(props: {
         <MediaActionsMenu media={mediaActions}>
           <Pressable
             accessibilityRole="imagebutton"
-            accessibilityLabel={localizeMobileString(props.alt ?? "Markdown image")}
+            accessibilityLabel={props.alt ?? localizeMobileString("Markdown image")}
             accessibilityHint={
               mediaActions.actions.length > 0
                 ? localizeMobileString("Touch and hold for media actions")
@@ -172,7 +172,7 @@ export function ThreadMarkdownImageView(props: {
           <MediaActionsMenu media={mediaActions}>
             <Pressable
               accessibilityRole="imagebutton"
-              accessibilityLabel={localizeMobileString(props.alt ?? "Markdown image")}
+              accessibilityLabel={props.alt ?? localizeMobileString("Markdown image")}
               accessibilityHint={
                 mediaActions.actions.length > 0
                   ? localizeMobileString("Touch and hold for media actions")
@@ -221,7 +221,7 @@ export function ThreadMarkdownImageView(props: {
         </PresentationSource>
       )}
       {props.alt ? (
-        <Text selectable className="text-xs text-foreground-muted">
+        <Text localize={false} selectable className="text-xs text-foreground-muted">
           {props.alt}
         </Text>
       ) : null}

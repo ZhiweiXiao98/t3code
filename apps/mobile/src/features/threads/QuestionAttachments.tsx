@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { settlePromise, squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
 import { AsyncResult } from "effect/reactivity";
 import * as Dialog from "../../components/ui/Dialog";
@@ -119,9 +120,9 @@ export function QuestionAttachments(props: {
         } else await releaseUnusedComposerAttachmentFiles(images);
       })
       .catch((error) =>
-        Dialog.alert(
+        Dialog.alertWithLiteralMessage(
           "Could not paste image",
-          error instanceof Error ? error.message : "Try again.",
+          error instanceof Error ? error.message : localizeMobileString("Try again."),
         ),
       )
       .finally(() => changeQuestionAttachmentPreparation(key, -1));
@@ -163,12 +164,18 @@ export function QuestionAttachments(props: {
       }
       const rejected = append(key, picked);
       if (result.error || rejected > 0)
-        Dialog.alert("Could not attach file", result.error ?? "Too many attachments.");
+        Dialog.alertWithLiteralMessage(
+          "Could not attach file",
+          result.error ?? localizeMobileString("Too many attachments."),
+        );
     });
     changeQuestionAttachmentPreparation(key, -1);
     if (AsyncResult.isFailure(picked)) {
       const error = squashAtomCommandFailure(picked);
-      Dialog.alert("Could not attach file", error instanceof Error ? error.message : "Try again.");
+      Dialog.alertWithLiteralMessage(
+        "Could not attach file",
+        error instanceof Error ? error.message : localizeMobileString("Try again."),
+      );
     }
   };
   return (

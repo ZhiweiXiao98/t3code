@@ -214,7 +214,7 @@ function EdgeDictationPill(props: {
                   accessibilityLabel={
                     openSettings
                       ? localizeMobileString("Open microphone settings")
-                      : "Retry dictation"
+                      : localizeMobileString("Retry dictation")
                   }
                   accessibilityRole="button"
                   className="size-[30px] items-center justify-center active:opacity-70"

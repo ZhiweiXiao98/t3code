@@ -74,7 +74,7 @@ export function DraftThreadHeader(props: {
           if (!canWriteGit || !props.cwd) return;
           const result = await pull({ environmentId, input: { cwd: props.cwd } });
           if (AsyncResult.isFailure(result))
-            Dialog.alert("Could not pull", String(Cause.squash(result.cause)));
+            Dialog.alertWithLiteralMessage("Could not pull", String(Cause.squash(result.cause)));
         },
         onRunAction: async (input) => {
           if (!canWriteGit || !props.cwd) return null;
@@ -84,7 +84,7 @@ export function DraftThreadHeader(props: {
             actionId: uuidv4(),
           });
           if (AsyncResult.isFailure(result)) {
-            Dialog.alert("Git action failed", String(Cause.squash(result.cause)));
+            Dialog.alertWithLiteralMessage("Git action failed", String(Cause.squash(result.cause)));
             return null;
           }
           return result.value;

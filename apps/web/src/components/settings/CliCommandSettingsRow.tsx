@@ -1,3 +1,4 @@
+import { cliCommandFailureMessage, installedCliDescription } from "./cliCommandPresentation";
 import { translateWebExtraSource } from "~/i18n/webExtraMessages";
 import { useState } from "react";
 import { useI18n } from "~/i18n/WebI18nContext";
@@ -39,7 +40,7 @@ export function useDesktopCliCommand() {
             title: translateWebExtraSource(locale, FAILURE_TITLES[action]),
             description:
               error instanceof Error
-                ? error.message
+                ? cliCommandFailureMessage(error.message)
                 : translateWebSource(locale, "Something went wrong."),
           }),
         );
@@ -64,11 +65,7 @@ export function CliCommandSettingsRow() {
     ? t("webExtra.cli.shadowed", { path: state.shadowedBy })
     : !installed
       ? translateWebExtraSource(locale, "Run T3 Code's CLI as `t3` from any terminal.")
-      : state.onPath
-        ? `Installed at ${state.installedPath}. Open a new terminal to use it.`
-        : state.pathSetup?.added
-          ? `Installed at ${state.installedPath} and added to PATH in ${state.pathSetup.file}. Open a new terminal to use it.`
-          : `Installed at ${state.installedPath}, which is not on your PATH yet.${state.pathSetup ? "" : " Add its folder to your PATH to run `t3`."}`;
+      : installedCliDescription(locale, state);
 
   return (
     <SettingsRow

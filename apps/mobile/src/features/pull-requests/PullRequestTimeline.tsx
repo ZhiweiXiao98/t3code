@@ -102,7 +102,9 @@ function TimelineComment({
         <PullRequestAvatar actor={comment.author} size={22} />
         <View className="min-w-0 flex-1">
           <Text className="text-sm">
-            <Text className="font-t3-medium">{comment.author?.login ?? "Unknown author"}</Text>
+            <Text localize={!comment.author} className="font-t3-medium">
+              {comment.author?.login ?? "Unknown author"}
+            </Text>
             <Text className="text-foreground-muted">
               {approved ? " approved" : changes ? " requested changes" : " commented"}
             </Text>
@@ -248,7 +250,7 @@ export function pullRequestTimelineRows(
           <View className="flex-row items-center gap-2">
             <PullRequestAvatar actor={thread.comments[0]?.author ?? null} size={22} />
             <Text className="flex-1 text-sm">
-              <Text className="font-t3-medium">
+              <Text localize={!thread.comments[0]?.author} className="font-t3-medium">
                 {thread.comments[0]?.author?.login ?? "Unknown author"}
               </Text>
               <Text className="text-foreground-muted"> started a discussion</Text>

@@ -6,6 +6,7 @@ import { useAppearancePreferences } from "../../settings/appearance/AppearancePr
 
 export function ListFilterMenu(props: {
   readonly label: string;
+  readonly localizeLabel?: boolean;
   readonly accessibilityLabel: string;
   readonly active?: boolean;
   readonly icon?: boolean;
@@ -27,6 +28,7 @@ export function ListFilterMenu(props: {
       >
         <Chip
           label={props.label}
+          localize={props.localizeLabel}
           selected={props.active}
           icon={props.icon ? "line.3.horizontal.decrease" : undefined}
           trailingIcon={props.icon ? undefined : "chevron.down"}

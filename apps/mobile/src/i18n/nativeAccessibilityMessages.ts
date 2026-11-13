@@ -73,3 +73,15 @@ export function mobileConnectionHeadline(
     ? formatMobileMessage(template, [host], locale)
     : localizeMobileString(value, locale);
 }
+
+export function mobileAttachmentUploadLabel(
+  name: string,
+  upload:
+    | { readonly status: "failed" }
+    | { readonly status: "uploading"; readonly progress: number },
+  locale: MobileLocale = MOBILE_LOCALE,
+): string {
+  return upload.status === "failed"
+    ? formatMobileMessage("Retry uploading {0}", [name], locale)
+    : formatMobileMessage("Uploading {0}, {1}%", [name, Math.floor(upload.progress * 100)], locale);
+}

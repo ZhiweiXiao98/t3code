@@ -1,6 +1,9 @@
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import { useNavigation } from "@react-navigation/native";
-import { managedSettingsMessage } from "../../i18n/managedPolicyMessages";
+import {
+  managedSettingsMessage,
+  managedSettingDescription,
+} from "../../i18n/managedPolicyMessages";
 import { SettingsRow } from "./components/SettingsRow";
 import { AuthSettingsWriteScope } from "@t3tools/contracts";
 import { readEnvironmentScope, useEnvironmentsWithScope } from "../../state/session";
@@ -268,7 +271,7 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
   // A locked row keeps its explanation and says who manages it.
   const managedSubtitle = (key: string, subtitle: string) => {
     const reason = managed(key);
-    return reason === undefined ? subtitle : `${subtitle} ${reason}`;
+    return managedSettingDescription(subtitle, reason);
   };
   const runtimeModeChoices = withManagedRuntimeModeLimits(
     RUNTIME_MODE_CHOICES,
@@ -387,6 +390,7 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
                   <SettingsSwitchRow
                     icon="globe"
                     label="Agent browser access"
+                    localizeDescription={false}
                     subtitle={managedSubtitle(
                       "enableAgentBrowserAccess",
                       "Allow agents to use the in-app preview browser.",
@@ -412,6 +416,7 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
                   <SettingsSwitchRow
                     icon={PullRequestGlyph.merged}
                     label="Remove agent credits when merging"
+                    localizeDescription={false}
                     subtitle={managedSubtitle(
                       "removeAgentCreditsOnMerge",
                       "Remove recognized agent credits from merge and squash messages on hosts that support it, keeping human co-authors. Includes auto-merge. Excludes merge queues, stack merges, and existing commits.",
@@ -425,6 +430,7 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
                   <SettingsSwitchRow
                     icon="arrow.down.circle"
                     label="Automatically pull"
+                    localizeDescription={false}
                     subtitle={managedSubtitle(
                       "defaultAutoPull",
                       "Keep the default branch current when there are no local changes.",
@@ -453,6 +459,7 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
                   <SettingsSwitchRow
                     icon="arrow.triangle.branch"
                     label="Start from remote"
+                    localizeDescription={false}
                     subtitle={managedSubtitle(
                       "newWorktreesStartFromOrigin",
                       "Uses the latest commit of the base branch’s tracked remote branch, even if its name differs. Otherwise uses the same-named branch on origin. Uses your local branch if that remote branch is missing.",
@@ -535,6 +542,7 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
                   <SettingsSwitchRow
                     icon="arrow.clockwise"
                     label="Check provider updates"
+                    localizeDescription={false}
                     subtitle={managedSubtitle(
                       "enableProviderUpdateChecks",
                       projectSelected
@@ -549,6 +557,7 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
                     <SettingsSwitchRow
                       icon="arrow.uturn.forward"
                       label="Continue after restart"
+                      localizeDescription={false}
                       subtitle={managedSubtitle(
                         "continueThreadsAfterServerUpdate",
                         "Resume interrupted threads after an update or restart.",

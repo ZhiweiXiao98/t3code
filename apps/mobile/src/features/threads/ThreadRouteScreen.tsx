@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import * as Dialog from "../../components/ui/Dialog";
 import { useRememberThreadProject } from "./useRememberThreadProject";
 import { useOpenPullRequest } from "../../native/useOpenPullRequest";
@@ -674,9 +675,9 @@ function ThreadRouteContent(
     });
     if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
       const error = squashAtomCommandFailure(result);
-      Dialog.alert(
+      Dialog.alertWithLiteralMessage(
         "Could not resume thread",
-        error instanceof Error ? error.message : "Try again.",
+        error instanceof Error ? error.message : localizeMobileString("Try again."),
       );
     }
   };
@@ -811,7 +812,7 @@ function ThreadRouteContent(
     try {
       await recoverFailedThreadDraft(creation);
     } catch (error) {
-      Dialog.alert(
+      Dialog.alertWithLiteralMessage(
         "Could not restore draft",
         error instanceof Error ? error.message : String(error),
       );

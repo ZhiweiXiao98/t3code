@@ -1,3 +1,4 @@
+import { mobileDisplayDate } from "../../i18n/mobileDateDisplay";
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import { mobileConnectionHeadline } from "../../i18n/nativeAccessibilityMessages";
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
@@ -135,7 +136,11 @@ function EnvironmentPickerRow(props: {
           {state.retryAt ? (
             <Text className="text-sm text-foreground-muted">
               {formatMobileMessage("Next reconnect at {0}", [
-                new Date(state.retryAt).toLocaleTimeString(),
+                mobileDisplayDate(new Date(state.retryAt), {
+                  hour: "numeric",
+                  minute: "2-digit",
+                  second: "2-digit",
+                }),
               ])}
             </Text>
           ) : null}

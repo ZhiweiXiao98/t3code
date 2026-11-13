@@ -71,7 +71,7 @@ export function GitCommitSheet(_props: GitCommitSheetProps) {
   const header = (
     <SheetHeader
       title="Commit changes"
-      subtitle={gitStatus.data?.refName ?? "(detached HEAD)"}
+      subtitle={gitStatus.data?.refName ?? localizeMobileString("(detached HEAD)")}
       onCancel={() => navigation.goBack()}
       accessibilityLabel={localizeMobileString("Cancel commit")}
     />

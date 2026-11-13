@@ -47,18 +47,25 @@ export function ProposedPlanCard(props: {
       setSaving(false);
     });
     if (result._tag === "Success") {
-      Dialog.alert("Plan saved to workspace", result.value.relativePath);
+      Dialog.alertWithLiteralMessage("Plan saved to workspace", result.value.relativePath);
     } else if (!isAtomCommandInterrupted(result)) {
       const error = squashAtomCommandFailure(result);
-      Dialog.alert("Could not save plan", error instanceof Error ? error.message : String(error));
+      Dialog.alertWithLiteralMessage(
+        "Could not save plan",
+        error instanceof Error ? error.message : String(error),
+      );
     }
   };
 
   return (
     <View className="mb-3 gap-3 rounded-[20px] border border-border bg-card-alt p-4">
       <View className="flex-row items-center gap-2">
-        <Text accessibilityRole="header" className="flex-1 font-t3-bold text-base text-foreground">
-          {proposedPlanTitle(props.markdown) ?? "Proposed plan"}
+        <Text
+          localize={false}
+          accessibilityRole="header"
+          className="flex-1 font-t3-bold text-base text-foreground"
+        >
+          {proposedPlanTitle(props.markdown) ?? localizeMobileString("Proposed plan")}
         </Text>
         <CopyTextButton accessibilityLabel={localizeMobileString("Copy plan")} text={contents} />
       </View>

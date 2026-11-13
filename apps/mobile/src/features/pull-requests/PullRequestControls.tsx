@@ -36,10 +36,12 @@ export function PullRequestCardGroup(props: { readonly children: ReactNode }) {
 
 export function PullRequestCardRow(props: {
   readonly title: string;
+  readonly localizeTitle?: boolean;
   readonly icon: AppSymbolName;
   readonly tint?: string;
   readonly value?: string;
   readonly detail?: string;
+  readonly localizeDetail?: boolean;
   readonly onPress?: () => void;
   readonly accessibilityLabel?: string;
   readonly destructive?: boolean;
@@ -67,6 +69,7 @@ export function PullRequestCardRow(props: {
       />
       <View className="min-w-0 flex-1 gap-0.5">
         <Text
+          localize={props.localizeTitle}
           className={
             props.destructive
               ? "text-sm font-t3-medium text-danger-foreground"
@@ -76,7 +79,11 @@ export function PullRequestCardRow(props: {
           {props.title}
         </Text>
         {props.detail ? (
-          <Text className="text-2xs text-foreground-muted" numberOfLines={2}>
+          <Text
+            localize={props.localizeDetail}
+            className="text-2xs text-foreground-muted"
+            numberOfLines={2}
+          >
             {props.detail}
           </Text>
         ) : null}

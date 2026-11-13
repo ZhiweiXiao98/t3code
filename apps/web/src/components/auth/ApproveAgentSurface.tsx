@@ -1,3 +1,4 @@
+import { primaryApprovalFailure } from "./primaryApprovalFailure";
 import { useStableCallback } from "~/hooks/useStableCallback";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateConnectAgentSource } from "~/i18n/connectAgentMessages";
@@ -7,6 +8,7 @@ import { managedRelaySessionAtom } from "@t3tools/client-runtime/relay";
 import {
   type ConnectMcpApprovalCall,
   ConnectMcpApprovalUnavailableError,
+  readConnectMcpApprovalRefusalError,
 } from "@t3tools/client-runtime/state/connectMcpApproval";
 import { type AuthMcpApprovalDetails, EnvironmentId } from "@t3tools/contracts";
 import * as Result from "effect/Result";
@@ -62,7 +64,12 @@ function connectTransport(
       case "redirect":
         return { kind: "redirect", url: answer.url };
       case "refused":
-        return { kind: "error", message: answer.message };
+        return (
+          primaryApprovalFailure(readConnectMcpApprovalRefusalError(answer)) ?? {
+            kind: "error",
+            message: answer.message,
+          }
+        );
     }
   };
   return {

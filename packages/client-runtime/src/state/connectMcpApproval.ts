@@ -5,6 +5,7 @@
 import type {
   AuthMcpApprovalDecisionRequest,
   AuthMcpApprovalDetails,
+  AuthMcpApprovalError,
   AuthMcpAuthorizationRequest,
   EnvironmentId,
 } from "@t3tools/contracts";
@@ -49,8 +50,17 @@ const answerFrom = (
     ? { kind: "redirect", url: value.redirectTo }
     : { kind: "details", details: value };
 
-const refused = (error: { readonly message: string }) =>
-  Effect.succeed<ConnectMcpApprovalAnswer>({ kind: "refused", message: error.message });
+const refusalErrors = new WeakMap<ConnectMcpApprovalAnswer, AuthMcpApprovalError>();
+
+export function readConnectMcpApprovalRefusalError(answer: ConnectMcpApprovalAnswer) {
+  return refusalErrors.get(answer) ?? null;
+}
+
+const refused = (error: AuthMcpApprovalError) => {
+  const answer: ConnectMcpApprovalAnswer = { kind: "refused", message: error.message };
+  refusalErrors.set(answer, error);
+  return Effect.succeed(answer);
+};
 
 /**
  * Sends one approval call to `environmentId` with this account's T3 Connect session. Its

@@ -6,12 +6,18 @@ import * as NodeModule from "node:module";
 import type { EnvironmentConnectionPhase } from "@t3tools/client-runtime/connection";
 import { workspaceDetailRouter } from "../layout/workspace/workspace-detail-selection";
 import type { NavigationState } from "@react-navigation/native";
-import { AuthOrchestrationOperateScope, AuthSourceControlWriteScope } from "@t3tools/contracts";
+import {
+  AuthFilesystemReadScope,
+  AuthOrchestrationOperateScope,
+  AuthSourceControlWriteScope,
+} from "@t3tools/contracts";
 import * as Cause from "effect/Cause";
 import { AsyncResult } from "effect/reactivity";
 import { act, createElement, isValidElement, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import * as mobileStrings from "../../i18n/mobileStrings";
+import * as connectionCopy from "../connection/environmentStatusText";
 
 const state = vi.hoisted(() => ({
   scopes: new Set<string>(),
@@ -27,6 +33,9 @@ const state = vi.hoisted(() => ({
   createNewResult: null as Promise<unknown> | null,
   startCloneResult: null as Promise<unknown> | null,
   connectionStates: {} as Record<string, EnvironmentConnectionPhase>,
+  connectionErrors: {} as Record<string, string>,
+  browseEntries: [] as { name: string; fullPath: string }[],
+  loadBrowsePath: vi.fn(async () => {}),
   newProjectsRoot: null as string | null,
   waitForProject: vi.fn(),
   dispatch: vi.fn(),
@@ -65,8 +74,11 @@ vi.mock("react-native", () => ({
   Platform: { OS: "ios" },
   ActivityIndicator: "ActivityIndicator",
   Alert: { alert: state.alert },
-  Pressable: "Pressable",
+  Pressable: (props: { children?: ReactNode; disabled?: boolean; onPress?: () => void }) =>
+    createElement("button", { disabled: props.disabled, onClick: props.onPress }, props.children),
   ScrollView: "ScrollView",
+  Text: "span",
+  TextInput: "input",
   View: "View",
 }));
 vi.mock("@react-navigation/native", () => ({
@@ -93,7 +105,6 @@ vi.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ bottom: 0 }),
 }));
 vi.mock("../../components/ui/AppSymbol", () => ({ SymbolView: "SymbolView" }));
-vi.mock("../../components/ui/AppText", () => ({ AppText: "Text", AppTextInput: "TextInput" }));
 vi.mock("../../components/EnvironmentMachineSymbol", () => ({
   EnvironmentMachineSymbol: "EnvironmentMachineSymbol",
 }));
@@ -101,6 +112,7 @@ vi.mock("../../components/ui/ErrorBanner", () => ({ ErrorBanner: "ErrorBanner" }
 vi.mock("./SourceControlIcon", () => ({ SourceControlIcon: "SourceControlIcon" }));
 vi.mock("../../lib/uuid", () => ({ uuidv4: () => "project" }));
 vi.mock("../../state/session", () => ({
+  environmentSession: { sessionStateAtom: () => ({ queryType: "session" }) },
   useEnvironmentScope: (_environmentId: string, scope: string) => state.scopes.has(scope),
   readEnvironmentScope: (_environmentId: string, scope: string) => state.scopes.has(scope),
 }));
@@ -125,6 +137,7 @@ vi.mock("../../state/use-remote-environment-registry", () => ({
     connectedEnvironments: state.environments.map((environment) => ({
       environmentId: environment.environmentId,
       connectionState: state.connectionStates[environment.environmentId] ?? "connected",
+      connectionError: state.connectionErrors[environment.environmentId] ?? null,
     })),
   }),
   useSavedRemoteConnections: () => ({
@@ -134,12 +147,27 @@ vi.mock("../../state/use-remote-environment-registry", () => ({
   }),
 }));
 vi.mock("../../state/use-atom-command", () => ({ useAtomCommand: (command: unknown) => command }));
-vi.mock("../../state/use-atom-query-runner", () => ({ useAtomQueryRunner: () => () => {} }));
-vi.mock("../../state/query", () => ({ useEnvironmentQuery: () => ({ data: null }) }));
+vi.mock("../../state/use-atom-query-runner", () => ({
+  useAtomQueryRunner: () => state.loadBrowsePath,
+}));
+vi.mock("../../state/query", () => ({
+  useEnvironmentQuery: (query: { queryType?: string } | null) => ({
+    data:
+      query?.queryType === "session"
+        ? { authenticated: true, scopes: [AuthFilesystemReadScope] }
+        : query?.queryType === "browse"
+          ? { entries: state.browseEntries }
+          : null,
+    error: null,
+    isPending: false,
+  }),
+}));
 vi.mock("../../state/presentation", () => ({
   useEnvironmentPresentation: () => ({ isReady: true, presentation: null }),
 }));
-vi.mock("../../state/filesystem", () => ({ filesystemEnvironment: {} }));
+vi.mock("../../state/filesystem", () => ({
+  filesystemEnvironment: { browse: () => ({ queryType: "browse" }) },
+}));
 vi.mock("../../state/sourceControl", () => ({
   sourceControlEnvironment: {
     discovery: (input: unknown) => input,
@@ -342,25 +370,54 @@ function mountProjectFlow(
 
 describe("add project source environment", () => {
   it("blocks local add on a requested unavailable host until reconnect or manual choice", async () => {
+    const localizeMobileString = mobileStrings.localizeMobileString;
+    using _locale = vi
+      .spyOn(mobileStrings, "localizeMobileString")
+      .mockImplementation((value, locale) => localizeMobileString(value, locale ?? "zh-CN"));
+    const environmentStatusText = connectionCopy.environmentStatusText;
+    using _statusLocale = vi
+      .spyOn(connectionCopy, "environmentStatusText")
+      .mockImplementation((connection) => environmentStatusText(connection, "zh-CN"));
     state.scopes = new Set([AuthOrchestrationOperateScope]);
     state.dispatch.mockReset();
     state.environments = [
-      { environmentId: "environment", environmentLabel: "Environment" },
-      { environmentId: "another-environment", environmentLabel: "Another environment" },
+      { environmentId: "environment", environmentLabel: "Settings" },
+      { environmentId: "another-environment", environmentLabel: "Open" },
     ];
+    state.connectionErrors = { environment: "Settings {0} $&" };
     (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-    const root = createRoot(document.createElement("div"));
+    const container = document.createElement("div");
+    const root = createRoot(container);
     let screen: ReactNode;
     function SourceObserver() {
       screen = AddProjectSourceScreen({ environmentId: "environment" });
-      return null;
+      return screen;
     }
     try {
-      for (const phase of ["available", "offline", "error"] as const) {
+      for (const phase of [
+        "available",
+        "offline",
+        "error",
+        "reconnecting",
+        "unsupported",
+      ] as const) {
         state.connectionStates = { environment: phase };
         await act(() => root.render(createElement(SourceObserver)));
         expect(findAction(screen, "Local folder")).toBeNull();
         expect(state.dispatch).not.toHaveBeenCalled();
+        const visibleText = Array.from(
+          container.querySelectorAll("span"),
+          (span) => span.textContent,
+        );
+        expect(visibleText).toContain("Settings");
+        expect(visibleText).toContain("Open");
+        if (phase === "error") {
+          expect(visibleText).toContain("连接失败。原因：Settings {0} $&");
+        } else if (phase === "reconnecting") {
+          expect(visibleText).toContain("连接失败，正在重新连接…原因：Settings {0} $&");
+        } else {
+          expect(container.textContent).not.toContain("Settings {0} $&");
+        }
       }
       state.connectionStates = {};
       await act(() => root.render(createElement(SourceObserver)));
@@ -374,9 +431,11 @@ describe("add project source environment", () => {
       state.connectionStates = { environment: "offline" };
       await act(() => root.render(createElement(SourceObserver)));
       expect(findAction(screen, "Local folder")).toBeNull();
-      const select = findAction(screen, "Another environment");
+      const select = Array.from(container.querySelectorAll("button")).find(
+        (button) => button.textContent === "Open",
+      );
       if (!select) throw new Error("Connected environment selection missing");
-      await act(() => select());
+      await act(() => select.click());
       const local = findAction(screen, "Local folder");
       if (!local) throw new Error("Manually selected local folder action missing");
       local();
@@ -387,6 +446,7 @@ describe("add project source environment", () => {
     } finally {
       await act(() => root.unmount());
       state.connectionStates = {};
+      state.connectionErrors = {};
       state.environments = [{ environmentId: "environment", environmentLabel: "Environment" }];
     }
   });
@@ -523,6 +583,40 @@ describe("local project navigation", () => {
     );
   });
 
+  it("opens existing projects with literal names in both the localized dialog and draft", async () => {
+    const localizeAlertArguments = mobileStrings.localizeAlertArguments;
+    using _locale = vi
+      .spyOn(mobileStrings, "localizeAlertArguments")
+      .mockImplementation((title, message, buttons) =>
+        localizeAlertArguments(title, message, buttons, "zh-CN"),
+      );
+    try {
+      for (const title of ["Settings", "Open", "{0} $&"]) {
+        state.existingProjects = [
+          {
+            environmentId: "environment",
+            id: "existing-project",
+            title,
+            workspaceRoot: "/tmp/t3-mobile-audit-fixture",
+          },
+        ];
+        const { submit } = setup();
+        const navigation = mountProjectFlow(false);
+        await act(async () => {
+          await submit();
+        });
+        expect(state.alert.mock.lastCall?.slice(0, 2)).toEqual(["项目已存在", title]);
+        expect(state.projects).toEqual([]);
+        expect(state.waitForProject).not.toHaveBeenCalled();
+        expect(navigation.getState().routes[1]?.params).toEqual({
+          draft: { environmentId: "environment", projectId: "existing-project", title },
+        });
+      }
+    } finally {
+      state.existingProjects = [];
+    }
+  });
+
   it("does not replace a reopened flow when the previous submission finishes", async () => {
     const { created, projected, submit } = setup();
     const navigation = mountProjectFlow(false);
@@ -558,6 +652,12 @@ describe("local project navigation", () => {
   });
 
   it("does not redirect a reopened flow when an earlier new project finishes", async () => {
+    const localizeAlertArguments = mobileStrings.localizeAlertArguments;
+    using _locale = vi
+      .spyOn(mobileStrings, "localizeAlertArguments")
+      .mockImplementation((title, message, buttons) =>
+        localizeAlertArguments(title, message, buttons, "zh-CN"),
+      );
     const { projected } = setup();
     state.newProjectsRoot = "/projects";
     const created = Promise.withResolvers<unknown>();
@@ -604,10 +704,15 @@ describe("local project navigation", () => {
           AsyncResult.success({
             projectId: "project",
             workspaceRoot: "/projects/new-project",
+            commitError: "Settings",
           }),
         );
         await waitingForProject.promise;
       });
+      expect(state.alert.mock.lastCall?.slice(0, 2)).toEqual([
+        "项目已创建，但未完成首次提交",
+        "Settings",
+      ]);
       navigation.back();
       navigation.push("AddProjectNew");
       const remaining = navigation.getState();
@@ -658,6 +763,49 @@ describe("local project navigation", () => {
 });
 
 describe("local folder path", () => {
+  it("browses folders with dictionary-colliding names without changing their displayed names or paths", async () => {
+    const localizeMobileString = mobileStrings.localizeMobileString;
+    using _locale = vi
+      .spyOn(mobileStrings, "localizeMobileString")
+      .mockImplementation((value, locale) => localizeMobileString(value, locale ?? "zh-CN"));
+    state.scopes = new Set([AuthFilesystemReadScope, AuthOrchestrationOperateScope]);
+    state.baseDirectory = "/work/{1}/$&/";
+    state.connectionStates = {};
+    state.environments = [{ environmentId: "environment", environmentLabel: "Settings" }];
+    state.browseEntries = ["Settings", "Open", "{0} $&"].map((name) => ({
+      name,
+      fullPath: `${state.baseDirectory}${name}`,
+    }));
+    state.loadBrowsePath.mockClear();
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    try {
+      await act(() =>
+        root.render(createElement(AddProjectLocalFolderScreen, { environmentId: "environment" })),
+      );
+      let path = state.baseDirectory;
+      expect(container.querySelector("input")?.value).toBe(path);
+      for (const name of ["Settings", "Open", "{0} $&"]) {
+        const folder = Array.from(container.querySelectorAll("button")).find(
+          (button) => button.textContent === name,
+        );
+        if (!folder) throw new Error(`Folder missing: ${name}`);
+        await act(async () => folder.click());
+        path += `${name}/`;
+        expect(state.loadBrowsePath).toHaveBeenLastCalledWith({
+          environmentId: "environment",
+          input: { partialPath: path },
+        });
+        expect(container.querySelector("input")?.value).toBe(path);
+      }
+    } finally {
+      await act(() => root.unmount());
+      state.browseEntries = [];
+      state.environments = [{ environmentId: "environment", environmentLabel: "Environment" }];
+    }
+  });
+
   function findPathInput(
     node: ReactNode,
   ): { value: string; onChangeText: (value: string) => void } | null {

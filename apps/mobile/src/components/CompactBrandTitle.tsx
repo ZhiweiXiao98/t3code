@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../i18n/mobileStrings";
 import { NATIVE_WORKSPACE_COLUMNS_SUPPORTED } from "../native/NativeWorkspaceColumns";
 import Constants from "expo-constants";
 import { useState } from "react";
@@ -39,7 +40,7 @@ export function CompactBrandTitle(
         props.fit && showStage ? (event) => setFullWidth(event.nativeEvent.layout.width) : undefined
       }
       aria-level={1}
-      accessibilityLabel={props.accessibilityLabel ?? "T3 Code, Threads"}
+      accessibilityLabel={props.accessibilityLabel ?? localizeMobileString("T3 Code, Threads")}
       accessible
       role="heading"
       className="flex-row items-center gap-1.5"

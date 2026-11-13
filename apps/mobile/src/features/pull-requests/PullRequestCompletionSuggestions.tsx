@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 
@@ -88,7 +89,7 @@ export function PullRequestCompletionSuggestions({
           className="max-h-[180px]"
           keyboardShouldPersistTaps="always"
           showsVerticalScrollIndicator={false}
-          accessibilityLabel={copy.label}
+          accessibilityLabel={localizeMobileString(copy.label)}
         >
           {completions.candidates.map((completion, index) => (
             <Pressable

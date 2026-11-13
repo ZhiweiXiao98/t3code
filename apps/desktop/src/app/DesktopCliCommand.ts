@@ -1,3 +1,5 @@
+import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
+import { desktopCliMessage, type DesktopCliMessageKey } from "./DesktopCliCommandMessages.ts";
 // @effect-diagnostics-next-line nodeBuiltinImport:off -- FileSystem.access has no execute check.
 import * as NodeFSP from "node:fs/promises";
 
@@ -27,6 +29,33 @@ export class DesktopCliCommandError extends Schema.TaggedError<DesktopCliCommand
   "DesktopCliCommandError",
   { message: Schema.String },
 ) {}
+
+const failureMessages = new WeakMap<
+  DesktopCliCommandError,
+  {
+    readonly key: DesktopCliMessageKey;
+    readonly values: Readonly<Record<string, string>>;
+  }
+>();
+const isCliCommandError = Schema.is(DesktopCliCommandError);
+
+export function localizeDesktopCliCommandError<E>(
+  error: E,
+  locale: ResolvedAppLocale,
+): E | DesktopCliCommandError {
+  if (
+    !isCliCommandError(error) ||
+    Object.getPrototypeOf(error) !== DesktopCliCommandError.prototype
+  )
+    return error;
+  const display = failureMessages.get(error);
+  if (display === undefined || locale === "en") return error;
+  const localized = new DesktopCliCommandError({
+    message: desktopCliMessage(locale, display.key, display.values),
+  });
+  if (error.stack !== undefined) localized.stack = error.stack;
+  return localized;
+}
 
 const userCandidates = (home: string) => [`${home}/.local/bin`, `${home}/bin`];
 
@@ -91,7 +120,11 @@ export const make = Effect.gen(function* () {
   const ownedPathMarker = path.join(environment.stateDir, "cli-command-path-entry");
   const firstLaunchMarker = path.join(environment.stateDir, "cli-command-first-launch");
 
-  const fail = (message: string) => new DesktopCliCommandError({ message });
+  const fail = (key: DesktopCliMessageKey, values: Readonly<Record<string, string>> = {}) => {
+    const error = new DesktopCliCommandError({ message: desktopCliMessage("en", key, values) });
+    failureMessages.set(error, { key, values });
+    return error;
+  };
   const exists = (target: string) => fs.exists(target).pipe(Effect.orElseSucceed(() => false));
   // Read before this launch writes either one: an app that ran before left its launcher or
   // settings. Its user may have removed t3 or chosen another, so only Settings installs there.
@@ -150,12 +183,12 @@ export const make = Effect.gen(function* () {
   // Explicit, so an inherited T3_SET=1 can never turn a read into a PATH write.
   const readUserPath = powershell({ T3_SET: "0" }).pipe(
     Effect.map((encoded) => Buffer.from(encoded.trim(), "base64").toString("utf8")),
-    Effect.mapError(() => fail("Could not read your PATH, so it was left unchanged.")),
+    Effect.mapError(() => fail("readPath")),
   );
   const writeUserPath = (value: string) =>
     powershell({ T3_SET: "1", T3_PATH: value }).pipe(
       Effect.asVoid,
-      Effect.mapError(() => fail("Could not update your PATH.")),
+      Effect.mapError(() => fail("writePath")),
     );
 
   const isExecutableFile = Effect.fn("DesktopCliCommand.isExecutableFile")(
@@ -163,7 +196,7 @@ export const make = Effect.gen(function* () {
       if ((yield* fs.stat(target)).type !== "File") return false;
       yield* Effect.tryPromise({
         try: () => NodeFSP.access(target, NodeFSP.constants.X_OK),
-        catch: () => fail(`${target} is not executable.`),
+        catch: () => fail("notExecutable", { target }),
       });
       return true;
     },
@@ -286,28 +319,26 @@ export const make = Effect.gen(function* () {
     Effect.provideService(FileSystem.FileSystem, fs),
     Effect.flatMap(
       Option.match({
-        onNone: () => Effect.fail(fail(`Could not set up the t3 launcher at ${launcher}.`)),
+        onNone: () => Effect.fail(fail("launcher", { launcher })),
         onSome: () => Effect.void,
       }),
     ),
   );
 
   const install: DesktopCliCommand["Service"]["install"] = Effect.gen(function* () {
-    if (!environment.isPackaged) return yield* fail("The t3 command needs an installed app.");
+    if (!environment.isPackaged) return yield* fail("installedApp");
     yield* ensureLauncher;
     if (windows) {
       // PATH would split the folder at the `;`, leaving two wrong entries behind.
       if (binDirectory.includes(";")) {
-        return yield* fail(
-          `T3 Code cannot put ${binDirectory} on PATH because it has a ";". Run ${launcher} directly.`,
-        );
+        return yield* fail("semicolon", { directory: binDirectory, launcher });
       }
       const entries = pathEntries(yield* readUserPath, ";");
       if (!entries.some((entry) => sameWindowsPath(entry, binDirectory))) {
         yield* writeUserPath([...entries, binDirectory].join(";"));
         yield* fs
           .writeFileString(ownedPathMarker, `${binDirectory}\n`)
-          .pipe(Effect.mapError(() => fail("Added t3 to your PATH but could not record it.")));
+          .pipe(Effect.mapError(() => fail("recordPath")));
       }
       return yield* state;
     }
@@ -320,9 +351,7 @@ export const make = Effect.gen(function* () {
     const shadowedBy = yield* foreignFirstOnPath;
     // Our own link into another T3 home runs first too; it is the one this install updates.
     if (Option.isSome(shadowedBy) && shadowedBy.value !== replaced) {
-      return yield* fail(
-        `Another t3 at ${shadowedBy.value} runs first in a new terminal. Remove it, or run the launcher directly at ${launcher}.`,
-      );
+      return yield* fail("shadowInstall", { shadow: shadowedBy.value, launcher });
     }
     // An old link of ours is updated where it is, so a t3 that works now keeps working. It is
     // removed only once a new link exists elsewhere.
@@ -364,9 +393,7 @@ export const make = Effect.gen(function* () {
       }
       return yield* state;
     }
-    return yield* fail(
-      `Another t3 command is already in ~/.local/bin and ~/bin, or neither is writable. Run the launcher directly at ${launcher}.`,
-    );
+    return yield* fail("noDirectory", { launcher });
   }).pipe(Effect.withSpan("desktop.cliCommand.install"));
 
   const uninstall: DesktopCliCommand["Service"]["uninstall"] = Effect.gen(function* () {
@@ -384,7 +411,7 @@ export const make = Effect.gen(function* () {
     for (const directory of knownLocations(environment.homeDirectory, environment.platform)) {
       const link = path.join(directory, "t3");
       if (yield* isOurLink(link)) {
-        yield* fs.remove(link).pipe(Effect.mapError(() => fail(`Could not remove ${link}.`)));
+        yield* fs.remove(link).pipe(Effect.mapError(() => fail("remove", { link })));
       }
     }
     return yield* state;
@@ -395,22 +422,20 @@ export const make = Effect.gen(function* () {
   const addToPath: DesktopCliCommand["Service"]["addToPath"] = Effect.gen(function* () {
     const installed = yield* installedAt;
     if (Option.isNone(installed) || !(yield* leadsHere(installed.value))) {
-      return yield* fail("Install the t3 command first.");
+      return yield* fail("installFirst");
     }
     const setup = startupLine(installed.value);
-    if (setup === undefined) return yield* fail("T3 Code cannot add t3 to this shell's PATH.");
+    if (setup === undefined) return yield* fail("unsupportedShell");
     const shadowedBy = yield* foreignFirstOnPath;
     if (Option.isSome(shadowedBy)) {
-      return yield* fail(
-        `Another t3 at ${shadowedBy.value} runs first; T3 Code leaves it in place.`,
-      );
+      return yield* fail("shadowPath", { shadow: shadowedBy.value });
     }
     if (!(yield* folderOnPath(installed.value)) && !(yield* hasLine(setup))) {
       yield* fs.makeDirectory(path.dirname(setup.path), { recursive: true }).pipe(
         Effect.andThen(
           fs.writeFileString(setup.path, `\n# Added by T3 Code\n${setup.line}\n`, { flag: "a" }),
         ),
-        Effect.mapError(() => fail(`Could not add t3 to ${setup.file}.`)),
+        Effect.mapError(() => fail("addFile", { file: setup.file })),
       );
     }
     return yield* state;

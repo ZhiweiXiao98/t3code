@@ -2,26 +2,26 @@ import { expect, it, vi } from "vite-plus/test";
 
 const nativeAlert = vi.hoisted(() => vi.fn());
 vi.mock("react-native", () => ({ Alert: { alert: nativeAlert, prompt: vi.fn() } }));
-it("keeps literal error messages while localizing title and actions without losing native options", async () => {
+it("keeps literal content while localizing owned titles and actions without losing native options", async () => {
   vi.resetModules();
   const previous = process.env.EXPO_PUBLIC_APP_LOCALE;
   process.env.EXPO_PUBLIC_APP_LOCALE = "zh-CN";
   try {
-    const { alertWithLiteralMessage } = await import("./Dialog");
+    const { alertWithLiteralMessage, alertWithLiteralContent } = await import("./Dialog");
     const onPress = vi.fn();
     const options = { cancelable: true, onDismiss: vi.fn() };
-    alertWithLiteralMessage(
-      "Settings",
-      "Settings",
-      [{ text: "Cancel", style: "cancel", onPress }],
-      options,
-    );
-    expect(nativeAlert).toHaveBeenLastCalledWith(
-      "设置",
-      "Settings",
-      [{ text: "取消", style: "cancel", onPress }],
-      options,
-    );
+    for (const [alert, title] of [
+      [alertWithLiteralMessage, "设置"],
+      [alertWithLiteralContent, "Settings"],
+    ] as const) {
+      alert("Settings", "Open", [{ text: "Cancel", style: "cancel", onPress }], options);
+      expect(nativeAlert).toHaveBeenLastCalledWith(
+        title,
+        "Open",
+        [{ text: "取消", style: "cancel", onPress }],
+        options,
+      );
+    }
   } finally {
     if (previous === undefined) delete process.env.EXPO_PUBLIC_APP_LOCALE;
     else process.env.EXPO_PUBLIC_APP_LOCALE = previous;

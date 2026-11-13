@@ -16,6 +16,13 @@ export function alertWithLiteralMessage(
   NativeAlert.alert(localized.title, message, localized.buttons, options);
 }
 
+export function alertWithLiteralContent(
+  ...[title, message, buttons, options]: Parameters<typeof Alert.alert>
+): void {
+  const localized = localizeAlertArguments("", undefined, buttons);
+  NativeAlert.alert(title, message, localized.buttons, options);
+}
+
 export function confirm(request: ConfirmDialogRequest): void {
   Alert.alert(request.title, request.message, [
     { text: request.cancelText ?? "Cancel", style: "cancel", onPress: request.onCancel },

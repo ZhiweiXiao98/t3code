@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { useAtomValue } from "@effect/atom-react";
 import {
@@ -49,7 +50,10 @@ export function useThreadGuestShare(threadRef: ScopedThreadRef | null): ThreadGu
 function alertOnFailure(failureTitle: string, result: AtomCommandResult<unknown, unknown>) {
   if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
     const error = squashAtomCommandFailure(result);
-    Dialog.alert(failureTitle, error instanceof Error ? error.message : "Try again.");
+    Dialog.alertWithLiteralMessage(
+      failureTitle,
+      error instanceof Error ? error.message : localizeMobileString("Try again."),
+    );
   }
 }
 
@@ -105,12 +109,16 @@ export function ThreadGuestShareBar(props: {
   return (
     <View className="flex-row items-center gap-2 px-4 pb-2">
       <SymbolView name="person.2" size={12} tintColorClassName="accent-foreground-muted" />
-      <Text className="min-w-0 flex-1 text-xs text-foreground-muted" numberOfLines={1}>
+      <Text
+        localize={false}
+        className="min-w-0 flex-1 text-xs text-foreground-muted"
+        numberOfLines={1}
+      >
         {expiredAt === share.expiresAt
-          ? "Guest link expired"
+          ? localizeMobileString("Guest link expired")
           : share.guestName === null
-            ? "Guest link active"
-            : `${share.guestName} is a guest`}
+            ? localizeMobileString("Guest link active")
+            : formatMobileMessage("{0} is a guest", [share.guestName])}
       </Text>
       <Button label="Stop sharing" tone="text" disabled={disabled} onPress={stopSharing} />
     </View>

@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../../../i18n/mobileStrings";
 import { WorkspaceNoTabs } from "./WorkspaceNoTabs";
 import { WORKSPACE_TAB_LABELS, useEnabledNavigationTabs } from "./navigation-tabs";
 import { WorkspaceExtraTab } from "./WorkspaceExtraTab";
@@ -56,7 +57,12 @@ function WorkspaceRootTitle(props: {
   return (
     <View style={{ width: maxWidth, minHeight: 32, justifyContent: "center" }}>
       <WorkspaceConnectionTitle
-        brand={<CompactBrandTitle accessibilityLabel={`T3 Code, ${tabTitle}`} fit />}
+        brand={
+          <CompactBrandTitle
+            accessibilityLabel={`T3 Code, ${localizeMobileString(tabTitle)}`}
+            fit
+          />
+        }
         maxWidth={maxWidth}
         onPress={props.onOpenEnvironments}
       />

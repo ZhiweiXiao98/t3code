@@ -346,8 +346,10 @@ export const ThreadListV2ShowMoreRow = memo(function ThreadListV2ShowMoreRow(pro
       accessibilityRole="button"
       accessibilityLabel={
         props.state === undefined
-          ? `Show ${Math.min(props.hiddenCount, THREAD_LIST_V2_SETTLED_PAGE_COUNT)} more settled threads`
-          : label
+          ? formatMobileMessage("Show {0} more settled threads", [
+              Math.min(props.hiddenCount, THREAD_LIST_V2_SETTLED_PAGE_COUNT),
+            ])
+          : localizeMobileString(label)
       }
       disabled={props.state === "loading"}
       onPress={props.onPress}

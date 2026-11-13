@@ -342,7 +342,7 @@ export function usePullRequestListFilters(props: {
     environmentLabel:
       props.environments.length > 1
         ? (props.environments.find((environment) => environment.id === props.environmentId)
-            ?.label ?? "All environments")
+            ?.label ?? localizeMobileString("All environments"))
         : null,
     environmentActions,
     state: value.state,
@@ -392,6 +392,7 @@ export function PullRequestListFilters(props: {
       {props.filters.environmentLabel !== null ? (
         <ListFilterMenu
           label={props.filters.environmentLabel}
+          localizeLabel={false}
           accessibilityLabel={localizeMobileString("Choose pull request environment")}
           actions={props.filters.environmentActions}
           onSelect={select}
@@ -420,6 +421,7 @@ export function PullRequestListFilters(props: {
       />
       <ListFilterMenu
         label={author === "me" ? "By you" : (author ?? "Author")}
+        localizeLabel={author == null || author === "me"}
         active={Boolean(author)}
         accessibilityLabel={localizeMobileString("Filter by author")}
         actions={props.filters.authorActions}

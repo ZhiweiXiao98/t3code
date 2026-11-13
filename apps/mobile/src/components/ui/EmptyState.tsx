@@ -6,6 +6,7 @@ import { Button } from "./Button";
 
 export function EmptyState(props: {
   readonly title: string;
+  readonly localizeTitle?: boolean;
   readonly detail: string;
   readonly localizeDetail?: boolean;
   readonly actionLabel?: string;
@@ -16,7 +17,11 @@ export function EmptyState(props: {
   if (props.variant === "plain") {
     return (
       <View className="items-center px-8 py-8">
-        <Text textRole="title" className="text-center font-t3-bold text-foreground">
+        <Text
+          localize={props.localizeTitle}
+          textRole="title"
+          className="text-center font-t3-bold text-foreground"
+        >
           {props.title}
         </Text>
         <Text
@@ -39,7 +44,11 @@ export function EmptyState(props: {
 
   return (
     <View className="rounded-[22px] border border-border bg-card p-5">
-      <Text textRole="headline" className="font-t3-bold text-foreground">
+      <Text
+        localize={props.localizeTitle}
+        textRole="headline"
+        className="font-t3-bold text-foreground"
+      >
         {props.title}
       </Text>
       <Text

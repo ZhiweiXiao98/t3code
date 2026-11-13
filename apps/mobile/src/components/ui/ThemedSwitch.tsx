@@ -6,16 +6,23 @@ import type { ThemedSwitchProps } from "./NativeSwitch.types";
 
 export type { ThemedSwitchProps } from "./NativeSwitch.types";
 
-export function ThemedSwitch(props: ThemedSwitchProps) {
+export function ThemedSwitch({
+  localizeAccessibilityLabel = true,
+  localizeAccessibilityHint = true,
+  ...props
+}: ThemedSwitchProps & {
+  readonly localizeAccessibilityLabel?: boolean;
+  readonly localizeAccessibilityHint?: boolean;
+}) {
   const localizedProps = {
     ...props,
     accessibilityLabel:
-      props.accessibilityLabel === undefined
-        ? undefined
+      props.accessibilityLabel === undefined || !localizeAccessibilityLabel
+        ? props.accessibilityLabel
         : localizeMobileString(props.accessibilityLabel),
     accessibilityHint:
-      props.accessibilityHint === undefined
-        ? undefined
+      props.accessibilityHint === undefined || !localizeAccessibilityHint
+        ? props.accessibilityHint
         : localizeMobileString(props.accessibilityHint),
   };
   if (Platform.OS === "android") {

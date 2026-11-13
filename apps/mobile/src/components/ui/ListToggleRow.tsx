@@ -16,16 +16,22 @@ export function ListToggleRow(
     <ListRowLayout
       icon={props.icon}
       label={props.label}
+      localizeLabel={props.localizeLabel}
+      localizeDescription={props.localizeDescription}
       description={props.description}
       disabled={props.disabled}
       accessory={
         props.value === null ? (
           <Pressable
             accessibilityLabel={formatMobileMessage("Set {0} on for selected environments", [
-              localizeMobileString(props.label ?? ""),
+              props.localizeLabel === false ? props.label : localizeMobileString(props.label ?? ""),
             ])}
             accessibilityRole="button"
-            accessibilityHint={props.description}
+            accessibilityHint={
+              props.localizeDescription === false || props.description === undefined
+                ? props.description
+                : localizeMobileString(props.description)
+            }
             accessibilityState={{ disabled: Boolean(props.disabled) }}
             disabled={props.disabled}
             className="rounded-full bg-subtle px-3 py-2 active:opacity-70"
@@ -35,8 +41,14 @@ export function ListToggleRow(
           </Pressable>
         ) : (
           <ThemedSwitch
+            localizeAccessibilityLabel={props.localizeLabel}
+            localizeAccessibilityHint={false}
             accessibilityLabel={props.label}
-            accessibilityHint={props.description}
+            accessibilityHint={
+              props.localizeDescription === false || props.description === undefined
+                ? props.description
+                : localizeMobileString(props.description)
+            }
             disabled={props.disabled}
             onValueChange={props.onValueChange}
             value={props.value}

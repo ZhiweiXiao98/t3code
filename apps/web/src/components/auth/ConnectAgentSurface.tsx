@@ -1,3 +1,8 @@
+import {
+  approvalFailureMessage,
+  primaryApprovalFailure,
+  type McpApprovalFailure,
+} from "./primaryApprovalFailure";
 import { useStableCallback } from "~/hooks/useStableCallback";
 import { managedRuntimeModeCeilingMessage } from "../../i18n/managedPolicyMessages";
 import { useI18n, splitWebTranslation, type WebTranslate } from "~/i18n/WebI18nContext";
@@ -63,7 +68,7 @@ function redirectsToThisComputer(redirectHost: string): boolean {
 
 type Loaded =
   | { readonly status: "loading" }
-  | { readonly status: "invalid"; readonly message: string }
+  | { readonly status: "invalid"; readonly message: string; readonly failure?: McpApprovalFailure }
   | { readonly status: "ready"; readonly details: AuthMcpApprovalDetails };
 
 const UNREACHABLE = "Could not reach this environment. Try again.";
@@ -72,7 +77,7 @@ const isApprovalError = Schema.is(AuthMcpApprovalError);
 export type McpApprovalAnswer<A> =
   | { readonly kind: "ok"; readonly value: A }
   | { readonly kind: "redirect"; readonly url: string }
-  | { readonly kind: "error"; readonly message: string };
+  | McpApprovalFailure;
 
 /** Where the consent page reads the sign-in request and sends the decision. */
 export interface McpApprovalTransport {
@@ -100,10 +105,12 @@ function runApproval<A>(
           : { kind: "ok", value: value as A },
       ),
       Effect.catch((error) =>
-        Effect.succeed<McpApprovalAnswer<A>>({
-          kind: "error",
-          message: isApprovalError(error) ? error.message : translateSource(UNREACHABLE),
-        }),
+        Effect.succeed<McpApprovalAnswer<A>>(
+          primaryApprovalFailure(error) ?? {
+            kind: "error",
+            message: isApprovalError(error) ? error.message : translateSource(UNREACHABLE),
+          },
+        ),
       ),
     ),
   ).catch((): McpApprovalAnswer<A> => ({
@@ -176,7 +183,9 @@ export function McpConsent({
           loaded.status === "ready" ? loaded.details.runtimeModeCeiling : undefined,
           pairingCode.trim().length > 0,
         );
-  const [errorMessage, setErrorMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState<string | McpApprovalFailure>("");
+  const displayedErrorMessage =
+    typeof errorMessage === "string" ? errorMessage : approvalFailureMessage(locale, errorMessage);
   const [pending, setPending] = useState<"approve" | "deny" | null>(null);
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- fetches the MCP OAuth approval and redirects the window or stores details, ignoring stale answers
@@ -194,7 +203,7 @@ export function McpConsent({
       }
       setLoaded(
         answer.kind === "error"
-          ? { status: "invalid", message: answer.message }
+          ? { status: "invalid", message: answer.message, failure: answer }
           : { status: "ready", details: answer.value },
       );
     });
@@ -236,7 +245,7 @@ export function McpConsent({
     setPending(null);
     setErrorMessage(
       answer.kind === "error"
-        ? answer.message
+        ? answer
         : answer.kind === "redirect"
           ? tx(UNSAFE_REDIRECT)
           : tx("The sign-in could not continue."),
@@ -260,7 +269,9 @@ export function McpConsent({
       <StandalonePage>
         <ConnectAgentHeading
           title={tx("This sign-in cannot continue")}
-          description={loaded.message}
+          description={
+            loaded.failure ? approvalFailureMessage(locale, loaded.failure) : loaded.message
+          }
         />
         <p className="mt-4 text-sm text-muted-foreground">
           {tx("Close this page and start the sign-in again from your agent.")}
@@ -391,9 +402,9 @@ export function McpConsent({
           </div>
         )}
 
-        {errorMessage ? (
+        {displayedErrorMessage ? (
           <Alert variant="error">
-            <AlertDescription>{errorMessage}</AlertDescription>
+            <AlertDescription>{displayedErrorMessage}</AlertDescription>
           </Alert>
         ) : null}
 

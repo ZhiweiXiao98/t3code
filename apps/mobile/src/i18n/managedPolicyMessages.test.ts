@@ -1,3 +1,4 @@
+import { localizeMobileString } from "./mobileStrings";
 import { describe, expect, it } from "vite-plus/test";
 import type { ManagedPolicySummary } from "@t3tools/contracts";
 
@@ -8,6 +9,7 @@ import {
   managedHelpMessage,
   managedRuntimeModeDenial,
   managedSettingsMessage,
+  managedSettingDescription,
   managedUpdatesDenial,
   switchRuntimeModeMessage,
 } from "./managedPolicyMessages";
@@ -58,4 +60,19 @@ describe("mobile managed policy messages", () => {
     expect(switchRuntimeModeMessage("Supervised", "zh-CN")).toBe("切换为监督模式");
     expect(switchRuntimeModeMessage("Supervised", "en")).toBe("Switch to Supervised");
   });
+});
+
+it("translates locked-setting explanations without reinterpreting organization reasons", () => {
+  for (const locale of ["en", "zh-CN"] as const) {
+    const description = "Allow agents to use the in-app preview browser.";
+    const expected = localizeMobileString(description, locale);
+    expect(managedSettingDescription(description, undefined, locale)).toBe(expected);
+    for (const reason of [
+      "Settings",
+      "Open",
+      "Managed by Settings/{0}/$&.",
+      "由 Settings/{0}/$& 管理。",
+    ])
+      expect(managedSettingDescription(description, reason, locale)).toBe(`${expected} ${reason}`);
+  }
 });

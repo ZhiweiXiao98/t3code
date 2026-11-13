@@ -1,3 +1,5 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { useEffectEvent, useState } from "react";
 import { Platform, Pressable, StyleSheet, View, type AccessibilityActionEvent } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
@@ -58,14 +60,14 @@ export function WorkspacePaneDivider(props: WorkspacePaneDividerProps) {
       <Pressable
         className="relative z-[100] -mx-[22px] w-[44px] self-stretch justify-center"
         accessibilityActions={[
-          { name: "increment", label: "Make pane wider" },
-          { name: "decrement", label: "Make pane narrower" },
+          { name: "increment", label: localizeMobileString("Make pane wider") },
+          { name: "decrement", label: localizeMobileString("Make pane narrower") },
         ]}
         accessibilityLabel={props.accessibilityLabel}
         accessibilityRole="adjustable"
         accessibilityValue={{
           now: Math.round(props.currentWidth),
-          text: `${Math.round(props.currentWidth)} points wide`,
+          text: formatMobileMessage("{0} points wide", [Math.round(props.currentWidth)]),
         }}
         onAccessibilityAction={handleAccessibilityAction}
       >

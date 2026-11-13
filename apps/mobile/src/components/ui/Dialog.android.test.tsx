@@ -167,18 +167,25 @@ it("localizes a queued pre-host dialog in Chinese", async () => {
   expect(container.textContent).toBe("无法导入共享内容关闭");
 });
 
-it("keeps literal error messages in queued alerts while localizing title and actions", async () => {
+it("keeps literal content in queued alerts while localizing owned titles and actions", async () => {
   const actual = await vi.importActual<typeof import("../../i18n/mobileStrings")>(
     "../../i18n/mobileStrings",
   );
   vi.mocked(localizeMobileString).mockImplementation((value) =>
     actual.localizeMobileString(value, "zh-CN"),
   );
-  const onPress = vi.fn();
-  Dialog.alertWithLiteralMessage("Settings", "Settings", [{ text: "Cancel", onPress }]);
-  const { container } = mountHost();
-  expect(container.textContent).toContain("设置Settings取消");
-  act(() => container.querySelector("button")!.click());
-  expect(onPress).toHaveBeenCalledOnce();
-  expect(container.textContent).toBe("");
+  for (const [alert, title] of [
+    [Dialog.alertWithLiteralMessage, "设置"],
+    [Dialog.alertWithLiteralContent, "Settings"],
+  ] as const) {
+    const onPress = vi.fn();
+    alert("Settings", "Open", [{ text: "Cancel", onPress }]);
+    const { root, container } = mountHost();
+    expect(container.textContent).toBe(`${title}Open取消`);
+    act(() => container.querySelector("button")!.click());
+    expect(onPress).toHaveBeenCalledOnce();
+    expect(container.textContent).toBe("");
+    roots.splice(roots.indexOf(root), 1);
+    act(() => root.unmount());
+  }
 });

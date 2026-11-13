@@ -140,3 +140,13 @@ export function switchRuntimeModeMessage(
 ): string {
   return formatMessage("Switch to {mode}", { mode: localizeMobileString(label, locale) }, locale);
 }
+
+/** The reason may contain an organization name; localize only the application explanation. */
+export function managedSettingDescription(
+  description: string,
+  reason: string | undefined,
+  locale: MobileLocale = MOBILE_LOCALE,
+): string {
+  const translated = localizeMobileString(description, locale);
+  return reason === undefined ? translated : `${translated} ${reason}`;
+}

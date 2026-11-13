@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { type StaticScreenProps, useNavigation } from "@react-navigation/native";
 import { useAtomValue } from "@effect/atom-react";
@@ -292,8 +293,10 @@ export function ThreadQueueSheet({ route }: StaticScreenProps<QueueTarget>) {
                     accessibilityLabel={title}
                     accessibilityHint={
                       controls.canEdit
-                        ? "Opens this message in the composer for editing"
-                        : (editBlockedReason ?? undefined)
+                        ? localizeMobileString("Opens this message in the composer for editing")
+                        : editBlockedReason === null
+                          ? undefined
+                          : localizeMobileString(editBlockedReason)
                     }
                     disabled={!controls.canEdit}
                     onPress={() => void act(run.id, "edit")}
@@ -397,7 +400,7 @@ function QueueRowSwipeable(props: {
       renderRightActions={() => (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={REMOVE_QUEUED_MESSAGE_ACCESSIBILITY_LABEL}
+          accessibilityLabel={localizeMobileString(REMOVE_QUEUED_MESSAGE_ACCESSIBILITY_LABEL)}
           disabled={!props.enabled}
           onPress={() => {
             swipeableRef.current?.close();

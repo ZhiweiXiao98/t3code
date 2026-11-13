@@ -24,6 +24,7 @@ import type { ConfirmDialogRequest, TextInputDialogRequest } from "./Dialog.type
 export type { ConfirmDialogRequest, TextInputDialogRequest } from "./Dialog.types";
 
 type AlertRequest = {
+  readonly literalTitle?: boolean;
   readonly literalMessage?: boolean;
   readonly title: Parameters<typeof Alert.alert>[0];
   readonly message: Parameters<typeof Alert.alert>[1];
@@ -78,9 +79,14 @@ export function alertWithLiteralMessage(...args: Parameters<typeof Alert.alert>)
   submitAlert(args, true);
 }
 
+export function alertWithLiteralContent(...args: Parameters<typeof Alert.alert>): void {
+  submitAlert(args, true, true);
+}
+
 function submitAlert(
   [title, message, buttons, options]: Parameters<typeof Alert.alert>,
   literalMessage: boolean,
+  literalTitle = false,
 ): void {
   const actions = buttons?.length ? buttons.slice(0, 3) : [{ text: "OK" }];
   const normalized = actions.map((action, index) =>
@@ -88,7 +94,7 @@ function submitAlert(
   );
   submitRequest({
     kind: "alert",
-    request: { title, message, buttons: normalized, options, literalMessage },
+    request: { title, message, buttons: normalized, options, literalMessage, literalTitle },
   });
 }
 
@@ -129,6 +135,7 @@ export function Host() {
           message: presented.request.message ?? undefined,
           confirmText: "",
         }}
+        literalTitle={presented.request.literalTitle}
         literalMessage={presented.request.literalMessage}
         alertActions={presented.request.buttons ?? [{ text: "OK" }]}
         dismissable={presented.request.options?.cancelable ?? false}
@@ -227,7 +234,9 @@ function DialogPresentation(props: DialogPresentationProps) {
                 size={24}
               />
             ) : null}
-            <Text style={titleTypography}>{localizeMobileString(props.request.title)}</Text>
+            <Text style={titleTypography}>
+              {props.literalTitle ? props.request.title : localizeMobileString(props.request.title)}
+            </Text>
           </Column>
         </AlertDialog.Title>
         {props.inputInitialValue !== undefined ? (
@@ -292,6 +301,7 @@ function DialogPresentation(props: DialogPresentationProps) {
 }
 
 interface DialogPresentationProps {
+  readonly literalTitle?: boolean;
   readonly literalMessage?: boolean;
   readonly alertActions?: readonly AlertButton[];
   readonly onAlertAction?: (action: AlertButton) => void;

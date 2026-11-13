@@ -75,20 +75,22 @@ const ZipFailure = Schema.Struct({
 });
 type ZipFailure = typeof ZipFailure.Type;
 
-const SAVE_ZIP_HINT = "Save the ZIP to open it in another app.";
+const SAVE_ZIP_HINT = localizeMobileString("Save the ZIP to open it in another app.");
 const TOO_LARGE: ZipFailure = {
   title: "Too large to browse here",
-  detail: `Browsing works up to ${formatAttachmentSize(ARCHIVE_MAX_BYTES)}. ${SAVE_ZIP_HINT}`,
+  detail: localizeMobileString(
+    `Browsing works up to ${formatAttachmentSize(ARCHIVE_MAX_BYTES)}. Save the ZIP to open it in another app.`,
+  ),
   retry: false,
 };
 const CANCELLED: ZipFailure = {
   title: "Download cancelled",
-  detail: "The ZIP wasn't downloaded. Try again to list its files.",
+  detail: localizeMobileString("The ZIP wasn't downloaded. Try again to list its files."),
   retry: true,
 };
 const NETWORK: ZipFailure = {
   title: "Couldn't download this ZIP",
-  detail: "Check the connection to this environment and try again.",
+  detail: localizeMobileString("Check the connection to this environment and try again."),
   retry: true,
 };
 
@@ -103,7 +105,7 @@ class ZipFailureError extends Schema.TaggedError<ZipFailureError>()("ZipFailureE
 const isZipFailureError = Schema.is(ZipFailureError);
 
 function errorMessage(cause: unknown, fallback: string) {
-  return cause instanceof Error ? cause.message : fallback;
+  return cause instanceof Error ? cause.message : localizeMobileString(fallback);
 }
 
 async function readArchiveBody(
@@ -343,7 +345,7 @@ function ZipArchiveProgress(props: {
         {formatAttachmentSize(props.receivedBytes)}
         {props.totalBytes > 0 ? (
           <Text className="text-xl text-foreground-muted">
-            {` of ${formatAttachmentSize(props.totalBytes)}`}
+            {formatMobileMessage(" of {0}", [formatAttachmentSize(props.totalBytes)])}
           </Text>
         ) : null}
       </Text>
@@ -352,7 +354,8 @@ function ZipArchiveProgress(props: {
         label="ZIP download progress"
       />
       <Text className="text-sm text-foreground-muted">
-        {`Downloading the ZIP so its files can be listed.${timeLeft ? ` ${timeLeft} on this connection.` : ""}`}
+        {localizeMobileString("Downloading the ZIP so its files can be listed.")}
+        {timeLeft ? formatMobileMessage(" {0} on this connection.", [timeLeft]) : ""}
       </Text>
       <Button label="Cancel" onPress={props.onCancel} />
     </View>
@@ -370,6 +373,7 @@ function ZipArchiveFailure(props: {
         variant="plain"
         title={props.failure.title}
         detail={props.failure.detail}
+        localizeDetail={false}
         action={
           <View className="flex-row gap-3">
             {props.failure.retry ? (
@@ -619,7 +623,9 @@ function ZipEntryView(props: {
       ? {
           status: "failed",
           title: "Too big to preview",
-          message: `Previews stop at ${formatAttachmentSize(ARCHIVE_ENTRY_MAX_BYTES)}. Save the file to open it in another app.`,
+          message: localizeMobileString(
+            `Previews stop at ${formatAttachmentSize(ARCHIVE_ENTRY_MAX_BYTES)}. Save the file to open it in another app.`,
+          ),
         }
       : { status: "loading" },
   );
@@ -678,12 +684,15 @@ function ZipEntryView(props: {
         if (controller.signal.aborted) return;
         setBusy(null);
         if (kind === "attach")
-          Dialog.alert("Added to chat", `${entry.name} is attached to your message.`);
+          Dialog.alertWithLiteralMessage(
+            "Added to chat",
+            formatMobileMessage("{0} is attached to your message.", [entry.name]),
+          );
       },
       (cause: unknown) => {
         if (controller.signal.aborted) return;
         setBusy(null);
-        Dialog.alert(
+        Dialog.alertWithLiteralMessage(
           kind === "save" ? "Could not save file" : "Could not add file to chat",
           errorMessage(cause, "Please try again."),
         );
@@ -771,6 +780,7 @@ function ZipEntryView(props: {
             variant="plain"
             title={content.title}
             detail={content.message}
+            localizeDetail={false}
             action={
               <Button tone="primary" label="Save file" loading={busy === "save"} onPress={save} />
             }
@@ -780,8 +790,13 @@ function ZipEntryView(props: {
         // Closing the viewer stays here so Save and Add to chat remain reachable.
         <View className="flex-1 items-center justify-center bg-sheet px-6">
           <EmptyState
-            title={viewerError ? "No preview for this file" : entry.name}
-            detail={viewerError ?? "Open it in the file viewer, save it, or add it to chat."}
+            title={viewerError ? localizeMobileString("No preview for this file") : entry.name}
+            localizeTitle={false}
+            localizeDetail={false}
+            detail={
+              viewerError ??
+              localizeMobileString("Open it in the file viewer, save it, or add it to chat.")
+            }
             actionLabel="Open in file viewer"
             onAction={openViewer}
           />

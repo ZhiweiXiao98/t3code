@@ -166,6 +166,8 @@ export function PullRequestChecksRow(props: RowProps) {
                 <PullRequestCardRow
                   key={`${check.name}:${url}`}
                   title={check.name}
+                  localizeTitle={false}
+                  localizeDetail={false}
                   icon={status.icon}
                   tint={status.tint}
                   value={status.label}

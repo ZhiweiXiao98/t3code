@@ -191,9 +191,9 @@ function InlineAudio(props: PreviewProps & { readonly resolveUri: () => Promise<
           accessibilityRole="button"
           accessibilityLabel={
             playing
-              ? "Pause audio"
+              ? localizeMobileString("Pause audio")
               : error || status.error
-                ? "Retry audio"
+                ? localizeMobileString("Retry audio")
                 : localizeMobileString("Play audio")
           }
           accessibilityState={{ busy }}

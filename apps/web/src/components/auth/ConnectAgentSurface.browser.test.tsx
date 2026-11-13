@@ -1,3 +1,6 @@
+import { AuthMcpApprovalError } from "@t3tools/contracts";
+import * as Schema from "effect/Schema";
+import * as Redacted from "effect/Redacted";
 import { expect, it, vi } from "vite-plus/test";
 import { userEvent } from "vite-plus/test/browser";
 import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
@@ -11,6 +14,10 @@ vi.mock("../../lib/runtime", () => ({ runPrimaryHttp: state.run }));
 
 import type { ReactNode } from "react";
 import { ConnectAgentSurface, McpConsent, type McpApprovalTransport } from "./ConnectAgentSurface";
+
+const approvalErrorCodec = Schema.toCodecJson(AuthMcpApprovalError);
+const encodeApprovalError = Schema.encodeSync(approvalErrorCodec);
+const decodeApprovalError = Schema.decodeSync(approvalErrorCodec);
 
 function setup() {
   state.run.mockReset().mockResolvedValue({
@@ -196,4 +203,73 @@ it("rejects an unsafe initial redirect before exposing approval controls", async
     .toBeVisible();
   await expect.element(screen.getByRole("radio")).not.toBeInTheDocument();
   expect(transport.decide).not.toHaveBeenCalled();
+});
+
+it("renders a decoded load refusal at the consent boundary without rewriting custom errors", async () => {
+  setup();
+  const message = "This sign-in link names an unknown app. Start the sign-in again from it.";
+  const error = decodeApprovalError(encodeApprovalError(new AuthMcpApprovalError({ message })));
+  const { primaryApprovalFailure } = await import("./primaryApprovalFailure");
+  const load = vi.fn().mockResolvedValue(primaryApprovalFailure(error));
+  const primaryTransport: McpApprovalTransport = { load, decide: vi.fn() };
+  const content = <McpConsent authorization={{}} transport={primaryTransport} />;
+  await using screen = await render(surface("en", content));
+  await expect.element(screen.getByText(message)).toBeVisible();
+  await screen.rerender(surface("zh-CN", content));
+  await expect
+    .element(screen.getByText("此登录链接指定了未知应用。请从该应用重新发起登录。"))
+    .toBeVisible();
+  await screen.rerender(surface("en", content));
+  await expect.element(screen.getByText(message)).toBeVisible();
+  expect(error.message).toBe(message);
+  expect(load).toHaveBeenCalledWith({});
+  expect(primaryTransport.decide).not.toHaveBeenCalled();
+  const transport: McpApprovalTransport = {
+    load: vi.fn().mockResolvedValue({ kind: "error", message }),
+    decide: vi.fn(),
+  };
+  await screen.rerender(surface("zh-CN", <McpConsent authorization={{}} transport={transport} />));
+  await expect.element(screen.getByText(message)).toBeVisible();
+  expect(transport.decide).not.toHaveBeenCalled();
+});
+
+it("rerenders a retained primary decision error while preserving the submitted code and access", async () => {
+  setup();
+  const { primaryApprovalFailure } = await import("./primaryApprovalFailure");
+  const message = "That pairing code is unknown, expired, or already used.";
+  const failure = primaryApprovalFailure(
+    decodeApprovalError(encodeApprovalError(new AuthMcpApprovalError({ message }))),
+  )!;
+  const details = {
+    clientName: "Opaque /$&/{client}",
+    environmentHost: "env.example.test:7443",
+    redirectHost: "localhost:3333",
+  };
+  const authorization = { client_id: "opaque/$&/{id}", state: Redacted.make("literal/{state}") };
+  const transport: McpApprovalTransport = {
+    load: vi.fn().mockResolvedValue({ kind: "ok", value: details }),
+    decide: vi.fn().mockResolvedValue(failure),
+  };
+  const content = <McpConsent authorization={authorization} transport={transport} acceptsCode />;
+  await using screen = await render(surface("en", content));
+  await expect.element(screen.getByLabelText("Sign-in code")).toBeVisible();
+  const code = "read-only-q8rz3nwd5ktc";
+  await userEvent.fill(screen.getByLabelText("Sign-in code"), code);
+  await expect
+    .element(screen.getByRole("button", { name: "Approve Read only", exact: true }))
+    .toBeEnabled();
+  await userEvent.click(screen.getByRole("button", { name: "Approve Read only", exact: true }));
+  await expect.element(screen.getByText(message)).toBeVisible();
+  expect(transport.decide).toHaveBeenCalledExactlyOnceWith(authorization, {
+    _tag: "pairing-code",
+    code,
+    access: "read-only",
+  });
+  await screen.rerender(surface("zh-CN", content));
+  await expect.element(screen.getByText("此配对码未知、已过期或已被使用。")).toBeVisible();
+  await expect.element(screen.getByLabelText("登录验证码")).toHaveValue(code);
+  expect(screen.container.textContent).toContain(details.clientName);
+  await screen.rerender(surface("en", content));
+  await expect.element(screen.getByText(message)).toBeVisible();
+  expect(transport.decide).toHaveBeenCalledTimes(1);
 });

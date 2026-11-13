@@ -226,7 +226,10 @@ export function NewTaskDraftScreen(props: {
     const result = await action();
     if (AsyncResult.isFailure(result)) {
       const error = Cause.squash(result.cause);
-      Dialog.alert(title, error instanceof Error ? error.message : "An error occurred.");
+      Dialog.alertWithLiteralMessage(
+        title,
+        error instanceof Error ? error.message : localizeMobileString("An error occurred."),
+      );
     }
   };
   const deleteProject = useAtomCommand(projectEnvironment.delete, { reportFailure: false });
@@ -239,9 +242,9 @@ export function NewTaskDraftScreen(props: {
     });
     if (AsyncResult.isFailure(result)) {
       const error = Cause.squash(result.cause);
-      Dialog.alert(
+      Dialog.alertWithLiteralMessage(
         "Failed to remove project",
-        error instanceof Error ? error.message : "An error occurred.",
+        error instanceof Error ? error.message : localizeMobileString("An error occurred."),
       );
       return;
     }
@@ -664,9 +667,11 @@ export function NewTaskDraftScreen(props: {
     flow.setSubmitting(false);
     if (AsyncResult.isFailure(queued)) {
       const error = squashAtomCommandFailure(queued);
-      Dialog.alert(
+      Dialog.alertWithLiteralMessage(
         "Could not queue task",
-        error instanceof Error ? error.message : "The task could not be saved to the outbox.",
+        error instanceof Error
+          ? error.message
+          : localizeMobileString("The task could not be saved to the outbox."),
       );
       return null;
     }

@@ -1,3 +1,12 @@
+import * as Cause from "effect/Cause";
+import { DEFAULT_CLIENT_SETTINGS } from "@t3tools/contracts";
+import * as DesktopClientSettings from "../settings/DesktopClientSettings.ts";
+import * as ElectronApp from "../electron/ElectronApp.ts";
+import {
+  installCliCommand,
+  uninstallCliCommand,
+  addCliCommandToPath,
+} from "../ipc/methods/cliCommand.ts";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { expect, it } from "@effect/vitest";
 import * as HostProcess from "@t3tools/shared/HostProcess";
@@ -94,6 +103,66 @@ const fakePowerShell = (initial: string, inherited: Record<string, string> = {})
 };
 
 it.layer(NodeServices.layer)("DesktopCliCommand", (it) => {
+  it.effect(
+    "localizes registered failures only at all three IPC actions using the latest locale",
+    () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        const home = yield* fs.makeTempDirectoryScoped();
+        const command = yield* commandIn({ home, isPackaged: false });
+        const original = yield* Effect.flip(command.install);
+        const raw = original.message;
+        let locale: "en" | "zh-CN" = "en";
+        let calls = 0;
+        const failedAction = Effect.suspend(() => {
+          calls++;
+          return Effect.fail(original);
+        });
+        const service = {
+          ...command,
+          install: failedAction,
+          uninstall: failedAction,
+          addToPath: failedAction,
+        };
+        const settings = DesktopClientSettings.DesktopClientSettings.of({
+          get: Effect.sync(() => Option.some({ ...DEFAULT_CLIENT_SETTINGS, appLocale: locale })),
+          set: () => Effect.void,
+        });
+        const app = { systemLocale: Effect.succeed("en") } as ElectronApp.ElectronApp["Service"];
+        for (const method of [installCliCommand, uninstallCliCommand, addCliCommandToPath]) {
+          for (const nextLocale of ["en", "zh-CN", "en"] as const) {
+            locale = nextLocale;
+            const invocation = method
+              .handler(undefined)
+              .pipe(
+                Effect.provideService(DesktopCliCommand.DesktopCliCommand, service),
+                Effect.provideService(DesktopClientSettings.DesktopClientSettings, settings),
+                Effect.provideService(ElectronApp.ElectronApp, app),
+              );
+            // Exercise the real IPC handler; Electron's cross-process prefix is a separate Web fixture.
+            const outcome = yield* Effect.exit(invocation);
+            expect(outcome._tag).toBe("Failure");
+            if (outcome._tag !== "Failure") continue;
+            const rejected = Cause.squash(outcome.cause);
+            expect(rejected).toBeInstanceOf(Error);
+            if (!(rejected instanceof Error)) continue;
+            expect(rejected.name).toBe("DesktopCliCommandError");
+            expect(rejected.message).toBe(locale === "zh-CN" ? "t3 命令需要已安装的应用。" : raw);
+            expect(original.message).toBe(raw);
+            expect(rejected.stack).toBe(original.stack);
+          }
+        }
+        expect(calls).toBe(9);
+        for (const unowned of [
+          new Error(raw),
+          new DesktopCliCommand.DesktopCliCommandError({ message: raw }),
+          { _tag: "DesktopCliCommandError", message: raw },
+        ]) {
+          expect(DesktopCliCommand.localizeDesktopCliCommandError(unowned, "zh-CN")).toBe(unowned);
+        }
+      }).pipe(Effect.scoped),
+  );
+
   it.effect("links the launcher onto PATH and removes only that link", () =>
     Effect.gen(function* () {
       const env: NodeJS.ProcessEnv = { PATH: "", SHELL: "/bin/zsh" };
@@ -168,7 +237,8 @@ it.layer(NodeServices.layer)("DesktopCliCommand", (it) => {
       const env: NodeJS.ProcessEnv = { PATH: "", SHELL: "/bin/zsh" };
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const home = yield* fs.makeTempDirectoryScoped();
+      const home = path.join(yield* fs.makeTempDirectoryScoped(), "literal\n{0}/$&");
+      yield* fs.makeDirectory(home, { recursive: true });
       const command = yield* commandIn({ home, env });
       const theirs = path.join(home, ".local", "bin", "t3");
       yield* fs.makeDirectory(path.dirname(theirs), { recursive: true });
@@ -177,6 +247,11 @@ it.layer(NodeServices.layer)("DesktopCliCommand", (it) => {
       yield* fs.symlink(path.join(home, "gone"), path.join(home, "bin", "t3"));
 
       const error = yield* Effect.flip(command.install);
+      const localized = DesktopCliCommand.localizeDesktopCliCommandError(error, "zh-CN");
+      expect(localized).toBeInstanceOf(Error);
+      expect((localized as Error).message).not.toBe(error.message);
+      expect((localized as Error).message).toContain(path.join(home, ".t3", "bin", "t3"));
+      expect(DesktopCliCommand.localizeDesktopCliCommandError(error, "en")).toBe(error);
       expect(error.message).toContain("Another t3 command is already in");
       yield* command.uninstall;
       expect(yield* fs.readFileString(theirs)).toBe("npm's t3\n");
@@ -277,6 +352,10 @@ it.layer(NodeServices.layer)("DesktopCliCommand", (it) => {
       const theirs = path.join(shadow, "t3");
       expect((yield* command.state).shadowedBy).toBe(theirs);
       const error = yield* Effect.flip(command.install);
+      const localized = DesktopCliCommand.localizeDesktopCliCommandError(error, "zh-CN");
+      expect(localized).toBeInstanceOf(Error);
+      expect((localized as Error).message).not.toBe(error.message);
+      expect(DesktopCliCommand.localizeDesktopCliCommandError(error, "en")).toBe(error);
       expect(error.message).toContain(theirs);
       yield* command.installOnFirstLaunch;
       expect(yield* fs.exists(path.join(home, ".local", "bin", "t3"))).toBe(false);
@@ -336,6 +415,10 @@ it.layer(NodeServices.layer)("DesktopCliCommand", (it) => {
         expect((yield* command.state).shadowedBy).toBe(path.join(shadow, "t3"));
 
         const error = yield* Effect.flip(command.install);
+        const localized = DesktopCliCommand.localizeDesktopCliCommandError(error, "zh-CN");
+        expect(localized).toBeInstanceOf(Error);
+        expect((localized as Error).message).not.toBe(error.message);
+        expect(DesktopCliCommand.localizeDesktopCliCommandError(error, "en")).toBe(error);
         expect(error.message).toContain(path.join(shadow, "t3"));
 
         yield* fs.remove(shadow, { recursive: true });
@@ -385,6 +468,10 @@ it.layer(NodeServices.layer)("DesktopCliCommand", (it) => {
 
       registry.failReads = true;
       const error = yield* Effect.flip(command.install);
+      const localized = DesktopCliCommand.localizeDesktopCliCommandError(error, "zh-CN");
+      expect(localized).toBeInstanceOf(Error);
+      expect((localized as Error).message).not.toBe(error.message);
+      expect(DesktopCliCommand.localizeDesktopCliCommandError(error, "en")).toBe(error);
       expect(error.message).toContain("left unchanged");
       expect(registry).toMatchObject({ path: userPath, writes: 0 });
 

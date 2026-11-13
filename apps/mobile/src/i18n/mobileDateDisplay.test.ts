@@ -45,6 +45,12 @@ it("retains device hour cycles while translating date text and honors explicit c
       expect(display.mobileDisplayDate(date, options, "zh-CN")).toBe(
         date.toLocaleString("zh-CN", { ...options, hourCycle: cycle }),
       );
+      const retryTimeOptions = { hour: "numeric", minute: "2-digit", second: "2-digit" } as const;
+      for (const locale of ["en", "zh-CN"] as const) {
+        expect(display.mobileDisplayDate(date, retryTimeOptions, locale)).toBe(
+          date.toLocaleTimeString(locale, { ...retryTimeOptions, hourCycle: cycle }),
+        );
+      }
       expect(timestamp.formatMessageTimestamp(date.toISOString(), date.getTime(), "zh-CN")).toBe(
         new Original("zh-CN", { hour: "numeric", minute: "2-digit", hourCycle: cycle }).format(
           date,

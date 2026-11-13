@@ -1,3 +1,4 @@
+import { mobileAttachmentUploadLabel } from "../i18n/nativeAccessibilityMessages";
 import { formatMobileMessage } from "../i18n/mobileDisplayStrings";
 import { FilePreviewGallery, useFilePreviewGallery } from "./ui/FilePreviewGallery";
 import { composerImageGallery } from "../lib/composerImageGallery";
@@ -67,11 +68,7 @@ export function ComposerAttachmentThumbnail(props: ComposerAttachmentThumbnailPr
       {upload && upload.status !== "ready" ? (
         <Pressable
           accessibilityRole={upload.status === "failed" ? "button" : "text"}
-          accessibilityLabel={
-            upload.status === "failed"
-              ? `Retry uploading ${props.attachment.name}`
-              : `Uploading ${props.attachment.name}, ${Math.floor(upload.progress * 100)}%`
-          }
+          accessibilityLabel={mobileAttachmentUploadLabel(props.attachment.name, upload)}
           accessibilityHint={upload.status === "failed" ? upload.reason : undefined}
           disabled={upload.status !== "failed"}
           onPress={() =>

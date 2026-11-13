@@ -1,3 +1,5 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
+import { MOBILE_LOCALE, type MobileLocale } from "../../i18n/mobileStrings";
 export interface ZipEntry {
   readonly path: string;
   readonly name: string;
@@ -123,17 +125,24 @@ export function zipFolderLabel(label: string) {
   return { prefix: parts.length > 1 ? `${parts.slice(0, -1).join("/")}/` : "", name };
 }
 
-export function zipDownloadTimeLeft(input: {
-  readonly receivedBytes: number;
-  readonly totalBytes: number;
-  readonly elapsedMs: number;
-}) {
+export function zipDownloadTimeLeft(
+  input: {
+    readonly receivedBytes: number;
+    readonly totalBytes: number;
+    readonly elapsedMs: number;
+  },
+  locale: MobileLocale = MOBILE_LOCALE,
+) {
   if (input.receivedBytes <= 0 || input.totalBytes <= input.receivedBytes || input.elapsedMs < 1000)
     return null;
   const seconds = Math.ceil(
     ((input.totalBytes - input.receivedBytes) * input.elapsedMs) / input.receivedBytes / 1000,
   );
   return seconds < 60
-    ? `About ${seconds} ${seconds === 1 ? "second" : "seconds"} left`
-    : `About ${Math.ceil(seconds / 60)} minutes left`;
+    ? formatMobileMessage(
+        seconds === 1 ? "About {0} second left" : "About {0} seconds left",
+        [seconds],
+        locale,
+      )
+    : formatMobileMessage("About {0} minutes left", [Math.ceil(seconds / 60)], locale);
 }

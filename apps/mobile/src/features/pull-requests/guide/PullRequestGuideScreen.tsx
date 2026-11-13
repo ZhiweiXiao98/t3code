@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../../../i18n/mobileStrings";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
 import { parsePatchFiles } from "@pierre/diffs/utils/parsePatchFiles";
 import type { FileDiffMetadata } from "@pierre/diffs";
@@ -249,10 +250,10 @@ export function PullRequestGuideStopScreen({ route }: StaticScreenProps<GuideSto
                   accessibilityRole="button"
                   accessibilityLabel={
                     guide && position < guide.stops.length - 1
-                      ? "Next stop"
+                      ? localizeMobileString("Next stop")
                       : canReview
-                        ? "Finish review"
-                        : "Finish tour"
+                        ? localizeMobileString("Finish review")
+                        : localizeMobileString("Finish tour")
                   }
                   className="mt-2 flex-row items-center gap-4 border-t border-border-subtle pt-5 pb-2 active:opacity-60"
                   onPress={() =>
@@ -281,8 +282,8 @@ export function PullRequestGuideStopScreen({ route }: StaticScreenProps<GuideSto
                       {guide && position < guide.stops.length - 1
                         ? guide.stops[position + 1]?.title
                         : canReview
-                          ? "Finish review"
-                          : "Finish tour"}
+                          ? localizeMobileString("Finish review")
+                          : localizeMobileString("Finish tour")}
                     </Text>
                   </View>
                   <View className="h-11 w-11 items-center justify-center rounded-full bg-foreground">

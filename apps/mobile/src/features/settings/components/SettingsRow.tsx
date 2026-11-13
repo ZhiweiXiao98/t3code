@@ -17,6 +17,7 @@ export function SettingsRow(props: {
   readonly label: string;
   readonly localizeLabel?: boolean;
   readonly value?: string;
+  readonly localizeValue?: boolean;
   readonly valuePosition?: "below" | "trailing";
   readonly target?: SettingsPageTarget;
   readonly fullScreenTarget?: SettingsLegalDocumentTarget;
@@ -34,7 +35,9 @@ export function SettingsRow(props: {
     label: props.label,
     localizeLabel: props.localizeLabel,
     description: valueBelow ? props.value : undefined,
+    localizeDescription: props.localizeValue,
     detail: valueBelow ? undefined : props.value,
+    localizeDetail: props.localizeValue,
     disabled: props.disabled,
   };
   const onPress = () => {
@@ -54,7 +57,9 @@ export function SettingsRow(props: {
         accessibilityRole="button"
         accessibilityLabel={[
           props.localizeLabel === false ? props.label : localizeMobileString(props.label),
-          props.value,
+          props.value === undefined || props.localizeValue === false
+            ? props.value
+            : localizeMobileString(props.value),
         ]
           .filter(Boolean)
           .join(", ")}
