@@ -45,6 +45,7 @@ import { useSettingsEnvironmentFilter, type SettingsTarget } from "./settings-en
 import { leaveSettingsPage } from "./settings-navigation";
 import { workspaceHasColumns } from "../layout/workspace/workspace-selection-store";
 import { DEFAULT_SETTINGS_PAGE } from "../layout/workspace/workspace-tab-navigation";
+import { projectRemovalConfirmation } from "./projectRemovalDisplay";
 import { readUnloadedThreadCount } from "../../state/olderSettledShelf";
 
 export function SettingsProjectOverviewRouteScreen() {
@@ -190,9 +191,9 @@ function ProjectOverviewContent(props: {
       if (result._tag === "Failure") {
         if (!isAtomCommandInterrupted(result)) {
           const error = squashAtomCommandFailure(result);
-          Dialog.alert(
-            `Failed to update "${member.title}"`,
-            error instanceof Error ? error.message : "An error occurred.",
+          Dialog.alertWithLiteralMessage(
+            formatMobileMessage('Failed to update "{0}"', [member.title]),
+            error instanceof Error ? error.message : localizeMobileString("An error occurred."),
           );
         }
         break;
@@ -211,9 +212,11 @@ function ProjectOverviewContent(props: {
     const environment = props.environments.find(
       (entry) => entry.environmentId === denied.environmentId,
     );
-    Dialog.alert(
+    Dialog.alertWithLiteralMessage(
       "Failed to remove project",
-      `This connection cannot change projects in ${environment?.label ?? "this environment"}.`,
+      formatMobileMessage("This connection cannot change projects in {0}.", [
+        environment?.label ?? localizeMobileString("this environment"),
+      ]),
     );
     return false;
   };
@@ -221,66 +224,74 @@ function ProjectOverviewContent(props: {
   const removeMembers = (members: readonly EnvironmentProject[]) => {
     if (!checkRemovalAccess(members) || !startRemoval()) return;
     const projectKey = props.projectKey;
+    const removalMembers = members.map((member) => ({
+      ...member,
+      environmentLabel: props.environments.find(
+        (entry) => entry.environmentId === member.environmentId,
+      )?.label,
+    }));
     const plan = planProjectRemoval({
-      members: members.map((member) => ({
-        ...member,
-        environmentLabel: props.environments.find(
-          (entry) => entry.environmentId === member.environmentId,
-        )?.label,
-      })),
+      members: removalMembers,
       groupMemberCount: props.members.length,
       hasOtherMembers: props.hasOtherMembers,
       displayName,
       threads,
       unloadedThreadCount: readUnloadedThreadCount(members, threads),
     });
-    Dialog.confirm({
-      title: plan.targetKind === "checkout" ? "Remove checkout" : "Remove project",
-      message: plan.confirmationMessage,
-      confirmText: plan.targetKind === "checkout" ? "Remove checkout" : "Remove project",
-      destructive: true,
-      onCancel: finishRemoval,
-      onConfirm: () => {
-        void (async () => {
-          setIsRemoving(true);
-          if (!checkRemovalAccess(members)) return;
-          for (const member of members) {
-            if (!checkRemovalAccess([member])) return;
-            const result = await deleteProject({
-              environmentId: member.environmentId,
-              input: { projectId: member.id, force: true },
-            });
-            if (result._tag === "Failure") {
-              if (!isAtomCommandInterrupted(result)) {
-                const error = squashAtomCommandFailure(result);
-                Dialog.alert(
-                  `Failed to remove "${member.title}"`,
-                  error instanceof Error ? error.message : "An error occurred.",
-                );
-              }
-              return;
-            }
-            await waitForComposerDraftsLoaded()
-              .then(() => {
-                for (const draftKey of findNewTaskDraftKeys(
-                  appAtomRegistry.get(composerDraftsAtom),
-                  {
-                    environmentId: member.environmentId,
-                    projectId: member.id,
-                  },
-                )) {
-                  clearComposerDraft(draftKey);
+    Dialog.alertWithLiteralMessage(
+      plan.targetKind === "checkout" ? "Remove checkout" : "Remove project",
+      projectRemovalConfirmation(plan, removalMembers, props.hasOtherMembers),
+      [
+        { text: "Cancel", style: "cancel", onPress: finishRemoval },
+        {
+          text: plan.targetKind === "checkout" ? "Remove checkout" : "Remove project",
+          style: "destructive",
+          onPress: () => {
+            void (async () => {
+              setIsRemoving(true);
+              if (!checkRemovalAccess(members)) return;
+              for (const member of members) {
+                if (!checkRemovalAccess([member])) return;
+                const result = await deleteProject({
+                  environmentId: member.environmentId,
+                  input: { projectId: member.id, force: true },
+                });
+                if (result._tag === "Failure") {
+                  if (!isAtomCommandInterrupted(result)) {
+                    const error = squashAtomCommandFailure(result);
+                    Dialog.alertWithLiteralMessage(
+                      formatMobileMessage('Failed to remove "{0}"', [member.title]),
+                      error instanceof Error
+                        ? error.message
+                        : localizeMobileString("An error occurred."),
+                    );
+                  }
+                  return;
                 }
-              })
-              .catch((error) => {
-                console.warn("[project-removal] could not clear composer drafts", error);
-              });
-          }
-          // Nothing is left to show once the whole project is gone.
-          if (plan.targetKind === "project") props.onProjectRemoved(projectKey);
-        })().finally(finishRemoval);
-      },
-    });
+                await waitForComposerDraftsLoaded()
+                  .then(() => {
+                    for (const draftKey of findNewTaskDraftKeys(
+                      appAtomRegistry.get(composerDraftsAtom),
+                      {
+                        environmentId: member.environmentId,
+                        projectId: member.id,
+                      },
+                    )) {
+                      clearComposerDraft(draftKey);
+                    }
+                  })
+                  .catch((error) => {
+                    console.warn("[project-removal] could not clear composer drafts", error);
+                  });
+              }
+              // Nothing is left to show once the whole project is gone.
+              if (plan.targetKind === "project") props.onProjectRemoved(projectKey);
+            })().finally(finishRemoval);
+          },
+        },
+      ],
+      Platform.OS === "android" ? { cancelable: true, onDismiss: finishRemoval } : undefined,
+    );
   };
 
   const saveName = () => {
@@ -312,11 +323,17 @@ function ProjectOverviewContent(props: {
           size={48}
         />
         <View className="min-w-0 flex-1">
-          <Text className="text-xl font-t3-semibold text-foreground" numberOfLines={2}>
+          <Text
+            localize={false}
+            className="text-xl font-t3-semibold text-foreground"
+            numberOfLines={2}
+          >
             {displayName}
           </Text>
           <Text className="text-sm text-foreground-muted">
-            {props.members.length === 1 ? "1 checkout" : `${props.members.length} checkouts`}
+            {props.members.length === 1
+              ? "1 checkout"
+              : formatMobileMessage("{0} checkouts", [props.members.length])}
           </Text>
         </View>
       </View>
@@ -431,7 +448,10 @@ function ProjectOverviewContent(props: {
             props.hasOtherMembers
               ? "Deletes the selected machine's checkout entries and their threads. Other machines and files on disk are not touched."
               : props.members.length > 1
-                ? `Deletes all ${props.members.length} checkout entries and their threads on every machine. Files on disk are not touched.`
+                ? formatMobileMessage(
+                    "Deletes all {0} checkout entries and their threads on every machine. Files on disk are not touched.",
+                    [props.members.length],
+                  )
                 : "Deletes the project entry and its threads. Files on disk are not touched."
           }
           tone="danger"

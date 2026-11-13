@@ -1,3 +1,5 @@
+import { useI18n } from "../i18n/WebI18nContext";
+import { translateWebSource } from "../i18n/messages";
 import type { EnvironmentId } from "@t3tools/contracts";
 import { ChevronDownIcon, GitBranchIcon } from "lucide-react";
 import { useState } from "react";
@@ -30,6 +32,7 @@ export function WorktreeBaseBranchPicker({
   disabled?: boolean;
   id?: string;
 }) {
+  const { locale, t } = useI18n();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const branches = usePaginatedBranches({
@@ -61,11 +64,14 @@ export function WorktreeBaseBranchPicker({
   const statusText =
     branches.error ??
     (branches.isPending && branches.data === null
-      ? "Loading refs..."
+      ? translateWebSource(locale, "Loading refs...")
       : branches.isFetchingNextPage
-        ? "Loading more refs..."
+        ? translateWebSource(locale, "Loading more refs...")
         : hasNextPage
-          ? `Showing ${branches.refs.length} of ${branches.data?.totalCount} refs`
+          ? t("coreResidual.refs", {
+              shown: branches.refs.length,
+              total: branches.data?.totalCount ?? "undefined",
+            })
           : null);
   const handleOpenChange = (next: boolean) => {
     setOpen(next);

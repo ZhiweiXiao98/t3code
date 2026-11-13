@@ -1,3 +1,6 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
+import { localizeMobileString, MOBILE_LOCALE, type MobileLocale } from "../../i18n/mobileStrings";
+import { ORCHESTRATION_PROTOCOL_VERSION } from "@t3tools/contracts";
 import type { RelayEnvironmentStatusResponse } from "@t3tools/contracts/relay";
 import {
   orchestrationProtocolCompatibilityError,
@@ -12,22 +15,30 @@ export interface AvailableCloudEnvironmentPresentation {
   readonly statusText: string;
 }
 
-export function availableCloudEnvironmentPresentation(input: {
-  readonly isStatusPending: boolean;
-  readonly status: RelayEnvironmentStatusResponse | null;
-  readonly statusError: string | null;
-  readonly statusErrorTraceId: string | null;
-}): AvailableCloudEnvironmentPresentation {
+export function availableCloudEnvironmentPresentation(
+  input: {
+    readonly isStatusPending: boolean;
+    readonly status: RelayEnvironmentStatusResponse | null;
+    readonly statusError: string | null;
+    readonly statusErrorTraceId: string | null;
+  },
+  locale: MobileLocale = MOBILE_LOCALE,
+): AvailableCloudEnvironmentPresentation {
+  const descriptor = input.status?.descriptor;
   const compatibilityError =
-    input.status?.descriptor === undefined
-      ? null
-      : orchestrationProtocolCompatibilityError(input.status.descriptor);
-  if (compatibilityError !== null) {
+    descriptor === undefined ? null : orchestrationProtocolCompatibilityError(descriptor);
+  if (compatibilityError !== null && descriptor !== undefined) {
     return {
       connectionError: compatibilityError.message,
       connectionErrorTraceId: null,
       connectionState: "unsupported",
-      statusText: compatibilityError.message,
+      statusText: formatMobileMessage(
+        (descriptor.orchestrationProtocolVersion ?? 1) > ORCHESTRATION_PROTOCOL_VERSION
+          ? "This client is not supported by this server. Update your app or use a compatible release to connect to {0}."
+          : "This client requires a newer server. Update T3 Code on {0} to connect.",
+        [descriptor.label],
+        locale,
+      ),
     };
   }
   if (input.status?.status === "online") {
@@ -35,18 +46,21 @@ export function availableCloudEnvironmentPresentation(input: {
       connectionError: null,
       connectionErrorTraceId: null,
       connectionState: "available",
-      statusText: "Available · Relay online",
+      statusText: localizeMobileString("Available · Relay online", locale),
     };
   }
 
   if (input.status?.status === "offline") {
-    const connectionError =
-      relayOfflineReasonMessage(input.status) ?? input.status.error ?? "Relay is offline.";
+    const reason = relayOfflineReasonMessage(input.status);
+    const connectionError = reason ?? input.status.error ?? "Relay is offline.";
     return {
       connectionError,
       connectionErrorTraceId: input.status.traceId ?? null,
       connectionState: "error",
-      statusText: connectionError,
+      statusText:
+        reason !== null
+          ? localizeMobileString(reason, locale)
+          : (input.status.error ?? localizeMobileString("Relay is offline.", locale)),
     };
   }
 
@@ -64,7 +78,7 @@ export function availableCloudEnvironmentPresentation(input: {
     connectionErrorTraceId: null,
     connectionState: "available",
     statusText: input.isStatusPending
-      ? "Available · Checking relay status..."
-      : "Available · Relay status unknown",
+      ? localizeMobileString("Available · Checking relay status...", locale)
+      : localizeMobileString("Available · Relay status unknown", locale),
   };
 }

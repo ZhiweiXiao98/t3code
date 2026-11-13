@@ -6,6 +6,103 @@ export const MOBILE_LOCALE: MobileLocale =
   process.env.EXPO_PUBLIC_APP_LOCALE === "zh-CN" ? "zh-CN" : "en";
 
 const ZH_CN_MESSAGES = {
+  "Connecting...": "正在连接…",
+  "Reconnecting...": "正在重新连接…",
+  "1 checkout": "1 个检出目录",
+  "Collapse details for {0}": "收起 {0} 的详情",
+  "Expand details for {0}": "展开 {0} 的详情",
+  "Retrying · attempt {0}": "正在重试 · 第 {0} 次尝试",
+  "The environment could not be updated.": "无法更新此环境。",
+  "Expires in {0} day": "{0} 天后过期",
+  "Expires in {0} days": "{0} 天后过期",
+  "{0} froze for {1}s": "{0} 停顿了 {1} 秒",
+  "Its CPU is overloaded (load {0} on {1} cores).": "其 CPU 负载过高（{1} 个核心上的负载为 {0}）。",
+  "T3 Code on {0} was too busy to answer.": "{0} 上的 T3 Code 太忙，未能响应。",
+  "Connection failed. Reason: {0}": "连接失败。原因：{0}",
+  "Failed to connect. Reconnecting... Reason: {0}": "连接失败，正在重新连接…原因：{0}",
+  "Available · Relay online": "可用 · 中继在线",
+  "Available · Checking relay status...": "可用 · 正在检查中继状态…",
+  "Available · Relay status unknown": "可用 · 中继状态未知",
+  "Relay is offline.": "中继已离线。",
+  "Offline for a while, so its T3 Connect tunnel was removed. Start T3 Code on that computer and update it to the latest version to reconnect.":
+    "由于离线了一段时间，其 T3 Connect 隧道已被移除。请在该电脑上启动 T3 Code 并更新到最新版本以重新连接。",
+  "This client is not supported by this server. Update your app or use a compatible release to connect to {0}.":
+    "此服务器不支持当前客户端。请更新应用或使用兼容版本以连接到 {0}。",
+  "This client requires a newer server. Update T3 Code on {0} to connect.":
+    "此客户端需要较新版本的服务器。请更新 {0} 上的 T3 Code 以连接。",
+  'Failed to update "{0}"': "更新“{0}”失败",
+  'Failed to remove "{0}"': "移除“{0}”失败",
+  "This connection cannot change projects in {0}.": "此连接无法更改 {0} 中的项目。",
+  "this environment": "此环境",
+  "{0} checkouts": "{0} 个检出目录",
+  "Deletes all {0} checkout entries and their threads on every machine. Files on disk are not touched.":
+    "删除所有机器上的全部 {0} 个检出目录条目及其对话。不会改动磁盘上的文件。",
+  'Remove checkout "{0}"?': "移除检出目录“{0}”？",
+  'Remove project "{0}"?': "移除项目“{0}”？",
+  'Remove checkout "{0}" and delete its {1} thread?': "移除检出目录“{0}”并删除其 {1} 个对话？",
+  'Remove checkout "{0}" and delete its {1} threads?': "移除检出目录“{0}”并删除其 {1} 个对话？",
+  'Remove project "{0}" and delete its {1} thread?': "移除项目“{0}”并删除其 {1} 个对话？",
+  'Remove project "{0}" and delete its {1} threads?': "移除项目“{0}”并删除其 {1} 个对话？",
+  "Path: {0}": "路径：{0}",
+  "Environment: {0}": "环境：{0}",
+  "This removes {0} grouped project entries.": "这会移除 {0} 个分组项目条目。",
+  "Those threads and any archived threads are deleted from T3 Code. Provider sessions are kept.":
+    "这些对话及所有已归档对话将从 T3 Code 中删除。提供商会话将保留。",
+  "Any archived threads are deleted from T3 Code. Provider sessions are kept.":
+    "所有已归档对话将从 T3 Code 中删除。提供商会话将保留。",
+  "This removes only the project entries, not the files on disk.":
+    "这只会移除项目条目，不会删除磁盘上的文件。",
+  "Other entries in this grouped project are unaffected.": "此分组项目中的其他条目不受影响。",
+  "This action cannot be undone.": "此操作无法撤销。",
+  "{0} tunnel": "{0} 的隧道",
+  "T3 Code on {0}": "{0} 上的 T3 Code",
+  "{0} · Failed": "{0} · 失败",
+  "{0} · Not checked": "{0} · 未检查",
+  Cause: "原因",
+  "HTTP status": "HTTP 状态",
+  Attempts: "尝试次数",
+  "Next retry": "下次重试",
+  Route: "连接路线",
+  "App version": "应用版本",
+  "Host version": "主机版本",
+  "Trace ID": "跟踪 ID",
+  "Connect this device to the internet. T3 Code reconnects on its own.":
+    "请将此设备连接到互联网。T3 Code 会自动重新连接。",
+  "Wait a moment. T3 Code retries on its own.": "请稍等。T3 Code 会自动重试。",
+  "If it keeps waiting, reload or restart T3 Code on this device.":
+    "如果一直在等待，请重新加载或重启此设备上的 T3 Code。",
+  "Update T3 Code on {0}.": "请更新 {0} 上的 T3 Code。",
+  "Turn on automatic date and time on this device and on {0}, then retry.":
+    "请在此设备和 {0} 上开启自动设置日期和时间，然后重试。",
+  "Check that this device is signed in to the same T3 Connect account as the host.":
+    "请确认此设备与主机登录的是同一个 T3 Connect 账号。",
+  "On {0}, open Settings > Sharing & access and turn T3 Connect on.":
+    "请在 {0} 上打开设置 > 共享与访问，并开启 T3 Connect。",
+  "Wait a minute. T3 Code retries on its own.": "请等待一分钟。T3 Code 会自动重试。",
+  "On {0}, check Settings > Sharing & access or run `t3 connect status`.":
+    "请在 {0} 上检查设置 > 共享与访问，或运行 `t3 connect status`。",
+  "Wait a few minutes. T3 Code retries on its own.": "请等待几分钟。T3 Code 会自动重试。",
+  "If it keeps failing, copy the diagnostics and report it.":
+    "如果仍然失败，请复制诊断信息并报告问题。",
+  "Make sure {0} is awake and T3 Code is running on it.": "请确认 {0} 未休眠且正在运行 T3 Code。",
+  "A VPN or Tailscale exit node on {0} can block the tunnel (port 7844). Turn it off or allow the tunnel.":
+    "{0} 上的 VPN 或 Tailscale 出口节点可能会阻止隧道连接（端口 7844）。请将其关闭或允许隧道连接。",
+  "Open or restart T3 Code on {0}.": "请打开或重启 {0} 上的 T3 Code。",
+  "Make sure {0} is awake and online.": "请确认 {0} 未休眠且已联网。",
+  "Restart T3 Code on this device.": "请重启此设备上的 T3 Code。",
+  "If it keeps failing, remove {0} from this device and add it again.":
+    "如果仍然失败，请从此设备中移除 {0}，然后重新添加。",
+  "Sign out of T3 Connect and sign in again.": "请退出 T3 Connect，然后重新登录。",
+  "Check this device's internet connection.": "请检查此设备的网络连接。",
+  "A VPN, firewall, or ad blocker on this device can block T3 Connect.":
+    "此设备上的 VPN、防火墙或广告拦截器可能会阻止 T3 Connect 连接。",
+  "A VPN, firewall, or DNS filter on this device can block the tunnel.":
+    "此设备上的 VPN、防火墙或 DNS 过滤器可能会阻止隧道连接。",
+  "Try another network, or add a direct route such as a Tailscale address.":
+    "请尝试其他网络，或添加 Tailscale 地址等直连路线。",
+  "Make sure T3 Code is running on {0}.": "请确认 {0} 上正在运行 T3 Code。",
+  "Retry. If it keeps failing, copy the diagnostics.": "请重试。如果仍然失败，请复制诊断信息。",
+
   Update: "更新",
   "Update to {0}": "更新到 {0}",
   "Install T3 Code {0}. T3 Code restarts on that machine and reconnects. Running threads may be interrupted.":

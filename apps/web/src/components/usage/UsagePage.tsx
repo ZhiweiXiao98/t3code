@@ -1,3 +1,4 @@
+import { localizeUsageError } from "../../i18n/queryFailureMessages";
 import { ChatGptUsageButton } from "../settings/ChatGptUsageButton";
 import { usesChatGptSharing } from "@t3tools/shared/usageLimits";
 import { RefreshIcon } from "~/components/ui/refresh-icon";
@@ -525,8 +526,8 @@ export function UsagePage() {
             {selectedEnvironments.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 {environments.length === 0
-                  ? `Connect an environment to see ${showingLimits ? "limits" : "usage"}.`
-                  : `Select an environment to see ${showingLimits ? "limits" : "usage"}.`}
+                  ? t(showingLimits ? "audit11.connectLimits" : "audit11.connectUsage")
+                  : t(showingLimits ? "audit11.selectLimits" : "audit11.selectUsage")}
               </p>
             ) : showingLimits ? (
               <UsageLimitsSection
@@ -541,7 +542,7 @@ export function UsagePage() {
                 {selectedEnvironments.map((environment) => (
                   <p key={environment.environmentId}>
                     {selectedEnvironments.length > 1 ? `${environment.label}: ` : null}
-                    {environment.error}
+                    {localizeUsageError(locale, environment.error)}
                   </p>
                 ))}
               </div>
@@ -1139,7 +1140,7 @@ function UsageCoverageNotice({
     <div className="flex flex-col gap-1 border-t border-border px-2 py-2 text-xs text-muted-foreground">
       {failed.map((environment) => (
         <span key={environment.label}>
-          {environment.label}: {environment.error}
+          {environment.label}: {localizeUsageError(locale, environment.error)}
         </span>
       ))}
       {incompatible.map(({ environment, mismatch }) => (

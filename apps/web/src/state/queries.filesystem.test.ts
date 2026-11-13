@@ -2,6 +2,7 @@ import { AuthFilesystemReadScope, EnvironmentId, type AuthSessionState } from "@
 import { beforeEach, expect, it, vi } from "vite-plus/test";
 
 const state = vi.hoisted(() => ({
+  locale: "en" as "en" | "zh-CN",
   session: null as Pick<AuthSessionState, "authenticated" | "scopes"> | null,
   sessionError: null as string | null,
   sessionWaiting: false,
@@ -18,6 +19,15 @@ const state = vi.hoisted(() => ({
   },
 }));
 
+vi.mock("../i18n/WebI18nContext", async () => {
+  const { translateWebMessage } = await import("../i18n/messages");
+  return {
+    useI18n: () => ({
+      locale: state.locale,
+      t: (key: import("../i18n/messages").WebMessageKey) => translateWebMessage(state.locale, key),
+    }),
+  };
+});
 vi.mock("react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("react")>()),
   useCallback: <A>(callback: A) => callback,
@@ -82,6 +92,7 @@ const target = {
 };
 
 beforeEach(() => {
+  state.locale = "en";
   state.session = null;
   state.sessionError = null;
   state.sessionWaiting = false;
@@ -173,5 +184,28 @@ it("fails closed after a session check fails, even with a cached grant and match
     error: state.sessionError,
     isPending: false,
   });
+  expect(state.contentRequests).not.toHaveBeenCalled();
+});
+
+it("localizes denied searches without requests and preserves same-text session errors", () => {
+  state.session = { authenticated: true, scopes: [] };
+  for (const locale of ["en", "zh-CN", "en"] as const) {
+    state.locale = locale;
+    const message =
+      locale === "en" ? "This connection cannot search host files." : "此连接无权搜索主机文件。";
+    expect(useComposerPathSearch(target).error).toBe(message);
+    expect(useProjectContentSearch(contentTarget).error).toBe(message);
+  }
+  state.locale = "zh-CN";
+  for (const error of [
+    "This connection cannot search host files.",
+    "This environment is not connected.",
+    "provider /路径/$&/{name}",
+  ]) {
+    state.sessionError = error;
+    expect(useComposerPathSearch(target).error).toBe(error);
+    expect(useProjectContentSearch(contentTarget).error).toBe(error);
+  }
+  expect(state.searchRequests).not.toHaveBeenCalled();
   expect(state.contentRequests).not.toHaveBeenCalled();
 });

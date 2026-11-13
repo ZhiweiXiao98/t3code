@@ -1,6 +1,23 @@
 import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 
 const EN_MESSAGES = {
+  "audit11.prUnavailable": "The pull request is not available in this environment.",
+  "audit11.prUnsupported": "This environment does not support linking this pull request.",
+  "audit11.prInterrupted": "Link update interrupted.",
+  "audit11.refsFailed": "Failed to load refs.",
+  "audit11.hostSearchDenied": "This connection cannot search host files.",
+  "audit11.offline": "This environment is not connected.",
+  "audit11.usageFailed": "This environment could not report usage.",
+  "audit11.usageAccessFailed": "Could not check this connection's access to diagnostics and usage.",
+  "audit11.usageDenied": "This connection does not have access to diagnostics and usage.",
+  "audit11.connectLimits": "Connect an environment to see limits.",
+  "audit11.connectUsage": "Connect an environment to see usage.",
+  "audit11.selectLimits": "Select an environment to see limits.",
+  "audit11.selectUsage": "Select an environment to see usage.",
+  "audit11.projectTimeout": "The project did not appear in the desktop app.",
+  "audit11.sourceControlDenied": "This connection cannot change source control.",
+  "audit11.threadsDenied": "This connection cannot change threads.",
+
   "audit10.threadNotLoaded": "This thread has not loaded yet.",
   "audit10.monitorPermission": "This connection cannot restart the resource monitor.",
   "browser.uploadPickerClosed": "The page's file picker is no longer open.",
@@ -4647,6 +4664,23 @@ export type WebMessages = Readonly<Record<WebMessageKey, string>>;
 export type WebMessageValues = Readonly<Record<string, string | number>>;
 
 const ZH_CN_MESSAGES = {
+  "audit11.prUnavailable": "此环境中无法使用该拉取请求。",
+  "audit11.prUnsupported": "此环境不支持关联此拉取请求。",
+  "audit11.prInterrupted": "关联更新已中断。",
+  "audit11.refsFailed": "无法加载引用。",
+  "audit11.hostSearchDenied": "此连接无权搜索主机文件。",
+  "audit11.offline": "此环境尚未连接。",
+  "audit11.usageFailed": "此环境无法报告用量。",
+  "audit11.usageAccessFailed": "无法检查此连接对诊断和用量的访问权限。",
+  "audit11.usageDenied": "此连接无权访问诊断和用量。",
+  "audit11.connectLimits": "连接环境以查看限额。",
+  "audit11.connectUsage": "连接环境以查看用量。",
+  "audit11.selectLimits": "选择环境以查看限额。",
+  "audit11.selectUsage": "选择环境以查看用量。",
+  "audit11.projectTimeout": "项目未出现在桌面应用中。",
+  "audit11.sourceControlDenied": "此连接无权更改源代码管理。",
+  "audit11.threadsDenied": "此连接无权更改会话。",
+
   "audit10.threadNotLoaded": "此会话尚未加载。",
   "audit10.monitorPermission": "此连接无权重启资源监视器。",
   "browser.uploadPickerClosed": "页面的文件选择器已关闭。",

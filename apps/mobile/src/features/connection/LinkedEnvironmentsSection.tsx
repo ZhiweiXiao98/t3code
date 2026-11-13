@@ -1,3 +1,4 @@
+import { linkedEnvironmentStatus } from "./connectionDisplayStrings";
 import { offersLinkedEnvironments } from "@t3tools/client-runtime/link-request";
 import { peerLinkHealth } from "@t3tools/client-runtime/state/peerLinks";
 import { useFocusEffect } from "@react-navigation/native";
@@ -47,22 +48,14 @@ export function LinkedEnvironmentsSection(props: {
       <SettingsSection title={`Linked from ${props.environmentLabel}`}>
         {links.data.links.map((link) => {
           const health = peerLinkHealth(link, now);
-          const status =
-            health.kind === "expired"
-              ? "Expired. Link it again with a new pairing code."
-              : health.kind === "unreachable"
-                ? (health.detail ?? "Not answering right now.")
-                : health.kind === "failing"
-                  ? health.detail
-                  : health.expiresInDays !== null
-                    ? `Expires in ${health.expiresInDays} ${health.expiresInDays === 1 ? "day" : "days"}`
-                    : "Reachable";
+          const status = linkedEnvironmentStatus(health);
           return (
             <View key={link.environmentId} className="gap-0.5 p-4">
               <Text localize={false} className="text-base font-t3-bold text-foreground">
                 {link.label}
               </Text>
               <Text
+                localize={false}
                 className={
                   health.kind === "reachable" && health.expiresInDays === null
                     ? "text-xs text-foreground-muted"

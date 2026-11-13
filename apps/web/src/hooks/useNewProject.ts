@@ -1,3 +1,5 @@
+import { projectAppearanceFailureMessage } from "../i18n/queryFailureMessages";
+import { readWebI18n } from "../i18n/readWebI18n";
 import { scopeProjectRef } from "@t3tools/client-runtime/environment";
 import {
   getNewProjectRepository,
@@ -127,7 +129,11 @@ export function useNewProject() {
         stackedThreadToast({
           type: "error",
           title: t("newProject.openError"),
-          description: t("newProject.openErrorDescription", { error: errorMessage(error, t) }),
+          description: t("newProject.openErrorDescription", {
+            error:
+              projectAppearanceFailureMessage(readWebI18n().locale, error) ??
+              errorMessage(error, t),
+          }),
         }),
       );
       return null;

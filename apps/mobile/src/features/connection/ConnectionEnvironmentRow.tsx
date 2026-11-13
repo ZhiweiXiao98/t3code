@@ -1,9 +1,11 @@
+import { mobileConnectionHeadline } from "../../i18n/nativeAccessibilityMessages";
+import { connectionRowActionLabel, connectionHostFreezeDisplay } from "./connectionDisplayStrings";
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import * as Dialog from "../../components/ui/Dialog";
 import { ConnectionTraceId } from "./ConnectionTraceId";
 import { SymbolView } from "../../components/ui/AppSymbol";
-import { hasSavedBearerRoute, hostFreezeNotice } from "@t3tools/client-runtime/connection";
+import { hasSavedBearerRoute } from "@t3tools/client-runtime/connection";
 import type { AtomCommandResult } from "@t3tools/client-runtime/state/runtime";
 import { type EnvironmentId, resolveEnvironmentMachineKind } from "@t3tools/contracts";
 import { useAtomValue } from "@effect/atom-react";
@@ -29,7 +31,7 @@ import { environmentStatusText } from "./environmentStatusText";
 
 function connectionStatusLabel(environment: ConnectedEnvironmentSummary): string | null {
   if (!environment.isEnabled && environment.connectionState !== "unsupported") {
-    return "Off";
+    return localizeMobileString("Off");
   }
   return environmentStatusText({
     phase: environment.connectionState,
@@ -70,7 +72,10 @@ export function ConnectionEnvironmentRow(props: {
   const statusTraceId = enabled ? props.environment.connectionErrorTraceId : null;
   const hasConnectionFailure = enabled && props.environment.connectionError !== null;
   const freeze = enabled
-    ? hostFreezeNotice(props.environment.environmentLabel, serverConfig?.lastEventLoopStall)
+    ? connectionHostFreezeDisplay(
+        props.environment.environmentLabel,
+        serverConfig?.lastEventLoopStall,
+      )
     : null;
   const isRetrying =
     enabled &&
@@ -86,9 +91,11 @@ export function ConnectionEnvironmentRow(props: {
       return;
     }
     const error = Cause.squash(result.cause);
-    Dialog.alert(
+    Dialog.alertWithLiteralMessage(
       "Could not update environment",
-      error instanceof Error ? error.message : "The environment could not be updated.",
+      error instanceof Error
+        ? error.message
+        : localizeMobileString("The environment could not be updated."),
     );
   };
 
@@ -98,11 +105,11 @@ export function ConnectionEnvironmentRow(props: {
         <Pressable
           className="min-w-0 flex-1 gap-0.5 active:opacity-70"
           accessibilityRole="button"
-          accessibilityLabel={
-            props.opensDetails
-              ? `Manage ${props.environment.environmentLabel}`
-              : `${props.expanded ? "Collapse" : "Expand"} details for ${props.environment.environmentLabel}`
-          }
+          accessibilityLabel={connectionRowActionLabel(
+            props.environment.environmentLabel,
+            props.opensDetails,
+            props.expanded,
+          )}
           onPress={props.onToggle}
         >
           <View className="flex-row items-center gap-1.5">
@@ -131,15 +138,18 @@ export function ConnectionEnvironmentRow(props: {
           ) : null}
           {diagnosis ? (
             <>
-              <Text className="text-xs text-danger-foreground">{diagnosis.headline}</Text>
+              <Text localize={false} className="text-xs text-danger-foreground">
+                {mobileConnectionHeadline(diagnosis.headline, props.environment.environmentLabel)}
+              </Text>
               {connectionState.attempt > 0 ? (
                 <Text className="text-xs text-foreground-muted">
-                  {`Retrying · attempt ${connectionState.attempt}`}
+                  {formatMobileMessage("Retrying · attempt {0}", [connectionState.attempt])}
                 </Text>
               ) : null}
             </>
           ) : statusLabel ? (
             <Text
+              localize={false}
               className={cn(
                 "text-xs",
                 hasConnectionFailure ? "text-danger-foreground" : "text-foreground-muted",
@@ -159,10 +169,11 @@ export function ConnectionEnvironmentRow(props: {
           ) : null}
           {freeze ? (
             <Text
+              localize={false}
               className="text-xs text-warning-foreground"
               numberOfLines={props.expanded ? undefined : 1}
             >
-              {`${freeze.title}. ${freeze.description}`}
+              {freeze}
             </Text>
           ) : null}
         </Pressable>
@@ -178,11 +189,11 @@ export function ConnectionEnvironmentRow(props: {
         />
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={
-            props.opensDetails
-              ? `Manage ${props.environment.environmentLabel}`
-              : `${props.expanded ? "Collapse" : "Expand"} details for ${props.environment.environmentLabel}`
-          }
+          accessibilityLabel={connectionRowActionLabel(
+            props.environment.environmentLabel,
+            props.opensDetails,
+            props.expanded,
+          )}
           onPress={props.onToggle}
           style={{
             minWidth: 44,

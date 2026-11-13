@@ -10,10 +10,20 @@ import { AsyncResult } from "effect/reactivity";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const state = vi.hoisted(() => ({
+  locale: "en" as "en" | "zh-CN",
   scopes: new Map<string, Set<string>>(),
   requests: [] as { action: string; environmentId: string | null }[],
 }));
 
+vi.mock("../i18n/readWebI18n", async () => {
+  const { translateWebMessage } = await import("../i18n/messages");
+  return {
+    readWebI18n: () => ({
+      locale: state.locale,
+      t: (key: import("../i18n/messages").WebMessageKey) => translateWebMessage(state.locale, key),
+    }),
+  };
+});
 vi.mock("react", () => ({ useCallback: (callback: unknown) => callback }));
 vi.mock("@effect/atom-react", () => ({
   useAtomValue: () => ({ operation: null, error: null, isRunning: false }),
@@ -129,6 +139,7 @@ beforeEach(() => {
     [secondary, new Set<string>()],
   ]);
   state.requests = [];
+  state.locale = "en";
 });
 
 describe("source control callback grants", () => {
@@ -200,4 +211,38 @@ describe("pull request worktree attachment permission", () => {
     expect(result._tag).toBe("Failure");
     expect(state.requests).toEqual([]);
   });
+});
+
+it("uses the current locale for revoked grants without sending either action", async () => {
+  state.scopes.get(secondary)!.add(AuthSourceControlWriteScope);
+  const pull = useVcsPullAction(scope);
+  const prepare = usePreparePullRequestThreadAction(scope);
+  for (const locale of ["en", "zh-CN", "en"] as const) {
+    state.locale = locale;
+    state.scopes.get(secondary)!.clear();
+    const denied = await pull.run();
+    expect(denied._tag).toBe("Failure");
+    if (denied._tag === "Failure")
+      expect(Cause.squash(denied.cause)).toMatchObject({
+        requiredScope: AuthSourceControlWriteScope,
+        message:
+          locale === "en"
+            ? "This connection cannot change source control."
+            : "此连接无权更改源代码管理。",
+      });
+    state.scopes.get(secondary)!.add(AuthSourceControlWriteScope);
+    const deniedThread = await prepare.run({
+      reference: "owner/repo#1",
+      mode: "worktree",
+      threadId,
+    });
+    expect(deniedThread._tag).toBe("Failure");
+    if (deniedThread._tag === "Failure")
+      expect(Cause.squash(deniedThread.cause)).toMatchObject({
+        requiredScope: AuthOrchestrationOperateScope,
+        message:
+          locale === "en" ? "This connection cannot change threads." : "此连接无权更改会话。",
+      });
+  }
+  expect(state.requests).toEqual([]);
 });

@@ -1,3 +1,4 @@
+import { mobileConnectionHeadline } from "../../i18n/nativeAccessibilityMessages";
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { Button } from "../../components/ui/Button";
@@ -217,9 +218,14 @@ function ConnectedCloudEnvironmentRow(props: {
       disabled={unsupported && !canRetry}
       {...(enabled || unsupported
         ? diagnosis
-          ? { statusText: diagnosis.headline }
+          ? {
+              statusText: mobileConnectionHeadline(
+                diagnosis.headline,
+                props.environment.environmentLabel,
+              ),
+            }
           : {}
-        : { statusText: "Off" })}
+        : { statusText: localizeMobileString("Off") })}
       value={enabled}
     />
   );
@@ -357,6 +363,7 @@ function CloudEnvironmentRowShell(props: {
           <Text
             aria-hidden
             onTextLayout={onMeasuredErrorTextLayout}
+            localize={false}
             className={cn("absolute inset-x-0 -z-[1] text-xs opacity-0", statusClassName)}
           >
             {measuredErrorText}
@@ -369,6 +376,7 @@ function CloudEnvironmentRowShell(props: {
           className="min-w-0 flex-row items-start gap-1"
         >
           <Text
+            localize={false}
             className={cn("min-w-0 flex-1 text-xs", statusClassName)}
             numberOfLines={isErrorExpanded ? undefined : 1}
           >

@@ -16,11 +16,13 @@ import { Linking, View } from "react-native";
 import { AppText as Text } from "../../components/ui/AppText";
 import { Button } from "../../components/ui/Button";
 import { environmentCatalog } from "../../connection/catalog";
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { cn } from "../../lib/cn";
 import { copyTextWithHaptic } from "../../lib/copyTextWithHaptic";
+import { connectionDiagnosisDisplay } from "./connectionDiagnosisDisplay";
 
 const HOP_MARK = { ok: "✓", failed: "✕", unchecked: "–" } as const;
-const HOP_NOTE = { ok: "", failed: " · Failed", unchecked: " · Not checked" } as const;
+const HOP_NOTE = { ok: "{0}", failed: "{0} · Failed", unchecked: "{0} · Not checked" } as const;
 
 /** Same model as the web Settings row; null while connected, off, or not failed. */
 export function useConnectionDiagnosis(
@@ -52,31 +54,33 @@ export function ConnectionDiagnosisDetails(props: {
 }) {
   const { diagnosis } = props;
   const { moreInfoUrl } = diagnosis;
+  const display = connectionDiagnosisDisplay(diagnosis, props.hostLabel);
   return (
     <View className="gap-3">
       <View className="gap-0.5">
-        {diagnosis.hops.map((hop) => (
+        {display.hops.map((hop) => (
           <Text
+            localize={false}
             key={hop.hop}
             className={cn(
               "text-sm",
               hop.result === "failed" ? "text-danger-foreground" : "text-foreground-muted",
             )}
           >
-            {`${HOP_MARK[hop.result]}  ${hop.label}${HOP_NOTE[hop.result]}`}
+            {`${HOP_MARK[hop.result]}  ${formatMobileMessage(HOP_NOTE[hop.result], [hop.label])}`}
           </Text>
         ))}
       </View>
       <View className="gap-0.5">
         <Text className="text-sm font-t3-bold text-foreground">What to try</Text>
-        {diagnosis.steps.map((step, index) => (
-          <Text key={step} className="text-sm text-foreground-muted">
+        {display.steps.map((step, index) => (
+          <Text localize={false} key={step} className="text-sm text-foreground-muted">
             {`${index + 1}. ${step}`}
           </Text>
         ))}
       </View>
-      <Text selectable className="font-mono text-xs text-foreground-muted">
-        {diagnosis.facts.map(([label, value]) => `${label}: ${value}`).join("\n")}
+      <Text localize={false} selectable className="font-mono text-xs text-foreground-muted">
+        {display.facts.map(([label, value]) => `${label}: ${value}`).join("\n")}
       </Text>
       <Button
         label="Copy diagnostics"

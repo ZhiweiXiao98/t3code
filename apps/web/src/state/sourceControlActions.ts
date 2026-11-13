@@ -1,3 +1,4 @@
+import { readWebI18n } from "../i18n/readWebI18n";
 import { useAtomValue } from "@effect/atom-react";
 import type {
   AtomCommandFailure,
@@ -99,7 +100,7 @@ function useAction<
         Cause.fail(
           new EnvironmentAuthorizationError({
             requiredScope: AuthSourceControlWriteScope,
-            message: "This connection cannot change source control.",
+            message: readWebI18n().t("audit11.sourceControlDenied"),
           }),
         ),
       );
@@ -337,7 +338,7 @@ export function usePreparePullRequestThreadAction(scope: SourceControlActionScop
         Cause.fail(
           new EnvironmentAuthorizationError({
             requiredScope: AuthOrchestrationOperateScope,
-            message: "This connection cannot change threads.",
+            message: readWebI18n().t("audit11.threadsDenied"),
           }),
         ),
       );
