@@ -2331,14 +2331,59 @@ it.effect(
             "en",
             "Could not check desktop capture support. Check your desktop session and try again.",
           ],
+          ["zh-CN", "无法检查桌面截取支持。请检查桌面会话后重试。"],
         ] as const) {
           yield* Ref.set(settings, { ...DEFAULT_CLIENT_SETTINGS, appLocale });
           linuxBackendMock.mockRejectedValueOnce("opaque failure");
-          assert.equal((yield* service.state).message, expected);
+          const translated = yield* service.state;
+          assert.equal(translated.message, expected);
+          assert.deepEqual(Object.getOwnPropertySymbols(translated), []);
+          const collision =
+            "Could not check desktop capture support. Check your desktop session and try again.";
+          linuxBackendMock.mockRejectedValueOnce(new Error(collision));
+          assert.equal((yield* service.state).message, collision);
           linuxBackendMock.mockRejectedValueOnce(new Error("外部/{message}/$&"));
           assert.equal((yield* service.state).message, "外部/{message}/$&");
         }
       }),
     ).pipe(Effect.ensuring(Effect.sync(() => vi.unstubAllEnvs())));
+  },
+);
+
+it.effect(
+  "projects observed modifier-pair copy in the current locale without re-registering the shortcut",
+  () => {
+    accessibilityTrustedMock.mockReturnValue(true);
+    mediaAccessStatusMock.mockReturnValue("granted");
+    return Effect.scoped(
+      Effect.gen(function* () {
+        const settings = {
+          ...DEFAULT_CLIENT_SETTINGS,
+          snapShotEnabled: true,
+          snapShotShortcut: { kind: "modifier-pair" as const, modifier: "meta" as const },
+        };
+        const locales = yield* Ref.make<ClientSettings>(settings);
+        const service = yield* DesktopSnapShot.make.pipe(
+          Effect.provide(
+            layerTest("darwin", {}, Option.none(), Ref.get(locales).pipe(Effect.asSome)),
+          ),
+        );
+        yield* service.configure(settings);
+        const english = yield* service.state;
+        assert.isTrue(english.shortcutRegistered);
+        assert.include(english.shortcutMessage, "is observed and cannot be reserved exclusively.");
+        const workers = shortcutProcesses.length;
+        for (const appLocale of ["zh-CN", "en", "zh-CN"] as const) {
+          yield* Ref.set(locales, { ...settings, appLocale });
+          const current = yield* service.state;
+          assert.isTrue(current.shortcutRegistered);
+          assert.deepEqual(current.shortcut, english.shortcut);
+          assert.deepEqual(Object.getOwnPropertySymbols(current), []);
+          if (appLocale === "en") assert.equal(current.shortcutMessage, english.shortcutMessage);
+          else assert.include(current.shortcutMessage, "系统正在监听");
+          assert.equal(shortcutProcesses.length, workers);
+        }
+      }),
+    );
   },
 );

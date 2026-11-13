@@ -1,5 +1,6 @@
 import type {
   AdvertisedEndpoint,
+  AdvertisedEndpointLabelSource,
   AdvertisedEndpointHostedHttpsCompatibility,
   AdvertisedEndpointProvider,
   AdvertisedEndpointReachability,
@@ -10,6 +11,7 @@ import type {
 export interface CreateAdvertisedEndpointInput {
   readonly id: string;
   readonly label: string;
+  readonly labelSource?: AdvertisedEndpointLabelSource;
   readonly provider: AdvertisedEndpointProvider;
   readonly httpBaseUrl: string;
   readonly reachability: AdvertisedEndpointReachability;
@@ -60,6 +62,7 @@ export function createAdvertisedEndpoint(input: CreateAdvertisedEndpointInput): 
   return {
     id: input.id,
     label: input.label,
+    ...(input.labelSource === undefined ? {} : { labelSource: input.labelSource }),
     provider: input.provider,
     httpBaseUrl,
     wsBaseUrl: deriveWsBaseUrl(httpBaseUrl),

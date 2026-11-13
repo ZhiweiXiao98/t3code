@@ -1,11 +1,16 @@
 // @effect-diagnostics globalTimers:off -- Capture timeouts and Electron overlay animation timers run at native callback boundaries outside Effect fibers.
+import {
+  snapShotMessage,
+  snapShotMessageFromError,
+  snapShotShortcutMessage,
+  snapShotShortcutMessageFromError,
+} from "./snapShotMessageProvenance.ts";
 
 import { pipe } from "effect/Function";
 import {
   DEFAULT_CLIENT_SETTINGS,
   DesktopPendingSnapShot,
   isModifierPairShortcut,
-  snapShotModifierPairLabel,
   snapShotShortcutModifierPair,
   type DesktopSnapShot as DesktopSnapShotValue,
   type DesktopSnapShotShortcutAvailability,
@@ -16,7 +21,6 @@ import {
   type DesktopCaptureConfigApplied,
   type ClientSettings,
   type SnapShotModifier,
-  type SnapShotModifierPairShortcut,
   type SnapShotShortcut,
   type DesktopSnapShotEvent,
   type DesktopSnapShotId,
@@ -87,6 +91,7 @@ import { showWindowsCaptureOverlay } from "./WindowsCaptureFeedback.ts";
 import {
   boundedSnapShotString,
   localizeSnapShotStateMessages,
+  snapShotObservedPairMessage,
   isWaylandSession,
   sameSnapShotShortcut,
   toElectronAccelerator,
@@ -726,29 +731,6 @@ async function showCaptureFeedback(
   return false;
 }
 
-function observedPairMessage(
-  shortcut: SnapShotModifierPairShortcut,
-  platform: NodeJS.Platform,
-  chinese = false,
-): string {
-  const modifier = snapShotShortcutModifierPair(shortcut);
-  const label = snapShotModifierPairLabel(modifier, platform === "darwin");
-  const base = chinese
-    ? `系统正在监听 ${label}，无法独占此快捷键。`
-    : `${label} is observed and cannot be reserved exclusively.`;
-  if (modifier === "meta" && platform !== "darwin") {
-    return chinese
-      ? `${base}此按键也可能打开系统菜单。`
-      : `${base} This key can also open the system's own menu.`;
-  }
-  if (modifier === "alt" && platform === "win32") {
-    return chinese
-      ? `${base}此按键也可能激活应用菜单栏。`
-      : `${base} This key can also activate app menu bars.`;
-  }
-  return base;
-}
-
 function probeGlobalShortcut(
   accelerator: string,
   chinese: boolean,
@@ -785,8 +767,8 @@ export const make = Effect.gen(function* () {
     mode: captureMode(environment.platform),
     shortcut: DEFAULT_CLIENT_SETTINGS.snapShotShortcut,
     shortcutRegistered: false,
-    shortcutMessage: null,
-    message: null,
+    ...snapShotShortcutMessage(null),
+    ...snapShotMessage(null),
   });
   const snapshotMutex = yield* Semaphore.make(1);
   const configurationMutex = yield* Semaphore.make(1);
@@ -893,7 +875,7 @@ export const make = Effect.gen(function* () {
   const emit = (event: DesktopSnapShotEvent) =>
     desktopWindow.dispatchSnapShotEvent(event).pipe(Effect.ignoreCause);
   const setFailure = (message: string, captureId?: string) =>
-    Ref.update(stateRef, (state) => ({ ...state, message })).pipe(
+    Ref.update(stateRef, (state) => ({ ...state, ...snapShotMessage(message) })).pipe(
       Effect.andThen(
         emit(
           captureId ? { type: "failed", id: captureId as DesktopSnapShotId } : { type: "failed" },
@@ -908,7 +890,7 @@ export const make = Effect.gen(function* () {
         Ref.update(stateRef, (state) => ({
           ...state,
           shortcutRegistered: false,
-          shortcutMessage,
+          ...snapShotShortcutMessage(shortcutMessage),
         })),
       ),
       Effect.andThen(emit({ type: "failed" })),
@@ -1050,13 +1032,15 @@ export const make = Effect.gen(function* () {
     const capture = prepared.value;
     yield* persistCapture(capture).pipe(
       Effect.tap(() =>
-        Ref.update(stateRef, (state) => ({ ...state, message: null })).pipe(
+        Ref.update(stateRef, (state) => ({ ...state, ...snapShotMessage(null) })).pipe(
           Effect.andThen(emit({ type: "ready", id: capture.id as DesktopSnapShotId })),
         ),
       ),
       Effect.tapError((error) =>
         discardCapture(capture.id).pipe(
-          Effect.andThen(Ref.update(stateRef, (state) => ({ ...state, message: error.message }))),
+          Effect.andThen(
+            Ref.update(stateRef, (state) => ({ ...state, ...snapShotMessage(error.message) })),
+          ),
           Effect.andThen(emit({ type: "failed", id: capture.id as DesktopSnapShotId })),
         ),
       ),
@@ -1130,7 +1114,7 @@ export const make = Effect.gen(function* () {
       return {
         available,
         message: available
-          ? observedPairMessage(shortcut, environment.platform, chinese)
+          ? snapShotObservedPairMessage(shortcut, environment.platform, chinese)
           : snapShotShortcutRegistrationFailureMessage(shortcut, environment.platform, chinese),
       };
     }
@@ -1234,13 +1218,14 @@ export const make = Effect.gen(function* () {
         mode,
         shortcut,
         shortcutRegistered: false,
-        shortcutMessage: null,
-        message:
+        ...snapShotShortcutMessage(null),
+        ...snapShotMessage(
           mode === "unavailable"
             ? environment.platform === "linux"
               ? "SnapShots require a Wayland session. X11 capture is not supported."
               : "SnapShots are not supported on this platform."
             : null,
+        ),
       });
       return;
     }
@@ -1255,8 +1240,8 @@ export const make = Effect.gen(function* () {
         mode,
         shortcut,
         shortcutRegistered: false,
-        shortcutMessage: null,
-        message: permissionMessage,
+        ...snapShotShortcutMessage(null),
+        ...snapShotMessage(permissionMessage),
       });
       return;
     }
@@ -1288,10 +1273,12 @@ export const make = Effect.gen(function* () {
         shortcutBinding: niriCaptureBinding(linuxAppId),
         shortcutConfigPath: niriCaptureConfigPath(home),
         shortcutActionRegistered: registered,
-        shortcutMessage: registered
-          ? "Set up the shortcut to add it to your Niri config."
-          : "Could not start the Niri capture endpoint. Another T3 Code instance may be using it.",
-        message: null,
+        ...snapShotShortcutMessage(
+          registered
+            ? "Set up the shortcut to add it to your Niri config."
+            : "Could not start the Niri capture endpoint. Another T3 Code instance may be using it.",
+        ),
+        ...snapShotMessage(null),
       });
       return;
     }
@@ -1301,8 +1288,8 @@ export const make = Effect.gen(function* () {
         mode,
         shortcut,
         shortcutRegistered: false,
-        shortcutMessage: WAYLAND_MODIFIER_PAIR_UNAVAILABLE_MESSAGE,
-        message: null,
+        ...snapShotShortcutMessage(WAYLAND_MODIFIER_PAIR_UNAVAILABLE_MESSAGE),
+        ...snapShotMessage(null),
       });
       return;
     }
@@ -1311,8 +1298,8 @@ export const make = Effect.gen(function* () {
         mode,
         shortcut,
         shortcutRegistered: false,
-        shortcutMessage: null,
-        message: null,
+        ...snapShotShortcutMessage(null),
+        ...snapShotMessage(null),
       });
       const locale = yield* readDesktopLocale(
         Effect.succeedSome(settings),
@@ -1354,10 +1341,10 @@ export const make = Effect.gen(function* () {
         Effect.catch((error) =>
           Ref.update(stateRef, (state) => ({
             ...state,
-            shortcutMessage:
-              error.cause instanceof Error
-                ? error.cause.message
-                : "Could not connect to your desktop's shortcut service.",
+            ...snapShotShortcutMessageFromError(
+              error.cause,
+              "Could not connect to your desktop's shortcut service.",
+            ),
           })),
         ),
       );
@@ -1399,12 +1386,14 @@ export const make = Effect.gen(function* () {
       mode,
       shortcut,
       shortcutRegistered: registered,
-      message: null,
-      shortcutMessage: registered
-        ? isModifierPairShortcut(shortcut)
-          ? observedPairMessage(shortcut, environment.platform)
-          : null
-        : snapShotShortcutRegistrationFailureMessage(shortcut, environment.platform),
+      ...snapShotMessage(null),
+      ...snapShotShortcutMessage(
+        registered
+          ? isModifierPairShortcut(shortcut)
+            ? snapShotObservedPairMessage(shortcut, environment.platform)
+            : null
+          : snapShotShortcutRegistrationFailureMessage(shortcut, environment.platform),
+      ),
     });
   });
 
@@ -1676,10 +1665,10 @@ export const make = Effect.gen(function* () {
               Effect.catch((error) =>
                 Effect.succeed({
                   ...state,
-                  message:
-                    error.cause instanceof Error
-                      ? error.cause.message
-                      : "Could not check desktop capture support. Check your desktop session and try again.",
+                  ...snapShotMessageFromError(
+                    error.cause,
+                    "Could not check desktop capture support. Check your desktop session and try again.",
+                  ),
                 }),
               ),
             )
@@ -1698,7 +1687,11 @@ export const make = Effect.gen(function* () {
                         .withPermits(1)(applySettings(settings, null, true))
                         .pipe(Effect.andThen(Ref.get(stateRef)))
                     : state;
-                return { ...recovered, macPermissions, ...(message ? { message } : {}) };
+                return {
+                  ...recovered,
+                  macPermissions,
+                  ...(message ? snapShotMessage(message) : {}),
+                };
               })
             : Effect.succeed(
                 environment.platform === "win32" ? { ...state, windows: true } : state,

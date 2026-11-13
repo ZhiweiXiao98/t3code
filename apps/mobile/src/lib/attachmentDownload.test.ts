@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import type { MobileLocale } from "../i18n/mobileStrings";
 
 const mocks = vi.hoisted(() => ({
+  locale: "en" as MobileLocale,
   directories: new Set<string>(),
   deleted: vi.fn(),
   download: vi.fn(),
@@ -71,7 +73,16 @@ vi.mock("expo-sharing", () => ({
 vi.mock("./uuid", () => ({ uuidv4: mocks.uuid }));
 vi.mock("./shareFileFromSource", () => ({ shareFileFromSource: mocks.shareFromSource }));
 
+vi.mock("../i18n/mobileStrings", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../i18n/mobileStrings")>();
+  return {
+    ...actual,
+    localizeMobileString: (value: string) => actual.localizeMobileString(value, mocks.locale),
+  };
+});
+
 import {
+  nativeViewerErrorMessage,
   downloadAndShareAttachment,
   downloadAttachmentForPreview,
   shareLocalAttachment,
@@ -86,6 +97,7 @@ const input = {
 };
 
 beforeEach(() => {
+  mocks.locale = "en";
   mocks.open.mockReset();
   mocks.open.mockResolvedValue(undefined);
   mocks.directories.clear();
@@ -160,14 +172,22 @@ describe("downloadAndShareAttachment", () => {
     expect(new TextEncoder().encode(name).length).toBeLessThanOrEqual(255);
   });
 
-  it("reports unavailable sharing before downloading or creating files", async () => {
-    mocks.available.mockResolvedValue(false);
-    await expect(
-      downloadAndShareAttachment({ ...input, signal: new AbortController().signal }),
-    ).rejects.toThrow("Saving and sharing files is unavailable on this device.");
-    expect(mocks.download).not.toHaveBeenCalled();
-    expect(mocks.directories.size).toBe(0);
-  });
+  it.each(["en", "zh-CN"] as const)(
+    "reports unavailable sharing before downloading or creating files in %s",
+    async (locale) => {
+      mocks.locale = locale;
+      mocks.available.mockResolvedValue(false);
+      await expect(
+        downloadAndShareAttachment({ ...input, signal: new AbortController().signal }),
+      ).rejects.toThrow(
+        locale === "en"
+          ? "Saving and sharing files is unavailable on this device."
+          : "此设备不支持保存和共享文件。",
+      );
+      expect(mocks.download).not.toHaveBeenCalled();
+      expect(mocks.directories.size).toBe(0);
+    },
+  );
 
   it("cleans an interrupted download only after the native request settles", async () => {
     const started = Promise.withResolvers<void>();
@@ -204,13 +224,24 @@ describe("downloadAndShareAttachment", () => {
     expect(mocks.deleted).not.toHaveBeenCalled();
   });
 
-  it("cleans failed exports and releases the foreground handoff", async () => {
-    mocks.share.mockRejectedValue(new Error("No activity can open this file"));
-    await expect(
-      downloadAndShareAttachment({ ...input, signal: new AbortController().signal }),
-    ).rejects.toThrow("Could not open the share sheet. Try again.");
-    expect(mocks.deleted).toHaveBeenCalledTimes(1);
-  });
+  it.each(["en", "zh-CN"] as const)(
+    "cleans failed exports and releases the foreground handoff in %s",
+    async (locale) => {
+      mocks.locale = locale;
+      const cause = new Error("Settings");
+      mocks.share.mockRejectedValue(cause);
+      await expect(
+        downloadAndShareAttachment({ ...input, signal: new AbortController().signal }),
+      ).rejects.toMatchObject({
+        message:
+          locale === "en"
+            ? "Could not open the share sheet. Try again."
+            : "无法打开共享菜单。请重试。",
+        cause,
+      });
+      expect(mocks.deleted).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it("does not prune an active export even if it passes the cache expiry", async () => {
     const opened = Promise.withResolvers<void>();
@@ -344,3 +375,93 @@ describe("attachment preview files", () => {
     expect(mocks.deleted).toHaveBeenCalledTimes(1);
   });
 });
+
+it.each(["en", "zh-CN"] as const)(
+  "localizes owned preparation failures in %s without changing causes or file inputs",
+  async (locale) => {
+    mocks.locale = locale;
+    const cause = new Error("Settings\n{0} $&");
+    mocks.download.mockRejectedValueOnce(cause);
+    await expect(
+      downloadAttachmentForPreview({ ...input, signal: new AbortController().signal }),
+    ).rejects.toMatchObject({
+      message:
+        locale === "en"
+          ? "Could not download the attachment. Check the connection and try again."
+          : "无法下载附件。请检查连接后重试。",
+      cause,
+    });
+    expect(mocks.deleted).toHaveBeenCalledOnce();
+    expect(mocks.share).not.toHaveBeenCalled();
+    mocks.copy.mockRejectedValueOnce(cause);
+    const uri = "file:///Settings%20%7B0%7D%20$&";
+    await expect(
+      shareLocalAttachment({
+        uri,
+        attachment: input.attachment,
+        signal: new AbortController().signal,
+      }),
+    ).rejects.toMatchObject({
+      message:
+        locale === "en"
+          ? "Could not prepare the attachment for sharing."
+          : "无法准备要共享的附件。",
+      cause,
+    });
+    expect(mocks.copy).toHaveBeenCalledWith(uri, expect.any(String));
+    expect(mocks.deleted).toHaveBeenCalledTimes(2);
+    expect(mocks.share).not.toHaveBeenCalled();
+  },
+);
+
+it.each(["en", "zh-CN"] as const)(
+  "preserves raw availability errors and attachment identity in %s",
+  async (locale) => {
+    mocks.locale = locale;
+    const cause = new Error("Settings");
+    mocks.available.mockRejectedValueOnce(cause);
+    await expect(
+      downloadAndShareAttachment({ ...input, signal: new AbortController().signal }),
+    ).rejects.toBe(cause);
+    expect(mocks.download).not.toHaveBeenCalled();
+    const attachment = { name: "Settings {0} $&", mimeType: "application/pdf; charset=utf-8" };
+    const sourceIdentifier = "Settings";
+    await downloadAndShareAttachment({
+      ...input,
+      attachment,
+      sourceIdentifier,
+      signal: new AbortController().signal,
+    });
+    expect(mocks.download).toHaveBeenCalledWith(input.url, expect.any(Object), expect.any(Object));
+    expect(mocks.shareFromSource).toHaveBeenCalledWith(
+      expect.any(String),
+      { mimeType: "application/pdf", dialogTitle: attachment.name },
+      sourceIdentifier,
+    );
+    expect(decodeURIComponent(mocks.shareFromSource.mock.lastCall![0].split("/").at(-1)!)).toBe(
+      attachment.name,
+    );
+    expect(mocks.deleted).not.toHaveBeenCalled();
+  },
+);
+
+it.each(["en", "zh-CN"] as const)(
+  "uses owned viewer guidance in %s without exposing native diagnostics",
+  (locale) => {
+    mocks.locale = locale;
+    for (const cause of [new Error("ActivityNotFound Settings"), "cannot be previewed"]) {
+      expect(nativeViewerErrorMessage(cause)).toBe(
+        locale === "en"
+          ? "No app on this device can show this format. Save or share it to open it elsewhere."
+          : "此设备上没有应用能显示此格式。请保存或分享后在其他位置打开。",
+      );
+    }
+    for (const cause of [new Error("Settings"), { message: "ActivityNotFound" }, null]) {
+      expect(nativeViewerErrorMessage(cause)).toBe(
+        locale === "en"
+          ? "The file could not be opened. Check the connection and try again."
+          : "无法打开文件。请检查连接后重试。",
+      );
+    }
+  },
+);

@@ -8,6 +8,20 @@ import {
 
 import { ConnectionBlockedError } from "./model.ts";
 
+const compatibilityMessages = new WeakMap<
+  object,
+  { readonly template: string; readonly label: string }
+>();
+
+export function formatOrchestrationCompatibilityError(
+  error: unknown,
+  format: (template: string, values: readonly string[]) => string,
+): string | undefined {
+  if (typeof error !== "object" || error === null) return undefined;
+  const message = compatibilityMessages.get(error);
+  return message ? format(message.template, [message.label]) : undefined;
+}
+
 export function orchestrationProtocolCompatibilityError(
   descriptor: ExecutionEnvironmentDescriptor,
 ): ConnectionBlockedError | null {
@@ -16,16 +30,25 @@ export function orchestrationProtocolCompatibilityError(
   if (serverProtocolVersion === ORCHESTRATION_PROTOCOL_VERSION) {
     return null;
   }
-  return serverProtocolVersion > ORCHESTRATION_PROTOCOL_VERSION
-    ? new ConnectionBlockedError({
-        reason: "unsupported",
-        detail: `This client is not supported by this server. Update your app or use a compatible release to connect to ${descriptor.label}.`,
-      })
-    : new ConnectionBlockedError({
-        reason: "unsupported",
-        detail: `This client requires a newer server. Update T3 Code on ${descriptor.label} to connect.`,
-        ...(canSelfUpdate(descriptor) ? { serverUpdateRequired: true } : {}),
-      });
+  const error =
+    serverProtocolVersion > ORCHESTRATION_PROTOCOL_VERSION
+      ? new ConnectionBlockedError({
+          reason: "unsupported",
+          detail: `This client is not supported by this server. Update your app or use a compatible release to connect to ${descriptor.label}.`,
+        })
+      : new ConnectionBlockedError({
+          reason: "unsupported",
+          detail: `This client requires a newer server. Update T3 Code on ${descriptor.label} to connect.`,
+          ...(canSelfUpdate(descriptor) ? { serverUpdateRequired: true } : {}),
+        });
+  compatibilityMessages.set(error, {
+    template:
+      serverProtocolVersion > ORCHESTRATION_PROTOCOL_VERSION
+        ? "This client is not supported by this server. Update your app or use a compatible release to connect to {0}."
+        : "This client requires a newer server. Update T3 Code on {0} to connect.",
+    label: descriptor.label,
+  });
+  return error;
 }
 
 function canSelfUpdate(descriptor: ExecutionEnvironmentDescriptor): boolean {

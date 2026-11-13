@@ -1,4 +1,5 @@
-import { EnvironmentId } from "@t3tools/contracts";
+import { orchestrationProtocolCompatibilityError } from "@t3tools/client-runtime/connection";
+import { EnvironmentId, ORCHESTRATION_PROTOCOL_VERSION } from "@t3tools/contracts";
 import * as Cause from "effect/Cause";
 import { AsyncResult } from "effect/reactivity";
 import type { AlertButton } from "react-native";
@@ -178,6 +179,37 @@ it.each(["en", "zh-CN"] as const)(
     );
     expect(await pairEnvironment(url)).toEqual({ ok: false, error: null });
     expect(state.alert.mock.lastCall?.[1]).toBe("Settings");
+    for (const version of [
+      ORCHESTRATION_PROTOCOL_VERSION - 1,
+      ORCHESTRATION_PROTOCOL_VERSION + 1,
+    ]) {
+      const label = "Settings {0} $&";
+      const error = orchestrationProtocolCompatibilityError({
+        environmentId: id,
+        label,
+        platform: { os: "darwin", arch: "arm64" },
+        serverVersion: "9.0.0",
+        orchestrationProtocolVersion: version,
+        capabilities: { repositoryIdentity: true },
+      });
+      if (!error) throw new Error("Expected incompatible protocol");
+      state.pair.mockResolvedValue(AsyncResult.failure(Cause.fail(error)));
+      expect(await pairEnvironment(url)).toEqual({ ok: false, error: null });
+      expect(state.alert.mock.lastCall?.[1]).toBe(
+        locale === "en"
+          ? error.message
+          : version > ORCHESTRATION_PROTOCOL_VERSION
+            ? `此服务器不支持当前客户端。请更新应用或使用兼容版本以连接到 ${label}。`
+            : `此客户端需要较新版本的服务器。请更新 ${label} 上的 T3 Code 以连接。`,
+      );
+      state.pair.mockResolvedValue(
+        AsyncResult.failure(
+          Cause.fail(Object.assign(new Error(error.message), { reason: "unsupported" })),
+        ),
+      );
+      await pairEnvironment(url);
+      expect(state.alert.mock.lastCall?.[1]).toBe(error.message);
+    }
     state.pair.mockResolvedValue(AsyncResult.success(undefined));
     expect(await pairEnvironment(url)).toEqual({ ok: true, error: null });
     expect(state.set.mock.lastCall?.[1]).toBe("");

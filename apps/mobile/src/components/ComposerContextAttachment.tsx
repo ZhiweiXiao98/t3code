@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../i18n/mobileStrings";
 import { formatMobileMessage } from "../i18n/mobileDisplayStrings";
 import { Button } from "./ui/Button";
 import { settlePromise, squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
@@ -62,7 +63,8 @@ export function ComposerContextAttachment(props: {
         return;
       }
       const url = await refresh();
-      if (!url) throw new Error("Reconnect to the environment and try again.");
+      if (!url)
+        throw new Error(localizeMobileString("Reconnect to the environment and try again."));
       await downloadAndShareAttachment({
         url,
         attachment: record,
@@ -73,9 +75,9 @@ export function ComposerContextAttachment(props: {
     setSharing(false);
     if (AsyncResult.isFailure(result)) {
       const cause = squashAtomCommandFailure(result);
-      Dialog.alert(
+      Dialog.alertWithLiteralMessage(
         "Could not open attachment",
-        cause instanceof Error ? cause.message : "Try again.",
+        cause instanceof Error ? cause.message : localizeMobileString("Try again."),
       );
     }
   };

@@ -1,6 +1,6 @@
 import * as Schema from "effect/Schema";
 
-import { TrimmedNonEmptyString } from "./baseSchemas.ts";
+import { ForwardCompatibleOptional, TrimmedNonEmptyString } from "./baseSchemas.ts";
 
 export const AdvertisedEndpointProviderKind = Schema.Literals([
   "core",
@@ -52,9 +52,19 @@ export const AdvertisedEndpointCompatibility = Schema.Struct({
 });
 export type AdvertisedEndpointCompatibility = typeof AdvertisedEndpointCompatibility.Type;
 
+/** Built-in presentation provenance; raw labels remain stable identifiers/preferences. */
+export const AdvertisedEndpointLabelSource = Schema.Literals([
+  "desktop.this-machine",
+  "desktop.local-network",
+  "desktop.custom-https",
+  "desktop.custom-endpoint",
+]);
+export type AdvertisedEndpointLabelSource = typeof AdvertisedEndpointLabelSource.Type;
+
 export const AdvertisedEndpoint = Schema.Struct({
   id: TrimmedNonEmptyString,
   label: TrimmedNonEmptyString,
+  labelSource: ForwardCompatibleOptional(AdvertisedEndpointLabelSource),
   provider: AdvertisedEndpointProvider,
   httpBaseUrl: TrimmedNonEmptyString,
   wsBaseUrl: TrimmedNonEmptyString,

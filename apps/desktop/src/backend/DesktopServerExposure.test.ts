@@ -518,3 +518,57 @@ describe("DesktopServerExposure", () => {
     ),
   );
 });
+
+it.effect(
+  "marks only built-in display labels while preserving endpoint identity and raw labels",
+  () =>
+    withHarness(
+      lanNetworkInterfaces,
+      Effect.gen(function* () {
+        const exposure = yield* DesktopServerExposure.DesktopServerExposure;
+        yield* exposure.configureFromSettings({ port: 4173 });
+        yield* exposure.setMode("network-accessible");
+        const endpoints = yield* exposure.getAdvertisedEndpoints;
+        assert.deepEqual(
+          endpoints.map(({ label, labelSource, httpBaseUrl }) => ({
+            label,
+            labelSource,
+            httpBaseUrl,
+          })),
+          [
+            {
+              label: "This machine",
+              labelSource: "desktop.this-machine",
+              httpBaseUrl: "http://127.0.0.1:4173/",
+            },
+            {
+              label: "Local network",
+              labelSource: "desktop.local-network",
+              httpBaseUrl: "http://192.168.1.20:4173/",
+            },
+            {
+              label: "Custom HTTPS",
+              labelSource: "desktop.custom-https",
+              httpBaseUrl: "https://custom.test:7443/",
+            },
+            {
+              label: "Custom endpoint",
+              labelSource: "desktop.custom-endpoint",
+              httpBaseUrl: "http://custom.test:7444/",
+            },
+          ],
+        );
+        assert.deepEqual(
+          endpoints.map((endpoint) => endpoint.id),
+          [
+            "desktop-loopback:4173",
+            "desktop-lan:http://192.168.1.20:4173",
+            "manual:https://custom.test:7443",
+            "manual:http://custom.test:7444",
+          ],
+        );
+        assert.deepEqual(yield* exposure.getAdvertisedEndpoints, endpoints);
+      }),
+      { T3CODE_DESKTOP_HTTPS_ENDPOINTS: "https://custom.test:7443,http://custom.test:7444" },
+    ),
+);

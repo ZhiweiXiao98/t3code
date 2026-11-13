@@ -6,6 +6,36 @@ export const MOBILE_LOCALE: MobileLocale =
   process.env.EXPO_PUBLIC_APP_LOCALE === "zh-CN" ? "zh-CN" : "en";
 
 const ZH_CN_MESSAGES = {
+  "the Codex CLI": "Codex CLI",
+  "{0}, {1}": "{0}、{1}",
+  "{0}, and {1}": "{0}和{1}",
+  "Update {0} to {1} or newer to use {2}.": "请将 {0} 更新到 {1} 或更新版本以使用 {2}。",
+  Worktrees: "工作树",
+  Inherit: "继承",
+  Recursive: "递归",
+  Skip: "跳过",
+  "Set up this provider on web or desktop, or select another model.":
+    "请在网页端或桌面端设置此提供方，或选择其他模型。",
+  Favorites: "收藏",
+  Option: "选项",
+  Interval: "间隔",
+  Rotate: "更换",
+  Resume: "恢复",
+  "Built-in": "内置",
+  "Provider discovery failed.": "提供方发现失败。",
+  "Use a 1Password reference like op://vault/item/field.":
+    "请使用类似 op://vault/item/field 的 1Password 引用。",
+  "Discard draft?": "丢弃草稿？",
+  "“{0}” will be removed.": "将移除“{0}”。",
+  "“{0}” has not been sent yet and will be removed from the outbox.":
+    "“{0}”尚未发送，将从发件箱中移除。",
+  "Saving and sharing files is unavailable on this device.": "此设备不支持保存和共享文件。",
+  "Could not open the share sheet. Try again.": "无法打开共享菜单。请重试。",
+  "Could not download the attachment. Check the connection and try again.":
+    "无法下载附件。请检查连接后重试。",
+  "Could not prepare the attachment for sharing.": "无法准备要共享的附件。",
+  "The file could not be opened. Check the connection and try again.":
+    "无法打开文件。请检查连接后重试。",
   "Filter {0} needs a path under body, headers or query, and a value.":
     "筛选条件 {0} 需要 body、headers 或 query 下的路径，以及一个值。",
   "Filter {0} needs a path under body, headers or query, and at least one value.":

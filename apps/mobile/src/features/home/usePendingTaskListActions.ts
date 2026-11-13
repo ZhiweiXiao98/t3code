@@ -1,3 +1,5 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import * as Dialog from "../../components/ui/Dialog";
 import { useCallback } from "react";
 
@@ -40,29 +42,35 @@ export function usePendingTaskListActions(
 
   const confirmDeletePendingTask = useCallback((pendingTask: PendingNewTask) => {
     if (pendingTask.kind === "draft") {
-      Dialog.alert("Discard draft?", `“${pendingTask.title}” will be removed.`, [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Discard",
-          style: "destructive",
-          onPress: () => {
-            void withThreadDismissal(
-              pendingTask.key,
-              async () =>
-                clearComposerDraftContent(pendingTask.draftKey, {
-                  clearModelSelection: true,
-                  clearWorkspaceSelection: true,
-                }),
-              () => true,
-            );
+      Dialog.alertWithLiteralMessage(
+        "Discard draft?",
+        formatMobileMessage("“{0}” will be removed.", [pendingTask.title]),
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Discard",
+            style: "destructive",
+            onPress: () => {
+              void withThreadDismissal(
+                pendingTask.key,
+                async () =>
+                  clearComposerDraftContent(pendingTask.draftKey, {
+                    clearModelSelection: true,
+                    clearWorkspaceSelection: true,
+                  }),
+                () => true,
+              );
+            },
           },
-        },
-      ]);
+        ],
+      );
       return;
     }
-    Dialog.alert(
+    Dialog.alertWithLiteralMessage(
       "Delete pending task?",
-      `“${pendingTask.title}” has not been sent yet and will be removed from the outbox.`,
+      formatMobileMessage("“{0}” has not been sent yet and will be removed from the outbox.", [
+        pendingTask.title,
+      ]),
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -89,9 +97,11 @@ export function usePendingTaskListActions(
               )
               .catch((error) => {
                 releaseUnlessEditing();
-                Dialog.alert(
+                Dialog.alertWithLiteralMessage(
                   "Could not delete pending task",
-                  error instanceof Error ? error.message : "The pending task could not be removed.",
+                  error instanceof Error
+                    ? error.message
+                    : localizeMobileString("The pending task could not be removed."),
                 );
               });
           },

@@ -1,4 +1,7 @@
 // @effect-diagnostics nodeBuiltinImport:off -- Real temporary files exercise the native portal URI boundary.
+import { snapShotMessageFromError } from "./snapShotMessageProvenance.ts";
+import { DEFAULT_CLIENT_SETTINGS } from "@t3tools/contracts";
+import { localizeSnapShotStateMessages } from "./snapShot.ts";
 import * as NodeEvents from "node:events";
 import * as NodeFSP from "node:fs/promises";
 import * as NodeOS from "node:os";
@@ -315,4 +318,28 @@ it("reads only local PNG files without removing the portal file", async () => {
   await expect(readPortalPng("file://remote/image.png")).rejects.toThrow();
   await NodeFSP.writeFile(NodePath.join(directory, "image.png"), "not a PNG");
   await expect(readPortalPng(bus.uri)).rejects.toThrow("Invalid");
+});
+
+it("preserves same-text transport errors and localizes locally detected missing replies", async () => {
+  const project = (error: unknown, chinese: boolean) =>
+    localizeSnapShotStateMessages(
+      {
+        mode: "portal",
+        shortcut: DEFAULT_CLIENT_SETTINGS.snapShotShortcut,
+        shortcutRegistered: false,
+        shortcutMessage: null,
+        ...snapShotMessageFromError(error, "fallback"),
+      },
+      "linux",
+      chinese,
+    );
+  const collision = "Missing D-Bus reply.";
+  bus.registryError = new Error(collision);
+  const raw = await getLinuxCaptureSupport(appId).catch((error: unknown) => error);
+  expect(project(raw, true).message).toBe(collision);
+  expect(project(raw, false).message).toBe(collision);
+  using _call = vi.spyOn(bus, "call").mockResolvedValue(undefined as never);
+  const owned = await getLinuxCaptureSupport(appId).catch((error: unknown) => error);
+  expect(project(owned, true).message).toBe("未收到 D-Bus 回复。");
+  expect(project(owned, false).message).toBe(collision);
 });

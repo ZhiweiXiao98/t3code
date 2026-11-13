@@ -1,4 +1,7 @@
 // @effect-diagnostics nodeBuiltinImport:off -- Native extension installation uses isolated filesystem fixtures.
+import { stripSnapShotMessageProvenance } from "./snapShotMessageProvenance.ts";
+import { DEFAULT_CLIENT_SETTINGS } from "@t3tools/contracts";
+import { localizeSnapShotStateMessages } from "./snapShot.ts";
 import * as NodeFSP from "node:fs/promises";
 import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
@@ -150,6 +153,57 @@ it("surfaces desktop rejection and disconnect as actionable failures", async () 
   const { setup, bus } = fixture({ state: 2, version: 3, accepted: false });
   await expect(setup.perform("enable-extension")).rejects.toThrow("Sign out");
   bus.emit("error", new Error("Session bus disconnected"));
-  expect(await setup.state()).toEqual({ status: "error", message: "Session bus disconnected" });
+  expect(stripSnapShotMessageProvenance(await setup.state())).toEqual({
+    status: "error",
+    message: "Session bus disconnected",
+  });
   setup.close();
+});
+
+it("keeps extension and D-Bus diagnostics literal while projecting real owned setup states", async () => {
+  const project = (state: Awaited<ReturnType<GnomeCaptureSetup["state"]>>, chinese: boolean) =>
+    localizeSnapShotStateMessages(
+      {
+        mode: "portal",
+        shortcut: DEFAULT_CLIENT_SETTINGS.snapShotShortcut,
+        shortcutRegistered: false,
+        shortcutMessage: null,
+        message: null,
+        gnomeExtension: state,
+      },
+      "linux",
+      chinese,
+    );
+  const unsupported = fixture({ shell: "52.0" });
+  try {
+    const state = await unsupported.setup.state();
+    expect(state.status).toBe("unsupported");
+    expect(project(state, true).gnomeExtension?.message).toContain("当前会话运行 GNOME 52。");
+    expect(project(state, false).gnomeExtension?.message).toBe(state.message);
+  } finally {
+    unsupported.setup.close();
+  }
+  const fallback =
+    "GNOME could not load the extension. Check GNOME Extensions for details, or sign out and back in.";
+  for (const error of ["", fallback, "GNOME returned no setup information."]) {
+    const current = fixture({ state: 3, version: 3, error });
+    try {
+      const state = await current.setup.state();
+      expect(project(state, true).gnomeExtension?.message).toBe(
+        error || "GNOME 无法加载扩展。请在 GNOME 扩展应用中查看详情，或退出后重新登录。",
+      );
+      expect(project(state, false).gnomeExtension?.message).toBe(error || fallback);
+      expect(Object.getOwnPropertySymbols(project(state, true).gnomeExtension!)).toEqual([]);
+    } finally {
+      current.setup.close();
+    }
+  }
+  const disconnected = fixture();
+  try {
+    const text = "GNOME did not respond. Sign in to a GNOME Wayland session and try again.";
+    disconnected.bus.emit("error", new Error(text));
+    expect(project(await disconnected.setup.state(), true).gnomeExtension?.message).toBe(text);
+  } finally {
+    disconnected.setup.close();
+  }
 });

@@ -150,14 +150,25 @@ it.each([
       .element(screen.getByText("This sheet could not be opened.", { exact: true }))
       .toBeVisible();
     await screen.rerender(f.surface("zh-CN"));
-    await expect.element(screen.getByRole("status")).toHaveTextContent(chinese);
+    await expect.element(screen.getByText(chinese, { exact: true })).toBeVisible();
+    await expect
+      .element(screen.getByText(chinese, { exact: true }))
+      .toHaveAttribute("role", "status");
+    expect(screen.container.querySelectorAll('[role="status"]')).toHaveLength(2);
     await expect.element(screen.getByText("无法打开此工作表。", { exact: true })).toBeVisible();
     await expect
       .element(screen.getByRole("tab", { name: userSheet, exact: true }))
       .toHaveAttribute("aria-selected", "true");
     await expect.element(screen.getByRole("gridcell")).toHaveTextContent(userCell);
     await screen.rerender(f.surface("en"));
-    await expect.element(screen.getByRole("status")).toHaveTextContent(english);
+    await expect.element(screen.getByText(english, { exact: true })).toBeVisible();
+    await expect
+      .element(screen.getByText(english, { exact: true }))
+      .toHaveAttribute("role", "status");
+    await expect
+      .element(screen.getByText("This sheet could not be opened.", { exact: true }))
+      .toBeVisible();
+    expect(screen.container.querySelectorAll('[role="status"]')).toHaveLength(2);
     expect(f.requests.filter((request) => request.method === "open")).toHaveLength(1);
     expect(f.workers).toHaveLength(1);
     expect(f.onError).not.toHaveBeenCalled();

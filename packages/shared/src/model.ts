@@ -292,6 +292,8 @@ export function getProviderOptionCurrentLabel(
   descriptor: ProviderOptionDescriptor | null | undefined,
   selection?: ModelSelection | null,
   reportedSelection?: ModelSelection | null,
+  translateOwnedMessage: (message: "On" | "Off" | "Default" | "Unknown") => string = (message) =>
+    message,
 ): string | undefined {
   if (!descriptor) {
     return undefined;
@@ -299,17 +301,17 @@ export function getProviderOptionCurrentLabel(
   if (descriptor.type === "boolean") {
     return typeof descriptor.currentValue === "boolean"
       ? descriptor.currentValue
-        ? "On"
-        : "Off"
+        ? translateOwnedMessage("On")
+        : translateOwnedMessage("Off")
       : undefined;
   }
   const currentValue = getProviderOptionCurrentValue(descriptor, selection, reportedSelection);
   return (
     descriptor.options.find((option) => option.id === currentValue)?.label ??
     (getReportedOptionValue(descriptor.id, selection, reportedSelection) === "default"
-      ? "Default"
+      ? translateOwnedMessage("Default")
       : descriptor.id === "variant"
-        ? "Unknown"
+        ? translateOwnedMessage("Unknown")
         : undefined)
   );
 }

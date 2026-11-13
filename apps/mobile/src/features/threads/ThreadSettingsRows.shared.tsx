@@ -68,6 +68,7 @@ export function ModelRowContent(
         <View className="min-w-0 flex-1">
           <View className="flex-row items-center gap-2">
             <Text
+              localize={false}
               className="min-w-0 shrink text-base font-t3-medium text-foreground"
               numberOfLines={props.labelNumberOfLines}
             >
@@ -92,6 +93,7 @@ export function ModelRowContent(
           </View>
           {props.option.subtitle ? (
             <Text
+              localize={false}
               className="text-xs text-foreground-muted"
               numberOfLines={props.labelNumberOfLines}
             >

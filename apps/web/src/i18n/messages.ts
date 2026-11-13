@@ -3572,6 +3572,7 @@ const EN_MESSAGES = {
   "browserPreview.cancelAnnotationHint": "Cancel annotation (Esc)",
   "browserPreview.annotateHint": "Annotate elements, regions, and drawings",
   "browserPreview.stopRecording": "Stop recording",
+  "device.foldHttpFailed": "Fold command failed ({status}).",
   "browserPreview.captureScreenshot": "Capture screenshot",
   "browserPreview.recordHint": "Screenshot · Shift-click to record",
   "browserPreview.float": "Float preview over chat",
@@ -8125,6 +8126,7 @@ const ZH_CN_MESSAGES = {
   "browserPreview.cancelAnnotationHint": "取消批注（Esc）",
   "browserPreview.annotateHint": "批注元素、区域或手绘内容",
   "browserPreview.stopRecording": "停止录制",
+  "device.foldHttpFailed": "折叠命令失败（{status}）。",
   "browserPreview.captureScreenshot": "截取屏幕截图",
   "browserPreview.recordHint": "截图 · 按住 Shift 点击可录制",
   "browserPreview.float": "将预览悬浮在对话上方",
@@ -9245,6 +9247,7 @@ for (const [key, source] of Object.entries(EN_MESSAGES) as ReadonlyArray<
 // New upstream settings copy can be localized here before it receives a stable
 // message key. Settings containers and search both consume this same table.
 const ZH_CN_SOURCE_MESSAGES: Readonly<Record<string, string>> = {
+  "Unexpected Android fold response.": "Android 折叠响应格式异常。",
   " · Fit to width": " · 适应宽度",
   "This sheet could not be opened.": "无法打开此工作表。",
   "These cells could not be drawn. Try scrolling to another area.":

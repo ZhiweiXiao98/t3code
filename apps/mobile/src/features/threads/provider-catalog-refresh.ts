@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import type { EnvironmentId } from "@t3tools/contracts";
 import type { AtomCommandResult } from "@t3tools/client-runtime/state/runtime";
 import {
@@ -29,5 +30,7 @@ export function providerCatalogRefreshError(
 ): string | null {
   if (result._tag !== "Failure" || isAtomCommandInterrupted(result)) return null;
   const error = squashAtomCommandFailure(result);
-  return error instanceof Error ? error.message : "Provider discovery failed.";
+  return error instanceof Error
+    ? error.message
+    : localizeMobileString("Provider discovery failed.");
 }

@@ -6,7 +6,12 @@ import { useAtomMount, useAtomSet, useAtomValue } from "@effect/atom-react";
 import { useRef, useState } from "react";
 import { Button } from "~/components/ui/button";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "~/components/ui/tooltip";
-import { AndroidFoldError, setAndroidFold, type AndroidFoldPosture } from "./deviceFold";
+import {
+  AndroidFoldError,
+  androidFoldFailureMessage,
+  setAndroidFold,
+  type AndroidFoldPosture,
+} from "./deviceFold";
 import { androidFoldReadAtom, androidFoldViewAtom, foldAngle, NOOP_ATOM } from "./deviceHubAtoms";
 import { DeviceDuoGlyph } from "./DeviceDuoGlyph";
 
@@ -24,7 +29,9 @@ export function DeviceAndroidFoldControls(props: {
 }) {
   const { locale: devicePreviewLocale } = useI18n();
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<
+    Error | "Fold command timed out." | "Could not change fold posture." | null
+  >(null);
   const busy = useRef(false);
   const { access, deviceKey, deviceId, visible, enabled, screenWidth, screenHeight } = props;
   const viewAtom = androidFoldViewAtom(deviceKey);
@@ -63,10 +70,10 @@ export function DeviceAndroidFoldControls(props: {
         setAngle(foldAngle(fold));
         setError(
           controller.signal.aborted
-            ? translateWebSource(devicePreviewLocale, "Fold command timed out.")
+            ? "Fold command timed out."
             : cause instanceof Error
-              ? cause.message
-              : translateWebSource(devicePreviewLocale, "Could not change fold posture."),
+              ? cause
+              : "Could not change fold posture.",
         );
       })
       .finally(() => {
@@ -76,6 +83,12 @@ export function DeviceAndroidFoldControls(props: {
       });
   };
 
+  const errorMessage =
+    error instanceof Error
+      ? androidFoldFailureMessage(devicePreviewLocale, error)
+      : error === null
+        ? null
+        : translateWebSource(devicePreviewLocale, error);
   return (
     <div
       aria-label={translateWebSource(devicePreviewLocale, "Android fold controls")}
@@ -121,21 +134,21 @@ export function DeviceAndroidFoldControls(props: {
           </TooltipPopup>
         </Tooltip>
       </div>
-      {error ? (
+      {errorMessage ? (
         <Tooltip>
           <TooltipTrigger
             render={
               <span
                 tabIndex={0}
                 role="alert"
-                aria-label={error}
+                aria-label={errorMessage}
                 className="pointer-events-auto text-xs text-destructive"
               >
                 !
               </span>
             }
           />
-          <TooltipPopup side="left">{error}</TooltipPopup>
+          <TooltipPopup side="left">{errorMessage}</TooltipPopup>
         </Tooltip>
       ) : null}
     </div>

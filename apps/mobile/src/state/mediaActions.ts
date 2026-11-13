@@ -75,9 +75,10 @@ export function useMediaActions(source: MediaActionsSource | undefined, onOpenFi
     return task(source, request.signal)
       .catch((error: unknown) => {
         if (!request.signal.aborted) {
-          Dialog.alert(
+          // Native photo failures still mix application guidance and platform diagnostics.
+          (kind === "share" ? Dialog.alertWithLiteralMessage : Dialog.alert)(
             kind === "share" ? "Could not share file" : "Could not save image",
-            error instanceof Error ? error.message : "Try again.",
+            error instanceof Error ? error.message : localizeMobileString("Try again."),
           );
         }
       })
@@ -92,7 +93,10 @@ export function useMediaActions(source: MediaActionsSource | undefined, onOpenFi
   const hostUri = async (source: MediaActionsSource, signal: AbortSignal) => {
     const uri = "uri" in source ? normalizeNativeMarkdownUrl(source.uri) : await refresh();
     if (signal.aborted || !canReadHostMedia(hostEnvironmentId)) return null;
-    if (uri === null) throw new Error("The file could not be loaded. Reconnect and try again.");
+    if (uri === null)
+      throw new Error(
+        localizeMobileString("The file could not be loaded. Reconnect and try again."),
+      );
     return uri;
   };
 

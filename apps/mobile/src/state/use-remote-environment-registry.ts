@@ -1,3 +1,4 @@
+import { formatOrchestrationCompatibilityError } from "@t3tools/client-runtime/connection";
 import { formatMobileMessage } from "../i18n/mobileDisplayStrings";
 import { localizeMobileString } from "../i18n/mobileStrings";
 import * as Dialog from "../components/ui/Dialog";
@@ -68,9 +69,10 @@ export async function pairEnvironment(
   }
   const error = Cause.squash(result.cause);
   const message =
-    error instanceof Error
+    formatOrchestrationCompatibilityError(error, formatMobileMessage) ??
+    (error instanceof Error
       ? error.message
-      : localizeMobileString("Failed to pair with the environment.");
+      : localizeMobileString("Failed to pair with the environment."));
   if (
     error !== null &&
     typeof error === "object" &&

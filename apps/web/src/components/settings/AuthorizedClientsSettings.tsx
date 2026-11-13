@@ -1,3 +1,4 @@
+import { advertisedEndpointLabel } from "./advertisedEndpointMessages";
 import { managedCapabilityDenial } from "../../i18n/managedPolicyMessages";
 import { useI18n, type WebTranslate } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
@@ -242,9 +243,9 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
       options.push({
         id: endpoint.id,
         preferenceKey: endpointDefaultPreferenceKey(endpoint),
-        label: endpoint.label,
+        label: advertisedEndpointLabel(endpoint, translationLocale),
         url,
-        detail: endpointShareHint(endpoint, url),
+        detail: translateWebSource(translationLocale, endpointShareHint(endpoint, url)),
         qrShareable: isQrShareableEndpoint(endpoint),
       });
     }
@@ -1028,7 +1029,7 @@ export const AdvertisedEndpointListRow = memo(function AdvertisedEndpointListRow
       <div className="flex min-h-7 min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
         <div className="flex min-h-7 min-w-0 flex-1 items-center gap-3">
           <h3 className="shrink-0 text-sm leading-5 font-medium text-foreground">
-            {endpoint.label}
+            {advertisedEndpointLabel(endpoint, translationLocale)}
           </h3>
           {shouldShowEndpointUrl ? (
             <Tooltip>

@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import {
   getPromptControlledTraits,
@@ -156,7 +157,9 @@ function ProviderHeader(props: {
   const content = (
     <>
       <ProviderIcon iconUrl={props.iconUrl} provider={props.driver} size={15} />
-      <Text className="text-sm font-t3-medium text-foreground-muted">{props.label}</Text>
+      <Text localize={false} className="text-sm font-t3-medium text-foreground-muted">
+        {props.label}
+      </Text>
       {props.collapsible ? (
         <>
           <View className="flex-1" />
@@ -199,6 +202,7 @@ function ProviderHeader(props: {
 
 function DisclosureRow(props: {
   readonly label: string;
+  readonly localize?: boolean;
   readonly value: string | undefined;
   readonly onPress: () => void;
   readonly isLast?: boolean;
@@ -212,10 +216,12 @@ function DisclosureRow(props: {
         !props.isLast && "border-b border-border-subtle",
       )}
     >
-      <Text className="text-sm font-t3-medium text-foreground">{props.label}</Text>
+      <Text localize={props.localize} className="text-sm font-t3-medium text-foreground">
+        {props.label}
+      </Text>
       <View className="flex-1" />
       {props.value ? (
-        <Text className="text-sm text-foreground-muted" numberOfLines={1}>
+        <Text localize={props.localize} className="text-sm text-foreground-muted" numberOfLines={1}>
           {props.value}
         </Text>
       ) : null}
@@ -231,6 +237,7 @@ function DisclosureRow(props: {
 
 function SwitchRow(props: {
   readonly label: string;
+  readonly localize?: boolean;
   readonly value: boolean;
   readonly onValueChange: (value: boolean) => void;
   readonly isLast?: boolean;
@@ -242,9 +249,12 @@ function SwitchRow(props: {
         !props.isLast && "border-b border-border-subtle",
       )}
     >
-      <Text className="text-sm font-t3-medium text-foreground">{props.label}</Text>
+      <Text localize={props.localize} className="text-sm font-t3-medium text-foreground">
+        {props.label}
+      </Text>
       <ThemedSwitch
         accessibilityLabel={props.label}
+        localizeAccessibilityLabel={props.localize}
         onValueChange={props.onValueChange}
         value={props.value}
       />
@@ -764,7 +774,11 @@ function buildThreadSettingsCatalogItems(
     );
     const updateRequiredNotice =
       group.updateRequired && session.providerFilter !== FAVORITES_PROVIDER_FILTER
-        ? formatProviderUpdateRequiredNotice(group.updateRequired, session.searchQuery)
+        ? formatProviderUpdateRequiredNotice(
+            group.updateRequired,
+            session.searchQuery,
+            formatMobileMessage,
+          )
         : null;
     if (visibleModels.length === 0 && !updateRequiredNotice) {
       return [];
@@ -849,6 +863,7 @@ function ThreadSettingsOptionsItem(props: {
               >
                 <DisclosureRow
                   label={descriptor.label}
+                  localize={false}
                   value={
                     session.promptTraits.ultrathinkPromptControlled &&
                     descriptor.id === session.promptTraits.primarySelectDescriptor?.id
@@ -857,6 +872,7 @@ function ThreadSettingsOptionsItem(props: {
                           descriptor,
                           session.displayedModelSelection,
                           session.reportedModelSelection,
+                          localizeMobileString,
                         )
                   }
                   onPress={() => props.onOpenSubmenu({ kind: "descriptor", id: descriptor.id })}
@@ -873,6 +889,7 @@ function ThreadSettingsOptionsItem(props: {
             >
               <SwitchRow
                 label={descriptor.label}
+                localize={false}
                 value={descriptor.currentValue ?? false}
                 onValueChange={(value) => session.applyOptionChange(descriptor.id, value)}
               />
@@ -934,7 +951,7 @@ function ThreadSettingsMainContent(props: {
     void refreshProviderCatalog(session.environmentId).then((result) => {
       setIsRefreshingProviders(false);
       const error = providerCatalogRefreshError(result);
-      if (error) Dialog.alert("Could not refresh models", error);
+      if (error) Dialog.alertWithLiteralMessage("Could not refresh models", error);
     });
   };
   const [listLoaded, setListLoaded] = useState(false);
@@ -964,7 +981,11 @@ function ThreadSettingsMainContent(props: {
         />
       );
     } else if (item.kind === "notice") {
-      content = <Text className="mx-8 mt-2 text-xs text-foreground-muted">{item.text}</Text>;
+      content = (
+        <Text localize={false} className="mx-8 mt-2 text-xs text-foreground-muted">
+          {item.text}
+        </Text>
+      );
     } else if (item.kind === "empty") {
       content = (
         <View className="items-center px-8 py-14">
@@ -1181,11 +1202,12 @@ function ThreadSettingsModelsScreen() {
   };
   const searchToolbarInset = useSearchToolbarInset(search);
   const providerFilters = [
-    { id: "all-providers", title: "All providers", value: null },
-    { id: "favorites", title: "Favorites", value: FAVORITES_PROVIDER_FILTER },
+    { id: "all-providers", title: "All providers", value: null, localize: true },
+    { id: "favorites", title: "Favorites", value: FAVORITES_PROVIDER_FILTER, localize: true },
     ...session.providerGroups.map((group) => ({
       id: `provider:${group.providerKey}`,
       title: group.providerLabel,
+      localize: false,
       value: group.providerKey,
     })),
   ];
@@ -1210,6 +1232,7 @@ function ThreadSettingsModelsScreen() {
                 items: providerFilters.map((filter) => ({
                   id: filter.id,
                   title: filter.title,
+                  localize: filter.localize,
                   selected: session.providerFilter === filter.value,
                   onPress: () => session.setProviderFilter(filter.value),
                 })),
@@ -1245,10 +1268,10 @@ function ThreadSettingsModelsScreen() {
           onOpenSubmenu={(submenu) => {
             const title =
               submenu.kind === "runtime"
-                ? "Runtime"
+                ? localizeMobileString("Runtime")
                 : (session.displayedDescriptors.find(
                     (descriptor) => descriptor.type === "select" && descriptor.id === submenu.id,
-                  )?.label ?? "Option");
+                  )?.label ?? localizeMobileString("Option"));
             navigation.navigate("ThreadSettingsChoice", { ...submenu, title });
           }}
         />
@@ -1263,7 +1286,12 @@ function ThreadSettingsChoiceScreen() {
 
   return (
     <>
-      <AppBar title={route.params.title} onBack={() => navigation.goBack()} hideBottomBorder />
+      <AppBar
+        title={route.params.title}
+        localizeTitle={false}
+        onBack={() => navigation.goBack()}
+        hideBottomBorder
+      />
       <ScreenContent>
         <ThreadSettingsChoiceContent
           submenu={route.params}

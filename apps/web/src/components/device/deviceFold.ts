@@ -1,3 +1,5 @@
+import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
+import { translateWebMessage, translateWebSource } from "~/i18n/messages";
 import type { DeviceHubAccess } from "@t3tools/client-runtime/state/deviceHubAccess";
 import { withDeviceHubQuery } from "@t3tools/client-runtime/state/deviceHubAccess";
 import * as Schema from "effect/Schema";
@@ -15,12 +17,31 @@ export class AndroidFoldError extends Schema.TaggedError<AndroidFoldError>()("An
   status: Schema.Number,
 }) {}
 
+const ownedFailures = new WeakMap<
+  Error,
+  { readonly kind: "invalid" } | { readonly kind: "http"; readonly status: number }
+>();
+
+function invalidFoldResponse(): Error {
+  const error = new Error("Unexpected Android fold response.");
+  ownedFailures.set(error, { kind: "invalid" });
+  return error;
+}
+
+export function androidFoldFailureMessage(locale: ResolvedAppLocale, error: Error): string {
+  const source = ownedFailures.get(error);
+  if (source === undefined) return error.message;
+  return source.kind === "invalid"
+    ? translateWebSource(locale, "Unexpected Android fold response.")
+    : translateWebMessage(locale, "device.foldHttpFailed", { status: source.status });
+}
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
 const parseFold = (payload: unknown): AndroidFoldState => {
   if (!isRecord(payload) || payload.ok !== true || !isRecord(payload.fold)) {
-    throw new Error("Unexpected Android fold response.");
+    throw invalidFoldResponse();
   }
   const { supported, posture, hingeAngle } = payload.fold;
   if (
@@ -33,7 +54,7 @@ const parseFold = (payload: unknown): AndroidFoldState => {
       posture !== "tent") ||
     (hingeAngle !== null && (typeof hingeAngle !== "number" || !Number.isFinite(hingeAngle)))
   ) {
-    throw new Error("Unexpected Android fold response.");
+    throw invalidFoldResponse();
   }
   return { supported, posture, hingeAngle };
 };
@@ -60,10 +81,13 @@ const foldRequest = async (
   if (!response.ok) {
     const payload: unknown = await response.json().catch(() => null);
     const error = isRecord(payload) ? payload.error : null;
-    throw new AndroidFoldError({
+    const failure = new AndroidFoldError({
       message: typeof error === "string" ? error : `Fold command failed (${response.status}).`,
       status: response.status,
     });
+    if (typeof error !== "string")
+      ownedFailures.set(failure, { kind: "http", status: response.status });
+    throw failure;
   }
   return parseFold(await response.json());
 };

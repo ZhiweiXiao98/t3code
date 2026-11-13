@@ -1,4 +1,6 @@
 // @effect-diagnostics nodeBuiltinImport:off -- Isolated installation/config fixtures; no user's desktop state.
+import { DEFAULT_CLIENT_SETTINGS } from "@t3tools/contracts";
+import { localizeSnapShotStateMessages } from "./snapShot.ts";
 import * as NodeFSP from "node:fs/promises";
 import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
@@ -166,4 +168,44 @@ it("keeps capture working when an overlay cannot start", async () => {
   expect(result.png).toEqual(png);
   expect(result.feedback?.animationStarted).toBe(false);
   result.feedback?.close();
+});
+
+it("projects actual helper failures by their origin instead of matching stderr text", async () => {
+  await setup.perform("install-hyprland-helper");
+  const fallback = "Hyprland capture did not respond. Check capture setup and try again.";
+  const project = (state: Awaited<ReturnType<HyprlandCaptureSetup["state"]>>, chinese: boolean) =>
+    localizeSnapShotStateMessages(
+      {
+        mode: "portal",
+        shortcut: DEFAULT_CLIENT_SETTINGS.snapShotShortcut,
+        shortcutRegistered: false,
+        shortcutMessage: null,
+        message: null,
+        hyprlandHelper: state,
+      },
+      "linux",
+      chinese,
+    );
+  for (const stderr of ["", fallback, "Update the bundled capture helper to continue."]) {
+    execute.mockImplementation(
+      (
+        _file: string,
+        _args: string[],
+        _options: unknown,
+        callback: (error: Error, stdout: string, stderr: string) => void,
+      ) => callback(new Error("process failed"), "", stderr),
+    );
+    const state = await setup.state();
+    expect(project(state, true).hyprlandHelper?.message).toBe(
+      stderr || "Hyprland 截取未响应。请检查截取设置后重试。",
+    );
+    expect(project(state, false).hyprlandHelper?.message).toBe(stderr || fallback);
+    expect(Object.getOwnPropertySymbols(project(state, true).hyprlandHelper!)).toEqual([]);
+    expect(state.message).toBe(stderr || fallback);
+  }
+  await NodeFSP.unlink(hyprlandCaptureExecutable(paths));
+  await NodeFSP.symlink(paths.bundle, hyprlandCaptureExecutable(paths));
+  expect(project(await setup.state(), true).hyprlandHelper?.message).toBe(
+    "截取辅助程序必须是常规文件，不能是链接。",
+  );
 });

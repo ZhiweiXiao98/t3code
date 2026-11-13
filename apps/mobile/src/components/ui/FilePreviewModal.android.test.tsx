@@ -95,7 +95,54 @@ vi.mock("./Menu", async () => ({ Menu: (await import("@react-native-menu/menu"))
 vi.mock("./AppSymbol", () => ({ SymbolView: () => null }));
 vi.mock("./AppActivityIndicator", () => ({ AppActivityIndicator: () => null }));
 vi.mock("./Button", () => ({ Button: () => null }));
-vi.mock("./SheetHeader", () => ({ SheetHeader: () => null }));
+vi.mock("./SheetHeader", async () => await import("./SheetHeader.android"));
+vi.mock("./AppBar", async () => await import("./AppBar.android"));
+vi.mock("../../native/StackHeader", () => ({ NativeStackScreenOptions: () => null }));
+vi.mock("../../lib/backHandler", () => ({ useHardwareBack: () => {} }));
+vi.mock("./useToolbarLayout", () => ({
+  useToolbarLayout: () => ({ paddingTop: 0, paddingBottom: 0, height: 56 }),
+}));
+vi.mock("../../features/layout/useSidebarToggle", () => ({ useSidebarToggle: () => null }));
+vi.mock("../../features/layout/adaptive-workspace-context", () => ({
+  useAdaptiveWorkspaceLayout: () => ({ layout: { usesSplitView: false } }),
+}));
+vi.mock("../../features/layout/inspector-bar-store", async () => ({
+  InspectorCloseContext: (await import("react")).createContext(null),
+}));
+vi.mock("../../features/settings/appearance/AppearancePreferencesProvider", () => ({
+  useAppearancePreferences: () => ({ themeVariables: {} }),
+}));
+vi.mock("../../features/settings/appearance/useScaledTextRole", () => ({
+  useScaledTextRole: () => ({}),
+}));
+vi.mock("./useControlTheme", () => ({ useControlTheme: () => ({ colors: {} }) }));
+vi.mock("./WorkspaceAppBar.android", () => ({
+  useHasWorkspaceAppBar: () => false,
+  WorkspaceAppBar: () => null,
+}));
+vi.mock("./SearchField", () => ({ SearchField: () => null }));
+vi.mock("./AndroidAnchoredMenu.android", () => ({ AndroidAnchoredMenu: () => null }));
+vi.mock("@expo/ui/jetpack-compose", () => ({
+  Column: ({ children }: { children?: ReactNode }) => createElement("div", null, children),
+  RNHostView: ({ children }: { children?: ReactNode }) => createElement("div", null, children),
+  Text: ({ children }: { children?: ReactNode }) => createElement("span", null, children),
+}));
+vi.mock("./NativeAppBar.android", () => ({
+  NativeAppBar: (props: {
+    title: ReactNode;
+    navigationIcon?: ReactNode;
+    actions?: ReactNode;
+    nativeActions?: ReactNode;
+  }) =>
+    createElement(
+      "header",
+      null,
+      props.navigationIcon,
+      props.title,
+      props.actions,
+      props.nativeActions,
+    ),
+}));
 vi.mock("../PdfPreview", () => ({ PdfPreview: () => null }));
 vi.mock("../MediaVideoPlayer", () => ({ MediaVideoPlayer: () => null }));
 vi.mock("./Dialog", () => ({ alert: vi.fn() }));
@@ -283,5 +330,77 @@ it.each(["en", "zh-CN"] as const)(
     }
     expect(harness.run).toHaveBeenCalledTimes(2);
     expect(harness.share).toHaveBeenCalledTimes(2);
+  },
+);
+
+it.each(["en", "zh-CN"] as const)(
+  "preserves PDF and document names through Android headers and external viewer dispatch (%s)",
+  async (locale) => {
+    resetHarness();
+    using _globals = { [Symbol.dispose]: () => vi.unstubAllGlobals() };
+    const original = strings.localizeMobileString;
+    using _locale = vi
+      .spyOn(strings, "localizeMobileString")
+      .mockImplementation((value) => original(value, locale));
+    const { openAttachmentInViewer } = await import("../../lib/attachmentDownload");
+    vi.mocked(openAttachmentInViewer).mockClear();
+    let finishOpen: (() => void) | undefined;
+    vi.mocked(openAttachmentInViewer).mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finishOpen = resolve;
+        }),
+    );
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    const onClose = vi.fn();
+    try {
+      await act(async () =>
+        root.render(
+          <FilePreviewModal
+            source={{ kind: "pdf", name: "Settings", uri: "file:///Settings.pdf" }}
+            onRequestClose={onClose}
+          />,
+        ),
+      );
+      expect(container.querySelector("header")?.textContent).toContain("Settings");
+      expect(container.textContent).not.toContain("设置");
+      act(() =>
+        container
+          .querySelector<HTMLButtonElement>(
+            `[aria-label="${locale === "zh-CN" ? "关闭" : "Close"}"]`,
+          )!
+          .click(),
+      );
+      expect(onClose).toHaveBeenCalledOnce();
+      onClose.mockClear();
+      await act(async () =>
+        root.render(
+          <FilePreviewModal
+            key="document"
+            source={{
+              kind: "document",
+              name: "Settings",
+              uri: "file:///Settings.doc",
+              mimeType: "application/msword",
+            }}
+            onRequestClose={onClose}
+          />,
+        ),
+      );
+      expect(container.textContent).toContain("Settings");
+      expect(container.textContent).not.toContain("设置");
+      expect(openAttachmentInViewer).toHaveBeenCalledWith(
+        expect.objectContaining({
+          uri: "file:///Settings.doc",
+          attachment: { name: "Settings", mimeType: "application/msword" },
+        }),
+      );
+      expect(onClose).not.toHaveBeenCalled();
+      await act(async () => finishOpen?.());
+      expect(onClose).toHaveBeenCalledOnce();
+    } finally {
+      await act(async () => root.unmount());
+    }
   },
 );

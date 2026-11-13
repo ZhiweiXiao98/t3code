@@ -1,4 +1,9 @@
 // @effect-diagnostics nodeBuiltinImport:off -- Bundled Wayland helper installed only by explicit setup.
+import {
+  snapShotMessage,
+  snapShotMessageFromError,
+  snapShotOwnedError,
+} from "./snapShotMessageProvenance.ts";
 import * as NodeChildProcess from "node:child_process";
 import * as NodeFSP from "node:fs/promises";
 import * as NodeOS from "node:os";
@@ -56,10 +61,11 @@ function run(executable: string, args: string[], signal?: AbortSignal): Promise<
       (error, stdout, stderr) => {
         if (error)
           reject(
-            new Error(
-              stderr.trim() ||
-                "Hyprland capture did not respond. Check capture setup and try again.",
-            ),
+            stderr.trim()
+              ? new Error(stderr.trim())
+              : snapShotOwnedError(
+                  "Hyprland capture did not respond. Check capture setup and try again.",
+                ),
           );
         else resolve(stdout);
       },
@@ -73,7 +79,7 @@ async function regularFile(path: string): Promise<Buffer | undefined> {
   });
   if (!stat) return undefined;
   if (!stat.isFile() || stat.isSymbolicLink())
-    throw new Error("The capture helper must be a regular file, not a link.");
+    throw snapShotOwnedError("The capture helper must be a regular file, not a link.");
   return NodeFSP.readFile(path);
 }
 const decodeCapabilities = Schema.decodeUnknownSync(
@@ -91,28 +97,29 @@ export class HyprlandCaptureSetup {
       if (!installed)
         return {
           status: "not-installed",
-          message: "Install the bundled helper to capture the window you're using.",
+          ...snapShotMessage("Install the bundled helper to capture the window you're using."),
         };
       const bundle = await regularFile(this.paths.bundle);
       if (!bundle)
-        throw new Error(
+        throw snapShotOwnedError(
           "The Hyprland capture helper is missing from this build. Update or reinstall T3 Code.",
         );
       if (!installed.equals(bundle))
         return {
           status: "update-required",
-          message: "Update the bundled capture helper to continue.",
+          ...snapShotMessage("Update the bundled capture helper to continue."),
         };
       return {
         status: "ready",
-        message:
+        ...snapShotMessage(
           "Helper ready. Hyprland may ask for screen-sharing permission on your first capture.",
+        ),
         ...decodeCapabilities(await run(hyprlandCaptureExecutable(this.paths), ["check"])),
       };
     } catch (error) {
       return {
         status: "error",
-        message: error instanceof Error ? error.message : "Couldn't check Hyprland capture access.",
+        ...snapShotMessageFromError(error, "Couldn't check Hyprland capture access."),
       };
     }
   }

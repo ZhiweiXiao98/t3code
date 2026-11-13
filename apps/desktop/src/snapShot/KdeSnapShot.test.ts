@@ -1,4 +1,6 @@
 // @effect-diagnostics nodeBuiltinImport:off -- Isolated helper installation fixtures, never the user's data directory.
+import { DEFAULT_CLIENT_SETTINGS } from "@t3tools/contracts";
+import { localizeSnapShotStateMessages } from "./snapShot.ts";
 import * as NodeFSP from "node:fs/promises";
 import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
@@ -187,4 +189,49 @@ it("keeps a successfully captured image when optional KDE effects fail", async (
   const [, args] = execute.mock.calls.find(([, args]) => args[0] === "capture")!;
   await expect(NodeFSP.stat(args[1])).rejects.toMatchObject({ code: "ENOENT" });
   capture.feedback?.close();
+});
+
+it("distinguishes real helper stderr from owned capability and file validation messages", async () => {
+  await setup.perform("install-kde-helper");
+  const fallback = "The KDE capture helper did not respond. Reopen capture setup and check access.";
+  const project = (state: Awaited<ReturnType<KdeCaptureSetup["state"]>>, chinese: boolean) =>
+    localizeSnapShotStateMessages(
+      {
+        mode: "portal",
+        shortcut: DEFAULT_CLIENT_SETTINGS.snapShotShortcut,
+        shortcutRegistered: false,
+        shortcutMessage: null,
+        message: null,
+        kdeHelper: state,
+      },
+      "linux",
+      chinese,
+    );
+  for (const [stderr, translated] of [
+    ["", "KDE 截取辅助程序未响应。请重新打开截取设置并检查权限。"],
+    [fallback, fallback],
+    [
+      "org.kde.KWin.ScreenShot2.Error.NoAuthorized",
+      "KDE 尚未授予截取权限。请在设置中重新安装截取辅助程序，然后重试。",
+    ],
+  ] as const) {
+    execute.mockImplementation(
+      (
+        _file: string,
+        _args: string[],
+        _options: unknown,
+        callback: (error: Error, stdout: string, stderr: string) => void,
+      ) => callback(new Error("process failed"), "", stderr),
+    );
+    const state = await setup.state();
+    expect(project(state, true).kdeHelper?.message).toBe(translated);
+    expect(project(state, false).kdeHelper?.message).toBe(state.message);
+    expect(Object.getOwnPropertySymbols(project(state, false).kdeHelper!)).toEqual([]);
+  }
+  const executable = kdeCapturePaths(paths).executable;
+  await NodeFSP.unlink(executable);
+  await NodeFSP.symlink(paths.bundle, executable);
+  expect(project(await setup.state(), true).kdeHelper?.message).toBe(
+    "截取辅助程序文件必须是常规文件。请移除冲突的链接后重试。",
+  );
 });

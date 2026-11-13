@@ -4,6 +4,11 @@ import { defineConfig, normalizePath } from "vite-plus";
 import "vite-plus/test/config";
 
 const reactTests = [
+  "src/features/threads/ThreadSettingsRows.shared.test.tsx",
+  "src/features/home/usePendingTaskListActions.test.tsx",
+  "src/features/threads/useFileChipShare.test.tsx",
+  "src/components/ComposerContextAttachment.test.tsx",
+
   "src/features/settings/SettingsScheduledTasksRouteScreen.test.tsx",
   "src/components/ui/FilePreviewModal.android.test.tsx",
   "src/features/threads/ProjectCloneBanner.test.tsx",

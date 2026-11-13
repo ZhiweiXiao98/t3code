@@ -1,4 +1,5 @@
 // @effect-diagnostics nodeBuiltinImport:off -- Event-driven fake of the portal transport.
+import { localizeSnapShotStateMessages } from "./snapShot.ts";
 import * as NodeEvents from "node:events";
 import { DBusError, Message, MessageType, Variant, type MessageBus } from "dbus-next";
 import { afterEach, expect, it, vi } from "vite-plus/test";
@@ -374,4 +375,46 @@ it("rejects a foreign session without trying to close someone else's session", a
   await client.ready;
   expect(client.state.shortcutRegistered).toBe(false);
   expect(bus.sends.some((message) => message.path.includes("9_9"))).toBe(false);
+});
+
+it("projects real portal states without translating same-text external errors or changing bindings", async () => {
+  const project = (client: PortalCaptureShortcut, chinese: boolean) =>
+    localizeSnapShotStateMessages(
+      { mode: "portal", shortcut: chord, message: null, ...client.state },
+      "linux",
+      chinese,
+    );
+  const collision = "Could not register the capture shortcut.";
+  const failed = new FakeBus();
+  failed.registryError = new Error(collision);
+  const external = start(failed);
+  await external.client.ready;
+  expect(project(external.client, true).shortcutMessage).toBe(collision);
+  expect(project(external.client, false).shortcutMessage).toBe(collision);
+  const denied = new FakeBus();
+  denied.bindStatus = 1;
+  const rejection = start(denied);
+  await rejection.client.ready;
+  expect(project(rejection.client, true).shortcutMessage).toBe(
+    "未授予快捷键权限。请打开快捷键权限设置并允许。",
+  );
+  expect(project(rejection.client, false).shortcutMessage).toBe(
+    rejection.client.state.shortcutMessage,
+  );
+  const successful = new FakeBus();
+  successful.actualLabel = "Ctrl+{label}/$&";
+  const bound = start(successful);
+  await bound.client.ready;
+  const translated = project(bound.client, true);
+  expect(translated.shortcutMessage).toBe("桌面快捷键：Ctrl+{label}/$&");
+  expect(translated.shortcutLabel).toBe(successful.actualLabel);
+  expect(Object.getOwnPropertySymbols(translated)).toEqual([]);
+  successful.activate(successful.boundId);
+  expect(bound.capture).toHaveBeenCalledOnce();
+  expect(bound.client.state.shortcutMessage).toBe("Desktop shortcut: Ctrl+{label}/$&");
+  const invalid = new FakeBus();
+  invalid.foreignHandle = true;
+  const owned = start(invalid);
+  await owned.client.ready;
+  expect(project(owned.client, true).shortcutMessage).toBe("快捷键会话句柄无效。");
 });

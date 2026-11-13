@@ -3,10 +3,13 @@ import {
   ORCHESTRATION_PROTOCOL_VERSION,
   type ExecutionEnvironmentDescriptor,
 } from "@t3tools/contracts";
-import { describe, expect, it } from "vite-plus/test";
+import * as Cause from "effect/Cause";
+import { ConnectionBlockedError } from "./model.ts";
+import { describe, expect, it, vi } from "vite-plus/test";
 
 import {
   appendOrchestrationProtocol,
+  formatOrchestrationCompatibilityError,
   orchestrationProtocolCompatibilityError,
 } from "./compatibility.ts";
 
@@ -42,6 +45,39 @@ describe("orchestration protocol compatibility", () => {
       expect(error).toBeNull();
     } else {
       expect(error).toMatchObject({ reason: "unsupported" });
+    }
+  });
+
+  it("keeps compatibility provenance local to the factory error through Effect causes", () => {
+    for (const version of [
+      ORCHESTRATION_PROTOCOL_VERSION - 1,
+      ORCHESTRATION_PROTOCOL_VERSION + 1,
+    ]) {
+      const label = "Settings {0} $&";
+      const error = orchestrationProtocolCompatibilityError({ ...descriptor(version), label });
+      expect(error).not.toBeNull();
+      if (!error) throw new Error("Expected incompatible protocol");
+      const detail = error.detail;
+      const format = vi.fn(
+        (template: string, values: readonly string[]) => `${template}|${values[0]}`,
+      );
+      expect(
+        formatOrchestrationCompatibilityError(Cause.squash(Cause.fail(error)), format),
+      ).toContain(label);
+      expect(format.mock.lastCall?.[1]).toEqual([label]);
+      expect(error.detail).toBe(detail);
+      expect(error.message).toBe(detail);
+      format.mockClear();
+      for (const unmarked of [
+        new Error(detail),
+        new ConnectionBlockedError({ reason: "unsupported", detail }),
+        { ...error },
+        null,
+        detail,
+      ]) {
+        expect(formatOrchestrationCompatibilityError(unmarked, format)).toBeUndefined();
+      }
+      expect(format).not.toHaveBeenCalled();
     }
   });
 

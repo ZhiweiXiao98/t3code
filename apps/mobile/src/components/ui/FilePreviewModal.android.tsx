@@ -47,6 +47,7 @@ function PdfDocumentPreview(props: {
         <SheetHeader
           presentation="inline"
           title={props.source.name ?? "PDF"}
+          localizeTitle={false}
           onClose={props.onRequestClose}
           actions={
             save
@@ -111,8 +112,8 @@ function DocumentPreview(props: {
       <View className="flex-1 items-center justify-center bg-backdrop p-6">
         <View className="w-full max-w-sm gap-4 rounded-2xl bg-sheet-solid p-6">
           <Text className="font-t3-semibold text-foreground">Opening document…</Text>
-          <Text className="text-foreground-muted" numberOfLines={2}>
-            {name ?? "Document"}
+          <Text localize={false} className="text-foreground-muted" numberOfLines={2}>
+            {name ?? localizeMobileString("Document")}
           </Text>
           <View className="items-end">
             <Button label="Cancel" tone="text" onPress={props.onRequestClose} />

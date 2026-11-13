@@ -1,4 +1,7 @@
 // @effect-diagnostics nodeBuiltinImport:off -- Private Unix sockets exercise the real compositor transport.
+import { snapShotMessageFromError } from "./snapShotMessageProvenance.ts";
+import { DEFAULT_CLIENT_SETTINGS } from "@t3tools/contracts";
+import { localizeSnapShotStateMessages } from "./snapShot.ts";
 import * as NodeFSP from "node:fs/promises";
 import * as NodeNet from "node:net";
 import * as NodeOS from "node:os";
@@ -233,4 +236,36 @@ it("does not use stale, relative, or sandboxed Niri sockets", () => {
   expect(
     niriSocketPath({ XDG_CURRENT_DESKTOP: "niri", NIRI_SOCKET: socketPath, FLATPAK_ID: "app" }),
   ).toBeUndefined();
+});
+
+it("projects real compositor support failures while retaining the external reply", async () => {
+  const project = (error: unknown, chinese: boolean) =>
+    localizeSnapShotStateMessages(
+      {
+        mode: "portal",
+        shortcut: DEFAULT_CLIENT_SETTINGS.snapShotShortcut,
+        shortcutRegistered: false,
+        shortcutMessage: null,
+        ...snapShotMessageFromError(error, "fallback"),
+      },
+      "linux",
+      chinese,
+    );
+  version = "25.10";
+  const old = await checkNiriCaptureSupport(socketPath).catch((error: unknown) => error);
+  expect(old).toBeInstanceOf(Error);
+  expect(project(old, true).message).toBe("快照需要 Niri 25.11 或更高版本。");
+  expect(project(old, false).message).toBe("SnapShots require Niri 25.11 or newer.");
+  handler = async (_request, socket) => {
+    socket.write("invalid JSON\n");
+  };
+  const invalid = await checkNiriCaptureSupport(socketPath).catch((error: unknown) => error);
+  expect(project(invalid, true).message).toBe("Niri 返回了无效消息。");
+  const external = "SnapShots require Niri 25.11 or newer.";
+  handler = async (_request, socket) => {
+    send(socket, { Err: external });
+  };
+  const rejected = await checkNiriCaptureSupport(socketPath).catch((error: unknown) => error);
+  expect(project(rejected, true).message).toBe(`Niri: ${external}`);
+  expect(project(rejected, false).message).toBe(`Niri: ${external}`);
 });

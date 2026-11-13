@@ -166,6 +166,7 @@ const resolveDesktopCoreAdvertisedEndpoints = (
     createDesktopEndpoint({
       id: `desktop-loopback:${input.port}`,
       label: "This machine",
+      labelSource: "desktop.this-machine",
       httpBaseUrl: input.exposure.localHttpUrl,
       reachability: "loopback",
       status: "available",
@@ -178,6 +179,7 @@ const resolveDesktopCoreAdvertisedEndpoints = (
       createDesktopEndpoint({
         id: `desktop-lan:${input.exposure.endpointUrl}`,
         label: "Local network",
+        labelSource: "desktop.local-network",
         httpBaseUrl: input.exposure.endpointUrl,
         reachability: "lan",
         status: "available",
@@ -194,6 +196,7 @@ const resolveDesktopCoreAdvertisedEndpoints = (
         createManualEndpoint({
           id: `manual:${customEndpointUrl}`,
           label: isHttpsEndpoint ? "Custom HTTPS" : "Custom endpoint",
+          labelSource: isHttpsEndpoint ? "desktop.custom-https" : "desktop.custom-endpoint",
           httpBaseUrl: customEndpointUrl,
           reachability: "public",
           ...(isHttpsEndpoint ? ({ hostedHttpsCompatibility: "compatible" } as const) : {}),

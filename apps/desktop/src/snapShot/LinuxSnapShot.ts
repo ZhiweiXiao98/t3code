@@ -1,5 +1,6 @@
 // @effect-diagnostics globalTimers:off -- D-Bus deadlines run at a native async boundary.
 // @effect-diagnostics nodeBuiltinImport:off -- Read the portal file through one bounded file descriptor at the native adapter boundary.
+import { snapShotOwnedError } from "./snapShotMessageProvenance.ts";
 
 import * as NodeCrypto from "node:crypto";
 import {
@@ -133,7 +134,7 @@ class LinuxCaptureConnection {
         pending,
         this.disconnected,
         new Promise<never>((_, reject) => {
-          timer = setTimeout(() => reject(new Error("Snapshot timed out.")), timeoutMs);
+          timer = setTimeout(() => reject(snapShotOwnedError("Snapshot timed out.")), timeoutMs);
         }),
       ]);
     } finally {
@@ -143,7 +144,7 @@ class LinuxCaptureConnection {
 
   private async call(message: MessageLike) {
     const reply = await this.wait(this.bus.call(new Message(message)));
-    if (!reply) throw new Error("Missing D-Bus reply.");
+    if (!reply) throw snapShotOwnedError("Missing D-Bus reply.");
     this.uniqueName = reply.destination;
     return reply;
   }

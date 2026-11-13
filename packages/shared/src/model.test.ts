@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it, vi } from "vite-plus/test";
 import { ProviderInstanceId, type ModelCapabilities } from "@t3tools/contracts";
 
 import {
@@ -217,6 +217,53 @@ describe("provider-reported option display", () => {
     expect(
       getProviderOptionCurrentLabel({ ...descriptor, currentValue: "thinking" }, selection),
     ).toBe("Unknown");
+  });
+
+  it("formats only owned option fallbacks without touching colliding descriptor labels or dispatch choices", () => {
+    const display = vi.fn((message: string) => `owned:${message}`);
+    expect(getProviderOptionCurrentLabel(descriptor, selection, reported, display)).toBe(
+      "owned:Default",
+    );
+    expect(getProviderOptionCurrentLabel(descriptor, selection, undefined, display)).toBe(
+      "owned:Unknown",
+    );
+    for (const currentValue of [true, false]) {
+      const boolean = { id: "fast", label: "Settings", type: "boolean" as const, currentValue };
+      expect(getProviderOptionCurrentLabel(boolean)).toBe(currentValue ? "On" : "Off");
+      expect(getProviderOptionCurrentLabel(boolean, undefined, undefined, display)).toBe(
+        currentValue ? "owned:On" : "owned:Off",
+      );
+    }
+    expect(display.mock.calls.map(([message]) => message)).toEqual([
+      "Default",
+      "Unknown",
+      "On",
+      "Off",
+    ]);
+    display.mockClear();
+    for (const label of ["On", "Off", "Default", "Unknown", "Settings", "{0} $&"]) {
+      const external = {
+        ...descriptor,
+        currentValue: "literal",
+        options: [{ id: "literal", label }],
+      };
+      const selected = { ...selection, options: [{ id: "variant", value: "literal" }] };
+      const before = structuredClone({ external, selected });
+      expect(getProviderOptionCurrentLabel(external, selected, reported, display)).toBe(label);
+      expect(getProviderOptionCurrentLabel(external, selected, reported)).toBe(label);
+      expect({ external, selected }).toEqual(before);
+    }
+    expect(getProviderOptionCurrentLabel(undefined, selection, reported, display)).toBeUndefined();
+    expect(
+      getProviderOptionCurrentLabel(
+        { id: "fast", label: "Settings", type: "boolean" },
+        selection,
+        reported,
+        display,
+      ),
+    ).toBeUndefined();
+    expect(display).not.toHaveBeenCalled();
+    expect(buildProviderOptionSelectionsFromDescriptors([descriptor])).toBeUndefined();
   });
 
   it.each([

@@ -444,6 +444,7 @@ function CloudChoices({ environment, active, onClose }: Props & { onClose: () =>
                     <Chip
                       key={candidate.id}
                       label={candidate.label}
+                      localize={false}
                       size="small"
                       selected={sourceId === candidate.id}
                       disabled={saving}

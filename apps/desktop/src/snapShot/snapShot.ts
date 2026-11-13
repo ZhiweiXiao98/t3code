@@ -1,5 +1,9 @@
 // @effect-diagnostics globalTimers:off -- The Electron window-blur handshake uses a native timeout outside any Effect fiber.
 // @effect-diagnostics nodeBuiltinImport:off -- This desktop-only platform check reads procfs and resolves Wayland socket paths with Node.
+import {
+  isSnapShotMessageOwned,
+  stripSnapShotMessageProvenance,
+} from "./snapShotMessageProvenance.ts";
 
 import * as NodeFS from "node:fs";
 import * as NodePath from "node:path";
@@ -15,6 +19,7 @@ import {
   type SnapShotModifier,
   type SnapShotShortcut,
   type DesktopSnapShotState,
+  type SnapShotModifierPairShortcut,
 } from "@t3tools/contracts";
 
 interface AccessibilityTreeNode {
@@ -77,6 +82,15 @@ const SNAP_SHOT_SHORTCUT_MESSAGES: Readonly<Record<string, string>> = {
 };
 
 const SNAP_SHOT_STATE_MESSAGES: Readonly<Record<string, string>> = {
+  "Snapshot timed out.": "快照请求超时。",
+  "Missing D-Bus reply.": "未收到 D-Bus 回复。",
+  "Niri returned an oversized message.": "Niri 返回的消息过大。",
+  "Niri returned an invalid message.": "Niri 返回了无效消息。",
+  "Niri disconnected.": "Niri 已断开连接。",
+  "Invalid Niri response.": "Niri 响应无效。",
+  "Niri snapshot timed out.": "Niri 快照请求超时。",
+  "Niri connection closed.": "Niri 连接已关闭。",
+  "SnapShots require Niri 25.11 or newer.": "快照需要 Niri 25.11 或更高版本。",
   "GNOME did not respond. Sign in to a GNOME Wayland session and try again.":
     "GNOME 未响应。请登录 GNOME Wayland 会话后重试。",
   "GNOME returned no setup information.": "GNOME 未返回设置信息。",
@@ -153,56 +167,103 @@ export function localizeSnapShotStateMessages(
   platform: NodeJS.Platform,
   chinese: boolean,
 ): DesktopSnapShotState {
-  if (!chinese) return state;
-  const shortcutMessage =
-    state.shortcutMessage === snapShotShortcutRegistrationFailureMessage(state.shortcut, platform)
-      ? snapShotShortcutRegistrationFailureMessage(state.shortcut, platform, true)
-      : state.shortcutMessage !== null &&
-          Object.hasOwn(SNAP_SHOT_SHORTCUT_MESSAGES, state.shortcutMessage)
-        ? SNAP_SHOT_SHORTCUT_MESSAGES[state.shortcutMessage]!
-        : state.shortcutMessage;
+  const clean = stripSnapShotMessageProvenance(state);
+  const cleanGnome = state.gnomeExtension && stripSnapShotMessageProvenance(state.gnomeExtension);
+  const cleanKde = state.kdeHelper && stripSnapShotMessageProvenance(state.kdeHelper);
+  const cleanHyprland =
+    state.hyprlandHelper && stripSnapShotMessageProvenance(state.hyprlandHelper);
+  if (!chinese) {
+    if (
+      cleanGnome === state.gnomeExtension &&
+      cleanKde === state.kdeHelper &&
+      cleanHyprland === state.hyprlandHelper
+    )
+      return clean;
+    return {
+      ...clean,
+      ...(cleanGnome ? { gnomeExtension: cleanGnome } : {}),
+      ...(cleanKde ? { kdeHelper: cleanKde } : {}),
+      ...(cleanHyprland ? { hyprlandHelper: cleanHyprland } : {}),
+    };
+  }
+  let shortcutMessage = state.shortcutMessage;
+  if (isSnapShotMessageOwned(state, "shortcutMessage")) {
+    if (shortcutMessage === snapShotShortcutRegistrationFailureMessage(state.shortcut, platform))
+      shortcutMessage = snapShotShortcutRegistrationFailureMessage(state.shortcut, platform, true);
+    else if (
+      isModifierPairShortcut(state.shortcut) &&
+      shortcutMessage === snapShotObservedPairMessage(state.shortcut, platform)
+    )
+      shortcutMessage = snapShotObservedPairMessage(state.shortcut, platform, true);
+    else if (
+      state.shortcutLabel !== undefined &&
+      shortcutMessage === `Desktop shortcut: ${state.shortcutLabel}`
+    )
+      shortcutMessage = `桌面快捷键：${state.shortcutLabel}`;
+    else if (
+      shortcutMessage !== null &&
+      Object.hasOwn(SNAP_SHOT_SHORTCUT_MESSAGES, shortcutMessage)
+    )
+      shortcutMessage = SNAP_SHOT_SHORTCUT_MESSAGES[shortcutMessage]!;
+  }
   const extension = state.gnomeExtension;
   const versionMessage =
-    extension?.status === "unsupported"
+    extension && isSnapShotMessageOwned(extension, "message") && extension.status === "unsupported"
       ? /^The bundled extension supports GNOME ([0-9]+(?:, [0-9]+)*)\. This session runs GNOME ([0-9]+)\.$/.exec(
           extension.message,
         )
       : null;
+  const message = (source: { readonly message: string }) =>
+    isSnapShotMessageOwned(source, "message")
+      ? translateKnownStateMessage(source.message)
+      : source.message;
   return {
-    ...state,
-    shortcutMessage:
-      state.shortcutLabel !== undefined &&
-      shortcutMessage === `Desktop shortcut: ${state.shortcutLabel}`
-        ? `桌面快捷键：${state.shortcutLabel}`
-        : shortcutMessage,
-    message: state.message === null ? null : translateKnownStateMessage(state.message),
-    ...(extension
+    ...clean,
+    shortcutMessage,
+    message:
+      state.message !== null && isSnapShotMessageOwned(state, "message")
+        ? translateKnownStateMessage(state.message)
+        : state.message,
+    ...(extension && cleanGnome
       ? {
           gnomeExtension: {
-            ...extension,
+            ...cleanGnome,
             message: versionMessage
               ? `随应用附带的扩展支持 GNOME ${versionMessage[1]}。当前会话运行 GNOME ${versionMessage[2]}。`
-              : translateKnownStateMessage(extension.message),
+              : message(extension),
           },
         }
       : {}),
-    ...(state.kdeHelper
-      ? {
-          kdeHelper: {
-            ...state.kdeHelper,
-            message: translateKnownStateMessage(state.kdeHelper.message),
-          },
-        }
+    ...(state.kdeHelper && cleanKde
+      ? { kdeHelper: { ...cleanKde, message: message(state.kdeHelper) } }
       : {}),
-    ...(state.hyprlandHelper
-      ? {
-          hyprlandHelper: {
-            ...state.hyprlandHelper,
-            message: translateKnownStateMessage(state.hyprlandHelper.message),
-          },
-        }
+    ...(state.hyprlandHelper && cleanHyprland
+      ? { hyprlandHelper: { ...cleanHyprland, message: message(state.hyprlandHelper) } }
       : {}),
   };
+}
+
+export function snapShotObservedPairMessage(
+  shortcut: SnapShotModifierPairShortcut,
+  platform: NodeJS.Platform,
+  chinese = false,
+): string {
+  const modifier = snapShotShortcutModifierPair(shortcut);
+  const label = snapShotModifierPairLabel(modifier, platform === "darwin");
+  const base = chinese
+    ? `系统正在监听 ${label}，无法独占此快捷键。`
+    : `${label} is observed and cannot be reserved exclusively.`;
+  if (modifier === "meta" && platform !== "darwin") {
+    return chinese
+      ? `${base}此按键也可能打开系统菜单。`
+      : `${base} This key can also open the system's own menu.`;
+  }
+  if (modifier === "alt" && platform === "win32") {
+    return chinese
+      ? `${base}此按键也可能激活应用菜单栏。`
+      : `${base} This key can also activate app menu bars.`;
+  }
+  return base;
 }
 
 export function snapShotShortcutRegistrationFailureMessage(
