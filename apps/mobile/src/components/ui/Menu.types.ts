@@ -6,4 +6,5 @@ export type MenuProps = Omit<ComponentProps<typeof MenuView>, "children" | "them
   Pick<AccessibilityProps, "accessible" | "accessibilityLabel" | "accessibilityRole"> & {
     readonly children: ReactNode;
     readonly className?: string;
+    readonly localizeTitle?: boolean;
   };

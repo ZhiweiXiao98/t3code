@@ -284,6 +284,16 @@ it("preserves opaque screen titles and menu names while localizing app-owned lab
                 Account name
               </NativeHeaderToolbar.MenuAction>
               <NativeHeaderToolbar.MenuAction>New tab</NativeHeaderToolbar.MenuAction>
+              <NativeHeaderToolbar.Menu title="Settings" localize={false}>
+                <NativeHeaderToolbar.MenuAction onPress={onPress}>
+                  Open
+                </NativeHeaderToolbar.MenuAction>
+              </NativeHeaderToolbar.Menu>
+              <NativeHeaderToolbar.Menu title="Settings">
+                <NativeHeaderToolbar.MenuAction localize={false}>
+                  Open
+                </NativeHeaderToolbar.MenuAction>
+              </NativeHeaderToolbar.Menu>
             </NativeHeaderToolbar.Menu>
           </NativeHeaderToolbar>
         </>,
@@ -298,6 +308,16 @@ it("preserves opaque screen titles and menu names while localizing app-owned lab
       description: "Current checkout",
     });
     expect(menu.menu.items[1]).toMatchObject({ type: "action", label: "新标签页" });
+    expect(menu.menu.items[2]).toMatchObject({
+      type: "submenu",
+      label: "Settings",
+      items: [{ type: "action", label: "打开" }],
+    });
+    expect(menu.menu.items[3]).toMatchObject({
+      type: "submenu",
+      label: "设置",
+      items: [{ type: "action", label: "Open" }],
+    });
     const action = menu.menu.items[0];
     if (action?.type !== "action") throw new Error("Expected native action");
     action.onPress?.();

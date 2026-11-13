@@ -11,6 +11,7 @@ export function Menu(props: MenuProps) {
         actions={props.actions}
         className={props.className}
         title={props.title}
+        localizeTitle={props.localizeTitle}
         style={props.style}
         onPressAction={props.onPressAction}
       >
@@ -30,6 +31,7 @@ export function Menu(props: MenuProps) {
       actions={props.actions}
       className={props.className}
       title={props.title}
+      localizeTitle={props.localizeTitle}
       style={props.style}
       onPressAction={props.onPressAction}
     >

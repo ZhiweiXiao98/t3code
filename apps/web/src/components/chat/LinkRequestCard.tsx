@@ -87,7 +87,7 @@ function PendingLinkRequest(props: {
   readonly environmentId: EnvironmentId;
   readonly item: LinkRequestItem;
 }) {
-  const { locale: copyLocale } = useI18n();
+  const { locale: copyLocale, t } = useI18n();
   const { item } = props;
   const [open, setOpen] = useState(false);
   const [declining, setDeclining] = useState(false);
@@ -123,8 +123,8 @@ function PendingLinkRequest(props: {
       <div className="flex min-w-0 flex-col gap-1">
         <p className="text-sm font-medium text-foreground">
           {picksMachine(item)
-            ? "Link a machine to this environment"
-            : `Link ${target} to this environment`}
+            ? t("audit12.link.machine")
+            : t("audit12.link.target", { name: target })}
         </p>
         {item.reason.trim() ? <p className="text-sm text-muted-foreground">{item.reason}</p> : null}
       </div>
@@ -175,7 +175,7 @@ function LinkRequestDialog(props: {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
 }) {
-  const { locale: copyLocale } = useI18n();
+  const { locale: copyLocale, t } = useI18n();
   const { item } = props;
   const formId = useId();
   const pickMachine = picksMachine(item);
@@ -303,12 +303,14 @@ function LinkRequestDialog(props: {
     >
       <WizardPopup>
         <WizardHeader
-          title={pickMachine ? "Link a machine" : `Link ${targetName}`}
-          description="Agents here can then launch, message and wait on threads there. Revoke it in that machine's Connections."
+          title={
+            pickMachine ? t("audit12.link.pick") : t("audit12.link.title", { name: targetName })
+          }
+          description={t("audit12.link.description")}
         >
           {steps.length > 1 && !useExisting ? (
             <WizardSteps
-              steps={[translateWebSource(copyLocale, "Machine"), "Access"]}
+              steps={[translateWebSource(copyLocale, "Machine"), t("audit12.link.access")]}
               currentStep={steps.indexOf(current)}
               summaries={[target.kind === "none" ? null : targetName, null]}
               showSummaries

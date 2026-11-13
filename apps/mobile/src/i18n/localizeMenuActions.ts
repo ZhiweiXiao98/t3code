@@ -24,3 +24,11 @@ export function localizeMenuActions(
       : { subactions: localizeMenuActions(action.subactions, locale) }),
   }));
 }
+
+export function localizeMenuTitle(
+  title: string | undefined,
+  localize: boolean | undefined,
+  locale: MobileLocale = MOBILE_LOCALE,
+): string | undefined {
+  return title === undefined || localize === false ? title : localizeMobileString(title, locale);
+}

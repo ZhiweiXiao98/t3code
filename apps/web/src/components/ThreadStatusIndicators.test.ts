@@ -1,8 +1,11 @@
+import { translateWebMessage } from "../i18n/messages";
+import type { WebTranslate } from "../i18n/WebI18nContext";
 import { SourceControlProviderKind } from "@t3tools/contracts";
 import { ProjectId, type PullRequestSummary, type VcsStatusResult } from "@t3tools/contracts";
 import { describe, expect, it } from "@effect/vitest";
 
 import {
+  prStatusIndicator,
   resolveDisplayedThreadPr,
   resolveDisplayedThreadPrProvider,
 } from "./ThreadStatusIndicators";
@@ -119,4 +122,23 @@ describe("resolveDisplayedThreadPr", () => {
       }),
     ).toBeNull();
   });
+});
+
+it("localizes PR state while preserving titles, identifiers and URLs", () => {
+  const pr = {
+    ...status().pr!,
+    title: "Open / $& / {state} / 中文",
+    url: "https://github.com/owner/repo/pull/42",
+  };
+  const original = prStatusIndicator(pr, undefined);
+  for (const locale of ["en", "zh-CN", "en"] as const) {
+    const t: WebTranslate = (key, values) => translateWebMessage(locale, key, values);
+    const result = prStatusIndicator(pr, undefined, t)!;
+    expect(result.tooltipTitle).toBe(pr.title);
+    expect(result.url).toBe(pr.url);
+    expect(result.tooltip).toContain(pr.title);
+    expect(result.tooltipLead).toContain("#42");
+    if (locale === "en") expect(result).toEqual(original);
+    else expect(result.label).toMatch(/[\u3400-\u9fff]/);
+  }
 });

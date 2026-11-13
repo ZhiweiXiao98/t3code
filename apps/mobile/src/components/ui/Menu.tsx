@@ -1,5 +1,4 @@
-import { localizeMenuActions } from "../../i18n/localizeMenuActions";
-import { localizeMobileString } from "../../i18n/mobileStrings";
+import { localizeMenuActions, localizeMenuTitle } from "../../i18n/localizeMenuActions";
 import { MenuView } from "@react-native-menu/menu";
 import {
   cloneElement,
@@ -49,8 +48,8 @@ export function Menu(props: MenuProps) {
   const menuPress = useRef({ isPreparing: false, isOpen: false, suppressPress: false });
   const pendingPress = useRef<(() => void) | null>(null);
 
-  const { className: _className, ...menuProps } = props;
-  menuProps.title = props.title === undefined ? undefined : localizeMobileString(props.title);
+  const { className: _className, localizeTitle, ...menuProps } = props;
+  menuProps.title = localizeMenuTitle(props.title, localizeTitle);
   let children = menuProps.children;
   if (props.shouldOpenOnLongPress && isValidElement(children)) {
     const child = children as ReactElement<Pick<PressableProps, "onTouchStart" | "onPress">>;

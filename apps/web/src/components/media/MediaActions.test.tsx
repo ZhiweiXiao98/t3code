@@ -17,6 +17,8 @@ function deferred<T>() {
 }
 
 const state = vi.hoisted(() => ({
+  locale: "en" as "en" | "zh-CN",
+  toasts: [] as { type: string; title?: string; description?: string }[],
   sessions: new Map<string, Pick<AuthSessionState, "authenticated" | "scopes">>(),
   mint: vi.fn(),
   download: vi.fn(),
@@ -28,13 +30,28 @@ const state = vi.hoisted(() => ({
   menuFinished: null as (() => void) | null,
 }));
 
+vi.mock("../../i18n/readWebI18n", async () => {
+  const { translateWebMessage } = await import("../../i18n/messages");
+  return {
+    readWebI18n: () => ({
+      locale: state.locale,
+      t: (
+        key: import("../../i18n/messages").WebMessageKey,
+        values?: import("../../i18n/messages").WebMessageValues,
+      ) => translateWebMessage(state.locale, key, values),
+    }),
+  };
+});
 vi.mock("react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("react")>()),
   useCallback: <A,>(callback: A) => callback,
   useRef: <A,>(current: A) => ({ current }),
   useState: <A,>(initial: A) => [initial, () => {}],
 }));
-vi.mock("../../hooks/useCopyToClipboard", () => ({ writeTextToClipboard: state.copyText }));
+vi.mock("../../hooks/useCopyToClipboard", async (original) => ({
+  ...(await original<typeof import("../../hooks/useCopyToClipboard")>()),
+  writeTextToClipboard: state.copyText,
+}));
 vi.mock("../../localApi", () => ({
   readLocalApi: () => ({ contextMenu: { show: state.showMenu } }),
 }));
@@ -67,11 +84,15 @@ vi.mock("../ui/tooltip", () => ({
 vi.mock("../ui/toast", () => ({
   stackedThreadToast: <A,>(toast: A) => toast,
   toastManager: {
-    add: (toast: { type: string }) => {
+    add: (toast: { type: string; title?: string; description?: string }) => {
+      state.toasts.push(toast);
       if (toast.type !== "loading") state.menuFinished?.();
       return "toast";
     },
-    update: () => state.menuFinished?.(),
+    update: (_id: unknown, toast: { type: string; title?: string; description?: string }) => {
+      state.toasts.push(toast);
+      state.menuFinished?.();
+    },
   },
 }));
 
@@ -119,6 +140,8 @@ function openMenu(source: MediaActionSource) {
 }
 
 beforeEach(() => {
+  state.locale = "en";
+  state.toasts = [];
   state.sessions.clear();
   state.sessions.set(environmentId, denied);
   state.mint
@@ -184,3 +207,36 @@ it.each(["save", "copy-image", "open-file"])(
     expect(state.openFile).not.toHaveBeenCalled();
   },
 );
+
+it("localizes the actual menu while copying opaque paths unchanged", async () => {
+  state.locale = "zh-CN";
+  state.sessions.set(environmentId, granted);
+  const finished = deferred<void>();
+  state.menuFinished = () => finished.resolve();
+  state.showMenu.mockResolvedValue("copy-full-path");
+  const path = "/opaque/Save image/$&/{name}/中文.png";
+  openMenu({ ...hostSource(), reference: { kind: "file", path } });
+  await finished.promise;
+  expect(state.showMenu).toHaveBeenCalledWith(
+    expect.arrayContaining([
+      expect.objectContaining({ id: "save", label: "保存图片", disabled: false }),
+      expect.objectContaining({ id: "copy-full-path", label: "复制完整路径" }),
+    ]),
+    { x: 1, y: 1 },
+  );
+  expect(state.copyText).toHaveBeenCalledWith(path, "file path");
+  expect(state.toasts.at(-1)).toMatchObject({ type: "success", title: "已复制路径" });
+});
+
+it("preserves external failures even when they collide with owned source text", async () => {
+  state.locale = "zh-CN";
+  state.sessions.set(environmentId, granted);
+  const finished = deferred<void>();
+  state.menuFinished = () => finished.resolve();
+  state.showMenu.mockResolvedValue("save");
+  const message = "This inline media could not be decoded.";
+  state.download.mockRejectedValueOnce(new Error(message));
+  openMenu(hostSource());
+  await finished.promise;
+  expect(state.toasts.at(-1)).toMatchObject({ title: "无法保存图片", description: message });
+});

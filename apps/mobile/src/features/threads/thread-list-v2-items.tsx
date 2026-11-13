@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import * as Dialog from "../../components/ui/Dialog";
 import type { ThreadRowProviderInstance } from "./thread-provider-instance";
@@ -287,7 +288,7 @@ const SHELF_LABEL = { working: "Working", snoozed: "Snoozed", settled: "Settled"
 function ThreadListV2ShelfHeader(
   props: ThreadListV2ShelfHeaderProps & { readonly kind: keyof typeof SHELF_LABEL },
 ) {
-  const label = SHELF_LABEL[props.kind];
+  const label = localizeMobileString(SHELF_LABEL[props.kind]);
   return (
     <ThreadListV2Section
       label={props.expanded ? label : `${label} (${props.count})`}
@@ -297,8 +298,13 @@ function ThreadListV2ShelfHeader(
         expanded: props.expanded,
         disabled: props.disabled,
         onToggle: props.onToggle,
-        accessibilityLabel: `${props.count} ${props.kind} ${props.count === 1 ? "thread" : "threads"}`,
-        accessibilityHint: `${props.expanded ? "Collapses" : "Expands"} the ${props.kind} threads.`,
+        accessibilityLabel: formatMobileMessage(
+          `{0} ${props.kind} ${props.count === 1 ? "thread" : "threads"}`,
+          [props.count],
+        ),
+        accessibilityHint: localizeMobileString(
+          `${props.expanded ? "Collapses" : "Expands"} the ${props.kind} threads.`,
+        ),
       }}
     />
   );
@@ -412,13 +418,15 @@ export const ThreadListV2PendingRow = memo(function ThreadListV2PendingRow(props
   );
   const deleteAction = useMemo(
     () => ({
-      accessibilityLabel: `${deleteLabel} ${pendingTask.title}`,
+      accessibilityLabel: formatMobileMessage(isDraft ? "Discard {0}" : "Delete {0}", [
+        pendingTask.title,
+      ]),
       destructive: true,
       icon: "trash" as const,
       label: deleteLabel,
       onPress: handleDelete,
     }),
-    [deleteLabel, handleDelete, pendingTask.title],
+    [deleteLabel, handleDelete, isDraft, pendingTask.title],
   );
   const projectTitle = props.projectTitle ?? props.project?.title ?? pendingTask.projectTitle ?? "";
   const projectCwd = props.project?.workspaceRoot || null;
@@ -616,8 +624,12 @@ export const ThreadListV2PendingRow = memo(function ThreadListV2PendingRow(props
             <RowPressable
               accessibilityHint={
                 isDraft
-                  ? `Opens the draft in the new task composer. Swipe left to ${deleteLabel.toLowerCase()}.`
-                  : `Sends when the environment reconnects. Opens the task for editing. Swipe left to ${deleteLabel.toLowerCase()}.`
+                  ? localizeMobileString(
+                      "Opens the draft in the new task composer. Swipe left to discard.",
+                    )
+                  : localizeMobileString(
+                      "Sends when the environment reconnects. Opens the task for editing. Swipe left to delete.",
+                    )
               }
               accessibilityLabel={pendingTask.title}
               accessibilityRole="button"
@@ -1100,7 +1112,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
   const primaryAction = useMemo(() => {
     if (swipeActions.primary === "archive") {
       return {
-        accessibilityLabel: `Archive ${thread.title}`,
+        accessibilityLabel: formatMobileMessage("Archive {0}", [thread.title]),
         icon: "archivebox" as const,
         label: "Archive",
         onPress: handleArchive,
@@ -1108,7 +1120,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
     }
     if (swipeActions.primary === "unsnooze") {
       return {
-        accessibilityLabel: `Wake ${thread.title} now`,
+        accessibilityLabel: formatMobileMessage("Wake {0} now", [thread.title]),
         icon: "clock" as const,
         label: "Wake",
         onPress: handleUnsnooze,
@@ -1116,13 +1128,13 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
     }
     return swipeActions.primary === "unsettle"
       ? {
-          accessibilityLabel: `Un-settle ${thread.title}`,
+          accessibilityLabel: formatMobileMessage("Un-settle {0}", [thread.title]),
           icon: "arrow.uturn.backward" as const,
           label: "Un-settle",
           onPress: handleUnsettle,
         }
       : {
-          accessibilityLabel: `Settle ${thread.title}`,
+          accessibilityLabel: formatMobileMessage("Settle {0}", [thread.title]),
           icon: "checkmark" as const,
           label: "Settle",
           onPress: handleSettle,
@@ -1139,7 +1151,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
     () =>
       swipeActions.secondary === "snooze"
         ? {
-            accessibilityLabel: `Choose when to snooze ${thread.title}`,
+            accessibilityLabel: formatMobileMessage("Choose when to snooze {0}", [thread.title]),
             icon: "clock" as const,
             label: "Snooze",
             menu: {
@@ -1153,10 +1165,14 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
     [handleMenuAction, snoozePresetActions, swipeActions.secondary, thread.title],
   );
   const swipeAccessibilityHint = !canOperateThread
-    ? "Opens the thread"
+    ? localizeMobileString("Opens the thread")
     : secondaryAction === null
-      ? `Opens the thread. Swipe left to ${primaryAction.label.toLowerCase()}.`
-      : `Opens the thread. Swipe left for ${primaryAction.label.toLowerCase()} and snooze actions.`;
+      ? formatMobileMessage("Opens the thread. Swipe left to {0}.", [
+          localizeMobileString(primaryAction.label).toLowerCase(),
+        ])
+      : formatMobileMessage("Opens the thread. Swipe left for {0} and snooze actions.", [
+          localizeMobileString(primaryAction.label).toLowerCase(),
+        ]);
 
   const titleTextInset = props.project ? projectIconSize + 8 : 0;
   const cardContent = (

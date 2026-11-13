@@ -1,7 +1,7 @@
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import { Toolbar } from "./Toolbar";
 import { AppActivityIndicator } from "./AppActivityIndicator";
-import type { HeaderBarButtonMailSearchToolbarItem } from "react-native-screens";
+import { mailMenuItems } from "./menuActionItems";
 import { NavigationContext } from "@react-navigation/native";
 import { use, useId, useLayoutEffect } from "react";
 import { View } from "react-native";
@@ -19,32 +19,13 @@ import {
   NATIVE_MAIL_SEARCH_TOOLBAR_SUPPORTED,
 } from "../../features/layout/native-mail-search-toolbar";
 import { useAppearancePreferences } from "../../features/settings/appearance/AppearancePreferencesProvider";
-import type { AppBarMenuItem, AppBarProps } from "./AppBar.types";
+import type { AppBarProps } from "./AppBar.types";
 import type { AppSymbolName } from "./AppSymbol";
 import { useNativeMailSearchToolbar } from "../../native/use-native-mail-search-toolbar";
 import { useControlTheme } from "./useControlTheme";
 
 function iosIcon(icon: AppSymbolName) {
   return typeof icon === "string" ? icon : icon.ios;
-}
-
-type MailMenu = NonNullable<HeaderBarButtonMailSearchToolbarItem["filterMenu"]>;
-function mailMenuItems(items: ReadonlyArray<AppBarMenuItem>): MailMenu["items"] {
-  return items.map((item) =>
-    "items" in item
-      ? {
-          type: "submenu",
-          title: localizeMobileString(item.title ?? ""),
-          items: mailMenuItems(item.items),
-        }
-      : {
-          type: "action",
-          title: item.localize === false ? item.title : localizeMobileString(item.title),
-          state: item.selected ? "on" : "off",
-          disabled: item.disabled,
-          onPress: item.onPress,
-        },
-  );
 }
 
 export function AppBar(props: AppBarProps) {

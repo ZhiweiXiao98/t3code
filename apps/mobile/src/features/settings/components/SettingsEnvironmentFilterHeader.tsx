@@ -1,3 +1,6 @@
+import { settingsProjectMenuDisplay } from "../settingsAccountDisplay";
+import { formatMobileMessage } from "../../../i18n/mobileDisplayStrings";
+import { localizeMobileString } from "../../../i18n/mobileStrings";
 import { resolveEnvironmentMachineKind } from "@t3tools/contracts";
 
 import type { AppBarMenu } from "../../../components/ui/AppBar.types";
@@ -28,7 +31,10 @@ export function useSettingsEnvironmentMenu(): AppBarMenu {
         title:
           selectedIds === null
             ? "All environments"
-            : `${selectedTargets.length} ${selectedTargets.length === 1 ? "environment" : "environments"}`,
+            : formatMobileMessage(
+                selectedTargets.length === 1 ? "{0} environment" : "{0} environments",
+                [selectedTargets.length],
+              ),
         items: [
           {
             id: "all",
@@ -39,6 +45,7 @@ export function useSettingsEnvironmentMenu(): AppBarMenu {
           ...availableTargets.map((entry) => ({
             id: `environment:${entry.environmentId}`,
             title: entry.label,
+            localize: false,
             icon: ENVIRONMENT_MACHINE_SYMBOLS[resolveEnvironmentMachineKind(entry.serverConfig)],
             subtitle: entry.displayUrl ?? undefined,
             selected: selectedIds === null || selectedIds.has(entry.environmentId),
@@ -48,9 +55,12 @@ export function useSettingsEnvironmentMenu(): AppBarMenu {
       },
       {
         id: "projects",
+        localize: false,
         title:
           selectableProjectGroups.find((group) => group.key === selectedProjectKey)?.label ??
-          (selectedProjectKey === null ? "All projects" : "Unavailable project"),
+          localizeMobileString(
+            selectedProjectKey === null ? "All projects" : "Unavailable project",
+          ),
         items: [
           {
             id: "project:all",
@@ -60,7 +70,7 @@ export function useSettingsEnvironmentMenu(): AppBarMenu {
           },
           ...selectableProjectGroups.map((group) => ({
             id: `project:${group.key}`,
-            title: projectMenuLabel(group),
+            ...settingsProjectMenuDisplay(group),
             selected: selectedProjectKey === group.key,
             onPress: () => selectProject(group.key),
           })),
@@ -69,6 +79,3 @@ export function useSettingsEnvironmentMenu(): AppBarMenu {
     ],
   };
 }
-
-const projectMenuLabel = (group: { readonly label: string; readonly archived: boolean }) =>
-  group.archived ? `${group.label} · Archived` : group.label;

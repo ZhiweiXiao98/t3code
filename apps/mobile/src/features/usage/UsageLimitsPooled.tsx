@@ -1,3 +1,4 @@
+import { mobileUsageReset, mobileUsageSegment } from "./usageDisplay";
 import { mobileDisplayDate } from "../../i18n/mobileDateDisplay";
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { localizeMobileString } from "../../i18n/mobileStrings";
@@ -13,7 +14,6 @@ import {
   collectLimitPools,
   cursorUsageWindowDetails,
   displayLimitWindows,
-  formatResetsIn,
   paceRemainingPercent,
   remainingPercent,
   type LimitAccount,
@@ -38,7 +38,7 @@ const PACE_LABEL = { ahead: "Ahead of pace", on: "On pace", under: "Under pace" 
 function accountName(account: LimitAccount) {
   if (account.displayName) return account.displayName;
   if (!account.email) return providerClients.get(account.driver)?.label ?? account.driver;
-  return emailInitials(account.email) || "Account";
+  return emailInitials(account.email) || localizeMobileString("Account");
 }
 
 function emailInitials(email: string) {
@@ -214,9 +214,7 @@ function PoolWindowCard({
       {nextRefill ? (
         <Text className="text-xs tabular-nums text-foreground-muted">
           ↻ +{nextRefill.restoresPercent}%{" "}
-          {formatResetsIn(nextRefill.member.window, now)
-            ?.replace("resets in ", "in ")
-            .replace("resets now", "now")}
+          {mobileUsageReset(nextRefill.member.window, now, "refill")}
         </Text>
       ) : null}
     </>
@@ -237,13 +235,16 @@ function PoolWindowCard({
         const { account, window } = member;
         const timeLeft = paceRemainingPercent(window, now);
         const credits = account.limits.resetCredits?.availableCount ?? 0;
-        const resetsIn = formatResetsIn(window, now)?.replace("resets in ", "");
+        const resetsIn = mobileUsageReset(window, now, "short");
         return (
           <Pressable
             key={account.key}
             accessibilityRole="button"
-            accessibilityLabel={localizeMobileString(
-              `Segment ${index + 1}, ${accountName(account)}, ${remainingPercent(window)}% left${timeLeft === null ? "" : `, ${timeLeft}% of the window left`}`,
+            accessibilityLabel={mobileUsageSegment(
+              index + 1,
+              accountName(account),
+              remainingPercent(window),
+              { timeLeft },
             )}
             accessibilityHint={localizeMobileString("Show account details")}
             onPress={() => openAccount(account)}
@@ -328,13 +329,16 @@ function PoolWindowCard({
         if (!window) return null;
         const segmentColor = normalizeProviderAccentColor(account.accentColor) ?? color;
         const credits = account.limits.resetCredits?.availableCount ?? 0;
-        const resetsIn = formatResetsIn(window, now);
+        const resetsIn = mobileUsageReset(window, now);
         return (
           <Pressable
             key={account.key}
             accessibilityRole="button"
-            accessibilityLabel={localizeMobileString(
-              `Segment ${index + 1}, ${accountName(account)}, ${remainingPercent(window)}% left${resetsIn ? `, ${resetsIn}` : ""}${credits ? `, ${credits} reset credits banked` : ""}`,
+            accessibilityLabel={mobileUsageSegment(
+              index + 1,
+              accountName(account),
+              remainingPercent(window),
+              { reset: resetsIn, credits },
             )}
             accessibilityHint={localizeMobileString("Show account details")}
             onPress={() => openAccount(account)}
@@ -369,7 +373,7 @@ function PoolWindowCard({
                     tintColorClassName="accent-foreground-muted"
                   />
                   <Text className="text-xs tabular-nums text-foreground-muted">
-                    {resetsIn.replace("resets in ", "")}
+                    {mobileUsageReset(window, now, "short")}
                   </Text>
                 </>
               ) : null}
@@ -425,7 +429,7 @@ export function UsageLimitsSection({
       ? presentations
       : new Map([...presentations].filter(([id]) => selectedEnvironmentIds.has(id)));
   const pools = collectLimitPools(collectLimitAccounts(selected), now);
-  const notices = collectLimitNotices(selected);
+  const notices = collectLimitNotices(selected, localizeMobileString("No accounts reported."));
   const externalLinks = collectExternalUsageLinks(selected);
   const colors = useProviderColors();
   return (
@@ -447,7 +451,7 @@ export function UsageLimitsSection({
             <View className="gap-3">
               <View className="flex-row items-center gap-2 px-1">
                 <ProviderIcon provider={pool.driver} size={18} />
-                <Text className="text-base font-t3-medium text-foreground">
+                <Text localize={false} className="text-base font-t3-medium text-foreground">
                   {providerClients.get(pool.driver)?.label ?? pool.driver}
                 </Text>
               </View>
@@ -476,9 +480,13 @@ export function UsageLimitsSection({
       {externalLinks.map((link) => (
         <View key={link.url} className="gap-3 rounded-xl border border-border-subtle p-4">
           <Text className="text-base font-t3-medium text-foreground">{link.label}</Text>
-          <Text className="text-xs text-foreground-muted">{link.accounts.join(", ")}</Text>
+          <Text localize={false} className="text-xs text-foreground-muted">
+            {link.accounts.join(", ")}
+          </Text>
           {link.message ? (
-            <Text className="text-sm text-foreground-muted">{link.message}</Text>
+            <Text localize={false} className="text-sm text-foreground-muted">
+              {link.message}
+            </Text>
           ) : null}
           <Pressable
             accessibilityRole="link"
@@ -503,13 +511,20 @@ export function UsageLimitsSection({
           />
           <View className="min-w-0 flex-1 gap-0.5">
             {notices.map((notice) => (
-              <Text key={notice} className="text-sm font-t3-medium text-warning-foreground">
+              <Text
+                localize={false}
+                key={notice}
+                className="text-sm font-t3-medium text-warning-foreground"
+              >
                 {notice}
               </Text>
             ))}
             {failedLabels.length > 0 ? (
-              <Text className="text-sm font-t3-medium text-warning-foreground">
-                {failedLabels.join(", ")} could not refresh limits. Showing the last known values.
+              <Text localize={false} className="text-sm font-t3-medium text-warning-foreground">
+                {formatMobileMessage(
+                  "{0} could not refresh limits. Showing the last known values.",
+                  [failedLabels.join(", ")],
+                )}
               </Text>
             ) : null}
           </View>
@@ -562,7 +577,7 @@ export function UsageLimitAccountScreen({ route }: AccountScreenProps) {
             <View className="gap-2">
               <View className="flex-row items-center gap-2">
                 <ProviderIcon provider={account.driver} size={24} />
-                <Text className="flex-1 text-xl font-t3-bold text-foreground">
+                <Text localize={false} className="flex-1 text-xl font-t3-bold text-foreground">
                   {account.displayName ??
                     providerClients.get(account.driver)?.label ??
                     account.driver}
@@ -577,13 +592,13 @@ export function UsageLimitAccountScreen({ route }: AccountScreenProps) {
                   onPress={() => setRevealed((value) => !value)}
                   className="min-h-[44px] justify-center"
                 >
-                  <Text className="text-sm text-foreground-muted">
+                  <Text localize={false} className="text-sm text-foreground-muted">
                     {revealed ? account.email : "••••••@••••••"}
                   </Text>
                 </Pressable>
               ) : null}
               {account.plan ? (
-                <Text selectable className="text-sm text-foreground-muted">
+                <Text localize={false} selectable className="text-sm text-foreground-muted">
                   {account.plan}
                 </Text>
               ) : null}
@@ -619,12 +634,18 @@ export function UsageLimitAccountScreen({ route }: AccountScreenProps) {
               </Text>
               {account.environments.length ? (
                 account.environments.map((environment) => (
-                  <Text key={environment.environmentId} className="text-sm text-foreground-muted">
+                  <Text
+                    localize={false}
+                    key={environment.environmentId}
+                    className="text-sm text-foreground-muted"
+                  >
                     {environment.label}
                   </Text>
                 ))
               ) : (
-                <Text className="text-sm text-foreground-muted">{account.sourceLabel}</Text>
+                <Text localize={false} className="text-sm text-foreground-muted">
+                  {account.sourceLabel}
+                </Text>
               )}
             </View>
             {account.redeem && account.limits.resetCredits ? (

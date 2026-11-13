@@ -1,3 +1,4 @@
+import { providerAccountFailure } from "./settingsAccountDisplay";
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import * as Dialog from "../../components/ui/Dialog";
@@ -55,12 +56,19 @@ export function SettingsProviderAccountsRouteScreen() {
           <Text className="text-foreground-muted">Select a connected environment.</Text>
         ) : (
           selectedTargets.map((environment) => (
-            <SettingsSection key={environment.environmentId} title={environment.label}>
+            <SettingsSection
+              key={environment.environmentId}
+              title={environment.label}
+              localizeTitle={false}
+            >
               {!permittedEnvironments.has(environment.environmentId) ? (
                 <View className="gap-1 p-4">
                   <Text className="text-base text-foreground">Limited permissions</Text>
-                  <Text className="text-sm text-foreground-muted">
-                    {`This session can view ${environment.label}'s providers but can't change their settings.`}
+                  <Text localize={false} className="text-sm text-foreground-muted">
+                    {formatMobileMessage(
+                      "This session can view {0}'s providers but can't change their settings.",
+                      [environment.label],
+                    )}
                   </Text>
                 </View>
               ) : (
@@ -197,7 +205,7 @@ function ProviderAccount({
     if (result._tag === "Success") return true;
     if (!isAtomCommandInterrupted(result)) {
       const failure = squashAtomCommandFailure(result);
-      setError(failure instanceof Error ? failure.message : "Could not update provider sign-in.");
+      setError(providerAccountFailure(failure));
     }
     return false;
   }
@@ -289,9 +297,12 @@ function ProviderAccount({
     void run(() => start(methodId ? { environmentId, input: { instanceId, methodId } } : target));
   }
   function signOut() {
-    Dialog.alert(
+    Dialog.alertWithLiteralMessage(
       "Sign out?",
-      `Running threads sharing this sign-in on ${environment.label} will stop. Thread history is kept.`,
+      formatMobileMessage(
+        "Running threads sharing this sign-in on {0} will stop. Thread history is kept.",
+        [environment.label],
+      ),
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -357,7 +368,7 @@ function ProviderAccount({
       label="Docs"
       onPress={() => {
         void Linking.openURL(provider.setup!.documentationUrl!).catch(() =>
-          setError("Could not open the provider docs."),
+          setError(localizeMobileString("Could not open the provider docs.")),
         );
       }}
     />
@@ -377,6 +388,7 @@ function ProviderAccount({
       accessibilityRole="button"
       accessibilityLabel={formatMobileMessage("{0} account options", [name])}
       title={name}
+      localizeTitle={false}
       actions={accountActions}
       onPressAction={({ nativeEvent }) => onMenuAction(nativeEvent.event)}
     >
@@ -405,7 +417,9 @@ function ProviderAccount({
       variant="primary"
       label={usesCredentials ? "Connect" : "Sign in"}
       accessibilityLabel={
-        usesCredentials ? `Connect to ${name}` : formatMobileMessage("Sign in to {0}", [name])
+        usesCredentials
+          ? formatMobileMessage("Connect to {0}", [name])
+          : formatMobileMessage("Sign in to {0}", [name])
       }
       disabled={signInDisabled}
       onPress={() => startSignIn()}
@@ -438,7 +452,7 @@ function ProviderAccount({
           {interaction?.type === "terminal" ? (
             <>
               <ScrollView className="max-h-64" nestedScrollEnabled>
-                <Text selectable className="font-mono text-sm text-foreground">
+                <Text localize={false} selectable className="font-mono text-sm text-foreground">
                   {interaction.output.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "")}
                 </Text>
               </ScrollView>
@@ -494,7 +508,7 @@ function ProviderAccount({
             </>
           ) : null}
           {error || auth.error ? (
-            <Text accessibilityRole="alert" className="text-danger-foreground">
+            <Text localize={false} accessibilityRole="alert" className="text-danger-foreground">
               {error ?? auth.error}
             </Text>
           ) : null}
@@ -514,7 +528,7 @@ function ProviderAccount({
               )
                 return;
               await Linking.openURL(url);
-            })().catch(() => setError("Could not open the sign-in page."));
+            })().catch(() => setError(localizeMobileString("Could not open the sign-in page.")));
           }}
         />
       ) : null}
@@ -534,10 +548,15 @@ function ProviderAccountSummary({
   const [revealed, setRevealed] = useState(false);
   const content = (
     <>
-      <Text textRole="body" className="text-foreground" numberOfLines={1}>
+      <Text localize={false} textRole="body" className="text-foreground" numberOfLines={1}>
         {name}
       </Text>
-      <Text accessibilityLiveRegion="polite" textRole="footnote" className="text-foreground-muted">
+      <Text
+        localize={false}
+        accessibilityLiveRegion="polite"
+        textRole="footnote"
+        className="text-foreground-muted"
+      >
         {email ? `${status} · ${revealed ? email : "••••••@••••••"}` : status}
       </Text>
     </>

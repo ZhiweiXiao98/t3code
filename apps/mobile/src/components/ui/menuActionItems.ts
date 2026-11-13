@@ -1,3 +1,5 @@
+import type { HeaderBarButtonMailSearchToolbarItem } from "react-native-screens";
+import { localizeMobileString, MOBILE_LOCALE, type MobileLocale } from "../../i18n/mobileStrings";
 import type { LocalizableMenuAction } from "../../i18n/localizeMenuActions";
 import type { MenuAction } from "@react-native-menu/menu";
 import type { AppBarMenuItem } from "./AppBar.types";
@@ -41,6 +43,7 @@ export function menuActionsFromAppBarItems(
             {
               id: item.id,
               title: item.title ?? "",
+              ...(item.localize === undefined ? {} : { localize: item.localize }),
               image: item.icon,
               displayInline: item.inline,
               subactions: menuActionsFromAppBarItems(item.items),
@@ -77,4 +80,29 @@ export function findAppBarMenuItem(
     }
   }
   return undefined;
+}
+
+type MailMenu = NonNullable<HeaderBarButtonMailSearchToolbarItem["filterMenu"]>;
+export function mailMenuItems(
+  items: ReadonlyArray<AppBarMenuItem>,
+  locale: MobileLocale = MOBILE_LOCALE,
+): MailMenu["items"] {
+  return items.map((item) =>
+    "items" in item
+      ? {
+          type: "submenu",
+          title:
+            item.localize === false
+              ? (item.title ?? "")
+              : localizeMobileString(item.title ?? "", locale),
+          items: mailMenuItems(item.items, locale),
+        }
+      : {
+          type: "action",
+          title: item.localize === false ? item.title : localizeMobileString(item.title, locale),
+          state: item.selected ? "on" : "off",
+          disabled: item.disabled,
+          onPress: item.onPress,
+        },
+  );
 }

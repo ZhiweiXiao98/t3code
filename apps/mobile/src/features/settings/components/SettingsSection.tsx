@@ -20,7 +20,11 @@ export function SettingsSection(props: ComponentProps<typeof ListSection>) {
         <View className="flex-row items-center justify-between gap-3 px-2">
           <View className="min-w-0 flex-1 flex-row items-center gap-2">
             {props.titleIcon}
-            <Text textRole="footnote" className="shrink font-t3-medium text-foreground-muted">
+            <Text
+              localize={props.localizeTitle}
+              textRole="footnote"
+              className="shrink font-t3-medium text-foreground-muted"
+            >
               {props.title}
             </Text>
           </View>

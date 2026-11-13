@@ -5,7 +5,13 @@ import type { AppBarMenu, AppBarMenuItem } from "./AppBar.types";
 function renderMenuItems(items: ReadonlyArray<AppBarMenuItem>) {
   return items.map((item) =>
     "items" in item ? (
-      <Toolbar.Menu key={item.id} title={item.title} icon={item.icon} inline={item.inline}>
+      <Toolbar.Menu
+        key={item.id}
+        title={item.title}
+        localize={item.localize}
+        icon={item.icon}
+        inline={item.inline}
+      >
         {renderMenuItems(item.items)}
       </Toolbar.Menu>
     ) : (

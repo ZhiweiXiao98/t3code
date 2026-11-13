@@ -1,6 +1,43 @@
 import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 
 const EN_MESSAGES = {
+  "audit12.pr.stackShort": "stack",
+  "audit12.pr.chainShort": "chain",
+  "audit12.link.description":
+    "Agents here can then launch, message and wait on threads there. Revoke it in that machine's Connections.",
+
+  "audit12.pr.pullRequests": "pull requests",
+  "audit12.pr.mergeRequests": "merge requests",
+  "audit12.pr.changeRequests": "change requests",
+
+  "audit12.media.menuFailed": "Could not open media menu",
+  "audit12.media.saveImage": "Save image",
+  "audit12.media.saveVideo": "Save video",
+  "audit12.media.copyImage": "Copy image",
+  "audit12.media.copyUrl": "Copy URL",
+  "audit12.media.openFile": "Open in file viewer",
+  "audit12.media.urlCopied": "URL copied",
+  "audit12.media.pathCopied": "Path copied",
+  "audit12.media.preparingImage": "Preparing image download…",
+  "audit12.media.preparingVideo": "Preparing video download…",
+  "audit12.media.copying": "Copying image…",
+  "audit12.media.downloadStarted": "Download started",
+  "audit12.media.imageCopied": "Image copied",
+  "audit12.media.failed": "The media action failed.",
+  "audit12.media.actionFailed": "Could not {action}",
+  "audit12.media.complete": "complete media action",
+  "audit12.media.play": "Play {label}",
+  "audit12.media.playVideo": "Play video",
+  "audit12.pr.stack": "Stack of {count} {kind}, {state}",
+  "audit12.pr.pending": "{kind} #{number}, status pending",
+  "audit12.pr.more": "{tooltip}, and {count} more linked; overall {state}",
+  "audit12.link.target": "Link {name} to this environment",
+  "audit12.link.machine": "Link a machine to this environment",
+  "audit12.link.title": "Link {name}",
+  "audit12.link.pick": "Link a machine",
+  "audit12.link.access": "Access",
+  "audit12.shortcut.recordFailed": "Could not start shortcut recording.",
+
   "audit11.prUnavailable": "The pull request is not available in this environment.",
   "audit11.prUnsupported": "This environment does not support linking this pull request.",
   "audit11.prInterrupted": "Link update interrupted.",
@@ -4664,6 +4701,43 @@ export type WebMessages = Readonly<Record<WebMessageKey, string>>;
 export type WebMessageValues = Readonly<Record<string, string | number>>;
 
 const ZH_CN_MESSAGES = {
+  "audit12.pr.stackShort": "堆叠",
+  "audit12.pr.chainShort": "链",
+  "audit12.link.description":
+    "此处的智能体随后可在该机器上启动会话、发送消息并等待会话完成。可在该机器的“连接”设置中撤销关联。",
+
+  "audit12.pr.pullRequests": "拉取请求",
+  "audit12.pr.mergeRequests": "合并请求",
+  "audit12.pr.changeRequests": "变更请求",
+
+  "audit12.media.menuFailed": "无法打开媒体菜单",
+  "audit12.media.saveImage": "保存图片",
+  "audit12.media.saveVideo": "保存视频",
+  "audit12.media.copyImage": "复制图片",
+  "audit12.media.copyUrl": "复制 URL",
+  "audit12.media.openFile": "在文件查看器中打开",
+  "audit12.media.urlCopied": "已复制 URL",
+  "audit12.media.pathCopied": "已复制路径",
+  "audit12.media.preparingImage": "正在准备下载图片…",
+  "audit12.media.preparingVideo": "正在准备下载视频…",
+  "audit12.media.copying": "正在复制图片…",
+  "audit12.media.downloadStarted": "已开始下载",
+  "audit12.media.imageCopied": "已复制图片",
+  "audit12.media.failed": "媒体操作失败。",
+  "audit12.media.actionFailed": "无法{action}",
+  "audit12.media.complete": "完成媒体操作",
+  "audit12.media.play": "播放{label}",
+  "audit12.media.playVideo": "播放视频",
+  "audit12.pr.stack": "包含 {count} 个{kind}的堆叠，{state}",
+  "audit12.pr.pending": "{kind} #{number}，状态待确认",
+  "audit12.pr.more": "{tooltip}，另有 {count} 个关联；整体状态：{state}",
+  "audit12.link.target": "将 {name} 关联到此环境",
+  "audit12.link.machine": "将机器关联到此环境",
+  "audit12.link.title": "关联 {name}",
+  "audit12.link.pick": "关联机器",
+  "audit12.link.access": "访问权限",
+  "audit12.shortcut.recordFailed": "无法开始录制快捷键。",
+
   "audit11.prUnavailable": "此环境中无法使用该拉取请求。",
   "audit11.prUnsupported": "此环境不支持关联此拉取请求。",
   "audit11.prInterrupted": "关联更新已中断。",
@@ -9131,6 +9205,13 @@ for (const [key, source] of Object.entries(EN_MESSAGES) as ReadonlyArray<
 // New upstream settings copy can be localized here before it receives a stable
 // message key. Settings containers and search both consume this same table.
 const ZH_CN_SOURCE_MESSAGES: Readonly<Record<string, string>> = {
+  Completed: "已完成",
+  "Plan Ready": "计划已就绪",
+  Connecting: "正在连接",
+  Working: "正在工作",
+  "Guest Request": "访客请求",
+  "Awaiting Input": "等待输入",
+  "Pending Approval": "等待批准",
   Overall: "总体",
   "Cursor Models": "Cursor 模型",
   "Other Models": "其他模型",
@@ -11016,6 +11097,8 @@ const ZH_CN_SOURCE_MESSAGES: Readonly<Record<string, string>> = {
   "Enter the gateway's origin, such as https://gateway.example.ts.net:4700.":
     "输入网关源地址，例如 https://gateway.example.ts.net:4700。",
   "Keep the limits within the ranges shown.": "请将限制值保持在显示的范围内。",
+  "Device list may be incomplete": "设备列表可能不完整",
+  "iOS list may be incomplete": "iOS 设备列表可能不完整",
   "Android list may be incomplete": "Android 设备列表可能不完整",
   Starting: "正在启动",
   "Device host not removed everywhere": "部分环境中的设备主机未能移除",

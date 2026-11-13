@@ -107,8 +107,10 @@ function convertMenuAction(
       type: "submenu",
       label:
         typeof element.props.title === "string"
-          ? localizeMobileString(element.props.title)
-          : labelFromChildren(element.props.children),
+          ? element.props.localize === false
+            ? element.props.title
+            : localizeMobileString(element.props.title)
+          : labelFromChildren(element.props.children, element.props.localize !== false),
       icon: iconFromProp(element.props.icon),
       inline: Boolean(element.props.inline),
       items: collectMenuItems(element.props.children, register),
@@ -182,7 +184,12 @@ function convertToolbarChild(
   if (typeName === "NativeHeaderToolbarMenu") {
     return {
       type: "menu",
-      label: typeof child.props.title === "string" ? localizeMobileString(child.props.title) : "",
+      label:
+        typeof child.props.title === "string"
+          ? child.props.localize === false
+            ? child.props.title
+            : localizeMobileString(child.props.title)
+          : "",
       accessibilityLabel:
         typeof child.props.accessibilityLabel === "string"
           ? localizeMobileString(child.props.accessibilityLabel)
@@ -193,7 +200,9 @@ function convertToolbarChild(
       menu: {
         title:
           typeof child.props.title === "string"
-            ? localizeMobileString(child.props.title)
+            ? child.props.localize === false
+              ? child.props.title
+              : localizeMobileString(child.props.title)
             : undefined,
         items: collectMenuItems(child.props.children, register),
       },
@@ -314,6 +323,7 @@ function NativeHeaderToolbarButton(_props: {
 NativeHeaderToolbarButton.displayName = "NativeHeaderToolbarButton";
 
 function NativeHeaderToolbarMenu(_props: {
+  readonly localize?: boolean;
   readonly accessibilityLabel?: string;
   readonly axisBehavior?: NativeStackHeaderAxisBehavior;
   readonly children?: ReactNode;

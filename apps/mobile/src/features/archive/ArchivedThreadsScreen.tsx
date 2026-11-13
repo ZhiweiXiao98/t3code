@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { NativeScrollView } from "../../native/NativeScrollViewMarker";
 import { Button } from "../../components/ui/Button";
 import type {
@@ -82,6 +83,7 @@ function ArchivedThreadsHeader(props: {
                 ...props.environments.map((environment) => ({
                   id: `environment:${environment.environmentId}`,
                   title: environment.label,
+                  localize: false,
                   selected: props.selectedEnvironmentId === environment.environmentId,
                   onPress: () => props.onEnvironmentChange(environment.environmentId),
                 })),
@@ -262,7 +264,7 @@ function ArchivedThreadRow(props: {
       onSwipeableClose={props.onSwipeableClose}
       onSwipeableWillOpen={props.onSwipeableWillOpen}
       primaryAction={{
-        accessibilityLabel: `Unarchive ${props.thread.title}`,
+        accessibilityLabel: formatMobileMessage("Unarchive {0}", [props.thread.title]),
         icon: "arrow.uturn.backward",
         label: "Unarchive",
         onPress: props.onUnarchive,

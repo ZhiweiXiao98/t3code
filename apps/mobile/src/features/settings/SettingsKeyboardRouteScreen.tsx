@@ -1,3 +1,4 @@
+import { keyboardNewlineDescription } from "./settingsAccountDisplay";
 import { ScreenScrollView as ScrollView } from "../../components/ui/ScreenScrollView";
 import { useAtomSet, useAtomValue } from "@effect/atom-react";
 import { AsyncResult } from "effect/reactivity";
@@ -29,7 +30,7 @@ const ENTER_BEHAVIOR_OPTIONS: ReadonlyArray<{
   {
     behavior: "newline",
     label: "Insert new line",
-    description: `Return inserts a new line. ${SEND_MODIFIER}-Return sends the message.`,
+    description: keyboardNewlineDescription(SEND_MODIFIER),
   },
 ];
 

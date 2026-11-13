@@ -6,6 +6,75 @@ export const MOBILE_LOCALE: MobileLocale =
   process.env.EXPO_PUBLIC_APP_LOCALE === "zh-CN" ? "zh-CN" : "en";
 
 const ZH_CN_MESSAGES = {
+  "Refills in {0}": "{0}后补充",
+  "This session can view {0}'s providers but can't change their settings.":
+    "此会话可以查看 {0} 的提供商，但无法更改其设置。",
+  "Running threads sharing this sign-in on {0} will stop. Thread history is kept.":
+    "{0} 上共享此登录的运行中任务将停止。任务历史会保留。",
+  "Connect to {0}": "连接到 {0}",
+  "Could not update provider sign-in.": "无法更新提供商登录状态。",
+  "Could not open the provider docs.": "无法打开提供商文档。",
+  "Could not open the sign-in page.": "无法打开登录页面。",
+  "Return inserts a new line. {0}-Return sends the message.":
+    "Return 插入新行，{0}-Return 发送消息。",
+  "{0} · Archived": "{0} · 已归档",
+  "{0} environment": "{0} 个环境",
+  "{0} environments": "{0} 个环境",
+  "Delete {0}": "删除 {0}",
+  "Unarchive {0}": "取消归档 {0}",
+  "Failed to load archived threads.": "加载已归档对话失败。",
+  "{0} working thread": "{0} 个运行中对话",
+  "{0} working threads": "{0} 个运行中对话",
+  "Collapses the working threads.": "折叠运行中对话。",
+  "Expands the working threads.": "展开运行中对话。",
+  "{0} snoozed thread": "{0} 个已暂缓对话",
+  "{0} snoozed threads": "{0} 个已暂缓对话",
+  "Collapses the snoozed threads.": "折叠已暂缓对话。",
+  "Expands the snoozed threads.": "展开已暂缓对话。",
+  "{0} settled thread": "{0} 个已结束对话",
+  "{0} settled threads": "{0} 个已结束对话",
+  "Collapses the settled threads.": "折叠已结束对话。",
+  "Expands the settled threads.": "展开已结束对话。",
+  "Discard {0}": "放弃 {0}",
+  "Opens the draft in the new task composer. Swipe left to discard.":
+    "在新任务编辑器中打开草稿。向左滑动以放弃。",
+  "Sends when the environment reconnects. Opens the task for editing. Swipe left to delete.":
+    "环境重新连接后发送。打开任务进行编辑。向左滑动以删除。",
+  "Archive {0}": "归档 {0}",
+  "Wake {0} now": "立即唤醒 {0}",
+  "Un-settle {0}": "恢复任务 {0}",
+  "Settle {0}": "收起 {0}",
+  "Choose when to snooze {0}": "选择暂缓 {0} 的时间",
+  "Opens the thread. Swipe left to {0}.": "打开对话。向左滑动以{0}。",
+  "Opens the thread. Swipe left for {0} and snooze actions.":
+    "打开对话。向左滑动以使用{0}和暂缓操作。",
+  "Opens the thread": "打开对话",
+  "Hourly cost": "每小时成本",
+  "Daily cost": "每日成本",
+  "Hourly processed tokens": "每小时处理的 Token",
+  "Daily processed tokens": "每日处理的 Token",
+  "{0} premium": "额外费用 {0}",
+  "{0} of tokens · {1}": "占 Token 的 {0} · {1}",
+  "{0} of cost · {1} tokens": "占成本的 {0} · {1} 个 Token",
+  "no known rates": "暂无已知费率",
+  "no known rates · {0} tokens": "暂无已知费率 · {0} 个 Token",
+  "{0} runs an older server version and is excluded from totals.":
+    "{0} 运行的服务器版本较旧，其用量不计入总计。",
+  "This client is older than the server on {0}; its usage is excluded from totals.":
+    "此客户端版本低于 {0} 上的服务器，其用量不计入总计。",
+  "This environment could not report usage.": "此环境无法报告用量。",
+  "Could not check this connection's access to diagnostics and usage.":
+    "无法检查此连接对诊断和用量的访问权限。",
+  "This connection does not have access to diagnostics and usage.": "此连接无权访问诊断和用量。",
+  "{0} Showing saved totals.": "{0} 正在显示已保存的总计。",
+  "resets in {0}": "{0}后重置",
+  "Segment {0}, {1}, {2}% left": "区段 {0}，{1}，剩余 {2}%",
+  "{0}% of the window left": "额度周期剩余 {0}%",
+  "{0} reset credits banked": "已积攒 {0} 次重置额度",
+  "{0} could not refresh limits. Showing the last known values.":
+    "{0} 无法刷新限额，正在显示上次已知值。",
+  "Resets momentarily": "即将重置",
+
   "Connecting...": "正在连接…",
   "Reconnecting...": "正在重新连接…",
   "1 checkout": "1 个检出目录",

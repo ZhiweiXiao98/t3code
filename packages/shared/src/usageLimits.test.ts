@@ -1556,3 +1556,60 @@ describe("ChatGPT sharing presentation", () => {
     ).toBe(false);
   });
 });
+
+describe("limit notice display copy", () => {
+  it("localizes only the empty-source fallback and preserves identical provider and source errors", () => {
+    const message = "No accounts reported.";
+    const checkedAt = "2026-09-03T11:00:00.000Z";
+    const emptySource = {
+      id: UsageLimitSourceId.make("empty"),
+      kind: "cliproxy" as const,
+      label: "Settings $& {0}",
+      checkedAt,
+      accounts: [],
+    };
+    const presentations = new Map([
+      [
+        EnvironmentId.make("a"),
+        {
+          entry: { target: { label: "Usage" } },
+          serverConfig: {
+            providers: [
+              provider({
+                displayName: "Settings",
+                usageLimits: {
+                  checkedAt,
+                  windows: [],
+                  unavailable: { reason: "probeFailed", message },
+                },
+              }),
+            ],
+            usageLimitSources: [
+              emptySource,
+              {
+                ...emptySource,
+                id: UsageLimitSourceId.make("failed"),
+                label: "Failed source",
+                error: message,
+              },
+            ],
+          },
+        },
+      ],
+      [
+        EnvironmentId.make("b"),
+        { entry: { target: { label: "Other" } }, serverConfig: { providers: [] } },
+      ],
+    ]);
+    expect(collectLimitNotices(presentations)).toEqual([
+      "Usage · Settings: No accounts reported.",
+      "Usage · Settings $& {0}: No accounts reported.",
+      "Usage · Failed source: No accounts reported.",
+    ]);
+    expect(collectLimitNotices(presentations, "未报告任何账户。")).toEqual([
+      "Usage · Settings: No accounts reported.",
+      "Usage · Settings $& {0}: 未报告任何账户。",
+      "Usage · Failed source: No accounts reported.",
+    ]);
+  });
+});

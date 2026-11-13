@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { useAtomValue } from "@effect/atom-react";
 import {
   type ArchivedSnapshotEntry,
@@ -49,5 +50,9 @@ export function useArchivedThreadSnapshots(environmentIds: ReadonlyArray<Environ
     }
   };
 
-  return { ...result, refresh };
+  return {
+    ...result,
+    error: result.error === null ? null : localizeMobileString(result.error),
+    refresh,
+  };
 }

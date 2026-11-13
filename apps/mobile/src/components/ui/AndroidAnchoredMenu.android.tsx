@@ -1,5 +1,4 @@
-import { localizeMenuActions } from "../../i18n/localizeMenuActions";
-import { localizeMobileString } from "../../i18n/mobileStrings";
+import { localizeMenuActions, localizeMenuTitle } from "../../i18n/localizeMenuActions";
 import type { MenuAction, MenuComponentProps } from "@react-native-menu/menu";
 import type { ReactNode } from "react";
 import { use, useMemo, useRef, useState } from "react";
@@ -39,6 +38,7 @@ type OverlayFrame = {
 export type AndroidAnchoredMenuProps = {
   readonly actions: readonly MenuAction[];
   readonly title?: string;
+  readonly localizeTitle?: boolean;
   readonly onPressAction?: MenuComponentProps["onPressAction"];
   readonly className?: string;
   readonly style?: StyleProp<ViewStyle>;
@@ -178,7 +178,7 @@ export function AndroidAnchoredMenu(props: AndroidAnchoredMenuProps) {
                 anchor={windowHinge ? { ...local, x: left, width: menuWidth } : local}
                 menuWidth={menuWidth}
                 actions={levelActions}
-                title={props.title === undefined ? undefined : localizeMobileString(props.title)}
+                title={localizeMenuTitle(props.title, props.localizeTitle)}
                 parent={parent}
                 onPress={onPressItem}
                 onBack={() => setPath((current) => current.slice(0, -1))}
@@ -209,9 +209,7 @@ export function AndroidAnchoredMenu(props: AndroidAnchoredMenuProps) {
                     anchor={local}
                     menuWidth={menuWidth}
                     actions={levelActions}
-                    title={
-                      props.title === undefined ? undefined : localizeMobileString(props.title)
-                    }
+                    title={localizeMenuTitle(props.title, props.localizeTitle)}
                     parent={parent}
                     onPress={onPressItem}
                     onBack={() => setPath((current) => current.slice(0, -1))}

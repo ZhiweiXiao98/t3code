@@ -1,3 +1,5 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
+import { mobileUsageShare, mobileUsageContractMismatch, mobileUsageError } from "./usageDisplay";
 import { localizeMobileString, MOBILE_LOCALE } from "../../i18n/mobileStrings";
 import { AppActivityIndicator } from "../../components/ui/AppActivityIndicator";
 import { ChatGptUsageSummary } from "./ChatGptUsageSummary";
@@ -23,7 +25,6 @@ import {
   formatHourShort,
   formatPercent,
   formatTokens,
-  formatUsageContractMismatch,
   formatUsd,
   makeWindow,
   usageSourceMessages,
@@ -201,6 +202,7 @@ function UsageScreen(props: {
       ...environments.map((environment) => ({
         id: environment.environmentId,
         title: environment.label,
+        localize: false,
         subtitle: usageEnvironmentStatus(environment, refreshingUsage),
         selected:
           selectedEnvironmentIds === null || selectedEnvironmentIds.has(environment.environmentId),
@@ -307,17 +309,22 @@ function UsageScreen(props: {
                     {selectedEnvironments.map((environment) => (
                       <Text
                         key={environment.environmentId}
+                        localize={false}
                         className="text-center text-base text-foreground-muted"
                       >
                         {selectedEnvironments.length > 1 ? `${environment.label}: ` : null}
-                        {environment.error}
+                        {environment.error ? mobileUsageError(environment.error) : null}
                       </Text>
                     ))}
                   </View>
                 ) : (
                   <>
                     {sourceMessages.map((message) => (
-                      <Text key={message} className="text-sm text-foreground-muted">
+                      <Text
+                        localize={false}
+                        key={message}
+                        className="text-sm text-foreground-muted"
+                      >
                         {message}
                       </Text>
                     ))}
@@ -573,11 +580,7 @@ function ProviderSection(props: {
               </View>
             )}
             <Text className="text-sm text-foreground-muted">
-              {localizeMobileString(
-                metric === "cost"
-                  ? `${formatPercent(share)} of cost · ${formatTokens(provider.totalTokens)} tokens`
-                  : `${formatPercent(share)} of tokens · ${formatUsd(provider.costUsd)}`,
-              )}
+              {mobileUsageShare(metric, share, provider.totalTokens, provider.costUsd)}
             </Text>
           </View>
         );
@@ -687,7 +690,7 @@ function CostSection(props: { readonly merged: MergedUsage; readonly wide: boole
             <ShareBar
               label="By speed"
               segments={bySpeed}
-              aside={`${formatUsd(speedCost.premium)} premium`}
+              aside={formatMobileMessage("{0} premium", [formatUsd(speedCost.premium)])}
             />
           </View>
         ) : null}
@@ -783,17 +786,17 @@ function ModelsSection(props: {
               style={{ backgroundColor: colors[model.provider] }}
             />
             <View className="min-w-0 flex-1 gap-0.5">
-              <Text className="text-base text-foreground" numberOfLines={1}>
+              <Text localize={false} className="text-base text-foreground" numberOfLines={1}>
                 {model.model}
               </Text>
               <Text className="text-sm text-foreground-muted">
-                {metric === "tokens"
-                  ? `${formatPercent(model.tokenShare)} of tokens · ${
-                      isModelCostUnknown(model) ? "no known rates" : formatUsd(model.costUsd)
-                    }`
-                  : isModelCostUnknown(model)
-                    ? `no known rates · ${formatTokens(model.totalTokens)} tokens`
-                    : `${formatPercent(model.costShare)} of cost · ${formatTokens(model.totalTokens)} tokens`}
+                {mobileUsageShare(
+                  metric,
+                  metric === "tokens" ? model.tokenShare : model.costShare,
+                  model.totalTokens,
+                  model.costUsd,
+                  isModelCostUnknown(model),
+                )}
               </Text>
             </View>
             <Text className="text-base tabular-nums text-foreground">
@@ -815,21 +818,22 @@ function usageEnvironmentStatus(environment: EnvironmentUsageStatus, refreshing:
     environment.summary &&
     !isCompatibleUsageContractVersion(environment.summary.contractVersion, USAGE_CONTRACT_VERSION)
   ) {
-    return formatUsageContractMismatch(environment.label, {
-      direction:
-        environment.summary.contractVersion < USAGE_CONTRACT_VERSION
-          ? "serverBehind"
-          : "clientBehind",
-    });
+    return mobileUsageContractMismatch(
+      environment.label,
+      environment.summary.contractVersion < USAGE_CONTRACT_VERSION
+        ? "serverBehind"
+        : "clientBehind",
+    );
   }
-  if (environment.error)
-    return environment.summary ? `${environment.error} Showing saved totals.` : environment.error;
+  if (environment.error) return mobileUsageError(environment.error, environment.summary !== null);
   if (!environment.isConnected)
-    return environment.summary ? "Disconnected · showing saved usage" : "Waiting for connection…";
+    return localizeMobileString(
+      environment.summary ? "Disconnected · showing saved usage" : "Waiting for connection…",
+    );
   const progress = usageEnvironmentProgress(environment, refreshing);
-  if (progress.phase === "loading") return "Loading usage…";
-  if (progress.phase === "stale") return "Updating usage…";
+  if (progress.phase === "loading") return localizeMobileString("Loading usage…");
+  if (progress.phase === "stale") return localizeMobileString("Updating usage…");
   if (progress.phase === "partway")
-    return updatingProvidersLabel(progress.providers, providerLabel);
-  return "Usage up to date";
+    return localizeMobileString(updatingProvidersLabel(progress.providers, providerLabel));
+  return localizeMobileString("Usage up to date");
 }
