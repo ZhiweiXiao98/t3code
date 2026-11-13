@@ -1,3 +1,5 @@
+import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
+
 export type LoopbackAuthorizationStage = "dev" | "nightly" | "latest";
 
 declare const __T3CODE_BUILD_CHANNEL__: "nightly" | "latest" | undefined;
@@ -14,16 +16,18 @@ const stageBrands = {
 
 export function renderLoopbackAuthorizationCompleteHtml(
   stage: LoopbackAuthorizationStage = resolveLoopbackAuthorizationStage(),
+  locale: ResolvedAppLocale = "en",
 ): string {
   const stageBrand = stageBrands[stage];
+  const chinese = locale === "zh-CN";
 
   return `<!doctype html>
-<html lang="en">
+<html lang="${locale}">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light dark" />
-    <title>T3 Connect authorization complete</title>
+    <title>${chinese ? "T3 Connect 授权完成" : "T3 Connect authorization complete"}</title>
     <style>
       :root {
         color-scheme: light dark;
@@ -145,9 +149,9 @@ export function renderLoopbackAuthorizationCompleteHtml(
         </div>
       </header>
       <section class="content">
-        <p class="eyebrow">Browser authorization complete</p>
-        <h1>You're connected</h1>
-        <p class="description">Return to your terminal to finish setting up T3 Connect. You can close this window.</p>
+        <p class="eyebrow">${chinese ? "浏览器授权完成" : "Browser authorization complete"}</p>
+        <h1>${chinese ? "已连接" : "You're connected"}</h1>
+        <p class="description">${chinese ? "请返回终端完成 T3 Connect 设置。你可以关闭此窗口。" : "Return to your terminal to finish setting up T3 Connect. You can close this window."}</p>
       </section>
     </main>
   </body>

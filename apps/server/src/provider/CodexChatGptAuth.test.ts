@@ -94,6 +94,7 @@ const makeHarnessFor = Effect.fnUntraced(function* (
   const authorizationRequests: URL[] = [];
   const callbackResponses: { body: string; headers: Headers }[] = [];
   let returnUrl = "http://localhost:7001/welcome";
+  let acceptLanguage = "en";
   const server = yield* Effect.acquireRelease(
     Effect.promise(
       () =>
@@ -281,7 +282,7 @@ const makeHarnessFor = Effect.fnUntraced(function* (
       assert.strictEqual(waiting.interaction?.type, "browser");
       const callback = prepareCallback(waiting);
       yield* Effect.promise(async () => {
-        const response = await fetch(callback);
+        const response = await fetch(callback, { headers: { "accept-language": acceptLanguage } });
         callbackResponses.push({ body: await response.text(), headers: response.headers });
       });
     });
@@ -369,6 +370,9 @@ const makeHarnessFor = Effect.fnUntraced(function* (
     exchanges,
     authorizationRequests,
     callbackResponses,
+    setAcceptLanguage: (value: string) => {
+      acceptLanguage = value;
+    },
     setReturnUrl: (value: string) => {
       returnUrl = value;
     },
@@ -679,12 +683,16 @@ it.effect(
       }),
     ),
 );
-it.effect(
-  "returns to the initiating client only after sign-in has verified and saved credentials",
-  () =>
+it.effect.each([
+  { header: "en", locale: "en", title: "You&#39;re signed in" },
+  { header: "en;q=0.5,zh-CN;q=1", locale: "zh-CN", title: "已登录" },
+])(
+  "returns to the initiating client only after sign-in has verified and saved credentials in $locale",
+  ({ header, locale, title }) =>
     provision(
       Effect.gen(function* () {
         const h = yield* makeHarness;
+        h.setAcceptLanguage(header);
         h.setReturnUrl(
           "http://localhost:7001/settings/providers?instanceId=codex_work&code=secret-code",
         );
@@ -695,7 +703,8 @@ it.effect(
         assert.strictEqual(response.headers.get("cache-control"), "no-store");
         assert.strictEqual(response.headers.get("referrer-policy"), "no-referrer");
         assert.include(response.headers.get("content-security-policy")!, "default-src 'none'");
-        assert.include(response.body, "You're signed in".replace("'", "&#39;"));
+        assert.include(response.body, `<html lang="${locale}">`);
+        assert.include(response.body, title);
         assert.include(
           response.body,
           'content="1;url=http://localhost:7001/settings/providers?instanceId=codex_work"',
@@ -714,12 +723,14 @@ it.effect(
     provision(
       Effect.gen(function* () {
         const h = yield* makeHarness;
+        h.setAcceptLanguage("zh-CN");
         h.setReturnUrl("https://attacker.example/welcome");
         h.setInvalidNonce();
         yield* h.signIn;
         yield* h.phase("failed");
         const response = h.callbackResponses[0]!;
-        assert.include(response.body, "Sign-in couldn&#39;t finish");
+        assert.include(response.body, '<html lang="zh-CN">');
+        assert.include(response.body, "未能完成登录");
         assert.notInclude(response.body, 'http-equiv="refresh"');
         assert.notInclude(response.body, "attacker.example");
         assert.isTrue(Option.isNone(yield* h.auth.read));

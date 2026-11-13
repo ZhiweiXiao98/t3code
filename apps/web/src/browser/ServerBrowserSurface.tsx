@@ -1,5 +1,7 @@
 "use client";
 
+import { browserUploadErrorDescription } from "./browserUploadErrorDescription";
+
 import { readWebI18n } from "~/i18n/readWebI18n";
 
 import { useI18n } from "~/i18n/WebI18nContext";
@@ -200,7 +202,7 @@ export function ServerBrowserSurface(props: {
       toastManager.add({
         type: "error",
         title: translateWebSource(readWebI18n().locale, "Could not send the files to the page"),
-        description: cause instanceof Error ? cause.message : undefined,
+        description: browserUploadErrorDescription(readWebI18n().locale, cause),
       }),
     );
   };

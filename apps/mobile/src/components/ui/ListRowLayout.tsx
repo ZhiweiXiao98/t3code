@@ -12,6 +12,7 @@ export interface ListRowContentProps {
   readonly label: string;
   readonly localizeLabel?: boolean;
   readonly description?: string;
+  readonly localizeDescription?: boolean;
   readonly detail?: string;
   /** Rich secondary content under the description, such as scores with emphasized values. */
   readonly meta?: ReactNode;
@@ -24,6 +25,7 @@ export function ListRowLayout({
   label,
   localizeLabel = true,
   description,
+  localizeDescription = true,
   detail,
   meta,
   disabled,
@@ -62,7 +64,11 @@ export function ListRowLayout({
           {label}
         </AppText>
         {description ? (
-          <AppText textRole="footnote" className="text-foreground-muted">
+          <AppText
+            localize={localizeDescription}
+            textRole="footnote"
+            className="text-foreground-muted"
+          >
             {description}
           </AppText>
         ) : null}

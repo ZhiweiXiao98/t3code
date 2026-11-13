@@ -229,6 +229,109 @@ it.layer(
     Layer.provideMerge(NodeServices.layer),
   ),
 )("static HTTP responses", (it) => {
+  it.effect("localizes configuration and path errors without changing their status", () =>
+    Effect.gen(function* () {
+      const config = yield* ServerConfig.ServerConfig;
+      for (const scenario of [
+        {
+          staticDir: undefined,
+          resource: "/",
+          status: 503,
+          en: "No static directory configured and no dev URL set.",
+          zh: "未配置静态目录，也未设置开发服务器 URL。",
+        },
+        {
+          staticDir: config.baseDir,
+          resource: "/..invalid",
+          status: 400,
+          en: "Invalid static file path",
+          zh: "静态文件路径无效",
+        },
+      ]) {
+        const context = yield* Layer.build(
+          Layer.mergeAll(
+            ServerConfig.layer({ ...config, staticDir: scenario.staticDir, devUrl: undefined }),
+            NodeServices.layer,
+          ),
+        );
+        const routes = ServerHttp.layerStaticAndDevRoute.pipe(
+          Layer.provide(Layer.succeedContext(context)),
+        );
+        const web = yield* Effect.acquireRelease(
+          Effect.sync(() => HttpRouter.toWebHandler(routes, { disableLogger: true })),
+          (handler) => Effect.promise(() => handler.dispose()),
+        );
+        for (const [header, message] of [
+          ["en", scenario.en],
+          ["zh-CN", scenario.zh],
+        ] as const) {
+          const response = yield* Effect.promise(() =>
+            web.handler(
+              new Request(`https://preview.example${scenario.resource}`, {
+                headers: { "accept-language": header },
+              }),
+              context,
+            ),
+          );
+          expect(response.status).toBe(scenario.status);
+          expect(response.headers.get("location")).toBeNull();
+          expect(response.headers.get("retry-after")).toBeNull();
+          expect(response.headers.get("content-type")).toContain("text/plain");
+          expect(yield* Effect.promise(() => response.text())).toBe(message);
+        }
+      }
+    }),
+  );
+
+  it.effect("localizes the first-build page without changing reload or retry behavior", () =>
+    Effect.gen(function* () {
+      const config = yield* ServerConfig.ServerConfig;
+      const fileSystem = yield* FileSystem.FileSystem;
+      const context = yield* Layer.build(
+        Layer.mergeAll(
+          NodeServices.layer,
+          ServerConfig.layer({
+            ...config,
+            staticDir: undefined,
+            devUrl: new URL("http://localhost:5173"),
+          }),
+          Layer.succeed(FileSystem.FileSystem, {
+            ...fileSystem,
+            exists: () => Effect.succeed(false),
+          }),
+        ),
+      );
+      const routes = ServerHttp.layerStaticAndDevRoute.pipe(
+        Layer.provide(Layer.succeedContext(context)),
+      );
+      const web = yield* Effect.acquireRelease(
+        Effect.sync(() => HttpRouter.toWebHandler(routes, { disableLogger: true })),
+        (handler) => Effect.promise(() => handler.dispose()),
+      );
+      for (const [header, locale, message] of [
+        ["en", "en", "Waiting for the first web build. This page reloads by itself."],
+        ["en;q=0.1,zh-CN;q=0.9", "zh-CN", "正在等待首次 Web 构建。此页面会自动重新加载。"],
+      ] as const) {
+        const response = yield* Effect.promise(() =>
+          web.handler(
+            new Request("https://preview.example/", {
+              headers: { host: "preview.example", "accept-language": header },
+            }),
+            context,
+          ),
+        );
+        expect(response.status).toBe(503);
+        expect(response.headers.get("retry-after")).toBe("2");
+        expect(response.headers.get("location")).toBeNull();
+        expect(response.headers.get("content-type")).toContain("text/html");
+        const html = yield* Effect.promise(() => response.text());
+        expect(html).toContain(`<html lang="${locale}">`);
+        expect(html).toContain('http-equiv="refresh" content="2"');
+        expect(html).toContain(message);
+      }
+    }),
+  );
+
   it.effect("revalidates non-HTML files and returns changed contents", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;

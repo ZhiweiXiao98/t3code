@@ -1,3 +1,4 @@
+import { mobileSpeechLanguageLabel } from "../../i18n/mobileNativePresentationStrings";
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { useAtomRefresh, useAtomValue } from "@effect/atom-react";
@@ -63,7 +64,7 @@ export function useVoiceModels(environmentId: EnvironmentId, label: string) {
     try {
       await work();
     } catch (error) {
-      Dialog.alert(title, error instanceof Error ? error.message : String(error));
+      Dialog.alertWithLiteralMessage(title, error instanceof Error ? error.message : String(error));
     }
     if (downloadId) setRequested(null);
     else setBusy(false);
@@ -84,8 +85,11 @@ export function useVoiceModels(environmentId: EnvironmentId, label: string) {
     download: (model: EnvironmentSpeechModel) => {
       if (!ready) return;
       Dialog.confirm({
-        title: `Download ${model.name}?`,
-        message: `${label} will download ${formatBytes(model.size)} and use it as its transcription model.`,
+        title: formatMobileMessage("Download {0}?", [model.name]),
+        message: formatMobileMessage(
+          "{0} will download {1} and use it as its transcription model.",
+          [label, formatBytes(model.size)],
+        ),
         confirmText: "Download",
         onConfirm: () =>
           void run(
@@ -116,12 +120,6 @@ export function useVoiceModels(environmentId: EnvironmentId, label: string) {
 
 export type VoiceModels = ReturnType<typeof useVoiceModels>;
 
-const languageNames =
-  typeof Intl.DisplayNames === "function"
-    ? new Intl.DisplayNames(undefined, { type: "language" })
-    : null;
-const languageLabel = (code: string) => languageNames?.of(code) ?? code.toUpperCase();
-
 function ModelStats(props: { readonly model: EnvironmentSpeechModel; readonly language: string }) {
   const { model, language } = props;
   const data = model.benchmark;
@@ -137,9 +135,11 @@ function ModelStats(props: { readonly model: EnvironmentSpeechModel; readonly la
           [
             "score",
             <>
-              {languageLabel(code)}{" "}
-              <Text className="font-t3-medium text-foreground">{score.grade}</Text> (
-              {score.errorPercent}% error)
+              {mobileSpeechLanguageLabel(code)}{" "}
+              <Text localize={false} className="font-t3-medium text-foreground">
+                {score.grade}
+              </Text>{" "}
+              ({formatMobileMessage("{0}% error", [score.errorPercent])})
             </>,
           ],
         ] as const)
@@ -176,7 +176,7 @@ function ModelStats(props: { readonly model: EnvironmentSpeechModel; readonly la
         ] as const)
       : score
         ? []
-        : ([["languages", languageLabel(model.languages[0] ?? "")]] as const)),
+        : ([["languages", mobileSpeechLanguageLabel(model.languages[0] ?? "")]] as const)),
     ["size", formatBytes(model.size)],
   ];
   return (
@@ -229,7 +229,9 @@ export function VoiceModelRow(props: {
       <ListChoiceRow
         leading={<DownloadedGlyph />}
         label={model.name}
+        localizeLabel={false}
         description={model.description}
+        localizeDescription={false}
         meta={meta}
         selected={model.active}
         separated={separated}
@@ -244,10 +246,13 @@ export function VoiceModelRow(props: {
         <ListActionRow
           icon="xmark"
           label={model.name}
+          localizeLabel={false}
           description={
             model.state === "verifying"
               ? "Verifying download…"
-              : `${Math.round((progress ?? 0) * 100)}% downloaded · Tap to cancel`
+              : formatMobileMessage("{0}% downloaded · Tap to cancel", [
+                  Math.round((progress ?? 0) * 100),
+                ])
           }
           disabled={!voice.canManage || voice.busy}
           onPress={() => voice.cancel(model)}
@@ -255,7 +260,7 @@ export function VoiceModelRow(props: {
         <Progress
           className="bg-grouped-card px-4 pb-3"
           value={model.state === "verifying" ? undefined : progress}
-          label={`${model.name} download progress`}
+          label={formatMobileMessage("{0} download progress", [model.name])}
         />
       </View>
     );
@@ -264,7 +269,9 @@ export function VoiceModelRow(props: {
       <ListActionRow
         icon="tray.and.arrow.down"
         label={model.name}
+        localizeLabel={false}
         description={model.description}
+        localizeDescription={false}
         meta={meta}
         disabled={!voice.canManage || voice.busy || voice.downloading}
         onPress={() => voice.download(model)}
@@ -289,6 +296,7 @@ export function LocalModelChoice(props: {
     return (
       <ListChoiceRow
         label="Local model"
+        localizeDescription={!voice.connection || status?.supported !== false}
         description={
           !voice.connection
             ? "Not available on this environment"

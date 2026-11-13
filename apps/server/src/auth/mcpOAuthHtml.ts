@@ -1,3 +1,16 @@
+import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
+
+const DESCRIPTIONS_ZH_CN = new Map([
+  [
+    "This sign-in link names an unknown app. Start the sign-in again from it.",
+    "此登录链接指定了未知应用。请从该应用重新发起登录。",
+  ],
+  [
+    "This sign-in link sends you to an address the app did not register.",
+    "此登录链接指向该应用未注册的地址。",
+  ],
+]);
+
 const escapeHtml = (value: string) =>
   value.replace(
     /[&<>"']/gu,
@@ -17,8 +30,8 @@ const STYLES = `
   }
 `;
 
-const shell = (title: string, body: string) => `<!doctype html>
-<html lang="en">
+const shell = (title: string, body: string, locale: ResolvedAppLocale) => `<!doctype html>
+<html lang="${locale}">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -31,11 +44,16 @@ const shell = (title: string, body: string) => `<!doctype html>
   </body>
 </html>`;
 
-export function renderErrorPage(description: string): string {
+export function renderErrorPage(description: string, locale: ResolvedAppLocale = "en"): string {
+  const chinese = locale === "zh-CN";
+  const localizedDescription = chinese
+    ? (DESCRIPTIONS_ZH_CN.get(description) ?? description)
+    : description;
   return shell(
-    "Sign-in failed",
-    `<h1>This sign-in cannot continue</h1>
-    <p>${escapeHtml(description)}</p>
-    <p>Close this page and start the sign-in again from your agent.</p>`,
+    chinese ? "登录失败" : "Sign-in failed",
+    `<h1>${chinese ? "无法继续此次登录" : "This sign-in cannot continue"}</h1>
+    <p>${escapeHtml(localizedDescription)}</p>
+    <p>${chinese ? "请关闭此页面，然后从你的智能体重新发起登录。" : "Close this page and start the sign-in again from your agent."}</p>`,
+    locale,
   );
 }

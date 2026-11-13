@@ -5,6 +5,7 @@ import {
   EnvironmentHttpApi,
 } from "@t3tools/contracts";
 import { isDevProxiedPath } from "@t3tools/shared/devProxy";
+import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 import { injectMcpAppCookieBootstrap, injectMcpAppThemeBootstrap } from "@t3tools/shared/mcpApp";
 import { decodeOtlpTraceRecords } from "@t3tools/shared/observability";
 import * as ByteSize from "effect/ByteSize";
@@ -54,6 +55,7 @@ import {
   DESKTOP_RENDERER_ORIGINS,
 } from "./httpCors.ts";
 import { requestUrl } from "./requestUrl.ts";
+import { browserPageLocale } from "./browserPageLocale.ts";
 
 const OTLP_TRACES_PROXY_PATH = "/api/observability/v1/traces";
 const LOOPBACK_HOSTNAMES = new Set(["127.0.0.1", "::1", "localhost"]);
@@ -170,6 +172,7 @@ export const assetFileResponse = Effect.fn("assetFileResponse")(function* (
   rangeHeader?: string,
   ifRangeHeader?: string,
   method: "GET" | "HEAD" = "GET",
+  locale: ResolvedAppLocale = "en",
 ) {
   const headers = assetResponseHeaders(asset.path, asset);
   if (
@@ -179,7 +182,10 @@ export const assetFileResponse = Effect.fn("assetFileResponse")(function* (
   ) {
     const bytes = yield* readMcpAppHtml(asset.path);
     if (bytes === null) {
-      return HttpServerResponse.text("MCP app is too large to preview.", { status: 413 });
+      return HttpServerResponse.text(
+        locale === "zh-CN" ? "MCP 应用过大，无法预览。" : "MCP app is too large to preview.",
+        { status: 413 },
+      );
     }
     const body = pipe(
       new TextDecoder().decode(bytes),
@@ -455,6 +461,7 @@ export const layerAssetRoute = HttpRouter.add(
       request.method === "GET" ? request.headers.range : undefined,
       request.headers["if-range"],
       request.method === "HEAD" ? "HEAD" : "GET",
+      browserPageLocale(request.headers["accept-language"]),
     ).pipe(
       Effect.orElseSucceed(() => HttpServerResponse.text("Internal Server Error", { status: 500 })),
     );
@@ -586,20 +593,25 @@ const handleStaticAndDevRequest = Effect.fn("handleStaticAndDevRequest")(
 
     const staticDir =
       config.staticDir ?? (config.devUrl ? yield* ServerConfig.resolveStaticDir() : undefined);
+    const locale = browserPageLocale(request.headers["accept-language"]);
     if (!staticDir && config.devUrl) {
       // `vp run dev --share --built` prints the pairing URL before its first
       // web build lands in apps/web/dist. Reload until it does.
       return HttpServerResponse.text(
-        '<!doctype html><meta http-equiv="refresh" content="2"><p>Waiting for the first web build. This page reloads by itself.</p>',
+        `<!doctype html><html lang="${locale}"><meta charset="utf-8"><meta http-equiv="refresh" content="2"><p>${locale === "zh-CN" ? "正在等待首次 Web 构建。此页面会自动重新加载。" : "Waiting for the first web build. This page reloads by itself."}</p></html>`,
         { status: 503, contentType: "text/html", headers: { "Retry-After": "2" } },
       );
     }
     if (!staticDir) {
-      return HttpServerResponse.text("No static directory configured and no dev URL set.", {
-        status: 503,
-      });
+      return HttpServerResponse.text(
+        locale === "zh-CN"
+          ? "未配置静态目录，也未设置开发服务器 URL。"
+          : "No static directory configured and no dev URL set.",
+        { status: 503 },
+      );
     }
 
+    const invalidPathMessage = locale === "zh-CN" ? "静态文件路径无效" : "Invalid static file path";
     const path = yield* Path.Path;
     const staticRoot = path.resolve(staticDir);
     const staticRequestPath = url.value.pathname === "/" ? "/index.html" : url.value.pathname;
@@ -613,7 +625,7 @@ const handleStaticAndDevRequest = Effect.fn("handleStaticAndDevRequest")(
       hasPathTraversalSegment ||
       staticRelativePath.includes("\0")
     ) {
-      return HttpServerResponse.text("Invalid static file path", { status: 400 });
+      return HttpServerResponse.text(invalidPathMessage, { status: 400 });
     }
 
     const isWithinStaticRoot = (candidate: string) =>
@@ -622,14 +634,14 @@ const handleStaticAndDevRequest = Effect.fn("handleStaticAndDevRequest")(
 
     let filePath = path.resolve(staticRoot, staticRelativePath);
     if (!isWithinStaticRoot(filePath)) {
-      return HttpServerResponse.text("Invalid static file path", { status: 400 });
+      return HttpServerResponse.text(invalidPathMessage, { status: 400 });
     }
 
     const ext = path.extname(filePath);
     if (!ext) {
       filePath = path.resolve(filePath, "index.html");
       if (!isWithinStaticRoot(filePath)) {
-        return HttpServerResponse.text("Invalid static file path", { status: 400 });
+        return HttpServerResponse.text(invalidPathMessage, { status: 400 });
       }
     }
 

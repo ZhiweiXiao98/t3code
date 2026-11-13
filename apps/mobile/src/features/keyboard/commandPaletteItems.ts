@@ -17,6 +17,8 @@ export interface CommandPaletteItem {
   readonly kind: "action" | "project" | "thread";
   readonly project?: EnvironmentProject;
   readonly title: string;
+  /** Original app-owned action title, ranked like a title rather than a keyword. */
+  readonly searchTitle?: string;
   readonly detail?: string;
   readonly searchTerms: ReadonlyArray<string>;
   /** Thread rows rank by match quality and use instead of by `searchTerms`. */
@@ -60,9 +62,16 @@ export function filterCommandPaletteItems(
       item,
       options,
     ): (SearchTermsMatch & { explain?: () => SearchMatchHint | undefined }) | null => {
-      const match = item.threadSearch
+      let match = item.threadSearch
         ? scoreThreadSearch(normalizedQuery, item.threadSearch, now, options)
         : scoreSearchTerms(normalizedQuery, [item.title, ...item.searchTerms], options);
+      if (item.kind === "action" && item.searchTitle && item.searchTitle !== item.title) {
+        const sourceMatch = scoreSearchTerms(normalizedQuery, [item.searchTitle], options);
+        if (sourceMatch && (!match || sourceMatch.score > match.score)) {
+          const displayedMatch = scoreSearchTerms(normalizedQuery, [item.title], options);
+          match = { ...sourceMatch, ranges: displayedMatch?.ranges ?? [] };
+        }
+      }
       // The open thread, listed last, does not decide where its group sits.
       return match && item.secondary ? { ...match, groupQuality: 0 } : match;
     },

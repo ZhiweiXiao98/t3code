@@ -1,3 +1,5 @@
+import { formatMobileMessage } from "../i18n/mobileDisplayStrings";
+import { mobileMermaidFailure } from "../i18n/mobileNativePresentationStrings";
 import { localizeMobileString } from "../i18n/mobileStrings";
 import * as Hash from "effect/Hash";
 import { File, Paths } from "expo-file-system";
@@ -56,7 +58,10 @@ async function renderDiagram(source: string): Promise<Diagram> {
     // Not cached, so the next mount tries again.
     peleLoad = null;
     diagramLoads.delete(source);
-    return { status: "error", message: "The diagram renderer failed to load." };
+    return {
+      status: "error",
+      message: localizeMobileString("The diagram renderer failed to load."),
+    };
   }
   let type: DiagramType | null = null;
   try {
@@ -76,7 +81,10 @@ async function renderDiagram(source: string): Promise<Diagram> {
     if (!(await load)) {
       typeLoads.delete(type);
       diagramLoads.delete(source);
-      return { status: "error", message: "The diagram renderer failed to load." };
+      return {
+        status: "error",
+        message: localizeMobileString("The diagram renderer failed to load."),
+      };
     }
   }
   try {
@@ -90,7 +98,7 @@ async function renderDiagram(source: string): Promise<Diagram> {
   } catch (error) {
     return {
       status: "error",
-      message: error instanceof Error ? error.message : "The diagram could not be rendered.",
+      message: mobileMermaidFailure(error),
     };
   }
 }
@@ -218,7 +226,7 @@ function MermaidBlock(props: MermaidCodeBlockProps & { readonly diagram: Diagram
       <View style={styles.content}>
         {diagram?.status === "error" ? (
           <Text style={[styles.error, { color: secondaryColor, fontSize: codeFontSize * 0.85 }]}>
-            Unable to render diagram: {diagram.message}
+            {formatMobileMessage("Unable to render diagram: {0}", [diagram.message])}
           </Text>
         ) : null}
         {svg && diagram?.status === "ready" && !showCode ? (

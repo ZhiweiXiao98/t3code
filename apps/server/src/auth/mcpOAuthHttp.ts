@@ -14,6 +14,7 @@ import * as HttpEffect from "effect/http/HttpEffect";
 import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder";
 
 import { DEFAULT_HOSTED_APP_URL } from "@t3tools/shared/connectAuth";
+import { browserPageLocale } from "../browserPageLocale.ts";
 
 import * as CloudLink from "../cloud/CloudLink.ts";
 import { agentApprovalAppUrlConfig } from "../cloud/publicConfig.ts";
@@ -136,11 +137,17 @@ export const layer = HttpApiBuilder.group(
           }
           const error = authorization.failure;
           return error._tag === "McpOAuthPageError"
-            ? HttpServerResponse.text(renderErrorPage(error.description), {
-                status: 400,
-                contentType: "text/html; charset=utf-8",
-                headers: PAGE_HEADERS,
-              })
+            ? HttpServerResponse.text(
+                renderErrorPage(
+                  error.description,
+                  browserPageLocale(request.headers["accept-language"]),
+                ),
+                {
+                  status: 400,
+                  contentType: "text/html; charset=utf-8",
+                  headers: PAGE_HEADERS,
+                },
+              )
             : HttpServerResponse.redirect(McpOAuth.redirectForError(error, urls.issuer), {
                 headers,
               });

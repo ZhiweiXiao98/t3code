@@ -1,6 +1,8 @@
 import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 
 const EN_MESSAGES = {
+  "browser.uploadPickerClosed": "The page's file picker is no longer open.",
+  "browser.uploadRefused": "The upload was refused.",
   "audit6.openedInEditor": "Opened in {label}",
   "audit6.backgroundThreadStatus": "{status}: {title}",
   "audit6.downloading": "Downloading",
@@ -4643,6 +4645,8 @@ export type WebMessages = Readonly<Record<WebMessageKey, string>>;
 export type WebMessageValues = Readonly<Record<string, string | number>>;
 
 const ZH_CN_MESSAGES = {
+  "browser.uploadPickerClosed": "页面的文件选择器已关闭。",
+  "browser.uploadRefused": "上传被拒绝。",
   "audit6.openedInEditor": "已在 {label} 中打开",
   "audit6.backgroundThreadStatus": "{status}：{title}",
   "audit6.downloading": "正在下载",

@@ -557,3 +557,46 @@ it("localizes review guide application copy", () => {
     expect(localizeMobileString(source, "zh-CN")).toBe(translated);
   }
 });
+
+it("localizes native presentation and recovery application copy", () => {
+  const messages = {
+    "{0}% error": "错误率 {0}%",
+    "Resumes {0}.": "将于 {0} 恢复。",
+    "Resets {0}.": "将于 {0} 重置。",
+    "Usage limit reached. {0}": "已达到使用限额。{0}",
+    "The reset time has passed. Retry the thread manually.": "重置时间已过，请手动重试此任务。",
+    "Could not change limit recovery.": "无法更改额度恢复设置。",
+    "Could not copy the request. Try again.": "无法复制请求，请重试。",
+    "Could not open ChatGPT. Go to chatgpt.com → Settings → Usage.":
+      "无法打开 ChatGPT，请前往 chatgpt.com → 设置 → 用量。",
+    "Request copied. Send it to your workspace admin.": "请求已复制，请发送给工作区管理员。",
+    "You've reached your workspace's limit for using your ChatGPT plan in other apps. Copy a request to ask your workspace admin for increased usage limits.":
+      "你已达到工作区在其他应用中使用 ChatGPT 套餐的限额。请复制请求，向工作区管理员申请提高使用限额。",
+    "Review your usage settings in ChatGPT.": "请在 ChatGPT 中查看用量设置。",
+    "Usage limit reached. The provider did not report a reset time. Retry manually when your limit is available.":
+      "已达到使用限额，提供商未报告重置时间。额度恢复后请手动重试。",
+    "Unable to render diagram: {0}": "无法渲染图表：{0}",
+    "On {0}": "在 {0} 上",
+    "this machine": "这台设备",
+    "New thread in {0}": "在 {0} 中新建任务",
+    "New thread · {0}": "新建任务 · {0}",
+    "Go to file": "转到文件",
+    "Copy PR link or thread": "复制拉取请求链接或任务",
+    "ID or link": "ID 或链接",
+    "Linked {0}": "关联于 {0}",
+    "Link date unavailable": "关联日期不可用",
+    "Managed tunnel": "托管隧道",
+    "Activity publishing only": "仅发布活动",
+    "Deregister server?": "取消注册服务器？",
+    "Could not deregister server": "无法取消注册服务器",
+    "Could not deregister the server.": "无法取消注册服务器。",
+    "Link a server from its local Settings to reach it through T3 Connect.":
+      "在服务器的本地设置中关联服务器，即可通过 T3 Connect 访问。",
+    "“{0}” will be removed from this account. T3 Connect access will be revoked, any managed tunnel will be removed, and a host space will become available. Local connections on your devices are not changed.":
+      "将从此账户中移除“{0}”。T3 Connect 访问权限将被撤销，所有托管隧道将被移除，并释放一个主机名额。你设备上的本地连接不会改变。",
+  };
+  for (const [source, translated] of Object.entries(messages)) {
+    expect(localizeMobileString(source, "en")).toBe(source);
+    expect(localizeMobileString(source, "zh-CN")).toBe(translated);
+  }
+});

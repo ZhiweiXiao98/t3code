@@ -22,7 +22,9 @@ export function ListActionRow(
         props.localizeLabel === false ? props.label : localizeMobileString(props.label)
       }
       accessibilityHint={
-        props.description === undefined ? undefined : localizeMobileString(props.description)
+        props.description === undefined || props.localizeDescription === false
+          ? props.description
+          : localizeMobileString(props.description)
       }
       accessibilityState={{ disabled, busy: Boolean(props.loading) }}
       disabled={disabled}

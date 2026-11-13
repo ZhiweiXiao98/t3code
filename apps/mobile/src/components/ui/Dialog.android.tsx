@@ -24,6 +24,7 @@ import type { ConfirmDialogRequest, TextInputDialogRequest } from "./Dialog.type
 export type { ConfirmDialogRequest, TextInputDialogRequest } from "./Dialog.types";
 
 type AlertRequest = {
+  readonly literalMessage?: boolean;
   readonly title: Parameters<typeof Alert.alert>[0];
   readonly message: Parameters<typeof Alert.alert>[1];
   readonly buttons: Parameters<typeof Alert.alert>[2];
@@ -69,14 +70,25 @@ function getPresented() {
   return presented;
 }
 
-export function alert(...[title, message, buttons, options]: Parameters<typeof Alert.alert>): void {
+export function alert(...args: Parameters<typeof Alert.alert>): void {
+  submitAlert(args, false);
+}
+
+export function alertWithLiteralMessage(...args: Parameters<typeof Alert.alert>): void {
+  submitAlert(args, true);
+}
+
+function submitAlert(
+  [title, message, buttons, options]: Parameters<typeof Alert.alert>,
+  literalMessage: boolean,
+): void {
   const actions = buttons?.length ? buttons.slice(0, 3) : [{ text: "OK" }];
   const normalized = actions.map((action, index) =>
     index === actions.length - 1 ? { ...action, text: action.text || "OK" } : action,
   );
   submitRequest({
     kind: "alert",
-    request: { title, message, buttons: normalized, options },
+    request: { title, message, buttons: normalized, options, literalMessage },
   });
 }
 
@@ -117,6 +129,7 @@ export function Host() {
           message: presented.request.message ?? undefined,
           confirmText: "",
         }}
+        literalMessage={presented.request.literalMessage}
         alertActions={presented.request.buttons ?? [{ text: "OK" }]}
         dismissable={presented.request.options?.cancelable ?? false}
         onAlertAction={(action) => {
@@ -257,7 +270,9 @@ function DialogPresentation(props: DialogPresentationProps) {
         ) : props.request.message ? (
           <AlertDialog.Text>
             <Text modifiers={[verticalScroll()]} style={bodyTypography}>
-              {localizeMobileString(props.request.message)}
+              {props.literalMessage
+                ? props.request.message
+                : localizeMobileString(props.request.message)}
             </Text>
           </AlertDialog.Text>
         ) : null}
@@ -277,6 +292,7 @@ function DialogPresentation(props: DialogPresentationProps) {
 }
 
 interface DialogPresentationProps {
+  readonly literalMessage?: boolean;
   readonly alertActions?: readonly AlertButton[];
   readonly onAlertAction?: (action: AlertButton) => void;
   readonly dismissable?: boolean;

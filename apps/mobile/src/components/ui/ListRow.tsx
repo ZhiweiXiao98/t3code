@@ -20,7 +20,9 @@ export function ListRow(
       accessibilityRole="button"
       accessibilityLabel={[
         props.localizeLabel === false ? props.label : localizeMobileString(props.label),
-        props.description === undefined ? undefined : localizeMobileString(props.description),
+        props.description === undefined || props.localizeDescription === false
+          ? props.description
+          : localizeMobileString(props.description),
         props.detail === undefined ? undefined : localizeMobileString(props.detail),
       ]
         .filter(Boolean)

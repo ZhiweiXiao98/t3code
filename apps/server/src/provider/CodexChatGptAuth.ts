@@ -7,6 +7,8 @@ import {
   type ProviderInstanceId,
 } from "@t3tools/contracts";
 import { codexCallbackUrl } from "@t3tools/shared/codexAuthHandoff";
+import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
+import { browserPageLocale } from "../browserPageLocale.ts";
 import { hashTelemetryId } from "@t3tools/shared/telemetryId";
 import * as Clock from "effect/Clock";
 import * as Cause from "effect/Cause";
@@ -540,7 +542,11 @@ export const makeCodexChatGptAuth = Effect.fn("makeCodexChatGptAuth")(function* 
     const returnUrl =
       codexAuthReturnUrl(context.returnUrl) ?? codexAuthReturnUrl(options.defaultReturnUrl);
     const pageNonce = yield* randomToken(24);
-    const callback = Promise.withResolvers<{ url: URL; response?: NodeHttp.ServerResponse }>();
+    const callback = Promise.withResolvers<{
+      url: URL;
+      response?: NodeHttp.ServerResponse;
+      locale?: ResolvedAppLocale;
+    }>();
     const clientCallback = context.callbackMode === "client";
     let used = false;
     const server = clientCallback
@@ -556,11 +562,21 @@ export const makeCodexChatGptAuth = Effect.fn("makeCodexChatGptAuth")(function* 
                     return;
                   }
                   if (used) {
-                    response.writeHead(410).end("Sign-in is no longer active.");
+                    response
+                      .writeHead(410, { "content-type": "text/plain; charset=utf-8" })
+                      .end(
+                        browserPageLocale(request.headers["accept-language"]) === "zh-CN"
+                          ? "此次登录已失效。"
+                          : "Sign-in is no longer active.",
+                      );
                     return;
                   }
                   used = true;
-                  callback.resolve({ url, response });
+                  callback.resolve({
+                    url,
+                    response,
+                    locale: browserPageLocale(request.headers["accept-language"]),
+                  });
                 });
                 server.once("error", reject);
                 server.listen(0, "127.0.0.1", () => resolve(server));
@@ -790,7 +806,15 @@ export const makeCodexChatGptAuth = Effect.fn("makeCodexChatGptAuth")(function* 
                   "content-security-policy": `default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${pageNonce}'; base-uri 'none'; frame-ancestors 'none'`,
                   "x-content-type-options": "nosniff",
                 })
-                .end(codexAuthCallbackPage(Exit.isSuccess(result), returnUrl, pageNonce), resolve);
+                .end(
+                  codexAuthCallbackPage(
+                    Exit.isSuccess(result),
+                    returnUrl,
+                    pageNonce,
+                    received.locale,
+                  ),
+                  resolve,
+                );
             }),
         ),
       ),

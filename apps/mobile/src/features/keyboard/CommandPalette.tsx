@@ -1,4 +1,5 @@
 import { localizeMobileString } from "../../i18n/mobileStrings";
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { useAtomValue } from "@effect/atom-react";
 import { uuidv4 } from "../../lib/uuid";
 import { useNavigation } from "@react-navigation/native";
@@ -68,6 +69,7 @@ import {
   type CommandPaletteItem,
   type CommandPaletteResult,
 } from "./commandPaletteItems";
+import { commandPaletteProjectActionTitle, commandPaletteTitle } from "./commandPaletteDisplay";
 import { parseActiveThreadPath, type HardwareKeyboardCommand } from "./hardwareKeyboardCommands";
 import { threadJumpIndex } from "./threadKeyboardShortcuts";
 import { PullRequestGlyph } from "../pull-requests/pullRequestGlyphs";
@@ -155,10 +157,15 @@ function PaletteRow(props: {
       </View>
       <View className="flex-1">
         <View className="flex-row items-baseline gap-2">
-          <Text numberOfLines={1} className={cn("shrink text-base", foregroundClassName)}>
+          <Text
+            localize={false}
+            numberOfLines={1}
+            className={cn("shrink text-base", foregroundClassName)}
+          >
             {props.item.titleRanges?.length
               ? splitSearchText(props.item.title, props.item.titleRanges).map((part) => (
                   <Text
+                    localize={false}
                     key={part.start}
                     className={cn("text-base", part.highlighted && "font-t3-bold")}
                   >
@@ -175,6 +182,7 @@ function PaletteRow(props: {
               props.item.matchHint.label !== "Environment")) &&
           props.item.detail ? (
             <Text
+              localize={false}
               numberOfLines={1}
               className={cn("max-w-[45%] shrink-0 text-sm", mutedForegroundClassName)}
             >
@@ -190,16 +198,28 @@ function PaletteRow(props: {
             compact
           />
         ) : props.item.matchHint ? (
-          <Text numberOfLines={1} className={cn("text-sm", mutedForegroundClassName)}>
-            {props.item.matchHint.label}:{" "}
+          <Text
+            localize={false}
+            numberOfLines={1}
+            className={cn("text-sm", mutedForegroundClassName)}
+          >
+            {localizeMobileString(props.item.matchHint.label)}:{" "}
             {splitSearchText(props.item.matchHint.text, props.item.matchHint.ranges).map((part) => (
-              <Text key={part.start} className={cn("text-sm", part.highlighted && "font-t3-bold")}>
+              <Text
+                localize={false}
+                key={part.start}
+                className={cn("text-sm", part.highlighted && "font-t3-bold")}
+              >
                 {part.text}
               </Text>
             ))}
           </Text>
         ) : props.item.detail ? (
-          <Text numberOfLines={1} className={cn("text-sm", mutedForegroundClassName)}>
+          <Text
+            localize={false}
+            numberOfLines={1}
+            className={cn("text-sm", mutedForegroundClassName)}
+          >
             {props.item.detail}
           </Text>
         ) : null}
@@ -294,57 +314,65 @@ export function CommandPalette(props: {
       {
         key: "newTask",
         kind: "action",
-        title: "New thread in…",
-        searchTerms: ["new task", "chat", "create", "project"],
+        title: commandPaletteTitle("action", "New thread in…"),
+        searchTitle: "New thread in…",
+        searchTerms: ["New thread in…", "new task", "chat", "create", "project"],
         run: () => runCommand("newTask"),
       },
       {
         key: "addProject",
         kind: "action",
-        title: "Add project",
-        searchTerms: ["folder", "clone", "repository", "git"],
+        title: commandPaletteTitle("action", "Add project"),
+        searchTitle: "Add project",
+        searchTerms: ["Add project", "folder", "clone", "repository", "git"],
         run: () => navigation.navigate("AddProject"),
       },
       {
         key: "settings",
         kind: "action",
-        title: "Open settings",
-        searchTerms: ["preferences", "configuration"],
+        title: commandPaletteTitle("action", "Open settings"),
+        searchTitle: "Open settings",
+        searchTerms: ["Open settings", "preferences", "configuration"],
         run: () => selectTab("settings"),
       },
       {
         key: "appearance",
         kind: "action",
-        title: "Appearance",
-        searchTerms: ["theme", "colors", "dark", "light"],
+        title: commandPaletteTitle("action", "Appearance"),
+        searchTitle: "Appearance",
+        searchTerms: ["Appearance", "theme", "colors", "dark", "light"],
         run: () => openSettings(navigation, "SettingsAppearance"),
       },
       {
         key: "environments",
         kind: "action",
-        title: "Manage environments",
-        searchTerms: ["connections", "server", "remote"],
+        title: commandPaletteTitle("action", "Manage environments"),
+        searchTitle: "Manage environments",
+        searchTerms: ["Manage environments", "connections", "server", "remote"],
         run: () => openSettings(navigation, "SettingsEnvironments"),
       },
       {
         key: "scheduledTasks",
         kind: "action",
-        title: "Scheduled tasks",
-        searchTerms: ["schedule", "automations", "recurring"],
+        title: commandPaletteTitle("action", "Scheduled tasks"),
+        searchTitle: "Scheduled tasks",
+        searchTerms: ["Scheduled tasks", "schedule", "automations", "recurring"],
         run: () => openSettings(navigation, "SettingsScheduledTasks"),
       },
       {
         key: "usage",
         kind: "action",
-        title: "Usage",
-        searchTerms: ["limits", "accounts", "quota"],
+        title: commandPaletteTitle("action", "Usage"),
+        searchTitle: "Usage",
+        searchTerms: ["Usage", "limits", "accounts", "quota"],
         run: () => openSettings(navigation, "SettingsUsage"),
       },
       {
         key: "archive",
         kind: "action",
-        title: "Archived threads",
-        searchTerms: ["restore", "history"],
+        title: commandPaletteTitle("action", "Archived threads"),
+        searchTitle: "Archived threads",
+        searchTerms: ["Archived threads", "restore", "history"],
         run: () => openSettings(navigation, "SettingsArchive"),
       },
     ];
@@ -352,10 +380,24 @@ export function CommandPalette(props: {
       actions.push({
         key: "triage",
         kind: "action",
-        title: "Triage an issue",
+        title: commandPaletteTitle("action", "Triage an issue"),
+        searchTitle: "Triage an issue",
         // Mobile has no triage hero, so name the machine before it starts.
-        detail: `On ${savedConnectionsById[triageEnvironmentId]?.environmentLabel ?? "this machine"}`,
-        searchTerms: ["triage", "bug", "issue", "report", "broken", "debug", "help", "support"],
+        detail: formatMobileMessage("On {0}", [
+          savedConnectionsById[triageEnvironmentId]?.environmentLabel ??
+            localizeMobileString("this machine"),
+        ]),
+        searchTerms: [
+          "Triage an issue",
+          "triage",
+          "bug",
+          "issue",
+          "report",
+          "broken",
+          "debug",
+          "help",
+          "support",
+        ],
         run: () => void startTriage(triageEnvironmentId),
       });
     }
@@ -369,8 +411,9 @@ export function CommandPalette(props: {
       actions.unshift({
         key: "newThread",
         kind: "action",
-        title: `New thread in ${activeProject.title}`,
-        searchTerms: ["new task", "chat", "create"],
+        title: commandPaletteProjectActionTitle(activeProject.title),
+        searchTitle: `New thread in ${activeProject.title}`,
+        searchTerms: [`New thread in ${activeProject.title}`, "new task", "chat", "create"],
         run: () =>
           selectDetail({
             name: "Thread",
@@ -396,8 +439,9 @@ export function CommandPalette(props: {
         ...threadActions.map(([command, title, searchTerms]) => ({
           key: command,
           kind: "action" as const,
-          title,
-          searchTerms,
+          title: commandPaletteTitle("action", title),
+          searchTitle: title,
+          searchTerms: [title, ...searchTerms],
           run: () => runCommand(command),
         })),
       );
@@ -410,8 +454,10 @@ export function CommandPalette(props: {
       key: `project:${scopedProjectKey(project.environmentId, project.id)}`,
       kind: "project",
       project,
-      title: project.title,
-      detail: `New thread · ${savedConnectionsById[project.environmentId]?.environmentLabel ?? project.environmentId}`,
+      title: commandPaletteTitle("project", project.title),
+      detail: formatMobileMessage("New thread · {0}", [
+        savedConnectionsById[project.environmentId]?.environmentLabel ?? project.environmentId,
+      ]),
       searchTerms: [project.workspaceRoot, "new thread", "project"],
       run: () =>
         selectDetail({
@@ -435,7 +481,7 @@ export function CommandPalette(props: {
         return {
           key: scopedThreadKey(thread.environmentId, thread.id),
           kind: "thread",
-          title: thread.title || "Untitled thread",
+          title: commandPaletteTitle("thread", thread.title),
           detail: [project?.title, environment].filter(Boolean).join(" · "),
           searchTerms: [],
           threadSearch: threadSearchSubject(

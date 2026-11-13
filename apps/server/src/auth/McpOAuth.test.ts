@@ -237,10 +237,19 @@ it.live("registers loopback and https clients and never redirects for an unverif
       const forged = yield* handler(
         at(
           `/oauth/mcp/authorize?${new URLSearchParams(authorizeParams(`${clientId.split(".")[0]}.forged`))}`,
+          { headers: { "accept-language": "en;q=0.5,zh-CN;q=1" } },
         ),
       );
       expect(forged.status).toBe(400);
       expect(forged.headers.get("location")).toBeNull();
+      expect(forged.headers.get("cache-control")).toBe("no-store");
+      expect(forged.headers.get("referrer-policy")).toBe("no-referrer");
+      expect(forged.headers.get("content-security-policy")).toBe(
+        "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'",
+      );
+      const forgedHtml = yield* Effect.promise(() => forged.text());
+      expect(forgedHtml).toContain('<html lang="zh-CN">');
+      expect(forgedHtml).toContain("此登录链接指定了未知应用。请从该应用重新发起登录。");
 
       const unregistered = yield* handler(
         at(
@@ -251,6 +260,11 @@ it.live("registers loopback and https clients and never redirects for an unverif
       );
       expect(unregistered.status).toBe(400);
       expect(unregistered.headers.get("location")).toBeNull();
+      const unregisteredHtml = yield* Effect.promise(() => unregistered.text());
+      expect(unregisteredHtml).toContain('<html lang="en">');
+      expect(unregisteredHtml).toContain(
+        "This sign-in link sends you to an address the app did not register.",
+      );
 
       const query = new URLSearchParams(authorizeParams(clientId)).toString();
       const handoff = yield* handler(at(`/oauth/mcp/authorize?${query}`));

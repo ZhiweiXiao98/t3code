@@ -1,3 +1,9 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
+import {
+  mobileUsageResetLabel,
+  mobileUsageRecoveryFailure,
+} from "../../i18n/mobileNativePresentationStrings";
 import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
 import { AsyncResult } from "effect/reactivity";
 import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/shell";
@@ -59,12 +65,7 @@ export function UsageLimitRecoveryCard({
     !runId
   )
     return null;
-  const resetText = displayAt
-    ? `${canSchedule && scheduled ? "Resumes" : "Resets"} ${new Date(displayAt).toLocaleString(
-        undefined,
-        { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" },
-      )}.`
-    : null;
+  const resetText = displayAt ? mobileUsageResetLabel(displayAt, canSchedule && scheduled) : null;
   const snoozed =
     limitRecoveryOwnsSnooze({
       runId,
@@ -75,7 +76,7 @@ export function UsageLimitRecoveryCard({
   async function toggle(action: "resume" | "snooze") {
     if (!resetAt || !runId || !canSchedule) return;
     if (action === "snooze" && !snoozed && Date.parse(resetAt) <= Date.now()) {
-      setError("The reset time has passed. Retry the thread manually.");
+      setError(localizeMobileString("The reset time has passed. Retry the thread manually."));
       return;
     }
     setPending(true);
@@ -94,7 +95,7 @@ export function UsageLimitRecoveryCard({
     setPending(false);
     if (AsyncResult.isFailure(result)) {
       const cause = squashAtomCommandFailure(result);
-      setError(cause instanceof Error ? cause.message : "Could not change limit recovery.");
+      setError(mobileUsageRecoveryFailure(cause));
     }
   }
   const action = workspaceLimit
@@ -108,7 +109,7 @@ export function UsageLimitRecoveryCard({
           void Clipboard.setStringAsync(CHATGPT_WORKSPACE_ADMIN_REQUEST)
             .then(
               () => setCopied(true),
-              () => setError("Could not copy the request. Try again."),
+              () => setError(localizeMobileString("Could not copy the request. Try again.")),
             )
             .finally(() => setActionPending(false));
         },
@@ -120,7 +121,13 @@ export function UsageLimitRecoveryCard({
           setError(null);
           setActionPending(true);
           void Linking.openURL(CHATGPT_USAGE_URL)
-            .catch(() => setError("Could not open ChatGPT. Go to chatgpt.com → Settings → Usage."))
+            .catch(() =>
+              setError(
+                localizeMobileString(
+                  "Could not open ChatGPT. Go to chatgpt.com → Settings → Usage.",
+                ),
+              ),
+            )
             .finally(() => setActionPending(false));
         },
       };
@@ -152,7 +159,7 @@ export function UsageLimitRecoveryCard({
             : chatGptLimit
               ? (resetText ?? "Review your usage settings in ChatGPT.")
               : resetText
-                ? `Usage limit reached. ${resetText}`
+                ? formatMobileMessage("Usage limit reached. {0}", [resetText])
                 : "Usage limit reached. The provider did not report a reset time. Retry manually when your limit is available."}
         </Text>
         {chatGptLimit || canSchedule ? (
@@ -183,7 +190,7 @@ export function UsageLimitRecoveryCard({
           </View>
         ) : null}
         {error ? (
-          <Text accessibilityRole="alert" className="text-sm text-destructive">
+          <Text localize={false} accessibilityRole="alert" className="text-sm text-destructive">
             {error}
           </Text>
         ) : null}

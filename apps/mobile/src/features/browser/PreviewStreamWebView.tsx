@@ -1,3 +1,4 @@
+import { mobilePreviewUploadFailure } from "../../i18n/mobileNativePresentationStrings";
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { MOBILE_LOCALE, localizeMobileString } from "../../i18n/mobileStrings";
 import { Button } from "../../components/ui/Button";
@@ -88,7 +89,8 @@ async function sendFilesToPage(chooser: PreviewStreamFileChooser, pick: boolean)
     body,
     credentials: chooser.credentials ? "include" : "omit",
   });
-  if (!response.ok) throw new Error((await response.text()) || "The upload was refused.");
+  if (!response.ok)
+    throw new Error(mobilePreviewUploadFailure(response.status, await response.text()));
 }
 
 function offerDownload(download: PreviewStreamDownload) {
@@ -253,7 +255,7 @@ function PreviewStreamDocumentView({
     if (!chooser) return;
     setFileChooser(null);
     void sendFilesToPage(chooser, pick).catch((cause: unknown) =>
-      Dialog.alert(
+      Dialog.alertWithLiteralMessage(
         "Could not send the files to the page",
         cause instanceof Error ? cause.message : undefined,
       ),

@@ -14,6 +14,7 @@ export function ListChoiceRow(props: {
   readonly localizeLabel?: boolean;
   readonly leading?: ReactNode;
   readonly description?: string;
+  readonly localizeDescription?: boolean;
   readonly meta?: ReactNode;
   readonly selected: boolean;
   readonly separated?: boolean;
@@ -28,7 +29,9 @@ export function ListChoiceRow(props: {
         props.localizeLabel === false ? props.label : localizeMobileString(props.label)
       }
       accessibilityHint={
-        props.description === undefined ? undefined : localizeMobileString(props.description)
+        props.description === undefined || props.localizeDescription === false
+          ? props.description
+          : localizeMobileString(props.description)
       }
       accessibilityState={{ checked: props.selected, disabled: Boolean(props.disabled) }}
       disabled={props.disabled}
@@ -43,6 +46,7 @@ export function ListChoiceRow(props: {
         localizeLabel={props.localizeLabel}
         leading={props.leading}
         description={props.description}
+        localizeDescription={props.localizeDescription}
         meta={props.meta}
         disabled={props.disabled}
         accessory={

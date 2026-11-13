@@ -36,6 +36,7 @@ import {
   type CloudCliOAuthConfig,
 } from "./publicConfig.ts";
 import { renderLoopbackAuthorizationCompleteHtml } from "./cliAuthHtml.ts";
+import { browserPageLocale } from "../browserPageLocale.ts";
 
 const CLOUD_CLI_OAUTH_TOKEN_SECRET = "cloud-cli-oauth-token";
 const CLOUD_CLI_OAUTH_CALLBACK_TIMEOUT = Duration.minutes(10);
@@ -521,13 +522,19 @@ export const make = Effect.gen(function* () {
         const request = yield* HttpServerRequest.HttpServerRequest;
         const url = new URL(request.originalUrl, metadata.redirectUri);
         const code = url.searchParams.get("code");
+        const locale = browserPageLocale(request.headers["accept-language"]);
         if (url.searchParams.get("state") !== state || !code) {
-          return HttpServerResponse.text("Invalid T3 Connect authorization callback.", {
-            status: 400,
-          });
+          return HttpServerResponse.text(
+            locale === "zh-CN"
+              ? "T3 Connect 授权回调无效。"
+              : "Invalid T3 Connect authorization callback.",
+            {
+              status: 400,
+            },
+          );
         }
         yield* Deferred.succeed(callback, code);
-        return HttpServerResponse.html(renderLoopbackAuthorizationCompleteHtml());
+        return HttpServerResponse.html(renderLoopbackAuthorizationCompleteHtml(undefined, locale));
       }),
     );
     yield* HttpRouter.serve(layerCallbackRoute, {

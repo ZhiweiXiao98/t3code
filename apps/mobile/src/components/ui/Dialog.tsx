@@ -1,3 +1,5 @@
+import { Alert as NativeAlert } from "react-native";
+import { localizeAlertArguments } from "../../i18n/mobileStrings";
 import { LocalizedAlert as Alert } from "../../i18n/LocalizedAlert";
 import type { ConfirmDialogRequest, TextInputDialogRequest } from "./Dialog.types";
 
@@ -5,6 +7,13 @@ export type { ConfirmDialogRequest, TextInputDialogRequest } from "./Dialog.type
 
 export function alert(...args: Parameters<typeof Alert.alert>): void {
   Alert.alert(...args);
+}
+
+export function alertWithLiteralMessage(
+  ...[title, message, buttons, options]: Parameters<typeof Alert.alert>
+): void {
+  const localized = localizeAlertArguments(title, undefined, buttons);
+  NativeAlert.alert(localized.title, message, localized.buttons, options);
 }
 
 export function confirm(request: ConfirmDialogRequest): void {

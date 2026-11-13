@@ -22,7 +22,7 @@ import * as Path from "effect/Path";
 import * as PlatformError from "effect/PlatformError";
 import * as Schema from "effect/Schema";
 import * as TestClock from "effect/testing/TestClock";
-import { HttpClientRequest, HttpClientResponse, HttpServerResponse } from "effect/http";
+import { HttpClientRequest, HttpClientResponse, HttpRouter, HttpServerResponse } from "effect/http";
 import { vi } from "vite-plus/test";
 
 import * as AssetSigner from "./AssetSigner.ts";
@@ -32,7 +32,7 @@ import * as Orchestrator from "../orchestration-v2/Orchestrator.ts";
 import * as ProjectFaviconResolver from "../project/ProjectFaviconResolver.ts";
 import * as T3ProjectFileLoader from "../project/T3ProjectFileLoader.ts";
 import * as WorkspacePaths from "../workspace/WorkspacePaths.ts";
-import { assetFileResponse } from "../http.ts";
+import { assetFileResponse, layerAssetRoute } from "../http.ts";
 import { ASSET_ROUTE_PREFIX, issueAssetUrl, readMcpAppHtml, resolveAsset } from "./AssetAccess.ts";
 import * as NativeAppIconResolver from "./NativeAppIconResolver.ts";
 import * as RepositoryIdentityResolver from "../project/RepositoryIdentityResolver.ts";
@@ -1245,6 +1245,72 @@ describe("AssetAccess", () => {
           const tampered = `${Buffer.from(JSON.stringify(claims)).toString("base64url")}.${signature}`;
           expect(yield* resolveAsset(tampered, suffix.slice(separator + 1))).toBeNull();
         }
+      }
+    }).pipe(Effect.provide(layerTest)),
+  );
+
+  it.effect("localizes oversized MCP responses without translating attachment contents", () =>
+    Effect.gen(function* () {
+      const context = yield* Effect.context<Layer.Success<typeof layerTest>>();
+      const routes = layerAssetRoute.pipe(
+        Layer.provide(Layer.succeedContext(context)),
+        Layer.provideMerge(Layer.succeed(BuiltInDrivers.SourceControlDrivers, [])),
+        Layer.provideMerge(Layer.mock(RepositoryIdentityResolver.RepositoryIdentityResolver)({})),
+      );
+      const web = yield* Effect.acquireRelease(
+        Effect.sync(() => HttpRouter.toWebHandler(routes, { disableLogger: true })),
+        (handler) => Effect.promise(() => handler.dispose()),
+      );
+      const config = yield* ServerConfig.ServerConfig;
+      const fs = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      yield* fs.makeDirectory(config.attachmentsDir, { recursive: true });
+      const attachmentId = "thread-1-00000000-0000-4000-8000-000000000032-html";
+      const file = path.join(config.attachmentsDir, `${attachmentId}.html`);
+      const content = '<html lang="en"><body>Settings {name} Open</body></html>';
+      yield* fs.writeFileString(file, content);
+      const plain = yield* issueAssetUrl({
+        resource: { _tag: "attachment", attachmentId, disposition: "inline" },
+      });
+      const mcp = yield* issueAssetUrl({
+        resource: {
+          _tag: "attachment",
+          attachmentId,
+          disposition: "inline",
+          renderIntent: "mcp-app",
+        },
+      });
+      for (const language of ["en", "zh-CN"]) {
+        const response = yield* Effect.promise(() =>
+          web.handler(
+            new Request(`https://environment.test${plain.relativeUrl}`, {
+              headers: { "accept-language": language },
+            }),
+            context,
+          ),
+        );
+        expect(response.status).toBe(200);
+        expect(response.headers.get("content-security-policy")).toBe(
+          "sandbox allow-scripts allow-forms allow-popups allow-downloads",
+        );
+        expect(yield* Effect.promise(() => response.text())).toBe(content);
+      }
+      yield* fs.writeFileString(file, "x".repeat(MCP_APP_MAX_HTML_BYTES + 128 * 1024 + 1));
+      for (const [header, message] of [
+        ["en", "MCP app is too large to preview."],
+        ["en;q=0.1,zh-CN;q=0.9", "MCP 应用过大，无法预览。"],
+      ] as const) {
+        const response = yield* Effect.promise(() =>
+          web.handler(
+            new Request(`https://environment.test${mcp.relativeUrl}`, {
+              headers: { "accept-language": header },
+            }),
+            context,
+          ),
+        );
+        expect(response.status).toBe(413);
+        expect(response.headers.get("content-type")).toContain("text/plain");
+        expect(yield* Effect.promise(() => response.text())).toBe(message);
       }
     }).pipe(Effect.provide(layerTest)),
   );
