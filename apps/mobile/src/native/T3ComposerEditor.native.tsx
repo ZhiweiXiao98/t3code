@@ -20,6 +20,7 @@ import { Platform, StyleSheet } from "react-native";
 
 import {
   composerChipSizeSuffix,
+  composerContextChipLabel,
   contextChipIcon,
   contextChipAccent,
   contextChipPresentation,
@@ -216,7 +217,7 @@ export function ComposerEditor({
               : model
                 ? model.label
                 : token.type === "context"
-                  ? `${token.label}${props.context?.records.some((record) => record.contextId === token.contextId) ? "" : " · unavailable"}`
+                  ? composerContextChipLabel(token.label, record !== undefined)
                   : basename(token.value),
           detail: token.type === "context" ? composerChipSizeSuffix(record) : "",
           iconUri: model ? modelChipIconUri(model) : contextChipIconUri(icon),

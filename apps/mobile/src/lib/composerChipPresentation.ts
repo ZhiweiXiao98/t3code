@@ -2,6 +2,7 @@ import { formatAttachmentSize } from "@t3tools/client-runtime/state/attachments"
 import { imageMimeType } from "@t3tools/shared/image";
 import { videoMimeType } from "@t3tools/shared/video";
 
+import { localizeMobileString, MOBILE_LOCALE, type MobileLocale } from "../i18n/mobileStrings";
 import type { CONTEXT_CHIP_ICON_SOURCES } from "./contextChipIcons.generated";
 import { resolveMarkdownFileIcon, type MarkdownFileIcon } from "./markdownLinks";
 import {
@@ -86,6 +87,14 @@ export function contextChipAccent(
 export const UNAVAILABLE_CONTEXT_CHIP_PRESENTATION: ContextChipPresentation = {
   icon: "circle-dashed",
 };
+
+export function composerContextChipLabel(
+  label: string,
+  available: boolean,
+  locale: MobileLocale = MOBILE_LOCALE,
+): string {
+  return available ? label : `${label} · ${localizeMobileString("unavailable", locale)}`;
+}
 
 export function composerChipSizeSuffix(record?: {
   readonly kind?: string;

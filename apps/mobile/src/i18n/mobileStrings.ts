@@ -6,6 +6,22 @@ export const MOBILE_LOCALE: MobileLocale =
   process.env.EXPO_PUBLIC_APP_LOCALE === "zh-CN" ? "zh-CN" : "en";
 
 const ZH_CN_MESSAGES = {
+  Guide: "导览",
+  Approve: "批准",
+  "Request changes": "请求更改",
+  unavailable: "不可用",
+
+  "Enter a name for this account.": "请输入此账户的名称。",
+  "Enter the Claude config folder this account is signed in with.":
+    "请输入此账户已登录的 Claude 配置文件夹。",
+  "It leaves the model picker on {0}. The config folder and its sign-in stay on the server.":
+    "该账户将从 {0} 的模型选择器中移除。配置文件夹及其登录状态会保留在服务器上。",
+  "Point at a CLAUDE_CONFIG_DIR folder on {0} where Claude Code is already signed in. Sign in there with the Claude CLI first.":
+    "指定 {0} 上已登录 Claude Code 的 CLAUDE_CONFIG_DIR 文件夹。请先使用 Claude CLI 在该文件夹中登录。",
+  "Clear cache for {0}?": "清除 {0} 的缓存？",
+  "Clear {0}": "清除 {0}",
+  "Clear {0} of cached data": "清除 {0} 的缓存数据",
+
   "Refills in {0}": "{0}后补充",
   "This session can view {0}'s providers but can't change their settings.":
     "此会话可以查看 {0} 的提供商，但无法更改其设置。",
@@ -2710,7 +2726,7 @@ const ZH_CN_MESSAGES = {
     "此账号已不再报告所选环境的限额。",
   Resets: "重置时间",
   Restores: "恢复额度",
-  "Signed in": "登录位置",
+  "Signed in": "已登录",
   "Reset credits": "重置额度",
   "Raw token cost": "原始 Token 成本",
   "* if billed at full API rate": "* 按完整 API 费率估算",

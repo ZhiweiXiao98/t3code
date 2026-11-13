@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { contextChipAccent, contextChipPresentation } from "./composerChipPresentation";
+import {
+  composerContextChipLabel,
+  contextChipAccent,
+  contextChipPresentation,
+} from "./composerChipPresentation";
 import {
   flattenThemeColor,
   getMobileThemeVariables,
@@ -112,5 +116,21 @@ describe("contextChipAccent", () => {
 describe("contextChipPresentation", () => {
   it("draws a mentioned machine as a machine, not the generic file chip", () => {
     expect(contextChipPresentation("environment")).toEqual({ accent: "#3f9a4f", icon: "server" });
+  });
+
+  it("localizes only the unavailable suffix without changing context names", () => {
+    for (const label of [
+      "Settings",
+      "Open",
+      "Session",
+      "src/Settings.tsx",
+      "__proto__",
+      " 名称 ",
+    ]) {
+      expect(composerContextChipLabel(label, true, "zh-CN")).toBe(label);
+      expect(composerContextChipLabel(label, false, "zh-CN")).toBe(`${label} · 不可用`);
+      expect(composerContextChipLabel(label, true, "en")).toBe(label);
+      expect(composerContextChipLabel(label, false, "en")).toBe(`${label} · unavailable`);
+    }
   });
 });

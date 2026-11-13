@@ -1,6 +1,7 @@
 import { requireNativeView } from "expo";
 import { View, type NativeSyntheticEvent, type ViewProps } from "react-native";
 
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { SegmentedControl as FlatSegmentedControl } from "./SegmentedControl.shared";
 import { segmentedControlColors } from "./segmentedControlColors";
 import { useControlTheme } from "./useControlTheme";
@@ -37,7 +38,7 @@ export function SegmentedControl<Value extends string | number>(
   return (
     <View className={props.className}>
       <NativeSegmentedControl
-        labels={props.options.map((option) => option.label)}
+        labels={props.options.map((option) => localizeMobileString(option.label))}
         selectedIndex={props.options.findIndex((option) => option.value === props.selected)}
         trackColor={trackColor}
         selectedColor={selectedColor}

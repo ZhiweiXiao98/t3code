@@ -38,6 +38,30 @@ describe("planClaudeAccountSave", () => {
     });
     expect(plan("", "~/.claude-willy")).toHaveProperty("error");
     expect(plan("Willy", " ")).toHaveProperty("error");
+    for (const locale of ["en", "zh-CN"] as const) {
+      const input = {
+        providerInstances,
+        policy: undefined,
+        instanceId: null,
+        draft: { name: "Settings/{0}/$&", configDir: "~/Open/{1}" },
+      };
+      const original = JSON.stringify(input);
+      expect(planClaudeAccountSave(input, locale)).toEqual(planClaudeAccountSave(input, "en"));
+      expect(JSON.stringify(input)).toBe(original);
+      expect(
+        planClaudeAccountSave({ ...input, draft: { ...input.draft, name: "" } }, locale),
+      ).toEqual({
+        error: locale === "en" ? "Enter a name for this account." : "请输入此账户的名称。",
+      });
+      expect(
+        planClaudeAccountSave({ ...input, draft: { ...input.draft, configDir: "" } }, locale),
+      ).toEqual({
+        error:
+          locale === "en"
+            ? "Enter the Claude config folder this account is signed in with."
+            : "请输入此账户已登录的 Claude 配置文件夹。",
+      });
+    }
   });
 
   it("edits the name and folder without dropping the instance's other settings", () => {
@@ -113,5 +137,23 @@ describe("planClaudeAccountSave", () => {
         draft: { name: "Work", configDir: "~/.claude-other" },
       }),
     ).toEqual({ error: "Managed by Example Corp." });
+    for (const locale of ["en", "zh-CN"] as const) {
+      expect(
+        planClaudeAccountSave(
+          {
+            providerInstances: { [work]: { driver: claude } },
+            policy: { ...policy, organization: "Settings/{organization}/$&" },
+            instanceId: work,
+            draft: { name: "Open", configDir: "~/Settings" },
+          },
+          locale,
+        ),
+      ).toEqual({
+        error:
+          locale === "en"
+            ? "Managed by Settings/{organization}/$&."
+            : "由 Settings/{organization}/$& 管理。",
+      });
+    }
   });
 });

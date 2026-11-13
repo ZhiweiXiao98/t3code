@@ -1,3 +1,4 @@
+import { claudeAccountFailure, claudeAccountSummary } from "./settingsAccountDisplay";
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import type { MenuAction } from "@react-native-menu/menu";
@@ -51,7 +52,7 @@ function useProviderInstanceMutation(environment: SettingsTarget) {
     if (result._tag === "Success") return true;
     if (!isAtomCommandInterrupted(result)) {
       const failure = squashAtomCommandFailure(result);
-      setError(failure instanceof Error ? failure.message : "Could not save the Claude account.");
+      setError(claudeAccountFailure(failure));
     }
     return false;
   }
@@ -99,9 +100,12 @@ export function ClaudeAccount({
       : []),
   ];
   function remove() {
-    Dialog.alert(
-      `Remove ${name}?`,
-      `It leaves the model picker on ${environment.label}. The config folder and its sign-in stay on the server.`,
+    Dialog.alertWithLiteralMessage(
+      formatMobileMessage("Remove {0}?", [name]),
+      formatMobileMessage(
+        "It leaves the model picker on {0}. The config folder and its sign-in stay on the server.",
+        [environment.label],
+      ),
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -121,8 +125,13 @@ export function ClaudeAccount({
           <Text localize={false} textRole="body" className="text-foreground" numberOfLines={1}>
             {name}
           </Text>
-          <Text textRole="footnote" className="text-foreground-muted" numberOfLines={2}>
-            {[status, configDir || "Default config folder"].filter(Boolean).join(" · ")}
+          <Text
+            localize={false}
+            textRole="footnote"
+            className="text-foreground-muted"
+            numberOfLines={2}
+          >
+            {claudeAccountSummary(status, configDir)}
           </Text>
         </View>
         {editing ? null : (
@@ -131,6 +140,7 @@ export function ClaudeAccount({
             accessibilityRole="button"
             accessibilityLabel={formatMobileMessage("{0} options", [name])}
             title={name}
+            localizeTitle={false}
             actions={actions}
             onPressAction={({ nativeEvent }) => {
               if (pending) return;
@@ -154,7 +164,11 @@ export function ClaudeAccount({
           onDone={() => setEditing(false)}
         />
       ) : error ? (
-        <Text accessibilityRole="alert" className="px-4 pb-3 text-danger-foreground">
+        <Text
+          localize={false}
+          accessibilityRole="alert"
+          className="px-4 pb-3 text-danger-foreground"
+        >
           {error}
         </Text>
       ) : null}
@@ -230,13 +244,16 @@ function ClaudeAccountForm({
   }
   return (
     <View className="gap-2 px-4 py-3">
-      <Text textRole="footnote" className="text-foreground-muted">
-        {`Point at a CLAUDE_CONFIG_DIR folder on ${environment.label} where Claude Code is already signed in. Sign in there with the Claude CLI first.`}
+      <Text localize={false} textRole="footnote" className="text-foreground-muted">
+        {formatMobileMessage(
+          "Point at a CLAUDE_CONFIG_DIR folder on {0} where Claude Code is already signed in. Sign in there with the Claude CLI first.",
+          [environment.label],
+        )}
       </Text>
       {field("name", "Account name", "Name, e.g. Work")}
       {field("configDir", "Claude config folder", "Config folder, e.g. ~/.claude-work")}
       {error ? (
-        <Text accessibilityRole="alert" className="text-danger-foreground">
+        <Text localize={false} accessibilityRole="alert" className="text-danger-foreground">
           {error}
         </Text>
       ) : null}

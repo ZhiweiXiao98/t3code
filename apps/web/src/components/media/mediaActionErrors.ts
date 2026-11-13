@@ -1,3 +1,4 @@
+import { mediaAssetErrorMessage } from "./mediaAssetErrorMessages";
 import { ClipboardApiUnavailableError, ClipboardWriteError } from "../../hooks/useCopyToClipboard";
 import type { MediaActionId } from "@t3tools/client-runtime/media-actions";
 import { translateWebMessage, type WebMessageKey } from "../../i18n/messages";
@@ -42,6 +43,8 @@ const isClipboardUnavailable = Schema.is(ClipboardApiUnavailableError);
 const isClipboardWriteError = Schema.is(ClipboardWriteError);
 
 export function mediaActionErrorMessage(locale: ResolvedAppLocale, error: unknown): string | null {
+  const assetMessage = mediaAssetErrorMessage(locale, error);
+  if (assetMessage !== null) return assetMessage;
   const unavailable =
     isClipboardUnavailable(error) &&
     Object.getPrototypeOf(error) === ClipboardApiUnavailableError.prototype;

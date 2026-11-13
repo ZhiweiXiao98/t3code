@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import * as Dialog from "../../components/ui/Dialog";
 import { AppActivityIndicator } from "../../components/ui/AppActivityIndicator";
 import { ScreenScrollView as ScrollView } from "../../components/ui/ScreenScrollView";
@@ -47,7 +48,7 @@ export function SettingsClientStorageRouteScreen() {
       savedConnectionsById[environment.environmentId]?.environmentLabel ??
       environment.environmentId;
     Dialog.confirm({
-      title: `Clear cache for ${label}?`,
+      title: formatMobileMessage("Clear cache for {0}?", [label]),
       message:
         "This removes offline threads, server metadata, and cached branches for this environment. The saved connection and credentials stay intact.",
       confirmText: "Clear Cache",
@@ -137,7 +138,11 @@ export function SettingsClientStorageRouteScreen() {
           <SettingsSection title="Actions">
             <SettingsActionRow
               icon="trash"
-              label={summary ? `Clear ${formatBytes(summary.payloadBytes)}` : "Clear caches"}
+              label={
+                summary
+                  ? formatMobileMessage("Clear {0}", [formatBytes(summary.payloadBytes)])
+                  : "Clear caches"
+              }
               tone="danger"
               disabled={isClearing || !summary || summary.recordCount === 0}
               loading={isClearing}
@@ -173,7 +178,9 @@ function CacheEnvironmentRow(props: {
         icon={ENVIRONMENT_MACHINE_SYMBOLS[props.machine]}
         localizeLabel={false}
         label={props.environmentLabel}
-        description={`Clear ${formatBytes(props.environment.payloadBytes)} of cached data`}
+        description={formatMobileMessage("Clear {0} of cached data", [
+          formatBytes(props.environment.payloadBytes),
+        ])}
         tone="danger"
         disabled={props.disabled}
         onPress={props.onClear}

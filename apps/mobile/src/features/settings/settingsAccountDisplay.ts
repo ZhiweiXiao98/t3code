@@ -32,3 +32,25 @@ export function settingsProjectMenuDisplay(
     localize: false as const,
   };
 }
+
+export function claudeAccountFailure(
+  failure: unknown,
+  locale: MobileLocale = MOBILE_LOCALE,
+): string {
+  return failure instanceof Error
+    ? failure.message
+    : localizeMobileString("Could not save the Claude account.", locale);
+}
+
+export function claudeAccountSummary(
+  status: "Turned off" | "Signed in" | "Not signed in" | "Not installed" | null,
+  configDir: string,
+  locale: MobileLocale = MOBILE_LOCALE,
+): string {
+  return [
+    status === null ? null : localizeMobileString(status, locale),
+    configDir || localizeMobileString("Default config folder", locale),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}

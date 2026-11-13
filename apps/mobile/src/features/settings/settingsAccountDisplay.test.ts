@@ -1,6 +1,8 @@
 import { expect, it, vi } from "vite-plus/test";
 import {
   providerAccountFailure,
+  claudeAccountFailure,
+  claudeAccountSummary,
   keyboardNewlineDescription,
   settingsProjectMenuDisplay,
 } from "./settingsAccountDisplay";
@@ -85,5 +87,31 @@ it("translates only owned provider fallbacks and keyboard templates with literal
         ? `Running threads sharing this sign-in on ${host} will stop. Thread history is kept.`
         : `${host} 上共享此登录的运行中任务将停止。任务历史会保留。`,
     );
+  }
+});
+
+it("keeps Claude paths and errors literal while translating owned status and cache templates", () => {
+  for (const locale of ["en", "zh-CN"] as const) {
+    for (const value of ["Settings", "Open", "Default config folder", "~/Settings/{0}/$&", ""]) {
+      expect(claudeAccountFailure(new Error(value), locale)).toBe(value);
+      expect(claudeAccountSummary("Signed in", value, locale)).toBe(
+        `${locale === "en" ? "Signed in" : "已登录"} · ${value || (locale === "en" ? "Default config folder" : "默认配置文件夹")}`,
+      );
+      expect(formatMobileMessage("Clear cache for {0}?", [value], locale)).toBe(
+        locale === "en" ? `Clear cache for ${value}?` : `清除 ${value} 的缓存？`,
+      );
+    }
+    expect(claudeAccountSummary(null, "Settings", locale)).toBe("Settings");
+    expect(claudeAccountFailure(null, locale)).toBe(
+      locale === "en" ? "Could not save the Claude account." : "无法保存 Claude 账户。",
+    );
+    for (const amount of ["0 B", "1.5 KB", "23 MB", "1.0 GB"]) {
+      expect(formatMobileMessage("Clear {0}", [amount], locale)).toBe(
+        locale === "en" ? `Clear ${amount}` : `清除 ${amount}`,
+      );
+      expect(formatMobileMessage("Clear {0} of cached data", [amount], locale)).toBe(
+        locale === "en" ? `Clear ${amount} of cached data` : `清除 ${amount} 的缓存数据`,
+      );
+    }
   }
 });

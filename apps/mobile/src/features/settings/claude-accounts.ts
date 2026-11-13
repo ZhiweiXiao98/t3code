@@ -1,3 +1,5 @@
+import { localizeMobileString, MOBILE_LOCALE, type MobileLocale } from "../../i18n/mobileStrings";
+import { managedByMessage } from "../../i18n/managedPolicyMessages";
 import {
   deriveAvailableInstanceId,
   deriveInstanceId,
@@ -32,18 +34,27 @@ export function claudeConfigDir(instance: ProviderInstanceConfig | undefined): s
 }
 
 /** Adds a Claude instance (`instanceId` null) or edits one, keeping every field the form doesn't show. */
-export function planClaudeAccountSave(input: {
-  readonly providerInstances: ServerSettings["providerInstances"];
-  readonly policy: ManagedPolicySummary | undefined;
-  readonly instanceId: ProviderInstanceId | null;
-  readonly draft: ClaudeAccountDraft;
-}): { readonly mutation: ProviderInstanceMutation } | { readonly error: string } {
+export function planClaudeAccountSave(
+  input: {
+    readonly providerInstances: ServerSettings["providerInstances"];
+    readonly policy: ManagedPolicySummary | undefined;
+    readonly instanceId: ProviderInstanceId | null;
+    readonly draft: ClaudeAccountDraft;
+  },
+  locale: MobileLocale = MOBILE_LOCALE,
+): { readonly mutation: ProviderInstanceMutation } | { readonly error: string } {
   const name = input.draft.name.trim();
   const configDir = input.draft.configDir.trim();
   const adding = input.instanceId === null;
-  if (adding && name.length === 0) return { error: "Enter a name for this account." };
+  if (adding && name.length === 0)
+    return { error: localizeMobileString("Enter a name for this account.", locale) };
   if (adding && configDir.length === 0) {
-    return { error: "Enter the Claude config folder this account is signed in with." };
+    return {
+      error: localizeMobileString(
+        "Enter the Claude config folder this account is signed in with.",
+        locale,
+      ),
+    };
   }
   const instanceId =
     input.instanceId ??
@@ -55,7 +66,7 @@ export function planClaudeAccountSave(input: {
       ),
     );
   if (input.policy && isManagedSettingPath(input.policy, `providerInstances.${instanceId}`)) {
-    return { error: `Managed by ${input.policy.organization}.` };
+    return { error: managedByMessage(input.policy.organization, locale) };
   }
   const current: ProviderInstanceConfig = Object.hasOwn(input.providerInstances, instanceId)
     ? input.providerInstances[instanceId]!
