@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { pipe } from "effect/Function";
 import {
@@ -63,8 +64,12 @@ export function SecretRequestCard(props: {
   return (
     <View className="mb-3 min-h-9 flex-row items-center gap-2 px-1">
       <SymbolView name={icon} size={13} tintColor={props.iconColor} type="monochrome" />
-      <Text className="flex-1 font-sans text-sm text-foreground-muted" numberOfLines={2}>
-        {item.label} · {display.label}
+      <Text
+        localize={false}
+        className="flex-1 font-sans text-sm text-foreground-muted"
+        numberOfLines={2}
+      >
+        {item.label} · {localizeMobileString(display.label)}
       </Text>
     </View>
   );
@@ -127,9 +132,15 @@ function PendingSecretRequestForm(props: {
   return (
     <View className="mb-3 gap-3 rounded-[20px] border border-border bg-card-alt p-4">
       <View className="gap-1">
-        <Text className="font-t3-bold text-base text-foreground">{item.label}</Text>
+        <Text localize={false} className="font-t3-bold text-base text-foreground">
+          {item.label}
+        </Text>
         {item.reason.trim() ? (
-          <Text className="font-sans text-sm leading-5 text-foreground-muted" selectable>
+          <Text
+            localize={false}
+            className="font-sans text-sm leading-5 text-foreground-muted"
+            selectable
+          >
             {item.reason}
           </Text>
         ) : null}
@@ -180,7 +191,7 @@ function PendingSecretRequestForm(props: {
       {source === null ? (
         <SecretTextInput
           accessibilityLabel={item.label}
-          placeholder={item.placeholder ?? SECRET_REQUEST_DEFAULT_PLACEHOLDER}
+          placeholder={item.placeholder ?? localizeMobileString(SECRET_REQUEST_DEFAULT_PLACEHOLDER)}
           value={secret}
           onChangeText={setSecret}
           editable={!submitting}
@@ -188,6 +199,7 @@ function PendingSecretRequestForm(props: {
         />
       ) : (
         <TextInput
+          localize={false}
           key={source.id}
           accessibilityLabel={formatMobileMessage("{0} reference in {1}", [
             item.label,

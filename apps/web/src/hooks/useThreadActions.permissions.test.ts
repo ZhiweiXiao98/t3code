@@ -194,6 +194,8 @@ vi.mock("../components/ui/toast", () => ({
 }));
 vi.mock("./useHandleNewThread", () => ({ useNewThreadHandler: () => async () => {} }));
 vi.mock("./useSettings", () => ({
+  // Confirmation copy reads the current locale outside React before opening the dialog.
+  getClientSettings: () => ({ appLocale: "en" }),
   useClientSettings: (select: (settings: unknown) => unknown) =>
     select({
       sidebarThreadSortOrder: "createdAt",

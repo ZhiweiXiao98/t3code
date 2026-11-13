@@ -1,3 +1,4 @@
+import { projectRemovalMessage } from "../../i18n/confirmationMessages";
 import { useComposerMenuState } from "../chat/useComposerMenuState";
 import { useOrchestrationCommand } from "../../state/use-orchestration-command";
 import { AuthOrchestrationOperateScope } from "@t3tools/contracts";
@@ -362,7 +363,7 @@ function ProjectDetail({
     const api = readLocalApi();
     if (!api) return;
 
-    const { projectThreads, isWholeGroup, confirmationMessage } = planProjectRemoval({
+    const removalPlan = planProjectRemoval({
       members,
       groupMemberCount: group.memberProjects.length,
       hasOtherMembers,
@@ -370,6 +371,13 @@ function ProjectDetail({
       threads,
       unloadedThreadCount: readUnloadedThreadCount(members, threads),
     });
+    const { projectThreads, isWholeGroup } = removalPlan;
+    const confirmationMessage = projectRemovalMessage(
+      locale,
+      removalPlan,
+      members,
+      hasOtherMembers,
+    );
     const confirmed = await settlePromise(() =>
       api.dialogs.confirm(confirmationMessage, { variant: "destructive" }),
     );

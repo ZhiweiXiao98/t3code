@@ -48,6 +48,7 @@ export function AppText({
 }
 
 export type AppTextInputProps = Omit<RNTextInputProps, "placeholderTextColor"> & {
+  readonly localize?: boolean;
   readonly className?: string;
   readonly ref?: React.Ref<TextInputInstance>;
 };
@@ -60,6 +61,7 @@ export function AppTextInput({
   accessibilityLabel,
   className,
   placeholder,
+  localize = true,
   ref,
   ...props
 }: AppTextInputProps) {
@@ -67,13 +69,17 @@ export function AppTextInput({
     <RNTextInput
       ref={ref}
       accessibilityLabel={
-        accessibilityLabel === undefined ? undefined : localizeMobileString(accessibilityLabel)
+        accessibilityLabel === undefined || !localize
+          ? accessibilityLabel
+          : localizeMobileString(accessibilityLabel)
       }
       className={cn(
         "min-h-13.5 rounded-2xl border border-input-border bg-input px-3.5 py-3 font-sans text-base text-foreground",
         className,
       )}
-      placeholder={placeholder === undefined ? undefined : localizeMobileString(placeholder)}
+      placeholder={
+        placeholder === undefined || !localize ? placeholder : localizeMobileString(placeholder)
+      }
       placeholderTextColorClassName="accent-placeholder"
       selectionColorClassName={"accent-focus/32"}
       cursorColorClassName={"accent-focus"}

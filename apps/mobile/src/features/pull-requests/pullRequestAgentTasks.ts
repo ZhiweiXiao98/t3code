@@ -2,7 +2,8 @@ import {
   sourceControlClients,
   type ChangeRequestTerminology,
 } from "@t3tools/client-runtime/source-control-clients";
-import type { MenuAction } from "@react-native-menu/menu";
+import type { LocalizableMenuAction } from "../../i18n/localizeMenuActions";
+import { localizeMobileString, MOBILE_LOCALE, type MobileLocale } from "../../i18n/mobileStrings";
 import type { PullRequestDetail, PullRequestLinkedThreadsResult } from "@t3tools/contracts";
 
 export type PullRequestAgentTask = "ask" | "explain" | "feedback" | "conflicts" | "watch";
@@ -21,18 +22,23 @@ export function pullRequestAgentThreadActions(
   threads: PullRequestLinkedThreadsResult["threads"],
   task: PullRequestAgentTask,
   canAsk: boolean,
-): MenuAction[] {
-  const active: MenuAction[] = [];
-  const settled: MenuAction[] = [];
+  locale: MobileLocale = MOBILE_LOCALE,
+): LocalizableMenuAction[] {
+  const active: LocalizableMenuAction[] = [];
+  const settled: LocalizableMenuAction[] = [];
   for (const thread of threads) {
     const action = {
       id: `${task}:${thread.id}`,
       title: thread.title,
-      subtitle: thread.archivedAt
-        ? "Archived thread"
-        : thread.settled
-          ? "Settled thread"
-          : "Continue thread",
+      localize: false,
+      subtitle: localizeMobileString(
+        thread.archivedAt
+          ? "Archived thread"
+          : thread.settled
+            ? "Settled thread"
+            : "Continue thread",
+        locale,
+      ),
       image: "bubble.left.and.bubble.right",
       attributes: { disabled: task !== "ask" && Boolean(thread.archivedAt) },
     };

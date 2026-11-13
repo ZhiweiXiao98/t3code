@@ -1,3 +1,5 @@
+import { localizeMenuActions } from "../../i18n/localizeMenuActions";
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { describe, expect, it } from "vite-plus/test";
 import {
   appendPullRequestAgentPrompt,
@@ -49,6 +51,30 @@ describe("PR agent tasks", () => {
     expect(
       pullRequestAgentThreadActions([settled], "feedback", false)[0]?.subactions,
     ).toMatchObject([{ id: `feedback:${settled.id}`, attributes: { disabled: false } }]);
+    for (const locale of ["en", "zh-CN"] as const) {
+      const collision = { ...settled, title: "Settings {0} $&" };
+      const localized = localizeMenuActions(
+        pullRequestAgentThreadActions(
+          [collision, { ...archived, title: "Link custom" }],
+          "ask",
+          true,
+          locale,
+        ),
+        locale,
+      );
+      expect(localized[1]).toMatchObject({
+        title: "Link custom",
+        subtitle: locale === "zh-CN" ? "已归档任务" : "Archived thread",
+      });
+      const child = localized[2]?.subactions?.[0];
+      expect(child).toMatchObject({
+        title: collision.title,
+        subtitle: locale === "zh-CN" ? "已结束的任务" : "Settled thread",
+      });
+      expect(formatMobileMessage("Settled: {0}", [collision.title], locale)).toBe(
+        locale === "zh-CN" ? `已结束：${collision.title}` : `Settled: ${collision.title}`,
+      );
+    }
     expect(pullRequestAgentThreadActions([archived], "feedback", true)[1]).toMatchObject({
       attributes: { disabled: true },
     });

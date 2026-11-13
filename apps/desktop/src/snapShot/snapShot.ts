@@ -14,6 +14,7 @@ import {
   type SnapShotKeyChord,
   type SnapShotModifier,
   type SnapShotShortcut,
+  type DesktopSnapShotState,
 } from "@t3tools/contracts";
 
 interface AccessibilityTreeNode {
@@ -33,6 +34,26 @@ export const WINDOWS_MODIFIER_PAIR_VIRTUAL_KEYS: Record<
   alt: [0xa4, 0xa5],
   meta: [0x5b, 0x5c],
 };
+
+export function localizeSnapShotStateMessages(
+  state: DesktopSnapShotState,
+  platform: NodeJS.Platform,
+  chinese: boolean,
+): DesktopSnapShotState {
+  if (!chinese) return state;
+  const shortcutMessage =
+    state.shortcutMessage === snapShotShortcutRegistrationFailureMessage(state.shortcut, platform)
+      ? snapShotShortcutRegistrationFailureMessage(state.shortcut, platform, true)
+      : state.shortcutMessage === "Could not connect to your desktop's shortcut service."
+        ? "无法连接到桌面快捷键服务。"
+        : state.shortcutMessage;
+  const message =
+    state.message ===
+    "Could not check desktop capture support. Check your desktop session and try again."
+      ? "无法检查桌面截取支持。请检查桌面会话后重试。"
+      : state.message;
+  return { ...state, shortcutMessage, message };
+}
 
 export function snapShotShortcutRegistrationFailureMessage(
   shortcut: SnapShotShortcut,

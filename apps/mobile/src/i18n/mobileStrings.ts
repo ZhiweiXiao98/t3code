@@ -6,6 +6,14 @@ export const MOBILE_LOCALE: MobileLocale =
   process.env.EXPO_PUBLIC_APP_LOCALE === "zh-CN" ? "zh-CN" : "en";
 
 const ZH_CN_MESSAGES = {
+  "Paste the secret": "粘贴密钥",
+  "Saved securely and kept private": "已安全保存并保持私密",
+  "Kept out of chat, in a private file this agent's commands can read for 24 hours":
+    "不会出现在聊天中，将保存在私密文件里，此智能体的命令可在 24 小时内读取",
+  "Stored securely, never shown to the agent": "安全存储，不会向智能体显示",
+  Paused: "已暂停",
+  "Archived thread": "已归档任务",
+  "Settled: {0}": "已结束：{0}",
   "Play audio": "播放音频",
   "Claude config folder": "Claude 配置文件夹",
   "Terminal response": "终端响应",

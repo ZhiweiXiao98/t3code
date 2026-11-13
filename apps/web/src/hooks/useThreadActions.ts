@@ -221,14 +221,7 @@ async function requestThreadUnpinConfirmation(input: {
     return AsyncResult.success(true);
   }
 
-  return settlePromise(() =>
-    confirm(
-      [
-        `Unpin thread "${input.title}"?`,
-        "This will move the thread out of your pinned section.",
-      ].join("\n"),
-    ),
-  );
+  return settlePromise(() => confirm(readWebI18n().t("audit5.unpin", { title: input.title })));
 }
 
 export async function navigateAfterThreadDeletion(navigate: () => Promise<void>) {
@@ -615,12 +608,7 @@ export function useThreadActions() {
     if (canDeleteWorktree && localApi && !automaticWorktreeCleanup) {
       const confirmationResult = await settlePromise(() =>
         localApi.dialogs.confirm(
-          [
-            "This thread is the only one linked to this worktree:",
-            displayWorktreePath ?? orphanedWorktreePath,
-            "",
-            "Delete the worktree too?",
-          ].join("\n"),
+          t("audit5.worktree", { path: displayWorktreePath ?? orphanedWorktreePath ?? "" }),
           { variant: "destructive" },
         ),
       );

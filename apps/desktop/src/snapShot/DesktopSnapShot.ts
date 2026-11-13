@@ -86,6 +86,7 @@ import { showWindowsCaptureOverlay } from "./WindowsCaptureFeedback.ts";
 
 import {
   boundedSnapShotString,
+  localizeSnapShotStateMessages,
   isWaylandSession,
   sameSnapShotShortcut,
   toElectronAccelerator,
@@ -1763,6 +1764,15 @@ export const make = Effect.gen(function* () {
               : {}),
             shortcutVerified,
           };
+        }),
+      ),
+      Effect.flatMap((state) =>
+        Effect.gen(function* () {
+          const locale = yield* readDesktopLocale(
+            clientSettings.get,
+            Effect.sync(() => Electron.app.getSystemLocale()),
+          );
+          return localizeSnapShotStateMessages(state, environment.platform, locale === "zh-CN");
         }),
       ),
     ),

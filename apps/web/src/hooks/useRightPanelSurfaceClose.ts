@@ -1,3 +1,4 @@
+import { readWebI18n } from "../i18n/readWebI18n";
 import {
   AuthOrchestrationOperateScope,
   AuthPreviewOperateScope,
@@ -90,7 +91,11 @@ export function useRightPanelSurfaceClose(input: {
     toClose: readonly RightPanelSurface[],
     closeSurfaces: () => void,
   ) => {
-    const message = agentControlledBrowserCloseConfirmation(toClose, previewState.desktopByTabId);
+    const message = agentControlledBrowserCloseConfirmation(
+      toClose,
+      previewState.desktopByTabId,
+      readWebI18n().locale,
+    );
     if (!message) {
       closeSurfaces();
       return;

@@ -5,6 +5,21 @@ import { describe, expect, it } from "vite-plus/test";
 import { translateWebMessage, translateWebSource } from "./messages";
 
 describe("translateWebMessage", () => {
+  it("preserves literal copy labels and English capitalization in copy notifications", () => {
+    expect(translateWebMessage("en", "audit5.copyFailed", { label: "full path" })).toBe(
+      "Failed to copy full path",
+    );
+    expect(translateWebMessage("en", "audit5.copied", { label: "Full path" })).toBe(
+      "Full path copied",
+    );
+    expect(translateWebMessage("zh-CN", "audit5.copyFailed", { label: "完整路径" })).toBe(
+      "复制完整路径失败",
+    );
+    expect(translateWebMessage("zh-CN", "audit5.copied", { label: "{label}/$&/中文" })).toBe(
+      "已复制{label}/$&/中文",
+    );
+  });
+
   it("preserves opaque parameters in localized attachment, capture, and connection copy", () => {
     const opaque = "host/{error}/<tag>/$&/中文";
     for (const locale of ["en", "zh-CN"] as const) {

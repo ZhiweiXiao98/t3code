@@ -32,6 +32,8 @@ describe("mobile strings", () => {
       "Read only. These subagents cannot take messages.": "仅供查看。这些子 Agent 无法接收消息。",
       "No transcript yet.": "暂无记录。",
       Once: "单次",
+      Paused: "已暂停",
+      "Paste the secret": "粘贴密钥",
       Date: "日期",
       "Duplicate request key": "重复请求识别键",
     };

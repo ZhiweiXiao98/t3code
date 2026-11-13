@@ -85,7 +85,7 @@ export function useComposerAttachmentIntake(input: {
     selection?: { start: number; end: number },
   ) => boolean;
 }) {
-  const { locale: releaseLocale } = useI18n();
+  const { locale: releaseLocale, t } = useI18n();
 
   const {
     activeThreadId,
@@ -348,7 +348,7 @@ export function useComposerAttachmentIntake(input: {
       return;
     }
     const confirmation = requestConfirmDialog(
-      `Remove ${image?.name ?? "this image"} from the message?\nIt is referenced in your text; removing it also removes every reference.`,
+      t("audit5.removeImage", { name: image?.name ?? t("audit5.image") }),
       { variant: "destructive" },
     );
     if (!confirmation) {

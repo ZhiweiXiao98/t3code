@@ -1,6 +1,35 @@
 import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 
 const EN_MESSAGES = {
+  "audit5.copyFailed": "Failed to copy {label}",
+  "audit5.copied": "{label} copied",
+  "audit5.closeTerminal": 'Close terminal "{label}"?',
+  "audit5.closeTerminals": "Close {count} terminals?",
+  "audit5.stopTerminal": "This stops the running process and clears its history.",
+  "audit5.stopTerminals":
+    "This stops their running processes and clears their histories: {labels}.",
+  "audit5.closeBrowser": "Close browser while the agent is using it?",
+  "audit5.closeBrowsers": "Close {count} browsers while the agent is using them?",
+  "audit5.interruptBrowser":
+    "The agent is actively controlling this browser. Closing it may interrupt the current browser action.",
+  "audit5.interruptBrowsers":
+    "The agent is actively controlling these browsers. Closing them may interrupt the current browser actions.",
+  "audit5.removeImage":
+    "Remove {name} from the message?\nIt is referenced in your text; removing it also removes every reference.",
+  "audit5.image": "this image",
+  "audit5.deleteSession": 'Permanently delete native ACP session "{name}"?',
+  "audit5.disableProvider": 'Disable ACP provider "{id}"?',
+  "audit5.unpin": 'Unpin thread "{title}"?\nThis will move the thread out of your pinned section.',
+  "audit5.worktree":
+    "This thread is the only one linked to this worktree:\n{path}\n\nDelete the worktree too?",
+  "audit5.project": "project",
+  "audit5.checkout": "checkout",
+  "audit5.removeProject": 'Remove {kind} "{name}"?',
+  "audit5.removeProjectThreads": 'Remove {kind} "{name}" and delete its {count} threads?',
+  "audit5.projectThreadsKeptSessions":
+    "Those threads and any archived threads are deleted from T3 Code. Provider sessions are kept.",
+  "audit5.projectArchivedKeptSessions":
+    "Any archived threads are deleted from T3 Code. Provider sessions are kept.",
   "audit4.selectedEnvironment": "The selected environment",
   "audit4.retryUpload": "Retry upload for {name}",
   "audit4.play": "Play {name}",
@@ -4542,6 +4571,29 @@ export type WebMessages = Readonly<Record<WebMessageKey, string>>;
 export type WebMessageValues = Readonly<Record<string, string | number>>;
 
 const ZH_CN_MESSAGES = {
+  "audit5.copyFailed": "复制{label}失败",
+  "audit5.copied": "已复制{label}",
+  "audit5.closeTerminal": "关闭终端“{label}”？",
+  "audit5.closeTerminals": "关闭 {count} 个终端？",
+  "audit5.stopTerminal": "这将停止正在运行的进程并清除其历史记录。",
+  "audit5.stopTerminals": "这将停止以下终端中正在运行的进程并清除其历史记录：{labels}。",
+  "audit5.closeBrowser": "在 Agent 正在使用浏览器时关闭它？",
+  "audit5.closeBrowsers": "在 Agent 正在使用这些浏览器时关闭 {count} 个浏览器？",
+  "audit5.interruptBrowser": "Agent 正在控制此浏览器。关闭它可能会中断当前的浏览器操作。",
+  "audit5.interruptBrowsers": "Agent 正在控制这些浏览器。关闭它们可能会中断当前的浏览器操作。",
+  "audit5.removeImage": "从消息中移除 {name}？\n正文中引用了此图片；移除图片也会移除所有引用。",
+  "audit5.image": "此图片",
+  "audit5.deleteSession": "永久删除原生 ACP 会话“{name}”？",
+  "audit5.disableProvider": "禁用 ACP 提供方“{id}”？",
+  "audit5.unpin": "取消置顶会话“{title}”？\n这会将该会话移出置顶区域。",
+  "audit5.worktree": "此会话是唯一关联到以下工作树的会话：\n{path}\n\n同时删除该工作树？",
+  "audit5.project": "项目",
+  "audit5.checkout": "检出目录",
+  "audit5.removeProject": "移除{kind}“{name}”？",
+  "audit5.removeProjectThreads": "移除{kind}“{name}”并删除其中的 {count} 个会话？",
+  "audit5.projectThreadsKeptSessions":
+    "这些会话及所有已归档会话将从 T3 Code 中删除。提供方会话将保留。",
+  "audit5.projectArchivedKeptSessions": "所有已归档会话将从 T3 Code 中删除。提供方会话将保留。",
   "audit4.selectedEnvironment": "所选环境",
   "audit4.retryUpload": "重试上传 {name}",
   "audit4.play": "播放 {name}",

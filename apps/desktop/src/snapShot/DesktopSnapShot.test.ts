@@ -1886,6 +1886,21 @@ it.effect("an unrelated client-setting change keeps the registered shortcut", ()
         });
         assert.lengthOf(registerShortcutMock.mock.calls, registrations);
       }
+      registerShortcutMock.mockReturnValue(false);
+      yield* service.configure({
+        ...settings,
+        snapShotShortcut: { ...settings.snapShotShortcut, key: "u" },
+      });
+      const registrations = registerShortcutMock.mock.calls.length;
+      for (const [appLocale, expected] of [
+        ["zh-CN", "此快捷键已被系统或其他应用占用。"],
+        ["en", "This shortcut is already used by the system or another app."],
+      ] as const) {
+        yield* Ref.set(localeSettings, { ...settings, appLocale });
+        assert.equal((yield* service.state).shortcutMessage, expected);
+        assert.lengthOf(registerShortcutMock.mock.calls, registrations);
+      }
+      registerShortcutMock.mockReturnValue(true);
     }),
   );
 });
@@ -2296,4 +2311,34 @@ it.effect("fills only blank animation titles from the current native language", 
       }
     }),
   ),
+);
+
+it.effect(
+  "reads the current locale for capture-support fallbacks and preserves external errors",
+  () => {
+    vi.stubEnv("XDG_SESSION_TYPE", "wayland");
+    return Effect.scoped(
+      Effect.gen(function* () {
+        const settings = yield* Ref.make(DEFAULT_CLIENT_SETTINGS);
+        const service = yield* DesktopSnapShot.make.pipe(
+          Effect.provide(
+            layerTest("linux", {}, Option.none(), Ref.get(settings).pipe(Effect.asSome)),
+          ),
+        );
+        for (const [appLocale, expected] of [
+          ["zh-CN", "无法检查桌面截取支持。请检查桌面会话后重试。"],
+          [
+            "en",
+            "Could not check desktop capture support. Check your desktop session and try again.",
+          ],
+        ] as const) {
+          yield* Ref.set(settings, { ...DEFAULT_CLIENT_SETTINGS, appLocale });
+          linuxBackendMock.mockRejectedValueOnce("opaque failure");
+          assert.equal((yield* service.state).message, expected);
+          linuxBackendMock.mockRejectedValueOnce(new Error("外部/{message}/$&"));
+          assert.equal((yield* service.state).message, "外部/{message}/$&");
+        }
+      }),
+    ).pipe(Effect.ensuring(Effect.sync(() => vi.unstubAllEnvs())));
+  },
 );

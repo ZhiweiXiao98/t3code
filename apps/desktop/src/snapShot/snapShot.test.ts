@@ -1,3 +1,4 @@
+import { DEFAULT_CLIENT_SETTINGS } from "@t3tools/contracts";
 import { it as effectIt } from "@effect/vitest";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import { parseKeybindingShortcut } from "@t3tools/shared/keybindings";
@@ -10,6 +11,7 @@ import {
   compactAccessibilityTree,
   findAccessibleWindow,
   isWaylandSession,
+  localizeSnapShotStateMessages,
   toElectronAccelerator,
 } from "./snapShot.ts";
 
@@ -509,4 +511,23 @@ describe("isWaylandSession", () => {
         });
       }),
   );
+});
+
+describe("snapshot service messages", () => {
+  it("translates known service fallback without changing unknown errors or source state", () => {
+    const state = {
+      mode: "portal" as const,
+      shortcut: DEFAULT_CLIENT_SETTINGS.snapShotShortcut,
+      shortcutRegistered: false,
+      shortcutMessage: "Could not connect to your desktop's shortcut service.",
+      message: null,
+    };
+    expect(localizeSnapShotStateMessages(state, "linux", true).shortcutMessage).toBe(
+      "无法连接到桌面快捷键服务。",
+    );
+    expect(localizeSnapShotStateMessages(state, "linux", false)).toBe(state);
+    const unknown = { ...state, shortcutMessage: "external/{shortcut}/$&", message: "外部错误" };
+    expect(localizeSnapShotStateMessages(unknown, "linux", true)).toEqual(unknown);
+    expect(state.shortcutMessage).toBe("Could not connect to your desktop's shortcut service.");
+  });
 });

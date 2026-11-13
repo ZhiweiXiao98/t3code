@@ -201,12 +201,18 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
     })();
   };
 
-  const handleCopy = (resolveValue: () => Promise<string>, title: string) => {
+  const handleCopy = (
+    resolveValue: () => Promise<string>,
+    title: "Full path" | "Relative path",
+  ) => {
+    const localizedTitle = translateRelease(
+      title === "Full path" ? "markdownFile.fullPath" : "markdownFile.relativePath",
+    );
     if (typeof window === "undefined" || !navigator.clipboard?.writeText) {
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: `Failed to copy ${title.toLowerCase()}`,
+          title: translateRelease("audit5.copyFailed", { label: localizedTitle }),
           description: translateWebSource(releaseLocale, "Clipboard API unavailable."),
         }),
       );
@@ -227,7 +233,9 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
       ([, text]) => {
         toastManager.add({
           type: "success",
-          title: `${title} copied`,
+          title: translateRelease("audit5.copied", {
+            label: releaseLocale === "en" ? title : localizedTitle,
+          }),
           description: text,
         });
       },
@@ -239,7 +247,7 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: `Failed to copy ${title.toLowerCase()}`,
+            title: translateRelease("audit5.copyFailed", { label: localizedTitle }),
             description: error instanceof Error ? error.message : translateRelease("common.error"),
           }),
         );

@@ -1,3 +1,4 @@
+import { browserCloseMessage } from "../i18n/confirmationMessages";
 import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 import { translateWebSource } from "../i18n/messages";
 import { type OrchestrationV2ProviderTurn, type RunAttemptId } from "@t3tools/contracts";
@@ -113,6 +114,7 @@ export const ENVIRONMENT_RECONNECT_WARNING_GRACE_MS = 2_000;
 export function agentControlledBrowserCloseConfirmation(
   surfaces: readonly RightPanelSurface[],
   desktopByTabId: Readonly<Record<string, Pick<DesktopPreviewOverlay, "controller"> | undefined>>,
+  locale: ResolvedAppLocale = "en",
 ): string | null {
   const activeBrowserCount = surfaces.filter(
     (surface) =>
@@ -121,16 +123,7 @@ export function agentControlledBrowserCloseConfirmation(
       desktopByTabId[surface.resourceId]?.controller === "agent",
   ).length;
   if (activeBrowserCount === 0) return null;
-  if (activeBrowserCount === 1) {
-    return [
-      "Close browser while the agent is using it?",
-      "The agent is actively controlling this browser. Closing it may interrupt the current browser action.",
-    ].join("\n");
-  }
-  return [
-    `Close ${activeBrowserCount} browsers while the agent is using them?`,
-    "The agent is actively controlling these browsers. Closing them may interrupt the current browser actions.",
-  ].join("\n");
+  return browserCloseMessage(locale, activeBrowserCount);
 }
 
 export function shouldRenderPreviewMiniPlayer(

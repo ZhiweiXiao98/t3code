@@ -5,6 +5,7 @@ import type { SecretTextInputProps } from "./SecretTextInput.types";
 export function SecretTextInput(props: SecretTextInputProps) {
   return (
     <AppTextInput
+      localize={false}
       accessibilityLabel={props.accessibilityLabel}
       placeholder={props.placeholder}
       value={props.value}

@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { Platform } from "react-native";
 import type { PullRequestDetail } from "@t3tools/contracts";
 import {
@@ -44,7 +45,7 @@ export function usePullRequestAgentActions(
             (item) =>
               item.subactions?.map((child) => ({
                 ...child,
-                title: `Settled: ${child.title}`,
+                title: formatMobileMessage("Settled: {0}", [child.title]),
               })) ?? [item],
           )
         : items;

@@ -16,6 +16,8 @@ vi.mock("~/localApi", () => ({
   readLocalApi: () => readLocalApiMock(),
 }));
 
+vi.mock("~/i18n/readWebI18n", () => ({ readWebI18n: () => ({ locale: "en" }) }));
+
 import { confirmTerminalClose, isTerminalCloseConfirmPending } from "./terminalCloseConfirm";
 
 describe("terminal close confirmation", () => {
@@ -36,6 +38,10 @@ describe("terminal close confirmation", () => {
 
     const confirmation = confirmTerminalClose(["Terminal 1"]);
     expect(isTerminalCloseConfirmPending()).toBe(true);
+    expect(confirmMock).toHaveBeenCalledWith(
+      'Close terminal "Terminal 1"?\nThis stops the running process and clears its history.',
+      { variant: "destructive" },
+    );
 
     reject(new Error("dialog failed"));
     await expect(confirmation).resolves.toBe(false);

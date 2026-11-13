@@ -450,7 +450,9 @@ function PreviewStreamDocumentView({
       ) : null}
       {!compact && control?.dialog ? (
         <View className="absolute inset-x-3 top-16 gap-3 rounded-xl border border-secondary-border bg-secondary p-4">
-          <AppText className="text-sm text-secondary-foreground">{control.dialog.message}</AppText>
+          <AppText localize={false} className="text-sm text-secondary-foreground">
+            {control.dialog.message}
+          </AppText>
           {control.controller === "you" ? (
             <>
               {control.dialog.type === "prompt" ? (

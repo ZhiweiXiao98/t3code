@@ -257,7 +257,7 @@ function InstanceSessionManagement(
     if (projectId === null || deletingSessionId !== null || session.importedThreadId !== null)
       return;
     const confirmed = await ensureLocalApi().dialogs.confirm(
-      `Permanently delete native ACP session "${session.title ?? session.sessionId}"?`,
+      readWebI18n().t("audit5.deleteSession", { name: session.title ?? session.sessionId }),
       { variant: "destructive" },
     );
     if (
@@ -370,7 +370,7 @@ function InstanceSessionManagement(
     if (projectId === null || savingProviderId !== null || loadingProviders || provider.required)
       return;
     const confirmed = await ensureLocalApi().dialogs.confirm(
-      `Disable ACP provider "${provider.providerId}"?`,
+      readWebI18n().t("audit5.disableProvider", { id: provider.providerId }),
       { variant: "destructive" },
     );
     if (
