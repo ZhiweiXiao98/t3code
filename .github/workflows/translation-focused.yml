@@ -1,0 +1,394 @@
+name: Focused exact-source localization validation
+'on':
+  push:
+    branches:
+    - validation/i18n-5a334dba
+    paths:
+    - .github/workflows/translation-focused.yml
+permissions:
+  contents: read
+concurrency:
+  group: translation-focused-${{ github.ref }}-${{ github.sha }}
+  cancel-in-progress: false
+env:
+  CI: 'true'
+  SOURCE_SHA: bb0de5ece0dfb761d04b20326bcfd147db2ada8a
+  BASE_SHA: 35d7bddd7292a47abee0a12147b8cebde3a4635e
+  EXPECTED_BRANCH: validation/i18n-5a334dba
+  VP_REMOTE_CACHE: 'off'
+  VP_REMOTE_CACHE_URL: ''
+  ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
+  WORKFLOW_PARENT_SHA: 2a078e87d282c0bdae34e3e399f5d810c8d57232
+jobs:
+  linux:
+    name: Localization (${{ matrix.suite }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        suite:
+        - provider-isolated
+        - browser-regressions
+        - changed-files
+    env:
+      SUITE: ${{ matrix.suite }}
+    steps:
+    - name: Verify public repository and check out exact localization source
+      shell: bash
+      run: |
+        set -euo pipefail
+        python3 - <<'PYTHON'
+        import json, os
+        with open(os.environ['GITHUB_EVENT_PATH']) as f:
+            event = json.load(f)
+        assert os.environ['GITHUB_REPOSITORY'] == 'ZhiweiXiao98/t3code'
+        assert event['repository']['private'] is False
+        assert os.environ['GITHUB_EVENT_NAME'] == 'push'
+        assert os.environ['GITHUB_REF'] == 'refs/heads/' + os.environ['EXPECTED_BRANCH']
+        assert event['after'] == os.environ['GITHUB_SHA']
+        PYTHON
+        git init .
+        git config core.autocrlf false
+        git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+        git fetch --no-tags --depth=64 origin "$GITHUB_SHA"
+        test "$(git rev-parse "$GITHUB_SHA^1")" = "$SOURCE_SHA"
+        test "$(git rev-parse "$GITHUB_SHA^2")" = "$WORKFLOW_PARENT_SHA"
+        test "$(git rev-list --parents -n 1 "$GITHUB_SHA" | wc -w | tr -d ' ')" = 3
+        test "$(git diff --name-only "$SOURCE_SHA" "$GITHUB_SHA")" = '.github/workflows/translation-focused.yml'
+        git merge-base --is-ancestor "$BASE_SHA" "$SOURCE_SHA"
+        git sparse-checkout set --no-cone '/*' '!/.repos/'
+        git checkout --detach "$SOURCE_SHA"
+        test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+        git diff --exit-code
+        git diff --cached --exit-code
+        printf 'Source: %s\nSource tree: %s\nComparison base: %s\nWorkflow commit: %s\n' "$SOURCE_SHA" "$(git rev-parse HEAD^{tree})" "$BASE_SHA" "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+      env:
+        GIT_TERMINAL_PROMPT: '0'
+    - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
+      with:
+        node-version-file: package.json
+        cache: true
+        run-install: false
+    - name: Install locked dependencies
+      shell: bash
+      run: vp install --frozen-lockfile
+    - name: Install Linux desktop and Chromium dependencies
+      shell: bash
+      run: |
+        set -euo pipefail
+        python3 .github/scripts/ci-ubuntu-packages.py packages libsecret-1-dev pkg-config build-essential imagemagick xvfb
+        browser_cli=apps/web/node_modules/playwright/cli.js
+        python3 .github/scripts/ci-ubuntu-packages.py playwright "$browser_cli"
+        node "$browser_cli" install --only-shell chromium
+        test "$(node -p "require('./apps/server/node_modules/playwright-core/package.json').version")" = "$(node -p "require('./apps/web/node_modules/playwright/package.json').version")"
+        browser_revision=$(node -p "require('./apps/server/node_modules/playwright-core/browsers.json').browsers.find(browser => browser.name === 'chromium-headless-shell').revision")
+        mapfile -t browsers < <(find "$HOME/.cache/ms-playwright/chromium_headless_shell-$browser_revision" -type f -name chrome-headless-shell)
+        test "${#browsers[@]}" -eq 1
+        test -x "${browsers[0]}"
+        test "${T3CODE_SERVER_BROWSER_SANDBOX:-1}" != 0
+        echo "T3CODE_TEST_HEADLESS_SHELL=${browsers[0]}" >> "$GITHUB_ENV"
+    - name: Ensure Electron runtime for desktop tests
+      shell: bash
+      run: vp run --filter @t3tools/desktop ensure:electron
+      if: matrix.suite == 'changed-files'
+    - name: Run default iOS and Android Toast cases serially
+      if: matrix.suite == 'changed-files'
+      timeout-minutes: 8
+      shell: bash
+      working-directory: apps/mobile
+      run: |
+        set -uo pipefail
+        env -u T3_MOBILE_TEST_PLATFORM ../../node_modules/.bin/vp test run --project react src/components/ui/Toast.test.tsx \
+          --reporter=default --reporter=json --outputFile.json="$RUNNER_TEMP/toast-ios.json" 2>&1 | tee "$RUNNER_TEMP/toast-ios.log"
+        ios_result=${PIPESTATUS[0]}
+        T3_MOBILE_TEST_PLATFORM=android ../../node_modules/.bin/vp test run --project react src/components/ui/Toast.test.tsx \
+          --reporter=default --reporter=json --outputFile.json="$RUNNER_TEMP/toast-android.json" 2>&1 | tee "$RUNNER_TEMP/toast-android.log"
+        android_result=${PIPESTATUS[0]}
+        export TOAST_IOS_EXIT="$ios_result" TOAST_ANDROID_EXIT="$android_result"
+        python3 - <<'PYTHON'
+        import json, os, pathlib
+        temp = pathlib.Path(os.environ['RUNNER_TEMP'])
+        cases = {
+            'ios': 'applies provenance to normal and single-line toast text and VoiceOver without retranslating opaque content',
+            'android': 'keeps the Android swipe-dismiss accessibility alert in the same provenance mode',
+        }
+        for platform, title in cases.items():
+            assert os.environ['TOAST_' + platform.upper() + '_EXIT'] == '0', platform + ' test command failed'
+            report = json.loads((temp / ('toast-' + platform + '.json')).read_text())
+            assert report['success'] is True
+            assert report['numPassedTests'] == 1 and report['numFailedTests'] == 0
+            results = report['testResults']
+            assert len(results) == 1 and results[0]['name'].endswith('/src/components/ui/Toast.test.tsx')
+            assertions = results[0]['assertionResults']
+            assert any(a['title'] == title and a['status'] == 'passed' for a in assertions), platform + ' case did not execute'
+            assert sum(a['status'] == 'passed' for a in assertions) == 1
+            print(platform + ': expected platform-specific Toast case passed; opposite-platform skipped case is not counted')
+        PYTHON
+    - name: Verify media preview behavior on both mobile compilation targets
+      if: matrix.suite == 'changed-files'
+      shell: bash
+      working-directory: apps/mobile
+      run: |
+        set -euo pipefail
+        for platform in ios android; do
+          T3_MOBILE_TEST_PLATFORM="$platform" ../../node_modules/.bin/vp test run --project react src/components/ui/FilePreviewModal.android.test.tsx \
+            --reporter=default --reporter=json --outputFile.json="$RUNNER_TEMP/media-$platform.json" 2>&1 | tee "$RUNNER_TEMP/media-$platform.log"
+        done
+        python3 - <<'PYTHON'
+        import json, os, pathlib
+        root = pathlib.Path(os.environ['RUNNER_TEMP'])
+        for platform in ('ios', 'android'):
+            report = json.loads((root / ('media-' + platform + '.json')).read_text())
+            assert report['success'] is True, platform
+            assert report['numPassedTests'] == 7 and report['numFailedTests'] == 0, platform
+            assert len(report['testResults']) == 1, platform
+            assert report['testResults'][0]['name'].endswith('/src/components/ui/FilePreviewModal.android.test.tsx'), platform
+            assert sum(a['status'] == 'passed' for a in report['testResults'][0]['assertionResults']) == 7, platform
+            print(platform + ': all seven media preview behavior cases passed')
+        PYTHON
+    - name: Verify shared media actions in their unit project
+      if: matrix.suite == 'changed-files'
+      shell: bash
+      working-directory: apps/mobile
+      run: |
+        set -euo pipefail
+        ../../node_modules/.bin/vp test run --project unit src/lib/mediaActions.test.ts \
+          --reporter=default --reporter=json --outputFile.json="$RUNNER_TEMP/media-actions.json" 2>&1 | tee "$RUNNER_TEMP/media-actions.log"
+        python3 - <<'PYTHON'
+        import json, os, pathlib
+        report = json.loads((pathlib.Path(os.environ['RUNNER_TEMP']) / 'media-actions.json').read_text())
+        assert report['success'] is True
+        assert report['numPassedTests'] == 25 and report['numFailedTests'] == 0
+        assert len(report['testResults']) == 1
+        result = report['testResults'][0]
+        assert result['name'].endswith('/src/lib/mediaActions.test.ts')
+        assert sum(a['status'] == 'passed' for a in result['assertionResults']) == 25
+        print('All twenty-five shared media action unit cases passed; native-platform behavior is checked separately')
+        PYTHON
+    - name: Run exact-source focused checks
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [[ "$SUITE" == changed-files ]]; then
+          xvfb-run -a vp run check:changed "$BASE_SHA" --concurrency 2 2>&1 | tee "$RUNNER_TEMP/focused-check.log"
+        elif [[ "$SUITE" == provider-isolated ]]; then
+          cd apps/web
+          xvfb-run -a vp test run --project browser \
+            src/components/settings/ProviderSettingsPanel.environment.browser.test.tsx \
+            --reporter=verbose --reporter=json --outputFile.json="$RUNNER_TEMP/browser-result.json" \
+            2>&1 | tee "$RUNNER_TEMP/focused-check.log"
+        else
+          cd apps/web
+          xvfb-run -a vp test run --project browser \
+            src/lib/bootError.browser.test.ts \
+            src/components/chat/OpenInPicker.browser.test.tsx \
+            src/browser/ServerBrowserSurface.browser.test.tsx \
+            src/components/settings/KeybindingsSettings.browser.test.tsx \
+            src/components/settings/ProviderSettingsPanel.environment.browser.test.tsx \
+            --reporter=default --reporter=json --outputFile.json="$RUNNER_TEMP/browser-result.json" \
+            2>&1 | tee "$RUNNER_TEMP/focused-check.log"
+        fi
+      timeout-minutes: ${{ matrix.suite == 'provider-isolated' && 8 || 20 }}
+    - name: Verify tested source remained unchanged
+      shell: bash
+      run: |
+        set -euo pipefail
+        test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+        git diff --exit-code
+        git diff --cached --exit-code
+      if: ${{ !cancelled() }}
+    - name: Upload focused test evidence
+      if: ${{ !cancelled() }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: translation-${{ matrix.suite }}
+        path: |-
+          ${{ runner.temp }}/focused-check.log
+          ${{ runner.temp }}/browser-result.json
+          ${{ runner.temp }}/toast-*.json
+          ${{ runner.temp }}/toast-*.log
+          ${{ runner.temp }}/media-*.json
+          ${{ runner.temp }}/media-*.log
+        if-no-files-found: warn
+        retention-days: 14
+  mobile-native:
+    name: Mobile native static and Swift regressions
+    runs-on: macos-15-intel
+    timeout-minutes: 35
+    steps:
+    - name: Verify public repository and check out exact localization source
+      shell: bash
+      run: |
+        set -euo pipefail
+        python3 - <<'PYTHON'
+        import json, os
+        with open(os.environ['GITHUB_EVENT_PATH']) as f:
+            event = json.load(f)
+        assert os.environ['GITHUB_REPOSITORY'] == 'ZhiweiXiao98/t3code'
+        assert event['repository']['private'] is False
+        assert os.environ['GITHUB_EVENT_NAME'] == 'push'
+        assert os.environ['GITHUB_REF'] == 'refs/heads/' + os.environ['EXPECTED_BRANCH']
+        assert event['after'] == os.environ['GITHUB_SHA']
+        PYTHON
+        git init .
+        git config core.autocrlf false
+        git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+        git fetch --no-tags --depth=64 origin "$GITHUB_SHA"
+        test "$(git rev-parse "$GITHUB_SHA^1")" = "$SOURCE_SHA"
+        test "$(git rev-parse "$GITHUB_SHA^2")" = "$WORKFLOW_PARENT_SHA"
+        test "$(git rev-list --parents -n 1 "$GITHUB_SHA" | wc -w | tr -d ' ')" = 3
+        test "$(git diff --name-only "$SOURCE_SHA" "$GITHUB_SHA")" = '.github/workflows/translation-focused.yml'
+        git merge-base --is-ancestor "$BASE_SHA" "$SOURCE_SHA"
+        git sparse-checkout set --no-cone '/*' '!/.repos/'
+        git checkout --detach "$SOURCE_SHA"
+        test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+        git diff --exit-code
+        git diff --cached --exit-code
+        printf 'Source: %s\nSource tree: %s\nComparison base: %s\nWorkflow commit: %s\n' "$SOURCE_SHA" "$(git rev-parse HEAD^{tree})" "$BASE_SHA" "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+      env:
+        GIT_TERMINAL_PROMPT: '0'
+    - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
+      with:
+        node-version-file: package.json
+        cache: true
+        run-install: false
+    - name: Install locked static-check dependencies
+      shell: bash
+      run: vp install --frozen-lockfile --filter @t3tools/scripts...
+    - name: Install repository native analysis tools
+      shell: bash
+      run: brew bundle install --file apps/mobile/Brewfile
+    - name: Run Swift and Kotlin static checks
+      shell: bash
+      run: |
+        set -euo pipefail
+        command -v swiftlint
+        command -v ktlint
+        command -v detekt
+        vp run lint:mobile 2>&1 | tee "$RUNNER_TEMP/native-static.log"
+    - name: Run existing native review diff Swift regressions
+      shell: bash
+      run: |
+        set -euo pipefail
+        bash apps/mobile/modules/t3-review-diff/tests/run-ios.sh 2>&1 | tee "$RUNNER_TEMP/native-swift.log"
+      if: ${{ !cancelled() }}
+    - name: Verify tested source remained unchanged
+      shell: bash
+      run: |
+        set -euo pipefail
+        test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+        git diff --exit-code
+        git diff --cached --exit-code
+      if: ${{ !cancelled() }}
+    - name: Upload focused test evidence
+      if: ${{ !cancelled() }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: translation-native-static-swift
+        path: ${{ runner.temp }}/native-*.log
+        if-no-files-found: warn
+        retention-days: 14
+  android-native:
+    name: Android native unit regressions only
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      APP_VARIANT: community
+      T3CODE_MOBILE_VERSION: 0.1.9-zh.1
+      T3CODE_MOBILE_VERSION_CODE: '1000416'
+      T3CODE_MOBILE_UPDATES_ENABLED: '0'
+      EXPO_NO_GIT_STATUS: '1'
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+    - name: Verify public repository and check out exact localization source
+      shell: bash
+      run: |
+        set -euo pipefail
+        python3 - <<'PYTHON'
+        import json, os
+        with open(os.environ['GITHUB_EVENT_PATH']) as f:
+            event = json.load(f)
+        assert os.environ['GITHUB_REPOSITORY'] == 'ZhiweiXiao98/t3code'
+        assert event['repository']['private'] is False
+        assert os.environ['GITHUB_EVENT_NAME'] == 'push'
+        assert os.environ['GITHUB_REF'] == 'refs/heads/' + os.environ['EXPECTED_BRANCH']
+        assert event['after'] == os.environ['GITHUB_SHA']
+        PYTHON
+        git init .
+        git config core.autocrlf false
+        git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+        git fetch --no-tags --depth=64 origin "$GITHUB_SHA"
+        test "$(git rev-parse "$GITHUB_SHA^1")" = "$SOURCE_SHA"
+        test "$(git rev-parse "$GITHUB_SHA^2")" = "$WORKFLOW_PARENT_SHA"
+        test "$(git rev-list --parents -n 1 "$GITHUB_SHA" | wc -w | tr -d ' ')" = 3
+        test "$(git diff --name-only "$SOURCE_SHA" "$GITHUB_SHA")" = '.github/workflows/translation-focused.yml'
+        git merge-base --is-ancestor "$BASE_SHA" "$SOURCE_SHA"
+        git sparse-checkout set --no-cone '/*' '!/.repos/'
+        git checkout --detach "$SOURCE_SHA"
+        test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+        git diff --exit-code
+        git diff --cached --exit-code
+        printf 'Source: %s\nSource tree: %s\nComparison base: %s\nWorkflow commit: %s\n' "$SOURCE_SHA" "$(git rev-parse HEAD^{tree})" "$BASE_SHA" "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+      env:
+        GIT_TERMINAL_PROMPT: '0'
+    - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
+      with:
+        node-version-file: package.json
+        cache: true
+        run-install: false
+    - name: Install hoisted locked native dependencies
+      shell: bash
+      run: vp install --frozen-lockfile -- --config.node-linker=hoisted
+    - uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: |
+          21
+          17
+    - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407
+      with:
+        packages: platform-tools
+        accept-android-sdk-licenses: false
+    - name: Generate community Android test project
+      shell: bash
+      run: vp exec expo prebuild --platform android --no-install
+      id: prebuild
+      working-directory: apps/mobile
+    - name: Run existing Android native unit tasks
+      shell: bash
+      run: |
+        set -euo pipefail
+        printf '\norg.gradle.java.installations.paths=%s,%s\n' "$JAVA_HOME_17_X64" "$JAVA_HOME_21_X64" >> gradle.properties
+        ./gradlew -q javaToolchains --no-daemon
+        ./gradlew :t3-widget-expiry:testDebugUnitTest :t3-agent-notifications:testDebugUnitTest \
+          :t3-composer-editor:testDebugUnitTest :t3tools-mobile-review-diff-native:testDebugUnitTest \
+          :t3tools-mobile-terminal-native:testDebugUnitTest :t3-native-controls:testDebugUnitTest \
+          --no-daemon --max-workers=2 2>&1 | tee "$RUNNER_TEMP/native-android.log"
+      working-directory: apps/mobile/android
+    - name: Run standalone Android review geometry regressions
+      shell: bash
+      run: |
+        set -euo pipefail
+        GRADLE="$PWD/android/gradlew" modules/t3-review-diff/tests/run-android.sh --no-daemon --max-workers=2 2>&1 | tee "$RUNNER_TEMP/native-android-review.log"
+      if: ${{ !cancelled() && steps.prebuild.outcome == 'success' }}
+      working-directory: apps/mobile
+    - name: Verify tracked localization sources after prebuild
+      shell: bash
+      run: |
+        set -euo pipefail
+        test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+        git diff --exit-code -- apps/mobile/src apps/mobile/modules apps/mobile/plugins apps/mobile/app.config.ts
+        git diff --cached --exit-code
+      if: ${{ !cancelled() }}
+    - name: Upload focused test evidence
+      if: ${{ !cancelled() }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: translation-android-native
+        path: |-
+          ${{ runner.temp }}/native-android*.log
+          apps/mobile/modules/**/build/test-results/**/*.xml
+        if-no-files-found: warn
+        retention-days: 14
+
