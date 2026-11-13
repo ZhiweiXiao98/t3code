@@ -1404,7 +1404,10 @@ export function readableFailure(failure: unknown, hint: string): string {
 
 const isGitCommandError = Schema.is(GitCommandError);
 
-export function checkoutFailureDescription(failure: unknown): string {
+export function checkoutFailureDescription(
+  failure: unknown,
+  display: (source: string) => string = (source) => source,
+): string {
   const description = isGitCommandError(failure)
     ? failure.reason === undefined
       ? failure.detail
@@ -1412,7 +1415,7 @@ export function checkoutFailureDescription(failure: unknown): string {
     : failure;
   return readableFailure(
     description,
-    "Check that the branch still exists and is not checked out elsewhere, then try again.",
+    display("Check that the branch still exists and is not checked out elsewhere, then try again."),
   );
 }
 

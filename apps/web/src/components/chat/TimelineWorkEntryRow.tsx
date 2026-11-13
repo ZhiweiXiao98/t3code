@@ -1,3 +1,4 @@
+import { presentTimelineWorkEntry, timelineOwnedText } from "./timelineOwnedPresentation";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { TimelinePendingApprovalRow } from "./TimelinePendingApprovalRow";
 import { WorkLogDetails, WorkLogRow } from "./WorkLog";
@@ -206,7 +207,8 @@ export function ViewedImagesTimelineRow({
 
 function WorkEntryLogRow(props: WorkEntryRowProps) {
   const { t: residualT, locale } = useI18n();
-  const { workEntry, workspaceRoot, displayLabel } = props;
+  const { workspaceRoot, displayLabel } = props;
+  const workEntry = presentTimelineWorkEntry(props.workEntry, locale);
   const ctx = use(TimelineRowCtx);
   const { threadRef, onImageExpand, timestampFormat } = ctx;
   const { retryableWorkspacePreparationRunIds, onRetryWorkspacePreparation } = ctx;
@@ -250,7 +252,11 @@ function WorkEntryLogRow(props: WorkEntryRowProps) {
       ? `${formatUpcomingTimestamp(resetAt, timestampFormat, undefined, timeZone, locale)} (${timeZone})`
       : null;
     const label = warning
-      ? `Usage limit reached.${resetTime ? ` Retry after ${resetTime}.` : ""}`
+      ? timelineOwnedText(
+          locale,
+          resetTime ? "Usage limit reached. Retry after {0}." : "Usage limit reached.",
+          resetTime ? [resetTime] : [],
+        )
       : workEntry.label;
     const retryRunId =
       failureItem.runId !== null &&

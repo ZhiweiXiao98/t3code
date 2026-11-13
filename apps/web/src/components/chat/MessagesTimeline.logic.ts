@@ -1,3 +1,5 @@
+import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
+import { timelineOwnedText } from "./timelineOwnedPresentation";
 import { worktreeSetupAgentStarted } from "@t3tools/client-runtime/worktree-setup";
 import { resolveUserMessagePresentation } from "@t3tools/client-runtime/user-message";
 import { isLiveSubagentTurnItem } from "@t3tools/client-runtime/state/subagentRuntime";
@@ -27,6 +29,7 @@ import {
   toolGroupAction,
   toolGroupSummaryKind,
   contextCompactionTokenCounts,
+  contextCompactionLabel,
   workEntriesViewedImagePaths,
   type ToolGroupSummaryKind,
   liveThoughtLine,
@@ -239,12 +242,14 @@ export function liveWorkEntryLabel(
   entry: WorkLogEntry,
   workspaceRoot: string | undefined,
   active: boolean,
+  locale: ResolvedAppLocale = "en",
 ) {
+  const text = (source: string) => timelineOwnedText(locale, source);
   const status = liveActivityToolStatus(entry.toolLifecycleStatus, active);
   if (entry.itemType === "reasoning") {
     return (
       entry.detail?.trim().replace(/\s+/g, " ") ||
-      (status === "inProgress" ? "Thinking" : "Thought")
+      text(status === "inProgress" ? "Thinking" : "Thought")
     );
   }
   const toolPresentation = resolveWorkEntryToolPresentation({
@@ -264,7 +269,7 @@ export function liveWorkEntryLabel(
             : status === "stopped"
               ? "Stopped"
               : "Ran";
-    return `${verb} ${commandProgramName(command) ?? "command"}`;
+    return `${text(verb)} ${commandProgramName(command) ?? text("command")}`;
   }
   return workEntryDisplayLabel(entry, workspaceRoot);
 }
@@ -1016,6 +1021,7 @@ function itemizedFailedRunIds(
 }
 
 function deriveTurnFolds(input: {
+  presentationLocale?: ResolvedAppLocale;
   timelineEntries: ReadonlyArray<TimelineEntry>;
   terminalAssistantMessageIds: ReadonlySet<string>;
   latestRun: TimelineLatestRun | null;
@@ -1024,6 +1030,8 @@ function deriveTurnFolds(input: {
   liveSubagentEntryIds: ReadonlySet<string>;
   completeSupersededReplyEntryIds: ReadonlySet<string>;
 }): ReadonlyMap<string, TurnFold> {
+  const text = (template: string, values: readonly string[] = []) =>
+    timelineOwnedText(input.presentationLocale ?? "en", template, values);
   const interruptedRunIds = new Set<RunId>();
   const promptIndexByRunId = new Map<RunId, number>();
   for (const [index, entry] of input.timelineEntries.entries()) {
@@ -1192,11 +1200,11 @@ function deriveTurnFolds(input: {
     const duration = elapsedMs !== null ? formatDuration(elapsedMs) : null;
     const label = isLatestInterruptedTurn
       ? duration
-        ? `You stopped after ${duration}`
-        : "You stopped this response"
+        ? text("You stopped after {0}", [duration])
+        : text("You stopped this response")
       : duration
-        ? `Worked for ${duration}`
-        : "Worked";
+        ? text("Worked for {0}", [duration])
+        : text("Worked");
 
     // The top row keeps the whole turn's time, steers included. Work after a
     // steer folds under its own row below that steer, keyed apart from the run
@@ -1227,7 +1235,10 @@ function deriveTurnFolds(input: {
         createdAt: steer.createdAt,
         hiddenEntryIds: segmentHiddenIds(entries),
         entryIds: new Set(entries.map((entry) => entry.id)),
-        label: segmentMs !== null ? `Continued for ${formatDuration(segmentMs)}` : "Continued",
+        label:
+          segmentMs !== null
+            ? text("Continued for {0}", [formatDuration(segmentMs)])
+            : text("Continued"),
       });
     }
   }
@@ -1485,6 +1496,7 @@ function deriveTimelineTurnFolds(
   input: Pick<
     MessagesTimelineRowsInput,
     | "timelineEntries"
+    | "presentationLocale"
     | "latestRun"
     | "isWorking"
     | "runlessWorkActive"
@@ -1503,6 +1515,7 @@ function deriveTimelineTurnFolds(
     isWorking: input.isWorking,
   });
   return deriveTurnFolds({
+    ...(input.presentationLocale ? { presentationLocale: input.presentationLocale } : {}),
     timelineEntries,
     terminalAssistantMessageIds: deriveTerminalAssistantMessageIds(timelineEntries),
     latestRun: input.latestRun ?? null,
@@ -1514,6 +1527,7 @@ function deriveTimelineTurnFolds(
 }
 
 export function deriveMessagesTimelineRows(input: {
+  presentationLocale?: ResolvedAppLocale;
   timelineEntries: ReadonlyArray<TimelineEntry>;
   pendingApprovalRequestIds?: ReadonlySet<RuntimeRequestId>;
   latestRun?: TimelineLatestRun | null;
@@ -1533,6 +1547,8 @@ export function deriveMessagesTimelineRows(input: {
   toolCallVisibility?: ToolCallVisibility;
   revealedMessageId?: MessageId | null;
 }): MessagesTimelineRow[] {
+  const text = (template: string, values: readonly string[] = []) =>
+    timelineOwnedText(input.presentationLocale ?? "en", template, values);
   const timelineEntries = timelineRowEntries(input);
   const embeddedResultRunIds = new Set<RunId>();
   for (const entry of timelineEntries) {
@@ -1588,6 +1604,7 @@ export function deriveMessagesTimelineRows(input: {
     input.toolCallVisibility === "zen"
       ? new Map<string, TurnFold>()
       : deriveTurnFolds({
+          ...(input.presentationLocale ? { presentationLocale: input.presentationLocale } : {}),
           timelineEntries: timelineEntries,
           terminalAssistantMessageIds,
           latestRun: input.latestRun ?? null,
@@ -1745,9 +1762,9 @@ export function deriveMessagesTimelineRows(input: {
   const compactionTitle = (runId: RunId | null | undefined, entryId: string) => {
     if (runId == null) return undefined;
     const reason = compactionRuns.get(runId);
-    if (reason !== undefined) return IDLE_COMPACTION_TITLES[reason];
+    if (reason !== undefined) return text(IDLE_COMPACTION_TITLES[reason]);
     const age = resumeCompactionAgeByEntryId.get(entryId);
-    return age ? `Context compacted after ${age} idle` : undefined;
+    return age ? text("Context compacted after {0} idle", [age]) : undefined;
   };
   const activeCompactionEntry = timelineEntries.find(
     (entry): entry is Extract<TimelineEntry, { kind: "work" }> =>
@@ -1889,7 +1906,7 @@ export function deriveMessagesTimelineRows(input: {
         createdAt: supersededFold.createdAt,
         runId: supersededFold.runId,
         attemptId: supersededFold.attemptId,
-        label: "Superseded attempt",
+        label: text("Superseded attempt"),
         expanded: input.expandedAttemptIds?.has(supersededFold.attemptId) ?? false,
       });
     }
@@ -1926,7 +1943,12 @@ export function deriveMessagesTimelineRows(input: {
         ...(failed ? { failed: true } : {}),
         ...(failure ? { failure } : {}),
         createdAt: timelineEntry.createdAt,
-        label: active && reason ? IDLE_COMPACTING_LABELS[reason] : timelineEntry.entry.label,
+        label:
+          active && reason
+            ? text(IDLE_COMPACTING_LABELS[reason])
+            : compaction?.type === "compaction"
+              ? contextCompactionLabel(compaction, text)
+              : timelineEntry.entry.label,
         tokenCounts:
           compaction?.type === "compaction" ? contextCompactionTokenCounts(compaction) : null,
         active,
@@ -2171,9 +2193,9 @@ export function deriveMessagesTimelineRows(input: {
           createdAt: timelineEntry.createdAt,
           label: pending
             ? reason
-              ? IDLE_COMPACTING_LABELS[reason]
-              : "Compacting context"
-            : "Context compaction",
+              ? text(IDLE_COMPACTING_LABELS[reason])
+              : text("Compacting context")
+            : text("Context compaction"),
           tokenCounts: null,
           active: pending,
         });

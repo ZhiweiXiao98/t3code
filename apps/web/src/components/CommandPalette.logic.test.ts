@@ -3,6 +3,8 @@ import { EnvironmentId, ProjectId, ProviderInstanceId, ThreadId } from "@t3tools
 import type { Thread } from "../types";
 import { makeThreadFixture } from "../test-fixtures";
 import {
+  paletteConnectionStatus,
+  remoteProjectInputPlaceholder,
   newThreadNoProjectIndex,
   buildRootGroups,
   buildBrowseGroups,
@@ -1031,4 +1033,25 @@ it("localizes linked-thread fallbacks without changing titles, search terms, or 
       expect(runThread).toHaveBeenLastCalledWith({ environmentId, id: threads[index]!.id });
     }
   }
+});
+
+it("localizes palette-owned framing while keeping remote reasons and repository identifiers literal", () => {
+  const error = "Connection failed. Reason: /raw/{error}/$&\nopaque";
+  const connection = { phase: "reconnecting" as const, error, traceId: "trace" };
+  expect(paletteConnectionStatus(connection, "en")).toBe(
+    `Failed to connect. Reconnecting... Reason: ${error}`,
+  );
+  expect(paletteConnectionStatus(connection, "zh-CN")).toContain(error);
+  expect(paletteConnectionStatus(connection, "zh-CN")).not.toBe(
+    paletteConnectionStatus(connection, "en"),
+  );
+  expect(connection.error).toBe(error);
+  const flow = {
+    step: "repository" as const,
+    environmentId: EnvironmentId.make("opaque"),
+    source: "url" as const,
+  };
+  expect(remoteProjectInputPlaceholder(flow)).toBe("Enter Git clone URL");
+  expect(remoteProjectInputPlaceholder(flow, "zh-CN")).toBe("输入 Git 克隆 URL");
+  expect(remoteProjectInputPlaceholder(null, "zh-CN")).toBeNull();
 });

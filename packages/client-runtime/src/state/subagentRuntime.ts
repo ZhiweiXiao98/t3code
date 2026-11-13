@@ -260,6 +260,18 @@ export function projectedSubagentsToRuntime(
   });
 }
 
+const generatedPhaseTitles = new WeakMap<SubagentWorkflowGroup["phases"][number], number>();
+/** Only actual local fallback phase objects have provenance; clones and named phases stay literal. */
+export function workflowPhaseTitle(
+  phase: SubagentWorkflowGroup["phases"][number],
+  display: (number: number) => string,
+): string {
+  const index = generatedPhaseTitles.get(phase);
+  return index === undefined || phase.title !== `Phase ${index + 1}`
+    ? phase.title
+    : display(index + 1);
+}
+
 export function deriveWorkflowGroups(
   agents: ReadonlyArray<RuntimeSubagent>,
 ): ReadonlyArray<SubagentWorkflowGroup> {
@@ -277,14 +289,20 @@ export function deriveWorkflowGroups(
     // provider only admits a phase once something in it starts. Members seed
     // the map; the declared titles then overwrite whatever they guessed.
     const phaseTitles = new Map<number, string>();
+    const generated = new Set<number>();
     for (const member of workflowMembers) {
       if (member.phaseIndex === null) continue;
+      if (member.phaseTitle !== null) generated.delete(member.phaseIndex);
+      else if (!phaseTitles.has(member.phaseIndex)) generated.add(member.phaseIndex);
       phaseTitles.set(
         member.phaseIndex,
         member.phaseTitle ?? phaseTitles.get(member.phaseIndex) ?? `Phase ${member.phaseIndex + 1}`,
       );
     }
-    for (const phase of workflow.phases) phaseTitles.set(phase.index, phase.title);
+    for (const phase of workflow.phases) {
+      phaseTitles.set(phase.index, phase.title);
+      generated.delete(phase.index);
+    }
     const knownPhases = Array.from(phaseTitles.entries())
       .map(([index, title]) => ({ index, title }))
       .sort((a, b) => a.index - b.index);
@@ -303,13 +321,15 @@ export function deriveWorkflowGroups(
       ).length;
       const state: "pending" | "running" | "done" =
         phaseMembers.length === 0 ? "pending" : hasActiveMember ? "running" : "done";
-      return {
+      const result = {
         index: phase.index,
         title: phase.title,
         members: phaseMembers,
         state,
         settledCount,
       };
+      if (generated.has(phase.index)) generatedPhaseTitles.set(result, phase.index);
+      return result;
     });
 
     const unphasedMembers = workflowMembers
@@ -405,12 +425,15 @@ export function workflowOpeningParentThreadId(input: {
 }
 
 /** The opening block's heading: the workflow, what it does, and how its agents stand. */
-export function workflowOpeningHeadline(opening: WorkflowOpening): {
+export function workflowOpeningHeadline(
+  opening: WorkflowOpening,
+  display?: (template: string, values: readonly string[]) => string,
+): {
   readonly title: string;
   readonly description: string | null;
   readonly agents: string | null;
 } {
-  const title = opening.name ?? opening.description ?? "Workflow";
+  const title = opening.name ?? opening.description ?? display?.("Workflow", []) ?? "Workflow";
   const members =
     opening.group === null
       ? []
@@ -432,14 +455,17 @@ export function workflowOpeningHeadline(opening: WorkflowOpening): {
   const agents =
     members.length === 0
       ? null
-      : `${members.length} ${members.length === 1 ? "agent" : "agents"} · ${[
+      : `${display?.(members.length === 1 ? "{0} agent" : "{0} agents", [String(members.length)]) ?? `${members.length} ${members.length === 1 ? "agent" : "agents"}`} · ${[
           "working",
           "done",
           "failed",
           "stopped",
         ]
           .filter((key) => counts.has(key))
-          .map((key) => `${counts.get(key)} ${key}`)
+          .map(
+            (key) =>
+              display?.(`{0} ${key}`, [String(counts.get(key))]) ?? `${counts.get(key)} ${key}`,
+          )
           .join(" · ")}`;
   return {
     title,

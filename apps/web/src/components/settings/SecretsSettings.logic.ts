@@ -34,6 +34,7 @@ interface SecretProviderUse {
 export function secretProviderUses(
   settings: SecretUseSettings,
   providerId: string,
+  display: (source: string) => string = (source) => source,
 ): ReadonlyArray<SecretProviderUse> {
   const uses = (
     definition: SettingsFormDefinition,
@@ -50,7 +51,7 @@ export function secretProviderUses(
           ? [
               {
                 id: `${ownerId}:${field}:${key ?? ""}`,
-                label: `${owner} · ${key ?? labels.get(field) ?? field}`,
+                label: `${owner} · ${key ?? (labels.has(field) ? display(labels.get(field)!) : field)}`,
               },
             ]
           : [],
@@ -110,7 +111,12 @@ export function secretProviderUses(
     ...CloudSpeechProvider.literals.flatMap((provider) => {
       const credential = settings.cloudSpeechCredentials[provider];
       return isSecretReference(credential) && credential.provider === providerId
-        ? [{ id: `voice:${provider}`, label: `Voice · ${CLOUD_SPEECH_LABELS[provider]}` }]
+        ? [
+            {
+              id: `voice:${provider}`,
+              label: `${display("Voice")} · ${CLOUD_SPEECH_LABELS[provider]}`,
+            },
+          ]
         : [];
     }),
   ];

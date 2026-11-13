@@ -1,4 +1,8 @@
 import {
+  presentTimelineWorkEntry,
+  timelineOwnedText,
+} from "./components/chat/timelineOwnedPresentation";
+import {
   MessageId,
   RuntimeRequestId,
   CheckpointId,
@@ -158,6 +162,17 @@ describe("V2 session presentation", () => {
     });
     if (recoveredEntry?.kind !== "work") throw new Error("Expected recovered provider work");
     expect(recoveredEntry.entry.label).toBe("Provider recovered (2/10 retries)");
+    expect(presentTimelineWorkEntry(recoveredEntry.entry, "zh-CN").label).toBe(
+      "提供方已恢复（重试 2/10 次）",
+    );
+    expect(presentTimelineWorkEntry(recoveredEntry.entry, "en")).toBe(recoveredEntry.entry);
+    const rawFailure = "Provider error · /raw/{0}/$&\n原文";
+    expect(
+      providerErrorPresentation(
+        { ...retryItem, failure: { ...retryItem.failure, message: rawFailure } },
+        (template, values) => timelineOwnedText("zh-CN", template, values),
+      ),
+    ).toEqual({ label: "正在重试提供方（2/10）", detail: rawFailure + " 将在 1.5 秒后重试。" });
     expect(recoveredEntry.entry.sourceActivityKind).not.toBe("runtime.warning");
     expect(workEntryDisplayIndicatesToolFailure(recoveredEntry.entry)).toBe(false);
     expect(providerErrorPresentation(retryItem)).toEqual({

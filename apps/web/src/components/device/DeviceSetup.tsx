@@ -1,6 +1,7 @@
 import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebMessage, translateWebSource } from "~/i18n/messages";
+import { deviceAvailabilityReason } from "~/i18n/deviceAvailabilityMessages";
 import { DeviceHostUpdates } from "./DeviceHostUpdates";
 import type { DevicePlatform, DeviceServiceState, EnvironmentId } from "@t3tools/contracts";
 import { Check, CircleAlert } from "lucide-react";
@@ -114,7 +115,7 @@ export function platformSetupStatus(
     return {
       ready: false,
       message:
-        availabilities[0]?.reason ??
+        deviceAvailabilityReason(locale, availabilities[0]) ??
         translateWebMessage(locale, "device.setup.notDetected", {
           platform: platformName(platform),
         }),
@@ -469,10 +470,9 @@ function PlatformStatus(props: {
       <div className={cn(props.compact && props.status.ready && "flex items-center gap-2")}>
         <p className="font-medium">{props.platform}</p>
         <p className="text-xs text-muted-foreground">
-          {translateWebSource(
-            locale,
-            props.compact && props.status.ready ? "Ready" : props.status.message,
-          )}
+          {props.compact && props.status.ready
+            ? translateWebSource(locale, "Ready")
+            : props.status.message}
         </p>
       </div>
     </div>

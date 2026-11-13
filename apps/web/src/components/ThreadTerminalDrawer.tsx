@@ -1,3 +1,5 @@
+import { editorFailureMessage } from "~/editorFailurePresentation";
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { clipboardErrorMessage } from "~/i18n/clipboardErrorMessages";
 import { translateWebSource } from "~/i18n/messages";
 import { workspaceAreaProps } from "../lib/workspaceFocus";
@@ -1110,7 +1112,8 @@ function TerminalSessionViewport({
           const error = squashAtomCommandFailure(result);
           writeSystemMessage(
             latestTerminal,
-            error instanceof Error ? error.message : localizeTerminalSource("Unable to open path"),
+            editorFailureMessage(error, readWebI18n().locale) ??
+              localizeTerminalSource("Unable to open path"),
           );
         })();
       }

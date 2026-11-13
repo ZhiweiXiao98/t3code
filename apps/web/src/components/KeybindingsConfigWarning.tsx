@@ -1,3 +1,5 @@
+import { editorFailureMessage } from "~/editorFailurePresentation";
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
 import { useStableCallback } from "~/hooks/useStableCallback";
@@ -49,9 +51,8 @@ export function KeybindingsConfigWarning({
                 type: "error",
                 title: translateAction("Unable to open keybindings file"),
                 description:
-                  error instanceof Error
-                    ? error.message
-                    : translateAction("Unknown error opening file."),
+                  editorFailureMessage(error, readWebI18n().locale) ??
+                  translateAction("Unknown error opening file."),
               }),
             );
           }}

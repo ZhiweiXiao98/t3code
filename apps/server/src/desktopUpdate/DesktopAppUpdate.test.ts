@@ -1,7 +1,11 @@
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { expect, it } from "@effect/vitest";
-import type { DesktopUpdateState, DesktopUpdateStatusReport } from "@t3tools/contracts";
+import type {
+  DesktopUpdateState,
+  DesktopUpdateStatusReport,
+  UpdateFailureReasonMessage,
+} from "@t3tools/contracts";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
@@ -42,6 +46,7 @@ function report(
   terminal?: {
     readonly outcome: DesktopUpdateStatusReport["outcome"];
     readonly reason?: string;
+    readonly reasonMessage?: UpdateFailureReasonMessage;
   },
 ): DesktopUpdateStatusReport {
   return {
@@ -50,6 +55,7 @@ function report(
     requestId,
     ...(terminal?.outcome === undefined ? {} : { outcome: terminal.outcome }),
     ...(terminal?.reason === undefined ? {} : { reason: terminal.reason }),
+    ...(terminal?.reasonMessage === undefined ? {} : { reasonMessage: terminal.reasonMessage }),
     state,
   };
 }
@@ -151,6 +157,51 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("desktop app upda
     }),
   );
 
+  it.effect.each([
+    {
+      reason: "The desktop app update failed.",
+      stateMessage: "ignored",
+      descriptor: undefined,
+      expected: undefined,
+    },
+    {
+      reason: "The desktop app update failed.",
+      stateMessage: "ignored",
+      descriptor: { code: "update-failed" as const },
+      expected: { code: "update-failed" as const },
+    },
+    {
+      reason: undefined,
+      stateMessage: "The desktop app update failed.",
+      descriptor: { code: "update-failed" as const },
+      expected: undefined,
+    },
+    {
+      reason: undefined,
+      stateMessage: null,
+      descriptor: undefined,
+      expected: { code: "update-failed" as const },
+    },
+  ])(
+    "keeps report precedence and owned provenance: $reason $stateMessage $descriptor",
+    (scenario) =>
+      Effect.gen(function* () {
+        const { service } = yield* makeHarness({
+          reports: (requestId) => [
+            report(requestId, makeState({ status: "error", message: scenario.stateMessage }), {
+              outcome: "failed",
+              ...(scenario.reason === undefined ? {} : { reason: scenario.reason }),
+              ...(scenario.descriptor === undefined ? {} : { reasonMessage: scenario.descriptor }),
+            }),
+          ],
+        });
+        const failure = yield* service.run(() => Effect.void).pipe(Effect.flip);
+        expect(failure.reason).toBe("The desktop app update failed.");
+        expect(failure.message).toBe("Server update failed: The desktop app update failed.");
+        expect(failure.reasonMessage).toEqual(scenario.expected);
+      }),
+  );
+
   it.effect("replays a retained commit failure for the preparation token", () =>
     Effect.gen(function* () {
       const { service } = yield* makeHarness({
@@ -178,14 +229,49 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("desktop app upda
     }),
   );
 
+  it.effect("retains a commit reason descriptor without marking a raw same-text failure", () =>
+    Effect.gen(function* () {
+      for (const reasonMessage of [undefined, { code: "install-failed" as const }]) {
+        const reason = "The desktop app failed to install the update.";
+        const { service } = yield* makeHarness({
+          reports: (requestId) => [
+            report(requestId, makeState({ status: "downloaded", downloadedVersion: "1.2.4" }), {
+              outcome: "ready-to-install",
+            }),
+            report(
+              requestId,
+              makeState({
+                status: "downloaded",
+                downloadedVersion: "1.2.4",
+                errorContext: "install",
+                message: reason,
+              }),
+              {
+                outcome: "failed",
+                reason,
+                ...(reasonMessage === undefined ? {} : { reasonMessage }),
+              },
+            ),
+          ],
+        });
+        const prepared = yield* service.run(() => Effect.void);
+        const failure = yield* service
+          .commit(prepared.desktopUpdateToken ?? "missing")
+          .pipe(Effect.flip);
+        expect(failure.reason).toBe(reason);
+        expect(failure.reasonMessage).toEqual(reasonMessage);
+      }
+    }),
+  );
+
   it.effect("fails when the desktop stops reporting before a terminal outcome", () =>
     Effect.gen(function* () {
       const { service } = yield* makeHarness({
         reports: (requestId) => [report(requestId, makeState({ status: "checking" }))],
       });
-      expect((yield* service.run(() => Effect.void).pipe(Effect.flip)).reason).toBe(
-        "The desktop app stopped reporting its update.",
-      );
+      const failure = yield* service.run(() => Effect.void).pipe(Effect.flip);
+      expect(failure.reason).toBe("The desktop app stopped reporting its update.");
+      expect(failure.reasonMessage).toEqual({ code: "update-report-stopped" });
     }),
   );
 
@@ -198,9 +284,9 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("desktop app upda
           startImmediately: true,
         },
       );
-      expect((yield* service.run(() => Effect.void).pipe(Effect.flip)).reason).toBe(
-        "A desktop app update is already in progress.",
-      );
+      const overlap = yield* service.run(() => Effect.void).pipe(Effect.flip);
+      expect(overlap.reason).toBe("A desktop app update is already in progress.");
+      expect(overlap.reasonMessage).toEqual({ code: "update-in-progress" });
       yield* Fiber.interrupt(first);
 
       const retry = yield* Effect.forkChild(

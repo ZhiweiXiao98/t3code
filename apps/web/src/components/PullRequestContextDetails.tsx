@@ -1,3 +1,4 @@
+import { useI18n } from "~/i18n/WebI18nContext";
 import type { PullRequestContextMetadata } from "@t3tools/contracts";
 import {
   capitalizeTerm,
@@ -10,7 +11,8 @@ import { cn } from "~/lib/utils";
 import { resolvePullRequestState } from "./pullRequest/pullRequestPresentation";
 
 export function PullRequestContextDetails({ metadata }: { metadata: PullRequestContextMetadata }) {
-  const state = resolvePullRequestState(metadata);
+  const { t, locale } = useI18n();
+  const state = resolvePullRequestState({ ...metadata, t });
   // A context chip carries the change request's URL alone, so the URL names its host.
   const { singular } = (
     sourceControlClients.findByChangeRequestUrl(metadata.url) ?? sourceControlClients.get(undefined)
@@ -20,7 +22,12 @@ export function PullRequestContextDetails({ metadata }: { metadata: PullRequestC
       <div className="flex items-center gap-1.5 text-xs font-medium">
         <state.Icon className={cn("size-3.5 shrink-0", state.toneClassName)} />
         <span className="text-foreground">
-          {capitalizeTerm(singular)} #{metadata.number}
+          {locale === "zh-CN"
+            ? singular === "merge request"
+              ? "合并请求"
+              : "拉取请求"
+            : capitalizeTerm(singular)}{" "}
+          #{metadata.number}
         </span>
         <span className={state.toneClassName}>{state.label}</span>
       </div>

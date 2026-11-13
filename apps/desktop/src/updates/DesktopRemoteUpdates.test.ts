@@ -82,6 +82,27 @@ function terminalReports(reports: DesktopUpdateStatusReport[]): DesktopUpdateSta
 }
 
 describe("DesktopRemoteUpdates", () => {
+  it.effect("carries the owned disabled source without checking or installing", () => {
+    const harness = makeHarness({ env: { T3CODE_DISABLE_AUTO_UPDATE: "true" } });
+    return runRemoteUpdatesTest(harness, ({ reports, requests }) =>
+      Effect.gen(function* () {
+        yield* Queue.offer(requests, request("disabled"));
+        yield* settle;
+        assert.deepEqual(
+          terminalReports(reports).map(({ reason, reasonMessage }) => ({ reason, reasonMessage })),
+          [
+            {
+              reason: "Automatic updates are disabled by the T3CODE_DISABLE_AUTO_UPDATE setting.",
+              reasonMessage: { code: "disabled-environment" },
+            },
+          ],
+        );
+        assert.equal(harness.checkCount(), 0);
+        assert.equal(harness.quitAndInstalls(), 0);
+      }),
+    );
+  });
+
   it.effect("drives check, download, and install with no local confirmation", () => {
     const harness = makeHarness();
 
@@ -751,6 +772,7 @@ describe("DesktopRemoteUpdates", () => {
         );
         assert.equal(overlap?.outcome, "failed");
         assert.equal(overlap?.reason, "A prepared desktop update is already in progress.");
+        assert.deepEqual(overlap?.reasonMessage, { code: "prepared-in-progress" });
 
         yield* Deferred.succeed(releaseInstall, undefined);
         yield* settle;
@@ -871,6 +893,9 @@ describe("DesktopRemoteUpdates", () => {
             .map((report) => report.outcome),
           ["ready-to-install", "failed"],
         );
+        assert.deepEqual(terminalReports(reports).at(-1)?.reasonMessage, {
+          code: "no-longer-prepared",
+        });
       }),
     );
   });
@@ -926,6 +951,10 @@ describe("DesktopRemoteUpdates", () => {
             .map((report) => report.outcome),
           ["ready-to-install", "failed", "failed"],
         );
+        const failures = terminalReports(reports).filter((report) => report.outcome === "failed");
+        assert.equal(failures[0]?.reason, failures[1]?.reason);
+        assert.isUndefined(failures[0]?.reasonMessage);
+        assert.isUndefined(failures[1]?.reasonMessage);
       }),
     );
   });

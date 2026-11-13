@@ -1,3 +1,6 @@
+import { page, userEvent } from "vite-plus/test/browser";
+import { WebI18nContext } from "~/i18n/WebI18nContext";
+import { translateWebMessage } from "~/i18n/messages";
 import { EnvironmentId, ProjectId, ThreadId, type PullRequestCheck } from "@t3tools/contracts";
 import { DraftId } from "~/composerDraftStore";
 import { AsyncResult } from "effect/reactivity";
@@ -194,3 +197,102 @@ async function setup() {
   useUiStateStore.getState().setPullRequestMergeMethod("merge");
   return renderUi(null);
 }
+
+it("relabels the cached PR tooltip state without invoking its actions", async () => {
+  await using screen = await setup();
+  const onOpen = vi.fn();
+  const surface = (locale: "en" | "zh-CN") => (
+    <WebI18nContext
+      value={{
+        locale,
+        appLocale: locale,
+        setAppLocale: () => {},
+        t: (key, values) => translateWebMessage(locale, key, values),
+      }}
+    >
+      <ThreadDetailsPrRow
+        environmentId={EnvironmentId.make("environment")}
+        pr={null}
+        number={1}
+        status={null}
+        project={null}
+        label="Test PR"
+        openAriaLabel="Open PR"
+        onOpen={onOpen}
+      />
+    </WebI18nContext>
+  );
+  await screen.rerender(surface("en"));
+  await userEvent.hover(screen.getByRole("button", { name: "Open PR", exact: true }));
+  await expect.element(page.getByText("Open", { exact: true })).toBeVisible();
+  await screen.rerender(surface("zh-CN"));
+  await expect.element(page.getByText("开放", { exact: true })).toBeVisible();
+  await expect.element(page.getByText("Test PR", { exact: true }).last()).toBeVisible();
+  expect(state.perform).not.toHaveBeenCalled();
+  expect(onOpen).not.toHaveBeenCalled();
+});
+
+it("localizes merge terminology while preserving the confirmed method and PR number", async () => {
+  await using screen = await setup();
+  state.mergeMethods = ["squash"];
+  const surface = (locale: "en" | "zh-CN") => (
+    <WebI18nContext
+      value={{
+        locale,
+        appLocale: locale,
+        setAppLocale: () => {},
+        t: (key, values) => translateWebMessage(locale, key, values),
+      }}
+    >
+      <ThreadDetailsPrRow
+        environmentId={EnvironmentId.make("environment")}
+        pr={null}
+        number={1}
+        status={null}
+        project={null}
+        label="Test PR"
+        openAriaLabel="Open PR"
+        onOpen={() => {}}
+      />
+    </WebI18nContext>
+  );
+  await screen.rerender(surface("en"));
+  await act(async () => {
+    const button = [...screen.container.querySelectorAll("button")].find(
+      (item) => item.textContent?.trim() === "Merge",
+    );
+    if (!button) throw new Error("Expected merge action");
+    button.click();
+  });
+  await expect
+    .element(
+      page
+        .getByRole("alertdialog")
+        .getByRole("heading", { name: "Merge pull request?", exact: true }),
+    )
+    .toBeInTheDocument();
+  await expect
+    .element(
+      page.getByRole("alertdialog").getByText("This merges #1 using squash.", { exact: true }),
+    )
+    .toBeInTheDocument();
+  await screen.rerender(surface("zh-CN"));
+  await expect
+    .element(
+      page.getByRole("alertdialog").getByRole("heading", { name: "合并拉取请求？", exact: true }),
+    )
+    .toBeInTheDocument();
+  await expect
+    .element(page.getByRole("alertdialog").getByText("将使用 压缩合并 合并 #1。", { exact: true }))
+    .toBeInTheDocument();
+  expect(state.perform).not.toHaveBeenCalled();
+  await act(async () => {
+    const dialog = document.querySelector('[role="alertdialog"]');
+    const button = [...(dialog?.querySelectorAll("button") ?? [])].find(
+      (item) => item.textContent?.trim() === "合并",
+    );
+    if (!button) throw new Error("Expected merge confirmation");
+    button.click();
+  });
+  expect(state.perform).toHaveBeenCalledWith("merge", "squash");
+});

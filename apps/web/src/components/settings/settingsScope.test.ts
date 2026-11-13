@@ -1,3 +1,4 @@
+import { translateWebSource } from "~/i18n/messages";
 import { EnvironmentId, ProjectId } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
@@ -159,4 +160,38 @@ describe("settings scope resolution", () => {
       environmentIds: [],
     });
   });
+});
+
+it("localizes only owned scope framing without broadening unavailable or changing targets", () => {
+  const display = (source: string) => translateWebSource("zh-CN", source);
+  const opaque = { ...groups[0]!, displayName: "All checkouts/{0}/$&" };
+  const raw = resolveSettingsScope({ project: opaque.projectKey }, [opaque], environments);
+  const localized = resolveSettingsScope(
+    { project: opaque.projectKey },
+    [opaque],
+    environments,
+    display,
+  );
+  expect(raw.label).toBe("All checkouts/{0}/$& / All checkouts");
+  expect(localized).toEqual({ ...raw, label: "All checkouts/{0}/$& / 所有检出目录" });
+  const missing = resolveSettingsScope(
+    { checkout: first.physicalProjectKey },
+    groups,
+    environments,
+    display,
+  );
+  expect(missing).toMatchObject({
+    kind: "unavailable",
+    message: "选择一个项目后可指定其检出目录。",
+    members: [],
+    environmentIds: [],
+  });
+  expect(
+    resolveSettingsScope(
+      { machine: laptopId },
+      groups,
+      [{ environmentId: laptopId, label: "All environments" }],
+      display,
+    ).label,
+  ).toBe("All environments");
 });

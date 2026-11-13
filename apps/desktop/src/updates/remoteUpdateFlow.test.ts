@@ -40,6 +40,10 @@ describe("nextRemoteDesktopUpdateStep", () => {
     );
     assert.equal(step.action, "done");
     assert.include(step.action === "done" ? step.reason : "", "1.2.4 did not apply");
+    assert.deepEqual(step.action === "done" ? step.reasonMessage : undefined, {
+      code: "update-not-applied",
+      version: "1.2.4",
+    });
     assert.deepEqual(
       nextRemoteDesktopUpdateStep(
         makeState({ status: "available", availableVersion: "1.2.5", notAppliedVersion: "1.2.4" }),
@@ -61,7 +65,54 @@ describe("nextRemoteDesktopUpdateStep", () => {
       action: "done",
       outcome: "failed",
       reason: "Automatic updates are disabled on this machine.",
+      reasonMessage: { code: "automatic-disabled" },
     });
+  });
+
+  it("keeps same-text raw failures unmarked and uses only the selected disabled descriptor", () => {
+    for (const message of [
+      "The desktop app update failed.",
+      "The desktop app failed to download the update.",
+      "  opaque $& {version} 中文\nsecond line  ",
+    ]) {
+      const step = nextRemoteDesktopUpdateStep(
+        makeState({ status: "error", message }),
+        { checks: 1, downloads: 0 },
+        null,
+      );
+      assert.deepEqual(step, { action: "done", outcome: "failed", reason: message });
+    }
+    const reason = "Automatic updates are disabled on this machine.";
+    const disabled = makeState({ enabled: false, status: "disabled" });
+    assert.deepEqual(nextRemoteDesktopUpdateStep(disabled, NO_ATTEMPTS, reason), {
+      action: "done",
+      outcome: "failed",
+      reason,
+    });
+    assert.deepEqual(
+      nextRemoteDesktopUpdateStep(disabled, NO_ATTEMPTS, "Acme manages T3 Code updates.", {
+        code: "managed-updates",
+        organization: "Acme",
+      }),
+      {
+        action: "done",
+        outcome: "failed",
+        reason: "Acme manages T3 Code updates.",
+        reasonMessage: { code: "managed-updates", organization: "Acme" },
+      },
+    );
+    assert.deepEqual(
+      nextRemoteDesktopUpdateStep(disabled, NO_ATTEMPTS, null, {
+        code: "managed-updates",
+        organization: "ignored",
+      }),
+      {
+        action: "done",
+        outcome: "failed",
+        reason,
+        reasonMessage: { code: "automatic-disabled" },
+      },
+    );
   });
 
   it("installs only from the downloaded status the updater will accept", () => {
@@ -130,6 +181,7 @@ describe("nextRemoteDesktopUpdateStep", () => {
         action: "done",
         outcome: "failed",
         reason: "The desktop app failed to download the update.",
+        reasonMessage: { code: "download-failed" },
       },
     );
     assert.deepEqual(
@@ -179,6 +231,7 @@ describe("nextRemoteDesktopUpdateStep", () => {
       action: "done",
       outcome: "failed",
       reason: "The desktop app update failed.",
+      reasonMessage: { code: "update-failed" },
     });
   });
 });

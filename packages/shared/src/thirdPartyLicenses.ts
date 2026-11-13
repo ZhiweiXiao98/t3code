@@ -1,3 +1,17 @@
+export type ThirdPartyLicenseIssue = {
+  readonly code: "entry-not-object" | "entry-invalid" | "format-unsupported" | "entry-duplicate";
+  readonly value: string;
+};
+const licenseIssues = new WeakMap<Error, ThirdPartyLicenseIssue>();
+function licenseIssue(error: Error, code: ThirdPartyLicenseIssue["code"], value = ""): Error {
+  licenseIssues.set(error, { code, value });
+  return error;
+}
+/** Local decoder provenance; arbitrary errors and cloned messages have no issue. */
+export function thirdPartyLicenseIssue(error: unknown): ThirdPartyLicenseIssue | undefined {
+  return error instanceof Error ? licenseIssues.get(error) : undefined;
+}
+
 export interface ThirdPartyLicenseEntry {
   readonly bundles: ReadonlyArray<string>;
   readonly kind: "custom" | "package";
@@ -33,7 +47,11 @@ function isHttpUrl(value: unknown): value is string {
 
 function decodeEntry(value: unknown, index: number): ThirdPartyLicenseEntry {
   if (!isRecord(value)) {
-    throw new Error(`License entry ${String(index + 1)} is not an object.`);
+    throw licenseIssue(
+      new Error(`License entry ${String(index + 1)} is not an object.`),
+      "entry-not-object",
+      String(index + 1),
+    );
   }
   if (
     !isStringArray(value.bundles) ||
@@ -45,7 +63,11 @@ function decodeEntry(value: unknown, index: number): ThirdPartyLicenseEntry {
     (value.sourceUrl !== null && !isHttpUrl(value.sourceUrl)) ||
     (value.version !== null && typeof value.version !== "string")
   ) {
-    throw new Error(`License entry ${String(index + 1)} has an invalid shape.`);
+    throw licenseIssue(
+      new Error(`License entry ${String(index + 1)} has an invalid shape.`),
+      "entry-invalid",
+      String(index + 1),
+    );
   }
   return {
     bundles: value.bundles,
@@ -60,14 +82,21 @@ function decodeEntry(value: unknown, index: number): ThirdPartyLicenseEntry {
 
 export function decodeThirdPartyLicenseManifest(value: unknown): ThirdPartyLicenseManifest {
   if (!isRecord(value) || value.schemaVersion !== 1 || !Array.isArray(value.entries)) {
-    throw new Error("The open-source license manifest has an unsupported format.");
+    throw licenseIssue(
+      new Error("The open-source license manifest has an unsupported format."),
+      "format-unsupported",
+    );
   }
   const entries = value.entries.map(decodeEntry);
   const entryKeys = new Set<string>();
   for (const entry of entries) {
     const key = thirdPartyLicenseEntryKey(entry);
     if (entryKeys.has(key)) {
-      throw new Error(`The open-source license manifest contains a duplicate entry: ${key}`);
+      throw licenseIssue(
+        new Error(`The open-source license manifest contains a duplicate entry: ${key}`),
+        "entry-duplicate",
+        key,
+      );
     }
     entryKeys.add(key);
   }

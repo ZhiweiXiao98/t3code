@@ -1,4 +1,5 @@
-import type { DeviceServiceState } from "@t3tools/contracts";
+import { DeviceServiceState } from "@t3tools/contracts";
+import * as Schema from "effect/Schema";
 import { describe, expect, it } from "vite-plus/test";
 
 import { deviceHubReadiness, platformSetupStatus } from "./DeviceSetup";
@@ -116,4 +117,81 @@ it("localizes owned iOS discovery failure without altering raw availability reas
     ],
   });
   expect(platformSetupStatus(raw, "ios", "zh-CN").message).toBe(original.message);
+});
+
+it("formats only the first availability reason with matching wire provenance", () => {
+  const encode = Schema.encodeSync(DeviceServiceState);
+  const decode = Schema.decodeUnknownSync(DeviceServiceState);
+  const sdkRoot = "C:\\SDK\\Working $&\\{sdkRoot}\\中文";
+  const reason = `Android Emulator is missing from ${sdkRoot}. Install it in Android Studio's SDK Manager.`;
+  const reasonMessage = {
+    source: "local-device-host",
+    code: "android-emulator-missing",
+    sdkRoot,
+  };
+  const withReason = (raw: string | undefined, metadata: unknown) =>
+    decode({
+      ...encode(deviceState({ hostStatus: "idle" })),
+      hosts: [
+        {
+          ...deviceState().hosts[0]!,
+          platforms: [
+            { platform: "android", available: false, reason: raw, reasonMessage: metadata },
+          ],
+        },
+      ],
+    });
+  const state = withReason(reason, reasonMessage);
+  expect(platformSetupStatus(state, "android")).toEqual({ ready: false, message: reason });
+  expect(platformSetupStatus(state, "android", "zh-CN")).toEqual({
+    ready: false,
+    message: `${sdkRoot} 中缺少 Android 模拟器。请在 Android Studio 的 SDK 管理器中安装。`,
+  });
+  expect(platformSetupStatus(state, "android", "en").message).toBe(reason);
+  expect(deviceHubReadiness(state)).toEqual({ ready: false, busy: false });
+  for (const metadata of [
+    undefined,
+    { ...reasonMessage, code: "future-reason" },
+    { ...reasonMessage, source: "simlock-device-host" },
+    { source: "local-device-host", code: "android-emulator-missing" },
+    { ...reasonMessage, sdkRoot: 7 },
+    { ...reasonMessage, sdkRoot: "/different-sdk" },
+    { source: "local-device-host", code: "android-sdk-missing" },
+  ]) {
+    expect(platformSetupStatus(withReason(reason, metadata), "android", "zh-CN")).toEqual({
+      ready: false,
+      message: reason,
+    });
+  }
+  expect(
+    platformSetupStatus(withReason(`${reason} External detail`, reasonMessage), "android", "zh-CN")
+      .message,
+  ).toBe(`${reason} External detail`);
+  const firstRaw = withReason(reason, undefined);
+  const mixed = {
+    ...firstRaw,
+    hosts: [...firstRaw.hosts, { ...state.hosts[0]!, id: "other" }],
+  };
+  expect(platformSetupStatus(mixed, "android", "zh-CN")).toEqual({ ready: false, message: reason });
+  const absentFirst = withReason(undefined, undefined);
+  expect(
+    platformSetupStatus(
+      {
+        ...absentFirst,
+        hosts: [...absentFirst.hosts, { ...state.hosts[0]!, id: "other" }],
+      },
+      "android",
+      "zh-CN",
+    ).message,
+  ).toBe("未检测到 Android 支持。");
+  expect(platformSetupStatus(withReason("Working", undefined), "android", "zh-CN").message).toBe(
+    "Working",
+  );
+  expect(platformSetupStatus(withReason("", undefined), "android", "zh-CN").message).toBe("");
+  expect(platformSetupStatus(withReason(undefined, undefined), "android", "zh-CN").message).toBe(
+    "未检测到 Android 支持。",
+  );
+  expect(platformSetupStatus(withReason(undefined, undefined), "android").message).toBe(
+    "Android support was not detected.",
+  );
 });

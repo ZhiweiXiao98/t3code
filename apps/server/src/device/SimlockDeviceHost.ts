@@ -352,6 +352,10 @@ export const make = Effect.fn("SimlockDeviceHost.make")(function* (
                 platform,
                 available: false,
                 reason: `The pool has no ${platform === "ios" ? "iOS" : "Android"} devices.`,
+                reasonMessage: {
+                  source: "simlock-device-host",
+                  code: platform === "ios" ? "ios-devices-missing" : "android-devices-missing",
+                },
               },
         );
       }),

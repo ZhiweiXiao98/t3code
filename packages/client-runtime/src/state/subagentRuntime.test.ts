@@ -10,6 +10,8 @@ import * as DateTime from "effect/DateTime";
 
 import {
   deriveWorkflowGroups,
+  workflowPhaseTitle,
+  workflowOpeningHeadline,
   isWorkflowScriptMessage,
   projectedSubagentsToRuntime,
   resolveWorkflowOpening,
@@ -317,4 +319,55 @@ describe("resolveWorkflowOpening", () => {
     );
     expect(isWorkflowScriptMessage({ role: "assistant", text: SCRIPT })).toBe(false);
   });
+});
+
+it("retains fallback phase provenance through workflow opening while clones and authored titles stay literal", () => {
+  const generated = groupsOf([
+    subagent({
+      workflow: {
+        phases: [],
+        agents: [{ index: 1, label: "opaque/{0}/$&", state: "running", phaseIndex: 0 }],
+      },
+    }),
+  ])[0]!;
+  const phase = generated.phases[0]!;
+  expect(phase.title).toBe("Phase 1");
+  expect(workflowPhaseTitle(phase, (number) => `阶段 ${number}`)).toBe("阶段 1");
+  expect(workflowPhaseTitle({ ...phase }, (number) => `阶段 ${number}`)).toBe("Phase 1");
+  const authored = groupsOf([
+    subagent({
+      workflow: {
+        phases: [{ index: 0, title: "Phase 1" }],
+        agents: [{ index: 1, label: "opaque", state: "running", phaseIndex: 0 }],
+      },
+    }),
+  ])[0]!;
+  expect(workflowPhaseTitle(authored.phases[0]!, (number) => `阶段 ${number}`)).toBe("Phase 1");
+  const opening = {
+    messageId: "message",
+    script: "raw/{script}/$&",
+    name: null,
+    description: null,
+    driver: null,
+    providerInstanceId: null,
+    group: generated,
+  };
+  expect(workflowOpeningHeadline(opening)).toEqual({
+    title: "Workflow",
+    description: null,
+    agents: "1 agent · 1 working",
+  });
+  const display = (template: string, values: readonly string[]) =>
+    `${template}:${values.join("|")}`;
+  expect(workflowOpeningHeadline(opening, display)).toEqual({
+    title: "Workflow:",
+    description: null,
+    agents: "{0} agent:1 · {0} working:1",
+  });
+  expect(
+    workflowOpeningHeadline(
+      { ...opening, name: "Workflow", description: "opaque/{0}/$&" },
+      display,
+    ),
+  ).toMatchObject({ title: "Workflow", description: "opaque/{0}/$&" });
 });

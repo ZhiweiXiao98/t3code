@@ -31,7 +31,6 @@ import {
   type AddProjectRemoteSourceReadiness,
 } from "@t3tools/client-runtime/operations/projects";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
-import { connectionStatusText } from "@t3tools/client-runtime/connection";
 import { resolveThreadReferenceCopyTarget } from "@t3tools/client-runtime/thread-reference";
 import {
   canPreloadBrowsePath,
@@ -219,6 +218,7 @@ import {
   errorMessage,
   getEnvironmentBrowsePlatform,
   remoteProjectInputPlaceholder,
+  paletteConnectionStatus,
   reduceCommandPaletteSearchState,
   type SearchOverlayMode,
 } from "./CommandPalette.logic";
@@ -605,11 +605,12 @@ function OpenCommandPaletteDialog(props: {
             isPrimary,
             environmentId: environment.environmentId,
             runtimeLabel: environment.label,
+            primaryFallback: t("connections.access.thisDevice"),
           }),
           isPrimary,
           machine: resolveEnvironmentMachineKind(environment.serverConfig),
           isConnected: canCreateProjectInEnvironment(environment.connection.phase),
-          status: connectionStatusText(environment.connection),
+          status: paletteConnectionStatus(environment.connection, locale),
         };
       });
 
@@ -2128,7 +2129,7 @@ function OpenCommandPaletteDialog(props: {
           stackedThreadToast({
             type: "error",
             title: readWebI18n().t("audit3.repositoryIncomplete"),
-            description: incompleteOwnerMessage,
+            description: translateWebSource(locale, incompleteOwnerMessage),
           }),
         );
         return;
@@ -2510,7 +2511,7 @@ function OpenCommandPaletteDialog(props: {
   const inputPlaceholder =
     newProjectFlow !== null
       ? t("projectSettings.projectName")
-      : (remoteProjectInputPlaceholder(addProjectCloneFlow) ??
+      : (remoteProjectInputPlaceholder(addProjectCloneFlow, locale) ??
         t(
           paletteMode === "root"
             ? "commandPalette.search.root"

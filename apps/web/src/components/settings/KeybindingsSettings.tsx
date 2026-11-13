@@ -1,3 +1,5 @@
+import { editorFailureMessage } from "~/editorFailurePresentation";
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { useEnvironmentScope } from "../../state/session";
 import { useEnvironmentsWithScope, readEnvironmentScope } from "../../state/session";
 import {
@@ -1428,7 +1430,8 @@ export function KeybindingsSettingsPanel() {
       toastManager.add({
         title: t("keybindings.error.openTitle"),
         description:
-          error instanceof Error ? error.message : t("keybindings.error.openDescription"),
+          editorFailureMessage(error, readWebI18n().locale) ??
+          t("keybindings.error.openDescription"),
         type: "error",
       });
     })();

@@ -1,3 +1,4 @@
+import { threadPromptErrorMessage } from "./threadPromptErrorMessage";
 import { translateWebSource } from "~/i18n/messages";
 import { readWebI18n } from "~/i18n/readWebI18n";
 import type { ScopedThreadRef } from "@t3tools/contracts";
@@ -36,7 +37,7 @@ export function ThreadLinkPrompt({ threadRef }: { readonly threadRef: ScopedThre
           stackedThreadToast({
             type: "error",
             title: translateWebSource(locale, "Could not open the linked prompt"),
-            description: parsed.error,
+            description: threadPromptErrorMessage(parsed.error, locale),
           }),
         );
       } else if (parsed.value !== null) {

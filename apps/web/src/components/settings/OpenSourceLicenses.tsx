@@ -1,3 +1,4 @@
+import { licenseIssueMessage } from "./licenseIssueMessage";
 import { useI18n } from "../../i18n/WebI18nContext";
 import { translateWebSource } from "../../i18n/messages";
 import { ChevronRightIcon, ExternalLinkIcon, SearchIcon } from "lucide-react";
@@ -12,6 +13,7 @@ import { useState } from "react";
 
 import {
   decodeThirdPartyLicenseManifest,
+  thirdPartyLicenseIssue,
   filterThirdPartyLicenseEntries,
   formatLicenseBundles,
   thirdPartyLicenseEntryKey,
@@ -30,6 +32,17 @@ class LicenseManifestLoadError extends Schema.TaggedError<LicenseManifestLoadErr
     message: Schema.String,
     localReason: Schema.optional(Schema.Literals(["load", "timeout"])),
     responseStatus: Schema.optional(Schema.Number),
+    decodeIssue: Schema.optional(
+      Schema.Struct({
+        code: Schema.Literals([
+          "entry-not-object",
+          "entry-invalid",
+          "format-unsupported",
+          "entry-duplicate",
+        ]),
+        value: Schema.String,
+      }),
+    ),
   },
 ) {}
 
@@ -53,6 +66,7 @@ const licenseManifestAtom = Atom.make(
         new LicenseManifestLoadError({
           message: error instanceof Error ? error.message : "The license manifest could not load.",
           ...(error instanceof Error ? {} : { localReason: "load" as const }),
+          ...(thirdPartyLicenseIssue(error) ? { decodeIssue: thirdPartyLicenseIssue(error)! } : {}),
         }),
     });
   }).pipe(
@@ -258,9 +272,11 @@ export function OpenSourceLicensesPanel() {
           onSome: (error) =>
             error.responseStatus !== undefined
               ? t("settingsControls.licenseStatus", { status: String(error.responseStatus) })
-              : error.localReason
-                ? translateWebSource(locale, error.message)
-                : error.message,
+              : error.decodeIssue
+                ? licenseIssueMessage(error.decodeIssue, locale)
+                : error.localReason
+                  ? translateWebSource(locale, error.message)
+                  : error.message,
         })
       : null;
 

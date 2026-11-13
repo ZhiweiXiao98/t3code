@@ -1,3 +1,4 @@
+import { workflowPresentationMessage } from "./workflowPresentationMessage";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
 import { useAtomValue } from "@effect/atom-react";
@@ -5,6 +6,7 @@ import {
   isTerminalSubagentStatus,
   workflowMemberModelSelection,
   workflowOpeningHeadline,
+  workflowPhaseTitle,
   type RuntimeSubagent,
   type WorkflowOpening,
 } from "@t3tools/client-runtime/state/subagentRuntime";
@@ -45,8 +47,14 @@ export function WorkflowOpeningBlock(props: {
   const { locale: newCopyLocale, t } = useI18n();
   const { opening } = props;
   const providers = useAtomValue(providersIgnoringCheckedAtAtom(props.environmentId));
-  const headline = workflowOpeningHeadline(opening);
+  const headline = workflowOpeningHeadline(opening, (template, values) =>
+    workflowPresentationMessage(newCopyLocale, template, values),
+  );
   const phases = opening.group?.phases.filter((phase) => phase.members.length > 0) ?? [];
+  const phaseTitle = (phase: NonNullable<WorkflowOpening["group"]>["phases"][number]) =>
+    workflowPhaseTitle(phase, (number) =>
+      newCopyLocale === "zh-CN" ? `阶段 ${number}` : `Phase ${number}`,
+    );
   const memberRow = (member: RuntimeSubagent) =>
     opening.providerInstanceId === null ? null : (
       <WorkflowMemberRow
@@ -87,10 +95,10 @@ export function WorkflowOpeningBlock(props: {
         ) : null}
       </header>
       {phases.map((phase) => (
-        <section key={phase.index} aria-label={t("audit4.phase", { title: phase.title })}>
+        <section key={phase.index} aria-label={t("audit4.phase", { title: phaseTitle(phase) })}>
           <h4 className="flex items-baseline gap-2 px-2 pb-0.5 text-2xs font-medium text-muted-foreground">
             <span className="min-w-0 truncate" data-thread-find-text="true">
-              {phase.title}
+              {phaseTitle(phase)}
             </span>
             <span className="shrink-0 font-normal tabular-nums">
               {phase.settledCount}/{phase.members.length}

@@ -12,7 +12,7 @@ import type * as EnvironmentRegistry from "../connection/registry.ts";
 import type * as RelayEnvironmentDiscovery from "../relay/discovery.ts";
 import { createAtomCommandScheduler, createRuntimeCommand } from "./runtime.ts";
 import {
-  serverUpdateFailureMessage,
+  createServerUpdateFailedState,
   serverUpdateStateAtom,
   type ServerUpdateStage,
 } from "./server.ts";
@@ -75,13 +75,17 @@ export function createOutdatedServerUpdateCommand<E>(
               atomRegistry.set(stateAtom, { status: "idle" });
               return;
             }
-            atomRegistry.set(stateAtom, {
-              status: "failed",
-              stage: currentStage,
-              fromVersion,
-              targetVersion,
-              message: serverUpdateFailureMessage(Cause.squash(exit.cause)),
-            });
+            atomRegistry.set(
+              stateAtom,
+              createServerUpdateFailedState(
+                {
+                  stage: currentStage,
+                  fromVersion,
+                  targetVersion,
+                },
+                Cause.squash(exit.cause),
+              ),
+            );
           }),
         ),
       );

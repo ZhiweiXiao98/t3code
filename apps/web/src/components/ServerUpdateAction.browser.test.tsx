@@ -1,9 +1,9 @@
 import { RegistryContext } from "@effect/atom-react";
-import { AuthSessionState, type EnvironmentId } from "@t3tools/contracts";
+import { AuthSessionState, ServerSelfUpdateError, type EnvironmentId } from "@t3tools/contracts";
 import * as Cause from "effect/Cause";
 import * as Schema from "effect/Schema";
 import { AsyncResult, Atom } from "effect/reactivity";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import { act, render, type Screen } from "../../test/render";
@@ -57,14 +57,26 @@ vi.mock(import("./ui/toast"), async (original) => {
 });
 
 import { resetConfirmDialogForTests } from "~/confirmDialog";
+import { WebI18nContext, useI18n } from "~/i18n/WebI18nContext";
+import { translateWebMessage } from "~/i18n/messages";
+import {
+  createServerUpdateFailedState,
+  ServerUpdateResumeTimeoutError,
+} from "@t3tools/client-runtime/state/server";
+import { collectUpdateEverythingResult } from "./sidebar/updateEverything.logic";
 import { appAtomRegistry } from "~/rpc/atomRegistry";
 import {
   ServerUpdateAction,
   ServerUpdatesAction,
+  ServerUpdateProgress,
+  useServerUpdate,
   type ServerUpdateTarget,
 } from "./ServerUpdateAction";
 
 const decodeSessionState = Schema.decodeUnknownSync(AuthSessionState);
+const updateErrorCodec = Schema.toCodecJson(ServerSelfUpdateError);
+const encodeUpdateError = Schema.encodeSync(updateErrorCodec);
+const decodeUpdateError = Schema.decodeUnknownSync(updateErrorCodec);
 
 const legacyAuth = {
   policy: "remote-reachable",
@@ -237,4 +249,145 @@ describe("ServerUpdatesAction", () => {
       expect.objectContaining({ type: "success", title: "Office updated" }),
     );
   });
+});
+
+function localeSurface(locale: "en" | "zh-CN", children: ReactNode) {
+  return (
+    <WebI18nContext
+      value={{
+        locale,
+        appLocale: locale,
+        setAppLocale: () => {},
+        t: (key, values) => translateWebMessage(locale, key, values),
+      }}
+    >
+      {children}
+    </WebI18nContext>
+  );
+}
+
+function UpdateFailureOutcome({ target }: { target: ServerUpdateTarget }) {
+  const update = useServerUpdate();
+  const { t } = useI18n();
+  const [failure, setFailure] = useState("");
+  return (
+    <>
+      <button
+        onClick={() =>
+          void update(target).then((outcome) => {
+            setFailure(
+              collectUpdateEverythingResult(
+                {
+                  localVersion: null,
+                  localFailures: [],
+                  servers: [{ label: target.serverLabel, outcome }],
+                  providers: [],
+                },
+                t,
+              ).failures[0] ?? "",
+            );
+          })
+        }
+      >
+        Run update
+      </button>
+      <output>{failure}</output>
+    </>
+  );
+}
+
+it("uses decoded owned update reasons for the actual toast and aggregate outcome", async () => {
+  using _state = setup();
+  const version = "opaque-$& {version} 中文";
+  const reason = `The desktop app found no build of ${version}.`;
+  const error = decodeUpdateError(
+    JSON.parse(
+      JSON.stringify(
+        encodeUpdateError(
+          new ServerSelfUpdateError({
+            reason,
+            reasonMessage: { code: "build-not-found", version },
+          }),
+        ),
+      ),
+    ),
+  );
+  testState.updateServer.mockResolvedValue(AsyncResult.failure(Cause.fail(error)));
+  const target = {
+    environmentId: "owned-failure" as EnvironmentId,
+    serverLabel: "Office $& {reason}",
+    selfUpdate: "boot-service" as const,
+    targetVersion: version,
+  };
+  await using screen = await renderUpdate(
+    localeSurface("zh-CN", <UpdateFailureOutcome target={target} />),
+  );
+  await screen.getByRole("button", { name: "Run update" }).click();
+  const expected = `服务器更新失败：桌面应用未找到 ${version} 的构建版本。`;
+  await expect
+    .element(screen.getByRole("status"))
+    .toHaveTextContent(`${target.serverLabel}: ${expected}`);
+  expect(testState.toast).toHaveBeenCalledWith(
+    expect.objectContaining({ type: "error", description: expected }),
+  );
+  expect(testState.updateServer).toHaveBeenCalledWith({
+    environmentId: target.environmentId,
+    input: { targetVersion: version },
+  });
+  expect(error.reason).toBe(reason);
+
+  testState.updateServer.mockResolvedValue(
+    AsyncResult.failure(Cause.fail(new Error(error.message))),
+  );
+  await screen.getByRole("button", { name: "Run update" }).click();
+  await expect
+    .element(screen.getByRole("status"))
+    .toHaveTextContent(`${target.serverLabel}: ${error.message}`);
+  expect(testState.toast).toHaveBeenLastCalledWith(
+    expect.objectContaining({ description: error.message }),
+  );
+  for (const reasonMessage of [
+    undefined,
+    { code: "future" },
+    { code: "build-not-found", version: null },
+    { code: "build-not-found", version: "stale" },
+  ]) {
+    const legacy = decodeUpdateError(
+      JSON.parse(JSON.stringify({ _tag: "ServerSelfUpdateError", reason, reasonMessage })),
+    );
+    testState.updateServer.mockResolvedValue(AsyncResult.failure(Cause.fail(legacy)));
+    await screen.getByRole("button", { name: "Run update" }).click();
+    await expect
+      .element(screen.getByRole("status"))
+      .toHaveTextContent(`${target.serverLabel}: 服务器更新失败：${reason}`);
+    expect(legacy.reason).toBe(reason);
+    if (reasonMessage?.version !== "stale") expect(legacy.reasonMessage).toBeUndefined();
+  }
+});
+
+it("renders cached failed state in the current locale without retaining provenance on a clone", async () => {
+  using _state = setup();
+  const version = "opaque-$& {version} 中文";
+  const error = new ServerUpdateResumeTimeoutError({
+    environmentId: "cached",
+    targetVersion: version,
+  });
+  const state = createServerUpdateFailedState(
+    { stage: "resuming", fromVersion: "old", targetVersion: version },
+    error,
+  );
+  await using screen = await renderUpdate(
+    localeSurface("en", <ServerUpdateProgress state={state} />),
+  );
+  await expect.element(screen.getByRole("alert")).toHaveTextContent(error.message);
+  await screen.rerender(localeSurface("zh-CN", <ServerUpdateProgress state={state} />));
+  await expect
+    .element(screen.getByRole("alert"))
+    .toHaveTextContent(`无法确认服务器已恢复运行 t3@${version}。请重新连接以检查更新结果。`);
+  await screen.rerender(localeSurface("zh-CN", <ServerUpdateProgress state={{ ...state }} />));
+  await expect.element(screen.getByRole("alert")).toHaveTextContent(error.message);
+  await screen.rerender(localeSurface("en", <ServerUpdateProgress state={state} />));
+  await expect.element(screen.getByRole("alert")).toHaveTextContent(error.message);
+  expect(state.message).toBe(error.message);
+  expect(testState.updateServer).not.toHaveBeenCalled();
 });

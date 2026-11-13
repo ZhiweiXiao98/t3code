@@ -7,6 +7,7 @@
  */
 import {
   managedUpdatesMessage,
+  type DesktopUpdateDisabledReasonMessage,
   type ManagedPolicyDocument,
   type ManagedUpdatesMode,
 } from "@t3tools/contracts";
@@ -23,6 +24,7 @@ export interface UpdatePolicy {
   readonly allowNightly: boolean;
   /** Why the updater is restricted, shown in place of update actions; `null` when unmanaged. */
   readonly message: string | null;
+  readonly messageDescriptor?: DesktopUpdateDisabledReasonMessage;
 }
 
 export class DesktopUpdatePolicy extends Context.Service<DesktopUpdatePolicy, UpdatePolicy>()(
@@ -44,6 +46,7 @@ function resolveUpdatePolicy(document: ManagedPolicyDocument | undefined): Updat
     feedUrl: updates.feedUrl,
     allowNightly: updates.allowNightly ?? true,
     message: managedUpdatesMessage(document.organization),
+    messageDescriptor: { code: "managed-updates", organization: document.organization },
   };
 }
 
@@ -77,6 +80,7 @@ const make = Effect.gen(function* () {
             feedUrl: undefined,
             allowNightly: false,
             message: `Updates are off because T3 Code cannot use the managed policy at ${error.path}. Contact your administrator.`,
+            messageDescriptor: { code: "policy-file-unavailable", path: error.path },
           }),
         ),
     }),

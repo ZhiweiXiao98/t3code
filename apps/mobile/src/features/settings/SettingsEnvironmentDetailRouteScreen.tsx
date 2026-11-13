@@ -1,7 +1,15 @@
+import {
+  describeServerUpdateFailure,
+  describeServerUpdateStateFailure,
+} from "@t3tools/client-runtime/state/server";
+import {
+  captureEnvironmentActionFailure,
+  mobileServerUpdateFailure,
+  type EnvironmentActionFailure,
+} from "./environmentUpdateDisplay";
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import {
   environmentUpdateConfirmation,
-  environmentMaintenanceFailure,
   environmentProviderVersion,
   environmentProviderUpdateState,
 } from "./environmentSettingsDisplay";
@@ -80,7 +88,7 @@ function EnvironmentDetail({ environmentId }: { readonly environmentId: Environm
   const [connectionExpanded, setConnectionExpanded] = useState(false);
   const [pending, setPending] = useState<string | null>(null);
   const pendingRef = useRef(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<EnvironmentActionFailure | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [releaseCheck, checkRelease] = useAtom(environmentReleaseCheckAtom(environmentId), {
     mode: "promiseExit",
@@ -108,7 +116,11 @@ function EnvironmentDetail({ environmentId }: { readonly environmentId: Environm
   // The server refuses checks and installs; say so instead of offering them.
   const updatesDenial = managedUpdatesDenial(managedPolicy);
 
-  async function run(label: string, action: () => Promise<void>) {
+  async function run(
+    label: string,
+    action: () => Promise<void>,
+    describeUpdateFailure?: Parameters<typeof captureEnvironmentActionFailure>[1],
+  ) {
     if (pendingRef.current) return;
     pendingRef.current = true;
     setPending(label);
@@ -119,7 +131,7 @@ function EnvironmentDetail({ environmentId }: { readonly environmentId: Environm
     setPending(null);
     if (AsyncResult.isFailure(result)) {
       const cause = squashAtomCommandFailure(result);
-      setError(environmentMaintenanceFailure(cause));
+      setError(captureEnvironmentActionFailure(cause, describeUpdateFailure));
     }
   }
 
@@ -137,24 +149,28 @@ function EnvironmentDetail({ environmentId }: { readonly environmentId: Environm
       {
         text: "Update",
         onPress: () =>
-          void run("server", async () => {
-            if (
-              AsyncResult.isFailure(
-                appAtomRegistry.get(environmentSession.sessionStateAtom(environmentId)),
-              ) ||
-              !canMaintainEnvironment(
-                appAtomRegistry.get(environmentSession.sessionStateValueAtom(environmentId)),
-                connected,
+          void run(
+            "server",
+            async () => {
+              if (
+                AsyncResult.isFailure(
+                  appAtomRegistry.get(environmentSession.sessionStateAtom(environmentId)),
+                ) ||
+                !canMaintainEnvironment(
+                  appAtomRegistry.get(environmentSession.sessionStateValueAtom(environmentId)),
+                  connected,
+                )
               )
-            )
-              return;
-            const result = await updateServer({
-              environmentId,
-              input: { targetVersion },
-            });
-            if (AsyncResult.isFailure(result)) throw squashAtomCommandFailure(result);
-            setNotice(formatMobileMessage("Updated to {0}.", [result.value.targetVersion]));
-          }),
+                return;
+              const result = await updateServer({
+                environmentId,
+                input: { targetVersion },
+              });
+              if (AsyncResult.isFailure(result)) throw squashAtomCommandFailure(result);
+              setNotice(formatMobileMessage("Updated to {0}.", [result.value.targetVersion]));
+            },
+            describeServerUpdateFailure,
+          ),
       },
     ]);
   }
@@ -236,7 +252,7 @@ function EnvironmentDetail({ environmentId }: { readonly environmentId: Environm
             ) : null}
             {error ? (
               <Text localize={false} selectable className="px-2 text-sm text-danger-foreground">
-                {error}
+                {mobileServerUpdateFailure(error.message, error.updateMessage)}
               </Text>
             ) : null}
             {notice ? (
@@ -269,7 +285,10 @@ function EnvironmentDetail({ environmentId }: { readonly environmentId: Environm
                       </Text>
                     ) : updateState.status === "failed" ? (
                       <Text localize={false} selectable className="text-sm text-danger-foreground">
-                        {updateState.message}
+                        {mobileServerUpdateFailure(
+                          updateState.message,
+                          describeServerUpdateStateFailure(updateState),
+                        )}
                       </Text>
                     ) : null}
                     {checkedRelease && !updatesDenial ? (

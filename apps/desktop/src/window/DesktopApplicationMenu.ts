@@ -91,10 +91,7 @@ const checkForUpdatesFromMenu = Effect.fn("desktop.menu.checkForUpdates")(functi
       type: "warning",
       title: messages.updateCheckFailedTitle,
       message: messages.updateCheckFailedMessage,
-      detail:
-        updateState.message == null
-          ? messages.unknownUpdateError
-          : messages.updateDetail(updateState.message),
+      detail: updateState.message == null ? messages.unknownUpdateError : updateState.message,
       buttons: [messages.ok],
     });
   }
@@ -113,7 +110,7 @@ const handleCheckForUpdatesMenuClick = Effect.fn("desktop.menu.handleCheckForUpd
         type: "info",
         title: messages.updatesUnavailableTitle,
         message: messages.updatesUnavailableMessage,
-        detail: messages.updateDetail(disabledReason.value),
+        detail: messages.updateDisabledDetail(disabledReason.value),
         buttons: [messages.ok],
       });
       return;

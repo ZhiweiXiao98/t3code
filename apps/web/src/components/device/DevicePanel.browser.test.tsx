@@ -1,11 +1,15 @@
 import {
   EnvironmentId,
   ThreadId,
-  type DeviceServiceState,
+  DeviceServiceState,
   type ScopedThreadRef,
 } from "@t3tools/contracts";
 import type { ReactNode } from "react";
+import * as Schema from "effect/Schema";
 import { describe, expect, it, vi } from "vite-plus/test";
+import { page } from "vite-plus/test/browser";
+import { WebI18nContext } from "~/i18n/WebI18nContext";
+import { translateWebMessage } from "~/i18n/messages";
 
 import type { RightPanelSurface } from "~/rightPanelStore";
 
@@ -212,6 +216,85 @@ describe("DevicePanel host probe", () => {
       [{ environmentId: threadRef.environmentId, input: {} }],
     ]);
   });
+});
+
+it("renders setup availability provenance without translating raw device reasons", async () => {
+  setup();
+  const sdkRoot = "C:\\SDK\\Working $&\\{sdkRoot}\\中文";
+  const reason = `Android Emulator is missing from ${sdkRoot}. Install it in Android Studio's SDK Manager.`;
+  const decode = Schema.decodeUnknownSync(DeviceServiceState);
+  const encode = Schema.encodeSync(DeviceServiceState);
+  currentState = decode(
+    encode({
+      ...deviceState,
+      hostStatus: "idle",
+      hostStatuses: {},
+      devices: [],
+      sessions: [],
+      onboardingCompleted: false,
+      hosts: [
+        {
+          ...deviceState.hosts[0]!,
+          platforms: [
+            { platform: "ios", available: false, reason: "Working" },
+            {
+              platform: "android",
+              available: false,
+              reason,
+              reasonMessage: {
+                source: "local-device-host",
+                code: "android-emulator-missing",
+                sdkRoot,
+              },
+            },
+          ],
+        },
+      ],
+    }),
+  );
+  const threadRef = {
+    ...threadA,
+    environmentId: EnvironmentId.make("environment-setup-availability"),
+  };
+  const localizedPanel = (locale: "en" | "zh-CN") => (
+    <WebI18nContext
+      value={{
+        locale,
+        appLocale: locale,
+        setAppLocale: () => undefined,
+        t: (key, values) => translateWebMessage(locale, key, values),
+      }}
+    >
+      {devicePanel(threadRef)}
+    </WebI18nContext>
+  );
+  await using screen = await render(localizedPanel("en"), { container });
+  await expect.element(page.getByText(reason, { exact: true })).toBeVisible();
+  await expect.element(page.getByRole("button", { name: "Continue", exact: true })).toBeDisabled();
+  await screen.rerender(localizedPanel("zh-CN"));
+  await expect
+    .element(
+      page.getByText(
+        `${sdkRoot} 中缺少 Android 模拟器。请在 Android Studio 的 SDK 管理器中安装。`,
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await expect.element(page.getByText("Working", { exact: true })).toBeVisible();
+  await expect.element(page.getByRole("button", { name: "继续", exact: true })).toBeDisabled();
+  await screen.rerender(localizedPanel("en"));
+  await expect.element(page.getByText(reason, { exact: true })).toBeVisible();
+  currentState = {
+    ...currentState,
+    hosts: currentState.hosts.map((host) => ({
+      ...host,
+      platforms: host.platforms.map((platform) => ({ ...platform, reasonMessage: undefined })),
+    })),
+  };
+  await screen.rerender(localizedPanel("zh-CN"));
+  await expect.element(page.getByText(reason, { exact: true })).toBeVisible();
+  await expect.element(page.getByText("Working", { exact: true })).toBeVisible();
+  await expect.element(page.getByRole("button", { name: "继续", exact: true })).toBeDisabled();
 });
 
 describe("DevicePanel discovery warning", () => {

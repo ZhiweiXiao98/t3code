@@ -576,3 +576,25 @@ describe("localized workflow details", () => {
     expect(translateWebMessage("en", "sidebar.bulk.settleCount", { count: 2 })).toBe("Settle (2)");
   });
 });
+
+it("keeps provenance-only update copy out of arbitrary English reverse lookup", () => {
+  const source = "The desktop app lost the downloaded update.";
+  expect(translateWebMessage("zh-CN", "updateFailure.download-lost")).toBe(
+    "桌面应用已丢失下载的更新。",
+  );
+  expect(translateWebMessage("en", "updateFailure.download-lost")).toBe(source);
+  expect(translateWebSource("zh-CN", source)).toBe(source);
+  expect(translateWebSource("zh-CN", "Cancel")).toBe("取消");
+});
+
+it("keeps marked device availability keys out of raw-string lookup", () => {
+  const source = "The pool has no iOS devices.";
+  expect(translateWebMessage("zh-CN", "deviceAvailability.simlockIosMissing")).toBe(
+    "设备池中没有 iOS 设备。",
+  );
+  expect(translateWebSource("zh-CN", source)).toBe(source);
+  const sdkRoot = "/SDK/{sdkRoot}/$&:\nopaque";
+  expect(
+    translateWebMessage("zh-CN", "deviceAvailability.androidEmulatorMissing", { sdkRoot }),
+  ).toBe(`${sdkRoot} 中缺少 Android 模拟器。请在 Android Studio 的 SDK 管理器中安装。`);
+});

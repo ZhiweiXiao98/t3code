@@ -2,6 +2,7 @@ import type {
   DesktopTelemetryRequestDesktopUpdate,
   DesktopUpdateRemoteOutcome,
   DesktopUpdateState,
+  UpdateFailureReasonMessage,
 } from "@t3tools/contracts";
 import * as Duration from "effect/Duration";
 import * as Clock from "effect/Clock";
@@ -35,6 +36,7 @@ interface PreparedUpdate {
   readonly downloadedVersion: string;
   readonly status: "prepared" | "committing" | "failed";
   readonly failureReason?: string;
+  readonly failureReasonMessage?: UpdateFailureReasonMessage;
   readonly expiresAt: number;
 }
 
@@ -67,7 +69,11 @@ export const listen: Effect.Effect<
 
   const publishReport = (
     state: DesktopUpdateState,
-    terminal?: { readonly outcome: DesktopUpdateRemoteOutcome; readonly reason?: string },
+    terminal?: {
+      readonly outcome: DesktopUpdateRemoteOutcome;
+      readonly reason?: string;
+      readonly reasonMessage?: UpdateFailureReasonMessage;
+    },
     explicitRequestId?: string,
   ): Effect.Effect<void> => {
     const reason = normalizeRemoteUpdateReason(terminal?.reason);
@@ -82,14 +88,25 @@ export const listen: Effect.Effect<
               ? { requestId: requestId.value }
               : {}),
           ...(terminal === undefined ? {} : { outcome: terminal.outcome }),
-          ...(reason ? { reason } : {}),
+          ...(reason
+            ? {
+                reason,
+                ...(terminal?.reasonMessage === undefined
+                  ? {}
+                  : { reasonMessage: terminal.reasonMessage }),
+              }
+            : {}),
           state,
         }),
       ),
     );
   };
 
-  const recordPreparedFailure = (requestId: string, reason: string) =>
+  const recordPreparedFailure = (
+    requestId: string,
+    reason: string,
+    reasonMessage?: UpdateFailureReasonMessage,
+  ) =>
     Ref.modify(preparedUpdateRef, (prepared) => {
       if (
         Option.isNone(prepared) ||
@@ -100,7 +117,12 @@ export const listen: Effect.Effect<
       }
       return [
         true,
-        Option.some({ ...prepared.value, status: "failed" as const, failureReason: reason }),
+        Option.some({
+          ...prepared.value,
+          status: "failed" as const,
+          failureReason: reason,
+          ...(reasonMessage === undefined ? {} : { failureReasonMessage: reasonMessage }),
+        }),
       ] as const;
     });
 
@@ -123,8 +145,18 @@ export const listen: Effect.Effect<
             state.errorContext === "install"
           ) {
             const reason = state.message ?? "The desktop app failed to install the update.";
-            if (yield* recordPreparedFailure(prepared.value.requestId, reason)) {
-              yield* publishReport(state, { outcome: "failed", reason }, prepared.value.requestId);
+            const reasonMessage =
+              state.message == null ? { code: "install-failed" as const } : undefined;
+            if (yield* recordPreparedFailure(prepared.value.requestId, reason, reasonMessage)) {
+              yield* publishReport(
+                state,
+                {
+                  outcome: "failed",
+                  reason,
+                  ...(reasonMessage === undefined ? {} : { reasonMessage }),
+                },
+                prepared.value.requestId,
+              );
             }
           }
         }),
@@ -172,6 +204,7 @@ export const listen: Effect.Effect<
             {
               outcome: "failed",
               reason: "A prepared desktop update is already in progress.",
+              reasonMessage: { code: "prepared-in-progress" },
             },
             request.requestId,
           );
@@ -199,6 +232,7 @@ export const listen: Effect.Effect<
                 outcome: "failed",
                 reason:
                   "This desktop app also runs WSL backends, whose databases a remote switch cannot check. Switch it on that machine.",
+                reasonMessage: { code: "wsl-switch-unsupported" },
               },
               request.requestId,
             );
@@ -232,7 +266,7 @@ export const listen: Effect.Effect<
           }
         }
         const { latest, changes } = yield* updates.subscribe;
-        const disabledReason = Option.getOrNull(yield* updates.disabledReason);
+        const disabledReason = yield* updates.disabledReason;
         let attempts: RemoteDesktopUpdateAttempts = { checks: 0, downloads: 0 };
         // State events can precede reservation release; re-enqueue refused actions so they retry after release.
         const retries = yield* Queue.unbounded<DesktopUpdateState>();
@@ -252,7 +286,12 @@ export const listen: Effect.Effect<
         const step = Effect.fn("DesktopRemoteUpdates.step")(function* (
           state: DesktopUpdateState,
         ): Effect.fn.Return<boolean, never, Scope.Scope> {
-          const next = nextRemoteDesktopUpdateStep(state, attempts, disabledReason);
+          const next = nextRemoteDesktopUpdateStep(
+            state,
+            attempts,
+            Option.getOrNull(disabledReason),
+            DesktopUpdates.describeDesktopUpdateDisabledReason(disabledReason),
+          );
           switch (next.action) {
             case "wait":
               return false;
@@ -292,6 +331,7 @@ export const listen: Effect.Effect<
                   {
                     outcome: "failed",
                     reason: "The desktop app lost the downloaded update.",
+                    reasonMessage: { code: "download-lost" },
                   },
                   request.requestId,
                 );
@@ -322,6 +362,10 @@ export const listen: Effect.Effect<
                   ? {
                       outcome: "failed" as const,
                       reason: `The desktop app found no build of ${request.targetVersion}.`,
+                      reasonMessage: {
+                        code: "build-not-found" as const,
+                        version: request.targetVersion,
+                      },
                     }
                   : next;
               yield* publishReport(
@@ -329,6 +373,9 @@ export const listen: Effect.Effect<
                 {
                   outcome: done.outcome,
                   ...(done.reason === undefined ? {} : { reason: done.reason }),
+                  ...(done.reasonMessage === undefined
+                    ? {}
+                    : { reasonMessage: done.reasonMessage }),
                 },
                 request.requestId,
               );
@@ -457,6 +504,7 @@ export const listen: Effect.Effect<
           {
             outcome: "failed",
             reason: "This desktop update is no longer prepared.",
+            reasonMessage: { code: "no-longer-prepared" },
           },
           commit.requestId,
         );
@@ -468,6 +516,11 @@ export const listen: Effect.Effect<
           {
             outcome: "failed",
             reason: claim.prepared.failureReason ?? "The desktop app failed to install the update.",
+            ...(claim.prepared.failureReason === undefined
+              ? { reasonMessage: { code: "install-failed" as const } }
+              : claim.prepared.failureReasonMessage === undefined
+                ? {}
+                : { reasonMessage: claim.prepared.failureReasonMessage }),
           },
           commit.requestId,
         );
@@ -479,8 +532,13 @@ export const listen: Effect.Effect<
       yield* Ref.set(activeRequestIdRef, Option.some(commit.requestId));
       if (current.downloadedVersion !== claim.prepared.downloadedVersion) {
         const reason = "This desktop update is no longer prepared.";
-        if (yield* recordPreparedFailure(commit.requestId, reason)) {
-          yield* publishReport(current, { outcome: "failed", reason }, commit.requestId);
+        const reasonMessage = { code: "no-longer-prepared" as const };
+        if (yield* recordPreparedFailure(commit.requestId, reason, reasonMessage)) {
+          yield* publishReport(
+            current,
+            { outcome: "failed", reason, reasonMessage },
+            commit.requestId,
+          );
         }
         return;
       }
@@ -498,8 +556,18 @@ export const listen: Effect.Effect<
       }
       if (!result.accepted || result.failed) {
         const reason = result.state.message ?? "The desktop app could not start the install.";
-        if (yield* recordPreparedFailure(commit.requestId, reason)) {
-          yield* publishReport(result.state, { outcome: "failed", reason }, commit.requestId);
+        const reasonMessage =
+          result.state.message == null ? { code: "install-not-started" as const } : undefined;
+        if (yield* recordPreparedFailure(commit.requestId, reason, reasonMessage)) {
+          yield* publishReport(
+            result.state,
+            {
+              outcome: "failed",
+              reason,
+              ...(reasonMessage === undefined ? {} : { reasonMessage }),
+            },
+            commit.requestId,
+          );
         }
         return;
       }

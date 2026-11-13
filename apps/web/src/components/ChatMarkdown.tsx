@@ -507,7 +507,7 @@ function useChatMarkdownState({
   sourceControlMedia = false,
   sourceControlMediaRepository,
 }: ChatMarkdownProps) {
-  const { t } = useI18n();
+  const { t, locale: menuLocale } = useI18n();
   const resolvedTheme = useRenderedAppearance();
   const markdownRef = useRef<HTMLElement>(null);
   const mediaRequestId = useRef(0);
@@ -635,7 +635,11 @@ function useChatMarkdownState({
   );
   const projects = useProjects();
   const [preferredEditor] = usePreferredEditor(availableEditors);
-  const preferredEditorMenuLabel = openInEditorMenuLabel(preferredEditor);
+  const preferredEditorMenuLabel = openInEditorMenuLabel(preferredEditor, {
+    defaultLabel: translateWebSource(menuLocale, "Open in editor"),
+    namedLabel: (editor) =>
+      translateWebSource(menuLocale, "Open in {editor}").replace("{editor}", () => editor),
+  });
   const openInPreferredEditor = useOpenInPreferredEditor(environmentId, availableEditors);
   const openInEditor = useAtomCommand(shellEnvironment.openInEditor, {
     reportFailure: false,
@@ -889,13 +893,19 @@ function useChatMarkdownState({
             ? () => openMarkdownMedia(mediaPath, fileLinkMeta.filePath)
             : undefined
         }
-        openInEditorMenuLabel={canOpenApp ? "Open app" : preferredEditorMenuLabel}
+        openInEditorMenuLabel={
+          canOpenApp ? translateWebSource(menuLocale, "Open app") : preferredEditorMenuLabel
+        }
         onReveal={
           canUseShellActions && revealInFileManagerLabel !== undefined
             ? async () => revealFileInFileManager((await resolveHostPath()).absolutePath)
             : undefined
         }
-        revealLabel={revealInFileManagerLabel}
+        revealLabel={
+          revealInFileManagerLabel === undefined
+            ? undefined
+            : translateWebSource(menuLocale, revealInFileManagerLabel)
+        }
         onOpenInBrowser={
           threadRef &&
           canOperatePreview &&
@@ -1257,6 +1267,13 @@ const CHAT_MARKDOWN_COMPONENTS = {
                   ? undefined
                   : "link-to-thread";
             void showExternalLinkContextMenu({
+              labels: {
+                openInPreview: translateWebSource(locale, "Open in integrated browser"),
+                openExternal: translateWebSource(locale, "Open in system browser"),
+                copyLink: translateWebSource(locale, "Copy Link"),
+                linkToThread: translateWebSource(locale, "Link to thread"),
+                unlinkFromThread: translateWebSource(locale, "Unlink from thread"),
+              },
               href,
               canOpenInPreview,
               threadLinkAction,

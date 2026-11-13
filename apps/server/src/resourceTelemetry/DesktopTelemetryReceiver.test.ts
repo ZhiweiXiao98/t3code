@@ -10,6 +10,9 @@ import * as FileSystem from "effect/FileSystem";
 import * as Logger from "effect/Logger";
 import * as Path from "effect/Path";
 import * as Stream from "effect/Stream";
+import * as Schema from "effect/Schema";
+import * as Ndjson from "effect/encoding/Ndjson";
+import { DesktopHostTelemetryMessage, DesktopUpdateStatusReport } from "@t3tools/contracts";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
 import { describe, expect } from "vite-plus/test";
 
@@ -204,3 +207,83 @@ NodeAssert.deepEqual(fingerprints(NodeTls.getCACertificates("default")), expecte
     }),
   );
 });
+
+const encodeDesktopUpdateMessage = Schema.encodeSync(
+  Schema.fromJsonString(DesktopHostTelemetryMessage),
+);
+const decodeDesktopUpdateMessage = Schema.decodeUnknownEffect(DesktopHostTelemetryMessage);
+const decodeDesktopUpdateMessageSync = Schema.decodeUnknownSync(DesktopHostTelemetryMessage);
+const { reasonMessage: _reasonMessage, ...legacyUpdateReportFields } =
+  DesktopUpdateStatusReport.fields;
+const decodeLegacyUpdateReport = Schema.decodeUnknownSync(Schema.Struct(legacyUpdateReportFields));
+
+it.effect("keeps update reason metadata optional across the actual telemetry NDJSON codec", () =>
+  Effect.gen(function* () {
+    const state = {
+      enabled: true,
+      status: "error" as const,
+      channel: "latest" as const,
+      currentVersion: "1.2.3",
+      hostArch: "arm64" as const,
+      appArch: "arm64" as const,
+      runningUnderArm64Translation: false,
+      availableVersion: null,
+      downloadedVersion: null,
+      releaseNotes: [],
+      downloadPercent: null,
+      checkedAt: null,
+      message: "raw updater text",
+      errorContext: "check" as const,
+      canRetry: false,
+      omittedReleaseCount: 0,
+    };
+    const reasonMessage = {
+      code: "managed-updates" as const,
+      organization: "Acme $& {path} 中文",
+      switchToStable: true,
+    };
+    const report = {
+      version: 1 as const,
+      type: "desktopUpdateStatus" as const,
+      requestId: "request-1",
+      outcome: "failed" as const,
+      reason:
+        "Acme $& {path} 中文 manages T3 Code updates. Switch to the stable channel to keep getting updates.",
+      reasonMessage,
+      state,
+    };
+    const encoded = encodeDesktopUpdateMessage(report);
+    const variants = [
+      JSON.parse(encoded),
+      ...[
+        undefined,
+        null,
+        { code: "future" },
+        { code: "managed-updates" },
+        { code: "managed-updates", organization: 1 },
+      ].map((reasonMessage) => ({ ...report, reasonMessage })),
+    ];
+    const decoded = yield* Stream.fromIterable(
+      variants.map((value) => new TextEncoder().encode(JSON.stringify(value) + "\n")),
+    ).pipe(
+      Stream.pipeThroughChannel(Ndjson.decode({ ignoreEmptyLines: true })),
+      Stream.mapEffect((value) => decodeDesktopUpdateMessage(value)),
+      Stream.runCollect,
+    );
+    expect(decoded).toHaveLength(variants.length);
+    for (const [index, message] of decoded.entries()) {
+      expect(message.type).toBe("desktopUpdateStatus");
+      if (message.type !== "desktopUpdateStatus") continue;
+      expect(message.reason).toBe(report.reason);
+      expect(message.state).toEqual(state);
+      expect(message.reasonMessage).toEqual(index === 0 ? reasonMessage : undefined);
+    }
+    const legacy = decodeLegacyUpdateReport(JSON.parse(encoded));
+    expect(legacy.reason).toBe(report.reason);
+    expect(Object.hasOwn(legacy, "reasonMessage")).toBe(false);
+    const fromLegacy = decodeDesktopUpdateMessageSync(JSON.parse(JSON.stringify(legacy)));
+    expect(
+      fromLegacy.type === "desktopUpdateStatus" ? fromLegacy.reasonMessage : null,
+    ).toBeUndefined();
+  }),
+);

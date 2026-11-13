@@ -1,6 +1,72 @@
 import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 
 const EN_MESSAGES = {
+  "deviceAvailability.iosRequiresMac": "iOS Simulators need macOS with Xcode.",
+  "deviceAvailability.xcodeToolsMissing": "Xcode command line tools were not found.",
+  "deviceAvailability.androidSdkMissing":
+    "Android SDK was not found. Install it with Android Studio or set ANDROID_HOME to your SDK directory.",
+  "deviceAvailability.androidPlatformToolsMissing":
+    "Android SDK Platform-Tools are missing from {sdkRoot}. Install them in Android Studio's SDK Manager.",
+  "deviceAvailability.androidEmulatorMissing":
+    "Android Emulator is missing from {sdkRoot}. Install it in Android Studio's SDK Manager.",
+  "deviceAvailability.androidCommandLineToolsLegacy":
+    "The Android SDK command-line tools in {sdkRoot} appear to be an older, unsupported version. Install Android SDK Command-line Tools (latest) in Android Studio's SDK Manager under SDK Tools.",
+  "deviceAvailability.androidCommandLineToolsMissing":
+    "Android SDK Command-line Tools (latest) are missing from {sdkRoot}. Install them in Android Studio's SDK Manager.",
+  "deviceAvailability.simlockIosMissing": "The pool has no iOS devices.",
+  "deviceAvailability.simlockAndroidMissing": "The pool has no Android devices.",
+  "updateFailure.automatic-disabled": "Automatic updates are disabled on this machine.",
+  "updateFailure.update-not-applied":
+    "Update {version} did not apply on this machine. Retry it from the desktop app there.",
+  "updateFailure.download-failed": "The desktop app failed to download the update.",
+  "updateFailure.update-failed": "The desktop app update failed.",
+  "updateFailure.update-no-result": "The desktop app did not report an update result.",
+  "updateFailure.install-failed": "The desktop app failed to install the update.",
+  "updateFailure.prepared-in-progress": "A prepared desktop update is already in progress.",
+  "updateFailure.wsl-switch-unsupported":
+    "This desktop app also runs WSL backends, whose databases a remote switch cannot check. Switch it on that machine.",
+  "updateFailure.download-lost": "The desktop app lost the downloaded update.",
+  "updateFailure.build-not-found": "The desktop app found no build of {version}.",
+  "updateFailure.no-longer-prepared": "This desktop update is no longer prepared.",
+  "updateFailure.install-not-started": "The desktop app could not start the install.",
+  "updateFailure.update-report-stopped": "The desktop app stopped reporting its update.",
+  "updateFailure.already-current":
+    "The T3 Code desktop app on this machine is already up to date on {version}.",
+  "updateFailure.not-desktop-launched":
+    "This server was not started by the T3 Code desktop app, so it cannot drive a desktop update.",
+  "updateFailure.update-in-progress": "A desktop app update is already in progress.",
+  "updateFailure.request-id-failed": "Could not generate a desktop update request id.",
+  "updateFailure.app-unreachable-on-machine":
+    "Could not reach the T3 Code desktop app on this machine.",
+  "updateFailure.update-timeout": "The desktop app did not finish the update in time.",
+  "updateFailure.commit-unavailable": "This server cannot commit a desktop app update.",
+  "updateFailure.app-unreachable": "Could not reach the T3 Code desktop app.",
+  "updateFailure.install-result-timeout":
+    "The desktop app did not report an install result in time.",
+  "updateFailure.install-report-stopped": "The desktop app stopped reporting the install.",
+  "updateFailure.updates-off": "Updates are turned off on this machine.",
+  "updateFailure.missing-feed":
+    "Automatic updates are not available because no update feed is configured.",
+  "updateFailure.packaged-only":
+    "Automatic updates are only available in packaged production builds.",
+  "updateFailure.disabled-environment":
+    "Automatic updates are disabled by the T3CODE_DISABLE_AUTO_UPDATE setting.",
+  "updateFailure.linux-package":
+    "Automatic updates on Linux require the AppImage or the .deb package.",
+  "updateFailure.nightly-off": "Nightly updates are turned off on this machine.",
+  "updateFailure.managed-updates": "{organization} manages T3 Code updates.",
+  "updateFailure.policy-file-unavailable":
+    "Updates are off because T3 Code cannot use the managed policy at {path}. Contact your administrator.",
+  "updateFailure.switch-stable": " Switch to the stable channel to keep getting updates.",
+  "updateFailure.resume-timeout":
+    "Could not confirm that the server resumed on t3@{version}. Reconnect to check the update outcome.",
+  "updateFailure.progress-incomplete":
+    "The t3@{version} update ended before the server accepted the restart.",
+  "updateFailure.launcher-uncommitted":
+    "The service launcher resumed without committing the requested server version.",
+  "updateFailure.desktop-not-installed":
+    "The desktop app resumed without installing the prepared update.",
+  "updateFailure.self-update": "Server update failed: {reason}",
   "audit20.device.discoveryProblem":
     "No {platform} devices were listed because device discovery reported a problem.",
   "audit20.palette.localEnvironment": "{environment} (Local)",
@@ -4809,6 +4875,62 @@ export type WebMessages = Readonly<Record<WebMessageKey, string>>;
 export type WebMessageValues = Readonly<Record<string, string | number>>;
 
 const ZH_CN_MESSAGES = {
+  "deviceAvailability.iosRequiresMac": "iOS 模拟器需要安装了 Xcode 的 macOS。",
+  "deviceAvailability.xcodeToolsMissing": "未找到 Xcode 命令行工具。",
+  "deviceAvailability.androidSdkMissing":
+    "未找到 Android SDK。请通过 Android Studio 安装，或将 ANDROID_HOME 设置为 SDK 目录。",
+  "deviceAvailability.androidPlatformToolsMissing":
+    "{sdkRoot} 中缺少 Android SDK Platform-Tools。请在 Android Studio 的 SDK 管理器中安装。",
+  "deviceAvailability.androidEmulatorMissing":
+    "{sdkRoot} 中缺少 Android 模拟器。请在 Android Studio 的 SDK 管理器中安装。",
+  "deviceAvailability.androidCommandLineToolsLegacy":
+    "{sdkRoot} 中的 Android SDK 命令行工具似乎是已不受支持的旧版本。请在 Android Studio 的 SDK 管理器的 SDK Tools 中安装 Android SDK Command-line Tools (latest)。",
+  "deviceAvailability.androidCommandLineToolsMissing":
+    "{sdkRoot} 中缺少 Android SDK Command-line Tools (latest)。请在 Android Studio 的 SDK 管理器中安装。",
+  "deviceAvailability.simlockIosMissing": "设备池中没有 iOS 设备。",
+  "deviceAvailability.simlockAndroidMissing": "设备池中没有 Android 设备。",
+  "updateFailure.automatic-disabled": "此电脑已禁用自动更新。",
+  "updateFailure.update-not-applied":
+    "更新 {version} 未在此电脑上生效。请在该电脑的桌面应用中重试。",
+  "updateFailure.download-failed": "桌面应用未能下载更新。",
+  "updateFailure.update-failed": "桌面应用更新失败。",
+  "updateFailure.update-no-result": "桌面应用未报告更新结果。",
+  "updateFailure.install-failed": "桌面应用未能安装更新。",
+  "updateFailure.prepared-in-progress": "已有准备就绪的桌面应用更新正在进行。",
+  "updateFailure.wsl-switch-unsupported":
+    "此桌面应用还运行了 WSL 后端，远程切换无法检查其数据库。请在该电脑上切换。",
+  "updateFailure.download-lost": "桌面应用已丢失下载的更新。",
+  "updateFailure.build-not-found": "桌面应用未找到 {version} 的构建版本。",
+  "updateFailure.no-longer-prepared": "此桌面应用更新已不再处于准备就绪状态。",
+  "updateFailure.install-not-started": "桌面应用无法开始安装。",
+  "updateFailure.update-report-stopped": "桌面应用已停止报告更新进度。",
+  "updateFailure.already-current": "此电脑上的 T3 Code 桌面应用已是最新版本 {version}。",
+  "updateFailure.not-desktop-launched":
+    "此服务器并非由 T3 Code 桌面应用启动，因此无法执行桌面应用更新。",
+  "updateFailure.update-in-progress": "桌面应用更新已在进行中。",
+  "updateFailure.request-id-failed": "无法生成桌面应用更新请求 ID。",
+  "updateFailure.app-unreachable-on-machine": "无法连接此电脑上的 T3 Code 桌面应用。",
+  "updateFailure.update-timeout": "桌面应用未在规定时间内完成更新。",
+  "updateFailure.commit-unavailable": "此服务器无法提交桌面应用更新。",
+  "updateFailure.app-unreachable": "无法连接 T3 Code 桌面应用。",
+  "updateFailure.install-result-timeout": "桌面应用未在规定时间内报告安装结果。",
+  "updateFailure.install-report-stopped": "桌面应用已停止报告安装进度。",
+  "updateFailure.updates-off": "此电脑已关闭更新。",
+  "updateFailure.missing-feed": "未配置更新源，无法使用自动更新。",
+  "updateFailure.packaged-only": "自动更新仅适用于打包的正式版本。",
+  "updateFailure.disabled-environment": "T3CODE_DISABLE_AUTO_UPDATE 设置已禁用自动更新。",
+  "updateFailure.linux-package": "Linux 上的自动更新需要使用 AppImage 或 .deb 安装包。",
+  "updateFailure.nightly-off": "此电脑已关闭每日构建版更新。",
+  "updateFailure.managed-updates": "{organization} 负责管理 T3 Code 更新。",
+  "updateFailure.policy-file-unavailable":
+    "T3 Code 无法使用位于 {path} 的受管策略，因此已关闭更新。请联系管理员。",
+  "updateFailure.switch-stable": "请切换到稳定版通道，以继续获取更新。",
+  "updateFailure.resume-timeout":
+    "无法确认服务器已恢复运行 t3@{version}。请重新连接以检查更新结果。",
+  "updateFailure.progress-incomplete": "t3@{version} 更新在服务器接受重启请求前已结束。",
+  "updateFailure.launcher-uncommitted": "服务启动器已恢复运行，但未提交请求的服务器版本。",
+  "updateFailure.desktop-not-installed": "桌面应用已恢复运行，但未安装准备就绪的更新。",
+  "updateFailure.self-update": "服务器更新失败：{reason}",
   "audit20.device.discoveryProblem": "设备发现报告了问题，因此未列出任何 {platform} 设备。",
   "audit20.palette.localEnvironment": "{environment}（本地）",
   "audit20.composer.plainText": "纯文本",
@@ -9406,7 +9528,12 @@ const WEB_MESSAGE_KEY_BY_ENGLISH_SOURCE = new Map<string, WebMessageKey>();
 for (const [key, source] of Object.entries(EN_MESSAGES) as ReadonlyArray<
   readonly [WebMessageKey, string]
 >) {
-  if (!source.includes("{") && !WEB_MESSAGE_KEY_BY_ENGLISH_SOURCE.has(source)) {
+  if (
+    !key.startsWith("deviceAvailability.") &&
+    !key.startsWith("updateFailure.") &&
+    !source.includes("{") &&
+    !WEB_MESSAGE_KEY_BY_ENGLISH_SOURCE.has(source)
+  ) {
     WEB_MESSAGE_KEY_BY_ENGLISH_SOURCE.set(source, key);
   }
 }
@@ -9414,6 +9541,53 @@ for (const [key, source] of Object.entries(EN_MESSAGES) as ReadonlyArray<
 // New upstream settings copy can be localized here before it receives a stable
 // message key. Settings containers and search both consume this same table.
 const ZH_CN_SOURCE_MESSAGES: Readonly<Record<string, string>> = {
+  "Copy Link": "复制链接",
+  "Enter Git clone URL": "输入 Git 克隆 URL",
+  "Enter {provider} repository ({pathHint})": "输入 {provider} 仓库（{pathHint}）",
+  "No machine can read every attached thread. Choose a machine in the composer or remove the threads.":
+    "没有电脑能读取所有附加的对话。请在输入框中选择电脑或移除这些对话。",
+  "Review requested": "请求你审查",
+  Authored: "由你创建",
+  Others: "其他",
+  "The host refused it. Check that you have write access, and that the base branch has not diverged in a way the host cannot merge.":
+    "托管平台拒绝了操作。请确认你有写入权限，且基础分支没有出现平台无法合并的分歧。",
+  "The host refused it. Check that auto-merge is enabled for this repository and that you have write access.":
+    "托管平台拒绝了操作。请确认仓库已启用自动合并，且你有写入权限。",
+  "The host refused it. Check that you have write access to the branch (a fork branch also needs its author to allow edits from maintainers), and that it does not conflict with the base.":
+    "托管平台拒绝了操作。请确认你有该分支的写入权限（复刻分支还需作者允许维护者编辑），且它与基础分支没有冲突。",
+  "Check that the branch still exists and is not checked out elsewhere, then try again.":
+    "请确认该分支仍然存在且未在其他位置检出，然后重试。",
+  "This setting is environment-wide and cannot be overridden by a project.":
+    "此设置适用于整个环境，无法由项目覆盖。",
+  "Connect the selected checkouts, or update their environments, to save a project override.":
+    "请连接所选检出目录或更新其环境，以保存项目覆盖设置。",
+  "Connect an environment to save this setting.": "请连接一个环境以保存此设置。",
+  "Connect the selected checkouts, or update their environments, to reset this override.":
+    "请连接所选检出目录或更新其环境，以重置此覆盖设置。",
+  "Connect the environments to reset these overrides.": "请连接这些环境以重置覆盖设置。",
+  "This environment does not support this setting. Update T3 Code on it.":
+    "此环境不支持该设置。请更新其中的 T3 Code。",
+  "This connection lacks permission to change these settings.": "此连接没有更改这些设置的权限。",
+  "Could not add t3 to PATH": "无法将 t3 添加到 PATH",
+  "Could not list ACP sessions": "无法列出 ACP 会话",
+  "Could not import ACP session": "无法导入 ACP 会话",
+  "Could not delete ACP session": "无法删除 ACP 会话",
+  "Could not list ACP providers": "无法列出 ACP 提供方",
+  "Could not configure ACP provider": "无法配置 ACP 提供方",
+  "Could not disable ACP provider": "无法禁用 ACP 提供方",
+  "Could not log out of ACP agent": "无法退出 ACP 智能体登录",
+  "Enter the full owner/repository name.": "请输入完整的所有者/仓库名称。",
+  "Open in {editor}": "在 {editor} 中打开",
+  "Open app": "打开应用",
+  "Stored secret, enter a new value to replace": "已保存密钥，输入新值以替换",
+  "Set by environment": "由环境设置",
+  "Set by desktop": "由桌面应用设置",
+  "This project is no longer available.": "此项目已不可用。",
+  "All checkouts": "所有检出目录",
+  "The license manifest took too long to load.": "加载许可证清单超时。",
+  "Management Key": "管理密钥",
+  "Access Token": "访问令牌",
+  "Agent Token": "智能体令牌",
   "Recorded content before": "记录的更改前内容",
   "Recorded content after": "记录的更改后内容",
   "Goal set": "已设定目标",

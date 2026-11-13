@@ -610,8 +610,13 @@ describe("deriveMessagesTimelineRows", () => {
         beforeTokenCount: 899_000,
       },
     };
-    const rowsFor = (visibleTurnItems: OrchestrationV2ProjectedTurnItem[], isWorking = true) =>
+    const rowsFor = (
+      visibleTurnItems: OrchestrationV2ProjectedTurnItem[],
+      isWorking = true,
+      presentationLocale: "en" | "zh-CN" = "en",
+    ) =>
       deriveMessagesTimelineRows({
+        presentationLocale,
         timelineEntries: deriveTimelineEntriesFromVisibleTurnItems({
           visibleTurnItems: [history0!, history1!, history2!, ...visibleTurnItems],
           optimisticMessages: [],
@@ -676,6 +681,25 @@ describe("deriveMessagesTimelineRows", () => {
         ...compaction,
         item: { ...compaction.item, status: "completed" as const, afterTokenCount: 19_000 },
       };
+      const localizedRows = rowsFor([prompt, terminalCompaction], false, "zh-CN");
+      const localizedDivider = localizedRows.find((row) => row.kind === "context-compaction");
+      expect(localizedDivider).toMatchObject({
+        kind: "context-compaction",
+        active: false,
+        tokenCounts: { before: "899K", after: "19K" },
+      });
+      if (localizedDivider?.kind !== "context-compaction")
+        throw new Error("Expected compaction divider");
+      expect(localizedDivider.label).toBe("上下文已压缩 899K → 19K 个 Token");
+      expect(localizedDivider.title).toBe(
+        reason === "beforeCacheExpires"
+          ? "已在缓存过期前自动压缩上下文"
+          : reason === "onReturn"
+            ? "已在发送前压缩上下文"
+            : undefined,
+      );
+      expect(rowsFor([prompt, terminalCompaction], false, "en")).toEqual(completed);
+      expect(terminalCompaction.item.beforeTokenCount).toBe(899_000);
       const finishingRows = rowsFor([prompt, terminalCompaction]);
       const finishingLiveRows = finishingRows.slice(
         finishingRows.findIndex((row) => row.id.includes("history-assistant")) + 1,
@@ -3570,6 +3594,29 @@ describe("streaming v2 row projection", () => {
         : row,
     );
   }
+
+  it("invalidates cached display rows when only the locale changes, preserving projected items", () => {
+    const initial = fixture("Visible");
+    const raw = initial.timeline.entries;
+    const english = deriveMessagesTimelineRowsWithState({
+      ...initial.input,
+      presentationLocale: "en",
+    });
+    const chinese = deriveMessagesTimelineRowsWithState(
+      { ...initial.input, presentationLocale: "zh-CN" },
+      english,
+    );
+    expect(chinese.rows).toEqual(
+      deriveMessagesTimelineRows({ ...initial.input, presentationLocale: "zh-CN" }),
+    );
+    expect(chinese.rows).not.toEqual(english.rows);
+    const restored = deriveMessagesTimelineRowsWithState(
+      { ...initial.input, presentationLocale: "en" },
+      chinese,
+    );
+    expect(restored.rows).toEqual(english.rows);
+    expect(initial.timeline.entries).toBe(raw);
+  });
 
   it.each([
     ["", "Now visible"],

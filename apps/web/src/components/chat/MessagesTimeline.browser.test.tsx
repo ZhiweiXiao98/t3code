@@ -1,3 +1,5 @@
+import { WebI18nContext } from "~/i18n/WebI18nContext";
+import { translateWebMessage } from "~/i18n/messages";
 import { injectHtmlRenderBootstrap } from "@t3tools/shared/htmlRender";
 import { HtmlRenderDocument } from "../files/BrowserDocumentFrame";
 import { flushSync } from "react-dom";
@@ -1545,20 +1547,29 @@ it("renders automatic compaction as one live divider that finishes with its reas
       optimisticMessages: [],
     });
   const props = baseProps();
-  const ui = (completed: boolean) => (
-    <MessagesTimeline
-      {...props}
-      timelineEntries={entries(completed)}
-      isWorking={!completed}
-      isCompacting={!completed}
-      activeTurnStartedAt={fixture.time(5)}
-      latestRun={{
-        runId: fixture.runId,
-        status: completed ? "completed" : "running",
-        startedAt: fixture.time(5),
-        completedAt: completed ? fixture.time(9) : null,
+  const ui = (completed: boolean, locale: "en" | "zh-CN" = "en") => (
+    <WebI18nContext
+      value={{
+        locale,
+        appLocale: locale,
+        setAppLocale: () => {},
+        t: (key, values) => translateWebMessage(locale, key, values),
       }}
-    />
+    >
+      <MessagesTimeline
+        {...props}
+        timelineEntries={entries(completed)}
+        isWorking={!completed}
+        isCompacting={!completed}
+        activeTurnStartedAt={fixture.time(5)}
+        latestRun={{
+          runId: fixture.runId,
+          status: completed ? "completed" : "running",
+          startedAt: fixture.time(5),
+          completedAt: completed ? fixture.time(9) : null,
+        }}
+      />
+    </WebI18nContext>
   );
   const container = document.createElement("div");
   container.style.cssText = "height: 1200px; width: 900px; display: flex; flex-direction: column;";
@@ -1580,6 +1591,25 @@ it("renders automatic compaction as one live divider that finishes with its reas
     .toBeVisible();
   expect(container.querySelectorAll('[role="separator"]')).toHaveLength(1);
   expect(container.textContent).not.toContain("Compacting before");
+  await screen.rerender(ui(true, "zh-CN"));
+  await expect
+    .element(
+      screen.getByRole("separator", {
+        name: "已在缓存过期前自动压缩上下文 899K → 19K 个 Token",
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  expect(container.querySelectorAll('[role="separator"]')).toHaveLength(1);
+  await screen.rerender(ui(true, "en"));
+  await expect
+    .element(
+      screen.getByRole("separator", {
+        name: "Context automatically compacted before cache expiry 899K → 19K tokens",
+        exact: true,
+      }),
+    )
+    .toBeVisible();
 });
 
 function TimelineChangedFilesCard() {

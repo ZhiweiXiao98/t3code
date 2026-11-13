@@ -49,6 +49,11 @@ import {
   applyServerWelcomeEvent,
   createServerEnvironmentAtoms,
   serverUpdateStateAtom,
+  createServerUpdateFailedState,
+  describeServerUpdateFailure,
+  describeServerUpdateStateFailure,
+  ServerUpdateResumeTimeoutError,
+  ServerUpdateTerminalError,
   makeEnvironmentServerWelcomeState,
   makeEnvironmentServerConfigState,
   isLegacyUpdateHandoffLoss,
@@ -343,6 +348,11 @@ describe("accepted server update recovery", () => {
         expect(registry.get(serverUpdateStateAtom(TARGET.environmentId))).toEqual({
           status: "idle",
         });
+        expect(
+          describeServerUpdateStateFailure(
+            registry.get(serverUpdateStateAtom(TARGET.environmentId)),
+          ),
+        ).toBeUndefined();
         expect(yield* Deferred.isDone(observing)).toBe(false);
         return;
       }
@@ -353,9 +363,14 @@ describe("accepted server update recovery", () => {
       if (!resumes) {
         expect(first).toBe("settled");
         expect(AsyncResult.isFailure(yield* Effect.promise(() => pending))).toBe(true);
-        expect(registry.get(serverUpdateStateAtom(TARGET.environmentId))).toMatchObject({
-          status: "failed",
-        });
+        const state = registry.get(serverUpdateStateAtom(TARGET.environmentId));
+        expect(state).toMatchObject({ status: "failed" });
+        expect(describeServerUpdateStateFailure(state)).toEqual(
+          loss === "server_error"
+            ? { code: "self-update", reason: "Archive verification failed." }
+            : undefined,
+        );
+        expect(describeServerUpdateStateFailure({ ...state })).toBeUndefined();
         return;
       }
       expect(first).toBe("observing");
@@ -778,6 +793,32 @@ describe("server state projection", () => {
         validateServerUpdateReadyEvent(result, ready("rolled-back")),
       );
       expect(rollback.message).toBe("prepared-timeout");
+      expect(describeServerUpdateFailure(rollback)).toBeUndefined();
+      const missingReason = ready("rolled-back");
+      const { reason: _reason, ...outcome } = missingReason.payload.updateOutcome!;
+      const owned = yield* validateServerUpdateReadyEvent(result, {
+        ...missingReason,
+        payload: { ...missingReason.payload, updateOutcome: outcome },
+      }).pipe(Effect.flip);
+      expect(owned.message).toBe(
+        "The service launcher resumed without committing the requested server version.",
+      );
+      expect(describeServerUpdateFailure(owned)).toEqual({ code: "launcher-uncommitted" });
+      const raw = yield* validateServerUpdateReadyEvent(result, {
+        ...missingReason,
+        payload: { ...missingReason.payload, updateOutcome: { ...outcome, reason: owned.message } },
+      }).pipe(Effect.flip);
+      expect(raw.message).toBe(owned.message);
+      expect(describeServerUpdateFailure(raw)).toBeUndefined();
+      expect(
+        describeServerUpdateFailure(
+          new ServerUpdateTerminalError({
+            targetVersion: result.targetVersion,
+            status: "failed",
+            reason: owned.message,
+          }),
+        ),
+      ).toBeUndefined();
     }),
   );
 
@@ -1477,3 +1518,103 @@ describe("resource telemetry history", () => {
     }),
   );
 });
+
+it.effect("retains only finite in-memory update display provenance", () =>
+  Effect.gen(function* () {
+    const targetVersion = "opaque-$& {version} 中文\nnext";
+    const resume = new ServerUpdateResumeTimeoutError({ environmentId: "first", targetVersion });
+    const input = { stage: "resuming" as const, fromVersion: "old", targetVersion };
+    const state = createServerUpdateFailedState(input, resume);
+    expect(state).toEqual({ status: "failed", ...input, message: resume.message });
+    expect(describeServerUpdateStateFailure(state)).toEqual({
+      code: "resume-timeout",
+      targetVersion,
+    });
+    expect(describeServerUpdateStateFailure(JSON.parse(JSON.stringify(state)))).toBeUndefined();
+    const raw = createServerUpdateFailedState(input, new Error(resume.message));
+    expect(raw.message).toBe(state.message);
+    expect(describeServerUpdateStateFailure(raw)).toBeUndefined();
+    expect(
+      describeServerUpdateFailure(
+        Object.assign(new Error(resume.message), {
+          _tag: "ServerUpdateResumeTimeoutError",
+          environmentId: "first",
+          targetVersion,
+        }),
+      ),
+    ).toBeUndefined();
+    expect(
+      describeServerUpdateStateFailure(serverUpdateStateForServerVersion(state, "new")),
+    ).toBeUndefined();
+    expect(
+      describeServerUpdateStateFailure(serverUpdateStateForServerVersion(state, "old")),
+    ).toEqual({ code: "resume-timeout", targetVersion });
+    expect(describeServerUpdateFailure(undefined)).toEqual({ code: "unknown" });
+
+    const incomplete = yield* resolveServerUpdateProgressResult(
+      targetVersion,
+      Option.none(),
+      Exit.succeed(undefined),
+    ).pipe(Effect.flip);
+    expect(describeServerUpdateFailure(incomplete)).toEqual({
+      code: "progress-incomplete",
+      targetVersion,
+    });
+    const ready = {
+      version: 1,
+      sequence: 1,
+      type: "ready",
+      payload: { at: "2026-09-01T00:00:00.000Z", environment: { serverVersion: "old" } },
+    } as Parameters<typeof matchesServerUpdateReadyEvent>[1];
+    const terminal = yield* waitForDesktopUpdateTarget(
+      targetVersion,
+      Effect.succeed(ready),
+      Effect.void,
+    ).pipe(Effect.flip);
+    expect(terminal.message).toBe(
+      "The desktop app resumed without installing the prepared update.",
+    );
+    expect(describeServerUpdateFailure(terminal)).toEqual({ code: "desktop-not-installed" });
+
+    const cause = new Error("private diagnostic must not enter state");
+    const typed = new ServerSelfUpdateError({
+      reason: "The desktop app update failed.",
+      reasonMessage: { code: "update-failed" },
+      cause,
+    });
+    const typedState = createServerUpdateFailedState(input, typed);
+    expect(describeServerUpdateStateFailure(typedState)).toEqual({
+      code: "self-update",
+      reason: typed.reason,
+      reasonMessage: { code: "update-failed" },
+    });
+    expect(JSON.stringify(typedState)).not.toContain(cause.message);
+    expect(typed.cause).toBe(cause);
+    const registry = AtomRegistry.make();
+    try {
+      registry.set(serverUpdateStateAtom(EnvironmentId.make("first")), state);
+      registry.set(serverUpdateStateAtom(EnvironmentId.make("second")), raw);
+      expect(
+        describeServerUpdateStateFailure(
+          registry.get(serverUpdateStateAtom(EnvironmentId.make("first"))),
+        ),
+      ).toEqual({ code: "resume-timeout", targetVersion });
+      expect(
+        describeServerUpdateStateFailure(
+          registry.get(serverUpdateStateAtom(EnvironmentId.make("second"))),
+        ),
+      ).toBeUndefined();
+      registry.set(serverUpdateStateAtom(EnvironmentId.make("first")), {
+        status: "running",
+        ...input,
+      });
+      expect(
+        describeServerUpdateStateFailure(
+          registry.get(serverUpdateStateAtom(EnvironmentId.make("first"))),
+        ),
+      ).toBeUndefined();
+    } finally {
+      registry.dispose();
+    }
+  }),
+);

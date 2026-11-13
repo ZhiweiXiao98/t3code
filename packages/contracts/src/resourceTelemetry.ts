@@ -1,8 +1,14 @@
 import * as Schema from "effect/Schema";
 
-import { NonNegativeInt, PositiveInt, TrimmedNonEmptyString } from "./baseSchemas.ts";
+import {
+  ForwardCompatibleOptional,
+  NonNegativeInt,
+  PositiveInt,
+  TrimmedNonEmptyString,
+} from "./baseSchemas.ts";
 import { HostPowerSnapshot } from "./background.ts";
 import { DesktopUpdateChannelSchema, DesktopUpdateStateSchema } from "./ipc.ts";
+import { UpdateFailureReasonMessage } from "./updateFailureReason.ts";
 
 export const RESOURCE_MONITOR_PROTOCOL_VERSION = 3 as const;
 
@@ -291,6 +297,7 @@ export const DesktopUpdateStatusReport = Schema.Struct({
   requestId: Schema.optionalKey(TrimmedNonEmptyString),
   outcome: Schema.optionalKey(DesktopUpdateRemoteOutcome),
   reason: Schema.optionalKey(TrimmedNonEmptyString),
+  reasonMessage: ForwardCompatibleOptional(UpdateFailureReasonMessage),
   state: DesktopUpdateStateSchema,
 });
 export type DesktopUpdateStatusReport = typeof DesktopUpdateStatusReport.Type;

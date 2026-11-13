@@ -1,4 +1,9 @@
-import type { DesktopUpdateRemoteOutcome, DesktopUpdateState } from "@t3tools/contracts";
+import type {
+  DesktopUpdateRemoteOutcome,
+  DesktopUpdateState,
+  DesktopUpdateDisabledReasonMessage,
+  UpdateFailureReasonMessage,
+} from "@t3tools/contracts";
 
 export type RemoteDesktopUpdateStep =
   | { readonly action: "check" }
@@ -9,6 +14,7 @@ export type RemoteDesktopUpdateStep =
       readonly action: "done";
       readonly outcome: DesktopUpdateRemoteOutcome;
       readonly reason?: string;
+      readonly reasonMessage?: UpdateFailureReasonMessage;
     };
 
 /** Bound retries with counts: background poller races can repeat an already-handled status once. */
@@ -33,12 +39,18 @@ export function nextRemoteDesktopUpdateStep(
   state: DesktopUpdateState,
   attempts: RemoteDesktopUpdateAttempts,
   disabledReason: string | null,
+  disabledReasonMessage?: DesktopUpdateDisabledReasonMessage,
 ): RemoteDesktopUpdateStep {
   if (!state.enabled || state.status === "disabled") {
     return {
       action: "done",
       outcome: "failed",
       reason: disabledReason ?? "Automatic updates are disabled on this machine.",
+      ...(disabledReason === null
+        ? { reasonMessage: { code: "automatic-disabled" as const } }
+        : disabledReasonMessage === undefined
+          ? {}
+          : { reasonMessage: disabledReasonMessage }),
     };
   }
   // Reinstalling a failed version disrupts threads without updating; retries require the local user.
@@ -50,6 +62,7 @@ export function nextRemoteDesktopUpdateStep(
       action: "done",
       outcome: "failed",
       reason: `Update ${state.notAppliedVersion} did not apply on this machine. Retry it from the desktop app there.`,
+      reasonMessage: { code: "update-not-applied", version: state.notAppliedVersion },
     };
   }
   // Match install admission, including retained downloads after unrelated background or earlier install errors.
@@ -65,6 +78,7 @@ export function nextRemoteDesktopUpdateStep(
         action: "done",
         outcome: "failed",
         reason: state.message ?? "The desktop app failed to download the update.",
+        ...(state.message == null ? { reasonMessage: { code: "download-failed" as const } } : {}),
       };
     }
     return { action: "download" };
@@ -84,6 +98,7 @@ export function nextRemoteDesktopUpdateStep(
       action: "done",
       outcome: "failed",
       reason: state.message ?? "The desktop app update failed.",
+      ...(state.message == null ? { reasonMessage: { code: "update-failed" as const } } : {}),
     };
   }
   if (attempts.checks >= MAX_REMOTE_UPDATE_CHECKS) {
@@ -91,6 +106,7 @@ export function nextRemoteDesktopUpdateStep(
       action: "done",
       outcome: "failed",
       reason: "The desktop app did not report an update result.",
+      reasonMessage: { code: "update-no-result" },
     };
   }
   return { action: "check" };

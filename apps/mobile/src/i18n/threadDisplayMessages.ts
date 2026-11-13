@@ -1,3 +1,4 @@
+import type { childThreadInputsTitle } from "@t3tools/client-runtime/state/threads";
 import { projectCloneProgressSummary, type ProjectCloneSnapshot } from "@t3tools/contracts";
 import { formatMobileMessage } from "./mobileDisplayStrings";
 import { localizeMobileString, MOBILE_LOCALE, type MobileLocale } from "./mobileStrings";
@@ -59,4 +60,18 @@ export function mobileSkippedThreadWarning(
     [titles.map((title) => `"${title}"`).join(", ")],
     locale,
   );
+}
+
+export function mobileChildThreadInputsTitle(
+  values: Parameters<NonNullable<Parameters<typeof childThreadInputsTitle>[1]>>[0],
+  locale: MobileLocale = MOBILE_LOCALE,
+): string {
+  const { count, noun, need } = values;
+  if (count === 1) {
+    return localizeMobileString(
+      `${noun === "side chat" ? "Side chat" : "Subagent"} needs ${need}`,
+      locale,
+    );
+  }
+  return formatMobileMessage(`{0} ${noun}s need ${need}`, [count], locale);
 }

@@ -1,3 +1,4 @@
+import { deviceAvailabilityReason } from "../../i18n/deviceAvailabilityMessages";
 import { readWebI18n } from "~/i18n/readWebI18n";
 import { useI18n } from "../../i18n/WebI18nContext";
 import { translateWebSource } from "../../i18n/messages";
@@ -633,7 +634,7 @@ const PLATFORMS = [
 ] as const satisfies ReadonlyArray<{ platform: DevicePlatform; label: string; Icon: unknown }>;
 
 /** The platforms a source offers: one icon each, solid where available, muted where not. */
-function SourcePlatforms(props: { row: SourceRow }) {
+export function SourcePlatforms(props: { row: SourceRow }) {
   const added = props.row.environments.filter((environment) => environment.added);
   const known = added.filter((environment) => environment.platforms !== undefined);
   return PLATFORMS.filter(({ platform }) =>
@@ -664,7 +665,9 @@ function PlatformIcon(props: {
   const uniform = props.known.every(
     (environment) =>
       availability(environment)?.available === sharedAnswer?.available &&
-      availability(environment)?.reason === sharedAnswer?.reason,
+      availability(environment)?.reason === sharedAnswer?.reason &&
+      deviceAvailabilityReason(locale, availability(environment)) ===
+        deviceAvailabilityReason(locale, sharedAnswer),
   );
   const unavailableOn = props.known.filter((environment) => !availability(environment)?.available);
   const connected = props.row.environments.filter((environment) => environment.added);
@@ -702,7 +705,9 @@ function PlatformIcon(props: {
         {props.row.shared ? (
           <>
             {uniform && !available && sharedAnswer?.reason ? (
-              <p className="mt-1 text-xs text-muted-foreground">{sharedAnswer.reason}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {deviceAvailabilityReason(locale, sharedAnswer)}
+              </p>
             ) : null}
             {several ? (
               <dl className="mt-2 space-y-1.5 text-xs">
@@ -723,7 +728,7 @@ function PlatformIcon(props: {
                       {environments.map((environment) => {
                         const reason =
                           heading === "Not available"
-                            ? availability(environment)?.reason
+                            ? deviceAvailabilityReason(locale, availability(environment))
                             : undefined;
                         return (
                           <dd key={environment.environmentId}>
@@ -748,7 +753,9 @@ function PlatformIcon(props: {
                 <Fragment key={environment.environmentId}>
                   <dt className="text-muted-foreground">{environment.label}</dt>
                   <dd className={entry?.available ? "" : "text-muted-foreground"}>
-                    {entry?.available ? tx("Available") : tx(entry?.reason ?? "Not available")}
+                    {entry?.available
+                      ? tx("Available")
+                      : (deviceAvailabilityReason(locale, entry) ?? tx("Not available"))}
                   </dd>
                 </Fragment>
               );
@@ -756,7 +763,8 @@ function PlatformIcon(props: {
           </dl>
         ) : !available ? (
           <p className="mt-1 text-xs text-muted-foreground">
-            {tx(availability(props.known[0]!)?.reason ?? "Not set up on this machine.")}
+            {deviceAvailabilityReason(locale, availability(props.known[0]!)) ??
+              tx("Not set up on this machine.")}
           </p>
         ) : null}
       </PopoverPopup>

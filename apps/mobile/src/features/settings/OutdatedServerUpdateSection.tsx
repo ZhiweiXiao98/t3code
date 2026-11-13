@@ -1,3 +1,5 @@
+import { describeServerUpdateStateFailure } from "@t3tools/client-runtime/state/server";
+import { mobileServerUpdateFailure } from "./environmentUpdateDisplay";
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import { useAtom, useAtomValue } from "@effect/atom-react";
@@ -105,7 +107,10 @@ export function OutdatedServerUpdateSection({
             accessibilityRole="alert"
             className="text-sm text-danger-foreground"
           >
-            {error ?? (state.status === "failed" ? state.message : null)}
+            {error ??
+              (state.status === "failed"
+                ? mobileServerUpdateFailure(state.message, describeServerUpdateStateFailure(state))
+                : null)}
           </Text>
         ) : null}
       </View>

@@ -361,6 +361,7 @@ const diagnose = (
   platform: NodeJS.Platform = "darwin",
 ) =>
   LocalDeviceHost.__testing.platformReason("android").pipe(
+    Effect.map((result) => result?.reason ?? null),
     Effect.provideService(HostProcess.Environment, environment),
     Effect.provideService(HostProcess.Platform, platform),
     Effect.provideService(
@@ -373,6 +374,111 @@ const diagnose = (
   );
 
 describe("Android SDK availability", () => {
+  it.effect("marks only local availability diagnoses and keeps SDK paths intact", () =>
+    Effect.gen(function* () {
+      const root = "/sdk/Working $&/{sdkRoot}/中文";
+      const cases = [
+        {
+          platform: "ios",
+          hostPlatform: "linux",
+          files: [],
+          environment: {},
+          reason: "iOS Simulators need macOS with Xcode.",
+          reasonMessage: { source: "local-device-host", code: "ios-requires-mac" },
+        },
+        {
+          platform: "ios",
+          hostPlatform: "darwin",
+          files: [],
+          environment: {},
+          reason: "Xcode command line tools were not found.",
+          reasonMessage: { source: "local-device-host", code: "xcode-tools-missing" },
+        },
+        {
+          platform: "android",
+          hostPlatform: "darwin",
+          files: [],
+          environment: {},
+          reason:
+            "Android SDK was not found. Install it with Android Studio or set ANDROID_HOME to your SDK directory.",
+          reasonMessage: { source: "local-device-host", code: "android-sdk-missing" },
+        },
+        {
+          platform: "android",
+          hostPlatform: "darwin",
+          files: [],
+          environment: { ANDROID_HOME: root },
+          reason: `Android SDK Platform-Tools are missing from ${root}. Install them in Android Studio's SDK Manager.`,
+          reasonMessage: {
+            source: "local-device-host",
+            code: "android-platform-tools-missing",
+            sdkRoot: root,
+          },
+        },
+        {
+          platform: "android",
+          hostPlatform: "darwin",
+          files: [`${root}/platform-tools/adb`],
+          environment: { ANDROID_HOME: root },
+          reason: `Android Emulator is missing from ${root}. Install it in Android Studio's SDK Manager.`,
+          reasonMessage: {
+            source: "local-device-host",
+            code: "android-emulator-missing",
+            sdkRoot: root,
+          },
+        },
+        {
+          platform: "android",
+          hostPlatform: "darwin",
+          files: [
+            `${root}/platform-tools/adb`,
+            `${root}/emulator/emulator`,
+            `${root}/tools/bin/avdmanager`,
+          ],
+          environment: { ANDROID_HOME: root },
+          reason: `The Android SDK command-line tools in ${root} appear to be an older, unsupported version. Install Android SDK Command-line Tools (latest) in Android Studio's SDK Manager under SDK Tools.`,
+          reasonMessage: {
+            source: "local-device-host",
+            code: "android-command-line-tools-legacy",
+            sdkRoot: root,
+          },
+        },
+        {
+          platform: "android",
+          hostPlatform: "darwin",
+          files: [`${root}/platform-tools/adb`, `${root}/emulator/emulator`],
+          environment: { ANDROID_HOME: root },
+          reason: `Android SDK Command-line Tools (latest) are missing from ${root}. Install them in Android Studio's SDK Manager.`,
+          reasonMessage: {
+            source: "local-device-host",
+            code: "android-command-line-tools-missing",
+            sdkRoot: root,
+          },
+        },
+      ] as const;
+      for (const entry of cases) {
+        const result = yield* LocalDeviceHost.__testing.platformAvailability(entry.platform).pipe(
+          Effect.provideService(HostProcess.Environment, entry.environment),
+          Effect.provideService(HostProcess.Platform, entry.hostPlatform),
+          Effect.provideService(
+            FileSystem.FileSystem,
+            FileSystem.makeNoop({
+              exists: (file) =>
+                Effect.succeed((entry.files as ReadonlyArray<string>).includes(file)),
+            }),
+          ),
+          Effect.provide(NodePath.layerPosix),
+        );
+        expect(result).toEqual({
+          platform: entry.platform,
+          available: false,
+          reason: entry.reason,
+          reasonMessage: entry.reasonMessage,
+        });
+      }
+    }),
+  );
+
   it.effect("uses the standard Windows SDK without probing PATH", () =>
     Effect.gen(function* () {
       const root = "C:\\Users\\test\\AppData\\Local\\Android\\Sdk";

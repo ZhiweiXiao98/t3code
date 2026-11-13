@@ -77,6 +77,53 @@ describe("device state for clients from before EAS hosts", () => {
     revision: 1,
   };
 
+  it("preserves reason provenance through host summaries without rejecting newer reasons", () => {
+    const reason =
+      "Android Emulator is missing from /sdk/$&/{sdkRoot}/中文. Install it in Android Studio's SDK Manager.";
+    const platform = { platform: "android" as const, available: false, reason };
+    const reasonMessage = {
+      source: "local-device-host" as const,
+      code: "android-emulator-missing" as const,
+      sdkRoot: "/sdk/$&/{sdkRoot}/中文",
+    };
+    const input = {
+      ...state,
+      hosts: [
+        { ...state.hosts[0]!, platforms: [{ ...platform, reasonMessage }] },
+        {
+          ...state.hosts[2]!,
+          platforms: [
+            {
+              platform: "ios" as const,
+              available: false,
+              reason: "The pool has no iOS devices.",
+              reasonMessage: {
+                source: "simlock-device-host" as const,
+                code: "ios-devices-missing" as const,
+              },
+            },
+          ],
+        },
+      ],
+    };
+    expect(decodeState(encodeState(input)).hosts).toEqual(input.hosts);
+    for (const metadata of [
+      undefined,
+      { source: "local-device-host", code: "future-reason" },
+      { source: "foreign-host", code: "android-emulator-missing", sdkRoot: "/sdk" },
+      { source: "local-device-host", code: "ios-devices-missing" },
+      { source: "local-device-host", code: "android-emulator-missing" },
+      { source: "local-device-host", code: "android-emulator-missing", sdkRoot: 7 },
+    ]) {
+      const decoded = decodeState({
+        ...encodeState(state),
+        hosts: [{ ...state.hosts[0]!, platforms: [{ ...platform, reasonMessage: metadata }] }],
+      });
+      expect(decoded.hosts[0]?.platforms[0]).toMatchObject(platform);
+      expect(decoded.hosts[0]?.platforms[0]?.reasonMessage).toBeUndefined();
+    }
+  });
+
   it("sends EAS and Simlock hosts where an older client does not look, and reads them back", () => {
     const wire = encodeState(state);
     expect(decodeOlderState(wire).hosts.map((host) => host.id)).toEqual(["local"]);

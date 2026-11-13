@@ -1,3 +1,4 @@
+import { translateWebSource } from "~/i18n/messages";
 import { SourceControlProviderKind } from "@t3tools/contracts";
 import {
   GitCommandError,
@@ -950,6 +951,15 @@ describe("what to say when an action fails", () => {
     expect(
       checkoutFailureDescription(diagnostic("git worktree add failed", "path_already_exists")),
     ).toBe("git worktree add failed (path_already_exists)");
+    const display = (source: string) => translateWebSource("zh-CN", source);
+    const ownHint =
+      "Check that the branch still exists and is not checked out elsewhere, then try again.";
+    expect(checkoutFailureDescription(undefined, display)).toBe(
+      "请确认该分支仍然存在且未在其他位置检出，然后重试。",
+    );
+    expect(checkoutFailureDescription(diagnostic(ownHint), display)).toBe(ownHint);
+    const opaqueDetail = "raw/{0}/$&\nprovider message";
+    expect(checkoutFailureDescription(diagnostic(opaqueDetail), display)).toBe(opaqueDetail);
     const reason = "The worktree directory already exists. Choose another directory.";
     expect(checkoutFailureDescription(diagnostic(reason))).toBe(reason);
     expect(checkoutFailureDescription(diagnostic("x".repeat(900)))).toBe(`${"x".repeat(319)}…`);

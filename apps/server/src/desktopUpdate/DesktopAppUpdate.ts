@@ -1,5 +1,6 @@
 import {
   ServerSelfUpdateError,
+  type UpdateFailureReasonMessage,
   type DesktopUpdateState,
   type DesktopUpdateStatusReport,
   type ServerSelfUpdateProgressStage,
@@ -61,10 +62,12 @@ export const make = Effect.fn("desktopUpdate.desktopAppUpdate.make")(function* (
   const inFlight = yield* Ref.make(false);
 
   const available = config.mode === "desktop" && config.desktopTelemetryControlFd !== undefined;
-  const failWith = (reason: string, cause?: unknown) =>
-    cause === undefined
-      ? new ServerSelfUpdateError({ reason })
-      : new ServerSelfUpdateError({ reason, cause });
+  const failWith = (reason: string, reasonMessage?: UpdateFailureReasonMessage, cause?: unknown) =>
+    new ServerSelfUpdateError({
+      reason,
+      ...(reasonMessage === undefined ? {} : { reasonMessage }),
+      ...(cause === undefined ? {} : { cause }),
+    });
 
   const consumeReports = Effect.fn("DesktopAppUpdate.consumeReports")(function* (
     requestId: string,
@@ -107,7 +110,9 @@ export const make = Effect.fn("desktopUpdate.desktopAppUpdate.make")(function* (
       Stream.runHead,
     );
     if (Option.isNone(terminal)) {
-      return yield* failWith("The desktop app stopped reporting its update.");
+      return yield* failWith("The desktop app stopped reporting its update.", {
+        code: "update-report-stopped",
+      });
     }
 
     const report = terminal.value;
@@ -131,10 +136,16 @@ export const make = Effect.fn("desktopUpdate.desktopAppUpdate.make")(function* (
       }
       return yield* failWith(
         `The T3 Code desktop app on this machine is already up to date on ${report.state.currentVersion}.`,
+        { code: "already-current", version: report.state.currentVersion },
       );
     }
     return yield* failWith(
       report.reason ?? report.state.message ?? "The desktop app update failed.",
+      report.reason !== undefined
+        ? report.reasonMessage
+        : report.state.message == null
+          ? { code: "update-failed" }
+          : undefined,
     );
   });
 
@@ -143,10 +154,13 @@ export const make = Effect.fn("desktopUpdate.desktopAppUpdate.make")(function* (
       if (!available) {
         return yield* failWith(
           "This server was not started by the T3 Code desktop app, so it cannot drive a desktop update.",
+          { code: "not-desktop-launched" },
         );
       }
       if (yield* Ref.getAndSet(inFlight, true)) {
-        return yield* failWith("A desktop app update is already in progress.");
+        return yield* failWith("A desktop app update is already in progress.", {
+          code: "update-in-progress",
+        });
       }
 
       return yield* Effect.scoped(
@@ -155,7 +169,11 @@ export const make = Effect.fn("desktopUpdate.desktopAppUpdate.make")(function* (
             .uuidV4()
             .pipe(
               Effect.mapError((error) =>
-                failWith("Could not generate a desktop update request id.", error),
+                failWith(
+                  "Could not generate a desktop update request id.",
+                  { code: "request-id-failed" },
+                  error,
+                ),
               ),
             );
           // Subscribe before requesting to catch fast reports.
@@ -164,7 +182,11 @@ export const make = Effect.fn("desktopUpdate.desktopAppUpdate.make")(function* (
             .requestDesktopUpdate(requestId, trackSwitch)
             .pipe(
               Effect.mapError((error) =>
-                failWith("Could not reach the T3 Code desktop app on this machine.", error),
+                failWith(
+                  "Could not reach the T3 Code desktop app on this machine.",
+                  { code: "app-unreachable-on-machine" },
+                  error,
+                ),
               ),
             );
           return yield* consumeReports(
@@ -179,7 +201,10 @@ export const make = Effect.fn("desktopUpdate.desktopAppUpdate.make")(function* (
       ).pipe(
         Effect.timeout(DESKTOP_UPDATE_TIMEOUT),
         Effect.catchTags({
-          TimeoutError: () => failWith("The desktop app did not finish the update in time."),
+          TimeoutError: () =>
+            failWith("The desktop app did not finish the update in time.", {
+              code: "update-timeout",
+            }),
         }),
         Effect.onError(() => Ref.set(inFlight, false)),
       );
@@ -190,7 +215,9 @@ export const make = Effect.fn("desktopUpdate.desktopAppUpdate.make")(function* (
     "desktopUpdate.desktopAppUpdate.commit",
   )(function* (requestId, onHandoffAccepted = () => Effect.void) {
     if (!available) {
-      return yield* failWith("This server cannot commit a desktop app update.");
+      return yield* failWith("This server cannot commit a desktop app update.", {
+        code: "commit-unavailable",
+      });
     }
     const terminal = yield* Effect.scoped(
       Effect.gen(function* () {
@@ -201,7 +228,13 @@ export const make = Effect.fn("desktopUpdate.desktopAppUpdate.make")(function* (
         });
         yield* Effect.uninterruptible(
           receiver.commitDesktopUpdate(requestId).pipe(
-            Effect.mapError((error) => failWith("Could not reach the T3 Code desktop app.", error)),
+            Effect.mapError((error) =>
+              failWith(
+                "Could not reach the T3 Code desktop app.",
+                { code: "app-unreachable" },
+                error,
+              ),
+            ),
             Effect.tap(() => onHandoffAccepted()),
           ),
         );
@@ -211,18 +244,27 @@ export const make = Effect.fn("desktopUpdate.desktopAppUpdate.make")(function* (
           Effect.timeout(DESKTOP_INSTALL_TIMEOUT),
           Effect.catchTags({
             TimeoutError: () =>
-              failWith("The desktop app did not report an install result in time."),
+              failWith("The desktop app did not report an install result in time.", {
+                code: "install-result-timeout",
+              }),
           }),
         );
       }),
     );
     if (Option.isNone(terminal)) {
-      return yield* failWith("The desktop app stopped reporting the install.");
+      return yield* failWith("The desktop app stopped reporting the install.", {
+        code: "install-report-stopped",
+      });
     }
     return yield* failWith(
       terminal.value.reason ??
         terminal.value.state.message ??
         "The desktop app failed to install the update.",
+      terminal.value.reason !== undefined
+        ? terminal.value.reasonMessage
+        : terminal.value.state.message == null
+          ? { code: "install-failed" }
+          : undefined,
     );
   });
 

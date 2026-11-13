@@ -1,3 +1,4 @@
+import { timelineOwnedText } from "./timelineOwnedPresentation";
 import { translateWebSource } from "~/i18n/messages";
 import { splitWebTranslation, useI18n } from "~/i18n/WebI18nContext";
 import { threadEnvironment } from "../../state/threads";
@@ -659,6 +660,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
     pendingApprovals.filter(isVisiblePendingApproval).map((approval) => approval.requestId),
   );
   const rawRows = useIncrementalTimelineRows(`${listIdentityKey}\0${workspaceRoot ?? ""}`, {
+    presentationLocale: incrementalLocale,
     timelineEntries,
     pendingApprovalRequestIds,
     latestRun,
@@ -1558,10 +1560,14 @@ function ContextCompactionTimelineRow({
 }: {
   row: Extract<TimelineRow, { kind: "context-compaction" }>;
 }) {
-  const { t: residualT } = useI18n();
+  const { t: residualT, locale } = useI18n();
+  const localizedCompactedPrefix = timelineOwnedText(locale, "Context compacted");
+  const compactedPrefix = row.label.startsWith(localizedCompactedPrefix)
+    ? localizedCompactedPrefix
+    : "Context compacted";
   const label =
-    row.title && row.label.startsWith("Context compacted")
-      ? row.title + row.label.slice("Context compacted".length)
+    row.title && row.label.startsWith(compactedPrefix)
+      ? row.title + row.label.slice(compactedPrefix.length)
       : row.label;
   const content = (
     <span className="flex min-w-0 items-center gap-1.5">
@@ -1622,6 +1628,7 @@ function useDeferredWorkLoading(
   row: { expanded: boolean; deferredWorkItemIds?: ReadonlyArray<string> },
   onToggle: () => void,
 ) {
+  const { locale } = useI18n();
   const ctx = use(TimelineRowCtx);
   const loadWork = useAtomCommand(threadEnvironment.loadEarlierHistory, { reportFailure: false });
   const ref = parseScopedThreadKey(ctx.routeThreadKey);
@@ -1646,7 +1653,8 @@ function useDeferredWorkLoading(
   useEffect(() => {
     if (row.expanded && anchorsKey && environmentId && threadId) loadOnExpand();
   }, [row.expanded, anchorsKey, environmentId, threadId]);
-  const error = anchorsKey && failed ? "Couldn't load work. Click to retry." : null;
+  const error =
+    anchorsKey && failed ? timelineOwnedText(locale, "Couldn't load work. Click to retry.") : null;
   const loading = ref !== null && row.expanded && anchorsKey !== "" && !failed;
   const toggle = () => {
     setFailed(false);

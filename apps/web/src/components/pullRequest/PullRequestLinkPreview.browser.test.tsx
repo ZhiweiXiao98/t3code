@@ -143,3 +143,35 @@ it("localizes a review-comment preview while keeping the actor and excerpt liter
   await expect.element(page.getByText("发表了评论", { exact: true })).not.toBeInTheDocument();
   await expect.element(page.getByText(body, { exact: true })).toBeVisible();
 });
+
+it("updates the cached PR state label on locale change without changing its title or link", async () => {
+  state.restoredPreview = { ...known, state: "merged", title: "Merged/{0}/$&", author: null };
+  const surface = (locale: "en" | "zh-CN") => (
+    <WebI18nContext
+      value={{
+        locale,
+        appLocale: locale,
+        setAppLocale: () => {},
+        t: (key, values) => translateWebMessage(locale, key, values),
+      }}
+    >
+      <PullRequestLinkPreview
+        link={<a href={known.url}>#1</a>}
+        originalUrl={known.url}
+        target={{
+          environmentId: EnvironmentId.make("environment"),
+          input: { projectId: ProjectId.make("project"), repository: "owner/repo", number: 1 },
+        }}
+      />
+    </WebI18nContext>
+  );
+  await using screen = await render(surface("en"));
+  await userEvent.hover(screen.getByRole("link"));
+  await expect.element(page.getByText("Merged", { exact: true })).toBeVisible();
+  await screen.rerender(surface("zh-CN"));
+  await expect.element(page.getByText("已合并", { exact: true })).toBeVisible();
+  await expect.element(page.getByText("Merged/{0}/$&", { exact: true })).toBeVisible();
+  await expect.element(screen.getByRole("link")).toHaveAttribute("href", known.url);
+  await screen.rerender(surface("en"));
+  await expect.element(page.getByText("Merged", { exact: true })).toBeVisible();
+});

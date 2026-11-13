@@ -37,7 +37,10 @@ export function useDesktopCliCommand() {
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: translateWebExtraSource(locale, FAILURE_TITLES[action]),
+            title: translateWebSource(
+              locale,
+              translateWebExtraSource(locale, FAILURE_TITLES[action]),
+            ),
             description:
               error instanceof Error
                 ? cliCommandFailureMessage(error.message)

@@ -2,7 +2,12 @@ import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 import * as SchemaTransformation from "effect/SchemaTransformation";
 
-import { ThreadId, TrimmedNonEmptyString, TrimmedString } from "./baseSchemas.ts";
+import {
+  ForwardCompatibleOptional,
+  ThreadId,
+  TrimmedNonEmptyString,
+  TrimmedString,
+} from "./baseSchemas.ts";
 import { SettingsSecretValue } from "./settingsSecretValue.ts";
 
 export const DevicePlatform = Schema.Literals(["ios", "android"]);
@@ -183,10 +188,33 @@ export const DeviceSummary = Schema.Struct({
 });
 export type DeviceSummary = typeof DeviceSummary.Type;
 
+export const DeviceAvailabilityReasonMessage = Schema.Union([
+  Schema.Struct({
+    source: Schema.Literal("local-device-host"),
+    code: Schema.Literals(["ios-requires-mac", "xcode-tools-missing", "android-sdk-missing"]),
+  }),
+  Schema.Struct({
+    source: Schema.Literal("local-device-host"),
+    code: Schema.Literals([
+      "android-platform-tools-missing",
+      "android-emulator-missing",
+      "android-command-line-tools-legacy",
+      "android-command-line-tools-missing",
+    ]),
+    sdkRoot: Schema.String,
+  }),
+  Schema.Struct({
+    source: Schema.Literal("simlock-device-host"),
+    code: Schema.Literals(["ios-devices-missing", "android-devices-missing"]),
+  }),
+]);
+export type DeviceAvailabilityReasonMessage = typeof DeviceAvailabilityReasonMessage.Type;
+
 export const DevicePlatformAvailability = Schema.Struct({
   platform: DevicePlatform,
   available: Schema.Boolean,
   reason: Schema.optional(Schema.String),
+  reasonMessage: ForwardCompatibleOptional(DeviceAvailabilityReasonMessage),
 });
 export type DevicePlatformAvailability = typeof DevicePlatformAvailability.Type;
 

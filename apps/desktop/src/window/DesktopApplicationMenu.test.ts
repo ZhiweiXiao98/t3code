@@ -836,3 +836,51 @@ it.effect.each([
       assert.deepEqual(dialog.buttons, ["确定"]);
     }),
 );
+
+it.effect.each([
+  "Automatic updates are disabled by the T3CODE_DISABLE_AUTO_UPDATE setting.",
+  "Acme manages T3 Code updates. Switch to the stable channel to keep getting updates.",
+  "Updates are off because T3 Code cannot use the managed policy at C:\\T3\\policy.json. Contact your administrator.",
+])("keeps updater errors literal even when they match owned policy text: %s", (detail) =>
+  Effect.gen(function* () {
+    const selectedAction = yield* Deferred.make<string>();
+    const template = yield* Deferred.make<readonly Electron.MenuItemConstructorOptions[]>();
+    const shown = yield* Deferred.make<Electron.MessageBoxOptions>();
+    const state = {
+      enabled: true,
+      status: "error" as const,
+      channel: "latest" as const,
+      currentVersion: "1.2.3",
+      hostArch: "arm64" as const,
+      appArch: "arm64" as const,
+      runningUnderArm64Translation: false,
+      availableVersion: null,
+      downloadedVersion: null,
+      releaseNotes: [],
+      downloadPercent: null,
+      checkedAt: null,
+      message: detail,
+      errorContext: "check" as const,
+      canRetry: false,
+      omittedReleaseCount: 0,
+    } satisfies DesktopUpdateState;
+    yield* configureMenu(selectedAction, template, {
+      appLocale: "zh-CN",
+      desktopUpdates: { ...desktopUpdates, check: () => Effect.succeed({ checked: true, state }) },
+      electronDialog: {
+        ...electronDialog,
+        showMessageBox: (options) =>
+          Deferred.succeed(shown, options).pipe(Effect.as({ response: 0, checkboxChecked: false })),
+      },
+    });
+    const help = (yield* Deferred.await(template)).find((item) => item.label === "帮助");
+    assert.isTrue(Array.isArray(help?.submenu));
+    if (!Array.isArray(help?.submenu)) return;
+    help.submenu
+      .find((item) => item.label === "检查更新...")
+      ?.click?.({} as Electron.MenuItem, undefined, {} as KeyboardEvent);
+    const dialog = yield* Deferred.await(shown);
+    assert.equal(dialog.detail, detail);
+    assert.equal(dialog.message, "无法检查更新。");
+  }),
+);

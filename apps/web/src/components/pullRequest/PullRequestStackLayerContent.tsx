@@ -1,3 +1,4 @@
+import { useI18n } from "~/i18n/WebI18nContext";
 import type { PullRequestStack } from "@t3tools/contracts";
 import { cn } from "~/lib/utils";
 import { resolvePullRequestState } from "./pullRequestPresentation";
@@ -9,7 +10,9 @@ export function PullRequestStackLayerContent({
   layer: PullRequestStack["layers"][number];
   compact?: boolean;
 }) {
+  const { t } = useI18n();
   const state = resolvePullRequestState({
+    t,
     state: layer.state,
     isDraft: layer.isDraft ?? false,
   });

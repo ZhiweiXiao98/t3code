@@ -1027,6 +1027,7 @@ export function PullRequestDetailPanel({
             : `Could not prepare the ${terminology.singular} checkout`,
         description: checkoutFailureDescription(
           isAtomCommandInterrupted(prepared) ? undefined : squashAtomCommandFailure(prepared),
+          tx,
         ),
       });
       return;

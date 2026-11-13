@@ -1,3 +1,5 @@
+import { useI18n } from "~/i18n/WebI18nContext";
+import { translateWebSource } from "~/i18n/messages";
 import type { EnvironmentId, PullRequestAction } from "@t3tools/contracts";
 import { EyeIcon, LayersIcon, PenLineIcon, UsersIcon, type LucideIcon } from "lucide-react";
 import { useDeferredValue, type RefCallback } from "react";
@@ -43,11 +45,24 @@ function PullRequestGroupHeader({
   group: { key: string; label: string };
   count: number;
 }) {
+  const { locale } = useI18n();
+  const ownedLabel =
+    group.key === "reviewRequested"
+      ? "Review requested"
+      : group.key === "authored"
+        ? "Authored"
+        : group.key === "others"
+          ? "Others"
+          : null;
+  const label =
+    ownedLabel !== null && group.label === ownedLabel
+      ? translateWebSource(locale, ownedLabel)
+      : group.label;
   const Icon = GROUP_ICONS[group.key] ?? LayersIcon;
   return (
     <div className="flex items-center gap-2 px-3 pb-1 text-xs font-medium text-muted-foreground/70">
       <Icon aria-hidden className="size-3.5 shrink-0" />
-      <h2 className="shrink-0">{group.label}</h2>
+      <h2 className="shrink-0">{label}</h2>
       <span className="shrink-0 tabular-nums text-muted-foreground/50">{count}</span>
       <Separator className="min-w-2 flex-1" />
     </div>

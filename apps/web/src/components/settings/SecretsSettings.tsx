@@ -260,8 +260,10 @@ function SecretProviderUses({
   readonly id: SecretProviderId;
   readonly label: string;
 }) {
-  const { t } = useI18n();
-  const uses = secretProviderUses(useEnvironmentSettings(environmentId), id);
+  const { t, locale } = useI18n();
+  const uses = secretProviderUses(useEnvironmentSettings(environmentId), id, (source) =>
+    translateWebSource(locale, source),
+  );
   if (uses.length === 0) {
     return (
       <AlertDialogDescription>

@@ -1,3 +1,5 @@
+import { childThreadInputsTitle } from "@t3tools/client-runtime/state/threads";
+import { ThreadId } from "@t3tools/contracts";
 import {
   presentPendingBackgroundWork,
   presentProviderGoal,
@@ -7,6 +9,7 @@ import { localizeMobileString } from "./mobileStrings";
 import { projectCloneProgressSummary, type ProjectCloneSnapshot } from "@t3tools/contracts";
 import { expect, it } from "vite-plus/test";
 import {
+  mobileChildThreadInputsTitle,
   mobileCloneProgress,
   mobileOutputFailure,
   mobileSharedContentPrompt,
@@ -123,5 +126,45 @@ it("translates finite goal states while keeping the goal text and metrics unchan
     expect(result.objective).toBe(goal.objective);
     expect(result.usage).toBe(base.usage);
     expect(result.canResume).toBe(base.canResume);
+  }
+});
+
+it("formats the actual child-input aggregation without changing child identity or approval classification", () => {
+  const child = (sideChat: boolean, hasPendingApprovals: boolean) => ({
+    id: ThreadId.make(sideChat ? "Settings" : "Open"),
+    title: "Settings {0} $&",
+    hasPendingApprovals,
+    lineage: {
+      parentThreadId: ThreadId.make("parent"),
+      rootThreadId: ThreadId.make("root"),
+      relationshipToParent: "subagent" as const,
+      sideChat,
+    },
+  });
+  for (const sides of [[true], [false], [true, true], [false, false], [true, false]]) {
+    for (const approvals of [false, true, "mixed"] as const) {
+      const children = sides.map((side, index) =>
+        child(side, approvals === "mixed" ? index === 0 : approvals),
+      );
+      const before = structuredClone(children);
+      const english = childThreadInputsTitle(children);
+      expect(
+        childThreadInputsTitle(children, (values) => mobileChildThreadInputsTitle(values, "en")),
+      ).toBe(english);
+      const chinese = childThreadInputsTitle(children, (values) =>
+        mobileChildThreadInputsTitle(values, "zh-CN"),
+      );
+      const allApprovals = children.every((item) => item.hasPendingApprovals);
+      const noApprovals = children.every((item) => !item.hasPendingApprovals);
+      expect(chinese).toContain(
+        allApprovals ? "需要批准" : noApprovals ? "需要输入" : "需要你处理",
+      );
+      expect(chinese).toContain(
+        sides.every(Boolean) ? "旁支对话" : sides.every((side) => !side) ? "子智能体" : "对话",
+      );
+      if (children.length > 1) expect(chinese.startsWith(`${children.length} 个`)).toBe(true);
+      expect(chinese).not.toContain("Settings");
+      expect(children).toEqual(before);
+    }
   }
 });

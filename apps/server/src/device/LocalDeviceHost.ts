@@ -2,6 +2,7 @@ import { pruneLocalDeviceTools } from "./deviceToolMaintenance.ts";
 import { deviceToolInstallMessage } from "@t3tools/contracts";
 // The hub runs at origin root; T3 strips its prefix and the Device panel derives stream URLs from it.
 import {
+  type DeviceAvailabilityReasonMessage,
   type DeviceHostSummary,
   type DevicePlatform,
   type DevicePlatformAvailability,
@@ -104,26 +105,79 @@ interface RunningHost {
 
 const platformReason = Effect.fn("LocalDeviceHost.platformReason")(function* (
   platform: DevicePlatform,
-): Effect.fn.Return<string | null, never, FileSystem.FileSystem | Path.Path> {
+): Effect.fn.Return<
+  { readonly reason: string; readonly reasonMessage: DeviceAvailabilityReasonMessage } | null,
+  never,
+  FileSystem.FileSystem | Path.Path
+> {
   const hostPlatform = yield* HostProcess.Platform;
   if (platform === "ios") {
-    if (hostPlatform !== "darwin") return "iOS Simulators need macOS with Xcode.";
-    if (!(yield* isCommandAvailable("xcrun"))) return "Xcode command line tools were not found.";
+    if (hostPlatform !== "darwin")
+      return {
+        reason: "iOS Simulators need macOS with Xcode.",
+        reasonMessage: { source: "local-device-host", code: "ios-requires-mac" },
+      };
+    if (!(yield* isCommandAvailable("xcrun")))
+      return {
+        reason: "Xcode command line tools were not found.",
+        reasonMessage: { source: "local-device-host", code: "xcode-tools-missing" },
+      };
     return null;
   }
   const sdk = yield* androidSdk;
   if (!sdk.root)
-    return "Android SDK was not found. Install it with Android Studio or set ANDROID_HOME to your SDK directory.";
+    return {
+      reason:
+        "Android SDK was not found. Install it with Android Studio or set ANDROID_HOME to your SDK directory.",
+      reasonMessage: { source: "local-device-host", code: "android-sdk-missing" },
+    };
   if (!sdk.adb)
-    return `Android SDK Platform-Tools are missing from ${sdk.root}. Install them in Android Studio's SDK Manager.`;
+    return {
+      reason: `Android SDK Platform-Tools are missing from ${sdk.root}. Install them in Android Studio's SDK Manager.`,
+      reasonMessage: {
+        source: "local-device-host",
+        code: "android-platform-tools-missing",
+        sdkRoot: sdk.root,
+      },
+    };
   if (!sdk.emulator)
-    return `Android Emulator is missing from ${sdk.root}. Install it in Android Studio's SDK Manager.`;
+    return {
+      reason: `Android Emulator is missing from ${sdk.root}. Install it in Android Studio's SDK Manager.`,
+      reasonMessage: {
+        source: "local-device-host",
+        code: "android-emulator-missing",
+        sdkRoot: sdk.root,
+      },
+    };
   if (!sdk.avdmanager) {
     if (sdk.legacyAvdmanager)
-      return `The Android SDK command-line tools in ${sdk.root} appear to be an older, unsupported version. Install Android SDK Command-line Tools (latest) in Android Studio's SDK Manager under SDK Tools.`;
-    return `Android SDK Command-line Tools (latest) are missing from ${sdk.root}. Install them in Android Studio's SDK Manager.`;
+      return {
+        reason: `The Android SDK command-line tools in ${sdk.root} appear to be an older, unsupported version. Install Android SDK Command-line Tools (latest) in Android Studio's SDK Manager under SDK Tools.`,
+        reasonMessage: {
+          source: "local-device-host",
+          code: "android-command-line-tools-legacy",
+          sdkRoot: sdk.root,
+        },
+      };
+    return {
+      reason: `Android SDK Command-line Tools (latest) are missing from ${sdk.root}. Install them in Android Studio's SDK Manager.`,
+      reasonMessage: {
+        source: "local-device-host",
+        code: "android-command-line-tools-missing",
+        sdkRoot: sdk.root,
+      },
+    };
   }
   return null;
+});
+
+const platformAvailability = Effect.fn("LocalDeviceHost.platformAvailability")(function* (
+  platform: DevicePlatform,
+): Effect.fn.Return<DevicePlatformAvailability, never, FileSystem.FileSystem | Path.Path> {
+  const reason = yield* platformReason(platform);
+  return reason === null
+    ? { platform, available: true }
+    : { platform, available: false, ...reason };
 });
 
 const androidSdk = Effect.gen(function* () {
@@ -277,19 +331,15 @@ export const make = Effect.fn("LocalDeviceHost.make")(function* () {
   const restartDelayRef = yield* Ref.make(0);
   const hostId = LOCAL_DEVICE_HOST_ID;
 
-  const platformAvailability = Effect.fn("LocalDeviceHost.platformAvailability")(function* (
-    platform: DevicePlatform,
-  ): Effect.fn.Return<DevicePlatformAvailability> {
-    const reason = yield* platformReason(platform).pipe(
+  const localPlatformAvailability = (platform: DevicePlatform) =>
+    platformAvailability(platform).pipe(
       Effect.provideService(FileSystem.FileSystem, fs),
       Effect.provideService(Path.Path, path),
     );
-    return reason === null ? { platform, available: true } : { platform, available: false, reason };
-  });
 
   const summary: Effect.Effect<DeviceHostSummary> = Effect.gen(function* () {
     const [platforms, hubInstalled, agentDeviceInstalled] = yield* Effect.all([
-      Effect.all([platformAvailability("ios"), platformAvailability("android")]),
+      Effect.all([localPlatformAvailability("ios"), localPlatformAvailability("android")]),
       isDeviceHubInstalled(config.baseDir).pipe(
         Effect.provideService(FileSystem.FileSystem, fs),
         Effect.provideService(Path.Path, path),
@@ -844,7 +894,9 @@ export const make = Effect.fn("LocalDeviceHost.make")(function* () {
       http: httpClient,
       run,
       platformAvailable: (platform) =>
-        platformAvailability(platform).pipe(Effect.map((availability) => availability.available)),
+        localPlatformAvailability(platform).pipe(
+          Effect.map((availability) => availability.available),
+        ),
     }),
     nodePath: running.hub.nodePath,
     run,
@@ -882,7 +934,7 @@ export const make = Effect.fn("LocalDeviceHost.make")(function* () {
     id: hostId,
     label: LOCAL_DEVICE_HOST_LABEL,
     summary,
-    platformAvailability,
+    platformAvailability: localPlatformAvailability,
     ensureReady,
     ensureAgentReady,
     current,
@@ -895,6 +947,7 @@ export const make = Effect.fn("LocalDeviceHost.make")(function* () {
 export const layer = Layer.effect(DeviceHost.DeviceHost, make());
 
 export const __testing = {
+  platformAvailability,
   AgentDeviceDaemonFile,
   androidSdk,
   platformReason,

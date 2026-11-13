@@ -1,3 +1,5 @@
+import { WebI18nContext } from "~/i18n/WebI18nContext";
+import { translateWebMessage } from "~/i18n/messages";
 import { describe, expect, it, vi } from "vite-plus/test";
 import { userEvent } from "vite-plus/test/browser";
 
@@ -39,4 +41,40 @@ describe("SecretInput", () => {
     await userEvent.keyboard("{Enter}");
     expect(onCommit).toHaveBeenCalledExactlyOnceWith("replacement");
   });
+});
+
+it("updates only owned placeholders and preserves an in-progress secret and supplied placeholder", async () => {
+  const onCommit = vi.fn();
+  const surface = (locale: "en" | "zh-CN", configured = true, placeholder?: string) => (
+    <WebI18nContext
+      value={{
+        locale,
+        appLocale: locale,
+        setAppLocale: () => {},
+        t: (key, values) => translateWebMessage(locale, key, values),
+      }}
+    >
+      <SecretInput
+        configured={configured}
+        value=""
+        onCommit={onCommit}
+        {...(placeholder === undefined ? {} : { placeholder })}
+      />
+    </WebI18nContext>
+  );
+  await using screen = await render(surface("en"));
+  await expect
+    .element(input(screen))
+    .toHaveAttribute("placeholder", "Stored secret, enter a new value to replace");
+  await userEvent.type(input(screen), "opaque/{secret}/$&");
+  await screen.rerender(surface("zh-CN"));
+  await expect.element(input(screen)).toHaveAttribute("placeholder", "已保存密钥，输入新值以替换");
+  await expect.element(input(screen)).toHaveValue("opaque/{secret}/$&");
+  expect(onCommit).not.toHaveBeenCalled();
+  await userEvent.keyboard("{Enter}");
+  expect(onCommit).toHaveBeenCalledExactlyOnceWith("opaque/{secret}/$&");
+  await screen.rerender(surface("zh-CN", false, "Not set"));
+  await expect.element(input(screen)).toHaveAttribute("placeholder", "Not set");
+  await screen.rerender(surface("zh-CN", false));
+  await expect.element(input(screen)).toHaveAttribute("placeholder", "未设置");
 });

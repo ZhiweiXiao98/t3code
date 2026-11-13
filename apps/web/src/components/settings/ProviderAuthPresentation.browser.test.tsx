@@ -81,6 +81,7 @@ vi.mock("../../state/session", () => ({
   }),
 }));
 vi.mock("../../state/environments", () => ({
+  useEnvironments: () => ({ environments: [] }),
   useEnvironmentHttpBaseUrl: () =>
     fixture.remote ? "https://remote.example.test" : "http://localhost:3010",
   usePrimaryEnvironmentId: () => null,
@@ -110,6 +111,10 @@ vi.mock("./useScopedSettings", () => ({
   useClearScopedSettings: () => () => undefined,
   useClearProjectOverrides: () => () => undefined,
 }));
+// These auth rows have no project settings scope or favicon resource. Keep SettingsRow real,
+// while its optional scope UI stays outside the mocked provider connection runtime.
+vi.mock("./SettingsScopeContext", () => ({ useOptionalSettingsScope: () => null }));
+vi.mock("../../state/assets", () => ({ projectFaviconUrlAtom: () => null }));
 vi.mock("../../localApi", () => ({
   ensureLocalApi: () => ({ shell: { openExternal: fixture.openExternal } }),
 }));

@@ -1,3 +1,4 @@
+import { markEditorFailure } from "./editorFailurePresentation";
 import {
   AuthOrchestrationOperateScope,
   EDITORS,
@@ -87,19 +88,25 @@ export function useOpenInPreferredEditor(
     if (environmentId === null) {
       return AsyncResult.failure(
         Cause.fail(
-          new PreferredEditorEnvironmentRequiredError({
-            targetPath,
-          }),
+          markEditorFailure(
+            new PreferredEditorEnvironmentRequiredError({
+              targetPath,
+            }),
+            { kind: "environment-required", path: targetPath },
+          ),
         ),
       );
     }
     if (!readEnvironmentScope(environmentId, AuthOrchestrationOperateScope)) {
       return AsyncResult.failure(
         Cause.fail(
-          new EnvironmentAuthorizationError({
-            requiredScope: AuthOrchestrationOperateScope,
-            message: "This connection cannot open an editor on this environment.",
-          }),
+          markEditorFailure(
+            new EnvironmentAuthorizationError({
+              requiredScope: AuthOrchestrationOperateScope,
+              message: "This connection cannot open an editor on this environment.",
+            }),
+            { kind: "permission" },
+          ),
         ),
       );
     }
@@ -107,11 +114,14 @@ export function useOpenInPreferredEditor(
     if (!editor) {
       return AsyncResult.failure(
         Cause.fail(
-          new PreferredEditorUnavailableError({
-            environmentId,
-            targetPath,
-            availableEditorIds: availableEditors,
-          }),
+          markEditorFailure(
+            new PreferredEditorUnavailableError({
+              environmentId,
+              targetPath,
+              availableEditorIds: availableEditors,
+            }),
+            { kind: "editor-unavailable", path: targetPath, environment: environmentId },
+          ),
         ),
       );
     }

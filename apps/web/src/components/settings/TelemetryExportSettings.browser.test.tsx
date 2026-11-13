@@ -1,3 +1,5 @@
+import { WebI18nContext } from "~/i18n/WebI18nContext";
+import { translateWebMessage } from "~/i18n/messages";
 import { render } from "../../../test/render";
 import { DEFAULT_SERVER_SETTINGS, type ServerObservability } from "@t3tools/contracts";
 import { describe, expect, it, vi } from "vite-plus/test";
@@ -115,7 +117,19 @@ describe("TelemetryExportSettings", () => {
         otlpLogsEnabled: false,
       },
     };
-    await using screen = await render(<TelemetryExportSettings />);
+    const surface = (locale: "en" | "zh-CN") => (
+      <WebI18nContext
+        value={{
+          locale,
+          appLocale: locale,
+          setAppLocale: () => {},
+          t: (key, values) => translateWebMessage(locale, key, values),
+        }}
+      >
+        <TelemetryExportSettings />
+      </WebI18nContext>
+    );
+    await using screen = await render(surface("en"));
 
     await expect
       .element(screen.getByText("Set by environment · Connected · 12 ms"))
@@ -130,6 +144,15 @@ describe("TelemetryExportSettings", () => {
       input: { signal: "traces", url: "http://collector/v1/traces" },
     });
     expect(screen.container.querySelector<HTMLInputElement>("#otlpTracesUrl")!.value).toBe("");
+    await screen.rerender(surface("zh-CN"));
+    await expect
+      .element(screen.getByText("由环境设置 · 已连接 · 12 毫秒", { exact: true }))
+      .toBeInTheDocument();
+    expect(screen.container.textContent).toContain("http://collector/v1/traces");
+    expect(screen.container.textContent).toContain("OTEL_EXPORTER_OTLP_ENDPOINT");
+    expect(checkOtlpEndpoint).toHaveBeenCalledTimes(1);
+    expect(updateSettings).not.toHaveBeenCalled();
+    await screen.rerender(surface("en"));
 
     await userEvent.click(screen.getByRole("button", { name: "Test" }).first());
 

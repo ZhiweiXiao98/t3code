@@ -53,7 +53,7 @@ export interface DesktopApplicationMenuMessages {
   readonly unknownUpdateError: string;
   readonly updatesUnavailableTitle: string;
   readonly updatesUnavailableMessage: string;
-  readonly updateDetail: (detail: string) => string;
+  readonly updateDisabledDetail: (detail: string) => string;
 }
 
 const messages = {
@@ -109,7 +109,7 @@ const messages = {
     unknownUpdateError: "An unknown error occurred. Please try again later.",
     updatesUnavailableTitle: "Updates unavailable",
     updatesUnavailableMessage: "Automatic updates are not available right now.",
-    updateDetail: (detail) => detail,
+    updateDisabledDetail: (detail) => detail,
   },
   "zh-CN": {
     file: "文件",
@@ -163,7 +163,7 @@ const messages = {
     unknownUpdateError: "发生未知错误，请稍后重试。",
     updatesUnavailableTitle: "暂时无法更新",
     updatesUnavailableMessage: "目前无法使用自动更新。",
-    updateDetail: (detail) => {
+    updateDisabledDetail: (detail) => {
       const fixed: Record<string, string> = {
         "Updates are turned off on this machine.": "此电脑已关闭更新。",
         "Automatic updates are not available because no update feed is configured.":

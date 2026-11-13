@@ -298,13 +298,17 @@ function projectedWorkEntryTone(item: OrchestrationV2TurnItem): WorkLogEntry["to
 
 export function providerErrorPresentation(
   item: Extract<OrchestrationV2TurnItem, { readonly type: "error" }>,
+  display?: (template: string, values: readonly string[]) => string,
 ): { readonly label: string; readonly detail: string } {
+  const text = (template: string, values: readonly string[] = []) =>
+    display?.(template, values) ??
+    template.replace(/\{(\d+)\}/g, (source, index: string) => values[Number(index)] ?? source);
   if (item.retry === undefined) {
     return {
       label:
         item.failure.class === "usage_limit"
-          ? "Usage limit reached"
-          : item.title?.trim() || "Provider error",
+          ? text("Usage limit reached")
+          : item.title?.trim() || text("Provider error"),
       detail: item.failure.message,
     };
   }
@@ -314,17 +318,24 @@ export function providerErrorPresentation(
       : `${item.retry.attempt}/${item.retry.maxAttempts}`;
   const label =
     item.status === "running"
-      ? `Retrying provider (${progress})`
+      ? text("Retrying provider ({0})", [progress])
       : item.status === "completed"
-        ? `Provider recovered (${progress} retries)`
+        ? text("Provider recovered ({0} retries)", [progress])
         : item.status === "failed"
-          ? `${item.failure.class === "usage_limit" ? "Usage limit reached" : "Provider error"} after ${progress} retries`
-          : `Provider retry stopped (${progress})`;
+          ? text(
+              item.failure.class === "usage_limit"
+                ? "Usage limit reached after {0} retries"
+                : "Provider error after {0} retries",
+              [progress],
+            )
+          : text("Provider retry stopped ({0})", [progress]);
   const retryDelay =
     item.status === "running" && item.retry.retryDelayMs !== null && item.retry.retryDelayMs > 0
       ? item.retry.retryDelayMs < 1_000
-        ? ` Retrying in ${item.retry.retryDelayMs}ms.`
-        : ` Retrying in ${(item.retry.retryDelayMs / 1_000).toFixed(1).replace(/\.0$/u, "")}s.`
+        ? text(" Retrying in {0}ms.", [String(item.retry.retryDelayMs)])
+        : text(" Retrying in {0}s.", [
+            (item.retry.retryDelayMs / 1_000).toFixed(1).replace(/\.0$/u, ""),
+          ])
       : "";
   return {
     label,

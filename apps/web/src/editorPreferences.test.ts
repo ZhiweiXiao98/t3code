@@ -1,3 +1,4 @@
+import { editorFailureMessage } from "./editorFailurePresentation";
 import {
   AuthOrchestrationOperateScope,
   EnvironmentAuthorizationError,
@@ -66,4 +67,34 @@ it("checks revocation and regrant when a retained editor callback is invoked", a
     input: { cwd: "/work/readme.md:5", editor: "vscode" },
   });
   expect(state.setPreference).toHaveBeenCalledTimes(1);
+});
+
+it("retains local precondition identity and parameters while leaving same-text upstream errors literal", async () => {
+  const path = "/opaque/{0}/$&:9\nfile";
+  const sources = [
+    useOpenInPreferredEditor(null, []),
+    useOpenInPreferredEditor(secondary, []),
+    useOpenInPreferredEditor(primary, []),
+  ];
+  state.allowed.add(primary);
+  for (const open of sources) {
+    const result = await open(path);
+    assert(result._tag === "Failure");
+    const error = Cause.squash(result.cause);
+    assert(error instanceof Error);
+    const english = error.message;
+    expect(editorFailureMessage(error, "en")).toBe(english);
+    expect(editorFailureMessage(error, "zh-CN")).not.toBe(english);
+    if ("targetPath" in error) expect(editorFailureMessage(error, "zh-CN")).toContain(path);
+    expect(error.message).toBe(english);
+    expect(editorFailureMessage(new Error(english), "zh-CN")).toBe(english);
+    expect(editorFailureMessage({ ...error, message: english }, "zh-CN")).toBeUndefined();
+  }
+  expect(state.run).not.toHaveBeenCalled();
+  const raw = new Error("This connection cannot open an editor on this environment.");
+  state.run.mockResolvedValueOnce(AsyncResult.failure(Cause.fail(raw)));
+  const result = await useOpenInPreferredEditor(primary, ["vscode"])(path);
+  assert(result._tag === "Failure");
+  expect(Cause.squash(result.cause)).toBe(raw);
+  expect(editorFailureMessage(raw, "zh-CN")).toBe(raw.message);
 });

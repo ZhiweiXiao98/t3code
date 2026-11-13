@@ -6,6 +6,74 @@ export const MOBILE_LOCALE: MobileLocale =
   process.env.EXPO_PUBLIC_APP_LOCALE === "zh-CN" ? "zh-CN" : "en";
 
 const ZH_CN_MESSAGES = {
+  "Server update failed.": "服务器更新失败。",
+  "Side chat needs input": "旁支对话需要输入",
+  "Side chat needs approval": "旁支对话需要批准",
+  "Side chat needs you": "旁支对话需要你处理",
+  "Subagent needs input": "子智能体需要输入",
+  "Subagent needs approval": "子智能体需要批准",
+  "Subagent needs you": "子智能体需要你处理",
+  "{0} side chats need input": "{0} 个旁支对话需要输入",
+  "{0} side chats need approval": "{0} 个旁支对话需要批准",
+  "{0} side chats need you": "{0} 个旁支对话需要你处理",
+  "{0} subagents need input": "{0} 个子智能体需要输入",
+  "{0} subagents need approval": "{0} 个子智能体需要批准",
+  "{0} subagents need you": "{0} 个子智能体需要你处理",
+  "{0} threads need input": "{0} 个对话需要输入",
+  "{0} threads need approval": "{0} 个对话需要批准",
+  "{0} threads need you": "{0} 个对话需要你处理",
+  "Automatic updates are disabled on this machine.": "此电脑已禁用自动更新。",
+  "Update {0} did not apply on this machine. Retry it from the desktop app there.":
+    "更新 {0} 未在此电脑上生效。请在该电脑的桌面应用中重试。",
+  "The desktop app failed to download the update.": "桌面应用未能下载更新。",
+  "The desktop app update failed.": "桌面应用更新失败。",
+  "The desktop app did not report an update result.": "桌面应用未报告更新结果。",
+  "The desktop app failed to install the update.": "桌面应用未能安装更新。",
+  "A prepared desktop update is already in progress.": "已有准备就绪的桌面应用更新正在进行。",
+  "This desktop app also runs WSL backends, whose databases a remote switch cannot check. Switch it on that machine.":
+    "此桌面应用还运行了 WSL 后端，远程切换无法检查其数据库。请在该电脑上切换。",
+  "The desktop app lost the downloaded update.": "桌面应用已丢失下载的更新。",
+  "The desktop app found no build of {0}.": "桌面应用未找到 {0} 的构建版本。",
+  "This desktop update is no longer prepared.": "此桌面应用更新已不再处于准备就绪状态。",
+  "The desktop app could not start the install.": "桌面应用无法开始安装。",
+  "The desktop app stopped reporting its update.": "桌面应用已停止报告更新进度。",
+  "The T3 Code desktop app on this machine is already up to date on {0}.":
+    "此电脑上的 T3 Code 桌面应用已是最新版本 {0}。",
+  "This server was not started by the T3 Code desktop app, so it cannot drive a desktop update.":
+    "此服务器并非由 T3 Code 桌面应用启动，因此无法执行桌面应用更新。",
+  "A desktop app update is already in progress.": "桌面应用更新已在进行中。",
+  "Could not generate a desktop update request id.": "无法生成桌面应用更新请求 ID。",
+  "Could not reach the T3 Code desktop app on this machine.":
+    "无法连接此电脑上的 T3 Code 桌面应用。",
+  "The desktop app did not finish the update in time.": "桌面应用未在规定时间内完成更新。",
+  "This server cannot commit a desktop app update.": "此服务器无法提交桌面应用更新。",
+  "Could not reach the T3 Code desktop app.": "无法连接 T3 Code 桌面应用。",
+  "The desktop app did not report an install result in time.":
+    "桌面应用未在规定时间内报告安装结果。",
+  "The desktop app stopped reporting the install.": "桌面应用已停止报告安装进度。",
+  "Updates are turned off on this machine.": "此电脑已关闭更新。",
+  "Automatic updates are not available because no update feed is configured.":
+    "未配置更新源，无法使用自动更新。",
+  "Automatic updates are only available in packaged production builds.":
+    "自动更新仅适用于打包的正式版本。",
+  "Automatic updates are disabled by the T3CODE_DISABLE_AUTO_UPDATE setting.":
+    "T3CODE_DISABLE_AUTO_UPDATE 设置已禁用自动更新。",
+  "Automatic updates on Linux require the AppImage or the .deb package.":
+    "Linux 上的自动更新需要使用 AppImage 或 .deb 安装包。",
+  "Nightly updates are turned off on this machine.": "此电脑已关闭每日构建版更新。",
+  "{0} manages T3 Code updates.": "{0} 负责管理 T3 Code 更新。",
+  "Updates are off because T3 Code cannot use the managed policy at {0}. Contact your administrator.":
+    "T3 Code 无法使用位于 {0} 的受管策略，因此已关闭更新。请联系管理员。",
+  "Switch to the stable channel to keep getting updates.": "请切换到稳定版通道，以继续获取更新。",
+  "Could not confirm that the server resumed on t3@{0}. Reconnect to check the update outcome.":
+    "无法确认服务器已恢复运行 t3@{0}。请重新连接以检查更新结果。",
+  "The t3@{0} update ended before the server accepted the restart.":
+    "t3@{0} 更新在服务器接受重启请求前已结束。",
+  "The service launcher resumed without committing the requested server version.":
+    "服务启动器已恢复运行，但未提交请求的服务器版本。",
+  "The desktop app resumed without installing the prepared update.":
+    "桌面应用已恢复运行，但未安装准备就绪的更新。",
+  "Server update failed: {0}": "服务器更新失败：{0}",
   "Sign-in failed. Start again.": "登录失败。请重新开始。",
   "This sign-in is no longer active in this client.": "此登录流程在当前客户端已失效。",
   "Finish or cancel the existing sign-in first.": "请先完成或取消现有登录流程。",

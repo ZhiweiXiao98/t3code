@@ -1,3 +1,4 @@
+import { editorFailureMessage } from "~/editorFailurePresentation";
 import { readWebI18n } from "~/i18n/readWebI18n";
 import { previewPreconditionMessage } from "~/browser/previewPreconditionMessages";
 import { useI18n } from "~/i18n/WebI18nContext";
@@ -96,7 +97,8 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
           stackedThreadToast({
             type: "error",
             title: translateRelease("markdownFile.openFailed"),
-            description: error instanceof Error ? error.message : translateRelease("common.error"),
+            description:
+              editorFailureMessage(error, readWebI18n().locale) ?? translateRelease("common.error"),
           }),
         );
       } catch (cause) {
@@ -108,7 +110,8 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
           stackedThreadToast({
             type: "error",
             title: translateRelease("markdownFile.openFailed"),
-            description: cause instanceof Error ? cause.message : translateRelease("common.error"),
+            description:
+              editorFailureMessage(cause, readWebI18n().locale) ?? translateRelease("common.error"),
           }),
         );
       }

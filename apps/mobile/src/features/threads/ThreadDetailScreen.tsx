@@ -1,3 +1,4 @@
+import { mobileChildThreadInputsTitle } from "../../i18n/threadDisplayMessages";
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { localizeMobileString, MOBILE_LOCALE } from "../../i18n/mobileStrings";
 import { ChildThreadApprovals } from "./ChildThreadApprovals";
@@ -812,7 +813,7 @@ function ThreadDetailBody(
     if (childInput && contentPresentationKind === "ready") {
       return {
         kind: "child-input",
-        label: childThreadInputsTitle(childThreadInputs),
+        label: childThreadInputsTitle(childThreadInputs, mobileChildThreadInputsTitle),
         accessibilityLabel: formatMobileMessage(
           childInput.hasPendingApprovals ? "Open approval from {0}" : "Open question from {0}",
           [childInput.title],

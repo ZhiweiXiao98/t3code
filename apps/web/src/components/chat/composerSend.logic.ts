@@ -23,8 +23,11 @@ export function loadBalancingSendWarning(input: {
 
   if (input.pending) {
     return {
-      title: "Checking machine resources",
-      description: "Resource checks are still running. You can choose a machine in the composer.",
+      title: translateWebSource(uiLocale, "Checking machine resources"),
+      description: translateWebSource(
+        uiLocale,
+        "Resource checks are still running. You can choose a machine in the composer.",
+      ),
     };
   }
   const noMachineReadsEveryThread =
@@ -33,9 +36,12 @@ export function loadBalancingSendWarning(input: {
       input.threadContexts.every((record) => record.environmentId === environmentId),
     );
   return {
-    title: "Choose a machine to continue",
+    title: translateWebSource(uiLocale, "Choose a machine to continue"),
     description: noMachineReadsEveryThread
-      ? "No machine can read every attached thread. Choose a machine in the composer or remove the threads."
+      ? translateWebSource(
+          uiLocale,
+          "No machine can read every attached thread. Choose a machine in the composer or remove the threads.",
+        )
       : translateWebSource(
           uiLocale,
           "No eligible machine has available resources. Choose a machine in the composer to override.",

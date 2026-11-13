@@ -107,6 +107,11 @@ describe("DesktopUpdates", () => {
 
         const configured = yield* updates.getState;
         assert.equal(configured.message, reason);
+        const disabled = yield* updates.disabledReason;
+        assert.deepEqual(DesktopUpdates.describeDesktopUpdateDisabledReason(disabled), {
+          code: "disabled-environment",
+        });
+        assert.isUndefined(DesktopUpdates.describeDesktopUpdateDisabledReason(Option.some(reason)));
 
         const changed = yield* updates.setChannel("nightly");
         assert.equal(changed.channel, "nightly");
@@ -1087,7 +1092,9 @@ describe("DesktopUpdates under a managed policy", () => {
         assert.equal(state.status, "disabled");
         assert.equal(state.message, message);
         assert.isFalse((yield* updates.check("menu")).checked);
-        assert.deepEqual(yield* updates.disabledReason, Option.some(message));
+        const disabled = yield* updates.disabledReason;
+        assert.deepEqual(disabled, Option.some(message));
+        assert.isUndefined(DesktopUpdates.describeDesktopUpdateDisabledReason(disabled));
         assert.equal(harness.checkCount(), 0);
         assert.equal(harness.listenerCount(), 0);
       }),

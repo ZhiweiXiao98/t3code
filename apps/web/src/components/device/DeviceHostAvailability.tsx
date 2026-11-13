@@ -1,3 +1,4 @@
+import { deviceAvailabilityReason } from "~/i18n/deviceAvailabilityMessages";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
 import type { DevicePlatformAvailability } from "@t3tools/contracts";
@@ -22,7 +23,7 @@ export function DeviceHostAvailability({
               : translateWebSource(devicePreviewLocale, "unavailable")}
           </TooltipTrigger>
           <TooltipPopup>
-            {platform.reason ??
+            {deviceAvailabilityReason(devicePreviewLocale, platform) ??
               (platform.platform === "ios"
                 ? translateWebSource(devicePreviewLocale, "iOS available")
                 : translateWebSource(devicePreviewLocale, "Android available"))}

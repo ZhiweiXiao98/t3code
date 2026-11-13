@@ -69,15 +69,21 @@ export function contextCompactionTokenCounts(
   return { before: formatTokens(item.beforeTokenCount), after: formatTokens(item.afterTokenCount) };
 }
 
-export function contextCompactionLabel(item: CompactionLabelItem): string {
-  if (item.status === "failed") return "Context compaction failed";
+export function contextCompactionLabel(
+  item: CompactionLabelItem,
+  display?: (template: string, values: readonly string[]) => string,
+): string {
+  const text = (template: string, values: readonly string[] = []) =>
+    display?.(template, values) ??
+    template.replace(/\{(\d+)\}/g, (source, index: string) => values[Number(index)] ?? source);
+  if (item.status === "failed") return text("Context compaction failed");
   if (item.status === "cancelled" || item.status === "interrupted")
-    return "Context compaction stopped";
-  if (isOrchestrationV2WorkActive(item.status)) return "Compacting context";
+    return text("Context compaction stopped");
+  if (isOrchestrationV2WorkActive(item.status)) return text("Compacting context");
   const tokens = contextCompactionTokenCounts(item);
   return tokens
-    ? `Context compacted ${tokens.before} → ${tokens.after} tokens`
-    : "Context compacted";
+    ? text("Context compacted {0} → {1} tokens", [tokens.before, tokens.after])
+    : text("Context compacted");
 }
 
 export interface WorkLogPresentationEntry {

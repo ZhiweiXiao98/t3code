@@ -1,3 +1,5 @@
+import { editorFailureMessage } from "~/editorFailurePresentation";
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { changesBaseLabel as formatChangesBaseLabel } from "./GitActionsControl.logic";
 import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 import type { WebTranslate } from "~/i18n/WebI18nContext";
@@ -579,9 +581,8 @@ function PublishRepositoryDialog(props: PublishRepositoryDialogProps) {
         if (!isAtomCommandInterrupted(result)) {
           const error = squashAtomCommandFailure(result);
           setPublishError(
-            error instanceof Error
-              ? error.message
-              : translateWebSource(locale, "An error occurred."),
+            editorFailureMessage(error, readWebI18n().locale) ??
+              translateWebSource(locale, "An error occurred."),
           );
         }
         return;
@@ -1284,9 +1285,8 @@ export default function GitActionsControl({
           type: "error",
           title: translateWebSource(locale, "Action failed"),
           description:
-            error instanceof Error
-              ? error.message
-              : translateWebSource(locale, "An error occurred."),
+            editorFailureMessage(error, readWebI18n().locale) ??
+            translateWebSource(locale, "An error occurred."),
           timeout: errorToastTiming.timeout,
           ...(scopedToastData !== undefined ? { data: scopedToastData } : {}),
         }),
@@ -1474,9 +1474,8 @@ export default function GitActionsControl({
           type: "error",
           title: translateWebSource(locale, "Unable to open file"),
           description:
-            error instanceof Error
-              ? error.message
-              : translateWebSource(locale, "An error occurred."),
+            editorFailureMessage(error, readWebI18n().locale) ??
+            translateWebSource(locale, "An error occurred."),
           ...(threadToastData !== undefined ? { data: threadToastData } : {}),
         }),
       );
@@ -1515,9 +1514,8 @@ export default function GitActionsControl({
           type: "error",
           title: translateWebSource(locale, "Git initialization failed"),
           description:
-            error instanceof Error
-              ? error.message
-              : translateWebSource(locale, "An error occurred."),
+            editorFailureMessage(error, readWebI18n().locale) ??
+            translateWebSource(locale, "An error occurred."),
           ...(threadToastData !== undefined ? { data: threadToastData } : {}),
         }),
       );

@@ -1,3 +1,7 @@
+import {
+  serverUpdateFailureMessage,
+  serverUpdateStateFailureMessage,
+} from "../i18n/serverUpdateFailureMessages";
 import { managedUpdatesDenial } from "../i18n/managedPolicyMessages";
 import { useI18n, type WebTranslate } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
@@ -89,13 +93,6 @@ function CrossTrackNote() {
   return <span className="text-muted-foreground text-xs">{translate(CROSS_TRACK_NOTE)}</span>;
 }
 
-function updateFailureMessage(
-  error: unknown,
-  translate: (source: string) => string = (source) => source,
-): string {
-  return error instanceof Error ? error.message : translate("Server update failed.");
-}
-
 export interface ServerUpdateTarget {
   readonly environmentId: EnvironmentId;
   readonly serverLabel: string;
@@ -123,8 +120,9 @@ export type ServerUpdateOutcome =
 /** Toasts its success or failure unless `quiet`; never rejects. */
 export function useServerUpdate() {
   const { locale, t } = useI18n();
-  const translate = (source: string) => translateWebSource(locale, source);
-  const translateAction = useStableCallback(translate);
+  const failureMessage = useStableCallback((error: unknown) =>
+    serverUpdateFailureMessage(locale, error),
+  );
   const actionT = useStableCallback(t);
 
   const updateServer = useAtomCommand(serverEnvironment.updateServer, { reportFailure: false });
@@ -163,7 +161,7 @@ export function useServerUpdate() {
     pendingUpdateEnvironmentIds.delete(environmentId);
     if (result._tag === "Failure") {
       if (isAtomCommandInterrupted(result)) return { status: "skipped" };
-      const message = updateFailureMessage(squashAtomCommandFailure(result), translateAction);
+      const message = failureMessage(squashAtomCommandFailure(result));
       if (!quiet) {
         toastManager.add({
           type: "error",
@@ -263,12 +261,13 @@ export function ServerUpdateProgress({
   const { locale } = useI18n();
   const translate = (source: string) => translateWebSource(locale, source);
   if (state.status === "failed") {
+    const message = serverUpdateStateFailureMessage(locale, state);
     return (
       <div className="mt-1 flex min-w-0 items-center gap-2 text-xs text-destructive" role="alert">
         <span className="size-1.5 shrink-0 rounded-full bg-destructive" aria-hidden="true" />
         <Tooltip>
-          <TooltipTrigger render={<span className="min-w-0 truncate">{state.message}</span>} />
-          <TooltipPopup side="top">{state.message}</TooltipPopup>
+          <TooltipTrigger render={<span className="min-w-0 truncate">{message}</span>} />
+          <TooltipPopup side="top">{message}</TooltipPopup>
         </Tooltip>
       </div>
     );
@@ -447,7 +446,9 @@ export function OutdatedServerUpdateAction({
 }) {
   const { locale, t } = useI18n();
   const translate = (source: string) => translateWebSource(locale, source);
-  const translateAction = useStableCallback(translate);
+  const failureMessage = useStableCallback((error: unknown) =>
+    serverUpdateFailureMessage(locale, error),
+  );
   const actionT = useStableCallback(t);
   const update = useAtomCommand(updateOutdatedServer, { reportFailure: false });
   const handleUpdate = async () => {
@@ -464,7 +465,7 @@ export function OutdatedServerUpdateAction({
       toastManager.add({
         type: "error",
         title: actionT("coreResidual.updateFailed", { server: serverLabel }),
-        description: updateFailureMessage(squashAtomCommandFailure(result), translateAction),
+        description: failureMessage(squashAtomCommandFailure(result)),
       });
       return;
     }

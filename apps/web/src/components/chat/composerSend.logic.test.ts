@@ -1,3 +1,5 @@
+import { DEFAULT_CLIENT_SETTINGS } from "@t3tools/contracts/settings";
+import { __setClientSettingsForTests } from "../../hooks/useSettings";
 import { EnvironmentId, ThreadId } from "@t3tools/contracts";
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import { describe, expect, it } from "vite-plus/test";
@@ -123,4 +125,27 @@ describe("approvalRedirectNotice", () => {
     expect(approvalRedirectNotice({ ...settled, declined: false })).toBeNull();
     expect(approvalRedirectNotice(settled)).toBeNull();
   });
+});
+
+it("reads the current locale for machine warnings without mutating attached thread identities", () => {
+  const input = {
+    pending: true,
+    threadContexts: [localThread, remoteThread],
+    candidateEnvironmentIds: [local, remote],
+  };
+  try {
+    __setClientSettingsForTests({ ...DEFAULT_CLIENT_SETTINGS, appLocale: "en" });
+    const english = loadBalancingSendWarning(input);
+    __setClientSettingsForTests({ ...DEFAULT_CLIENT_SETTINGS, appLocale: "zh-CN" });
+    expect(loadBalancingSendWarning(input).title).toBe("正在检查设备资源");
+    const unavailable = loadBalancingSendWarning({ ...input, pending: false });
+    expect(unavailable.description).toBe(
+      "没有电脑能读取所有附加的对话。请在输入框中选择电脑或移除这些对话。",
+    );
+    expect(input.threadContexts).toEqual([localThread, remoteThread]);
+    __setClientSettingsForTests({ ...DEFAULT_CLIENT_SETTINGS, appLocale: "en" });
+    expect(loadBalancingSendWarning(input)).toEqual(english);
+  } finally {
+    __setClientSettingsForTests(DEFAULT_CLIENT_SETTINGS);
+  }
 });

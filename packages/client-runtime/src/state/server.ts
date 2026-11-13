@@ -6,6 +6,9 @@ import {
   type ServerLifecycleWelcomePayload,
   type ServerLifecycleStreamReadyEvent,
   type ServerProviderWorkspaceSnapshot,
+  ServerSelfUpdateError,
+  matchingUpdateFailureReason,
+  type UpdateFailureReasonMessage,
   type ServerSelfUpdateProgressEvent,
   type ServerSelfUpdateResult,
   shouldRecommendDatabaseCompaction,
@@ -131,6 +134,73 @@ export class ServerUpdateTerminalError extends Schema.TaggedError<ServerUpdateTe
   }
 }
 
+export type ServerUpdateFailureMessage =
+  | { readonly code: "resume-timeout" | "progress-incomplete"; readonly targetVersion: string }
+  | { readonly code: "launcher-uncommitted" | "desktop-not-installed" | "unknown" }
+  | {
+      readonly code: "self-update";
+      readonly reason: string;
+      readonly reasonMessage?: UpdateFailureReasonMessage;
+    };
+
+type TerminalFailureCode = "launcher-uncommitted" | "desktop-not-installed";
+const terminalFailureMessages = new WeakMap<ServerUpdateTerminalError, TerminalFailureCode>();
+const stateFailureMessages = new WeakMap<ServerUpdateState, ServerUpdateFailureMessage>();
+const isResumeTimeout = Schema.is(ServerUpdateResumeTimeoutError);
+const isProgressIncomplete = Schema.is(ServerUpdateProgressIncompleteError);
+const isSelfUpdateError = Schema.is(ServerSelfUpdateError);
+
+function ownTerminalFailure(error: ServerUpdateTerminalError, code: TerminalFailureCode) {
+  terminalFailureMessages.set(error, code);
+  return error;
+}
+
+export function describeServerUpdateFailure(
+  error: unknown,
+): ServerUpdateFailureMessage | undefined {
+  if (!(error instanceof Error)) return { code: "unknown" };
+  const prototype = Object.getPrototypeOf(error);
+  if (prototype === ServerUpdateResumeTimeoutError.prototype && isResumeTimeout(error)) {
+    return { code: "resume-timeout", targetVersion: error.targetVersion };
+  }
+  if (prototype === ServerUpdateProgressIncompleteError.prototype && isProgressIncomplete(error)) {
+    return { code: "progress-incomplete", targetVersion: error.targetVersion };
+  }
+  if (prototype === ServerUpdateTerminalError.prototype) {
+    const code = terminalFailureMessages.get(error as ServerUpdateTerminalError);
+    if (code !== undefined) return { code };
+  }
+  if (prototype === ServerSelfUpdateError.prototype && isSelfUpdateError(error)) {
+    const reasonMessage = matchingUpdateFailureReason(error.reason, error.reasonMessage);
+    return {
+      code: "self-update",
+      reason: error.reason,
+      ...(reasonMessage === undefined ? {} : { reasonMessage }),
+    };
+  }
+  return undefined;
+}
+
+export function createServerUpdateFailedState(
+  input: {
+    readonly stage: ServerUpdateStage;
+    readonly fromVersion: string;
+    readonly targetVersion: string;
+  },
+  error: unknown,
+): Extract<ServerUpdateState, { status: "failed" }> {
+  const state = { status: "failed" as const, ...input, message: serverUpdateFailureMessage(error) };
+  const message = describeServerUpdateFailure(error);
+  if (message !== undefined) stateFailureMessages.set(state, message);
+  return state;
+}
+
+export function describeServerUpdateStateFailure(
+  state: ServerUpdateState,
+): ServerUpdateFailureMessage | undefined {
+  return stateFailureMessages.get(state);
+}
+
 // Covers the service launcher's 30-minute trial deadline (PREPARED_TIMEOUT_MS)
 // and a final restart of the previous version when the trial rolls back.
 const SERVER_UPDATE_RESUME_TIMEOUT = Duration.minutes(32);
@@ -168,14 +238,15 @@ export function validateServerUpdateReadyEvent(
   ) {
     return Effect.void;
   }
+  const error = new ServerUpdateTerminalError({
+    targetVersion: result.targetVersion,
+    status: outcome?.status ?? "failed",
+    reason:
+      outcome?.reason ??
+      "The service launcher resumed without committing the requested server version.",
+  });
   return Effect.fail(
-    new ServerUpdateTerminalError({
-      targetVersion: result.targetVersion,
-      status: outcome?.status ?? "failed",
-      reason:
-        outcome?.reason ??
-        "The service launcher resumed without committing the requested server version.",
-    }),
+    outcome?.reason == null ? ownTerminalFailure(error, "launcher-uncommitted") : error,
   );
 }
 
@@ -269,11 +340,14 @@ export const waitForDesktopUpdateTarget = Effect.fn("waitForDesktopUpdateTarget"
       return yield* Effect.failCause(retryExit.cause);
     }
   }
-  return yield* new ServerUpdateTerminalError({
-    targetVersion,
-    status: "failed",
-    reason: "The desktop app resumed without installing the prepared update.",
-  });
+  return yield* ownTerminalFailure(
+    new ServerUpdateTerminalError({
+      targetVersion,
+      status: "failed",
+      reason: "The desktop app resumed without installing the prepared update.",
+    }),
+    "desktop-not-installed",
+  );
 });
 
 export function serverUpdateStateForProgressEvent(
@@ -306,7 +380,7 @@ export function serverUpdateStateForServerVersion(
     : IDLE_SERVER_UPDATE_STATE;
 }
 
-export function serverUpdateFailureMessage(error: unknown): string {
+function serverUpdateFailureMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Server update failed.";
 }
 
@@ -1065,13 +1139,17 @@ export function createServerEnvironmentAtoms<R, E>(
               atomRegistry.set(stateAtom, IDLE_SERVER_UPDATE_STATE);
               return;
             }
-            atomRegistry.set(stateAtom, {
-              status: "failed",
-              stage: currentStage,
-              fromVersion,
-              targetVersion,
-              message: serverUpdateFailureMessage(Cause.squash(exit.cause)),
-            });
+            atomRegistry.set(
+              stateAtom,
+              createServerUpdateFailedState(
+                {
+                  stage: currentStage,
+                  fromVersion,
+                  targetVersion,
+                },
+                Cause.squash(exit.cause),
+              ),
+            );
           }),
         ),
       );

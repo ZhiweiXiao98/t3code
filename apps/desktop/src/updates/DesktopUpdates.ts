@@ -2,6 +2,7 @@ import {
   DESKTOP_UPDATE_RESTART_MARKER_FILE,
   DesktopUpdateChannelSchema,
   type DesktopRuntimeInfo,
+  type DesktopUpdateDisabledReasonMessage,
   type DesktopUpdateActionResult,
   type DesktopUpdateChannel,
   type DesktopUpdateCheckResult,
@@ -333,6 +334,20 @@ function shouldBroadcastDownloadProgress(
   return nextStep !== previousStep || nextPercent === 100;
 }
 
+const disabledReasonMessages = new WeakMap<object, DesktopUpdateDisabledReasonMessage>();
+
+function ownedDisabledReason(reason: string, message?: DesktopUpdateDisabledReasonMessage) {
+  const value = Option.some(reason);
+  if (message !== undefined) disabledReasonMessages.set(value, message);
+  return value;
+}
+
+export function describeDesktopUpdateDisabledReason(
+  reason: Option.Option<string>,
+): DesktopUpdateDisabledReasonMessage | undefined {
+  return disabledReasonMessages.get(reason);
+}
+
 function getAutoUpdateDisabledReason(args: {
   policy: DesktopUpdatePolicy.UpdatePolicy;
   isDevelopment: boolean;
@@ -342,23 +357,37 @@ function getAutoUpdateDisabledReason(args: {
   isDebPackage: boolean;
   disabledByEnv: boolean;
   hasUpdateFeedConfig: boolean;
-}): string | null {
+}): Option.Option<string> {
   if (args.policy.mode === "off") {
-    return args.policy.message ?? "Updates are turned off on this machine.";
+    return args.policy.message === null
+      ? ownedDisabledReason("Updates are turned off on this machine.", { code: "updates-off" })
+      : ownedDisabledReason(args.policy.message, args.policy.messageDescriptor);
   }
   if (!args.hasUpdateFeedConfig) {
-    return "Automatic updates are not available because no update feed is configured.";
+    return ownedDisabledReason(
+      "Automatic updates are not available because no update feed is configured.",
+      { code: "missing-feed" },
+    );
   }
   if (args.isDevelopment || !args.isPackaged) {
-    return "Automatic updates are only available in packaged production builds.";
+    return ownedDisabledReason(
+      "Automatic updates are only available in packaged production builds.",
+      { code: "packaged-only" },
+    );
   }
   if (args.disabledByEnv) {
-    return "Automatic updates are disabled by the T3CODE_DISABLE_AUTO_UPDATE setting.";
+    return ownedDisabledReason(
+      "Automatic updates are disabled by the T3CODE_DISABLE_AUTO_UPDATE setting.",
+      { code: "disabled-environment" },
+    );
   }
   if (args.platform === "linux" && !args.appImage && !args.isDebPackage) {
-    return "Automatic updates on Linux require the AppImage or the .deb package.";
+    return ownedDisabledReason(
+      "Automatic updates on Linux require the AppImage or the .deb package.",
+      { code: "linux-package" },
+    );
   }
-  return null;
+  return Option.none();
 }
 
 function isArm64HostRunningIntelBuild(runtimeInfo: DesktopRuntimeInfo): boolean {
@@ -465,26 +494,29 @@ export const make = Effect.gen(function* () {
 
   const resolveDisabledReason = Effect.gen(function* () {
     const hasFeedConfig = yield* hasUpdateFeedConfig;
-    return Option.fromNullishOr(
-      getAutoUpdateDisabledReason({
-        policy,
-        isDevelopment: environment.isDevelopment,
-        isPackaged: environment.isPackaged,
-        platform: environment.platform,
-        appImage: Option.getOrUndefined(config.appImagePath),
-        isDebPackage,
-        disabledByEnv: config.disableAutoUpdate,
-        hasUpdateFeedConfig: hasFeedConfig,
-      }),
-    );
+    return getAutoUpdateDisabledReason({
+      policy,
+      isDevelopment: environment.isDevelopment,
+      isPackaged: environment.isPackaged,
+      platform: environment.platform,
+      appImage: Option.getOrUndefined(config.appImagePath),
+      isDebPackage,
+      disabledByEnv: config.disableAutoUpdate,
+      hasUpdateFeedConfig: hasFeedConfig,
+    });
   });
 
   // Without nightly, an install on that channel stays put until its user picks stable: moving it
   // silently would be a downgrade nobody asked for, and checking nightly would break the policy.
   const channelBlockedReason = (channel: DesktopUpdateChannel): Option.Option<string> =>
     channel === "nightly" && !policy.allowNightly
-      ? Option.some(
+      ? ownedDisabledReason(
           `${policy.message ?? "Nightly updates are turned off on this machine."} Switch to the stable channel to keep getting updates.`,
+          policy.message === null
+            ? { code: "nightly-off", switchToStable: true }
+            : policy.messageDescriptor === undefined
+              ? undefined
+              : { ...policy.messageDescriptor, switchToStable: true },
         )
       : Option.none();
 

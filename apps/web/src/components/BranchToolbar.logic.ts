@@ -38,6 +38,7 @@ export function resolveEnvironmentOptionLabel(input: {
   environmentId: EnvironmentId;
   runtimeLabel?: string | null;
   savedLabel?: string | null;
+  primaryFallback?: string;
 }): string {
   const runtimeLabel = normalizeDisplayLabel(input.runtimeLabel);
   const savedLabel = normalizeDisplayLabel(input.savedLabel);
@@ -47,7 +48,7 @@ export function resolveEnvironmentOptionLabel(input: {
       if (!label) return false;
       return !GENERIC_LOCAL_ENVIRONMENT_LABELS.has(label.toLowerCase());
     });
-    return preferredLocalLabel ?? "This device";
+    return preferredLocalLabel ?? input.primaryFallback ?? "This device";
   }
 
   return runtimeLabel ?? savedLabel ?? input.environmentId;

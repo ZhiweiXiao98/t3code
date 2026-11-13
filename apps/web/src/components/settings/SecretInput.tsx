@@ -1,3 +1,5 @@
+import { useI18n } from "~/i18n/WebI18nContext";
+import { translateWebSource } from "~/i18n/messages";
 import { DraftInput, type DraftInputProps } from "../ui/draft-input";
 import { Input, type InputProps } from "../ui/input";
 
@@ -14,14 +16,15 @@ export function SecretInput({
   onCommit,
   ...props
 }: SecretInputProps) {
+  const { locale } = useI18n();
   const shared = {
     ...props,
     type: "password" as const,
     autoComplete: "off",
     spellCheck: false,
     placeholder: configured
-      ? "Stored secret, enter a new value to replace"
-      : (placeholder ?? "Not set"),
+      ? translateWebSource(locale, "Stored secret, enter a new value to replace")
+      : (placeholder ?? translateWebSource(locale, "Not set")),
   };
   if (onCommit) {
     return (

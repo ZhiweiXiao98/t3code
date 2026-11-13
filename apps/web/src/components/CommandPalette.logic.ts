@@ -1,5 +1,9 @@
+import {
+  connectionStatusText,
+  type EnvironmentConnectionPresentation,
+} from "@t3tools/client-runtime/connection";
 import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
-import { translateWebSource } from "~/i18n/messages";
+import { translateWebSource, translateWebMessage } from "~/i18n/messages";
 import {
   foldSearchQuery,
   PALETTE_SECONDARY_LIMIT,
@@ -825,13 +829,22 @@ export type AddProjectCloneFlow =
       readonly remoteUrl: string;
     };
 
-export function remoteProjectInputPlaceholder(flow: AddProjectCloneFlow | null): string | null {
+export function remoteProjectInputPlaceholder(
+  flow: AddProjectCloneFlow | null,
+  locale: ResolvedAppLocale = "en",
+): string | null {
   if (!flow) return null;
   if (flow.step === "confirm") return null;
   if (flow.source === "url") {
-    return "Enter Git clone URL";
+    return translateWebSource(locale, "Enter Git clone URL");
   }
-  return `Enter ${addProjectRemoteSourceLabel(flow.source)} repository (${addProjectRemoteSourcePathHint(flow.source)})`;
+  return translateWebSource(locale, "Enter {provider} repository ({pathHint})").replace(
+    /\{(provider|pathHint)\}/g,
+    (_, key: string) =>
+      key === "provider"
+        ? addProjectRemoteSourceLabel(flow.source)
+        : addProjectRemoteSourcePathHint(flow.source),
+  );
 }
 
 export function buildPaletteRemoteSourceReadiness(
@@ -922,4 +935,19 @@ export function localizeCommandPaletteGroups(
       ? { ...group, label: translateWebSource(locale, group.label) }
       : group,
   );
+}
+
+export function paletteConnectionStatus(
+  connection: EnvironmentConnectionPresentation,
+  locale: ResolvedAppLocale,
+): string {
+  if (connection.phase === "reconnecting" && connection.error)
+    return translateWebMessage(locale, "settingsControls.reconnectingReason", {
+      error: connection.error,
+    });
+  if (connection.phase === "error" && connection.error)
+    return translateWebMessage(locale, "settingsControls.connectionReason", {
+      error: connection.error,
+    });
+  return translateWebSource(locale, connectionStatusText(connection));
 }

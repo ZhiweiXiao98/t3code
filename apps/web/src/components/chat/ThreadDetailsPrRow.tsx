@@ -193,6 +193,21 @@ export function ThreadDetailsPrRow({
     lastSelectedMergeMethod,
   );
 
+  const displayRequestType =
+    newCopyLocale === "zh-CN"
+      ? terminology.singular === "merge request"
+        ? "合并请求"
+        : "拉取请求"
+      : terminology.singular;
+  const displayMergeMethod =
+    newCopyLocale === "zh-CN"
+      ? selectedMergeMethod === "squash"
+        ? "压缩合并"
+        : selectedMergeMethod === "rebase"
+          ? "变基合并"
+          : "合并提交"
+      : selectedMergeMethod;
+
   const startResolveConflicts = () => {
     if (detail === null) return;
     void startHandoff("conflicts", {
@@ -231,6 +246,7 @@ export function ThreadDetailsPrRow({
       : resolvePullRequestState({
           state: detail.state,
           isDraft: detail.isDraft,
+          t: residualT,
         });
   const icon = statePresentation ? (
     <statePresentation.Icon
@@ -249,7 +265,8 @@ export function ThreadDetailsPrRow({
   const rowTooltip =
     detail === null || statePresentation === null ? (
       <TooltipPopup side="top">
-        {status?.tooltip ?? `${capitalizeTerm(terminology.singular)} #${number}`}
+        {status?.tooltip ??
+          `${newCopyLocale === "zh-CN" ? displayRequestType : capitalizeTerm(terminology.singular)} #${number}`}
       </TooltipPopup>
     ) : (
       <TooltipPopup
@@ -344,7 +361,7 @@ export function ThreadDetailsPrRow({
             pending: actionPending,
             destructive: false,
             suffix: null,
-            tooltip: residualT("chatCorrection.readyHint", { type: terminology.singular }),
+            tooltip: residualT("chatCorrection.readyHint", { type: displayRequestType }),
             onClick: () => void perform("ready"),
           }
         : rowAction === "fix"
@@ -365,8 +382,8 @@ export function ThreadDetailsPrRow({
                 destructive: false,
                 suffix: null,
                 tooltip: residualT("chatCorrection.mergeHint", {
-                  type: terminology.singular,
-                  method: selectedMergeMethod,
+                  type: displayRequestType,
+                  method: displayMergeMethod,
                 }),
                 onClick: () => setConfirmingMerge(true),
               }
@@ -501,12 +518,12 @@ export function ThreadDetailsPrRow({
           <AlertDialogPopup>
             <AlertDialogHeader>
               <AlertDialogTitle>
-                {residualT("chatResidual.mergeQuestion", { type: terminology.singular })}
+                {residualT("chatResidual.mergeQuestion", { type: displayRequestType })}
               </AlertDialogTitle>
               <AlertDialogDescription>
                 {residualT("chatResidual.mergeDescription", {
                   number,
-                  method: selectedMergeMethod,
+                  method: displayMergeMethod,
                 })}
               </AlertDialogDescription>
             </AlertDialogHeader>

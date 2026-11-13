@@ -376,6 +376,29 @@ describe("Simlock device host", () => {
       const ready = yield* host.ensureReady(() => Effect.void);
       pool.setCatalog({ platforms: [] });
       expect((yield* ready.devices.list).devices).toEqual([]);
+      expect((yield* host.summary).platforms).toEqual([
+        {
+          platform: "ios",
+          available: false,
+          reason: "The pool has no iOS devices.",
+          reasonMessage: { source: "simlock-device-host", code: "ios-devices-missing" },
+        },
+        {
+          platform: "android",
+          available: false,
+          reason: "The pool has no Android devices.",
+          reasonMessage: { source: "simlock-device-host", code: "android-devices-missing" },
+        },
+      ]);
+      pool.setCatalog({ platforms: "unrecognized gateway payload" });
+      expect(yield* host.platformAvailability("ios")).toEqual({
+        platform: "ios",
+        available: false,
+        reason: `The Simlock gateway at ${GATEWAY} sent an answer T3 could not read.`,
+      });
+      expect(
+        (yield* host.summary).platforms.every((entry) => entry.reasonMessage === undefined),
+      ).toBe(true);
       // Mid-reconnect, the gateway knows the Android models but no worker that makes them.
       pool.setCatalog({
         platforms: [
@@ -388,6 +411,10 @@ describe("Simlock device host", () => {
       pool.setCatalog(CATALOG);
       const after = (yield* ready.devices.list).devices;
       expect(after.some((device) => device.platform === "android")).toBe(true);
+      expect((yield* host.summary).platforms).toEqual([
+        { platform: "ios", available: true },
+        { platform: "android", available: true },
+      ]);
       yield* Scope.close(scope, Exit.void);
     }).pipe(Effect.scoped, Effect.provide(layer)),
   );
