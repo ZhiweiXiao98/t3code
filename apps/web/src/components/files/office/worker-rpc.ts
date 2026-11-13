@@ -137,9 +137,12 @@ export function createWorkerClient<M extends Methods>(worker: Worker) {
         const timeout = setTimeout(
           () =>
             fail(
-              new WorkerClosedError({
-                message: "This document took too long to preview. Open it in another app.",
-              }),
+              markFilePreviewError(
+                new WorkerClosedError({
+                  message: "This document took too long to preview. Open it in another app.",
+                }),
+                "This document took too long to preview. Open it in another app.",
+              ),
             ),
           30_000,
         );

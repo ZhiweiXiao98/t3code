@@ -76,9 +76,14 @@ const decodeFilter = Schema.decodeUnknownOption(ScheduledTaskWebhookFilter);
  */
 export function parseWebhookFilterDrafts(
   drafts: ReadonlyArray<WebhookFilterDraft>,
+  formatError?: (template: string, values: readonly number[]) => string,
 ): { readonly filters: ReadonlyArray<ScheduledTaskWebhookFilter> } | { readonly error: string } {
   if (drafts.length > MAX_WEBHOOK_FILTERS) {
-    return { error: `Use at most ${MAX_WEBHOOK_FILTERS} filters.` };
+    return {
+      error:
+        formatError?.("Use at most {0} filters.", [MAX_WEBHOOK_FILTERS]) ??
+        `Use at most ${MAX_WEBHOOK_FILTERS} filters.`,
+    };
   }
   const filters: ScheduledTaskWebhookFilter[] = [];
   for (const [index, draft] of drafts.entries()) {
@@ -98,14 +103,14 @@ export function parseWebhookFilterDrafts(
           : { path, op: draft.op, value: draft.value },
     );
     if (Option.isNone(filter)) {
+      const template =
+        draft.op === "exists"
+          ? "Filter {0} needs a path under body, headers or query."
+          : draft.op === "in"
+            ? "Filter {0} needs a path under body, headers or query, and at least one value."
+            : "Filter {0} needs a path under body, headers or query, and a value.";
       return {
-        error: `Filter ${index + 1} needs a path under body, headers or query${
-          draft.op === "exists"
-            ? "."
-            : draft.op === "in"
-              ? ", and at least one value."
-              : ", and a value."
-        }`,
+        error: formatError?.(template, [index + 1]) ?? template.replace("{0}", String(index + 1)),
       };
     }
     filters.push(filter.value);

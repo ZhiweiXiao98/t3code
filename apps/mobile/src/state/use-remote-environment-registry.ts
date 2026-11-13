@@ -1,3 +1,5 @@
+import { formatMobileMessage } from "../i18n/mobileDisplayStrings";
+import { localizeMobileString } from "../i18n/mobileStrings";
 import * as Dialog from "../components/ui/Dialog";
 import { useAtomValue } from "@effect/atom-react";
 import { useNavigation } from "@react-navigation/native";
@@ -65,14 +67,17 @@ export async function pairEnvironment(
     return { ok: true, error: null };
   }
   const error = Cause.squash(result.cause);
-  const message = error instanceof Error ? error.message : "Failed to pair with the environment.";
+  const message =
+    error instanceof Error
+      ? error.message
+      : localizeMobileString("Failed to pair with the environment.");
   if (
     error !== null &&
     typeof error === "object" &&
     "reason" in error &&
     error.reason === "unsupported"
   ) {
-    Dialog.alert("Client not supported", message);
+    Dialog.alertWithLiteralMessage("Client not supported", message);
     return { ok: false, error: null };
   }
   return { ok: false, error: message };
@@ -198,18 +203,24 @@ export function useRemoteConnections() {
         text: "Open T3 Account",
         onPress: () => navigation.navigate("SettingsAuth"),
       };
-      Dialog.alert(
+      Dialog.alertWithLiteralMessage(
         "Remove from this device?",
-        `Forget ${environment.environmentLabel} and its cached threads on this device.\n\n${RELAY_REMOVAL_ACCOUNT_NOTE[registration]}`,
+        formatMobileMessage("Forget {0} and its cached threads on this device.\n\n{1}", [
+          environment.environmentLabel,
+          localizeMobileString(RELAY_REMOVAL_ACCOUNT_NOTE[registration]),
+        ]),
         registration === "unregistered" || !hasCloudPublicConfig()
           ? [{ text: "Cancel", style: "cancel" }, remove]
           : [{ text: "Cancel", style: "cancel" }, openAccount, remove],
       );
       return;
     }
-    Dialog.alert(
+    Dialog.alertWithLiteralMessage(
       "Remove from this device?",
-      `Forget ${environment.environmentLabel} and its cached threads on this device. Switch it off instead to keep it saved.`,
+      formatMobileMessage(
+        "Forget {0} and its cached threads on this device. Switch it off instead to keep it saved.",
+        [environment.environmentLabel],
+      ),
       [{ text: "Cancel", style: "cancel" }, remove],
     );
   };

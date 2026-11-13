@@ -1,4 +1,5 @@
 import { localizeMobileString } from "../i18n/mobileStrings";
+import { formatMobileMessage } from "../i18n/mobileDisplayStrings";
 import { useComposerAttachmentActions } from "./use-composer-attachment-actions";
 import * as Dialog from "../components/ui/Dialog";
 import { AuthOrchestrationOperateScope } from "@t3tools/contracts";
@@ -423,9 +424,11 @@ export function useThreadComposerState(input: {
       edit.existingAttachments.length + draft.attachments.length >
       PROVIDER_SEND_TURN_MAX_ATTACHMENTS
     ) {
-      Dialog.alert(
+      Dialog.alertWithLiteralMessage(
         "Too many attachments",
-        `Remove attachments until there are at most ${PROVIDER_SEND_TURN_MAX_ATTACHMENTS}.`,
+        formatMobileMessage("Remove attachments until there are at most {0}.", [
+          PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
+        ]),
       );
       return;
     }
@@ -446,9 +449,11 @@ export function useThreadComposerState(input: {
       setIsSavingQueuedEdit(false);
       finishSave(false);
       const error = squashAtomCommandFailure(prepared);
-      Dialog.alert(
+      Dialog.alertWithLiteralMessage(
         "Could not save the queued message",
-        error instanceof Error ? error.message : "Your edit is still in the composer.",
+        error instanceof Error
+          ? error.message
+          : localizeMobileString("Your edit is still in the composer."),
       );
       return;
     }
@@ -561,7 +566,7 @@ export function useThreadComposerState(input: {
     const sideChatCommand = beforeDispatch === undefined ? parseSideChatCommand(text) : null;
     if (sideChatCommand) {
       if (sideChatUnavailableReason !== null) {
-        Dialog.alert("Side chat not started", sideChatUnavailableReason);
+        Dialog.alertWithLiteralMessage("Side chat not started", sideChatUnavailableReason);
       } else if (attachments.length > 0 || (draft.context?.records.length ?? 0) > 0) {
         Dialog.alert(
           "Side chats take text only",
@@ -613,16 +618,18 @@ export function useThreadComposerState(input: {
     }
     // Recovery preserves over-cap attachments; require trimming or outbox delivery would reject indefinitely.
     if (attachments.length > PROVIDER_SEND_TURN_MAX_ATTACHMENTS) {
-      Dialog.alert(
+      Dialog.alertWithLiteralMessage(
         "Too many attachments",
-        `Remove attachments until there are at most ${PROVIDER_SEND_TURN_MAX_ATTACHMENTS}.`,
+        formatMobileMessage("Remove attachments until there are at most {0}.", [
+          PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
+        ]),
       );
       return null;
     }
 
     const contextBlockReason = composerContextSendBlockReason(draft.context);
     if (contextBlockReason) {
-      Dialog.alert("Too much context", contextBlockReason);
+      Dialog.alertWithLiteralMessage("Too much context", contextBlockReason);
       return null;
     }
 
@@ -795,24 +802,25 @@ export function useThreadComposerState(input: {
   const sideChatUnavailableReason = (() => {
     const serverConfig = selectedEnvironmentRuntime?.serverConfig;
     if (selectedThreadShell?.lineage.sideChat === true)
-      return "Side chats cannot start side chats.";
+      return localizeMobileString("Side chats cannot start side chats.");
     if (selectedThreadShell?.lineage.relationshipToParent === "subagent") {
-      return "Subagent threads cannot start side chats.";
+      return localizeMobileString("Subagent threads cannot start side chats.");
     }
     if (!selectedThreadShell || !serverConfig) {
-      return "Side chats are not ready yet. Try again in a moment.";
+      return localizeMobileString("Side chats are not ready yet. Try again in a moment.");
     }
     if (serverConfig.environment.capabilities.sideChats !== true) {
-      return "Update this environment's T3 Code server to use side chats.";
+      return localizeMobileString("Update this environment's T3 Code server to use side chats.");
     }
-    if (selectedThreadCreation !== null) return "Side chats start after the first message.";
+    if (selectedThreadCreation !== null)
+      return localizeMobileString("Side chats start after the first message.");
     if (
       orchestrationV2WorktreePending(
         selectedThreadShell.worktreePath ?? null,
         selectedThreadProjection?.projection.runs ?? [],
       )
     ) {
-      return "Available once the thread's worktree is set up.";
+      return localizeMobileString("Available once the thread's worktree is set up.");
     }
     return null;
   })();

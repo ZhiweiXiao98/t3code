@@ -1,3 +1,5 @@
+import { formatMobileMessage } from "../i18n/mobileDisplayStrings";
+import { localizeMobileString } from "../i18n/mobileStrings";
 import {
   collectComposerModelMentions,
   type ComposerModelMentionOccurrence,
@@ -41,10 +43,14 @@ export function composerContextSendBlockReason(
 ): string | null {
   if (!context) return null;
   if (context.records.length > COMPOSER_CONTEXT_MAX_RECORDS) {
-    return `Remove context items until there are at most ${COMPOSER_CONTEXT_MAX_RECORDS}.`;
+    return formatMobileMessage("Remove context items until there are at most {0}.", [
+      COMPOSER_CONTEXT_MAX_RECORDS,
+    ]);
   }
   return !isMessageContext(context) || decodeMessageContext(context)._tag === "None"
-    ? "This draft has too much context to send. Remove some context items and try again."
+    ? localizeMobileString(
+        "This draft has too much context to send. Remove some context items and try again.",
+      )
     : null;
 }
 

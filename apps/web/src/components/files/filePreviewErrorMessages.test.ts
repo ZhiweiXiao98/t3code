@@ -228,3 +228,28 @@ it("round trips actual Office RPC owned validation and raw same-text failures se
     vi.unstubAllGlobals();
   }
 });
+
+it("preserves the Office RPC timeout instance while translating its owned message at display time", async () => {
+  vi.useFakeTimers();
+  const worker = Object.assign(new EventTarget(), { postMessage: vi.fn(), terminate: vi.fn() });
+  const client = createWorkerClient<{ open: { input: null; output: null } }>(
+    worker as unknown as Worker,
+  );
+  try {
+    const pending = client.call("open", null).catch((error: unknown) => error);
+    await vi.advanceTimersByTimeAsync(30_000);
+    const error = await pending;
+    expect(error).toMatchObject({
+      _tag: "WorkerClosedError",
+      name: "WorkerClosedError",
+      message: "This document took too long to preview. Open it in another app.",
+    });
+    expect(error).toBeInstanceOf(Error);
+    expectLocalized(error as Error);
+    expect(worker.terminate).toHaveBeenCalledOnce();
+    expect(await client.call("open", null).catch((cause: unknown) => cause)).toBe(error);
+  } finally {
+    client.close();
+    vi.useRealTimers();
+  }
+});

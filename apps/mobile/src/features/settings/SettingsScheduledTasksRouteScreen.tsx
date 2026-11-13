@@ -712,7 +712,7 @@ function TaskForm({
 
   const failure = (title: string, result: AtomCommandResult<unknown, unknown>) => {
     if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
-      Dialog.alert(title, String(squashAtomCommandFailure(result)));
+      Dialog.alertWithLiteralMessage(title, String(squashAtomCommandFailure(result)));
     }
   };
 
@@ -756,9 +756,9 @@ function TaskForm({
       );
       return;
     }
-    const parsedFilters = parseWebhookFilterDrafts(draft.schedule.filters);
+    const parsedFilters = parseWebhookFilterDrafts(draft.schedule.filters, formatMobileMessage);
     if (draft.schedule.mode === "webhook" && "error" in parsedFilters) {
-      Dialog.alert("Invalid filter", parsedFilters.error);
+      Dialog.alertWithLiteralMessage("Invalid filter", parsedFilters.error);
       return;
     }
     if (draft.schedule.mode === "webhook" && schedule === null) {
@@ -1417,7 +1417,7 @@ function WebhookScheduleDetails({
                     void rotate({ environmentId, input: { id: task.id } }).then((result) => {
                       setRotating(false);
                       if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
-                        Dialog.alert(
+                        Dialog.alertWithLiteralMessage(
                           "Could not rotate URL",
                           String(squashAtomCommandFailure(result)),
                         );
@@ -1476,7 +1476,7 @@ function EnvironmentTasks({
   const selectDetail = useSelectWorkspaceDetail();
   const failure = (title: string, result: AtomCommandResult<unknown, unknown>) => {
     if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
-      Dialog.alert(title, String(squashAtomCommandFailure(result)));
+      Dialog.alertWithLiteralMessage(title, String(squashAtomCommandFailure(result)));
     }
   };
 
@@ -1494,6 +1494,7 @@ function EnvironmentTasks({
   return (
     <SettingsSection
       title={environment.label}
+      localizeTitle={false}
       titleIcon={
         <EnvironmentMachineSymbol
           kind={resolveEnvironmentMachineKind(environment.serverConfig)}
@@ -1587,7 +1588,7 @@ function EnvironmentTasks({
                     },
                   });
                 } else if (action === "delete") {
-                  Dialog.alert("Delete task?", task.title, [
+                  Dialog.alertWithLiteralMessage("Delete task?", task.title, [
                     { text: "Cancel", style: "cancel" },
                     {
                       text: "Delete",

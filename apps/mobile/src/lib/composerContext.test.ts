@@ -1,5 +1,6 @@
 import {
   ComposerContextId,
+  COMPOSER_CONTEXT_MAX_RECORDS,
   type OrchestrationMessageContext,
   type ServerProviderSkill,
 } from "@t3tools/contracts";
@@ -10,7 +11,7 @@ import {
   formatComposerContextReference,
   projectComposerContextForProvider,
 } from "@t3tools/shared/composerContextReferences";
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it, vi } from "vite-plus/test";
 import {
   collectComposerModelTokens,
   composerContextEditorTokens,
@@ -24,6 +25,8 @@ import {
   serializeComposerMessageForServer,
   pullRequestComposerContext,
 } from "./composerContext";
+
+import * as mobileStrings from "../i18n/mobileStrings";
 
 const terminal = {
   version: 1 as const,
@@ -62,12 +65,24 @@ const annotation = {
 
 describe("mobile composer context", () => {
   it("rejects a malformed record instead of allowing the wire decoder to drop its payload", () => {
-    expect(
-      composerContextSendBlockReason({
-        version: 1,
-        records: [{ ...terminal, label: "x".repeat(201) }],
-      }),
-    ).not.toBeNull();
+    const malformed = {
+      version: 1 as const,
+      records: [{ ...terminal, label: "Settings".repeat(30) }],
+    };
+    const before = structuredClone(malformed);
+    const localize = mobileStrings.localizeMobileString;
+    for (const locale of ["en", "zh-CN"] as const) {
+      using localeSpy = vi
+        .spyOn(mobileStrings, "localizeMobileString")
+        .mockImplementation((value) => localize(value, locale));
+      expect(composerContextSendBlockReason(malformed)).toBe(
+        locale === "zh-CN"
+          ? "此草稿的上下文过多，无法发送。请移除部分上下文项后重试。"
+          : "This draft has too much context to send. Remove some context items and try again.",
+      );
+      expect(malformed).toEqual(before);
+      expect(localeSpy).toHaveBeenCalled();
+    }
   });
   it("does not evict live recovery payloads from the editor's bounded undo history", () => {
     const records = Array.from({ length: 400 }, (_, index) => ({
@@ -109,15 +124,33 @@ describe("mobile composer context", () => {
   });
 
   it("blocks over-limit recovery drafts until enough context has been removed", () => {
-    const records = Array.from({ length: 201 }, (_, index) => ({
+    const records = Array.from({ length: COMPOSER_CONTEXT_MAX_RECORDS + 1 }, (_, index) => ({
       ...terminal,
       contextId: ComposerContextId.make(`terminal-${index}`),
+      label: "Settings {0} $&",
+      text: "Open /path/{0}/$&",
     }));
-    expect(composerContextSendBlockReason({ version: 1, records })).toContain("at most 200");
-    expect(
-      composerContextSendBlockReason({ version: 1, records: records.slice(0, 200) }),
-    ).toBeNull();
-    expect(composerContextSendBlockReason()).toBeNull();
+    const before = structuredClone(records);
+    const localize = mobileStrings.localizeMobileString;
+    for (const locale of ["en", "zh-CN"] as const) {
+      using localeSpy = vi
+        .spyOn(mobileStrings, "localizeMobileString")
+        .mockImplementation((value) => localize(value, locale));
+      expect(composerContextSendBlockReason({ version: 1, records })).toBe(
+        locale === "zh-CN"
+          ? `请移除部分上下文项，使其数量不超过 ${COMPOSER_CONTEXT_MAX_RECORDS} 个。`
+          : `Remove context items until there are at most ${COMPOSER_CONTEXT_MAX_RECORDS}.`,
+      );
+      expect(
+        composerContextSendBlockReason({
+          version: 1,
+          records: records.slice(0, COMPOSER_CONTEXT_MAX_RECORDS),
+        }),
+      ).toBeNull();
+      expect(composerContextSendBlockReason()).toBeNull();
+      expect(records).toEqual(before);
+      expect(localeSpy).toHaveBeenCalled();
+    }
   });
 
   it("opens the full file path from bare, quoted, and canonical mentions", () => {

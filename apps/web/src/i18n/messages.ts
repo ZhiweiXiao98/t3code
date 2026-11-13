@@ -9245,6 +9245,14 @@ for (const [key, source] of Object.entries(EN_MESSAGES) as ReadonlyArray<
 // New upstream settings copy can be localized here before it receives a stable
 // message key. Settings containers and search both consume this same table.
 const ZH_CN_SOURCE_MESSAGES: Readonly<Record<string, string>> = {
+  " · Fit to width": " · 适应宽度",
+  "This sheet could not be opened.": "无法打开此工作表。",
+  "These cells could not be drawn. Try scrolling to another area.":
+    "无法绘制这些单元格。请尝试滚动到其他区域。",
+  "These cells could not be drawn.": "无法绘制这些单元格。",
+  "Select fewer than 200,000 cells to copy.": "请选择少于 200,000 个单元格进行复制。",
+  "The selected cells could not be copied.": "无法复制所选单元格。",
+
   "Open with": "打开方式",
   "Open on host": "在托管平台打开",
   "Could not open file": "无法打开文件",

@@ -6,6 +6,40 @@ export const MOBILE_LOCALE: MobileLocale =
   process.env.EXPO_PUBLIC_APP_LOCALE === "zh-CN" ? "zh-CN" : "en";
 
 const ZH_CN_MESSAGES = {
+  "Filter {0} needs a path under body, headers or query, and a value.":
+    "筛选条件 {0} 需要 body、headers 或 query 下的路径，以及一个值。",
+  "Filter {0} needs a path under body, headers or query, and at least one value.":
+    "筛选条件 {0} 需要 body、headers 或 query 下的路径，以及至少一个值。",
+  "Filter {0} needs a path under body, headers or query.":
+    "筛选条件 {0} 需要 body、headers 或 query 下的路径。",
+  "Use at most {0} filters.": "最多可使用 {0} 个筛选条件。",
+  "Wait for uploads to finish, or retry failed uploads.": "请等待上传完成，或重试失败的上传。",
+  "Attachments are not ready": "附件尚未就绪",
+  "This draft has too much context to send. Remove some context items and try again.":
+    "此草稿的上下文过多，无法发送。请移除部分上下文项后重试。",
+  "Remove context items until there are at most {0}.":
+    "请移除部分上下文项，使其数量不超过 {0} 个。",
+  "Available once the thread's worktree is set up.": "对话的工作树设置完成后即可使用。",
+  "Update this environment's T3 Code server to use side chats.":
+    "请更新此环境的 T3 Code 服务器以使用旁支对话。",
+  "Side chats are not ready yet. Try again in a moment.": "旁支对话尚未就绪，请稍后重试。",
+  "Subagent threads cannot start side chats.": "子智能体对话无法启动旁支对话。",
+  "Side chats cannot start side chats.": "旁支对话无法再启动旁支对话。",
+  "Type the question after /side, then send it.": "请在 /side 后输入问题，然后发送。",
+  "Ask a side question": "提出旁支问题",
+  "Remove the attachments and context, then send it again.": "请移除附件和上下文，然后重新发送。",
+  "Side chats take text only": "旁支对话仅支持文本",
+  "It may have already started. Your edit is still in the composer.":
+    "这条消息可能已经开始处理。你的编辑仍保留在输入框中。",
+  "Could not save the queued message": "无法保存排队中的消息",
+  "A queued message cannot be left empty.": "排队中的消息不能为空。",
+  "Add a message": "添加消息",
+  "Forget {0} and its cached threads on this device. Switch it off instead to keep it saved.":
+    "忘记 {0} 及其在此设备上缓存的任务。若要保留，请改为将其关闭。",
+  "Forget {0} and its cached threads on this device.\n\n{1}":
+    "忘记 {0} 及其在此设备上缓存的任务。\n\n{1}",
+  "Failed to pair with the environment.": "无法与该环境配对。",
+  "Remove from this device?": "从此设备移除？",
   Changes: "更改",
   Uncommitted: "未提交",
   "The side chat is no longer available.": "此旁支对话已不可用。",

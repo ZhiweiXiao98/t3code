@@ -56,7 +56,6 @@ export default function Spreadsheet(props: {
   const translateCount = useStableCallback((count: string | number) =>
     t("files.residual.sheets", { count }),
   );
-  const translateSource = useStableCallback((source: string) => translateWebSource(locale, source));
   const { onError, bytes: source, onDetails } = props;
   const [opened, setOpened] = useState<Opened>();
   const [error, setError] = useState("");
@@ -106,14 +105,13 @@ export default function Spreadsheet(props: {
         setOpened({ ...opened, layout, target });
       })
       .catch(() => {
-        if (!controller.signal.aborted)
-          setError(translateSource("This sheet could not be opened."));
+        if (!controller.signal.aborted) setError("This sheet could not be opened.");
       });
   };
   if (!opened) return <FileSurfaceLoading />;
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {error ? <FileSurfaceNotice>{error}</FileSurfaceNotice> : null}
+      {error ? <FileSurfaceNotice>{translateWebSource(locale, error)}</FileSurfaceNotice> : null}
       <SpreadsheetGrid
         key={opened.layout.info.activeSheet}
         engine={opened.engine}
@@ -174,7 +172,6 @@ function SpreadsheetGrid(props: {
   onNavigate: (sheet: string, cell: CellAddr) => void;
 }) {
   const { locale } = useI18n();
-  const translateSource = useStableCallback((source: string) => translateWebSource(locale, source));
   const { onNavigate, layout, engine, initialCell } = props;
   const scroller = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -274,9 +271,7 @@ function SpreadsheetGrid(props: {
             }
             received = order;
             if (!reply) {
-              setNotice(
-                translateSource("These cells could not be drawn. Try scrolling to another area."),
-              );
+              setNotice("These cells could not be drawn. Try scrolling to another area.");
               return;
             }
             setNotice("");
@@ -287,7 +282,7 @@ function SpreadsheetGrid(props: {
           })
           .catch((cause: unknown) => {
             if (!isSupersededError(cause) && !controller.signal.aborted)
-              setNotice(translateSource("These cells could not be drawn."));
+              setNotice("These cells could not be drawn.");
           });
       }
       if (
@@ -483,7 +478,7 @@ function SpreadsheetGrid(props: {
         right: Math.min(selected.right, Math.max(selected.left, used?.right ?? 0)),
       };
       if ((clipped.bottom - clipped.top + 1) * (clipped.right - clipped.left + 1) > 200_000) {
-        setNotice(translateSource("Select fewer than 200,000 cells to copy."));
+        setNotice("Select fewer than 200,000 cells to copy.");
         return;
       }
       void engine
@@ -493,8 +488,7 @@ function SpreadsheetGrid(props: {
           return navigator.clipboard.writeText(text);
         })
         .catch(() => {
-          if (!controller.signal.aborted)
-            setNotice(translateSource("The selected cells could not be copied."));
+          if (!controller.signal.aborted) setNotice("The selected cells could not be copied.");
         });
     };
     const key = (event: KeyboardEvent) => {
@@ -554,7 +548,7 @@ function SpreadsheetGrid(props: {
       root.removeEventListener("pointerup", pointerUp);
       root.removeEventListener("pointercancel", cancel);
     };
-  }, [engine, layout, initialCell, translateSource]);
+  }, [engine, layout, initialCell]);
   return (
     <div className="relative flex min-h-0 flex-1">
       <div
@@ -603,7 +597,7 @@ function SpreadsheetGrid(props: {
           role="status"
           className="absolute inset-x-3 bottom-3 rounded-md bg-background p-2 text-xs text-foreground shadow-md"
         >
-          {notice}
+          {translateWebSource(locale, notice)}
         </div>
       ) : null}
     </div>

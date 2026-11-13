@@ -17,7 +17,11 @@ export function MediaPreviewHeader(props: {
   return (
     <>
       <View className="min-h-14 flex-row items-center gap-3 pl-4 pr-2">
-        <AppText className="flex-1 font-t3-medium text-base text-white" numberOfLines={2}>
+        <AppText
+          localize={false}
+          className="flex-1 font-t3-medium text-base text-white"
+          numberOfLines={2}
+        >
           {props.title}
         </AppText>
         <MediaActionsMenu media={props.media} inModal />
