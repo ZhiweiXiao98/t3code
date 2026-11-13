@@ -34,7 +34,7 @@ export function useEnvironmentLookups() {
           label: isPrimary
             ? t("pullRequestThread.local")
             : isLocal
-              ? `${environment.label} (Local)`
+              ? t("audit20.palette.localEnvironment", { environment: environment.label })
               : environment.label,
           machine: resolveEnvironmentMachineKind(environment.serverConfig),
         },

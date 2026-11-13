@@ -50,6 +50,8 @@ const waitingAuthState: ProviderAuthState = {
   flowId,
   authorizationUrl: "https://accounts.google.com/o/oauth2/v2/auth?state=test-state",
   expiresAt: "2026-09-02T00:05:00.000Z",
+  message: "Complete sign-in to continue.",
+  messageDescriptor: { code: "auth.completeSignIn" },
 };
 
 function makeInstance(input: {

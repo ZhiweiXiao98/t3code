@@ -14,6 +14,7 @@ import type {
   WorktreeCleanupRules,
   StorageCleanupReport,
   StorageCleanupReportEntry,
+  StorageCleanupReasonMessage,
   ThreadId,
 } from "@t3tools/contracts";
 import { resolveWorktreeCleanup } from "@t3tools/shared/projectSettings";
@@ -90,6 +91,29 @@ function cleanupFailureReason(error: { readonly message: string }) {
   return isGitCommandError(error)
     ? `${error.command}: ${error.detail.split(/\r?\n/)[0]}${error.reason ? ` (${error.reason})` : ""}`
     : (error.message.split(/\r?\n/)[0] ?? error.message);
+}
+
+type CleanupReason = Pick<StorageCleanupReportEntry, "reason" | "reasonMessage">;
+
+const ownedReason = <Message extends StorageCleanupReasonMessage>(
+  reason: string,
+  reasonMessage: Message,
+) => ({ reason, reasonMessage });
+
+// Only these constructors mark errors; matching external diagnostics stay literal.
+const ownedFailureMessages = new WeakMap<object, StorageCleanupReasonMessage>();
+
+function ownedFailure(error: GitCommandError, reasonMessage: StorageCleanupReasonMessage) {
+  ownedFailureMessages.set(error, reasonMessage);
+  return error;
+}
+
+function failureReason(error: { readonly message: string }): CleanupReason {
+  const reasonMessage = ownedFailureMessages.get(error);
+  return {
+    reason: cleanupFailureReason(error),
+    ...(reasonMessage === undefined ? {} : { reasonMessage }),
+  };
 }
 
 const worktreeCleanupEnabled = (rules: WorktreeCleanupRules) =>
@@ -532,9 +556,11 @@ const make = Effect.gen(function* () {
         entries.push({
           kind: "worktree",
           outcome: "kept",
-          reason: linked
-            ? "No thread uses this worktree"
-            : "No thread uses this folder, and it isn't a git worktree",
+          ...(linked
+            ? ownedReason("No thread uses this worktree", { code: "no-thread-worktree" })
+            : ownedReason("No thread uses this folder, and it isn't a git worktree", {
+                code: "no-thread-folder",
+              })),
           path: worktreePath,
           projectPath: null,
           threadId: null,
@@ -592,13 +618,15 @@ const make = Effect.gen(function* () {
     cwd: string,
     branch: string | null,
   ) {
-    const failure = (detail: string) =>
-      new GitCommandError({
+    const failure = (detail: string, code?: "git-index-locked" | "git-command-failed") => {
+      const error = new GitCommandError({
         operation: "StorageCleanup.branchChanged",
         command: "git",
         cwd,
         detail,
       });
+      return code === undefined ? error : ownedFailure(error, { code, command: "git" });
+    };
     // Return null for missing/non-repository cwd; force untranslated git diagnostics for matching.
     const read = Effect.fnUntraced(function* (args: string[], allowedExitCode?: number) {
       const result = yield* git
@@ -624,15 +652,15 @@ const make = Effect.gen(function* () {
         diagnostic.includes("gitfile does not point to a valid repository")
       )
         return null;
-      return yield* failure(
-        result.stderr.trim().split(/\r?\n/)[0]?.slice(0, 1000) || "command failed",
-      );
+      const detail = result.stderr.trim().split(/\r?\n/)[0]?.slice(0, 1000);
+      return yield* failure(detail || "command failed", detail ? undefined : "git-command-failed");
     });
     const index = yield* read(["rev-parse", "--git-path", "index"]);
     if (index === null) return true;
     if (yield* fs.exists(`${path.resolve(cwd, index.stdout.trim())}.lock`))
       return yield* failure(
         "Git index is locked. Status will resume when the index lock is removed.",
+        "git-index-locked",
       );
     // Detached HEAD exits 1; full refs avoid shortening when a tag shares the branch name.
     const head = yield* read(["symbolic-ref", "--quiet", "HEAD"], 1);
@@ -660,14 +688,21 @@ const make = Effect.gen(function* () {
       ],
       maxOutputBytes: 64 * 1024,
     });
-    if (status.stdoutTruncated) return "local changes exceed the inspection limit";
+    if (status.stdoutTruncated)
+      return ownedReason("local changes exceed the inspection limit", {
+        code: "local-changes-limit",
+      });
     const records = status.stdout.split("\0").filter(Boolean);
     let count = 0;
     for (let i = 0; i < records.length; i++) {
       count++;
       if (/^[RC]|^.[RC]/.test(records[i]!)) i++;
     }
-    if (count > 0) return `has uncommitted changes (${count} ${count === 1 ? "file" : "files"})`;
+    if (count > 0)
+      return ownedReason(`has uncommitted changes (${count} ${count === 1 ? "file" : "files"})`, {
+        code: "uncommitted-changes",
+        count,
+      });
     if (rules.worktreeKeepWhen !== "any-local-files") return null;
     const ignored = yield* git.execute({
       operation: "StorageCleanup.ignoredFiles",
@@ -675,11 +710,16 @@ const make = Effect.gen(function* () {
       args: ["ls-files", "--others", "--ignored", "--exclude-standard", "--directory", "-z"],
       maxOutputBytes: 64 * 1024,
     });
-    if (ignored.stdoutTruncated) return "ignored files exceed the inspection limit";
+    if (ignored.stdoutTruncated)
+      return ownedReason("ignored files exceed the inspection limit", {
+        code: "ignored-files-limit",
+      });
     const file = ignored.stdout
       .split("\0")
       .find((entry) => entry !== "" && !/(^|\/)node_modules\/$/.test(entry));
-    return file === undefined ? null : `has ignored files (${file})`;
+    return file === undefined
+      ? null
+      : ownedReason(`has ignored files (${file})`, { code: "ignored-files", file });
   });
 
   const submoduleRemoval = Effect.fn("StorageCleanup.submoduleRemoval")(
@@ -693,7 +733,12 @@ const make = Effect.gen(function* () {
         });
       const admin = yield* inspect(["rev-parse", "--absolute-git-dir"]);
       if (admin.stdoutTruncated || admin.stderrTruncated)
-        return { force: false, reason: "submodule inspection exceeded the limit" };
+        return {
+          force: false,
+          reason: ownedReason("submodule inspection exceeded the limit", {
+            code: "submodule-inspection-limit",
+          }),
+        };
       const modules = path.join(admin.stdout.replace(/\n$/, ""), "modules");
       const stored = yield* fs.exists(modules);
       if (!stored && !(yield* fs.exists(path.join(cwd, ".gitmodules"))))
@@ -706,13 +751,23 @@ const make = Effect.gen(function* () {
         'printf "%s\\0" "$toplevel/$sm_path"',
       ]);
       if (populated.stdoutTruncated || populated.stderrTruncated)
-        return { force: false, reason: "submodule inspection exceeded the limit" };
+        return {
+          force: false,
+          reason: ownedReason("submodule inspection exceeded the limit", {
+            code: "submodule-inspection-limit",
+          }),
+        };
       const paths = populated.stdout.split("\0").filter(Boolean);
       const pending = [modules];
       for (const submodule of paths) {
         const directory = yield* inspect(["-C", submodule, "rev-parse", "--absolute-git-dir"]);
         if (directory.stdoutTruncated || directory.stderrTruncated)
-          return { force: false, reason: "submodule inspection exceeded the limit" };
+          return {
+            force: false,
+            reason: ownedReason("submodule inspection exceeded the limit", {
+              code: "submodule-inspection-limit",
+            }),
+          };
         pending.push(directory.stdout.replace(/\n$/, ""));
       }
       const visited = new Set<string>();
@@ -723,9 +778,19 @@ const make = Effect.gen(function* () {
         if (visited.has(canonical)) continue;
         visited.add(canonical);
         if (visited.size > 10_000)
-          return { force: false, reason: "submodule inspection exceeded the limit" };
+          return {
+            force: false,
+            reason: ownedReason("submodule inspection exceeded the limit", {
+              code: "submodule-inspection-limit",
+            }),
+          };
         if ((yield* fs.stat(directory)).type !== "Directory")
-          return { force: false, reason: "submodule repository could not be inspected" };
+          return {
+            force: false,
+            reason: ownedReason("submodule repository could not be inspected", {
+              code: "submodule-repository-unavailable",
+            }),
+          };
         if (yield* fs.exists(path.join(directory, "HEAD"))) {
           const unpushed = yield* inspect([
             "--git-dir",
@@ -741,9 +806,19 @@ const make = Effect.gen(function* () {
             "--remotes",
           ]);
           if (unpushed.stdoutTruncated || unpushed.stderrTruncated)
-            return { force: false, reason: "submodule inspection exceeded the limit" };
+            return {
+              force: false,
+              reason: ownedReason("submodule inspection exceeded the limit", {
+                code: "submodule-inspection-limit",
+              }),
+            };
           if (unpushed.stdout.trim() !== "")
-            return { force: false, reason: "submodule has commits not on a remote-tracking ref" };
+            return {
+              force: false,
+              reason: ownedReason("submodule has commits not on a remote-tracking ref", {
+                code: "submodule-unpushed-commits",
+              }),
+            };
           pending.push(path.join(directory, "modules"));
         } else {
           for (const name of yield* fs.readDirectory(directory))
@@ -753,7 +828,14 @@ const make = Effect.gen(function* () {
       // Check files after walking stored history to shorten the gap before forced removal.
       for (const submodule of paths) {
         const changes = yield* localChangesReason(submodule, rules);
-        if (changes !== null) return { force: false, reason: `submodule ${changes}` };
+        if (changes !== null)
+          return {
+            force: false,
+            reason: ownedReason(`submodule ${changes.reason}`, {
+              code: "submodule-local-changes",
+              changes: changes.reasonMessage,
+            }),
+          };
       }
       const force = stored || paths.length > 0;
       if (force && rules.worktreeKeepWhen !== "tracked-changes") {
@@ -767,12 +849,22 @@ const make = Effect.gen(function* () {
             16 * 1024 * 1024,
           );
           if (index.stdoutTruncated || index.stderrTruncated)
-            return { force: false, reason: "submodule inspection exceeded the limit" };
+            return {
+              force: false,
+              reason: ownedReason("submodule inspection exceeded the limit", {
+                code: "submodule-inspection-limit",
+              }),
+            };
           for (const entry of index.stdout.split("\0")) {
             if (!entry.startsWith("160000 ")) continue;
             const submodule = path.resolve(repository, entry.slice(entry.indexOf("\t") + 1));
             if (!inside(root, submodule))
-              return { force: false, reason: "submodules could not be inspected" };
+              return {
+                force: false,
+                reason: ownedReason("submodules could not be inspected", {
+                  code: "submodules-unavailable",
+                }),
+              };
             if (!populatedPaths.has(pathKey(submodule)) && (yield* fs.exists(submodule)))
               unchecked.push(submodule);
           }
@@ -780,13 +872,21 @@ const make = Effect.gen(function* () {
         let inspected = unchecked.length;
         while (unchecked.length > 0) {
           if (inspected > 10_000)
-            return { force: false, reason: "submodule inspection exceeded the limit" };
+            return {
+              force: false,
+              reason: ownedReason("submodule inspection exceeded the limit", {
+                code: "submodule-inspection-limit",
+              }),
+            };
           const target = unchecked.pop()!;
           if (
             (yield* fs.realPath(target)) !== path.resolve(target) ||
             (yield* fs.stat(target)).type !== "Directory"
           )
-            return { force: false, reason: "submodule has local files" };
+            return {
+              force: false,
+              reason: ownedReason("submodule has local files", { code: "submodule-local-files" }),
+            };
           if (path.basename(target) === "node_modules") continue;
           const names = yield* fs.readDirectory(target);
           inspected += names.length;
@@ -795,7 +895,10 @@ const make = Effect.gen(function* () {
       }
       return { force, reason: null };
     },
-    Effect.orElseSucceed(() => ({ force: false, reason: "submodules could not be inspected" })),
+    Effect.orElseSucceed(() => ({
+      force: false,
+      reason: ownedReason("submodules could not be inspected", { code: "submodules-unavailable" }),
+    })),
   );
 
   const cleanupGit = Effect.fn("StorageCleanup.cleanupGit")(function* (
@@ -810,13 +913,16 @@ const make = Effect.gen(function* () {
       allowNonZeroExit: true,
       timeoutMs: 300_000,
     });
-    if (result.exitCode !== 0)
-      return yield* new GitCommandError({
+    if (result.exitCode !== 0) {
+      const detail = result.stderr.trim().split(/\r?\n/)[0]?.slice(0, 1000);
+      const error = new GitCommandError({
         operation: "StorageCleanup.cleanupGit",
         command,
         cwd,
-        detail: result.stderr.trim().split(/\r?\n/)[0]?.slice(0, 1000) || "command failed",
+        detail: detail || "command failed",
       });
+      return yield* detail ? error : ownedFailure(error, { code: "git-command-failed", command });
+    }
   });
 
   const cleanWorktrees = Effect.fn("StorageCleanup.cleanWorktrees")(function* (
@@ -848,11 +954,13 @@ const make = Effect.gen(function* () {
       const realPath = yield* fs.realPath(worktreePath);
       const realParent = yield* fs.realPath(path.dirname(worktreePath));
       if (realPath !== path.join(realParent, path.basename(worktreePath)))
-        return "worktree is a symbolic link";
+        return ownedReason("worktree is a symbolic link", { code: "worktree-symlink" });
       if (!roots.some((root) => inside(root, realPath)))
-        return "outside the managed worktree folder";
+        return ownedReason("outside the managed worktree folder", {
+          code: "outside-managed-folder",
+        });
       if ((yield* fs.stat(path.join(worktreePath, ".git"))).type !== "File")
-        return "not a linked worktree";
+        return ownedReason("not a linked worktree", { code: "not-linked-worktree" });
       return null;
     });
     const deletedRows = yield* sql<{ payload_json: string; workspaceRoot: string }>`
@@ -920,29 +1028,45 @@ const make = Effect.gen(function* () {
         bytes: null,
         files: null,
       };
-      const keep = (reason: string) => {
+      const keep = (reason: CleanupReason) => {
         if (deleted && settings.worktreeOnDelete) kept.push(worktreePath);
-        entries.push({ ...entry, reason: sentence(reason) });
+        entries.push({ ...entry, ...reason, reason: sentence(reason.reason) });
       };
       // Reasons a provider session stop or finished deletion work can clear.
-      const waitForStop = (reason: string) => {
+      const waitForStop = <Reason extends CleanupReason>(reason: Reason) => {
         if (deleted && settings.worktreeOnDelete) waiting = true;
         return reason;
       };
       yield* Effect.gen(function* () {
         if (!(yield* fs.exists(worktreePath))) return;
-        if (deleted && !settings.worktreeOnDelete) return keep("no rules apply");
+        if (deleted && !settings.worktreeOnDelete)
+          return keep(ownedReason("no rules apply", { code: "no-rules" }));
         if (members.length > 1 && worktreeOwner(members) === undefined)
-          return keep(`shared by ${members.length} threads`);
-        if (project === undefined) return keep("project is unavailable");
+          return keep(
+            ownedReason(`shared by ${members.length} threads`, {
+              code: "shared-worktree",
+              count: members.length,
+            }),
+          );
+        if (project === undefined)
+          return keep(ownedReason("project is unavailable", { code: "project-unavailable" }));
         if (
           thread.branch === null ||
           !group.every((member) => storageCleanupThreadIdle(member, now, serverSettings))
         )
-          return keep(waitForStop("thread is running or has pending work"));
+          return keep(
+            waitForStop(
+              ownedReason("thread is running or has pending work", { code: "thread-running" }),
+            ),
+          );
         if (group.some((member) => member.branch !== thread.branch))
-          return keep("a subagent thread's branch differs from this worktree's branch");
-        if (hasTerminal(worktreePath)) return keep(waitForStop("open terminal"));
+          return keep(
+            ownedReason("a subagent thread's branch differs from this worktree's branch", {
+              code: "subagent-branch-mismatch",
+            }),
+          );
+        if (hasTerminal(worktreePath))
+          return keep(waitForStop(ownedReason("open terminal", { code: "open-terminal" })));
         if (
           [...group, ...settlementChain.slice(1)].some(
             (member) =>
@@ -951,7 +1075,7 @@ const make = Effect.gen(function* () {
                 SETTLE_SCRIPT_GRACE_MS,
           )
         )
-          return keep(waitForStop("settled moments ago"));
+          return keep(waitForStop(ownedReason("settled moments ago", { code: "just-settled" })));
         const old =
           !deleted &&
           settings.worktreeAfterDays !== null &&
@@ -966,32 +1090,60 @@ const make = Effect.gen(function* () {
           settings.worktreeSettledAfterDays !== null &&
           settledFor >= settings.worktreeSettledAfterDays * DAY_MS;
         let eligible = deleted || old || settled;
-        let removalReason = deleted
-          ? "thread was deleted"
+        let removalReason: CleanupReason = deleted
+          ? ownedReason("thread was deleted", { code: "thread-deleted" })
           : old
-            ? `inactive for ${Math.floor((now - activityAt) / DAY_MS)} days`
-            : `settled for ${settledDays} days`;
+            ? ownedReason(`inactive for ${Math.floor((now - activityAt) / DAY_MS)} days`, {
+                code: "inactive-days",
+                days: Math.floor((now - activityAt) / DAY_MS),
+              })
+            : {
+                reason: `settled for ${settledDays} days`,
+                ...(settledDays === null
+                  ? {}
+                  : { reasonMessage: { code: "settled-days" as const, days: settledDays } }),
+              };
         const notDueReason =
           !deleted && settings.worktreeAfterDays !== null
-            ? `inactive for ${Math.floor((now - activityAt) / DAY_MS)} of ${settings.worktreeAfterDays} days`
+            ? ownedReason(
+                `inactive for ${Math.floor((now - activityAt) / DAY_MS)} of ${settings.worktreeAfterDays} days`,
+                {
+                  code: "inactive-retention",
+                  days: Math.floor((now - activityAt) / DAY_MS),
+                  retentionDays: settings.worktreeAfterDays,
+                },
+              )
             : settings.worktreeSettledAfterDays !== null
               ? settledFor === null
-                ? "not settled"
-                : `settled for ${settledDays} of ${settings.worktreeSettledAfterDays} days`
+                ? ownedReason("not settled", { code: "not-settled" })
+                : {
+                    reason: `settled for ${settledDays} of ${settings.worktreeSettledAfterDays} days`,
+                    ...(settledDays === null
+                      ? {}
+                      : {
+                          reasonMessage: {
+                            code: "settled-retention" as const,
+                            days: settledDays,
+                            retentionDays: settings.worktreeSettledAfterDays,
+                          },
+                        }),
+                  }
               : settings.worktreeOnMerge
-                ? "not merged"
+                ? ownedReason("not merged", { code: "not-merged" })
                 : settings.worktreeUnchanged
-                  ? "has commits beyond the default branch"
-                  : "no rules apply";
+                  ? ownedReason("has commits beyond the default branch", {
+                      code: "beyond-default-branch",
+                    })
+                  : ownedReason("no rules apply", { code: "no-rules" });
         // Only Git-based rules can make a not-yet-due worktree eligible, so skip Git otherwise.
         if (!eligible && !settings.worktreeUnchanged && !settings.worktreeOnMerge)
           return keep(notDueReason);
         const pathReason = yield* worktreePathReason(worktreePath);
         if (pathReason !== null) return keep(pathReason);
         if (yield* containsProjectRoot(worktreePath, [project, ...snapshot.projects]))
-          return keep("contains a project checkout");
+          return keep(ownedReason("contains a project checkout", { code: "contains-project" }));
         if (yield* branchChanged(worktreePath, thread.branch))
-          return keep("repository or branch changed");
+          return keep(ownedReason("repository or branch changed", { code: "repository-changed" }));
         const changes = yield* localChangesReason(worktreePath, settings);
         if (changes !== null) return keep(changes);
         const head = yield* git.resolveCommit({ cwd: worktreePath, revision: "HEAD" });
@@ -1010,14 +1162,23 @@ const make = Effect.gen(function* () {
           let defaultRef: string;
           if (remote === null) {
             if (!settings.worktreeUnchanged)
-              return keep("no remote is configured for merged-worktree cleanup");
+              return keep(
+                ownedReason("no remote is configured for merged-worktree cleanup", {
+                  code: "no-remote",
+                }),
+              );
             const projectHead = yield* git.execute({
               operation: "StorageCleanup.resolveProjectBranch",
               cwd: repositoryCwd,
               args: ["symbolic-ref", "--quiet", "HEAD"],
               allowNonZeroExit: true,
             });
-            if (projectHead.exitCode !== 0) return keep("project branch is unavailable");
+            if (projectHead.exitCode !== 0)
+              return keep(
+                ownedReason("project branch is unavailable", {
+                  code: "project-branch-unavailable",
+                }),
+              );
             defaultRef = projectHead.stdout.trim();
             branch = defaultRef.slice("refs/heads/".length);
           } else {
@@ -1045,7 +1206,12 @@ const make = Effect.gen(function* () {
               }
               defaultBranches.set(defaultBranchKey, branch);
             }
-            if (branch === null) return keep("default branch is unavailable");
+            if (branch === null)
+              return keep(
+                ownedReason("default branch is unavailable", {
+                  code: "default-branch-unavailable",
+                }),
+              );
             defaultRef = `refs/remotes/${remote}/${branch}`;
             const refreshed = refreshedDefaultRefs.get(repositoryCwd) ?? new Set<string>();
             if (!refreshed.has(defaultRef)) {
@@ -1073,8 +1239,12 @@ const make = Effect.gen(function* () {
           if (eligible)
             removalReason =
               remote === null
-                ? "no commits beyond the project branch"
-                : "no commits beyond the default branch";
+                ? ownedReason("no commits beyond the project branch", {
+                    code: "no-project-commits",
+                  })
+                : ownedReason("no commits beyond the default branch", {
+                    code: "no-default-commits",
+                  });
           if (!eligible && remote !== null && settings.worktreeOnMerge && thread.branch !== null) {
             const pullRequest = yield* gitManager.branchPullRequest(
               { cwd: worktreePath, branch: thread.branch },
@@ -1086,26 +1256,37 @@ const make = Effect.gen(function* () {
               headSha: head.commitSha,
               integrated,
             });
-            if (eligible) removalReason = "pull request was merged";
+            if (eligible)
+              removalReason = ownedReason("pull request was merged", {
+                code: "pull-request-merged",
+              });
           }
-          if (!eligible && remote === null) return keep("has commits beyond the project branch");
+          if (!eligible && remote === null)
+            return keep(
+              ownedReason("has commits beyond the project branch", {
+                code: "beyond-project-branch",
+              }),
+            );
         }
         if (!eligible) return keep(notDueReason);
         // Re-read this path's threads and sessions so new activity cancels removal; full per-worktree snapshots take seconds.
         const blockedSinceCheck = Effect.fnUntraced(function* () {
           const latestProjects = yield* projectStore.listShells();
           if (yield* containsProjectRoot(worktreePath, [project, ...latestProjects]))
-            return "contains a project checkout";
+            return ownedReason("contains a project checkout", { code: "contains-project" });
           const latest = (yield* projections.getThreadWorktreePaths({
             includeArchived: true,
           })).filter((entry) => path.resolve(entry.worktreePath) === worktreePath);
-          if (hasTerminal(worktreePath)) return waitForStop("open terminal");
+          if (hasTerminal(worktreePath))
+            return waitForStop(ownedReason("open terminal", { code: "open-terminal" }));
           if (deleted) {
             if (
               !resolveWorktreeCleanup(yield* settingsService.getSettings, thread.projectId)
                 .worktreeOnDelete
             )
-              return "thread or cleanup settings changed since check";
+              return ownedReason("thread or cleanup settings changed since check", {
+                code: "thread-settings-changed",
+              });
             // Durable deletion cleanup must succeed or be explicitly cancelled before removing its checkout.
             const pendingCleanup = yield* sql<{ status: string }>`
               SELECT status FROM orchestration_v2_effect_outbox
@@ -1113,8 +1294,11 @@ const make = Effect.gen(function* () {
             `.pipe(NodeSqliteClient.readOnly);
             // Failed effects never retry, so only running work can finish and free the path.
             if (pendingCleanup.some((row) => row.status !== "failed"))
-              return waitForStop("thread deletion is still pending");
-            if (pendingCleanup.length > 0) return "thread deletion is still pending";
+              return waitForStop(
+                ownedReason("thread deletion is still pending", { code: "deletion-pending" }),
+              );
+            if (pendingCleanup.length > 0)
+              return ownedReason("thread deletion is still pending", { code: "deletion-pending" });
           }
           const latestShells = yield* Effect.forEach(latest, (entry) =>
             projections.getThreadShell(entry.threadId),
@@ -1138,7 +1322,11 @@ const make = Effect.gen(function* () {
               );
             })
           )
-            return waitForStop("thread activity or shared worktree changed since check");
+            return waitForStop(
+              ownedReason("thread activity or shared worktree changed since check", {
+                code: "activity-changed",
+              }),
+            );
           if (settlementChain.length > 1) {
             const ancestors = yield* Effect.forEach(settlementChain.slice(1), (ancestor) =>
               projections.getThreadShell(ancestor.id),
@@ -1158,7 +1346,9 @@ const make = Effect.gen(function* () {
               !Equal.equals(latestSettlement?.settledAt, settledThread?.settledAt) ||
               !Equal.equals(latestSettlement?.updatedAt, settledThread?.updatedAt)
             )
-              return "parent settlement changed since check";
+              return ownedReason("parent settlement changed since check", {
+                code: "parent-settlement-changed",
+              });
           }
           // Sessions can outlive their run and can be shared across app threads.
           const sessionRows = yield* sql<{ payload_json: string }>`
@@ -1175,7 +1365,9 @@ const make = Effect.gen(function* () {
               (pathKey(cwd) === pathKey(worktreePath) || inside(worktreePath, cwd)) &&
               (yield* providerSessions.isLive(session.id))
             )
-              return waitForStop("provider session is still open");
+              return waitForStop(
+                ownedReason("provider session is still open", { code: "provider-open" }),
+              );
           }
           return null;
         });
@@ -1191,12 +1383,16 @@ const make = Effect.gen(function* () {
             const blockedWhileMeasuring = yield* blockedSinceCheck();
             if (blockedWhileMeasuring !== null) return keep(blockedWhileMeasuring);
             if (yield* branchChanged(worktreePath, thread.branch))
-              return keep("repository or branch changed since check");
+              return keep(
+                ownedReason("repository or branch changed since check", {
+                  code: "repository-changed-since-check",
+                }),
+              );
             if (
               (yield* git.resolveCommit({ cwd: worktreePath, revision: "HEAD" })).commitSha !==
               head.commitSha
             )
-              return keep("commit changed since check");
+              return keep(ownedReason("commit changed since check", { code: "commit-changed" }));
             const finalChanges = yield* localChangesReason(worktreePath, settings);
             if (finalChanges !== null) return keep(finalChanges);
             const currentSettings = yield* settingsService.getSettings;
@@ -1210,7 +1406,9 @@ const make = Effect.gen(function* () {
                   current[key as keyof typeof settings] !== settings[key as keyof typeof settings],
               )
             )
-              return keep("settings changed since check");
+              return keep(
+                ownedReason("settings changed since check", { code: "settings-changed" }),
+              );
             // Clean only untracked files. Ordinary worktrees retain Git's final tracked-edit check.
             if (settings.worktreeKeepWhen === "tracked-changes")
               yield* cleanupGit(worktreePath, ["clean", "-ffdx"], "git clean");
@@ -1229,7 +1427,13 @@ const make = Effect.gen(function* () {
               execute: git.execute,
               run: (args) => cleanupGit(project.workspaceRoot, [...args], "git worktree remove"),
             });
-            entries.push({ ...entry, outcome: "removed", reason: sentence(removalReason), bytes });
+            entries.push({
+              ...entry,
+              ...removalReason,
+              outcome: "removed",
+              reason: sentence(removalReason.reason),
+              bytes,
+            });
             yield* gitManager.invalidateStatus(project.workspaceRoot);
             // Preserve branch/path so ProviderTurnStartService can recreate the checkout on resume.
             yield* Effect.logInfo("storage cleanup removed worktree", { threadId: thread.id });
@@ -1241,7 +1445,7 @@ const make = Effect.gen(function* () {
             entries.push({
               ...entry,
               outcome: "failed",
-              reason: cleanupFailureReason(error),
+              ...failureReason(error),
             });
             if (deleted && settings.worktreeOnDelete) kept.push(worktreePath);
             yield* Effect.logWarning("storage cleanup failed for worktree", {
@@ -1319,7 +1523,7 @@ const make = Effect.gen(function* () {
           entries.push({
             kind: "worktree",
             outcome: "failed",
-            reason: cleanupFailureReason(error),
+            ...failureReason(error),
             path: null,
             projectPath: null,
             threadId: null,
@@ -1356,7 +1560,12 @@ const make = Effect.gen(function* () {
           entries.push({
             kind: category.kind,
             outcome: files > 0 ? "removed" : "kept",
-            reason: files === 0 ? "No expired files" : `Removed ${files} ${category.label}`,
+            ...(files === 0
+              ? ownedReason("No expired files", { code: "no-expired-files" })
+              : ownedReason(`Removed ${files} ${category.label}`, {
+                  code: category.kind === "logs" ? "removed-logs" : "removed-browser-artifacts",
+                  count: files,
+                })),
             path: null,
             projectPath: null,
             threadId: null,
@@ -1370,7 +1579,7 @@ const make = Effect.gen(function* () {
             entries.push({
               kind: category.kind,
               outcome: "failed",
-              reason: cleanupFailureReason(error),
+              ...failureReason(error),
               path: null,
               projectPath: null,
               threadId: null,

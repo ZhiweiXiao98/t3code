@@ -1,3 +1,7 @@
+import { WebI18nContext } from "../../i18n/WebI18nContext";
+import { translateWebMessage } from "../../i18n/messages";
+import * as Cause from "effect/Cause";
+import { ProviderSetupError } from "@t3tools/contracts";
 import {
   EnvironmentId,
   ProviderDriverKind,
@@ -281,4 +285,63 @@ describe("Antigravity setup", () => {
     expect(screen.button("Sign in")?.disabled).toBe(true);
     expect(setup.startAuth).not.toHaveBeenCalled();
   });
+});
+
+it("rerenders tagged provider state and command failures in the current locale without restarting auth", async () => {
+  resetSetup();
+  setup.auth = authState({
+    phase: "starting",
+    message: "Starting sign-in.",
+    messageDescriptor: { code: "auth.starting" },
+  });
+  const localized = (locale: "en" | "zh-CN") => (
+    <WebI18nContext
+      value={{
+        locale,
+        appLocale: locale,
+        setAppLocale: () => undefined,
+        t: (key, values) => translateWebMessage(locale, key, values),
+      }}
+    >
+      {section()}
+    </WebI18nContext>
+  );
+  await using screen = await render(localized("en"));
+  await expect.element(screen.getByText("Starting sign-in.", { exact: true })).toBeVisible();
+  await screen.rerender(localized("zh-CN"));
+  await expect.element(screen.getByText("正在开始登录。", { exact: true })).toBeVisible();
+  await screen.rerender(localized("en"));
+  await expect.element(screen.getByText("Starting sign-in.", { exact: true })).toBeVisible();
+  expect(setup.startAuth).not.toHaveBeenCalled();
+  expect(setup.completeAuth).not.toHaveBeenCalled();
+  expect(setup.cancelAuth).not.toHaveBeenCalled();
+  for (const message of ["Settings", "Starting sign-in."]) {
+    setup.auth = authState({ phase: "failed", message });
+    await screen.rerender(localized("zh-CN"));
+    await expect.element(screen.getByText(message, { exact: true })).toBeVisible();
+  }
+  setup.auth = authState({ phase: "idle", flowId: null, authorizationUrl: null });
+  setup.startAuth.mockResolvedValueOnce({
+    _tag: "Failure",
+    cause: Cause.fail(
+      new ProviderSetupError({
+        instanceId,
+        operation: "start",
+        detail: "Sign-in expired. Start again.",
+        messageDescriptor: { code: "auth.expired" },
+      }),
+    ),
+  });
+  await screen.rerender(localized("en"));
+  await userEvent.click(screen.getByRole("button", { name: "Sign in", exact: true }));
+  await expect
+    .element(screen.getByRole("alert"))
+    .toHaveTextContent("Sign-in expired. Start again.");
+  await screen.rerender(localized("zh-CN"));
+  await expect.element(screen.getByRole("alert")).toHaveTextContent("登录已过期。请重新开始。");
+  await screen.rerender(localized("en"));
+  await expect
+    .element(screen.getByRole("alert"))
+    .toHaveTextContent("Sign-in expired. Start again.");
+  expect(setup.startAuth).toHaveBeenCalledTimes(1);
 });

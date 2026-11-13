@@ -10,7 +10,7 @@ import {
 import * as DateTime from "effect/DateTime";
 import * as Option from "effect/Option";
 import { Atom, AtomRegistry } from "effect/reactivity";
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it, vi } from "vite-plus/test";
 
 import { PrimaryConnectionTarget } from "../connection/model.ts";
 import { v2Now, v2ShellSnapshot, v2ThreadShell } from "./orchestrationV2TestFixtures.ts";
@@ -205,6 +205,11 @@ describe("v2 thread shell lists", () => {
     withRequest("user_input");
     expect(registry.get(parent)?.pendingSubagentRequest).toBe("user_input");
     expect(childThreadInputsTitle(registry.get(inputs))).toBe("Side chat needs input");
+    const displayTitle = vi.fn<NonNullable<Parameters<typeof childThreadInputsTitle>[1]>>(
+      ({ count, noun, need }) => `${count}:${noun}:${need}`,
+    );
+    expect(childThreadInputsTitle(registry.get(inputs), displayTitle)).toBe("1:side chat:input");
+    expect(displayTitle).toHaveBeenCalledWith({ count: 1, noun: "side chat", need: "input" });
     expect(registry.get(threads.navigationThreadShellsAtom).map((thread) => thread.id)).toEqual([
       root.id,
     ]);

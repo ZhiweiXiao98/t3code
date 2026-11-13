@@ -1,5 +1,9 @@
-import { providerAccountFailure } from "./settingsAccountDisplay";
-import { localizeMobileString } from "../../i18n/mobileStrings";
+import {
+  providerAuthFailureValue,
+  translateProviderAuthMessage,
+  type ProviderAuthDisplayError,
+} from "../../i18n/providerAuthMessages";
+import { localizeMobileString, MOBILE_LOCALE } from "../../i18n/mobileStrings";
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import * as Dialog from "../../components/ui/Dialog";
 import {
@@ -149,6 +153,7 @@ function ProviderAccount({
   readonly provider: ServerProvider;
   readonly divider: boolean;
 }) {
+  const locale = MOBILE_LOCALE;
   const environmentId = environment.environmentId;
   const instanceId = provider.instanceId;
   const target = { environmentId, input: { instanceId } };
@@ -167,7 +172,8 @@ function ProviderAccount({
   const stacked = useWindowDimensions().fontScale >= 1.5;
   const [pending, setPending] = useState(false);
   const pendingRef = useRef(false);
-  const [error, setError] = useState<string | null>(null);
+  const [errorValue, setError] = useState<ProviderAuthDisplayError | null>(null);
+  const error = translateProviderAuthMessage(errorValue, locale);
   const [draft, setDraft] = useState({ id: "", values: {} as Record<string, string> });
   const state = auth.data;
   const interaction = state?.interaction;
@@ -205,7 +211,12 @@ function ProviderAccount({
     if (result._tag === "Success") return true;
     if (!isAtomCommandInterrupted(result)) {
       const failure = squashAtomCommandFailure(result);
-      setError(providerAccountFailure(failure));
+      setError(
+        providerAuthFailureValue(
+          failure,
+          localizeMobileString("Could not update provider sign-in."),
+        ),
+      );
     }
     return false;
   }
@@ -255,7 +266,7 @@ function ProviderAccount({
     (provider.auth.type === "gemini-api-key" || provider.auth.type === "agent-platform");
   const status =
     active || state?.phase === "failed" || state?.phase === "cancelled"
-      ? state.message
+      ? translateProviderAuthMessage(state, locale)
       : localizeMobileString(
           !provider.enabled
             ? "Turned off"
@@ -509,7 +520,13 @@ function ProviderAccount({
           ) : null}
           {error || auth.error ? (
             <Text localize={false} accessibilityRole="alert" className="text-danger-foreground">
-              {error ?? auth.error}
+              {error ??
+                (auth.error === null
+                  ? null
+                  : translateProviderAuthMessage(
+                      providerAuthFailureValue(auth.failure, auth.error),
+                      locale,
+                    ))}
             </Text>
           ) : null}
         </View>

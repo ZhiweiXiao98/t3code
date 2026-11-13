@@ -18,6 +18,7 @@ export const withChatGptSessionLock = <A, E, R>(
       instanceId,
       operation: "credential-lock",
       detail: "Could not lock the ChatGPT connection for an update. Try again.",
+      messageDescriptor: { code: "chatgpt.lockFailed" },
     });
   return Effect.scoped(
     Effect.gen(function* () {

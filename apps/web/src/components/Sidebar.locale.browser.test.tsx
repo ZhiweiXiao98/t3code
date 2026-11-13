@@ -61,6 +61,9 @@ it("uses the current language each time a sidebar context menu opens", async () 
     // AppRoot brings its own router.
     router: false,
   });
+  await page.getByRole("combobox", { name: "按项目筛选任务", exact: true }).click();
+  await expect.element(page.getByRole("option", { name: "全部项目", exact: true })).toBeVisible();
+  await page.getByRole("option", { name: "全部项目", exact: true }).click();
   // The title also has an sr-only duplicate. Click the actual context-menu owner.
   const threadKey = scopedThreadKey(scopeThreadRef(ENVIRONMENT_ID, thread.id));
   const row = page.getByRole("button", { name: /^Thread locale-menu(?:,|$)/ });
@@ -76,6 +79,11 @@ it("uses the current language each time a sidebar context menu opens", async () 
   await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
   // Mounted subscribers must observe the same update path as the language setting.
   await act(() => updateClientSettings({ appLocale: "en" }));
+  await page.getByRole("combobox", { name: "Filter threads by project", exact: true }).click();
+  await expect
+    .element(page.getByRole("option", { name: "All projects", exact: true }))
+    .toBeVisible();
+  await page.getByRole("option", { name: "All projects", exact: true }).click();
   await userEvent.click(row, { button: "right" });
   await expect
     .element(page.getByRole("menuitem", { name: "New thread on main", exact: true }))

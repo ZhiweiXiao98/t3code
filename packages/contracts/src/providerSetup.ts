@@ -1,3 +1,5 @@
+import { ProviderAuthMessageDescriptor } from "./providerAuthMessage.ts";
+export * from "./providerAuthMessage.ts";
 import * as Schema from "effect/Schema";
 
 import {
@@ -120,6 +122,7 @@ export const ProviderAuthState = Schema.Struct({
   authorizationUrl: Schema.NullOr(Schema.String),
   expiresAt: Schema.NullOr(IsoDateTime),
   message: Schema.NullOr(Schema.String),
+  messageDescriptor: ForwardCompatibleOptional(ProviderAuthMessageDescriptor),
   // Drop unknown auth methods rather than rejecting the entire state.
   methods: Schema.optionalKey(
     ForwardCompatibleArray(ProviderAuthMethod).check(Schema.isMaxLength(32)),
@@ -180,6 +183,7 @@ export class ProviderSetupError extends Schema.TaggedError<ProviderSetupError>()
     instanceId: ProviderInstanceId,
     operation: Schema.String,
     detail: Schema.String,
+    messageDescriptor: ForwardCompatibleOptional(ProviderAuthMessageDescriptor),
     cause: Schema.optional(Schema.Defect()),
   },
 ) {

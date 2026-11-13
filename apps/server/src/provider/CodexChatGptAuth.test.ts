@@ -9,7 +9,7 @@ import * as NodeCrypto from "node:crypto";
 import * as NodePlatformCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, it } from "@effect/vitest";
-import { EnvironmentId, ProviderInstanceId } from "@t3tools/contracts";
+import { EnvironmentId, ProviderInstanceId, type ProviderAuthState } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
@@ -1323,6 +1323,7 @@ it.effect(
         yield* h.auth.access;
         const state = yield* h.auth.controller.logout(Effect.void);
         assert.strictEqual(state.message, "Signed out.");
+        assert.deepEqual(state.messageDescriptor, { code: "auth.signedOut" });
         assert.deepEqual(Array.from(h.revocations[0]!), [
           ["token", "refresh-1"],
           ["token_type_hint", "refresh_token"],
@@ -1556,7 +1557,7 @@ it.effect("primary completes OAuth and destination imports and owns the refresh 
       const h = yield* makeHarness;
       const destination = yield* h.destination;
       const before = h.bytes.size;
-      const waiting = yield* Deferred.make<{ authorizationUrl: string | null }>();
+      const waiting = yield* Deferred.make<ProviderAuthState>();
       const transferred = yield* h.handoff(null).pipe(
         Stream.tap((state) =>
           state.phase === "auth" && state.state.phase === "waiting"
@@ -1568,7 +1569,9 @@ it.effect("primary completes OAuth and destination imports and owns the refresh 
         Effect.map(Option.getOrThrow),
         Effect.forkChild,
       );
-      yield* h.finishCallback(yield* Deferred.await(waiting));
+      const waitingState = yield* Deferred.await(waiting);
+      assert.deepEqual(waitingState.messageDescriptor, { code: "auth.completeSignIn" });
+      yield* h.finishCallback(waitingState);
       const result = yield* Fiber.join(transferred);
       assert.strictEqual(result.phase, "finished");
       if (result.phase !== "finished") return;
@@ -1671,7 +1674,7 @@ it.effect("primary handoff reuses the selected registration and ID token hint", 
       yield* h.signIn;
       yield* h.phase("succeeded");
       const profile = yield* h.auth.controller.reconnectProfile!("chatgpt");
-      const waiting = yield* Deferred.make<{ authorizationUrl: string | null }>();
+      const waiting = yield* Deferred.make<ProviderAuthState>();
       const resultFiber = yield* h.handoff(profile).pipe(
         Stream.tap((state) =>
           state.phase === "auth" && state.state.phase === "waiting"
@@ -1700,7 +1703,7 @@ it.effect(
     provision(
       Effect.gen(function* () {
         const h = yield* makeHarness;
-        const waiting = yield* Deferred.make<{ authorizationUrl: string | null }>();
+        const waiting = yield* Deferred.make<ProviderAuthState>();
         const flow = yield* h.handoff(null).pipe(
           Stream.tap((state) =>
             state.phase === "auth" && state.state.phase === "waiting"
@@ -1937,6 +1940,25 @@ it.live("the private broker refuses another environment, instance, or sign-in pr
       });
       yield* h.broker.awaitIdle;
       assert.deepEqual(h.refreshTokens, ["single-use-refresh"]);
+    }),
+  ),
+);
+
+it.effect("keeps local sign-out warning provenance while remote revocation is unconfirmed", () =>
+  provision(
+    Effect.gen(function* () {
+      const h = yield* makeHarness;
+      yield* h.signIn;
+      yield* h.phase("succeeded");
+      h.setRevocationStatus(400);
+      const state = yield* h.auth.controller.logout(Effect.void);
+      assert.strictEqual(
+        state.message,
+        "Signed out locally. Remote revocation could not be confirmed. Disconnect the app in ChatGPT Settings.",
+      );
+      assert.deepEqual(state.messageDescriptor, { code: "chatgpt.localSignOutWarning" });
+      assert.isTrue(Option.isNone(yield* h.auth.read));
+      assert.strictEqual(h.revocations.length, 1);
     }),
   ),
 );

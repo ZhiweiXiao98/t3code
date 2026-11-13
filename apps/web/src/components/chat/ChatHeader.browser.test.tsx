@@ -1,6 +1,6 @@
 import { EnvironmentId, ThreadId } from "@t3tools/contracts";
 import { expect, it, vi } from "vite-plus/test";
-import { userEvent } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 
 const persisted = vi.hoisted(() => ({ title: "" }));
 const openMenu = vi.hoisted(() => vi.fn());
@@ -23,6 +23,8 @@ vi.mock(import("~/hooks/useThreadActionMenu"), () => ({
 
 import { render, stubGlobal } from "../../../test/render";
 import { ChatHeader } from "./ChatHeader";
+import { WebI18nContext } from "~/i18n/WebI18nContext";
+import { translateWebMessage } from "~/i18n/messages";
 
 function header(title: string) {
   return (
@@ -79,4 +81,44 @@ it("opens the thread menu on a desktop title click without waiting", async () =>
   await using screen = await render(header("New thread"));
   await screen.getByRole("button", { name: "Thread actions for New thread" }).click();
   expect(openMenu).toHaveBeenCalledOnce();
+});
+
+it("opens the draft project menu in the current language and retains the settings action", async () => {
+  using _bridge = stubGlobal("desktopBridge", undefined);
+  const onOpenProjectSettings = vi.fn();
+  const draft = (locale: "en" | "zh-CN") => (
+    <WebI18nContext
+      value={{
+        locale,
+        appLocale: locale,
+        setAppLocale: () => {},
+        t: (key, values) => translateWebMessage(locale, key, values),
+      }}
+    >
+      <ChatHeader
+        activeThreadEnvironmentId={EnvironmentId.make("environment")}
+        activeThreadId={ThreadId.make("draft")}
+        activeThreadTitle="Project settings"
+        isServerThread={false}
+        activeProject={null}
+        parentThreadLink={null}
+        onOpenThread={() => {}}
+        rightPanelOpen={false}
+        onNewThreadInProject={() => {}}
+        onOpenProjectSettings={onOpenProjectSettings}
+      />
+    </WebI18nContext>
+  );
+  await using screen = await render(draft("zh-CN"));
+  await userEvent.click(screen.getByRole("heading", { name: "Project settings", exact: true }), {
+    button: "right",
+  });
+  await page.getByRole("menuitem", { name: "项目设置", exact: true }).click();
+  await vi.waitFor(() => expect(onOpenProjectSettings).toHaveBeenCalledTimes(1));
+  await screen.rerender(draft("en"));
+  await userEvent.click(screen.getByRole("heading", { name: "Project settings", exact: true }), {
+    button: "right",
+  });
+  await page.getByRole("menuitem", { name: "Project settings", exact: true }).click();
+  await vi.waitFor(() => expect(onOpenProjectSettings).toHaveBeenCalledTimes(2));
 });

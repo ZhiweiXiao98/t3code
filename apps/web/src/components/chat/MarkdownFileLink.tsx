@@ -1,3 +1,5 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
+import { previewPreconditionMessage } from "~/browser/previewPreconditionMessages";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
 import { useAssetUrlState } from "../../assets/assetUrls";
@@ -144,7 +146,9 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
           stackedThreadToast({
             type: "error",
             title: translateRelease("markdownFile.openBrowserFailed"),
-            description: error instanceof Error ? error.message : translateRelease("common.error"),
+            description:
+              previewPreconditionMessage(error, readWebI18n().locale) ??
+              translateRelease("common.error"),
           }),
         );
       } catch (cause) {

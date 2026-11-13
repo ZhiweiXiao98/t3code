@@ -60,6 +60,8 @@ import { render } from "../../../test/render";
 import { makeThreadProjectionFixture } from "../../test-fixtures";
 import { ToastProvider } from "../ui/toast";
 import { ThreadRelationshipsPanel } from "./ThreadRelationshipsControl";
+import { WebI18nContext } from "~/i18n/WebI18nContext";
+import { translateWebMessage } from "~/i18n/messages";
 
 const environmentId = EnvironmentId.make("environment");
 const threadId = ThreadId.make("fork");
@@ -162,53 +164,67 @@ it.each([
   }
 });
 
-it("opens an idle child from Lineage when its shell has not been loaded", async () => {
-  setup();
-  const projection = makeThreadProjectionFixture();
-  const childId = ThreadId.make("omitted-child");
-  const environmentId = EnvironmentId.make("local");
-  state.projection = {
-    ...projection,
-    subagents: [
-      {
-        id: NodeId.make("agent"),
-        threadId: projection.thread.id,
-        runId: null,
-        parentNodeId: NodeId.make("parent"),
-        origin: "app_owned",
-        createdBy: "agent",
-        driver: "codex",
-        providerInstanceId: projection.thread.providerInstanceId,
-        providerThreadId: null,
-        childThreadId: childId,
-        nativeTaskRef: null,
-        prompt: "Inspect the change",
-        title: "Idle child",
-        model: null,
-        status: "completed",
-        result: null,
-        startedAt: null,
-        completedAt: projection.thread.updatedAt,
-        updatedAt: projection.thread.updatedAt,
-      },
-    ],
-  };
-  await using screen = await render(
-    <ThreadRelationshipsPanel
-      environmentId={environmentId}
-      threadId={projection.thread.id}
-      showLineage
-      showSideChats
-    />,
-  );
-  await screen.getByRole("button", { name: /Previous agents/ }).click();
-  const child = screen.getByRole("button", { name: /Idle child/ });
-  await expect.element(child).toBeEnabled();
-  await child.click();
-  await vi.waitFor(() =>
-    expect(screen.router?.state.location.pathname).toBe("/local/omitted-child"),
-  );
-});
+it.each(["en", "zh-CN"] as const)(
+  "opens an unlisted idle child from the localized previous-agents group in %s",
+  async (locale) => {
+    setup();
+    const projection = makeThreadProjectionFixture();
+    const childId = ThreadId.make("omitted-child");
+    const environmentId = EnvironmentId.make("local");
+    state.projection = {
+      ...projection,
+      subagents: [
+        {
+          id: NodeId.make("agent"),
+          threadId: projection.thread.id,
+          runId: null,
+          parentNodeId: NodeId.make("parent"),
+          origin: "app_owned",
+          createdBy: "agent",
+          driver: "codex",
+          providerInstanceId: projection.thread.providerInstanceId,
+          providerThreadId: null,
+          childThreadId: childId,
+          nativeTaskRef: null,
+          prompt: "Inspect the change",
+          title: "Idle child",
+          model: null,
+          status: "completed",
+          result: null,
+          startedAt: null,
+          completedAt: projection.thread.updatedAt,
+          updatedAt: projection.thread.updatedAt,
+        },
+      ],
+    };
+    await using screen = await render(
+      <WebI18nContext
+        value={{
+          locale,
+          appLocale: locale,
+          setAppLocale: () => {},
+          t: (key, values) => translateWebMessage(locale, key, values),
+        }}
+      >
+        <ThreadRelationshipsPanel
+          environmentId={environmentId}
+          threadId={projection.thread.id}
+          showLineage
+          showSideChats
+        />
+      </WebI18nContext>,
+    );
+    await screen
+      .getByRole("button", { name: locale === "en" ? /Previous agents/ : /先前的智能体/ })
+      .click();
+    const child = screen.getByRole("button", { name: /Idle child/ });
+    await expect.element(child).toBeEnabled();
+    await child.click();
+    await vi.waitFor(() =>
+      expect(screen.router?.state.location.pathname).toBe("/local/omitted-child"),
+    );
+  },
+);
 
 it("shows a lineage thread's full title in its tooltip", async () => {
   setup();

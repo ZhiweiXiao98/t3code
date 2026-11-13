@@ -1,3 +1,4 @@
+import "~/index.css";
 import { expect, it } from "vite-plus/test";
 import { render } from "../../../test/render";
 import { costTypeSegments, tokenTypeSegments, speedCostSegments } from "./usageBreakdown";
@@ -40,6 +41,17 @@ it("renders current-locale own segment labels while keeping values and caller la
       }),
     )
     .toBeVisible();
+  const costBar = screen
+    .getByRole("img", {
+      name: "Cost/{opaque}/$&: Input 1, Cache read 2, Cache write 3, Output 4, Other 5",
+      exact: true,
+    })
+    .element();
+  expect(costBar.children).toHaveLength(5);
+  for (const segment of Array.from(costBar.children)) {
+    await expect.poll(() => segment.getBoundingClientRect().height).toBeGreaterThan(0);
+    await expect.poll(() => segment.getBoundingClientRect().width).toBeGreaterThan(0);
+  }
   await screen.rerender(surface("zh-CN"));
   await expect
     .element(

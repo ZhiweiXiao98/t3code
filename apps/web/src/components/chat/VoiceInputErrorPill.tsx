@@ -1,3 +1,4 @@
+import type { VoiceInputErrorSource } from "@t3tools/client-runtime/voice-input";
 import { useI18n } from "../../i18n/WebI18nContext";
 import { translateVoiceSettingsError } from "../../i18n/voiceSettingsMessages";
 import { useChatUpdateTranslation } from "./v018Messages";
@@ -38,6 +39,7 @@ function voiceErrorLabel(error: string | null): string {
 
 export function VoiceInputErrorPill(props: {
   error: string | null;
+  errorSource?: VoiceInputErrorSource;
   errorAction: "retry" | "settings" | null;
   disabled?: boolean;
   cancelShortcutLabel?: string | null;
@@ -46,7 +48,16 @@ export function VoiceInputErrorPill(props: {
 }) {
   const tx = useChatUpdateTranslation();
   const { locale } = useI18n();
-  const errorMessage = translateVoiceSettingsError(locale, props.error ?? "Voice input failed");
+  const errorMessage =
+    locale === "zh-CN" &&
+    props.errorSource === "browser-transcription-destination" &&
+    props.error === "Voice transcription failed. Check the destination in Settings → Voice."
+      ? "语音转写失败。请在设置 → 语音中检查目标。"
+      : locale === "zh-CN" &&
+          props.errorSource === "browser-openrouter-model" &&
+          props.error === "Choose an OpenRouter model in Settings → Voice."
+        ? "请在设置 → 语音中选择 OpenRouter 模型。"
+        : translateVoiceSettingsError(locale, props.error ?? "Voice input failed");
   const navigate = useNavigate();
   const openSettings = props.errorAction === "settings";
   const actionLabel = openSettings

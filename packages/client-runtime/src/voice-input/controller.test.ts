@@ -1,3 +1,4 @@
+import { markVoiceInputError } from "./errorPresentation.ts";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import {
@@ -854,4 +855,109 @@ describe("VoiceInputController", () => {
     expect(harness.recorder.record).not.toHaveBeenCalled();
     expect(harness.controller.currentState.error).toContain("background");
   });
+});
+
+it("replaces and clears local error provenance with each actual controller result", async () => {
+  resetVoiceInputGlobalsForTests();
+  const owned = markVoiceInputError(
+    new VoiceTranscriptionError({
+      code: "unavailable",
+      message: "Choose an OpenRouter model in Settings → Voice.",
+    }),
+    "browser-openrouter-model",
+  );
+  const prepare = vi
+    .fn<VoiceTranscriber["prepare"]>()
+    .mockRejectedValueOnce(owned)
+    .mockRejectedValueOnce(
+      new VoiceTranscriptionError({ code: "unavailable", message: owned.message }),
+    )
+    .mockResolvedValue(preparedTranscription());
+  const harness = createHarness({ getTranscriber: () => ({ prepare }) });
+  await harness.controller.start();
+  expect(harness.controller.currentState).toEqual({
+    phase: "error",
+    error: owned.message,
+    errorAction: "retry",
+    errorSource: "browser-openrouter-model",
+  });
+  await harness.controller.start();
+  expect(harness.controller.currentState).toEqual({
+    phase: "error",
+    error: owned.message,
+    errorAction: "retry",
+  });
+  await harness.controller.start();
+  expect(harness.controller.currentState).toEqual({
+    phase: "recording",
+    error: null,
+    errorAction: null,
+  });
+  harness.controller.cancel();
+  expect(harness.controller.currentState).toEqual({
+    phase: "idle",
+    error: null,
+    errorAction: null,
+  });
+});
+
+it("does not let a late marked preparation failure restore provenance after cancel", async () => {
+  resetVoiceInputGlobalsForTests();
+  const pending = deferred<PreparedVoiceTranscription>();
+  const prepare = vi.fn(() => pending.promise);
+  const harness = createHarness({ getTranscriber: () => ({ prepare }) });
+  const start = harness.controller.start();
+  await vi.waitFor(() => expect(prepare).toHaveBeenCalledOnce());
+  harness.controller.cancel();
+  pending.reject(
+    markVoiceInputError(
+      new VoiceTranscriptionError({
+        code: "unavailable",
+        message: "Choose an OpenRouter model in Settings → Voice.",
+      }),
+      "browser-openrouter-model",
+    ),
+  );
+  await start;
+  expect(harness.controller.currentState).toEqual({
+    phase: "idle",
+    error: null,
+    errorAction: null,
+  });
+});
+
+it("clears a marked transcription error before retry and does not mark the next raw same-text failure", async () => {
+  resetVoiceInputGlobalsForTests();
+  const message = "Voice transcription failed. Check the destination in Settings → Voice.";
+  const transcribe = vi
+    .fn<PreparedVoiceTranscription["transcribe"]>()
+    .mockRejectedValueOnce(
+      markVoiceInputError(
+        new VoiceTranscriptionError({ code: "transcription-failed", message }),
+        "browser-transcription-destination",
+      ),
+    )
+    .mockRejectedValueOnce(new VoiceTranscriptionError({ code: "transcription-failed", message }))
+    .mockResolvedValueOnce("opaque/{transcript}/$&");
+  const harness = createHarness({
+    retryFailedRecording: true,
+    getTranscriber: () => ({ prepare: async () => preparedTranscription(transcribe) }),
+  });
+  await harness.controller.start();
+  await harness.controller.stop();
+  expect(harness.controller.currentState.errorSource).toBe("browser-transcription-destination");
+  await harness.controller.start();
+  expect(harness.controller.currentState).toEqual({
+    phase: "error",
+    error: message,
+    errorAction: "retry",
+  });
+  await harness.controller.start();
+  expect(harness.controller.currentState).toEqual({
+    phase: "idle",
+    error: null,
+    errorAction: null,
+  });
+  expect(harness.recorder.record).toHaveBeenCalledOnce();
+  expect(harness.commits[0]?.text).toBe("hello opaque/{transcript}/$&");
 });

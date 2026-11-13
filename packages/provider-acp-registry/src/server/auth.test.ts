@@ -2,7 +2,11 @@ import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import * as Layer from "effect/Layer";
 import { assert, it } from "@effect/vitest";
-import { ProviderInstanceId, type ProviderAuthState } from "@t3tools/contracts";
+import {
+  ProviderInstanceId,
+  formatProviderAuthMessage,
+  type ProviderAuthState,
+} from "@t3tools/contracts";
 import { AcpRegistrySettings } from "../settings.ts";
 import * as Deferred from "effect/Deferred";
 import * as Cause from "effect/Cause";
@@ -357,12 +361,18 @@ it.effect("does not report authentication when post-login verification fails", (
   }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
 );
 
-it.effect("surfaces the agent error message when authenticate fails with AcpRequestError", () =>
+it.effect.each([
+  "Connect to the VPN, then sign in again.",
+  "Settings",
+  "$& {0} 中文\nline two",
+  "https://example.test/oauth?code=fake-code token=fake-token",
+  "A".repeat(600),
+])("surfaces the literal agent error without copying it into display metadata %#", (detail) =>
   Effect.gen(function* () {
     const error = new AcpRequestError({
       method: "authenticate",
       code: -32000,
-      errorMessage: "Connect to the VPN, then sign in again.",
+      errorMessage: `  ${detail}  `,
     });
     const h = yield* makeHarness(
       browserMethod,
@@ -375,7 +385,13 @@ it.effect("surfaces the agent error message when authenticate fails with AcpRequ
     const failed = yield* h.phase("failed");
     assert.strictEqual(
       failed.message,
-      "The ACP agent could not complete sign-in. Connect to the VPN, then sign in again.",
+      `The ACP agent could not complete sign-in. ${detail.length > 500 ? detail.slice(0, 500).trimEnd() + "…" : detail}`,
+    );
+    assert.deepEqual(failed.messageDescriptor, { code: "acp.completeFailed" });
+    assert.strictEqual(JSON.stringify(failed.messageDescriptor), '{"code":"acp.completeFailed"}');
+    assert.strictEqual(
+      formatProviderAuthMessage(failed, () => "ACP 智能体无法完成登录。"),
+      `ACP 智能体无法完成登录。 ${detail.length > 500 ? detail.slice(0, 500).trimEnd() + "…" : detail}`,
     );
     assert.deepEqual(h.changed, []);
   }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),

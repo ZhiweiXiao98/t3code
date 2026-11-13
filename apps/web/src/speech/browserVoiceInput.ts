@@ -8,6 +8,7 @@ import {
   throwIfVoiceTranscriptionAborted,
   transcribeEnvironmentPcm,
   VoiceTranscriptionError,
+  markVoiceInputError,
   type VoiceTranscriptionOptions,
 } from "@t3tools/client-runtime/voice-input";
 import type { PreparedConnection } from "@t3tools/client-runtime/connection";
@@ -65,19 +66,25 @@ export function createBrowserVoiceInputPlatform(input: {
       } catch (cause) {
         throwIfVoiceTranscriptionAborted(transcriptionSignal);
         if (isVoiceTranscriptionError(cause)) throw cause;
-        throw new VoiceTranscriptionError({
-          code: "transcription-failed",
-          message: "Voice transcription failed. Check the destination in Settings → Voice.",
-          cause,
-        });
+        throw markVoiceInputError(
+          new VoiceTranscriptionError({
+            code: "transcription-failed",
+            message: "Voice transcription failed. Check the destination in Settings → Voice.",
+            cause,
+          }),
+          "browser-transcription-destination",
+        );
       }
     };
     if (input.cloudProvider) {
       if (input.cloudProvider === "openrouter" && !input.cloudModel)
-        throw new VoiceTranscriptionError({
-          code: "unavailable",
-          message: "Choose an OpenRouter model in Settings → Voice.",
-        });
+        throw markVoiceInputError(
+          new VoiceTranscriptionError({
+            code: "unavailable",
+            message: "Choose an OpenRouter model in Settings → Voice.",
+          }),
+          "browser-openrouter-model",
+        );
       await runEnvironmentSpeech(
         requireCloudSpeechKey(input.prepared, input.cloudProvider),
         options,

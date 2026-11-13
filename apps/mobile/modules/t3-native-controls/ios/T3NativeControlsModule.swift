@@ -346,8 +346,9 @@ public final class T3NativeControlsModule: Module {
         if saved {
           promise.resolve(nil)
         } else {
-          if let error { promise.reject(error) }
-          else { Self.rejectPhotoFailure(.saveFailed, codedErrors: codedErrors, promise: promise) }
+          if let error { promise.reject(error) } else {
+            Self.rejectPhotoFailure(.saveFailed, codedErrors: codedErrors, promise: promise)
+          }
         }
       })
     }
@@ -372,8 +373,7 @@ public final class T3NativeControlsModule: Module {
   }
 
   private static func rejectPhotoFailure(_ failure: PhotoFailure, codedErrors: Bool, promise: Promise) {
-    if codedErrors { promise.reject(failure.code, failure.message) }
-    else {
+    if codedErrors { promise.reject(failure.code, failure.message) } else {
       promise.reject(NSError(domain: "T3NativePhotos", code: failure.rawValue,
                              userInfo: [NSLocalizedDescriptionKey: failure.message]))
     }

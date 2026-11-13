@@ -133,7 +133,9 @@ export function platformSetupStatus(
     ) {
       return {
         ready: false,
-        message: `No ${platformName(platform)} devices were listed because device discovery reported a problem.`,
+        message: translateWebMessage(locale, "audit20.device.discoveryProblem", {
+          platform: platformName(platform),
+        }),
       };
     }
     return {

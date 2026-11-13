@@ -8,6 +8,8 @@ import { useCommandPaletteStore } from "../commandPaletteStore";
 import { makeThreadFixture } from "../test-fixtures";
 import type { Project, Thread } from "../types";
 import { CommandPalette } from "./CommandPalette";
+import { WebI18nContext } from "~/i18n/WebI18nContext";
+import { translateWebMessage } from "~/i18n/messages";
 
 const entities = vi.hoisted(() => ({
   projects: [] as ReadonlyArray<Project>,
@@ -174,4 +176,31 @@ describe("CommandPalette open intents", () => {
 
     await vi.waitFor(() => expect(screen.router?.state.location.pathname).toBe("/local/parent"));
   });
+});
+
+it("keeps the MCP action searchable as its displayed title follows the current language", async () => {
+  setup();
+  const palette = (locale: "en" | "zh-CN") => (
+    <WebI18nContext
+      value={{
+        locale,
+        appLocale: locale,
+        setAppLocale: () => {},
+        t: (key, values) => translateWebMessage(locale, key, values),
+      }}
+    >
+      <CommandPalette>{null}</CommandPalette>
+    </WebI18nContext>
+  );
+  await using screen = await render(palette("zh-CN"));
+  openCommandPalette({ query: "MCP" });
+  await expect
+    .element(page.getByRole("option", { name: /在其他应用中使用 T3 Code（MCP）/ }))
+    .toBeVisible();
+  await screen.rerender(palette("en"));
+  await expect
+    .element(page.getByRole("option", { name: /Use T3 Code in another app \(MCP\)/ }))
+    .toBeVisible();
+  await userEvent.keyboard("{Escape}");
+  expect(useCommandPaletteStore.getState().open).toBe(false);
 });

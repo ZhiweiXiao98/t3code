@@ -1,3 +1,7 @@
+import {
+  providerAuthFailureValue,
+  translateProviderAuthMessage,
+} from "../../i18n/providerAuthMessages";
 import { translateWebSource } from "../../i18n/messages";
 import { useI18n } from "../../i18n/WebI18nContext";
 import { useAtomValue } from "@effect/atom-react";
@@ -61,11 +65,21 @@ export function ProviderWizardAuthenticationStep({
             <SettingsRow
               title={translateWebSource(sourceLocale, "Account")}
               description={
-                isDiscovering
-                  ? "Discovering sign-in methods…"
-                  : (query.error ??
-                    auth?.message ??
-                    "No in-app sign-in advertised. Follow the provider's docs to finish setup.")
+                <span>
+                  {isDiscovering
+                    ? translateWebSource(sourceLocale, "Discovering sign-in methods…")
+                    : ((query.error === null
+                        ? null
+                        : translateProviderAuthMessage(
+                            sourceLocale,
+                            providerAuthFailureValue(query.failure, query.error),
+                          )) ??
+                      translateProviderAuthMessage(sourceLocale, auth) ??
+                      translateWebSource(
+                        sourceLocale,
+                        "No in-app sign-in advertised. Follow the provider's docs to finish setup.",
+                      ))}
+                </span>
               }
               control={
                 isDiscovering ? (

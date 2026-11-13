@@ -1,3 +1,4 @@
+import { markPreviewPrecondition } from "~/browser/previewPreconditionMessages";
 import { translateWebSource } from "~/i18n/messages";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { clientHostEnvironmentAtom } from "../state/clientHostEnvironment";
@@ -744,9 +745,12 @@ function useChatMarkdownState({
       return Promise.resolve(
         AsyncResult.failure<void, BrowserPreviewUnavailableError>(
           Cause.fail(
-            new BrowserPreviewUnavailableError({
-              message: "Environment is not connected.",
-            }),
+            markPreviewPrecondition(
+              new BrowserPreviewUnavailableError({
+                message: "Environment is not connected.",
+              }),
+              "environment-disconnected",
+            ),
           ),
         ),
       );

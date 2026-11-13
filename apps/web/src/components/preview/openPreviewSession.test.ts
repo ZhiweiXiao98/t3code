@@ -1,3 +1,4 @@
+import { previewPreconditionMessage } from "~/browser/previewPreconditionMessages";
 import {
   DEFAULT_CLIENT_SETTINGS,
   type PreviewSessionSnapshot,
@@ -175,4 +176,46 @@ describe("openUrlInPreview from a link", () => {
 
     expect(readThreadPreviewState(threadRef).activeTabId).toBe("tab-other");
   });
+});
+
+it("localizes only actual integrated-browser preconditions, retaining raw failures and file paths", async () => {
+  const createAssetUrl = vi.fn<Parameters<typeof openFileInPreview>[0]["createAssetUrl"]>(
+    async () => AsyncResult.success({ relativeUrl: "http://[", expiresAt: 0 }),
+  );
+  const openPreview = vi.fn(async () => AsyncResult.success(snapshot));
+  const input = {
+    threadRef,
+    filePath: "/repo/opaque/{0}/$&.html",
+    workspaceRoot: "/repo",
+    httpBaseUrl: "https://example.test",
+    createAssetUrl,
+    openPreview,
+  };
+  vi.spyOn(previewRuntime, "isPreviewAvailableFor").mockReturnValue(false);
+  const unavailable = await openFileInPreview(input);
+  if (unavailable._tag !== "Failure") throw new Error("Expected runtime refusal");
+  const runtimeError = Cause.squash(unavailable.cause);
+  expect(previewPreconditionMessage(runtimeError, "zh-CN")).toBe("此运行环境无法使用集成浏览器。");
+  expect(previewPreconditionMessage(runtimeError, "en")).toBe(
+    "The integrated browser is unavailable in this runtime.",
+  );
+  expect(createAssetUrl).not.toHaveBeenCalled();
+  vi.spyOn(previewRuntime, "isPreviewAvailableFor").mockReturnValue(true);
+  const invalid = await openFileInPreview(input);
+  if (invalid._tag !== "Failure") throw new Error("Expected invalid asset URL");
+  expect(previewPreconditionMessage(Cause.squash(invalid.cause), "zh-CN")).toBe(
+    "环境返回了无效的资源 URL。",
+  );
+  expect(createAssetUrl.mock.calls[0]?.[0]).toMatchObject({
+    input: { resource: { path: "/repo/opaque/{0}/$&.html" } },
+  });
+  expect(openPreview).not.toHaveBeenCalled();
+  const raw = new Error("The environment returned an invalid asset URL.");
+  const foreign = await openFileInPreview({
+    ...input,
+    createAssetUrl: async () => AsyncResult.failure(Cause.die(raw)),
+  });
+  if (foreign._tag !== "Failure") throw new Error("Expected raw upstream failure");
+  expect(Cause.squash(foreign.cause)).toBe(raw);
+  expect(previewPreconditionMessage(raw, "zh-CN")).toBe(raw.message);
 });

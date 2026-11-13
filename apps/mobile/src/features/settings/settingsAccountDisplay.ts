@@ -1,3 +1,7 @@
+import {
+  providerAuthFailureValue,
+  translateProviderAuthMessage,
+} from "../../i18n/providerAuthMessages";
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { localizeMobileString, MOBILE_LOCALE, type MobileLocale } from "../../i18n/mobileStrings";
 
@@ -5,9 +9,13 @@ export function providerAccountFailure(
   failure: unknown,
   locale: MobileLocale = MOBILE_LOCALE,
 ): string {
-  return failure instanceof Error
-    ? failure.message
-    : localizeMobileString("Could not update provider sign-in.", locale);
+  return translateProviderAuthMessage(
+    providerAuthFailureValue(
+      failure,
+      localizeMobileString("Could not update provider sign-in.", locale),
+    ),
+    locale,
+  )!;
 }
 
 export function keyboardNewlineDescription(

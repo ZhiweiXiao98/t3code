@@ -1679,7 +1679,7 @@ function OpenCommandPaletteDialog(props: {
       "openclaw",
       "hermes",
     ],
-    title: "Use T3 Code in another app (MCP)",
+    title: translateWebSource(uiLocale, "Use T3 Code in another app (MCP)"),
     icon: <PlugIcon className={ITEM_ICON_CLASS} />,
     run: async () => {
       openUseInAnotherApp(
@@ -1867,6 +1867,7 @@ function OpenCommandPaletteDialog(props: {
       isLinkedThreadSearch && linkedThreadSearch?.linkedThreads
         ? buildLinkedThreadActionItems({
             ...linkedThreadSearch.linkedThreads,
+            locale: uiLocale,
             threads: visibleLinkedThreads(
               linkedThreadSearch.linkedThreads.threads,
               linkedThreadSearch.linkedThreads.environmentId,

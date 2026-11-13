@@ -996,3 +996,39 @@ it("localizes actual root and browse groups without changing action identity or 
   const custom = { ...groups[0]!, label: "user/{Actions}/$&" };
   expect(localizeCommandPaletteGroups([custom], "zh-CN")[0]).toBe(custom);
 });
+
+it("localizes linked-thread fallbacks without changing titles, search terms, or navigation", async () => {
+  const environmentId = EnvironmentId.make("remote/{locale}");
+  const runThread = vi.fn(async () => {});
+  const threads = [
+    { id: ThreadId.make("empty"), title: "", archivedAt: null },
+    { id: ThreadId.make("named"), title: "Untitled thread", archivedAt: null },
+    { id: ThreadId.make("archived"), title: "Linked thread", archivedAt: "2026-09-01" },
+  ].map((thread) => ({ ...thread, projectId: ProjectId.make("project") }));
+  for (const locale of ["zh-CN", "en"] as const) {
+    const items = buildLinkedThreadActionItems({
+      environmentId,
+      threads,
+      query: "#42",
+      icon: null,
+      runThread,
+      locale,
+    });
+    expect(items.map((item) => item.title)).toEqual([
+      locale === "en" ? "Untitled thread" : "未命名会话",
+      "Untitled thread",
+      "Linked thread",
+    ]);
+    expect(items.map((item) => item.description)).toEqual(
+      locale === "en"
+        ? ["Linked thread", "Linked thread", "Archived thread"]
+        : ["已关联会话", "已关联会话", "已归档会话"],
+    );
+    expect(items[1]?.searchTerms).toEqual(["#42", "Untitled thread"]);
+    for (const [index, item] of items.entries()) {
+      expect(item.value).toBe(`thread:${environmentId}:${threads[index]!.id}`);
+      await item.run();
+      expect(runThread).toHaveBeenLastCalledWith({ environmentId, id: threads[index]!.id });
+    }
+  }
+});

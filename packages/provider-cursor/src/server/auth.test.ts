@@ -132,6 +132,8 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("CursorAuth", (it
       const waiting = yield* phase(harness.auth, "waiting");
       expect(stopped).toBe(true);
       expect(waiting.authorizationUrl).toBe(authorizationUrl);
+      expect(waiting.messageDescriptor).toEqual({ code: "cursor.waiting" });
+      expect(starting.messageDescriptor).toEqual({ code: "cursor.starting" });
       expect(waiting.flowId).toBe(starting.flowId);
       expect(harness.loginOptions()?.openBrowser).toBe(false);
       expect((yield* harness.auth.controller.start(owner)).flowId).toBe(starting.flowId);
@@ -139,6 +141,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("CursorAuth", (it
       yield* Effect.sync(() => harness.complete.resolve());
       const succeeded = yield* phase(harness.auth, "succeeded");
       expect(succeeded.authorizationUrl).toBeNull();
+      expect(succeeded.messageDescriptor).toEqual({ code: "cursor.succeeded" });
       expect(yield* harness.auth.requireApiKey).toBe("browser-key");
       expect(harness.changes).toEqual([true]);
       expect(Object.values(succeeded)).not.toContain("browser-key");
@@ -152,7 +155,12 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("CursorAuth", (it
       yield* auth.controller.start(owner);
       const waiting = yield* phase(auth, "waiting");
       const foreign = yield* phase(auth, "waiting", otherOwner);
-      expect(foreign).toMatchObject({ flowId: null, authorizationUrl: null, expiresAt: null });
+      expect(foreign).toMatchObject({
+        flowId: null,
+        authorizationUrl: null,
+        expiresAt: null,
+        messageDescriptor: { code: "auth.otherClient" },
+      });
       expect(Exit.isFailure(yield* Effect.exit(auth.controller.start(otherOwner)))).toBe(true);
       expect(
         Exit.isFailure(yield* Effect.exit(auth.controller.cancel(otherOwner, waiting.flowId!))),
@@ -178,10 +186,14 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("CursorAuth", (it
       const waiting = yield* phase(harness.auth, "waiting");
       const cancelled = yield* harness.auth.controller.cancel(owner, waiting.flowId!);
       expect(cancelled.phase).toBe("cancelled");
+      expect(cancelled.messageDescriptor).toEqual({ code: "cursor.cancelled" });
       expect(cancelled.authorizationUrl).toBeNull();
       expect(harness.loginOptions()?.signal?.aborted).toBe(true);
       yield* Effect.sync(() => harness.complete.resolve());
       yield* Effect.promise(() => harness.returned.promise);
+      expect((yield* phase(harness.auth, "cancelled")).messageDescriptor).toEqual({
+        code: "cursor.cancelled",
+      });
       expect(yield* harness.auth.readApiKey).toBeUndefined();
       expect(harness.changes).toEqual([]);
     }).pipe(Effect.scoped),
@@ -189,8 +201,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("CursorAuth", (it
 
   it.effect("discards a credential rejected by verification and permits a fresh login", () =>
     Effect.gen(function* () {
-      const rejectionMessage =
-        "Cursor needs a paid plan to run in T3 Code. Upgrade this account or sign in with a different one.";
+      const rejectionMessage = "Signed in with Cursor."; // Raw provider text colliding with owned copy.
       let rejected = true;
       const harness = yield* makeHarness({
         onChanged: (signedIn) =>
@@ -209,6 +220,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("CursorAuth", (it
       yield* Effect.sync(() => harness.complete.resolve());
       const failed = yield* phase(harness.auth, "failed");
       expect(failed.message).toBe(rejectionMessage);
+      expect(failed.messageDescriptor).toBeUndefined();
       expect(yield* Effect.promise(() => harness.store.load())).toBeUndefined();
       expect(yield* harness.auth.readApiKey).toBeUndefined();
       expect(Exit.isFailure(yield* Effect.exit(harness.auth.requireApiKey))).toBe(true);
@@ -232,6 +244,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("CursorAuth", (it
         }),
       );
       expect(state.message).toBe("Signed out of Cursor.");
+      expect(state.messageDescriptor).toEqual({ code: "cursor.signedOut" });
       expect(yield* harness.auth.readApiKey).toBeUndefined();
       expect(yield* other.auth.requireApiKey).toBe("other-key");
       expect(harness.changes).toEqual([false]);
@@ -247,6 +260,9 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("CursorAuth", (it
       expect(harness.loginOptions()?.signal?.aborted).toBe(true);
       yield* Effect.sync(() => harness.complete.resolve());
       yield* Effect.promise(() => harness.returned.promise);
+      const signedOut = yield* phase(harness.auth, "idle");
+      expect(signedOut.message).toBe("Signed out of Cursor.");
+      expect(signedOut.messageDescriptor).toEqual({ code: "cursor.signedOut" });
       expect(yield* harness.auth.readApiKey).toBeUndefined();
     }).pipe(Effect.scoped),
   );

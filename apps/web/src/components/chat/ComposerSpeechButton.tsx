@@ -239,6 +239,7 @@ export function ComposerSpeechRecordingPill(props: {
     return (
       <VoiceInputErrorPill
         error={props.state.error}
+        {...(props.state.errorSource === undefined ? {} : { errorSource: props.state.errorSource })}
         errorAction={props.state.errorAction}
         disabled={props.disabled ?? false}
         cancelShortcutLabel={props.cancelShortcutLabel ?? null}

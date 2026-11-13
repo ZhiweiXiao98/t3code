@@ -1,3 +1,5 @@
+import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
+import { activityTemplate, childInputTitle } from "./activityPresentationMessages";
 import { readWebI18n } from "~/i18n/readWebI18n";
 import { translateWebSource } from "~/i18n/messages";
 import type {
@@ -49,12 +51,13 @@ export function extensionStatusBannerItem(
 
 /** Subagents and side chats waiting on the user, unless the parent is itself waiting on them. */
 export function childInputNowItem(input: {
+  readonly locale?: ResolvedAppLocale;
   readonly childThreadInputs: ReadonlyArray<EnvironmentThreadShell>;
   readonly parentAwaitingUser: boolean;
   // A task delegated to a linked environment lives there, not where the parent runs.
   readonly onOpenThread: (threadId: ThreadId, environmentId: EnvironmentId) => void;
 }): (ThreadNowItem & { readonly waitingLabel: string }) | null {
-  const { locale: uiLocale } = readWebI18n();
+  const uiLocale = input.locale ?? readWebI18n().locale;
   const { childThreadInputs, onOpenThread } = input;
   const first = childThreadInputs[0];
   if (!first || input.parentAwaitingUser) return null;
@@ -66,10 +69,10 @@ export function childInputNowItem(input: {
     ) : (
       <MessageCircleIcon className="text-info-foreground" />
     ),
-    title: childThreadInputsTitle(childThreadInputs),
+    title: childThreadInputsTitle(childThreadInputs, (values) => childInputTitle(uiLocale, values)),
     waitingLabel: childThreadInputs.every((child) => child.lineage.sideChat === true)
-      ? translateWebSource(readWebI18n().locale, "Side chat waiting")
-      : translateWebSource(readWebI18n().locale, "Subagent waiting"),
+      ? translateWebSource(uiLocale, "Side chat waiting")
+      : translateWebSource(uiLocale, "Subagent waiting"),
     description: childThreadInputs.map((child, index) => (
       <Fragment key={child.id}>
         {index > 0 ? " " : null}
@@ -93,15 +96,21 @@ export function childInputNowItem(input: {
 
 /** The thread's goal, for the end of the timeline. */
 export function goalNowItem(input: {
+  readonly locale?: ResolvedAppLocale;
   readonly threadId: ThreadId;
   readonly goal: OrchestrationV2ProviderGoal;
   readonly isWorking: boolean;
   readonly onSendCommand: (text: string, failureMessage: string) => Promise<void>;
 }): ThreadNowItem {
   const { t: residualT } = readWebI18n();
-  const { locale: uiLocale } = readWebI18n();
+  const uiLocale = input.locale ?? readWebI18n().locale;
   const { isWorking, onSendCommand } = input;
-  const presentation = presentProviderGoal(input.goal, isWorking);
+  const presentation = presentProviderGoal(
+    input.goal,
+    isWorking,
+    (title) => translateWebSource(uiLocale, title),
+    (template, values) => activityTemplate(uiLocale, template, values),
+  );
   return {
     id: `goal:${input.threadId}`,
     icon: <TargetIcon />,
@@ -183,6 +192,7 @@ export function runStopNowItem(input: {
 
 /** Background commands and subagents, for the end of the timeline. */
 export function backgroundWorkNowItem(input: {
+  readonly locale?: ResolvedAppLocale;
   readonly environmentId: EnvironmentId;
   readonly threadId: ThreadId;
   readonly tasks: ReadonlyArray<OrchestrationV2PendingBackgroundTask>;
@@ -192,9 +202,14 @@ export function backgroundWorkNowItem(input: {
   readonly onStop: () => Promise<void>;
   readonly onOpenThread: (threadId: ThreadId) => void;
 }): ThreadNowItem | null {
-  const { locale: uiLocale } = readWebI18n();
+  const uiLocale = input.locale ?? readWebI18n().locale;
   const { onOpenThread } = input;
-  const presentation = presentPendingBackgroundWork(input.tasks);
+  const presentation = presentPendingBackgroundWork(
+    input.tasks,
+    uiLocale === "zh-CN"
+      ? (template, values) => activityTemplate(uiLocale, template, values)
+      : undefined,
+  );
   if (presentation === null) return null;
   const rows = presentation.items.map((task) => {
     // Same key derivePendingBackgroundWork gives turn-item tasks; subagent items carry progress.
@@ -233,7 +248,9 @@ export function backgroundWorkNowItem(input: {
     title:
       only &&
       presentation.title ===
-        `${presentation.waiting ? "Waiting" : "Running"} · ${only.task.label}` ? (
+        activityTemplate(uiLocale, presentation.waiting ? "Waiting · {0}" : "Running · {0}", [
+          only.task.label,
+        ]) ? (
         <>
           {translateWebSource(uiLocale, presentation.waiting ? "Waiting" : "Running")} ·{" "}
           {only.label}

@@ -90,6 +90,7 @@ it.effect("requires owner consent and provider verification before success", () 
   Effect.gen(function* () {
     const { controller, phase, started, verified, attempts } = yield* makeHarness;
     const state = yield* controller.start("owner");
+    assert.deepEqual(state.messageDescriptor, { code: "auth.starting" });
     yield* Deferred.await(started);
     const response = {
       instanceId,
@@ -98,6 +99,7 @@ it.effect("requires owner consent and provider verification before success", () 
       response: { type: "browser" as const, action: "accept" as const },
     };
     const other = yield* phase("waiting", "other");
+    assert.deepEqual(other.messageDescriptor, { code: "auth.otherClient" });
     assert.isNull(other.interaction);
     assert.isNull(other.flowId);
     assert.isTrue(
@@ -111,9 +113,9 @@ it.effect("requires owner consent and provider verification before success", () 
     yield* controller.start("owner");
     assert.strictEqual(attempts(), 1);
     yield* controller.respond!("owner", response);
-    yield* phase("verifying");
+    assert.deepEqual((yield* phase("verifying")).messageDescriptor, { code: "auth.checking" });
     yield* Deferred.succeed(verified, undefined);
-    assert.strictEqual((yield* phase("succeeded")).phase, "succeeded");
+    assert.deepEqual((yield* phase("succeeded")).messageDescriptor, { code: "auth.succeeded" });
   }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
 );
 
@@ -121,9 +123,10 @@ it.effect("cancellation rejects late consent and permits another login", () =>
   Effect.gen(function* () {
     const { controller, started, phase } = yield* makeHarness;
     const state = yield* controller.start("owner");
+    assert.deepEqual(state.messageDescriptor, { code: "auth.starting" });
     yield* Deferred.await(started);
     yield* controller.cancel("owner", state.flowId!);
-    assert.strictEqual((yield* phase("cancelled")).phase, "cancelled");
+    assert.deepEqual((yield* phase("cancelled")).messageDescriptor, { code: "auth.cancelled" });
     assert.isTrue(
       (yield* controller.respond!("owner", {
         instanceId,
@@ -267,6 +270,7 @@ it.effect("shows a device code only to its owner without treating it as authenti
     const other = yield* controller
       .subscribe("other")
       .pipe(Stream.runHead, Effect.map(Option.getOrThrow));
+    assert.deepEqual(other.messageDescriptor, { code: "auth.otherClient" });
     assert.isNull(other.interaction);
     assert.isNull(other.authorizationUrl);
     yield* controller.cancel("owner", start.flowId!);
@@ -283,12 +287,37 @@ it.effect.each([
       }),
     ),
     message: "This account cannot sign in. Choose another account.",
+    descriptor: undefined,
+  },
+  {
+    failure: Effect.fail(
+      new ProviderSetupError({
+        instanceId,
+        operation: "authenticate",
+        detail: "Starting sign-in.",
+      }),
+    ),
+    message: "Starting sign-in.",
+    descriptor: undefined,
+  },
+  {
+    failure: Effect.fail(
+      new ProviderSetupError({
+        instanceId,
+        operation: "authenticate",
+        detail: "Sign-in expired. Start again.",
+        messageDescriptor: { code: "auth.expired" },
+      }),
+    ),
+    message: "Sign-in expired. Start again.",
+    descriptor: { code: "auth.expired" },
   },
   {
     failure: Effect.die(new Error("private-token in native diagnostics")),
     message: "Sign-in failed. Start again.",
+    descriptor: { code: "auth.failed" },
   },
-])("publishes only safe authentication failure text %#", ({ failure, message }) =>
+])("publishes only safe authentication failure text %#", ({ failure, message, descriptor }) =>
   Effect.gen(function* () {
     const controller = yield* ProviderAuthFlow.make({
       instanceId,
@@ -304,6 +333,7 @@ it.effect.each([
       Effect.map(Option.getOrThrow),
     );
     assert.strictEqual(failed.message, message);
+    assert.deepEqual(failed.messageDescriptor, descriptor);
   }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
 );
 
@@ -458,6 +488,12 @@ it.effect("a failed method refresh keeps the last discovered methods", () =>
         }),
     });
     yield* controller.refreshMethods!;
+    yield* controller.invalidate!;
+    assert.deepEqual(
+      (yield* controller.subscribe("owner").pipe(Stream.runHead, Effect.map(Option.getOrThrow)))
+        .messageDescriptor,
+      { code: "auth.sharedChanged" },
+    );
     fail = true;
     yield* controller.refreshMethods!;
     const state = yield* controller
@@ -465,6 +501,7 @@ it.effect("a failed method refresh keeps the last discovered methods", () =>
       .pipe(Stream.runHead, Effect.map(Option.getOrThrow));
     assert.deepEqual(state.methods, [method]);
     assert.strictEqual(state.message, "interrupted");
+    assert.isUndefined(state.messageDescriptor);
     const error = yield* Effect.flip(controller.removeMethod!(method.id));
     assert.isTrue(removed);
     assert.strictEqual(error.detail, "interrupted");
@@ -474,6 +511,10 @@ it.effect("a failed method refresh keeps the last discovered methods", () =>
       .subscribe("owner")
       .pipe(Stream.runHead, Effect.map(Option.getOrThrow));
     assert.deepEqual(refreshed.methods, []);
+    assert.isUndefined(refreshed.messageDescriptor);
+    const removedState = yield* controller.removeMethod!(method.id);
+    assert.isNull(removedState.message);
+    assert.isUndefined(removedState.messageDescriptor);
   }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
 );
 
@@ -525,10 +566,39 @@ it.effect("profile import stops owned sessions and gates access until credential
     );
     assert.strictEqual(denied._tag, "Failure");
     yield* Deferred.succeed(release, undefined);
-    assert.strictEqual((yield* Fiber.join(imported)).phase, "succeeded");
+    const importedState = yield* Fiber.join(imported);
+    assert.strictEqual(importedState.phase, "succeeded");
+    assert.isNull(importedState.message);
+    assert.isUndefined(importedState.messageDescriptor);
     assert.strictEqual(
       yield* controller.withAccess!(Effect.succeed("new credential process")),
       "new credential process",
     );
   }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
+);
+
+it.effect.each([
+  { result: undefined, message: "Signed out.", code: "auth.signedOut" },
+  { result: "Signed out.", message: "Signed out.", code: undefined },
+  {
+    result: { message: "Signed out.", messageDescriptor: { code: "auth.signedOut" as const } },
+    message: "Signed out.",
+    code: "auth.signedOut",
+  },
+])(
+  "keeps logout strings raw unless their source supplied a descriptor %#",
+  ({ result, message, code }) =>
+    Effect.gen(function* () {
+      const controller = yield* ProviderAuthFlow.make({
+        instanceId,
+        credentialBinding: { owner: "t3", key: "logout" },
+        methods: Effect.succeed([method]),
+        authenticate: () => Effect.void,
+        logout: Effect.succeed(result),
+      });
+      const state = yield* controller.logout(Effect.void);
+      assert.strictEqual(state.message, message);
+      assert.strictEqual(state.messageDescriptor?.code, code);
+      assert.strictEqual(state.phase, "idle");
+    }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
 );

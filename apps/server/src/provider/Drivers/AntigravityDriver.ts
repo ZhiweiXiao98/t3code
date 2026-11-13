@@ -238,6 +238,7 @@ export const AntigravityDriver: ProviderDriver<
                 instanceId,
                 operation: "start",
                 detail: nodeRuntimeUnavailableMessage("Antigravity sign-in"),
+                messageDescriptor: { code: "antigravity.nodeRequired" },
                 cause,
               })
             : cause,
@@ -254,6 +255,7 @@ export const AntigravityDriver: ProviderDriver<
                 instanceId,
                 operation: "start",
                 detail: "Could not create an Antigravity runtime temp directory.",
+                messageDescriptor: { code: "antigravity.tempDirectoryFailed" },
                 cause,
               }),
           ),

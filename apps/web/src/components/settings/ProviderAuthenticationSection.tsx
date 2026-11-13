@@ -1,3 +1,8 @@
+import {
+  providerAuthFailureValue,
+  translateProviderAuthMessage,
+  type ProviderAuthDisplayError,
+} from "../../i18n/providerAuthMessages";
 import { translateProviderAuthenticationSource } from "../../i18n/providerAuthenticationMessages";
 import { useStableCallback } from "../../hooks/useStableCallback";
 import { translateWebSource } from "../../i18n/messages";
@@ -58,7 +63,8 @@ export function ProviderAuthenticationSection({
   const logout = useAtomCommand(serverEnvironment.logoutProviderAuth, commands);
   const [methodId, setMethodId] = useState("");
   const [draft, setDraft] = useState({ id: "", values: {} as Record<string, string> });
-  const [error, setError] = useState<string | null>(null);
+  const [errorValue, setError] = useState<ProviderAuthDisplayError | null>(null);
+  const error = translateProviderAuthMessage(sourceLocale, errorValue);
   const [pending, setPending] = useState(false);
   const pendingRef = useRef(false);
   const terminalQueue = useRef<ProviderAuthRespondInput[]>([]);
@@ -86,7 +92,7 @@ export function ProviderAuthenticationSection({
     (provider.auth.type === "gemini-api-key" || provider.auth.type === "agent-platform");
   const accountDescription = active
     ? auth?.phase === "starting"
-      ? (auth.message ??
+      ? (translateProviderAuthMessage(sourceLocale, auth) ??
         translateWebSource(sourceLocale, usesCredentials ? "Connecting…" : "Starting sign-in…"))
       : auth?.phase === "verifying"
         ? translateWebSource(
@@ -114,7 +120,8 @@ export function ProviderAuthenticationSection({
             : sourceLocale === "zh-CN"
               ? `在 ${environmentLabel} 上登录。`
               : `Sign in on ${environmentLabel}.`;
-  const statusMessage = auth?.phase === "failed" ? auth.message : null;
+  const statusMessage =
+    auth?.phase === "failed" ? translateProviderAuthMessage(sourceLocale, auth) : null;
   const disabled = readOnly || pending || query.error !== null || isDiscovering;
   const draftId = `${auth?.flowId ?? ""}:${interaction?.id ?? ""}`;
   const values = draft.id === draftId ? draft.values : {};
@@ -135,9 +142,7 @@ export function ProviderAuthenticationSection({
       else if (!isAtomCommandInterrupted(result)) {
         const failure = squashAtomCommandFailure(result);
         setError(
-          failure instanceof Error
-            ? failure.message
-            : translateAction("Provider sign-in failed. Try again."),
+          providerAuthFailureValue(failure, translateAction("Provider sign-in failed. Try again.")),
         );
       }
     } catch {
@@ -524,7 +529,13 @@ export function ProviderAuthenticationSection({
           ) : null}
           {error || query.error ? (
             <p role="alert" className="py-2 text-xs text-destructive">
-              {error ?? query.error}
+              {error ??
+                (query.error === null
+                  ? null
+                  : translateProviderAuthMessage(
+                      sourceLocale,
+                      providerAuthFailureValue(query.failure, query.error),
+                    ))}
             </p>
           ) : null}
         </>

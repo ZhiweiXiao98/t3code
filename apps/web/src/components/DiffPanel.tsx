@@ -1408,7 +1408,7 @@ export default function DiffPanel({
                 </p>
                 {toolCallPreview.content.map(({ label, text }) => (
                   <div key={label} className="space-y-1">
-                    <p className="text-muted-foreground">{label}</p>
+                    <p className="text-muted-foreground">{translateWebSource(locale, label)}</p>
                     <pre
                       className={cn(
                         "overflow-auto font-mono text-2xs",

@@ -146,6 +146,9 @@ export const CursorDriver: ProviderDriver<
                     instanceId,
                     operation: "start",
                     detail: provider.message ?? "Could not verify the Cursor sign-in. Try again.",
+                    ...(provider.message == null
+                      ? { messageDescriptor: { code: "cursor.verifyFailed" as const } }
+                      : {}),
                   }),
                 ),
           ),

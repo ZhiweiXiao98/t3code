@@ -1,4 +1,9 @@
 import {
+  providerAuthMessage,
+  providerAuthErrorMessage,
+  type ProviderAuthMessage,
+} from "@t3tools/contracts";
+import {
   ProviderSetupError,
   type ProviderAuthInteraction,
   type ProviderAuthMethod,
@@ -41,8 +46,8 @@ const isSetupError = Schema.is(ProviderSetupError);
 const failureMessage = (cause: Cause.Cause<ProviderSetupError>) => {
   const error = Cause.findErrorOption(cause);
   return Option.isSome(error) && isSetupError(error.value)
-    ? error.value.detail
-    : "Sign-in failed. Start again.";
+    ? providerAuthErrorMessage(error.value)
+    : providerAuthMessage("auth.failed");
 };
 
 interface Flow {
@@ -68,7 +73,7 @@ export const make = Effect.fn("ProviderAuthFlow.make")(function* (options: {
     methodId: string,
     context: ProviderAuthFlowContext,
   ) => Effect.Effect<void, ProviderSetupError, Scope.Scope>;
-  readonly logout: Effect.Effect<void | string, ProviderSetupError>;
+  readonly logout: Effect.Effect<void | string | ProviderAuthMessage, ProviderSetupError>;
   readonly removeMethod?: (methodId: string) => Effect.Effect<void, ProviderSetupError>;
   readonly timeoutMs?: number;
 }) {
@@ -118,6 +123,7 @@ export const make = Effect.fn("ProviderAuthFlow.make")(function* (options: {
         instanceId: options.instanceId,
         operation: "respond",
         detail: "This sign-in is no longer active in this client.",
+        messageDescriptor: { code: "auth.inactive" },
       });
     }
     return active;
@@ -133,7 +139,11 @@ export const make = Effect.fn("ProviderAuthFlow.make")(function* (options: {
     Effect.catch((error) =>
       SubscriptionRef.update(snapshot, (current) => ({
         ...current,
-        state: { ...current.state, methods: current.state.methods ?? [], message: error.detail },
+        state: {
+          ...current.state,
+          methods: current.state.methods ?? [],
+          ...providerAuthErrorMessage(error),
+        },
       })),
     ),
   );
@@ -152,6 +162,7 @@ export const make = Effect.fn("ProviderAuthFlow.make")(function* (options: {
               instanceId: options.instanceId,
               operation: "import",
               detail: "Finish or cancel the existing sign-in first.",
+              messageDescriptor: { code: "auth.finishExisting" },
             });
           operation = "stopping";
         }),
@@ -166,7 +177,9 @@ export const make = Effect.fn("ProviderAuthFlow.make")(function* (options: {
         ...empty,
         methods: snapshot.value.state.methods ?? [],
         phase: Exit.isSuccess(result) ? "succeeded" : "failed",
-        message: Exit.isSuccess(result) ? null : failureMessage(result.cause),
+        ...(Exit.isSuccess(result)
+          ? { message: null, messageDescriptor: undefined }
+          : failureMessage(result.cause)),
       };
       yield* lock.withPermit(
         Effect.gen(function* () {
@@ -188,6 +201,7 @@ export const make = Effect.fn("ProviderAuthFlow.make")(function* (options: {
                     instanceId: options.instanceId,
                     operation: "removeMethod",
                     detail: "Finish or cancel the existing sign-in first.",
+                    messageDescriptor: { code: "auth.finishExisting" },
                   });
                 yield* options.removeMethod!(methodId);
                 const methods = yield* options.methods;
@@ -209,6 +223,7 @@ export const make = Effect.fn("ProviderAuthFlow.make")(function* (options: {
             ...empty,
             methods: snapshot.value.state.methods ?? [],
             message: "This provider's shared sign-in changed.",
+            messageDescriptor: { code: "auth.sharedChanged" },
           },
         });
       }),
@@ -225,6 +240,7 @@ export const make = Effect.fn("ProviderAuthFlow.make")(function* (options: {
                   instanceId: options.instanceId,
                   operation: "session",
                   detail: "Provider sign-in is changing. Try again after it finishes.",
+                  messageDescriptor: { code: "auth.changing" },
                 });
               const child = yield* Scope.make();
               sessions.add(child);
@@ -259,6 +275,7 @@ export const make = Effect.fn("ProviderAuthFlow.make")(function* (options: {
               instanceId: options.instanceId,
               operation: "start",
               detail: "Provider setup is already in progress.",
+              messageDescriptor: { code: "auth.busy" },
             });
           const id = yield* random.uuidV4().pipe(
             Effect.mapError(
@@ -267,6 +284,7 @@ export const make = Effect.fn("ProviderAuthFlow.make")(function* (options: {
                   instanceId: options.instanceId,
                   operation: "start",
                   detail: "Could not start sign-in. Try again.",
+                  messageDescriptor: { code: "auth.startFailed" },
                 }),
             ),
           );
@@ -285,6 +303,7 @@ export const make = Effect.fn("ProviderAuthFlow.make")(function* (options: {
             flowId: id,
             expiresAt: DateTime.formatIso(DateTime.makeUnsafe(flow.expiresAt)),
             message: "Starting sign-in.",
+            messageDescriptor: { code: "auth.starting" },
           };
           yield* SubscriptionRef.set(snapshot, { owner, state });
           flow.fiber = yield* Effect.gen(function* () {
@@ -296,6 +315,7 @@ export const make = Effect.fn("ProviderAuthFlow.make")(function* (options: {
                 instanceId: options.instanceId,
                 operation: "start",
                 detail: "The provider did not advertise this sign-in method.",
+                messageDescriptor: { code: "auth.methodUnavailable" },
               });
             yield* stopSessions.pipe(Effect.ensuring(stopOwnedSessions));
             yield* options.authenticate(methodId, {
@@ -316,6 +336,7 @@ export const make = Effect.fn("ProviderAuthFlow.make")(function* (options: {
                       ? interaction.url
                       : null,
                   message: "Complete sign-in to continue.",
+                  messageDescriptor: { code: "auth.completeSignIn" },
                 });
               }),
               verifying: Effect.gen(function* () {
@@ -326,6 +347,7 @@ export const make = Effect.fn("ProviderAuthFlow.make")(function* (options: {
                   interaction: null,
                   authorizationUrl: null,
                   message: "Checking provider sign-in.",
+                  messageDescriptor: { code: "auth.checking" },
                 });
               }),
             });
@@ -339,6 +361,7 @@ export const make = Effect.fn("ProviderAuthFlow.make")(function* (options: {
                     instanceId: options.instanceId,
                     operation: "start",
                     detail: "Sign-in expired. Start again.",
+                    messageDescriptor: { code: "auth.expired" },
                   }),
                 ),
             }),
@@ -363,9 +386,9 @@ export const make = Effect.fn("ProviderAuthFlow.make")(function* (options: {
                       interaction: null,
                       authorizationUrl: null,
                       expiresAt: null,
-                      message: Exit.isSuccess(result)
-                        ? "Sign-in complete."
-                        : failureMessage(result.cause),
+                      ...(Exit.isSuccess(result)
+                        ? providerAuthMessage("auth.succeeded")
+                        : failureMessage(result.cause)),
                     });
                     active = undefined;
                     operation = "idle";
@@ -396,12 +419,14 @@ export const make = Effect.fn("ProviderAuthFlow.make")(function* (options: {
                   instanceId: options.instanceId,
                   operation: "respond",
                   detail: "This sign-in interaction is no longer available.",
+                  messageDescriptor: { code: "auth.interactionUnavailable" },
                 });
               if (flow.responseFiber)
                 return yield* new ProviderSetupError({
                   instanceId: options.instanceId,
                   operation: "respond",
                   detail: "A sign-in response is already in progress.",
+                  messageDescriptor: { code: "auth.responseBusy" },
                 });
               const ready = yield* Deferred.make<void>();
               const callback = flow.respond;
@@ -443,6 +468,7 @@ export const make = Effect.fn("ProviderAuthFlow.make")(function* (options: {
               instanceId: options.instanceId,
               operation: "complete",
               detail: "This sign-in does not accept a redirect URL.",
+              messageDescriptor: { code: "auth.redirectUnsupported" },
             });
           yield* flow.complete(input.callbackUrl);
           return snapshot.value.state;
@@ -458,6 +484,7 @@ export const make = Effect.fn("ProviderAuthFlow.make")(function* (options: {
             authorizationUrl: null,
             expiresAt: null,
             message: "Sign-in cancelled.",
+            messageDescriptor: { code: "auth.cancelled" },
           });
           active = undefined;
           operation = "stopping";
@@ -477,6 +504,7 @@ export const make = Effect.fn("ProviderAuthFlow.make")(function* (options: {
               instanceId: options.instanceId,
               operation: "logout",
               detail: "Provider setup is already stopping.",
+              messageDescriptor: { code: "auth.stopping" },
             });
           operation = "stopping";
           const flow = active;
@@ -496,9 +524,11 @@ export const make = Effect.fn("ProviderAuthFlow.make")(function* (options: {
         ...empty,
         methods: snapshot.value.state.methods ?? [],
         phase: Exit.isSuccess(result) ? "idle" : "failed",
-        message: Exit.isSuccess(result)
-          ? (result.value ?? "Signed out.")
-          : "Could not sign out. Try again.",
+        ...(Exit.isSuccess(result)
+          ? typeof result.value === "string"
+            ? { message: result.value, messageDescriptor: undefined }
+            : (result.value ?? providerAuthMessage("auth.signedOut"))
+          : providerAuthMessage("auth.signOutFailed")),
       };
       yield* lock.withPermit(
         Effect.gen(function* () {
@@ -520,9 +550,7 @@ export const make = Effect.fn("ProviderAuthFlow.make")(function* (options: {
                 authorizationUrl: null,
                 interaction: null,
                 expiresAt: null,
-                message: active
-                  ? "Sign-in is in progress in another client."
-                  : current.state.message,
+                ...(active ? providerAuthMessage("auth.otherClient") : {}),
               },
         ),
       ),

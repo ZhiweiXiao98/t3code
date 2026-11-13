@@ -154,12 +154,18 @@ const sameRequests = (
 
 export function childThreadInputsTitle(
   children: ReadonlyArray<Pick<EnvironmentThreadShell, "hasPendingApprovals" | "lineage">>,
+  display?: (values: {
+    readonly count: number;
+    readonly noun: "side chat" | "subagent" | "thread";
+    readonly need: "input" | "approval" | "you";
+  }) => string,
 ): string {
   const approvals = children.filter((child) => child.hasPendingApprovals).length;
   const need = approvals === 0 ? "input" : approvals === children.length ? "approval" : "you";
   const sideChats = children.filter((child) => child.lineage.sideChat === true).length;
   const noun =
     sideChats === children.length ? "side chat" : sideChats === 0 ? "subagent" : "thread";
+  if (display) return display({ count: children.length, noun, need });
   return children.length === 1
     ? `${noun === "side chat" ? "Side chat" : "Subagent"} needs ${need}`
     : `${children.length} ${noun}s need ${need}`;

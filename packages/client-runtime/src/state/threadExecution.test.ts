@@ -16,7 +16,7 @@ import {
 import * as DateTime from "effect/DateTime";
 import { createModelCapabilities, createModelSelection } from "@t3tools/shared/model";
 import { usageLimitBlockedRun } from "@t3tools/shared/orchestrationV2ThreadError";
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it, vi } from "vite-plus/test";
 
 import { v2Projection } from "./orchestrationV2TestFixtures.ts";
 import {
@@ -674,4 +674,27 @@ it("keeps the goal objective and usage literal when formatting its title", () =>
   const translated = presentProviderGoal(goal, false, (title) => `translated:${title}`);
   expect(translated).toEqual({ ...plain, title: "translated:Goal paused" });
   expect(goal.objective).toBe("Settings");
+});
+
+it("formats only owned goal usage templates while preserving provider objective and default English", () => {
+  const goal = {
+    objective: "opaque/{0}/$& · Goal complete",
+    status: "paused" as const,
+    tokensUsed: 1200,
+    tokenBudget: 2000,
+    checks: 2,
+  };
+  const display = vi.fn(
+    (template: string, values: readonly string[]) => `${template}=[${values.join("|")}]`,
+  );
+  const original = presentProviderGoal(goal, false);
+  const localized = presentProviderGoal(goal, false, undefined, display);
+  expect(original.usage).toBe("1k / 2k tokens · 2 checks");
+  expect(localized.usage).toBe("{0} / {1} tokens=[1k|2k] · {0} checks=[2]");
+  expect(localized.objective).toBe(goal.objective);
+  expect(localized.canResume).toBe(original.canResume);
+  expect(display.mock.calls).toEqual([
+    ["{0} / {1} tokens", ["1k", "2k"]],
+    ["{0} checks", ["2"]],
+  ]);
 });

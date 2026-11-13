@@ -6,6 +6,223 @@ export const MOBILE_LOCALE: MobileLocale =
   process.env.EXPO_PUBLIC_APP_LOCALE === "zh-CN" ? "zh-CN" : "en";
 
 const ZH_CN_MESSAGES = {
+  "Sign-in failed. Start again.": "登录失败。请重新开始。",
+  "This sign-in is no longer active in this client.": "此登录流程在当前客户端已失效。",
+  "Finish or cancel the existing sign-in first.": "请先完成或取消现有登录流程。",
+  "This provider's shared sign-in changed.": "此提供商的共享登录已更改。",
+  "Provider sign-in is changing. Try again after it finishes.":
+    "提供商登录正在更改。请完成后重试。",
+  "Provider setup is already in progress.": "提供商设置已在进行中。",
+  "Could not start sign-in. Try again.": "无法开始登录。请重试。",
+  "Starting sign-in.": "正在开始登录。",
+  "The provider did not advertise this sign-in method.": "提供商未提供此登录方式。",
+  "Complete sign-in to continue.": "请完成登录以继续。",
+  "Checking provider sign-in.": "正在检查提供商登录。",
+  "Sign-in expired. Start again.": "登录已过期。请重新开始。",
+  "Sign-in complete.": "登录完成。",
+  "This sign-in interaction is no longer available.": "此登录交互已不可用。",
+  "A sign-in response is already in progress.": "登录响应已在处理中。",
+  "This sign-in does not accept a redirect URL.": "此登录流程不接受重定向网址。",
+  "Sign-in cancelled.": "登录已取消。",
+  "Provider setup is already stopping.": "提供商设置正在停止。",
+  "Signed out.": "已退出登录。",
+  "Could not sign out. Try again.": "无法退出登录。请重试。",
+  "Sign-in is in progress in another client.": "登录正在另一个客户端中进行。",
+  "This provider does not support sign-in in T3 Code.": "此提供商不支持在 T3 Code 中登录。",
+  "This provider instance is no longer available.": "此提供商实例已不可用。",
+  "Could not read the provider's active sessions. Try again.": "无法读取提供商的活动会话。请重试。",
+  "Could not stop all sessions for this provider. Try again.":
+    "无法停止此提供商的所有会话。请重试。",
+  "Another provider instance is changing this shared sign-in. Finish or cancel it first.":
+    "另一个提供商实例正在更改此共享登录。请先完成或取消该操作。",
+  "This provider does not support ChatGPT profile transfer.": "此提供商不支持转移 ChatGPT 配置。",
+  "This provider does not accept this sign-in interaction.": "此提供商不接受此登录交互。",
+  "This provider does not support removing saved sign-in methods.":
+    "此提供商不支持移除已保存的登录方式。",
+  "Could not read the Cursor sign-in. Try signing in again.": "无法读取 Cursor 登录。请重新登录。",
+  "Cursor sign-in or sign-out is in progress. Try again after it finishes.":
+    "Cursor 正在登录或退出登录。请完成后重试。",
+  "Sign in with Cursor or add CURSOR_API_KEY in provider settings.":
+    "请登录 Cursor，或在提供商设置中添加 CURSOR_API_KEY。",
+  "Could not load the Cursor SDK. Try signing in again.": "无法加载 Cursor SDK。请重新登录。",
+  "Open the Cursor sign-in page and finish signing in. This page updates automatically.":
+    "请打开 Cursor 登录页面并完成登录。此页面会自动更新。",
+  "Cursor sign-in failed. Start sign-in again.": "Cursor 登录失败。请重新开始登录。",
+  "Checking Cursor sign-in.": "正在检查 Cursor 登录。",
+  "Could not save the Cursor sign-in. Try again.": "无法保存 Cursor 登录。请重试。",
+  "Could not clear the rejected Cursor sign-in. Try signing out.":
+    "无法清除被拒绝的 Cursor 登录。请尝试退出登录。",
+  "Signed in with Cursor.": "已登录 Cursor。",
+  "Cursor sign-in expired. Start sign-in again.": "Cursor 登录已过期。请重新开始登录。",
+  "Cursor sign-in failed or expired. Start sign-in again.":
+    "Cursor 登录失败或已过期。请重新开始登录。",
+  "Enable Cursor before signing in.": "请先启用 Cursor，再登录。",
+  "Remove CURSOR_API_KEY from this provider's environment before using browser sign-in.":
+    "请先从此提供商的环境中移除 CURSOR_API_KEY，再使用浏览器登录。",
+  "Cursor setup is already in progress.": "Cursor 设置已在进行中。",
+  "Could not start Cursor sign-in. Try again.": "无法开始 Cursor 登录。请重试。",
+  "Starting Cursor sign-in.": "正在开始 Cursor 登录。",
+  "Finish signing in on the Cursor website. No redirect URL is needed.":
+    "请在 Cursor 网站上完成登录，无需重定向网址。",
+  "Cursor sign-in was cancelled.": "Cursor 登录已取消。",
+  "Remove CURSOR_API_KEY from this provider's environment to disconnect it.":
+    "请从此提供商的环境中移除 CURSOR_API_KEY 以断开连接。",
+  "Cursor setup is already stopping.": "Cursor 设置正在停止。",
+  "Could not clear the Cursor sign-in. Try again.": "无法清除 Cursor 登录。请重试。",
+  "Signed out of Cursor.": "已退出 Cursor 登录。",
+  "Cursor sign-out failed. Try again.": "Cursor 退出登录失败。请重试。",
+  "Could not verify the Cursor sign-in. Try again.": "无法验证 Cursor 登录。请重试。",
+  "Antigravity has not reached Google after 30 seconds. Check this machine's network connection. Broken IPv6 is a common cause.":
+    "Antigravity 在 30 秒内未能连接到 Google。请检查此计算机的网络连接。IPv6 故障是常见原因。",
+  "Antigravity could not reach Google. Check this machine's network connection, then start sign-in again.":
+    "Antigravity 无法连接到 Google。请检查此计算机的网络连接，然后重新开始登录。",
+  "Could not deliver the sign-in response. Start sign-in again.":
+    "无法发送登录响应。请重新开始登录。",
+  "Google requires an eligible Antigravity subscription for this account.":
+    "Google 要求此账号具有符合条件的 Antigravity 订阅。",
+  "Google sign-in was not approved. Start sign-in again.": "Google 登录未获批准。请重新开始登录。",
+  "Antigravity authenticated, but could not initialize a session or load models.":
+    "Antigravity 已通过身份验证，但无法初始化会话或加载模型。",
+  "Antigravity rejected the configured credentials. Check the provider settings.":
+    "Antigravity 拒绝了已配置的凭证。请检查提供商设置。",
+  "Google sign-in failed. Start sign-in again.": "Google 登录失败。请重新开始登录。",
+  "Antigravity could not authenticate with the configured credentials.":
+    "Antigravity 无法使用已配置的凭证完成身份验证。",
+  "Antigravity sign-in or sign-out is in progress. Try again after it finishes.":
+    "Antigravity 正在登录或退出登录。请完成后重试。",
+  "Signed in with Google.": "已登录 Google。",
+  "Connected to Antigravity.": "已连接到 Antigravity。",
+  "Open the Google sign-in link. If you are remote, paste the redirect URL here.":
+    "请打开 Google 登录链接。如果你正在远程连接，请在此粘贴重定向网址。",
+  "Checking Antigravity access and models.": "正在检查 Antigravity 访问权限和模型。",
+  "Google sign-in expired. Start sign-in again.": "Google 登录已过期。请重新开始登录。",
+  "Antigravity setup is already in progress.": "Antigravity 设置已在进行中。",
+  "The sign-in response was already sent. Wait for Google to finish.":
+    "登录响应已发送。请等待 Google 完成登录。",
+  "Wait for the Google sign-in link before you send a redirect URL.":
+    "请等待 Google 登录链接出现后再发送重定向网址。",
+  "Waiting for Google to finish sign-in.": "正在等待 Google 完成登录。",
+  "Google sign-in was cancelled.": "Google 登录已取消。",
+  "Antigravity setup is already stopping.": "Antigravity 设置正在停止。",
+  "Google sign-in was cancelled by sign-out.": "Google 登录已因退出登录而取消。",
+  "This Antigravity version does not support sign-out. Update the provider.":
+    "此 Antigravity 版本不支持退出登录。请更新提供商。",
+  "Antigravity sign-out timed out.": "Antigravity 退出登录超时。",
+  "Signed out of Google.": "已退出 Google 登录。",
+  "Antigravity sign-out failed. Try again.": "Antigravity 退出登录失败。请重试。",
+  "Could not create an Antigravity runtime temp directory.":
+    "无法创建 Antigravity 运行时临时目录。",
+  "The sign-in response URL is too long.": "登录响应网址过长。",
+  "Paste the complete redirect URL from the Google sign-in page.":
+    "请粘贴 Google 登录页面的完整重定向网址。",
+  "This redirect URL does not belong to the current sign-in.": "此重定向网址不属于当前登录流程。",
+  "The redirect URL must contain one Google sign-in response.":
+    "重定向网址必须包含且仅包含一个 Google 登录响应。",
+  "The redirect URL is not a Google sign-in response.": "此重定向网址不是 Google 登录响应。",
+  "The sign-in response timed out. Start sign-in again.": "登录响应超时。请重新开始登录。",
+  "Could not prepare the selected ACP agent.": "无法准备所选 ACP 智能体。",
+  "Could not start the selected ACP agent.": "无法启动所选 ACP 智能体。",
+  "Could not inspect the selected ACP agent.": "无法检查所选 ACP 智能体。",
+  "Prepare this ACP agent before signing in.": "请先准备此 ACP 智能体，再登录。",
+  "Could not discover this agent's sign-in methods.": "无法发现此智能体的登录方式。",
+  "The ACP agent did not advertise sign-in methods in time.": "ACP 智能体未能及时提供登录方式。",
+  "Sign-in discovery was interrupted by an active provider session. Try again.":
+    "登录方式发现已被活动的提供商会话中断。请重试。",
+  "Interactive provider login is unavailable on this environment.":
+    "此环境无法使用交互式提供商登录。",
+  "Could not open the provider sign-in terminal.": "无法打开提供商登录终端。",
+  "The provider sign-in terminal is no longer available.": "提供商登录终端已不可用。",
+  "The provider login command did not finish successfully.": "提供商登录命令未能成功完成。",
+  "Enable this provider before signing in.": "请先启用此提供商，再登录。",
+  "Could not initialize the selected ACP agent.": "无法初始化所选 ACP 智能体。",
+  "The agent no longer advertises this sign-in method.": "智能体已不再提供此登录方式。",
+  "The provider could not create a session after terminal sign-in.":
+    "提供商无法在终端登录后创建会话。",
+  "This runtime does not support explicit ACP sign-in.": "此运行时不支持显式 ACP 登录。",
+  "The ACP agent could not complete sign-in.": "ACP 智能体无法完成登录。",
+  "The provider could not create a session after sign-in.": "提供商无法在登录后创建会话。",
+  "This ACP agent could not sign out. It may not advertise logout support.":
+    "此 ACP 智能体无法退出登录，可能未提供退出登录支持。",
+  "The ACP agent did not finish signing out in time.": "ACP 智能体未能及时完成退出登录。",
+  "Could not reach ChatGPT sign-in. Try again.": "无法连接到 ChatGPT 登录服务。请重试。",
+  "ChatGPT sign-in configuration could not be verified.": "无法验证 ChatGPT 登录配置。",
+  "Could not read the saved ChatGPT connection.": "无法读取已保存的 ChatGPT 连接。",
+  "The saved ChatGPT connection is invalid. Sign in again.":
+    "已保存的 ChatGPT 连接无效。请重新登录。",
+  "Could not save the ChatGPT connection.": "无法保存 ChatGPT 连接。",
+  "Could not read the ChatGPT sign-in registration. Try again.":
+    "无法读取 ChatGPT 登录注册信息。请重试。",
+  "The saved ChatGPT sign-in registration is invalid.": "已保存的 ChatGPT 登录注册信息无效。",
+  "Could not save the ChatGPT sign-in registration. Try again.":
+    "无法保存 ChatGPT 登录注册信息。请重试。",
+  "Could not clear the ChatGPT connection. Try again.": "无法清除 ChatGPT 连接。请重试。",
+  "ChatGPT sign-in is temporarily unavailable. Try again.": "ChatGPT 登录暂时不可用。请重试。",
+  "ChatGPT did not accept this sign-in. Try again.": "ChatGPT 未接受此次登录。请重试。",
+  "Your ChatGPT connection expired or was disconnected. Sign in again.":
+    "你的 ChatGPT 连接已过期或已断开。请重新登录。",
+  "OpenAI rejected this app's client registration. Check the ChatGPT connection configuration.":
+    "OpenAI 拒绝了此应用的客户端注册。请检查 ChatGPT 连接配置。",
+  "This sign-in code expired. Start again.": "此登录代码已过期。请重新开始。",
+  "ChatGPT sign-in was declined. Sign in again when you are ready.":
+    "ChatGPT 登录已被拒绝。准备好后请重新登录。",
+  "ChatGPT returned an invalid token response. Sign in again.":
+    "ChatGPT 返回了无效的令牌响应。请重新登录。",
+  "Could not start the local sign-in callback. Try again.": "无法启动本地登录回调。请重试。",
+  "Could not start the local sign-in callback.": "无法启动本地登录回调。",
+  "This redirect URL does not belong to the active ChatGPT sign-in.":
+    "此重定向网址不属于当前活动的 ChatGPT 登录流程。",
+  "ChatGPT sign-in could not be completed.": "无法完成 ChatGPT 登录。",
+  "ChatGPT sign-in could not be verified. Start again.": "无法验证 ChatGPT 登录。请重新开始。",
+  "ChatGPT sign-in could not be completed. Start again.": "无法完成 ChatGPT 登录。请重新开始。",
+  "ChatGPT registration is incomplete. Start sign-in again.":
+    "ChatGPT 注册未完成。请重新开始登录。",
+  "This sign-in code expired. Reconnect the saved ChatGPT profile to start a fresh sign-in.":
+    "此登录代码已过期。请重新连接已保存的 ChatGPT 配置，以开始新的登录流程。",
+  "ChatGPT did not return a verified identity. Sign in again.":
+    "ChatGPT 未返回已验证的身份。请重新登录。",
+  "This sign-in returned a different ChatGPT account. Use the different-account sign-in option instead. Your saved connection is unchanged.":
+    "此次登录返回了另一个 ChatGPT 账号。请改用其他账号登录选项。已保存的连接未更改。",
+  "ChatGPT returned a conflicting account registration. Start again.":
+    "ChatGPT 返回了冲突的账号注册信息。请重新开始。",
+  "ChatGPT returned an unsupported connection. Sign in again.":
+    "ChatGPT 返回了不受支持的连接。请重新登录。",
+  "Token sharing was not enabled for the new account. Your existing ChatGPT connection is unchanged.":
+    "新账号未启用令牌共享。现有 ChatGPT 连接未更改。",
+  "Signed in with ChatGPT, but token sharing is disabled. Sign in again and enable token sharing, or use another provider.":
+    "已登录 ChatGPT，但令牌共享已关闭。请重新登录并启用令牌共享，或使用其他提供商。",
+  "Sign in with ChatGPT to use managed Codex.": "请登录 ChatGPT 以使用托管 Codex。",
+  "The ChatGPT connection changed. Start a new session.": "ChatGPT 连接已更改。请开始新会话。",
+  "Token sharing is disabled. Sign in with ChatGPT and enable token sharing.":
+    "令牌共享已关闭。请登录 ChatGPT 并启用令牌共享。",
+  "ChatGPT cannot renew this connection yet. Try again shortly.":
+    "ChatGPT 暂时无法续期此连接。请稍后重试。",
+  "Your ChatGPT connection expired. Sign in again.": "你的 ChatGPT 连接已过期。请重新登录。",
+  "Could not renew the ChatGPT connection. Retry, or sign in again.":
+    "无法续期 ChatGPT 连接。请重试或重新登录。",
+  "ChatGPT returned an invalid renewal. Sign in again.":
+    "ChatGPT 返回了无效的续期响应。请重新登录。",
+  "ChatGPT token sharing is no longer enabled. Sign in again.":
+    "ChatGPT 令牌共享已不再启用。请重新登录。",
+  "Signed out locally. Remote revocation could not be confirmed. Disconnect the app in ChatGPT Settings.":
+    "已在本地退出登录，但无法确认远程访问权限已撤销。请在 ChatGPT 设置中断开此应用的连接。",
+  "Only incomplete ChatGPT connections can be removed.": "只能移除未完成的 ChatGPT 连接。",
+  "Could not remove the saved ChatGPT connection. Try again.":
+    "无法移除已保存的 ChatGPT 连接。请重试。",
+  "This saved connection is no longer available.": "此已保存的连接已不可用。",
+  "Complete ChatGPT sign-in before transferring this connection.":
+    "请先完成 ChatGPT 登录，再转移此连接。",
+  "The transferred ChatGPT connection is invalid or expired.": "转移的 ChatGPT 连接无效或已过期。",
+  "The transferred ChatGPT identity could not be verified.": "无法验证转移的 ChatGPT 身份。",
+  "The transferred ChatGPT identity does not match its profile.":
+    "转移的 ChatGPT 身份与其配置不匹配。",
+  "The transferred identity conflicts with the saved ChatGPT connection.":
+    "转移的身份与已保存的 ChatGPT 连接冲突。",
+  "Could not lock the ChatGPT connection for an update. Try again.":
+    "无法锁定 ChatGPT 连接以进行更新。请重试。",
+  "ChatGPT could not complete sign-in. Try again.": "ChatGPT 无法完成登录。请重试。",
+  "Antigravity sign-in requires Node.js. Install Node.js and make sure node is on PATH, then retry.":
+    "Antigravity 登录需要 Node.js。请安装 Node.js，并确保 node 位于 PATH 中，然后重试。",
+
   "Could not save image": "无法保存图片",
   "the Codex CLI": "Codex CLI",
   "{0}, {1}": "{0}、{1}",

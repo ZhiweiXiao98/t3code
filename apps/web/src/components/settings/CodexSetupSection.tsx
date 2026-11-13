@@ -1,3 +1,8 @@
+import {
+  providerAuthFailureValue,
+  translateProviderAuthMessage,
+  type ProviderAuthDisplayError,
+} from "../../i18n/providerAuthMessages";
 import { translateWebSource } from "../../i18n/messages";
 import { useI18n } from "../../i18n/WebI18nContext";
 import { useAtomValue } from "@effect/atom-react";
@@ -337,7 +342,8 @@ function ManagedCodexSetup({
   const [pending, setPending] = useState(false);
   const [awaitingProvider, setAwaitingProvider] = useState<"sign-in" | "handoff" | null>(null);
   const pendingRef = useRef(false);
-  const [error, setError] = useState<string | null>(null);
+  const [errorValue, setError] = useState<ProviderAuthDisplayError | null>(null);
+  const error = translateProviderAuthMessage(translationLocale, errorValue);
   // The setup or sign-in this client started. Its follow-up steps (sign in
   // once the install lands, open the page once the flow waits) belong to it
   // alone, so Cancel, a new attempt, or unmounting abort them.
@@ -412,9 +418,10 @@ function ManagedCodexSetup({
         if (!isAtomCommandInterrupted(result)) {
           const failure = squashAtomCommandFailure(result);
           setError(
-            failure instanceof Error
-              ? failure.message
-              : translateWebSource(translationLocale, "Codex setup failed. Try again."),
+            providerAuthFailureValue(
+              failure,
+              translateWebSource(translationLocale, "Codex setup failed. Try again."),
+            ),
           );
         }
       } else {
@@ -462,8 +469,12 @@ function ManagedCodexSetup({
   ) {
     setError(
       handoffQuery.data?.phase === "auth"
-        ? (handoffQuery.data.state.message ??
-            translateWebSource(translationLocale, "ChatGPT sign-in could not finish. Try again."))
+        ? handoffQuery.data.state.message === null
+          ? translateWebSource(translationLocale, "ChatGPT sign-in could not finish. Try again.")
+          : {
+              message: handoffQuery.data.state.message,
+              messageDescriptor: handoffQuery.data.state.messageDescriptor,
+            }
         : translateWebSource(
             translationLocale,
             "ChatGPT sign-in on the primary environment was interrupted. Try again.",
@@ -664,7 +675,8 @@ function ManagedCodexSetup({
     auth?.phase === "waiting" && requestedAccountEmail ? (
       t("codex.setup.continueAs", { email: requestedAccountEmail })
     ) : (
-      (auth?.message ?? translateWebSource(translationLocale, "Finish signing in in your browser."))
+      (translateProviderAuthMessage(translationLocale, auth) ??
+      translateWebSource(translationLocale, "Finish signing in in your browser."))
     )
   ) : authenticated ? (
     provider?.auth.email?.trim() ? (
@@ -847,7 +859,9 @@ function ManagedCodexSetup({
   );
 
   const logoutWarning =
-    auth?.phase === "idle" && auth.message?.startsWith("Signed out locally.") ? auth.message : null;
+    auth?.phase === "idle" && auth.message?.startsWith("Signed out locally.")
+      ? translateProviderAuthMessage(translationLocale, auth)
+      : null;
 
   if (presentation === "onboarding") {
     const setupError =
@@ -995,7 +1009,7 @@ function ManagedCodexSetup({
       {accountPicker}
       <SettingsRow
         title={translateWebSource(translationLocale, "ChatGPT account")}
-        description={accountDescription}
+        description={<span>{accountDescription}</span>}
         control={
           <div className="flex max-w-88 flex-wrap items-center justify-end gap-2">
             {authActive ? (

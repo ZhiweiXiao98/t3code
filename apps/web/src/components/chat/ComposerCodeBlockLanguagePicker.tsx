@@ -35,12 +35,15 @@ export function ComposerCodeBlockLanguagePicker(props: {
   disabled: boolean;
   onChange: (language: string) => void;
 }) {
-  const { t: controlsT } = useI18n();
+  const { t: controlsT, locale } = useI18n();
   const [query, setQuery] = useState("");
   const current = codeLanguageEntry(props.language)?.id ?? props.language;
-  const items: CodeBlockLanguage[] = CODE_BLOCK_LANGUAGES.some((entry) => entry.id === current)
-    ? [...CODE_BLOCK_LANGUAGES]
-    : [{ id: current, label: current }, ...CODE_BLOCK_LANGUAGES];
+  const languages = CODE_BLOCK_LANGUAGES.map((entry) =>
+    entry.id === "" ? { ...entry, label: codeLanguageLabel("", locale) } : entry,
+  );
+  const items: CodeBlockLanguage[] = languages.some((entry) => entry.id === current)
+    ? languages
+    : [{ id: current, label: current }, ...languages];
   const needle = query.trim().toLowerCase();
   const filteredItems = needle
     ? items.filter(
@@ -73,13 +76,13 @@ export function ComposerCodeBlockLanguagePicker(props: {
               size="xs"
               disabled={props.disabled}
               aria-label={controlsT("chatControls.codeLanguage", {
-                language: codeLanguageLabel(props.language),
+                language: codeLanguageLabel(props.language, locale),
               })}
             />
           }
         >
           <LanguageIcon language={current} theme={props.theme} />
-          <span className="max-w-40 truncate">{codeLanguageLabel(props.language)}</span>
+          <span className="max-w-40 truncate">{codeLanguageLabel(props.language, locale)}</span>
           <ChevronDownIcon className="opacity-60" />
         </ComboboxTrigger>
         <ComboboxPopup align="start" className="w-56">

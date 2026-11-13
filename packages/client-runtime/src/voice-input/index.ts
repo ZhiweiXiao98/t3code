@@ -39,3 +39,9 @@ export {
   type VoiceTranscriptionErrorCode,
   type VoiceTranscriptionOptions,
 } from "./transcription.ts";
+
+export {
+  markVoiceInputError,
+  voiceInputErrorSource,
+  type VoiceInputErrorSource,
+} from "./errorPresentation.ts";

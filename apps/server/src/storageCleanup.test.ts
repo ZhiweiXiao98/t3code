@@ -7,6 +7,8 @@ import * as Fiber from "effect/Fiber";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
+import * as PlatformError from "effect/PlatformError";
 import * as Queue from "effect/Queue";
 import type * as Path from "effect/Path";
 import type * as Scope from "effect/Scope";
@@ -17,6 +19,8 @@ import { TestClock } from "effect/testing";
 import * as SqlClient from "effect/sql/SqlClient";
 import {
   DEFAULT_SERVER_SETTINGS,
+  GitCommandError,
+  StorageCleanupReport,
   type WorktreeKeepWhen,
   type StorageCleanupSettings,
   type TerminalMetadataStreamEvent,
@@ -55,6 +59,11 @@ import {
   storageCleanupPullRequestMerged,
   storageCleanupThreadIdle,
 } from "./storageCleanup.ts";
+
+const decodeCleanupReport = Schema.decodeUnknownSync(StorageCleanupReport);
+const encodeCleanupReport = Schema.encodeSync(StorageCleanupReport);
+const reportFromWire = (report: StorageCleanupReport) =>
+  decodeCleanupReport(JSON.parse(JSON.stringify(encodeCleanupReport(report))));
 
 const NOW_MS = Date.parse("2026-06-10T12:00:00.000Z");
 const DAY_MS = 24 * 60 * 60 * 1_000;
@@ -606,6 +615,137 @@ const runCleanupTest = <A, E>(
   >,
 ) => effect.pipe(Effect.provide(cleanupTestLayer), Effect.scoped);
 
+describe("storage cleanup reason provenance", () => {
+  it.effect("round-trips owned kept and removed reasons without changing cleanup protections", () =>
+    runCleanupTest(
+      Effect.gen(function* () {
+        yield* TestClock.setTime(NOW_MS);
+        const fixture = yield* cleanupFixture();
+        yield* fixture.openTerminal({ cwd: fixture.worktree, worktreePath: fixture.worktree });
+        expect(reportFromWire(yield* fixture.service.runNow).entries[0]).toMatchObject({
+          outcome: "kept",
+          reason: "Open terminal",
+          reasonMessage: { code: "open-terminal" },
+        });
+        expect(yield* fixture.fs.exists(fixture.worktree)).toBe(true);
+        yield* fixture.setTerminals([]);
+        fixture.setPolicy("any-local-files");
+        yield* fixture.fs.writeFileString(`${fixture.worktree}/.env`, "private fixture");
+        expect(reportFromWire(yield* fixture.service.runNow).entries[0]).toMatchObject({
+          outcome: "kept",
+          reason: "Has ignored files (.env)",
+          reasonMessage: { code: "ignored-files", file: ".env" },
+        });
+        expect(yield* fixture.fs.readFileString(`${fixture.worktree}/.env`)).toBe(
+          "private fixture",
+        );
+        yield* fixture.fs.remove(`${fixture.worktree}/.env`);
+        expect(reportFromWire(yield* fixture.service.runNow).entries[0]).toMatchObject({
+          outcome: "removed",
+          reason: "Inactive for 30 days",
+          reasonMessage: { code: "inactive-days", days: 30 },
+        });
+        expect(yield* fixture.fs.exists(fixture.worktree)).toBe(false);
+        fixture.enableFiles();
+        expect(reportFromWire(yield* fixture.service.runNow).entries).toMatchObject([
+          { reason: "No expired files", reasonMessage: { code: "no-expired-files" } },
+          { reason: "No expired files", reasonMessage: { code: "no-expired-files" } },
+        ]);
+      }),
+    ),
+  );
+
+  it.live.each(
+    ["StorageCleanup.branchChanged", "StorageCleanup.cleanupGit"].flatMap((operation) =>
+      [
+        "",
+        "command failed",
+        "Git index is locked. Status will resume when the index lock is removed.",
+        `external ${"x".repeat(1_100)}\nsecond line`,
+      ].map((stderr) => ({ operation, stderr })),
+    ),
+  )("only tags its own empty-stderr fallback in $operation ($stderr)", ({ operation, stderr }) =>
+    runCleanupTest(
+      Effect.gen(function* () {
+        const git = yield* GitVcsDriver.GitVcsDriver;
+        const fixture = yield* cleanupFixture().pipe(
+          Effect.provideService(GitVcsDriver.GitVcsDriver, {
+            ...git,
+            execute: (input) =>
+              input.operation === operation
+                ? Effect.succeed({
+                    exitCode: ChildProcessSpawner.ExitCode(128),
+                    stdout: "",
+                    stderr,
+                    stdoutTruncated: false,
+                    stderrTruncated: false,
+                  })
+                : git.execute(input),
+          }),
+        );
+        fixture.setPolicy("tracked-changes");
+        const command = operation === "StorageCleanup.branchChanged" ? "git" : "git clean";
+        const entry = reportFromWire(yield* fixture.service.runNow).entries[0]!;
+        expect(entry.outcome).toBe("failed");
+        expect(entry.reason).toBe(
+          `${command}: ${stderr.trim().split(/\r?\n/)[0]?.slice(0, 1000) || "command failed"}`,
+        );
+        expect(entry.reasonMessage).toEqual(
+          stderr === "" ? { code: "git-command-failed", command } : undefined,
+        );
+        expect(yield* fixture.fs.readFileString(`${fixture.worktree}/tracked.txt`)).toBe(
+          "original\n",
+        );
+        expect(yield* fixture.fs.exists(fixture.worktree)).toBe(true);
+      }),
+    ),
+  );
+
+  it.live.each(["constructed", "copied", "platform"] as const)(
+    "does not tag foreign %s errors with matching cleanup text",
+    (kind) =>
+      runCleanupTest(
+        Effect.gen(function* () {
+          const git = yield* GitVcsDriver.GitVcsDriver;
+          const external = new GitCommandError({
+            operation: "StorageCleanup.branchChanged",
+            command: "git",
+            cwd: "literal/{count}/$&/中文",
+            detail: "Git index is locked. Status will resume when the index lock is removed.",
+            reason: "config_locked",
+          });
+          const error =
+            kind === "platform"
+              ? PlatformError.systemError({
+                  _tag: "PermissionDenied",
+                  module: "FileSystem",
+                  method: "stat",
+                  pathOrDescriptor: "literal/{count}/$&/中文",
+                  description: external.detail,
+                })
+              : kind === "copied"
+                ? new GitCommandError({ ...external })
+                : external;
+          const fixture = yield* cleanupFixture().pipe(
+            Effect.provideService(GitVcsDriver.GitVcsDriver, {
+              ...git,
+              execute: (input) =>
+                input.operation === "StorageCleanup.branchChanged"
+                  ? Effect.fail(error)
+                  : git.execute(input),
+            }),
+          );
+          const entry = reportFromWire(yield* fixture.service.runNow).entries[0]!;
+          expect(entry.reason).toBe(
+            kind === "platform" ? error.message : `git: ${external.detail} (config_locked)`,
+          );
+          expect(entry.reasonMessage).toBeUndefined();
+          expect(yield* fixture.fs.exists(fixture.worktree)).toBe(true);
+        }),
+      ),
+  );
+});
+
 const submoduleCleanupFixture = () =>
   Effect.gen(function* () {
     const fixture = yield* cleanupFixture();
@@ -672,8 +812,15 @@ it.live("keeps nested submodule files protected by the current keep rule", () =>
       setPolicy("any-local-files");
       yield* fs.writeFileString(`${child}/.env`, "local secret\n");
       expect(
-        (yield* service.runNow).entries.find((entry) => entry.path === worktree),
-      ).toMatchObject({ outcome: "kept" });
+        reportFromWire(yield* service.runNow).entries.find((entry) => entry.path === worktree),
+      ).toMatchObject({
+        outcome: "kept",
+        reason: "Submodule has ignored files (.env)",
+        reasonMessage: {
+          code: "submodule-local-changes",
+          changes: { code: "ignored-files", file: ".env" },
+        },
+      });
       expect(yield* fs.readFileString(`${child}/.env`)).toBe("local secret\n");
 
       yield* fs.remove(`${child}/.env`);
@@ -1186,6 +1333,7 @@ describe("deleted thread worktrees", () => {
           threadId: owner.id,
           outcome: "removed",
           reason: "Thread was deleted",
+          reasonMessage: { code: "thread-deleted" },
         });
         expect(yield* fixture.fs.exists(fixture.worktree)).toBe(false);
       }).pipe(Effect.provide(cleanupTestLayer), Effect.scoped),
@@ -1659,6 +1807,7 @@ describe("orphan worktree reports", () => {
               kind: "worktree",
               outcome: "kept",
               reason: "No thread uses this worktree",
+              reasonMessage: { code: "no-thread-worktree" },
               path: orphan,
               projectPath: null,
               threadId: null,
@@ -1794,6 +1943,7 @@ describe("orphan worktree reports", () => {
             outcome: "kept",
             bytes: yield* allocatedBytes(fixture.fs, `${folder}/payload`),
             reason: "No thread uses this folder, and it isn't a git worktree",
+            reasonMessage: { code: "no-thread-folder" },
           }),
         ]);
         expect(report.bytesFreed).toBe(0);
@@ -2465,7 +2615,7 @@ describe("storage cleanup reports and local file policies", () => {
         yield* command(worktree, ["switch", "feature"]);
         const index = (yield* command(worktree, ["rev-parse", "--git-path", "index"])).stdout;
         yield* fs.writeFileString(`${index.trim()}.lock`, "");
-        const locked = (yield* service.runNow).entries[0];
+        const locked = reportFromWire(yield* service.runNow).entries[0];
         expect(locked).toMatchObject({
           outcome: "failed",
           projectPath: repo,
@@ -2473,7 +2623,10 @@ describe("storage cleanup reports and local file policies", () => {
           threadId: "thread-1",
           threadTitle: "Thread",
         });
-        expect(locked?.reason).toContain("Git index is locked");
+        expect(locked?.reason).toBe(
+          "git: Git index is locked. Status will resume when the index lock is removed.",
+        );
+        expect(locked?.reasonMessage).toEqual({ code: "git-index-locked", command: "git" });
         expect(yield* fs.readFileString(`${worktree}/tracked.txt`)).toBe("original\n");
         yield* fs.remove(`${index.trim()}.lock`);
         const gitFile = yield* fs.readFileString(`${worktree}/.git`);
@@ -2695,6 +2848,7 @@ describe("storage cleanup reports and local file policies", () => {
         expect((yield* service.runNow).entries[0]).toMatchObject({
           outcome: "kept",
           reason: "Has uncommitted changes (1 file)",
+          reasonMessage: { code: "uncommitted-changes", count: 1 },
         });
         expect(yield* fs.exists(worktree)).toBe(true);
       }),
@@ -2733,12 +2887,13 @@ describe("storage cleanup reports and local file policies", () => {
           yield* fs.writeFileString(file, "log");
           yield* fs.utimes(file, 1, 1);
         }
-        const report = yield* service.runNow;
+        const report = reportFromWire(yield* service.runNow);
         expect(report.entries.filter((entry) => entry.kind !== "worktree")).toMatchObject([
           {
             kind: "browser-artifacts",
             outcome: "removed",
             reason: "Removed 2 browser artifacts",
+            reasonMessage: { code: "removed-browser-artifacts", count: 2 },
             bytes: 14,
             files: 2,
           },
@@ -2746,6 +2901,7 @@ describe("storage cleanup reports and local file policies", () => {
             kind: "logs",
             outcome: "removed",
             reason: "Removed 2 rotated logs",
+            reasonMessage: { code: "removed-logs", count: 2 },
             bytes: 6,
             files: 2,
           },

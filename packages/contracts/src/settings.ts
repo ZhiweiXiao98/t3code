@@ -1296,10 +1296,82 @@ export function databaseReclaimMinutes(status: DatabaseStorageStatus): number {
   return Math.max(1, Math.ceil(liveGiB / 2));
 }
 
+const StorageCleanupLocalChangesMessage = Schema.Union([
+  Schema.Struct({ code: Schema.Literals(["local-changes-limit", "ignored-files-limit"]) }),
+  Schema.Struct({ code: Schema.Literal("uncommitted-changes"), count: Schema.Int }),
+  Schema.Struct({ code: Schema.Literal("ignored-files"), file: Schema.String }),
+]);
+
+export const StorageCleanupReasonMessage = Schema.Union([
+  StorageCleanupLocalChangesMessage,
+  Schema.Struct({
+    code: Schema.Literals([
+      "no-thread-worktree",
+      "no-thread-folder",
+      "submodule-inspection-limit",
+      "submodule-repository-unavailable",
+      "submodule-unpushed-commits",
+      "submodules-unavailable",
+      "submodule-local-files",
+      "worktree-symlink",
+      "outside-managed-folder",
+      "not-linked-worktree",
+      "no-rules",
+      "project-unavailable",
+      "thread-running",
+      "subagent-branch-mismatch",
+      "open-terminal",
+      "just-settled",
+      "thread-deleted",
+      "not-settled",
+      "not-merged",
+      "beyond-default-branch",
+      "contains-project",
+      "repository-changed",
+      "no-remote",
+      "project-branch-unavailable",
+      "default-branch-unavailable",
+      "no-project-commits",
+      "no-default-commits",
+      "pull-request-merged",
+      "beyond-project-branch",
+      "thread-settings-changed",
+      "deletion-pending",
+      "activity-changed",
+      "parent-settlement-changed",
+      "provider-open",
+      "repository-changed-since-check",
+      "commit-changed",
+      "settings-changed",
+      "no-expired-files",
+    ]),
+  }),
+  Schema.Struct({
+    code: Schema.Literal("submodule-local-changes"),
+    changes: StorageCleanupLocalChangesMessage,
+  }),
+  Schema.Struct({
+    code: Schema.Literals(["shared-worktree", "removed-browser-artifacts", "removed-logs"]),
+    count: Schema.Int,
+  }),
+  Schema.Struct({ code: Schema.Literals(["inactive-days", "settled-days"]), days: Schema.Int }),
+  Schema.Struct({
+    code: Schema.Literals(["inactive-retention", "settled-retention"]),
+    days: Schema.Int,
+    retentionDays: Schema.Int,
+  }),
+  Schema.Struct({
+    code: Schema.Literals(["git-index-locked", "git-command-failed"]),
+    command: Schema.String,
+  }),
+]);
+export type StorageCleanupReasonMessage = typeof StorageCleanupReasonMessage.Type;
+
 export const StorageCleanupReportEntry = Schema.Struct({
   kind: Schema.Literals(["worktree", "browser-artifacts", "logs"]),
   outcome: Schema.Literals(["removed", "kept", "failed"]),
   reason: Schema.String,
+  reasonMessage: ForwardCompatibleOptional(StorageCleanupReasonMessage),
   path: Schema.NullOr(Schema.String),
   projectPath: Schema.NullOr(Schema.String).pipe(Schema.withDecodingDefault(Effect.succeed(null))),
   threadId: Schema.NullOr(ThreadId),

@@ -7,6 +7,8 @@ import { render } from "../../../test/render";
 import { TYPOGRAPHY_ADVANCED_STORAGE_KEY } from "../../appearanceFonts";
 import { getLocalStorageItem, removeLocalStorageItem } from "../../hooks/useLocalStorage";
 import { TypographySection } from "./TypographySettings";
+import { WebI18nContext } from "~/i18n/WebI18nContext";
+import { translateWebMessage } from "~/i18n/messages";
 
 const state = vi.hoisted(() => ({ searchTargetId: null as string | null }));
 
@@ -40,4 +42,33 @@ describe("TypographySection", () => {
     await expect.element(screen.getByRole("heading", { name: "Terminal font" })).toBeVisible();
     expect(getLocalStorageItem(TYPOGRAPHY_ADVANCED_STORAGE_KEY, Schema.Boolean)).toBe(true);
   });
+});
+
+it("updates all advanced size controls when the interface language changes", async () => {
+  using _storage = setup("terminal-font");
+  const section = (locale: "en" | "zh-CN") => (
+    <WebI18nContext
+      value={{
+        locale,
+        appLocale: locale,
+        setAppLocale: () => {},
+        t: (key, values) => translateWebMessage(locale, key, values),
+      }}
+    >
+      <TypographySection />
+    </WebI18nContext>
+  );
+  await using screen = await render(section("zh-CN"));
+  for (const name of ["界面字号", "输入区字号", "代码字号", "终端字号"]) {
+    await expect.element(screen.getByRole("combobox", { name, exact: true })).toBeVisible();
+  }
+  await screen.rerender(section("en"));
+  for (const name of [
+    "Interface font size",
+    "Prompt font size",
+    "Code font size",
+    "Terminal font size",
+  ]) {
+    await expect.element(screen.getByRole("combobox", { name, exact: true })).toBeVisible();
+  }
 });

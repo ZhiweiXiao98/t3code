@@ -672,20 +672,29 @@ export function presentProviderGoal(
   goal: OrchestrationV2ProviderGoal,
   working: boolean,
   displayTitle: (title: string) => string = (title) => title,
+  displayUsage?: (template: string, values: readonly string[]) => string,
 ): ProviderGoalPresentation {
   const usage: Array<string> = [];
   if (goal.tokensUsed !== undefined && goal.tokensUsed > 0) {
     usage.push(
       goal.tokenBudget == null
-        ? `${formatGoalTokens(goal.tokensUsed)} tokens`
-        : `${formatGoalTokens(goal.tokensUsed)} / ${formatGoalTokens(goal.tokenBudget)} tokens`,
+        ? (displayUsage?.("{0} tokens", [formatGoalTokens(goal.tokensUsed)]) ??
+            `${formatGoalTokens(goal.tokensUsed)} tokens`)
+        : (displayUsage?.("{0} / {1} tokens", [
+            formatGoalTokens(goal.tokensUsed),
+            formatGoalTokens(goal.tokenBudget),
+          ]) ??
+            `${formatGoalTokens(goal.tokensUsed)} / ${formatGoalTokens(goal.tokenBudget)} tokens`),
     );
   }
   if (goal.timeUsedSeconds !== undefined && goal.timeUsedSeconds >= 60) {
     usage.push(formatDuration(goal.timeUsedSeconds * 1_000));
   }
   if (goal.checks !== undefined && goal.checks > 0) {
-    usage.push(`${goal.checks} ${goal.checks === 1 ? "check" : "checks"}`);
+    usage.push(
+      displayUsage?.(goal.checks === 1 ? "{0} check" : "{0} checks", [String(goal.checks)]) ??
+        `${goal.checks} ${goal.checks === 1 ? "check" : "checks"}`,
+    );
   }
   return {
     title: displayTitle(

@@ -53,6 +53,10 @@ import {
   searchSlashCommandItems,
   slashCommandItemsForPromptPosition,
 } from "./composerSlashCommandSearch";
+import {
+  providerSlashCommandDescription,
+  providerSkillDescription,
+} from "./composerCommandDescriptions";
 
 const COMPOSER_PULL_REQUEST_LIST_LIMIT = 99;
 const COMPOSER_PULL_REQUEST_RESULT_LIMIT = 12;
@@ -271,7 +275,10 @@ export function useComposerMenuItems({
                 type: "slash-command",
                 command: "clear",
                 label: "/clear",
-                description: "Start a fresh session; earlier messages stay visible",
+                description: translateWebSource(
+                  incrementalLocale,
+                  "Start a fresh session; earlier messages stay visible",
+                ),
               },
             ] as const)
           : []),
@@ -289,7 +296,7 @@ export function useComposerMenuItems({
         provider: selectedProvider,
         command,
         label: `/${command.name}`,
-        description: command.description ?? command.input?.hint ?? "Run provider command",
+        description: providerSlashCommandDescription(command, incrementalLocale),
       }));
       const query = composerTrigger.query.trim().toLowerCase();
       const skillItems = slashMenuSkills.map((skill) => ({
@@ -298,10 +305,7 @@ export function useComposerMenuItems({
         provider: selectedProvider,
         skill,
         label: `/skill:${skill.name}`,
-        description:
-          skill.shortDescription ??
-          skill.description ??
-          (skill.scope ? `${skill.scope} skill` : ""),
+        description: providerSkillDescription(skill, incrementalLocale, ""),
       }));
       // T3's `/clear` replaces the provider's, which would clear a session T3 still treats as live.
       const visibleProviderSlashCommandItems = providerSlashCommandItems.filter(
@@ -322,10 +326,11 @@ export function useComposerMenuItems({
         provider: selectedProvider,
         skill,
         label: formatProviderSkillDisplayName(skill),
-        description:
-          skill.shortDescription ??
-          skill.description ??
-          (skill.scope ? `${skill.scope} skill` : t("composer.command.runProviderSkill")),
+        description: providerSkillDescription(
+          skill,
+          incrementalLocale,
+          t("composer.command.runProviderSkill"),
+        ),
       }));
     }
     if (

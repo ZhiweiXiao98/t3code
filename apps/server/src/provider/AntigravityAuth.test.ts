@@ -190,9 +190,11 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("AntigravityAuth"
       assert.isNotNull(state.flowId);
       const waiting = yield* phase(harness.auth, "waiting");
       assert.equal(waiting.authorizationUrl, authorizationUrl);
+      assert.deepEqual(waiting.messageDescriptor, { code: "antigravity.waiting" });
 
       const other = yield* phase(harness.auth, "waiting", otherOwner);
       assert.isNull(other.authorizationUrl);
+      assert.deepEqual(other.messageDescriptor, { code: "auth.otherClient" });
       assert.isNull(other.flowId);
       const stolen = yield* harness.auth.controller
         .complete(otherOwner, { flowId: state.flowId!, callbackUrl })
@@ -205,6 +207,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("AntigravityAuth"
         callbackUrl,
       });
       assert.equal(verifying.phase, "verifying");
+      assert.deepEqual(verifying.messageDescriptor, { code: "antigravity.waitingForGoogle" });
       assert.equal(harness.forwarded(), 1);
       assert.deepEqual(harness.catalog(), ["previous-account-model"]);
 
@@ -214,6 +217,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("AntigravityAuth"
       assert.deepEqual(harness.catalog(), ["gemini-test"]);
       assert.isNull(succeeded.authorizationUrl);
       assert.isNull(succeeded.expiresAt);
+      assert.deepEqual(succeeded.messageDescriptor, { code: "antigravity.signedIn" });
       assert.equal(harness.events.at(-1), "process-close");
     }),
   );
@@ -257,6 +261,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("AntigravityAuth"
       );
       const failed = yield* phase(harness.auth, "failed");
       assert.include(failed.message ?? "", "not approved");
+      assert.deepEqual(failed.messageDescriptor, { code: "antigravity.notApproved" });
       assert.notInclude(failed.message ?? "", "test-code");
       assert.isNull(failed.authorizationUrl);
       assert.deepEqual(harness.catalog(), ["previous-account-model"]);
@@ -281,6 +286,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("AntigravityAuth"
       yield* TestClock.adjust("270 seconds");
       const failed = yield* phase(harness.auth, "failed");
       assert.include(failed.message ?? "", "could not reach Google");
+      assert.deepEqual(failed.messageDescriptor, { code: "antigravity.unreachable" });
     }),
   );
 
@@ -329,6 +335,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("AntigravityAuth"
       yield* TestClock.adjust("300 seconds");
       const failed = yield* phase(harness.auth, "failed");
       assert.equal(failed.message, "Google sign-in expired. Start sign-in again.");
+      assert.deepEqual(failed.messageDescriptor, { code: "antigravity.expired" });
     }),
   );
 
@@ -407,9 +414,15 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("AntigravityAuth"
       assert.isTrue(Exit.isFailure(wrongOwner));
       const cancelled = yield* harness.auth.controller.cancel(owner, state.flowId!);
       assert.equal(cancelled.phase, "cancelled");
+      assert.deepEqual(cancelled.messageDescriptor, { code: "antigravity.cancelled" });
       assert.isNull(cancelled.authorizationUrl);
       assert.equal(harness.forwarded(), 0);
       yield* Deferred.await(harness.closed);
+      yield* Deferred.succeed(harness.authenticated, undefined);
+      yield* Deferred.succeed(harness.discovered, undefined);
+      assert.deepEqual((yield* phase(harness.auth, "cancelled")).messageDescriptor, {
+        code: "antigravity.cancelled",
+      });
       assert.deepEqual(harness.catalog(), ["previous-account-model"]);
     }),
   );
@@ -556,3 +569,33 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("AntigravityAuth"
     }),
   );
 });
+
+it.effect.each([false, true])(
+  "preserves explicit error provenance across a failed configured flow %s",
+  (owned) =>
+    Effect.gen(function* () {
+      const auth = yield* makeAntigravityAuth({
+        instanceId,
+        usesBrowser: false,
+        makeRuntime: () =>
+          Effect.fail(
+            new ProviderSetupError({
+              instanceId,
+              operation: "start",
+              detail: "Google sign-in expired. Start sign-in again.",
+              ...(owned ? { messageDescriptor: { code: "antigravity.expired" as const } } : {}),
+            }),
+          ),
+        onAuthenticated: () => Effect.void,
+        onSignedOut: Effect.void,
+      });
+      const initial = yield* auth.controller.start(owner);
+      assert.deepEqual(initial.messageDescriptor, { code: "antigravity.checkingCredentials" });
+      const failed = yield* phase(auth, "failed");
+      assert.strictEqual(failed.message, "Google sign-in expired. Start sign-in again.");
+      assert.deepEqual(
+        failed.messageDescriptor,
+        owned ? { code: "antigravity.expired" } : undefined,
+      );
+    }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
+);

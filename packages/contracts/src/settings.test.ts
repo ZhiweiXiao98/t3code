@@ -21,6 +21,8 @@ import {
   resolveProjectProviderInstanceEnabled,
   resolveProviderInstanceEnabled,
   ServerSettings,
+  StorageCleanupReport,
+  StorageCleanupReportEntry,
   ServerSettingsPatch,
   withIdleCompaction,
 } from "./settings.ts";
@@ -585,4 +587,85 @@ describe("server model preferences", () => {
     expect(encodeServerSettings(decodeServerSettings(input))).toMatchObject(input);
     expect(decodeServerSettingsPatch(input)).toEqual(input);
   });
+});
+
+describe("storage cleanup report messages", () => {
+  const entry = {
+    kind: "worktree" as const,
+    outcome: "kept" as const,
+    reason: "Has ignored files (literal/{count}/$&/中文)",
+    path: "literal/{count}/$&/中文",
+    projectPath: null,
+    threadId: null,
+    threadTitle: null,
+    bytes: null,
+    files: null,
+  };
+  const report = {
+    trigger: "manual" as const,
+    startedAt: "2026-06-10T12:00:00.000Z",
+    finishedAt: "2026-06-10T12:00:01.000Z",
+    entries: [entry],
+    counts: { removed: 0, kept: 1, failed: 0 },
+    omittedCount: 0,
+    bytesFreed: 0,
+  };
+  const decode = Schema.decodeUnknownSync(StorageCleanupReport);
+  const encode = Schema.encodeSync(StorageCleanupReport);
+
+  it("keeps old-server text and lets old clients ignore a new descriptor", () => {
+    expect(decode(JSON.parse(JSON.stringify(report)))).toEqual(report);
+    const modern = {
+      ...report,
+      entries: [{ ...entry, reasonMessage: { code: "ignored-files" as const, file: entry.path } }],
+    };
+    const wire = JSON.parse(JSON.stringify(encode(modern)));
+    expect(decode(wire)).toEqual(modern);
+    const legacyEntry = Schema.Struct({
+      kind: StorageCleanupReportEntry.fields.kind,
+      outcome: StorageCleanupReportEntry.fields.outcome,
+      reason: Schema.String,
+      path: Schema.NullOr(Schema.String),
+      projectPath: Schema.NullOr(Schema.String),
+      threadId: Schema.NullOr(Schema.String),
+      threadTitle: Schema.NullOr(Schema.String),
+      bytes: Schema.NullOr(Schema.Number),
+      files: Schema.NullOr(Schema.Number),
+    });
+    const legacyReport = Schema.Struct({
+      ...StorageCleanupReport.fields,
+      entries: Schema.Array(legacyEntry),
+    });
+    expect(Schema.decodeUnknownSync(legacyReport)(wire)).toEqual(report);
+  });
+
+  it.each([
+    undefined,
+    null,
+    "No rules apply",
+    { code: "future-reason", count: 1 },
+    { code: "ignored-files", file: 3 },
+    { code: "uncommitted-changes", count: "1" },
+    { code: "uncommitted-changes", count: 1.5 },
+    { code: "inactive-retention", days: 1 },
+    { code: "git-command-failed" },
+    { code: "submodule-local-changes", changes: { code: "future-reason" } },
+  ])(
+    "ignores unknown or malformed descriptors without rejecting the report: %j",
+    (reasonMessage) => {
+      const decoded = decode(
+        JSON.parse(
+          JSON.stringify({
+            ...report,
+            entries: [{ ...entry, reasonMessage }],
+          }),
+        ),
+      );
+      expect(decoded.entries[0]?.reasonMessage).toBeUndefined();
+      expect(decoded.entries[0]?.reason).toBe(entry.reason);
+      expect(decoded.entries[0]?.path).toBe(entry.path);
+      expect(decoded.counts).toEqual(report.counts);
+      expect(JSON.parse(JSON.stringify(encode(decoded)))).toEqual(report);
+    },
+  );
 });

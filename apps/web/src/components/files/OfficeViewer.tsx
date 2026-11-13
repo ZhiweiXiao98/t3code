@@ -1,3 +1,4 @@
+import { officeChapterTitle } from "./officeChapterTitle";
 import { createFilePreviewError } from "@t3tools/shared/filePreview";
 import { filePreviewFailureMessage, filePreviewWorkerError } from "./filePreviewErrorMessages";
 import { useI18n } from "~/i18n/WebI18nContext";
@@ -253,12 +254,14 @@ function ExtendedOfficeViewer(props: {
                 }}
               >
                 <SelectTrigger aria-label={translateWebSource(previewLocale, "Chapter")} size="xs">
-                  <SelectValue>{documentPage?.title}</SelectValue>
+                  <SelectValue>
+                    {documentPage ? officeChapterTitle(documentPage, previewLocale) : undefined}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectPopup>
                   {previewDocument.pages.map((item, index) => (
                     <SelectItem key={index} value={index}>
-                      {item.title}
+                      {officeChapterTitle(item, previewLocale)}
                     </SelectItem>
                   ))}
                 </SelectPopup>

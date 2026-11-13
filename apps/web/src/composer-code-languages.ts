@@ -1,3 +1,6 @@
+import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
+import { translateWebMessage } from "./i18n/messages";
+
 export const CODE_BLOCK_LANGUAGES = [
   { id: "", label: "Plain text" },
   { id: "asm", label: "Assembly" },
@@ -79,6 +82,9 @@ export function codeLanguageEntry(language: string): CodeBlockLanguage | null {
   return CODE_BLOCK_LANGUAGES.find((entry) => entry.id === id.toLowerCase()) ?? null;
 }
 
-export function codeLanguageLabel(language: string): string {
-  return codeLanguageEntry(language)?.label ?? language;
+export function codeLanguageLabel(language: string, locale: ResolvedAppLocale = "en"): string {
+  const entry = codeLanguageEntry(language);
+  return entry?.id === ""
+    ? translateWebMessage(locale, "audit20.composer.plainText")
+    : (entry?.label ?? language);
 }

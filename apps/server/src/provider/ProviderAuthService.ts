@@ -1,3 +1,4 @@
+import { providerAuthErrorFields, type ProviderAuthMessageCode } from "@t3tools/contracts";
 import {
   ProviderSetupError,
   type ChatGptReconnectProfile,
@@ -82,9 +83,7 @@ export const makeProviderAuthService = Effect.gen(function* () {
       return yield* new ProviderSetupError({
         instanceId,
         operation,
-        detail: instance
-          ? "This provider does not support sign-in in T3 Code."
-          : "This provider instance is no longer available.",
+        ...providerAuthErrorFields(instance ? "auth.unsupported" : "auth.instanceUnavailable"),
       });
     }
     return instance.auth;
@@ -95,8 +94,12 @@ export const makeProviderAuthService = Effect.gen(function* () {
     instanceId: ProviderInstanceId,
     binding: ProviderAuthController["credentialBinding"],
   ) {
-    const failure = (detail: string) =>
-      new ProviderSetupError({ instanceId, operation: "stopSessions", detail });
+    const failure = (code: ProviderAuthMessageCode) =>
+      new ProviderSetupError({
+        instanceId,
+        operation: "stopSessions",
+        ...providerAuthErrorFields(code),
+      });
     const affectedIds = new Set([
       instanceId,
       ...(binding === undefined
@@ -111,9 +114,7 @@ export const makeProviderAuthService = Effect.gen(function* () {
     ]);
     const threadIds = yield* projections
       .getRecoveryThreadIds("runtime")
-      .pipe(
-        Effect.mapError(() => failure("Could not read the provider's active sessions. Try again.")),
-      );
+      .pipe(Effect.mapError(() => failure("auth.readSessionsFailed")));
     const released = new Set<ProviderSessionId>();
     yield* Effect.forEach(
       threadIds,
@@ -150,9 +151,7 @@ export const makeProviderAuthService = Effect.gen(function* () {
               { discard: true },
             ),
           ),
-          Effect.mapError(() =>
-            failure("Could not stop all sessions for this provider. Try again."),
-          ),
+          Effect.mapError(() => failure("auth.stopSessionsFailed")),
         ),
       { discard: true },
     );
@@ -192,6 +191,7 @@ export const makeProviderAuthService = Effect.gen(function* () {
           operation,
           detail:
             "Another provider instance is changing this shared sign-in. Finish or cancel it first.",
+          messageDescriptor: { code: "auth.sharedBusy" },
         });
       }
     }
@@ -205,6 +205,7 @@ export const makeProviderAuthService = Effect.gen(function* () {
           instanceId: input.instanceId,
           operation: "export",
           detail: "This provider does not support ChatGPT profile transfer.",
+          messageDescriptor: { code: "auth.transferUnsupported" },
         });
       return yield* auth.reconnectProfile(input.methodId);
     }),
@@ -218,6 +219,7 @@ export const makeProviderAuthService = Effect.gen(function* () {
               instanceId: input.instanceId,
               operation: "import",
               detail: "This provider does not support ChatGPT profile transfer.",
+              messageDescriptor: { code: "auth.transferUnsupported" },
             });
           return yield* auth.importProfile(
             input.profile,
@@ -248,6 +250,7 @@ export const makeProviderAuthService = Effect.gen(function* () {
           instanceId: input.instanceId,
           operation: "respond",
           detail: "This provider does not accept this sign-in interaction.",
+          messageDescriptor: { code: "auth.interactionUnsupported" },
         });
       }
       return yield* auth.respond(ownerSessionId, input);
@@ -270,6 +273,7 @@ export const makeProviderAuthService = Effect.gen(function* () {
               instanceId: input.instanceId,
               operation: "removeMethod",
               detail: "This provider does not support removing saved sign-in methods.",
+              messageDescriptor: { code: "auth.removeUnsupported" },
             });
           return yield* auth.removeMethod(input.methodId);
         }),

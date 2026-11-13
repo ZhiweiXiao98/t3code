@@ -5,9 +5,12 @@ import {
   cleanupLastRunSummary,
 } from "./settingsFollowupPresentation";
 import { translateWebSource } from "../../i18n/messages";
-import { useI18n } from "../../i18n/WebI18nContext";
+import { useI18n, type WebTranslate } from "../../i18n/WebI18nContext";
+import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 import type {
   StorageCleanupReport,
+  StorageCleanupReportEntry,
+  StorageCleanupReasonMessage,
   StorageCleanupSettings,
   WorktreeCleanupRules,
 } from "@t3tools/contracts";
@@ -194,6 +197,52 @@ const KEEP_WHEN_LABELS = {
   "tracked-changes": "Edited tracked files",
 } as const;
 
+function cleanupReasonMessage(t: WebTranslate, message: StorageCleanupReasonMessage): string {
+  switch (message.code) {
+    case "uncommitted-changes":
+      return t(
+        message.count === 1
+          ? "audit20.cleanup.uncommitted-changes-one"
+          : "audit20.cleanup.uncommitted-changes-many",
+        { count: message.count },
+      );
+    case "ignored-files":
+      return t("audit20.cleanup.ignored-files", { file: message.file });
+    case "submodule-local-changes":
+      return t("audit20.cleanup.submodule-local-changes", {
+        reason: cleanupReasonMessage(t, message.changes),
+      });
+    case "shared-worktree":
+    case "removed-browser-artifacts":
+    case "removed-logs":
+      return t(`audit20.cleanup.${message.code}`, { count: message.count });
+    case "inactive-days":
+    case "settled-days":
+      return t(`audit20.cleanup.${message.code}`, { days: message.days });
+    case "inactive-retention":
+    case "settled-retention":
+      return t(`audit20.cleanup.${message.code}`, {
+        days: message.days,
+        retentionDays: message.retentionDays,
+      });
+    case "git-index-locked":
+    case "git-command-failed":
+      return t(`audit20.cleanup.${message.code}`, { command: message.command });
+    default:
+      return t(`audit20.cleanup.${message.code}`);
+  }
+}
+
+function cleanupReason(
+  entry: StorageCleanupReportEntry,
+  locale: ResolvedAppLocale,
+  t: WebTranslate,
+): string {
+  return locale === "en" || entry.reasonMessage === undefined
+    ? entry.reason
+    : cleanupReasonMessage(t, entry.reasonMessage);
+}
+
 function CleanupResults({
   report,
   environmentLabel,
@@ -221,7 +270,7 @@ function CleanupResults({
             description={
               <span className="block space-y-2 wrap-anywhere select-text">
                 <span className={`block ${entry.outcome === "failed" ? "text-destructive" : ""}`}>
-                  {entry.reason}
+                  {cleanupReason(entry, sourceLocale, t)}
                 </span>
                 <span className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 border-l border-border/60 pl-3">
                   <span>{translateWebSource(sourceLocale, "Machine")}</span>
@@ -365,12 +414,14 @@ function CleanupSection() {
           const result = await run({ environmentId: environment.environmentId, input: {} });
           if (result._tag === "Success") {
             const failures = result.value.entries.filter((entry) => entry.outcome === "failed");
-            if (failures.length > 0)
+            if (failures.length > 0) {
+              const { locale, t } = readWebI18n();
               toastManager.add({
                 type: "error",
-                title: readWebI18n().t("audit6.cleanupFailed", { label: environment.label }),
-                description: failures[0]!.reason,
+                title: t("audit6.cleanupFailed", { label: environment.label }),
+                description: cleanupReason(failures[0]!, locale, t),
               });
+            }
           } else if (!isAtomCommandInterrupted(result)) {
             toastManager.add({
               type: "error",

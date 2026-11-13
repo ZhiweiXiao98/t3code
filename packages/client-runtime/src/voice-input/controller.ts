@@ -1,3 +1,4 @@
+import { voiceInputErrorSource, type VoiceInputErrorSource } from "./errorPresentation.ts";
 import * as Schema from "effect/Schema";
 import { replaceTextRange } from "@t3tools/shared/composerTrigger";
 
@@ -35,6 +36,7 @@ export type VoiceInputState = {
   readonly phase: VoiceInputPhase;
   readonly error: string | null;
   readonly errorAction: "retry" | "settings" | null;
+  readonly errorSource?: VoiceInputErrorSource;
 };
 
 export function voiceInputBlocksSubmission(state: VoiceInputState): boolean {
@@ -321,7 +323,10 @@ export class VoiceInputController {
           transcriber.prepare({ signal: abortController.signal }),
         );
       } catch (error) {
-        if (this.isCurrent(operationToken)) this.setError(preparationErrorMessage(error), "retry");
+        if (this.isCurrent(operationToken)) {
+          const message = preparationErrorMessage(error);
+          this.setError(message, "retry", voiceInputErrorSource(error, message));
+        }
         return;
       }
       if (!this.isCurrent(operationToken)) return;
@@ -527,7 +532,8 @@ export class VoiceInputController {
               transcription,
             };
           }
-          this.setError(transcriptionErrorMessage(error), "retry");
+          const message = transcriptionErrorMessage(error);
+          this.setError(message, "retry", voiceInputErrorSource(error, message));
         }
         return;
       }
@@ -667,8 +673,17 @@ export class VoiceInputController {
     return operationToken === this.operationToken;
   }
 
-  private setError(error: string, errorAction: VoiceInputState["errorAction"]): void {
-    this.setState({ phase: "error", error, errorAction });
+  private setError(
+    error: string,
+    errorAction: VoiceInputState["errorAction"],
+    errorSource?: VoiceInputErrorSource,
+  ): void {
+    this.setState({
+      phase: "error",
+      error,
+      errorAction,
+      ...(errorSource === undefined ? {} : { errorSource }),
+    });
   }
 
   private setState(state: VoiceInputState): void {

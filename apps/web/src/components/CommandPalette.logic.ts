@@ -44,6 +44,7 @@ export const ADDON_ICON_CLASS = "size-4";
 export function buildLinkedThreadActionItems(
   input: CommandPaletteLinkedThreads & {
     query: string;
+    locale?: ResolvedAppLocale;
     icon: ReactNode;
     runThread: (thread: Pick<SidebarThreadSummary, "environmentId" | "id">) => Promise<void>;
   },
@@ -52,8 +53,11 @@ export function buildLinkedThreadActionItems(
     kind: "action",
     value: `thread:${input.environmentId}:${thread.id}`,
     threadRef: { environmentId: input.environmentId, threadId: thread.id },
-    title: thread.title || "Untitled thread",
-    description: thread.archivedAt === null ? "Linked thread" : "Archived thread",
+    title: thread.title || translateWebSource(input.locale ?? "en", "Untitled thread"),
+    description: translateWebSource(
+      input.locale ?? "en",
+      thread.archivedAt === null ? "Linked thread" : "Archived thread",
+    ),
     searchTerms: [input.query, thread.title],
     icon: input.icon,
     run: () => input.runThread({ environmentId: input.environmentId, id: thread.id }),

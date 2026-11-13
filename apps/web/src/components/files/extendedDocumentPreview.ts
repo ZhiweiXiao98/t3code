@@ -401,10 +401,13 @@ export async function openEpub(archive: JSZip): Promise<OfficeWorkerResult> {
     const entry = path ? archive.file(path) : null;
     if (!entry || !path) continue;
     const chapter = parseXml(await entry.async("string"));
+    const authoredTitle = text(
+      find(chapter, "title")[0] ?? find(chapter, "h1")[0] ?? chapter,
+    ).slice(0, 120);
+    const index: number = pages.length + 1;
     pages.push({
-      title:
-        text(find(chapter, "title")[0] ?? find(chapter, "h1")[0] ?? chapter).slice(0, 120) ||
-        `Chapter ${pages.length + 1}`,
+      title: authoredTitle || `Chapter ${index}`,
+      ...(!authoredTitle ? { generatedTitle: { kind: "chapter" as const, index } } : {}),
       html: await epubHtml(chapter, archive, path),
     });
   }

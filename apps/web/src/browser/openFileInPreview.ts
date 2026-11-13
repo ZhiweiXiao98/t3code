@@ -1,3 +1,4 @@
+import { markPreviewPrecondition } from "./previewPreconditionMessages";
 import type {
   AssetCreateUrlResult,
   AssetResource,
@@ -126,9 +127,12 @@ export async function openFileInPreview<AssetError, PreviewError>(input: {
   if (!isPreviewAvailableFor(input.threadRef.environmentId)) {
     return AsyncResult.failure(
       Cause.fail(
-        new BrowserPreviewUnavailableError({
-          message: "The integrated browser is unavailable in this runtime.",
-        }),
+        markPreviewPrecondition(
+          new BrowserPreviewUnavailableError({
+            message: "The integrated browser is unavailable in this runtime.",
+          }),
+          "runtime-unavailable",
+        ),
       ),
     );
   }
@@ -151,7 +155,12 @@ export async function openFileInPreview<AssetError, PreviewError>(input: {
   const assetUrl = resolveAssetUrl(input.httpBaseUrl, assetResult.value.relativeUrl);
   if (assetUrl === null) {
     return AsyncResult.failure(
-      Cause.die(new Error("The environment returned an invalid asset URL.")),
+      Cause.die(
+        markPreviewPrecondition(
+          new Error("The environment returned an invalid asset URL."),
+          "invalid-asset-url",
+        ),
+      ),
     );
   }
   return openUrlInPreview({

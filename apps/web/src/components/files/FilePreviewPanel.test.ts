@@ -1,3 +1,4 @@
+import { officeChapterTitle } from "./officeChapterTitle";
 import JSZip from "jszip";
 import { openRtf, openNotebook, openDocument, openEpub } from "./extendedDocumentPreview";
 import type { ScopedThreadRef } from "@t3tools/contracts";
@@ -399,4 +400,48 @@ Third}`;
     expect(result.pages[1]!.html).toContain('src="data:image/png;base64,');
     expect(result.pages[1]!.html).not.toMatch(/https:|script|alert/);
   });
+});
+
+it("carries only generated EPUB chapter title provenance through local worker serialization", async () => {
+  const archive = new JSZip()
+    .file(
+      "META-INF/container.xml",
+      '<container><rootfiles><rootfile full-path="book.opf"/></rootfiles></container>',
+    )
+    .file(
+      "book.opf",
+      '<package><manifest><item id="a" href="a.xhtml" media-type="application/xhtml+xml"/><item id="b" href="b.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="a"/><itemref idref="b"/></spine></package>',
+    )
+    .file(
+      "a.xhtml",
+      "<html><head><title></title></head><body><p>opaque/{body}/$&amp;</p></body></html>",
+    )
+    .file(
+      "b.xhtml",
+      "<html><head><title>Chapter 1</title></head><body><p>second</p></body></html>",
+    );
+  const result = structuredClone(await openEpub(archive));
+  if (result.type !== "document") throw new Error("Expected document");
+  expect(result.pages[0]?.title).toBe("Chapter 1");
+  expect(result.pages[0]?.html).toContain("opaque/{body}/$&amp;");
+  expect(officeChapterTitle(result.pages[0]!, "zh-CN")).toBe("第 1 章");
+  expect(officeChapterTitle(result.pages[1]!, "zh-CN")).toBe("Chapter 1");
+  expect(result.pages[1]).not.toHaveProperty("generatedTitle");
+  expect(officeChapterTitle(result.pages[0]!, "en")).toBe("Chapter 1");
+  for (const generatedTitle of [
+    undefined,
+    null,
+    "chapter",
+    { kind: "future", index: 1 },
+    { kind: "chapter", index: -1 },
+    { kind: "chapter", index: 1.5 },
+    { kind: "chapter", index: 2 },
+  ])
+    expect(officeChapterTitle({ title: "Chapter 1", generatedTitle }, "zh-CN")).toBe("Chapter 1");
+  expect(
+    officeChapterTitle(
+      { title: "user/{Chapter 1}/$&", generatedTitle: { kind: "chapter", index: 1 } },
+      "zh-CN",
+    ),
+  ).toBe("user/{Chapter 1}/$&");
 });

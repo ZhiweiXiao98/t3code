@@ -85,9 +85,9 @@ export function usageLimitRecoveryBannerItem(props: RecoveryProps): ComposerBann
     variant: "warning",
     group: "environment",
     icon: <OpenAI aria-hidden="true" />,
-    title: "ChatGPT usage limit reached",
+    title: tx("ChatGPT usage limit reached"),
     description: workspaceLimit
-      ? "You've reached your workspace's limit for using your ChatGPT plan in other apps."
+      ? tx("You've reached your workspace's limit for using your ChatGPT plan in other apps.")
       : resetDescription,
     actions: (
       <>

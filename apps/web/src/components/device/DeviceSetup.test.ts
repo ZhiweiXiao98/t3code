@@ -93,3 +93,27 @@ describe("device setup guidance", () => {
     expect(platformSetupStatus(state, "android").ready).toBe(false);
   });
 });
+
+it("localizes owned iOS discovery failure without altering raw availability reasons", () => {
+  const state = deviceState({
+    hostStatuses: { local: { status: "ready", incompletePlatforms: ["ios"] } },
+  });
+  const original = platformSetupStatus(state, "ios");
+  expect(original.message).toBe(
+    "No iOS devices were listed because device discovery reported a problem.",
+  );
+  expect(platformSetupStatus(state, "ios", "zh-CN")).toEqual({
+    ...original,
+    message: "设备发现报告了问题，因此未列出任何 iOS 设备。",
+  });
+  expect(platformSetupStatus(state, "ios", "en")).toEqual(original);
+  const raw = deviceState({
+    hosts: [
+      {
+        ...state.hosts[0]!,
+        platforms: [{ platform: "ios", available: false, reason: original.message }],
+      },
+    ],
+  });
+  expect(platformSetupStatus(raw, "ios", "zh-CN").message).toBe(original.message);
+});
