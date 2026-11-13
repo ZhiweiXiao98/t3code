@@ -13,15 +13,30 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 3
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-        with:
-          persist-credentials: false
-          sparse-checkout: |
-            diagnostics/gather
-            diagnostics/gather-build
+      - name: Fetch four pinned diagnostic files without checkout
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/gather-build-public" diagnostics/gather diagnostics/gather-build
+          printf '%s\n' '{"schemaVersion":1,"purpose":"synthetic_build_only","stage":"source_fetch","status":"running","probeExecuted":false,"vmStarted":false}' > "$RUNNER_TEMP/gather-build-public/build.json"
+          trap 'printf "%s\n" "{\"schemaVersion\":1,\"purpose\":\"synthetic_build_only\",\"stage\":\"source_fetch\",\"status\":\"failed\",\"probeExecuted\":false,\"vmStarted\":false}" > "$RUNNER_TEMP/gather-build-public/build.json"' ERR
+          [[ "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]]
+          for path in diagnostics/gather/probe.c diagnostics/gather/probe.S diagnostics/gather-build/build_diag.py diagnostics/gather-build/test_diag.py; do
+            timeout --kill-after=2s 15s gh api "repos/$GITHUB_REPOSITORY/contents/$path?ref=$GITHUB_SHA" -H 'Accept: application/vnd.github.raw+json' > "$path"
+          done
+          printf '%s\n' '{"schemaVersion":1,"stage":"source_fetch","status":"passed","probeExecuted":false,"vmStarted":false}' > "$RUNNER_TEMP/gather-build-public/build.json"
       - name: Check fixed enum reporting fixtures
         working-directory: diagnostics/gather-build
-        run: PYTHONDONTWRITEBYTECODE=1 timeout --kill-after=2s 10s python3 -m unittest test_diag -v
+        run: |
+          set -euo pipefail
+          printf '%s\n' '{"schemaVersion":1,"stage":"fixture_check","status":"running","probeExecuted":false,"vmStarted":false}' > "$RUNNER_TEMP/gather-build-public/build.json"
+          if PYTHONDONTWRITEBYTECODE=1 timeout --kill-after=2s 10s python3 -m unittest test_diag -v; then
+            printf '%s\n' '{"schemaVersion":1,"stage":"fixture_check","status":"passed","probeExecuted":false,"vmStarted":false}' > "$RUNNER_TEMP/gather-build-public/build.json"
+          else
+            printf '%s\n' '{"schemaVersion":1,"stage":"fixture_check","status":"failed","probeExecuted":false,"vmStarted":false}' > "$RUNNER_TEMP/gather-build-public/build.json"
+            exit 1
+          fi
       - name: Build once without executing probe
         run: PYTHONDONTWRITEBYTECODE=1 timeout --kill-after=2s 90s python3 diagnostics/gather-build/build_diag.py diagnostics/gather "$RUNNER_TEMP/gather-build-public/build.json"
       - name: Preserve build-stage receipt even on failure
