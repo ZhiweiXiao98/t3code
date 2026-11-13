@@ -1485,7 +1485,7 @@ export default function ChatView(props: ChatViewProps) {
     } catch (error) {
       toastManager.add({
         type: "error",
-        title: "Could not download " + attachment.name,
+        title: t("audit.download.failed", { name: attachment.name }),
         description: error instanceof Error ? error.message : t("chat.attachmentUnavailable"),
       });
     }

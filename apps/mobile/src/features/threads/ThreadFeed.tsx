@@ -1348,7 +1348,9 @@ function AgentMessageFoldHeader(props: {
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`${label}: ${props.summary}`}
-      accessibilityHint={`Double tap to ${props.expanded ? "hide" : "show"} the message.`}
+      accessibilityHint={localizeMobileString(
+        props.expanded ? "Double tap to hide the message." : "Double tap to show the message.",
+      )}
       accessibilityState={{ expanded: props.expanded }}
       hitSlop={4}
       className="min-h-10 flex-row items-center gap-1.5 px-3.5 py-2"
@@ -1445,7 +1447,9 @@ function ThreadAutomationMessageRow(props: {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={formatMobileMessage("Automation: {0}", [summary])}
-          accessibilityHint={`Double tap to ${props.expanded ? "hide" : "show"} the prompt.`}
+          accessibilityHint={localizeMobileString(
+            props.expanded ? "Double tap to hide the prompt." : "Double tap to show the prompt.",
+          )}
           accessibilityState={{ expanded: props.expanded }}
           hitSlop={4}
           className="min-h-10 flex-row items-center gap-1.5 px-3.5 py-2"
@@ -2316,11 +2320,15 @@ function TurnDiffStat(props: {
   const { files } = props.checkpoint;
   const additions = files.reduce((total, file) => total + file.additions, 0);
   const deletions = files.reduce((total, file) => total + file.deletions, 0);
-  const fileCountLabel = `${files.length} file${files.length === 1 ? "" : "s"} changed`;
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Review ${fileCountLabel}, ${additions} additions, ${deletions} deletions`}
+      accessibilityLabel={formatMobileMessage(
+        files.length === 1
+          ? "Review {0} file changed, {1} additions, {2} deletions"
+          : "Review {0} files changed, {1} additions, {2} deletions",
+        [files.length, additions, deletions],
+      )}
       onPress={() => props.onOpenTurnDiff(props.checkpoint)}
       className="min-h-11 shrink-0 flex-row items-center gap-2 px-2 active:bg-subtle"
     >

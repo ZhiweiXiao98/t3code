@@ -5,6 +5,32 @@ import { describe, expect, it } from "vite-plus/test";
 import { translateWebMessage, translateWebSource } from "./messages";
 
 describe("translateWebMessage", () => {
+  it("preserves opaque parameters in localized attachment, capture, and connection copy", () => {
+    const opaque = "host/{error}/<tag>/$&/中文";
+    for (const locale of ["en", "zh-CN"] as const) {
+      expect(
+        translateWebMessage(locale, "audit.snapshot.capture", { id: opaque, error: opaque }),
+      ).toBe(locale === "en" ? `Capture ${opaque}: ${opaque}` : `截取 ${opaque}：${opaque}`);
+      expect(
+        translateWebMessage(locale, "audit.media.notFound", { machine: opaque, path: opaque }),
+      ).toBe(
+        locale === "en"
+          ? `The file was not found on ${opaque} at ${opaque}.`
+          : `在 ${opaque} 的 ${opaque} 未找到文件。`,
+      );
+      expect(translateWebMessage(locale, "audit.connect.connecting", { label: opaque })).toBe(
+        locale === "en"
+          ? `Connecting to ${opaque} through T3 Connect.`
+          : `正在通过 T3 Connect 连接到 ${opaque}。`,
+      );
+      expect(translateWebMessage(locale, "audit.terminal.expiredHelp", { label: opaque })).toBe(
+        locale === "en"
+          ? `Terminal context expired. Remove and re-add ${opaque} to include it in your message.`
+          : `终端上下文已失效。请移除并重新添加 ${opaque}，以将其包含在消息中。`,
+      );
+    }
+  });
+
   it("localizes both privacy clauses selected by the onboarding telemetry policy", () => {
     expect(welcomePrivacyClause("zh-CN", false)).toBe("如需退出，请参阅");
     expect(welcomePrivacyClause("zh-CN", true)).toBe("请参阅");

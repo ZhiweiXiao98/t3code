@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import { NativeScrollView } from "../../native/NativeScrollViewMarker";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
@@ -103,7 +104,16 @@ function FileRow(props: {
   return (
     <RowPressable
       accessibilityRole="button"
-      accessibilityLabel={`View diff for ${file.path}, ${file.additions} additions, ${file.deletions} deletions${props.viewed ? ", viewed" : ""}`}
+      accessibilityLabel={[
+        formatMobileMessage("View diff for {0}, {1} additions, {2} deletions", [
+          file.path,
+          file.additions,
+          file.deletions,
+        ]),
+        props.viewed ? localizeMobileString("viewed") : null,
+      ]
+        .filter(Boolean)
+        .join(", ")}
       onPress={props.onPress}
       className="min-h-14 flex-row items-center gap-3 border-b border-border-subtle py-3 active:opacity-70"
     >

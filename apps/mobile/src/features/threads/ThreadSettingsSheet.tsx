@@ -1124,6 +1124,7 @@ function ThreadSettingsChoiceContent(props: {
         {submenuContent.rows.map((row, index) => (
           <ChoiceRow
             key={row.id}
+            localize={props.submenu.kind === "runtime"}
             description={row.description}
             isLast={index === submenuContent.rows.length - 1}
             label={row.label}

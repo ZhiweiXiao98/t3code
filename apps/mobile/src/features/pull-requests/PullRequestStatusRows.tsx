@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { parsePullRequestAnchor } from "@t3tools/shared/pullRequestAnchor";
 import { usePullRequestConnected } from "./usePullRequestConnected";
@@ -64,7 +65,10 @@ export function PullRequestStatusMenu(props: RowProps) {
   const trigger = (
     <Pressable
       accessibilityRole={actions.length ? "button" : undefined}
-      accessibilityLabel={`${term} status, ${status.label}`}
+      accessibilityLabel={formatMobileMessage("{0} status, {1}", [
+        localizeMobileString(term),
+        localizeMobileString(status.label),
+      ])}
       disabled={!actions.length}
       className="min-h-8 flex-row items-center gap-1.5 active:opacity-70"
     >
@@ -78,7 +82,7 @@ export function PullRequestStatusMenu(props: RowProps) {
   if (!actions.length) return trigger;
   return (
     <Menu
-      title={`${term} status`}
+      title={formatMobileMessage("{0} status", [localizeMobileString(term)])}
       actions={actions.map((id) => ({
         id,
         title: pullRequestActionLabel(id, terminology),
@@ -122,7 +126,7 @@ export function PullRequestChecksRow(props: RowProps) {
         tint={checks.tint}
         value={checks.count}
         compact
-        accessibilityLabel={`Checks, ${checks.label}`}
+        accessibilityLabel={formatMobileMessage("Checks, {0}", [checks.label])}
         expanded={expanded}
         onPress={() => setExpanded(!expanded)}
       />
@@ -141,7 +145,9 @@ export function PullRequestChecksRow(props: RowProps) {
             <PullRequestCardRow
               title="Approve workflows"
               icon="checkmark"
-              detail={`${props.pr.workflowApprovalsRequired} waiting for approval`}
+              detail={formatMobileMessage("{0} waiting for approval", [
+                props.pr.workflowApprovalsRequired,
+              ])}
               onPress={() =>
                 action.confirm(
                   "approve-workflows",
@@ -199,9 +205,9 @@ export function PullRequestBranchRow(props: RowProps) {
     <PullRequestCardRow
       title={
         props.pr.mergeability === "conflicting"
-          ? `Conflicts with ${props.pr.baseBranch}`
+          ? formatMobileMessage("Conflicts with {0}", [props.pr.baseBranch])
           : clean
-            ? `No conflicts with ${props.pr.baseBranch}`
+            ? formatMobileMessage("No conflicts with {0}", [props.pr.baseBranch])
             : "Branch"
       }
       icon={
@@ -221,7 +227,7 @@ export function PullRequestBranchRow(props: RowProps) {
       }
       compact
       menu={methods.length > 0 || canResolve}
-      accessibilityLabel={`Branch, ${summary}`}
+      accessibilityLabel={formatMobileMessage("Branch, {0}", [localizeMobileString(summary)])}
     />
   );
   if (!methods.length && !canResolve) return row;
@@ -283,7 +289,16 @@ export function PullRequestReviewersRow(props: RowProps) {
           {summary.reviews.map((review) => (
             <View
               key={review.id}
-              accessibilityLabel={`${review.author?.login ?? "Unknown reviewer"}, ${review.reviewState === "APPROVED" ? "Approved" : review.reviewState === "CHANGES_REQUESTED" ? "Changes requested" : "Commented"}`}
+              accessibilityLabel={[
+                review.author?.login ?? localizeMobileString("Unknown reviewer"),
+                localizeMobileString(
+                  review.reviewState === "APPROVED"
+                    ? "Approved"
+                    : review.reviewState === "CHANGES_REQUESTED"
+                      ? "Changes requested"
+                      : "Commented",
+                ),
+              ].join(", ")}
               className="min-h-14 flex-row items-center gap-3 px-4 py-2"
             >
               <SymbolView

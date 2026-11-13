@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/shell";
 import {
@@ -88,14 +89,37 @@ export const LinkedPullRequestRow = memo(function LinkedPullRequestRow(props: {
   const row = (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${capitalizeTerm(singular)} ${link.number}, ${snapshot?.title ?? "waiting for host state"}${status ? `, ${status.label}` : ""}${conflict ? `, ${conflict.label.toLowerCase()}` : ""}, ${link.repository}${stack ? `, stack of ${stack.size}` : ""}${watching ? ", watching" : ""}${checks ? `, checks ${snapshot?.checksState}` : ""}${review ? `, ${review.accessibleLabel}` : ""}`}
+      accessibilityLabel={[
+        `${localizeMobileString(capitalizeTerm(singular))} ${link.number}`,
+        snapshot?.title ?? localizeMobileString("waiting for host state"),
+        status ? localizeMobileString(status.label) : null,
+        conflict
+          ? snapshot?.baseBranch
+            ? formatMobileMessage("Conflicts with {0}", [snapshot.baseBranch])
+            : localizeMobileString("Has conflicts")
+          : null,
+        link.repository,
+        stack ? formatMobileMessage("stack of {0}", [stack.size]) : null,
+        watching ? localizeMobileString("watching") : null,
+        checks
+          ? formatMobileMessage("checks {0}", [
+              localizeMobileString(snapshot?.checksState ?? "pending"),
+            ])
+          : null,
+        review ? localizeMobileString(review.accessibleLabel) : null,
+      ]
+        .filter(Boolean)
+        .join(", ")}
       accessibilityHint={
         props.actions ? localizeMobileString("Touch and hold for actions.") : undefined
       }
       onPress={() => {
         void props.openPullRequest(link.url).then((opened) => {
           if (!opened)
-            Dialog.alert(`Unable to open ${shortLabel}`, `The ${singular} could not be opened.`);
+            Dialog.alert(
+              formatMobileMessage("Unable to open {0}", [shortLabel]),
+              formatMobileMessage("The {0} could not be opened.", [localizeMobileString(singular)]),
+            );
         });
       }}
       style={{ paddingLeft: 16 + Math.min(depth, 3) * 16 }}

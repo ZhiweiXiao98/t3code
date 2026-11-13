@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../../../i18n/mobileDisplayStrings";
 import { localizeMobileString } from "../../../../i18n/mobileStrings";
 import { memo, useId } from "react";
 import { Pressable, View } from "react-native";
@@ -125,8 +126,13 @@ function ThemeCard(props: {
 }) {
   const choice = (appearance: MobileThemeAppearance, selected: boolean) => (
     <Pressable
-      accessibilityHint={`Sets the ${appearance} appearance only`}
-      accessibilityLabel={`${props.label} ${appearance} theme`}
+      accessibilityHint={localizeMobileString(
+        appearance === "light" ? "Sets the light appearance only" : "Sets the dark appearance only",
+      )}
+      accessibilityLabel={formatMobileMessage(
+        appearance === "light" ? "{0} light theme" : "{0} dark theme",
+        [localizeMobileString(props.label)],
+      )}
       accessibilityRole="button"
       accessibilityState={{ disabled: props.disabled, selected }}
       className={cn(
@@ -155,7 +161,7 @@ function ThemeCard(props: {
     <View className="min-w-36 flex-1 basis-[47%] gap-3 rounded-[24px] border border-border bg-grouped-card px-2 py-4">
       <Pressable
         accessibilityHint={localizeMobileString("Sets both light and dark appearances")}
-        accessibilityLabel={`${props.label} theme`}
+        accessibilityLabel={formatMobileMessage("{0} theme", [localizeMobileString(props.label)])}
         accessibilityRole="button"
         accessibilityState={{
           disabled: props.disabled,
@@ -255,7 +261,9 @@ function ModeCard(props: {
 }) {
   return (
     <Pressable
-      accessibilityLabel={`${props.label} appearance`}
+      accessibilityLabel={formatMobileMessage("{0} appearance", [
+        localizeMobileString(props.label),
+      ])}
       accessibilityRole="radio"
       accessibilityState={{ checked: props.selected, disabled: props.disabled }}
       className={cn(

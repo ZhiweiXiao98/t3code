@@ -1,3 +1,5 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import type { ReactNode } from "react";
 import { Pressable, View } from "react-native";
 import { AppText as Text } from "../../components/ui/AppText";
@@ -20,6 +22,7 @@ export type ModelRowProps = {
 
 export type ChoiceRowProps = {
   readonly label: string;
+  readonly localize?: boolean;
   readonly description?: string;
   readonly selected: boolean;
   readonly disabled?: boolean;
@@ -100,7 +103,10 @@ export function ModelRowContent(
       </Pressable>
       {props.onToggleHidden ? (
         <Pressable
-          accessibilityLabel={`${props.option.isHidden ? "Show" : "Hide"} model: ${props.option.providerLabel}, ${props.option.label}`}
+          accessibilityLabel={formatMobileMessage(
+            props.option.isHidden ? "Show model: {0}, {1}" : "Hide model: {0}, {1}",
+            [props.option.providerLabel, props.option.label],
+          )}
           accessibilityRole="button"
           accessibilityState={{ disabled: props.hiddenUpdatePending === true }}
           className="min-h-11 min-w-11 items-center justify-center"
@@ -116,9 +122,10 @@ export function ModelRowContent(
         </Pressable>
       ) : null}
       <Pressable
-        accessibilityLabel={`${props.isFavorite ? "Remove from" : "Add to"} favorites: ${
-          props.option.providerLabel
-        }, ${props.option.label}`}
+        accessibilityLabel={formatMobileMessage(
+          props.isFavorite ? "Remove from favorites: {0}, {1}" : "Add to favorites: {0}, {1}",
+          [props.option.providerLabel, props.option.label],
+        )}
         accessibilityRole="button"
         accessibilityState={{ disabled: !props.favoritesLoaded, selected: props.isFavorite }}
         className="min-h-11 min-w-11 items-center justify-center"
@@ -137,9 +144,14 @@ export function ModelRowContent(
 }
 
 export function ChoiceRowContent(props: ChoiceRowProps & RowSelectionProps) {
+  const label = props.localize === true ? localizeMobileString(props.label) : props.label;
+  const description =
+    props.localize === true && props.description !== undefined
+      ? localizeMobileString(props.description)
+      : props.description;
   return (
     <Pressable
-      accessibilityLabel={props.description ? `${props.label}. ${props.description}` : props.label}
+      accessibilityLabel={[label, description].filter(Boolean).join(". ")}
       accessibilityRole="radio"
       accessibilityState={{ checked: props.selected, disabled: props.disabled === true }}
       disabled={props.disabled}
@@ -152,9 +164,13 @@ export function ChoiceRowContent(props: ChoiceRowProps & RowSelectionProps) {
     >
       {props.leadingSelection}
       <View className={cn("min-w-0 flex-1 gap-0.5", props.disabled && "opacity-50")}>
-        <Text className="text-base font-t3-medium text-foreground">{props.label}</Text>
-        {props.description ? (
-          <Text className="text-sm leading-5 text-foreground-muted">{props.description}</Text>
+        <Text localize={false} className="text-base font-t3-medium text-foreground">
+          {label}
+        </Text>
+        {description ? (
+          <Text localize={false} className="text-sm leading-5 text-foreground-muted">
+            {description}
+          </Text>
         ) : null}
       </View>
       {props.trailingSelection}

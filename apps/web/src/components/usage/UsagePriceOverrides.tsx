@@ -103,7 +103,7 @@ export function UsagePriceOverrides({
   readonly initialModel?: string | undefined;
   readonly onOpenChange: (open: boolean) => void;
 }) {
-  const { locale } = useI18n();
+  const { locale, t } = useI18n();
   const translate = (source: string) => translateWebSource(locale, source);
   const environments = useAtomValue(priceTargetsAtom);
   const [selectedIds, setSelectedIds] = useState(initialSelectedEnvironmentIds);
@@ -421,7 +421,7 @@ export function UsagePriceOverrides({
                                       focusRowRef.current = null;
                                     }
                                   }}
-                                  aria-label="New model ID"
+                                  aria-label={translate("New model ID")}
                                   aria-invalid={
                                     (row.model.trim() !== "" && errors.has(row.id)) || undefined
                                   }
@@ -463,7 +463,9 @@ export function UsagePriceOverrides({
                                 <Input
                                   size="compact"
                                   value={row.alias ?? aliasCell.value}
-                                  aria-label={`Map ${row.model || "new model"} to model`}
+                                  aria-label={t("audit.price.map", {
+                                    model: row.model || t("audit.price.new"),
+                                  })}
                                   list="usage-alias-models"
                                   placeholder={
                                     row.isNew
@@ -521,10 +523,10 @@ export function UsagePriceOverrides({
                                   disabled={locked}
                                   aria-label={
                                     row.removed
-                                      ? `Undo reset for ${row.model}`
+                                      ? t("audit.price.undo", { model: row.model })
                                       : row.isNew
                                         ? translate("Remove new model")
-                                        : `Reset price for ${row.model} to automatic`
+                                        : t("audit.price.reset", { model: row.model })
                                   }
                                   onClick={() => {
                                     if (row.isNew)

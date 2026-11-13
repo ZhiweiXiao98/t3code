@@ -1,3 +1,5 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import type {
   PullRequestActivity,
   PullRequestCheck,
@@ -54,7 +56,11 @@ export function pullRequestConflict(pr: {
   readonly baseBranch?: string | undefined;
 }) {
   if (pr.state !== "open" || pr.isDraft || pr.mergeability !== "conflicting") return null;
-  return { label: pr.baseBranch ? `Conflicts with ${pr.baseBranch}` : "Has conflicts" };
+  return {
+    label: pr.baseBranch
+      ? `Conflicts with ${pr.baseBranch}`
+      : localizeMobileString("Has conflicts"),
+  };
 }
 
 export function checkStatus(check: PullRequestCheck) {
@@ -93,42 +99,55 @@ export function pullRequestChecksSummary(pr: Pick<PullRequestDetail, "checks">) 
   const required = pr.checks.filter((check) => check.status === "action-required").length;
   const pending = pr.checks.filter((check) => check.status === "pending").length;
   const passed = pr.checks.filter((check) => check.status === "success").length;
-  const count = pr.checks.length ? `${passed} of ${pr.checks.length}` : undefined;
+  const count = pr.checks.length
+    ? formatMobileMessage("{0} of {1}", [passed, pr.checks.length])
+    : undefined;
   if (failed)
     return {
-      label: `${failed} ${failed === 1 ? "check" : "checks"} failing`,
-      title: `${failed} ${failed === 1 ? "check" : "checks"} failing`,
+      label: formatMobileMessage(failed === 1 ? "{0} check failing" : "{0} checks failing", [
+        failed,
+      ]),
+      title: formatMobileMessage(failed === 1 ? "{0} check failing" : "{0} checks failing", [
+        failed,
+      ]),
       count,
       icon: "exclamationmark.circle",
       tint: "accent-danger-foreground",
     } as const;
   if (required)
     return {
-      label: `${required} need attention`,
-      title: "Checks need attention",
-      count: `${required} awaiting action`,
+      label: formatMobileMessage("{0} need attention", [required]),
+      title: localizeMobileString("Checks need attention"),
+      count: formatMobileMessage("{0} awaiting action", [required]),
       icon: "exclamationmark.circle",
       tint: "accent-warning-foreground",
     } as const;
   if (pending)
     return {
-      label: `${pending} pending`,
-      title: "Checks running",
-      count: `${pending} pending`,
+      label: formatMobileMessage("{0} pending", [pending]),
+      title: localizeMobileString("Checks running"),
+      count: formatMobileMessage("{0} pending", [pending]),
       icon: "clock",
       tint: "accent-warning-foreground",
     } as const;
   if (passed)
     return {
-      label: `${passed} of ${pr.checks.length} passed`,
-      title: passed === pr.checks.length ? "All checks passed" : "Checks completed",
+      label: formatMobileMessage("{0} of {1} passed", [passed, pr.checks.length]),
+      title:
+        passed === pr.checks.length
+          ? localizeMobileString("All checks passed")
+          : localizeMobileString("Checks completed"),
       count,
       icon: "checkmark.circle",
       tint: "accent-adaptive-emerald-600-400",
     } as const;
   return {
-    label: pr.checks.length ? `${pr.checks.length} completed` : "No checks reported",
-    title: pr.checks.length ? "Checks completed" : "No checks reported",
+    label: pr.checks.length
+      ? formatMobileMessage("{0} completed", [pr.checks.length])
+      : localizeMobileString("No checks reported"),
+    title: pr.checks.length
+      ? localizeMobileString("Checks completed")
+      : localizeMobileString("No checks reported"),
     count,
     icon: "minus",
     tint: "accent-icon-muted",
@@ -175,8 +194,10 @@ export function pullRequestReviewSummary(
   );
   if (requested.length)
     return {
-      title: "Changes requested",
-      count: `${requested.length} ${requested.length === 1 ? "reviewer" : "reviewers"}`,
+      title: localizeMobileString("Changes requested"),
+      count: formatMobileMessage(requested.length === 1 ? "{0} reviewer" : "{0} reviewers", [
+        requested.length,
+      ]),
       icon: "xmark.circle.fill",
       tint: "accent-danger-foreground",
       reviews,
@@ -185,9 +206,9 @@ export function pullRequestReviewSummary(
     return {
       title:
         approved.length === 1 && approved[0]?.author
-          ? `Approved by ${approved[0].author.login}`
-          : "Reviews approved",
-      count: `${approved.length} approved`,
+          ? formatMobileMessage("Approved by {0}", [approved[0].author.login])
+          : localizeMobileString("Reviews approved"),
+      count: formatMobileMessage("{0} approved", [approved.length]),
       icon: "checkmark.circle",
       tint: "accent-adaptive-emerald-600-400",
       reviews,
@@ -195,15 +216,19 @@ export function pullRequestReviewSummary(
   const commented = reviews.filter((review) => review.reviewState === "COMMENTED");
   if (commented.length && !pr.reviewers.length)
     return {
-      title: "Reviews",
-      count: `${commented.length} commented`,
+      title: localizeMobileString("Reviews"),
+      count: formatMobileMessage("{0} commented", [commented.length]),
       icon: "bubble.left",
       tint: "accent-icon-muted",
       reviews,
     } as const;
   return {
-    title: pr.reviewers.length ? "Awaiting review" : "Request a review",
-    count: pr.reviewers.length ? `${pr.reviewers.length} requested` : "None assigned",
+    title: pr.reviewers.length
+      ? localizeMobileString("Awaiting review")
+      : localizeMobileString("Request a review"),
+    count: pr.reviewers.length
+      ? formatMobileMessage("{0} requested", [pr.reviewers.length])
+      : localizeMobileString("None assigned"),
     icon: "person.2",
     tint: "accent-icon-muted",
     reviews,
@@ -213,10 +238,15 @@ export function pullRequestReviewSummary(
 export function pullRequestBranchSummary(
   pr: Pick<PullRequestDetail, "mergeability" | "baseComparison" | "behindBy" | "baseBranch">,
 ) {
-  if (pr.mergeability === "conflicting") return "Has conflicts";
-  if (pr.baseComparison === "behind") return `${pr.behindBy ?? ""} behind ${pr.baseBranch}`.trim();
-  if (pr.baseComparison === "up-to-date") return "Up to date";
-  return pr.mergeability === "mergeable" ? "No conflicts" : "Not reported";
+  if (pr.mergeability === "conflicting") return localizeMobileString("Has conflicts");
+  if (pr.baseComparison === "behind")
+    return pr.behindBy == null
+      ? formatMobileMessage("behind {0}", [pr.baseBranch])
+      : formatMobileMessage("{0} behind {1}", [pr.behindBy, pr.baseBranch]);
+  if (pr.baseComparison === "up-to-date") return localizeMobileString("Up to date");
+  return pr.mergeability === "mergeable"
+    ? localizeMobileString("No conflicts")
+    : localizeMobileString("Not reported");
 }
 
 export function pullRequestChecksStatus(state: PullRequestChecksState) {

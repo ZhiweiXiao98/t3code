@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { Button } from "../../components/ui/Button";
 import { AppActivityIndicator } from "../../components/ui/AppActivityIndicator";
@@ -324,13 +325,15 @@ function CloudEnvironmentRowShell(props: {
     <View collapsable={false} className="flex-row items-center gap-3 bg-grouped-card px-4 py-3.5">
       <ContentContainer
         className="min-w-0 flex-1 gap-0.5"
-        accessibilityHint={props.onRemove ? "Long press to remove from this device" : undefined}
+        accessibilityHint={
+          props.onRemove ? localizeMobileString("Long press to remove from this device") : undefined
+        }
         accessibilityRole={props.onOpen ? "button" : undefined}
         accessibilityLabel={
           props.onOpen
-            ? `Manage ${props.label}`
+            ? formatMobileMessage("Manage {0}", [props.label])
             : props.onRemove
-              ? `Remove ${props.label} from this device`
+              ? formatMobileMessage("Remove {0} from this device", [props.label])
               : undefined
         }
         onPress={props.onOpen}
@@ -408,12 +411,16 @@ function CloudEnvironmentRowShell(props: {
           accessibilityRole={props.onOpen ? "button" : undefined}
           accessibilityLabel={
             props.onOpen
-              ? `Manage ${props.label}`
+              ? formatMobileMessage("Manage {0}", [props.label])
               : props.onRemove
-                ? `Remove ${props.label} from this device`
+                ? formatMobileMessage("Remove {0} from this device", [props.label])
                 : undefined
           }
-          accessibilityHint={props.onRemove ? "Long press to remove from this device" : undefined}
+          accessibilityHint={
+            props.onRemove
+              ? localizeMobileString("Long press to remove from this device")
+              : undefined
+          }
           onPress={props.onOpen}
           onLongPress={props.onRemove}
           style={{

@@ -1,3 +1,4 @@
+import { useI18n } from "~/i18n/WebI18nContext";
 import type { EnvironmentId, PullRequestContextMetadata } from "@t3tools/contracts";
 import { CircleDashedIcon, FilmIcon, ImageIcon } from "lucide-react";
 import {
@@ -71,6 +72,7 @@ export function ContextChipPopover(props: {
   accent?: string | undefined;
   children: ReactNode;
 }) {
+  const { t } = useI18n();
   return (
     <Popover>
       <PopoverTrigger
@@ -83,7 +85,7 @@ export function ContextChipPopover(props: {
                 : undefined
             }
             render={<button type="button" />}
-            aria-label={`${props.accessibleLabel}. Show details`}
+            aria-label={t("audit.context.details", { label: props.accessibleLabel })}
             data-markdown-copy={props.copyMarkdown}
           />
         }
@@ -108,6 +110,7 @@ export function PullRequestChip(props: {
   copyMarkdown?: string;
   onOpen: (event: MouseEvent<HTMLElement>, url: string) => void;
 }) {
+  const { t } = useI18n();
   const previewTarget = usePullRequestPreviewTarget(props.environmentId, props.metadata.url);
   const displayState =
     props.metadata.state === "open" && props.metadata.isDraft ? "draft" : props.metadata.state;
@@ -116,7 +119,11 @@ export function PullRequestChip(props: {
     <ContextChip
       kind={props.kind}
       render={<button type="button" />}
-      aria-label={`Open ${props.kindLabel} ${props.label}: ${props.metadata.title}`}
+      aria-label={t("audit.context.open", {
+        kind: props.kindLabel,
+        label: props.label,
+        title: props.metadata.title,
+      })}
       data-markdown-copy={props.copyMarkdown}
       onClick={(event) => props.onOpen(event, props.metadata.url)}
       onAuxClick={(event) => props.onOpen(event, props.metadata.url)}
@@ -162,11 +169,12 @@ export function ImageChipButton({
   disabled?: boolean | undefined;
   onPreviewError?: (() => void) | undefined;
 }) {
+  const { t } = useI18n();
   return (
     <ContextChip
       kind="image"
       render={<button type="button" disabled={disabled} />}
-      aria-label={`Image attachment, ${name}, ${size}`}
+      aria-label={t("audit.context.image", { name, size })}
       {...props}
     >
       {previewUrl ? (
@@ -341,12 +349,13 @@ function FileChipContent(props: {
 }
 
 export function UnresolvedChip(props: { label: string; tooltip: string; copyMarkdown?: string }) {
+  const { t } = useI18n();
   return (
     <ContextChipShell
       icon={<CircleDashedIcon />}
       label={props.label}
       state="unresolved"
-      aria-label={`Unavailable context, ${props.label}`}
+      aria-label={t("audit.context.unavailable", { label: props.label })}
       data-markdown-copy={props.copyMarkdown}
       tooltip={props.tooltip}
     />

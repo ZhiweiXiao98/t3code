@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import * as Dialog from "../../components/ui/Dialog";
 import {
@@ -247,19 +248,21 @@ function ProviderAccount({
   const status =
     active || state?.phase === "failed" || state?.phase === "cancelled"
       ? state.message
-      : !provider.enabled
-        ? "Turned off"
-        : signedIn
-          ? "Signed in"
-          : isDiscovering
-            ? "Discovering sign-in methods…"
-            : needsExternalSetup
-              ? "No in-app sign-in advertised. Follow the provider's docs to finish setup."
-              : !provider.installed
-                ? "Not installed"
-                : usesCredentials
-                  ? "Connect to load models"
-                  : "Not signed in";
+      : localizeMobileString(
+          !provider.enabled
+            ? "Turned off"
+            : signedIn
+              ? "Signed in"
+              : isDiscovering
+                ? "Discovering sign-in methods…"
+                : needsExternalSetup
+                  ? "No in-app sign-in advertised. Follow the provider's docs to finish setup."
+                  : !provider.installed
+                    ? "Not installed"
+                    : usesCredentials
+                      ? "Connect to load models"
+                      : "Not signed in",
+        );
   // A provider with several sign-in methods picks one from a menu on the same control.
   const methodActions: MenuAction[] = methods.map((method) => ({
     id: `method:${method.id}`,
@@ -552,7 +555,9 @@ function ProviderAccountSummary({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={[name, status, revealed ? email : null].filter(Boolean).join(", ")}
-      accessibilityHint={revealed ? "Hides the account email" : "Reveals the account email"}
+      accessibilityHint={localizeMobileString(
+        revealed ? "Hides the account email" : "Reveals the account email",
+      )}
       onPress={() => setRevealed((value) => !value)}
       className="min-w-0 shrink grow gap-0.5"
     >

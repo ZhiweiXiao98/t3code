@@ -161,7 +161,7 @@ export function PullRequestThreadDialog({
         setPrepareErrorMessage(
           error instanceof Error
             ? error.message
-            : `Failed to prepare ${terminology.singular} thread.`,
+            : t("audit.pullRequest.prepareFailed", { kind: requestLabel }),
         );
       }
       return;

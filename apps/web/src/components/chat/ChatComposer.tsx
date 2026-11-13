@@ -3576,7 +3576,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
 
             {speechInput.preview ? (
               <div
-                aria-label="Live transcription"
+                aria-label={t("audit.liveTranscription")}
                 className="mx-3 mb-3 max-h-32 overflow-y-auto rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-sm leading-relaxed break-words whitespace-pre-wrap sm:mx-4"
               >
                 <span>{speechInput.preview.committed}</span>

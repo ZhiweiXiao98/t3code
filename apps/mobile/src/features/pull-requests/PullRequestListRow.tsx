@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import {
   capitalizeTerm,
@@ -75,7 +76,26 @@ export const PullRequestListRow = memo(
           <Pressable
             accessibilityRole="button"
             accessibilityState={{ selected: props.selected, busy: props.busy }}
-            accessibilityLabel={`${capitalizeTerm(sourceControlClients.get(item.provider).changeRequest.singular)} ${item.number}, ${item.title}, ${status.label}${conflict ? `, ${conflict.label.toLowerCase()}` : ""}, by ${item.author?.login ?? "unknown author"}${review ? `, ${review.accessibleLabel}` : ""}${item.checksState ? `, checks ${item.checksState}` : ""}${item.stack ? `, stack ${item.stack.position} of ${item.stack.size}` : ""}${item.labels.length ? `, ${item.labels.map((label) => label.name).join(", ")}` : ""}, ${item.additions} additions, ${item.deletions} deletions`}
+            accessibilityLabel={[
+              `${localizeMobileString(capitalizeTerm(sourceControlClients.get(item.provider).changeRequest.singular))} ${item.number}`,
+              item.title,
+              localizeMobileString(status.label),
+              conflict ? formatMobileMessage("Conflicts with {0}", [item.baseBranch]) : null,
+              formatMobileMessage("by {0}", [
+                item.author?.login ?? localizeMobileString("unknown author"),
+              ]),
+              review ? localizeMobileString(review.accessibleLabel) : null,
+              item.checksState
+                ? formatMobileMessage("checks {0}", [localizeMobileString(item.checksState)])
+                : null,
+              item.stack
+                ? formatMobileMessage("stack {0} of {1}", [item.stack.position, item.stack.size])
+                : null,
+              ...item.labels.map((label) => label.name),
+              formatMobileMessage("{0} additions, {1} deletions", [item.additions, item.deletions]),
+            ]
+              .filter(Boolean)
+              .join(", ")}
             accessibilityHint={localizeMobileString(
               "Double tap to open. Touch and hold for quick actions.",
             )}
@@ -181,7 +201,12 @@ export const PullRequestListRow = memo(
                   ) : null}
                 </View>
                 {checks ? (
-                  <View className="shrink-0" accessibilityLabel={`Checks ${item.checksState}`}>
+                  <View
+                    className="shrink-0"
+                    accessibilityLabel={formatMobileMessage("Checks {0}", [
+                      localizeMobileString(item.checksState ?? "pending"),
+                    ])}
+                  >
                     <SymbolView name={checks.icon} size={13} tintColorClassName={checks.tint} />
                   </View>
                 ) : null}

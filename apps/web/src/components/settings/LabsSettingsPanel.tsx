@@ -248,6 +248,7 @@ function SimlockHostsRow() {
 
 /** Shows only when every machine in scope is a Mac, since only macOS servers honor it. */
 function FastWorktreeCheckoutRow() {
+  const { t } = useI18n();
   const { scope, connectedEnvironments } = useSettingsScope();
   const settings = useScopedSettings();
   const updateSettings = useUpdateScopedSettings();
@@ -272,7 +273,7 @@ function FastWorktreeCheckoutRow() {
           settingKeys={["fastWorktreeCheckout"]}
           checked={settings.fastWorktreeCheckout}
           onCheckedChange={(checked) => updateSettings({ fastWorktreeCheckout: Boolean(checked) })}
-          aria-label="Fast worktree checkout"
+          aria-label={t("audit.fastCheckout")}
         />
       }
     />

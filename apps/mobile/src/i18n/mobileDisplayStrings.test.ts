@@ -32,6 +32,24 @@ describe("mobile UI display strings", () => {
     expect(formatMobileMessage("Send microphone audio to {0}?", [name], "zh-CN")).toBe(
       `将麦克风音频发送到 ${name}？`,
     );
+    const nativeMessages = [
+      ["Show model: {0}, {1}", `显示模型：${name}，Open`],
+      ["Add to favorites: {0}, {1}", `添加到收藏：${name}，Open`],
+      ["{0} folder", `${name} 文件夹`],
+      ["Manage {0}", `管理 ${name}`],
+      ["Remove {0} from this device", `从本设备移除 ${name}`],
+      ["{0} workflow, {1}", `${name} 工作流，Open`],
+      ["Conflicts with {0}", `与 ${name} 冲突`],
+      ["Open resolved discussion in {0}", `打开 ${name} 中已解决的讨论`],
+      ["Approved by {0}", `由 ${name} 批准`],
+      ["by {0}", `作者：${name}`],
+    ] as const;
+    for (const [template, expected] of nativeMessages) {
+      expect(formatMobileMessage(template, [name, "Open"], "zh-CN")).toBe(expected);
+      expect(formatMobileMessage(template, [name, "Open"], "en")).toBe(
+        template.replace(/\{(\d+)\}/g, (_, index: string) => [name, "Open"][Number(index)]!),
+      );
+    }
     expect(formatMobileMessage("Open {0}", [], "zh-CN")).toBe("打开 {0}");
     expect(formatMobileMessage("Open {0}", [undefined], "en")).toBe("Open undefined");
   });

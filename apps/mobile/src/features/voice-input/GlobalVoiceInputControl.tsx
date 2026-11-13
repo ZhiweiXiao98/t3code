@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import { AppActivityIndicator } from "../../components/ui/AppActivityIndicator";
 import { useState, type ReactNode } from "react";
@@ -93,7 +94,7 @@ function EdgeDictationPill(props: {
   const phase = voice.state.phase;
   const isError = phase === "error";
   const openSettings = isError && voice.state.errorAction === "settings";
-  const label = voice.label ?? "Draft";
+  const label = voice.label ?? localizeMobileString("Draft");
 
   return (
     <View pointerEvents="box-none" className="absolute inset-0">
@@ -111,7 +112,10 @@ function EdgeDictationPill(props: {
             style={[{ width: COLLAPSED_WIDTH }, collapsedStyle]}
           >
             <Pressable
-              accessibilityLabel={`${presentation.statusLabel}, dictating into ${label}`}
+              accessibilityLabel={formatMobileMessage("{0}, dictating into {1}", [
+                localizeMobileString(presentation.statusLabel ?? "Preparing voice input"),
+                label,
+              ])}
               accessibilityHint={localizeMobileString("Shows dictation controls")}
               accessibilityRole="button"
               className="flex-1 flex-row items-center justify-center gap-1.5 active:opacity-70"

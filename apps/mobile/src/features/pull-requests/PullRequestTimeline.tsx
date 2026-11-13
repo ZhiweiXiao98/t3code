@@ -261,7 +261,12 @@ export function pullRequestTimelineRows(
           </View>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`Open ${thread.isResolved ? "resolved" : "unresolved"} discussion in ${thread.path}`}
+            accessibilityLabel={formatMobileMessage(
+              thread.isResolved
+                ? "Open resolved discussion in {0}"
+                : "Open unresolved discussion in {0}",
+              [thread.path],
+            )}
             onPress={() =>
               navigation.navigate("PullRequestDiscussion", { ...params, discussionId: thread.id })
             }

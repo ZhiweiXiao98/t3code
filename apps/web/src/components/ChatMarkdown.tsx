@@ -506,6 +506,7 @@ function useChatMarkdownState({
   sourceControlMedia = false,
   sourceControlMediaRepository,
 }: ChatMarkdownProps) {
+  const { t } = useI18n();
   const resolvedTheme = useRenderedAppearance();
   const markdownRef = useRef<HTMLElement>(null);
   const mediaRequestId = useRef(0);
@@ -595,10 +596,7 @@ function useChatMarkdownState({
       },
       (error: unknown) => {
         if (mediaRequestId.current !== requestId) return;
-        let description =
-          error instanceof Error
-            ? error.message
-            : "The file could not be loaded. It may have been moved or deleted.";
+        let description = error instanceof Error ? error.message : t("audit.media.loadFailed");
         if (
           isAssetNotFoundError(error) &&
           error.resource._tag === "media-file" &&
@@ -615,13 +613,16 @@ function useChatMarkdownState({
               isDesktopRenderer: window.desktopBridge !== undefined,
             }).mode !== "local-exec"
           ) {
-            description = `The file was not found on ${target.label} at ${error.checkedPath ?? error.resource.path}.`;
+            description = t("audit.media.notFound", {
+              machine: target.label,
+              path: error.checkedPath ?? error.resource.path,
+            });
           }
         }
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "Media unavailable",
+            title: t("audit.media.unavailable"),
             description,
           }),
         );
@@ -728,7 +729,7 @@ function useChatMarkdownState({
           toastManager.add(
             stackedThreadToast({
               type: "error",
-              title: "Unable to open link in browser",
+              title: t("audit.media.browserFailed"),
               description: error.message,
             }),
           );

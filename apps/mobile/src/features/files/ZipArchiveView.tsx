@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import { formatAttachmentSize } from "@t3tools/client-runtime/state/attachments";
 import {
@@ -251,7 +252,7 @@ function ZipTreeRowView(props: {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={entry ? entry.path : `${node.path} folder`}
+      accessibilityLabel={entry ? entry.path : formatMobileMessage("{0} folder", [node.path])}
       accessibilityState={entry ? undefined : { expanded: !props.collapsed }}
       onPress={() => (entry ? props.onOpen(entry) : props.onToggle(node.path))}
       className="mx-2 h-11 flex-row items-center gap-1.5 rounded-lg pr-2.5 active:bg-subtle"

@@ -1,3 +1,4 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import {
@@ -65,8 +66,13 @@ export function ThreadWorkflowGroup(props: {
         <View className="flex-row items-center">
           <RowPressable
             accessibilityRole="button"
-            accessibilityLabel={`${label} workflow, ${statusLabel}`}
-            accessibilityHint={open ? "Collapses the workflow" : "Opens the current phase"}
+            accessibilityLabel={formatMobileMessage("{0} workflow, {1}", [
+              label,
+              localizeMobileString(statusLabel),
+            ])}
+            accessibilityHint={localizeMobileString(
+              open ? "Collapses the workflow" : "Opens the current phase",
+            )}
             accessibilityState={{ expanded: open !== undefined }}
             disabled={rail.length === 0}
             onPress={() => setSelected(nextWorkflowSelection(rail, selected))}
@@ -110,7 +116,15 @@ export function ThreadWorkflowGroup(props: {
                   icon={RAIL_ICON[item.tone]}
                   label={count ? `${count} ${item.title}` : item.title}
                   selected={item.key === selected}
-                  accessibilityLabel={`${item.title} phase, ${item.tone}${count ? `, ${count} completed` : ""}`}
+                  accessibilityLabel={[
+                    formatMobileMessage("{0} phase, {1}", [
+                      item.title,
+                      localizeMobileString(item.tone),
+                    ]),
+                    count ? formatMobileMessage("{0} completed", [count]) : null,
+                  ]
+                    .filter(Boolean)
+                    .join(", ")}
                   onPress={() => setSelected(nextWorkflowSelection(rail, selected, item.key))}
                 />
               );
@@ -167,7 +181,7 @@ function WorkflowMemberRow(props: {
       accessibilityRole={canOpen ? "link" : undefined}
       accessibilityLabel={[
         presentation.title,
-        presentation.statusLabel,
+        localizeMobileString(presentation.statusLabel),
         ...labels,
         ...(metadata.speed === null ? [] : [metadata.speed]),
         ...(error === null ? [] : [error]),
@@ -175,7 +189,7 @@ function WorkflowMemberRow(props: {
       accessibilityHint={
         canOpen
           ? localizeMobileString("Opens this agent's thread")
-          : "Its thread is not available yet"
+          : localizeMobileString("Its thread is not available yet")
       }
       disabled={!canOpen}
       onPress={() => threadId !== null && props.onOpen(threadId)}

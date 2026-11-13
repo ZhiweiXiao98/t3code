@@ -270,8 +270,8 @@ function StageRow({
 }) {
   const label =
     stage.id === "setup-script"
-      ? (scriptName ?? worktreeSetupStageLabel(stage.id))
-      : worktreeSetupStageLabel(stage.id);
+      ? (scriptName ?? localizeMobileString(worktreeSetupStageLabel(stage.id)))
+      : localizeMobileString(worktreeSetupStageLabel(stage.id));
   const detail =
     stage.status === "pending"
       ? null
@@ -282,7 +282,7 @@ function StageRow({
           : stage.detail;
   return (
     <View
-      accessibilityLabel={`${label}, ${stage.status}`}
+      accessibilityLabel={[label, localizeMobileString(stage.status)].join(", ")}
       className={compact ? "min-h-8 flex-row items-center" : "min-h-11 flex-row items-center"}
       style={{ columnGap: 8, opacity: stage.status === "pending" ? 0.4 : 1 }}
     >

@@ -161,8 +161,8 @@ export function CloudEnvironmentConnectRows({
           ? translateWebSource(uiLocale, "T3 Connect route added")
           : t("connectEnvironment.added"),
         description: savedWithoutRelay.has(environment.environmentId)
-          ? `${environment.label} falls back to T3 Connect when its other routes are unreachable.`
-          : `Connecting to ${environment.label} through T3 Connect.`,
+          ? t("audit.connect.fallback", { label: environment.label })
+          : t("audit.connect.connecting", { label: environment.label }),
       });
       return true;
     }

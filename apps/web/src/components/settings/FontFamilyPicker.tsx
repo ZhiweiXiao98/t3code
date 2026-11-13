@@ -142,8 +142,8 @@ export function FontFamilyPicker({
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: `"${value}" isn't monospace`,
-          description: "Code and terminal need a fixed-width font, so the current font was kept.",
+          title: t("audit.font.notMono", { font: value }),
+          description: t("audit.font.kept"),
         }),
       );
       return;
@@ -199,7 +199,7 @@ export function FontFamilyPicker({
       </ComboboxTrigger>
       <ComboboxPopup align="end" className="flex w-72 flex-col">
         <ComboboxSearchInput
-          placeholder="Search fonts…"
+          placeholder={t("appearance.fontPicker.search")}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />

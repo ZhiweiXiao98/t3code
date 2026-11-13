@@ -1,3 +1,5 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { useAtomSet, useAtomValue } from "@effect/atom-react";
 import { AsyncResult } from "effect/reactivity";
 import { useAdaptiveWorkspaceLayout } from "../layout/adaptive-workspace-context";
@@ -62,13 +64,16 @@ export function SettingsNavigationRouteScreen() {
                   {hidden.includes(tab)
                     ? "Hidden"
                     : enabled.indexOf(tab) < capacity
-                      ? `Tab ${enabled.indexOf(tab) + 1}`
+                      ? formatMobileMessage("Tab {0}", [enabled.indexOf(tab) + 1])
                       : "In Settings"}
                 </Text>
               </View>
               <IconButton
                 icon={hidden.includes(tab) ? "eye.slash" : "eye"}
-                accessibilityLabel={`${hidden.includes(tab) ? "Show" : "Hide"} ${WORKSPACE_TAB_LABELS[tab]}`}
+                accessibilityLabel={formatMobileMessage(
+                  hidden.includes(tab) ? "Show {0}" : "Hide {0}",
+                  [localizeMobileString(WORKSPACE_TAB_LABELS[tab])],
+                )}
                 disabled={!ready}
                 onPress={() =>
                   save({
@@ -83,7 +88,9 @@ export function SettingsNavigationRouteScreen() {
               />
               <IconButton
                 icon="arrow.up"
-                accessibilityLabel={`Move ${WORKSPACE_TAB_LABELS[tab]} up`}
+                accessibilityLabel={formatMobileMessage("Move {0} up", [
+                  localizeMobileString(WORKSPACE_TAB_LABELS[tab]),
+                ])}
                 disabled={!ready || index === 0}
                 onPress={() =>
                   save({
@@ -99,7 +106,9 @@ export function SettingsNavigationRouteScreen() {
               />
               <IconButton
                 icon="arrow.down"
-                accessibilityLabel={`Move ${WORKSPACE_TAB_LABELS[tab]} down`}
+                accessibilityLabel={formatMobileMessage("Move {0} down", [
+                  localizeMobileString(WORKSPACE_TAB_LABELS[tab]),
+                ])}
                 disabled={!ready || index === order.length - 1}
                 onPress={() =>
                   save({
