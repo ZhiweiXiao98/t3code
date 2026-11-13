@@ -1,3 +1,4 @@
+import { localizeFilePreviewError } from "./filePreviewErrorMessages";
 import { useStableCallback } from "~/hooks/useStableCallback";
 import { translateWebSource } from "~/i18n/messages";
 import { useI18n } from "~/i18n/WebI18nContext";
@@ -304,7 +305,7 @@ export function AttachmentFilePreview(props: {
 
   const body = failure ? (
     <FileSurfaceFailure
-      message={failure}
+      message={localizeFilePreviewError(locale, failure)}
       onRetry={() => {
         setError(null);
         setRevision((value) => value + 1);
@@ -500,7 +501,7 @@ export function AttachmentFilePreview(props: {
                     title: translateWebSource(locale, "Could not copy file"),
                     description:
                       cause instanceof Error
-                        ? cause.message
+                        ? localizeFilePreviewError(locale, cause.message)
                         : translateWebSource(locale, "Try again."),
                   }),
                 );

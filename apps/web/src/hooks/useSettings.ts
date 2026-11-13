@@ -1,4 +1,4 @@
-import { readWebI18n } from "~/i18n/readWebI18n";
+import { createSettingsMessageReader } from "~/i18n/settingsMessageReader";
 import { useRef, useSyncExternalStore, use } from "react";
 import { useSyncExternalStoreWithSelector } from "use-sync-external-store/with-selector";
 import { RegistryContext, useAtomValue } from "@effect/atom-react";
@@ -92,6 +92,8 @@ function emitClientSettingsHydrationChange() {
 function getClientSettingsSnapshot(): ClientSettings {
   return clientSettingsSnapshot;
 }
+
+const settingsMessage = createSettingsMessageReader(() => getClientSettingsSnapshot().appLocale);
 
 function replaceClientSettingsSnapshot(settings: ClientSettings): void {
   clientSettingsSnapshot = settings;
@@ -439,8 +441,8 @@ export function useUpdateEnvironmentModelPreferences(environmentId: EnvironmentI
     } catch {
       toastManager.add({
         type: "error",
-        title: readWebI18n().t("audit3.modelNotSaved"),
-        description: readWebI18n().t("audit3.loadModels"),
+        title: settingsMessage("audit3.modelNotSaved"),
+        description: settingsMessage("audit3.loadModels"),
       });
       return;
     }
@@ -466,8 +468,8 @@ export function useToggleEnvironmentModelFavorite(environmentId: EnvironmentId |
       } catch {
         toastManager.add({
           type: "error",
-          title: readWebI18n().t("audit3.favoritesNotSaved"),
-          description: readWebI18n().t("audit3.loadModels"),
+          title: settingsMessage("audit3.favoritesNotSaved"),
+          description: settingsMessage("audit3.loadModels"),
         });
         return;
       }
@@ -595,10 +597,10 @@ function useUpdateSettingsTarget(environmentId: EnvironmentId | null) {
       const error = squashAtomCommandFailure(result);
       toastManager.add({
         type: "error",
-        title: readWebI18n().t("audit3.settingNotSaved"),
-        description: readWebI18n().t("audit3.saveOn", {
+        title: settingsMessage("audit3.settingNotSaved"),
+        description: settingsMessage("audit3.saveOn", {
           label,
-          error: error instanceof Error ? error.message : readWebI18n().t("audit3.saveFallback"),
+          error: error instanceof Error ? error.message : settingsMessage("audit3.saveFallback"),
         }),
       });
     }
@@ -620,11 +622,11 @@ function useUpdateSettingsTarget(environmentId: EnvironmentId | null) {
       options?.onFailed?.();
       toastManager.add({
         type: "warning",
-        title: readWebI18n().t("audit3.settingNotSaved"),
-        description: readWebI18n().t("audit3.noSettingsPermission", {
+        title: settingsMessage("audit3.settingNotSaved"),
+        description: settingsMessage("audit3.noSettingsPermission", {
           label:
             environments.find((target) => target.environmentId === environmentId)?.label ??
-            readWebI18n().t("audit3.selectedEnvironment"),
+            settingsMessage("audit3.selectedEnvironment"),
         }),
       });
     }
@@ -635,8 +637,8 @@ function useUpdateSettingsTarget(environmentId: EnvironmentId | null) {
         options?.onFailed?.();
         return toastManager.add({
           type: "warning",
-          title: readWebI18n().t("audit3.settingNotSaved"),
-          description: description ?? readWebI18n().t("audit3.primaryUnavailable"),
+          title: settingsMessage("audit3.settingNotSaved"),
+          description: description ?? settingsMessage("audit3.primaryUnavailable"),
         });
       };
       if (Object.keys(localPatch).length > 0) {
@@ -687,9 +689,9 @@ function useUpdateSettingsTarget(environmentId: EnvironmentId | null) {
         if (writes.length === 0) {
           warnUnsaved(
             deniedLabels.length > 0
-              ? readWebI18n().t("audit3.noSettingsPermission", { label: deniedLabels.join(", ") })
+              ? settingsMessage("audit3.noSettingsPermission", { label: deniedLabels.join(", ") })
               : targets.size > 0
-                ? readWebI18n().t("audit3.updateServers")
+                ? settingsMessage("audit3.updateServers")
                 : undefined,
           );
         } else {
@@ -711,10 +713,10 @@ function useUpdateSettingsTarget(environmentId: EnvironmentId | null) {
               if (result._tag !== "Failure" || isAtomCommandInterrupted(result)) return [];
               const error = squashAtomCommandFailure(result);
               return [
-                readWebI18n().t("audit3.saveOn", {
+                settingsMessage("audit3.saveOn", {
                   label,
                   error:
-                    error instanceof Error ? error.message : readWebI18n().t("audit3.saveFallback"),
+                    error instanceof Error ? error.message : settingsMessage("audit3.saveFallback"),
                 }),
               ];
             });
@@ -732,12 +734,12 @@ function useUpdateSettingsTarget(environmentId: EnvironmentId | null) {
               type: "error",
               title:
                 saved.length > 0
-                  ? readWebI18n().t("audit3.someSaved")
-                  : readWebI18n().t("audit3.settingNotSaved"),
+                  ? settingsMessage("audit3.someSaved")
+                  : settingsMessage("audit3.settingNotSaved"),
               description: [
                 ...failures,
                 ...(saved.length > 0
-                  ? [readWebI18n().t("audit3.savedOn", { labels: saved.join(", ") })]
+                  ? [settingsMessage("audit3.savedOn", { labels: saved.join(", ") })]
                   : []),
               ].join("\n"),
             });

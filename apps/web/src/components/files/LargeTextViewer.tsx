@@ -1,3 +1,4 @@
+import { localizeFilePreviewError } from "./filePreviewErrorMessages";
 import { useStableCallback } from "~/hooks/useStableCallback";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
@@ -213,7 +214,10 @@ export default function LargeTextViewer(props: {
   );
   if (error)
     return (
-      <FileSurfaceFailure message={error} {...(props.onRetry ? { onRetry: props.onRetry } : {})} />
+      <FileSurfaceFailure
+        message={localizeFilePreviewError(previewLocale, error)}
+        {...(props.onRetry ? { onRetry: props.onRetry } : {})}
+      />
     );
   if (!meta || (meta.count > 0 && !pages.has(0))) return <FileSurfaceLoading />;
   const header = props.delimiter ? pages.get(0)?.[0] : undefined;

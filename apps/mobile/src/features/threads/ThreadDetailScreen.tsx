@@ -493,7 +493,7 @@ function ThreadDetailBody(
     environmentId: props.environmentId,
     threadId: props.selectedThread.id,
   });
-  const composerError = useAtomValue(threadComposerErrorsAtom)[selectedThreadKey]?.message ?? null;
+  const composerError = useAtomValue(threadComposerErrorsAtom)[selectedThreadKey] ?? null;
   const preferences = useAtomValue(mobilePreferencesAtom);
   const toolCallVisibility = AsyncResult.isSuccess(preferences)
     ? (preferences.value.toolCallVisibility ?? "showAll")
@@ -1702,7 +1702,8 @@ function ThreadDetailBody(
                         exiting={FadeOut.duration(120)}
                       >
                         <ComposerErrorNotice
-                          message={composerError}
+                          message={composerError.message}
+                          localizeMessage={composerError.localizeMessage}
                           onDismiss={() => clearThreadComposerError(selectedThreadKey)}
                         />
                       </Animated.View>

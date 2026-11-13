@@ -1,4 +1,4 @@
-import { localizeMobileString } from "../../i18n/mobileStrings";
+import { localizeMobileString, MOBILE_LOCALE } from "../../i18n/mobileStrings";
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import * as Dialog from "../../components/ui/Dialog";
 import { useAtomRefresh, useAtomSet, useAtomValue } from "@effect/atom-react";
@@ -29,6 +29,7 @@ import { usePullRequestPermissions } from "./usePullRequestPermissions";
 import { PullRequestGlyph } from "./pullRequestGlyphs";
 import type { AppSymbolName } from "../../components/ui/AppSymbol";
 import type { PullRequestStackState } from "./usePullRequestStack";
+import { pullRequestActionFailure, pullRequestMergeConfirmation } from "./pullRequestMergeDisplay";
 
 export function PullRequestMergeControls(props: {
   readonly pr: PullRequestDetail;
@@ -58,7 +59,9 @@ export function PullRequestMergeControls(props: {
     : methods.includes("squash")
       ? "squash"
       : methods[0];
-  const scope = stack.stack ? pullRequestStackMerge(stack.stack, pr.number, terminology) : null;
+  const scope = stack.stack
+    ? pullRequestStackMerge(stack.stack, pr.number, terminology, MOBILE_LOCALE)
+    : null;
   const canMergeSingle = singlePullRequestMergeAllowed({
     supportsStackActions: stack.supportsStackActions,
     hasStack: stack.stack !== null,
@@ -68,18 +71,18 @@ export function PullRequestMergeControls(props: {
     permissions.connected && stack.supportsStackActions && !stack.isFresh && !stack.error;
   const reason =
     (!permissions.connected
-      ? "Reconnect to merge."
-      : mergeUnavailableReason(pr, permissions.canWrite, terminology)) ??
+      ? localizeMobileString("Reconnect to merge.")
+      : mergeUnavailableReason(pr, permissions.canWrite, terminology, MOBILE_LOCALE)) ??
     (stack.stack
       ? !stack.supportsStackActions
-        ? "This environment can display stacks but cannot merge them."
+        ? localizeMobileString("This environment can display stacks but cannot merge them.")
         : !stack.isFresh
-          ? "Refresh the stack before merging."
+          ? localizeMobileString("Refresh the stack before merging.")
           : scope?.reason
       : !canMergeSingle
         ? stack.error
-          ? "Couldn't check stack membership. Refresh before merging."
-          : "Checking stack membership…"
+          ? localizeMobileString("Couldn't check stack membership. Refresh before merging.")
+          : localizeMobileString("Checking stack membership…")
         : null);
   const canMerge = !busy && method !== undefined && !reason;
   const label = method
@@ -159,7 +162,11 @@ export function PullRequestMergeControls(props: {
                     !canPerformPullRequestAction(fresh, "merge") ||
                     !allowedMergeMethods(fresh).includes(method)
                   )
-                    throw new Error(`The ${terminology.singular} changed. Refresh before merging.`);
+                    throw new Error(
+                      formatMobileMessage("The {0} changed. Refresh before merging.", [
+                        localizeMobileString(terminology.singular),
+                      ]),
+                    );
                   return method;
                 },
               }
@@ -176,33 +183,30 @@ export function PullRequestMergeControls(props: {
     setBusy(false);
     if (AsyncResult.isFailure(response)) {
       const cause = squashAtomCommandFailure(response);
-      Dialog.alert(
+      Dialog.alertWithLiteralMessage(
         "Couldn't complete the merge action",
-        cause instanceof Error ? cause.message : "Try again.",
+        pullRequestActionFailure(cause),
       );
     }
   };
   const confirm = (action: "merge" | "enable-auto-merge" | "disable-auto-merge") => {
-    const title =
-      action === "merge"
-        ? scope && scope.layers.length > 1
-          ? `Merge ${scope.layers.length} stack layers?`
-          : `${pullRequestActionLabel("merge", terminology)}?`
-        : action === "enable-auto-merge"
-          ? "Enable auto-merge?"
-          : "Disable auto-merge?";
-    const message =
-      action === "merge" && scope
-        ? `Merge ${scope.layers.map((layer) => `#${layer.number}`).join(" → ")} into ${stack.stack?.base} using ${method}. Layers above #${pr.number} stay open.`
-        : action === "enable-auto-merge"
-          ? `Merge #${pr.number} using ${method} when its requirements are met. This may happen immediately.`
-          : action === "disable-auto-merge"
-            ? `Stop the provider from automatically merging this ${terminology.singular}.`
-            : `Merge #${pr.number} into ${pr.baseBranch} using ${method}.`;
-    Dialog.alert(title, message, [
+    const { title, message } = pullRequestMergeConfirmation({
+      action,
+      terminology,
+      number: pr.number,
+      baseBranch: pr.baseBranch,
+      method,
+      stack: scope ? { layers: scope.layers, base: stack.stack?.base } : null,
+    });
+    Dialog.alertWithLiteralMessage(title, message, [
       { text: "Cancel", style: "cancel" },
       {
-        text: action === "merge" ? label : title.replace("?", ""),
+        text:
+          action === "merge"
+            ? label
+            : localizeMobileString(
+                action === "enable-auto-merge" ? "Enable auto-merge" : "Disable auto-merge",
+              ),
         onPress: () => void perform(action),
       },
     ]);
@@ -265,7 +269,9 @@ export function PullRequestMergeControls(props: {
         }}
       />
       {permissions.connected && !status && reason ? (
-        <Text className="px-1 text-xs text-foreground-muted">{reason}</Text>
+        <Text localize={false} className="px-1 text-xs text-foreground-muted">
+          {reason}
+        </Text>
       ) : null}
       {stack.error && stack.supportsStackActions ? (
         <Button label="Retry stack lookup" tone="text" onPress={stack.refresh} />

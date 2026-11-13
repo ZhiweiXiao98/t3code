@@ -1,5 +1,5 @@
 import { AuthOrchestrationOperateScope, AuthSourceControlWriteScope } from "@t3tools/contracts";
-import type { VcsListRefsResult } from "@t3tools/contracts";
+import type { GitRunStackedActionResult, VcsListRefsResult } from "@t3tools/contracts";
 import { resolveAutoFeatureBranchName } from "@t3tools/shared/git";
 import * as Cause from "effect/Cause";
 import { AsyncResult } from "effect/reactivity";
@@ -109,18 +109,24 @@ vi.mock("./vcs", () => ({
   },
   vcsActionManager: {
     track: (_registry: unknown, _target: unknown, _operation: unknown, run: () => unknown) => run(),
-    runStackedAction: () => async (input: { action: string; featureBranch?: boolean }) => {
-      if (input.featureBranch) state.branch = "feature";
-      if (input.action === "commit") state.commits += 1;
-      if (input.action === "push") state.pushes += 1;
-      state.afterGitAction?.();
-      return AsyncResult.success({
-        branch: input.featureBranch
-          ? { status: "created", name: "feature" }
-          : { status: "skipped_not_requested" },
-        toast: { title: "Done", description: "Done", cta: { kind: "none" } },
-      });
-    },
+    runStackedAction:
+      () =>
+      async (input: { action: GitRunStackedActionResult["action"]; featureBranch?: boolean }) => {
+        if (input.featureBranch) state.branch = "feature";
+        if (input.action === "commit") state.commits += 1;
+        if (input.action === "push") state.pushes += 1;
+        state.afterGitAction?.();
+        return AsyncResult.success({
+          action: input.action,
+          commit: { status: input.action === "commit" ? "created" : "skipped_not_requested" },
+          push: { status: input.action === "push" ? "pushed" : "skipped_not_requested" },
+          pr: { status: "skipped_not_requested" },
+          branch: input.featureBranch
+            ? { status: "created", name: "feature" }
+            : { status: "skipped_not_requested" },
+          toast: { title: "Done", description: "Done", cta: { kind: "none" } },
+        } satisfies GitRunStackedActionResult);
+      },
   },
 }));
 

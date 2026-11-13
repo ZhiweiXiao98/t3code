@@ -138,7 +138,7 @@ function platformFromOs(os: string | null | undefined): string {
 function errorMessage(error: unknown): string {
   return error instanceof Error && error.message.trim().length > 0
     ? error.message
-    : "An error occurred.";
+    : localizeMobileString("An error occurred.");
 }
 
 function stringParam(value: string | string[] | undefined): string | null {
@@ -806,7 +806,9 @@ function useCreateProject(environment: EnvironmentOption | null) {
     if (project === null) {
       Dialog.alert(
         "Project added",
-        "The project was created but has not reached this device yet. It will appear in the project list once the connection catches up.",
+        localizeMobileString(
+          "The project was created but has not reached this device yet. It will appear in the project list once the connection catches up.",
+        ),
       );
       return result;
     }
@@ -848,7 +850,7 @@ export function AddProjectRepositoryScreen(props: {
     if (!environment || repositoryInput.trim().length === 0 || isSubmitting) return;
     const incompleteOwnerMessage = githubIncompleteOwnerRepositoryMessage(source, repositoryInput);
     if (incompleteOwnerMessage) {
-      setError(incompleteOwnerMessage);
+      setError(localizeMobileString(incompleteOwnerMessage));
       return;
     }
     setError(null);
@@ -895,7 +897,7 @@ export function AddProjectRepositoryScreen(props: {
 
   return (
     <AddProjectShell title={source === "url" ? "Git URL" : addProjectRemoteSourceLabel(source)}>
-      {error ? <ErrorBanner message={error} /> : null}
+      {error ? <ErrorBanner localizeMessage={false} message={error} /> : null}
       {environment ? (
         <>
           <TextInput
@@ -951,6 +953,13 @@ function FolderBrowser(props: {
     sessionError: fileAccessSession.error,
   });
   const { canReadFiles } = fileAccess;
+  const fileAccessError =
+    fileAccess.error !== null &&
+    fileAccessSession.error === null &&
+    fileAccessSession.data === null &&
+    fileEnvironment.presentation?.connection.error == null
+      ? localizeMobileString(fileAccess.error)
+      : fileAccess.error;
   const browseState = useEnvironmentQuery(
     !canReadFiles || browseInput === null
       ? null
@@ -973,7 +982,12 @@ function FolderBrowser(props: {
     <>
       <SectionTitle>Browse folders</SectionTitle>
       {!canReadFiles && !fileAccess.isPending ? (
-        <ErrorBanner message={fileAccess.error ?? "This connection cannot browse host folders."} />
+        <ErrorBanner
+          localizeMessage={false}
+          message={
+            fileAccessError ?? localizeMobileString("This connection cannot browse host folders.")
+          }
+        />
       ) : null}
       {browseState.error === null ? null : isMissingCloneParentBrowseFailure({
           cloning: props.cloning === true,
@@ -983,7 +997,7 @@ function FolderBrowser(props: {
           This folder does not exist yet. Cloning creates it.
         </Text>
       ) : (
-        <ErrorBanner message={browseState.error} />
+        <ErrorBanner localizeMessage={false} message={browseState.error} />
       )}
       <ListSection>
         {fileAccess.isPending || (browseState.isPending && browseState.data === null) ? (
@@ -1174,7 +1188,9 @@ export function AddProjectNewScreen(props: { readonly environmentId?: string | s
     if (project === null) {
       setName("");
       setError(
-        "The project was created but has not reached this device yet. It will appear in the project list once the connection catches up.",
+        localizeMobileString(
+          "The project was created but has not reached this device yet. It will appear in the project list once the connection catches up.",
+        ),
       );
       return;
     }
@@ -1190,7 +1206,7 @@ export function AddProjectNewScreen(props: { readonly environmentId?: string | s
 
   return (
     <AddProjectShell title="New project">
-      {error ? <ErrorBanner message={error} /> : null}
+      {error ? <ErrorBanner localizeMessage={false} message={error} /> : null}
       {environment ? (
         <>
           <TextInput
@@ -1335,7 +1351,7 @@ export function AddProjectLocalFolderScreen(props: { readonly environmentId?: st
       platform: environment.platform,
     });
     if (!resolved.ok) {
-      setError(resolved.error);
+      setError(localizeMobileString(resolved.error));
       return;
     }
 
@@ -1349,7 +1365,7 @@ export function AddProjectLocalFolderScreen(props: { readonly environmentId?: st
 
   return (
     <AddProjectShell title="Local folder">
-      {error ? <ErrorBanner message={error} /> : null}
+      {error ? <ErrorBanner localizeMessage={false} message={error} /> : null}
       {environment ? (
         <>
           {!canCreateProject ? (
@@ -1437,7 +1453,7 @@ export function AddProjectDestinationScreen(props: {
       platform: environment.platform,
     });
     if (!resolved.ok) {
-      setError(resolved.error);
+      setError(localizeMobileString(resolved.error));
       return;
     }
 
@@ -1466,7 +1482,9 @@ export function AddProjectDestinationScreen(props: {
       );
       if (project === null) {
         setError(
-          "The project was created but has not reached this device yet. It will appear in the project list once the connection catches up.",
+          localizeMobileString(
+            "The project was created but has not reached this device yet. It will appear in the project list once the connection catches up.",
+          ),
         );
       } else {
         openNewTaskDraft(
@@ -1491,7 +1509,7 @@ export function AddProjectDestinationScreen(props: {
 
   return (
     <AddProjectShell title="Clone destination">
-      {error ? <ErrorBanner message={error} /> : null}
+      {error ? <ErrorBanner localizeMessage={false} message={error} /> : null}
       {repositoryTitle ? (
         <View className="rounded-[24px] bg-grouped-card px-4 py-3">
           <Text localize={false} className="text-base font-t3-bold">

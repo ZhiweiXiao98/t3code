@@ -1,3 +1,4 @@
+import { guestItemFailureMessage } from "../guest/guestItemReadError";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
 import type { CommandOutputView } from "@t3tools/client-runtime/state/command-output";
@@ -33,7 +34,7 @@ export function CommandOutputPanel(props: {
 }) {
   const { locale: newCopyLocale } = useI18n();
   const input = { threadId: props.threadId, itemId: props.itemId };
-  const { data, error } = useEnvironmentQuery<CommandOutputView, unknown>(
+  const { data, error, failure } = useEnvironmentQuery<CommandOutputView, unknown>(
     props.source
       ? props.source(input)
       : orchestrationEnvironment.v2.commandOutput({ environmentId: props.environmentId, input }),
@@ -53,7 +54,8 @@ export function CommandOutputPanel(props: {
     if (error)
       return (
         <div className="text-destructive">
-          {translateWebSource(newCopyLocale, "Could not load output:")} {error}
+          {translateWebSource(newCopyLocale, "Could not load output:")}{" "}
+          {guestItemFailureMessage(newCopyLocale, failure, error)}
         </div>
       );
     if (data === null)

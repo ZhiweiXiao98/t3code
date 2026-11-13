@@ -1,3 +1,4 @@
+import { localizeFilePreviewError } from "./filePreviewErrorMessages";
 import { useStableCallback } from "~/hooks/useStableCallback";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
@@ -309,7 +310,7 @@ export default function BinaryViewer(props: {
       ) : null}
       {error ? (
         <FileSurfaceFailure
-          message={error}
+          message={localizeFilePreviewError(previewLocale, error)}
           {...(props.onRetry ? { onRetry: props.onRetry } : {})}
         />
       ) : busy ? (

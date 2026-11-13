@@ -1,3 +1,4 @@
+import { mobileDisplayDate } from "../../i18n/mobileDateDisplay";
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import { useAtomValue } from "@effect/atom-react";
@@ -595,7 +596,7 @@ export function UsageLimitAccountScreen({ route }: AccountScreenProps) {
               {window.resetsAt ? (
                 <Text selectable className="text-sm text-foreground-muted">
                   Resets{" "}
-                  {new Date(window.resetsAt).toLocaleString(undefined, {
+                  {mobileDisplayDate(window.resetsAt, {
                     dateStyle: "medium",
                     timeStyle: "short",
                   })}

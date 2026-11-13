@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../i18n/mobileStrings";
 import type {
   ChatAttachment,
   MessageId,
@@ -101,8 +102,8 @@ function exitQueuedRunEdit(threadKey: string, edit: QueuedRunEdit): void {
   setThreadComposerError(
     threadKey,
     recovery === "kept"
-      ? "That message already started. Your edit is back in the composer."
-      : "That message already started, so the edit was discarded.",
+      ? localizeMobileString("That message already started. Your edit is back in the composer.")
+      : localizeMobileString("That message already started, so the edit was discarded."),
   );
 }
 

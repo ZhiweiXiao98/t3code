@@ -1,3 +1,4 @@
+import { localizeGuestError } from "~/i18n/guestErrorMessages";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { readWebI18n } from "~/i18n/readWebI18n";
 import { translateWebSource } from "~/i18n/messages";
@@ -300,7 +301,7 @@ function GuestSession({ shareId }: { readonly shareId: string }) {
       : {
           hasMoreHistory: true,
           loading: loadingHistory,
-          error: historyError,
+          error: historyError === null ? null : localizeGuestError(locale, historyError),
           onLoadEarlier: () => void loadEarlier(),
         };
 
@@ -406,7 +407,7 @@ function NameForm({
       </label>
       {error !== null ? (
         <p role="alert" className="text-sm text-destructive">
-          {error}
+          {localizeGuestError(locale, error)}
         </p>
       ) : null}
       <Button type="submit" disabled={submitting || name.trim() === ""}>
@@ -827,7 +828,7 @@ function GuestComposer({
         <GuestModelLabel model={model} />
         {error !== null ? (
           <p role="alert" className="min-w-0 flex-1 text-xs text-destructive">
-            {error}
+            {localizeGuestError(locale, error)}
           </p>
         ) : (
           <p className="min-w-0 flex-1 truncate text-xs text-muted-foreground">

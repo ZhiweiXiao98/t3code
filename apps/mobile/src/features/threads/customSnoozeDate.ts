@@ -1,3 +1,5 @@
+import { MOBILE_LOCALE, type MobileLocale } from "../../i18n/mobileStrings";
+
 /** Compose calendars exchange calendar days at UTC midnight, not local instants. */
 export function snoozeDateToPickerDate(date: Date): string {
   return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())).toISOString();
@@ -13,4 +15,19 @@ export function applySnoozePickerTime(date: Date, selected: Date): Date {
   const next = new Date(date);
   next.setHours(selected.getHours(), selected.getMinutes(), 0, 0);
   return next;
+}
+
+export function snoozePickerLabels(
+  date: Date,
+  is24Hour: boolean,
+  locale: MobileLocale = MOBILE_LOCALE,
+) {
+  return {
+    date: date.toLocaleDateString(locale, { month: "short", day: "numeric" }),
+    time: date.toLocaleTimeString(locale, {
+      hour: "numeric",
+      minute: "2-digit",
+      hourCycle: is24Hour ? "h23" : "h12",
+    }),
+  };
 }

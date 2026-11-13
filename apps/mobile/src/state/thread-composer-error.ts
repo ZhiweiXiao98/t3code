@@ -4,6 +4,7 @@ import { appAtomRegistry } from "./atom-registry";
 
 interface ThreadComposerError {
   readonly message: string;
+  readonly localizeMessage?: boolean;
   readonly messageId: string | null;
 }
 
@@ -16,10 +17,11 @@ export function setThreadComposerError(
   threadKey: string,
   message: string,
   messageId: string | null = null,
+  localizeMessage = true,
 ): void {
   appAtomRegistry.set(threadComposerErrorsAtom, {
     ...appAtomRegistry.get(threadComposerErrorsAtom),
-    [threadKey]: { message, messageId },
+    [threadKey]: { message, messageId, localizeMessage },
   });
 }
 

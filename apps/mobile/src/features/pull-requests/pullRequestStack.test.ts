@@ -71,6 +71,12 @@ describe("mobile stack merge scope", () => {
     ]);
     expect(pullRequestStackMerge(updated, 2, GITHUB).reason).toBeNull();
     expect(pullRequestStackMerge(updated, 1, GITHUB).reason).toContain("no open layers");
+    const chinese = pullRequestStackMerge(updated, 1, GITHUB, "zh-CN");
+    expect(chinese.reason).toBe("没有可通过此拉取请求合并的打开层。");
+    expect({ ...chinese, reason: null }).toEqual({
+      ...pullRequestStackMerge(updated, 1, GITHUB),
+      reason: null,
+    });
   });
   it("blocks closed and draft dependencies, but permits them above the target", () => {
     const closed = {
@@ -89,6 +95,20 @@ describe("mobile stack merge scope", () => {
     };
     expect(pullRequestStackMerge(draft, 3, GITHUB).reason).toContain("ready for review");
     expect(pullRequestStackMerge(draft, 1, GITHUB).reason).toBeNull();
+    for (const [value, expected] of [
+      [closed, "合并此堆叠前，请先重新打开已关闭的层。"],
+      [draft, "请将要合并的每一层标记为可供审查。"],
+    ] as const) {
+      const original = structuredClone(value);
+      const chinese = pullRequestStackMerge(value, 3, GITHUB, "zh-CN");
+      expect(chinese.reason).toBe(expected);
+      expect({ ...chinese, reason: null }).toEqual({
+        ...pullRequestStackMerge(value, 3, GITHUB),
+        reason: null,
+      });
+      expect(pullRequestStackMerge(value, 1, GITHUB, "zh-CN").reason).toBeNull();
+      expect(value).toEqual(original);
+    }
   });
   it("blocks missing revisions and a PR removed from the stack", () => {
     const unknown = {
@@ -97,6 +117,12 @@ describe("mobile stack merge scope", () => {
     };
     expect(pullRequestStackMerge(unknown, 2, GITHUB).reason).toContain("latest revisions");
     expect(pullRequestStackMerge(stack, 99, GITHUB).reason).toContain("no longer in the stack");
+    expect(pullRequestStackMerge(unknown, 2, GITHUB, "zh-CN").reason).toBe(
+      "请刷新堆叠以加载最新修订，再合并。",
+    );
+    expect(pullRequestStackMerge(stack, 99, GITHUB, "zh-CN").reason).toBe(
+      "此拉取请求已不在堆叠中，请刷新。",
+    );
     expect(
       pullRequestStackMerge(stack, 99, sourceControlClients.get("gitlab").changeRequest).reason,
     ).toBe("This merge request is no longer in the stack. Refresh it.");

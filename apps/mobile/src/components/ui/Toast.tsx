@@ -27,6 +27,8 @@ import { SymbolView } from "./AppSymbol";
 export type ToastProps = {
   readonly message: string;
   readonly description?: string;
+  readonly localizeMessage?: boolean;
+  readonly localizeDescription?: boolean;
   readonly singleLine?: boolean;
   readonly tone?: "default" | "success" | "danger";
   readonly busy?: boolean;
@@ -50,10 +52,16 @@ function ToastContent(props: ToastProps & { readonly glassReady?: boolean }) {
   const borderRadius = Platform.OS === "ios" ? 28 : MOBILE_SHAPE.toast;
   // Explicit single-line notices reserve the action's width and truncate the text.
   const inlineAction = props.singleLine || (!props.description && fontScale < 1.5);
+  const messageText =
+    props.localizeMessage === false ? props.message : localizeMobileString(props.message);
+  const descriptionText =
+    props.description === undefined
+      ? undefined
+      : props.localizeDescription === false
+        ? props.description
+        : localizeMobileString(props.description);
   const message =
-    props.singleLine && props.description
-      ? `${localizeMobileString(props.message)}: ${localizeMobileString(props.description)}`
-      : props.message;
+    props.singleLine && props.description ? `${messageText}: ${descriptionText}` : messageText;
   const action = props.action ? (
     <Button
       label={props.action.label}
@@ -64,9 +72,9 @@ function ToastContent(props: ToastProps & { readonly glassReady?: boolean }) {
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- announces the toast message to VoiceOver through AccessibilityInfo
   useEffect(() => {
     if (Platform.OS === "ios") {
-      AccessibilityInfo.announceForAccessibility(localizeMobileString(props.message));
+      AccessibilityInfo.announceForAccessibility(messageText);
     }
-  }, [props.message]);
+  }, [messageText]);
   const surface = (
     <GlassSurface
       key={props.glassReady === false ? "entering" : "settled"}
@@ -95,6 +103,7 @@ function ToastContent(props: ToastProps & { readonly glassReady?: boolean }) {
         )}
         <View className="min-w-0 flex-1" accessibilityLiveRegion="polite">
           <AppText
+            localize={false}
             textRole="footnote"
             className="font-t3-semibold"
             numberOfLines={props.singleLine ? 1 : undefined}
@@ -103,8 +112,8 @@ function ToastContent(props: ToastProps & { readonly glassReady?: boolean }) {
             {message}
           </AppText>
           {props.description && !props.singleLine ? (
-            <AppText textRole="label" className="text-foreground-muted">
-              {props.description}
+            <AppText localize={false} textRole="label" className="text-foreground-muted">
+              {descriptionText}
             </AppText>
           ) : null}
         </View>
@@ -216,7 +225,11 @@ function SwipeableToast(props: ToastProps & { readonly onDismiss: () => void }) 
               accessible
               accessibilityRole="alert"
               accessibilityLiveRegion="assertive"
-              accessibilityLabel={localizeMobileString(props.message)}
+              accessibilityLabel={
+                props.localizeMessage === false
+                  ? props.message
+                  : localizeMobileString(props.message)
+              }
               accessibilityActions={[
                 { name: "dismiss", label: localizeMobileString("Dismiss message") },
               ]}

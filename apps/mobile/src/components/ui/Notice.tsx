@@ -9,6 +9,7 @@ import { GlassSurface } from "./GlassSurface";
 
 export function Notice(props: {
   readonly message: string;
+  readonly localizeMessage?: boolean;
   readonly tone?: "default" | "danger";
   readonly icon?: AppSymbolName;
   readonly iconTone?: "default" | "danger";
@@ -16,13 +17,14 @@ export function Notice(props: {
   readonly onDismiss?: () => void;
   readonly dismissLabel?: string;
 }) {
+  const message =
+    props.localizeMessage === false ? props.message : localizeMobileString(props.message);
   const danger = props.tone === "danger";
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- announces the message to VoiceOver through AccessibilityInfo
   useEffect(() => {
     // Live regions reach TalkBack; VoiceOver needs an explicit announcement.
-    if (Platform.OS === "ios")
-      AccessibilityInfo.announceForAccessibility(localizeMobileString(props.message));
-  }, [props.message]);
+    if (Platform.OS === "ios") AccessibilityInfo.announceForAccessibility(message);
+  }, [message]);
 
   const content = (
     <View className="flex-row items-start gap-3">
@@ -40,6 +42,7 @@ export function Notice(props: {
         </View>
       ) : null}
       <AppText
+        localize={false}
         selectable
         textRole="footnote"
         accessibilityLiveRegion="polite"
@@ -49,7 +52,7 @@ export function Notice(props: {
           !props.floating && "font-t3-medium",
         )}
       >
-        {props.message}
+        {message}
       </AppText>
       {props.onDismiss ? (
         <Pressable

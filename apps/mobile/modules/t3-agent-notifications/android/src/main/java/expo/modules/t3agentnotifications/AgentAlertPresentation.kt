@@ -33,33 +33,56 @@ internal fun agentAlertPresentation(
 ): AgentAlertPresentation {
   val original = AgentAlertPresentation(data["alert_title"].orEmpty(), data["alert_body"].orEmpty())
   if (original.title.isBlank() || original.body.isBlank()) return original
-  val identity = parseAlertIdentity(data["alert_id"] ?: return original) ?: return original
-  if (!identity.grouped) {
-    val row = identity.rows.single()
-    val group = parseAlertGroup(data["alert_group"] ?: return original) ?: return original
-    if (group != (row.environmentId to row.threadId)) return original
-    val path = "/threads/${Uri.encode(row.environmentId)}/${Uri.encode(row.threadId)}"
-    if (data["alert_path"] != path) return original
-    val prefix = "${row.phase.status}: "
-    if (!original.body.startsWith(prefix)) return original
-    val project = original.body.substring(prefix.length)
-    if (project.isBlank()) return original
-    return original.copy(body = strings.text(original.body, "${row.phase.chinese}：$project"))
+  val identity = data["alert_id"]?.let(::parseAlertIdentity)
+  return when {
+    identity == null -> original
+    identity.grouped -> groupedAlertPresentation(data, original, identity.rows, strings) ?: original
+    else -> singleAlertPresentation(data, original, identity.rows.single(), strings) ?: original
   }
+}
 
-  if (data.containsKey("alert_group") || data["alert_path"] != "/") return original
-  val rows = identity.rows
-  if (rows.map { it.environmentId to it.threadId }.distinct().size != rows.size) return original
+private fun singleAlertPresentation(
+  data: Map<String, String>,
+  original: AgentAlertPresentation,
+  row: AlertRow,
+  strings: T3NativeStrings
+): AgentAlertPresentation? {
+  val group = data["alert_group"]?.let(::parseAlertGroup)
+  val path = "/threads/${Uri.encode(row.environmentId)}/${Uri.encode(row.threadId)}"
+  val prefix = "${row.phase.status}: "
+  val project = original.body.takeIf { it.startsWith(prefix) }?.substring(prefix.length)
+  return if (
+    group != (row.environmentId to row.threadId) || data["alert_path"] != path ||
+    project.isNullOrBlank()
+  ) {
+    null
+  } else {
+    original.copy(body = strings.text(original.body, "${row.phase.chinese}：$project"))
+  }
+}
+
+private fun groupedAlertPresentation(
+  data: Map<String, String>,
+  original: AgentAlertPresentation,
+  rows: List<AlertRow>,
+  strings: T3NativeStrings
+): AgentAlertPresentation? {
   val needsUser = rows.first().phase.needsUser
-  if (rows.any { it.phase.needsUser != needsUser }) return original
   val title = "${rows.size} agents ${if (needsUser) "need attention" else "finished"}"
-  if (original.title != title) return original
-  return original.copy(
-    title = strings.text(
-      title,
-      if (needsUser) "${rows.size} 个智能体需要处理" else "${rows.size} 个智能体已结束"
+  return if (
+    data.containsKey("alert_group") || data["alert_path"] != "/" ||
+    rows.map { it.environmentId to it.threadId }.distinct().size != rows.size ||
+    rows.any { it.phase.needsUser != needsUser } || original.title != title
+  ) {
+    null
+  } else {
+    original.copy(
+      title = strings.text(
+        title,
+        if (needsUser) "${rows.size} 个智能体需要处理" else "${rows.size} 个智能体已结束"
+      )
     )
-  )
+  }
 }
 
 // Only relay-generated alert identities authorize translating a template; user text stays opaque.

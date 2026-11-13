@@ -31,11 +31,13 @@ import { useEffect, useState } from "react";
 import { AppState, useWindowDimensions } from "react-native";
 
 import { OverlayPortal } from "../../components/ui/OverlayPortal";
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
 import { useScaledTextRole } from "../settings/appearance/useScaledTextRole";
 import {
   applySnoozePickerDate,
   applySnoozePickerTime,
+  snoozePickerLabels,
   snoozeDateToPickerDate,
 } from "./customSnoozeDate";
 
@@ -79,6 +81,7 @@ export function CustomSnoozeSheet(props: Props) {
   const [amount, setAmount] = useState(2);
   const [unit, setUnit] = useState<"minutes" | "hours" | "days">("hours");
   const [error, setError] = useState<string | null>(null);
+  const pickerLabels = snoozePickerLabels(date, is24Hour);
   const submit = () => {
     const input: CustomSnoozeInput =
       mode === "date"
@@ -87,7 +90,9 @@ export function CustomSnoozeSheet(props: Props) {
     const snoozedUntil = resolveCustomSnooze(input, new Date());
     if (!snoozedUntil) {
       setError(
-        mode === "date" ? "Choose a date and time in the future." : "Enter a positive duration.",
+        localizeMobileString(
+          mode === "date" ? "Choose a date and time in the future." : "Enter a positive duration.",
+        ),
       );
       return;
     }
@@ -144,7 +149,7 @@ export function CustomSnoozeSheet(props: Props) {
                 verticalArrangement={{ spacedBy: 16 }}
                 modifiers={[fillMaxWidth(), padding(24, 24, 24, 16)]}
               >
-                <Text style={titleTypography}>Custom snooze</Text>
+                <Text style={titleTypography}>{localizeMobileString("Custom snooze")}</Text>
                 <RNHostView matchContents={{ vertical: true }} modifiers={[fillMaxWidth()]}>
                   <SegmentedControl
                     variant="card"
@@ -163,15 +168,11 @@ export function CustomSnoozeSheet(props: Props) {
                       options={[
                         {
                           value: "date",
-                          label: date.toLocaleDateString([], { month: "short", day: "numeric" }),
+                          label: pickerLabels.date,
                         },
                         {
                           value: "time",
-                          label: date.toLocaleTimeString([], {
-                            hour: "numeric",
-                            minute: "2-digit",
-                            hourCycle: is24Hour ? "h23" : "h12",
-                          }),
+                          label: pickerLabels.time,
                         },
                       ]}
                       selected={picker}
@@ -258,13 +259,13 @@ export function CustomSnoozeSheet(props: Props) {
                     onClick={props.onClose}
                     colors={{ contentColor: colors["--color-foreground"] }}
                   >
-                    <Text style={bodyTypography}>Cancel</Text>
+                    <Text style={bodyTypography}>{localizeMobileString("Cancel")}</Text>
                   </TextButton>
                   <TextButton
                     onClick={submit}
                     colors={{ contentColor: colors["--color-foreground"] }}
                   >
-                    <Text style={bodyTypography}>Snooze</Text>
+                    <Text style={bodyTypography}>{localizeMobileString("Snooze")}</Text>
                   </TextButton>
                 </Row>
               </Column>

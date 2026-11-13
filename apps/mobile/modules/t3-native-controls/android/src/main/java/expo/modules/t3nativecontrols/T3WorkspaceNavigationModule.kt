@@ -311,12 +311,7 @@ class T3WorkspaceNavigationView(
           IconButton(
             onClick = { expanded = !expanded },
             modifier = Modifier.semantics {
-              contentDescription =
-                if (expanded) {
-                  strings.text("Collapse navigation rail", "收起导航栏")
-                } else {
-                  strings.text("Expand navigation rail", "展开导航栏")
-                }
+              contentDescription = railToggleDescription(expanded)
             },
           ) {
             Icon(
@@ -345,6 +340,12 @@ class T3WorkspaceNavigationView(
         Spacer(Modifier.weight(1f))
       }
     }
+  }
+
+  private fun railToggleDescription(expanded: Boolean) = if (expanded) {
+    strings.text("Collapse navigation rail", "收起导航栏")
+  } else {
+    strings.text("Expand navigation rail", "展开导航栏")
   }
 
   /** The collapsed FAB widens with the rail and reveals its label as it goes. */

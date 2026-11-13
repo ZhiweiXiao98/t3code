@@ -1,8 +1,7 @@
+import { mobileAttachmentTooLargeMessage } from "../i18n/mobileComposerErrorStrings";
+import { localizeMobileString } from "../i18n/mobileStrings";
 import { isTransportConnectionErrorMessage } from "@t3tools/client-runtime/errors";
-import {
-  clampFileAttachmentUploadBytes,
-  fileAttachmentTooLargeMessage,
-} from "@t3tools/client-runtime/state/attachments";
+import { clampFileAttachmentUploadBytes } from "@t3tools/client-runtime/state/attachments";
 import type { EnvironmentShellStatus } from "@t3tools/client-runtime/state/shell";
 import type { ThreadFamilyRead } from "@t3tools/client-runtime/state/threads";
 import {
@@ -235,14 +234,20 @@ export function resolveThreadOutboxDispatchStep(input: {
   }
   const maxBytes = input.serverConfig.maxFileUploadBytes;
   if (maxBytes === undefined) {
-    return { step: "restore", reason: "This server does not support file attachments." };
+    return {
+      step: "restore",
+      reason: localizeMobileString("This server does not support file attachments."),
+    };
   }
   const effectiveMaxBytes = clampFileAttachmentUploadBytes(maxBytes);
   const oversized = input.fileAttachments.find(
     (attachment) => attachment.sizeBytes > effectiveMaxBytes,
   );
   return oversized
-    ? { step: "restore", reason: fileAttachmentTooLargeMessage(oversized.name, effectiveMaxBytes) }
+    ? {
+        step: "restore",
+        reason: mobileAttachmentTooLargeMessage(oversized.name, effectiveMaxBytes),
+      }
     : { step: "send" };
 }
 

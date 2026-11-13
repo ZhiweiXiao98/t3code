@@ -24,3 +24,12 @@ describe("thread composer errors", () => {
     ]);
   });
 });
+
+it("keeps literal error provenance per thread without changing default app-owned messages", () => {
+  setThreadComposerError("opaque", "Settings", "message", false);
+  setThreadComposerError("owned", "Settings");
+  expect(appAtomRegistry.get(threadComposerErrorsAtom)).toMatchObject({
+    opaque: { message: "Settings", messageId: "message", localizeMessage: false },
+    owned: { message: "Settings", messageId: null, localizeMessage: true },
+  });
+});

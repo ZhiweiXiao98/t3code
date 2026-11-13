@@ -209,18 +209,22 @@ export function describeUnavailableModelSelection(
       instanceId: selection.instanceId,
     });
     return {
-      title: "Provider not allowed",
+      title: localizeMobileString("Provider not allowed"),
       detail: `${disallowedProviderMessage(config?.managedPolicy?.organization, label)} ${localizeMobileString("Choose another model.")}`,
     };
   }
   return isDisabledForProject(config, provider, selection.instanceId, projectId)
     ? {
-        title: "Model turned off for this project",
-        detail: "Turn it back on from web or desktop, or choose another model.",
+        title: localizeMobileString("Model turned off for this project"),
+        detail: localizeMobileString(
+          "Turn it back on from web or desktop, or choose another model.",
+        ),
       }
     : {
-        title: "Antigravity model unavailable",
-        detail: "Set up Antigravity on web or desktop, or choose another model.",
+        title: localizeMobileString("Antigravity model unavailable"),
+        detail: localizeMobileString(
+          "Set up Antigravity on web or desktop, or choose another model.",
+        ),
       };
 }
 

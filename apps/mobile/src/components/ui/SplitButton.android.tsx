@@ -17,10 +17,11 @@ import {
   semantics,
   size,
 } from "@expo/ui/jetpack-compose/modifiers";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Pressable } from "react-native";
 
 import { useScaledTextRole } from "../../features/settings/appearance/useScaledTextRole";
+import { localizeMenuActions } from "../../i18n/localizeMenuActions";
 import { SymbolView } from "./AppSymbol";
 import { Button } from "./Button";
 import { MenuPopupItems } from "./MenuPopup.android";
@@ -34,6 +35,7 @@ export function SplitButton(props: SplitButtonProps) {
   const typography = useScaledTextRole("footnote");
   const { scale, iconSize, mediumIconSize, menuWidth } = useAndroidControlSizing();
   const [expanded, setExpanded] = useState(false);
+  const localizedActions = useMemo(() => localizeMenuActions(props.actions), [props.actions]);
   if (props.actions.length === 0) return <Button {...props} tone="primary" fullWidth />;
   const enabled = !props.disabled && !props.loading;
   const menuEnabled = props.actions.some((action) => !action.attributes?.disabled);
@@ -132,7 +134,7 @@ export function SplitButton(props: SplitButtonProps) {
               <DropdownMenu.Items>
                 <MenuPopupItems
                   menuWidth={menuWidth}
-                  actions={props.actions}
+                  actions={localizedActions}
                   title={props.menuTitle}
                   parent={null}
                   onPress={(action) => {

@@ -1,3 +1,6 @@
+import { formatMobileMessage } from "../i18n/mobileDisplayStrings";
+import { localizeMobileString } from "../i18n/mobileStrings";
+import { mobileVcsFailure, mobileVcsResultTitle } from "../i18n/mobileVcsStrings";
 import { useAtomMount } from "@effect/atom-react";
 
 import { EnvironmentProject, EnvironmentThreadShell } from "@t3tools/client-runtime/state/shell";
@@ -199,9 +202,13 @@ export function useSelectedThreadGitActions() {
         : await vcsActionManager.track(appAtomRegistry, target, { operation, label }, run);
     if (AsyncResult.isFailure(result)) {
       const error = Cause.squash(result.cause);
-      const message = error instanceof Error ? error.message : "Git action failed.";
+      const message = mobileVcsFailure(error, "Git action failed.");
       setPendingConnectionError(message);
-      showGitActionResult({ type: "error", title: "Git action failed", description: message });
+      showGitActionResult({
+        type: "error",
+        title: localizeMobileString("Git action failed"),
+        description: message,
+      });
       return null;
     }
     return result.value;
@@ -215,9 +222,13 @@ export function useSelectedThreadGitActions() {
     });
     if (AsyncResult.isFailure(result)) {
       const error = Cause.squash(result.cause);
-      const message = error instanceof Error ? error.message : "Failed to refresh branches.";
+      const message = mobileVcsFailure(error, "Failed to refresh branches.");
       setPendingConnectionError(message);
-      showGitActionResult({ type: "error", title: "Git action failed", description: message });
+      showGitActionResult({
+        type: "error",
+        title: localizeMobileString("Git action failed"),
+        description: message,
+      });
       return null;
     }
     setPendingConnectionError(null);
@@ -348,8 +359,8 @@ export function useSelectedThreadGitActions() {
           type: "success",
           title:
             result.value.status === "skipped_up_to_date"
-              ? "Already up to date"
-              : `Pulled latest on ${result.value.refName}`,
+              ? localizeMobileString("Already up to date")
+              : formatMobileMessage("Pulled latest on {0}", [result.value.refName]),
         });
         return result;
       },
@@ -393,7 +404,7 @@ export function useSelectedThreadGitActions() {
         }
         showGitActionResult({
           type: "success",
-          title: result.value.toast.title,
+          title: mobileVcsResultTitle(result.value),
           description: result.value.toast.description,
           prUrl: result.value.toast.cta.kind === "open_pr" ? result.value.toast.cta.url : undefined,
         });

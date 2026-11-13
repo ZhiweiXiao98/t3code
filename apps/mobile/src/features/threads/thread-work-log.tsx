@@ -1,3 +1,4 @@
+import { mobileDisplayDate, mobileUsageLimitLabel } from "../../i18n/mobileDateDisplay";
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import { Button } from "../../components/ui/Button";
@@ -897,18 +898,7 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
     const warning = failureItem.failure.class === "usage_limit";
     const timestamp = new Date(row.createdAt);
     const resetAt = failureItem.failure.resetAt;
-    // The reset time is the viewer's local time; naming the zone keeps it unambiguous.
-    const resetTime = resetAt
-      ? `${new Date(resetAt).toLocaleString(undefined, {
-          month: "short",
-          day: "numeric",
-          hour: "numeric",
-          minute: "2-digit",
-        })} (${new Intl.DateTimeFormat().resolvedOptions().timeZone})`
-      : null;
-    const label = warning
-      ? `Usage limit reached.${resetTime ? ` Retry after ${resetTime}.` : ""}`
-      : row.summary;
+    const label = warning ? mobileUsageLimitLabel(resetAt) : row.summary;
     return (
       <WorkLogPressable
         accessibilityLabel={warning ? label : `${row.summary}: ${failureItem.failure.message}`}
@@ -925,6 +915,7 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
               />
             </WorkLogIconSlot>
             <Text
+              localize={false}
               className={
                 warning
                   ? "min-w-0 flex-1 font-t3-medium text-sm text-warning-foreground"
@@ -939,10 +930,10 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
               </Text>
             ) : null}
             <Text
-              accessibilityLabel={timestamp.toLocaleString()}
+              accessibilityLabel={mobileDisplayDate(timestamp)}
               className="shrink-0 text-xs text-foreground-subtle"
             >
-              {timestamp.toLocaleString(undefined, {
+              {mobileDisplayDate(timestamp, {
                 month: "short",
                 day: "numeric",
                 hour: "numeric",
@@ -951,7 +942,7 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
             </Text>
           </View>
           {!warning ? (
-            <Text selectable className="ml-7 text-sm text-foreground">
+            <Text localize={false} selectable className="ml-7 text-sm text-foreground">
               {failureItem.failure.message}
             </Text>
           ) : null}

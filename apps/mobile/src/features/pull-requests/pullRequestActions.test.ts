@@ -57,12 +57,37 @@ describe("mobile pull request actions", () => {
       ),
     ).toBe(false);
     expect(mergeUnavailableReason(detail(), false, GITHUB)).toContain("read-only");
+    const reasons = [
+      [detail(), false, "此环境连接为只读。"],
+      [detail({ viewerPermissions: { actions: [] } }), true, "你的账户无法合并此拉取请求。"],
+      [
+        detail({ capabilities: { actions: [], mergeMethods: ["merge"] } }),
+        true,
+        "此提供商不支持在此处合并。",
+      ],
+      [detail({ isDraft: true }), true, "请先将此草稿标记为可供审查，再合并。"],
+      [
+        detail({ mergeCapabilities: { merge: false, squash: false, rebase: false } }),
+        true,
+        "此仓库没有可用的合并方式。",
+      ],
+    ] as const;
+    for (const [pr, writable, expected] of reasons) {
+      const snapshot = structuredClone(pr);
+      expect(mergeUnavailableReason(pr, writable, GITHUB, "zh-CN")).toBe(expected);
+      expect(mergeUnavailableReason(pr, writable, GITHUB, "en")).toBe(
+        mergeUnavailableReason(pr, writable, GITHUB),
+      );
+      expect(pr).toEqual(snapshot);
+    }
+    expect(mergeUnavailableReason(detail(), true, GITHUB, "zh-CN")).toBeNull();
   });
 
   it("blocks a conflicting PR's immediate merge and explains why", () => {
     const pr = detail({ mergeability: "conflicting" });
     expect(canPerformPullRequestAction(pr, "merge")).toBe(false);
     expect(mergeUnavailableReason(pr, true, GITHUB)).toContain("conflicts");
+    expect(mergeUnavailableReason(pr, true, GITHUB, "zh-CN")).toBe("请先解决分支冲突，再合并。");
   });
 
   it("names the change request with its host's term", () => {
@@ -71,6 +96,12 @@ describe("mobile pull request actions", () => {
     expect(pullRequestActionLabel("revert", GITLAB)).toBe("Create revert merge request");
     expect(mergeUnavailableReason(detail({ state: "merged" }), true, GITLAB)).toBe(
       "This merge request has been merged.",
+    );
+    expect(mergeUnavailableReason(detail({ state: "merged" }), true, GITLAB, "zh-CN")).toBe(
+      "此合并请求已合并。",
+    );
+    expect(mergeUnavailableReason(detail({ state: "closed" }), true, GITLAB, "zh-CN")).toBe(
+      "请重新打开此合并请求后再合并。",
     );
   });
 });

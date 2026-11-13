@@ -1,3 +1,6 @@
+import { managedRuntimeModeDenial } from "../i18n/managedPolicyMessages";
+import { formatMobileMessage } from "../i18n/mobileDisplayStrings";
+import { localizeMobileString } from "../i18n/mobileStrings";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
 import * as Dialog from "../components/ui/Dialog";
 import {
@@ -17,7 +20,6 @@ import {
   DEFAULT_PROVIDER_INTERACTION_MODE,
   DEFAULT_RUNTIME_MODE,
   MessageId,
-  managedRuntimeModeDenial,
   PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
   type EnvironmentId,
 } from "@t3tools/contracts";
@@ -403,6 +405,7 @@ export async function recoverEditedCreationAfterDelivery(
 export async function restoreRejectedQueuedMessage(
   queuedMessage: QueuedThreadMessage,
   message: string,
+  localizeMessage = true,
 ): Promise<"restored" | "deferred" | "blocked" | "retry"> {
   const draftKey = recoveryDraftKey(queuedMessage);
   const threadKey = scopedThreadKey(queuedMessage.environmentId, queuedMessage.threadId);
@@ -431,7 +434,10 @@ export async function restoreRejectedQueuedMessage(
     if (existingAttachmentIds.size + addedAttachmentCount > PROVIDER_SEND_TURN_MAX_ATTACHMENTS) {
       setThreadComposerError(
         threadKey,
-        `Remove attachments from the draft before restoring this message. Messages can contain at most ${PROVIDER_SEND_TURN_MAX_ATTACHMENTS} attachments.`,
+        formatMobileMessage(
+          "Remove attachments from the draft before restoring this message. Messages can contain at most {0} attachments.",
+          [PROVIDER_SEND_TURN_MAX_ATTACHMENTS],
+        ),
         queuedMessage.messageId,
       );
       return "blocked";
@@ -439,7 +445,7 @@ export async function restoreRejectedQueuedMessage(
 
     const withdrawError = () => clearThreadComposerError(threadKey, queuedMessage.messageId);
     if (!queuedMessage.creation) {
-      setThreadComposerError(threadKey, message, queuedMessage.messageId);
+      setThreadComposerError(threadKey, message, queuedMessage.messageId, localizeMessage);
     }
     let mergedDraft: ComposerDraft;
     try {
@@ -523,8 +529,11 @@ export async function restoreRejectedQueuedMessage(
     console.warn("[thread-outbox] failed to restore an undeliverable message", error);
     setThreadComposerError(
       threadKey,
-      error instanceof Error ? error.message : "The unsent message could not be restored.",
+      error instanceof Error
+        ? error.message
+        : localizeMobileString("The unsent message could not be restored."),
       queuedMessage.messageId,
+      false,
     );
     return "retry";
   }
@@ -669,7 +678,10 @@ function reportCommandFailure(
   });
   return {
     action,
-    message: error instanceof Error ? error.message : "The message could not be sent.",
+    message:
+      error instanceof Error
+        ? error.message
+        : localizeMobileString("The message could not be sent."),
   };
 }
 
@@ -745,8 +757,9 @@ export function createThreadOutboxDelivery(): {
   const restoreQueuedMessage = async (
     queuedMessage: QueuedThreadMessage,
     message: string,
+    localizeMessage = true,
   ): Promise<boolean> => {
-    const result = await restoreRejectedQueuedMessage(queuedMessage, message);
+    const result = await restoreRejectedQueuedMessage(queuedMessage, message, localizeMessage);
     if (result !== "blocked") {
       return result !== "retry";
     }
@@ -798,7 +811,7 @@ export function createThreadOutboxDelivery(): {
         settings.modelSelection,
         thread.projectId,
       );
-      return restoreQueuedMessage(queuedMessage, `${title}. ${detail}`);
+      return restoreQueuedMessage(queuedMessage, `${title}. ${detail}`, false);
     }
     // The server would refuse this mode in settings sync, which retries forever; stop first.
     const runtimeModeDenial = managedRuntimeModeDenial(
@@ -806,7 +819,7 @@ export function createThreadOutboxDelivery(): {
       settings.runtimeMode,
     );
     if (runtimeModeDenial !== undefined) {
-      return restoreQueuedMessage(queuedMessage, runtimeModeDenial);
+      return restoreQueuedMessage(queuedMessage, runtimeModeDenial, false);
     }
 
     if (settings.runtimeMode !== thread.runtimeMode) {
@@ -865,7 +878,10 @@ export function createThreadOutboxDelivery(): {
       if (!shouldRetryThreadOutboxDelivery(error)) {
         return restoreQueuedMessage(
           queuedMessage,
-          error instanceof Error ? error.message : "An attachment could not upload.",
+          error instanceof Error
+            ? error.message
+            : localizeMobileString("An attachment could not upload."),
+          false,
         );
       }
       return false;
@@ -883,7 +899,7 @@ export function createThreadOutboxDelivery(): {
         settings.modelSelection,
         thread.projectId,
       );
-      return restoreQueuedMessage(persistedMessage, `${title}. ${detail}`);
+      return restoreQueuedMessage(persistedMessage, `${title}. ${detail}`, false);
     }
     const sendSettings = resolveQueuedThreadSettings(
       queuedMessage,
@@ -917,7 +933,7 @@ export function createThreadOutboxDelivery(): {
       const compactionFailure = reportCommandFailure(queuedMessage, compactionResult, "start-turn");
       if (compactionFailure?.action === "retry") return false;
       if (compactionFailure?.action === "restore") {
-        return restoreQueuedMessage(persistedMessage, compactionFailure.message);
+        return restoreQueuedMessage(persistedMessage, compactionFailure.message, false);
       }
       if (!isQueuedMessagePayloadCurrent(persistedMessage, deliveryRevision)) return true;
     }
@@ -959,7 +975,7 @@ export function createThreadOutboxDelivery(): {
       return false;
     }
     if (failure?.action === "restore") {
-      return restoreQueuedMessage(persistedMessage, failure.message);
+      return restoreQueuedMessage(persistedMessage, failure.message, false);
     }
     acknowledgedExistingThreadMessageIds.add(persistedMessage.messageId);
     const delivered =
@@ -1005,14 +1021,14 @@ export function createThreadOutboxDelivery(): {
         settings.modelSelection,
         creation.projectId,
       );
-      return restoreQueuedMessage(queuedMessage, `${title}. ${detail}`);
+      return restoreQueuedMessage(queuedMessage, `${title}. ${detail}`, false);
     }
     const runtimeModeDenial = managedRuntimeModeDenial(
       serverConfig.managedPolicy,
       settings.runtimeMode,
     );
     if (runtimeModeDenial !== undefined) {
-      return restoreQueuedMessage(queuedMessage, runtimeModeDenial);
+      return restoreQueuedMessage(queuedMessage, runtimeModeDenial, false);
     }
     let prepared: PreparedTurnAttachments;
     let persistedMessage: QueuedThreadMessage;
@@ -1035,7 +1051,10 @@ export function createThreadOutboxDelivery(): {
       if (!shouldRetryThreadOutboxDelivery(error)) {
         return restoreQueuedMessage(
           queuedMessage,
-          error instanceof Error ? error.message : "An attachment could not upload.",
+          error instanceof Error
+            ? error.message
+            : localizeMobileString("An attachment could not upload."),
+          false,
         );
       }
       return false;
@@ -1053,7 +1072,7 @@ export function createThreadOutboxDelivery(): {
         settings.modelSelection,
         creation.projectId,
       );
-      return restoreQueuedMessage(persistedMessage, `${title}. ${detail}`);
+      return restoreQueuedMessage(persistedMessage, `${title}. ${detail}`, false);
     }
     const sendSettings = resolveQueuedThreadSettings(
       queuedMessage,
@@ -1072,7 +1091,7 @@ export function createThreadOutboxDelivery(): {
       const failure = reportCommandFailure(queuedMessage, checkout, "start-turn");
       if (failure?.action === "retry") return false;
       if (failure?.action === "restore")
-        return restoreQueuedMessage(persistedMessage, failure.message);
+        return restoreQueuedMessage(persistedMessage, failure.message, false);
       if (!AsyncResult.isSuccess(checkout)) return false;
       if (!checkout.value.worktreePath || !checkout.value.isOnPullRequestHead) {
         const { shortLabel } = (
@@ -1081,7 +1100,10 @@ export function createThreadOutboxDelivery(): {
         ).changeRequest;
         return restoreQueuedMessage(
           persistedMessage,
-          `The ${shortLabel} worktree has local changes and could not update to the ${shortLabel} head. Resolve them before trying again.`,
+          formatMobileMessage(
+            "The {0} worktree has local changes and could not update to the {0} head. Resolve them before trying again.",
+            [shortLabel],
+          ),
         );
       }
       workspace = {
@@ -1127,7 +1149,7 @@ export function createThreadOutboxDelivery(): {
       return false;
     }
     if (failure?.action === "restore") {
-      return restoreQueuedMessage(persistedMessage, failure.message);
+      return restoreQueuedMessage(persistedMessage, failure.message, false);
     }
     recordPendingThreadCreationOutcome({ kind: "delivered", message: persistedMessage });
     const outcome = await completeQueuedMessageDelivery(

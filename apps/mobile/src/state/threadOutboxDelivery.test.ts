@@ -758,17 +758,28 @@ describe("thread outbox recovery rollback", () => {
     ).toEqual({ kind: "failed", message, reason: "rejected by server" });
   });
 
-  it("does not record a creation outcome for a rejected follow-up message", async () => {
-    const message = queuedMessage({ messageId: "message-followup-restore", text: "follow up" });
-    await harness.manager.enqueue(message);
+  it.each([undefined, false])(
+    "does not record a creation outcome and preserves follow-up error provenance: %s",
+    async (localizeMessage) => {
+      const message = queuedMessage({ messageId: "message-followup-restore", text: "follow up" });
+      await harness.manager.enqueue(message);
 
-    await expect(restoreRejectedQueuedMessage(message, "rejected")).resolves.toBe("restored");
+      await expect(
+        restoreRejectedQueuedMessage(message, "rejected", localizeMessage),
+      ).resolves.toBe("restored");
 
-    expect(appAtomRegistry.get(pendingThreadCreationOutcomesAtom)).toEqual({});
-    expect(
-      appAtomRegistry.get(threadComposerErrorsAtom)[`${message.environmentId}:${message.threadId}`],
-    ).toEqual({ message: "rejected", messageId: message.messageId });
-  });
+      expect(appAtomRegistry.get(pendingThreadCreationOutcomesAtom)).toEqual({});
+      expect(
+        appAtomRegistry.get(threadComposerErrorsAtom)[
+          `${message.environmentId}:${message.threadId}`
+        ],
+      ).toEqual({
+        message: "rejected",
+        messageId: message.messageId,
+        localizeMessage: localizeMessage ?? true,
+      });
+    },
+  );
 
   it("leaves no error when the restored text is resent before recovery finishes", async () => {
     const message = queuedMessage({ messageId: "message-resent", text: "resend me" });

@@ -1,3 +1,4 @@
+import { localizeFilePreviewError } from "./filePreviewErrorMessages";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
 import { useStableCallback } from "~/hooks/useStableCallback";
@@ -124,7 +125,8 @@ export default function OfficeViewer(props: {
           {translateWebSource(previewLocale, "No preview for this file")}
         </p>
         <p className="max-w-sm text-xs leading-relaxed text-muted-foreground">
-          {error} {translateWebSource(previewLocale, "Save it or open it in another app.")}
+          {localizeFilePreviewError(previewLocale, error)}{" "}
+          {translateWebSource(previewLocale, "Save it or open it in another app.")}
         </p>
       </div>
     );

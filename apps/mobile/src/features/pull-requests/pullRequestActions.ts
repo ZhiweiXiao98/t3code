@@ -10,6 +10,8 @@ import type {
 } from "@t3tools/contracts";
 import type { AppSymbolName } from "../../components/ui/AppSymbol";
 import { PullRequestGlyph } from "./pullRequestGlyphs";
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
+import { localizeMobileString, type MobileLocale } from "../../i18n/mobileStrings";
 
 type ActionDetail = Pick<
   PullRequestDetail,
@@ -121,17 +123,25 @@ export function mergeUnavailableReason(
   pr: ActionDetail,
   connectionAllowsWrites: boolean,
   terminology: ChangeRequestTerminology,
+  locale: MobileLocale = "en",
 ) {
-  if (pr.state === "merged") return `This ${terminology.singular} has been merged.`;
-  if (pr.state === "closed") return `Reopen this ${terminology.singular} before merging.`;
-  if (!connectionAllowsWrites) return "This environment connection is read-only.";
+  const term = localizeMobileString(terminology.singular, locale);
+  if (pr.state === "merged")
+    return formatMobileMessage("This {0} has been merged.", [term], locale);
+  if (pr.state === "closed")
+    return formatMobileMessage("Reopen this {0} before merging.", [term], locale);
+  if (!connectionAllowsWrites)
+    return localizeMobileString("This environment connection is read-only.", locale);
   if (!pr.capabilities.actions.includes("merge"))
-    return "This provider does not support merging here.";
+    return localizeMobileString("This provider does not support merging here.", locale);
   if (!pr.viewerPermissions.actions.includes("merge"))
-    return `Your account cannot merge this ${terminology.singular}.`;
-  if (pr.isDraft) return "Mark this draft ready for review before merging.";
-  if (pr.mergeability === "conflicting") return "Resolve the branch conflicts before merging.";
-  if (!allowedMergeMethods(pr).length) return "This repository has no available merge methods.";
+    return formatMobileMessage("Your account cannot merge this {0}.", [term], locale);
+  if (pr.isDraft)
+    return localizeMobileString("Mark this draft ready for review before merging.", locale);
+  if (pr.mergeability === "conflicting")
+    return localizeMobileString("Resolve the branch conflicts before merging.", locale);
+  if (!allowedMergeMethods(pr).length)
+    return localizeMobileString("This repository has no available merge methods.", locale);
   return null;
 }
 

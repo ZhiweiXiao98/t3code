@@ -1,3 +1,5 @@
+import { WebI18nContext } from "~/i18n/WebI18nContext";
+import { translateWebMessage } from "~/i18n/messages";
 import {
   EventId,
   GUEST_COMMAND_OUTPUT_ROUTE,
@@ -399,4 +401,69 @@ describe("GuestPage", () => {
       await expect.element(screen.getByText("Logout reply")).toBeInTheDocument();
     }
   });
+});
+
+describe("guest failure localization", () => {
+  it.each(["en", "zh-CN"] as const)(
+    "localizes owned POST errors but preserves unknown errors and submitted content (%s)",
+    async (locale) => {
+      using _page = visit(`/guest?share=${SHARE_ID}`);
+      let failure = "The owner's server rejected this request.";
+      using fetchSpy = vi
+        .spyOn(window, "fetch")
+        .mockImplementation(async (_url, init) =>
+          init?.method === "POST"
+            ? Response.json({ reason: "rejected", message: failure }, { status: 403 })
+            : new Response(null, { status: 204 }),
+        );
+      using _stream = vi
+        .spyOn(window, "EventSource")
+        .mockImplementation(
+          fakeEventSource(opening([run("run-1", 1, "completed")], items)) as never,
+        );
+      await using screen = await render(
+        <WebI18nContext
+          value={{
+            locale,
+            appLocale: locale,
+            setAppLocale: () => undefined,
+            t: (key, values) => translateWebMessage(locale, key, values),
+          }}
+        >
+          <GuestPage />
+        </WebI18nContext>,
+      );
+      const filename = "This guest link is not valid.";
+      await userEvent.upload(
+        screen.getByLabelText(locale === "en" ? "Files to attach" : "要附加的文件"),
+        new File(["opaque content"], filename, { type: "text/plain" }),
+      );
+      await expect.element(screen.getByText(filename, { exact: true })).toBeVisible();
+      const message = "Could not load this item. / 用户 {message} $&";
+      await userEvent.fill(
+        screen.getByRole("textbox", { name: locale === "en" ? "Message" : "消息" }),
+        message,
+      );
+      const send = screen.getByRole("button", {
+        name: locale === "en" ? "Send" : "发送",
+        exact: true,
+      });
+      await userEvent.click(send);
+      await expect
+        .element(
+          screen.getByText(locale === "en" ? failure : "所有者的服务器拒绝了此请求。", {
+            exact: true,
+          }),
+        )
+        .toBeVisible();
+      const body = fetchSpy.mock.calls.find(([, init]) => init?.method === "POST")?.[1]
+        ?.body as FormData;
+      expect(body.get("text")).toBe(message);
+      expect((body.get("file") as File).name).toBe(filename);
+      failure = "provider/{name}/$&/未知错误";
+      await userEvent.click(send);
+      await expect.element(screen.getByText(failure, { exact: true })).toBeVisible();
+      await expect.element(screen.getByText(filename, { exact: true })).toBeVisible();
+    },
+  );
 });

@@ -1,27 +1,34 @@
 import type { ChangeRequestTerminology } from "@t3tools/client-runtime/source-control-clients";
 import type { PullRequestRef, PullRequestStack, ThreadPullRequestLink } from "@t3tools/contracts";
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
+import { localizeMobileString, type MobileLocale } from "../../i18n/mobileStrings";
 
 export function pullRequestStackMerge(
   stack: PullRequestStack,
   number: number,
   terminology: ChangeRequestTerminology,
+  locale: MobileLocale = "en",
 ) {
   const position = stack.layers.findIndex((layer) => layer.number === number);
   const layers = stack.layers.slice(0, position + 1).filter((layer) => layer.state !== "merged");
   const heads = layers.flatMap((layer) =>
     layer.headSha ? [{ number: layer.number, headSha: layer.headSha }] : [],
   );
+  const term = localizeMobileString(terminology.singular, locale);
   const reason =
     position < 0
-      ? `This ${terminology.singular} is no longer in the stack. Refresh it.`
+      ? formatMobileMessage("This {0} is no longer in the stack. Refresh it.", [term], locale)
       : stack.layers[position]?.state !== "open" || layers.length === 0
-        ? `There are no open layers to merge through this ${terminology.singular}.`
+        ? formatMobileMessage("There are no open layers to merge through this {0}.", [term], locale)
         : layers.some((layer) => layer.state !== "open")
-          ? "Reopen the closed layers before merging this stack."
+          ? localizeMobileString("Reopen the closed layers before merging this stack.", locale)
           : layers.some((layer) => layer.isDraft)
-            ? "Mark every layer being merged ready for review."
+            ? localizeMobileString("Mark every layer being merged ready for review.", locale)
             : heads.length !== layers.length
-              ? "Refresh the stack to load its latest revisions before merging."
+              ? localizeMobileString(
+                  "Refresh the stack to load its latest revisions before merging.",
+                  locale,
+                )
               : null;
   return { position: position + 1, layers, heads, reason };
 }

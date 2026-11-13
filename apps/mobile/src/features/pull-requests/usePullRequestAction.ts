@@ -14,6 +14,9 @@ import { useAtomCommand } from "../../state/use-atom-command";
 import { canPerformPullRequestAction, pullRequestActionLabel } from "./pullRequestActions";
 import { pullRequestTarget, type PullRequestParams } from "./usePullRequestDiff";
 import { usePullRequestPermissions } from "./usePullRequestPermissions";
+import { pullRequestActionFailure } from "./pullRequestMergeDisplay";
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
+import { localizeMobileString } from "../../i18n/mobileStrings";
 
 export function usePullRequestAction(params: PullRequestParams, pr: PullRequestDetail | null) {
   const target = pullRequestTarget(params);
@@ -36,9 +39,11 @@ export function usePullRequestAction(params: PullRequestParams, pr: PullRequestD
     setBusy(false);
     if (AsyncResult.isFailure(response)) {
       const cause = squashAtomCommandFailure(response);
-      Dialog.alert(
-        `Couldn't update this ${sourceControlClients.get(pr?.provider).changeRequest.singular}`,
-        cause instanceof Error ? cause.message : "Try again.",
+      Dialog.alertWithLiteralMessage(
+        formatMobileMessage("Couldn't update this {0}", [
+          localizeMobileString(sourceControlClients.get(pr?.provider).changeRequest.singular),
+        ]),
+        pullRequestActionFailure(cause),
       );
       return;
     }

@@ -1,3 +1,4 @@
+import { mobileVcsElapsed, mobileVcsProgressLabel } from "../i18n/mobileVcsStrings";
 import { useAtomValue } from "@effect/atom-react";
 import { secondTick } from "@t3tools/client-runtime/clock";
 import { type VcsActionState, type VcsActionTarget } from "@t3tools/client-runtime/state/vcs";
@@ -77,13 +78,6 @@ const EMPTY_PROGRESS: GitActionProgress = {
   description: null,
 };
 
-function formatElapsedSeconds(ms: number | null, nowMs: number): string | null {
-  if (ms === null) return null;
-  const elapsed = Math.max(0, Math.floor((nowMs - ms) / 1000));
-  if (elapsed < 2) return null;
-  return `Running for ${elapsed}s`;
-}
-
 export function useGitActionProgress(target: VcsActionTarget): GitActionProgress {
   const actionState = useVcsActionState(target);
   const { result } = useGitActionResultNotification();
@@ -97,10 +91,10 @@ export function useGitActionProgress(target: VcsActionTarget): GitActionProgress
   if (actionState.isRunning) {
     const description =
       actionState.lastOutputLine ??
-      formatElapsedSeconds(actionState.hookStartedAtMs ?? actionState.phaseStartedAtMs, nowMs);
+      mobileVcsElapsed(actionState.hookStartedAtMs ?? actionState.phaseStartedAtMs, nowMs);
     return {
       phase: "running",
-      label: actionState.currentLabel,
+      label: mobileVcsProgressLabel(actionState.currentLabel, actionState.hookName),
       description,
     };
   }

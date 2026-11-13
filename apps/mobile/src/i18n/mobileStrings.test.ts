@@ -600,3 +600,36 @@ it("localizes native presentation and recovery application copy", () => {
     expect(localizeMobileString(source, "zh-CN")).toBe(translated);
   }
 });
+
+it("localizes the shared runtime streaming-preview fallback without changing the English baseline", () => {
+  const source = "Streaming file previews are unavailable in this runtime.";
+  expect(localizeMobileString(source, "en")).toBe(source);
+  expect(localizeMobileString(source, "zh-CN")).toBe("此运行环境不支持流式文件预览。");
+});
+
+it("localizes binary and non-UTF8 file-preview decode failures", () => {
+  for (const [source, translated] of [
+    [
+      "This file contains binary data and cannot be shown as text.",
+      "此文件包含二进制数据，无法显示为文本。",
+    ],
+    [
+      "This file is not UTF-8 text. Open it in another app to view its contents.",
+      "此文件不是 UTF-8 文本，请在其他应用中打开以查看其内容。",
+    ],
+  ]) {
+    expect(localizeMobileString(source!, "en")).toBe(source);
+    expect(localizeMobileString(source!, "zh-CN")).toBe(translated);
+  }
+});
+
+it("localizes snooze units and the merge busy state", () => {
+  for (const [source, translated] of [
+    ["Duration", "时长"],
+    ["Minutes", "分钟"],
+    ["Working…", "运行中…"],
+  ] as const) {
+    expect(localizeMobileString(source, "en")).toBe(source);
+    expect(localizeMobileString(source, "zh-CN")).toBe(translated);
+  }
+});

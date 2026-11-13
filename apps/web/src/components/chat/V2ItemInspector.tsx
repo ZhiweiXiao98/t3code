@@ -1,3 +1,5 @@
+import { guestItemFailureMessage } from "../guest/guestItemReadError";
+import { localizeGuestError } from "~/i18n/guestErrorMessages";
 import { useI18n } from "~/i18n/WebI18nContext";
 import type { ToolCallDiffTarget } from "../../diffPanelStore";
 import type { EnvironmentId, OrchestrationV2ProjectedTurnItem } from "@t3tools/contracts";
@@ -99,6 +101,7 @@ function useFetchedTurnItem(
   source: TurnItemSource | undefined,
   skip = false,
 ) {
+  const { locale } = useI18n();
   const wireItem = projectedItem.item;
   const fetches = !skip && turnItemNeedsDetailFetch(wireItem);
   const detail = useTurnItemDetail(
@@ -125,8 +128,8 @@ function useFetchedTurnItem(
         item !== wireItem
           ? null
           : detail.data?.item === null
-            ? "Output is no longer available."
-            : detail.error,
+            ? localizeGuestError(locale, "Output is no longer available.")
+            : guestItemFailureMessage(locale, detail.failure, detail.error),
       empty: fetches && item !== wireItem,
     },
   };

@@ -1,3 +1,4 @@
+import { localizeFilePreviewError } from "./filePreviewErrorMessages";
 import { translateWebSource } from "~/i18n/messages";
 import { splitWebTranslation, useI18n } from "~/i18n/WebI18nContext";
 import { DownloadIcon, CopyIcon, CheckIcon, Code2Icon, EyeIcon, Table2Icon } from "lucide-react";
@@ -1628,7 +1629,9 @@ export function WorkspaceLargeTextPreview(props: {
       type: "error",
       title: translateWebSource(locale, "Could not read file"),
       description:
-        cause instanceof Error ? cause.message : translateWebSource(locale, "Try again."),
+        cause instanceof Error
+          ? localizeFilePreviewError(locale, cause.message)
+          : translateWebSource(locale, "Try again."),
     });
   };
   // Each workspace mutation re-mints the URL, so an edited file loads its new bytes.

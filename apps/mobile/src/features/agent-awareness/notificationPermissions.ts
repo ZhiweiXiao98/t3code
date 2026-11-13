@@ -2,6 +2,7 @@ import * as Notifications from "expo-notifications";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 import { Platform } from "react-native";
+import { localizeMobileString } from "../../i18n/mobileStrings";
 
 export type NotificationPermissionResult =
   | { readonly type: "unsupported" }
@@ -15,7 +16,7 @@ export class NotificationPermissionReadError extends Schema.TaggedError<Notifica
   },
 ) {
   override get message(): string {
-    return "Failed to read notification permissions.";
+    return localizeMobileString("Failed to read notification permissions.");
   }
 }
 
@@ -26,7 +27,7 @@ export class NotificationPermissionRequestError extends Schema.TaggedError<Notif
   },
 ) {
   override get message(): string {
-    return "Failed to request notification permissions.";
+    return localizeMobileString("Failed to request notification permissions.");
   }
 }
 
@@ -42,7 +43,7 @@ export const requestAgentNotificationPermission: Effect.Effect<
     yield* Effect.tryPromise({
       try: () =>
         Notifications.setNotificationChannelAsync("agent-alerts", {
-          name: "Agent alerts",
+          name: localizeMobileString("Agent alerts"),
           importance: Notifications.AndroidImportance.HIGH,
         }),
       catch: (cause) => new NotificationPermissionRequestError({ cause }),
