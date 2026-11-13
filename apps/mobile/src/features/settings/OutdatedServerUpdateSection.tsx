@@ -1,3 +1,5 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { useAtom, useAtomValue } from "@effect/atom-react";
 import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
 import type { EnvironmentId } from "@t3tools/contracts";
@@ -52,9 +54,12 @@ export function OutdatedServerUpdateSection({
   function requestUpdate() {
     const targetVersion = release?.targetVersion;
     if (busy || !release || !targetVersion) return;
-    Dialog.alert(
-      `Update ${label}?`,
-      `Install T3 Code ${targetVersion}. T3 Code restarts on that machine and reconnects. Running threads may be interrupted.`,
+    Dialog.alertWithLiteralMessage(
+      formatMobileMessage("Update {0}?", [label]),
+      formatMobileMessage(
+        "Install T3 Code {0}. T3 Code restarts on that machine and reconnects. Running threads may be interrupted.",
+        [targetVersion],
+      ),
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -75,8 +80,10 @@ export function OutdatedServerUpdateSection({
   return (
     <SettingsSection title="T3 Code">
       <View className="gap-1 p-4">
-        <Text className="text-base text-foreground">
-          {release ? `Version ${release.fromVersion}` : "Update required"}
+        <Text localize={false} className="text-base text-foreground">
+          {release
+            ? formatMobileMessage("Version {0}", [release.fromVersion])
+            : localizeMobileString("Update required")}
         </Text>
         <Text className="text-sm text-foreground-muted">
           {state.status === "running"
@@ -87,12 +94,17 @@ export function OutdatedServerUpdateSection({
                 : "Downloading update…"
             : release
               ? release.targetVersion
-                ? `Version ${release.targetVersion} is available.`
+                ? formatMobileMessage("Version {0} is available.", [release.targetVersion])
                 : "No newer version is available yet."
               : "This app needs a newer version of T3 Code on this machine."}
         </Text>
         {error || state.status === "failed" ? (
-          <Text selectable accessibilityRole="alert" className="text-sm text-danger-foreground">
+          <Text
+            localize={false}
+            selectable
+            accessibilityRole="alert"
+            className="text-sm text-danger-foreground"
+          >
             {error ?? (state.status === "failed" ? state.message : null)}
           </Text>
         ) : null}
@@ -107,7 +119,12 @@ export function OutdatedServerUpdateSection({
       {release?.targetVersion ? (
         <SettingsActionRow
           icon="arrow.up.circle"
-          label={state.status === "failed" ? "Retry update" : `Update to ${release.targetVersion}`}
+          localizeLabel={false}
+          label={
+            state.status === "failed"
+              ? localizeMobileString("Retry update")
+              : formatMobileMessage("Update to {0}", [release.targetVersion])
+          }
           disabled={busy}
           loading={state.status === "running"}
           onPress={requestUpdate}

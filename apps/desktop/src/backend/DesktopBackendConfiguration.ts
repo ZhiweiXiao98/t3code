@@ -26,6 +26,11 @@ import * as DesktopShellEnvironment from "../shell/DesktopShellEnvironment.ts";
 import * as DesktopAppSettings from "../settings/DesktopAppSettings.ts";
 import * as DesktopWslEnvironment from "../wsl/DesktopWslEnvironment.ts";
 import * as DesktopWslServerTree from "../wsl/DesktopWslServerTree.ts";
+import {
+  localizeWslFailureReason,
+  wslFailureReason,
+  type WslFailureReason,
+} from "../wsl/WslPreflightMessages.ts";
 
 export class DesktopBackendObservabilitySettingsReadError extends Schema.TaggedError<DesktopBackendObservabilitySettingsReadError>()(
   "DesktopBackendObservabilitySettingsReadError",
@@ -264,9 +269,8 @@ interface WslPreflightSuccess {
   readonly runtimeId?: string;
 }
 
-interface WslPreflightFailure {
+interface WslPreflightFailure extends WslFailureReason {
   readonly _tag: "Failed";
-  readonly reason: string;
   readonly fatal: boolean;
   readonly retryLimit?: number;
 }
@@ -307,7 +311,7 @@ const runWslPreflight = Effect.fn("desktop.backendConfiguration.wslPreflight")(f
   if (!wslAvailable) {
     return {
       _tag: "Failed",
-      reason: "WSL is not available on this system",
+      ...wslFailureReason("WSL is not available on this system", "此系统不支持 WSL"),
       fatal: false,
     } as const;
   }
@@ -319,7 +323,10 @@ const runWslPreflight = Effect.fn("desktop.backendConfiguration.wslPreflight")(f
   if (distroProbe._tag === "Failure") {
     return {
       _tag: "Failed",
-      reason: `Unable to list WSL distributions: ${distroProbe.error.message}`,
+      ...wslFailureReason(
+        `Unable to list WSL distributions: ${distroProbe.error.message}`,
+        `无法列出 WSL 发行版：${localizeWslFailureReason(distroProbe.error, "zh-CN")}`,
+      ),
       fatal: false,
     } as const;
   }
@@ -333,11 +340,14 @@ const runWslPreflight = Effect.fn("desktop.backendConfiguration.wslPreflight")(f
   if (runningDistro === null) {
     return {
       _tag: "Failed",
-      reason: input.distro
-        ? `WSL distro is not installed: ${input.distro}`
+      ...(input.distro
+        ? wslFailureReason(
+            `WSL distro is not installed: ${input.distro}`,
+            `未安装 WSL 发行版：${input.distro}`,
+          )
         : installedDistros.length === 0
-          ? "WSL has no installed distributions"
-          : "WSL has no default distribution",
+          ? wslFailureReason("WSL has no installed distributions", "WSL 尚未安装任何发行版")
+          : wslFailureReason("WSL has no default distribution", "WSL 未设置默认发行版")),
       fatal: true,
     } as const;
   }
@@ -349,7 +359,10 @@ const runWslPreflight = Effect.fn("desktop.backendConfiguration.wslPreflight")(f
   const failedNodePty = (result: FailedNodePtyResult) =>
     ({
       _tag: "Failed",
-      reason: `WSL node-pty unavailable: ${result.reason}`,
+      ...wslFailureReason(
+        `WSL node-pty unavailable: ${result.reason}`,
+        `WSL node-pty 不可用：${localizeWslFailureReason(result, "zh-CN")}`,
+      ),
       fatal: result.fatal,
       ...(result.retryLimit === undefined ? {} : { retryLimit: result.retryLimit }),
     }) as const;
@@ -357,7 +370,7 @@ const runWslPreflight = Effect.fn("desktop.backendConfiguration.wslPreflight")(f
   const resolveMountedAppRoot = Effect.gen(function* () {
     const serverTree = yield* wslServerTree.ensure;
     if (!serverTree.ok) {
-      return { ok: false, reason: serverTree.reason, fatal: serverTree.fatal } as const;
+      return serverTree;
     }
     const windowsEntryPath = environment.path.join(serverTree.root, "apps/server/dist/bin.mjs");
     const entryExists = yield* fileSystem
@@ -366,7 +379,10 @@ const runWslPreflight = Effect.fn("desktop.backendConfiguration.wslPreflight")(f
     if (!entryExists) {
       return {
         ok: false,
-        reason: `missing server entry at ${windowsEntryPath}`,
+        ...wslFailureReason(
+          `missing server entry at ${windowsEntryPath}`,
+          `缺少服务器入口文件：${windowsEntryPath}`,
+        ),
         fatal: true,
       } as const;
     }
@@ -374,17 +390,23 @@ const runWslPreflight = Effect.fn("desktop.backendConfiguration.wslPreflight")(f
     return Option.isNone(mountedAppRoot)
       ? ({
           ok: false,
-          reason: `wslpath conversion failed for ${serverTree.root}`,
+          ...wslFailureReason(
+            `wslpath conversion failed for ${serverTree.root}`,
+            `wslpath 路径转换失败：${serverTree.root}`,
+          ),
           fatal: false,
         } as const)
       : ({ ok: true, windowsEntryPath, linuxAppRoot: mountedAppRoot.value } as const);
   });
 
-  let stagedFailure: { readonly runtimeId?: string; readonly reason: string } | undefined;
-  const failedStaged = (failure: { readonly reason: string }) =>
+  let stagedFailure: (WslFailureReason & { readonly runtimeId?: string }) | undefined;
+  const failedStaged = (failure: WslFailureReason) =>
     ({
       _tag: "Failed",
-      reason: `WSL runtime unavailable: ${failure.reason}`,
+      ...wslFailureReason(
+        `WSL runtime unavailable: ${failure.reason}`,
+        `WSL 运行时不可用：${localizeWslFailureReason(failure, "zh-CN")}`,
+      ),
       fatal: true,
     }) as const;
 
@@ -408,9 +430,9 @@ const runWslPreflight = Effect.fn("desktop.backendConfiguration.wslPreflight")(f
         "The staged WSL runtime did not start; retrying from the mounted server tree.",
         { reason: stagedProbe.reason },
       );
-      stagedFailure = { runtimeId: input.runtimeArchive.runtimeId, reason: stagedProbe.reason };
+      stagedFailure = { ...stagedProbe, runtimeId: input.runtimeArchive.runtimeId };
     } else {
-      stagedFailure = { reason: runtime.reason };
+      stagedFailure = runtime;
       yield* Effect.logWarning(
         "Could not stage the WSL runtime; launching from the mounted server tree instead.",
         { reason: runtime.reason },
@@ -422,7 +444,7 @@ const runWslPreflight = Effect.fn("desktop.backendConfiguration.wslPreflight")(f
   if (!mounted.ok) {
     return stagedFailure && mounted.fatal
       ? failedStaged(stagedFailure)
-      : ({ _tag: "Failed", reason: mounted.reason, fatal: mounted.fatal } as const);
+      : ({ ...mounted, _tag: "Failed" } as const);
   }
 
   const nodePtyResult = yield* wslEnv.ensureNodePty(
@@ -683,6 +705,7 @@ const resolveWslStartConfig = Effect.fn("desktop.backendConfiguration.resolveWsl
       args: [...distroArgs, "--", "node", "--version"],
       preflightFailure: Option.some({
         reason: preflight.reason,
+        ...(preflight.localizedReason ? { localizedReason: preflight.localizedReason } : {}),
         fatal: preflight.fatal,
         ...(retryLimit === undefined ? {} : { retryLimit }),
       }),

@@ -5,6 +5,8 @@ import {
   type LimitPresentations,
 } from "@t3tools/shared/usageLimits";
 
+import { mobileDisplayDate } from "../i18n/mobileDateDisplay";
+
 import type { WidgetTheme } from "./widgetTheme";
 
 export interface SubscriptionUsageSnapshot {
@@ -106,7 +108,7 @@ function subscriptionUsageProps(
                 label: window.label,
                 remaining: Math.round(window.remainingPercent),
                 reset: window.resets[0]
-                  ? `Next reset ${new Date(window.resets[0].at).toLocaleString(undefined, {
+                  ? `Next reset ${mobileDisplayDate(new Date(window.resets[0].at), {
                       month: "short",
                       day: "numeric",
                       hour: "numeric",

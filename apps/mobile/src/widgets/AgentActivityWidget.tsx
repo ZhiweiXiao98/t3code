@@ -29,6 +29,31 @@ export function AgentActivityWidget(
   // Before the app's first publish, the embedded layout renders with no props.
   const props = publishedProps ?? {};
   const isChinese = process.env.EXPO_PUBLIC_APP_LOCALE === "zh-CN";
+  const displayStatus = (row: AgentActivityRowProps): string => {
+    if (!isChinese) return row.status;
+    switch (row.phase) {
+      case "starting":
+        return row.status === "Connecting" ? "正在连接" : row.status;
+      case "running":
+        return row.status === "Working" ? "运行中" : row.status;
+      case "waiting_for_approval":
+        return row.status === "Approval" ? "待批准" : row.status;
+      case "waiting_for_input":
+        return row.status === "Input" ? "待输入" : row.status;
+      case "completed":
+        return row.status === "Done" ? "完成" : row.status;
+      case "failed":
+        return row.status === "Failed" ? "失败" : row.status;
+      case "stale":
+        return row.status === "Out of date"
+          ? "状态已过期"
+          : row.status === "Waiting"
+            ? "等待中"
+            : row.status;
+      default:
+        return row.status;
+    }
+  };
   const family = environment.widgetFamily;
   const accessory = family === "accessoryRectangular";
   const small = family === "systemSmall";
@@ -101,8 +126,23 @@ export function AgentActivityWidget(
                 : "Done"
               : "";
   const summaryTint = rows[0] ? phaseTint(rows[0].phase) : secondaryForeground;
+  const displaySubtitle = (subtitle: string | undefined): string | undefined => {
+    if (!isChinese) return subtitle;
+    switch (subtitle) {
+      case "Sign in to T3 Connect to see agents":
+        return "登录 T3 Connect 以查看 Agent";
+      case "Couldn't reach T3 Connect":
+        return "无法连接 T3 Connect";
+      case "Loading agents…":
+        return "正在加载 Agent…";
+      case "No active agents":
+        return "没有活跃的 Agent";
+      default:
+        return subtitle;
+    }
+  };
   const emptyMessage = loaded
-    ? (props.subtitle ?? (isChinese ? "没有活跃的 Agent" : "No active agents"))
+    ? (displaySubtitle(props.subtitle) ?? (isChinese ? "没有活跃的 Agent" : "No active agents"))
     : isChinese
       ? "打开 T3 Code 以加载 Agent 动态"
       : "Open T3 Code to load agent activity";
@@ -150,7 +190,7 @@ export function AgentActivityWidget(
             lineLimit(1),
           ]}
         >
-          {row.status}
+          {displayStatus(row)}
         </Text>
       </VStack>
     ) : (
@@ -175,7 +215,7 @@ export function AgentActivityWidget(
             layoutPriority(1),
           ]}
         >
-          {row.status}
+          {displayStatus(row)}
         </Text>
       </HStack>
     );

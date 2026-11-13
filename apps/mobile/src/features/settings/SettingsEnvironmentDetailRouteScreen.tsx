@@ -1,3 +1,10 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
+import {
+  environmentUpdateConfirmation,
+  environmentMaintenanceFailure,
+  environmentProviderVersion,
+  environmentProviderUpdateState,
+} from "./environmentSettingsDisplay";
 import * as Dialog from "../../components/ui/Dialog";
 import { useAtom, useAtomValue } from "@effect/atom-react";
 import { useNavigation, type StaticScreenProps } from "@react-navigation/native";
@@ -112,9 +119,7 @@ function EnvironmentDetail({ environmentId }: { readonly environmentId: Environm
     setPending(null);
     if (AsyncResult.isFailure(result)) {
       const cause = squashAtomCommandFailure(result);
-      setError(
-        cause instanceof Error ? cause.message : "The action could not be completed. Try again.",
-      );
+      setError(environmentMaintenanceFailure(cause));
     }
   }
 
@@ -122,35 +127,36 @@ function EnvironmentDetail({ environmentId }: { readonly environmentId: Environm
     const targetVersion = checkedRelease?.targetVersion;
     if (disabled || !targetVersion || !capabilities || !supportsEnvironmentUpdate(capabilities))
       return;
-    Dialog.alert(
-      `Update ${environment?.environmentLabel ?? "environment"}?`,
-      `Install T3 Code ${targetVersion}. ${capabilities.serverSelfUpdate === "desktop-managed" ? "The desktop app will close and relaunch." : "The server will restart and reconnect."} Running threads may be interrupted.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Update",
-          onPress: () =>
-            void run("server", async () => {
-              if (
-                AsyncResult.isFailure(
-                  appAtomRegistry.get(environmentSession.sessionStateAtom(environmentId)),
-                ) ||
-                !canMaintainEnvironment(
-                  appAtomRegistry.get(environmentSession.sessionStateValueAtom(environmentId)),
-                  connected,
-                )
-              )
-                return;
-              const result = await updateServer({
-                environmentId,
-                input: { targetVersion },
-              });
-              if (AsyncResult.isFailure(result)) throw squashAtomCommandFailure(result);
-              setNotice(`Updated to ${result.value.targetVersion}.`);
-            }),
-        },
-      ],
+    const confirmation = environmentUpdateConfirmation(
+      environment?.environmentLabel,
+      targetVersion,
+      capabilities.serverSelfUpdate === "desktop-managed",
     );
+    Dialog.alertWithLiteralMessage(confirmation.title, confirmation.message, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Update",
+        onPress: () =>
+          void run("server", async () => {
+            if (
+              AsyncResult.isFailure(
+                appAtomRegistry.get(environmentSession.sessionStateAtom(environmentId)),
+              ) ||
+              !canMaintainEnvironment(
+                appAtomRegistry.get(environmentSession.sessionStateValueAtom(environmentId)),
+                connected,
+              )
+            )
+              return;
+            const result = await updateServer({
+              environmentId,
+              input: { targetVersion },
+            });
+            if (AsyncResult.isFailure(result)) throw squashAtomCommandFailure(result);
+            setNotice(formatMobileMessage("Updated to {0}.", [result.value.targetVersion]));
+          }),
+      },
+    ]);
   }
 
   function requestProviderUpdate(provider: ServerProvider) {
@@ -173,7 +179,10 @@ function EnvironmentDetail({ environmentId }: { readonly environmentId: Environm
   }
 
   return (
-    <SettingsScreen title={environment?.environmentLabel ?? "Environment"}>
+    <SettingsScreen
+      localizeTitle={false}
+      title={environment?.environmentLabel ?? localizeMobileString("Environment")}
+    >
       <ScreenScrollView
         contentInsetAdjustmentBehavior="automatic"
         className="flex-1"
@@ -230,12 +239,18 @@ function EnvironmentDetail({ environmentId }: { readonly environmentId: Environm
                 {error}
               </Text>
             ) : null}
-            {notice ? <Text className="px-2 text-sm text-foreground-muted">{notice}</Text> : null}
+            {notice ? (
+              <Text localize={false} className="px-2 text-sm text-foreground-muted">
+                {notice}
+              </Text>
+            ) : null}
             {config && !outdated ? (
               <>
                 <SettingsSection title="T3 Code">
                   <View className="gap-1 p-4">
-                    <Text className="text-base text-foreground">Version {version}</Text>
+                    <Text localize={false} className="text-base text-foreground">
+                      {formatMobileMessage("Version {0}", [version])}
+                    </Text>
                     {managedPolicy ? (
                       <Text localize={false} className="text-sm text-foreground-muted">
                         {localizeMobileString("Managed by")} {managedPolicy.organization}
@@ -260,7 +275,9 @@ function EnvironmentDetail({ environmentId }: { readonly environmentId: Environm
                     {checkedRelease && !updatesDenial ? (
                       <Text className="text-sm text-foreground-muted">
                         {checkedRelease.targetVersion
-                          ? `Version ${checkedRelease.targetVersion} is available.`
+                          ? formatMobileMessage("Version {0} is available.", [
+                              checkedRelease.targetVersion,
+                            ])
                           : "You are up to date."}
                       </Text>
                     ) : null}
@@ -303,7 +320,8 @@ function EnvironmentDetail({ environmentId }: { readonly environmentId: Environm
                   supportsEnvironmentUpdate(config.environment.capabilities) ? (
                     <SettingsActionRow
                       icon="arrow.up.circle"
-                      label={`Update to ${checkedRelease.targetVersion}`}
+                      localizeLabel={false}
+                      label={formatMobileMessage("Update to {0}", [checkedRelease.targetVersion])}
                       disabled={disabled}
                       loading={pending === "server" || running}
                       onPress={requestServerUpdate}
@@ -326,7 +344,7 @@ function EnvironmentDetail({ environmentId }: { readonly environmentId: Environm
                           input: { reloadSecrets: true },
                         });
                         if (AsyncResult.isFailure(result)) throw squashAtomCommandFailure(result);
-                        setNotice("Provider status refreshed.");
+                        setNotice(localizeMobileString("Provider status refreshed."));
                       });
                     }}
                   />
@@ -348,13 +366,8 @@ function EnvironmentDetail({ environmentId }: { readonly environmentId: Environm
                               {provider.displayName ?? provider.driver}
                             </Text>
                           </View>
-                          <Text className="text-sm text-foreground-muted">
-                            {provider.installed
-                              ? (provider.version ?? "Version unknown")
-                              : "Not installed"}
-                            {provider.versionAdvisory?.latestVersion
-                              ? ` · Latest ${provider.versionAdvisory.latestVersion}`
-                              : ""}
+                          <Text localize={false} className="text-sm text-foreground-muted">
+                            {environmentProviderVersion(provider)}
                           </Text>
                           {provider.updateState && provider.updateState.status !== "idle" ? (
                             <Text
@@ -366,8 +379,7 @@ function EnvironmentDetail({ environmentId }: { readonly environmentId: Environm
                                   : "text-sm text-foreground-muted"
                               }
                             >
-                              {provider.updateState.message ??
-                                `Update ${provider.updateState.status}`}
+                              {environmentProviderUpdateState(provider.updateState)}
                             </Text>
                           ) : null}
                           {provider.compatibilityAdvisory?.message ? (
@@ -398,7 +410,10 @@ function EnvironmentDetail({ environmentId }: { readonly environmentId: Environm
                         {canUpdateEnvironmentProvider(provider) ? (
                           <SettingsActionRow
                             icon="arrow.up.circle"
-                            label={`Update ${provider.displayName ?? provider.driver}`}
+                            localizeLabel={false}
+                            label={formatMobileMessage("Update {0}", [
+                              provider.displayName ?? provider.driver,
+                            ])}
                             disabled={busy || !canManageProviders}
                             loading={pending === provider.instanceId}
                             onPress={() => requestProviderUpdate(provider)}

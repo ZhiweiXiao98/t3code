@@ -1,3 +1,4 @@
+import { useI18n } from "~/i18n/WebI18nContext";
 import { AuthDiagnosticsReadScope } from "@t3tools/contracts";
 import { AuthEnvironmentMaintainScope } from "@t3tools/contracts";
 import type {
@@ -24,6 +25,7 @@ export interface ResourceTelemetryState {
 export function useResourceTelemetry(
   targetEnvironmentId?: EnvironmentId | null,
 ): ResourceTelemetryState {
+  const { t } = useI18n();
   const primaryEnvironment = usePrimaryEnvironment();
   const environmentId =
     targetEnvironmentId === undefined
@@ -46,7 +48,7 @@ export function useResourceTelemetry(
       !readEnvironmentScope(environmentId, AuthEnvironmentMaintainScope) ||
       !readEnvironmentScope(environmentId, AuthDiagnosticsReadScope)
     ) {
-      throw new Error("This connection cannot restart the resource monitor.");
+      throw new Error(t("audit10.monitorPermission"));
     }
     const result = await retryCommand({ environmentId, input: {} });
     if (result._tag === "Failure") {

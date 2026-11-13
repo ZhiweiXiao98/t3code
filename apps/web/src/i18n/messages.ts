@@ -1,6 +1,8 @@
 import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 
 const EN_MESSAGES = {
+  "audit10.threadNotLoaded": "This thread has not loaded yet.",
+  "audit10.monitorPermission": "This connection cannot restart the resource monitor.",
   "browser.uploadPickerClosed": "The page's file picker is no longer open.",
   "browser.uploadRefused": "The upload was refused.",
   "audit6.openedInEditor": "Opened in {label}",
@@ -4645,6 +4647,8 @@ export type WebMessages = Readonly<Record<WebMessageKey, string>>;
 export type WebMessageValues = Readonly<Record<string, string | number>>;
 
 const ZH_CN_MESSAGES = {
+  "audit10.threadNotLoaded": "此会话尚未加载。",
+  "audit10.monitorPermission": "此连接无权重启资源监视器。",
   "browser.uploadPickerClosed": "页面的文件选择器已关闭。",
   "browser.uploadRefused": "上传被拒绝。",
   "audit6.openedInEditor": "已在 {label} 中打开",

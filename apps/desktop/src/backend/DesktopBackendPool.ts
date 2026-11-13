@@ -25,6 +25,7 @@ import * as DesktopTelemetryPublisher from "../telemetry/DesktopTelemetryPublish
 import * as DesktopBrowserHost from "../preview/DesktopBrowserHost.ts";
 import * as DesktopWindow from "../window/DesktopWindow.ts";
 import * as DesktopWslEnvironment from "../wsl/DesktopWslEnvironment.ts";
+import { localizeWslFailureReason } from "../wsl/WslPreflightMessages.ts";
 import * as ElectronDialog from "../electron/ElectronDialog.ts";
 import * as ElectronApp from "../electron/ElectronApp.ts";
 
@@ -112,7 +113,8 @@ export const layer = Layer.effect(
     const electronApp = yield* ElectronApp.ElectronApp;
     const appSettings = yield* DesktopAppSettings.DesktopAppSettings;
     const clientSettings = yield* DesktopClientSettings.DesktopClientSettings;
-    const getMessages = readDesktopLocale(clientSettings.get, electronApp.systemLocale).pipe(
+    const getLocale = readDesktopLocale(clientSettings.get, electronApp.systemLocale);
+    const getMessages = getLocale.pipe(
       Effect.map((locale) => resolveStartupRecoveryMessages(locale, [])),
     );
     const { primaryBackendStartup } = yield* DesktopState.DesktopState;
@@ -124,7 +126,9 @@ export const layer = Layer.effect(
     const handlePrimaryPreflightFailure = Effect.fn("desktop.backendPool.primaryPreflightFailed")(
       function* (failure: DesktopBackendManager.PreflightFailure) {
         const { reason, fatal } = failure;
-        const messages = yield* getMessages;
+        const locale = yield* getLocale;
+        const messages = resolveStartupRecoveryMessages(locale, []);
+        const displayReason = localizeWslFailureReason(failure, locale);
         if (!fatal) {
           yield* logBackendPoolWarning(
             "primary WSL preflight retry window exhausted; using Windows for this launch",
@@ -132,7 +136,7 @@ export const layer = Layer.effect(
           );
           yield* electronDialog.showErrorBox(
             messages.wslUnavailableTitle,
-            `${reason}\n\n${messages.wslUnavailable}`,
+            `${displayReason}\n\n${messages.wslUnavailable}`,
           );
           yield* appSettings.applyWslWindowsFallbackInMemory;
           return true;
@@ -143,7 +147,7 @@ export const layer = Layer.effect(
         });
         yield* electronDialog.showErrorBox(
           messages.wslFailedTitle,
-          `${reason}\n\n${messages.wslFailed}`,
+          `${displayReason}\n\n${messages.wslFailed}`,
         );
         // Clear wslOnly too so enabling WSL cannot restore a failed mode.
         // Keep the in-memory fallback if persistence fails.

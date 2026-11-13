@@ -1,3 +1,4 @@
+import { environmentRouteDisplay } from "./environmentSettingsDisplay";
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { Button } from "../../components/ui/Button";
 import * as Dialog from "../../components/ui/Dialog";
@@ -8,7 +9,6 @@ import {
   connectionRouteAddress,
   connectionRouteId,
   connectionRouteKind,
-  connectionRouteLabel,
   connectionRoutes,
   isLearned,
   pendingRouteOrder,
@@ -112,8 +112,8 @@ export function EnvironmentRoutesSection({
     return to;
   };
   const confirmRemove = (route: ConnectionRoute) =>
-    Dialog.alert(
-      `Remove ${connectionRouteLabel(route)}?`,
+    Dialog.alertWithLiteralMessage(
+      environmentRouteDisplay(route, 0, 0, false).removeTitle,
       connectionRouteAddress(route) ?? undefined,
       [
         { text: "Cancel", style: "cancel" },
@@ -240,8 +240,8 @@ function RouteRow(props: {
   readonly onRemove: (() => void) | undefined;
 }) {
   const { route, lifted, offset } = props;
-  const label = connectionRouteLabel(route);
-  const address = connectionRouteAddress(route);
+  const display = environmentRouteDisplay(route, props.position, props.count, props.inUse);
+  const { label, address } = display;
   const style = useAnimatedStyle(() => ({
     transform: [
       {
@@ -278,15 +278,7 @@ function RouteRow(props: {
       ) : null}
       <View
         accessible
-        accessibilityLabel={[
-          label,
-          address,
-          isLearned(route) ? "Found automatically" : null,
-          props.inUse ? "In use" : null,
-          `Route ${props.position} of ${props.count}`,
-        ]
-          .filter((part) => part !== null)
-          .join(", ")}
+        accessibilityLabel={display.accessibilityLabel}
         className={cn(
           "min-w-0 flex-1 flex-row items-center gap-4 py-4 android:py-3",
           address !== null ? "android:min-h-18" : "android:min-h-14",
@@ -302,7 +294,11 @@ function RouteRow(props: {
         />
         <View className="min-w-0 flex-1 gap-0.5 android:gap-1">
           <View className="flex-row items-center gap-2">
-            <Text numberOfLines={1} className="shrink text-lg text-foreground android:text-base">
+            <Text
+              localize={false}
+              numberOfLines={1}
+              className="shrink text-lg text-foreground android:text-base"
+            >
               {label}
             </Text>
             {props.inUse ? (
@@ -310,8 +306,8 @@ function RouteRow(props: {
             ) : null}
           </View>
           {address !== null ? (
-            <Text numberOfLines={1} className="text-sm text-foreground-muted">
-              {isLearned(route) ? `${address} · found automatically` : address}
+            <Text localize={false} numberOfLines={1} className="text-sm text-foreground-muted">
+              {display.detail}
             </Text>
           ) : null}
         </View>

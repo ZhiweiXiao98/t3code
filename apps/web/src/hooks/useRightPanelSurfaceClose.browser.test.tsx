@@ -1,3 +1,4 @@
+import type { WebMessageKey, WebMessageValues } from "../i18n/messages";
 import { EnvironmentId, ThreadId, type ScopedThreadRef } from "@t3tools/contracts";
 import { scopedThreadKey } from "@t3tools/client-runtime/environment";
 import { expect, it, vi } from "vite-plus/test";
@@ -12,6 +13,16 @@ const fixture = vi.hoisted(() => ({
   sessions: new Map<string, string>(),
   failClose: false,
 }));
+// Keep locale lookup from initializing the real settings store and its connection schedulers.
+vi.mock("../i18n/readWebI18n", async () => {
+  const { translateWebMessage } = await import("../i18n/messages");
+  return {
+    readWebI18n: () => ({
+      locale: "en" as const,
+      t: (key: WebMessageKey, values?: WebMessageValues) => translateWebMessage("en", key, values),
+    }),
+  };
+});
 vi.mock("../lib/terminalCloseConfirm", () => ({
   confirmTerminalClose: (labels: readonly string[]) => fixture.confirm(labels),
 }));

@@ -1,6 +1,7 @@
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
+import { vi } from "vite-plus/test";
 import { currentDesktopBootstrapToken } from "@t3tools/shared/desktopBootstrapToken";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as Clock from "effect/Clock";
@@ -22,6 +23,24 @@ import * as DesktopServerExposure from "./DesktopServerExposure.ts";
 import * as DesktopAppSettings from "../settings/DesktopAppSettings.ts";
 import * as DesktopWslEnvironment from "../wsl/DesktopWslEnvironment.ts";
 import * as DesktopWslServerTree from "../wsl/DesktopWslServerTree.ts";
+import { localizeWslFailureReason, wslFailureReason } from "../wsl/WslPreflightMessages.ts";
+
+// WSL host-IP detection must not depend on the test runner's network interfaces.
+vi.mock("node:os", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("node:os")>()),
+  networkInterfaces: () => ({
+    eth0: [
+      {
+        address: "192.0.2.10",
+        family: "IPv4",
+        netmask: "255.255.255.0",
+        mac: "00:00:00:00:00:00",
+        internal: false,
+        cidr: "192.0.2.10/24",
+      },
+    ],
+  }),
+}));
 
 const layerShellEnvironment = (prepared = true) =>
   Layer.succeed(DesktopShellEnvironment.DesktopShellEnvironment, {
@@ -218,6 +237,106 @@ const withPackagedWslHarness = <A, E, R>(
   }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer)));
 
 describe("DesktopBackendConfiguration", () => {
+  it.effect.each([
+    {
+      name: "unavailable",
+      wsl: { isAvailable: false },
+      english: "WSL is not available on this system",
+      chinese: "此系统不支持 WSL",
+      fatal: false,
+    },
+    {
+      name: "no distributions",
+      wsl: { isAvailable: true, distros: [] },
+      english: "WSL has no installed distributions",
+      chinese: "WSL 尚未安装任何发行版",
+      fatal: true,
+    },
+    {
+      name: "no default distribution",
+      wsl: {
+        isAvailable: true,
+        distros: [{ name: "Custom user's 发行版", isDefault: false, version: 2 as const }],
+      },
+      english: "WSL has no default distribution",
+      chinese: "WSL 未设置默认发行版",
+      fatal: true,
+    },
+    {
+      name: "external list failure",
+      wsl: {
+        isAvailable: true,
+        distroListError: new DesktopWslEnvironment.DesktopWslDistroListError({
+          reason: "WSL has no default distribution",
+        }),
+      },
+      english: "Unable to list WSL distributions: WSL has no default distribution",
+      chinese: "无法列出 WSL 发行版：WSL has no default distribution",
+      fatal: false,
+    },
+  ])("retains preflight provenance for $name", ({ wsl, english, chinese, fatal }) =>
+    Effect.gen(function* () {
+      const fileSystem = yield* FileSystem.FileSystem;
+      const baseDir = yield* fileSystem.makeTempDirectoryScoped({ prefix: "t3-wsl-preflight-" });
+      yield* Effect.gen(function* () {
+        const configuration = yield* DesktopBackendConfiguration.DesktopBackendConfiguration;
+        const config = yield* configuration.resolveWsl({ port: 5050, distro: null });
+        const failure = Option.getOrThrow(config.preflightFailure);
+        assert.equal(failure.reason, english);
+        assert.equal(localizeWslFailureReason(failure, "en"), english);
+        assert.equal(localizeWslFailureReason(failure, "zh-CN"), chinese);
+        assert.equal(failure.fatal, fatal);
+        assert.equal(failure.retryLimit, fatal ? undefined : 12);
+      }).pipe(
+        Effect.provide(
+          layerBackendConfiguration().pipe(
+            Layer.provideMerge(layerServerExposure),
+            Layer.provideMerge(DesktopAppSettings.layerTest()),
+            Layer.provideMerge(DesktopWslServerTree.layerTest()),
+            Layer.provideMerge(DesktopWslEnvironment.layerTest(wsl)),
+            Layer.provideMerge(layerEnvironment(baseDir, { platform: "win32" })),
+          ),
+        ),
+      );
+    }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
+  );
+
+  it.effect.each([false, true])(
+    "preserves staged reason provenance over a fatal mounted failure (%s)",
+    (localized) => {
+      const detail = "/home/Test User's/cache/t3: ENOENT";
+      const stagedReason = localized
+        ? wslFailureReason(`Runtime failure: ${detail}`, `运行时失败：${detail}`)
+        : { reason: detail };
+      return withPackagedWslHarness(
+        {
+          archiveHash: "a".repeat(64),
+          wsl: () => ({
+            prepareRuntime: () => ({ ok: false, ...stagedReason }),
+            ensureNodePty: () => ({
+              ok: false,
+              ...wslFailureReason("Mounted failed", "挂载失败"),
+              fatal: true,
+            }),
+          }),
+        },
+        () =>
+          Effect.gen(function* () {
+            const configuration = yield* DesktopBackendConfiguration.DesktopBackendConfiguration;
+            const config = yield* configuration.resolveWsl({ port: 5000, distro: "Ubuntu" });
+            const failure = Option.getOrThrow(config.preflightFailure);
+            assert.isTrue(failure.fatal);
+            assert.equal(failure.reason, `WSL runtime unavailable: ${stagedReason.reason}`);
+            assert.equal(
+              localizeWslFailureReason(failure, "zh-CN"),
+              `WSL 运行时不可用：${localized ? `运行时失败：${detail}` : detail}`,
+            );
+            assert.equal(localizeWslFailureReason(failure, "en"), failure.reason);
+          }),
+      );
+    },
+  );
+
   it.effect("resolvePrimary produces a stable scoped bootstrap token", () =>
     withHarness(
       Effect.gen(function* () {
@@ -589,6 +708,10 @@ describe("DesktopBackendConfiguration", () => {
           assert.isFalse(failure.fatal);
           assert.equal(failure.retryLimit, 12);
           assert.include(failure.reason, "timed out");
+          assert.equal(
+            localizeWslFailureReason(failure, "zh-CN"),
+            "WSL node-pty 不可用：WSL backend preflight timed out while probing for Node.js.",
+          );
           assert.deepEqual(invalidatedRuntimeIds, []);
         }),
     );
@@ -721,56 +844,61 @@ describe("DesktopBackendConfiguration", () => {
     }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
   );
 
-  it.effect("resolveWsl preserves existing WSLENV entries when forwarding backend secrets", () =>
-    Effect.gen(function* () {
-      const fileSystem = yield* FileSystem.FileSystem;
-      const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-desktop-backend-config-test-",
-      });
+  it.effect.each([
+    { distroIp: "172.27.0.99", rendererHost: "172.27.0.99" },
+    { distroIp: "192.0.2.10", rendererHost: "127.0.0.1" },
+  ])(
+    "resolveWsl preserves WSLENV and chooses the renderer host for $distroIp",
+    ({ distroIp, rendererHost }) =>
+      Effect.gen(function* () {
+        const fileSystem = yield* FileSystem.FileSystem;
+        const baseDir = yield* fileSystem.makeTempDirectoryScoped({
+          prefix: "t3-desktop-backend-config-test-",
+        });
 
-      yield* Effect.gen(function* () {
-        const configuration = yield* DesktopBackendConfiguration.DesktopBackendConfiguration;
-        const config = yield* configuration.resolveWsl({ port: 5050, distro: null });
+        yield* Effect.gen(function* () {
+          const configuration = yield* DesktopBackendConfiguration.DesktopBackendConfiguration;
+          const config = yield* configuration.resolveWsl({ port: 5050, distro: null });
 
-        assert.equal(config.executablePath, "wsl.exe");
-        assert.equal(config.bootstrap.port, 5050);
-        assert.equal(config.bootstrap.host, "0.0.0.0");
-        assert.equal(config.bootstrap.tailscaleServeEnabled, false);
-        assert.notProperty(config.bootstrap, "desktopTelemetryFd");
-        assert.notProperty(config.bootstrap, "resourceMonitorPath");
-        assert.equal(config.httpBaseUrl.href, "http://172.27.0.99:5050/");
-        assert.equal(config.env.OPENAI_API_KEY, "openai-key");
-        assert.equal(config.env.ANTHROPIC_API_KEY, "anthropic-key");
-        assert.equal(config.env.T3CODE_OTLP_PROTOCOL, "http/protobuf");
-        assert.equal(
-          config.env.WSLENV,
-          "GOPATH/p:OPENAI_API_KEY/u:EMPTY::AZURE_DEVOPS_EXT_PAT/u:ANTHROPIC_API_KEY:T3CODE_OTLP_HEADERS:T3CODE_OTLP_PROTOCOL",
-        );
-      }).pipe(
-        Effect.provide(
-          layerBackendConfiguration().pipe(
-            Layer.provideMerge(layerServerExposure),
-            Layer.provideMerge(DesktopAppSettings.layerTest()),
-            Layer.provideMerge(DesktopWslServerTree.layerTest()),
-            Layer.provideMerge(
-              DesktopWslEnvironment.layerTest({
-                isAvailable: true,
-                windowsToWslPath: () => Option.some("/mnt/c/repo/apps/server/src/index.ts"),
-                getDistroIp: () => Option.some("172.27.0.99"),
-              }),
+          assert.equal(config.executablePath, "wsl.exe");
+          assert.equal(config.bootstrap.port, 5050);
+          assert.equal(config.bootstrap.host, "0.0.0.0");
+          assert.equal(config.bootstrap.tailscaleServeEnabled, false);
+          assert.notProperty(config.bootstrap, "desktopTelemetryFd");
+          assert.notProperty(config.bootstrap, "resourceMonitorPath");
+          assert.equal(config.httpBaseUrl.href, `http://${rendererHost}:5050/`);
+          assert.equal(config.env.OPENAI_API_KEY, "openai-key");
+          assert.equal(config.env.ANTHROPIC_API_KEY, "anthropic-key");
+          assert.equal(config.env.T3CODE_OTLP_PROTOCOL, "http/protobuf");
+          assert.equal(
+            config.env.WSLENV,
+            "GOPATH/p:OPENAI_API_KEY/u:EMPTY::AZURE_DEVOPS_EXT_PAT/u:ANTHROPIC_API_KEY:T3CODE_OTLP_HEADERS:T3CODE_OTLP_PROTOCOL",
+          );
+        }).pipe(
+          Effect.provide(
+            layerBackendConfiguration().pipe(
+              Layer.provideMerge(layerServerExposure),
+              Layer.provideMerge(DesktopAppSettings.layerTest()),
+              Layer.provideMerge(DesktopWslServerTree.layerTest()),
+              Layer.provideMerge(
+                DesktopWslEnvironment.layerTest({
+                  isAvailable: true,
+                  windowsToWslPath: () => Option.some("/mnt/c/repo/apps/server/src/index.ts"),
+                  getDistroIp: () => Option.some(distroIp),
+                }),
+              ),
+              Layer.provideMerge(layerEnvironment(baseDir, { platform: "win32" })),
             ),
-            Layer.provideMerge(layerEnvironment(baseDir, { platform: "win32" })),
           ),
-        ),
-        Effect.provideService(HostProcess.Environment, {
-          WSLENV: "GOPATH/p:OPENAI_API_KEY/u:EMPTY::AZURE_DEVOPS_EXT_PAT/u",
-          OPENAI_API_KEY: "openai-key",
-          ANTHROPIC_API_KEY: "anthropic-key",
-          T3CODE_OTLP_HEADERS: 'authorization="Bearer%20my-token"',
-          T3CODE_OTLP_PROTOCOL: "http/protobuf",
-        }),
-      );
-    }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
+          Effect.provideService(HostProcess.Environment, {
+            WSLENV: "GOPATH/p:OPENAI_API_KEY/u:EMPTY::AZURE_DEVOPS_EXT_PAT/u",
+            OPENAI_API_KEY: "openai-key",
+            ANTHROPIC_API_KEY: "anthropic-key",
+            T3CODE_OTLP_HEADERS: 'authorization="Bearer%20my-token"',
+            T3CODE_OTLP_PROTOCOL: "http/protobuf",
+          }),
+        );
+      }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
   );
 
   it.effect(
@@ -826,7 +954,12 @@ describe("DesktopBackendConfiguration", () => {
 
           assert.equal(config.executablePath, "wsl.exe");
           assert.isTrue(failure.fatal);
-          assert.include(failure.reason, "Removed-Distro");
+          assert.equal(failure.reason, "WSL distro is not installed: Removed-Distro");
+          assert.equal(
+            localizeWslFailureReason(failure, "zh-CN"),
+            "未安装 WSL 发行版：Removed-Distro",
+          );
+          assert.equal(localizeWslFailureReason(failure, "en"), failure.reason);
         }).pipe(
           Effect.provide(
             layerBackendConfiguration().pipe(
@@ -867,6 +1000,10 @@ describe("DesktopBackendConfiguration", () => {
 
         assert.isTrue(failure.fatal);
         assert.include(failure.reason, "missing server entry");
+        assert.equal(
+          localizeWslFailureReason(failure, "zh-CN"),
+          `缺少服务器入口文件：${failure.reason.slice("missing server entry at ".length)}`,
+        );
       }).pipe(
         Effect.provide(
           layerBackendConfiguration().pipe(

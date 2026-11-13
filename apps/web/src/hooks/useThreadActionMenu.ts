@@ -145,7 +145,7 @@ export function useThreadActionMenu(input: {
       if (!api) return;
       const thread = readThreadShell(threadRef);
       if (!thread) {
-        failureToast("Thread actions unavailable", new Error("This thread has not loaded yet."));
+        failureToast("Thread actions unavailable", new Error(t("audit10.threadNotLoaded")));
         return;
       }
       const now = new Date();

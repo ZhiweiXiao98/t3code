@@ -90,6 +90,7 @@ vi.mock("../state/environments", () => ({
       : null,
 }));
 vi.mock("../hooks/useSettings", () => ({
+  getClientSettings: () => ({ ...DEFAULT_CLIENT_SETTINGS, ...mocks.settings }),
   updateClientSettings: vi.fn(),
   useClientSettingsHydrated: () => true,
   useClientSettings: (selector?: (settings: Record<string, unknown>) => unknown) => {

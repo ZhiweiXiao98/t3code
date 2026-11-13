@@ -16,6 +16,7 @@ import { satisfiesSemverRange } from "@t3tools/shared/semver";
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import * as DesktopManagedPolicy from "../app/DesktopManagedPolicy.ts";
 import { parseWslDistroList, type WslDistro } from "./wslPathParsing.ts";
+import { wslFailureReason, type WslFailureReason } from "./WslPreflightMessages.ts";
 
 const PROCESS_TERMINATE_GRACE = Duration.seconds(1);
 const LIST_TIMEOUT = Duration.seconds(8);
@@ -48,10 +49,7 @@ export type PrepareWslRuntimeResult =
       readonly ok: true;
       readonly linuxAppRoot: string;
     }
-  | {
-      readonly ok: false;
-      readonly reason: string;
-    };
+  | (WslFailureReason & { readonly ok: false });
 
 export type EnsureWslNodePtyResult =
   | {
@@ -59,26 +57,25 @@ export type EnsureWslNodePtyResult =
       readonly nodePath: string;
       readonly resolvedPath: string;
     }
-  | {
+  | (WslFailureReason & {
       readonly ok: false;
-      readonly reason: string;
       readonly fatal: boolean;
       readonly retryLimit?: number;
-    };
+    });
 
 export type ProbeWslRuntimeResult =
   | {
       readonly ok: true;
       readonly resolvedPath: string;
     }
-  | {
-      readonly ok: false;
-      readonly reason: string;
-    };
+  | (WslFailureReason & { readonly ok: false });
 
 export class DesktopWslDistroListError extends Schema.TaggedError<DesktopWslDistroListError>()(
   "DesktopWslDistroListError",
-  { reason: Schema.String },
+  {
+    reason: Schema.String,
+    localizedReason: Schema.optionalKey(Schema.Struct({ "zh-CN": Schema.String })),
+  },
 ) {
   override get message(): string {
     return this.reason;
@@ -153,15 +150,25 @@ const TIMEOUT_RESULT: ShellResult = {
 
 const formatWslShellTransportFailureReason = (
   failure: ShellResult["transportFailure"],
-  subject = "Node.js",
-): string | null => {
+  subject: "Node.js" | "the staged runtime" = "Node.js",
+): WslFailureReason | null => {
+  const chineseSubject = subject === "Node.js" ? subject : "暂存运行时";
   switch (failure) {
     case "timeout":
-      return `WSL backend preflight timed out while probing for ${subject}. WSL may be slow to start; retry, or check that the distro is healthy.`;
+      return wslFailureReason(
+        `WSL backend preflight timed out while probing for ${subject}. WSL may be slow to start; retry, or check that the distro is healthy.`,
+        `WSL 后端预检在探测${chineseSubject}时超时。WSL 可能启动较慢；请重试，或检查发行版是否正常。`,
+      );
     case "spawn":
-      return `WSL backend preflight could not start wsl.exe to probe for ${subject}. Check that WSL is installed and the distro is accessible.`;
+      return wslFailureReason(
+        `WSL backend preflight could not start wsl.exe to probe for ${subject}. Check that WSL is installed and the distro is accessible.`,
+        `WSL 后端预检无法启动 wsl.exe 来探测${chineseSubject}。请确认已安装 WSL 且发行版可以访问。`,
+      );
     case "process":
-      return `WSL backend preflight lost communication with wsl.exe while probing for ${subject}. Retry, or check that the distro is healthy.`;
+      return wslFailureReason(
+        `WSL backend preflight lost communication with wsl.exe while probing for ${subject}. Retry, or check that the distro is healthy.`,
+        `WSL 后端预检在探测${chineseSubject}时与 wsl.exe 失去通信。请重试，或检查发行版是否正常。`,
+      );
     case null:
       return null;
   }
@@ -419,9 +426,12 @@ export const parseWslRuntimeRoot = (stdout: string): string | null => {
 
 const NODE_PTY_BINARY_MISSING_EXIT_CODE = 4;
 
-const formatNodePtyProbeFailureReason = (exitCode: number): string | null =>
+const formatNodePtyProbeFailureReason = (exitCode: number): WslFailureReason | null =>
   exitCode === NODE_PTY_BINARY_MISSING_EXIT_CODE
-    ? "WSL support is missing from this T3 Code build: the packaged Linux node-pty binary was not included. Install a build that includes WSL support."
+    ? wslFailureReason(
+        "WSL support is missing from this T3 Code build: the packaged Linux node-pty binary was not included. Install a build that includes WSL support.",
+        "此 T3 Code 构建缺少 WSL 支持：未包含 Linux node-pty 二进制文件。请安装支持 WSL 的构建。",
+      )
     : null;
 
 // Capture login-shell PATH because the server launches provider CLIs by name.
@@ -536,7 +546,7 @@ export const parseResolvedPath = (stdout: string): string | null => {
 const formatMissingToolsReason = (
   report: ToolchainReport,
   requiredRange: string | null,
-): string | null => {
+): WslFailureReason | null => {
   const nodeMissing = report.missingTools.includes("node");
   const nodeOutOfRange =
     !nodeMissing &&
@@ -551,14 +561,24 @@ const formatMissingToolsReason = (
 
   const issues: string[] = [];
   const remediations: string[] = [];
+  const chineseIssues: string[] = [];
+  const chineseRemediations: string[] = [];
 
   if (nodeMissing) {
     issues.push("node");
+    chineseIssues.push("node");
+    chineseRemediations.push(
+      `Node.js${requiredRange ? `（满足 \`${requiredRange}\`）` : " 18+"}（例如通过 nvm 安装）`,
+    );
     remediations.push(
       `Node.js${requiredRange ? ` satisfying \`${requiredRange}\`` : " 18+"} (e.g. via nvm)`,
     );
   } else if (nodeOutOfRange) {
     issues.push(`node ${report.nodeVersion} (requires ${requiredRange})`);
+    chineseIssues.push(`node ${report.nodeVersion}（需要 ${requiredRange}）`);
+    chineseRemediations.push(
+      `满足 \`${requiredRange}\` 的新版 Node.js（例如运行 \`nvm install 24 && nvm alias default 24\`）`,
+    );
     remediations.push(
       `a newer Node.js satisfying \`${requiredRange}\` (e.g. \`nvm install 24 && nvm alias default 24\`)`,
     );
@@ -566,12 +586,19 @@ const formatMissingToolsReason = (
 
   if (buildToolsMissing.length > 0) {
     issues.push(...buildToolsMissing);
+    chineseIssues.push(...buildToolsMissing);
+    chineseRemediations.push(
+      "构建工具链（例如在 Ubuntu/Debian 上运行 `sudo apt install -y build-essential python3`）",
+    );
     remediations.push(
       "the build toolchain (e.g. `sudo apt install -y build-essential python3` on Ubuntu/Debian)",
     );
   }
 
-  return `WSL distro is missing required tools: ${issues.join(", ")}. Install ${remediations.join(" and ")}, then retry.`;
+  return wslFailureReason(
+    `WSL distro is missing required tools: ${issues.join(", ")}. Install ${remediations.join(" and ")}, then retry.`,
+    `WSL 发行版缺少所需工具：${chineseIssues.join("、")}。请安装${chineseRemediations.join("和")}，然后重试。`,
+  );
 };
 
 const probeWslRuntimeImpl = Effect.fn("DesktopWslEnvironment.probeWslRuntimeImpl")(function* (
@@ -591,20 +618,26 @@ const probeWslRuntimeImpl = Effect.fn("DesktopWslEnvironment.probeWslRuntimeImpl
     "the staged runtime",
   );
   if (transportFailureReason !== null) {
-    return { ok: false, reason: transportFailureReason } as const;
+    return { ok: false, ...transportFailureReason } as const;
   }
   if (probe.exitCode !== 0) {
     const trimmedTail = probe.stderr.trim().slice(-500);
     return {
       ok: false,
-      reason: `${linuxAppRoot}/t3 --version failed (exit ${probe.exitCode})${trimmedTail ? `: ${trimmedTail}` : ""}`,
+      ...wslFailureReason(
+        `${linuxAppRoot}/t3 --version failed (exit ${probe.exitCode})${trimmedTail ? `: ${trimmedTail}` : ""}`,
+        `${linuxAppRoot}/t3 --version 失败（退出码 ${probe.exitCode}）${trimmedTail ? `：${trimmedTail}` : ""}`,
+      ),
     } as const;
   }
   const resolvedPath = parseResolvedPath(probe.stdout);
   if (resolvedPath === null) {
     return {
       ok: false,
-      reason: "WSL login-shell PATH could not be resolved during backend preflight.",
+      ...wslFailureReason(
+        "WSL login-shell PATH could not be resolved during backend preflight.",
+        "后端预检期间无法解析 WSL 登录 shell 的 PATH。",
+      ),
     } as const;
   }
   return { ok: true, resolvedPath } as const;
@@ -632,7 +665,7 @@ const ensureNodePtyImpl = Effect.fn("DesktopWslEnvironment.ensureNodePtyImpl")(f
   if (transportFailureReason !== null) {
     return {
       ok: false,
-      reason: transportFailureReason,
+      ...transportFailureReason,
       fatal: false,
     } as const;
   }
@@ -650,7 +683,7 @@ const ensureNodePtyImpl = Effect.fn("DesktopWslEnvironment.ensureNodePtyImpl")(f
     if (toolchainTransportFailure !== null) {
       return {
         ok: false,
-        reason: toolchainTransportFailure,
+        ...toolchainTransportFailure,
         fatal: false,
         retryLimit: TOOLCHAIN_TRANSPORT_RETRY_LIMIT,
       } as const;
@@ -658,14 +691,20 @@ const ensureNodePtyImpl = Effect.fn("DesktopWslEnvironment.ensureNodePtyImpl")(f
     const report = parseToolchainReport(toolchainCheck.stdout);
     const reason =
       formatMissingToolsReason(report, options.nodeEngineRange?.trim() || null) ??
-      "Node.js was not found in the WSL distro. Install it (e.g. via nvm) and restart the desktop app.";
-    return { ok: false, reason, fatal: true } as const;
+      wslFailureReason(
+        "Node.js was not found in the WSL distro. Install it (e.g. via nvm) and restart the desktop app.",
+        "WSL 发行版中未找到 Node.js。请安装（例如通过 nvm），然后重启桌面应用。",
+      );
+    return { ok: false, ...reason, fatal: true } as const;
   }
 
   if (resolvedPath === null) {
     return {
       ok: false,
-      reason: "WSL login-shell PATH could not be resolved during backend preflight.",
+      ...wslFailureReason(
+        "WSL login-shell PATH could not be resolved during backend preflight.",
+        "后端预检期间无法解析 WSL 登录 shell 的 PATH。",
+      ),
       fatal: true,
     } as const;
   }
@@ -673,8 +712,10 @@ const ensureNodePtyImpl = Effect.fn("DesktopWslEnvironment.ensureNodePtyImpl")(f
   if (probe.exitCode === 3) {
     return {
       ok: false,
-      reason:
+      ...wslFailureReason(
         'WSL server dependencies could not be loaded (for example "node-pty"). The native packages the server needs are not unpacked where the WSL distro\'s Node can read them. This is a packaging problem with this build. Please report it.',
+        '无法加载 WSL 服务器依赖项（例如 "node-pty"）。服务器所需的原生包未解压到 WSL 发行版中的 Node 可读取的位置。这是此构建的打包问题，请报告。',
+      ),
       fatal: true,
     } as const;
   }
@@ -689,7 +730,10 @@ const ensureNodePtyImpl = Effect.fn("DesktopWslEnvironment.ensureNodePtyImpl")(f
       const range = options.nodeEngineRange.trim();
       return {
         ok: false,
-        reason: `WSL Node.js ${rawVersion} does not satisfy the server's required engine range (${range}). Install a compatible version, and restart the desktop app.`,
+        ...wslFailureReason(
+          `WSL Node.js ${rawVersion} does not satisfy the server's required engine range (${range}). Install a compatible version, and restart the desktop app.`,
+          `WSL Node.js ${rawVersion} 不满足服务器要求的版本范围（${range}）。请安装兼容的版本，然后重启桌面应用。`,
+        ),
         fatal: true,
       } as const;
     }
@@ -701,7 +745,7 @@ const ensureNodePtyImpl = Effect.fn("DesktopWslEnvironment.ensureNodePtyImpl")(f
     if (packagedProbeFailure !== null) {
       return {
         ok: false,
-        reason: packagedProbeFailure,
+        ...packagedProbeFailure,
         fatal: true,
       } as const;
     }
@@ -719,7 +763,7 @@ const ensureNodePtyImpl = Effect.fn("DesktopWslEnvironment.ensureNodePtyImpl")(f
   if (toolchainTransportFailure !== null) {
     return {
       ok: false,
-      reason: toolchainTransportFailure,
+      ...toolchainTransportFailure,
       fatal: false,
       retryLimit: TOOLCHAIN_TRANSPORT_RETRY_LIMIT,
     } as const;
@@ -739,16 +783,18 @@ const ensureNodePtyImpl = Effect.fn("DesktopWslEnvironment.ensureNodePtyImpl")(f
     );
     return {
       ok: false,
-      reason:
-        nodeOnlyReason ??
-        "The bundled WSL backend binary (node-pty) could not be loaded in this distro. This usually means an unsupported CPU architecture or incompatible system libraries (glibc). Use a glibc-based x64/arm64 WSL distro such as Ubuntu; if you already are, please report this with your distro and the output of `uname -m`.",
+      ...(nodeOnlyReason ??
+        wslFailureReason(
+          "The bundled WSL backend binary (node-pty) could not be loaded in this distro. This usually means an unsupported CPU architecture or incompatible system libraries (glibc). Use a glibc-based x64/arm64 WSL distro such as Ubuntu; if you already are, please report this with your distro and the output of `uname -m`.",
+          "无法在此发行版中加载内置的 WSL 后端二进制文件（node-pty）。这通常表示 CPU 架构不受支持或系统库（glibc）不兼容。请使用基于 glibc 的 x64/arm64 WSL 发行版，例如 Ubuntu；如果已经在使用此类发行版，请报告问题，并附上发行版信息和 `uname -m` 的输出。",
+        )),
       fatal: true,
     } as const;
   }
 
   const missingReason = formatMissingToolsReason(report, options.nodeEngineRange?.trim() || null);
   if (missingReason !== null) {
-    return { ok: false, reason: missingReason, fatal: true } as const;
+    return { ok: false, ...missingReason, fatal: true } as const;
   }
 
   const build = yield* runWslShell(
@@ -761,7 +807,7 @@ const ensureNodePtyImpl = Effect.fn("DesktopWslEnvironment.ensureNodePtyImpl")(f
   if (buildTransportFailure !== null) {
     return {
       ok: false,
-      reason: buildTransportFailure,
+      ...buildTransportFailure,
       fatal: false,
       retryLimit: BUILD_TRANSPORT_RETRY_LIMIT,
     } as const;
@@ -770,7 +816,10 @@ const ensureNodePtyImpl = Effect.fn("DesktopWslEnvironment.ensureNodePtyImpl")(f
   const trimmedTail = `${build.stdout}${build.stderr}`.trim().slice(-500);
   return {
     ok: false,
-    reason: `node-pty Linux build failed (exit ${build.exitCode}): ${trimmedTail || "no stderr captured"}`,
+    ...wslFailureReason(
+      `node-pty Linux build failed (exit ${build.exitCode}): ${trimmedTail || "no stderr captured"}`,
+      `node-pty Linux 构建失败（退出码 ${build.exitCode}）：${trimmedTail || "未捕获标准错误输出"}`,
+    ),
     fatal: true,
   } as const;
 });
@@ -787,7 +836,10 @@ const prepareWslRuntimeImpl = Effect.fn("desktop.wsl.prepareRuntimeImpl")(functi
   if (Option.isNone(linuxArchivePath)) {
     return {
       ok: false,
-      reason: `wslpath conversion failed for ${archive.windowsPath}`,
+      ...wslFailureReason(
+        `wslpath conversion failed for ${archive.windowsPath}`,
+        `wslpath 路径转换失败：${archive.windowsPath}`,
+      ),
     } as const;
   }
 
@@ -800,17 +852,25 @@ const prepareWslRuntimeImpl = Effect.fn("desktop.wsl.prepareRuntimeImpl")(functi
   if (install.transportFailure !== null) {
     return {
       ok: false,
-      reason:
-        install.transportFailure === "timeout"
-          ? "WSL runtime installation timed out. Check that the distro has free disk space, then retry."
-          : "WSL runtime installation lost communication with wsl.exe. Retry, or check that the distro is healthy.",
+      ...(install.transportFailure === "timeout"
+        ? wslFailureReason(
+            "WSL runtime installation timed out. Check that the distro has free disk space, then retry.",
+            "WSL 运行时安装超时。请检查发行版是否有可用磁盘空间，然后重试。",
+          )
+        : wslFailureReason(
+            "WSL runtime installation lost communication with wsl.exe. Retry, or check that the distro is healthy.",
+            "WSL 运行时安装期间与 wsl.exe 失去通信。请重试，或检查发行版是否正常。",
+          )),
     } as const;
   }
   if (install.exitCode !== 0) {
     const trimmedTail = `${install.stdout}${install.stderr}`.trim().slice(-500);
     return {
       ok: false,
-      reason: `WSL runtime installation failed (exit ${install.exitCode}): ${trimmedTail || "no stderr captured"}`,
+      ...wslFailureReason(
+        `WSL runtime installation failed (exit ${install.exitCode}): ${trimmedTail || "no stderr captured"}`,
+        `WSL 运行时安装失败（退出码 ${install.exitCode}）：${trimmedTail || "未捕获标准错误输出"}`,
+      ),
     } as const;
   }
 
@@ -818,7 +878,10 @@ const prepareWslRuntimeImpl = Effect.fn("desktop.wsl.prepareRuntimeImpl")(functi
   return linuxAppRoot === null
     ? {
         ok: false,
-        reason: "WSL runtime installation completed without reporting its cache path.",
+        ...wslFailureReason(
+          "WSL runtime installation completed without reporting its cache path.",
+          "WSL 运行时安装已完成，但未返回缓存路径。",
+        ),
       }
     : { ok: true, linuxAppRoot };
 });
@@ -882,7 +945,10 @@ const probeWslDistros: Effect.Effect<
     const exitCode = yield* handle.exitCode;
     if ((exitCode as unknown as number) !== 0) {
       return yield* new DesktopWslDistroListError({
-        reason: `wsl.exe --list --verbose exited with code ${String(exitCode)}`,
+        ...wslFailureReason(
+          `wsl.exe --list --verbose exited with code ${String(exitCode)}`,
+          `wsl.exe --list --verbose 已退出，退出码为 ${String(exitCode)}`,
+        ),
       });
     }
     return parseWslDistroList(Buffer.from(concatChunks(stdoutBytes)));
@@ -892,7 +958,10 @@ const probeWslDistros: Effect.Effect<
     isDesktopWslDistroListError(error)
       ? error
       : new DesktopWslDistroListError({
-          reason: `Failed to run wsl.exe --list --verbose: ${error.message}`,
+          ...wslFailureReason(
+            `Failed to run wsl.exe --list --verbose: ${error.message}`,
+            `无法运行 wsl.exe --list --verbose：${error.message}`,
+          ),
         }),
   ),
   Effect.timeoutOption(LIST_TIMEOUT),
@@ -900,7 +969,10 @@ const probeWslDistros: Effect.Effect<
     Option.match({
       onNone: () =>
         new DesktopWslDistroListError({
-          reason: "wsl.exe --list --verbose timed out",
+          ...wslFailureReason(
+            "wsl.exe --list --verbose timed out",
+            "wsl.exe --list --verbose 超时",
+          ),
         }),
       onSome: Effect.succeed,
     }),

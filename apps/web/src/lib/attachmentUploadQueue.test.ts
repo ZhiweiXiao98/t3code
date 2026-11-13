@@ -1,3 +1,4 @@
+import { localizeAttachmentUploadFailure } from "../i18n/attachmentUploadMessages";
 import { EnvironmentId } from "@t3tools/contracts";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { Atom, AsyncResult } from "effect/reactivity";
@@ -208,6 +209,29 @@ describe("attachmentUploadQueue", () => {
       releaseAttachmentUpload(imageId);
     }
     vi.unstubAllGlobals();
+  });
+
+  it("localizes a real HTTP rejection only for display and retains retry behavior", async () => {
+    const image = makeImage("localized-rejection");
+    startAttachmentUpload({ environmentId: firstEnvironment, image });
+    await vi.waitFor(() => expect(TestXmlHttpRequest.requests).toHaveLength(1));
+    const settled = awaitAttachmentUploads([image.id]);
+    TestXmlHttpRequest.requests[0]!.complete(413);
+    await settled;
+    const failure = readAttachmentUpload(image.id);
+    expect(failure?.status).toBe("failed");
+    if (failure?.status !== "failed") throw new Error("Expected a failed upload");
+    expect(failure.reason).toBe("Upload rejected (413)");
+    expect(localizeAttachmentUploadFailure("zh-CN", failure.reason)).toBe("上传被拒绝（413）");
+    expect(localizeAttachmentUploadFailure("en", failure.reason)).toBe(failure.reason);
+    expect(readAttachmentUpload(image.id)).toBe(failure);
+    retryAttachmentUpload({ environmentId: firstEnvironment, image });
+    await vi.waitFor(() => expect(TestXmlHttpRequest.requests).toHaveLength(2));
+    const retried = awaitAttachmentUploads([image.id]);
+    TestXmlHttpRequest.requests[1]!.complete();
+    await retried;
+    expect(readAttachmentUpload(image.id)?.status).toBe("ready");
+    expect(TestXmlHttpRequest.requests.map((request) => request.method)).toEqual(["POST", "POST"]);
   });
 
   it("keeps an attachment local until its own environment grants write access", async () => {

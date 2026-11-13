@@ -1,4 +1,8 @@
 import { assert, describe, it } from "@effect/vitest";
+import { DEFAULT_CLIENT_SETTINGS } from "@t3tools/contracts";
+import * as DesktopClientSettings from "../settings/DesktopClientSettings.ts";
+import * as ElectronApp from "../electron/ElectronApp.ts";
+import { wslFailureReason } from "./WslPreflightMessages.ts";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -144,12 +148,28 @@ describe("DesktopWslBackend", () => {
         throw new Error("Expected WSL backend callbacks");
       }
 
-      assert.isFalse(yield* recordFailure({ reason: "Node.js not found", fatal: true }));
+      const clientSettings = yield* DesktopClientSettings.DesktopClientSettings;
+      yield* clientSettings.set({ ...DEFAULT_CLIENT_SETTINGS, appLocale: "en" });
+      const reason = "Node.js not found";
+      const failure = { ...wslFailureReason(reason, "未找到 Node.js"), fatal: true };
+      assert.isFalse(yield* recordFailure(failure));
+      assert.deepEqual(yield* backend.lastPreflightError, Option.some(reason));
+      yield* clientSettings.set({ ...DEFAULT_CLIENT_SETTINGS, appLocale: "zh-CN" });
+      assert.deepEqual(yield* backend.lastPreflightError, Option.some("未找到 Node.js"));
+      assert.equal(failure.reason, reason);
+      assert.isFalse(yield* recordFailure({ reason, fatal: true }));
       assert.deepEqual(yield* backend.lastPreflightError, Option.some("Node.js not found"));
 
       yield* recordOwnershipFailure();
       const refusal = yield* backend.lastPreflightError;
-      assert.include(Option.getOrThrow(refusal), "Another T3 Code server");
+      assert.include(Option.getOrThrow(refusal), "其他 T3 Code 服务器");
+      assert.include(Option.getOrThrow(refusal), "`t3 service uninstall`");
+      yield* clientSettings.set({ ...DEFAULT_CLIENT_SETTINGS, appLocale: "en" });
+      assert.include(
+        Option.getOrThrow(yield* backend.lastPreflightError),
+        "Another T3 Code server",
+      );
+      yield* clientSettings.set({ ...DEFAULT_CLIENT_SETTINGS, appLocale: "zh-CN" });
       yield* backend.reconcile;
       assert.equal(startCount, 1);
       assert.deepEqual(yield* backend.lastPreflightError, refusal);
@@ -178,6 +198,8 @@ describe("DesktopWslBackend", () => {
           Layer.provideMerge(layerBackendConfiguration),
           Layer.provideMerge(layerServerExposure),
           Layer.provideMerge(layerNet),
+          Layer.provideMerge(DesktopClientSettings.layerTest()),
+          Layer.provideMerge(ElectronApp.layer),
           Layer.provideMerge(
             DesktopAppSettings.layerTest({
               ...DesktopAppSettings.DEFAULT_DESKTOP_SETTINGS,

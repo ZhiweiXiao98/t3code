@@ -1,3 +1,4 @@
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import type { EnvironmentId } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
@@ -21,7 +22,8 @@ export class EnvironmentUpdateCheckError extends Schema.TaggedError<EnvironmentU
 
 const asError = (cause: unknown) =>
   new EnvironmentUpdateCheckError({
-    message: cause instanceof Error ? cause.message : "Could not check for updates.",
+    message:
+      cause instanceof Error ? cause.message : localizeMobileString("Could not check for updates."),
     cause,
   });
 
@@ -44,7 +46,7 @@ export const environmentReleaseCheckAtom = Atom.family((environmentId: Environme
           orElse: () =>
             Effect.fail(
               new EnvironmentUpdateCheckError({
-                message: "Checking for updates timed out. Try again.",
+                message: localizeMobileString("Checking for updates timed out. Try again."),
               }),
             ),
         }),

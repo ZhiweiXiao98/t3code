@@ -19,7 +19,14 @@ export { SettingsScreenContent };
 export function SettingsScreen(
   props: Pick<
     AppBarProps,
-    "title" | "actions" | "refresh" | "trailing" | "search" | "menus" | "guardBack"
+    | "title"
+    | "localizeTitle"
+    | "actions"
+    | "refresh"
+    | "trailing"
+    | "search"
+    | "menus"
+    | "guardBack"
   > & {
     readonly children: ReactNode;
     readonly workspaceRoot?: boolean;
@@ -40,6 +47,7 @@ export function SettingsScreen(
     <View collapsable={false} className={`flex-1 ${surfaceClassName}`}>
       <AppBar
         title={props.title}
+        localizeTitle={props.localizeTitle}
         actions={props.actions}
         refresh={props.refresh}
         search={props.search}

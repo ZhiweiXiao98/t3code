@@ -14,6 +14,14 @@ import * as DesktopBackendPool from "../backend/DesktopBackendPool.ts";
 import * as DesktopServerExposure from "../backend/DesktopServerExposure.ts";
 import * as DesktopAppSettings from "../settings/DesktopAppSettings.ts";
 import * as DesktopWslEnvironment from "./DesktopWslEnvironment.ts";
+import * as DesktopClientSettings from "../settings/DesktopClientSettings.ts";
+import * as ElectronApp from "../electron/ElectronApp.ts";
+import { readDesktopLocale } from "../settings/DesktopLocale.ts";
+import {
+  localizeWslFailureReason,
+  wslFailureReason,
+  type WslFailureReason,
+} from "./WslPreflightMessages.ts";
 
 export const WSL_INSTANCE_ID_PREFIX = "wsl:";
 const WSL_DEFAULT_DISTRO_ID = `${WSL_INSTANCE_ID_PREFIX}default`;
@@ -65,10 +73,13 @@ export const layer = Layer.effect(
     const wslEnvironment = yield* DesktopWslEnvironment.DesktopWslEnvironment;
     const appSettings = yield* DesktopAppSettings.DesktopAppSettings;
     const net = yield* NetService.NetService;
+    const clientSettings = yield* DesktopClientSettings.DesktopClientSettings;
+    const electronApp = yield* ElectronApp.ElectronApp;
+    const getLocale = readDesktopLocale(clientSettings.get, electronApp.systemLocale);
     // Serialize bootstrap and IPC reconciles so concurrent reads cannot register competing WSL instances.
     const reconcileMutex = yield* Semaphore.make(1);
 
-    const preflightErrorRef = yield* Ref.make(Option.none<string>());
+    const preflightErrorRef = yield* Ref.make(Option.none<WslFailureReason>());
     const ownershipRefusedRef = yield* Ref.make(
       Option.none<DesktopBackendPool.BackendInstanceId>(),
     );
@@ -121,14 +132,17 @@ export const layer = Layer.effect(
           label: Effect.succeed(buildLabel(input.distro)),
           configResolve: configuration.resolveWsl({ port: allocatedPort, distro: input.distro }),
           onPreflightFailed: (failure) =>
-            Ref.set(preflightErrorRef, Option.some(failure.reason)).pipe(Effect.as(false)),
+            Ref.set(preflightErrorRef, Option.some(failure)).pipe(Effect.as(false)),
           onStateDirOwned: () =>
             Ref.set(ownershipRefusedRef, Option.some(targetId)).pipe(
               Effect.andThen(
                 Ref.set(
                   preflightErrorRef,
                   Option.some(
-                    "Another T3 Code server is using this distro's T3 home, or an older background service is set up for it. Stop that server or pair with it, or try `t3 update` in the distro. If the older launcher cannot update, run `t3 service uninstall` and optionally reinstall with `t3 service install` from a current CLI in the distro. Use `npx t3@latest` if `t3` is missing or outdated, and pass `--base-dir` with the service's T3 home to each command.",
+                    wslFailureReason(
+                      "Another T3 Code server is using this distro's T3 home, or an older background service is set up for it. Stop that server or pair with it, or try `t3 update` in the distro. If the older launcher cannot update, run `t3 service uninstall` and optionally reinstall with `t3 service install` from a current CLI in the distro. Use `npx t3@latest` if `t3` is missing or outdated, and pass `--base-dir` with the service's T3 home to each command.",
+                      "其他 T3 Code 服务器正在使用此发行版的 T3 主目录，或此目录已配置旧版后台服务。请停止该服务器或与其配对，或在发行版中尝试运行 `t3 update`。如果旧版启动器无法更新，请运行 `t3 service uninstall`，并按需使用发行版中当前版本的 CLI 运行 `t3 service install` 重新安装。如果 `t3` 不存在或版本过旧，请使用 `npx t3@latest`，并为每条命令添加 `--base-dir` 参数，指定该服务的 T3 主目录。",
+                    ),
                   ),
                 ),
               ),
@@ -215,7 +229,12 @@ export const layer = Layer.effect(
 
     return DesktopWslBackend.of({
       reconcile,
-      lastPreflightError: Ref.get(preflightErrorRef),
+      lastPreflightError: Effect.gen(function* () {
+        const failure = yield* Ref.get(preflightErrorRef);
+        if (Option.isNone(failure)) return Option.none<string>();
+        const locale = yield* getLocale;
+        return Option.some(localizeWslFailureReason(failure.value, locale));
+      }),
     });
   }),
 );

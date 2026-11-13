@@ -1,3 +1,4 @@
+import { localizeAttachmentUploadFailure } from "~/i18n/attachmentUploadMessages";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
 import type {
@@ -175,7 +176,7 @@ export function ComposerAttachmentMediaRow({
   readonly onRemoveImage: (imageId: string) => void;
   readonly onRemoveFile: (fileId: string) => void;
 }) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
 
   const uploadsByImageId = useAttachmentUploadStore((state) => state.uploadsByImageId);
   const pendingSnapShotIdSet = new Set(pendingSnapShotIds);
@@ -314,7 +315,9 @@ export function ComposerAttachmentMediaRow({
                   >
                     <RefreshIcon />
                   </TooltipTrigger>
-                  <TooltipPopup side="top">{upload.reason}</TooltipPopup>
+                  <TooltipPopup side="top">
+                    {localizeAttachmentUploadFailure(locale, upload.reason)}
+                  </TooltipPopup>
                 </Tooltip>
               )}
               <span
@@ -412,7 +415,9 @@ export function ComposerAttachmentMediaRow({
                 >
                   <RefreshIcon />
                 </TooltipTrigger>
-                <TooltipPopup side="top">{upload.reason}</TooltipPopup>
+                <TooltipPopup side="top">
+                  {localizeAttachmentUploadFailure(locale, upload.reason)}
+                </TooltipPopup>
               </Tooltip>
             )}
             <Button
@@ -520,7 +525,9 @@ export function ComposerAttachmentFileList({
                 >
                   <RefreshIcon />
                 </TooltipTrigger>
-                <TooltipPopup side="top">{upload.reason}</TooltipPopup>
+                <TooltipPopup side="top">
+                  {localizeAttachmentUploadFailure(releaseLocale, upload.reason)}
+                </TooltipPopup>
               </Tooltip>
             ) : null}
             <Button

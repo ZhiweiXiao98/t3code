@@ -135,6 +135,48 @@ describe("subscription widget snapshots", () => {
   });
 });
 
+it("formats new reset dates in the app locale without changing device clock preferences or provider fields", async () => {
+  const Original = Intl.DateTimeFormat;
+  for (const deviceLocale of ["en-US", "en-GB"]) {
+    const hourCycle = new Original(deviceLocale, { hour: "numeric" }).resolvedOptions().hourCycle;
+    for (const locale of ["en", "zh-CN"]) {
+      vi.resetModules();
+      vi.stubEnv("EXPO_PUBLIC_APP_LOCALE", locale);
+      const spy = vi.spyOn(Intl, "DateTimeFormat").mockImplementation(function (locales, options) {
+        return new Original(locales === undefined ? deviceLocale : locales, options);
+      });
+      try {
+        const { buildSubscriptionUsageSnapshot: build } =
+          await import("./subscriptionUsageSnapshot");
+        const input = presentations([
+          provider({ usageLimits: { checkedAt, windows: [{ ...window, label: "Settings" }] } }),
+        ]);
+        const original = structuredClone(input);
+        const snapshot = build(input, deepLink);
+        expect(snapshot.providers[0]?.windows[0]).toEqual({
+          kind: "session",
+          label: "Settings",
+          remaining: 60,
+          reset: `Next reset ${new Date(window.resetsAt).toLocaleString(locale, {
+            month: "short",
+            day: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+            hourCycle,
+          })}`,
+        });
+        expect(snapshot.providers[0]?.expiresAt).toBe(now + 10 * 60_000);
+        expect(snapshot.url).toBe(deepLink);
+        expect(input).toEqual(original);
+      } finally {
+        spy.mockRestore();
+        vi.unstubAllEnvs();
+      }
+    }
+  }
+  vi.resetModules();
+});
+
 describe("widget refresh probes", () => {
   it("does not overlap a slow probe even after the refresh interval", async () => {
     let finish!: () => void;

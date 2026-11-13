@@ -31,6 +31,7 @@ import * as DesktopObservability from "../app/DesktopObservability.ts";
 import * as DesktopTelemetryPublisher from "../telemetry/DesktopTelemetryPublisher.ts";
 import * as DesktopBrowserHost from "../preview/DesktopBrowserHost.ts";
 import * as DesktopWslEnvironment from "../wsl/DesktopWslEnvironment.ts";
+import type { WslFailureReason } from "../wsl/WslPreflightMessages.ts";
 
 const INITIAL_RESTART_DELAY = Duration.millis(500);
 const MAX_RESTART_DELAY = Duration.seconds(10);
@@ -84,8 +85,7 @@ export interface DesktopBackendStartConfig extends BackendProcessContext {
   readonly wslRuntimeId?: string;
 }
 
-export interface PreflightFailure {
-  readonly reason: string;
+export interface PreflightFailure extends WslFailureReason {
   readonly fatal: boolean;
   readonly retryLimit?: number;
 }

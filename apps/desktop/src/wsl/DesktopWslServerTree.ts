@@ -7,12 +7,13 @@ import * as Schema from "effect/Schema";
 import * as Semaphore from "effect/Semaphore";
 
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
+import { wslFailureReason, type WslFailureReason } from "./WslPreflightMessages.ts";
 
 // WSL's plain Node cannot read server.asar. Electron's patched fs also reads its unpacked native siblings.
 
 export type WslServerTreeResult =
   | { readonly ok: true; readonly root: string }
-  | { readonly ok: false; readonly reason: string; readonly fatal: boolean };
+  | (WslFailureReason & { readonly ok: false; readonly fatal: boolean });
 
 const MARKER_FILE_NAME = "t3code-wsl-server-tree.json";
 const COPY_CONCURRENCY = 8;
@@ -180,9 +181,10 @@ export const make = Effect.gen(function* () {
           Effect.catch((error) =>
             Effect.succeed({
               ok: false,
-              reason: `WSL server files could not be extracted to ${versionDir}: ${
-                error.cause instanceof Error ? error.cause.message : String(error.cause)
-              }`,
+              ...wslFailureReason(
+                `WSL server files could not be extracted to ${versionDir}: ${error.cause instanceof Error ? error.cause.message : String(error.cause)}`,
+                `无法将 WSL 服务器文件解压到 ${versionDir}：${error.cause instanceof Error ? error.cause.message : String(error.cause)}`,
+              ),
               fatal: false,
             } as const),
           ),

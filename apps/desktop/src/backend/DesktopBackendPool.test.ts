@@ -1,4 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
+import { DEFAULT_CLIENT_SETTINGS } from "@t3tools/contracts";
+import { wslFailureReason } from "../wsl/WslPreflightMessages.ts";
 import * as Deferred from "effect/Deferred";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
@@ -108,6 +110,11 @@ const runningConfig = {
 function layerPool(
   labelRef: Ref.Ref<string>,
   backend?: Effect.Success<ReturnType<typeof makeFakeBackendProcess>>,
+  options: {
+    readonly primaryConfig?: DesktopBackendStartConfig;
+    readonly showErrorBox?: ElectronDialog.ElectronDialog["Service"]["showErrorBox"];
+    readonly clientSettings?: DesktopClientSettings.DesktopClientSettings["Service"];
+  } = {},
 ): Layer.Layer<DesktopBackendPool.DesktopBackendPool> {
   return DesktopBackendPool.layer.pipe(
     Layer.provideMerge(
@@ -151,17 +158,27 @@ function layerPool(
         }),
         DesktopBrowserHost.layer,
         Layer.succeed(DesktopBackendConfiguration.DesktopBackendConfiguration, {
-          resolvePrimary: Effect.die("unexpected primary config resolve"),
+          resolvePrimary: options.primaryConfig
+            ? Effect.succeed(options.primaryConfig)
+            : Effect.die("unexpected primary config resolve"),
           resolvePrimaryLabel: Ref.get(labelRef),
           resolveWsl: () => Effect.die("unexpected WSL config resolve"),
           currentBootstrapToken: Effect.die("unexpected bootstrap token read"),
         } satisfies DesktopBackendConfiguration.DesktopBackendConfiguration["Service"]),
         DesktopAppSettings.layerTest(),
-        DesktopClientSettings.layerTest(),
+        options.clientSettings
+          ? Layer.succeed(DesktopClientSettings.DesktopClientSettings, options.clientSettings)
+          : DesktopClientSettings.layerTest(),
         DesktopState.layer,
         DesktopWslEnvironment.layerTest(),
-        ElectronDialog.layer,
-        ElectronApp.layer,
+        Layer.succeed(ElectronDialog.ElectronDialog, {
+          ...ElectronDialog.make,
+          showErrorBox: options.showErrorBox ?? ElectronDialog.make.showErrorBox,
+        }),
+        Layer.succeed(ElectronApp.ElectronApp, {
+          ...ElectronApp.make,
+          systemLocale: Effect.succeed("zh-CN"),
+        }),
         Layer.succeed(DesktopWindow.DesktopWindow, {
           createMain: Effect.die("unexpected window create"),
           ensureMain: Effect.die("unexpected window ensure"),
@@ -185,6 +202,83 @@ function layerPool(
 }
 
 describe("DesktopBackendPool", () => {
+  it.effect.each([
+    { locale: "en", fatal: true, localized: true },
+    { locale: "zh-CN", fatal: true, localized: true },
+    { locale: "en", fatal: false, localized: true },
+    { locale: "zh-CN", fatal: false, localized: true },
+    { locale: "zh-CN", fatal: true, localized: false },
+    { locale: "system", fatal: false, localized: true },
+  ] as const)(
+    "renders the latest $locale locale for fatal=$fatal, owned=$localized",
+    ({ locale, fatal, localized }) =>
+      Effect.scoped(
+        Effect.gen(function* () {
+          const reason = "WSL distro is not installed: Test User's 发行版";
+          const translated = "未安装 WSL 发行版：Test User's 发行版";
+          const failure = {
+            ...(localized ? wslFailureReason(reason, translated) : { reason }),
+            fatal,
+            retryLimit: 1,
+          };
+          const shown: Array<{ title: string; content: string }> = [];
+          const settingsRef = yield* Ref.make({
+            ...DEFAULT_CLIENT_SETTINGS,
+            appLocale: "en" as typeof DEFAULT_CLIENT_SETTINGS.appLocale,
+          });
+          yield* Effect.gen(function* () {
+            const pool = yield* DesktopBackendPool.DesktopBackendPool;
+            // Startup loads preferences after the pool is constructed.
+            yield* Ref.update(settingsRef, (settings) => ({ ...settings, appLocale: locale }));
+            const primary = yield* pool.primary;
+            yield* primary.start;
+            const chinese = locale !== "en";
+            assert.equal(shown.length, 1);
+            assert.equal(
+              shown[0]?.title,
+              chinese
+                ? fatal
+                  ? "WSL 后端无法启动"
+                  : "WSL 后端仍不可用"
+                : fatal
+                  ? "WSL backend couldn't start"
+                  : "WSL backend is still unavailable",
+            );
+            assert.equal(
+              shown[0]?.content.split("\n\n")[0],
+              chinese && localized ? translated : reason,
+            );
+            assert.include(
+              shown[0]!.content,
+              chinese
+                ? fatal
+                  ? "将回退到 Windows 后端"
+                  : "本次启动将使用 Windows 后端"
+                : fatal
+                  ? "Falling back to the Windows backend"
+                  : "T3 Code will use the Windows backend",
+            );
+            assert.equal(failure.reason, reason);
+            yield* primary.stop();
+          }).pipe(
+            Effect.provide(
+              layerPool(Ref.makeUnsafe("WSL"), undefined, {
+                primaryConfig: { ...runningConfig, preflightFailure: Option.some(failure) },
+                showErrorBox: (title, content) =>
+                  Effect.sync(() => {
+                    shown.push({ title, content });
+                  }),
+                clientSettings: {
+                  get: Ref.get(settingsRef).pipe(Effect.asSome),
+                  set: (settings) => Ref.set(settingsRef, settings),
+                },
+              }),
+            ),
+          );
+        }),
+      ),
+  );
+
   it.effect("unregister during pool quit does not interrupt sibling stops", () =>
     Effect.scoped(
       Effect.gen(function* () {

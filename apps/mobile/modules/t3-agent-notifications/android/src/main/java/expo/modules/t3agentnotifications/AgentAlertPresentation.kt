@@ -69,8 +69,8 @@ private fun groupedAlertPresentation(
 ): AgentAlertPresentation? {
   val needsUser = rows.first().phase.needsUser
   val title = "${rows.size} agents ${if (needsUser) "need attention" else "finished"}"
+  if (data.containsKey("alert_group") || data["alert_path"] != "/") return null
   return if (
-    data.containsKey("alert_group") || data["alert_path"] != "/" ||
     rows.map { it.environmentId to it.threadId }.distinct().size != rows.size ||
     rows.any { it.phase.needsUser != needsUser } || original.title != title
   ) {

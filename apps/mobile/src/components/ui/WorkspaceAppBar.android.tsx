@@ -153,7 +153,7 @@ function WorkspaceAppBarView(props: WorkspaceAppBarProps) {
         ) : (
           // The bar draws the icon; this takes the touch so the menu can anchor to the slot.
           <Pressable
-            accessibilityLabel={filter.accessibilityLabel}
+            accessibilityLabel={localizeMobileString(filter.accessibilityLabel)}
             accessibilityRole="button"
             android_ripple={{ borderless: true, radius: 20 }}
             onPress={open}
@@ -197,7 +197,9 @@ function WorkspaceAppBarView(props: WorkspaceAppBarProps) {
                   source={SEARCH_ICON}
                   size={24}
                   tint={search ? tint : "transparent"}
-                  contentDescription={search?.accessibilityLabel}
+                  contentDescription={
+                    search ? localizeMobileString(search.accessibilityLabel) : undefined
+                  }
                 />
               </IconButton>
               <Box contentAlignment="center" modifiers={[size(ACTION_SIZE, ACTION_SIZE)]}>

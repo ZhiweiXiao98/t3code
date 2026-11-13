@@ -59,6 +59,31 @@ function AgentActivity(
   "widget";
 
   const isChinese = process.env.EXPO_PUBLIC_APP_LOCALE === "zh-CN";
+  const displayStatus = (row: AgentActivityRowProps): string => {
+    if (!isChinese) return row.status;
+    switch (row.phase) {
+      case "starting":
+        return row.status === "Connecting" ? "正在连接" : row.status;
+      case "running":
+        return row.status === "Working" ? "运行中" : row.status;
+      case "waiting_for_approval":
+        return row.status === "Approval" ? "待批准" : row.status;
+      case "waiting_for_input":
+        return row.status === "Input" ? "待输入" : row.status;
+      case "completed":
+        return row.status === "Done" ? "完成" : row.status;
+      case "failed":
+        return row.status === "Failed" ? "失败" : row.status;
+      case "stale":
+        return row.status === "Out of date"
+          ? "状态已过期"
+          : row.status === "Waiting"
+            ? "等待中"
+            : row.status;
+      default:
+        return row.status;
+    }
+  };
   const staleLabel = isChinese ? "状态已过期" : "Out of date";
 
   // Hierarchical foregrounds inherit system tint and vibrancy.
@@ -233,7 +258,7 @@ function AgentActivity(
           layoutPriority(1),
         ]}
       >
-        {row.status}
+        {displayStatus(row)}
       </Text>
     </HStack>
   );
@@ -330,7 +355,7 @@ function AgentActivity(
             </Text>
             <Spacer minLength={6} />
             <Text modifiers={[font({ size: 11 }), foregroundStyle(phaseTint(row0.phase))]}>
-              {row0.status}
+              {displayStatus(row0)}
             </Text>
           </HStack>
         ) : null}
@@ -363,10 +388,16 @@ function AgentActivity(
       >
         {attentionRow
           ? attentionRow.phase === "waiting_for_approval"
-            ? "Approval"
-            : "Input"
+            ? isChinese
+              ? "待批准"
+              : "Approval"
+            : isChinese
+              ? "待输入"
+              : "Input"
           : failedRow
-            ? "Failed"
+            ? isChinese
+              ? "失败"
+              : "Failed"
             : activeLabel}
       </Text>
     ),
