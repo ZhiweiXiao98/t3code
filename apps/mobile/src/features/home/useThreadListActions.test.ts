@@ -17,6 +17,8 @@ const state = vi.hoisted(() => ({
   pendingOrder: null as object | null,
   dropBusy: false,
   failedAction: null as string | null,
+  failure: new Error("Server rejected action") as unknown,
+  locale: "en" as "en" | "zh-CN",
   archivedRefreshes: [] as string[],
   scopes: new Map<string, Set<string>>(),
   shells: [] as EnvironmentThreadShell[],
@@ -25,9 +27,9 @@ const state = vi.hoisted(() => ({
     environmentId: string;
     input: { threadId: string; orderKey?: string; snoozedUntil?: string; reason?: string };
   }[],
-  dialogs: [] as { onConfirm: () => void }[],
   alerts: [] as {
     title: string;
+    message?: string;
     buttons?: { text: string; onPress?: () => void }[];
   }[],
   afterRequest: undefined as (() => void) | undefined,
@@ -39,19 +41,26 @@ vi.mock("react", () => ({
 }));
 vi.mock("react-native", () => ({
   Alert: {
-    alert: (title: string, _message: string, buttons?: { text: string; onPress?: () => void }[]) =>
-      state.alerts.push({ title, buttons }),
+    alert: (title: string, message: string, buttons?: { text: string; onPress?: () => void }[]) =>
+      state.alerts.push({ title, message, buttons }),
   },
 }));
 vi.mock("expo-haptics", () => ({
   impactAsync: async () => {},
   ImpactFeedbackStyle: { Light: "light" },
 }));
-vi.mock("../../components/ui/Dialog", () => ({
-  alert: (title: string, _message: string, buttons?: { text: string; onPress?: () => void }[]) =>
-    state.alerts.push({ title, buttons }),
-  confirm: (dialog: { onConfirm: () => void }) => state.dialogs.push(dialog),
-}));
+vi.mock("../../i18n/mobileStrings", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../i18n/mobileStrings")>();
+  return {
+    ...actual,
+    localizeMobileString: (value: string) => actual.localizeMobileString(value, state.locale),
+    localizeAlertArguments: (
+      title: string,
+      message: string | undefined,
+      buttons: Parameters<typeof actual.localizeAlertArguments>[2],
+    ) => actual.localizeAlertArguments(title, message, buttons, state.locale),
+  };
+});
 vi.mock("../archive/useArchivedThreadSnapshots", () => ({
   refreshArchivedThreadsForEnvironment: (environmentId: string) => {
     state.archivedRefreshes.push(environmentId);
@@ -148,8 +157,7 @@ vi.mock("../../state/threads", () => ({
         if (!state.scopes.get(request.environmentId)?.has(AuthOrchestrationOperateScope)) {
           return AsyncResult.failure(Cause.fail(new Error("Thread operation denied")));
         }
-        if (action === state.failedAction)
-          return AsyncResult.failure(Cause.fail(new Error("Server rejected action")));
+        if (action === state.failedAction) return AsyncResult.failure(Cause.fail(state.failure));
         state.afterRequest?.();
         return AsyncResult.success(undefined);
       },
@@ -188,6 +196,8 @@ const mutationCases = [
 beforeEach(() => {
   state.connectedEnvironmentIds = [primaryEnvironmentId, otherEnvironmentId];
   state.failedAction = null;
+  state.failure = new Error("Server rejected action");
+  state.locale = "en";
   state.archivedRefreshes = [];
   state.pendingOrder = null;
   state.dropBusy = false;
@@ -197,7 +207,6 @@ beforeEach(() => {
   ]);
   state.requests = [];
   state.shells = [];
-  state.dialogs = [];
   state.alerts = [];
   state.afterRequest = undefined;
 });
@@ -232,7 +241,9 @@ describe("thread list operation permissions", () => {
 
   it("rechecks permission after a retained delete confirmation", async () => {
     useThreadListActions().confirmDeleteThread(makeThread());
-    const confirm = state.dialogs[0]?.onConfirm;
+    const confirm = state.alerts
+      .at(-1)
+      ?.buttons?.find((button) => button.text === "Delete")?.onPress;
     expect(confirm).toBeTypeOf("function");
     state.scopes.get(primaryEnvironmentId)!.clear();
 
@@ -558,4 +569,36 @@ describe("thread archive guard", () => {
     expect(state.archivedRefreshes).toEqual([]);
     expect(state.alerts.at(-1)?.title).toBe("Could not archive thread");
   });
+});
+
+describe("thread action error display provenance", () => {
+  it.each(mutationCases)(
+    "%s preserves external diagnostics in Chinese",
+    async (handler, action) => {
+      state.locale = "zh-CN";
+      state.failedAction = action;
+      state.failure = new Error("Settings");
+      await useThreadListActions()[handler](makeThread(), "2099-01-01T00:00:00.000Z");
+      expect(state.alerts.at(-1)?.message).toBe("Settings");
+      expect(state.requests.at(-1)?.action).toBe(action);
+    },
+  );
+  it("translates a non-Error pin fallback without changing the mutation", async () => {
+    state.locale = "zh-CN";
+    state.failedAction = "pin";
+    state.failure = null;
+    await useThreadListActions().pinThread(makeThread());
+    expect(state.alerts.at(-1)?.message).toBe("无法置顶该任务。");
+    expect(state.requests.at(-1)?.action).toBe("pin");
+  });
+});
+
+it("localizes delete confirmation around the literal thread title and preserves cancellation", () => {
+  state.locale = "zh-CN";
+  useThreadListActions().confirmDeleteThread(makeThread({ title: "Settings {0}" }));
+  expect(state.alerts.at(-1)?.message).toBe("将永久删除“Settings {0}”，包括其终端历史记录。");
+  const cancel = state.alerts.at(-1)?.buttons?.find((button) => button.text === "取消");
+  expect(cancel).toBeDefined();
+  cancel?.onPress?.();
+  expect(state.requests).toEqual([]);
 });

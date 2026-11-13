@@ -1,3 +1,5 @@
+import { markFilePreviewError, filePreviewErrorFields } from "@t3tools/shared/filePreview";
+import { filePreviewWorkerError } from "../filePreviewErrorMessages";
 // Adapted from opencode (MIT). Copyright (c) 2025 opencode. See LICENSE.opencode.
 // The engines run in a worker per open file, so no layout, recalculation or painting holds the window. These are the
 // two ends of that worker's protocol: typed calls by method name, a key that lets a newer call replace a queued one
@@ -34,6 +36,7 @@ type Response =
       readonly ok: false;
       readonly superseded: boolean;
       readonly message: string;
+      readonly source?: string;
     };
 
 /** A value a method returns with the buffers to move to the caller rather than copy. */
@@ -99,10 +102,22 @@ export function createWorkerClient<M extends Methods>(worker: Worker) {
   });
 
   worker.addEventListener("error", (event) =>
-    fail(new WorkerClosedError({ message: event.message || "The Office engine stopped" })),
+    fail(
+      event.message
+        ? new WorkerClosedError({ message: event.message })
+        : markFilePreviewError(
+            new WorkerClosedError({ message: "The Office engine stopped" }),
+            "The Office engine stopped",
+          ),
+    ),
   );
   worker.addEventListener("messageerror", () =>
-    fail(new WorkerClosedError({ message: "The Office engine sent an unreadable reply" })),
+    fail(
+      markFilePreviewError(
+        new WorkerClosedError({ message: "The Office engine sent an unreadable reply" }),
+        "The Office engine sent an unreadable reply",
+      ),
+    ),
   );
 
   return {
@@ -145,7 +160,7 @@ export function createWorkerClient<M extends Methods>(worker: Worker) {
               return reject(
                 response.superseded
                   ? new SupersededError({ message: response.message })
-                  : new Error(response.message),
+                  : filePreviewWorkerError(response),
               );
 
             // SAFETY: the worker answers each id with the output of the method that id called (see `serveWorker`).
@@ -253,6 +268,7 @@ export function serveWorker<M extends Methods>(handlers: {
               ok: false,
               superseded: false,
               message: cause instanceof Error ? cause.message : String(cause),
+              ...filePreviewErrorFields(cause),
             });
           },
         );

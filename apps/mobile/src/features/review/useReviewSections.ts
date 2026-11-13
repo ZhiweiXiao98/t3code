@@ -1,3 +1,4 @@
+import { MOBILE_LOCALE } from "../../i18n/mobileStrings";
 import { useAtomValue } from "@effect/atom-react";
 import { resolveFilesystemReadAccess } from "@t3tools/client-runtime/state/filesystem";
 import { Atom } from "effect/reactivity";
@@ -81,13 +82,16 @@ export function useReviewSections(input: {
   );
   // Turns show their last answered diff; the active turn's live query below overrides it.
   // Section ids and the selection do not depend on the live query, so they are resolved first.
-  const cachedSections = buildReviewSectionItems({
-    checkpoints: readyCheckpoints,
-    gitSections:
-      canReadFiles || fileAccess.isPending ? (diffPreview.data?.sources ?? lastGitSections) : [],
-    turnDiffById: reviewTurnDiffsBySectionId(readyCheckpoints, lastTurnDiffs),
-    loadingGitSections: fileAccess.isPending || diffPreview.isPending,
-  });
+  const cachedSections = buildReviewSectionItems(
+    {
+      checkpoints: readyCheckpoints,
+      gitSections:
+        canReadFiles || fileAccess.isPending ? (diffPreview.data?.sources ?? lastGitSections) : [],
+      turnDiffById: reviewTurnDiffsBySectionId(readyCheckpoints, lastTurnDiffs),
+      loadingGitSections: fileAccess.isPending || diffPreview.isPending,
+    },
+    MOBILE_LOCALE,
+  );
   const selectedSectionId = resolveReviewSelectedSectionId(
     cachedSections,
     reviewCache.selectedSectionId,

@@ -1,4 +1,6 @@
 import * as Dialog from "../components/ui/Dialog";
+import { formatMobileMessage } from "../i18n/mobileDisplayStrings";
+import { localizeMobileString } from "../i18n/mobileStrings";
 import { useRef } from "react";
 import { PROVIDER_SEND_TURN_MAX_ATTACHMENTS, type ServerConfig } from "@t3tools/contracts";
 import { clampFileAttachmentUploadBytes } from "@t3tools/client-runtime/state/attachments";
@@ -53,10 +55,14 @@ export function useComposerAttachmentActions(props: {
     const problems = [
       ...(error ? [error] : []),
       ...(rejected
-        ? [`You can attach up to ${PROVIDER_SEND_TURN_MAX_ATTACHMENTS} attachments per message.`]
+        ? [
+            formatMobileMessage("You can attach up to {0} attachments per message.", [
+              PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
+            ]),
+          ]
         : []),
     ];
-    if (problems.length) Dialog.alert(title, problems.join("\n\n"));
+    if (problems.length) Dialog.alertWithLiteralMessage(title, problems.join("\n\n"));
   };
   const onPickDraftMedia = async () => {
     const key = props.draftKey;
@@ -107,9 +113,9 @@ export function useComposerAttachmentActions(props: {
         });
         report("Could not paste images", null, await append(key, signal, images, insertion));
       } catch (error) {
-        Dialog.alert(
+        Dialog.alertWithLiteralMessage(
           "Could not paste images",
-          error instanceof Error ? error.message : "Try again.",
+          error instanceof Error ? error.message : localizeMobileString("Try again."),
         );
       }
     });
@@ -138,9 +144,9 @@ export function useComposerAttachmentActions(props: {
         if (rejected) await removePersistedComposerAttachmentFile(attachment.fileUri);
         report("Could not attach pasted text", null, rejected);
       } catch (error) {
-        Dialog.alert(
+        Dialog.alertWithLiteralMessage(
           "Could not attach pasted text",
-          error instanceof Error ? error.message : "Try again.",
+          error instanceof Error ? error.message : localizeMobileString("Try again."),
         );
       }
     });

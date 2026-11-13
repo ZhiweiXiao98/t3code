@@ -1,3 +1,4 @@
+import { createFilePreviewError } from "@t3tools/shared/filePreview";
 import { pipe } from "effect/Function";
 import {
   IMAGE_DIMENSIONS_HEADER_BYTES,
@@ -39,7 +40,7 @@ function parseXml(source: string): XmlNode {
     /<!\s*(DOCTYPE|ENTITY)/i.test(source) ||
     XMLValidator.validate(source) !== true
   )
-    throw new Error("This document contains invalid or unsupported XML.");
+    throw createFilePreviewError("This document contains invalid or unsupported XML.");
   const parser = new XMLParser({
     preserveOrder: true,
     ignoreAttributes: false,
@@ -55,9 +56,10 @@ function parseXml(source: string): XmlNode {
     depth: number,
     inherited: Record<string, string>,
   ): XmlNode[] {
-    if (depth > 100) throw new Error("This document is nested too deeply to preview.");
+    if (depth > 100) throw createFilePreviewError("This document is nested too deeply to preview.");
     return items.map((item) => {
-      if (++count > 100_000) throw new Error("This document has too much content to preview.");
+      if (++count > 100_000)
+        throw createFilePreviewError("This document has too much content to preview.");
       const name = Object.keys(item).find((key) => key !== ":@") ?? "#text";
       const value = item[name];
       const attrs = Object.fromEntries(
@@ -176,7 +178,7 @@ let markupBytes = 0;
 function reserveMarkup(size: number) {
   markupBytes += size;
   if (markupBytes > 16 * 1024 * 1024)
-    throw new Error("The rendered document is too large to preview.");
+    throw createFilePreviewError("The rendered document is too large to preview.");
 }
 function boundedMarkup(value: string): string {
   reserveMarkup(value.length);
@@ -293,7 +295,7 @@ async function odfHtml(node: XmlNode, archive: JSZip): Promise<string> {
 function repeat(value: string | undefined, max: number) {
   const count = Number(value ?? 1);
   if (!Number.isSafeInteger(count) || count < 1)
-    throw new Error("This spreadsheet contains invalid repeated cells.");
+    throw createFilePreviewError("This spreadsheet contains invalid repeated cells.");
   return Math.min(count, max);
 }
 export async function openDocument(
@@ -302,12 +304,12 @@ export async function openDocument(
 ): Promise<OfficeWorkerResult> {
   markupBytes = 0;
   const source = await archive.file("content.xml")?.async("string");
-  if (!source) throw new Error("This OpenDocument file has no readable content.");
+  if (!source) throw createFilePreviewError("This OpenDocument file has no readable content.");
   const root = parseXml(source);
   if (kind === "ods") {
     const tables = find(root, "table:table");
     if (!tables.length || tables.length > 100)
-      throw new Error("This workbook has no sheets or too many sheets to preview.");
+      throw createFilePreviewError("This workbook has no sheets or too many sheets to preview.");
     let cellBytes = 0;
     return {
       type: "ods",
@@ -334,7 +336,7 @@ export async function openDocument(
             if (value && cells.length + count > ODS_PREVIEW_MAX_COLUMNS) truncated = true;
             for (let i = 0; i < count && cells.length < ODS_PREVIEW_MAX_COLUMNS; i++) {
               if (value.length > 10_000)
-                throw new Error("A spreadsheet cell is too large to preview.");
+                throw createFilePreviewError("A spreadsheet cell is too large to preview.");
               cells.push(value);
             }
           }
@@ -354,7 +356,7 @@ export async function openDocument(
           for (let i = 0; i < count && rows.length < ODS_PREVIEW_MAX_ROWS; i++) {
             cellBytes += cells.reduce((size, cell) => size + cell.length, 0);
             if (cellBytes > 8 * 1024 * 1024)
-              throw new Error("This spreadsheet has too much text to preview.");
+              throw createFilePreviewError("This spreadsheet has too much text to preview.");
             rows.push(cells);
           }
         }
@@ -370,7 +372,7 @@ export async function openDocument(
   }
   const pages = kind === "odp" ? find(root, "draw:page") : find(root, "office:text");
   if (!pages.length || pages.length > 500)
-    throw new Error("This document has no pages or too many pages to preview.");
+    throw createFilePreviewError("This document has no pages or too many pages to preview.");
   const rendered = [];
   for (const [index, page] of pages.entries()) {
     rendered.push({
@@ -384,12 +386,13 @@ export async function openEpub(archive: JSZip): Promise<OfficeWorkerResult> {
   markupBytes = 0;
   const container = parseXml((await archive.file("META-INF/container.xml")?.async("string")) ?? "");
   const rootfile = find(container, "rootfile")[0]?.attrs["full-path"];
-  if (!rootfile || !archive.file(rootfile)) throw new Error("This EPUB has no readable package.");
+  if (!rootfile || !archive.file(rootfile))
+    throw createFilePreviewError("This EPUB has no readable package.");
   const packageRoot = parseXml(await archive.file(rootfile)!.async("string"));
   const manifest = new Map(find(packageRoot, "item").map((item) => [item.attrs.id, item]));
   const spine = find(packageRoot, "itemref");
   if (!spine.length || spine.length > 500)
-    throw new Error("This EPUB has no chapters or too many chapters to preview.");
+    throw createFilePreviewError("This EPUB has no chapters or too many chapters to preview.");
   const pages = [];
   for (const itemref of spine) {
     const item = manifest.get(itemref.attrs.idref);
@@ -405,7 +408,7 @@ export async function openEpub(archive: JSZip): Promise<OfficeWorkerResult> {
       html: await epubHtml(chapter, archive, path),
     });
   }
-  if (!pages.length) throw new Error("This EPUB has no readable XHTML chapters.");
+  if (!pages.length) throw createFilePreviewError("This EPUB has no readable XHTML chapters.");
   return { type: "document", navigation: "chapter", pages };
 }
 function record(value: unknown): Record<string, unknown> {
@@ -420,22 +423,24 @@ function notebookText(value: unknown, limit = 256_000): string {
       : Array.isArray(value)
         ? value.filter((part) => typeof part === "string").join("")
         : "";
-  if (result.length > limit) throw new Error("A notebook cell is too large to preview.");
+  if (result.length > limit)
+    throw createFilePreviewError("A notebook cell is too large to preview.");
   return result;
 }
 export function openNotebook(bytes: ArrayBuffer): OfficeWorkerResult {
   if (bytes.byteLength > 8 * 1024 * 1024)
-    throw new Error("Notebook preview limited to files under 8 MB.");
+    throw createFilePreviewError("Notebook preview limited to files under 8 MB.");
   const notebook = record(JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)));
   if (notebook.nbformat !== 4 || !Array.isArray(notebook.cells) || notebook.cells.length > 500)
-    throw new Error("Preview supports version 4 notebooks with up to 500 cells.");
+    throw createFilePreviewError("Preview supports version 4 notebooks with up to 500 cells.");
   const language = String(record(record(notebook.metadata).language_info).name ?? "text")
     .replaceAll(/[^a-z\d+#-]/gi, "")
     .slice(0, 40);
   const cells: NotebookCell[] = notebook.cells.map((value) => {
     const cell = record(value);
     const outputs = Array.isArray(cell.outputs) ? cell.outputs : [];
-    if (outputs.length > 100) throw new Error("A notebook cell has too many outputs to preview.");
+    if (outputs.length > 100)
+      throw createFilePreviewError("A notebook cell has too many outputs to preview.");
     return {
       kind: cell.cell_type === "markdown" ? "markdown" : cell.cell_type === "code" ? "code" : "raw",
       source: notebookText(cell.source),
@@ -465,13 +470,14 @@ export function openNotebook(bytes: ArrayBuffer): OfficeWorkerResult {
 
 export function openRtf(bytes: ArrayBuffer): OfficeWorkerResult {
   if (bytes.byteLength > 8 * 1024 * 1024)
-    throw new Error("Rich text preview limited to files under 8 MB.");
+    throw createFilePreviewError("Rich text preview limited to files under 8 MB.");
   // Keep byte offsets intact for binary destinations and multibyte code pages.
   const input = new Uint8Array(bytes);
   let source = "";
   for (let offset = 0; offset < input.length; offset += 8192)
     source += String.fromCharCode(...input.subarray(offset, offset + 8192));
-  if (!source.startsWith("{\\rtf")) throw new Error("This is not a valid rich text document.");
+  if (!source.startsWith("{\\rtf"))
+    throw createFilePreviewError("This is not a valid rich text document.");
   let state = {
     skip: false,
     bold: false,
@@ -489,7 +495,8 @@ export function openRtf(bytes: ArrayBuffer): OfficeWorkerResult {
   const pages: { title: string; html: string }[] = [];
   let completedLength = 0;
   const finishPage = () => {
-    if (pages.length >= 500) throw new Error("Rich text preview limited to 500 pages.");
+    if (pages.length >= 500)
+      throw createFilePreviewError("Rich text preview limited to 500 pages.");
     pages.push({ title: `Page ${pages.length + 1}`, html: `<p>${html}</p>` });
     completedLength += html.length;
     html = "";
@@ -506,7 +513,7 @@ export function openRtf(bytes: ArrayBuffer): OfficeWorkerResult {
       encodedLength = 0;
     }
     if (completedLength + html.length + run.length > 8 * 1024 * 1024)
-      throw new Error("This rich text document has too much content to preview.");
+      throw createFilePreviewError("This rich text document has too much content to preview.");
     if (!run) return;
     let span = run;
     if (state.bold) span = `<strong>${span}</strong>`;
@@ -523,7 +530,7 @@ export function openRtf(bytes: ArrayBuffer): OfficeWorkerResult {
     if (state.skip) return;
     run += escape(value);
     if (completedLength + html.length + run.length > 8 * 1024 * 1024)
-      throw new Error("This rich text document has too much content to preview.");
+      throw createFilePreviewError("This rich text document has too much content to preview.");
   };
   const emitByte = (value: number) => {
     if (fallback > 0) fallback--;
@@ -534,19 +541,21 @@ export function openRtf(bytes: ArrayBuffer): OfficeWorkerResult {
     if (char === "{") {
       flush();
       fallback = 0;
-      if (stack.length > 100) throw new Error("This rich text document is nested too deeply.");
+      if (stack.length > 100)
+        throw createFilePreviewError("This rich text document is nested too deeply.");
       stack.push({ ...state });
     } else if (char === "}") {
       flush();
       fallback = 0;
       const parent = stack.pop();
-      if (!parent) throw new Error("This rich text document is damaged.");
+      if (!parent) throw createFilePreviewError("This rich text document is damaged.");
       state = parent;
     } else if (char === "\\") {
       const next = source[i];
       if (next === "'") {
         const hex = source.slice(i + 1, i + 3);
-        if (!/^[\da-f]{2}$/i.test(hex)) throw new Error("Invalid rich text byte escape.");
+        if (!/^[\da-f]{2}$/i.test(hex))
+          throw createFilePreviewError("Invalid rich text byte escape.");
         i += 3;
         emitByte(Number.parseInt(hex, 16));
         continue;
@@ -625,7 +634,7 @@ export function openRtf(bytes: ArrayBuffer): OfficeWorkerResult {
         state.skip = true;
       else if (word === "bin") {
         if (!Number.isSafeInteger(arg) || arg < 0 || arg > source.length - i)
-          throw new Error("Invalid rich text binary data.");
+          throw createFilePreviewError("Invalid rich text binary data.");
         i += arg;
       } else if (word === "ansicpg") {
         const label =
@@ -642,7 +651,7 @@ export function openRtf(bytes: ArrayBuffer): OfficeWorkerResult {
         try {
           state.decoder = new TextDecoder(label);
         } catch {
-          throw new Error("This rich text code page is not supported.");
+          throw createFilePreviewError("This rich text code page is not supported.");
         }
       } else if (word === "b") state.bold = arg !== 0;
       else if (word === "i") state.italic = arg !== 0;
@@ -668,7 +677,7 @@ export function openRtf(bytes: ArrayBuffer): OfficeWorkerResult {
       else if (word === "rdblquote") emit("”");
     } else if (char !== "\r" && char !== "\n" && char) emitByte(char.charCodeAt(0));
   }
-  if (stack.length) throw new Error("This rich text document is damaged.");
+  if (stack.length) throw createFilePreviewError("This rich text document is damaged.");
   flush();
   if (html || !pages.length) finishPage();
   return { type: "document", navigation: "page", pages };

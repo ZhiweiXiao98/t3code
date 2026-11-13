@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it, vi } from "vite-plus/test";
 
 import { sourceControlClients } from "./sourceControlClients.ts";
 
@@ -99,8 +99,14 @@ describe("resolveLinkPullRequestInput", () => {
   });
 
   it("resolves a bare number against the thread's own repository", () => {
+    const formatError = vi.fn((_template: string, values: readonly string[]) => values.join("|"));
     expect(
-      resolveLinkPullRequestInput({ reference: "#42", project, hasProject: () => true }),
+      resolveLinkPullRequestInput({
+        reference: "#42",
+        project,
+        hasProject: () => true,
+        formatError,
+      }),
     ).toEqual({
       link: {
         host: "github.com",
@@ -109,6 +115,34 @@ describe("resolveLinkPullRequestInput", () => {
         url: "https://github.com/acme/web/pull/42",
       },
     });
+    expect(formatError).not.toHaveBeenCalled();
+    expect(
+      resolveLinkPullRequestInput({
+        reference: "not a reference",
+        project: null,
+        hasProject: () => true,
+        formatError,
+      }),
+    ).toBeNull();
+    expect(formatError).not.toHaveBeenCalled();
+    expect(
+      resolveLinkPullRequestInput({ reference: "#42", project: null, hasProject: () => true }),
+    ).toEqual({
+      error:
+        "Paste the full pull request URL; this thread has no repository to resolve the number against.",
+    });
+    expect(
+      resolveLinkPullRequestInput({
+        reference: "#42",
+        project: null,
+        hasProject: () => true,
+        formatError,
+      }),
+    ).toEqual({ error: "pull request" });
+    expect(formatError).toHaveBeenCalledExactlyOnceWith(
+      "Paste the full {0} URL; this thread has no repository to resolve the number against.",
+      ["pull request"],
+    );
   });
 
   it("names the project host's change request when it has no URL for a number", () => {
@@ -125,6 +159,22 @@ describe("resolveLinkPullRequestInput", () => {
     ).toEqual({
       error: "Paste a full URL; this project's host has no known merge request URL.",
     });
+    for (const kind of ["github", "gitlab"]) {
+      const terminology = sourceControlClients.get(kind).changeRequest;
+      const formatError = vi.fn((_template: string, values: readonly string[]) => values.join("|"));
+      expect(
+        resolveLinkPullRequestInput({
+          reference: "#42",
+          project: { ...project, terminology, webUrl: () => null },
+          hasProject: () => true,
+          formatError,
+        }),
+      ).toEqual({ error: terminology.singular });
+      expect(formatError).toHaveBeenCalledExactlyOnceWith(
+        "Paste a full URL; this project's host has no known {0} URL.",
+        [terminology.singular],
+      );
+    }
   });
 
   it("links a URL from another repository on a host with a project", () => {
@@ -151,6 +201,19 @@ describe("resolveLinkPullRequestInput", () => {
       hasProject: () => false,
     });
     expect(result).toMatchObject({ error: expect.stringContaining("gitlab.com") });
+    const formatError = vi.fn((_template: string, values: readonly string[]) => values.join("|"));
+    expect(
+      resolveLinkPullRequestInput({
+        reference: "https://gitlab.com/Settings/Open/-/merge_requests/7",
+        project,
+        hasProject: () => false,
+        formatError,
+      }),
+    ).toEqual({ error: "gitlab.com|settings/open" });
+    expect(formatError).toHaveBeenCalledExactlyOnceWith(
+      "No project in this environment can read {0}/{1}.",
+      ["gitlab.com", "settings/open"],
+    );
   });
 });
 

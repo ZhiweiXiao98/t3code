@@ -1,3 +1,4 @@
+import { createFilePreviewError } from "@t3tools/shared/filePreview";
 import { useStableCallback } from "~/hooks/useStableCallback";
 import { translateWebSource } from "~/i18n/messages";
 import { useI18n } from "~/i18n/WebI18nContext";
@@ -76,7 +77,7 @@ export default function Spreadsheet(props: {
     void engine
       .call("open", { bytes }, { transfer: [bytes], signal: controller.signal })
       .then((value) => {
-        if (!value) throw new Error(translateSource("This workbook has no visible sheets."));
+        if (!value) throw createFilePreviewError("This workbook has no visible sheets.");
         setOpened({ ...value, engine });
         onDetails(translateCount(value.tabs.length));
       })
@@ -86,7 +87,7 @@ export default function Spreadsheet(props: {
       picking.current?.abort();
       engine.close();
     };
-  }, [source, onDetails, onError, translateSource, translateCount]);
+  }, [source, onDetails, onError, translateCount]);
   const details = opened ? t("files.residual.sheets", { count: opened.tabs.length }) : null;
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Refresh the parent caption when its localized text changes without restarting the document worker.
   useEffect(() => {

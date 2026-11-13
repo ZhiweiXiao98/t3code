@@ -1,3 +1,9 @@
+import {
+  presentPendingBackgroundWork,
+  presentProviderGoal,
+} from "@t3tools/client-runtime/state/thread-execution";
+import { formatMobileMessage } from "./mobileDisplayStrings";
+import { localizeMobileString } from "./mobileStrings";
 import { projectCloneProgressSummary, type ProjectCloneSnapshot } from "@t3tools/contracts";
 import { expect, it } from "vite-plus/test";
 import {
@@ -59,5 +65,63 @@ it("chooses shared-content instructions from attachment count and type without c
     expect(mobileSharedContentPrompt(attachments, "en")).toBe(english);
     expect(mobileSharedContentPrompt(attachments, "zh-CN")).toBe(chinese);
     expect(JSON.stringify(attachments)).toBe(before);
+  }
+});
+
+it("localizes background states without changing real descriptions or task ordering", () => {
+  const display = (template: string, values: readonly string[]) =>
+    formatMobileMessage(template, values, "zh-CN");
+  for (const kind of ["subagent", "command", "monitor", "background_task"] as const) {
+    const tasks = [{ taskId: kind, kind, description: "Settings" }];
+    const original = JSON.stringify(tasks);
+    const result = presentPendingBackgroundWork(tasks, display);
+    expect(result?.items[0]?.label).toBe("Settings");
+    expect(result?.title).toMatch(/^(等待中|运行中) · Settings$/);
+    expect(JSON.stringify(tasks)).toBe(original);
+  }
+  expect(
+    presentPendingBackgroundWork(
+      [{ taskId: "same", kind: "command", description: "command" }],
+      display,
+    )?.title,
+  ).toBe("运行中 · command");
+  expect(
+    presentPendingBackgroundWork(
+      [{ taskId: "same-agent", kind: "subagent", description: "subagent" }],
+      display,
+    )?.title,
+  ).toBe("等待中 · subagent");
+  expect(presentPendingBackgroundWork([{ taskId: "none", kind: "command" }], display)?.title).toBe(
+    "正在运行命令",
+  );
+  const many = presentPendingBackgroundWork(
+    [
+      { taskId: "monitor", kind: "monitor" },
+      { taskId: "command", kind: "command", awaited: true },
+    ],
+    display,
+  );
+  expect(many?.items.map((item) => item.taskId)).toEqual(["command", "monitor"]);
+  expect(many?.title).toBe("正在等待1 个命令和1 个监视器");
+});
+
+it("translates finite goal states while keeping the goal text and metrics unchanged", () => {
+  for (const status of [
+    "active",
+    "paused",
+    "blocked",
+    "usage_limited",
+    "budget_limited",
+    "complete",
+  ] as const) {
+    const goal = { status, objective: "Settings {0}", tokensUsed: 1200, checks: 3 };
+    const base = presentProviderGoal(goal, false);
+    const result = presentProviderGoal(goal, false, (title) =>
+      localizeMobileString(title, "zh-CN"),
+    );
+    expect(result.title).not.toBe(base.title);
+    expect(result.objective).toBe(goal.objective);
+    expect(result.usage).toBe(base.usage);
+    expect(result.canResume).toBe(base.canResume);
   }
 });

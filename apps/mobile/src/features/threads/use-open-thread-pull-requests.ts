@@ -2,6 +2,8 @@ import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/shell
 import { useNavigation } from "@react-navigation/native";
 
 import * as Dialog from "../../components/ui/Dialog";
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { useNavigateToPullRequest } from "../../native/useOpenPullRequest";
 import {
   resolveThreadPrBadgeAction,
@@ -25,9 +27,11 @@ export function useOpenThreadPullRequests() {
       projectId: String(thread.projectId),
     }).then((opened) => {
       if (!opened)
-        Dialog.alert(
-          `Unable to open ${pr.changeRequest.shortLabel}`,
-          `The ${pr.changeRequest.singular} could not be opened.`,
+        Dialog.alertWithLiteralMessage(
+          formatMobileMessage("Unable to open {0}", [pr.changeRequest.shortLabel]),
+          formatMobileMessage("The {0} could not be opened.", [
+            localizeMobileString(pr.changeRequest.singular),
+          ]),
         );
     });
   };

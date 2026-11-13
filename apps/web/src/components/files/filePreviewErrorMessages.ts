@@ -1,6 +1,28 @@
+import { createFilePreviewError, filePreviewErrorSource } from "@t3tools/shared/filePreview";
 import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 
 const OWNED_PREVIEW_ERRORS: Readonly<Record<string, string>> = {
+  "This workbook has no visible sheets.": "此工作簿没有可见的工作表。",
+  "Preview limited to 1,000 pages.": "预览最多支持 1,000 页。",
+  "This browser cannot draw slides.": "此浏览器无法绘制幻灯片。",
+  "Preview limited to presentations with 1 to 500 slides.":
+    "仅支持预览包含 1 至 500 张幻灯片的演示文稿。",
+
+  "The text viewer stopped.": "文本查看器已停止。",
+  "Could not load the text viewer. Close the file and try again.":
+    "无法加载文本查看器。请关闭文件后重试。",
+  "Preview closed.": "预览已关闭。",
+  "Another copy is in progress.": "另一个复制操作正在进行中。",
+  "This file took too long to preview. Close it and try again.":
+    "此文件预览耗时过长。请关闭后重试。",
+  "Could not load the file viewer. Close it and try again.":
+    "无法加载文件查看器。请关闭文件后重试。",
+  "Could not render this Office document.": "无法渲染此 Office 文档。",
+  "Could not load the Office viewer.": "无法加载 Office 查看器。",
+  "Could not load the Office viewer. Close the file and try again.":
+    "无法加载 Office 查看器。请关闭文件后重试。",
+  "Could not read the Office viewer response.": "无法读取 Office 查看器的响应。",
+
   "The file could not be loaded. Close it and try again.": "无法加载此文件。请关闭后重试。",
   "Text previews support files up to 256 MB.": "文本预览支持最大 256 MB 的文件。",
   "This file contains binary data.": "此文件包含二进制数据。",
@@ -126,4 +148,22 @@ export function localizeFilePreviewError(locale: ResolvedAppLocale, source: stri
   return locale === "zh-CN" && Object.hasOwn(OWNED_PREVIEW_ERRORS, source)
     ? OWNED_PREVIEW_ERRORS[source]!
     : source;
+}
+
+/** Called only on replies from the app-owned preview worker, never on arbitrary errors. */
+export function filePreviewWorkerError(reply: {
+  readonly message: string;
+  readonly source?: unknown;
+}): Error {
+  return Object.hasOwn(reply, "source") &&
+    typeof reply.source === "string" &&
+    reply.source === reply.message &&
+    Object.hasOwn(OWNED_PREVIEW_ERRORS, reply.source)
+    ? createFilePreviewError(reply.source, reply.message)
+    : new Error(reply.message);
+}
+
+export function filePreviewFailureMessage(locale: ResolvedAppLocale, error: Error): string {
+  const source = filePreviewErrorSource(error);
+  return source === undefined ? error.message : localizeFilePreviewError(locale, source);
 }

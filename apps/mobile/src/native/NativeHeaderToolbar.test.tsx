@@ -1,3 +1,6 @@
+import { ProjectId, ThreadId } from "@t3tools/contracts";
+import { pullRequestAgentThreadActions } from "../features/pull-requests/pullRequestAgentTasks";
+import { renderPullRequestThreadMenuItems } from "../features/pull-requests/pullRequestThreadMenuItems";
 import type { NativeStackHeaderItem } from "@react-navigation/native-stack";
 import { NavigationContext } from "@react-navigation/native";
 import { act, createContext, startTransition, Suspense, type ReactElement } from "react";
@@ -323,4 +326,49 @@ it("preserves opaque screen titles and menu names while localizing app-owned lab
     action.onPress?.();
   }
   expect(onPress).toHaveBeenCalledTimes(2);
+
+  const active = {
+    id: ThreadId.make("active-thread"),
+    projectId: ProjectId.make("project"),
+    title: "Settings",
+    archivedAt: null,
+    settled: false,
+  };
+  const settled = {
+    ...active,
+    id: ThreadId.make("settled-thread"),
+    title: "Comments/{0}/$&",
+    settled: true,
+  };
+  const items = pullRequestAgentThreadActions([active, settled], "ask", true, "zh-CN");
+  const snapshot = structuredClone(items);
+  const select = vi.fn();
+  act(() =>
+    root!.render(
+      <NativeHeaderToolbar placement="right">
+        <NativeHeaderToolbar.Menu title="Threads">
+          {renderPullRequestThreadMenuItems(items, select)}
+        </NativeHeaderToolbar.Menu>
+      </NativeHeaderToolbar>,
+    ),
+  );
+  const threadMenu = harness.renderedItems[0];
+  if (threadMenu?.type !== "menu") throw new Error("Expected the PR thread menu");
+  const [start, continued, group] = threadMenu.menu.items;
+  expect(start).toMatchObject({ type: "action", label: "开始新任务" });
+  expect(continued).toMatchObject({ type: "action", label: "Settings", description: "继续任务" });
+  expect(group).toMatchObject({
+    type: "submenu",
+    label: "已结束的任务",
+    items: [{ type: "action", label: "Comments/{0}/$&", description: "已结束的任务" }],
+  });
+  if (start?.type !== "action" || continued?.type !== "action" || group?.type !== "submenu")
+    throw new Error("Expected native PR actions and a settled submenu");
+  const resumed = group.items[0];
+  if (resumed?.type !== "action") throw new Error("Expected a settled thread action");
+  start.onPress?.();
+  continued.onPress?.();
+  resumed.onPress?.();
+  expect(select.mock.calls).toEqual([["ask:new"], ["ask:active-thread"], ["ask:settled-thread"]]);
+  expect(items).toEqual(snapshot);
 });

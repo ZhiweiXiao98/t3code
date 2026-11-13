@@ -1,3 +1,5 @@
+import { WebI18nContext } from "~/i18n/WebI18nContext";
+import { translateWebMessage } from "~/i18n/messages";
 import DocumentPages, { sanitizeDocumentHtml } from "./DocumentPages";
 import { act, render, stubGlobal, type Screen } from "../../../test/render";
 import { EnvironmentId, ThreadId } from "@t3tools/contracts";
@@ -2240,10 +2242,27 @@ it.each([
 );
 
 it("copies every indexed line rather than the mounted preview rows", async () => {
+  const workers: Worker[] = [];
+  using _worker = stubGlobal(
+    "Worker",
+    class extends Worker {
+      constructor(...args: ConstructorParameters<typeof Worker>) {
+        super(...args);
+        workers.push(this);
+      }
+    },
+  );
+  const retry = vi.fn();
   const text = Array.from({ length: 10_000 }, (_, i) => `line-${i}`).join("\n");
   const copyContents = { current: null as (() => Promise<string>) | null };
   await using screen = await render(
-    <LargeTextViewer name="whole.txt" text={text} delimiter={null} copyContents={copyContents} />,
+    <LargeTextViewer
+      name="whole.txt"
+      text={text}
+      delimiter={null}
+      copyContents={copyContents}
+      onRetry={retry}
+    />,
   );
   await vi.waitFor(() => expect(screen.container.textContent).toContain("line-0"));
   // Copy rejects until the worker finishes indexing, which a cold worker can delay past waitFor's default on CI.
@@ -2255,6 +2274,18 @@ it("copies every indexed line rather than the mounted preview rows", async () =>
   expect(await first).toBe(text);
   expect(await copyContents.current!()).toBe(text);
   expect(screen.container.querySelector('[role="alert"]')).toBeNull();
+  // The app-owned worker channel can also carry an external Error with an empty message.
+  // Historically that empty string did not replace already indexed content with a failure surface.
+  await act(async () => {
+    workers[0]!.dispatchEvent(
+      new MessageEvent("message", { data: { type: "error", operation: "page", message: "" } }),
+    );
+  });
+  expect(screen.container.querySelector('[role="alert"]')).toBeNull();
+  expect(screen.container.textContent).toContain("line-0");
+  expect(await copyContents.current!()).toBe(text);
+  expect(retry).not.toHaveBeenCalled();
+  expect(workers).toHaveLength(1);
 });
 
 it.each(["archive", "sqlite"] as const)(
@@ -2901,4 +2932,42 @@ it.each([
   await expect(factory.fetch({ kind, filename: "missing" })).rejects.toThrow(
     `Unsupported PDF ${directory} asset.`,
   );
+});
+
+it("relocalizes a cached real text-worker failure without reopening the worker", async () => {
+  const workers: Worker[] = [];
+  using _worker = stubGlobal(
+    "Worker",
+    class extends Worker {
+      constructor(...args: ConstructorParameters<typeof Worker>) {
+        super(...args);
+        workers.push(this);
+      }
+    },
+  );
+  const content = "literal/{name}/$&\0";
+  const surface = (locale: "en" | "zh-CN") => (
+    <WebI18nContext
+      value={{
+        locale,
+        appLocale: locale,
+        setAppLocale: () => {},
+        t: (key, values) => translateWebMessage(locale, key, values),
+      }}
+    >
+      <LargeTextViewer name="opaque/{name}/$&" text={content} delimiter={null} />
+    </WebI18nContext>
+  );
+  await using screen = await render(surface("en"));
+  await expect
+    .element(screen.getByText("This file contains binary data.", { exact: true }))
+    .toBeVisible();
+  expect(workers).toHaveLength(1);
+  await screen.rerender(surface("zh-CN"));
+  await expect.element(screen.getByText("此文件包含二进制数据。", { exact: true })).toBeVisible();
+  await screen.rerender(surface("en"));
+  await expect
+    .element(screen.getByText("This file contains binary data.", { exact: true }))
+    .toBeVisible();
+  expect(workers).toHaveLength(1);
 });

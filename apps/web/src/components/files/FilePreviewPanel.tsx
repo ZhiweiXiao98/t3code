@@ -1,4 +1,5 @@
-import { localizeFilePreviewError } from "./filePreviewErrorMessages";
+import { readWebI18n } from "~/i18n/readWebI18n";
+import { filePreviewFailureMessage } from "./filePreviewErrorMessages";
 import { translateWebSource } from "~/i18n/messages";
 import { splitWebTranslation, useI18n } from "~/i18n/WebI18nContext";
 import { DownloadIcon, CopyIcon, CheckIcon, Code2Icon, EyeIcon, Table2Icon } from "lucide-react";
@@ -1627,10 +1628,10 @@ export function WorkspaceLargeTextPreview(props: {
   const showError = (cause: unknown) => {
     toastManager.add({
       type: "error",
-      title: translateWebSource(locale, "Could not read file"),
+      title: translateWebSource(readWebI18n().locale, "Could not read file"),
       description:
         cause instanceof Error
-          ? localizeFilePreviewError(locale, cause.message)
+          ? filePreviewFailureMessage(readWebI18n().locale, cause)
           : translateWebSource(locale, "Try again."),
     });
   };

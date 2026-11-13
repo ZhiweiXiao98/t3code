@@ -1,4 +1,5 @@
-import { localizeFilePreviewError } from "./filePreviewErrorMessages";
+import { readWebI18n } from "~/i18n/readWebI18n";
+import { localizeFilePreviewError, filePreviewFailureMessage } from "./filePreviewErrorMessages";
 import { useStableCallback } from "~/hooks/useStableCallback";
 import { translateWebSource } from "~/i18n/messages";
 import { useI18n } from "~/i18n/WebI18nContext";
@@ -493,7 +494,7 @@ export function AttachmentFilePreview(props: {
               if (!copy) {
                 toastManager.add({
                   type: "error",
-                  title: translateWebSource(locale, "Could not copy file"),
+                  title: translateWebSource(readWebI18n().locale, "Could not copy file"),
                   description: translateWebSource(
                     locale,
                     "Wait for the file to finish loading before copying.",
@@ -506,10 +507,10 @@ export function AttachmentFilePreview(props: {
                 .catch((cause: unknown) =>
                   toastManager.add({
                     type: "error",
-                    title: translateWebSource(locale, "Could not copy file"),
+                    title: translateWebSource(readWebI18n().locale, "Could not copy file"),
                     description:
                       cause instanceof Error
-                        ? localizeFilePreviewError(locale, cause.message)
+                        ? filePreviewFailureMessage(readWebI18n().locale, cause)
                         : translateWebSource(locale, "Try again."),
                   }),
                 );

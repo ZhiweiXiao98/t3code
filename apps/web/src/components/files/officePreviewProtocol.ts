@@ -21,7 +21,7 @@ export type OfficeWorkerResult =
       readonly pages: { title: string; html: string }[];
     }
   | { readonly type: "notebook"; readonly language: string; readonly cells: NotebookCell[] }
-  | { readonly type: "error"; readonly message: string }
+  | { readonly type: "error"; readonly message: string; readonly source?: string }
   | {
       readonly type: "docx" | "xlsx" | "pptx";
       readonly bytes: ArrayBuffer;

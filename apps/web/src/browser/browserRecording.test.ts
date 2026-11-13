@@ -1,3 +1,7 @@
+import * as Schema from "effect/Schema";
+import { PreviewCaptureFailure } from "@t3tools/contracts";
+import { browserCaptureFailureMessage } from "~/components/preview/browserCaptureMessages";
+import { previewBridge } from "~/components/preview/previewBridge";
 import {
   DESKTOP_PREVIEW_RECORDING_CAPTURE_TRIGGER,
   EnvironmentId,
@@ -80,6 +84,10 @@ vi.mock("~/hooks/useSettings", () => ({
 
 import {
   BrowserRecordingConflictError,
+  BrowserRecordingUnavailableError,
+  BrowserRecordingFormatUnavailableError,
+  BrowserRecordingCaptureTimeoutError,
+  BrowserRecordingOperationError,
   findActiveBrowserRecordingRuntimeTabId,
   readActiveBrowserRecordingTabIds,
   readActiveBrowserRecordingTargets,
@@ -132,6 +140,8 @@ class FakeMediaRecorder {
   }
 }
 
+const encodeCaptureFailure = Schema.encodeSync(PreviewCaptureFailure);
+
 describe("browser recording", () => {
   let animationFrameCount = 0;
 
@@ -169,6 +179,83 @@ describe("browser recording", () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
+  });
+
+  it.each([
+    "renderer-unavailable",
+    "capture-unavailable",
+    "capture-timeout",
+    "recording-conflict",
+    "capture-failed",
+  ] as const)(
+    "presents officially decoded %s errors from screenshot and recording without changing wire data",
+    async (reason) => {
+      const failure = new PreviewCaptureFailure({ reason, stage: "screenshot" });
+      const encoded = encodeCaptureFailure(failure);
+      captureScreenshot.mockResolvedValueOnce(encoded);
+      const screenshot = await previewBridge!
+        .captureScreenshot("tab/{literal}/$&")
+        .catch((error: unknown) => error);
+      expect(screenshot).toBeInstanceOf(PreviewCaptureFailure);
+      expect(browserCaptureFailureMessage(screenshot, "en")).toBe(failure.message);
+      expect(browserCaptureFailureMessage(screenshot, "zh-CN")).toMatch(/[\u3400-\u9fff]/);
+      expect(browserCaptureFailureMessage(screenshot, "en")).toBe(failure.message);
+      expect(captureScreenshot).toHaveBeenLastCalledWith("tab/{literal}/$&");
+      const recordingFailure = new PreviewCaptureFailure({ reason, stage: "recording-start" });
+      startScreencast.mockResolvedValueOnce(encodeCaptureFailure(recordingFailure));
+      const recording = await startBrowserRecording("recording-tab").catch(
+        (error: unknown) => error,
+      );
+      expect(browserCaptureFailureMessage(recording, "zh-CN")).toBe(
+        browserCaptureFailureMessage(recordingFailure, "zh-CN"),
+      );
+      expect(browserCaptureFailureMessage(recording, "en")).toBe(recordingFailure.message);
+      expect(encoded).toEqual(encodeCaptureFailure(failure));
+      expect(readActiveBrowserRecordingTabIds().size).toBe(0);
+    },
+  );
+
+  it("keeps owned recording parameters and external diagnostics literal across locale changes", () => {
+    const tabId = "tab:{literal}/$&\n中文";
+    const diagnostic =
+      "The preview renderer is unavailable. Reopen the preview tab before retrying.";
+    const external = new DOMException(diagnostic, "NotReadableError");
+    const errors = [
+      new BrowserRecordingUnavailableError({ tabId }),
+      new BrowserRecordingConflictError({ requestedTabId: tabId, activeTabId: "active/{name}/$&" }),
+      new BrowserRecordingFormatUnavailableError({ tabId }),
+      new BrowserRecordingCaptureTimeoutError({ tabId, timeoutMs: 1234 }),
+      new BrowserRecordingOperationError({
+        tabId,
+        operation: "cleanup",
+        cause: new Error(diagnostic),
+      }),
+      new BrowserRecordingOperationError({
+        tabId,
+        operation: "capture-media-stream",
+        cause: external,
+      }),
+    ];
+    for (const error of errors) {
+      const english = error.message;
+      expect(browserCaptureFailureMessage(error, "en")).toBe(english);
+      expect(browserCaptureFailureMessage(error, "zh-CN")).not.toBe(english);
+      expect(browserCaptureFailureMessage(error, "en")).toBe(english);
+      const collision = Object.assign(new Error(english), { _tag: error._tag, tabId });
+      expect(browserCaptureFailureMessage(collision, "zh-CN")).toBe(english);
+      expect(error.message).toBe(english);
+    }
+    expect(browserCaptureFailureMessage(errors[0], "zh-CN")).toContain(tabId);
+    expect(browserCaptureFailureMessage(errors[5], "zh-CN")).toContain(
+      `NotReadableError: ${diagnostic}`,
+    );
+    const fakeCapture = Object.assign(new Error(diagnostic), {
+      _tag: "PreviewCaptureFailure",
+      reason: "renderer-unavailable",
+      stage: "screenshot",
+    });
+    expect(browserCaptureFailureMessage(fakeCapture, "zh-CN")).toBe(diagnostic);
+    expect(external.message).toBe(diagnostic);
   });
 
   it("stops the native stream when MediaRecorder cleanup fails", async () => {

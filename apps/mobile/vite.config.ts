@@ -5,6 +5,7 @@ import "vite-plus/test/config";
 
 const reactTests = [
   "src/features/threads/ProjectCloneBanner.test.tsx",
+  "src/state/use-composer-attachment-actions.test.tsx",
   "src/features/settings/settingsIndexDisplay.test.tsx",
   "src/features/settings/settingsHelpDisplay.test.tsx",
   "src/features/threads/thread-command-output.test.tsx",

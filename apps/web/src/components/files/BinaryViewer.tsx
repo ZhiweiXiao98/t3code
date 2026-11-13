@@ -1,5 +1,5 @@
-import { localizeFilePreviewError } from "./filePreviewErrorMessages";
-import { useStableCallback } from "~/hooks/useStableCallback";
+import { createFilePreviewError } from "@t3tools/shared/filePreview";
+import { filePreviewFailureMessage, filePreviewWorkerError } from "./filePreviewErrorMessages";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
 /* oxlint-disable react/no-array-index-key -- Read-only cells retain their database row and column positions. */
@@ -96,9 +96,6 @@ export default function BinaryViewer(props: {
   readonly onRetry?: () => void;
 }) {
   const { t, locale: previewLocale } = useI18n();
-  const translateSource = useStableCallback((source: string) =>
-    translateWebSource(previewLocale, source),
-  );
   const [sizeBytes, setSizeBytes] = useState<number | null>(null);
   const [archive, setArchive] = useState<Archive | null>(null);
   const [database, setDatabase] = useState<Database | null>(null);
@@ -109,7 +106,7 @@ export default function BinaryViewer(props: {
   const [selectedTable, setSelectedTable] = useState("");
   const [page, setPage] = useState(0);
   const [busy, setBusy] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Error | null>(null);
   const workerRef = useRef<Worker | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const send = (request: BinaryWorkerRequest) => {
@@ -117,7 +114,9 @@ export default function BinaryViewer(props: {
     setError(null);
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
-      setError(translateSource("This file took too long to preview. Close it and try again."));
+      setError(
+        createFilePreviewError("This file took too long to preview. Close it and try again."),
+      );
       setBusy(false);
       workerRef.current?.terminate();
       workerRef.current = null;
@@ -131,9 +130,9 @@ export default function BinaryViewer(props: {
       type: "module",
     });
     workerRef.current = worker;
-    const fail = (message: string) => {
+    const fail = (failure: Error) => {
       if (controller.signal.aborted) return;
-      setError(message);
+      setError(failure);
       setBusy(false);
       controller.abort();
       worker.terminate();
@@ -141,18 +140,19 @@ export default function BinaryViewer(props: {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
     timerRef.current = setTimeout(
-      () => fail(translateSource("This file took too long to preview. Close it and try again.")),
+      () =>
+        fail(createFilePreviewError("This file took too long to preview. Close it and try again.")),
       30_000,
     );
     worker.addEventListener("error", () =>
-      fail(translateSource("Could not load the file viewer. Close it and try again.")),
+      fail(createFilePreviewError("Could not load the file viewer. Close it and try again.")),
     );
     worker.addEventListener("message", (event: MessageEvent<BinaryWorkerResult>) => {
       if (controller.signal.aborted) return;
       if (timerRef.current) clearTimeout(timerRef.current);
       const result = event.data;
       setBusy(false);
-      if (result.type === "error") setError(result.message);
+      if (result.type === "error") setError(filePreviewWorkerError(result));
       else if (result.type === "archive") setArchive(result);
       else if (result.type === "entry") setEntry(result);
       else if (result.type === "rows") setRows(result);
@@ -173,7 +173,7 @@ export default function BinaryViewer(props: {
         }
       })
       .catch((cause: unknown) =>
-        fail(cause instanceof Error ? cause.message : translateSource("Could not read this file.")),
+        fail(cause instanceof Error ? cause : createFilePreviewError("Could not read this file.")),
       );
     return () => {
       controller.abort();
@@ -182,7 +182,7 @@ export default function BinaryViewer(props: {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
     // oxlint-disable-next-line react/exhaustive-effect-dependencies -- One worker owns this keyed file and its message stream.
-  }, [props.src, props.kind, props.name, translateSource]);
+  }, [props.src, props.kind, props.name]);
   const table = database?.tables.find((item) => item.name === selectedTable);
   const selectPage = (next: number, name = selectedTable) => {
     setSelectedTable(name);
@@ -308,9 +308,9 @@ export default function BinaryViewer(props: {
           </FileSurfaceNotice>
         </>
       ) : null}
-      {error ? (
+      {error?.message ? (
         <FileSurfaceFailure
-          message={localizeFilePreviewError(previewLocale, error)}
+          message={filePreviewFailureMessage(previewLocale, error)}
           {...(props.onRetry ? { onRetry: props.onRetry } : {})}
         />
       ) : busy ? (

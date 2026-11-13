@@ -1,5 +1,5 @@
-import { localizeFilePreviewError } from "./filePreviewErrorMessages";
-import { useStableCallback } from "~/hooks/useStableCallback";
+import { createFilePreviewError } from "@t3tools/shared/filePreview";
+import { filePreviewFailureMessage, filePreviewWorkerError } from "./filePreviewErrorMessages";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
 /* oxlint-disable react/no-array-index-key -- Spreadsheet rows and columns retain their source positions. */
@@ -28,18 +28,14 @@ type Workbook = Extract<OfficeWorkerResult, { type: "ods" }>;
 
 const OpenXmlOfficeViewer = lazy(() => import("./OpenXmlOfficeViewer"));
 
-async function readOfficeFile(
-  src: string,
-  signal: AbortSignal,
-  translateSource: (source: string) => string,
-) {
+async function readOfficeFile(src: string, signal: AbortSignal) {
   const response = await fetch(src, { signal });
   if (!response.ok)
-    throw new Error(translateSource("The file could not be loaded. Close it and try again."));
+    throw createFilePreviewError("The file could not be loaded. Close it and try again.");
   if (Number(response.headers.get("content-length")) > OFFICE_PREVIEW_MAX_BYTES)
-    throw new Error(translateSource("Preview limited to files under 50 MB."));
+    throw createFilePreviewError("Preview limited to files under 50 MB.");
   const reader = response.body?.getReader();
-  if (!reader) throw new Error(translateSource("The file is unavailable."));
+  if (!reader) throw createFilePreviewError("The file is unavailable.");
   const chunks: Uint8Array<ArrayBuffer>[] = [];
   let size = 0;
   try {
@@ -48,7 +44,7 @@ async function readOfficeFile(
       if (done) break;
       size += value.length;
       if (size > OFFICE_PREVIEW_MAX_BYTES)
-        throw new Error(translateSource("Preview limited to files under 50 MB."));
+        throw createFilePreviewError("Preview limited to files under 50 MB.");
       chunks.push(value);
     }
   } finally {
@@ -79,10 +75,7 @@ function ExtendedOfficeViewer(props: {
   readonly sizeBytes?: number;
 }) {
   const { t, locale: previewLocale } = useI18n();
-  const translateSource = useStableCallback((source: string) =>
-    translateWebSource(previewLocale, source),
-  );
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Error | null>(null);
   const [sheetPages, setSheetPages] = useState(new Map<string, string[][]>());
   const pendingPages = useRef(new Set<string>());
   const [previewDocument, setDocument] = useState<Extract<
@@ -104,31 +97,35 @@ function ExtendedOfficeViewer(props: {
     const controller = new AbortController();
     if ((props.sizeBytes ?? 0) > OFFICE_PREVIEW_MAX_BYTES) {
       // oxlint-disable-next-line react/set-state-in-effect -- The file metadata can reject the preview before loading bytes or engines.
-      setError(translateSource("Preview limited to files under 50 MB."));
+      setError(createFilePreviewError("Preview limited to files under 50 MB."));
       return;
     }
     const worker = new Worker(new URL("./officePreview.worker.ts", import.meta.url), {
       type: "module",
     });
     workerRef.current = worker;
-    const fail = (message: string) => {
-      if (!controller.signal.aborted) setError(message);
+    const fail = (failure: Error) => {
+      if (!controller.signal.aborted) setError(failure);
       controller.abort();
       worker.terminate();
       if (timerRef.current) clearTimeout(timerRef.current);
     };
     timerRef.current = setTimeout(
       () =>
-        fail(translateSource("This document took too long to preview. Open it in another app.")),
+        fail(
+          createFilePreviewError("This document took too long to preview. Open it in another app."),
+        ),
       30_000,
     );
     worker.addEventListener("error", () =>
-      fail(translateSource("Could not load the Office viewer. Close the file and try again.")),
+      fail(
+        createFilePreviewError("Could not load the Office viewer. Close the file and try again."),
+      ),
     );
     worker.addEventListener("message", (event: MessageEvent<OfficeWorkerResult>) => {
       if (controller.signal.aborted) return;
       const result = event.data;
-      if (result.type === "error") fail(result.message);
+      if (result.type === "error") fail(filePreviewWorkerError(result));
       else if (result.type === "document") {
         if (timerRef.current) clearTimeout(timerRef.current);
         setDocument(result);
@@ -151,7 +148,7 @@ function ExtendedOfficeViewer(props: {
         });
       }
     });
-    void readOfficeFile(props.src, controller.signal, translateSource)
+    void readOfficeFile(props.src, controller.signal)
       .then((bytes) => {
         if (!controller.signal.aborted) {
           setFileSize(bytes.byteLength);
@@ -159,7 +156,7 @@ function ExtendedOfficeViewer(props: {
         }
       })
       .catch((cause: unknown) =>
-        fail(cause instanceof Error ? cause.message : translateSource("Could not read this file.")),
+        fail(cause instanceof Error ? cause : createFilePreviewError("Could not read this file.")),
       );
     return () => {
       controller.abort();
@@ -167,9 +164,9 @@ function ExtendedOfficeViewer(props: {
       workerRef.current = null;
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [props.src, props.kind, props.sizeBytes, translateSource]);
+  }, [props.src, props.kind, props.sizeBytes]);
   const selectPage = setPage;
-  if (error)
+  if (error?.message)
     return (
       <div
         role="alert"
@@ -179,7 +176,7 @@ function ExtendedOfficeViewer(props: {
           {translateWebSource(previewLocale, "No preview for this file")}
         </p>
         <p className="max-w-sm text-xs leading-relaxed text-muted-foreground">
-          {localizeFilePreviewError(previewLocale, error)}{" "}
+          {filePreviewFailureMessage(previewLocale, error)}{" "}
           {translateWebSource(previewLocale, "Save it or open it in another app.")}
         </p>
       </div>

@@ -1,3 +1,4 @@
+import { MOBILE_LOCALE } from "../../i18n/mobileStrings";
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { useAtomValue } from "@effect/atom-react";
 import { StackActions, useNavigation, type StaticScreenProps } from "@react-navigation/native";
@@ -33,7 +34,10 @@ export function ThreadBackgroundWorkSheet({ route }: StaticScreenProps<Backgroun
   const thread = useAtomValue(
     environmentThreadShells.threadShellAtom(scopeThreadRef(target.environmentId, target.threadId)),
   );
-  const presentation = presentPendingBackgroundWork(thread?.pendingBackgroundTasks ?? []);
+  const presentation = presentPendingBackgroundWork(
+    thread?.pendingBackgroundTasks ?? [],
+    MOBILE_LOCALE === "zh-CN" ? formatMobileMessage : undefined,
+  );
   const openThread = (threadId: ThreadId) => {
     void Haptics.selectionAsync();
     // A thread replaces the leaf sheet so workspace back navigation still works.

@@ -14,6 +14,7 @@ import {
 } from "@t3tools/contracts";
 
 import * as Dialog from "../../components/ui/Dialog";
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { uuidv4 } from "../../lib/uuid";
 import { appAtomRegistry } from "../../state/atom-registry";
 import { environmentThreadShells, threadEnvironment } from "../../state/threads";
@@ -39,7 +40,10 @@ export function useStartSideChat() {
   ) => {
     if (isAtomCommandInterrupted(failure)) return;
     const error = squashAtomCommandFailure(failure);
-    Dialog.alert("Side chat not started", error instanceof Error ? error.message : fallback);
+    Dialog.alertWithLiteralMessage(
+      "Side chat not started",
+      error instanceof Error ? error.message : localizeMobileString(fallback),
+    );
   };
 
   return async (

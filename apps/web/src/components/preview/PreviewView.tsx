@@ -1,3 +1,5 @@
+import { browserCaptureFailureMessage } from "./browserCaptureMessages";
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebMessage, translateWebSource } from "~/i18n/messages";
 import { useAtomValue } from "@effect/atom-react";
@@ -603,11 +605,10 @@ export function PreviewView({
         (error) => {
           toastManager.add({
             type: "error",
-            title: translateWebSource(locale, "Unable to stop recording"),
+            title: translateWebSource(readWebI18n().locale, "Unable to stop recording"),
             description:
-              error instanceof Error
-                ? error.message
-                : translateWebSource(locale, "An error occurred."),
+              browserCaptureFailureMessage(error, readWebI18n().locale) ??
+              translateWebSource(readWebI18n().locale, "An error occurred."),
           });
         },
       );
@@ -616,11 +617,12 @@ export function PreviewView({
     if (record) {
       void startBrowserRecording(runtimeTabId, threadRef, tabId).catch((error) => {
         const description =
-          error instanceof Error ? error.message : translateWebSource(locale, "An error occurred.");
+          browserCaptureFailureMessage(error, readWebI18n().locale) ??
+          translateWebSource(readWebI18n().locale, "An error occurred.");
         if (isBrowserRecordingStartCancelledError(error)) return;
         toastManager.add({
           type: "error",
-          title: translateWebSource(locale, "Unable to start recording"),
+          title: translateWebSource(readWebI18n().locale, "Unable to start recording"),
           description,
         });
       });
@@ -758,11 +760,10 @@ export function PreviewView({
       (error) => {
         toastManager.add({
           type: "error",
-          title: translateWebSource(locale, "Unable to capture screenshot"),
+          title: translateWebSource(readWebI18n().locale, "Unable to capture screenshot"),
           description:
-            error instanceof Error
-              ? error.message
-              : translateWebSource(locale, "An error occurred."),
+            browserCaptureFailureMessage(error, readWebI18n().locale) ??
+            translateWebSource(readWebI18n().locale, "An error occurred."),
         });
       },
     );

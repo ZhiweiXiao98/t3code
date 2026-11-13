@@ -567,9 +567,11 @@ export function isBackgroundWorkStopPending(
 
 export function presentPendingBackgroundWork(
   tasks: ReadonlyArray<OrchestrationV2PendingBackgroundTask>,
+  display?: (template: string, values: readonly string[]) => string,
 ): PendingBackgroundWorkPresentation | null {
   if (tasks.length === 0) return null;
   const waiting = backgroundWorkHoldsCompletion(tasks);
+  const namedTasks = new Set<string>();
   const items = tasks
     .map((task): PendingBackgroundWorkItem => {
       const description = task.description?.trim();
@@ -581,12 +583,14 @@ export function presentPendingBackgroundWork(
             : task.kind === "command" || task.kind === "monitor"
               ? commandDisplayText(description)
               : description;
+      if (label !== undefined && label.length > 0) namedTasks.add(task.taskId);
       return {
         taskId: task.taskId,
         kind: task.kind,
         label:
           label === undefined || label.length === 0
-            ? BACKGROUND_WORK_KINDS[task.kind].singular
+            ? (display?.(BACKGROUND_WORK_KINDS[task.kind].singular, []) ??
+              BACKGROUND_WORK_KINDS[task.kind].singular)
             : label,
         childThreadId: task.kind === "subagent" ? task.childThreadId : undefined,
       };
@@ -599,7 +603,21 @@ export function presentPendingBackgroundWork(
   const [only] = items;
   if (items.length === 1 && only !== undefined) {
     const noun = BACKGROUND_WORK_KINDS[only.kind].singular;
-    const named = only.label !== noun;
+    // Default English keeps legacy titles; translated labels use the description provenance.
+    const named = display === undefined ? only.label !== noun : namedTasks.has(only.taskId);
+    if (display !== undefined) {
+      const title = display(
+        named
+          ? waiting
+            ? "Waiting · {0}"
+            : "Running · {0}"
+          : waiting
+            ? "Waiting on a {0}"
+            : "Running a {0}",
+        [only.label],
+      );
+      return { title, items, waiting };
+    }
     const title = named
       ? `${waiting ? "Waiting" : "Running"} · ${only.label}`
       : waiting
@@ -611,9 +629,20 @@ export function presentPendingBackgroundWork(
   for (const item of items) counts.set(item.kind, (counts.get(item.kind) ?? 0) + 1);
   const groups = Array.from(counts, ([kind, count]) => {
     const { singular, plural } = BACKGROUND_WORK_KINDS[kind];
-    return `${count} ${count === 1 ? singular : plural}`;
+    const noun = count === 1 ? singular : plural;
+    return display?.("{0} {1}", [String(count), display(noun, [])]) ?? `${count} ${noun}`;
   });
-  return { title: `${waiting ? "Waiting on" : "Running"} ${joinWithAnd(groups)}`, items, waiting };
+  const groupLabel =
+    display !== undefined && groups.length > 1
+      ? display("{0} and {1}", [groups.slice(0, -1).join(", "), groups.at(-1) ?? ""])
+      : joinWithAnd(groups);
+  return {
+    title:
+      display?.(waiting ? "Waiting on {0}" : "Running {0}", [groupLabel]) ??
+      `${waiting ? "Waiting on" : "Running"} ${groupLabel}`,
+    items,
+    waiting,
+  };
 }
 
 export interface ProviderGoalPresentation {
@@ -642,6 +671,7 @@ function formatGoalTokens(tokens: number): string {
 export function presentProviderGoal(
   goal: OrchestrationV2ProviderGoal,
   working: boolean,
+  displayTitle: (title: string) => string = (title) => title,
 ): ProviderGoalPresentation {
   const usage: Array<string> = [];
   if (goal.tokensUsed !== undefined && goal.tokensUsed > 0) {
@@ -658,7 +688,9 @@ export function presentProviderGoal(
     usage.push(`${goal.checks} ${goal.checks === 1 ? "check" : "checks"}`);
   }
   return {
-    title: goal.status === "active" && !working ? "Goal set" : PROVIDER_GOAL_TITLES[goal.status],
+    title: displayTitle(
+      goal.status === "active" && !working ? "Goal set" : PROVIDER_GOAL_TITLES[goal.status],
+    ),
     objective: goal.objective,
     usage: usage.length === 0 ? null : usage.join(" · "),
     canResume: goal.status !== "active" && goal.status !== "complete",

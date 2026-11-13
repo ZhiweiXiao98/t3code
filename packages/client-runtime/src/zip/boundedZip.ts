@@ -1,3 +1,4 @@
+import { createFilePreviewError } from "@t3tools/shared/filePreview";
 import JSZip from "jszip";
 import { checkZipDirectory } from "./zipDirectory.ts";
 
@@ -17,12 +18,12 @@ export async function boundedZip(
   } = {},
 ) {
   if (bytes.byteLength > ARCHIVE_MAX_BYTES)
-    throw new Error("Preview limited to files under 50 MB.");
+    throw createFilePreviewError("Preview limited to files under 50 MB.");
   checkZipDirectory(bytes, ARCHIVE_MAX_ENTRIES);
   const zip = await JSZip.loadAsync(bytes);
   const entries = Object.values(zip.files);
   if (entries.length > ARCHIVE_MAX_ENTRIES)
-    throw new Error("This archive contains more than 2,048 entries.");
+    throw createFilePreviewError("This archive contains more than 2,048 entries.");
   const files = new Map<
     string,
     { bytes: Uint8Array<ArrayBuffer>; date: Date; directory: boolean }
@@ -30,7 +31,8 @@ export async function boundedZip(
   let total = 0;
   let markup = 0;
   for (const entry of entries) {
-    if (entry.name.length > 1024) throw new Error("An archive path is too long to preview.");
+    if (entry.name.length > 1024)
+      throw createFilePreviewError("An archive path is too long to preview.");
     const chunks: Uint8Array<ArrayBuffer>[] = [];
     let length = 0;
     await new Promise<void>((resolve, reject) => {
@@ -56,7 +58,7 @@ export async function boundedZip(
           ) {
             stream.pause();
             reject(
-              new Error(
+              createFilePreviewError(
                 "The expanded archive exceeds the preview size or compression ratio limit.",
               ),
             );

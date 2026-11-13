@@ -21,7 +21,7 @@ export type BinaryWorkerRequest =
   | { type: "rows"; table: string; page: number };
 
 export type BinaryWorkerResult =
-  | { type: "error"; message: string }
+  | { type: "error"; message: string; readonly source?: string }
   | { type: "archive"; entries: ArchiveEntry[] }
   | { type: "entry"; path: string; bytes: Uint8Array<ArrayBuffer> }
   | { type: "sqlite"; tables: { name: string; count: number }[] }

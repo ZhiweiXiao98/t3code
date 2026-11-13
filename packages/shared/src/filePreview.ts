@@ -174,14 +174,24 @@ export type FilePreviewTextFailure =
 
 const ownedFilePreviewErrors = new WeakMap<Error, string>();
 
-export function createFilePreviewError(source: string, message: string = source): Error {
-  const error = new Error(message);
+/** Mark only an error constructed at an application-owned preview validation site. */
+export function markFilePreviewError<E extends Error>(error: E, source: string): E {
   ownedFilePreviewErrors.set(error, source);
   return error;
 }
 
+export function createFilePreviewError(source: string, message: string = source): Error {
+  return markFilePreviewError(new Error(message), source);
+}
+
 export function filePreviewErrorSource(error: unknown): string | undefined {
   return error instanceof Error ? ownedFilePreviewErrors.get(error) : undefined;
+}
+
+/** Local worker transport metadata, emitted only for errors created at owned validation sites. */
+export function filePreviewErrorFields(error: unknown): { readonly source?: string } {
+  const source = filePreviewErrorSource(error);
+  return source === undefined ? {} : { source };
 }
 
 export function decodeFilePreviewText(

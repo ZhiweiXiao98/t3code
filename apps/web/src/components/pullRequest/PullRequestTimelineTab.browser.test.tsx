@@ -7,6 +7,7 @@ import {
   type PullRequestDetailView,
 } from "@t3tools/contracts";
 import { expect, it, vi } from "vite-plus/test";
+import { userEvent } from "vite-plus/test/browser";
 
 import { render } from "../../../test/render";
 import "../../index.css";
@@ -219,6 +220,7 @@ it("localizes owned timeline verbs while preserving comment text and author", as
     </WebI18nContext>
   );
   await using screen = await render(surface("en", `${detail.url}#issuecomment-999`));
+  await userEvent.click(screen.getByRole("button", { name: /^1 comments\b/ }));
   await expect.element(screen.getByText("commented", { exact: true })).toBeVisible();
   await screen.rerender(surface("zh-CN"));
   await expect.element(screen.getByText("发表了评论", { exact: true })).toBeVisible();

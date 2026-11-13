@@ -1,3 +1,5 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
+import { localizeMobileString, type MobileLocale } from "../../i18n/mobileStrings";
 import { parsePatchFiles } from "@pierre/diffs/utils/parsePatchFiles";
 import type { ChangeTypes, FileDiffMetadata } from "@pierre/diffs/types";
 import {
@@ -105,16 +107,20 @@ export type ReviewParsedDiff =
       readonly notice: string | null;
     };
 
-function checkpointTitle(checkpoint: ThreadCheckpointSummary): string {
-  return `Turn ${checkpoint.checkpointTurnCount}`;
+function checkpointTitle(checkpoint: ThreadCheckpointSummary, locale: MobileLocale): string {
+  return formatMobileMessage("Turn {0}", [checkpoint.checkpointTurnCount], locale);
 }
 
-function checkpointSubtitle(checkpoint: ThreadCheckpointSummary): string {
+function checkpointSubtitle(checkpoint: ThreadCheckpointSummary, locale: MobileLocale): string {
   const fileCount = checkpointFileTotals(checkpoint).count;
   if (checkpoint.status !== "ready") {
     return `Diff ${checkpoint.status}`;
   }
-  return `${fileCount} file${fileCount === 1 ? "" : "s"} changed`;
+  return formatMobileMessage(
+    fileCount === 1 ? "{0} file changed" : "{0} files changed",
+    [fileCount],
+    locale,
+  );
 }
 
 function compareCheckpointTurnCountDescending(
@@ -132,14 +138,14 @@ const readyCheckpointOrder = Order.make<ThreadCheckpointSummary>(
   compareCheckpointTurnCountDescending,
 );
 
-function gitSubtitle(section: ReviewDiffPreviewSource): string | null {
+function gitSubtitle(section: ReviewDiffPreviewSource, locale: MobileLocale): string | null {
   if (section.kind === "working-tree") {
-    return UNCOMMITTED_SUBTITLE;
+    return localizeMobileString(UNCOMMITTED_SUBTITLE, locale);
   }
   if (section.baseRef) {
     return `${section.baseRef} ... ${section.headRef ?? "HEAD"}`;
   }
-  return "Base branch unavailable";
+  return localizeMobileString("Base branch unavailable", locale);
 }
 
 function stripTrailingNewline(value: string): string {
@@ -514,20 +520,23 @@ export function reviewTurnDiffsBySectionId(
   );
 }
 
-export function buildReviewSectionItems(input: {
-  readonly checkpoints: ReadonlyArray<ThreadCheckpointSummary>;
-  readonly gitSections: ReadonlyArray<ReviewDiffPreviewSource>;
-  readonly turnDiffById: Readonly<Record<string, string | undefined>>;
-  readonly loadingGitSections: boolean;
-}): ReadonlyArray<ReviewSectionItem> {
+export function buildReviewSectionItems(
+  input: {
+    readonly checkpoints: ReadonlyArray<ThreadCheckpointSummary>;
+    readonly gitSections: ReadonlyArray<ReviewDiffPreviewSource>;
+    readonly turnDiffById: Readonly<Record<string, string | undefined>>;
+    readonly loadingGitSections: boolean;
+  },
+  locale: MobileLocale = "en",
+): ReadonlyArray<ReviewSectionItem> {
   const turnItems = getReadyReviewCheckpoints(input.checkpoints).map<ReviewSectionItem>(
     (checkpoint) => {
       const id = getReviewSectionIdForCheckpoint(checkpoint);
       return {
         id,
         kind: "turn",
-        title: checkpointTitle(checkpoint),
-        subtitle: checkpointSubtitle(checkpoint),
+        title: checkpointTitle(checkpoint, locale),
+        subtitle: checkpointSubtitle(checkpoint, locale),
         diff: input.turnDiffById[id] ?? null,
         isLoading: false,
       };
@@ -542,8 +551,15 @@ export function buildReviewSectionItems(input: {
     .map<ReviewSectionItem>((section) => ({
       id: `git:${section.kind}`,
       kind: section.kind,
-      title: section.title,
-      subtitle: gitSubtitle(section),
+      title:
+        locale === "en"
+          ? section.title
+          : section.kind === "working-tree"
+            ? localizeMobileString("Uncommitted", locale)
+            : section.baseRef
+              ? formatMobileMessage("Changes vs {0}", [section.baseRef], locale)
+              : localizeMobileString(CHANGES_TITLE, locale),
+      subtitle: gitSubtitle(section, locale),
       diff: section.diff,
       source: section,
       ...(section.files ? { files: section.files } : {}),
@@ -557,7 +573,7 @@ export function buildReviewSectionItems(input: {
           {
             id: CHANGES_SECTION_ID,
             kind: "branch-range",
-            title: CHANGES_TITLE,
+            title: localizeMobileString(CHANGES_TITLE, locale),
             subtitle: null,
             diff: null,
             isLoading: true,

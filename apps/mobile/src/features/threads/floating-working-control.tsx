@@ -528,7 +528,11 @@ function FloatingStatusLabel(props: {
           tintColorClassName="accent-foreground"
           type="monochrome"
         />
-        <Text className="shrink font-t3-medium text-xs text-foreground" numberOfLines={1}>
+        <Text
+          localize={false}
+          className="shrink font-t3-medium text-xs text-foreground"
+          numberOfLines={1}
+        >
           {props.status.label}
         </Text>
       </StatusLabelRow>

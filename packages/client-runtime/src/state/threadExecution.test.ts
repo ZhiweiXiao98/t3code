@@ -646,3 +646,32 @@ describe("presentPendingBackgroundWork", () => {
     expect(presentation?.items[0]?.label).toBe("mv a.ts b.ts\ncat > b.ts <<'EOF'\nexport {};\nEOF");
   });
 });
+
+it("keeps the default background title for a description equal to its noun", () => {
+  expect(
+    presentPendingBackgroundWork([{ taskId: "same", kind: "command", description: "command" }])
+      ?.title,
+  ).toBe("Running a command");
+});
+
+it("formats only owned background copy and distinguishes a real noun-like description", () => {
+  const display = (template: string, values: readonly string[]) =>
+    `[${template}]${values.join("|")}`;
+  const named = presentPendingBackgroundWork(
+    [{ taskId: "same", kind: "command", description: "command" }],
+    display,
+  );
+  expect(named?.items[0]?.label).toBe("command");
+  expect(named?.title).toBe("[Running · {0}]command");
+  const unnamed = presentPendingBackgroundWork([{ taskId: "empty", kind: "command" }], display);
+  expect(unnamed?.items[0]?.label).toBe("[command]");
+  expect(unnamed?.title).toBe("[Running a {0}][command]");
+});
+
+it("keeps the goal objective and usage literal when formatting its title", () => {
+  const goal = { objective: "Settings", status: "paused", tokensUsed: 1200 } as const;
+  const plain = presentProviderGoal(goal, false);
+  const translated = presentProviderGoal(goal, false, (title) => `translated:${title}`);
+  expect(translated).toEqual({ ...plain, title: "translated:Goal paused" });
+  expect(goal.objective).toBe("Settings");
+});

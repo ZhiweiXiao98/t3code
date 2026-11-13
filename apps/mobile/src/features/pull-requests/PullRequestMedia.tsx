@@ -2,6 +2,7 @@ import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
 import { createContext, useContext, useState } from "react";
 import {
   pullRequestMediaSource,
+  pullRequestMediaName,
   pullRequestImageSource,
   type PullRequestMediaLocation,
 } from "./pullRequestMediaSource";
@@ -53,7 +54,9 @@ export function PullRequestMedia(props: {
   const withGallery = useFilePreviewGallery();
   const [image, setImage] = useState<FilePreviewSource | null>(null);
   const [video, setVideo] = useState<VideoPreviewSource | null>(null);
-  const name = props.caption || new URL(props.url).pathname.split("/").pop() || "Attachment";
+  // Image preview names also determine the temporary/share filename.
+  const name = pullRequestMediaName(props.url, props.caption, "Attachment", "en");
+  const displayName = pullRequestMediaName(props.url, props.caption, "Attachment");
   if (props.kind === "image")
     return (
       <>
@@ -62,7 +65,7 @@ export function PullRequestMedia(props: {
           sourceKey={props.url}
           cacheKey={media.cacheKey}
           unavailable={media.unavailable}
-          alt={name}
+          alt={displayName}
           onPressPreview={(source) =>
             setImage(
               withGallery({
@@ -80,7 +83,7 @@ export function PullRequestMedia(props: {
     <View style={props.compact ? { width: 176 } : undefined}>
       {props.compact ? (
         <VideoAttachmentTile
-          name={name}
+          name={displayName}
           sourceIdentifier={props.url}
           thumbnailSource={visible ? media.uri : null}
           style={{ width: 176, height: 112, borderRadius: 16 }}
@@ -88,7 +91,7 @@ export function PullRequestMedia(props: {
             setVideo({
               type: "media",
               ...media.source,
-              name,
+              name: displayName,
               mimeType:
                 videoMimeType({ name: props.url.split(/[?#]/)[0] ?? props.url, mimeType: "" }) ??
                 "video/mp4",
@@ -99,7 +102,7 @@ export function PullRequestMedia(props: {
         <MediaVideoPlayer
           uri={media.uri}
           unavailable={media.unavailable}
-          name={name}
+          name={displayName}
           thumbnailKey={props.url}
           thumbnailVisible={visible}
           visible={visible}
@@ -136,7 +139,7 @@ export function PullRequestImageAttachment(props: {
             cachePolicy="memory-disk"
           />
         </View>
-        <AppText numberOfLines={1} className="text-xs text-foreground-muted">
+        <AppText localize={false} numberOfLines={1} className="text-xs text-foreground-muted">
           {props.caption}
         </AppText>
       </Pressable>

@@ -10,4 +10,9 @@ export type TextPreviewResult =
   | { type: "meta"; count: number; columns: number; complete: boolean; sizeBytes?: number }
   | { type: "page"; index: number; rows: string[][] }
   | { type: "copy"; text: string }
-  | { type: "error"; operation: TextPreviewRequest["type"]; message: string };
+  | {
+      type: "error";
+      operation: TextPreviewRequest["type"];
+      message: string;
+      readonly source?: string;
+    };

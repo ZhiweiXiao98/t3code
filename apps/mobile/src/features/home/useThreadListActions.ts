@@ -1,3 +1,5 @@
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import type { ThreadMoveDestination } from "../threads/threadOrder";
 import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/shell";
 import * as ThreadUndo from "@t3tools/client-runtime/state/thread-undo";
@@ -62,7 +64,7 @@ function actionFailureMessage(action: ThreadListAction, cause: Cause.Cause<unkno
   if (error instanceof Error && error.message.trim().length > 0) {
     return error.message;
   }
-  return `The thread could not be ${ACTION_VERBS[action]}.`;
+  return localizeMobileString(`The thread could not be ${ACTION_VERBS[action]}.`);
 }
 
 function selectionHaptic(): void {
@@ -154,7 +156,10 @@ function useThreadActionExecutor(
         (result) => result._tag === "Success",
       );
       if (result._tag === "Failure") {
-        Dialog.alert(actionFailureTitle(action), actionFailureMessage(action, result.cause));
+        Dialog.alertWithLiteralMessage(
+          actionFailureTitle(action),
+          actionFailureMessage(action, result.cause),
+        );
         return false;
       }
       if (action === "archive" || action === "unarchive" || action === "delete") {
@@ -177,16 +182,20 @@ function confirmThreadDeletion(
 ) {
   if (!checkThreadOperationPermission(thread, actionFailureTitle("delete"))) return;
   const title = "Delete thread?";
-  const message = `“${thread.title}” will be permanently deleted, including its terminal history.`;
-  Dialog.confirm({
-    title,
-    message,
-    confirmText: "Delete",
-    destructive: true,
-    onConfirm: () => {
-      void executeAction("delete", thread);
+  const message = formatMobileMessage(
+    "“{0}” will be permanently deleted, including its terminal history.",
+    [thread.title],
+  );
+  Dialog.alertWithLiteralMessage(title, message, [
+    { text: "Cancel", style: "cancel" },
+    {
+      text: "Delete",
+      style: "destructive",
+      onPress: () => {
+        void executeAction("delete", thread);
+      },
     },
-  });
+  ]);
 }
 
 export function useThreadListActions(): {
@@ -255,9 +264,11 @@ export function useThreadListActions(): {
                   });
                   if (result._tag === "Failure") {
                     const error = Cause.squash(result.cause);
-                    Dialog.alert(
+                    Dialog.alertWithLiteralMessage(
                       "Could not restore snooze",
-                      error instanceof Error ? error.message : "The thread could not be snoozed.",
+                      error instanceof Error
+                        ? error.message
+                        : localizeMobileString("The thread could not be snoozed."),
                     );
                     return false;
                   }
@@ -268,9 +279,9 @@ export function useThreadListActions(): {
             (result) => result,
           );
         } catch (error) {
-          Dialog.alert(
+          Dialog.alertWithLiteralMessage(
             "Could not undo thread action",
-            error instanceof Error ? error.message : "Try again.",
+            error instanceof Error ? error.message : localizeMobileString("Try again."),
           );
         }
       },
@@ -332,11 +343,11 @@ export function useThreadListActions(): {
       if (result._tag === "Failure") {
         claim.finish();
         const error = Cause.squash(result.cause);
-        Dialog.alert(
+        Dialog.alertWithLiteralMessage(
           "Could not snooze thread",
           error instanceof Error && error.message.trim().length > 0
             ? error.message
-            : "The thread could not be snoozed.",
+            : localizeMobileString("The thread could not be snoozed."),
         );
         return false;
       }
@@ -375,11 +386,11 @@ export function useThreadListActions(): {
       );
       if (result._tag === "Failure") {
         const error = Cause.squash(result.cause);
-        Dialog.alert(
+        Dialog.alertWithLiteralMessage(
           "Could not wake thread",
           error instanceof Error && error.message.trim().length > 0
             ? error.message
-            : "The thread could not be woken.",
+            : localizeMobileString("The thread could not be woken."),
         );
         return false;
       }
@@ -422,11 +433,11 @@ export function useThreadListActions(): {
     );
     if (result._tag === "Failure") {
       const error = Cause.squash(result.cause);
-      Dialog.alert(
+      Dialog.alertWithLiteralMessage(
         "Could not pin thread",
         error instanceof Error && error.message.trim().length > 0
           ? error.message
-          : "The thread could not be pinned.",
+          : localizeMobileString("The thread could not be pinned."),
       );
       return false;
     }
@@ -456,11 +467,11 @@ export function useThreadListActions(): {
     if (result._tag === "Failure") {
       claim.finish();
       const error = Cause.squash(result.cause);
-      Dialog.alert(
+      Dialog.alertWithLiteralMessage(
         "Could not unpin thread",
         error instanceof Error && error.message.trim().length > 0
           ? error.message
-          : "The thread could not be unpinned.",
+          : localizeMobileString("The thread could not be unpinned."),
       );
       return false;
     }
@@ -482,11 +493,11 @@ export function useThreadListActions(): {
     });
     if (result._tag === "Failure") {
       const error = Cause.squash(result.cause);
-      Dialog.alert(
+      Dialog.alertWithLiteralMessage(
         "Could not update auto-settle",
         error instanceof Error && error.message.trim().length > 0
           ? error.message
-          : "The auto-settle setting could not be changed.",
+          : localizeMobileString("The auto-settle setting could not be changed."),
       );
       return false;
     }
@@ -515,11 +526,11 @@ export function useThreadListActions(): {
       });
       if (result._tag === "Failure") {
         const error = Cause.squash(result.cause);
-        Dialog.alert(
+        Dialog.alertWithLiteralMessage(
           "Could not regenerate title",
           error instanceof Error && error.message.trim().length > 0
             ? error.message
-            : "The thread title could not be regenerated.",
+            : localizeMobileString("The thread title could not be regenerated."),
         );
         return false;
       }
@@ -543,11 +554,11 @@ export function useThreadListActions(): {
       }).then((result) => {
         if (result._tag === "Success") return;
         const error = Cause.squash(result.cause);
-        Dialog.alert(
+        Dialog.alertWithLiteralMessage(
           "Could not rename thread",
           error instanceof Error && error.message.trim().length > 0
             ? error.message
-            : "The thread could not be renamed.",
+            : localizeMobileString("The thread could not be renamed."),
         );
       });
     };
@@ -658,7 +669,10 @@ export function useThreadListActions(): {
             input: { threadId: thread.id, ...(orderKey === undefined ? {} : { orderKey }) },
           });
           if (result._tag === "Failure") {
-            Dialog.alert("Could not pin thread", String(Cause.squash(result.cause)));
+            Dialog.alertWithLiteralMessage(
+              "Could not pin thread",
+              String(Cause.squash(result.cause)),
+            );
             return false;
           }
         } else {
@@ -686,11 +700,11 @@ export function useThreadListActions(): {
         });
         if (result._tag === "Failure") {
           const error = Cause.squash(result.cause);
-          Dialog.alert(
+          Dialog.alertWithLiteralMessage(
             "Could not move thread",
             error instanceof Error && error.message.trim().length > 0
               ? error.message
-              : "The thread could not be moved.",
+              : localizeMobileString("The thread could not be moved."),
           );
           return false;
         }

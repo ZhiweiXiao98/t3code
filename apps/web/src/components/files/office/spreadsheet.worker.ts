@@ -1,3 +1,4 @@
+import { createFilePreviewError } from "@t3tools/shared/filePreview";
 // Adapted from opencode (MIT). Copyright (c) 2025 opencode. See LICENSE.opencode.
 import {
   initWasm,
@@ -35,7 +36,7 @@ const state: State = { opened: undefined };
 
 serveWorker<SheetMethods>({
   open: async (input) => {
-    if (state.opened) throw new Error("The worker already holds a workbook");
+    if (state.opened) throw createFilePreviewError("The worker already holds a workbook");
 
     await initWasm();
 
@@ -143,7 +144,7 @@ serveWorker<SheetMethods>({
 });
 
 function required() {
-  if (!state.opened) throw new Error("The worker holds no workbook");
+  if (!state.opened) throw createFilePreviewError("The worker holds no workbook");
 
   return state.opened;
 }

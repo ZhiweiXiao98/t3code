@@ -242,6 +242,7 @@ function MediaVideoPlayerContent(props: MediaVideoPlayerProps) {
             )}
             {props.uri !== null && !props.unavailable ? (
               <AppText
+                localize={false}
                 className="absolute right-2 bottom-2 max-w-[75%] rounded bg-black/60 px-2 py-1 text-right text-xs text-white"
                 numberOfLines={1}
               >

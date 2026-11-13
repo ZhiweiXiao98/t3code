@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import { PROVIDER_SEND_TURN_MAX_IMAGE_BYTES } from "@t3tools/contracts";
+import {
+  PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
+  PROVIDER_SEND_TURN_MAX_IMAGE_BYTES,
+} from "@t3tools/contracts";
 import type { ImagePickerAsset } from "expo-image-picker";
+import * as mobileStrings from "../i18n/mobileStrings";
 
 const mocks = vi.hoisted(() => ({
   documentUri: "file:///documents",
@@ -479,14 +483,40 @@ describe("composer file attachments", () => {
       expect(mocks.copy).not.toHaveBeenCalled();
     });
 
-    it("reports a native video retrieval error and ends the foreground handoff", async () => {
-      mocks.pickMedia.mockRejectedValue(new Error("Could not download video from iCloud."));
-
-      await expect(pickComposerMedia({ existingCount: 0, maxVideoBytes: 1024 })).resolves.toEqual({
-        attachments: [],
-        error: "Could not download video from iCloud.",
-      });
-      expect(isForegroundHandoffActive()).toBe(false);
+    it("preserves native picker errors, localizes only absent-error fallbacks, and ends the handoff", async () => {
+      const localize = mobileStrings.localizeMobileString;
+      for (const locale of ["en", "zh-CN"] as const) {
+        using _locale = vi
+          .spyOn(mobileStrings, "localizeMobileString")
+          .mockImplementation((value) => localize(value, locale));
+        for (const source of ["file", "media"] as const) {
+          const fallback =
+            source === "file"
+              ? "Could not open the file picker."
+              : "Could not open the photo library.";
+          for (const failure of [
+            new Error("Could not download video from iCloud."),
+            new Error("Settings"),
+            new Error(fallback),
+            new Error("{0} $&"),
+            new Error(""),
+            null,
+          ]) {
+            (source === "file" ? mocks.pickFile : mocks.pickMedia).mockRejectedValue(failure);
+            const result =
+              source === "file"
+                ? await pickComposerFiles({ existingCount: 0 })
+                : await pickComposerMedia({ existingCount: 0, maxVideoBytes: 1024 });
+            expect(result).toEqual({
+              [source === "file" ? "files" : "attachments"]: [],
+              error: failure instanceof Error ? failure.message : localize(fallback, locale),
+            });
+            expect(isForegroundHandoffActive()).toBe(false);
+          }
+        }
+      }
+      expect(mocks.copy).not.toHaveBeenCalled();
+      expect(mocks.open).not.toHaveBeenCalled();
     });
   });
 
@@ -769,14 +799,134 @@ describe("composer file attachments", () => {
     expect(mocks.open).not.toHaveBeenCalled();
   });
 
-  it("does not open the picker when the draft has no remaining attachment slots", async () => {
-    await expect(pickComposerFiles({ existingCount: 100 })).resolves.toEqual({
-      files: [],
-      error: "You can attach up to 100 files per message.",
-    });
-
+  it("does not open either picker when the draft has no remaining attachment slots", async () => {
+    const localize = mobileStrings.localizeMobileString;
+    for (const locale of ["en", "zh-CN"] as const) {
+      using _locale = vi
+        .spyOn(mobileStrings, "localizeMobileString")
+        .mockImplementation((value) => localize(value, locale));
+      await expect(
+        pickComposerFiles({ existingCount: PROVIDER_SEND_TURN_MAX_ATTACHMENTS }),
+      ).resolves.toEqual({
+        files: [],
+        error:
+          locale === "zh-CN"
+            ? `每条消息最多可添加 ${PROVIDER_SEND_TURN_MAX_ATTACHMENTS} 个文件。`
+            : `You can attach up to ${PROVIDER_SEND_TURN_MAX_ATTACHMENTS} files per message.`,
+      });
+      await expect(
+        pickComposerMedia({ existingCount: PROVIDER_SEND_TURN_MAX_ATTACHMENTS }),
+      ).resolves.toEqual({
+        attachments: [],
+        error:
+          locale === "zh-CN"
+            ? `每条消息最多可添加 ${PROVIDER_SEND_TURN_MAX_ATTACHMENTS} 个附件。`
+            : `You can attach up to ${PROVIDER_SEND_TURN_MAX_ATTACHMENTS} attachments per message.`,
+      });
+    }
     expect(mocks.pickFile).not.toHaveBeenCalled();
+    expect(mocks.pickMedia).not.toHaveBeenCalled();
     expect(isForegroundHandoffActive()).toBe(false);
+  });
+
+  it("keeps selected filenames and native read errors opaque when reporting owned media and file failures", async () => {
+    const localize = mobileStrings.localizeMobileString;
+    const name = "Settings {0} $&.txt";
+    const uri = "file:///picker/Settings/{0}/$&.txt";
+    for (const locale of ["en", "zh-CN"] as const) {
+      using _locale = vi
+        .spyOn(mobileStrings, "localizeMobileString")
+        .mockImplementation((value) => localize(value, locale));
+      for (const source of ["file", "video"] as const) {
+        for (const failure of [
+          new Error("Settings"),
+          new Error("Could not read 'Settings'."),
+          new Error(""),
+          null,
+        ]) {
+          mocks.copy.mockImplementation(() => {
+            throw failure;
+          });
+          mocks.pickFile.mockResolvedValue({
+            canceled: false,
+            assets: [{ uri, name, mimeType: "text/plain", size: 42 }],
+          });
+          mocks.pickMedia.mockResolvedValue({
+            canceled: false,
+            assets: [
+              {
+                uri,
+                fileName: name,
+                type: "video",
+                mimeType: "video/quicktime",
+                fileSize: 42,
+                width: 1,
+                height: 1,
+              },
+            ],
+          });
+          const result =
+            source === "file"
+              ? await pickComposerFiles({ existingCount: 0 })
+              : await pickComposerMedia({ existingCount: 0, maxVideoBytes: 1024 });
+          expect(result).toEqual({
+            [source === "file" ? "files" : "attachments"]: [],
+            error:
+              failure instanceof Error
+                ? failure.message
+                : locale === "zh-CN"
+                  ? `无法读取“${name}”。`
+                  : `Could not read '${name}'.`,
+          });
+          expect(isForegroundHandoffActive()).toBe(false);
+        }
+      }
+      mocks.copy.mockReset();
+      mocks.pickMedia.mockResolvedValue({
+        canceled: false,
+        assets: [
+          {
+            uri,
+            fileName: name,
+            type: "unknown",
+            mimeType: "application/x-opaque",
+            width: 1,
+            height: 1,
+          },
+        ],
+      });
+      await expect(pickComposerMedia({ existingCount: 0 })).resolves.toEqual({
+        attachments: [],
+        error:
+          locale === "zh-CN"
+            ? `“${name}”的文件类型不受支持。`
+            : `Unsupported file type for '${name}'.`,
+      });
+      mocks.pickMedia.mockResolvedValue({
+        canceled: false,
+        assets: [
+          { uri, fileName: name, type: "video", mimeType: "video/quicktime", width: 1, height: 1 },
+        ],
+      });
+      await expect(pickComposerMedia({ existingCount: 0 })).resolves.toEqual({
+        attachments: [],
+        error:
+          locale === "zh-CN" ? "此处无法使用视频附件。" : "Video attachments are unavailable here.",
+      });
+      mocks.pickMedia.mockResolvedValue({
+        canceled: false,
+        assets: [
+          { uri, fileName: name, type: "image", mimeType: "image/gif", width: 1, height: 1 },
+        ],
+      });
+      mocks.readBase64.mockRejectedValue(new Error("Settings"));
+      await expect(pickComposerMedia({ existingCount: 0 })).resolves.toEqual({
+        attachments: [],
+        error: locale === "zh-CN" ? `读取“${name}”失败。` : `Failed to read '${name}'.`,
+      });
+      expect(mocks.copy).not.toHaveBeenCalled();
+      expect(mocks.readBase64).toHaveBeenLastCalledWith(uri);
+    }
   });
 
   it("rejects files that exceed the environment's advertised upload limit", async () => {

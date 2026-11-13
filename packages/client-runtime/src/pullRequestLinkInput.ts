@@ -75,6 +75,8 @@ export function resolveLinkPullRequestInput(input: {
     readonly webUrl: (number: number) => string | null;
   } | null;
   readonly hasProject: (reference: ResolvedLink) => boolean;
+  /** Formats only these app-owned failures; repository parameters are literal display data. */
+  readonly formatError?: (template: string, values: readonly string[]) => string;
 }): { link: ResolvedLink } | { error: string } | null {
   const parsed =
     sourceControlClients.parseChangeRequestUrl(input.reference.trim()) !== null
@@ -84,7 +86,13 @@ export function resolveLinkPullRequestInput(input: {
   const url = sourceControlClients.parseChangeRequestUrl(parsed)?.link;
   if (url !== undefined) {
     if (!input.hasProject({ ...url, url: parsed })) {
-      return { error: `No project in this environment can read ${url.host}/${url.repository}.` };
+      return {
+        error:
+          input.formatError?.("No project in this environment can read {0}/{1}.", [
+            url.host,
+            url.repository,
+          ]) ?? `No project in this environment can read ${url.host}/${url.repository}.`,
+      };
     }
     return {
       link: {
@@ -100,6 +108,10 @@ export function resolveLinkPullRequestInput(input: {
   if (input.project === null) {
     return {
       error:
+        input.formatError?.(
+          "Paste the full {0} URL; this thread has no repository to resolve the number against.",
+          ["pull request"],
+        ) ??
         "Paste the full pull request URL; this thread has no repository to resolve the number against.",
     };
   }
@@ -108,7 +120,11 @@ export function resolveLinkPullRequestInput(input: {
     webUrl === null ? undefined : sourceControlClients.parseChangeRequestUrl(webUrl)?.link;
   if (webUrl === null || webReference === undefined) {
     return {
-      error: `Paste a full URL; this project's host has no known ${input.project.terminology.singular} URL.`,
+      error:
+        input.formatError?.("Paste a full URL; this project's host has no known {0} URL.", [
+          input.project.terminology.singular,
+        ]) ??
+        `Paste a full URL; this project's host has no known ${input.project.terminology.singular} URL.`,
     };
   }
   return {

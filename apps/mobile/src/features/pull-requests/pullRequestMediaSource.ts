@@ -1,3 +1,4 @@
+import { localizeMobileString, MOBILE_LOCALE, type MobileLocale } from "../../i18n/mobileStrings";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
 import { SOURCE_CONTROL_MEDIA_ASSET, type EnvironmentId } from "@t3tools/contracts";
 import type { FilePreviewItem } from "../../components/ui/FilePreviewModal.types";
@@ -29,4 +30,15 @@ export function pullRequestImageSource(
   location: PullRequestMediaLocation | null,
 ): FilePreviewItem {
   return { kind: "image", ...pullRequestMediaSource(url, location) };
+}
+
+export function pullRequestMediaName(
+  url: string,
+  caption: string | undefined,
+  fallback: "Attachment" | "Image",
+  locale: MobileLocale = MOBILE_LOCALE,
+): string {
+  return (
+    caption || new URL(url).pathname.split("/").pop() || localizeMobileString(fallback, locale)
+  );
 }

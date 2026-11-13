@@ -1,5 +1,5 @@
 import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
-import { localizeMobileString } from "../../i18n/mobileStrings";
+import { localizeMobileString, MOBILE_LOCALE } from "../../i18n/mobileStrings";
 import { ChildThreadApprovals } from "./ChildThreadApprovals";
 import { useOpenThreadInspector } from "./thread-inspector-navigation";
 import { useSidebarWorkspaceTabs } from "../layout/workspace/useSystemWorkspaceTabBar";
@@ -747,6 +747,7 @@ function ThreadDetailBody(
   };
   const pendingBackgroundWork = presentPendingBackgroundWork(
     props.selectedThread.pendingBackgroundTasks,
+    MOBILE_LOCALE === "zh-CN" ? formatMobileMessage : undefined,
   );
   const extensionStatus = props.extensionStatuses?.length
     ? {
@@ -882,7 +883,7 @@ function ThreadDetailBody(
       };
     }
     if (props.selectedThread.goal !== null && contentPresentationKind === "ready") {
-      const goal = presentProviderGoal(props.selectedThread.goal, false);
+      const goal = presentProviderGoal(props.selectedThread.goal, false, localizeMobileString);
       return {
         kind: "goal",
         label: goal.title,

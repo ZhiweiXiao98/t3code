@@ -1,3 +1,4 @@
+import { createFilePreviewError } from "@t3tools/shared/filePreview";
 import { useStableCallback } from "~/hooks/useStableCallback";
 import { translateWebSource } from "~/i18n/messages";
 import { useI18n } from "~/i18n/WebI18nContext";
@@ -28,7 +29,6 @@ export default function Presentation(props: {
   const translateCount = useStableCallback((count: string | number) =>
     t("files.residual.slides", { count }),
   );
-  const translateSource = useStableCallback((source: string) => translateWebSource(locale, source));
   const { onError, bytes: source, onDetails } = props;
   const [opened, setOpened] = useState<Opened>();
   const [page, setPage] = useState(0);
@@ -67,7 +67,7 @@ export default function Presentation(props: {
       const context = canvas.getContext("bitmaprenderer");
       if (!context) {
         result.bitmap.close();
-        throw new Error(translateSource("This browser cannot draw slides."));
+        throw createFilePreviewError("This browser cannot draw slides.");
       }
       canvas.width = result.bitmap.width;
       canvas.height = result.bitmap.height;
@@ -89,9 +89,7 @@ export default function Presentation(props: {
       .call("open", { bytes }, { transfer: [bytes], signal: controller.signal })
       .then((slides) => {
         if (slides.length === 0 || slides.length > 500)
-          throw new Error(
-            translateSource("Preview limited to presentations with 1 to 500 slides."),
-          );
+          throw createFilePreviewError("Preview limited to presentations with 1 to 500 slides.");
         setOpened({ slides, paint });
         onDetails(translateCount(slides.length));
       })
@@ -100,7 +98,7 @@ export default function Presentation(props: {
       controller.abort();
       engine.close();
     };
-  }, [source, onDetails, onError, translateSource, translateCount]);
+  }, [source, onDetails, onError, translateCount]);
   const details = opened ? t("files.residual.slides", { count: opened.slides.length }) : null;
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Refresh the parent caption when its localized text changes without restarting the document worker.
   useEffect(() => {

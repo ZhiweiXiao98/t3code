@@ -20,6 +20,8 @@ import { AuthOrchestrationOperateScope, type ThreadPullRequestLink } from "@t3to
 import * as Clipboard from "expo-clipboard";
 
 import * as Dialog from "../../components/ui/Dialog";
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { tryOpenExternalUrl } from "../../lib/openExternalUrl";
 import type { MenuProps } from "../../components/ui/Menu.types";
 import type { EnvironmentRuntimeState } from "../../state/remote-runtime-types";
@@ -61,7 +63,10 @@ export function useLinkedPullRequestActions(input: {
     const result = await pending;
     if (result._tag === "Success" || isAtomCommandInterrupted(result)) return;
     const cause = squashAtomCommandFailure(result);
-    Dialog.alert(failureTitle, cause instanceof Error ? cause.message : "Try again.");
+    Dialog.alertWithLiteralMessage(
+      failureTitle,
+      cause instanceof Error ? cause.message : localizeMobileString("Try again."),
+    );
   };
 
   const setLinked = (
@@ -78,9 +83,9 @@ export function useLinkedPullRequestActions(input: {
     if (mutation === null) return;
     const environmentId = thread.environmentId;
     void run(
-      linked
-        ? `Couldn't link this ${terminology.singular}`
-        : `Couldn't unlink this ${terminology.singular}`,
+      formatMobileMessage(linked ? "Couldn't link this {0}" : "Couldn't unlink this {0}", [
+        localizeMobileString(terminology.singular),
+      ]),
       mutation.type === "thread.pull-request.link"
         ? link({ environmentId, input: mutation.input })
         : unlink({ environmentId, input: mutation.input }),
@@ -89,10 +94,17 @@ export function useLinkedPullRequestActions(input: {
 
   const promptLink = () => {
     const { singular } = terminology;
+    const term = localizeMobileString(singular);
+    const failureTitle = formatMobileMessage("Couldn't link this {0}", [term]);
     Dialog.prompt({
-      title: `Link ${singular}`,
-      message: `Paste a ${singular} URL, or enter 123 / #123 for this thread's repository.`,
-      placeholder: `${capitalizeTerm(singular)} URL or #42`,
+      title: formatMobileMessage("Link {0}", [term]),
+      message: formatMobileMessage(
+        "Paste a {0} URL, or enter 123 / #123 for this thread's repository.",
+        [term],
+      ),
+      placeholder: formatMobileMessage("{0} URL or #42", [
+        localizeMobileString(capitalizeTerm(singular)),
+      ]),
       initialValue: "",
       confirmText: "Link",
       onConfirm: (reference) => {
@@ -100,13 +112,25 @@ export function useLinkedPullRequestActions(input: {
           reference,
           project: pullRequestLinkProject(project?.repositoryIdentity),
           hasProject: () => true,
+          formatError: (template, values) =>
+            formatMobileMessage(
+              template,
+              template ===
+                "Paste the full {0} URL; this thread has no repository to resolve the number against." ||
+                template === "Paste a full URL; this project's host has no known {0} URL."
+                ? [term]
+                : values,
+            ),
         });
         if (resolved === null) {
-          Dialog.alert(`Couldn't link this ${singular}`, `Use a ${singular} URL, 123, or #123.`);
+          Dialog.alertWithLiteralMessage(
+            failureTitle,
+            formatMobileMessage("Use a {0} URL, 123, or #123.", [term]),
+          );
           return;
         }
         if ("error" in resolved) {
-          Dialog.alert(`Couldn't link this ${singular}`, resolved.error);
+          Dialog.alertWithLiteralMessage(failureTitle, resolved.error);
           return;
         }
         setLinked(resolved.link, true);
@@ -151,7 +175,10 @@ export function useLinkedPullRequestActions(input: {
             sourceControlClients.findByChangeRequestUrl(link.url) ??
             sourceControlClients.get(undefined)
           ).changeRequest;
-          Dialog.alert(`Unable to open ${shortLabel}`, `The ${singular} could not be opened.`);
+          Dialog.alertWithLiteralMessage(
+            formatMobileMessage("Unable to open {0}", [shortLabel]),
+            formatMobileMessage("The {0} could not be opened.", [localizeMobileString(singular)]),
+          );
         }
       });
     else if (action === "watch" && thread !== null)

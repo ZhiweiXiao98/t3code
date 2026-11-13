@@ -1,3 +1,4 @@
+import { createFilePreviewError } from "@t3tools/shared/filePreview";
 import { useStableCallback } from "~/hooks/useStableCallback";
 import { translateWebSource } from "~/i18n/messages";
 import { useI18n } from "~/i18n/WebI18nContext";
@@ -33,7 +34,6 @@ export default function WordDocument(props: {
   const translateCount = useStableCallback((count: string | number) =>
     t("files.residual.pages", { count }),
   );
-  const translateSource = useStableCallback((source: string) => translateWebSource(locale, source));
   const { onError, bytes, onDetails } = props;
   const [opened, setOpened] = useState<Opened>();
   const scroll = useRef<((index: number, y?: number) => void) | null>(null);
@@ -79,7 +79,7 @@ export default function WordDocument(props: {
           const step = await engine.call("layout", undefined, { signal: controller.signal });
           if (!step.done) continue;
           if (step.pages.length > 1000)
-            throw new Error(translateSource("Preview limited to 1,000 pages."));
+            throw createFilePreviewError("Preview limited to 1,000 pages.");
           setOpened({ pages: step.pages, loading: false, paint, engine });
           onDetails(translateCount(step.pages.length));
           break;
@@ -90,7 +90,7 @@ export default function WordDocument(props: {
       controller.abort();
       engine.close();
     };
-  }, [bytes, onDetails, onError, translateSource, translateCount]);
+  }, [bytes, onDetails, onError, translateCount]);
   const details = opened
     ? t("files.residual.pages", { count: `${opened.pages.length}${opened.loading ? "+" : ""}` })
     : null;

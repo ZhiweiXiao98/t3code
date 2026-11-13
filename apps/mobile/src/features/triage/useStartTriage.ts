@@ -9,6 +9,8 @@ import * as Clipboard from "expo-clipboard";
 import Constants from "expo-constants";
 
 import * as Dialog from "../../components/ui/Dialog";
+import { formatMobileMessage } from "../../i18n/mobileDisplayStrings";
+import { localizeMobileString } from "../../i18n/mobileStrings";
 import { authClientMetadata } from "../../lib/authClientMetadata";
 import { projectEnvironment } from "../../state/projects";
 import { serverEnvironment } from "../../state/server";
@@ -33,22 +35,28 @@ export function useStartTriage() {
   const openScratch = useAtomCommand(projectEnvironment.openScratch, { reportFailure: false });
 
   const fail = (message: string) =>
-    Dialog.alert(
+    Dialog.alertWithLiteralMessage(
       "Could not start triage",
-      `${message} Run ${CLI_COMMAND} in a terminal on that machine instead.`,
+      formatMobileMessage("{0} Run {1} in a terminal on that machine instead.", [
+        message,
+        CLI_COMMAND,
+      ]),
       [
         {
           text: "Copy command",
           onPress: () =>
             void Clipboard.setStringAsync(CLI_COMMAND).catch(() =>
-              Dialog.alert("Could not copy", `Type ${CLI_COMMAND} instead.`),
+              Dialog.alertWithLiteralMessage(
+                "Could not copy",
+                formatMobileMessage("Type {0} instead.", [CLI_COMMAND]),
+              ),
             ),
         },
         { text: "OK", style: "cancel" },
       ],
     );
   const errorMessage = (error: unknown, fallback: string) =>
-    error instanceof Error ? error.message : fallback;
+    error instanceof Error ? error.message : localizeMobileString(fallback);
 
   const activeRoute = () => {
     const state = navigation.getState();
@@ -94,7 +102,7 @@ export function useStartTriage() {
     try {
       await waitForComposerDraftsLoaded();
     } catch {
-      fail("Drafts could not be loaded.");
+      fail(localizeMobileString("Drafts could not be loaded."));
       return;
     }
     if (routeChanged()) return;

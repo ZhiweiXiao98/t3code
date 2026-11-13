@@ -1,5 +1,5 @@
-import { localizeFilePreviewError } from "./filePreviewErrorMessages";
-import { useStableCallback } from "~/hooks/useStableCallback";
+import { createFilePreviewError } from "@t3tools/shared/filePreview";
+import { filePreviewFailureMessage, filePreviewWorkerError } from "./filePreviewErrorMessages";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
 import { useEffect, useImperativeHandle, useRef, useState, type RefObject } from "react";
@@ -44,12 +44,9 @@ export default function LargeTextViewer(props: {
   readonly wordWrap?: boolean;
 }) {
   const { t, locale: previewLocale } = useI18n();
-  const translateSource = useStableCallback((source: string) =>
-    translateWebSource(previewLocale, source),
-  );
   const [meta, setMeta] = useState<Extract<TextPreviewResult, { type: "meta" }> | null>(null);
   const [pages, setPages] = useState(new Map<number, string[][]>());
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Error | null>(null);
   const worker = useRef<Worker | null>(null);
   const copyPending = useRef<{
     resolve: (text: string) => void;
@@ -101,9 +98,9 @@ export default function LargeTextViewer(props: {
           copyPending.current?.resolve(result.text);
           copyPending.current = null;
         } else if (result.type === "error") {
-          copyPending.current?.reject(new Error(result.message));
+          copyPending.current?.reject(filePreviewWorkerError(result));
           copyPending.current = null;
-          if (result.operation !== "copy") setError(result.message);
+          if (result.operation !== "copy") setError(filePreviewWorkerError(result));
         } else if (result.type === "meta") {
           indexed = true;
           if (prefetched) {
@@ -134,9 +131,11 @@ export default function LargeTextViewer(props: {
         }
       });
       engine.addEventListener("error", () => {
-        copyPending.current?.reject(new Error(translateSource("The text viewer stopped.")));
+        copyPending.current?.reject(createFilePreviewError("The text viewer stopped."));
         copyPending.current = null;
-        setError(translateSource("Could not load the text viewer. Close the file and try again."));
+        setError(
+          createFilePreviewError("Could not load the text viewer. Close the file and try again."),
+        );
       });
       engine.postMessage(
         {
@@ -188,34 +187,34 @@ export default function LargeTextViewer(props: {
     } else startWorker();
     return () => {
       controller.abort();
-      copyPending.current?.reject(new Error(translateSource("Preview closed.")));
+      copyPending.current?.reject(createFilePreviewError("Preview closed."));
       copyPending.current = null;
       worker.current?.terminate();
       worker.current = null;
       pending.current.clear();
     };
-  }, [props.src, props.text, props.delimiter, props.sizeBytes, translateSource]);
+  }, [props.src, props.text, props.delimiter, props.sizeBytes]);
   useImperativeHandle(
     props.copyContents,
     () => () =>
       new Promise<string>((resolve, reject) => {
         if (!worker.current) {
-          reject(new Error(translateSource("The file is unavailable.")));
+          reject(createFilePreviewError("The file is unavailable."));
           return;
         }
         if (copyPending.current) {
-          reject(new Error(translateSource("Another copy is in progress.")));
+          reject(createFilePreviewError("Another copy is in progress."));
           return;
         }
         copyPending.current = { resolve, reject };
         worker.current.postMessage({ type: "copy" }, []);
       }),
-    [translateSource],
+    [],
   );
-  if (error)
+  if (error?.message)
     return (
       <FileSurfaceFailure
-        message={localizeFilePreviewError(previewLocale, error)}
+        message={filePreviewFailureMessage(previewLocale, error)}
         {...(props.onRetry ? { onRetry: props.onRetry } : {})}
       />
     );

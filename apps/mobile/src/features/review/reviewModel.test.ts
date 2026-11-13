@@ -1,8 +1,11 @@
+import { CheckpointRef, RunId, type ReviewDiffPreviewSource } from "@t3tools/contracts";
+import type { ThreadCheckpointSummary } from "@t3tools/client-runtime/state/thread-checkpoints";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
   applyReviewDiffMetadata,
   buildReviewParsedDiff,
+  buildReviewSectionItems,
   resolveReviewSelectedSectionId,
   type ReviewSectionItem,
 } from "./reviewModel";
@@ -302,5 +305,75 @@ describe("applyReviewDiffMetadata", () => {
     expect(result.files[0]?.additions).toBe(4000);
     expect(result.notice).toContain("Counts include all changes");
     expect(applyReviewDiffMetadata(parsed, null)).toEqual(parsed);
+  });
+});
+
+describe("review section display provenance", () => {
+  it("uses typed checkpoints and base refs without changing source titles, diffs, or selection IDs", () => {
+    const checkpoint: ThreadCheckpointSummary = {
+      runId: RunId.make("run-one"),
+      checkpointRef: CheckpointRef.make("checkpoint-one"),
+      checkpointTurnCount: 2,
+      status: "ready",
+      files: [{ path: "Settings", kind: "modified", additions: 3, deletions: 1 }],
+      filesTotal: { count: 4, additions: 8, deletions: 2 },
+      assistantMessageId: null,
+      completedAt: "2026-11-13T00:00:00Z",
+    };
+    const source: ReviewDiffPreviewSource = {
+      id: "base",
+      kind: "branch-range",
+      title: "Settings",
+      baseRef: "Link Settings/{0}/$&",
+      headRef: "Comments",
+      diff: "raw diff",
+      diffHash: "hash",
+      truncated: false,
+    };
+    const input = {
+      checkpoints: [checkpoint],
+      gitSections: [source, { ...source, id: "working", kind: "working-tree" as const }],
+      turnDiffById: { "turn:2": "checkpoint diff" },
+      loadingGitSections: false,
+    };
+    const snapshot = structuredClone(input);
+    const english = buildReviewSectionItems(input, "en");
+    const chinese = buildReviewSectionItems(input, "zh-CN");
+    expect(english.map((section) => [section.id, section.title])).toEqual([
+      ["turn:2", "Turn 2"],
+      ["git:branch-range", "Settings"],
+      ["git:working-tree", "Settings"],
+    ]);
+    expect(buildReviewSectionItems(input)).toEqual(english);
+    expect(chinese.map((section) => [section.id, section.title])).toEqual([
+      ["turn:2", "第 2 轮"],
+      ["git:branch-range", "相对于 Link Settings/{0}/$& 的更改"],
+      ["git:working-tree", "未提交"],
+    ]);
+    expect(chinese[0]).toMatchObject({ subtitle: "4 个文件已更改", diff: "checkpoint diff" });
+    expect(chinese[1]).toMatchObject({
+      subtitle: "Link Settings/{0}/$& ... Comments",
+      diff: "raw diff",
+    });
+    expect(chinese[1]?.source).toBe(source);
+    expect(resolveReviewSelectedSectionId(chinese, "turn:2")).toBe("turn:2");
+    expect(input).toEqual(snapshot);
+    for (const [locale, changes] of [
+      ["en", "Changes"],
+      ["zh-CN", "更改"],
+    ] as const) {
+      const noBase = buildReviewSectionItems(
+        { ...input, gitSections: [{ ...source, baseRef: null }] },
+        locale,
+      );
+      expect(noBase[1]?.title).toBe(locale === "en" ? source.title : changes);
+      const pending = buildReviewSectionItems(
+        { ...input, checkpoints: [], gitSections: [], loadingGitSections: true },
+        locale,
+      );
+      expect(pending).toMatchObject([
+        { id: "git:branch-range", title: changes, isLoading: true, diff: null },
+      ]);
+    }
   });
 });

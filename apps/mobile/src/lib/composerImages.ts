@@ -263,7 +263,9 @@ export async function pickComposerFiles(input: {
   if (remainingSlots <= 0) {
     return {
       files: [],
-      error: `You can attach up to ${PROVIDER_SEND_TURN_MAX_ATTACHMENTS} files per message.`,
+      error: formatMobileMessage("You can attach up to {0} files per message.", [
+        PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
+      ]),
     };
   }
 
@@ -276,7 +278,10 @@ export async function pickComposerFiles(input: {
   } catch (cause) {
     return {
       files: [],
-      error: cause instanceof Error ? cause.message : "Could not open the file picker.",
+      error:
+        cause instanceof Error
+          ? cause.message
+          : localizeMobileString("Could not open the file picker."),
     };
   } finally {
     endHandoff();
@@ -346,11 +351,16 @@ export async function pickComposerFiles(input: {
         await removePersistedComposerAttachmentFile(attachment.fileUri);
       }
     } catch (cause) {
-      error = cause instanceof Error ? cause.message : `Could not read '${name}'.`;
+      error =
+        cause instanceof Error
+          ? cause.message
+          : formatMobileMessage("Could not read '{0}'.", [name]);
     }
   }
   if (exceededAttachmentLimit) {
-    error = `You can attach up to ${PROVIDER_SEND_TURN_MAX_ATTACHMENTS} files per message.`;
+    error = formatMobileMessage("You can attach up to {0} files per message.", [
+      PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
+    ]);
   }
   return { files: attachments, error };
 }
@@ -387,7 +397,9 @@ export async function pickComposerMedia(input: {
   if (remainingSlots <= 0) {
     return {
       attachments: [],
-      error: `You can attach up to ${PROVIDER_SEND_TURN_MAX_ATTACHMENTS} attachments per message.`,
+      error: formatMobileMessage("You can attach up to {0} attachments per message.", [
+        PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
+      ]),
     };
   }
 
@@ -397,7 +409,10 @@ export async function pickComposerMedia(input: {
   } catch (error) {
     return {
       attachments: [],
-      error: error instanceof Error ? error.message : "The photo library is unavailable right now.",
+      error:
+        error instanceof Error
+          ? error.message
+          : localizeMobileString("The photo library is unavailable right now."),
     };
   }
 
@@ -417,7 +432,10 @@ export async function pickComposerMedia(input: {
   } catch (error) {
     return {
       attachments: [],
-      error: error instanceof Error ? error.message : "Could not open the photo library.",
+      error:
+        error instanceof Error
+          ? error.message
+          : localizeMobileString("Could not open the photo library."),
     };
   } finally {
     endHandoff();
@@ -435,13 +453,15 @@ export async function pickComposerMedia(input: {
 
   for (const asset of result.assets) {
     if (attachments.length >= remainingSlots) {
-      error = `You can attach up to ${PROVIDER_SEND_TURN_MAX_ATTACHMENTS} attachments per message.`;
+      error = formatMobileMessage("You can attach up to {0} attachments per message.", [
+        PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
+      ]);
       break;
     }
     const mimeType = asset.mimeType?.toLowerCase();
     if (asset.type === "video" || mimeType?.startsWith("video/")) {
       if (input.maxVideoBytes === undefined) {
-        error = "Video attachments are unavailable here.";
+        error = localizeMobileString("Video attachments are unavailable here.");
         continue;
       }
       try {
@@ -458,12 +478,14 @@ export async function pickComposerMedia(input: {
         );
       } catch (cause) {
         error =
-          cause instanceof Error ? cause.message : `Could not read '${asset.fileName ?? "video"}'.`;
+          cause instanceof Error
+            ? cause.message
+            : formatMobileMessage("Could not read '{0}'.", [asset.fileName ?? "video"]);
       }
       continue;
     }
     if (asset.type !== "image" && !mimeType?.startsWith("image/")) {
-      error = `Unsupported file type for '${asset.fileName ?? "image"}'.`;
+      error = formatMobileMessage("Unsupported file type for '{0}'.", [asset.fileName ?? "image"]);
       continue;
     }
 
@@ -512,7 +534,7 @@ export async function pickComposerMedia(input: {
         };
       }
     } catch {
-      error = `Failed to read '${name}'.`;
+      error = formatMobileMessage("Failed to read '{0}'.", [name]);
       continue;
     }
 

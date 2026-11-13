@@ -113,7 +113,11 @@ function TimelineComment({
         <Text className="text-2xs text-foreground-tertiary">{relativeTime(comment.createdAt)}</Text>
       </View>
       {comment.path ? (
-        <Text className="font-mono text-2xs text-foreground-muted" numberOfLines={2}>
+        <Text
+          localize={false}
+          className="font-mono text-2xs text-foreground-muted"
+          numberOfLines={2}
+        >
           {comment.path}
         </Text>
       ) : null}
@@ -276,7 +280,7 @@ export function pullRequestTimelineRows(
           >
             <View className="flex-row items-center gap-2">
               <SymbolView name="doc.text" size={14} tintColorClassName="accent-icon-muted" />
-              <Text className="flex-1 font-mono text-xs" numberOfLines={2}>
+              <Text localize={false} className="flex-1 font-mono text-xs" numberOfLines={2}>
                 {thread.path}
                 {thread.line ? `:${thread.line}` : ""}
               </Text>
@@ -310,7 +314,7 @@ export function pullRequestTimelineRows(
             className="flex-row items-center gap-2 active:opacity-70"
           >
             <PullRequestAvatar actor={commit.authors?.[0] ?? null} size={22} />
-            <Text className="min-w-0 flex-1 text-sm" numberOfLines={1}>
+            <Text localize={false} className="min-w-0 flex-1 text-sm" numberOfLines={1}>
               {commit.messageHeadline}
             </Text>
             <Text className="font-mono text-2xs text-foreground-muted">
