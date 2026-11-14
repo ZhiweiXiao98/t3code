@@ -68,7 +68,10 @@ jobs:
           restore_source
           trap - EXIT
           test "$baseline_status" -ne 0
-          grep -F "AssertionError" "$RUNNER_TEMP/title-baseline.log"
+          grep -F "Expected element to have text content:" "$RUNNER_TEMP/title-baseline.log"
+          grep -F "无法列出麦克风" "$RUNNER_TEMP/title-baseline.log"
+          grep -F "无法打开提供商链接。" "$RUNNER_TEMP/title-baseline.log"
+          grep -F "无法加载登录终端。" "$RUNNER_TEMP/title-baseline.log"
           ! grep -F "Unhandled Errors" "$RUNNER_TEMP/title-baseline.log"
           git diff --exit-code
       - name: Run changed-file regression checks
