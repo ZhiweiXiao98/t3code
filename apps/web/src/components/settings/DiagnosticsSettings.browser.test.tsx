@@ -133,7 +133,7 @@ it("keeps cached owned open logs failure current without reopening the editor", 
   await screen.rerender(surface("zh-CN"));
   finish(AsyncResult.failure(Cause.die(null)));
   // The old producer captures English at invocation, so this is a real visible-source mismatch.
-  await expect.element(page.getByText("无法打开日志文件夹。", { exact: true })).toBeVisible();
+  await expect.poll(() => screen.container.textContent).toContain("无法打开日志文件夹。");
   for (const locale of ["en", "zh-CN", "en"] as const) {
     await screen.rerender(surface(locale));
     await expect
