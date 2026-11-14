@@ -19,7 +19,7 @@ function ChildApproval({ entry }: { entry: ChildThreadApproval }) {
   const canRespond = useEnvironmentScope(entry.thread.environmentId, AuthOrchestrationOperateScope);
   const respond = useAtomCommand(threadEnvironment.respondToApproval, { reportFailure: false });
   const [responding, setResponding] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | { readonly code: "submitFailed" } | null>(null);
   const { approval } = entry;
   return (
     <section
@@ -65,11 +65,7 @@ function ChildApproval({ entry }: { entry: ChildThreadApproval }) {
             });
             if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
               const failure = squashAtomCommandFailure(result);
-              setError(
-                failure instanceof Error
-                  ? failure.message
-                  : translateChatSource(locale, "Failed to submit approval decision."),
-              );
+              setError(failure instanceof Error ? failure.message : { code: "submitFailed" });
             }
             setResponding(false);
             return result;
@@ -78,7 +74,9 @@ function ChildApproval({ entry }: { entry: ChildThreadApproval }) {
       </div>
       {error !== null ? (
         <p role="alert" className="mt-2 text-destructive">
-          {error}
+          {typeof error === "string"
+            ? error
+            : translateChatSource(locale, "Failed to submit approval decision.")}
         </p>
       ) : null}
     </section>
