@@ -459,6 +459,7 @@ it.layer(
         assert.deepStrictEqual(status.usageLimits?.unavailable, {
           reason: "probeFailed",
           message: "Codex CLI is not authenticated. Run `codex login` and try again.",
+          messageDescriptor: { code: "codexUsageLoginRequired" },
         });
         for (const failure of [
           {
@@ -470,6 +471,7 @@ it.layer(
             messageDescriptor: { code: "codexUsageRequestFailed" as const, rpcCode: -32603 },
           },
           { message: "Settings/$&/{0} 中文" },
+          { message: "Codex CLI is not authenticated. Run `codex login` and try again." },
         ]) {
           const withRateLimitFailure = yield* checkCodexProviderStatus(defaultCodexSettings, () =>
             Effect.succeed(

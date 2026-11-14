@@ -22,6 +22,8 @@ import {
   elapsedShare,
   exhaustedUsageWindow,
   formatUsageWindowLabel,
+  formatUsageUnavailableMessage,
+  limitsNotice,
   paceOf,
   paceRemainingPercent,
   usesChatGptSharing,
@@ -1606,6 +1608,47 @@ describe("external usage settings", () => {
     ]);
     expect(collectLimitAccounts(presentations)).toEqual([]);
     expect(collectLimitNotices(presentations)).toEqual([]);
+
+    const message = "Codex did not answer the usage request.";
+    const messageDescriptor = { code: "codexUsageNoResponse" as const };
+    const tagged = provider({
+      ...managed,
+      usageLimits: {
+        ...managed.usageLimits!,
+        unavailable: { reason: "probeFailed", message, messageDescriptor },
+      },
+    });
+    const raw = provider({
+      ...managed,
+      usageLimits: { ...managed.usageLimits!, unavailable: { reason: "probeFailed", message } },
+    });
+    for (const pair of [
+      [tagged, raw],
+      [raw, tagged],
+    ]) {
+      const combined = new Map([
+        [
+          EnvironmentId.make("a"),
+          {
+            entry: { target: { label: "Settings/$&/{0} 中文" } },
+            serverConfig: {
+              providers: pair.map((entry, index) => ({
+                ...entry,
+                instanceId: ProviderInstanceId.make(`account-${index}`),
+              })),
+            },
+          },
+        ],
+      ]);
+      const links = collectExternalUsageLinks(combined);
+      expect(links).toHaveLength(1);
+      expect(links[0]).toEqual({
+        ...managed.usageLimits!.externalUsage,
+        message,
+        ...(pair[1] === tagged ? { messageDescriptor } : {}),
+        accounts: ["account-0 on Settings/$&/{0} 中文", "account-1 on Settings/$&/{0} 中文"],
+      });
+    }
   });
 });
 
@@ -1696,6 +1739,58 @@ describe("limit notice display copy", () => {
       "Settings $& {0} · Settings: No limits reported.",
       ...notices.slice(2),
     ]);
+    const message = "Codex did not answer the usage request.";
+    const owned = new Map([
+      [
+        EnvironmentId.make("a"),
+        {
+          entry: { target: { label: "Settings $& {0}" } },
+          serverConfig: {
+            providers: [
+              provider({
+                displayName: "Owned/$&/{0}",
+                usageLimits: {
+                  checkedAt,
+                  windows: [],
+                  unavailable: {
+                    reason: "probeFailed" as const,
+                    message,
+                    messageDescriptor: { code: "codexUsageNoResponse" as const },
+                  },
+                },
+              }),
+              provider({
+                displayName: "Raw/$&/{0}",
+                usageLimits: {
+                  checkedAt,
+                  windows: [],
+                  unavailable: { reason: "probeFailed" as const, message },
+                },
+              }),
+            ],
+            usageLimitSources: [
+              {
+                id: UsageLimitSourceId.make("opaque"),
+                kind: "cliproxy" as const,
+                label: "Source/$&/{0}",
+                checkedAt,
+                accounts: [],
+                error: message,
+              },
+            ],
+          },
+        },
+      ],
+    ]);
+    expect(
+      collectLimitNotices(owned, undefined, undefined, (unavailable) =>
+        formatUsageUnavailableMessage(unavailable, "zh-CN"),
+      ),
+    ).toEqual([
+      "Owned/$&/{0}: Codex 未响应读取用量的请求。",
+      `Raw/$&/{0}: ${message}`,
+      `Source/$&/{0}: ${message}`,
+    ]);
   });
 
   it("localizes only the empty-source fallback and preserves identical provider and source errors", () => {
@@ -1751,5 +1846,108 @@ describe("limit notice display copy", () => {
       "Usage · Settings $& {0}: 未报告任何账户。",
       "Usage · Failed source: No accounts reported.",
     ]);
+  });
+});
+
+describe("owned usage unavailable notices", () => {
+  it("localizes only matching descriptors and keeps raw messages across locale changes", () => {
+    const cases = [
+      [
+        "Codex could not read usage (JSON-RPC -32603).",
+        { code: "codexUsageRequestFailed", rpcCode: -32603 },
+        "Codex 无法读取用量（JSON-RPC -32603）。",
+      ],
+      [
+        "Codex could not be started to read usage.",
+        { code: "codexUsageSpawnFailed" },
+        "无法启动 Codex 以读取用量。",
+      ],
+      [
+        "Codex exited before it could report usage.",
+        { code: "codexUsageProcessExited" },
+        "Codex 在报告用量前已退出。",
+      ],
+      [
+        "Codex did not answer the usage request.",
+        { code: "codexUsageNoResponse" },
+        "Codex 未响应读取用量的请求。",
+      ],
+      [
+        "Codex CLI is not authenticated. Run `codex login` and try again.",
+        { code: "codexUsageLoginRequired" },
+        "Codex CLI 尚未登录。请运行 `codex login` 后重试。",
+      ],
+    ] as const;
+    for (const [message, messageDescriptor, chinese] of cases) {
+      const input = { message, messageDescriptor };
+      const original = structuredClone(input);
+      for (const locale of ["en", "zh-CN", "en"] as const) {
+        expect(formatUsageUnavailableMessage(input, locale)).toBe(
+          locale === "zh-CN" ? chinese : message,
+        );
+      }
+      expect(input).toEqual(original);
+      expect(formatUsageUnavailableMessage({ message }, "zh-CN")).toBe(message);
+      expect(formatUsageUnavailableMessage({ ...input, message: ` ${message}` }, "zh-CN")).toBe(
+        ` ${message}`,
+      );
+    }
+    for (const messageDescriptor of [
+      undefined,
+      null,
+      "codexUsageNoResponse",
+      {},
+      { code: "future" },
+      { code: "constructor" },
+      { code: "codexUsageRequestFailed" },
+      { code: "codexUsageRequestFailed", rpcCode: "-32603" },
+      { code: "codexUsageRequestFailed", rpcCode: Number.NaN },
+    ]) {
+      const message = "Codex could not read usage (JSON-RPC -32603).";
+      expect(formatUsageUnavailableMessage({ message, messageDescriptor }, "zh-CN")).toBe(message);
+    }
+    for (const message of [undefined, "", "Settings/$&/{0} 中文", "Could not read limits."]) {
+      expect(
+        formatUsageUnavailableMessage(
+          { message, messageDescriptor: { code: "codexUsageNoResponse" } },
+          "zh-CN",
+        ),
+      ).toBe(message);
+    }
+  });
+
+  it("keeps notice defaults and localizes generic fallbacks separately from explicit text", () => {
+    const base = { checkedAt: "2026-09-03T11:00:00.000Z", windows: [] };
+    const fallback = (message: string) => `fallback:${message}`;
+    const display = (unavailable: {
+      readonly message?: string | undefined;
+      readonly messageDescriptor?: unknown;
+    }) => formatUsageUnavailableMessage(unavailable, "zh-CN");
+    for (const [reason, english] of [
+      ["unsupported", "This account has no subscription limits."],
+      ["probeFailed", "Could not read limits."],
+    ] as const) {
+      const limits = { ...base, unavailable: { reason } };
+      expect(limitsNotice(limits)).toBe(english);
+      expect(limitsNotice(limits, fallback, display)).toBe(`fallback:${english}`);
+      for (const message of [english, "", "Settings/$&/{0} 中文"]) {
+        const explicit = { ...base, unavailable: { reason, message } };
+        expect(limitsNotice(explicit)).toBe(message);
+        expect(limitsNotice(explicit, fallback, display)).toBe(message);
+      }
+    }
+    expect(limitsNotice(base)).toBe("No limits reported.");
+    expect(limitsNotice(base, fallback, display)).toBe("fallback:No limits reported.");
+    expect(limitsNotice({ ...base, windows: [window] }, fallback, display)).toBeNull();
+    const tagged = {
+      ...base,
+      unavailable: {
+        reason: "probeFailed" as const,
+        message: "Codex did not answer the usage request.",
+        messageDescriptor: { code: "codexUsageNoResponse" as const },
+      },
+    };
+    expect(limitsNotice(tagged)).toBe(tagged.unavailable.message);
+    expect(limitsNotice(tagged, fallback, display)).toBe("Codex 未响应读取用量的请求。");
   });
 });

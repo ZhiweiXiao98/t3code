@@ -72,6 +72,51 @@ export function formatUsageWindowLabel(
     : window.label;
 }
 
+export function formatUsageUnavailableMessage(
+  unavailable: { readonly message?: string | undefined; readonly messageDescriptor?: unknown },
+  locale: ResolvedAppLocale = "en",
+): string | undefined {
+  if (locale !== "zh-CN") return unavailable.message;
+  const descriptor = unavailable.messageDescriptor;
+  if (typeof descriptor !== "object" || descriptor === null || !("code" in descriptor)) {
+    return unavailable.message;
+  }
+  let english: string;
+  let chinese: string;
+  switch (descriptor.code) {
+    case "codexUsageRequestFailed":
+      if (
+        !("rpcCode" in descriptor) ||
+        typeof descriptor.rpcCode !== "number" ||
+        !Number.isFinite(descriptor.rpcCode)
+      ) {
+        return unavailable.message;
+      }
+      english = `Codex could not read usage (JSON-RPC ${descriptor.rpcCode}).`;
+      chinese = `Codex 无法读取用量（JSON-RPC ${descriptor.rpcCode}）。`;
+      break;
+    case "codexUsageSpawnFailed":
+      english = "Codex could not be started to read usage.";
+      chinese = "无法启动 Codex 以读取用量。";
+      break;
+    case "codexUsageProcessExited":
+      english = "Codex exited before it could report usage.";
+      chinese = "Codex 在报告用量前已退出。";
+      break;
+    case "codexUsageNoResponse":
+      english = "Codex did not answer the usage request.";
+      chinese = "Codex 未响应读取用量的请求。";
+      break;
+    case "codexUsageLoginRequired":
+      english = "Codex CLI is not authenticated. Run `codex login` and try again.";
+      chinese = "Codex CLI 尚未登录。请运行 `codex login` 后重试。";
+      break;
+    default:
+      return unavailable.message;
+  }
+  return unavailable.message === english ? chinese : unavailable.message;
+}
+
 export function exhaustedUsageWindow(
   provider: ServerProvider | undefined,
   now: number,
@@ -219,6 +264,9 @@ export function collectExternalUsageLinks(presentations: LimitPresentations) {
       readonly label: string;
       readonly url: string;
       readonly message: string | undefined;
+      readonly messageDescriptor?: NonNullable<
+        ServerProviderUsageLimits["unavailable"]
+      >["messageDescriptor"];
       readonly accounts: readonly string[];
     }
   >();
@@ -230,6 +278,9 @@ export function collectExternalUsageLinks(presentations: LimitPresentations) {
         links.set(external.url, {
           ...external,
           message: provider.usageLimits?.unavailable?.message,
+          ...(provider.usageLimits?.unavailable?.messageDescriptor
+            ? { messageDescriptor: provider.usageLimits.unavailable.messageDescriptor }
+            : {}),
           accounts: [...new Set([...(links.get(external.url)?.accounts ?? []), account])],
         });
       }
@@ -445,6 +496,9 @@ export function collectLimitNotices(
   localizeFallback: (message: "Could not read limits." | "No limits reported.") => string = (
     message,
   ) => message,
+  localizeMessage: (
+    unavailable: NonNullable<ServerProviderUsageLimits["unavailable"]>,
+  ) => string | undefined = (unavailable) => unavailable.message,
 ): readonly string[] {
   const label = (environmentLabel: string, subject: string) =>
     presentations.size > 1 ? `${environmentLabel} · ${subject}` : subject;
@@ -457,7 +511,7 @@ export function collectLimitNotices(
       const notice = !limits
         ? null
         : limits.unavailable?.reason === "probeFailed"
-          ? (limits.unavailable.message ?? localizeFallback("Could not read limits."))
+          ? (localizeMessage(limits.unavailable) ?? localizeFallback("Could not read limits."))
           : limits.windows.length === 0
             ? localizeFallback("No limits reported.")
             : null;
@@ -679,14 +733,28 @@ function poolWindows(accounts: readonly LimitAccount[], now: number): readonly L
   return pools.sort((left, right) => WINDOW_KIND_ORDER[left.kind] - WINDOW_KIND_ORDER[right.kind]);
 }
 
-export function limitsNotice(limits: ServerProviderUsageLimits): string | null {
+export function limitsNotice(
+  limits: ServerProviderUsageLimits,
+  localizeFallback: (
+    message:
+      | "This account has no subscription limits."
+      | "Could not read limits."
+      | "No limits reported.",
+  ) => string = (message) => message,
+  localizeMessage: (
+    unavailable: NonNullable<ServerProviderUsageLimits["unavailable"]>,
+  ) => string | undefined = (unavailable) => unavailable.message,
+): string | null {
   if (limits.unavailable?.reason === "unsupported") {
-    return limits.unavailable.message ?? "This account has no subscription limits.";
+    return (
+      localizeMessage(limits.unavailable) ??
+      localizeFallback("This account has no subscription limits.")
+    );
   }
   if (limits.unavailable?.reason === "probeFailed") {
-    return limits.unavailable.message ?? "Could not read limits.";
+    return localizeMessage(limits.unavailable) ?? localizeFallback("Could not read limits.");
   }
-  return limits.windows.length === 0 ? "No limits reported." : null;
+  return limits.windows.length === 0 ? localizeFallback("No limits reported.") : null;
 }
 
 export function remainingPercent(window: ServerProviderUsageWindow): number {

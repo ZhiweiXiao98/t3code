@@ -101,6 +101,57 @@ describe("UsageLimitsPooled ChatGPT usage card", () => {
     await expect.poll(() => scopedLabel.textContent).toBe(`Weekly · ${scoped}`);
   });
 
+  it("updates owned unavailable notices without translating identical raw messages", async () => {
+    const message = "Codex CLI is not authenticated. Run `codex login` and try again.";
+    const providers = ["Owned/$&/{0}", "Raw/$&/{0}"].map((displayName, index) => ({
+      ...managedChatGpt(`account-${index}`, displayName),
+      usageLimits: {
+        checkedAt,
+        windows: [],
+        unavailable: {
+          reason: "probeFailed" as const,
+          message,
+          ...(index === 0
+            ? { messageDescriptor: { code: "codexUsageLoginRequired" as const } }
+            : {}),
+        },
+      },
+    }));
+    const presentations = new Map([
+      [
+        EnvironmentId.make("desk"),
+        {
+          entry: { target: { label: "Settings/$&/{0}" } },
+          serverConfig: { providers },
+        },
+      ],
+    ]);
+    const surface = (locale: "en" | "zh-CN") => (
+      <WebI18nContext
+        value={{
+          locale,
+          appLocale: locale,
+          setAppLocale: () => undefined,
+          t: (key, values) => translateWebMessage(locale, key, values),
+        }}
+      >
+        <UsageLimitsPooled presentations={presentations} now={Date.parse(checkedAt)} />
+      </WebI18nContext>
+    );
+    await using screen = await render(surface("en"));
+    const noticeContainer = screen
+      .getByText(`Owned/$&/{0}: ${message}`, { exact: true })
+      .element().parentElement!;
+    await screen.rerender(surface("zh-CN"));
+    await expect
+      .poll(() => noticeContainer.textContent)
+      .toContain("Owned/$&/{0}: Codex CLI 尚未登录。请运行 `codex login` 后重试。");
+    await expect.element(screen.getByText(`Raw/$&/{0}: ${message}`, { exact: true })).toBeVisible();
+    await screen.rerender(surface("en"));
+    await expect.poll(() => noticeContainer.textContent).toContain(`Owned/$&/{0}: ${message}`);
+    await expect.element(screen.getByText(`Raw/$&/{0}: ${message}`, { exact: true })).toBeVisible();
+  });
+
   it("names the managed connections it covers", async () => {
     const presentations = new Map([
       [

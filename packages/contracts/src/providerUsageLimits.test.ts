@@ -49,6 +49,7 @@ describe("usage unavailable message ownership", () => {
       { code: "codexUsageSpawnFailed" },
       { code: "codexUsageProcessExited" },
       { code: "codexUsageNoResponse" },
+      { code: "codexUsageLoginRequired" },
     ] as const) {
       const tagged = { ...limits, unavailable: { ...unavailable, messageDescriptor } };
       expect(decodeLimits(JSON.parse(JSON.stringify(encodeLimits(tagged))))).toEqual(tagged);

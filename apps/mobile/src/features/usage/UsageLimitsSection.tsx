@@ -16,6 +16,7 @@ import {
   resetCreditChoices,
   formatResetsIn,
   formatUsageWindowLabel,
+  formatUsageUnavailableMessage,
   limitsNotice,
   paceOf,
   paceRemainingPercent,
@@ -180,7 +181,9 @@ export function AccountLimits(props: {
   const providerColor = useBarColor(props.driver);
   const color = normalizeProviderAccentColor(props.accentColor) ?? providerColor;
   if (!limits) return null;
-  const notice = limitsNotice(limits);
+  const notice = limitsNotice(limits, localizeMobileString, (unavailable) =>
+    formatUsageUnavailableMessage(unavailable, MOBILE_LOCALE),
+  );
   const externalUsage = limits.externalUsage;
   const padding = dense ? "px-4 py-3" : "p-4";
   return (
@@ -205,7 +208,9 @@ export function AccountLimits(props: {
         {props.trailing}
       </View>
       {notice ? (
-        <Text className="text-sm text-foreground-muted">{notice}</Text>
+        <Text localize={false} className="text-sm text-foreground-muted">
+          {notice}
+        </Text>
       ) : (
         <View className="gap-3">
           {limits.windows.map((window) => (

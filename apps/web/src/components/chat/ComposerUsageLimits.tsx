@@ -1,7 +1,7 @@
 import { translateWebMessage } from "~/i18n/messages";
 import type { EnvironmentId, UsageLimitsReport } from "@t3tools/contracts";
 import type { TimestampFormat } from "@t3tools/contracts/settings";
-import { limitsNotice } from "@t3tools/shared/usageLimits";
+import { formatUsageUnavailableMessage, limitsNotice } from "@t3tools/shared/usageLimits";
 import { GaugeIcon } from "lucide-react";
 
 import { ensureLocalApi } from "../../localApi";
@@ -136,7 +136,11 @@ function UsageLimitsBannerBody({
           const resetCreditInput =
             account.resetCreditInput ??
             (account.instanceId ? { instanceId: account.instanceId } : undefined);
-          const notice = limitsNotice(account.limits);
+          const notice = limitsNotice(
+            account.limits,
+            (message) => translateWebSource(locale, message),
+            (unavailable) => formatUsageUnavailableMessage(unavailable, locale),
+          );
           const externalUsage = account.limits.externalUsage;
           return (
             <div key={account.id} className="flex min-w-0 flex-col gap-1">
@@ -146,9 +150,7 @@ function UsageLimitsBannerBody({
                 </span>
               ) : null}
               {notice ? (
-                <span className="text-xs text-muted-foreground">
-                  {translateWebSource(locale, notice)}
-                </span>
+                <span className="text-xs text-muted-foreground">{notice}</span>
               ) : (
                 <LimitWindows
                   compact

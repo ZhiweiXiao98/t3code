@@ -8,6 +8,7 @@ import {
   cursorUsageWindowDetails,
   displayLimitWindows,
   formatUsageWindowLabel,
+  formatUsageUnavailableMessage,
   type LimitAccount,
   type LimitPool,
   type LimitPoolMember,
@@ -666,8 +667,11 @@ export function UsageLimitsPooled({
   const [segmentPopover] = useState(() => PopoverCreateHandle<SegmentPayload>());
   const segmentPopoverActions = useRef<PopoverPrimitive.Root.Actions | null>(null);
   const pools = collectLimitPools(collectLimitAccounts(presentations), now);
-  const notices = collectLimitNotices(presentations, t("usage.limits.noAccounts"), (message) =>
-    translateWebSource(uiLocale, message),
+  const notices = collectLimitNotices(
+    presentations,
+    t("usage.limits.noAccounts"),
+    (message) => translateWebSource(uiLocale, message),
+    (unavailable) => formatUsageUnavailableMessage(unavailable, uiLocale),
   );
   const externalLinks = collectExternalUsageLinks(presentations);
   return (
@@ -722,7 +726,9 @@ export function UsageLimitsPooled({
                   )}
                 </p>
               ) : link.message ? (
-                <p className="max-w-xl text-xs text-muted-foreground">{link.message}</p>
+                <p className="max-w-xl text-xs text-muted-foreground">
+                  {formatUsageUnavailableMessage(link, uiLocale)}
+                </p>
               ) : null}
             </div>
           </div>

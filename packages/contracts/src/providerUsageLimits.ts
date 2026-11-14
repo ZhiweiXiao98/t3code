@@ -57,6 +57,7 @@ export const UsageUnavailableMessageDescriptor = Schema.Union([
       "codexUsageSpawnFailed",
       "codexUsageProcessExited",
       "codexUsageNoResponse",
+      "codexUsageLoginRequired",
     ]),
   }),
 ]);

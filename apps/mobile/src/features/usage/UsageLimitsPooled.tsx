@@ -15,6 +15,7 @@ import {
   cursorUsageWindowDetails,
   displayLimitWindows,
   formatUsageWindowLabel,
+  formatUsageUnavailableMessage,
   paceRemainingPercent,
   remainingPercent,
   type LimitAccount,
@@ -438,6 +439,7 @@ export function UsageLimitsSection({
     selected,
     localizeMobileString("No accounts reported."),
     localizeMobileString,
+    (unavailable) => formatUsageUnavailableMessage(unavailable, MOBILE_LOCALE),
   );
   const externalLinks = collectExternalUsageLinks(selected);
   const colors = useProviderColors();
@@ -494,7 +496,7 @@ export function UsageLimitsSection({
           </Text>
           {link.message ? (
             <Text localize={false} className="text-sm text-foreground-muted">
-              {link.message}
+              {formatUsageUnavailableMessage(link, MOBILE_LOCALE)}
             </Text>
           ) : null}
           <Pressable

@@ -711,6 +711,7 @@ function accountProbeStatus({ account, rateLimits }: CodexAppServerProviderSnaps
   readonly status: Exclude<ServerProviderState, "disabled">;
   readonly auth: ServerProvider["auth"];
   readonly message?: string;
+  readonly messageDescriptor?: UsageUnavailableMessageDescriptor;
 } {
   const authLabel = codexAccountAuthLabel(
     account.account,
@@ -736,6 +737,7 @@ function accountProbeStatus({ account, rateLimits }: CodexAppServerProviderSnaps
       status: "error",
       auth: { status: "unauthenticated" },
       message: "Codex CLI is not authenticated. Run `codex login` and try again.",
+      messageDescriptor: { code: "codexUsageLoginRequired" },
     };
   }
 
@@ -861,7 +863,12 @@ export const checkCodexProviderStatus = Effect.fn("checkCodexProviderStatus")(fu
             ...(snapshot.rateLimits
               ? snapshot.rateLimits.failure
               : accountStatus.message
-                ? { message: accountStatus.message }
+                ? {
+                    message: accountStatus.message,
+                    ...("messageDescriptor" in accountStatus && accountStatus.messageDescriptor
+                      ? { messageDescriptor: accountStatus.messageDescriptor }
+                      : {}),
+                  }
                 : {}),
           })
         : codexRateLimitsToLimits({

@@ -11,6 +11,7 @@ import {
   collectProviderUsageLimits,
   formatDuration,
   formatUsageWindowLabel,
+  formatUsageUnavailableMessage,
   type LimitPace,
   limitsNotice,
   paceOf,
@@ -61,7 +62,11 @@ export function ThreadDetailsUsage({
     report?.accounts.find((entry) => entry.instanceId === providerInstanceId)?.limits ??
     providers.find((provider) => provider.instanceId === providerInstanceId)?.usageLimits;
   if (!limits) return null;
-  const notice = limitsNotice(limits);
+  const notice = limitsNotice(
+    limits,
+    (message) => translateWebSource(locale, message),
+    (unavailable) => formatUsageUnavailableMessage(unavailable, locale),
+  );
 
   return (
     <ThreadDetailsSection
@@ -76,7 +81,7 @@ export function ThreadDetailsUsage({
             fill={null}
             tone={null}
             value={translateWebSource(locale, "Unavailable")}
-            tooltip={<span className="text-foreground">{translateWebSource(locale, notice)}</span>}
+            tooltip={<span className="text-foreground">{notice}</span>}
           />
         ) : (
           limits.windows.map((window) => <LimitRow key={window.id} window={window} now={now} />)
