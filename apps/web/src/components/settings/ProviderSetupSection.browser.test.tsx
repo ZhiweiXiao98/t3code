@@ -345,3 +345,71 @@ it("rerenders tagged provider state and command failures in the current locale w
     .toHaveTextContent("Sign-in expired. Start again.");
   expect(setup.startAuth).toHaveBeenCalledTimes(1);
 });
+
+it.each(["rejected", "failure", "raw"] as const)(
+  "keeps pending and cached setup notices current without repeating a %s operation",
+  async (kind) => {
+    resetSetup();
+    setup.auth = authState({ phase: "idle", flowId: null, authorizationUrl: null });
+    let settle!: () => void;
+    setup.startInstall.mockReturnValueOnce(
+      new Promise((resolve, reject) => {
+        settle = () => {
+          if (kind === "rejected") reject(new Error("private opaque detail"));
+          else
+            resolve({
+              _tag: "Failure",
+              cause: Cause.fail(
+                kind === "raw" ? new Error("Provider setup failed.") : "private opaque detail",
+              ),
+            });
+        };
+      }),
+    );
+    const localized = (locale: "en" | "zh-CN") => (
+      <WebI18nContext
+        value={{
+          locale,
+          appLocale: locale,
+          setAppLocale: () => undefined,
+          t: (key, values) => translateWebMessage(locale, key, values),
+        }}
+      >
+        {section({ provider: { ...provider, installed: false } })}
+      </WebI18nContext>
+    );
+    await using screen = await render(localized("en"));
+    await screen.getByRole("button", { name: "Install Antigravity" }).click();
+    const pending = screen
+      .getByRole("status")
+      .filter({ hasText: "Starting installation." })
+      .element();
+    await expect.poll(() => pending.textContent).toBe("Starting installation.");
+    await screen.rerender(localized("zh-CN"));
+    await expect.poll(() => pending.textContent).toBe("正在开始安装.");
+    await screen.rerender(localized("en"));
+    await expect.poll(() => pending.textContent).toBe("Starting installation.");
+    expect(setup.startInstall).toHaveBeenCalledOnce();
+    await act(async () => settle());
+    const english =
+      kind === "rejected" ? "Provider setup failed. Try again." : "Provider setup failed.";
+    const chinese =
+      kind === "rejected"
+        ? "服务提供方设置失败，请重试。"
+        : kind === "raw"
+          ? english
+          : "服务提供方设置失败。";
+    const alert = screen.getByRole("alert");
+    await expect.element(alert).toHaveTextContent(english);
+    await screen.rerender(localized("zh-CN"));
+    await expect.element(alert).toHaveTextContent(chinese);
+    await screen.rerender(localized("en"));
+    await expect.element(alert).toHaveTextContent(english);
+    expect(setup.startInstall).toHaveBeenCalledOnce();
+    expect(setup.confirm).not.toHaveBeenCalled();
+    expect(setup.startAuth).not.toHaveBeenCalled();
+    expect(setup.cancelInstall).not.toHaveBeenCalled();
+    expect(setup.removeInstall).not.toHaveBeenCalled();
+    expect(screen.container.textContent).not.toContain("private opaque detail");
+  },
+);

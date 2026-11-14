@@ -141,12 +141,10 @@ export function ProviderAuthenticationSection({
       if (result._tag === "Success") succeeded = true;
       else if (!isAtomCommandInterrupted(result)) {
         const failure = squashAtomCommandFailure(result);
-        setError(
-          providerAuthFailureValue(failure, translateAction("Provider sign-in failed. Try again.")),
-        );
+        setError(providerAuthFailureValue(failure, { localCode: "providerSignIn" }));
       }
     } catch {
-      setError(translateAction("Provider sign-in failed. Try again."));
+      setError({ localCode: "providerSignIn" });
     }
     pendingRef.current = false;
     setPending(false);
@@ -179,11 +177,7 @@ export function ProviderAuthenticationSection({
       setError(null);
     } catch {
       pending?.close();
-      setError(
-        translateAction(
-          "Could not open the sign-in page. Copy the link and open it in your browser.",
-        ),
-      );
+      setError({ localCode: "openSignIn" });
     }
   }
 
@@ -277,9 +271,7 @@ export function ProviderAuthenticationSection({
                           await copied;
                           if (interaction?.type === "browser" && interaction.requiresConsent)
                             await send({ type: "browser", action: "accept" });
-                        })().catch(() =>
-                          setError(translateAction("Could not copy the sign-in link.")),
-                        );
+                        })().catch(() => setError({ localCode: "copySignIn" }));
                       }}
                     >
                       <CopyIcon />
@@ -426,20 +418,14 @@ export function ProviderAuthenticationSection({
                         if (result._tag !== "Success") {
                           terminalQueue.current = [];
                           if (!isAtomCommandInterrupted(result))
-                            setError(
-                              translateAction(
-                                "The provider sign-in terminal is no longer available.",
-                              ),
-                            );
+                            setError({ localCode: "terminalUnavailable" });
                           break;
                         }
                       }
                     })()
                       .catch(() => {
                         terminalQueue.current = [];
-                        setError(
-                          translateAction("Could not send input to the provider sign-in terminal."),
-                        );
+                        setError({ localCode: "terminalInput" });
                       })
                       .finally(() => {
                         terminalSending.current = false;

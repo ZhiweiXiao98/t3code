@@ -25,6 +25,9 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { SettingsRow } from "./settingsLayout";
 import { ProviderAuthenticationSection } from "./ProviderAuthenticationSection";
 
+type PendingAction = "removing" | "cancellingInstall" | "startingInstall";
+type SetupFailure = { readonly code: "failed" | "failedRetry" } | { readonly message: string };
+
 interface ProviderSetupSectionProps {
   readonly environmentId: EnvironmentId;
   readonly environmentLabel: string;
@@ -128,9 +131,15 @@ function ProviderSetupActions({
     serverEnvironment.removeProviderInstallation,
     commandOptions,
   );
-  const [pendingLabel, setPendingLabel] = useState<string | null>(null);
+  const [pendingLabel, setPendingLabel] = useState<PendingAction | null>(null);
   const pendingRef = useRef(false);
-  const [error, setError] = useState<string | null>(null);
+  const [failureValue, setError] = useState<SetupFailure | null>(null);
+  const error =
+    failureValue === null
+      ? null
+      : "code" in failureValue
+        ? t(`providers.setup.${failureValue.code}`)
+        : failureValue.message;
   const authActive =
     auth?.phase === "starting" || auth?.phase === "waiting" || auth?.phase === "verifying";
   const installActive =
@@ -176,7 +185,7 @@ function ProviderSetupActions({
                     : "Not installed.";
 
   async function runCommand<A, E>(
-    label: string,
+    label: PendingAction,
     request: () => Promise<AtomCommandResult<A, E>>,
   ): Promise<boolean> {
     if (pendingRef.current) return false;
@@ -187,14 +196,14 @@ function ProviderSetupActions({
     pendingRef.current = false;
     setPendingLabel(null);
     if (settled._tag === "Failure") {
-      setError(t("providers.setup.failedRetry"));
+      setError({ code: "failedRetry" });
       return false;
     }
     const result = settled.value;
     if (result._tag === "Failure") {
       if (!isAtomCommandInterrupted(result)) {
         const failure = squashAtomCommandFailure(result);
-        setError(failure instanceof Error ? failure.message : t("providers.setup.failed"));
+        setError(failure instanceof Error ? { message: failure.message } : { code: "failed" });
       }
       return false;
     }
@@ -206,7 +215,7 @@ function ProviderSetupActions({
       t("providers.setup.install.removeConfirm", { environment: environmentLabel }),
     );
     if (confirmed) {
-      await runCommand(t("providers.setup.pending.removing"), () => removeInstall(target));
+      await runCommand("removing", () => removeInstall(target));
     }
   }
 
@@ -215,7 +224,7 @@ function ProviderSetupActions({
       {/* Keep the live region first so sibling divider rules do not add a divider after the last visible
        * row. */}
       <p className="sr-only" role="status">
-        {pendingLabel ? `${pendingLabel}.` : null}
+        {pendingLabel ? `${t(`providers.setup.pending.${pendingLabel}`)}.` : null}
       </p>
       <SettingsRow
         title={t("providers.setup.runtime")}
@@ -279,7 +288,7 @@ function ProviderSetupActions({
                     onClick={() => {
                       const operationId = installation.operationId;
                       if (!operationId) return;
-                      void runCommand(t("providers.setup.pending.cancellingInstall"), () =>
+                      void runCommand("cancellingInstall", () =>
                         cancelInstall({ environmentId, input: { instanceId, operationId } }),
                       );
                     }}
@@ -291,11 +300,7 @@ function ProviderSetupActions({
                     size="sm"
                     variant="outline"
                     disabled={actionsDisabled || authActive}
-                    onClick={() =>
-                      void runCommand(t("providers.setup.pending.startingInstall"), () =>
-                        startInstall(target),
-                      )
-                    }
+                    onClick={() => void runCommand("startingInstall", () => startInstall(target))}
                   >
                     {installation?.installedVersion
                       ? installation.version &&

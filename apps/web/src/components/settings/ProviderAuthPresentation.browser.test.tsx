@@ -7,6 +7,8 @@ import {
   type ChatGptHandoffState,
   type ServerProvider,
 } from "@t3tools/contracts";
+import * as Cause from "effect/Cause";
+import { ProviderAuthenticationSection } from "./ProviderAuthenticationSection";
 import type { ReactNode } from "react";
 import type { GhosttyTerminalSurfaceOptions } from "../../terminal/ghostty/surface";
 import { expect, it, vi } from "vite-plus/test";
@@ -344,5 +346,121 @@ it.each([
     }
     await screen.unmount();
     expect(fixture.dispose).toHaveBeenCalledTimes(failure === "link" ? 1 : 0);
+  },
+);
+
+it.each(["provider", "settings", "onboarding"] as const)(
+  "keeps owned %s command fallback current and raw collisions literal",
+  async (presentation) => {
+    for (const raw of [false, true]) {
+      setup();
+      fixture.auth = {
+        ...fixture.auth!,
+        phase: "idle",
+        message: null,
+        messageDescriptor: undefined,
+      };
+      const english =
+        presentation === "provider"
+          ? "Provider sign-in failed. Try again."
+          : "Codex setup failed. Try again.";
+      fixture.start.mockReset().mockResolvedValueOnce({
+        _tag: "Failure",
+        cause: Cause.fail(raw ? new Error(english) : "opaque private failure"),
+      });
+      const surface = () =>
+        presentation === "provider" ? (
+          <ProviderAuthenticationSection
+            environmentId={environmentId}
+            environmentLabel="Opaque $& {0}"
+            instanceId={instanceId}
+            provider={provider}
+            readOnly={false}
+          />
+        ) : (
+          codex(presentation)
+        );
+      await using screen = await render(localized("en", surface()));
+      await screen
+        .getByRole("button", {
+          name: presentation === "provider" ? "Sign in" : "Continue with ChatGPT",
+          exact: true,
+        })
+        .click();
+      const alert = screen.getByRole("alert");
+      await expect.element(alert).toHaveTextContent(english);
+      await screen.rerender(localized("zh-CN", surface()));
+      await expect
+        .element(alert)
+        .toHaveTextContent(
+          raw
+            ? english
+            : presentation === "provider"
+              ? "提供商登录失败。请重试。"
+              : "Codex 设置失败。请重试。",
+        );
+      await screen.rerender(localized("en", surface()));
+      await expect.element(alert).toHaveTextContent(english);
+      expect(fixture.start).toHaveBeenCalledOnce();
+      expect(fixture.openExternal).not.toHaveBeenCalled();
+      expect(screen.container.textContent).not.toContain("opaque private failure");
+    }
+  },
+);
+
+it.each(["failure", "rejection"] as const)(
+  "localizes owned terminal input %s without retrying or changing output",
+  async (kind) => {
+    setup();
+    const output = "opaque output $& {0} 中文";
+    fixture.auth = {
+      ...fixture.auth!,
+      phase: "waiting",
+      flowId: "flow",
+      message: null,
+      messageDescriptor: undefined,
+      interaction: { id: "terminal", type: "terminal", output, outputOffset: output.length },
+    };
+    fixture.createSurface.mockResolvedValueOnce({
+      write: fixture.write,
+      resetAndWrite: fixture.resetAndWrite,
+      dispose: fixture.dispose,
+    });
+    fixture.complete.mockReset();
+    if (kind === "failure")
+      fixture.complete.mockResolvedValueOnce({
+        _tag: "Failure",
+        cause: Cause.fail("private detail"),
+      });
+    else fixture.complete.mockRejectedValueOnce(new Error("private detail"));
+    const surface = () => (
+      <ProviderAuthenticationSection
+        environmentId={environmentId}
+        environmentLabel="Remote"
+        instanceId={instanceId}
+        provider={provider}
+        readOnly={false}
+      />
+    );
+    await using screen = await render(localized("en", surface()));
+    await expect.poll(() => fixture.write.mock.calls.length).toBe(1);
+    await act(async () => fixture.createSurface.mock.calls[0]![1].onData?.("opaque input"));
+    const english =
+      kind === "failure"
+        ? "The provider sign-in terminal is no longer available."
+        : "Could not send input to the provider sign-in terminal.";
+    const chinese =
+      kind === "failure" ? "提供商登录终端已不可用。" : "无法向提供商登录终端发送输入。";
+    const alert = screen.getByRole("alert");
+    await expect.element(alert).toHaveTextContent(english);
+    await screen.rerender(localized("zh-CN", surface()));
+    await expect.element(alert).toHaveTextContent(chinese);
+    await screen.rerender(localized("en", surface()));
+    await expect.element(alert).toHaveTextContent(english);
+    expect(fixture.complete).toHaveBeenCalledOnce();
+    expect(fixture.write).toHaveBeenCalledExactlyOnceWith(output);
+    expect(fixture.createSurface).toHaveBeenCalledOnce();
+    expect(fixture.resetAndWrite).not.toHaveBeenCalled();
+    expect(screen.container.textContent).not.toContain("private detail");
   },
 );

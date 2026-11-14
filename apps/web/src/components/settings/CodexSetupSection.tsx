@@ -417,19 +417,14 @@ function ManagedCodexSetup({
       if (result._tag === "Failure") {
         if (!isAtomCommandInterrupted(result)) {
           const failure = squashAtomCommandFailure(result);
-          setError(
-            providerAuthFailureValue(
-              failure,
-              translateWebSource(translationLocale, "Codex setup failed. Try again."),
-            ),
-          );
+          setError(providerAuthFailureValue(failure, { localCode: "codexSetup" }));
         }
       } else {
         succeeded = true;
         onSuccess?.(result.value);
       }
     } catch {
-      setError(translateWebSource(translationLocale, "Codex setup failed. Try again."));
+      setError({ localCode: "codexSetup" });
     }
     pendingRef.current = false;
     setPending(false);
@@ -470,15 +465,12 @@ function ManagedCodexSetup({
     setError(
       handoffQuery.data?.phase === "auth"
         ? handoffQuery.data.state.message === null
-          ? translateWebSource(translationLocale, "ChatGPT sign-in could not finish. Try again.")
+          ? { localCode: "handoffFailed" }
           : {
               message: handoffQuery.data.state.message,
               messageDescriptor: handoffQuery.data.state.messageDescriptor,
             }
-        : translateWebSource(
-            translationLocale,
-            "ChatGPT sign-in on the primary environment was interrupted. Try again.",
-          ),
+        : { localCode: "handoffInterrupted" },
     );
     setHandoff(null);
   }
@@ -515,12 +507,7 @@ function ManagedCodexSetup({
         await ensureLocalApi().shell.openExternal(authorizationUrl);
       }
     } catch {
-      setError(
-        translateWebSource(
-          translationLocale,
-          "Could not finish sign-in on this computer. Try again or paste the redirect URL below.",
-        ),
-      );
+      setError({ localCode: "localSignIn" });
     }
   };
 
