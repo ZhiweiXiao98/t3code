@@ -3,10 +3,12 @@ import {
   EnvironmentId,
   ProviderDriverKind,
   ProviderInstanceId,
+  ServerProviderUsageWindow,
   type ServerProvider,
   UsageLimitSourceId,
 } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
+import * as Schema from "effect/Schema";
 
 import {
   type LimitAccount,
@@ -19,6 +21,7 @@ import {
   collectLimitPools,
   elapsedShare,
   exhaustedUsageWindow,
+  formatUsageWindowLabel,
   paceOf,
   paceRemainingPercent,
   usesChatGptSharing,
@@ -26,6 +29,8 @@ import {
 } from "./usageLimits.ts";
 
 const now = Date.parse("2026-09-03T12:00:00.000Z");
+const encodeUsageWindow = Schema.encodeSync(ServerProviderUsageWindow);
+const decodeUsageWindow = Schema.decodeUnknownSync(ServerProviderUsageWindow);
 
 const window = {
   id: "five_hour",
@@ -160,6 +165,57 @@ describe("pace", () => {
     expect(paceOf(window, now)).toBe("under");
     expect(paceOf({ ...window, usedPercent: 62 }, now)).toBe("on");
     expect(paceOf({ ...window, usedPercent: 80 }, now)).toBe("ahead");
+  });
+});
+
+describe("owned usage window labels", () => {
+  it("localizes only matching owned descriptors and preserves opaque suffixes across locale changes", () => {
+    const suffix = "  Settings/$&/{0}\n中文  ";
+    const cases = [
+      ["Session", { code: "session" }, "会话"],
+      ["Weekly", { code: "weekly" }, "每周"],
+      ["Monthly", { code: "monthly" }, "每月"],
+      ["Monthly credit limit", { code: "monthlyCreditLimit" }, "每月额度上限"],
+      ["Monthly spend", { code: "monthlySpend" }, "每月支出"],
+      [`Weekly · ${suffix}`, { code: "weeklyScoped", displayName: suffix }, `每周 · ${suffix}`],
+      ["Session", undefined, "Session"],
+      ["Settings", { code: "session" }, "Settings"],
+      ["Session ", { code: "session" }, "Session "],
+      ["Session", { code: "future" }, "Session"],
+      ["Session", null, "Session"],
+      ["Session", "session", "Session"],
+      ["Session", {}, "Session"],
+      ["Session", { code: "constructor" }, "Session"],
+      ["Weekly · Settings", { code: "weeklyScoped", displayName: "Other" }, "Weekly · Settings"],
+      ["Weekly · Settings", { code: "weeklyScoped" }, "Weekly · Settings"],
+      ["Weekly · 42", { code: "weeklyScoped", displayName: 42 }, "Weekly · 42"],
+    ] as const;
+    for (const [label, labelDescriptor, chinese] of cases) {
+      const input = { label, labelDescriptor };
+      const original = structuredClone(input);
+      for (const locale of ["en", "zh-CN", "en"] as const) {
+        expect(formatUsageWindowLabel(input, locale)).toBe(locale === "zh-CN" ? chinese : label);
+      }
+      expect(input).toEqual(original);
+    }
+    for (const displayName of [suffix, "Settings\n", "   "]) {
+      const produced = {
+        ...window,
+        label: `Weekly · ${displayName}`,
+        labelDescriptor: { code: "weeklyScoped" as const, displayName },
+      };
+      const restored = decodeUsageWindow(JSON.parse(JSON.stringify(encodeUsageWindow(produced))));
+      expect(restored.label).toBe(produced.label.trim());
+      expect(restored.labelDescriptor).toEqual(produced.labelDescriptor);
+      expect(formatUsageWindowLabel(restored, "zh-CN")).toBe(`每周 · ${displayName}`);
+      expect(formatUsageWindowLabel(restored, "en")).toBe(restored.label);
+      expect(
+        formatUsageWindowLabel({ ...restored, label: `${restored.label} extra` }, "zh-CN"),
+      ).toBe(`${restored.label} extra`);
+      expect(formatUsageWindowLabel({ ...restored, label: ` ${restored.label}` }, "zh-CN")).toBe(
+        ` ${restored.label}`,
+      );
+    }
   });
 });
 

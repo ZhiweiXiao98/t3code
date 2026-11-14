@@ -22,6 +22,50 @@ export function SubscriptionUsage(props: SubscriptionUsageProps, environment: Wi
   // Android has no timeline; expiry alarms and taps re-render to refresh freshness.
   const isChinese = process.env.EXPO_PUBLIC_APP_LOCALE === "zh-CN";
   const copy = (english: string, chinese: string) => (isChinese ? chinese : english);
+  const localizeWindowLabel = (window: { label: string; labelDescriptor?: unknown }): string => {
+    if (!isChinese) return window.label;
+    const descriptor = window.labelDescriptor;
+    if (typeof descriptor !== "object" || descriptor === null || !("code" in descriptor)) {
+      return window.label;
+    }
+    let english: string;
+    let chinese: string;
+    switch (descriptor.code) {
+      case "session":
+        english = "Session";
+        chinese = "会话";
+        break;
+      case "weekly":
+        english = "Weekly";
+        chinese = "每周";
+        break;
+      case "monthly":
+        english = "Monthly";
+        chinese = "每月";
+        break;
+      case "monthlyCreditLimit":
+        english = "Monthly credit limit";
+        chinese = "每月额度上限";
+        break;
+      case "monthlySpend":
+        english = "Monthly spend";
+        chinese = "每月支出";
+        break;
+      case "weeklyScoped":
+        if (!("displayName" in descriptor) || typeof descriptor.displayName !== "string") {
+          return window.label;
+        }
+        english = `Weekly · ${descriptor.displayName}`;
+        chinese = `每周 · ${descriptor.displayName}`;
+        break;
+      default:
+        return window.label;
+    }
+    return window.label === english ||
+      (descriptor.code === "weeklyScoped" && window.label === english.trim())
+      ? chinese
+      : window.label;
+  };
   const localizeDetail = (value: string) => {
     if (!isChinese) return value;
     const messages: Record<string, string> = {
@@ -104,7 +148,7 @@ export function SubscriptionUsage(props: SubscriptionUsageProps, environment: Wi
                       maxLines={1}
                       style={{ fontSize: 11 }}
                     >
-                      {`${window.label} · ${isChinese ? `剩余 ${window.remaining}%` : `${window.remaining}% left`}`}
+                      {`${localizeWindowLabel(window)} · ${isChinese ? `剩余 ${window.remaining}%` : `${window.remaining}% left`}`}
                     </Text>
                     <Column modifiers={[fillMaxWidth(), padding(0, 3, 0, 3)]}>
                       <LinearProgressIndicator

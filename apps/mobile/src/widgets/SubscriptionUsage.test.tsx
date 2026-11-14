@@ -84,6 +84,57 @@ function snapshot(): SubscriptionUsageSnapshot {
 }
 
 describe("SubscriptionUsage iOS localization", () => {
+  it("renders descriptor-owned labels while retaining legacy and malformed snapshots", () => {
+    const suffix = "Settings/$&/{0}\n中文";
+    const cases = [
+      ["Session", { code: "session" }, "会话"],
+      ["Weekly", { code: "weekly" }, "每周"],
+      ["Monthly", { code: "monthly" }, "每月"],
+      ["Monthly credit limit", { code: "monthlyCreditLimit" }, "每月额度上限"],
+      ["Monthly spend", { code: "monthlySpend" }, "每月支出"],
+      [`Weekly · ${suffix}`, { code: "weeklyScoped", displayName: suffix }, `每周 · ${suffix}`],
+      [
+        "Weekly · Settings",
+        { code: "weeklyScoped", displayName: "Settings  " },
+        "每周 · Settings  ",
+      ],
+      ["Weekly ·", { code: "weeklyScoped", displayName: "   " }, "每周 ·    "],
+      [
+        " Weekly · Settings",
+        { code: "weeklyScoped", displayName: "Settings  " },
+        " Weekly · Settings",
+      ],
+      ["Session", undefined, "Session"],
+      ["Settings", { code: "session" }, "Settings"],
+      ["Session ", { code: "session" }, "Session "],
+      ["Session", { code: "future" }, "Session"],
+      ["Session", null, "Session"],
+      ["Session", "session", "Session"],
+      ["Session", { code: "constructor" }, "Session"],
+      ["Weekly · Settings", { code: "weeklyScoped" }, "Weekly · Settings"],
+      ["Weekly · Settings", { code: "weeklyScoped", displayName: "Other" }, "Weekly · Settings"],
+      ["Weekly · 42", { code: "weeklyScoped", displayName: 42 }, "Weekly · 42"],
+    ] as const;
+    for (const [label, labelDescriptor, chinese] of cases) {
+      const props = snapshot();
+      Object.assign(props.providers[0]!.windows[0]!, { label, labelDescriptor });
+      const original = structuredClone(props);
+      for (const locale of ["en", "zh-CN", "en"]) {
+        const result = renderWidget(locale, props);
+        const expected = locale === "zh-CN" ? chinese : label;
+        const accessory = renderWidget(locale, props, { widgetFamily: "accessoryRectangular" });
+        expect(accessory.text).toContain(`Settings · ${expected}`);
+
+        expect(result.text).toContain(expected);
+        expect(result.labels).toContain(
+          locale === "zh-CN"
+            ? `Settings，${expected}，剩余百分之 45。下次重置：Tomorrow。2 个账户 · 合并额度。`
+            : `Settings, ${expected}, 45 percent remaining. Next reset Tomorrow. 2 accounts · pooled.`,
+        );
+      }
+      expect(props).toEqual(original);
+    }
+  });
   it.each(["en", "zh-CN"])(
     "localizes owned copy and accessibility without translating provider labels (%s)",
     (locale) => {

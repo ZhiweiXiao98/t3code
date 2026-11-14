@@ -1,4 +1,4 @@
-import { localizeMobileString } from "../../i18n/mobileStrings";
+import { localizeMobileString, MOBILE_LOCALE } from "../../i18n/mobileStrings";
 import * as Dialog from "../../components/ui/Dialog";
 import { RegistryContext, useAtomMount, useAtomValue } from "@effect/atom-react";
 import { normalizeProviderAccentColor } from "@t3tools/client-runtime/state/provider-instance-display";
@@ -15,6 +15,7 @@ import {
   type ResetCreditChoice,
   resetCreditChoices,
   formatResetsIn,
+  formatUsageWindowLabel,
   limitsNotice,
   paceOf,
   paceRemainingPercent,
@@ -88,7 +89,9 @@ function WindowRow(props: {
   return (
     <View className="gap-1">
       <View className="flex-row items-baseline justify-between gap-3">
-        <Text className="text-sm text-foreground">{window.label}</Text>
+        <Text localize={false} className="text-sm text-foreground">
+          {formatUsageWindowLabel(window, MOBILE_LOCALE)}
+        </Text>
         <Text className="text-sm font-t3-medium tabular-nums text-foreground">
           {remaining}% left
         </Text>

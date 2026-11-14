@@ -10,6 +10,7 @@ import type {
 import {
   collectProviderUsageLimits,
   formatDuration,
+  formatUsageWindowLabel,
   type LimitPace,
   limitsNotice,
   paceOf,
@@ -164,7 +165,7 @@ function LimitRow({
   const resetsAt = window.resetsAt ? Date.parse(window.resetsAt) : Number.NaN;
   return (
     <UsageRow
-      label={translateWebSource(locale, window.label)}
+      label={formatUsageWindowLabel(window, locale)}
       fill={left}
       tone={left <= 10 ? "error" : left <= 20 ? "warning" : null}
       value={`${left}%`}
@@ -173,7 +174,7 @@ function LimitRow({
         <>
           <span className="text-foreground">
             {t("usage.details.windowRemaining", {
-              label: translateWebSource(locale, window.label),
+              label: formatUsageWindowLabel(window, locale),
               left,
             })}
           </span>

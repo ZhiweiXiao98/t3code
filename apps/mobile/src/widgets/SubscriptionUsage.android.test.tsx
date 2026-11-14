@@ -78,6 +78,55 @@ function snapshot(label = "Session"): SubscriptionUsageSnapshot {
 }
 
 describe("SubscriptionUsage Android source boundaries", () => {
+  it("renders descriptor-owned labels while retaining legacy and malformed snapshots", () => {
+    const suffix = "Settings/$&/{0}\n中文";
+    const cases = [
+      ["Session", { code: "session" }, "会话"],
+      ["Weekly", { code: "weekly" }, "每周"],
+      ["Monthly", { code: "monthly" }, "每月"],
+      ["Monthly credit limit", { code: "monthlyCreditLimit" }, "每月额度上限"],
+      ["Monthly spend", { code: "monthlySpend" }, "每月支出"],
+      [`Weekly · ${suffix}`, { code: "weeklyScoped", displayName: suffix }, `每周 · ${suffix}`],
+      [
+        "Weekly · Settings",
+        { code: "weeklyScoped", displayName: "Settings  " },
+        "每周 · Settings  ",
+      ],
+      ["Weekly ·", { code: "weeklyScoped", displayName: "   " }, "每周 ·    "],
+      [
+        " Weekly · Settings",
+        { code: "weeklyScoped", displayName: "Settings  " },
+        " Weekly · Settings",
+      ],
+      ["Session", undefined, "Session"],
+      ["Settings", { code: "session" }, "Settings"],
+      ["Session ", { code: "session" }, "Session "],
+      ["Session", { code: "future" }, "Session"],
+      ["Session", null, "Session"],
+      ["Session", "session", "Session"],
+      ["Session", { code: "constructor" }, "Session"],
+      ["Weekly · Settings", { code: "weeklyScoped" }, "Weekly · Settings"],
+      ["Weekly · Settings", { code: "weeklyScoped", displayName: "Other" }, "Weekly · Settings"],
+      ["Weekly · 42", { code: "weeklyScoped", displayName: 42 }, "Weekly · 42"],
+    ] as const;
+    for (const [label, labelDescriptor, chinese] of cases) {
+      const props = snapshot();
+      Object.assign(props.providers[0]!.windows[0]!, { label, labelDescriptor });
+      const original = structuredClone(props);
+      for (const locale of ["en", "zh-CN", "en"]) {
+        const result = renderWidget(locale, props);
+        const expected = locale === "zh-CN" ? chinese : label;
+
+        expect(result.text).toContain(
+          `${expected} · ${locale === "zh-CN" ? "剩余 45%" : "45% left"}`,
+        );
+        expect(result.text).toContain(
+          locale === "zh-CN" ? "Settings · 剩余 70%" : "Settings · 70% left",
+        );
+      }
+      expect(props).toEqual(original);
+    }
+  });
   it.each(["en", "zh-CN"])(
     "keeps provider labels literal while localizing owned remaining and reset templates (%s)",
     (locale) => {

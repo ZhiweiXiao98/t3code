@@ -33,6 +33,50 @@ export function SubscriptionUsage(
   // The extension evaluates this function without the app's module scope.
   const isChinese = process.env.EXPO_PUBLIC_APP_LOCALE === "zh-CN";
   const copy = (english: string, chinese: string) => (isChinese ? chinese : english);
+  const localizeWindowLabel = (window: { label: string; labelDescriptor?: unknown }): string => {
+    if (!isChinese) return window.label;
+    const descriptor = window.labelDescriptor;
+    if (typeof descriptor !== "object" || descriptor === null || !("code" in descriptor)) {
+      return window.label;
+    }
+    let english: string;
+    let chinese: string;
+    switch (descriptor.code) {
+      case "session":
+        english = "Session";
+        chinese = "会话";
+        break;
+      case "weekly":
+        english = "Weekly";
+        chinese = "每周";
+        break;
+      case "monthly":
+        english = "Monthly";
+        chinese = "每月";
+        break;
+      case "monthlyCreditLimit":
+        english = "Monthly credit limit";
+        chinese = "每月额度上限";
+        break;
+      case "monthlySpend":
+        english = "Monthly spend";
+        chinese = "每月支出";
+        break;
+      case "weeklyScoped":
+        if (!("displayName" in descriptor) || typeof descriptor.displayName !== "string") {
+          return window.label;
+        }
+        english = `Weekly · ${descriptor.displayName}`;
+        chinese = `每周 · ${descriptor.displayName}`;
+        break;
+      default:
+        return window.label;
+    }
+    return window.label === english ||
+      (descriptor.code === "weeklyScoped" && window.label === english.trim())
+      ? chinese
+      : window.label;
+  };
   const localizeDetail = (value: string) => {
     if (!isChinese) return value;
     const messages: Record<string, string> = {
@@ -54,12 +98,12 @@ export function SubscriptionUsage(
   const remaining = (value: number) => copy(`${value}% left`, `剩余 ${value}%`);
   const usageLabel = (
     name: string,
-    window: { label: string; remaining: number; reset: string },
+    window: { label: string; labelDescriptor?: unknown; remaining: number; reset: string },
     detail: string,
   ) =>
     copy(
-      `${name}, ${window.label}, ${window.remaining} percent remaining. ${localizeReset(window.reset)}. ${detail}.`,
-      `${name}，${window.label}，剩余百分之 ${window.remaining}。${localizeReset(window.reset)}。${localizeDetail(detail)}。`,
+      `${name}, ${localizeWindowLabel(window)}, ${window.remaining} percent remaining. ${localizeReset(window.reset)}. ${detail}.`,
+      `${name}，${localizeWindowLabel(window)}，剩余百分之 ${window.remaining}。${localizeReset(window.reset)}。${localizeDetail(detail)}。`,
     );
   const family = widgetEnvironment.widgetFamily;
   // Gallery snapshots can render an old timeline entry after it has expired.
@@ -153,7 +197,7 @@ export function SubscriptionUsage(
               ]}
             >
               {provider.name}
-              {tightest ? ` · ${tightest.label}` : ""}
+              {tightest ? ` · ${localizeWindowLabel(tightest)}` : ""}
             </Text>
             <Spacer />
             <Text
@@ -221,7 +265,7 @@ export function SubscriptionUsage(
                   lineLimit(1),
                 ]}
               >
-                {window.label}
+                {localizeWindowLabel(window)}
               </Text>
               <Spacer />
               <Text

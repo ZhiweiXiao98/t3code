@@ -52,13 +52,21 @@ function presentations(providers: readonly ServerProvider[] = [provider()]) {
 describe("subscription widget snapshots", () => {
   it("uses provider data and its observation time without exposing account emails", () => {
     const snapshot = buildSubscriptionUsageSnapshot(
-      presentations([provider({ displayName: "private@example.com" })]),
+      presentations([
+        provider({
+          displayName: "private@example.com",
+          usageLimits: {
+            ...limits,
+            windows: [{ ...window, label: "Session", labelDescriptor: { code: "session" } }],
+          },
+        }),
+      ]),
       deepLink,
     );
     expect(snapshot.checkedAt).toBe(now);
     expect(snapshot.providers[0]).toMatchObject({
       name: "Codex",
-      windows: [{ remaining: 60 }],
+      windows: [{ remaining: 60, label: "Session", labelDescriptor: { code: "session" } }],
       expiresAt: now + 10 * 60_000,
     });
     expect(snapshot.url).toBe(deepLink);

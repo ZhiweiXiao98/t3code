@@ -18,10 +18,59 @@ import {
 } from "@t3tools/contracts";
 
 import * as DateTime from "effect/DateTime";
+import type { ResolvedAppLocale } from "./appLocale.ts";
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
+
+export function formatUsageWindowLabel(
+  window: { readonly label: string; readonly labelDescriptor?: unknown },
+  locale: ResolvedAppLocale = "en",
+): string {
+  if (locale !== "zh-CN") return window.label;
+  const descriptor = window.labelDescriptor;
+  if (typeof descriptor !== "object" || descriptor === null || !("code" in descriptor)) {
+    return window.label;
+  }
+  let english: string;
+  let chinese: string;
+  switch (descriptor.code) {
+    case "session":
+      english = "Session";
+      chinese = "会话";
+      break;
+    case "weekly":
+      english = "Weekly";
+      chinese = "每周";
+      break;
+    case "monthly":
+      english = "Monthly";
+      chinese = "每月";
+      break;
+    case "monthlyCreditLimit":
+      english = "Monthly credit limit";
+      chinese = "每月额度上限";
+      break;
+    case "monthlySpend":
+      english = "Monthly spend";
+      chinese = "每月支出";
+      break;
+    case "weeklyScoped":
+      if (!("displayName" in descriptor) || typeof descriptor.displayName !== "string") {
+        return window.label;
+      }
+      english = `Weekly · ${descriptor.displayName}`;
+      chinese = `每周 · ${descriptor.displayName}`;
+      break;
+    default:
+      return window.label;
+  }
+  return window.label === english ||
+    (descriptor.code === "weeklyScoped" && window.label === english.trim())
+    ? chinese
+    : window.label;
+}
 
 export function exhaustedUsageWindow(
   provider: ServerProvider | undefined,

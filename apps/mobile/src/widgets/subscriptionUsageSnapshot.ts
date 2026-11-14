@@ -4,6 +4,7 @@ import {
   type LimitAccount,
   type LimitPresentations,
 } from "@t3tools/shared/usageLimits";
+import type { UsageWindowLabelDescriptor } from "@t3tools/contracts";
 
 import { mobileDisplayDate } from "../i18n/mobileDateDisplay";
 
@@ -16,7 +17,13 @@ export interface SubscriptionUsageSnapshot {
   providers: Array<{
     name: string;
     detail: string;
-    windows: Array<{ kind?: string; label: string; remaining: number; reset: string }>;
+    windows: Array<{
+      kind?: string;
+      label: string;
+      labelDescriptor?: UsageWindowLabelDescriptor;
+      remaining: number;
+      reset: string;
+    }>;
     expiresAt: number;
     totalWindows: number;
   }>;
@@ -106,6 +113,7 @@ function subscriptionUsageProps(
             ? selectedWindows.map((window) => ({
                 kind: window.kind,
                 label: window.label,
+                ...(window.labelDescriptor ? { labelDescriptor: window.labelDescriptor } : {}),
                 remaining: Math.round(window.remainingPercent),
                 reset: window.resets[0]
                   ? `Next reset ${mobileDisplayDate(new Date(window.resets[0].at), {

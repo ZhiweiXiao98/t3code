@@ -13,6 +13,7 @@ import { useAtomValue } from "@effect/atom-react";
 import { normalizeProviderAccentColor } from "@t3tools/client-runtime/state/provider-instance-display";
 import {
   formatDuration,
+  formatUsageWindowLabel,
   type LimitPace,
   paceOf,
   paceRemainingPercent,
@@ -147,7 +148,7 @@ function WindowBar({
   const remainingLabel = t("usage.limits.remaining", { percent: remaining });
   const timeLeftLabel =
     timeLeft === null ? null : t("usage.limits.windowRemaining", { percent: timeLeft });
-  const summary = `${window.label}: ${[remainingLabel, timeLeftLabel, resetsIn].filter(Boolean).join(", ")}`;
+  const summary = `${formatUsageWindowLabel(window, locale)}: ${[remainingLabel, timeLeftLabel, resetsIn].filter(Boolean).join(", ")}`;
 
   return (
     <Tooltip>
@@ -214,7 +215,7 @@ export function LimitWindows({
   readonly now: number;
   readonly compact?: boolean;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const color = normalizeProviderAccentColor(accentColor) ?? barColor(driver);
   return (
     <div
@@ -230,7 +231,9 @@ export function LimitWindows({
         return (
           <Fragment key={window.id}>
             <span className="flex min-w-0 items-center gap-2 text-xs">
-              <span className="truncate text-muted-foreground">{window.label}</span>
+              <span className="truncate text-muted-foreground">
+                {formatUsageWindowLabel(window, locale)}
+              </span>
               <span className="ms-auto shrink-0 font-medium text-foreground tabular-nums">
                 {t("usage.limits.remaining", { percent: remainingPercent(window) })}
               </span>
