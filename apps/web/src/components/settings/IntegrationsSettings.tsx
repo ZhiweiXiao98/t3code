@@ -1217,7 +1217,11 @@ function BrowserProfilesSetting({ disabled }: { readonly disabled: boolean }) {
   } | null>(null);
   const [profilePendingRemoval, setProfilePendingRemoval] = useState<BrowserProfile | null>(null);
   const [profilePendingClear, setProfilePendingClear] = useState<BrowserProfile | null>(null);
-  const [profileRemovalError, setProfileRemovalError] = useState<string | null>(null);
+  const [profileRemovalError, setProfileRemovalError] = useState<
+    | "settings.integrations.profiles.connectBeforeRemove"
+    | "settings.integrations.profiles.deleteFailed"
+    | null
+  >(null);
   const [profileRemovalInFlight, setProfileRemovalInFlight] = useState(false);
   const serverConfigs = useServerConfigs();
   const runClearServerProfile = useAtomCommand(previewEnvironment.clearProfile, {
@@ -1309,7 +1313,7 @@ function BrowserProfilesSetting({ disabled }: { readonly disabled: boolean }) {
   const removeProfile = async (id: string) => {
     if (!settingsHydrated || importInFlightRef.current) return;
     if (!removalAvailable) {
-      setProfileRemovalError(t("settings.integrations.profiles.connectBeforeRemove"));
+      setProfileRemovalError("settings.integrations.profiles.connectBeforeRemove");
       return;
     }
     setProfileRemovalError(null);
@@ -1322,7 +1326,7 @@ function BrowserProfilesSetting({ disabled }: { readonly disabled: boolean }) {
         serverProfileData,
       );
     } catch {
-      setProfileRemovalError(t("settings.integrations.profiles.deleteFailed"));
+      setProfileRemovalError("settings.integrations.profiles.deleteFailed");
       setProfileRemovalInFlight(false);
       return;
     }
@@ -1594,7 +1598,7 @@ function BrowserProfilesSetting({ disabled }: { readonly disabled: boolean }) {
             </AlertDialogDescription>
             {profileRemovalError ? (
               <p aria-live="polite" className="text-sm text-destructive">
-                {profileRemovalError}
+                {t(profileRemovalError)}
               </p>
             ) : null}
             {!removalAvailable ? (
