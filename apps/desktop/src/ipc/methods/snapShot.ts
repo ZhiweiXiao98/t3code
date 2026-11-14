@@ -6,6 +6,7 @@ import {
   DesktopSnapShotShortcutAvailability,
   DesktopSnapShotState,
   DesktopSnapShotSetupAction,
+  DesktopSnapShotSetupOutcome,
   SnapShotShortcut,
   DesktopCaptureConfigRequest,
   DesktopCaptureConfigPreview,
@@ -100,6 +101,45 @@ export const setupSnapShot = DesktopIpc.makeIpcMethod({
   handler: Effect.fn("desktop.ipc.snapShot.setup")(function* (action, event) {
     yield* ensureTrustedSnapShotSender(event);
     yield* (yield* DesktopSnapShot.DesktopSnapShot).setup(action);
+  }),
+});
+
+function setupFailureOutcome(
+  action: DesktopSnapShotSetupAction,
+  error: unknown,
+): DesktopSnapShotSetupOutcome {
+  const message = error instanceof Error ? error.message : null;
+  // @effect-diagnostics-next-line instanceOfSchema:off -- Ownership requires a real native error instance, not structural matching.
+  if (!(error instanceof DesktopSnapShot.DesktopSnapShotSetupError) || error.action !== action) {
+    return { _tag: "Failure", message };
+  }
+  return {
+    _tag: "Failure",
+    message,
+    messageDescriptor: {
+      code: "setup",
+      action,
+      reason: error.reason,
+      ...(error.step !== undefined ? { step: error.step } : {}),
+      ...(error.status !== undefined ? { status: error.status } : {}),
+      ...(error.exitCode !== undefined ? { exitCode: error.exitCode } : {}),
+      ...(error.appName !== undefined ? { appName: error.appName } : {}),
+    },
+  };
+}
+
+export const setupSnapShotOutcome = DesktopIpc.makeIpcMethod({
+  channel: IpcChannels.SETUP_SNAP_SHOT_OUTCOME_CHANNEL,
+  payload: DesktopSnapShotSetupAction,
+  result: DesktopSnapShotSetupOutcome,
+  handler: Effect.fn("desktop.ipc.snapShot.setupOutcome")(function* (action, event) {
+    yield* ensureTrustedSnapShotSender(event);
+    return yield* (yield* DesktopSnapShot.DesktopSnapShot).setup(action).pipe(
+      Effect.match({
+        onSuccess: (): DesktopSnapShotSetupOutcome => ({ _tag: "Success" }),
+        onFailure: (error) => setupFailureOutcome(action, error),
+      }),
+    );
   }),
 });
 

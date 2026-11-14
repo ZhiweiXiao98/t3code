@@ -2,7 +2,7 @@ import * as Schema from "effect/Schema";
 import type { PreviewCaptureFailureEncoded } from "./previewCapture.ts";
 
 import { SnapShotSource } from "./chatAttachment.ts";
-import { EnvironmentId, TrimmedNonEmptyString } from "./baseSchemas.ts";
+import { EnvironmentId, TrimmedNonEmptyString, ForwardCompatibleOptional } from "./baseSchemas.ts";
 import { BrowserProfileId } from "./browserProfile.ts";
 import type {
   BrowserImportResult,
@@ -149,6 +149,27 @@ export const DesktopSnapShotSetupAction = Schema.Literals([
   "retry-shortcut",
 ]);
 export type DesktopSnapShotSetupAction = typeof DesktopSnapShotSetupAction.Type;
+
+export const DesktopSnapShotSetupMessageDescriptor = Schema.Struct({
+  code: Schema.Literal("setup"),
+  action: DesktopSnapShotSetupAction,
+  reason: Schema.Literals(["unsupported-session", "setup-failed", "shortcut-permissions"]),
+  step: Schema.optionalKey(Schema.Literals(["find-window", "capture-window"])),
+  status: Schema.optionalKey(Schema.Literals(["missing", "timed-out", "exited", "failed"])),
+  exitCode: Schema.optionalKey(Schema.Number),
+  appName: Schema.optionalKey(Schema.String),
+});
+export type DesktopSnapShotSetupMessageDescriptor =
+  typeof DesktopSnapShotSetupMessageDescriptor.Type;
+
+export const DesktopSnapShotSetupOutcome = Schema.Union([
+  Schema.TaggedStruct("Success", {}),
+  Schema.TaggedStruct("Failure", {
+    message: Schema.NullOr(Schema.String),
+    messageDescriptor: ForwardCompatibleOptional(DesktopSnapShotSetupMessageDescriptor),
+  }),
+]);
+export type DesktopSnapShotSetupOutcome = typeof DesktopSnapShotSetupOutcome.Type;
 
 export const DesktopCaptureConfigRequest = Schema.Struct({
   operation: Schema.Literals(["install", "remove"]),
@@ -1070,6 +1091,9 @@ export interface DesktopBridge {
   requestSnapShotPermissions: (includeAccessibility: boolean) => Promise<void>;
   getSnapShotState: () => Promise<DesktopSnapShotState>;
   setupSnapShot: (action: DesktopSnapShotSetupAction) => Promise<void>;
+  setupSnapShotOutcome?: (
+    action: DesktopSnapShotSetupAction,
+  ) => Promise<DesktopSnapShotSetupOutcome>;
   previewSnapShotConfig: (
     request: DesktopCaptureConfigRequest,
   ) => Promise<DesktopCaptureConfigPreview | null>;
