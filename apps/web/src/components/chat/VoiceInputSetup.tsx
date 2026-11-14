@@ -50,15 +50,15 @@ export function VoiceInputSetup(props: {
   const selectedMicrophone = useClientSettings((settings) => settings.voiceMicrophone);
   const [microphones, setMicrophones] = useState<BrowserMicrophone[]>([]);
   const [loadingMicrophones, setLoadingMicrophones] = useState(false);
-  const [microphoneError, setMicrophoneError] = useState<string | null>(null);
+  const [microphonesFailed, setMicrophonesFailed] = useState(false);
   const refreshMicrophones = useStableCallback(async () => {
     if (!navigator.mediaDevices?.enumerateDevices) return;
     setLoadingMicrophones(true);
     try {
       setMicrophones(await listBrowserMicrophones());
-      setMicrophoneError(null);
+      setMicrophonesFailed(false);
     } catch {
-      setMicrophoneError(tx("Could not list microphones. You can still use the system default."));
+      setMicrophonesFailed(true);
     }
     setLoadingMicrophones(false);
   });
@@ -221,9 +221,9 @@ export function VoiceInputSetup(props: {
                     )}
                   </p>
                 ) : null}
-                {microphoneError ? (
+                {microphonesFailed ? (
                   <p role="alert" className="text-xs text-muted-foreground">
-                    {microphoneError}
+                    {tx("Could not list microphones. You can still use the system default.")}
                   </p>
                 ) : null}
               </div>

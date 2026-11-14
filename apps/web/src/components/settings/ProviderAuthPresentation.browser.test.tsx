@@ -8,9 +8,10 @@ import {
   type ServerProvider,
 } from "@t3tools/contracts";
 import type { ReactNode } from "react";
+import type { GhosttyTerminalSurfaceOptions } from "../../terminal/ghostty/surface";
 import { expect, it, vi } from "vite-plus/test";
 import { userEvent } from "vite-plus/test/browser";
-import { render } from "../../../test/render";
+import { act, render } from "../../../test/render";
 import { WebI18nContext } from "../../i18n/WebI18nContext";
 import { translateWebMessage } from "../../i18n/messages";
 
@@ -25,6 +26,11 @@ const fixture = vi.hoisted(() => ({
   reconnect: vi.fn(),
   importProfile: vi.fn(),
   openExternal: vi.fn(),
+  createSurface:
+    vi.fn<(_element: HTMLElement, _options: GhosttyTerminalSurfaceOptions) => Promise<unknown>>(),
+  write: vi.fn(),
+  resetAndWrite: vi.fn(),
+  dispose: vi.fn(),
   remove: Object.assign(vi.fn(), { permissionAtom: () => true }),
 }));
 vi.mock("@effect/atom-react", async (original) => ({
@@ -118,9 +124,15 @@ vi.mock("../../state/assets", () => ({ projectFaviconUrlAtom: () => null }));
 vi.mock("../../localApi", () => ({
   ensureLocalApi: () => ({ shell: { openExternal: fixture.openExternal } }),
 }));
+vi.mock("../../terminal/ghostty/surface", () => ({
+  GhosttyTerminalSurface: { create: fixture.createSurface },
+}));
+vi.mock("../ThreadTerminalDrawer", () => ({ terminalThemeFromApp: () => ({}) }));
+
 vi.mock("./ChatGptAccountPicker", () => ({ ChatGptAccountPicker: () => null }));
 vi.mock("./AddCodexAccountDialog", () => ({ AddCodexAccountDialog: () => null }));
 
+import ProviderAuthTerminal from "./ProviderAuthTerminal";
 import { CodexSetupSection } from "./CodexSetupSection";
 import { ProviderWizardAuthenticationStep } from "./ProviderWizardAuthenticationStep";
 
@@ -142,6 +154,7 @@ const provider: ServerProvider = {
 };
 function setup() {
   vi.clearAllMocks();
+  fixture.createSurface.mockReset();
   fixture.remote = false;
   fixture.handoff = null;
   fixture.auth = {
@@ -274,3 +287,62 @@ it("keeps wizard fallback messages literal through SettingsRow while translating
   expect(fixture.start).not.toHaveBeenCalled();
   expect(finish).not.toHaveBeenCalled();
 });
+
+it.each([
+  ["link", "Could not open the provider link.", "无法打开提供商链接。"],
+  [
+    "terminal",
+    "Could not load the sign-in terminal. Cancel and retry sign-in.",
+    "无法加载登录终端。请取消后重试登录。",
+  ],
+] as const)(
+  "renders cached %s terminal errors in the current locale without retrying",
+  async (failure, english, chinese) => {
+    setup();
+    const output =
+      "Settings/$&/{0} 中文\r\nCould not open the provider link.\u001b[31mraw\u001b[0m";
+    const onResponse = vi.fn();
+    fixture.createSurface.mockImplementation(() => new Promise(() => {}));
+    if (failure === "terminal") {
+      fixture.createSurface.mockRejectedValueOnce(new Error("opaque upstream failure"));
+    } else {
+      fixture.createSurface.mockResolvedValueOnce({
+        write: fixture.write,
+        resetAndWrite: fixture.resetAndWrite,
+        dispose: fixture.dispose,
+      });
+      fixture.openExternal.mockRejectedValueOnce(new Error("opaque link failure"));
+    }
+    const surface = (locale: "en" | "zh-CN") =>
+      localized(locale, <ProviderAuthTerminal output={output} onResponse={onResponse} />);
+    await using screen = await render(surface("en"));
+    if (failure === "link") {
+      await vi.waitFor(() => expect(fixture.write).toHaveBeenCalledWith(output));
+      const options = fixture.createSurface.mock.calls[0]?.[1];
+      if (!options) throw new Error("Expected terminal creation options");
+      await act(() =>
+        options.onLinkActivate("https://example.test/opaque?x=$&", new MouseEvent("click")),
+      );
+    }
+    await expect.element(screen.getByRole("alert")).toHaveTextContent(english);
+    await screen.rerender(surface("zh-CN"));
+    await expect.element(screen.getByRole("alert")).toHaveTextContent(chinese);
+    await screen.rerender(surface("en"));
+    await expect.element(screen.getByRole("alert")).toHaveTextContent(english);
+    expect(fixture.createSurface).toHaveBeenCalledOnce();
+    expect(fixture.dispose).not.toHaveBeenCalled();
+    expect(fixture.resetAndWrite).not.toHaveBeenCalled();
+    expect(onResponse).not.toHaveBeenCalled();
+    if (failure === "link") {
+      expect(fixture.write).toHaveBeenCalledExactlyOnceWith(output);
+      expect(fixture.openExternal).toHaveBeenCalledExactlyOnceWith(
+        "https://example.test/opaque?x=$&",
+      );
+    } else {
+      expect(fixture.write).not.toHaveBeenCalled();
+      expect(fixture.openExternal).not.toHaveBeenCalled();
+    }
+    await screen.unmount();
+    expect(fixture.dispose).toHaveBeenCalledTimes(failure === "link" ? 1 : 0);
+  },
+);

@@ -7,6 +7,14 @@ import { ensureLocalApi } from "../../localApi";
 import { useStableCallback } from "../../hooks/useStableCallback";
 import { terminalThemeFromApp } from "../ThreadTerminalDrawer";
 
+const errors = {
+  link: { en: "Could not open the provider link.", "zh-CN": "无法打开提供商链接。" },
+  terminal: {
+    en: "Could not load the sign-in terminal. Cancel and retry sign-in.",
+    "zh-CN": "无法加载登录终端。请取消后重试登录。",
+  },
+} as const;
+
 export default function ProviderAuthTerminal({
   output,
   outputOffset,
@@ -19,7 +27,7 @@ export default function ProviderAuthTerminal({
   const { locale: sourceLocale } = useI18n();
   const [surface, setSurface] = useState<GhosttyTerminalSurface | null>(null);
   const written = useRef(0);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<keyof typeof errors | null>(null);
   // The surface captures its callbacks once at creation.
   const respond = useStableCallback(onResponse);
   const offset = outputOffset ?? output.length;
@@ -45,7 +53,7 @@ export default function ProviderAuthTerminal({
         if (/^https?:\/\//i.test(url))
           void ensureLocalApi()
             .shell.openExternal(url)
-            .catch(() => setError("Could not open the provider link."));
+            .catch(() => setError("link"));
       },
     })
       .then((terminal) => {
@@ -57,7 +65,7 @@ export default function ProviderAuthTerminal({
         written.current = 0;
         setSurface(terminal);
       })
-      .catch(() => setError("Could not load the sign-in terminal. Cancel and retry sign-in."));
+      .catch(() => setError("terminal"));
     return () => {
       disposed = true;
       created?.dispose();
@@ -73,7 +81,7 @@ export default function ProviderAuthTerminal({
       />
       {error ? (
         <p role="alert" className="text-destructive">
-          {error}
+          {errors[error][sourceLocale]}
         </p>
       ) : null}
     </>
