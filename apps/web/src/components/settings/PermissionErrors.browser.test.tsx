@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import "~/index.css";
 import { DEFAULT_CLIENT_SETTINGS, type BrowserImportSource } from "@t3tools/contracts";
 import { expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
@@ -7,6 +8,14 @@ import { WebI18nContext } from "../../i18n/WebI18nContext";
 import { translateWebMessage } from "../../i18n/messages";
 import { BrowserImportWizard } from "./BrowserImportWizard";
 import { SnapShotSetupDialog } from "./SnapShotSetupDialog";
+
+vi.mock("../../lib/documentActivity", () => {
+  const activity = { visible: true, focused: true };
+  return {
+    getDocumentActivity: () => activity,
+    subscribeDocumentActivity: () => () => {},
+  };
+});
 
 const english = "Could not check permissions. We'll try again automatically.";
 const chinese = "无法检查权限。我们会自动重试。";
@@ -91,7 +100,7 @@ it.each(["import", "snapshot"] as const)(
     await screen.rerender(surface("zh-CN"));
     await expect.poll(() => element.textContent).toBe(chinese);
     if (sink === "snapshot") {
-      await page.getByText("高级", { exact: true }).click();
+      await page.getByText("高级设置", { exact: true }).click();
       await expect.element(page.getByText(english, { exact: true })).toBeVisible();
     }
     await screen.rerender(surface("en"));
