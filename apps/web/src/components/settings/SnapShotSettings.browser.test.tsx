@@ -123,7 +123,11 @@ vi.mock("../../lib/snapShotSetupResume", () => ({
 }));
 vi.mock("../../lib/documentActivity", () => {
   const activity = { visible: true, focused: true };
-  return { getDocumentActivity: () => activity, subscribeDocumentActivity: () => () => {} };
+  return {
+    getDocumentActivity: () => activity,
+    subscribeDocumentActivity: () => () => {},
+    subscribeDocumentReturn: () => () => {},
+  };
 });
 import { RegistryContext } from "@effect/atom-react";
 import { AtomRegistry } from "effect/reactivity";
