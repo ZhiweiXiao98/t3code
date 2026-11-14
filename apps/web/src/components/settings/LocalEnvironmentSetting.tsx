@@ -1,4 +1,3 @@
-import { useStableCallback } from "../../hooks/useStableCallback";
 import { useI18n } from "../../i18n/WebI18nContext";
 import { translateWebSource } from "../../i18n/messages";
 import { useState } from "react";
@@ -22,12 +21,11 @@ import { searchableSetting } from "./settingsSearch";
 // Toggling relaunches desktop; the switch reflects startup state.
 export function LocalEnvironmentSetting() {
   const { locale } = useI18n();
-  const translateNotice = useStableCallback((source: string) => translateWebSource(locale, source));
   const setEnabled = window.desktopBridge?.setLocalEnvironmentEnabled;
   const [enabled] = useState(() => !isLocalEnvironmentDisabled());
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | { readonly owned: true } | null>(null);
   if (!setEnabled) return null;
 
   const applyChange = async () => {
@@ -36,9 +34,7 @@ export function LocalEnvironmentSetting() {
     try {
       await setEnabled(!enabled);
     } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : translateNotice("Couldn't change this setting."),
-      );
+      setError(cause instanceof Error ? cause.message : { owned: true });
       setIsUpdating(false);
     }
   };
@@ -91,7 +87,13 @@ export function LocalEnvironmentSetting() {
                   )}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          {error ? <p className="px-6 pb-4 text-sm text-destructive">{error}</p> : null}
+          {error ? (
+            <p className="px-6 pb-4 text-sm text-destructive">
+              {typeof error === "string"
+                ? error
+                : translateWebSource(locale, "Couldn't change this setting.")}
+            </p>
+          ) : null}
           <AlertDialogFooter>
             <AlertDialogClose disabled={isUpdating} render={<Button variant="outline" />}>
               {translateWebSource(locale, "Cancel")}
