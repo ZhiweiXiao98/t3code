@@ -35,6 +35,9 @@ import {
   applyWslEnableSelection,
   savedBackendFailure,
   accessMutationFailure,
+  wslMutationFailure,
+  formatWslMutationError,
+  type WslMutationError,
   formatAccessMutationError,
   type AccessMutationError,
   networkMutationFailure,
@@ -402,7 +405,9 @@ function ConnectionsSettingsContent({
   const [isUpdatingDesktopServerExposure, setIsUpdatingDesktopServerExposure] = useState(false);
   const [isUpdatingTailscaleServe, setIsUpdatingTailscaleServe] = useState(false);
   const [isUpdatingWslBackend, setIsUpdatingWslBackend] = useState(false);
-  const [desktopWslMutationError, setDesktopWslMutationError] = useState<string | null>(null);
+  const [desktopWslMutationError, setDesktopWslMutationError] = useState<WslMutationError | null>(
+    null,
+  );
   type PendingWslChange =
     | { readonly kind: "disable"; readonly wasWslOnly: boolean }
     | { readonly kind: "distro"; readonly nextDistro: string | null }
@@ -466,7 +471,10 @@ function ConnectionsSettingsContent({
     showsAccess && canManageLocalBackend && desktopBridge ? desktopWslStateAtom : null,
   );
   const desktopWslState = desktopWsl.data;
-  const desktopWslError = desktopWslMutationError ?? desktopWsl.error;
+  const desktopWslError =
+    desktopWslMutationError === null
+      ? desktopWsl.error
+      : formatWslMutationError(locale, desktopWslMutationError);
   const isLoadingWslState = desktopWsl.isPending && desktopWsl.data === null;
   const desktopServerExposureState = desktopNetworkAccess.data?.serverExposureState ?? null;
   const desktopAdvertisedEndpoints =
@@ -806,6 +814,15 @@ function ConnectionsSettingsContent({
           );
         })
       : null;
+  const reportWslMutationError = useStableCallback((message: WslMutationError) => {
+    toastManager.add(
+      stackedThreadToast({
+        type: "error",
+        title: translateWebSource(locale, "Could not change WSL backend"),
+        description: formatWslMutationError(locale, message),
+      }),
+    );
+  });
   const applyWslSettingChange = async (apply: () => Promise<DesktopWslState>) => {
     if (
       !desktopBridge ||
@@ -821,18 +838,9 @@ function ConnectionsSettingsContent({
     });
     if (settled._tag === "Failure") {
       const error = Cause.squash(settled.cause);
-      const message =
-        error instanceof Error
-          ? error.message
-          : translateConnectionsSource(locale, "Failed to update WSL backend.");
+      const message = wslMutationFailure(error);
       setDesktopWslMutationError(message);
-      toastManager.add(
-        stackedThreadToast({
-          type: "error",
-          title: translateWebSource(locale, "Could not change WSL backend"),
-          description: message,
-        }),
-      );
+      reportWslMutationError(message);
       refreshDesktopWslState();
     }
     setIsUpdatingWslBackend(false);

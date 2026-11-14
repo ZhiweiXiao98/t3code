@@ -542,3 +542,17 @@ export function resolveAccessEnvironmentId(input: {
       ?.environmentId ?? null
   );
 }
+
+export type WslMutationError = string | { readonly code: "update" };
+
+export function wslMutationFailure(error: unknown): WslMutationError {
+  return error instanceof Error ? error.message : { code: "update" };
+}
+
+export function formatWslMutationError(locale: string, error: WslMutationError): string {
+  return typeof error === "string"
+    ? error
+    : locale === "zh-CN"
+      ? "更新 WSL 后端失败。"
+      : "Failed to update WSL backend.";
+}

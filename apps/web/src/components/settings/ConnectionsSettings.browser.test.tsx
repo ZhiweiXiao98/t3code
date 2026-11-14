@@ -9,6 +9,7 @@ import {
   AuthSessionId,
   type AuthAccessStreamSnapshotEvent,
   type DesktopServerExposureState,
+  type DesktopWslState,
 } from "@t3tools/contracts";
 import { PrimaryConnectionTarget } from "@t3tools/client-runtime/connection";
 import { createAdvertisedEndpoint } from "@t3tools/shared/advertisedEndpoint";
@@ -21,6 +22,13 @@ import type { EnvironmentPresentation } from "../../state/environments";
 import type { DesktopNetworkAccessSnapshot } from "../../state/desktopNetworkAccess";
 
 const fixture = vi.hoisted(() => ({
+  wsl: null as DesktopWslState | null,
+  wslError: null as string | null,
+  maintainAtCall: true,
+  wslOnly: vi.fn(),
+  wslEnabled: vi.fn(),
+  wslDistro: vi.fn(),
+  refreshWsl: vi.fn(),
   primary: null as EnvironmentPresentation | null,
   network: null as DesktopNetworkAccessSnapshot | null,
   queryError: null as string | null,
@@ -59,7 +67,7 @@ vi.mock("../../state/session", async (original) => ({
   readEnvironmentScope: (_id: unknown, scope: string) =>
     fixture.access
       ? scope === AuthAccessReadScope || (scope === AuthAccessWriteScope && fixture.writeAtCall)
-      : scope === AuthEnvironmentMaintainScope && fixture.permitted,
+      : scope === AuthEnvironmentMaintainScope && fixture.permitted && fixture.maintainAtCall,
 }));
 vi.mock("../../state/peerLinks", async (original) => ({
   ...(await original<typeof import("../../state/peerLinks")>()),
@@ -77,29 +85,42 @@ vi.mock("../../state/desktopNetworkAccess", async (original) => {
     refreshDesktopNetworkAccessState: fixture.refresh,
   };
 });
+vi.mock("../../state/desktopWslState", async (original) => {
+  const { Atom } = await import("effect/reactivity");
+  return {
+    ...(await original<typeof import("../../state/desktopWslState")>()),
+    desktopWslStateAtom: Atom.make(null),
+    refreshDesktopWslState: fixture.refreshWsl,
+  };
+});
+import { desktopWslStateAtom } from "../../state/desktopWslState";
 vi.mock("../../state/query", async (original) => ({
   ...(await original<typeof import("../../state/query")>()),
   useEnvironmentQuery: (query: unknown) => ({
     data:
-      query === desktopNetworkAccessStateAtom
-        ? fixture.network
-        : query ===
-            authEnvironment.accessChanges({
-              environmentId: fixture.primary!.environmentId,
-              input: null,
-            })
-          ? fixture.snapshot
-          : null,
+      query === desktopWslStateAtom
+        ? fixture.wsl
+        : query === desktopNetworkAccessStateAtom
+          ? fixture.network
+          : query ===
+              authEnvironment.accessChanges({
+                environmentId: fixture.primary!.environmentId,
+                input: null,
+              })
+            ? fixture.snapshot
+            : null,
     error:
-      query === desktopNetworkAccessStateAtom
-        ? fixture.queryError
-        : query ===
-            authEnvironment.accessChanges({
-              environmentId: fixture.primary!.environmentId,
-              input: null,
-            })
-          ? fixture.accessError
-          : null,
+      query === desktopWslStateAtom
+        ? fixture.wslError
+        : query === desktopNetworkAccessStateAtom
+          ? fixture.queryError
+          : query ===
+              authEnvironment.accessChanges({
+                environmentId: fixture.primary!.environmentId,
+                input: null,
+              })
+            ? fixture.accessError
+            : null,
     isPending: false,
     refresh: fixture.refresh,
   }),
@@ -172,6 +193,10 @@ function setup(operation: "exposure" | "tailscaleEnable" | "tailscaleDisable") {
             }),
           ],
   };
+  fixture.wsl = null;
+  fixture.wslError = null;
+  fixture.maintainAtCall = true;
+  fixture.refreshWsl.mockReset();
   fixture.queryError = null;
   fixture.access = false;
   fixture.writeAtCall = true;
@@ -499,3 +524,105 @@ it.each(["raw", "query", "interrupted", "denied"] as const)(
     expect(fixture.revokeOthers).not.toHaveBeenCalled();
   },
 );
+
+function setupWsl() {
+  const resources = new DisposableStack();
+  resources.use(setup("exposure"));
+  fixture.wsl = {
+    enabled: true,
+    available: true,
+    wslOnly: false,
+    distro: null,
+    distros: [],
+    preflightError: null,
+  };
+  fixture.wslOnly.mockReset().mockResolvedValue(fixture.wsl);
+  fixture.wslEnabled.mockReset().mockResolvedValue(fixture.wsl);
+  fixture.wslDistro.mockReset().mockResolvedValue(fixture.wsl);
+  resources.use(
+    stubGlobal("desktopBridge", {
+      getLocalEnvironmentEnabled: () => true,
+      setWslOnly: fixture.wslOnly,
+      setWslBackendEnabled: fixture.wslEnabled,
+      setWslDistro: fixture.wslDistro,
+    }),
+  );
+  return resources;
+}
+async function openWslConfirmation() {
+  await page.getByRole("switch", { name: "Run WSL only", exact: true }).click();
+}
+it("keeps cached owned WSL failure current in all three persistent rows", async () => {
+  using _bridge = setupWsl();
+  let reject!: (error: unknown) => void;
+  fixture.wslOnly.mockReturnValue(
+    new Promise<DesktopWslState>((_resolve, fail) => {
+      reject = fail;
+    }),
+  );
+  await using screen = await render(surface("en"));
+  await openWslConfirmation();
+  expect(fixture.wslOnly).not.toHaveBeenCalled();
+  await page.getByRole("button", { name: "Restart and enable", exact: true }).click();
+  await screen.rerender(surface("zh-CN"));
+  reject(null);
+  await expect
+    .poll(() => fixture.toast.mock.calls.at(-1)?.[0])
+    .toMatchObject({ title: "无法更改 WSL 后端", description: "更新 WSL 后端失败。" });
+  const state = fixture.wsl!;
+  for (const snapshot of [state, { ...state, available: false }, null]) {
+    fixture.wsl = snapshot;
+    for (const locale of ["en", "zh-CN", "en"] as const) {
+      await screen.rerender(surface(locale));
+      await expect
+        .element(
+          page.getByText(
+            locale === "en" ? "Failed to update WSL backend." : "更新 WSL 后端失败。",
+            { exact: true },
+          ),
+        )
+        .toBeVisible();
+    }
+  }
+  expect(fixture.wslOnly).toHaveBeenCalledExactlyOnceWith(true);
+  expect(fixture.wslEnabled).not.toHaveBeenCalled();
+  expect(fixture.wslDistro).not.toHaveBeenCalled();
+  expect(fixture.refreshWsl).toHaveBeenCalledOnce();
+  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  expect(fixture.refreshWsl).toHaveBeenCalledTimes(2);
+  await expect
+    .element(page.getByText("Failed to update WSL backend.", { exact: true }))
+    .not.toBeInTheDocument();
+});
+it.each(["mutation", "query"] as const)("keeps raw WSL %s collisions opaque", async (origin) => {
+  using _bridge = setupWsl();
+  const raw = "Failed to update WSL backend.";
+  if (origin === "query") fixture.wslError = raw;
+  else fixture.wslOnly.mockRejectedValue(new Error(raw));
+  await using screen = await render(surface("en"));
+  if (origin === "mutation") {
+    await openWslConfirmation();
+    await page.getByRole("button", { name: "Restart and enable", exact: true }).click();
+    await expect.poll(() => fixture.refreshWsl.mock.calls.length).toBe(1);
+  }
+  for (const locale of ["en", "zh-CN", "en"] as const) {
+    await screen.rerender(surface(locale));
+    await expect.element(page.getByText(raw, { exact: true })).toBeVisible();
+  }
+  expect(fixture.wslOnly).toHaveBeenCalledTimes(origin === "mutation" ? 1 : 0);
+  expect(fixture.refreshWsl).toHaveBeenCalledTimes(origin === "mutation" ? 1 : 0);
+});
+it.each(["cancel", "denied"] as const)("does not mutate WSL after %s", async (mode) => {
+  using _bridge = setupWsl();
+  await using _screen = await render(surface("en"));
+  await openWslConfirmation();
+  if (mode === "denied") fixture.maintainAtCall = false;
+  await page
+    .getByRole("button", { name: mode === "cancel" ? "Cancel" : "Restart and enable", exact: true })
+    .click();
+  expect(fixture.wslOnly).not.toHaveBeenCalled();
+  expect(fixture.wslEnabled).not.toHaveBeenCalled();
+  expect(fixture.wslDistro).not.toHaveBeenCalled();
+  expect(fixture.refreshWsl).not.toHaveBeenCalled();
+  expect(fixture.toast).not.toHaveBeenCalled();
+});

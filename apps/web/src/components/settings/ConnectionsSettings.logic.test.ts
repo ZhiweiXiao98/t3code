@@ -6,6 +6,8 @@ import {
   savedBackendFailure,
   networkMutationFailure,
   accessMutationFailure,
+  wslMutationFailure,
+  formatWslMutationError,
   formatAccessMutationError,
   formatNetworkMutationError,
   formatSavedBackendError,
@@ -411,5 +413,16 @@ it("retains owned revocation identities and exact raw or empty failures", () => 
           raw,
         );
     }
+  }
+});
+
+it("keeps only generated WSL failures owned across locale changes", () => {
+  const owned = wslMutationFailure(null);
+  for (const locale of ["en", "zh-CN", "en"] as const) {
+    expect(formatWslMutationError(locale, owned)).toBe(
+      locale === "en" ? "Failed to update WSL backend." : "更新 WSL 后端失败。",
+    );
+    for (const raw of ["Failed to update WSL backend.", "", "literal/$&/{distro}"])
+      expect(formatWslMutationError(locale, wslMutationFailure(new Error(raw)))).toBe(raw);
   }
 });
