@@ -436,6 +436,7 @@ export interface LimitPoolWindow {
   readonly id: string;
   readonly kind: ServerProviderUsageWindow["kind"];
   readonly label: string;
+  readonly labelDescriptor?: ServerProviderUsageWindow["labelDescriptor"];
   readonly members: readonly LimitPoolMember[];
   readonly columns: ReadonlyArray<
     LimitPoolMember | { readonly account: LimitAccount; readonly window: null }
@@ -615,6 +616,7 @@ function poolWindows(accounts: readonly LimitAccount[], now: number): readonly L
       id,
       kind: first.kind,
       label: first.label,
+      ...(first.labelDescriptor ? { labelDescriptor: first.labelDescriptor } : {}),
       members,
       columns: accounts.map(
         (account) => memberByAccount.get(account.key) ?? { account, window: null },

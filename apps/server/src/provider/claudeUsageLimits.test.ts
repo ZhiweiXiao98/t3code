@@ -40,6 +40,7 @@ describe("claudeUsageResponseToLimits", () => {
             id: "five_hour",
             kind: "session",
             label: "Session",
+            labelDescriptor: { code: "session" },
             usedPercent: 54,
             windowDurationMins: 300,
             resetsAt: "2026-07-18T14:39:00.000Z",
@@ -48,6 +49,7 @@ describe("claudeUsageResponseToLimits", () => {
             id: "seven_day",
             kind: "weekly",
             label: "Weekly",
+            labelDescriptor: { code: "weekly" },
             usedPercent: 18.4,
             windowDurationMins: 10080,
             resetsAt: "2026-07-24T08:59:00.000Z",
@@ -56,6 +58,7 @@ describe("claudeUsageResponseToLimits", () => {
             id: "seven_day_fable",
             kind: "weekly",
             label: "Weekly · Fable",
+            labelDescriptor: { code: "weeklyScoped", displayName: "Fable" },
             usedPercent: 73,
             windowDurationMins: 10080,
             resetsAt: "2026-07-24T08:59:00.000Z",
@@ -101,6 +104,7 @@ describe("claudeUsageResponseToLimits", () => {
         id: "seven_day",
         kind: "weekly",
         label: "Weekly",
+        labelDescriptor: { code: "weekly" },
         usedPercent: 100,
         windowDurationMins: 10080,
       },
@@ -132,6 +136,7 @@ describe("claudeUsageResponseToLimits", () => {
     id: "monthly_spend",
     kind: "monthly",
     label: "Monthly spend",
+    labelDescriptor: { code: "monthlySpend" },
     usedPercent: expect.closeTo(9.262, 10),
   };
 
@@ -159,6 +164,7 @@ describe("claudeUsageResponseToLimits", () => {
         id: "five_hour",
         kind: "session",
         label: "Session",
+        labelDescriptor: { code: "session" },
         usedPercent: 12,
         windowDurationMins: 300,
       },
@@ -241,6 +247,7 @@ describe("claudeRateLimitEventToUpdate", () => {
           id: "seven_day",
           kind: "weekly",
           label: "Weekly",
+          labelDescriptor: { code: "weekly" },
           usedPercent: 85,
           windowDurationMins: 10080,
           resetsAt: "2026-07-14T03:33:20.000Z",
@@ -262,10 +269,33 @@ describe("claudeRateLimitEventToUpdate", () => {
           id: "seven_day_fable",
           kind: "weekly",
           label: "Weekly · Fable",
+          labelDescriptor: { code: "weeklyScoped", displayName: "Fable" },
           usedPercent: 40,
           windowDurationMins: 10080,
         },
       ],
     });
+    for (const displayName of ["Settings", "$& {0}\n中文", "  Fable  "]) {
+      const expected = {
+        label: `Weekly · ${displayName}`,
+        labelDescriptor: { code: "weeklyScoped", displayName },
+      };
+      expect(
+        claudeRateLimitEventToUpdate(event, { overageIncluded: displayName })?.windows[0],
+      ).toMatchObject(expected);
+      expect(
+        claudeUsageResponseToLimits({
+          checkedAt,
+          response: {
+            rate_limits_available: true,
+            rate_limits: {
+              ...({
+                model_scoped: [{ display_name: displayName, utilization: 40, resets_at: null }],
+              } as object),
+            },
+          },
+        }).limits.windows[0],
+      ).toMatchObject(expected);
+    }
   });
 });

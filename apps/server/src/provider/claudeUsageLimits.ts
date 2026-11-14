@@ -20,10 +20,23 @@ const SESSION_MINS = 5 * 60;
 const WEEK_MINS = 7 * 24 * 60;
 
 const WINDOWS: Readonly<
-  Record<string, Pick<ServerProviderUsageWindow, "kind" | "label" | "windowDurationMins">>
+  Record<
+    string,
+    Pick<ServerProviderUsageWindow, "kind" | "label" | "labelDescriptor" | "windowDurationMins">
+  >
 > = {
-  five_hour: { kind: "session", label: "Session", windowDurationMins: SESSION_MINS },
-  seven_day: { kind: "weekly", label: "Weekly", windowDurationMins: WEEK_MINS },
+  five_hour: {
+    kind: "session",
+    label: "Session",
+    labelDescriptor: { code: "session" },
+    windowDurationMins: SESSION_MINS,
+  },
+  seven_day: {
+    kind: "weekly",
+    label: "Weekly",
+    labelDescriptor: { code: "weekly" },
+    windowDurationMins: WEEK_MINS,
+  },
 };
 
 /** Reuse probed display names for streamed bucket types so mid-turn updates target the same row. */
@@ -60,6 +73,7 @@ function scopedWindow(
     id: scopedWindowId(displayName),
     kind: "weekly",
     label: `Weekly · ${displayName}`,
+    labelDescriptor: { code: "weeklyScoped", displayName },
     windowDurationMins: WEEK_MINS,
     usedPercent: clampPercent(usedPercent),
     ...(resetsAt ? { resetsAt } : {}),
@@ -207,6 +221,7 @@ export function claudeUsageResponseToLimits(input: {
       id: "monthly_spend",
       kind: "monthly",
       label: "Monthly spend",
+      labelDescriptor: { code: "monthlySpend" },
       usedPercent: spendPercent,
     });
   }

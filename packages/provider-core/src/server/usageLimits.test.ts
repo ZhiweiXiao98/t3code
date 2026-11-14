@@ -21,6 +21,57 @@ const weekly = {
 const published = { checkedAt, windows: [session, weekly] };
 
 describe("applyUsageLimitsUpdate", () => {
+  it("publishes label descriptor changes and removal even when usage does not move", () => {
+    const tagged = { ...session, labelDescriptor: { code: "session" as const } };
+    const added = applyUsageLimitsUpdate({
+      previous: published,
+      checkedAt,
+      update: { windows: [tagged] },
+    });
+    expect(added).not.toBe(published);
+    expect(added?.windows[0]).toEqual(tagged);
+    expect(
+      applyUsageLimitsUpdate({
+        previous: added,
+        checkedAt,
+        update: { windows: [{ ...tagged, labelDescriptor: { code: "session" } }] },
+      }),
+    ).toBe(added);
+    const changed = applyUsageLimitsUpdate({
+      previous: added,
+      checkedAt,
+      update: { windows: [{ ...tagged, labelDescriptor: { code: "weekly" } }] },
+    });
+    expect(changed).not.toBe(added);
+    const removed = applyUsageLimitsUpdate({
+      previous: changed,
+      checkedAt,
+      update: { windows: [session] },
+    });
+    expect(removed).not.toBe(changed);
+    expect(removed?.windows[0]).toEqual(session);
+    const scoped = {
+      ...weekly,
+      label: "Weekly · Settings",
+      labelDescriptor: { code: "weeklyScoped" as const, displayName: "Settings" },
+    };
+    const before = { checkedAt, windows: [scoped] };
+    const after = applyUsageLimitsUpdate({
+      previous: before,
+      checkedAt,
+      update: {
+        windows: [
+          { ...scoped, labelDescriptor: { code: "weeklyScoped", displayName: "$& {0}\n中文" } },
+        ],
+      },
+    });
+    expect(after).not.toBe(before);
+    expect(after?.windows[0]?.labelDescriptor).toEqual({
+      code: "weeklyScoped",
+      displayName: "$& {0}\n中文",
+    });
+  });
+
   it("returns the published object itself when no window moved", () => {
     const next = applyUsageLimitsUpdate({
       previous: published,

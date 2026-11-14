@@ -2,6 +2,7 @@ import * as Schema from "effect/Schema";
 
 import {
   ForwardCompatibleArray,
+  ForwardCompatibleOptional,
   IsoDateTime,
   NonNegativeInt,
   TrimmedNonEmptyString,
@@ -9,11 +10,20 @@ import {
 import { ProviderDriverKind, ProviderInstanceId } from "./providerInstance.ts";
 import { UsageLimitSourceId } from "./usageLimitSourceId.ts";
 
+export const UsageWindowLabelDescriptor = Schema.Union([
+  Schema.Struct({
+    code: Schema.Literals(["session", "weekly", "monthly", "monthlyCreditLimit", "monthlySpend"]),
+  }),
+  Schema.Struct({ code: Schema.Literal("weeklyScoped"), displayName: Schema.String }),
+]);
+export type UsageWindowLabelDescriptor = typeof UsageWindowLabelDescriptor.Type;
+
 /** Stable per-provider ids let sparse updates merge with full probes. */
 export const ServerProviderUsageWindow = Schema.Struct({
   id: TrimmedNonEmptyString,
   kind: Schema.Literals(["session", "weekly", "monthly", "other"]),
   label: TrimmedNonEmptyString,
+  labelDescriptor: ForwardCompatibleOptional(UsageWindowLabelDescriptor),
   usedPercent: Schema.Number.check(Schema.isBetween({ minimum: 0, maximum: 100 })),
   resetsAt: Schema.optional(IsoDateTime),
   windowDurationMins: Schema.optional(NonNegativeInt),

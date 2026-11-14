@@ -953,6 +953,18 @@ describe("pooled account columns", () => {
       row.columns.map((member) => (member.window ? member.account.key : null)),
     );
 
+  it("keeps pooled label ownership paired with the selected raw label", () => {
+    const tagged = { ...window, labelDescriptor: { code: "session" as const } };
+    const pooled = collectLimitPools([account("a", [tagged]), account("b", [window])], now)[0]!
+      .windows[0]!;
+    expect(pooled.label).toBe("Session");
+    expect(pooled.labelDescriptor).toEqual(tagged.labelDescriptor);
+    const untagged = collectLimitPools([account("a", [window]), account("b", [tagged])], now)[0]!
+      .windows[0]!;
+    expect(untagged.label).toBe("Session");
+    expect(untagged.labelDescriptor).toBeUndefined();
+  });
+
   // regression: #20349 sessions stay visible while the weekly quota is exhausted
   it.each([
     ["claudeAgent", "13:00", 40, "14:00", 100],

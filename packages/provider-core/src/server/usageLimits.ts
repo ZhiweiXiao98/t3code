@@ -93,6 +93,10 @@ function usageWindowEquals(a: ServerProviderUsageWindow, b: ServerProviderUsageW
     a.id === b.id &&
     a.kind === b.kind &&
     a.label === b.label &&
+    a.labelDescriptor?.code === b.labelDescriptor?.code &&
+    (a.labelDescriptor?.code !== "weeklyScoped" ||
+      (b.labelDescriptor?.code === "weeklyScoped" &&
+        a.labelDescriptor.displayName === b.labelDescriptor.displayName)) &&
     a.usedPercent === b.usedPercent &&
     a.resetsAt === b.resetsAt &&
     a.windowDurationMins === b.windowDurationMins

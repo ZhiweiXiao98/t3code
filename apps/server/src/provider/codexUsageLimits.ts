@@ -46,7 +46,7 @@ function isoFromEpochSeconds(value: number | null | undefined): string | undefin
   return Option.isSome(dt) ? DateTime.formatIso(dt.value) : undefined;
 }
 
-function kindForDuration(mins: number): ServerProviderUsageWindow["kind"] {
+function kindForDuration(mins: number): "session" | "weekly" | "monthly" {
   if (mins >= MONTH_MINS) return "monthly";
   if (mins >= WEEK_MINS) return "weekly";
   return "session";
@@ -78,6 +78,7 @@ function codexRateLimitsToWindows(
       id,
       kind,
       label: labelForKind(kind),
+      labelDescriptor: { code: kind },
       usedPercent: clampPercent(window.usedPercent),
       windowDurationMins,
       ...(resetsAt ? { resetsAt } : {}),
@@ -90,6 +91,7 @@ function codexRateLimitsToWindows(
       id: "individual",
       kind: "monthly",
       label: "Monthly credit limit",
+      labelDescriptor: { code: "monthlyCreditLimit" },
       usedPercent: clampPercent(100 - individualLimit.remainingPercent),
       ...(resetsAt ? { resetsAt } : {}),
     });
