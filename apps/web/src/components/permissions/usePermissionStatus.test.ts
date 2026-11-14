@@ -67,7 +67,9 @@ describe("createPermissionPoller", () => {
     fail = true;
     await vi.advanceTimersByTimeAsync(1500);
     expect(poller.getSnapshot().status).toEqual({ screen: true });
-    expect(poller.getSnapshot().error).not.toBeNull();
+    expect(poller.getSnapshot().error).toBe(
+      "Could not check permissions. We'll try again automatically.",
+    );
     fail = false;
     await vi.advanceTimersByTimeAsync(1500);
     expect(poller.getSnapshot().error).toBeNull();

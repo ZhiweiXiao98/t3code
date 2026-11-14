@@ -1,5 +1,6 @@
 import { useState, useSyncExternalStore } from "react";
 
+import { useI18n } from "../../i18n/WebI18nContext";
 import { useStableCallback } from "~/hooks/useStableCallback";
 import { getDocumentActivity, subscribeDocumentActivity } from "~/lib/documentActivity";
 
@@ -70,6 +71,7 @@ export function usePermissionStatus<Id extends string>(
   initialStatus: Record<Id, boolean>,
   enabled = true,
 ) {
+  const { locale } = useI18n();
   const checkLatest = useStableCallback(check);
   const [poller] = useState(() => createPermissionPoller(checkLatest, initialStatus));
   const { status, error } = useSyncExternalStore(
@@ -78,7 +80,12 @@ export function usePermissionStatus<Id extends string>(
   );
   return {
     status,
-    error,
+    error:
+      error === null
+        ? null
+        : locale === "zh-CN"
+          ? "无法检查权限。我们会自动重试。"
+          : CHECK_FAILED_MESSAGE,
     isReady: (required: readonly Id[]) => error === null && required.every((id) => status[id]),
   };
 }

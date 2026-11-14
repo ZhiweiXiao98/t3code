@@ -12,10 +12,10 @@ function PermissionProbe({
   readonly label: string;
   readonly enabled?: boolean;
 }) {
-  const { status } = usePermissionStatus(async () => check(), { screen: false }, enabled);
+  const { status, error } = usePermissionStatus(async () => check(), { screen: false }, enabled);
   return (
     <p>
-      {label}: {status.screen ? "granted" : "missing"}
+      {label}: {status.screen ? "granted" : "missing"} {error}
     </p>
   );
 }
@@ -47,4 +47,24 @@ describe("usePermissionStatus", () => {
     await expect.element(screen.getByText("probe: granted")).toBeInTheDocument();
     expect(first).toHaveBeenCalledTimes(1);
   });
+});
+
+it("presents a rejected check without requiring a locale provider", async () => {
+  const schedule = globalThis.setInterval;
+  using interval = vi
+    .spyOn(globalThis, "setInterval")
+    .mockImplementation(() => schedule(() => {}, 2_147_483_647));
+  const check = vi.fn().mockRejectedValue(new Error("native detail"));
+  await using screen = await render(<PermissionProbe check={check} label="probe" />, {
+    router: false,
+  });
+  await expect
+    .element(
+      screen.getByText(
+        "probe: missing Could not check permissions. We'll try again automatically.",
+      ),
+    )
+    .toBeVisible();
+  expect(check).toHaveBeenCalledOnce();
+  expect(interval).toHaveBeenCalledOnce();
 });

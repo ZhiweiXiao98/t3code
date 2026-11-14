@@ -76,7 +76,7 @@ export function BrowserImportWizard({
   const [target, setTarget] = useState<WizardTargetSelection>(() =>
     initialTargetSelection(canCreateProfile, targetProfiles),
   );
-  const [targetError, setTargetError] = useState<string>();
+  const [targetError, setTargetError] = useState(false);
   const newProfileId = useRef(`profile-${randomUUID()}`);
   // Guard synchronously so a second click's refusal cannot leave the importing step during the first write.
   const importInFlight = useRef(false);
@@ -85,11 +85,11 @@ export function BrowserImportWizard({
     if (importInFlight.current) return;
     const chosen = resolveWizardTarget(target, newProfileId.current, targetProfiles);
     if (chosen === undefined) {
-      setTargetError(t("browserImport.targetUnavailable"));
+      setTargetError(true);
       setStep({ step: "configure" });
       return;
     }
-    setTargetError(undefined);
+    setTargetError(false);
     importInFlight.current = true;
     setStep({ step: "importing" });
     void onImport({ sourceProfileDirectory, target: chosen })
@@ -171,9 +171,9 @@ export function BrowserImportWizard({
             target={target}
             onTargetChange={(selection) => {
               setTarget(selection);
-              setTargetError(undefined);
+              setTargetError(false);
             }}
-            targetError={targetError}
+            targetError={targetError ? t("browserImport.targetUnavailable") : undefined}
             onCancel={onClose}
             onImport={runImport}
           />
@@ -256,21 +256,20 @@ function FullDiskAccessStep({
 }) {
   const { locale, t } = useI18n();
   const [opening, setOpening] = useState(false);
-  const [openingError, setOpeningError] = useState<string | null>(null);
+  const [openingFailed, setOpeningFailed] = useState(false);
+  const openingError = openingFailed
+    ? translateWebSource(locale, "Could not open System Settings. Try Allow again.")
+    : null;
   const permission = usePermissionStatus(async () => ({ fullDiskAccess: await onCheck() }), {
     fullDiskAccess: false,
   });
   const allow = () => {
     if (opening) return;
     setOpening(true);
-    setOpeningError(null);
+    setOpeningFailed(false);
     void Promise.resolve()
       .then(onOpenSettings)
-      .catch(() =>
-        setOpeningError(
-          translateWebSource(locale, "Could not open System Settings. Try Allow again."),
-        ),
-      )
+      .catch(() => setOpeningFailed(true))
       .finally(() => setOpening(false));
   };
   return (
