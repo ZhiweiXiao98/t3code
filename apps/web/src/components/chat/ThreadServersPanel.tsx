@@ -75,11 +75,12 @@ function ThreadServersList(props: ThreadServersPanelProps) {
   const hiddenCount = Math.max(0, servers.length - visibleCount);
 
   const reportFailure = (title: string, error: unknown) => {
+    const { locale } = readWebI18n();
     toastManager.add(
       stackedThreadToast({
         type: "error",
-        title,
-        description: previewPreconditionMessage(error, readWebI18n().locale) ?? String(error),
+        title: translateWebSource(locale, title),
+        description: previewPreconditionMessage(error, locale) ?? String(error),
       }),
     );
   };

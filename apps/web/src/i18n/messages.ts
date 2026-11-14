@@ -13121,7 +13121,9 @@ const ZH_CN_SOURCE_MESSAGES: Readonly<Record<string, string>> = {
   "Start the matching WSL backend, then choose the folder again.":
     "请启动对应的 WSL 后端，然后重新选择文件夹。",
   "Loading folders...": "正在加载文件夹…",
+  "Unable to open in browser": "无法在浏览器中打开",
   "Unable to open preview": "无法打开预览",
+  "Could not stop server": "无法停止服务器",
   "The preview could not be opened.": "无法打开预览。",
   "Thread action failed": "会话操作失败",
   "Show more": "显示更多",
