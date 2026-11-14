@@ -79,8 +79,29 @@ describe("openPreviewSession", () => {
 
       expect(result._tag).toBe("Failure");
       if (result._tag === "Failure") {
-        expect(Cause.squash(result.cause)).toBeInstanceOf(BrowserSettingsReadError);
-        expect(Cause.squash(result.cause)).toMatchObject({ cause: failure });
+        const error = Cause.squash(result.cause);
+        expect(error).toBeInstanceOf(BrowserSettingsReadError);
+        expect(error).toMatchObject({ cause: failure, _tag: "BrowserSettingsReadError" });
+        const english = "Saved browser settings could not be loaded.";
+        expect(previewPreconditionMessage(error, "en")).toBe(english);
+        expect(previewPreconditionMessage(error, "zh-CN")).toBe("无法读取浏览器设置。");
+        expect(previewPreconditionMessage(error, "en")).toBe(english);
+        expect(error).toMatchObject({ message: english, cause: failure });
+        expect(Cause.squash(result.cause)).toBe(error);
+        for (const unmarked of [
+          new Error(english),
+          new BrowserSettingsReadError({ cause: failure }),
+          Object.assign(new Error(english), { _tag: "BrowserSettingsReadError" }),
+          new Error(""),
+        ]) {
+          expect(previewPreconditionMessage(unmarked, "zh-CN")).toBe(unmarked.message);
+        }
+        expect(
+          previewPreconditionMessage(
+            { _tag: "BrowserSettingsReadError", message: english },
+            "zh-CN",
+          ),
+        ).toBeUndefined();
       }
       expect(openPreview).not.toHaveBeenCalled();
       expect(readThreadPreviewState(threadRef).snapshot).toBeNull();

@@ -1,3 +1,4 @@
+import { markPreviewPrecondition } from "~/browser/previewPreconditionMessages";
 import type {
   EnvironmentId,
   PreviewOpenInput,
@@ -31,8 +32,8 @@ export async function openPreviewSession<E>(
   input: OpenPreviewSessionInput<E>,
 ): Promise<AtomCommandResult<PreviewSessionSnapshot, E | BrowserSettingsReadError>> {
   // Wait for settings hydration so new tabs cannot retain uncorrected schema defaults.
-  const defaults = await resolveBrowserDefaults().catch(
-    (cause: unknown) => new BrowserSettingsReadError({ cause }),
+  const defaults = await resolveBrowserDefaults().catch((cause: unknown) =>
+    markPreviewPrecondition(new BrowserSettingsReadError({ cause }), "settings-read"),
   );
   if (isBrowserSettingsReadError(defaults)) {
     return AsyncResult.failure(Cause.fail(defaults));

@@ -1,3 +1,4 @@
+import { previewPreconditionMessage } from "~/browser/previewPreconditionMessages";
 import { readWebI18n } from "~/i18n/readWebI18n";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
@@ -270,7 +271,9 @@ export function useOpenPrLink(threadRef?: ScopedThreadRef) {
         stackedThreadToast({
           type: "error",
           title: readWebI18n().t("audit6.openPrFailed"),
-          description: error instanceof Error ? error.message : readWebI18n().t("common.error"),
+          description:
+            previewPreconditionMessage(error, readWebI18n().locale) ??
+            readWebI18n().t("common.error"),
         }),
       );
     });

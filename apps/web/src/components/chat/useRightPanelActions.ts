@@ -1,3 +1,5 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
+import { previewPreconditionMessage } from "~/browser/previewPreconditionMessages";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
 import type { ToolCallDiffTarget } from "../../diffPanelStore";
@@ -128,7 +130,7 @@ export function useRightPanelActions(input: RightPanelActionsInput) {
           stackedThreadToast({
             type: "error",
             title: translateWebSource(uiLocale, "Unable to open browser"),
-            description: error.message,
+            description: previewPreconditionMessage(error, readWebI18n().locale) ?? error.message,
           }),
         );
       }

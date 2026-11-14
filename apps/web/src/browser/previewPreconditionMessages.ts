@@ -1,6 +1,7 @@
 import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 
 const messages = {
+  "settings-read": "无法读取浏览器设置。",
   "runtime-unavailable": "此运行环境无法使用集成浏览器。",
   "environment-disconnected": "环境未连接。",
   "invalid-asset-url": "环境返回了无效的资源 URL。",

@@ -1,4 +1,8 @@
-import { markPreviewPrecondition } from "~/browser/previewPreconditionMessages";
+import { readWebI18n } from "~/i18n/readWebI18n";
+import {
+  markPreviewPrecondition,
+  previewPreconditionMessage,
+} from "~/browser/previewPreconditionMessages";
 import { translateWebSource } from "~/i18n/messages";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { clientHostEnvironmentAtom } from "../state/clientHostEnvironment";
@@ -735,7 +739,7 @@ function useChatMarkdownState({
             stackedThreadToast({
               type: "error",
               title: t("audit.media.browserFailed"),
-              description: error.message,
+              description: previewPreconditionMessage(error, readWebI18n().locale) ?? error.message,
             }),
           );
         }

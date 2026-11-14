@@ -2,7 +2,7 @@ import { DevicePlatformAvailability } from "@t3tools/contracts";
 import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 import * as Schema from "effect/Schema";
 import { expect, it } from "vite-plus/test";
-import { page, userEvent } from "vite-plus/test/browser";
+import { userEvent } from "vite-plus/test/browser";
 import { render } from "../../../test/render";
 import { WebI18nContext } from "../../i18n/WebI18nContext";
 import { translateWebMessage } from "../../i18n/messages";
@@ -35,15 +35,22 @@ it("updates the connection-check tooltip on locale changes and preserves an opaq
   });
   await using screen = await render(availability("en", entry));
   await userEvent.hover(screen.getByText("Android unavailable", { exact: true }));
-  await expect.element(page.getByRole("tooltip")).toHaveTextContent(reason);
+  await expectOpenTooltip(reason);
   await screen.rerender(availability("zh-CN", entry));
-  await expect
-    .element(page.getByRole("tooltip"))
-    .toHaveTextContent(
-      `${sdkRoot} 中缺少 Android 模拟器。请在 Android Studio 的 SDK 管理器中安装。`,
-    );
+  await expectOpenTooltip(
+    `${sdkRoot} 中缺少 Android 模拟器。请在 Android Studio 的 SDK 管理器中安装。`,
+  );
   await screen.rerender(availability("en", entry));
-  await expect.element(page.getByRole("tooltip")).toHaveTextContent(reason);
+  await expectOpenTooltip(reason);
   await screen.rerender(availability("zh-CN", { ...entry, reasonMessage: undefined }));
-  await expect.element(page.getByRole("tooltip")).toHaveTextContent(reason);
+  await expectOpenTooltip(reason);
 });
+
+async function expectOpenTooltip(text: string) {
+  await expect
+    .poll(() => document.querySelector('[data-slot="tooltip-popup"][data-open]')?.textContent)
+    .toBe(text);
+  const popup = document.querySelector<HTMLElement>('[data-slot="tooltip-popup"][data-open]');
+  if (!popup) throw new Error("Expected the open tooltip popup");
+  await expect.element(popup).toBeVisible();
+}

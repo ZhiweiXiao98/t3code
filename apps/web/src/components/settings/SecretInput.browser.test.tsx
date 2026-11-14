@@ -1,7 +1,7 @@
 import { WebI18nContext } from "~/i18n/WebI18nContext";
 import { translateWebMessage } from "~/i18n/messages";
 import { describe, expect, it, vi } from "vite-plus/test";
-import { userEvent } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 
 import { render, type Screen } from "../../../test/render";
 import { SecretInput } from "./SecretInput";
@@ -66,7 +66,7 @@ it("updates only owned placeholders and preserves an in-progress secret and supp
   await expect
     .element(input(screen))
     .toHaveAttribute("placeholder", "Stored secret, enter a new value to replace");
-  await userEvent.type(input(screen), "opaque/{secret}/$&");
+  await page.elementLocator(input(screen)).fill("opaque/{secret}/$&");
   await screen.rerender(surface("zh-CN"));
   await expect.element(input(screen)).toHaveAttribute("placeholder", "已保存密钥，输入新值以替换");
   await expect.element(input(screen)).toHaveValue("opaque/{secret}/$&");

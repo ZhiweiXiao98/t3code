@@ -1,3 +1,4 @@
+import { previewPreconditionMessage } from "~/browser/previewPreconditionMessages";
 import { readWebI18n } from "~/i18n/readWebI18n";
 import { filePreviewFailureMessage } from "./filePreviewErrorMessages";
 import { translateWebSource } from "~/i18n/messages";
@@ -1242,9 +1243,8 @@ export default function FilePreviewPanel({
           type: "error",
           title: translateWebSource(locale, "Unable to open file in browser"),
           description:
-            error instanceof Error
-              ? error.message
-              : translateWebSource(locale, "An error occurred."),
+            previewPreconditionMessage(error, readWebI18n().locale) ??
+            translateWebSource(readWebI18n().locale, "An error occurred."),
         }),
       );
     })();

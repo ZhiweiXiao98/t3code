@@ -1,3 +1,5 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
+import { previewPreconditionMessage } from "~/browser/previewPreconditionMessages";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
 import { useAtomValue } from "@effect/atom-react";
@@ -77,7 +79,7 @@ function ThreadServersList(props: ThreadServersPanelProps) {
       stackedThreadToast({
         type: "error",
         title,
-        description: error instanceof Error ? error.message : String(error),
+        description: previewPreconditionMessage(error, readWebI18n().locale) ?? String(error),
       }),
     );
   };

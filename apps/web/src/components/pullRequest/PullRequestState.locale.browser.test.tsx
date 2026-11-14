@@ -40,13 +40,20 @@ it.each([
       </WebI18nContext>
     );
     await using screen = await render(surface("en"));
-    await expect
-      .element(screen.getByRole("region", { name: "context" }).getByText(english, { exact: true }))
-      .toBeVisible();
+    const context = screen.getByRole("region", { name: "context" });
+    const status = context
+      .element()
+      .querySelector<HTMLSpanElement>("div > div:first-child > span:last-child")!;
+    const baseBranch = context.element().querySelector<HTMLElement>("code:last-child")!;
+    await expect.element(status).toHaveTextContent(english);
+    await expect.element(status).toBeVisible();
+    await expect.element(baseBranch).toHaveTextContent(metadata.baseBranch);
+    await expect.element(baseBranch).toBeVisible();
     await screen.rerender(surface("zh-CN"));
-    await expect
-      .element(screen.getByRole("region", { name: "context" }).getByText(chinese, { exact: true }))
-      .toBeVisible();
+    await expect.element(status).toHaveTextContent(chinese);
+    await expect.element(status).toBeVisible();
+    await expect.element(baseBranch).toHaveTextContent(metadata.baseBranch);
+    await expect.element(baseBranch).toBeVisible();
     await expect
       .element(
         screen.getByRole("region", { name: "context" }).getByText("合并请求 #42", { exact: true }),
@@ -65,6 +72,10 @@ it.each([
       )
       .toBeVisible();
     await screen.rerender(surface("en"));
+    await expect.element(status).toHaveTextContent(english);
+    await expect.element(status).toBeVisible();
+    await expect.element(baseBranch).toHaveTextContent(metadata.baseBranch);
+    await expect.element(baseBranch).toBeVisible();
     await expect
       .element(
         screen

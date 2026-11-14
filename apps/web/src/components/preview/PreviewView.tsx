@@ -1,3 +1,4 @@
+import { previewPreconditionMessage } from "~/browser/previewPreconditionMessages";
 import { browserCaptureFailureMessage } from "./browserCaptureMessages";
 import { readWebI18n } from "~/i18n/readWebI18n";
 import { useI18n } from "~/i18n/WebI18nContext";
@@ -266,7 +267,7 @@ export function PreviewView({
         toastManager.add({
           type: "error",
           title: translateWebSource(locale, "Unable to open browser"),
-          description: error.message,
+          description: previewPreconditionMessage(error, readWebI18n().locale) ?? error.message,
         });
       }
     }
@@ -437,7 +438,8 @@ export function PreviewView({
         type: "error",
         title: translateWebSource(locale, "Unable to move the browser tab"),
         description:
-          error instanceof Error ? error.message : translateWebSource(locale, "An error occurred."),
+          previewPreconditionMessage(error, readWebI18n().locale) ??
+          translateWebSource(readWebI18n().locale, "An error occurred."),
       });
       return;
     }

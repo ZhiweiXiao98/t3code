@@ -66,8 +66,8 @@ export async function openUrlInPreview<E>(input: {
 }): Promise<AtomCommandResult<void, E | BrowserSettingsReadError>> {
   // Read before any await: a side chat pane that unmounts meanwhile drops its host mapping.
   const threadRef = rightPanelHostRef(input.threadRef);
-  const defaults = await resolveBrowserDefaults().catch(
-    (cause: unknown) => new BrowserSettingsReadError({ cause }),
+  const defaults = await resolveBrowserDefaults().catch((cause: unknown) =>
+    markPreviewPrecondition(new BrowserSettingsReadError({ cause }), "settings-read"),
   );
   if (isBrowserSettingsReadError(defaults)) {
     return AsyncResult.failure(Cause.fail(defaults));
