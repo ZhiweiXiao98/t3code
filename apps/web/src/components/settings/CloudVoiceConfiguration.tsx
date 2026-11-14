@@ -188,7 +188,7 @@ export function CloudVoiceConfiguration({
       : undefined;
   const [remove, setRemove] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [saveFailed, setSaveFailed] = useState(false);
   const [model, setModel] = useState(currentModel ?? "");
   const saved = AsyncResult.isSuccess(presence) ? presence.value?.[provider] : undefined;
   const existing = environment.serverConfig?.settings?.cloudSpeechCredentials?.[provider];
@@ -234,7 +234,7 @@ export function CloudVoiceConfiguration({
 
   const saveKey = async (value: SettingsSecretValue | null, thenEnable: boolean) => {
     if (!connected || !canManage || busy) return;
-    setError("");
+    setSaveFailed(false);
     setBusy(true);
     try {
       const commit = thenEnable ? pendingCloudAudioChoice(destination()) : null;
@@ -243,7 +243,7 @@ export function CloudVoiceConfiguration({
       commit?.();
       close();
     } catch {
-      setError(t("Couldn’t save this change. Check your connection and try again."));
+      setSaveFailed(true);
     }
     setBusy(false);
   };
@@ -272,7 +272,7 @@ export function CloudVoiceConfiguration({
             onValueChange={(next) => {
               setSourceId(next);
               setDraft("");
-              setError("");
+              setSaveFailed(false);
             }}
           />
         )}
@@ -451,9 +451,9 @@ export function CloudVoiceConfiguration({
             )}
           </DialogPanel>
         )}
-        {error && (
+        {saveFailed && (
           <p className="px-6 text-sm text-destructive" role="alert">
-            {error}
+            {t("Couldn’t save this change. Check your connection and try again.")}
           </p>
         )}
         <DialogFooter>

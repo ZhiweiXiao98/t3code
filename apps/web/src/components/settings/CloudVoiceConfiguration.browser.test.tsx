@@ -1,3 +1,6 @@
+import type { ReactNode } from "react";
+import { WebI18nContext } from "../../i18n/WebI18nContext";
+import { translateWebMessage } from "../../i18n/messages";
 import { PrimaryConnectionTarget } from "@t3tools/client-runtime/connection";
 import { EnvironmentId } from "@t3tools/contracts";
 import * as Option from "effect/Option";
@@ -40,6 +43,21 @@ vi.mock("../../state/environments", async (importOriginal) => ({
   }),
 }));
 
+function localized(locale: "en" | "zh-CN", children: ReactNode) {
+  return (
+    <WebI18nContext
+      value={{
+        locale,
+        appLocale: locale,
+        setAppLocale: () => undefined,
+        t: (key, values) => translateWebMessage(locale, key, values),
+      }}
+    >
+      {children}
+    </WebI18nContext>
+  );
+}
+
 it("enables the chosen provider only after a successful setup and keeps its grant when editing the key", async () => {
   const id = EnvironmentId.make("voice-host");
   const target = new PrimaryConnectionTarget({
@@ -59,12 +77,17 @@ it("enables the chosen provider only after a successful setup and keeps its gran
   chooseAudioDestination({ kind: "environment", environmentId: id });
   const writes: unknown[] = [];
   let rejectNextWrite = true;
+  let attempts = 0;
+  let refreshes = 0;
   const fetch = globalThis.fetch;
   using _network = vi.spyOn(globalThis, "fetch").mockImplementation((request, init) => {
     const url = new URL(request instanceof Request ? request.url : request, window.location.href);
-    if (url.pathname === "/api/voice/cloud/keys")
+    if (url.pathname === "/api/voice/cloud/keys") {
+      refreshes++;
       return Promise.resolve(Response.json({ openai: writes.length > 0, xai: true }));
+    }
     if (url.pathname === "/api/voice/cloud/openai/key") {
+      attempts++;
       if (rejectNextWrite) {
         rejectNextWrite = false;
         return Promise.resolve(new Response(null, { status: 403 }));
@@ -82,11 +105,14 @@ it("enables the chosen provider only after a successful setup and keeps its gran
       await vi.mocked(usePreparedConnection).withImplementation(
         () => prepared,
         async () => {
-          await using screen = await render(
-            <SettingsScopeProvider search={{}} onChange={() => {}}>
-              <VoiceSettingsPanel />
-            </SettingsScopeProvider>,
-          );
+          const surface = (locale: "en" | "zh-CN") =>
+            localized(
+              locale,
+              <SettingsScopeProvider search={{}} onChange={() => {}}>
+                <VoiceSettingsPanel />
+              </SettingsScopeProvider>,
+            );
+          await using screen = await render(surface("en"));
           const destination = screen.getByRole("combobox", { name: "Transcribe with" });
           await expect.element(destination).toHaveTextContent("Laptop");
           await destination.click();
@@ -101,7 +127,18 @@ it("enables the chosen provider only after a successful setup and keeps its gran
           await page.getByRole("option", { name: "Work vault" }).click();
           await dialog.getByLabelText("OpenAI API key reference").fill("op://Work/Voice/key");
           await userEvent.keyboard("{Enter}");
-          await expect.element(dialog.getByRole("alert")).toBeVisible();
+          const alert = dialog.getByRole("alert");
+          const english = "Couldn’t save this change. Check your connection and try again.";
+          await expect.element(alert).toHaveTextContent(english);
+          const refreshCount = refreshes;
+          const beforeGrant = window.localStorage.getItem("t3code:voice-audio-grant:v1");
+          await screen.rerender(surface("zh-CN"));
+          await expect.element(alert).toHaveTextContent("无法保存此更改。请检查连接后重试。");
+          await screen.rerender(surface("en"));
+          await expect.element(alert).toHaveTextContent(english);
+          expect(attempts).toBe(1);
+          expect(refreshes).toBe(refreshCount);
+          expect(window.localStorage.getItem("t3code:voice-audio-grant:v1")).toBe(beforeGrant);
           expect(writes).toEqual([]);
           await expect
             .element(dialog.getByRole("button", { name: "Save and enable" }))

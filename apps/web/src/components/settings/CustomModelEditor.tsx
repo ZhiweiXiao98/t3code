@@ -138,7 +138,7 @@ export function CustomModelEditor({
   const handleSave = () => {
     const problem = validateDraft(draft);
     if (problem) {
-      setError(localizeValidationProblem(problem, locale));
+      setError(problem);
       return;
     }
     onSave(definitionFromDraft(draft));
@@ -382,7 +382,9 @@ export function CustomModelEditor({
         </div>
       </div>
 
-      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+      {error ? (
+        <p className="text-xs text-destructive">{localizeValidationProblem(error, locale)}</p>
+      ) : null}
 
       <div className="flex gap-2">
         <Button size="sm" variant="outline" onClick={handleSave}>

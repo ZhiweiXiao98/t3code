@@ -142,11 +142,10 @@ export function ProviderModelsSection({
   onModelOrderChange,
 }: ProviderModelsSectionProps) {
   const { locale, t } = useI18n();
-  const translateNotice = useStableCallback((source: string) => translateWebSource(locale, source));
   const [input, setInput] = useState("");
   const [isAdding, setIsAdding] = useState(false);
   const [filter, setFilter] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<"required" | "builtIn" | "tooLong" | "duplicate" | null>(null);
   const [editingSlug, setEditingSlug] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const scrollToSlugRef = useRef<string | null>(null);
@@ -195,19 +194,19 @@ export function ProviderModelsSection({
     if (!canManageCustomModels || driverKind === "antigravity") return;
     const normalized = normalizeCustomModelSlug(input);
     if (!normalized) {
-      setError(t("providers.models.validation.required"));
+      setError("required");
       return;
     }
     if (models.some((model) => !model.isCustom && model.slug === normalized)) {
-      setError(t("providers.models.validation.builtIn"));
+      setError("builtIn");
       return;
     }
     if (normalized.length > MAX_CUSTOM_MODEL_LENGTH) {
-      setError(t("providers.models.validation.tooLong", { count: MAX_CUSTOM_MODEL_LENGTH }));
+      setError("tooLong");
       return;
     }
     if (customModels.some((entry) => entry.slug === normalized)) {
-      setError(translateNotice("That custom model is already saved."));
+      setError("duplicate");
       return;
     }
 
@@ -452,7 +451,9 @@ export function ProviderModelsSection({
       ) : null}
 
       {driverKind !== "antigravity" && error ? (
-        <p className="mt-2 text-xs text-destructive">{error}</p>
+        <p className="mt-2 text-xs text-destructive">
+          {t(`providers.models.validation.${error}`, { count: MAX_CUSTOM_MODEL_LENGTH })}
+        </p>
       ) : null}
     </div>
   );
