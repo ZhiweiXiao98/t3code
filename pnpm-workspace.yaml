@@ -107,6 +107,8 @@ overrides:
   micromark: 4.0.2
   mdast-util-to-hast: 13.2.1
   alchemy: "catalog:"
+  # The runtime's unenv range must match @cloudflare/unenv-preset's exact peer.
+  "@alchemy.run/cloudflare-runtime>unenv": 2.0.0-rc.24
   expo-audio: 58.0.11
   expo-network: 58.0.4
   "@clerk/expo-native-components": 0.4.4
