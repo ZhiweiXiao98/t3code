@@ -89,6 +89,10 @@ vi.mock("react", async (importOriginal) => {
   };
 });
 
+vi.mock("~/i18n/WebI18nContext", () => ({
+  useI18n: () => ({ locale: "en" }),
+}));
+
 vi.mock("~/state/projects", () => ({
   projectEnvironment: projectMocks,
 }));
