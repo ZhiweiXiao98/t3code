@@ -179,6 +179,25 @@ export function formatAccessTimestamp(value: string): string {
   return accessTimestampFormatter.format(parsed);
 }
 
+const ACCESS_MUTATION_ERRORS = {
+  pairing: ["Failed to revoke pairing link.", "撤销配对链接失败。"],
+  client: ["Failed to revoke client access.", "撤销客户端访问权限失败。"],
+  others: ["Failed to revoke other clients.", "撤销其他客户端失败。"],
+} as const;
+type AccessMutationErrorCode = keyof typeof ACCESS_MUTATION_ERRORS;
+export type AccessMutationError = string | { readonly code: AccessMutationErrorCode };
+export function accessMutationFailure(
+  error: unknown,
+  fallback: AccessMutationErrorCode,
+): AccessMutationError {
+  return error instanceof Error ? error.message : { code: fallback };
+}
+export function formatAccessMutationError(locale: string, error: AccessMutationError): string {
+  return typeof error === "string"
+    ? error
+    : ACCESS_MUTATION_ERRORS[error.code][locale === "zh-CN" ? 1 : 0];
+}
+
 const NETWORK_MUTATION_ERRORS = {
   exposure: ["Failed to update network exposure.", "更新网络访问设置失败。"],
   tailscaleEnable: ["Failed to configure Tailscale HTTPS.", "配置 Tailscale HTTPS 失败。"],

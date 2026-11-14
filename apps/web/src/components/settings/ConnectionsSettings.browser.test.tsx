@@ -4,6 +4,10 @@ import { page } from "vite-plus/test/browser";
 import {
   EnvironmentId,
   AuthEnvironmentMaintainScope,
+  AuthAccessReadScope,
+  AuthAccessWriteScope,
+  AuthSessionId,
+  type AuthAccessStreamSnapshotEvent,
   type DesktopServerExposureState,
 } from "@t3tools/contracts";
 import { PrimaryConnectionTarget } from "@t3tools/client-runtime/connection";
@@ -21,6 +25,13 @@ const fixture = vi.hoisted(() => ({
   network: null as DesktopNetworkAccessSnapshot | null,
   queryError: null as string | null,
   permitted: true,
+  access: false,
+  writeAtCall: true,
+  accessError: null as string | null,
+  snapshot: null as AuthAccessStreamSnapshotEvent | null,
+  revokePairing: vi.fn(),
+  revokeClient: vi.fn(),
+  revokeOthers: vi.fn(),
   exposure: vi.fn(),
   tailscale: vi.fn(),
   refresh: vi.fn(),
@@ -42,9 +53,13 @@ vi.mock("../../state/session", async (original) => ({
   ...(await original<typeof import("../../state/session")>()),
   useEnvironmentSessionState: () => ({ data: null }),
   useEnvironmentScope: (_id: unknown, scope: string) =>
-    scope === AuthEnvironmentMaintainScope && fixture.permitted,
+    fixture.access
+      ? scope === AuthAccessReadScope || scope === AuthAccessWriteScope
+      : scope === AuthEnvironmentMaintainScope && fixture.permitted,
   readEnvironmentScope: (_id: unknown, scope: string) =>
-    scope === AuthEnvironmentMaintainScope && fixture.permitted,
+    fixture.access
+      ? scope === AuthAccessReadScope || (scope === AuthAccessWriteScope && fixture.writeAtCall)
+      : scope === AuthEnvironmentMaintainScope && fixture.permitted,
 }));
 vi.mock("../../state/peerLinks", async (original) => ({
   ...(await original<typeof import("../../state/peerLinks")>()),
@@ -65,8 +80,26 @@ vi.mock("../../state/desktopNetworkAccess", async (original) => {
 vi.mock("../../state/query", async (original) => ({
   ...(await original<typeof import("../../state/query")>()),
   useEnvironmentQuery: (query: unknown) => ({
-    data: query === desktopNetworkAccessStateAtom ? fixture.network : null,
-    error: query === desktopNetworkAccessStateAtom ? fixture.queryError : null,
+    data:
+      query === desktopNetworkAccessStateAtom
+        ? fixture.network
+        : query ===
+            authEnvironment.accessChanges({
+              environmentId: fixture.primary!.environmentId,
+              input: null,
+            })
+          ? fixture.snapshot
+          : null,
+    error:
+      query === desktopNetworkAccessStateAtom
+        ? fixture.queryError
+        : query ===
+            authEnvironment.accessChanges({
+              environmentId: fixture.primary!.environmentId,
+              input: null,
+            })
+          ? fixture.accessError
+          : null,
     isPending: false,
     refresh: fixture.refresh,
   }),
@@ -140,6 +173,13 @@ function setup(operation: "exposure" | "tailscaleEnable" | "tailscaleDisable") {
           ],
   };
   fixture.queryError = null;
+  fixture.access = false;
+  fixture.writeAtCall = true;
+  fixture.accessError = null;
+  fixture.snapshot = null;
+  fixture.revokePairing.mockReset();
+  fixture.revokeClient.mockReset();
+  fixture.revokeOthers.mockReset();
   fixture.permitted = true;
   fixture.exposure.mockReset();
   fixture.tailscale.mockReset();
@@ -279,5 +319,183 @@ it.each(["exposure", "tailscaleEnable", "tailscaleDisable"] as const)(
     expect(fixture.exposure).not.toHaveBeenCalled();
     expect(fixture.tailscale).not.toHaveBeenCalled();
     expect(fixture.refresh).not.toHaveBeenCalled();
+  },
+);
+
+import { AsyncResult } from "effect/reactivity";
+import * as Cause from "effect/Cause";
+import * as DateTime from "effect/DateTime";
+import type { AtomCommandResult } from "@t3tools/client-runtime/state/runtime";
+import { authEnvironment } from "../../state/auth";
+vi.mock("../../state/auth", async (original) => {
+  const actual = await original<typeof import("../../state/auth")>();
+  const { Atom } = await import("effect/reactivity");
+  const access = Atom.make(null);
+  return {
+    ...actual,
+    authEnvironment: {
+      ...actual.authEnvironment,
+      accessChanges: () => access,
+      revokePairingLink: fixture.revokePairing,
+      revokeClient: fixture.revokeClient,
+      revokeOtherClients: fixture.revokeOthers,
+    },
+  };
+});
+vi.mock("../../state/managedPolicy", async (original) => ({
+  ...(await original<typeof import("../../state/managedPolicy")>()),
+  useManagedPolicy: () => null,
+  usePrimaryManagedPolicy: () => null,
+}));
+
+function setupAccess(target: "pairing" | "client" | "others") {
+  const stack = new DisposableStack();
+  stack.use(setup("exposure"));
+  stack.use(stubGlobal("desktopBridge", undefined));
+  fixture.access = true;
+  const created = DateTime.makeUnsafe("2026-01-01T00:00:00Z");
+  const expires = DateTime.makeUnsafe("2100-01-01T00:00:00Z");
+  fixture.snapshot = {
+    version: 1,
+    revision: 1,
+    type: "snapshot",
+    payload: {
+      pairingLinks:
+        target === "pairing"
+          ? [
+              {
+                id: "literal-pairing",
+                subject: "literal/$&/{subject}",
+                label: "Fixture link",
+                scopes: [],
+                createdAt: created,
+                expiresAt: expires,
+              },
+            ]
+          : [],
+      clientSessions:
+        target === "pairing"
+          ? []
+          : [
+              {
+                sessionId: AuthSessionId.make("literal-session"),
+                subject: "literal/$&/{subject}",
+                scopes: [],
+                method: "bearer-access-token",
+                client: { deviceType: "unknown", label: "Fixture client" },
+                issuedAt: created,
+                expiresAt: expires,
+                lastConnectedAt: null,
+                connected: false,
+                current: false,
+              },
+            ],
+    },
+  };
+  return stack;
+}
+
+it.each(["pairing", "client", "others"] as const)(
+  "keeps cached owned %s revocation failure current without another command",
+  async (target) => {
+    using _fixture = setupAccess(target);
+    let finish!: (result: AtomCommandResult<void, Error>) => void;
+    const pending = new Promise<AtomCommandResult<void, Error>>((resolve) => {
+      finish = resolve;
+    });
+    const command =
+      target === "pairing"
+        ? fixture.revokePairing
+        : target === "client"
+          ? fixture.revokeClient
+          : fixture.revokeOthers;
+    command.mockReturnValue(pending);
+    await using screen = await render(surface("en"));
+    await page.getByRole("button", { name: /Authorized clients/ }).click();
+    await page
+      .getByRole("button", { name: target === "others" ? "Revoke others" : "Revoke", exact: true })
+      .click();
+    expect(command).toHaveBeenCalledOnce();
+    await screen.rerender(surface("zh-CN"));
+    finish(AsyncResult.failure(Cause.die(null)));
+    const english =
+      target === "pairing"
+        ? "Failed to revoke pairing link."
+        : target === "client"
+          ? "Failed to revoke client access."
+          : "Failed to revoke other clients.";
+    const chinese =
+      target === "pairing"
+        ? "撤销配对链接失败。"
+        : target === "client"
+          ? "撤销客户端访问权限失败。"
+          : "撤销其他客户端失败。";
+    await expect
+      .poll(() => fixture.toast.mock.calls.at(-1)?.[0])
+      .toMatchObject({
+        description: chinese,
+        title:
+          target === "pairing"
+            ? "无法撤销配对链接"
+            : target === "client"
+              ? "无法撤销客户端访问权限"
+              : "无法撤销其他客户端的访问权限",
+      });
+    await expect.element(page.getByText(chinese, { exact: true })).toBeVisible();
+    const notice = page.getByText(chinese, { exact: true }).element();
+    await screen.rerender(surface("en"));
+    await expect.poll(() => notice.textContent).toBe(english);
+    await screen.rerender(surface("zh-CN"));
+    await expect.poll(() => notice.textContent).toBe(chinese);
+    await screen.rerender(surface("en"));
+    await expect.poll(() => notice.textContent).toBe(english);
+    expect(command).toHaveBeenCalledExactlyOnceWith({
+      environmentId: fixture.primary!.environmentId,
+      input:
+        target === "pairing"
+          ? { id: "literal-pairing" }
+          : target === "client"
+            ? { sessionId: "literal-session" }
+            : null,
+    });
+    for (const other of [fixture.revokePairing, fixture.revokeClient, fixture.revokeOthers])
+      if (other !== command) expect(other).not.toHaveBeenCalled();
+  },
+);
+
+it.each(["raw", "query", "interrupted", "denied"] as const)(
+  "preserves %s access failure boundary",
+  async (kind) => {
+    using _fixture = setupAccess("pairing");
+    const english = "Failed to revoke pairing link.";
+    if (kind === "query") fixture.accessError = english;
+    fixture.revokePairing.mockResolvedValue(
+      kind === "interrupted"
+        ? AsyncResult.failure(Cause.interrupt())
+        : AsyncResult.failure(Cause.die(new Error(english))),
+    );
+    await using screen = await render(surface("en"));
+    await page.getByRole("button", { name: /Authorized clients/ }).click();
+    if (kind !== "query") {
+      if (kind === "denied") fixture.writeAtCall = false;
+      await page.getByRole("button", { name: "Revoke", exact: true }).click();
+    }
+    if (kind === "raw" || kind === "query") {
+      await expect.element(page.getByText(english, { exact: true })).toBeVisible();
+      const notice = page.getByText(english, { exact: true }).element();
+      await screen.rerender(surface("zh-CN"));
+      await expect.poll(() => notice.textContent).toBe(english);
+      await screen.rerender(surface("en"));
+      await expect.poll(() => notice.textContent).toBe(english);
+    } else {
+      await expect.element(page.getByRole("button", { name: "Revoke", exact: true })).toBeEnabled();
+      expect(fixture.toast).not.toHaveBeenCalled();
+      expect(page.getByText(english, { exact: true }).query()).toBeNull();
+    }
+    expect(fixture.revokePairing).toHaveBeenCalledTimes(
+      kind === "denied" || kind === "query" ? 0 : 1,
+    );
+    expect(fixture.revokeClient).not.toHaveBeenCalled();
+    expect(fixture.revokeOthers).not.toHaveBeenCalled();
   },
 );

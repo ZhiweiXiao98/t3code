@@ -34,6 +34,9 @@ import { isLocalEnvironmentDisabled } from "../../localEnvironment";
 import {
   applyWslEnableSelection,
   savedBackendFailure,
+  accessMutationFailure,
+  formatAccessMutationError,
+  type AccessMutationError,
   networkMutationFailure,
   formatNetworkMutationError,
   type NetworkMutationError,
@@ -354,9 +357,8 @@ function ConnectionsSettingsContent({
   ].filter((environment) => environment.connection.phase !== "unsupported");
   const [desktopServerExposureMutationError, setDesktopServerExposureMutationError] =
     useState<NetworkMutationError | null>(null);
-  const [desktopAccessManagementMutationError, setDesktopAccessManagementMutationError] = useState<
-    string | null
-  >(null);
+  const [desktopAccessManagementMutationError, setDesktopAccessManagementMutationError] =
+    useState<AccessMutationError | null>(null);
   const [createdPairingCredentials, setCreatedPairingCredentials] = useState<
     ReadonlyMap<string, string>
   >(() => new Map());
@@ -474,7 +476,9 @@ function ConnectionsSettingsContent({
       ? desktopNetworkAccess.error
       : formatNetworkMutationError(locale, desktopServerExposureMutationError);
   const desktopAccessManagementError =
-    desktopAccessManagementMutationError ?? authAccessChanges.error;
+    desktopAccessManagementMutationError === null
+      ? authAccessChanges.error
+      : formatAccessMutationError(locale, desktopAccessManagementMutationError);
   const isLoadingDesktopAccessManagement =
     authAccessChanges.isPending && authAccessChanges.data === null;
   const desktopPairingLinks = (() => {
@@ -623,6 +627,24 @@ function ConnectionsSettingsContent({
     setDisableTailscaleServeDialogOpen(true);
   };
 
+  const reportAccessMutationError = useStableCallback(
+    (
+      title:
+        | "Could not revoke pairing link"
+        | "Could not revoke client access"
+        | "Could not revoke other clients",
+      error: AccessMutationError,
+    ) => {
+      toastManager.add(
+        stackedThreadToast({
+          type: "error",
+          title: translateWebSource(locale, title),
+          description: formatAccessMutationError(locale, error),
+        }),
+      );
+    },
+  );
+
   const handleRevokeDesktopPairingLink = async (id: string) => {
     if (
       accessEnvironmentId === null ||
@@ -634,15 +656,9 @@ function ConnectionsSettingsContent({
     const result = await revokePairingLink({ environmentId: accessEnvironmentId, input: { id } });
     if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
       const error = squashAtomCommandFailure(result);
-      const message = error instanceof Error ? error.message : "Failed to revoke pairing link.";
+      const message = accessMutationFailure(error, "pairing");
       setDesktopAccessManagementMutationError(message);
-      toastManager.add(
-        stackedThreadToast({
-          type: "error",
-          title: translateWebSource(locale, "Could not revoke pairing link"),
-          description: message,
-        }),
-      );
+      reportAccessMutationError("Could not revoke pairing link", message);
     }
     setRevokingDesktopPairingLinkId(null);
   };
@@ -660,15 +676,9 @@ function ConnectionsSettingsContent({
     const result = await revokeClient({ environmentId: accessEnvironmentId, input: { sessionId } });
     if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
       const error = squashAtomCommandFailure(result);
-      const message = error instanceof Error ? error.message : "Failed to revoke client access.";
+      const message = accessMutationFailure(error, "client");
       setDesktopAccessManagementMutationError(message);
-      toastManager.add(
-        stackedThreadToast({
-          type: "error",
-          title: translateWebSource(locale, "Could not revoke client access"),
-          description: message,
-        }),
-      );
+      reportAccessMutationError("Could not revoke client access", message);
     }
     setRevokingDesktopClientSessionId(null);
   };
@@ -693,16 +703,9 @@ function ConnectionsSettingsContent({
       });
     } else if (!isAtomCommandInterrupted(result)) {
       const error = squashAtomCommandFailure(result);
-      const message =
-        error instanceof Error ? error.message : readWebI18n().t("audit3.revokeFailed");
+      const message = accessMutationFailure(error, "others");
       setDesktopAccessManagementMutationError(message);
-      toastManager.add(
-        stackedThreadToast({
-          type: "error",
-          title: translateWebSource(locale, "Could not revoke other clients"),
-          description: message,
-        }),
-      );
+      reportAccessMutationError("Could not revoke other clients", message);
     }
     setIsRevokingOtherDesktopClients(false);
   };

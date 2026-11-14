@@ -5,6 +5,8 @@ import {
   resolveLocalVersionStatusLabel,
   savedBackendFailure,
   networkMutationFailure,
+  accessMutationFailure,
+  formatAccessMutationError,
   formatNetworkMutationError,
   formatSavedBackendError,
   formatDesktopSshConnectionError,
@@ -391,6 +393,23 @@ it("keeps owned network mutation notices live while leaving raw and empty errors
         expect(
           formatNetworkMutationError(locale, networkMutationFailure(new Error(raw), code)),
         ).toBe(raw);
+    }
+  }
+});
+
+it("retains owned revocation identities and exact raw or empty failures", () => {
+  for (const [code, english, chinese] of [
+    ["pairing", "Failed to revoke pairing link.", "撤销配对链接失败。"],
+    ["client", "Failed to revoke client access.", "撤销客户端访问权限失败。"],
+    ["others", "Failed to revoke other clients.", "撤销其他客户端失败。"],
+  ] as const) {
+    const owned = accessMutationFailure(null, code);
+    for (const locale of ["en", "zh-CN", "en"] as const) {
+      expect(formatAccessMutationError(locale, owned)).toBe(locale === "en" ? english : chinese);
+      for (const raw of [english, "", "literal/$&/{client}"])
+        expect(formatAccessMutationError(locale, accessMutationFailure(new Error(raw), code))).toBe(
+          raw,
+        );
     }
   }
 });
