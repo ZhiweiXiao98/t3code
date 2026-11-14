@@ -1,3 +1,5 @@
+import "~/index.css";
+import { useState } from "react";
 import { WebI18nContext } from "../../i18n/WebI18nContext";
 import { translateWebMessage } from "../../i18n/messages";
 import { act, render } from "../../../test/render";
@@ -14,7 +16,11 @@ vi.mock(import("../../lib/desktopSnapShot"), async (original) => {
   };
 });
 
-import { useSnapShotShortcutRecorder } from "./useSnapShotShortcutRecorder";
+import {
+  useSnapShotShortcutRecorder,
+  formatSnapShotShortcutError,
+  type SnapShotShortcutError,
+} from "./useSnapShotShortcutRecorder";
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -111,3 +117,83 @@ it("updates recorder instructions with locale without interrupting shortcut capt
   expect(suppress).toHaveBeenLastCalledWith(false);
   expect(recorded).not.toHaveBeenCalled();
 });
+
+function FailingRecorder({ locale }: { locale: "en" | "zh-CN" }) {
+  const [failure, setFailure] = useState<SnapShotShortcutError | null>(null);
+  const recorder = useSnapShotShortcutRecorder({
+    shortcut: DEFAULT_CLIENT_SETTINGS.snapShotShortcut,
+    allowModifierPairs: false,
+    onRecord: recorded,
+    onError: setFailure,
+  });
+  return (
+    <>
+      {recorder.input}
+      {failure !== null ? <p role="alert">{formatSnapShotShortcutError(locale, failure)}</p> : null}
+    </>
+  );
+}
+
+it.each(["fallback", "raw", "modifier"] as const)(
+  "keeps cached recorder %s current without restarting",
+  async (kind) => {
+    setup();
+    if (kind !== "modifier")
+      suppress.mockRejectedValueOnce(
+        kind === "raw" ? new Error("Could not start shortcut recording.") : "native rejection",
+      );
+    const surface = (locale: "en" | "zh-CN") => (
+      <WebI18nContext
+        value={{
+          locale,
+          appLocale: locale,
+          setAppLocale: () => undefined,
+          t: (key, values) => translateWebMessage(locale, key, values),
+        }}
+      >
+        <FailingRecorder locale={locale} />
+      </WebI18nContext>
+    );
+    await using screen = await render(surface("en"));
+    await screen.getByRole("button").click();
+    if (kind === "modifier") {
+      await expect.element(screen.getByRole("button")).toHaveAttribute("aria-pressed", "true");
+      await act(async () => {
+        const button = screen.getByRole("button").element();
+        button.dispatchEvent(
+          new KeyboardEvent("keydown", {
+            key: "Shift",
+            code: "ShiftLeft",
+            shiftKey: true,
+            bubbles: true,
+          }),
+        );
+        button.dispatchEvent(
+          new KeyboardEvent("keydown", {
+            key: "Shift",
+            code: "ShiftRight",
+            shiftKey: true,
+            bubbles: true,
+          }),
+        );
+      });
+    }
+    const english =
+      kind === "modifier"
+        ? "Add a letter, number, or function key to your shortcut."
+        : "Could not start shortcut recording.";
+    const chinese =
+      kind === "modifier"
+        ? "请为快捷键添加字母、数字或功能键。"
+        : kind === "raw"
+          ? english
+          : "无法开始录制快捷键。";
+    await expect.element(screen.getByRole("alert")).toHaveTextContent(english);
+    await screen.rerender(surface("zh-CN"));
+    await expect.element(screen.getByRole("alert")).toHaveTextContent(chinese);
+    await screen.rerender(surface("en"));
+    await expect.element(screen.getByRole("alert")).toHaveTextContent(english);
+    expect(suppress).toHaveBeenCalledExactlyOnceWith(true);
+    expect(recorded).not.toHaveBeenCalled();
+  },
+);

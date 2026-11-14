@@ -55,7 +55,11 @@ import { Menu, MenuItem, MenuPopup, MenuRadioGroup, MenuRadioItem, MenuTrigger }
 import { SelectButton } from "../ui/select";
 import { Switch } from "../ui/switch";
 import { SnapShotSetupDialog } from "./SnapShotSetupDialog";
-import { useSnapShotShortcutRecorder } from "./useSnapShotShortcutRecorder";
+import {
+  useSnapShotShortcutRecorder,
+  formatSnapShotShortcutError,
+  type SnapShotShortcutError,
+} from "./useSnapShotShortcutRecorder";
 import {
   captureSetupAccessReady,
   captureSetupInitialStep,
@@ -78,6 +82,7 @@ type ShortcutCheck =
       readonly shortcut: SnapShotShortcut;
       readonly savedShortcut: SnapShotShortcut;
       readonly availability: DesktopSnapShotShortcutAvailability;
+      readonly displayError?: SnapShotShortcutError;
     };
 
 export function SnapShotSettings() {
@@ -228,13 +233,8 @@ export function SnapShotSettings() {
         status: "checked",
         shortcut,
         savedShortcut,
-        availability: {
-          available: false,
-          message:
-            error instanceof Error
-              ? error.message
-              : translateWebSource(locale, "Could not check this shortcut."),
-        },
+        availability: { available: false, message: null },
+        displayError: error instanceof Error ? error.message : { code: "checkFailed" },
       });
     }
   };
@@ -258,7 +258,8 @@ export function SnapShotSettings() {
         status: "checked",
         shortcut: candidate,
         savedShortcut,
-        availability: { available: false, message },
+        availability: { available: false, message: null },
+        displayError: message,
       }),
   });
 
@@ -273,7 +274,9 @@ export function SnapShotSettings() {
         : shortcutCheck.availability
           ? shortcutCheck.availability.available
             ? translateWebSource(locale, "Ready to save.")
-            : shortcutCheck.availability.message
+            : shortcutCheck.displayError !== undefined
+              ? formatSnapShotShortcutError(locale, shortcutCheck.displayError)
+              : shortcutCheck.availability.message
           : state?.mode === "portal" &&
               !state.shortcutLabel &&
               isModifierPairShortcut(displayShortcut)

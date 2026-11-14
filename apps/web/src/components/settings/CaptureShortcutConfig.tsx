@@ -20,7 +20,19 @@ import { useCopyToClipboard } from "../../hooks/useCopyToClipboard";
 import { Button } from "../ui/button";
 import { toastManager } from "../ui/toast";
 import { shortcutToKeybindingInput } from "./KeybindingsSettings.logic";
-import { useSnapShotShortcutRecorder } from "./useSnapShotShortcutRecorder";
+import {
+  useSnapShotShortcutRecorder,
+  formatSnapShotShortcutError,
+  type SnapShotShortcutError,
+} from "./useSnapShotShortcutRecorder";
+
+const CONFIG_ERRORS = {
+  prepare: "Couldn't prepare the changes. Check Advanced for help.",
+  save: "Couldn't save your shortcut. Review the changes and try again.",
+} as const;
+type ConfigError = ({ code: keyof typeof CONFIG_ERRORS } | { message: SnapShotShortcutError }) & {
+  detail?: string;
+};
 
 const DEFAULT_SHORTCUT = parseKeybindingShortcut("Ctrl+Shift+2")!;
 
@@ -43,7 +55,7 @@ export function CaptureShortcutConfig({
   const { copyToClipboard, isCopied } = useCopyToClipboard();
   const [preview, setPreview] = useState<DesktopCaptureConfigPreview | null>(null);
   const [result, setResult] = useState<DesktopCaptureConfigApplied | null>(null);
-  const [error, setError] = useState<{ message: string; detail?: string } | null>(null);
+  const [error, setError] = useState<ConfigError | null>(null);
   const [working, setWorking] = useState<"reading" | "writing" | null>(null);
   const [keys, setKeys] = useState<string | null>(null);
   const [customFile, setCustomFile] = useState(false);
@@ -108,10 +120,7 @@ export function CaptureShortcutConfig({
     } else {
       const cause = Cause.squash(previewed.cause);
       setError({
-        message: translateWebSource(
-          locale,
-          "Couldn't prepare the changes. Check Advanced for help.",
-        ),
+        code: "prepare",
         ...(cause instanceof Error ? { detail: cause.message } : {}),
       });
     }
@@ -136,10 +145,7 @@ export function CaptureShortcutConfig({
     if (saved._tag === "Failure") {
       const cause = Cause.squash(saved.cause);
       setError({
-        message: translateWebSource(
-          locale,
-          "Couldn't save your shortcut. Review the changes and try again.",
-        ),
+        code: "save",
         ...(cause instanceof Error ? { detail: cause.message } : {}),
       });
       setPreview(null);
@@ -248,7 +254,9 @@ export function CaptureShortcutConfig({
       )}
       {error ? (
         <p role="alert" className="text-destructive">
-          {error.message}
+          {"code" in error
+            ? translateWebSource(locale, CONFIG_ERRORS[error.code])
+            : formatSnapShotShortcutError(locale, error.message)}
         </p>
       ) : null}
       {state.shortcutActionRegistered === false && state.shortcutMessage ? (

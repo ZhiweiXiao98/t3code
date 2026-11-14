@@ -1,3 +1,4 @@
+import "~/index.css";
 import { WebI18nContext } from "../../i18n/WebI18nContext";
 import { translateWebMessage } from "../../i18n/messages";
 import { SnapShotSetupDialog } from "./SnapShotSetupDialog";
@@ -201,3 +202,63 @@ it("updates capture setup copy with locale and helper state without changing the
   expect(onEnable).toHaveBeenCalledOnce();
   expect(onRefresh).not.toHaveBeenCalled();
 });
+
+it.each(["preview", "apply"] as const)(
+  "renders cached %s failure in the current locale with literal native detail",
+  async (phase) => {
+    using _env = setup();
+    const english =
+      phase === "preview"
+        ? "Couldn't prepare the changes. Check Advanced for help."
+        : "Couldn't save your shortcut. Review the changes and try again.";
+    const chinese =
+      phase === "preview"
+        ? "无法准备更改。请查看“高级”以获取帮助。"
+        : "无法保存快捷键。请检查更改后重试。";
+    const detail = english + " /native/$&/{0}/中文";
+    if (phase === "preview") bridge.previewSnapShotConfig.mockRejectedValueOnce(new Error(detail));
+    else bridge.applySnapShotConfig.mockRejectedValueOnce(new Error(detail));
+    const surface = (locale: "en" | "zh-CN") => (
+      <WebI18nContext
+        value={{
+          locale,
+          appLocale: locale,
+          setAppLocale: () => undefined,
+          t: (key, values) => translateWebMessage(locale, key, values),
+        }}
+      >
+        <CaptureShortcutConfig
+          state={{
+            mode: "portal",
+            linuxBackend: "niri",
+            shortcut: DEFAULT_CLIENT_SETTINGS.snapShotShortcut,
+            shortcutRegistered: false,
+            shortcutActionRegistered: true,
+            shortcutMessage: null,
+            message: null,
+          }}
+          onComplete={complete}
+        />
+      </WebI18nContext>
+    );
+    await using screen = await render(surface("en"));
+    await screen.getByRole("button", { name: "Review changes", exact: true }).click();
+    if (phase === "apply")
+      await screen.getByRole("button", { name: "Save shortcut", exact: true }).click();
+    const alert = screen.getByRole("alert");
+    await expect.element(alert).toHaveTextContent(english);
+    await screen.getByText("Advanced", { exact: true }).click();
+    await expect.element(screen.getByText(detail, { exact: true })).toBeVisible();
+    await screen.rerender(surface("zh-CN"));
+    await expect.element(alert).toHaveTextContent(chinese);
+    await expect.element(screen.getByText(detail, { exact: true })).toBeVisible();
+    await screen.rerender(surface("en"));
+    await expect.element(alert).toHaveTextContent(english);
+    await expect.element(screen.getByText(detail, { exact: true })).toBeVisible();
+    expect(bridge.previewSnapShotConfig).toHaveBeenCalledOnce();
+    expect(bridge.applySnapShotConfig).toHaveBeenCalledTimes(phase === "apply" ? 1 : 0);
+    expect(bridge.setSnapShotShortcutSuppressed).not.toHaveBeenCalled();
+    expect(complete).not.toHaveBeenCalled();
+    expect(toast).not.toHaveBeenCalled();
+  },
+);

@@ -1,6 +1,6 @@
 import { useI18n } from "../../i18n/WebI18nContext";
 import { translateWebSource } from "../../i18n/messages";
-import { readWebI18n } from "../../i18n/readWebI18n";
+import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 import {
   isModifierPairShortcut,
   type SnapShotModifier,
@@ -17,6 +17,22 @@ import { SnapShotShortcutKeys } from "../desktop/SnapShotShortcutKeys";
 import { Button } from "../ui/button";
 import { keybindingFromKeyboardEvent } from "./KeybindingsSettings.logic";
 import { createRecordingRequestTracker } from "./SnapShotSettings.logic";
+
+const SHORTCUT_ERRORS = {
+  recordFailed: { en: "Could not start shortcut recording.", "zh-CN": "无法开始录制快捷键。" },
+  modifierRequired: {
+    en: "Add a letter, number, or function key to your shortcut.",
+    "zh-CN": "请为快捷键添加字母、数字或功能键。",
+  },
+  checkFailed: { en: "Could not check this shortcut.", "zh-CN": "无法检查此快捷键。" },
+} as const;
+export type SnapShotShortcutError = string | { readonly code: keyof typeof SHORTCUT_ERRORS };
+export function formatSnapShotShortcutError(
+  locale: ResolvedAppLocale,
+  error: SnapShotShortcutError,
+): string {
+  return typeof error === "string" ? error : SHORTCUT_ERRORS[error.code][locale];
+}
 
 const MODIFIER_FROM_KEY: Readonly<Record<string, SnapShotModifier>> = {
   Shift: "shift",
@@ -48,7 +64,7 @@ export function useSnapShotShortcutRecorder({
   allowModifierPairs?: boolean;
   onRecord: (shortcut: SnapShotShortcut) => void;
   onStart?: () => void;
-  onError: (message: string) => void;
+  onError: (message: SnapShotShortcutError) => void;
 }) {
   const { locale, t } = useI18n();
   const bridge = getDesktopSnapShotBridge();
@@ -74,9 +90,7 @@ export function useSnapShotShortcutRecorder({
     } catch (error) {
       if (!requests.owns(request)) return;
       requests.clear();
-      onError(
-        error instanceof Error ? error.message : readWebI18n().t("audit12.shortcut.recordFailed"),
-      );
+      onError(error instanceof Error ? error.message : { code: "recordFailed" });
     }
   };
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- releases the desktop bridge's SnapShot shortcut suppression on unmount
@@ -102,7 +116,7 @@ export function useSnapShotShortcutRecorder({
       const [left, right] = MODIFIER_CODES[modifier];
       if (held.has(left) && held.has(right)) {
         if (!allowModifierPairs) {
-          onError("Add a letter, number, or function key to your shortcut.");
+          onError({ code: "modifierRequired" });
           return;
         }
         stopRecording();
