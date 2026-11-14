@@ -588,7 +588,7 @@ it("keeps cached owned WSL failure current in all three persistent rows", async 
   expect(fixture.wslEnabled).not.toHaveBeenCalled();
   expect(fixture.wslDistro).not.toHaveBeenCalled();
   expect(fixture.refreshWsl).toHaveBeenCalledOnce();
-  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await page.getByRole("button", { name: "Try again", exact: true }).click();
   expect(fixture.refreshWsl).toHaveBeenCalledTimes(2);
   await expect
     .element(page.getByText("Failed to update WSL backend.", { exact: true }))
