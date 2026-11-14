@@ -51,6 +51,48 @@ import {
   type ThemeElementInspection,
 } from "./themeInspector";
 
+type ThemeEditorError =
+  | string
+  | { readonly code: "nameRequired" | "activationFailed" | "saveFailed" | "createFailed" }
+  | {
+      readonly code: "paletteCollision";
+      readonly theme: string;
+      readonly appearance: ThemeAppearance;
+    }
+  | { readonly code: "palettesFull"; readonly theme: string };
+
+function formatThemeEditorError(
+  error: ThemeEditorError,
+  locale: ResolvedAppLocale,
+  t: WebTranslate,
+): string {
+  if (typeof error === "string") return error;
+  switch (error.code) {
+    case "paletteCollision":
+      return t("appearance.themeEditor.paletteCollision", {
+        theme: error.theme,
+        appearance: t(
+          error.appearance === "light"
+            ? "appearance.themeEditor.light"
+            : "appearance.themeEditor.dark",
+        ).toLowerCase(),
+      });
+    case "palettesFull":
+      return t("appearance.themeEditor.palettesFull", { theme: error.theme });
+    case "nameRequired":
+      return translateThemeEditorSource(locale, "Name your theme first.");
+    case "activationFailed":
+      return translateThemeEditorSource(
+        locale,
+        "Theme saved, but it could not be made active. Try again.",
+      );
+    case "saveFailed":
+      return translateThemeEditorSource(locale, "Could not save the theme.");
+    case "createFailed":
+      return translateThemeEditorSource(locale, "Could not create the theme.");
+  }
+}
+
 const THEME_EDITOR_SIMPLE_ROLES: ReadonlyArray<ThemeColorRole> = ["canvas", "accent"];
 
 type ThemeEditorColorFamily = Readonly<{
@@ -372,7 +414,7 @@ export function ThemeEditorPanel({
     Record<ThemeAppearance, boolean>
   >({ light: false, dark: false });
   const [shouldRegenerateGuidedColors, setShouldRegenerateGuidedColors] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ThemeEditorError | null>(null);
   const [isMinimized, setIsMinimized] = useState(false);
   const [roleQuery, setRoleQuery] = useState("");
   const [isInspecting, setIsInspecting] = useState(false);
@@ -786,7 +828,7 @@ export function ThemeEditorPanel({
 
   const handleSubmit = () => {
     if (!name.trim()) {
-      setError(translateThemeEditorSource(locale, "Name your theme first."));
+      setError({ code: "nameRequired" });
       return;
     }
 
@@ -809,16 +851,7 @@ export function ThemeEditorPanel({
         const editedModes = getThemeModes(editingTheme);
         const collision = editedModes.find((mode) => takenAppearances.includes(mode));
         if (collision) {
-          setError(
-            t("appearance.themeEditor.paletteCollision", {
-              theme: mergeTarget.label,
-              appearance: t(
-                collision === "light"
-                  ? "appearance.themeEditor.light"
-                  : "appearance.themeEditor.dark",
-              ).toLowerCase(),
-            }),
-          );
+          setError({ code: "paletteCollision", theme: mergeTarget.label, appearance: collision });
           return;
         }
         mergedAppearance = editedModes[0] ?? null;
@@ -858,7 +891,7 @@ export function ThemeEditorPanel({
         });
       } else if (mergeTarget) {
         if (takenAppearances.includes(activeAppearance)) {
-          setError(t("appearance.themeEditor.palettesFull", { theme: mergeTarget.label }));
+          setError({ code: "palettesFull", theme: mergeTarget.label });
           return;
         }
         mergedAppearance = activeAppearance;
@@ -904,12 +937,7 @@ export function ThemeEditorPanel({
             if (retiredTheme) installCustomTheme(retiredTheme);
           } catch {}
         }
-        setError(
-          translateThemeEditorSource(
-            locale,
-            "Theme saved, but it could not be made active. Try again.",
-          ),
-        );
+        setError({ code: "activationFailed" });
         return;
       }
       onOpenChange(false);
@@ -918,8 +946,8 @@ export function ThemeEditorPanel({
         cause instanceof Error
           ? cause.message
           : isEditing
-            ? translateThemeEditorSource(locale, "Could not save the theme.")
-            : translateThemeEditorSource(locale, "Could not create the theme."),
+            ? { code: "saveFailed" }
+            : { code: "createFailed" },
       );
     }
   };
@@ -1292,7 +1320,7 @@ export function ThemeEditorPanel({
             {renderNameField()}
             {error ? (
               <p aria-live="polite" className="text-sm text-destructive">
-                {error}
+                {formatThemeEditorError(error, locale, t)}
               </p>
             ) : null}
             {renderAppearanceButtons()}

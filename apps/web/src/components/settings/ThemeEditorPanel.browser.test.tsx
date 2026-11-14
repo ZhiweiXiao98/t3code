@@ -4,6 +4,26 @@ import { page, userEvent } from "vite-plus/test/browser";
 import { act, render } from "../../../test/render";
 import { ThemeEditorPanel } from "./ThemeEditorPanel";
 
+import { WebI18nContext } from "../../i18n/WebI18nContext";
+import { translateWebMessage } from "../../i18n/messages";
+import { getStandardThemeColors, parseThemeFile, type ThemeDefinition } from "../../themePalette";
+const fixture = vi.hoisted(() => ({
+  themes: [] as ThemeDefinition[],
+  install: vi.fn(),
+  update: vi.fn(),
+  remove: vi.fn(),
+  saved: vi.fn(),
+  close: vi.fn(),
+  restore: vi.fn(),
+}));
+vi.mock("../../themePalette", async (original) => ({
+  ...(await original<typeof import("../../themePalette")>()),
+  getCustomThemes: () => fixture.themes,
+  installCustomTheme: fixture.install,
+  updateCustomTheme: fixture.update,
+  removeCustomTheme: fixture.remove,
+}));
+
 function dragHeader(panel: HTMLElement, toX: number, toY: number) {
   const header = panel.querySelector<HTMLElement>("h2")!.closest<HTMLElement>(".cursor-grab")!;
   const rect = panel.getBoundingClientRect();
@@ -148,4 +168,142 @@ describe("ThemeEditorPanel", () => {
     });
     expect((hex.element() as HTMLInputElement).value).toBe(original);
   });
+});
+
+function setupErrors() {
+  fixture.themes = [];
+  fixture.install.mockReset().mockImplementation((theme: ThemeDefinition) => theme);
+  fixture.update.mockReset().mockImplementation((theme: ThemeDefinition) => theme);
+  fixture.remove.mockReset();
+  fixture.saved.mockReset().mockReturnValue(true);
+  fixture.close.mockReset();
+  fixture.restore.mockReset();
+}
+function theme(label: string, both = false) {
+  return parseThemeFile({
+    version: 1,
+    name: label,
+    appearance: "dark",
+    colors: getStandardThemeColors("dark"),
+    ...(both ? { variants: { light: getStandardThemeColors("light") } } : {}),
+  });
+}
+function localizedPanel(
+  locale: "en" | "zh-CN",
+  editingTheme: ThemeDefinition | null,
+  seedName: string,
+) {
+  return (
+    <WebI18nContext
+      value={{
+        locale,
+        appLocale: locale,
+        setAppLocale: () => undefined,
+        t: (key, values) => translateWebMessage(locale, key, values),
+      }}
+    >
+      <ThemeEditorPanel
+        open
+        onOpenChange={fixture.close}
+        onSaved={fixture.saved}
+        editingTheme={editingTheme}
+        initialAppearance="dark"
+        seedName={seedName}
+        restoreTheme={fixture.restore}
+      />
+    </WebI18nContext>
+  );
+}
+const errorText = () =>
+  document.querySelector('[data-theme-editor-panel] p[aria-live="polite"]')?.textContent ?? "";
+it.each(["create", "save", "activate", "collision", "full"] as const)(
+  "keeps cached owned theme %s failure current",
+  async (kind) => {
+    setupErrors();
+    const opaque = "Literal $& {theme}";
+    const editing = kind === "save" || kind === "collision" ? theme("Editing fixture") : null;
+    if (kind === "create")
+      fixture.install.mockImplementation(() => {
+        throw null;
+      });
+    if (kind === "save")
+      fixture.update.mockImplementation(() => {
+        throw null;
+      });
+    if (kind === "activate") fixture.saved.mockReturnValue(false);
+    if (kind === "collision" || kind === "full") fixture.themes = [theme(opaque, kind === "full")];
+    await using screen = await render(localizedPanel("en", editing, opaque));
+    if (kind === "collision")
+      await page.getByRole("textbox", { name: "Theme name", exact: true }).fill(opaque);
+    const action =
+      kind === "save"
+        ? "Save changes"
+        : kind === "collision"
+          ? `Merge into “${opaque}”`
+          : kind === "full"
+            ? "Add Dark palette"
+            : "Create theme";
+    await page.getByRole("button", { name: action, exact: true }).click();
+    const english =
+      kind === "create"
+        ? "Could not create the theme."
+        : kind === "save"
+          ? "Could not save the theme."
+          : kind === "activate"
+            ? "Theme saved, but it could not be made active. Try again."
+            : kind === "collision"
+              ? `“${opaque}” already has a dark palette. Pick another name.`
+              : `“${opaque}” already has light and dark palettes. Pick another name.`;
+    const chinese =
+      kind === "create"
+        ? "无法创建主题。"
+        : kind === "save"
+          ? "无法保存主题。"
+          : kind === "activate"
+            ? "主题已保存，但无法启用。请重试。"
+            : kind === "collision"
+              ? `“${opaque}”已有深色调色板。请使用其他名称。`
+              : `“${opaque}”已有浅色和深色调色板。请使用其他名称。`;
+    await expect.poll(errorText).toBe(english);
+    const counts = [
+      fixture.install.mock.calls.length,
+      fixture.update.mock.calls.length,
+      fixture.remove.mock.calls.length,
+      fixture.saved.mock.calls.length,
+    ];
+    for (const locale of ["zh-CN", "en"] as const) {
+      await screen.rerender(localizedPanel(locale, editing, opaque));
+      await expect.poll(errorText).toBe(locale === "en" ? english : chinese);
+    }
+    expect([
+      fixture.install.mock.calls.length,
+      fixture.update.mock.calls.length,
+      fixture.remove.mock.calls.length,
+      fixture.saved.mock.calls.length,
+    ]).toEqual(counts);
+    expect(fixture.close).not.toHaveBeenCalled();
+    expect(fixture.restore).not.toHaveBeenCalled();
+    if (kind === "activate") {
+      expect(fixture.install).toHaveBeenCalledOnce();
+      expect(fixture.remove).toHaveBeenCalledOnce();
+    }
+    if (kind === "collision" || kind === "full") {
+      expect(fixture.install).not.toHaveBeenCalled();
+      expect(fixture.update).not.toHaveBeenCalled();
+    }
+  },
+);
+it.each(["Could not create the theme.", ""])("keeps raw theme failure opaque (%s)", async (raw) => {
+  setupErrors();
+  fixture.install.mockImplementation(() => {
+    throw new Error(raw);
+  });
+  await using screen = await render(localizedPanel("en", null, "Literal $& {theme}"));
+  await page.getByRole("button", { name: "Create theme", exact: true }).click();
+  for (const locale of ["en", "zh-CN", "en"] as const) {
+    await screen.rerender(localizedPanel(locale, null, "Literal $& {theme}"));
+    expect(errorText()).toBe(raw);
+  }
+  expect(fixture.install).toHaveBeenCalledOnce();
+  expect(fixture.saved).not.toHaveBeenCalled();
 });
