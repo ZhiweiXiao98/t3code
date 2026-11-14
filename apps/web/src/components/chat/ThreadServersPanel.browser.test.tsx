@@ -253,3 +253,33 @@ it("localizes server action failures at completion without translating raw error
   );
   expect(toast).not.toHaveBeenCalled();
 });
+
+it.each([
+  ["MacIntel", "⌘-click", "按住 ⌘ 单击"],
+  ["Linux x86_64", "Ctrl-click", "按住 Ctrl 单击"],
+] as const)(
+  "localizes the server browser modifier tooltip on %s",
+  async (platform, english, chinese) => {
+    setup();
+    using _platform = vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
+    await using screen = await render(localizedPanel());
+    const row = screen.getByRole("button", { name: /^localhost:3000/ });
+    await row.hover();
+
+    for (const locale of ["en", "zh-CN", "en"] as const) {
+      state.locale = locale;
+      await screen.rerender(localizedPanel());
+      await expect
+        .poll(() => document.querySelector('[data-slot="tooltip-popup"][data-open]')?.textContent)
+        .toBe(
+          locale === "zh-CN"
+            ? `在浏览器面板中打开。${chinese} 用于您的浏览器。`
+            : `Open in the browser panel.${english} for your browser.`,
+        );
+      const popup = document.querySelector<HTMLElement>('[data-slot="tooltip-popup"][data-open]');
+      if (!popup) throw new Error("Expected the open server tooltip");
+      await expect.element(popup).toBeVisible();
+      await expect.element(row).toHaveTextContent("localhost:3000Agent · node");
+    }
+  },
+);

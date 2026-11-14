@@ -12218,6 +12218,8 @@ const ZH_CN_SOURCE_MESSAGES: Readonly<Record<string, string>> = {
   Servers: "服务器",
   "Open in the browser panel.": "在浏览器面板中打开。",
   "for your browser.": "用于您的浏览器。",
+  "⌘-click": "按住 ⌘ 单击",
+  "Ctrl-click": "按住 Ctrl 单击",
   "Stop server": "停止服务器",
   "What went wrong?": "出了什么问题？",
   "The agent reads T3 Code's logs and source here, and asks before it applies a fix or posts anything.":
