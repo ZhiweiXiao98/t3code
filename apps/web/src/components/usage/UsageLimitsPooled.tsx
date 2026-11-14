@@ -659,11 +659,13 @@ export function UsageLimitsPooled({
   readonly presentations: Parameters<typeof collectLimitAccounts>[0];
   readonly now: number;
 }) {
-  const { locale: uiLocale } = useI18n();
+  const { locale: uiLocale, t } = useI18n();
   const [segmentPopover] = useState(() => PopoverCreateHandle<SegmentPayload>());
   const segmentPopoverActions = useRef<PopoverPrimitive.Root.Actions | null>(null);
   const pools = collectLimitPools(collectLimitAccounts(presentations), now);
-  const notices = collectLimitNotices(presentations);
+  const notices = collectLimitNotices(presentations, t("usage.limits.noAccounts"), (message) =>
+    translateWebSource(uiLocale, message),
+  );
   const externalLinks = collectExternalUsageLinks(presentations);
   return (
     <div className="flex flex-col gap-8">

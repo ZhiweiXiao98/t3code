@@ -393,6 +393,9 @@ export function collectLimitAccounts(presentations: LimitPresentations): readonl
 export function collectLimitNotices(
   presentations: LimitPresentations,
   noAccountsReported = "No accounts reported.",
+  localizeFallback: (message: "Could not read limits." | "No limits reported.") => string = (
+    message,
+  ) => message,
 ): readonly string[] {
   const label = (environmentLabel: string, subject: string) =>
     presentations.size > 1 ? `${environmentLabel} · ${subject}` : subject;
@@ -401,7 +404,14 @@ export function collectLimitNotices(
     const environmentLabel = presentation.entry.target.label;
     for (const provider of providersWithLimits(presentation.serverConfig?.providers ?? [])) {
       if (provider.usageLimits?.unavailable?.reason === "unsupported") continue;
-      const notice = provider.usageLimits ? limitsNotice(provider.usageLimits) : null;
+      const limits = provider.usageLimits;
+      const notice = !limits
+        ? null
+        : limits.unavailable?.reason === "probeFailed"
+          ? (limits.unavailable.message ?? localizeFallback("Could not read limits."))
+          : limits.windows.length === 0
+            ? localizeFallback("No limits reported.")
+            : null;
       const name = provider.displayName?.trim() || String(provider.driver);
       if (notice) notices.push(`${label(environmentLabel, name)}: ${notice}`);
     }

@@ -1558,6 +1558,78 @@ describe("ChatGPT sharing presentation", () => {
 });
 
 describe("limit notice display copy", () => {
+  it("localizes owned provider fallbacks before concatenation without changing raw messages", () => {
+    const checkedAt = "2026-09-03T11:00:00.000Z";
+    const rawMessages = [
+      "Could not read limits.",
+      "No limits reported.",
+      "  No limits reported.  ",
+      " ",
+      "",
+    ];
+    const presentations = new Map([
+      [
+        EnvironmentId.make("a"),
+        {
+          entry: { target: { label: "Settings $& {0}" } },
+          serverConfig: {
+            providers: [
+              provider({
+                displayName: "Usage",
+                usageLimits: { checkedAt, windows: [], unavailable: { reason: "probeFailed" } },
+              }),
+              provider({ displayName: "Settings", usageLimits: { checkedAt, windows: [] } }),
+              ...rawMessages.map((message, index) =>
+                provider({
+                  displayName: `Raw ${index}`,
+                  usageLimits: {
+                    checkedAt,
+                    windows: [],
+                    unavailable: { reason: "probeFailed" as const, message },
+                  },
+                }),
+              ),
+            ],
+            usageLimitSources: rawMessages.map((error, index) => ({
+              id: UsageLimitSourceId.make(`raw-${index}`),
+              kind: "cliproxy" as const,
+              label: `Source ${index}`,
+              checkedAt,
+              accounts: [],
+              error,
+            })),
+          },
+        },
+      ],
+      [
+        EnvironmentId.make("b"),
+        { entry: { target: { label: "Other" } }, serverConfig: { providers: [] } },
+      ],
+    ]);
+    const calls: string[] = [];
+    const notices = collectLimitNotices(presentations, "No accounts reported.", (message) => {
+      calls.push(message);
+      return message === "Could not read limits." ? "无法读取限额。" : "未报告限额。";
+    });
+    expect(calls).toEqual(["Could not read limits.", "No limits reported."]);
+    expect(notices).toEqual([
+      "Settings $& {0} · Usage: 无法读取限额。",
+      "Settings $& {0} · Settings: 未报告限额。",
+      ...rawMessages
+        .slice(0, -1)
+        .map((message, index) => `Settings $& {0} · Raw ${index}: ${message}`),
+      ...rawMessages
+        .slice(0, -1)
+        .map((message, index) => `Settings $& {0} · Source ${index}: ${message}`),
+      "Settings $& {0} · Source 4: No accounts reported.",
+    ]);
+    expect(collectLimitNotices(presentations)).toEqual([
+      "Settings $& {0} · Usage: Could not read limits.",
+      "Settings $& {0} · Settings: No limits reported.",
+      ...notices.slice(2),
+    ]);
+  });
+
   it("localizes only the empty-source fallback and preserves identical provider and source errors", () => {
     const message = "No accounts reported.";
     const checkedAt = "2026-09-03T11:00:00.000Z";
