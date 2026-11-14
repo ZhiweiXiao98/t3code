@@ -74,17 +74,14 @@ vi.mock(import("../preview/openDiscoveredPort"), () => ({
 vi.mock(import("../../portDiscoveryState"), async (importOriginal) => ({
   ...(await importOriginal()),
   useThreadDiscoveredPorts: () =>
-    Array.from(
-      { length: 10 },
-      (_, index) =>
-        ({
-          pid: index,
-          port: 3000 + index,
-          url: `http://localhost:${3000 + index}`,
-          terminal: null,
-          processName: "node",
-        }) as DiscoveredLocalServer,
-    ),
+    Array.from({ length: 10 }, (_, index): DiscoveredLocalServer => ({
+      host: "localhost",
+      pid: index + 1,
+      port: 3000 + index,
+      url: `http://localhost:${3000 + index}`,
+      terminal: null,
+      processName: "node",
+    })),
 }));
 
 import { act, render } from "../../../test/render";
@@ -153,7 +150,7 @@ it("localizes server action failures at completion without translating raw error
   state.stop.mockResolvedValue(AsyncResult.failure(Cause.fail(raw)));
   await using screen = await render(localizedPanel());
   using toast = vi.spyOn(toastManager, "add").mockReturnValue("server-failure");
-  const row = screen.getByRole("button", { name: "localhost:3000 Agent · node", exact: true });
+  const row = screen.getByRole("button", { name: "localhost:3000Agent · node", exact: true });
 
   for (const locale of ["en", "zh-CN", "en"] as const) {
     state.locale = locale;
@@ -187,7 +184,7 @@ it("localizes server action failures at completion without translating raw error
     expect(state.openPort).toHaveBeenLastCalledWith(
       expect.objectContaining({
         threadRef: { environmentId: EnvironmentId.make("env"), threadId: ThreadId.make("a") },
-        port: expect.objectContaining({ pid: 0, port: 3000 }),
+        port: expect.objectContaining({ pid: 1, port: 3000 }),
         openPreview: state.openPreview,
       }),
     );
@@ -210,7 +207,7 @@ it("localizes server action failures at completion without translating raw error
     );
     expect(state.stop).toHaveBeenLastCalledWith({
       environmentId: EnvironmentId.make("env"),
-      input: { pid: 0, port: 3000 },
+      input: { pid: 1, port: 3000 },
     });
   }
 
