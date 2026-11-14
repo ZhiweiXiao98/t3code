@@ -853,7 +853,9 @@ function DiagnosticsSettingsBody() {
         }),
   );
   const [isOpeningLogsDirectory, setIsOpeningLogsDirectory] = useState(false);
-  const [openLogsDirectoryError, setOpenLogsDirectoryError] = useState<string | null>(null);
+  const [openLogsDirectoryError, setOpenLogsDirectoryError] = useState<
+    string | { readonly owned: true } | null
+  >(null);
   const [signalingPid, setSignalingPid] = useState<number | null>(null);
   const signalingPidRef = useRef<number | null>(null);
 
@@ -875,9 +877,7 @@ function DiagnosticsSettingsBody() {
       setIsOpeningLogsDirectory(false);
       if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
         const error = squashAtomCommandFailure(result);
-        setOpenLogsDirectoryError(
-          error instanceof Error ? error.message : t("diagnostics.logs.openFailed"),
-        );
+        setOpenLogsDirectoryError(error instanceof Error ? error.message : { owned: true });
       }
     })();
   };
@@ -1209,7 +1209,11 @@ function DiagnosticsSettingsBody() {
             {openLogsDirectoryError ? (
               <div className="flex items-start gap-2 text-destructive">
                 <AlertTriangleIcon className="size-3.5 h-lh shrink-0" />
-                <span>{openLogsDirectoryError}</span>
+                <span>
+                  {typeof openLogsDirectoryError === "string"
+                    ? openLogsDirectoryError
+                    : t("diagnostics.logs.openFailed")}
+                </span>
               </div>
             ) : null}
             {traceDiagnosticsError ? (
