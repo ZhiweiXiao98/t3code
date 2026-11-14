@@ -179,6 +179,27 @@ export function formatAccessTimestamp(value: string): string {
   return accessTimestampFormatter.format(parsed);
 }
 
+const NETWORK_MUTATION_ERRORS = {
+  exposure: ["Failed to update network exposure.", "更新网络访问设置失败。"],
+  tailscaleEnable: ["Failed to configure Tailscale HTTPS.", "配置 Tailscale HTTPS 失败。"],
+  tailscaleDisable: ["Failed to disable Tailscale HTTPS.", "停用 Tailscale HTTPS 失败。"],
+} as const;
+type NetworkMutationErrorCode = keyof typeof NETWORK_MUTATION_ERRORS;
+export type NetworkMutationError = string | { readonly code: NetworkMutationErrorCode };
+
+export function networkMutationFailure(
+  error: unknown,
+  fallback: NetworkMutationErrorCode,
+): NetworkMutationError {
+  return error instanceof Error ? error.message : { code: fallback };
+}
+
+export function formatNetworkMutationError(locale: string, error: NetworkMutationError): string {
+  return typeof error === "string"
+    ? error
+    : NETWORK_MUTATION_ERRORS[error.code][locale === "zh-CN" ? 1 : 0];
+}
+
 const SAVED_BACKEND_ERRORS = {
   enable: ["Failed to switch the backend on.", "开启后端失败。"],
   disable: ["Failed to switch the backend off.", "关闭后端失败。"],

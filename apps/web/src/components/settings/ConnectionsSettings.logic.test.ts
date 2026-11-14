@@ -4,6 +4,8 @@ import { describe, expect, it, vi } from "vite-plus/test";
 import {
   resolveLocalVersionStatusLabel,
   savedBackendFailure,
+  networkMutationFailure,
+  formatNetworkMutationError,
   formatSavedBackendError,
   formatDesktopSshConnectionError,
   parseManualDesktopSshTarget,
@@ -374,4 +376,21 @@ describe("saved backend owned errors", () => {
       ),
     ).toBe(raw);
   });
+});
+
+it("keeps owned network mutation notices live while leaving raw and empty errors opaque", () => {
+  for (const [code, english, chinese] of [
+    ["exposure", "Failed to update network exposure.", "更新网络访问设置失败。"],
+    ["tailscaleEnable", "Failed to configure Tailscale HTTPS.", "配置 Tailscale HTTPS 失败。"],
+    ["tailscaleDisable", "Failed to disable Tailscale HTTPS.", "停用 Tailscale HTTPS 失败。"],
+  ] as const) {
+    const owned = networkMutationFailure(null, code);
+    for (const locale of ["en", "zh-CN", "en"] as const) {
+      expect(formatNetworkMutationError(locale, owned)).toBe(locale === "en" ? english : chinese);
+      for (const raw of [english, "", "opaque/$&/{host}"])
+        expect(
+          formatNetworkMutationError(locale, networkMutationFailure(new Error(raw), code)),
+        ).toBe(raw);
+    }
+  }
 });

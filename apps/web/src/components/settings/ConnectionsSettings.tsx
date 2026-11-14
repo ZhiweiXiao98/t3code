@@ -34,6 +34,9 @@ import { isLocalEnvironmentDisabled } from "../../localEnvironment";
 import {
   applyWslEnableSelection,
   savedBackendFailure,
+  networkMutationFailure,
+  formatNetworkMutationError,
+  type NetworkMutationError,
   formatSavedBackendError,
   type SavedBackendError,
   isWslSettingsRowVisible,
@@ -349,9 +352,8 @@ function ConnectionsSettingsContent({
     ...(primaryEnvironment ? [primaryEnvironment] : []),
     ...savedEnvironments.filter((environment) => environment.entry.enabled),
   ].filter((environment) => environment.connection.phase !== "unsupported");
-  const [desktopServerExposureMutationError, setDesktopServerExposureMutationError] = useState<
-    string | null
-  >(null);
+  const [desktopServerExposureMutationError, setDesktopServerExposureMutationError] =
+    useState<NetworkMutationError | null>(null);
   const [desktopAccessManagementMutationError, setDesktopAccessManagementMutationError] = useState<
     string | null
   >(null);
@@ -468,7 +470,9 @@ function ConnectionsSettingsContent({
   const desktopAdvertisedEndpoints =
     desktopNetworkAccess.data?.advertisedEndpoints ?? EMPTY_ADVERTISED_ENDPOINTS;
   const desktopServerExposureError =
-    desktopServerExposureMutationError ?? desktopNetworkAccess.error;
+    desktopServerExposureMutationError === null
+      ? desktopNetworkAccess.error
+      : formatNetworkMutationError(locale, desktopServerExposureMutationError);
   const desktopAccessManagementError =
     desktopAccessManagementMutationError ?? authAccessChanges.error;
   const isLoadingDesktopAccessManagement =
@@ -508,6 +512,24 @@ function ConnectionsSettingsContent({
     isTailscaleServePortValid,
   );
 
+  const reportNetworkMutationError = useStableCallback(
+    (
+      title:
+        | "Could not update network access"
+        | "Could not set up Tailscale HTTPS"
+        | "Could not disable Tailscale HTTPS",
+      error: NetworkMutationError,
+    ) => {
+      toastManager.add(
+        stackedThreadToast({
+          type: "error",
+          title: translateWebSource(locale, title),
+          description: formatNetworkMutationError(locale, error),
+        }),
+      );
+    },
+  );
+
   const handleDesktopServerExposureChange = async (checked: boolean) => {
     if (
       !desktopBridge ||
@@ -523,19 +545,10 @@ function ConnectionsSettingsContent({
       setPendingDesktopServerExposureMode(null);
       setIsUpdatingDesktopServerExposure(false);
     } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : translateConnectionsSource(locale, "Failed to update network exposure.");
+      const message = networkMutationFailure(error, "exposure");
       setPendingDesktopServerExposureMode(null);
       setDesktopServerExposureMutationError(message);
-      toastManager.add(
-        stackedThreadToast({
-          type: "error",
-          title: translateWebSource(locale, "Could not update network access"),
-          description: message,
-        }),
-      );
+      reportNetworkMutationError("Could not update network access", message);
       setIsUpdatingDesktopServerExposure(false);
     }
   };
@@ -566,18 +579,9 @@ function ConnectionsSettingsContent({
     });
     if (settled._tag === "Failure") {
       const error = Cause.squash(settled.cause);
-      const message =
-        error instanceof Error
-          ? error.message
-          : translateConnectionsSource(locale, "Failed to configure Tailscale HTTPS.");
+      const message = networkMutationFailure(error, "tailscaleEnable");
       setDesktopServerExposureMutationError(message);
-      toastManager.add(
-        stackedThreadToast({
-          type: "error",
-          title: translateWebSource(locale, "Could not set up Tailscale HTTPS"),
-          description: message,
-        }),
-      );
+      reportNetworkMutationError("Could not set up Tailscale HTTPS", message);
     }
     setIsUpdatingTailscaleServe(false);
   };
@@ -608,18 +612,9 @@ function ConnectionsSettingsContent({
     });
     if (settled._tag === "Failure") {
       const error = Cause.squash(settled.cause);
-      const message =
-        error instanceof Error
-          ? error.message
-          : translateConnectionsSource(locale, "Failed to disable Tailscale HTTPS.");
+      const message = networkMutationFailure(error, "tailscaleDisable");
       setDesktopServerExposureMutationError(message);
-      toastManager.add(
-        stackedThreadToast({
-          type: "error",
-          title: translateWebSource(locale, "Could not disable Tailscale HTTPS"),
-          description: message,
-        }),
-      );
+      reportNetworkMutationError("Could not disable Tailscale HTTPS", message);
     }
     setIsUpdatingTailscaleServe(false);
   };
