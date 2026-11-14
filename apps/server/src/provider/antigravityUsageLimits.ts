@@ -242,6 +242,7 @@ export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(
         checkedAt,
         reason: "unsupported",
         message: "Sign in with Google to see Antigravity limits.",
+        messageDescriptor: { code: "antigravityUsageGoogleSignInRequired" },
       });
     }
     const token = yield* fs.readFileString(tokenPath).pipe(Effect.flatMap(decodeTokenFile));
@@ -334,6 +335,7 @@ export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(
         checkedAt,
         reason: "probeFailed",
         message: "Antigravity did not return usable quota information.",
+        messageDescriptor: { code: "antigravityUsageQuotaUnavailable" },
       });
     }
     return { ...makeUsageLimits({ checkedAt, windows }), credentialFingerprint: account };
@@ -347,6 +349,7 @@ export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(
           checkedAt: DateTime.formatIso(yield* DateTime.now),
           reason: "probeFailed",
           message: "Could not read Antigravity limits. Refresh provider status to retry.",
+          messageDescriptor: { code: "antigravityUsageReadFailed" },
         });
       }),
     ),

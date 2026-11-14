@@ -167,6 +167,7 @@ export const readGrokAccount = Effect.fn("readGrokAccount")(function* (
     checkedAt,
     reason: "probeFailed",
     message: "Grok could not read usage limits.",
+    messageDescriptor: { code: "grokUsageReadFailed" },
   });
   const credential = yield* Effect.option(
     readGrokCredential(environment).pipe(Effect.timeout("10 seconds")),
@@ -190,6 +191,7 @@ export const readGrokAccount = Effect.fn("readGrokAccount")(function* (
           checkedAt,
           reason: "probeFailed",
           message: "Switch your xAI account to Privacy Mode to show Grok usage limits.",
+          messageDescriptor: { code: "grokUsagePrivacyModeRequired" },
         });
       }
     }

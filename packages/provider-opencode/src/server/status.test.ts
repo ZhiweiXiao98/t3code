@@ -349,7 +349,16 @@ it.effect("keeps Go entitlement absence distinct from failed or malformed usage 
         ),
         Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer)),
       );
-      NodeAssert.equal(limits.unavailable?.reason, reason);
+      NodeAssert.deepEqual(
+        limits.unavailable,
+        reason === "unsupported"
+          ? { reason }
+          : {
+              reason,
+              message: "OpenCode Go could not read usage.",
+              messageDescriptor: { code: "openCodeGoUsageReadFailed" },
+            },
+      );
       NodeAssert.equal(limits.credentialFingerprint, undefined);
       NodeAssert.deepEqual(limits.windows, []);
     }

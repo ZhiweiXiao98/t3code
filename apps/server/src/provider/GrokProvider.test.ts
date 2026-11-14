@@ -690,6 +690,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("readGrokAccount"
           expect(malformed.unavailable).toEqual({
             reason: "probeFailed",
             message: "Grok could not read usage limits.",
+            messageDescriptor: { code: "grokUsageReadFailed" },
           });
         }
       }).pipe(Effect.scoped),
@@ -718,6 +719,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("readGrokAccount"
         expect(limits.unavailable).toEqual({
           reason: "probeFailed",
           message: "Grok could not read usage limits.",
+          messageDescriptor: { code: "grokUsageReadFailed" },
         });
       }
     }),
@@ -748,7 +750,11 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("readGrokAccount"
         ),
       );
       expect(limits.unavailable?.reason).toBe("probeFailed");
-      expect(limits.unavailable?.message).toMatch(/Privacy Mode/);
+      expect(limits.unavailable).toEqual({
+        reason: "probeFailed",
+        message: "Switch your xAI account to Privacy Mode to show Grok usage limits.",
+        messageDescriptor: { code: "grokUsagePrivacyModeRequired" },
+      });
       expect(limits.unavailable?.message).not.toMatch(/WKE=|Grok Build is not supported/);
     }),
   );

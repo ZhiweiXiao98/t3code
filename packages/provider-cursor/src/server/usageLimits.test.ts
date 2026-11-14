@@ -102,6 +102,7 @@ describe("Cursor usage limits", () => {
       expect(limits.unavailable).toEqual({
         reason: "probeFailed",
         message: "Cursor could not read usage limits.",
+        messageDescriptor: { code: "cursorUsageReadFailed" },
       });
     }),
   );
@@ -156,7 +157,11 @@ describe("Cursor usage limits", () => {
           ),
         );
         expect(limits.unavailable?.reason).toBe("unsupported");
-        expect(limits.unavailable?.message).toContain("default Cursor endpoint");
+        expect(limits.unavailable).toEqual({
+          reason: "unsupported",
+          message: "Cursor usage for an API key requires the default Cursor endpoint.",
+          messageDescriptor: { code: "cursorUsageDefaultEndpointRequired" },
+        });
       }
     }),
   );

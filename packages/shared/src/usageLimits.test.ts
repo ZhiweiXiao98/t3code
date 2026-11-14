@@ -1877,6 +1877,46 @@ describe("owned usage unavailable notices", () => {
         { code: "codexUsageLoginRequired" },
         "Codex CLI 尚未登录。请运行 `codex login` 后重试。",
       ],
+      [
+        "Cursor could not read usage limits.",
+        { code: "cursorUsageReadFailed" },
+        "Cursor 无法读取用量限额。",
+      ],
+      [
+        "Cursor usage for an API key requires the default Cursor endpoint.",
+        { code: "cursorUsageDefaultEndpointRequired" },
+        "使用 API 密钥读取 Cursor 用量需要使用默认 Cursor 端点。",
+      ],
+      [
+        "Grok could not read usage limits.",
+        { code: "grokUsageReadFailed" },
+        "Grok 无法读取用量限额。",
+      ],
+      [
+        "Switch your xAI account to Privacy Mode to show Grok usage limits.",
+        { code: "grokUsagePrivacyModeRequired" },
+        "请将 xAI 账户切换为隐私模式，以显示 Grok 用量限额。",
+      ],
+      [
+        "OpenCode Go could not read usage.",
+        { code: "openCodeGoUsageReadFailed" },
+        "OpenCode Go 无法读取用量。",
+      ],
+      [
+        "Antigravity did not return usable quota information.",
+        { code: "antigravityUsageQuotaUnavailable" },
+        "Antigravity 未返回可用的额度信息。",
+      ],
+      [
+        "Could not read Antigravity limits. Refresh provider status to retry.",
+        { code: "antigravityUsageReadFailed" },
+        "无法读取 Antigravity 限额。请刷新提供商状态后重试。",
+      ],
+      [
+        "Sign in with Google to see Antigravity limits.",
+        { code: "antigravityUsageGoogleSignInRequired" },
+        "请使用 Google 登录以查看 Antigravity 限额。",
+      ],
     ] as const;
     for (const [message, messageDescriptor, chinese] of cases) {
       const input = { message, messageDescriptor };

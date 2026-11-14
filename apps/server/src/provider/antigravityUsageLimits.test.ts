@@ -644,12 +644,29 @@ describe("Antigravity subscription limits", () => {
     }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
   );
 
+  it.effect("reports empty quota responses without inventing available limits", () =>
+    Effect.gen(function* () {
+      const { probe } = yield* fixture({ summary: { groups: [] }, models: { models: {} } });
+      const limits = yield* probe;
+      expect(limits.windows).toEqual([]);
+      expect(limits.unavailable).toEqual({
+        reason: "probeFailed",
+        message: "Antigravity did not return usable quota information.",
+        messageDescriptor: { code: "antigravityUsageQuotaUnavailable" },
+      });
+    }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
+  );
+
   it.effect("returns a safe failure when OAuth refresh fails", () =>
     Effect.gen(function* () {
       const { probe } = yield* fixture({ tokenStatus: 401 });
       const limits = yield* probe;
       expect(limits.windows).toEqual([]);
-      expect(limits.unavailable?.reason).toBe("probeFailed");
+      expect(limits.unavailable).toEqual({
+        reason: "probeFailed",
+        message: "Could not read Antigravity limits. Refresh provider status to retry.",
+        messageDescriptor: { code: "antigravityUsageReadFailed" },
+      });
       expect(JSON.stringify(limits)).not.toMatch(/client-secret|refresh-a|access-token/);
     }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
   );
@@ -658,7 +675,15 @@ describe("Antigravity subscription limits", () => {
     Effect.gen(function* () {
       for (const options of [{ authMethod: "gemini-api-key" as const }, { missingToken: true }]) {
         const { probe, requests } = yield* fixture(options);
-        expect((yield* probe).unavailable?.reason).toBe("unsupported");
+        expect((yield* probe).unavailable).toEqual(
+          "missingToken" in options
+            ? {
+                reason: "unsupported",
+                message: "Sign in with Google to see Antigravity limits.",
+                messageDescriptor: { code: "antigravityUsageGoogleSignInRequired" },
+              }
+            : { reason: "unsupported" },
+        );
         expect(requests).toEqual([]);
       }
     }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),

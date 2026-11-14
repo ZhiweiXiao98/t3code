@@ -192,6 +192,7 @@ export const readOpenCodeGoUsageLimits = Effect.fn("readOpenCodeGoUsageLimits")(
         checkedAt,
         reason: "probeFailed",
         message: "OpenCode Go could not read usage.",
+        messageDescriptor: { code: "openCodeGoUsageReadFailed" },
       }),
     ),
   );

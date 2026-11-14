@@ -50,6 +50,14 @@ describe("usage unavailable message ownership", () => {
       { code: "codexUsageProcessExited" },
       { code: "codexUsageNoResponse" },
       { code: "codexUsageLoginRequired" },
+      { code: "cursorUsageReadFailed" },
+      { code: "cursorUsageDefaultEndpointRequired" },
+      { code: "grokUsageReadFailed" },
+      { code: "grokUsagePrivacyModeRequired" },
+      { code: "openCodeGoUsageReadFailed" },
+      { code: "antigravityUsageQuotaUnavailable" },
+      { code: "antigravityUsageReadFailed" },
+      { code: "antigravityUsageGoogleSignInRequired" },
     ] as const) {
       const tagged = { ...limits, unavailable: { ...unavailable, messageDescriptor } };
       expect(decodeLimits(JSON.parse(JSON.stringify(encodeLimits(tagged))))).toEqual(tagged);

@@ -111,6 +111,38 @@ export function formatUsageUnavailableMessage(
       english = "Codex CLI is not authenticated. Run `codex login` and try again.";
       chinese = "Codex CLI 尚未登录。请运行 `codex login` 后重试。";
       break;
+    case "cursorUsageReadFailed":
+      english = "Cursor could not read usage limits.";
+      chinese = "Cursor 无法读取用量限额。";
+      break;
+    case "cursorUsageDefaultEndpointRequired":
+      english = "Cursor usage for an API key requires the default Cursor endpoint.";
+      chinese = "使用 API 密钥读取 Cursor 用量需要使用默认 Cursor 端点。";
+      break;
+    case "grokUsageReadFailed":
+      english = "Grok could not read usage limits.";
+      chinese = "Grok 无法读取用量限额。";
+      break;
+    case "grokUsagePrivacyModeRequired":
+      english = "Switch your xAI account to Privacy Mode to show Grok usage limits.";
+      chinese = "请将 xAI 账户切换为隐私模式，以显示 Grok 用量限额。";
+      break;
+    case "openCodeGoUsageReadFailed":
+      english = "OpenCode Go could not read usage.";
+      chinese = "OpenCode Go 无法读取用量。";
+      break;
+    case "antigravityUsageQuotaUnavailable":
+      english = "Antigravity did not return usable quota information.";
+      chinese = "Antigravity 未返回可用的额度信息。";
+      break;
+    case "antigravityUsageReadFailed":
+      english = "Could not read Antigravity limits. Refresh provider status to retry.";
+      chinese = "无法读取 Antigravity 限额。请刷新提供商状态后重试。";
+      break;
+    case "antigravityUsageGoogleSignInRequired":
+      english = "Sign in with Google to see Antigravity limits.";
+      chinese = "请使用 Google 登录以查看 Antigravity 限额。";
+      break;
     default:
       return unavailable.message;
   }

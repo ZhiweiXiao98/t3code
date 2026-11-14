@@ -74,6 +74,7 @@ export const readCursorUsageLimits = Effect.fn("readCursorUsageLimits")(function
           checkedAt,
           reason: "unsupported",
           message: "Cursor usage for an API key requires the default Cursor endpoint.",
+          messageDescriptor: { code: "cursorUsageDefaultEndpointRequired" },
         });
       }
       token = yield* exchangeCursorApiKey(apiKey);
@@ -101,6 +102,7 @@ export const readCursorUsageLimits = Effect.fn("readCursorUsageLimits")(function
         checkedAt,
         reason: "probeFailed",
         message: "Cursor could not read usage limits.",
+        messageDescriptor: { code: "cursorUsageReadFailed" },
       }),
     ),
   );
