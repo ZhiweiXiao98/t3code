@@ -23,7 +23,7 @@ function setup() {
     });
   const view = {
     results: null as ReadonlyArray<OpenVsxThemeExtension> | null,
-    error: null as string | null,
+    error: null as Parameters<ThemeSearchView["setError"]>[0],
     isSearching: false,
   };
   const sink: ThemeSearchView = {
@@ -149,4 +149,20 @@ describe("createThemeSearch", () => {
     expect(install.aborted).toBe(true);
     expect(env.requests).toHaveLength(1);
   });
+});
+
+it("marks only non-Error search fallback and preserves raw collisions and empty messages", async () => {
+  using env = setup();
+  env.themeSearch.setQuery("dracula");
+  env.themeSearch.searchNow();
+  env.requests[0]!.reject(null);
+  await flush();
+  expect(env.view.error).toEqual({ code: "searchFailed" });
+  for (const raw of ["Open VSX search failed.", ""]) {
+    env.themeSearch.searchNow();
+    env.requests.at(-1)!.reject(new Error(raw));
+    await flush();
+    expect(env.view.error).toBe(raw);
+  }
+  expect(env.requests).toHaveLength(3);
 });

@@ -81,9 +81,16 @@ function ThemeExtensionIcon({ extension }: { extension: OpenVsxThemeExtension })
   );
 }
 
+const THEME_SEARCH_ERRORS = {
+  searchFailed: ["Open VSX search failed.", "Open VSX 搜索失败。"],
+  readFailed: ["Installed themes could not be read.", "无法读取已安装的主题。"],
+  addFailed: ["That theme could not be added.", "无法添加该主题。"],
+} as const;
+type ThemeSearchError = string | { readonly code: keyof typeof THEME_SEARCH_ERRORS };
+
 export interface ThemeSearchView {
   readonly setResults: (results: ReadonlyArray<OpenVsxThemeExtension> | null) => void;
-  readonly setError: (error: string | null) => void;
+  readonly setError: (error: ThemeSearchError | null) => void;
   readonly setIsSearching: (isSearching: boolean) => void;
 }
 
@@ -136,7 +143,7 @@ export function createThemeSearch(
           if (controller.signal.aborted) return;
           view.setResults(null);
           shownKey = null;
-          view.setError(cause instanceof Error ? cause.message : "Open VSX search failed.");
+          view.setError(cause instanceof Error ? cause.message : { code: "searchFailed" });
         },
       )
       .then(() => {
@@ -240,7 +247,7 @@ export function ThemeSearchSection({
   const [query, setQuery] = useState("");
   const [sortBy, setSortBy] = useState<OpenVsxThemeSort>("downloadCount");
   const [results, setResults] = useState<ReadonlyArray<OpenVsxThemeExtension> | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ThemeSearchError | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [installingId, setInstallingId] = useState<string | null>(null);
   const [pendingUpdate, setPendingUpdate] = useState<OpenVsxThemeExtension | null>(null);
@@ -267,7 +274,7 @@ export function ThemeSearchSection({
     try {
       installedCollection = getStoredCustomThemeCollection(extension.collectionId);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Installed themes could not be read.");
+      setError(cause instanceof Error ? cause.message : { code: "readFailed" });
       return;
     }
     const updated = installedCollection.length > 0;
@@ -288,7 +295,7 @@ export function ThemeSearchSection({
       }
     } catch (cause) {
       if (!installSignal.aborted) {
-        setError(cause instanceof Error ? cause.message : "That theme could not be added.");
+        setError(cause instanceof Error ? cause.message : { code: "addFailed" });
       }
     }
     if (themeSearch.endInstall(installSignal)) setInstallingId(null);
@@ -393,7 +400,11 @@ export function ThemeSearchSection({
 
       {error ? (
         <Alert variant="error" role="status" aria-live="polite">
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription>
+            {typeof error === "string"
+              ? error
+              : THEME_SEARCH_ERRORS[error.code][locale === "zh-CN" ? 1 : 0]}
+          </AlertDescription>
         </Alert>
       ) : null}
 
