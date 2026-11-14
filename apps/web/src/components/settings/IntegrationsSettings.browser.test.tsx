@@ -133,7 +133,9 @@ it("keeps cached owned profile removal failure current without another deletion"
         ),
       )
       .toBeVisible();
-    await expect.element(page.getByRole("alertdialog")).toHaveTextContent(profile.name);
+    await expect
+      .poll(() => document.querySelector('[role="alertdialog"]')?.textContent)
+      .toContain(profile.name);
     await expect
       .element(page.getByText("private native detail", { exact: true }))
       .not.toBeInTheDocument();
