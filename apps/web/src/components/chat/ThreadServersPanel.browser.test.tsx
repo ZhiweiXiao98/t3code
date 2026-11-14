@@ -79,8 +79,8 @@ vi.mock(import("../../portDiscoveryState"), async (importOriginal) => ({
       pid: index + 1,
       port: 3000 + index,
       url: `http://localhost:${3000 + index}`,
-      terminal: null,
-      processName: "node",
+      terminal: index === 1 ? { threadId: ThreadId.make("a"), terminalId: "terminal-a" } : null,
+      processName: index === 1 ? "Terminal" : "node",
     })),
 }));
 
@@ -151,10 +151,17 @@ it("localizes server action failures at completion without translating raw error
   await using screen = await render(localizedPanel());
   using toast = vi.spyOn(toastManager, "add").mockReturnValue("server-failure");
   const row = screen.getByRole("button", { name: "localhost:3000Agent · node", exact: true });
+  const terminalRow = screen.getByRole("button", { name: /^localhost:3001/ });
 
   for (const locale of ["en", "zh-CN", "en"] as const) {
     state.locale = locale;
     await screen.rerender(localizedPanel());
+    await expect
+      .poll(() => terminalRow.element().textContent)
+      .toBe(
+        locale === "zh-CN" ? "localhost:3001终端 · Terminal" : "localhost:3001Terminal · Terminal",
+      );
+    await expect.element(terminalRow).toBeVisible();
     toast.mockClear();
     await act(async () => {
       row
