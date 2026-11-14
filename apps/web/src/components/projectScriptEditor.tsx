@@ -110,10 +110,22 @@ export const EMPTY_PROJECT_SCRIPT_INPUT: NewProjectScriptInput = {
   autoOpenPreview: false,
 };
 
+export type ProjectScriptEditorError =
+  | string
+  | {
+      readonly code:
+        | "nameRequired"
+        | "commandRequired"
+        | "saveFailed"
+        | "importFailed"
+        | "actionsDenied"
+        | "shortcutsDenied";
+    };
+
 export interface ProjectScriptEditorRequest {
   scriptId: string | null;
   initial: NewProjectScriptInput;
-  error?: string;
+  error?: ProjectScriptEditorError;
 }
 
 export function editorRequestForScript(
@@ -162,7 +174,7 @@ export function ProjectScriptEditorDialog({
   // Scope errors by request so late saves cannot overwrite a newer request's error.
   const [errorState, setErrorState] = useState<{
     readonly request: ProjectScriptEditorRequest;
-    readonly message: string | null;
+    readonly message: ProjectScriptEditorError | null;
   } | null>(null);
   const validationError =
     request === null
@@ -170,7 +182,7 @@ export function ProjectScriptEditorDialog({
       : errorState?.request === request
         ? errorState.message
         : (request.error ?? null);
-  const setValidationError = (message: string | null) => {
+  const setValidationError = (message: ProjectScriptEditorError | null) => {
     if (request !== null) setErrorState({ request, message });
   };
   // The last opened request stays shown while the dialog animates closed. Each
@@ -233,7 +245,7 @@ export function ProjectScriptEditorDialog({
               onClick={() => {
                 if (!request?.scriptId) return;
                 if (!readEnvironmentScope(environmentId, editScope)) {
-                  setValidationError("This connection cannot change project actions.");
+                  setValidationError({ code: "actionsDenied" });
                   return;
                 }
                 setDeleteConfirmOpen(false);
@@ -265,8 +277,8 @@ function ProjectScriptEditorForm({
   editScope: typeof AuthOrchestrationOperateScope | typeof AuthSettingsWriteScope;
   request: ProjectScriptEditorRequest;
   scripts: ReadonlyArray<ProjectScript>;
-  validationError: string | null;
-  onValidationError: (error: string | null) => void;
+  validationError: ProjectScriptEditorError | null;
+  onValidationError: (error: ProjectScriptEditorError | null) => void;
   onSubmit: (
     scriptId: string | null,
     input: NewProjectScriptInput,
@@ -276,6 +288,20 @@ function ProjectScriptEditorForm({
 }) {
   const { locale: uiLocale } = useI18n();
   const { t } = useI18n();
+  const errorMessage =
+    typeof validationError === "string" || validationError === null
+      ? validationError
+      : validationError.code === "actionsDenied"
+        ? uiLocale === "zh-CN"
+          ? "此连接无权更改项目操作。"
+          : "This connection cannot change project actions."
+        : validationError.code === "shortcutsDenied"
+          ? uiLocale === "zh-CN"
+            ? "此连接无权更改键盘快捷键。"
+            : "This connection cannot change keyboard shortcuts."
+          : validationError.code === "importFailed"
+            ? t("projectSettings.importFailed")
+            : t(`projectAction.validation.${validationError.code}`);
   const canEditActions = useEnvironmentScope(environmentId, editScope);
   const canWriteSettings = useEnvironmentScope(environmentId, AuthSettingsWriteScope);
   const formId = React.useId();
@@ -331,24 +357,24 @@ function ProjectScriptEditorForm({
     event.preventDefault();
     if (pendingSubmissionRef.current !== null) return;
     if (!readEnvironmentScope(environmentId, editScope)) {
-      setValidationError("This connection cannot change project actions.");
+      setValidationError({ code: "actionsDenied" });
       return;
     }
     const changesKeybinding =
       (keybinding.trim() || null) !== (request.initial.keybinding?.trim() || null);
     const canChangeKeybinding = readEnvironmentScope(environmentId, AuthSettingsWriteScope);
     if (changesKeybinding && !canChangeKeybinding) {
-      setValidationError("This connection cannot change keyboard shortcuts.");
+      setValidationError({ code: "shortcutsDenied" });
       return;
     }
     const trimmedName = name.trim();
     const trimmedCommand = command.trim();
     if (trimmedName.length === 0) {
-      setValidationError(t("projectAction.validation.nameRequired"));
+      setValidationError({ code: "nameRequired" });
       return;
     }
     if (trimmedCommand.length === 0) {
-      setValidationError(t("projectAction.validation.commandRequired"));
+      setValidationError({ code: "commandRequired" });
       return;
     }
 
@@ -381,9 +407,7 @@ function ProjectScriptEditorForm({
         autoOpenPreview: trimmedPreviewUrl.length > 0 ? autoOpenPreview : false,
       } satisfies NewProjectScriptInput;
     } catch (error) {
-      setValidationError(
-        error instanceof Error ? error.message : t("projectAction.validation.saveFailed"),
-      );
+      setValidationError(error instanceof Error ? error.message : { code: "saveFailed" });
       return;
     }
 
@@ -397,9 +421,7 @@ function ProjectScriptEditorForm({
         if (result._tag === "Failure") {
           if (!isAtomCommandInterrupted(result)) {
             const error = squashAtomCommandFailure(result);
-            setValidationError(
-              error instanceof Error ? error.message : t("projectAction.validation.saveFailed"),
-            );
+            setValidationError(error instanceof Error ? error.message : { code: "saveFailed" });
           }
         } else {
           close();
@@ -407,9 +429,7 @@ function ProjectScriptEditorForm({
       }
     } catch (error) {
       if (pendingSubmissionRef.current === submission) {
-        setValidationError(
-          error instanceof Error ? error.message : t("projectAction.validation.saveFailed"),
-        );
+        setValidationError(error instanceof Error ? error.message : { code: "saveFailed" });
       }
     }
     if (pendingSubmissionRef.current === submission) {
@@ -575,7 +595,7 @@ function ProjectScriptEditorForm({
                 onCheckedChange={(checked) => setAutoOpenPreview(Boolean(checked))}
               />
             </label>
-            {validationError && <p className="text-sm text-destructive">{validationError}</p>}
+            {errorMessage && <p className="text-sm text-destructive">{errorMessage}</p>}
           </fieldset>
         </form>
       </DialogPanel>

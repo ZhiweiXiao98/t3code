@@ -59,7 +59,13 @@ describe("owned presentation boundaries", () => {
 
   it("keeps fallback translation confined to non-Error branches", () => {
     expect(source("../components/settings/ProjectActionsSettings.tsx")).toMatch(
-      /error instanceof Error\s*\? error.message\s*: readWebI18n\(\).t\("projectSettings.importFailed"\)/,
+      /error instanceof Error\s*\? error.message\s*: \{\s*code:\s*"importFailed"\s*\}/,
+    );
+    expect(source("../components/ProjectScriptsControl.tsx")).toMatch(
+      /error instanceof Error\s*\? error.message\s*:\s*\{\s*code:\s*"importFailed"\s*\}/,
+    );
+    expect(source("../components/projectScriptEditor.tsx")).toContain(
+      'typeof validationError === "string"',
     );
     expect(source("../components/settings/useSnapShotShortcutRecorder.tsx")).toMatch(
       /onError\(\s*error instanceof Error\s*\?\s*error\.message\s*:\s*\{\s*code:\s*"recordFailed"\s*\}\s*\)/,

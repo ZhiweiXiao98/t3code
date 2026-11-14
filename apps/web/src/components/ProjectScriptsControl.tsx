@@ -152,7 +152,7 @@ export default function ProjectScriptsControl({
       setEditorRequest({
         scriptId: null,
         initial: payload,
-        error: error instanceof Error ? error.message : t("projectSettings.importFailed"),
+        error: error instanceof Error ? error.message : { code: "importFailed" },
       });
     }
   };

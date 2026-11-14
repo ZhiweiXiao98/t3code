@@ -1,4 +1,3 @@
-import { readWebI18n } from "../../i18n/readWebI18n";
 import { translateWebSource } from "../../i18n/messages";
 import { useI18n } from "../../i18n/WebI18nContext";
 import { useScopedSettingsWriteAllowed } from "./useScopedSettings";
@@ -106,8 +105,7 @@ export function ProjectActionsSettings() {
       setRequest({
         scriptId: null,
         initial: payload,
-        error:
-          error instanceof Error ? error.message : readWebI18n().t("projectSettings.importFailed"),
+        error: error instanceof Error ? error.message : { code: "importFailed" },
       });
     }
   };
