@@ -115,9 +115,7 @@ it("keeps cached owned profile removal failure current without another deletion"
   expect(fixture.clear).not.toHaveBeenCalled();
   await page.getByRole("button", { name: "Remove profile", exact: true }).click();
   await expect.element(page.getByRole("button", { name: "Cancel", exact: true })).toBeDisabled();
-  await expect
-    .element(page.getByRole("button", { name: "Remove profile", exact: true }))
-    .toBeDisabled();
+  await expect.element(page.getByRole("button", { name: "Removing…", exact: true })).toBeDisabled();
   await screen.rerender(surface("zh-CN"));
   finish(AsyncResult.failure(Cause.die(new Error("private native detail"))));
   await expect
