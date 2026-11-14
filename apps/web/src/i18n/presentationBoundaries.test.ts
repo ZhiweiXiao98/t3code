@@ -62,7 +62,7 @@ describe("owned presentation boundaries", () => {
       /error instanceof Error\s*\? error.message\s*: readWebI18n\(\).t\("projectSettings.importFailed"\)/,
     );
     expect(source("../components/settings/useSnapShotShortcutRecorder.tsx")).toMatch(
-      /error instanceof Error\s*\? error.message\s*: readWebI18n\(\).t\("audit12.shortcut.recordFailed"\)/,
+      /onError\(\s*error instanceof Error\s*\?\s*error\.message\s*:\s*\{\s*code:\s*"recordFailed"\s*\}\s*\)/,
     );
   });
 });
