@@ -66,6 +66,9 @@ import {
   parsePairingUrlFields,
   parseRemotePairingFields,
   formatDesktopSshConnectionError,
+  savedBackendFailure,
+  formatSavedBackendError,
+  type SavedBackendError,
 } from "./ConnectionsSettings.logic";
 
 const EMPTY_DISCOVERED_SSH_HOSTS: ReadonlyArray<DesktopDiscoveredSshHost> = [];
@@ -80,14 +83,19 @@ export function AddEnvironmentDialog({
 }: {
   readonly open: boolean;
   readonly routeTarget: EnvironmentPresentation | null;
-  readonly error: string | null;
+  readonly error: SavedBackendError | null;
   readonly savedEnvironments: ReadonlyArray<EnvironmentPresentation>;
   readonly onOpenChange: (open: boolean) => void;
-  readonly onErrorChange: (error: string | null) => void;
+  readonly onErrorChange: (error: SavedBackendError | null) => void;
 }) {
   const { t, locale } = useI18n();
   const translateAsync = useStableCallback(t);
   const translateNotice = useStableCallback((source: string) => translateWebSource(locale, source));
+
+  const formatError = useStableCallback((value: SavedBackendError) =>
+    formatSavedBackendError(locale, value),
+  );
+  const displayedError = error === null ? null : formatSavedBackendError(locale, error);
 
   const desktopBridge = window.desktopBridge;
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
@@ -226,14 +234,13 @@ export function AddEnvironmentDialog({
         pairingCode: savedBackendPairingCode,
       });
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : translateNotice("Failed to add backend.");
+      const message = savedBackendFailure(error, "add");
       onErrorChange(message);
       toastManager.add(
         stackedThreadToast({
           type: "error",
           title: translateNotice("Could not add backend"),
-          description: message,
+          description: formatError(message),
         }),
       );
       setIsAddingSavedBackend(false);
@@ -247,14 +254,13 @@ export function AddEnvironmentDialog({
     if (result._tag === "Failure") {
       if (!isAtomCommandInterrupted(result)) {
         const error = squashAtomCommandFailure(result);
-        const message =
-          error instanceof Error ? error.message : translateNotice("Failed to add backend.");
+        const message = savedBackendFailure(error, "add");
         onErrorChange(message);
         toastManager.add(
           stackedThreadToast({
             type: "error",
             title: translateNotice("Could not add backend"),
-            description: message,
+            description: formatError(message),
           }),
         );
       }
@@ -464,9 +470,7 @@ export function AddEnvironmentDialog({
     if (result._tag === "Failure") {
       if (!isAtomCommandInterrupted(result)) {
         const error = squashAtomCommandFailure(result);
-        onErrorChange(
-          error instanceof Error ? error.message : translateNotice("Could not add the route."),
-        );
+        onErrorChange(savedBackendFailure(error, "route"));
       }
       return;
     }
@@ -498,7 +502,7 @@ export function AddEnvironmentDialog({
         </div>
       ) : null}
       {renderRemoteFields()}
-      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+      {displayedError ? <p className="text-xs text-destructive">{displayedError}</p> : null}
       <Button
         variant="outline"
         className="w-full"
@@ -625,9 +629,9 @@ export function AddEnvironmentDialog({
             />
           </label>
         </div>
-        {error || discoveredSshHostsError ? (
+        {displayedError || discoveredSshHostsError ? (
           <Alert variant="error">
-            <AlertDescription>{error ?? discoveredSshHostsError}</AlertDescription>
+            <AlertDescription>{displayedError ?? discoveredSshHostsError}</AlertDescription>
           </Alert>
         ) : null}
         <Button

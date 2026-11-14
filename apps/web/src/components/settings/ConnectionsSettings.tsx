@@ -1,3 +1,4 @@
+import { useStableCallback } from "../../hooks/useStableCallback";
 import { readWebI18n } from "~/i18n/readWebI18n";
 import { managedCapabilityDenial } from "../../i18n/managedPolicyMessages";
 import { translateWebSource } from "~/i18n/messages";
@@ -32,6 +33,9 @@ import * as Cause from "effect/Cause";
 import { isLocalEnvironmentDisabled } from "../../localEnvironment";
 import {
   applyWslEnableSelection,
+  savedBackendFailure,
+  formatSavedBackendError,
+  type SavedBackendError,
   isWslSettingsRowVisible,
   missingTailscaleEndpointDescription,
   resolveLocalVersionStatusLabel,
@@ -368,7 +372,19 @@ function ConnectionsSettingsContent({
   const [isRevokingOtherDesktopClients, setIsRevokingOtherDesktopClients] = useState(false);
   const [addBackendDialogOpen, setAddBackendDialogOpen] = useState(false);
   const [routeTarget, setRouteTarget] = useState<EnvironmentPresentation | null>(null);
-  const [savedBackendError, setSavedBackendError] = useState<string | null>(null);
+  const [savedBackendError, setSavedBackendError] = useState<SavedBackendError | null>(null);
+  const reportSavedBackendError = useStableCallback((title: string, error: SavedBackendError) => {
+    toastManager.add(
+      stackedThreadToast({
+        type: "error",
+        title:
+          title === "Could not switch backend on" || title === "Could not switch backend off"
+            ? translateConnectionsSource(locale, title)
+            : translateWebSource(locale, title),
+        description: formatSavedBackendError(locale, error),
+      }),
+    );
+  });
   const handleAddBackendDialogOpenChange = (open: boolean) => {
     setAddBackendDialogOpen(open);
     if (open) {
@@ -701,23 +717,11 @@ function ConnectionsSettingsContent({
     const result = await setEnvironmentEnabled({ environmentId, enabled });
     if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
       const error = squashAtomCommandFailure(result);
-      const message =
-        error instanceof Error
-          ? error.message
-          : translateConnectionsSource(
-              locale,
-              enabled ? "Failed to switch the backend on." : "Failed to switch the backend off.",
-            );
+      const message = savedBackendFailure(error, enabled ? "enable" : "disable");
       setSavedBackendError(message);
-      toastManager.add(
-        stackedThreadToast({
-          type: "error",
-          title: translateConnectionsSource(
-            locale,
-            enabled ? "Could not switch backend on" : "Could not switch backend off",
-          ),
-          description: message,
-        }),
+      reportSavedBackendError(
+        enabled ? "Could not switch backend on" : "Could not switch backend off",
+        message,
       );
     }
   };
@@ -730,18 +734,9 @@ function ConnectionsSettingsContent({
     setRemovingSavedEnvironmentId(null);
     if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
       const error = squashAtomCommandFailure(result);
-      const message =
-        error instanceof Error
-          ? error.message
-          : translateConnectionsSource(locale, "Failed to remove backend.");
+      const message = savedBackendFailure(error, "remove");
       setSavedBackendError(message);
-      toastManager.add(
-        stackedThreadToast({
-          type: "error",
-          title: translateWebSource(locale, "Could not remove backend"),
-          description: message,
-        }),
-      );
+      reportSavedBackendError("Could not remove backend", message);
     }
   };
 

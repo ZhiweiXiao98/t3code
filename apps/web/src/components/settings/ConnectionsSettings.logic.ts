@@ -179,6 +179,44 @@ export function formatAccessTimestamp(value: string): string {
   return accessTimestampFormatter.format(parsed);
 }
 
+const SAVED_BACKEND_ERRORS = {
+  enable: ["Failed to switch the backend on.", "开启后端失败。"],
+  disable: ["Failed to switch the backend off.", "关闭后端失败。"],
+  remove: ["Failed to remove backend.", "移除后端失败。"],
+  add: ["Failed to add backend.", "添加后端失败。"],
+  route: ["Could not add the route.", "无法添加路由。"],
+  ssh: ["Failed to connect SSH host.", "连接 SSH 主机失败。"],
+  sshHost: ["SSH host or alias is required.", "请输入 SSH 主机或别名。"],
+  sshPort: ["SSH port must be between 1 and 65535.", "SSH 端口必须介于 1 和 65535 之间。"],
+  host: ["Enter a backend host.", "请输入后端主机。"],
+  pairingCode: ["Enter a pairing code.", "请输入配对码。"],
+} as const;
+
+type SavedBackendErrorCode = keyof typeof SAVED_BACKEND_ERRORS;
+export type SavedBackendError = string | { readonly code: SavedBackendErrorCode };
+const savedBackendValidationErrors = new WeakMap<Error, SavedBackendErrorCode>();
+
+function savedBackendValidationError(code: SavedBackendErrorCode): Error {
+  const error = new Error(SAVED_BACKEND_ERRORS[code][0]);
+  savedBackendValidationErrors.set(error, code);
+  return error;
+}
+
+export function savedBackendFailure(
+  error: unknown,
+  fallback: SavedBackendErrorCode,
+): SavedBackendError {
+  if (!(error instanceof Error)) return { code: fallback };
+  const code = savedBackendValidationErrors.get(error);
+  return code === undefined ? error.message : { code };
+}
+
+export function formatSavedBackendError(locale: string, error: SavedBackendError): string {
+  return typeof error === "string"
+    ? error
+    : SAVED_BACKEND_ERRORS[error.code][locale === "zh-CN" ? 1 : 0];
+}
+
 export function parseManualDesktopSshTarget(input: {
   readonly host: string;
   readonly username: string;
@@ -186,7 +224,7 @@ export function parseManualDesktopSshTarget(input: {
 }): DesktopSshEnvironmentTarget {
   const rawHost = input.host.trim();
   if (rawHost.length === 0) {
-    throw new Error("SSH host or alias is required.");
+    throw savedBackendValidationError("sshHost");
   }
 
   let hostname = rawHost;
@@ -222,11 +260,11 @@ export function parseManualDesktopSshTarget(input: {
   }
 
   if (hostname.length === 0) {
-    throw new Error("SSH host or alias is required.");
+    throw savedBackendValidationError("sshHost");
   }
 
   if (port !== null && (!Number.isInteger(port) || port <= 0 || port > 65_535)) {
-    throw new Error("SSH port must be between 1 and 65535.");
+    throw savedBackendValidationError("sshPort");
   }
 
   return {
@@ -281,23 +319,24 @@ export function parseRemotePairingFields(input: {
   const host = input.host.trim();
   const pairingCode = input.pairingCode.trim();
   if (!host) {
-    throw new Error("Enter a backend host.");
+    throw savedBackendValidationError("host");
   }
   if (!pairingCode) {
-    throw new Error("Enter a pairing code.");
+    throw savedBackendValidationError("pairingCode");
   }
   return { host, pairingCode };
 }
 
-export function formatDesktopSshConnectionError(error: unknown): string {
-  const fallback = "Failed to connect SSH host.";
-  const rawMessage = error instanceof Error ? error.message : fallback;
+export function formatDesktopSshConnectionError(error: unknown): SavedBackendError {
+  const value = savedBackendFailure(error, "ssh");
+  if (typeof value !== "string") return value;
+  const rawMessage = value;
   const withoutIpcPrefix = rawMessage.replace(
     /^Error invoking remote method 'desktop:ensure-ssh-environment':\s*/u,
     "",
   );
   const withoutTaggedErrorPrefix = withoutIpcPrefix.replace(/^Ssh[A-Za-z]+Error:\s*/u, "");
-  return withoutTaggedErrorPrefix.trim() || fallback;
+  return withoutTaggedErrorPrefix.trim() || { code: "ssh" };
 }
 
 export function sortDesktopPairingLinks(links: ReadonlyArray<ServerPairingLinkRecord>) {

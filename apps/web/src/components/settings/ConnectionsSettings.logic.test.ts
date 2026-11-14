@@ -3,6 +3,11 @@ import { type DesktopUpdateState, type DesktopWslState, EnvironmentId } from "@t
 import { describe, expect, it, vi } from "vite-plus/test";
 import {
   resolveLocalVersionStatusLabel,
+  savedBackendFailure,
+  formatSavedBackendError,
+  formatDesktopSshConnectionError,
+  parseManualDesktopSshTarget,
+  parseRemotePairingFields,
   applyWslEnableSelection,
   resolveAccessEnvironmentId,
   resolveTailscaleServeBaseUrl,
@@ -260,5 +265,113 @@ describe("resolveAccessEnvironmentId", () => {
     expect(resolveAccessEnvironmentId({ primaryEnvironmentId, environments, selected })).toBe(
       expected,
     );
+  });
+});
+
+describe("saved backend owned errors", () => {
+  it("keeps cached fallback identities separate from exact raw collisions", () => {
+    const cases = [
+      ["enable", "Failed to switch the backend on.", "开启后端失败。"],
+      ["disable", "Failed to switch the backend off.", "关闭后端失败。"],
+      ["remove", "Failed to remove backend.", "移除后端失败。"],
+      ["add", "Failed to add backend.", "添加后端失败。"],
+      ["route", "Could not add the route.", "无法添加路由。"],
+      ["ssh", "Failed to connect SSH host.", "连接 SSH 主机失败。"],
+    ] as const;
+    for (const [code, english, chinese] of cases) {
+      const owned = savedBackendFailure(null, code);
+      const raw = savedBackendFailure(new Error(english), code);
+      for (const locale of ["en", "zh-CN", "en"] as const) {
+        expect(formatSavedBackendError(locale, owned)).toBe(locale === "en" ? english : chinese);
+        expect(formatSavedBackendError(locale, raw)).toBe(english);
+        expect(formatSavedBackendError(locale, savedBackendFailure(new Error(""), code))).toBe("");
+      }
+    }
+  });
+  it("marks only real parser errors without changing parser messages or successful values", () => {
+    const cases = [
+      [
+        () => parseManualDesktopSshTarget({ host: "", username: "", port: "" }),
+        "SSH host or alias is required.",
+        "请输入 SSH 主机或别名。",
+      ],
+      [
+        () =>
+          parseManualDesktopSshTarget({ host: "opaque/$&/{host}", username: "", port: "65536" }),
+        "SSH port must be between 1 and 65535.",
+        "SSH 端口必须介于 1 和 65535 之间。",
+      ],
+      [
+        () => parseRemotePairingFields({ host: "", pairingCode: "opaque" }),
+        "Enter a backend host.",
+        "请输入后端主机。",
+      ],
+      [
+        () => parseRemotePairingFields({ host: "opaque/$&/{host}", pairingCode: "" }),
+        "Enter a pairing code.",
+        "请输入配对码。",
+      ],
+    ] as const;
+    for (const [parse, english, chinese] of cases) {
+      let failure: unknown;
+      try {
+        parse();
+      } catch (error) {
+        failure = error;
+      }
+      expect(failure).toBeInstanceOf(Error);
+      expect((failure as Error).message).toBe(english);
+      const value = savedBackendFailure(failure, "add");
+      for (const locale of ["en", "zh-CN", "en"] as const) {
+        expect(formatSavedBackendError(locale, value)).toBe(locale === "en" ? english : chinese);
+        expect(
+          formatSavedBackendError(locale, savedBackendFailure(new Error(english), "add")),
+        ).toBe(english);
+        expect(
+          formatSavedBackendError(locale, formatDesktopSshConnectionError(new Error(english))),
+        ).toBe(english);
+      }
+    }
+    let emptyHost: unknown;
+    try {
+      parseManualDesktopSshTarget({ host: "person@", username: "", port: "" });
+    } catch (error) {
+      emptyHost = error;
+    }
+    expect(formatSavedBackendError("zh-CN", formatDesktopSshConnectionError(emptyHost))).toBe(
+      "请输入 SSH 主机或别名。",
+    );
+    const forged = Object.assign(new Error("SSH host or alias is required."), { code: "sshHost" });
+    expect(formatSavedBackendError("zh-CN", savedBackendFailure(forged, "add"))).toBe(
+      forged.message,
+    );
+    expect(
+      parseManualDesktopSshTarget({ host: "devbox", username: "person", port: "2222" }),
+    ).toEqual({ alias: "devbox", hostname: "devbox", username: "person", port: 2222 });
+    expect(
+      parseRemotePairingFields({ host: " opaque/$&/{host} ", pairingCode: " literal/$&/{token} " }),
+    ).toEqual({ host: "opaque/$&/{host}", pairingCode: "literal/$&/{token}" });
+  });
+  it("preserves existing SSH cleanup and owns only generated fallbacks", () => {
+    for (const input of [
+      null,
+      new Error("  "),
+      new Error("Error invoking remote method 'desktop:ensure-ssh-environment': SshConnectError: "),
+    ]) {
+      expect(formatSavedBackendError("zh-CN", formatDesktopSshConnectionError(input))).toBe(
+        "连接 SSH 主机失败。",
+      );
+    }
+    const raw = "literal/$&/{host} 外部";
+    expect(
+      formatSavedBackendError(
+        "zh-CN",
+        formatDesktopSshConnectionError(
+          new Error(
+            `Error invoking remote method 'desktop:ensure-ssh-environment': SshConnectError: ${raw}  `,
+          ),
+        ),
+      ),
+    ).toBe(raw);
   });
 });
