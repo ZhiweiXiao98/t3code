@@ -1,0 +1,94 @@
+name: Localization recovery exact-source checks
+on:
+  push:
+    branches: [validation/i18n-recovery-round22]
+permissions:
+  contents: read
+concurrency:
+  group: i18n-recovery-round22
+  cancel-in-progress: false
+env:
+  CI: "true"
+  SOURCE_SHA: 5cb39dd0154a6347f06fe4b8ff40d51132ceb7d2
+  PARENT_SHA: e37605e94c8dbdb2d57c0c24f84d4a3ec9fe3c22
+  BASE_SHA: e37605e94c8dbdb2d57c0c24f84d4a3ec9fe3c22
+  VP_REMOTE_CACHE: "off"
+  VP_REMOTE_CACHE_URL: ""
+jobs:
+  regression:
+    name: Exact-source changed-file and browser regressions
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Verify public repository and check out exact source
+        shell: bash
+        env:
+          GIT_TERMINAL_PROMPT: "0"
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os
+          event = json.load(open(os.environ["GITHUB_EVENT_PATH"]))
+          assert os.environ["GITHUB_REPOSITORY"] == "ZhiweiXiao98/t3code"
+          assert event["repository"]["private"] is False
+          assert os.environ["GITHUB_REF"] == "refs/heads/validation/i18n-recovery-round22"
+          PY
+          git init .
+          git remote add origin "https://github.com/ZhiweiXiao98/t3code.git"
+          git fetch --no-tags --depth=64 origin "$SOURCE_SHA"
+          git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(git rev-parse HEAD^)" = "$PARENT_SHA"
+          test "$(git rev-parse HEAD^{tree})" = 103c50aeec1534bc9a4628dad05c261dfd99b70d
+          git diff --exit-code
+          printf 'Source: %s\nBase: %s\n' "$SOURCE_SHA" "$BASE_SHA" >> "$GITHUB_STEP_SUMMARY"
+      - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
+        with:
+          node-version-file: package.json
+          cache: true
+          run-install: false
+      - name: Install locked dependencies
+        run: vp install --frozen-lockfile
+      - name: Install official Chromium and system dependencies
+        run: node apps/web/node_modules/playwright/cli.js install --with-deps chromium
+      - name: Prove cached owned errors fail on prior production
+        shell: bash
+        run: |
+          set -euo pipefail
+          saved=$(mktemp -d "$RUNNER_TEMP/cached-errors-baseline.XXXXXX")
+          files=(apps/web/src/components/settings/ConnectionsSettings.tsx apps/web/src/components/settings/ConnectionsSettings.logic.ts apps/web/src/components/settings/AddEnvironmentDialog.tsx)
+          for file in "${files[@]}"; do mkdir -p "$saved/$(dirname "$file")"; cp "$file" "$saved/$file"; done
+          restore_source() { for file in "${files[@]}"; do cp "$saved/$file" "$file"; done; }
+          trap restore_source EXIT
+          for file in "${files[@]}"; do git show "$BASE_SHA:$file" > "$file"; done
+          set +e
+          vp test run apps/web/src/components/settings/AddEnvironmentDialog.browser.test.tsx -t 'keeps cached ssh-validation|keeps cached pairing-validation|keeps cached ssh-fallback|keeps the main' 2>&1 | tee "$RUNNER_TEMP/title-baseline.log"
+          baseline_status=${PIPESTATUS[0]}
+          set -e
+          restore_source
+          trap - EXIT
+          test "$baseline_status" -ne 0
+          grep -E "AssertionError|Expected element to have text content:" "$RUNNER_TEMP/title-baseline.log"
+          ! grep -E "Unhandled Errors|Unhandled Rejection" "$RUNNER_TEMP/title-baseline.log"
+          git diff --exit-code
+      - name: Run changed-file regression checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          vp run check:changed "$BASE_SHA" --concurrency 2 2>&1 | tee "$RUNNER_TEMP/recovery-checks.log"
+      - name: Verify tested source unchanged
+        if: always()
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          git diff --exit-code
+          git diff --cached --exit-code
+      - name: Upload exact-source check evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: localization-recovery-checks
+          path: |
+            ${{ runner.temp }}/recovery-checks.log
+            ${{ runner.temp }}/title-baseline.log
+          if-no-files-found: warn
