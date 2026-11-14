@@ -1,4 +1,4 @@
-import { useStableCallback } from "../../hooks/useStableCallback";
+import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 import { translateWebSource } from "../../i18n/messages";
 import { DownloadIcon, PlusIcon } from "lucide-react";
 import type { ChangeEvent, DragEvent, UIEvent } from "react";
@@ -42,14 +42,51 @@ function formatByteSize(bytes: number): string {
   return `${bytes} bytes`;
 }
 
-function describeOversizedThemeFile(bytes: number, t?: WebTranslate): string | null {
-  if (bytes <= MAX_THEME_FILE_BYTES) return null;
-  if (t)
+type ThemeImportError =
+  | string
+  | { readonly code: "oversized"; readonly bytes: number }
+  | { readonly code: "fileTooLarge" | "copies"; readonly name: string }
+  | {
+      readonly source:
+        | "Could not read that file. Paste the JSON below instead."
+        | "not a theme file"
+        | "could not install"
+        | "failed"
+        | "Theme added, but it could not be selected. Try again."
+        | "That theme file is invalid.";
+    }
+  | { readonly label: string; readonly error: ThemeImportError }
+  | { readonly parts: ReadonlyArray<ThemeImportError> };
+
+const copyLimitErrors = new WeakMap<Error, ThemeImportError>();
+function copyLimitError(name: string): Error {
+  const error = new Error(`Too many copies of "${name}".`);
+  copyLimitErrors.set(error, { code: "copies", name });
+  return error;
+}
+
+function formatThemeImportError(
+  error: ThemeImportError,
+  locale: ResolvedAppLocale,
+  t: WebTranslate,
+): string {
+  if (typeof error === "string") return error;
+  if ("source" in error) return translateWebSource(locale, error.source);
+  if ("label" in error) return `${error.label}: ${formatThemeImportError(error.error, locale, t)}`;
+  if ("parts" in error)
+    return error.parts.map((part) => formatThemeImportError(part, locale, t)).join("; ");
+  if (error.code === "oversized")
     return t("settingsControls.themeTooLarge", {
-      size: formatByteSize(bytes),
+      size: formatByteSize(error.bytes),
       limit: formatByteSize(MAX_THEME_FILE_BYTES),
     });
-  return `That file is ${formatByteSize(bytes)}. Theme files are only a few KB, so this one was not read (limit ${formatByteSize(MAX_THEME_FILE_BYTES)}).`;
+  return error.code === "copies"
+    ? t("settingsControls.tooManyThemeCopies", { name: error.name })
+    : t("settingsControls.themeFileTooLarge", { name: error.name });
+}
+
+function describeOversizedThemeFile(bytes: number): ThemeImportError | null {
+  return bytes > MAX_THEME_FILE_BYTES ? { code: "oversized", bytes } : null;
 }
 
 function escapeJsonHtml(value: string): string {
@@ -211,13 +248,11 @@ function ThemeImportBody({
   onClose: () => void;
 }) {
   const { locale, t } = useI18n();
-  const translateAsync = useStableCallback(t);
-  const translateNotice = useStableCallback((source: string) => translateWebSource(locale, source));
   const { signal } = session;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [json, setJson] = useState("");
   const [fileName, setFileName] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ThemeImportError | null>(null);
   const [isReading, setIsReading] = useState(false);
   const [isDropTarget, setIsDropTarget] = useState(false);
   const [conflicts, setConflicts] = useState<ReadonlyArray<ThemeDefinition> | null>(null);
@@ -227,7 +262,7 @@ function ThemeImportBody({
     requestId === importRequestRef.current && !signal.aborted;
 
   const readThemeFile = async (file: ImportableThemeFile) => {
-    const oversized = describeOversizedThemeFile(file.size, translateAsync);
+    const oversized = describeOversizedThemeFile(file.size);
     if (oversized) {
       setError(oversized);
       return;
@@ -239,7 +274,7 @@ function ThemeImportBody({
     if (!isCurrentRequest(requestId)) return;
     setIsReading(false);
     if (fileText._tag === "Failure") {
-      setError(translateNotice("Could not read that file. Paste the JSON below instead."));
+      setError({ source: "Could not read that file. Paste the JSON below instead." });
       return;
     }
     setJson(fileText.value);
@@ -259,12 +294,12 @@ function ThemeImportBody({
     files: ReadonlyArray<ImportableThemeFile>,
     requestId: number,
   ) => {
-    const failures: string[] = [];
+    const failures: ThemeImportError[] = [];
     const parsed: Array<{ theme: ThemeDefinition; sourceName: string }> = [];
     for (const file of files) {
-      const oversized = describeOversizedThemeFile(file.size, translateAsync);
+      const oversized = describeOversizedThemeFile(file.size);
       if (oversized) {
-        failures.push(translateAsync("settingsControls.themeFileTooLarge", { name: file.name }));
+        failures.push({ code: "fileTooLarge", name: file.name });
         continue;
       }
       try {
@@ -273,9 +308,10 @@ function ThemeImportBody({
           theme: parseThemeImport(await file.text()),
         });
       } catch (cause) {
-        failures.push(
-          `${file.name}: ${cause instanceof Error ? cause.message : translateNotice("not a theme file")}`,
-        );
+        failures.push({
+          label: file.name,
+          error: cause instanceof Error ? cause.message : { source: "not a theme file" },
+        });
       }
     }
     if (!isCurrentRequest(requestId)) return;
@@ -289,13 +325,14 @@ function ThemeImportBody({
       try {
         installed.push(installCustomTheme(theme));
       } catch (cause) {
-        failures.push(
-          `${theme.label}: ${cause instanceof Error ? cause.message : translateNotice("could not install")}`,
-        );
+        failures.push({
+          label: theme.label,
+          error: cause instanceof Error ? cause.message : { source: "could not install" },
+        });
       }
     }
     if (installed.length > 0) onImportedMany(installed, { updated: false });
-    setError(failures.length > 0 ? failures.join("; ") : null);
+    setError(failures.length > 0 ? { parts: failures } : null);
     if (conflicting.length > 0) {
       setConflicts(conflicting);
     } else if (installed.length > 0 && failures.length === 0) {
@@ -366,13 +403,13 @@ function ThemeImportBody({
       if (getCustomThemes().some((existing) => existing.id === candidate.id)) continue;
       return candidate;
     }
-    throw new Error(translateAsync("settingsControls.tooManyThemeCopies", { name: theme.label }));
+    throw copyLimitError(theme.label);
   };
 
   const resolveConflicts = (mode: "update" | "copy") => {
     if (!conflicts) return;
     const resolved: ThemeDefinition[] = [];
-    const failures: string[] = [];
+    const failures: ThemeImportError[] = [];
     const preferredName =
       conflicts.length === 1 && fileName
         ? humanizeThemeName(fileName.replace(/\.[^.]+$/, ""))
@@ -392,19 +429,23 @@ function ThemeImportBody({
             : installCustomTheme(versionedCopy(theme, preferredName)),
         );
       } catch (cause) {
-        failures.push(
-          `${theme.label}: ${cause instanceof Error ? cause.message : translateNotice("failed")}`,
-        );
+        failures.push({
+          label: theme.label,
+          error:
+            cause instanceof Error
+              ? (copyLimitErrors.get(cause) ?? cause.message)
+              : { source: "failed" },
+        });
       }
     }
     if (resolved.length > 0) onImportedMany(resolved, { updated: mode === "update" });
     setConflicts(null);
-    if (failures.length > 0) setError([error, ...failures].filter(Boolean).join("; "));
+    if (failures.length > 0) setError({ parts: [...(error ? [error] : []), ...failures] });
     else if (!error) onClose();
   };
 
   const handleSubmit = () => {
-    const oversized = describeOversizedThemeFile(json.length, translateAsync);
+    const oversized = describeOversizedThemeFile(json.length);
     if (oversized) {
       setError(oversized);
       return;
@@ -421,14 +462,12 @@ function ThemeImportBody({
         try {
           removeCustomTheme(installedTheme.id);
         } catch {}
-        setError(translateNotice("Theme added, but it could not be selected. Try again."));
+        setError({ source: "Theme added, but it could not be selected. Try again." });
         return;
       }
       onClose();
     } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : translateNotice("That theme file is invalid."),
-      );
+      setError(cause instanceof Error ? cause.message : { source: "That theme file is invalid." });
     }
   };
 
@@ -552,7 +591,7 @@ function ThemeImportBody({
 
       {error ? (
         <Alert aria-live="polite" variant="error">
-          {error}
+          {formatThemeImportError(error, locale, t)}
         </Alert>
       ) : null}
     </DialogPanel>
