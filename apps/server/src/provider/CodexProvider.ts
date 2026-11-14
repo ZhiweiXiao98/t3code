@@ -26,6 +26,7 @@ import type {
   ProviderOptionDescriptor,
   ServerProviderModel,
   ServerProviderSkill,
+  UsageUnavailableMessageDescriptor,
 } from "@t3tools/contracts";
 import { PREFERRED_DEFAULT_CODEX_MODELS, ServerSettingsError } from "@t3tools/contracts";
 
@@ -48,7 +49,7 @@ import {
 import { expandHomePath } from "@t3tools/provider-core/server/pathExpansion";
 import { makeUnavailableUsageLimits } from "@t3tools/provider-core/server/usageLimits";
 import {
-  codexRateLimitsFailureMessage,
+  codexRateLimitsFailure,
   codexRateLimitsToLimits,
   type CodexRateLimitSnapshot,
   type CodexResetCreditsSummary,
@@ -68,7 +69,12 @@ type CodexRateLimitsProbe =
       readonly resetCredits: CodexResetCreditsSummary | null | undefined;
       readonly accountId?: string | null | undefined;
     }
-  | { readonly failure: string };
+  | {
+      readonly failure: {
+        readonly message: string;
+        readonly messageDescriptor?: UsageUnavailableMessageDescriptor;
+      };
+    };
 
 const CODEX_APP_SERVER_PROBE_FORCE_KILL_AFTER = "2 seconds" as const;
 const CODEX_CATALOG_REFRESH_TIMEOUT_MS = 3_000;
@@ -589,11 +595,11 @@ const probeCodexAppServerProvider = Effect.fn("probeCodexAppServerProvider")(fun
                     resetCredits: response.rateLimitResetCredits,
                     accountId: response.accountId,
                   }
-                : { failure: "Codex did not answer the usage request." },
+                : { failure: codexRateLimitsFailure() },
             ),
             Effect.catch((error) =>
               Effect.logDebug("Codex rate-limit read failed.", { cause: error }).pipe(
-                Effect.as<CodexRateLimitsProbe>({ failure: codexRateLimitsFailureMessage(error) }),
+                Effect.as<CodexRateLimitsProbe>({ failure: codexRateLimitsFailure(error) }),
               ),
             ),
           ),
@@ -852,8 +858,11 @@ export const checkCodexProviderStatus = Effect.fn("checkCodexProviderStatus")(fu
         ? makeUnavailableUsageLimits({
             checkedAt,
             reason: "probeFailed",
-            ...(accountStatus.message ? { message: accountStatus.message } : {}),
-            ...(snapshot.rateLimits ? { message: snapshot.rateLimits.failure } : {}),
+            ...(snapshot.rateLimits
+              ? snapshot.rateLimits.failure
+              : accountStatus.message
+                ? { message: accountStatus.message }
+                : {}),
           })
         : codexRateLimitsToLimits({
             snapshot: snapshot.rateLimits.snapshot,

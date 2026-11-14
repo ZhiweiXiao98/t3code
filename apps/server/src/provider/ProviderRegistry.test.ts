@@ -460,6 +460,33 @@ it.layer(
           reason: "probeFailed",
           message: "Codex CLI is not authenticated. Run `codex login` and try again.",
         });
+        for (const failure of [
+          {
+            message: "Codex did not answer the usage request.",
+            messageDescriptor: { code: "codexUsageNoResponse" as const },
+          },
+          {
+            message: "Codex could not read usage (JSON-RPC -32603).",
+            messageDescriptor: { code: "codexUsageRequestFailed" as const, rpcCode: -32603 },
+          },
+          { message: "Settings/$&/{0} 中文" },
+        ]) {
+          const withRateLimitFailure = yield* checkCodexProviderStatus(defaultCodexSettings, () =>
+            Effect.succeed(
+              makeCodexProbeSnapshot({
+                account: { account: null, requiresOpenaiAuth: true },
+                rateLimits: { failure },
+              }),
+            ),
+          );
+          assert.strictEqual(withRateLimitFailure.status, status.status);
+          assert.strictEqual(withRateLimitFailure.auth.status, status.auth.status);
+          assert.strictEqual(withRateLimitFailure.message, status.message);
+          assert.deepStrictEqual(withRateLimitFailure.usageLimits?.unavailable, {
+            reason: "probeFailed",
+            ...failure,
+          });
+        }
       }),
     );
 

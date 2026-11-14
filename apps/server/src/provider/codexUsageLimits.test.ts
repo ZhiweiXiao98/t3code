@@ -2,7 +2,7 @@ import * as CodexErrors from "effect-codex-app-server/errors";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
-  codexRateLimitsFailureMessage,
+  codexRateLimitsFailure,
   codexRateLimitsToLimits,
   codexRateLimitsToUpdate,
   mergeCodexRateLimits,
@@ -203,17 +203,40 @@ describe("codexRateLimitsToUpdate", () => {
   });
 });
 
-describe("codexRateLimitsFailureMessage", () => {
-  it("keeps the JSON-RPC code and nothing else from a request failure", () => {
-    expect(
-      codexRateLimitsFailureMessage(
-        new CodexErrors.CodexAppServerRequestError({
-          code: -32603,
-          errorMessage:
-            "failed to fetch codex rate limits: GET https://chatgpt.com/backend-api/wham/usage failed: 401 Unauthorized",
+describe("codexRateLimitsFailure", () => {
+  it("keeps only owned messages and the JSON-RPC code from actual failures", () => {
+    const diagnostic = "GET https://private.example/usage failed: 401 Unauthorized $& {0}";
+    const cases = [
+      [
+        new CodexErrors.CodexAppServerRequestError({ code: -32603, errorMessage: diagnostic }),
+        "Codex could not read usage (JSON-RPC -32603).",
+        { code: "codexUsageRequestFailed", rpcCode: -32603 },
+      ],
+      [
+        new CodexErrors.CodexAppServerSpawnError({
+          command: diagnostic,
+          cause: new Error(diagnostic),
         }),
-      ),
-    ).toBe("Codex could not read usage (JSON-RPC -32603).");
+        "Codex could not be started to read usage.",
+        { code: "codexUsageSpawnFailed" },
+      ],
+      [
+        new CodexErrors.CodexAppServerProcessExitedError({ code: 1, stderr: diagnostic }),
+        "Codex exited before it could report usage.",
+        { code: "codexUsageProcessExited" },
+      ],
+      [
+        new CodexErrors.CodexAppServerInputStreamEndedError({}),
+        "Codex did not answer the usage request.",
+        { code: "codexUsageNoResponse" },
+      ],
+      [undefined, "Codex did not answer the usage request.", { code: "codexUsageNoResponse" }],
+    ] as const;
+    for (const [error, message, messageDescriptor] of cases) {
+      const failure = codexRateLimitsFailure(error);
+      expect(failure).toEqual({ message, messageDescriptor });
+      expect(JSON.stringify(failure)).not.toContain(diagnostic);
+    }
   });
 });
 

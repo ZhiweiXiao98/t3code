@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { applyUsageLimitsUpdate, resolveUsageLimitsAfterProbe } from "./usageLimits.ts";
+import {
+  applyUsageLimitsUpdate,
+  makeUnavailableUsageLimits,
+  resolveUsageLimitsAfterProbe,
+} from "./usageLimits.ts";
 
 const checkedAt = "2026-09-03T12:00:00.000Z";
 const session = {
@@ -168,6 +172,42 @@ describe("resolveUsageLimitsAfterProbe", () => {
     const unsupported = { checkedAt, windows: [], unavailable: { reason: "unsupported" as const } };
     expect(resolveUsageLimitsAfterProbe({ published, probed: failed })).toBe(published);
     expect(resolveUsageLimitsAfterProbe({ published, probed: unsupported })).toBe(unsupported);
+    expect(resolveUsageLimitsAfterProbe({ published: undefined, probed: failed })).toBe(failed);
+  });
+});
+
+describe("makeUnavailableUsageLimits", () => {
+  it("copies explicit message ownership without assigning it to raw or absent messages", () => {
+    const message = "Codex could not read usage (JSON-RPC -32603).";
+    const messageDescriptor = { code: "codexUsageRequestFailed" as const, rpcCode: -32603 };
+    const input = { checkedAt, reason: "probeFailed" as const, message, messageDescriptor };
+    const failed = makeUnavailableUsageLimits(input);
+    expect(failed).toEqual({
+      checkedAt,
+      windows: [],
+      unavailable: { reason: "probeFailed", message, messageDescriptor },
+    });
+    expect(makeUnavailableUsageLimits({ checkedAt, reason: "probeFailed", message })).toEqual({
+      checkedAt,
+      windows: [],
+      unavailable: { reason: "probeFailed", message },
+    });
+    for (const reason of ["probeFailed", "unsupported"] as const) {
+      for (const optionalMessage of [undefined, ""]) {
+        expect(
+          makeUnavailableUsageLimits({
+            checkedAt,
+            reason,
+            ...(optionalMessage === undefined ? {} : { message: optionalMessage }),
+          }),
+        ).toEqual({
+          checkedAt,
+          windows: [],
+          unavailable: { reason },
+        });
+      }
+    }
+    expect(resolveUsageLimitsAfterProbe({ published, probed: failed })).toBe(published);
     expect(resolveUsageLimitsAfterProbe({ published: undefined, probed: failed })).toBe(failed);
   });
 });

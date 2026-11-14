@@ -50,6 +50,18 @@ export const ServerProviderResetCredits = Schema.Struct({
 });
 export type ServerProviderResetCredits = typeof ServerProviderResetCredits.Type;
 
+export const UsageUnavailableMessageDescriptor = Schema.Union([
+  Schema.Struct({ code: Schema.Literal("codexUsageRequestFailed"), rpcCode: Schema.Number }),
+  Schema.Struct({
+    code: Schema.Literals([
+      "codexUsageSpawnFailed",
+      "codexUsageProcessExited",
+      "codexUsageNoResponse",
+    ]),
+  }),
+]);
+export type UsageUnavailableMessageDescriptor = typeof UsageUnavailableMessageDescriptor.Type;
+
 /** Clear bars for unavailable accounts; retain last good bars after a failed probe. */
 export const ServerProviderUsageLimits = Schema.Struct({
   checkedAt: IsoDateTime,
@@ -66,6 +78,7 @@ export const ServerProviderUsageLimits = Schema.Struct({
     Schema.Struct({
       reason: Schema.Literals(["unsupported", "probeFailed"]),
       message: Schema.optional(TrimmedNonEmptyString),
+      messageDescriptor: ForwardCompatibleOptional(UsageUnavailableMessageDescriptor),
     }),
   ),
 });

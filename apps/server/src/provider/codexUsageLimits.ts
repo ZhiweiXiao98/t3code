@@ -3,6 +3,7 @@ import type {
   ServerProviderResetCredits,
   ServerProviderUsageLimits,
   ServerProviderUsageWindow,
+  UsageUnavailableMessageDescriptor,
 } from "@t3tools/contracts";
 import * as DateTime from "effect/DateTime";
 import * as Option from "effect/Option";
@@ -154,16 +155,31 @@ export function codexRateLimitsToUpdate(
   return windows.length > 0 ? { windows } : undefined;
 }
 
-export function codexRateLimitsFailureMessage(error: CodexErrors.CodexAppServerError): string {
-  switch (error._tag) {
+export function codexRateLimitsFailure(error?: CodexErrors.CodexAppServerError): {
+  readonly message: string;
+  readonly messageDescriptor: UsageUnavailableMessageDescriptor;
+} {
+  switch (error?._tag) {
     case "CodexAppServerRequestError":
-      return `Codex could not read usage (JSON-RPC ${error.code}).`;
+      return {
+        message: `Codex could not read usage (JSON-RPC ${error.code}).`,
+        messageDescriptor: { code: "codexUsageRequestFailed", rpcCode: error.code },
+      };
     case "CodexAppServerSpawnError":
-      return "Codex could not be started to read usage.";
+      return {
+        message: "Codex could not be started to read usage.",
+        messageDescriptor: { code: "codexUsageSpawnFailed" },
+      };
     case "CodexAppServerProcessExitedError":
-      return "Codex exited before it could report usage.";
+      return {
+        message: "Codex exited before it could report usage.",
+        messageDescriptor: { code: "codexUsageProcessExited" },
+      };
     default:
-      return "Codex did not answer the usage request.";
+      return {
+        message: "Codex did not answer the usage request.",
+        messageDescriptor: { code: "codexUsageNoResponse" },
+      };
   }
 }
 

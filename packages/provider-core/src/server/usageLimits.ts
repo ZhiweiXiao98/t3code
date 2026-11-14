@@ -2,6 +2,7 @@ import type {
   ProviderUsageLimitsUpdate,
   ServerProviderUsageLimits,
   ServerProviderUsageWindow,
+  UsageUnavailableMessageDescriptor,
 } from "@t3tools/contracts";
 
 const WINDOW_KIND_ORDER: Record<ServerProviderUsageWindow["kind"], number> = {
@@ -36,6 +37,7 @@ export function makeUnavailableUsageLimits(input: {
   readonly checkedAt: string;
   readonly reason: "unsupported" | "probeFailed";
   readonly message?: string;
+  readonly messageDescriptor?: UsageUnavailableMessageDescriptor;
 }): ServerProviderUsageLimits {
   return {
     checkedAt: input.checkedAt,
@@ -43,6 +45,7 @@ export function makeUnavailableUsageLimits(input: {
     unavailable: {
       reason: input.reason,
       ...(input.message ? { message: input.message } : {}),
+      ...(input.messageDescriptor ? { messageDescriptor: input.messageDescriptor } : {}),
     },
   };
 }
