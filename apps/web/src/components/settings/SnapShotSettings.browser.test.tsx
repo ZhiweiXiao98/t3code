@@ -1,45 +1,60 @@
 import "~/index.css";
-import { DEFAULT_CLIENT_SETTINGS } from "@t3tools/contracts";
 import { expect, it, vi } from "vite-plus/test";
 import { userEvent } from "vite-plus/test/browser";
 import { render } from "../../../test/render";
 import { WebI18nContext } from "../../i18n/WebI18nContext";
 import { translateWebMessage } from "../../i18n/messages";
 
-const fixture = vi.hoisted(() => ({ check: vi.fn(), suppress: vi.fn(), save: vi.fn() }));
-vi.mock("../../hooks/useSettings", () => ({
-  useClientSettings: (select: (settings: typeof DEFAULT_CLIENT_SETTINGS) => unknown) =>
-    select({ ...DEFAULT_CLIENT_SETTINGS, snapShotEnabled: true }),
-  updateClientSettings: fixture.save,
-}));
-vi.mock("../../state/server", () => ({ primaryServerKeybindingsAtom: "keys" }));
-vi.mock("../../state/desktopSnapShot", async (original) => ({
-  ...(await original<typeof import("../../state/desktopSnapShot")>()),
-  desktopSnapShotAtom: "capture",
-}));
-vi.mock("@effect/atom-react", async (original) => ({
-  ...(await original<typeof import("@effect/atom-react")>()),
-  useAtomValue: (atom: unknown) =>
-    atom === "keys"
-      ? []
-      : {
-          state: {
-            mode: "direct",
-            shortcut: DEFAULT_CLIENT_SETTINGS.snapShotShortcut,
-            shortcutRegistered: true,
-            shortcutMessage: null,
-            message: null,
-          },
-          refreshError: null,
-        },
-}));
-vi.mock("../../lib/desktopSnapShot", () => {
-  const bridge = {
-    checkSnapShotShortcut: fixture.check,
-    setSnapShotShortcutSuppressed: fixture.suppress,
+const fixture = vi.hoisted(() => {
+  const check = vi.fn();
+  const suppress = vi.fn();
+  const save = vi.fn();
+  return {
+    check,
+    suppress,
+    save,
+    bridge: { checkSnapShotShortcut: check, setSnapShotShortcutSuppressed: suppress },
   };
-  return { getDesktopSnapShotBridge: () => bridge };
 });
+vi.mock("../../hooks/useSettings", async (original) => {
+  const { DEFAULT_CLIENT_SETTINGS } = await import("@t3tools/contracts");
+  const settings = { ...DEFAULT_CLIENT_SETTINGS, snapShotEnabled: true };
+  return {
+    ...(await original<typeof import("../../hooks/useSettings")>()),
+    useClientSettings: (select: (settings: typeof DEFAULT_CLIENT_SETTINGS) => unknown) =>
+      select(settings),
+    getClientSettings: () => settings,
+    updateClientSettings: fixture.save,
+  };
+});
+vi.mock("../../state/server", async (original) => {
+  const { Atom } = await import("effect/reactivity");
+  return {
+    ...(await original<typeof import("../../state/server")>()),
+    primaryServerKeybindingsAtom: Atom.make([]),
+  };
+});
+vi.mock("../../state/desktopSnapShot", async (original) => {
+  const { Atom } = await import("effect/reactivity");
+  const { DEFAULT_CLIENT_SETTINGS } = await import("@t3tools/contracts");
+  return {
+    ...(await original<typeof import("../../state/desktopSnapShot")>()),
+    desktopSnapShotAtom: Atom.make({
+      state: {
+        mode: "direct",
+        shortcut: DEFAULT_CLIENT_SETTINGS.snapShotShortcut,
+        shortcutRegistered: true,
+        shortcutMessage: null,
+        message: null,
+      },
+      refreshError: null,
+    }),
+  };
+});
+vi.mock("../../lib/desktopSnapShot", async (original) => ({
+  ...(await original<typeof import("../../lib/desktopSnapShot")>()),
+  getDesktopSnapShotBridge: () => fixture.bridge,
+}));
 import { SnapShotSettings } from "./SnapShotSettings";
 
 it.each([false, true])(
