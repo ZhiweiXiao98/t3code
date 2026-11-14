@@ -1,3 +1,5 @@
+import { DesktopSnapShotSetupMessageDescriptor } from "@t3tools/contracts";
+import * as Schema from "effect/Schema";
 import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 
 const SETUP_MESSAGES: Readonly<Record<string, string>> = {
@@ -73,4 +75,53 @@ function translateOwnedSnapShotMessage(source: string): string {
         ? `${taskLabel}失败：${command} 已退出，退出码为 ${exitCode}。`
         : `${taskLabel}失败。`;
   return `无法截取测试快照。${result}${appName === undefined ? "" : `macOS 分别向每个应用授予屏幕录制和辅助功能权限。请在系统设置中打开“隐私与安全性”，确认“${appName}”同时获准使用这两项权限。`}`;
+}
+
+const isSetupDescriptor = Schema.is(DesktopSnapShotSetupMessageDescriptor);
+
+/** Only the dedicated setup outcome carries ownership; legacy IPC text is not evidence. */
+export function formatOwnedSnapShotSetupMessage(
+  locale: ResolvedAppLocale,
+  message: string,
+  descriptor: unknown,
+): string {
+  if (!isSetupDescriptor(descriptor) || setupSourceMessage(descriptor) !== message) return message;
+  return locale === "zh-CN" ? translateOwnedSnapShotMessage(message) : message;
+}
+
+function setupSourceMessage(value: DesktopSnapShotSetupMessageDescriptor): string {
+  if (value.action === "test-mac-capture") {
+    if (value.reason === "unsupported-session") return "Test capture requires macOS.";
+    const summary = "Could not capture a test snapshot.";
+    if (value.step === undefined) return summary;
+    if (value.status === "missing") return `${summary} No window is available to capture.`;
+    const [task, command] =
+      value.step === "find-window"
+        ? ["Finding the front window", "osascript"]
+        : ["Capturing the window", "screencapture"];
+    const failure =
+      value.status === "timed-out"
+        ? `${task} timed out.`
+        : value.status === "exited" && value.exitCode !== undefined
+          ? `${task} failed: ${command} exited with code ${value.exitCode}.`
+          : `${task} failed.`;
+    return value.appName === undefined
+      ? `${summary} ${failure}`
+      : `${summary} ${failure} macOS grants Screen Recording and Accessibility to each app separately. In System Settings, open Privacy & Security and check that "${value.appName}" is allowed for both.`;
+  }
+  const kde = value.action === "install-kde-helper" || value.action === "remove-kde-helper";
+  const hyprland =
+    value.action === "install-hyprland-helper" || value.action === "remove-hyprland-helper";
+  if (value.reason === "unsupported-session")
+    return hyprland
+      ? "Helper setup requires a Hyprland Wayland session outside a sandbox."
+      : kde
+        ? "Helper setup requires a KDE Plasma Wayland session outside a sandbox."
+        : "Extension setup requires a GNOME Wayland session outside a sandbox.";
+  if (value.reason === "shortcut-permissions") return "Could not open shortcut permissions.";
+  return hyprland
+    ? "Could not set up Hyprland capture."
+    : kde
+      ? "Could not set up KDE capture."
+      : "Could not set up the GNOME extension.";
 }

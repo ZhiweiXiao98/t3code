@@ -1,25 +1,70 @@
-import { readWebI18n } from "../i18n/readWebI18n";
 import { translateWebSource } from "../i18n/messages";
-import { localizeSnapShotSetupMessage } from "../i18n/snapShotSetupMessages";
-import type { DesktopSnapShotState } from "@t3tools/contracts";
+import { formatOwnedSnapShotSetupMessage } from "../i18n/snapShotSetupMessages";
+import type {
+  DesktopBridge,
+  DesktopSnapShotState,
+  DesktopSnapShotSetupAction,
+  DesktopSnapShotSetupMessageDescriptor,
+} from "@t3tools/contracts";
+import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 import * as Option from "effect/Option";
 import { Atom, type AtomRegistry } from "effect/reactivity";
 
 import { getDesktopSnapShotBridge } from "../lib/desktopSnapShot";
 
-export interface SnapShotSetupError {
-  readonly title: string;
-  readonly message: string;
+export type SnapShotSetupErrorTitle =
+  | "Couldn't check capture setup"
+  | "Couldn't open shortcut permissions"
+  | "Couldn't complete capture setup"
+  | "Couldn't save capture settings"
+  | "Couldn't allow app text capture"
+  | "Couldn't verify capture access"
+  | "Couldn't close capture setup";
+
+interface SnapShotSetupFailure {
+  readonly message: string | null;
+  readonly messageDescriptor?: DesktopSnapShotSetupMessageDescriptor | undefined;
+}
+export interface SnapShotSetupError extends SnapShotSetupFailure {
+  readonly title: SnapShotSetupErrorTitle;
 }
 
-export function snapShotSetupError(title: string, error: unknown): SnapShotSetupError {
-  const { locale } = readWebI18n();
+export function snapShotSetupError(
+  title: SnapShotSetupErrorTitle,
+  error: unknown,
+): SnapShotSetupError {
+  return { title, message: error instanceof Error ? error.message : null };
+}
+
+export function formatSnapShotSetupError(
+  locale: ResolvedAppLocale,
+  error: SnapShotSetupError,
+): { title: string; message: string } {
   return {
-    title: translateWebSource(locale, title),
+    title: translateWebSource(locale, error.title),
     message:
-      error instanceof Error
-        ? localizeSnapShotSetupMessage(locale, error.message)
-        : translateWebSource(locale, "Try again."),
+      error.message === null
+        ? translateWebSource(locale, "Try again.")
+        : formatOwnedSnapShotSetupMessage(locale, error.message, error.messageDescriptor),
+  };
+}
+
+/** Capability absence alone selects legacy IPC; an attempted new call is never retried. */
+export async function runSnapShotSetup(
+  bridge: Pick<DesktopBridge, "setupSnapShot" | "setupSnapShotOutcome">,
+  action: DesktopSnapShotSetupAction,
+): Promise<SnapShotSetupFailure | null> {
+  if (!bridge.setupSnapShotOutcome) {
+    await bridge.setupSnapShot(action);
+    return null;
+  }
+  const outcome = await bridge.setupSnapShotOutcome(action);
+  if (outcome._tag === "Success") return null;
+  return {
+    message: outcome.message,
+    ...(outcome.messageDescriptor?.action === action
+      ? { messageDescriptor: outcome.messageDescriptor }
+      : {}),
   };
 }
 

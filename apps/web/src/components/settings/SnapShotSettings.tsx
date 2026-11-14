@@ -1,3 +1,4 @@
+import { useStableCallback } from "../../hooks/useStableCallback";
 import { useI18n } from "../../i18n/WebI18nContext";
 import { translateWebSource } from "../../i18n/messages";
 import { RegistryContext, useAtomValue } from "@effect/atom-react";
@@ -26,6 +27,9 @@ import {
   desktopSnapShotAtom,
   refreshDesktopSnapShotState,
   snapShotSetupError,
+  formatSnapShotSetupError,
+  runSnapShotSetup,
+  type SnapShotSetupErrorTitle,
   type SnapShotSetupError,
 } from "../../state/desktopSnapShot";
 import { toastManager } from "../ui/toast";
@@ -116,15 +120,23 @@ export function SnapShotSettings() {
         ? { initialStep: "access" as const, wasEnabled: resume.wasEnabled }
         : null;
   // The wizard shows errors inline; outside it there is nowhere to, so they become a toast.
-  const reportSetupError = (title: string, error: unknown) => {
-    const report = snapShotSetupError(title, error);
+  const presentSetupError = useStableCallback((report: SnapShotSetupError) => {
     setSetupError(report);
-    if (!wizard)
-      toastManager.add({ type: "error", title: report.title, description: report.message });
+    if (!wizard) {
+      const display = formatSnapShotSetupError(locale, report);
+      toastManager.add({ type: "error", title: display.title, description: display.message });
+    }
+  });
+  const reportSetupError = (title: SnapShotSetupErrorTitle, error: unknown) => {
+    presentSetupError(snapShotSetupError(title, error));
   };
+  const displayedRefreshError = refreshError
+    ? formatSnapShotSetupError(locale, refreshError)
+    : null;
+  const displayedSetupError = setupError ?? refreshError;
   const refreshState = () =>
     refreshDesktopSnapShotState(registry, (error) =>
-      reportSetupError(translateWebSource(locale, "Couldn't check capture setup"), error),
+      reportSetupError("Couldn't check capture setup", error),
     );
   const [candidate, setCandidate] = useState<SnapShotShortcut>(settings.snapShotShortcut);
   const [latestShortcutCheck, setShortcutCheck] = useState<ShortcutCheck>({
@@ -174,14 +186,24 @@ export function SnapShotSettings() {
         // macOS can quit the app from its permission prompt.
         saveSnapShotSetupResume(wizard.wasEnabled);
       }
-      await bridge.setupSnapShot(action);
+      const failure = await runSnapShotSetup(bridge, action);
+      if (failure) {
+        presentSetupError({
+          title:
+            action === "retry-shortcut"
+              ? "Couldn't open shortcut permissions"
+              : "Couldn't complete capture setup",
+          ...failure,
+        });
+        return;
+      }
       await refreshState();
     });
     if (result._tag === "Failure") {
       reportSetupError(
         action === "retry-shortcut"
-          ? translateWebSource(locale, "Couldn't open shortcut permissions")
-          : translateWebSource(locale, "Couldn't complete capture setup"),
+          ? "Couldn't open shortcut permissions"
+          : "Couldn't complete capture setup",
         Cause.squash(result.cause),
       );
     }
@@ -202,7 +224,7 @@ export function SnapShotSettings() {
       await updateClientSettings(patch);
       return await refreshState();
     } catch (error) {
-      reportSetupError(translateWebSource(locale, "Couldn't save capture settings"), error);
+      reportSetupError("Couldn't save capture settings", error);
     }
   };
 
@@ -212,7 +234,7 @@ export function SnapShotSettings() {
         await bridge?.requestSnapShotPermissions(true);
       await save({ snapShotIncludeAccessibility: includeAccessibility });
     } catch (error) {
-      reportSetupError(translateWebSource(locale, "Couldn't allow app text capture"), error);
+      reportSetupError("Couldn't allow app text capture", error);
     }
   };
 
@@ -319,7 +341,13 @@ export function SnapShotSettings() {
     const verified = await settlePromise(async () => {
       if (state?.macPermissions) {
         saveSnapShotSetupResume(wizard?.wasEnabled ?? settings.snapShotEnabled);
-        await bridge?.setupSnapShot("test-mac-capture");
+        if (bridge) {
+          const failure = await runSnapShotSetup(bridge, "test-mac-capture");
+          if (failure) {
+            presentSetupError({ title: "Couldn't verify capture access", ...failure });
+            return false;
+          }
+        }
       }
       if (state?.mode === "direct")
         await bridge?.requestSnapShotPermissions(settings.snapShotIncludeAccessibility);
@@ -331,10 +359,7 @@ export function SnapShotSettings() {
     });
     setSetupBusy(false);
     if (verified._tag === "Success") return verified.value;
-    reportSetupError(
-      translateWebSource(locale, "Couldn't verify capture access"),
-      Cause.squash(verified.cause),
-    );
+    reportSetupError("Couldn't verify capture access", Cause.squash(verified.cause));
     return false;
   };
 
@@ -354,10 +379,7 @@ export function SnapShotSettings() {
       setWizard(null);
     });
     if (closed._tag === "Failure") {
-      reportSetupError(
-        translateWebSource(locale, "Couldn't close capture setup"),
-        Cause.squash(closed.cause),
-      );
+      reportSetupError("Couldn't close capture setup", Cause.squash(closed.cause));
     }
     setSetupBusy(false);
   };
@@ -379,13 +401,17 @@ export function SnapShotSettings() {
             {...searchableSetting("snap-shot-enabled")}
             description={snapShotDescription(state)}
             status={
-              bridge
-                ? setupBusy && !wizard
-                  ? "Updating capture settings…"
-                  : refreshError
-                    ? `${refreshError.title}. ${refreshError.message}`
-                    : snapShotStatus(state, settings.snapShotEnabled)
-                : undefined
+              bridge ? (
+                setupBusy && !wizard ? (
+                  "Updating capture settings…"
+                ) : displayedRefreshError ? (
+                  <>
+                    {displayedRefreshError.title}. {displayedRefreshError.message}
+                  </>
+                ) : (
+                  snapShotStatus(state, settings.snapShotEnabled)
+                )
+              ) : undefined
             }
             control={
               <>
@@ -618,7 +644,11 @@ export function SnapShotSettings() {
           wasEnabled={wizard.wasEnabled}
           includeAccessibility={settings.snapShotIncludeAccessibility}
           busy={setupBusy}
-          error={(setupError ?? refreshError)?.message ?? null}
+          error={
+            displayedSetupError
+              ? formatSnapShotSetupError(locale, displayedSetupError).message
+              : null
+          }
           shortcutInput={shortcutInput}
           shortcutStatus={shortcutStatus}
           shortcutChanged={shortcutChanged}

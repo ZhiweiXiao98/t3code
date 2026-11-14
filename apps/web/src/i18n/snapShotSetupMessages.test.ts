@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vite-plus/test";
-import { localizeSnapShotSetupMessage } from "./snapShotSetupMessages";
+import {
+  formatOwnedSnapShotSetupMessage,
+  localizeSnapShotSetupMessage,
+} from "./snapShotSetupMessages";
 
 describe("snapshot setup failure presentation", () => {
   it("preserves exact English and unknown external failures", () => {
@@ -74,4 +77,114 @@ describe("snapshot setup failure presentation", () => {
       ),
     ).toBe("无法截取测试快照。查找前台窗口失败。");
   });
+});
+
+it("guards owned setup metadata against stale, future, malformed and raw collisions", () => {
+  const source = "Could not set up the GNOME extension.";
+  const descriptor = { code: "setup", action: "install-extension", reason: "setup-failed" };
+  for (const locale of ["en", "zh-CN", "en"] as const) {
+    expect(formatOwnedSnapShotSetupMessage(locale, source, descriptor)).toBe(
+      locale === "en" ? source : "无法设置 GNOME 扩展。",
+    );
+    for (const metadata of [
+      undefined,
+      null,
+      { ...descriptor, code: "future" },
+      { ...descriptor, reason: "future" },
+      { ...descriptor, action: "install-kde-helper" },
+      { ...descriptor, appName: 9 },
+    ]) {
+      expect(formatOwnedSnapShotSetupMessage(locale, source, metadata)).toBe(source);
+    }
+    for (const raw of [
+      "",
+      ` ${source}`,
+      `${source}\n`,
+      `Error invoking remote method 'desktop:setup-snap-shot': DesktopSnapShotSetupError: ${source}`,
+    ]) {
+      expect(formatOwnedSnapShotSetupMessage(locale, raw, descriptor)).toBe(raw);
+    }
+  }
+});
+it("reconstructs setup action and macOS branch precedence with literal application names", () => {
+  for (const [action, en, zh] of [
+    ["install-extension", "Could not set up the GNOME extension.", "无法设置 GNOME 扩展。"],
+    ["enable-extension", "Could not set up the GNOME extension.", "无法设置 GNOME 扩展。"],
+    ["disable-extension", "Could not set up the GNOME extension.", "无法设置 GNOME 扩展。"],
+    ["install-kde-helper", "Could not set up KDE capture.", "无法设置 KDE 截取。"],
+    ["remove-kde-helper", "Could not set up KDE capture.", "无法设置 KDE 截取。"],
+    ["install-hyprland-helper", "Could not set up Hyprland capture.", "无法设置 Hyprland 截取。"],
+    ["remove-hyprland-helper", "Could not set up Hyprland capture.", "无法设置 Hyprland 截取。"],
+    ["allow-accessibility", "Could not set up the GNOME extension.", "无法设置 GNOME 扩展。"],
+    ["allow-screen-recording", "Could not set up the GNOME extension.", "无法设置 GNOME 扩展。"],
+    ["retry-shortcut", "Could not set up the GNOME extension.", "无法设置 GNOME 扩展。"],
+  ]) {
+    expect(
+      formatOwnedSnapShotSetupMessage("zh-CN", en!, {
+        code: "setup",
+        action,
+        reason: "setup-failed",
+      }),
+    ).toBe(zh);
+    const unsupported = action!.includes("hyprland")
+      ? "Helper setup requires a Hyprland Wayland session outside a sandbox."
+      : action!.includes("kde")
+        ? "Helper setup requires a KDE Plasma Wayland session outside a sandbox."
+        : "Extension setup requires a GNOME Wayland session outside a sandbox.";
+    expect(
+      formatOwnedSnapShotSetupMessage("zh-CN", unsupported, {
+        code: "setup",
+        action,
+        reason: "unsupported-session",
+      }),
+    ).toBe(localizeSnapShotSetupMessage("zh-CN", unsupported));
+    expect(
+      formatOwnedSnapShotSetupMessage("zh-CN", "Could not open shortcut permissions.", {
+        code: "setup",
+        action,
+        reason: "shortcut-permissions",
+      }),
+    ).toBe("无法打开快捷键权限设置。");
+  }
+  const appName = 'literal $& {appName} "quoted"\n应用';
+  for (const step of [undefined, "find-window", "capture-window"]) {
+    for (const status of [undefined, "missing", "timed-out", "exited", "failed"]) {
+      for (const exitCode of [undefined, -1, 0]) {
+        const task = step === "find-window" ? "Finding the front window" : "Capturing the window";
+        const command = step === "find-window" ? "osascript" : "screencapture";
+        const summary = "Could not capture a test snapshot.";
+        const failure =
+          status === "timed-out"
+            ? `${task} timed out.`
+            : status === "exited" && exitCode !== undefined
+              ? `${task} failed: ${command} exited with code ${exitCode}.`
+              : `${task} failed.`;
+        const source =
+          step === undefined
+            ? summary
+            : status === "missing"
+              ? `${summary} No window is available to capture.`
+              : `${summary} ${failure} macOS grants Screen Recording and Accessibility to each app separately. In System Settings, open Privacy & Security and check that "${appName}" is allowed for both.`;
+        const descriptor = {
+          code: "setup",
+          action: "test-mac-capture",
+          reason: "setup-failed",
+          ...(step === undefined ? {} : { step }),
+          ...(status === undefined ? {} : { status }),
+          ...(exitCode === undefined ? {} : { exitCode }),
+          appName,
+        };
+        expect(formatOwnedSnapShotSetupMessage("en", source, descriptor)).toBe(source);
+        expect(formatOwnedSnapShotSetupMessage("zh-CN", source, descriptor)).toBe(
+          localizeSnapShotSetupMessage("zh-CN", source),
+        );
+        expect(
+          formatOwnedSnapShotSetupMessage("zh-CN", "Test capture requires macOS.", {
+            ...descriptor,
+            reason: "unsupported-session",
+          }),
+        ).toBe("测试截取需要 macOS。");
+      }
+    }
+  }
 });
