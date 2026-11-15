@@ -235,6 +235,7 @@ function AboutVersionSection() {
           ),
         );
       } catch (error) {
+        const { t } = readWebI18n();
         setIsUpdateActionPending(false);
         toastManager.add(
           stackedThreadToast({
