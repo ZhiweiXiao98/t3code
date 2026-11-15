@@ -1254,6 +1254,7 @@ export function isCompactCommandMessage(message: ChatMessage): boolean {
 // can race around promotion, so each write carries its time to let the latest
 // one win when they collide.
 const OWNED_THREAD_ERRORS = {
+  sendFailed: "Failed to send message.",
   sendUploadsFailed: "Retry or remove failed uploads before sending.",
   sendPermissionDenied: "This connection cannot change threads.",
   approvalFeedbackContext: "Send approval feedback without attachments or added context.",

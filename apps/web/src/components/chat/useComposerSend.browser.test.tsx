@@ -8,6 +8,9 @@ import {
   RuntimeRequestId,
   ChatAttachmentId,
 } from "@t3tools/contracts";
+import { AsyncResult } from "effect/reactivity";
+import * as Cause from "effect/Cause";
+import type { ChatMessage } from "../../types";
 import { expect, it, vi } from "vite-plus/test";
 import { act, render } from "../../../test/render";
 import { WebI18nContext } from "../../i18n/WebI18nContext";
@@ -41,6 +44,9 @@ const fixture = await vi.hoisted(async () => {
     navigate: vi.fn(),
     newThread: vi.fn(),
     reset: vi.fn(),
+    cursor: vi.fn(),
+    track: vi.fn(),
+    release: vi.fn(),
     dispatch: vi.fn(),
     context: vi.fn(),
     pendingChange: vi.fn(),
@@ -173,7 +179,7 @@ const project = {
   createdAt: "2026-01-01T00:00:00Z",
   updatedAt: "2026-01-01T00:00:00Z",
 };
-type Guard = "server" | "branch" | "feedback" | "permission" | "uploads";
+type Guard = "server" | "branch" | "feedback" | "permission" | "uploads" | "send-failure";
 const approval = {
   requestId: RuntimeRequestId.make("feedback-request"),
   requestKind: "command" as const,
@@ -207,10 +213,12 @@ function Probe({
   const [entries, setEntries] = useState<Record<string, LocalThreadErrorEntry>>({});
   const [, setDismiss] = useState(0);
   const [done, setDone] = useState(false);
+  const [optimistic, setOptimistic] = useState<ChatMessage[]>([]);
+  const isServerScenario = guard === "feedback" || guard === "uploads" || guard === "send-failure";
   const [pending, setPending] = useState(false);
   const [docked, setDocked] = useState<string | null>(null);
-  const target = guard === "feedback" || guard === "uploads" ? ref : draftId;
-  const errorKey = guard === "feedback" || guard === "uploads" ? routeKey : draftId;
+  const target = isServerScenario ? ref : draftId;
+  const errorKey = isServerScenario ? routeKey : draftId;
   const currentRouteThreadKeyRef = useRef<string | null>(routeKey);
   const promptRef = useRef(prompt);
   const composerImagesRef = useRef([]);
@@ -235,7 +243,7 @@ function Probe({
     isCaretAtStart: () => true,
     compactContext: () => undefined,
     readSnapshot: () => ({ value: prompt, cursor: 0, expandedCursor: 0, contextIds: [] }),
-    resetCursorState: fixture.reset,
+    resetCursorState: fixture.cursor,
     addTerminalContext: () => undefined,
     validateProviderInput: () => true,
     setMultipleModelSelections: () => undefined,
@@ -266,8 +274,8 @@ function Probe({
   const setError = makeThreadErrorSetter({
     routeThreadRef: ref,
     routeThreadKey: routeKey,
-    draftId: guard === "feedback" || guard === "uploads" ? null : draftId,
-    serverThreadRef: guard === "feedback" || guard === "uploads" ? ref : null,
+    draftId: isServerScenario ? null : draftId,
+    serverThreadRef: isServerScenario ? ref : null,
     setLocalServerErrorsByThreadKey: setEntries,
     setLocalDraftErrorsByDraftId: setEntries,
   });
@@ -275,16 +283,16 @@ function Probe({
     environmentId: ref.environmentId,
     routeThreadKey: routeKey,
     currentRouteThreadKeyRef,
-    draftId: guard === "feedback" || guard === "uploads" ? null : draftId,
+    draftId: isServerScenario ? null : draftId,
     draftThread: null,
     activeThread: thread,
     activeThreadKey: routeKey,
     activeThreadBranch: guard === "branch" ? null : "main",
     activeProject: project,
     activeProjectDefaultModelSelection: selection,
-    activeMessageCount: guard === "feedback" || guard === "uploads" ? 1 : 0,
-    isServerThread: guard === "feedback" || guard === "uploads",
-    isLocalDraftThread: guard !== "feedback" && guard !== "uploads",
+    activeMessageCount: isServerScenario ? 1 : 0,
+    isServerThread: isServerScenario,
+    isLocalDraftThread: !isServerScenario,
     isGitRepo: true,
     phase: "ready",
     runtimeMode: "full-access",
@@ -348,8 +356,8 @@ function Probe({
       setDocked(value);
     },
     setSetupQueueSendThreadKey: () => undefined,
-    setOptimisticUserMessages: () => undefined,
-    optimisticBlobPreviews: { track: () => undefined, release: () => undefined },
+    setOptimisticUserMessages: setOptimistic,
+    optimisticBlobPreviews: { track: fixture.track, release: fixture.release },
     setFeedbackSubmissionsByThreadKey: () => undefined,
     setThreadError: setError,
     setKeepFullHistory: () => undefined,
@@ -374,6 +382,7 @@ function Probe({
         Send
       </button>
       <output>{done ? "settled" : "idle"}</output>
+      <output data-testid="optimistic">{optimistic.length}</output>
       <output data-testid="dock">{docked ?? "undocked"}</output>
       <ChatBannerLane
         environmentId={ref.environmentId}
@@ -419,6 +428,9 @@ for (const guard of ["server", "branch", "feedback"] as const)
         fixture.navigate,
         fixture.newThread,
         fixture.reset,
+        fixture.cursor,
+        fixture.track,
+        fixture.release,
         fixture.dispatch,
         fixture.context,
         fixture.pendingChange,
@@ -496,6 +508,9 @@ for (const guard of ["server", "branch", "feedback"] as const)
         fixture.navigate,
         fixture.newThread,
         fixture.reset,
+        fixture.cursor,
+        fixture.track,
+        fixture.release,
         fixture.dispatch,
         fixture.persist,
         fixture.advance,
@@ -518,6 +533,9 @@ it.each(["permission", "file-priority"] as const)(
       fixture.navigate,
       fixture.newThread,
       fixture.reset,
+      fixture.cursor,
+      fixture.track,
+      fixture.release,
       fixture.dispatch,
       fixture.context,
       fixture.pendingChange,
@@ -643,6 +661,9 @@ it.each(["permission", "file-priority"] as const)(
       fixture.navigate,
       fixture.newThread,
       fixture.reset,
+      fixture.cursor,
+      fixture.track,
+      fixture.release,
       fixture.dispatch,
       fixture.persist,
       fixture.advance,
@@ -664,6 +685,9 @@ it.each(["owned", "capability-priority"] as const)(
       fixture.navigate,
       fixture.newThread,
       fixture.reset,
+      fixture.cursor,
+      fixture.track,
+      fixture.release,
       fixture.dispatch,
       fixture.context,
       fixture.pendingChange,
@@ -784,12 +808,151 @@ it.each(["owned", "capability-priority"] as const)(
       fixture.navigate,
       fixture.newThread,
       fixture.reset,
+      fixture.cursor,
+      fixture.track,
+      fixture.release,
       fixture.dispatch,
       fixture.persist,
       fixture.advance,
       fixture.feedback,
       fixture.decline,
       fixture.respond,
+      fixture.transition,
+      fixture.capture,
+    ])
+      expect(mock).not.toHaveBeenCalled();
+  },
+);
+
+it.each(["owned", "raw", "empty", "interrupted"] as const)(
+  "restores settled send %s failure with current notice",
+  async (kind) => {
+    for (const mock of [
+      fixture.start,
+      fixture.multiple,
+      fixture.prepare,
+      fixture.navigate,
+      fixture.newThread,
+      fixture.reset,
+      fixture.cursor,
+      fixture.track,
+      fixture.release,
+      fixture.dispatch,
+      fixture.context,
+      fixture.pendingChange,
+      fixture.persist,
+      fixture.advance,
+      fixture.feedback,
+      fixture.decline,
+      fixture.respond,
+      fixture.upload,
+      fixture.waitUploads,
+      fixture.transition,
+      fixture.capture,
+      fixture.dock,
+    ])
+      mock.mockReset();
+    fixture.allowed = true;
+    fixture.pendingChange.mockReturnValue(null);
+    fixture.prepare.mockResolvedValue([]);
+    const routeKey = `settled-failure-${kind}`;
+    const draftId = DraftId.make(routeKey);
+    const original = useComposerDraftStore.getState();
+    const state = draftSendState(routeKey);
+    const lock = state.sendInFlight.current;
+    using _restore = {
+      [Symbol.dispose]: () => {
+        useComposerDraftStore.setState(original, true);
+        state.sendInFlight.current = lock;
+      },
+    };
+    state.sendInFlight.current = false;
+    useComposerDraftStore.getState().setPrompt(ref, prompt);
+    const before = useComposerDraftStore.getState().getComposerDraft(ref);
+    let finish!: (result: ReturnType<typeof AsyncResult.failure>) => void;
+    const pending = new Promise<ReturnType<typeof AsyncResult.failure>>((resolve) => {
+      finish = resolve;
+    });
+    fixture.persist.mockReturnValue(pending);
+    const props = { guard: "send-failure" as const, routeKey, draftId, blocked: false };
+    await using screen = await render(surface("en", props));
+    await using _settle = {
+      [Symbol.asyncDispose]: async () => {
+        await act(async () => {
+          finish(AsyncResult.failure(Cause.interrupt()));
+          await Promise.resolve();
+        });
+      },
+    };
+    await screen.getByRole("button", { name: "Send", exact: true }).click();
+    await expect.poll(() => fixture.persist.mock.calls.length).toBe(1);
+    await expect.element(screen.getByRole("button", { name: "Send", exact: true })).toBeDisabled();
+    expect(state.sendInFlight.current).toBe(true);
+    expect(useComposerDraftStore.getState().getComposerDraft(ref)?.prompt ?? "").toBe("");
+    expect(screen.container.querySelector('[data-testid="optimistic"]')?.textContent).toBe("1");
+    expect(fixture.track).toHaveBeenCalledTimes(1);
+    expect(fixture.release).not.toHaveBeenCalled();
+    expect(fixture.cursor).toHaveBeenCalledTimes(1);
+    expect(fixture.reset).not.toHaveBeenCalled();
+    expect(fixture.persist).toHaveBeenCalledWith({
+      threadId: ref.threadId,
+      createdAt: expect.any(String),
+      runtimeMode: "full-access",
+      interactionMode: "default",
+    });
+    await screen.rerender(surface("zh-CN", props));
+    const source = "Failed to send message.";
+    await act(async () => {
+      finish(
+        AsyncResult.failure(
+          kind === "interrupted"
+            ? Cause.interrupt()
+            : Cause.fail(kind === "owned" ? null : new Error(kind === "empty" ? "" : source)),
+        ),
+      );
+    });
+    await expect.poll(() => screen.container.textContent).toContain("settled");
+    await expect.element(screen.getByRole("button", { name: "Send", exact: true })).toBeEnabled();
+    for (const locale of ["zh-CN", "en", "zh-CN", "en"] as const) {
+      await screen.rerender(surface(locale, props));
+      if (kind === "empty" || kind === "interrupted")
+        expect(screen.container.querySelector('[data-variant="error"]')).toBeNull();
+      else
+        await expect
+          .poll(() => screen.container.textContent)
+          .toContain(kind === "owned" && locale === "zh-CN" ? "发送消息失败。" : source);
+    }
+    const restored = useComposerDraftStore.getState().getComposerDraft(ref);
+    expect(restored).not.toBe(before);
+    expect(restored?.prompt).toBe(prompt);
+    expect(restored?.files).toEqual([]);
+    expect(restored?.images).toEqual([]);
+    expect(screen.container.querySelector('[data-testid="optimistic"]')?.textContent).toBe("0");
+    expect(fixture.release).toHaveBeenCalledExactlyOnceWith(fixture.track.mock.calls[0]?.[0]);
+    expect(fixture.cursor).toHaveBeenCalledTimes(2);
+    expect(fixture.cursor.mock.calls[1]?.[0]).toEqual({
+      cursor: prompt.length,
+      prompt,
+      detectTrigger: true,
+    });
+    expect(fixture.reset).toHaveBeenCalledTimes(1);
+    expect(fixture.dispatch).toHaveBeenCalledTimes(1);
+    expect(fixture.prepare).toHaveBeenCalledTimes(1);
+    expect(fixture.persist).toHaveBeenCalledTimes(1);
+    expect(state.sendInFlight.current).toBe(false);
+    expect(fixture.dock).toHaveBeenCalledTimes(1);
+    expect(screen.container.querySelector('[data-testid="dock"]')?.textContent).toBe("undocked");
+    for (const mock of [
+      fixture.start,
+      fixture.multiple,
+      fixture.navigate,
+      fixture.newThread,
+      fixture.advance,
+      fixture.feedback,
+      fixture.decline,
+      fixture.respond,
+      fixture.upload,
+      fixture.waitUploads,
       fixture.transition,
       fixture.capture,
     ])

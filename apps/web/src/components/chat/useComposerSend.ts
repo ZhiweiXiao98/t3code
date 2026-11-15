@@ -1398,9 +1398,8 @@ export function useComposerSend(input: ComposerSendInput) {
         const error = squashAtomCommandFailure(failure);
         setThreadError(
           threadIdForSend,
-          error instanceof Error
-            ? error.message
-            : translateWebSource(uiLocale, "Failed to send message."),
+          error instanceof Error ? error.message : "Failed to send message.",
+          error instanceof Error ? undefined : "sendFailed",
         );
         if (
           draftId &&

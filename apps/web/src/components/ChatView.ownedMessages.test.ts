@@ -773,3 +773,31 @@ it("pairs missing send uploads without claiming raw capability text", () => {
   expect(entries.uploads?.ownedCode).toBeUndefined();
   expect(formatLocalThreadError(source, entries.uploads, "zh-CN")).toBe(source);
 });
+
+it("pairs settled send failure without claiming raw error text", () => {
+  const source = "Failed to send message.";
+  const ref = {
+    environmentId: EnvironmentId.make("send-failure"),
+    threadId: ThreadId.make("send-failure"),
+  };
+  let entries: Record<string, LocalThreadErrorEntry> = {};
+  const set = makeThreadErrorSetter({
+    routeThreadRef: ref,
+    routeThreadKey: "send-failure",
+    draftId: null,
+    serverThreadRef: ref,
+    setLocalServerErrorsByThreadKey: (update) => {
+      entries = typeof update === "function" ? update(entries) : update;
+    },
+    setLocalDraftErrorsByDraftId: () => undefined,
+  });
+  set(ref.threadId, source, "sendFailed");
+  expect(entries["send-failure"]?.ownedCode).toBe("sendFailed");
+  for (const locale of ["en", "zh-CN", "en"] as const)
+    expect(formatLocalThreadError(source, entries["send-failure"], locale)).toBe(
+      locale === "en" ? source : "发送消息失败。",
+    );
+  set(ref.threadId, source);
+  expect(entries["send-failure"]?.ownedCode).toBeUndefined();
+  expect(formatLocalThreadError(source, entries["send-failure"], "zh-CN")).toBe(source);
+});
