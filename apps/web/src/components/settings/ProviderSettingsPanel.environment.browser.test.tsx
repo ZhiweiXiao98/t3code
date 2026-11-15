@@ -858,3 +858,164 @@ it.each(["owned", "raw", "empty", "interrupted"] as const)(
     expect(state.toast).toHaveBeenCalledTimes(1);
   },
 );
+
+it.each(["owned", "raw", "empty", "interrupted"] as const)(
+  "uses settlement locale for managed provider cleanup failure: %s",
+  async (kind) => {
+    await setup();
+    state.locale = "en";
+    state.toast.mockReset();
+    using _restore = {
+      [Symbol.dispose]() {
+        state.locale = null;
+      },
+    };
+    const managedId = ProviderInstanceId.make("acpRegistry_fixture");
+    const instance = {
+      driver: ProviderDriverKind.make("acpRegistry"),
+      enabled: true,
+      config: { agentId: "fixture-agent" },
+      displayName: "Literal $& {provider}",
+    };
+    state.settings = { ...DEFAULT_UNIFIED_SETTINGS, providerInstances: { [managedId]: instance } };
+    const originalSettings = state.settings;
+    state.confirm.mockResolvedValue(true);
+    const result = AsyncResult.failure(
+      kind === "interrupted"
+        ? Cause.interrupt()
+        : Cause.fail(
+            kind === "owned"
+              ? null
+              : new Error(kind === "empty" ? "" : "Literal $& {settings error}"),
+          ),
+    );
+    let resolve!: (value: typeof result) => void;
+    const pending = new Promise<typeof result>((done) => {
+      resolve = done;
+    });
+    state.uninstall.mockReturnValueOnce(pending);
+    const surface = (locale: "en" | "zh-CN") => (
+      <WebI18nContext
+        value={{
+          locale,
+          appLocale: locale,
+          setAppLocale: () => undefined,
+          t: (key, values) => translateWebMessage(locale, key, values),
+        }}
+      >
+        {panel({ targetInstanceId: managedId })}
+      </WebI18nContext>
+    );
+    await using screen = await render(surface("en"));
+    await using _drain = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          resolve(result);
+          await pending;
+        });
+      },
+    };
+    await userEvent.click(
+      page.getByRole("button", { name: `Delete instance ${managedId}`, exact: true }),
+    );
+    await vi.waitFor(() =>
+      expect(state.mutateProviderInstance).toHaveBeenCalledExactlyOnceWith({
+        operation: "remove",
+        instanceId: managedId,
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(state.uninstall).toHaveBeenCalledExactlyOnceWith({
+        environmentId,
+        input: { agentId: "fixture-agent" },
+      }),
+    );
+    expect(state.mutateProviderInstance.mock.invocationCallOrder[0]).toBeLessThan(
+      state.uninstall.mock.invocationCallOrder[0]!,
+    );
+    expect(state.confirm).toHaveBeenCalledExactlyOnceWith(
+      "Remove the Literal $& {provider} provider instance?\nIts saved settings, including any custom binary path, will be removed.",
+      { variant: "destructive" },
+    );
+    expect(state.confirm.mock.invocationCallOrder[0]).toBeLessThan(
+      state.mutateProviderInstance.mock.invocationCallOrder[0]!,
+    );
+    expect(state.mutationEnvironmentIds).toContain(environmentId);
+    expect(state.toast).not.toHaveBeenCalled();
+    state.locale = "zh-CN";
+    await screen.rerender(surface("zh-CN"));
+    await act(async () => {
+      resolve(result);
+      await pending;
+    });
+    if (kind === "interrupted") expect(state.toast).not.toHaveBeenCalled();
+    else
+      expect(state.toast).toHaveBeenCalledExactlyOnceWith({
+        type: "warning",
+        title: "提供商已删除，但托管文件仍保留",
+        description:
+          kind === "owned"
+            ? "清理托管二进制文件失败。"
+            : kind === "empty"
+              ? ""
+              : "Literal $& {settings error}",
+      });
+    expect(state.settings).toBe(originalSettings);
+    expect(state.settings.providerInstances[managedId]).toBe(instance);
+    expect(state.updateSettings).not.toHaveBeenCalled();
+    expect(state.updateProvider).not.toHaveBeenCalled();
+    expect(state.uninstall).toHaveBeenCalledTimes(1);
+    expect(state.confirm).toHaveBeenCalledTimes(1);
+    state.locale = "en";
+    await screen.rerender(surface("en"));
+    expect(state.toast).toHaveBeenCalledTimes(kind === "interrupted" ? 0 : 1);
+  },
+);
+
+it.each(["local", "missing agent"] as const)(
+  "does not uninstall managed files for provider deletion: %s",
+  async (kind) => {
+    await setup();
+    state.locale = "en";
+    state.toast.mockReset();
+    using _restore = {
+      [Symbol.dispose]() {
+        state.locale = null;
+      },
+    };
+    const managedId = ProviderInstanceId.make("acpRegistry_fixture");
+    const instance = {
+      driver: ProviderDriverKind.make("acpRegistry"),
+      enabled: true,
+      displayName: "Literal $& {provider}",
+      config:
+        kind === "local"
+          ? { source: "local", agentId: "fixture-agent", commandPath: "unused-fixture-command" }
+          : {},
+    };
+    state.settings = { ...DEFAULT_UNIFIED_SETTINGS, providerInstances: { [managedId]: instance } };
+    const originalSettings = state.settings;
+    state.confirm.mockResolvedValue(true);
+    await using _screen = await render(panel({ targetInstanceId: managedId }));
+    await userEvent.click(
+      page.getByRole("button", { name: `Delete instance ${managedId}`, exact: true }),
+    );
+    await vi.waitFor(() =>
+      expect(state.mutateProviderInstance).toHaveBeenCalledExactlyOnceWith({
+        operation: "remove",
+        instanceId: managedId,
+      }),
+    );
+    await act(async () => {
+      await state.mutateProviderInstance.mock.results[0]!.value;
+    });
+    expect(state.confirm).toHaveBeenCalledExactlyOnceWith(
+      "Remove the Literal $& {provider} provider instance?\nIts saved settings, including any custom binary path, will be removed.",
+      { variant: "destructive" },
+    );
+    expect(state.uninstall).not.toHaveBeenCalled();
+    expect(state.toast).not.toHaveBeenCalled();
+    expect(state.updateSettings).not.toHaveBeenCalled();
+    expect(state.settings).toBe(originalSettings);
+  },
+);

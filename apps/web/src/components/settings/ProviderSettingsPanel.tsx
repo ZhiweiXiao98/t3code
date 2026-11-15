@@ -917,6 +917,7 @@ export function EnvironmentProviderSettings({
         input: { agentId },
       });
       if (uninstallResult._tag === "Failure" && !isAtomCommandInterrupted(uninstallResult)) {
+        const { locale: translationLocale } = readWebI18n();
         const error = squashAtomCommandFailure(uninstallResult);
         toastManager.add({
           type: "warning",
