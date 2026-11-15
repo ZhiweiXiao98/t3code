@@ -208,6 +208,7 @@ function AboutVersionSection() {
 
     if (action === "download") {
       void bridge.downloadUpdate().catch((error: unknown) => {
+        const { t } = readWebI18n();
         toastManager.add(
           stackedThreadToast({
             type: "error",
