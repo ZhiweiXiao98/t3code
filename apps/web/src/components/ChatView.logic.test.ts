@@ -1324,6 +1324,7 @@ it.each(["server", "draft"] as const)(
 );
 
 it.each([
+  ["rewindFailed", "Failed to revert thread state.", "还原会话状态失败。"],
   [
     "rewindAttachmentsPending",
     "Wait for attachments to finish preparing before rewinding.",

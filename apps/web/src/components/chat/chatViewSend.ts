@@ -189,7 +189,7 @@ export async function rewindToMessage(input: {
 }): Promise<
   | {
       readonly error: string;
-      readonly ownedCode?: "rewindAttachmentsPending";
+      readonly ownedCode?: "rewindAttachmentsPending" | "rewindFailed";
       readonly prompt?: never;
     }
   | { readonly error: null; readonly prompt: string }
@@ -279,12 +279,9 @@ export async function rewindToMessage(input: {
     store.addFiles(draftTarget, restoredFiles, { allowDuplicates: true });
     return { error: null, prompt: nextPrompt };
   } catch (error) {
-    return {
-      error:
-        error instanceof Error
-          ? error.message
-          : translateWebSource(readWebI18n().locale, "Failed to revert thread state."),
-    };
+    return error instanceof Error
+      ? { error: error.message }
+      : { error: "Failed to revert thread state.", ownedCode: "rewindFailed" };
   }
 }
 

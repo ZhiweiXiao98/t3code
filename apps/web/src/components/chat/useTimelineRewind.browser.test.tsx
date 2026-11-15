@@ -431,3 +431,47 @@ it.each(["owned", "raw", "empty"] as const)(
     expect(useComposerDraftStore.getState().getComposerDraft(ref)).toBe(originalDraft);
   },
 );
+
+it.each(["null", "undefined", "raw", "empty"] as const)(
+  "keeps rewind catch %s notice current",
+  async (kind) => {
+    setup();
+    const source = "Failed to revert thread state.";
+    fixture.connection.mockImplementation(() => {
+      throw kind === "null"
+        ? null
+        : kind === "undefined"
+          ? undefined
+          : new Error(kind === "raw" ? source : "");
+    });
+    const originalKeys = useComposerDraftStore.getState().rewindingThreadKeys;
+    const originalDraft = useComposerDraftStore.getState().getComposerDraft(ref);
+    using _restore = {
+      [Symbol.dispose]: () => useComposerDraftStore.setState({ rewindingThreadKeys: originalKeys }),
+    };
+    await using screen = await render(surface("en", { attachmentCase: "raw" }));
+    await screen.getByRole("button", { name: "Confirm revert", exact: true }).click();
+    await expect.poll(() => fixture.connection.mock.calls.length).toBe(1);
+    await expect
+      .poll(() => useComposerDraftStore.getState().rewindingThreadKeys.has("fork"))
+      .toBe(false);
+    for (const locale of ["en", "zh-CN", "en"] as const) {
+      await screen.rerender(surface(locale, { attachmentCase: "raw" }));
+      if (kind === "empty")
+        expect(screen.container.querySelector('[data-variant="error"]')).toBeNull();
+      else
+        await expect
+          .poll(() => screen.container.textContent)
+          .toContain(
+            (kind === "null" || kind === "undefined") && locale === "zh-CN"
+              ? "还原会话状态失败。"
+              : source,
+          );
+    }
+    expect(fixture.connection).toHaveBeenCalledExactlyOnceWith(ref.environmentId);
+    expect(fixture.rewind).not.toHaveBeenCalled();
+    expect(fixture.query).not.toHaveBeenCalled();
+    expect(fixture.fork).not.toHaveBeenCalled();
+    expect(useComposerDraftStore.getState().getComposerDraft(ref)).toBe(originalDraft);
+  },
+);
