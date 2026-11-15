@@ -191,7 +191,9 @@ it("does not open reviewers when denied or mutate after Escape", async () => {
   await using screen = await render(surface("en", false));
   const trigger = screen.getByRole("button", { name: "Request a review", exact: true });
   await expect.element(trigger).toHaveAttribute("aria-disabled", "true");
-  await userEvent.click(trigger);
+  await act(async () => {
+    trigger.element().dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+  });
   await expect.element(page.getByRole("listbox")).not.toBeInTheDocument();
   expect(fixture.query).not.toHaveBeenCalled();
   await screen.rerender(surface("en"));
