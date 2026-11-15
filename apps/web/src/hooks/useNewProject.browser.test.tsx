@@ -10,6 +10,8 @@ import { translateWebMessage } from "../i18n/messages";
 import type { EnvironmentProject } from "@t3tools/client-runtime/state/models";
 import { scopeProjectRef } from "@t3tools/client-runtime/environment";
 import { ProjectAppearanceTimeoutError } from "../i18n/queryFailureMessages";
+import type { NewProjectPublishTarget } from "@t3tools/client-runtime/operations/projects";
+import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
 import { useNewProject } from "./useNewProject";
 
 const fixture = vi.hoisted(() => ({
@@ -19,6 +21,7 @@ const fixture = vi.hoisted(() => ({
   wait: vi.fn(),
   thread: vi.fn(),
   toast: vi.fn(),
+  suggest: vi.fn(),
 }));
 vi.mock("../state/use-atom-command", async (original) => {
   const actual = await original<typeof import("../state/use-atom-command")>();
@@ -59,7 +62,7 @@ vi.mock("../i18n/readWebI18n", async (original) => ({
   },
 }));
 const environmentId = EnvironmentId.make("new-project-test");
-function Probe() {
+function Probe({ publishTo = null }: { publishTo?: NewProjectPublishTarget | null }) {
   const create = useNewProject();
   const [status, setStatus] = useState("idle");
   return (
@@ -71,7 +74,7 @@ function Probe() {
           const result = await create({
             environmentId,
             name: "Literal $& {project}",
-            publishTo: null,
+            publishTo,
           });
           setStatus(String(result));
         }}
@@ -82,7 +85,7 @@ function Probe() {
     </>
   );
 }
-function view() {
+function view(publishTo: NewProjectPublishTarget | null = null) {
   const locale = fixture.locale;
   return (
     <WebI18nContext.Provider
@@ -93,7 +96,7 @@ function view() {
         t: (key, values) => translateWebMessage(locale, key, values),
       }}
     >
-      <Probe />
+      <Probe publishTo={publishTo} />
     </WebI18nContext.Provider>
   );
 }
@@ -273,5 +276,97 @@ it.each([
       );
     expect(fixture.publish).not.toHaveBeenCalled();
     expect(fixture.toast).toHaveBeenCalledTimes(2);
+  },
+);
+
+vi.mock("../components/sourceControlAppAccessToast", async (original) => ({
+  ...(await original<typeof import("../components/sourceControlAppAccessToast")>()),
+  suggestAppAccessForRemote: fixture.suggest,
+}));
+it.each(["owned", "raw", "empty", "whitespace", "interrupted"] as const)(
+  "uses settlement locale for project publish %s failure",
+  async (kind) => {
+    vi.clearAllMocks();
+    fixture.locale = "en";
+    const definition = sourceControlClients.definitions.find((item) => item.kind === "github");
+    if (!definition) throw new Error("Missing GitHub definition");
+    const publishTo: NewProjectPublishTarget = { definition, owner: "fake-owner" };
+    fixture.create.mockReset().mockResolvedValue(
+      AsyncResult.success({
+        projectId: createdProject.id,
+        workspaceRoot: createdProject.workspaceRoot,
+      }),
+    );
+    fixture.wait.mockReset().mockResolvedValue(createdProject);
+    fixture.thread.mockReset().mockResolvedValue(null);
+    let finish!: (result: AtomCommandResult<never, unknown>) => void;
+    fixture.publish.mockReset().mockReturnValue(
+      new Promise<AtomCommandResult<never, unknown>>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    await using screen = await render(view(publishTo));
+    await using _settle = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          finish(AsyncResult.failure(Cause.interrupt()));
+          await Promise.resolve();
+        });
+      },
+    };
+    await screen.getByRole("button", { name: "Create project" }).click();
+    await expect.poll(() => screen.container.textContent).toContain("true");
+    expect(fixture.toast).toHaveBeenCalledTimes(1);
+    expect(fixture.publish).toHaveBeenCalledExactlyOnceWith({
+      environmentId,
+      input: {
+        cwd: createdProject.workspaceRoot,
+        provider: definition.kind,
+        repository: "fake-owner/{project}",
+        visibility: "private",
+      },
+    });
+    fixture.locale = "zh-CN";
+    await screen.rerender(view(publishTo));
+    const raw =
+      kind === "raw"
+        ? translateWebMessage("en", "common.error")
+        : kind === "whitespace"
+          ? " \n "
+          : "";
+    await act(async () => {
+      finish(
+        AsyncResult.failure(
+          kind === "interrupted"
+            ? Cause.interrupt()
+            : Cause.fail(kind === "owned" ? null : new Error(raw)),
+        ),
+      );
+    });
+    expect(fixture.toast).toHaveBeenCalledTimes(kind === "interrupted" ? 1 : 2);
+    if (kind !== "interrupted")
+      expect(fixture.toast.mock.calls[1]?.[0]).toMatchObject({
+        title: translateWebMessage("zh-CN", "newProject.repositoryError", {
+          provider: definition.label,
+        }),
+        description: translateWebMessage("zh-CN", "newProject.gitHubErrorDescription", {
+          error: kind === "raw" ? raw : translateWebMessage("zh-CN", "common.error"),
+        }),
+      });
+    fixture.locale = "en";
+    await screen.rerender(view(publishTo));
+    expect(fixture.toast).toHaveBeenCalledTimes(kind === "interrupted" ? 1 : 2);
+    expect(fixture.create).toHaveBeenCalledExactlyOnceWith({
+      environmentId,
+      input: { name: "Literal $& {project}" },
+    });
+    expect(fixture.publish).toHaveBeenCalledTimes(1);
+    expect(fixture.wait).toHaveBeenCalledExactlyOnceWith(
+      scopeProjectRef(environmentId, createdProject.id),
+    );
+    expect(fixture.thread).toHaveBeenCalledExactlyOnceWith(
+      scopeProjectRef(environmentId, createdProject.id),
+    );
+    expect(fixture.suggest).not.toHaveBeenCalled();
   },
 );
