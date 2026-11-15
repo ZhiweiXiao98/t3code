@@ -683,12 +683,19 @@ export async function prepareRevertedMessageAttachments(input: {
         throw error;
       }
       const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
-      if (!response.ok)
-        throw new Error(
+      if (!response.ok) {
+        const error = new Error(
           translateWebMessage(input.readLocale?.() ?? "en", "audit15.restoreAttachment", {
             name: attachment.name,
           }),
         );
+        ownedRewindFailures.set(error, {
+          message: error.message,
+          code: "rewindRestoreAttachment",
+          name: attachment.name,
+        });
+        throw error;
+      }
       return new File([await response.blob()], attachment.name, { type: attachment.mimeType });
     }),
   );
@@ -926,20 +933,32 @@ export function getStartedThreadModelChangeBlockReason(input: {
 
 const ownedRewindFailures = new WeakMap<
   Error,
-  {
-    readonly message: string;
-    readonly code:
-      | "rewindChanged"
-      | "rewindTimeout"
-      | "rewindUnsupportedAttachment"
-      | "rewindInvalidAttachmentUrl";
-  }
+  | {
+      readonly message: string;
+      readonly code:
+        | "rewindChanged"
+        | "rewindTimeout"
+        | "rewindUnsupportedAttachment"
+        | "rewindInvalidAttachmentUrl";
+    }
+  | {
+      readonly message: string;
+      readonly code: "rewindRestoreAttachment";
+      readonly name: string;
+    }
 >();
 
 export function readOwnedRewindFailure(error: unknown) {
   if (!(error instanceof Error)) return undefined;
   const owned = ownedRewindFailures.get(error);
   if (owned === undefined || error.message !== owned.message) return undefined;
+  if (owned.code === "rewindRestoreAttachment") {
+    return {
+      error: translateWebMessage("en", "audit15.restoreAttachment", { name: owned.name }),
+      ownedCode: owned.code,
+      ownedName: owned.name,
+    };
+  }
   return { error: OWNED_THREAD_ERRORS[owned.code], ownedCode: owned.code };
 }
 
@@ -1260,26 +1279,41 @@ const OWNED_THREAD_ERRORS = {
 
 export type LocalThreadErrorEntry = {
   readonly message: string | null;
-  readonly ownedCode?: keyof typeof OWNED_THREAD_ERRORS;
+  readonly ownedCode?: keyof typeof OWNED_THREAD_ERRORS | "rewindRestoreAttachment";
+  readonly ownedName?: string;
   readonly at: number;
 };
+
+function ownedThreadErrorSource(code: LocalThreadErrorEntry["ownedCode"], name?: string) {
+  if (code === "rewindRestoreAttachment") {
+    return typeof name === "string"
+      ? translateWebMessage("en", "audit15.restoreAttachment", { name })
+      : undefined;
+  }
+  return code === undefined || name !== undefined ? undefined : OWNED_THREAD_ERRORS[code];
+}
 
 export function formatLocalThreadError(
   message: string | null,
   entry: LocalThreadErrorEntry | undefined,
   locale: ResolvedAppLocale,
 ): string | null {
-  const source = entry?.ownedCode === undefined ? undefined : OWNED_THREAD_ERRORS[entry.ownedCode];
-  return source !== undefined && entry?.message === message && message === source
-    ? translateWebSource(locale, source)
-    : message;
+  const source = ownedThreadErrorSource(entry?.ownedCode, entry?.ownedName);
+  if (source === undefined || entry?.message !== message || message !== source) return message;
+  return entry.ownedCode === "rewindRestoreAttachment" && typeof entry.ownedName === "string"
+    ? translateWebMessage(locale, "audit15.restoreAttachment", { name: entry.ownedName })
+    : translateWebSource(locale, source);
 }
 
 function sameLocalThreadError(
   left: LocalThreadErrorEntry | undefined,
   right: LocalThreadErrorEntry,
 ): boolean {
-  return (left?.message ?? null) === right.message && left?.ownedCode === right.ownedCode;
+  return (
+    (left?.message ?? null) === right.message &&
+    left?.ownedCode === right.ownedCode &&
+    left?.ownedName === right.ownedName
+  );
 }
 
 export function shouldPromoteLocalThreadError(
@@ -1323,14 +1357,17 @@ export function makeThreadErrorSetter(input: {
     targetThreadId: ThreadId | null,
     error: string | null,
     ownedCode?: LocalThreadErrorEntry["ownedCode"],
+    ownedName?: string,
   ) => {
     if (!targetThreadId) return;
     const nextError = sanitizeThreadErrorMessage(error);
     const nextEntry: LocalThreadErrorEntry = {
       message: nextError,
       at: Date.now(),
-      ...(ownedCode !== undefined && nextError === OWNED_THREAD_ERRORS[ownedCode]
-        ? { ownedCode }
+      ...(ownedCode !== undefined &&
+      nextError !== null &&
+      nextError === ownedThreadErrorSource(ownedCode, ownedName)
+        ? { ownedCode, ...(ownedName === undefined ? {} : { ownedName }) }
         : {}),
     };
     const { routeThreadRef, serverThreadRef } = input;

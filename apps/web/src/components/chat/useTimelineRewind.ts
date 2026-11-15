@@ -161,7 +161,7 @@ export function useTimelineRewind(input: TimelineRewindInput) {
       return { rewindingThreadKeys: remaining };
     });
     if (rewind.error !== null) {
-      setThreadError(activeThread.id, rewind.error, rewind.ownedCode);
+      setThreadError(activeThread.id, rewind.error, rewind.ownedCode, rewind.ownedName);
       return;
     }
     if (currentRouteThreadKeyRef.current === routeThreadKey) {

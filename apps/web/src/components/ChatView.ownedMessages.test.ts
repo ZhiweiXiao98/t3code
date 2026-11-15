@@ -6,6 +6,7 @@ import {
   type ChatUnknownAttachment,
   ThreadId,
 } from "@t3tools/contracts";
+import type { SetStateAction } from "react";
 import { AsyncResult } from "effect/reactivity";
 import { expect, it, vi } from "vite-plus/test";
 import {
@@ -16,6 +17,7 @@ import {
   readOwnedRewindFailure,
   makeThreadErrorSetter,
   formatLocalThreadError,
+  shouldPromoteLocalThreadError,
   type LocalThreadErrorEntry,
 } from "./ChatView.logic";
 
@@ -133,7 +135,26 @@ it("preserves attachment names and fetch arguments in a localized restore failur
         createAssetUrl: async () =>
           AsyncResult.success({ relativeUrl: "/api/assets/opaque", expiresAt: 1 }),
       });
-    await expect(restore("zh-CN")).rejects.toThrow(`无法恢复附件：${name}`);
+    const error = await restore("zh-CN").catch((error: unknown) => error);
+    expect(error).toBeInstanceOf(Error);
+    if (!(error instanceof Error)) throw new Error("Expected restore failure");
+    expect(error.message).toBe(`无法恢复附件：${name}`);
+    expect(readOwnedRewindFailure(error)).toEqual({
+      error: `Could not restore attachment: ${name}`,
+      ownedCode: "rewindRestoreAttachment",
+      ownedName: name,
+    });
+    expect(readOwnedRewindFailure(new Error(error.message))).toBeUndefined();
+    expect(
+      readOwnedRewindFailure(
+        Object.assign(new Error(error.message), {
+          ownedCode: "rewindRestoreAttachment",
+          ownedName: name,
+        }),
+      ),
+    ).toBeUndefined();
+    error.message = "changed";
+    expect(readOwnedRewindFailure(error)).toBeUndefined();
     await expect(restore("en")).rejects.toThrow(`Could not restore attachment: ${name}`);
     expect(fetch).toHaveBeenCalledWith("https://example.test/api/assets/opaque", {
       signal: expect.any(AbortSignal),
@@ -298,3 +319,66 @@ it("marks only the real rewind invalid URL constructor, not the file-opening hel
     },
   });
 });
+
+it.each(["server", "draft"] as const)(
+  "pairs dynamic restore names atomically in the %s map",
+  (kind) => {
+    const ref = {
+      environmentId: EnvironmentId.make("dynamic"),
+      threadId: ThreadId.make("dynamic"),
+    };
+    let entries: Record<string, LocalThreadErrorEntry> = {};
+    const update = (value: SetStateAction<Record<string, LocalThreadErrorEntry>>) => {
+      entries = typeof value === "function" ? value(entries) : value;
+    };
+    const set = makeThreadErrorSetter({
+      routeThreadRef: ref,
+      routeThreadKey: "dynamic",
+      draftId: null,
+      serverThreadRef: kind === "server" ? ref : null,
+      setLocalServerErrorsByThreadKey: update,
+      setLocalDraftErrorsByDraftId: update,
+    });
+    for (const name of ["{name}/$&:\n.txt", "other", ""] as const) {
+      const source = `Could not restore attachment: ${name}`;
+      set(ref.threadId, source, "rewindRestoreAttachment", name);
+      const entry = entries.dynamic!;
+      expect(entry).toMatchObject({
+        message: source,
+        ownedCode: "rewindRestoreAttachment",
+        ownedName: name,
+      });
+      for (const locale of ["en", "zh-CN", "en"] as const)
+        expect(formatLocalThreadError(source, entry, locale)).toBe(
+          locale === "en" ? source : `无法恢复附件：${name}`,
+        );
+      set(ref.threadId, source, "rewindRestoreAttachment", name);
+      expect(entries.dynamic).toBe(entry);
+      expect(
+        shouldPromoteLocalThreadError(entry, { ...entry, ownedName: name + "different" }),
+      ).toBe(true);
+      expect(shouldPromoteLocalThreadError(entry, { ...entry })).toBe(false);
+      expect(formatLocalThreadError(source, { ...entry, ownedName: name + "wrong" }, "zh-CN")).toBe(
+        source,
+      );
+      expect(formatLocalThreadError(source + "stale", entry, "zh-CN")).toBe(source + "stale");
+      set(ref.threadId, source);
+      expect(entries.dynamic?.ownedCode).toBeUndefined();
+      expect(entries.dynamic?.ownedName).toBeUndefined();
+      expect(formatLocalThreadError(source, entries.dynamic, "zh-CN")).toBe(source);
+      set(ref.threadId, source, "rewindRestoreAttachment");
+      expect(entries.dynamic?.ownedCode).toBeUndefined();
+      set(ref.threadId, source, "rewindRestoreAttachment", name + "wrong");
+      expect(entries.dynamic?.ownedName).toBeUndefined();
+    }
+    for (const raw of ["", "   ", null]) {
+      set(ref.threadId, raw);
+      expect(entries.dynamic?.message).toBe(raw);
+    }
+    const name = "literal is not connected.";
+    set(ref.threadId, `Could not restore attachment: ${name}`, "rewindRestoreAttachment", name);
+    expect(entries.dynamic?.message).toBeNull();
+    expect(entries.dynamic?.ownedCode).toBeUndefined();
+    expect(entries.dynamic?.ownedName).toBeUndefined();
+  },
+);

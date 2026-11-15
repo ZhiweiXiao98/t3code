@@ -115,6 +115,7 @@ function Probe({
   attachmentCase,
   unknownAttachment = false,
   fileAttachment = false,
+  fileName = "literal-file-$&-{file}.txt",
 }: {
   absent?: boolean;
   unavailable?: boolean;
@@ -122,6 +123,7 @@ function Probe({
   attachmentCase?: "owned" | "raw" | "empty";
   unknownAttachment?: boolean;
   fileAttachment?: boolean;
+  fileName?: string;
 }) {
   const [entries, setEntries] = useState<Record<string, LocalThreadErrorEntry>>({});
   const [, setDismissTick] = useState(0);
@@ -167,7 +169,7 @@ function Probe({
                       {
                         type: "file",
                         id: ChatAttachmentId.make("opaque-file"),
-                        name: "literal-file-$&-{file}.txt",
+                        name: fileName,
                         mimeType: "text/plain",
                         sizeBytes: 1,
                       },
@@ -247,6 +249,7 @@ function surface(
     attachmentCase?: "owned" | "raw" | "empty";
     unknownAttachment?: boolean;
     fileAttachment?: boolean;
+    fileName?: string;
   } = {},
 ) {
   fixture.locale = locale;
@@ -816,6 +819,90 @@ it.each(["owned", "raw", "empty"] as const)(
       expect(url).toBe(new URL("/.well-known/t3/environment", window.location.origin).href);
       expect(init?.method ?? (request instanceof Request ? request.method : "GET")).toBe("GET");
     }
+    expect(fixture.rewind).not.toHaveBeenCalled();
+    expect(fixture.fork).not.toHaveBeenCalled();
+    expect(useComposerDraftStore.getState().getComposerDraft(ref)).toBe(before);
+  },
+);
+
+it.each(["owned", "raw", "empty"] as const)(
+  "keeps rewind HTTP restore %s notice current",
+  async (kind) => {
+    setup();
+    const name = "{name}/$&:\n.txt";
+    const source = `Could not restore attachment: ${name}`;
+    const original = useComposerDraftStore.getState();
+    using _restore = { [Symbol.dispose]: () => useComposerDraftStore.setState(original, true) };
+    const before = original.getComposerDraft(ref);
+    fixture.connection.mockReturnValue({ httpBaseUrl: "https://example.invalid" });
+    fixture.query.mockResolvedValue(
+      AsyncResult.success({ relativeUrl: "/api/assets/opaque", expiresAt: 1 }),
+    );
+    const props = { attachmentCase: "raw" as const, fileAttachment: true, fileName: name };
+    await using screen = await render(surface("en", props));
+    let resolve: (value: Response) => void = () => undefined;
+    let reject: (reason: Error) => void = () => undefined;
+    const response = new Promise<Response>((yes, no) => {
+      resolve = yes;
+      reject = no;
+    });
+    using fetch = vi.spyOn(globalThis, "fetch").mockImplementation((request) => {
+      const url = request instanceof Request ? request.url : String(request);
+      return url === "https://example.invalid/api/assets/opaque"
+        ? response
+        : Promise.reject(new Error("Unexpected fetch"));
+    });
+    using _settleResponse = {
+      [Symbol.dispose]: () => resolve(new Response("cleanup", { status: 404 })),
+    };
+    await screen.getByRole("button", { name: "Confirm revert", exact: true }).click();
+    await expect
+      .poll(
+        () =>
+          fetch.mock.calls.filter(
+            ([request]) => String(request) === "https://example.invalid/api/assets/opaque",
+          ).length,
+      )
+      .toBe(1);
+    expect(useComposerDraftStore.getState().rewindingThreadKeys.has("fork")).toBe(true);
+    await screen.rerender(surface("zh-CN", props));
+    if (kind === "owned") resolve(new Response("opaque body", { status: 404 }));
+    else reject(new Error(kind === "raw" ? source : ""));
+    await expect
+      .poll(() => useComposerDraftStore.getState().rewindingThreadKeys.has("fork"))
+      .toBe(false);
+    for (const locale of ["zh-CN", "en", "zh-CN", "en"] as const) {
+      await screen.rerender(surface(locale, props));
+      if (kind === "empty")
+        expect(screen.container.querySelector('[data-variant="error"]')).toBeNull();
+      else
+        await expect
+          .poll(() => screen.container.textContent)
+          .toContain(kind === "owned" && locale === "zh-CN" ? `无法恢复附件：${name}` : source);
+    }
+    expect(fixture.query).toHaveBeenCalledExactlyOnceWith({
+      environmentId: ref.environmentId,
+      input: {
+        resource: {
+          _tag: "attachment",
+          attachmentId: "opaque-file",
+          fileName: name,
+          mimeType: "text/plain",
+        },
+      },
+    });
+    let attachmentFetches = 0;
+    for (const [request, init] of fetch.mock.calls) {
+      const url = request instanceof Request ? request.url : String(request);
+      if (url === "https://example.invalid/api/assets/opaque") {
+        attachmentFetches++;
+        expect(init?.signal).toBeInstanceOf(AbortSignal);
+      } else expect(url).toBe(new URL("/.well-known/t3/environment", window.location.origin).href);
+      expect(init?.method ?? (request instanceof Request ? request.method : "GET")).toBe("GET");
+    }
+    expect(attachmentFetches).toBe(1);
+    expect(fixture.connection).toHaveBeenCalledExactlyOnceWith(ref.environmentId);
+    expect(fixture.prepare).toHaveBeenCalledTimes(1);
     expect(fixture.rewind).not.toHaveBeenCalled();
     expect(fixture.fork).not.toHaveBeenCalled();
     expect(useComposerDraftStore.getState().getComposerDraft(ref)).toBe(before);
