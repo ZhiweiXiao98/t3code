@@ -22,6 +22,7 @@ import { loadRepoEnv } from "../../scripts/lib/public-config";
 import { thirdPartyLicensesPlugin } from "../../scripts/lib/third-party-licenses";
 import { tailwindPlugins } from "./vite/tailwind";
 import { warmBundledDevPlugin } from "./vite/warmBundledDev";
+import { observeBrowserLifecycle } from "./vite/browserLifecycle";
 
 const repoEnv = loadRepoEnv();
 Object.assign(process.env, repoEnv);
@@ -133,7 +134,7 @@ const browserTestProject = {
     browser: {
       enabled: true,
       headless: true,
-      provider: playwright(),
+      provider: observeBrowserLifecycle(playwright()),
       instances: [{ browser: "chromium" }],
       screenshotFailures: false,
       commands: {

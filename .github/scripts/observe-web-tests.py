@@ -13,11 +13,13 @@ import time
 
 
 COMMAND = ["vp", "run", "--filter", "@t3tools/web", "test"]
-DEBUG_NAMESPACES = "vitest:browser:pool,pw:browser"
+DEBUG_NAMESPACES = "vitest:browser:pool"
 STARTED = time.monotonic()
 STARTED_EPOCH = time.time()
 WARNINGS = set()
 STOP = threading.Event()
+TEST_PID = None
+SEEN_CHILDREN = {}
 
 
 def warn(message):
@@ -112,6 +114,54 @@ for line in cgroup_info.splitlines() if isinstance(cgroup_info, str) else []:
             current = current.parent
 
 
+def record_browser_children(rows):
+    if TEST_PID is None:
+        return
+    processes = {}
+    for line in rows:
+        fields = line.split()
+        if len(fields) >= 3 and fields[0].isdigit() and fields[1].isdigit():
+            processes[int(fields[0])] = (int(fields[1]), fields[2])
+    family = {TEST_PID}
+    for _ in range(16):
+        more = {pid for pid, (parent, _) in processes.items() if parent in family}
+        if more <= family:
+            break
+        family.update(more)
+    current = {}
+    for pid in family:
+        if pid not in processes or not processes[pid][1].startswith("chrome"):
+            continue
+        try:
+            raw = Path(f"/proc/{pid}/stat").read_text()
+            fields = raw[raw.rfind(")") + 2:].split()
+            state, parent, started = fields[0], int(fields[1]), int(fields[19])
+            exit_status = int(fields[49]) if state in ("Z", "X", "x") else None
+            current[(pid, started)] = (parent, exit_status)
+        except (OSError, ValueError, IndexError):
+            continue
+    def event(kind, key, parent, status):
+        value = {"utc_ms": round(time.time() * 1000), "event": kind,
+                 "pid": key[0], "started_ticks": key[1], "ppid": parent,
+                 "wait_status": status,
+                 "exit_code": os.waitstatus_to_exitcode(status) if status is not None else None}
+        data = (json.dumps(value) + "\n").encode()
+        if child_events.written + len(data) <= child_events.limit:
+            child_events.write(data)
+        else:
+            warn("browser child lifecycle budget reached")
+    for key, (parent, status) in current.items():
+        if key not in SEEN_CHILDREN:
+            event("child-observed", key, parent, status)
+        elif status is not None and SEEN_CHILDREN[key][1] is None:
+            event("child-exit-status", key, parent, status)
+    for key, (parent, status) in SEEN_CHILDREN.items():
+        if key not in current:
+            event("child-disappeared", key, parent, status)
+    SEEN_CHILDREN.clear()
+    SEEN_CHILDREN.update(current)
+
+
 def snapshot():
     try:
         disks = {}
@@ -127,6 +177,7 @@ def snapshot():
         processes = capture(["ps", "-eo", "pid,ppid,comm,rss,vsz,stat,etime", "--sort=-rss"])
         if "stdout" in processes:
             rows = processes["stdout"].splitlines()
+            record_browser_children(rows)
             processes["stdout"] = "\n".join(rows[:26])
             processes["browser_and_runner"] = "\n".join(
                 row for row in rows if any(name in row.lower() for name in (
@@ -141,6 +192,7 @@ def snapshot():
 
 
 samples = BoundedOutput("resources.jsonl", 8 * 1024 * 1024)
+child_events = BoundedOutput("browser-child-lifecycle.jsonl", 1024 * 1024)
 
 
 def collect():
@@ -176,10 +228,14 @@ if OUT is not None:
 environment = dict(os.environ, DEBUG=DEBUG_NAMESPACES)
 # Failed-request URLs can contain credentials or query tokens.
 environment.pop("VITEST_PW_DEBUG", None)
+environment.pop("T3CODE_BROWSER_LIFECYCLE_DIR", None)
+if OUT is not None:
+    environment["T3CODE_BROWSER_LIFECYCLE_DIR"] = str(OUT)
 log = BoundedOutput("web-test.log", 16 * 1024 * 1024)
 tail = bytearray()
 try:
     process = subprocess.Popen(COMMAND, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=environment)
+    TEST_PID = process.pid
     while True:
         chunk = process.stdout.read1(8192)
         if not chunk:
@@ -208,8 +264,10 @@ try:
              "--since", "@" + str(int(STARTED_EPOCH)), "-o", "short-iso",
              "--grep=oom|Out of memory|Killed process|segfault|trap|general protection"]))
     outcome = {"test_exit_code": code, "elapsed_s": round(time.monotonic() - STARTED, 2),
-               "log": log.summary(), "resources": samples.summary(), "warnings": sorted(WARNINGS)}
+               "log": log.summary(), "resources": samples.summary(), "children": child_events.summary(),
+               "warnings": sorted(WARNINGS)}
     save("outcome.json", outcome)
     print(json.dumps(outcome), flush=True)
 finally:
+    child_events.close()
     sys.exit(code if code >= 0 else 128 - code)
