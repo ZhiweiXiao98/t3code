@@ -264,7 +264,7 @@ it.each([
         : {
             type: "error",
             title: kind === "number" ? "复制拉取请求编号失败" : "复制拉取请求链接失败",
-            description: "Failed to copy pull request reference to the clipboard.",
+            description: "无法将 拉取请求引用 复制到剪贴板。",
           },
     );
     if (success) expect(error).not.toHaveBeenCalled();
@@ -284,3 +284,50 @@ it.each([
     expect(write).toHaveBeenCalledTimes(1);
   },
 );
+
+it("localizes the actual unavailable reference clipboard API", async () => {
+  const state = useComposerDraftStore.getState();
+  const clipboard = navigator.clipboard;
+  const descriptor = Object.getOwnPropertyDescriptor(clipboard, "writeText");
+  using _restore = {
+    [Symbol.dispose]() {
+      if (descriptor) Object.defineProperty(clipboard, "writeText", descriptor);
+      else Reflect.deleteProperty(clipboard, "writeText");
+      useComposerDraftStore.setState(state, true);
+      mocks.locale = "en";
+    },
+  };
+  Object.defineProperty(clipboard, "writeText", { configurable: true, value: undefined });
+  using fallback = vi.spyOn(document, "execCommand").mockReturnValue(false);
+  using rich = vi.spyOn(clipboard, "write").mockRejectedValue(new Error("Unexpected rich write"));
+  using error = vi.spyOn(console, "error").mockImplementation(() => {});
+  using external = vi.spyOn(window, "open").mockImplementation(() => null);
+  setup();
+  mocks.toast.mockClear();
+  mocks.command.mockClear();
+  await using screen = await render(copySurface("zh-CN"));
+  await screen.getByRole("button", { name: "更多变更请求操作", exact: true }).click();
+  await page.getByRole("menuitem", { name: /^复制 PR 编号(?:\s|$)/ }).click();
+  await expect
+    .poll(() => mocks.toast.mock.calls)
+    .toEqual([
+      [
+        {
+          type: "error",
+          title: "复制拉取请求编号失败",
+          description: "复制 拉取请求引用 时剪贴板 API 不可用。",
+        },
+      ],
+    ]);
+  expect(fallback).toHaveBeenCalledExactlyOnceWith("copy");
+  expect(error).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({
+      _tag: "ClipboardApiUnavailableError",
+      target: "pull request reference",
+      message: "Clipboard API is unavailable while copying pull request reference.",
+    }),
+  );
+  expect(rich).not.toHaveBeenCalled();
+  expect(external).not.toHaveBeenCalled();
+  expect(mocks.command).not.toHaveBeenCalled();
+});

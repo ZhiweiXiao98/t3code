@@ -1,3 +1,4 @@
+import { clipboardErrorMessage } from "~/i18n/clipboardErrorMessages";
 import { readWebI18n } from "~/i18n/readWebI18n";
 import {
   parsePullRequestAnchor,
@@ -218,6 +219,12 @@ const TABS: ReadonlyArray<{ value: PullRequestDetailTab; label: string }> = [
 // Defer the diff viewer's worker pool until Code is approached.
 const loadCodeTab = () => import("./PullRequestCodeTab");
 const PullRequestCodeTab = lazy(loadCodeTab);
+
+const OWNED_REFERENCE_TARGETS: Readonly<Record<string, string>> = {
+  "pull request reference": "拉取请求引用",
+  "merge request reference": "合并请求引用",
+  "change request reference": "变更请求引用",
+};
 
 function reportCheckoutCommandError(error: Error) {
   toastManager.add({
@@ -550,10 +557,17 @@ export function PullRequestDetailPanel({
     },
     onError: (error, label) => {
       const { locale, t } = readWebI18n();
+      const target = `${terminology.singular} reference`;
+      const displayTarget = OWNED_REFERENCE_TARGETS[target];
       toastManager.add({
         type: "error",
         title: t("pullRequests.detail.copyFailed", { label: translateWebSource(locale, label) }),
-        description: error.message,
+        description:
+          clipboardErrorMessage(
+            error,
+            locale,
+            displayTarget === undefined ? undefined : { target, displayTarget },
+          ) ?? error.message,
       });
     },
   });

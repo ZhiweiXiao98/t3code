@@ -1,5 +1,10 @@
 import { afterEach, expect, it, vi } from "vite-plus/test";
-import { readTextFromClipboard, writeTextToClipboard } from "~/hooks/useCopyToClipboard";
+import {
+  ClipboardApiUnavailableError,
+  ClipboardWriteError,
+  readTextFromClipboard,
+  writeTextToClipboard,
+} from "~/hooks/useCopyToClipboard";
 import { clipboardErrorMessage } from "./clipboardErrorMessages";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -57,3 +62,56 @@ it.each(["read", "write"] as const)(
     expect(error).toHaveProperty("message", english);
   },
 );
+
+it.each([
+  ["pull request reference", "拉取请求引用"],
+  ["merge request reference", "合并请求引用"],
+  ["change request reference", "变更请求引用"],
+] as const)(
+  "accepts an exact owned display target for %s without changing error data",
+  (target, displayTarget) => {
+    const cause = new Error("opaque $& {cause}\nunchanged");
+    const errors = [
+      new ClipboardWriteError({ target, cause }),
+      new ClipboardApiUnavailableError({ target }),
+    ];
+    for (const error of errors) {
+      const english = error.message;
+      const unavailable = error._tag === "ClipboardApiUnavailableError";
+      expect(clipboardErrorMessage(error, "zh-CN", { target, displayTarget })).toBe(
+        unavailable
+          ? `复制 ${displayTarget} 时剪贴板 API 不可用。`
+          : `无法将 ${displayTarget} 复制到剪贴板。`,
+      );
+      expect(clipboardErrorMessage(error, "en", { target, displayTarget })).toBe(english);
+      expect(error.message).toBe(english);
+      const literal = clipboardErrorMessage(error, "zh-CN");
+      expect(
+        clipboardErrorMessage(error, "zh-CN", { target: "different target", displayTarget }),
+      ).toBe(literal);
+      const fake = Object.assign(new Error(english), { _tag: error._tag, target, cause });
+      expect(clipboardErrorMessage(fake, "zh-CN", { target, displayTarget })).toBe(english);
+      expect(clipboardErrorMessage(new Error(english), "zh-CN", { target, displayTarget })).toBe(
+        english,
+      );
+      expect(clipboardErrorMessage(new Error(""), "zh-CN", { target, displayTarget })).toBe("");
+    }
+    expect(errors[0]).toHaveProperty("cause", cause);
+  },
+);
+it("preserves literal display-target characters only after validated ownership", () => {
+  const target = "owned";
+  const displayTarget = "$& {name}\n引用";
+  expect(
+    clipboardErrorMessage(new ClipboardWriteError({ target, cause: null }), "zh-CN", {
+      target,
+      displayTarget,
+    }),
+  ).toBe(`无法将 ${displayTarget} 复制到剪贴板。`);
+  expect(
+    clipboardErrorMessage({ _tag: "ClipboardWriteError", target }, "zh-CN", {
+      target,
+      displayTarget,
+    }),
+  ).toBeUndefined();
+});
