@@ -5,6 +5,7 @@ import {
   ProjectId,
   ProviderInstanceId,
   ProviderDriverKind,
+  RuntimeRequestId,
 } from "@t3tools/contracts";
 import { expect, it, vi } from "vite-plus/test";
 import { render } from "../../../test/render";
@@ -32,6 +33,25 @@ const fixture = vi.hoisted(() => ({
   pendingChange: vi.fn(),
   persist: vi.fn(),
   advance: vi.fn(),
+  feedback: vi.fn(),
+  decline: vi.fn(),
+  respond: vi.fn(),
+  upload: vi.fn(),
+}));
+vi.mock("@t3tools/client-runtime/state/thread-requests", async (original) => ({
+  ...(await original<typeof import("@t3tools/client-runtime/state/thread-requests")>()),
+  sendApprovalFeedback: fixture.feedback,
+  declinePendingApprovals: fixture.decline,
+}));
+vi.mock("../../state/server", async (original) => {
+  const actual = await original<typeof import("../../state/server")>();
+  const { Atom } = await import("effect/reactivity");
+  return { ...actual, environmentServerConfigsAtom: Atom.make(new Map()).pipe(Atom.keepAlive) };
+});
+vi.mock("../../lib/attachmentUploadQueue", async (original) => ({
+  ...(await original<typeof import("../../lib/attachmentUploadQueue")>()),
+  startAttachmentUpload: fixture.upload,
+  retryAttachmentUpload: fixture.upload,
 }));
 vi.mock("../../state/session", async (original) => ({
   ...(await original<typeof import("../../state/session")>()),
@@ -112,7 +132,25 @@ const project = {
   createdAt: "2026-01-01T00:00:00Z",
   updatedAt: "2026-01-01T00:00:00Z",
 };
-type Guard = "server" | "branch";
+type Guard = "server" | "branch" | "feedback";
+const approval = {
+  requestId: RuntimeRequestId.make("feedback-request"),
+  requestKind: "command" as const,
+  createdAt: "2026-11-15T00:00:00Z",
+  responseCapability: "live" as const,
+  supportsFeedback: true,
+};
+const terminalContext = {
+  id: "literal-context",
+  threadId: ref.threadId,
+  terminalId: "literal-terminal",
+  terminalLabel: "$& {terminal}",
+  lineStart: 1,
+  lineEnd: 1,
+  text: "literal terminal output",
+  createdAt: "2026-11-15T00:00:00Z",
+};
+
 const prompt = "literal $& {prompt}";
 function Probe({
   guard,
@@ -128,11 +166,13 @@ function Probe({
   const [entries, setEntries] = useState<Record<string, LocalThreadErrorEntry>>({});
   const [, setDismiss] = useState(0);
   const [done, setDone] = useState(false);
+  const target = guard === "feedback" ? ref : draftId;
+  const errorKey = guard === "feedback" ? routeKey : draftId;
   const currentRouteThreadKeyRef = useRef<string | null>(routeKey);
   const promptRef = useRef(prompt);
   const composerImagesRef = useRef([]);
   const composerFilesRef = useRef([]);
-  const composerTerminalContextsRef = useRef([]);
+  const composerTerminalContextsRef = useRef(guard === "feedback" ? [terminalContext] : []);
   const feedbackUploadsInFlightRef = useRef(new Set<string>());
   const composerRef = useRef<ChatComposerHandle>({
     focusAtEnd: () => undefined,
@@ -162,7 +202,7 @@ function Probe({
         prompt,
         images: [],
         files: [],
-        terminalContexts: [],
+        terminalContexts: guard === "feedback" ? [terminalContext] : [],
         previewAnnotations: [],
         reviewComments: [],
         threadContexts: [],
@@ -174,15 +214,15 @@ function Probe({
         selectedProvider: ProviderDriverKind.make("codex"),
         selectedModel: "gpt-5",
         selectedProviderModels: [],
-        shownPendingApprovalIds: [],
+        shownPendingApprovalIds: guard === "feedback" ? [approval.requestId] : [],
       };
     },
   });
   const setError = makeThreadErrorSetter({
     routeThreadRef: ref,
     routeThreadKey: routeKey,
-    draftId,
-    serverThreadRef: null,
+    draftId: guard === "feedback" ? null : draftId,
+    serverThreadRef: guard === "feedback" ? ref : null,
     setLocalServerErrorsByThreadKey: setEntries,
     setLocalDraftErrorsByDraftId: setEntries,
   });
@@ -190,16 +230,16 @@ function Probe({
     environmentId: ref.environmentId,
     routeThreadKey: routeKey,
     currentRouteThreadKeyRef,
-    draftId,
+    draftId: guard === "feedback" ? null : draftId,
     draftThread: null,
     activeThread: thread,
     activeThreadKey: routeKey,
-    activeThreadBranch: guard === "server" ? "main" : null,
+    activeThreadBranch: guard === "branch" ? null : "main",
     activeProject: project,
     activeProjectDefaultModelSelection: selection,
-    activeMessageCount: 0,
-    isServerThread: false,
-    isLocalDraftThread: true,
+    activeMessageCount: guard === "feedback" ? 1 : 0,
+    isServerThread: guard === "feedback",
+    isLocalDraftThread: guard !== "feedback",
     isGitRepo: true,
     phase: "ready",
     runtimeMode: "full-access",
@@ -209,7 +249,7 @@ function Probe({
     logicalProjectEnvironments: [],
     providerInstanceEntries: [],
     composerRef,
-    composerDraftTarget: draftId,
+    composerDraftTarget: target,
     promptRef,
     composerImagesRef,
     composerFilesRef,
@@ -219,7 +259,7 @@ function Probe({
       editingRunId: null,
       isEditing: false,
       isSaving: false,
-      draftTarget: draftId,
+      draftTarget: target,
       editingAttachments: [],
       beginEdit: () => undefined,
       cancelEdit: async () => undefined,
@@ -244,11 +284,11 @@ function Probe({
     needsLoadBalancing: false,
     loadBalancing: { pending: false, failed: false, environmentId: null, refresh: () => undefined },
     readPendingEnvironmentChange: fixture.pendingChange,
-    pendingApprovals: [],
+    pendingApprovals: guard === "feedback" ? [approval] : [],
     respondingRequestIds: [],
     activePendingProgress: null,
     onAdvanceActivePendingUserInput: fixture.advance,
-    onRespondToApproval: async () => undefined,
+    onRespondToApproval: fixture.respond,
     beginLocalDispatch: fixture.dispatch,
     resetLocalDispatch: fixture.reset,
     beginWorktreeSetup: () => undefined,
@@ -285,8 +325,8 @@ function Probe({
         setDismissedProviderStatusBannerKey={() => undefined}
         onOpenProviderSetup={() => undefined}
         threadId={ref.threadId}
-        threadError={entries[draftId]?.message ?? null}
-        localThreadErrorEntry={entries[draftId]}
+        threadError={entries[errorKey]?.message ?? null}
+        localThreadErrorEntry={entries[errorKey]}
         threadErrorClass={null}
         threadErrorCode={null}
         threadErrorBannerKey={null}
@@ -310,7 +350,7 @@ function surface(locale: "en" | "zh-CN", props: Parameters<typeof Probe>[0]) {
     </WebI18nContext>
   );
 }
-for (const guard of ["server", "branch"] as const)
+for (const guard of ["server", "branch", "feedback"] as const)
   it.each(["owned", "denied", "loading"] as const)(
     `keeps early send ${guard} %s notice current`,
     async (kind) => {
@@ -326,6 +366,10 @@ for (const guard of ["server", "branch"] as const)
         fixture.pendingChange,
         fixture.persist,
         fixture.advance,
+        fixture.feedback,
+        fixture.decline,
+        fixture.respond,
+        fixture.upload,
       ])
         mock.mockReset();
       fixture.allowed = true;
@@ -342,8 +386,12 @@ for (const guard of ["server", "branch"] as const)
         },
       };
       state.sendInFlight.current = false;
-      useComposerDraftStore.getState().setPrompt(draftId, prompt);
-      const draft = useComposerDraftStore.getState().getComposerDraft(draftId);
+      const target = guard === "feedback" ? ref : draftId;
+      useComposerDraftStore.getState().setPrompt(target, prompt);
+      if (guard === "feedback")
+        useComposerDraftStore.getState().setTerminalContexts(target, [terminalContext]);
+      const draft = useComposerDraftStore.getState().getComposerDraft(target);
+      if (guard === "feedback") expect(draft?.terminalContexts).toEqual([terminalContext]);
       const props = { guard, routeKey, draftId, blocked: kind === "loading" };
       await using screen = await render(surface("en", props));
       fixture.allowed = kind !== "denied";
@@ -354,13 +402,17 @@ for (const guard of ["server", "branch"] as const)
       await screen.getByRole("button", { name: "Send", exact: true }).click();
       await expect.poll(() => screen.container.textContent).toContain("settled");
       const source =
-        guard === "server"
-          ? "Update this server before starting multiple models."
-          : "Select a base branch before sending in New worktree mode.";
+        guard === "feedback"
+          ? "Send approval feedback without attachments or added context."
+          : guard === "server"
+            ? "Update this server before starting multiple models."
+            : "Select a base branch before sending in New worktree mode.";
       const chinese =
-        guard === "server"
-          ? "启动多个模型前，请更新此服务器。"
-          : "请先选择基础分支，再以新工作树模式发送。";
+        guard === "feedback"
+          ? "发送审批反馈时，请勿附带附件或额外上下文。"
+          : guard === "server"
+            ? "启动多个模型前，请更新此服务器。"
+            : "请先选择基础分支，再以新工作树模式发送。";
       if (kind === "owned") await expect.poll(() => screen.container.textContent).toContain(source);
       for (const locale of ["zh-CN", "en", "zh-CN", "en"] as const) {
         await screen.rerender(surface(locale, props));
@@ -374,8 +426,10 @@ for (const guard of ["server", "branch"] as const)
             .toContain(locale === "en" ? source : chinese);
         else expect(screen.container.querySelector('[data-variant="error"]')).toBeNull();
       }
-      expect(fixture.context).toHaveBeenCalledTimes(kind === "owned" ? 1 : 0);
-      expect(useComposerDraftStore.getState().getComposerDraft(draftId)).toBe(draft);
+      expect(fixture.context).toHaveBeenCalledTimes(
+        kind === "owned" ? (guard === "feedback" ? 2 : 1) : 0,
+      );
+      expect(useComposerDraftStore.getState().getComposerDraft(target)).toBe(draft);
       expect(state.sendInFlight.current).toBe(false);
       for (const mock of [
         fixture.start,
@@ -387,6 +441,10 @@ for (const guard of ["server", "branch"] as const)
         fixture.dispatch,
         fixture.persist,
         fixture.advance,
+        fixture.feedback,
+        fixture.decline,
+        fixture.respond,
+        fixture.upload,
       ])
         expect(mock).not.toHaveBeenCalled();
     },

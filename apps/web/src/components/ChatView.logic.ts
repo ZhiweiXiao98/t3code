@@ -1254,6 +1254,7 @@ export function isCompactCommandMessage(message: ChatMessage): boolean {
 // can race around promotion, so each write carries its time to let the latest
 // one win when they collide.
 const OWNED_THREAD_ERRORS = {
+  approvalFeedbackContext: "Send approval feedback without attachments or added context.",
   multipleModelsServerOutdated: "Update this server before starting multiple models.",
   worktreeBaseBranchMissing: "Select a base branch before sending in New worktree mode.",
   multipleModelsFailed: "Failed to send messages.",
@@ -1327,6 +1328,8 @@ export function formatLocalThreadError(
 ): string | null {
   const source = ownedThreadErrorSource(entry?.ownedCode, entry?.ownedName);
   if (source === undefined || entry?.message !== message || message !== source) return message;
+  if (locale === "zh-CN" && entry.ownedCode === "approvalFeedbackContext")
+    return "发送审批反馈时，请勿附带附件或额外上下文。";
   if (locale === "zh-CN" && entry.ownedCode === "multipleModelsServerOutdated")
     return "启动多个模型前，请更新此服务器。";
   if (locale === "zh-CN" && entry.ownedCode === "worktreeBaseBranchMissing")

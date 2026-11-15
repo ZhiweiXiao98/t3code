@@ -692,3 +692,31 @@ it.each([
   expect(entries.guard?.ownedCode).toBeUndefined();
   expect(formatLocalThreadError(source, entries.guard, "zh-CN")).toBe(source);
 });
+
+it("pairs approval feedback context guard without claiming raw text", () => {
+  const source = "Send approval feedback without attachments or added context.";
+  const ref = {
+    environmentId: EnvironmentId.make("feedback"),
+    threadId: ThreadId.make("feedback"),
+  };
+  let entries: Record<string, LocalThreadErrorEntry> = {};
+  const set = makeThreadErrorSetter({
+    routeThreadRef: ref,
+    routeThreadKey: "feedback",
+    draftId: null,
+    serverThreadRef: ref,
+    setLocalServerErrorsByThreadKey: (update) => {
+      entries = typeof update === "function" ? update(entries) : update;
+    },
+    setLocalDraftErrorsByDraftId: () => undefined,
+  });
+  set(ref.threadId, source, "approvalFeedbackContext");
+  expect(entries.feedback?.ownedCode).toBe("approvalFeedbackContext");
+  for (const locale of ["en", "zh-CN", "en"] as const)
+    expect(formatLocalThreadError(source, entries.feedback, locale)).toBe(
+      locale === "en" ? source : "发送审批反馈时，请勿附带附件或额外上下文。",
+    );
+  set(ref.threadId, source);
+  expect(entries.feedback?.ownedCode).toBeUndefined();
+  expect(formatLocalThreadError(source, entries.feedback, "zh-CN")).toBe(source);
+});

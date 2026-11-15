@@ -987,6 +987,7 @@ export function useComposerSend(input: ComposerSendInput) {
           setThreadError(
             threadIdForSend,
             "Send approval feedback without attachments or added context.",
+            "approvalFeedbackContext",
           );
           sendInFlightRef.current = false;
           return;
