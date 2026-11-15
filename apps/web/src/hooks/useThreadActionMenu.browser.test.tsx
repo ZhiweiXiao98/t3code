@@ -1,13 +1,18 @@
 import {
   AuthOrchestrationOperateScope,
   EnvironmentId,
+  ServerConfig,
   ThreadId,
   type ContextMenuItem,
 } from "@t3tools/contracts";
 import { DEFAULT_CLIENT_SETTINGS } from "@t3tools/contracts/settings";
 import type { AtomCommandResult } from "@t3tools/client-runtime/state/runtime";
+import * as Schema from "effect/Schema";
+import type { EnvironmentProject } from "@t3tools/client-runtime/state/models";
+import { appAtomRegistry } from "../rpc/atomRegistry";
+import { environmentServerConfigsAtom } from "../state/server";
 import * as Cause from "effect/Cause";
-import { AsyncResult } from "effect/reactivity";
+import { AsyncResult, type Atom } from "effect/reactivity";
 import { expect, it, vi } from "vite-plus/test";
 import { act, render } from "../../test/render";
 import { makeThreadFixture } from "../test-fixtures";
@@ -23,6 +28,9 @@ const fixture = vi.hoisted(() => ({
   show: vi.fn(),
   close: vi.fn(),
   pin: vi.fn(),
+  promote: vi.fn(),
+  projectMode: false,
+  configs: null as Atom.Writable<ReadonlyMap<EnvironmentId, ServerConfig>> | null,
   toast: vi.fn(),
   other: vi.fn(),
 }));
@@ -37,7 +45,8 @@ vi.mock("../localApi", async (original) => ({
 }));
 vi.mock("../state/entities", async (original) => ({
   ...(await original<typeof import("../state/entities")>()),
-  readThreadShell: () => shell,
+  readThreadShell: () => (fixture.projectMode ? projectShell : shell),
+  readProject: () => (fixture.projectMode ? scratchProject : null),
   useProjects: () => [],
   readEnvironmentServerConfigLoaded: () => true,
   readEnvironmentSupportsAutoSettleOptOut: () => true,
@@ -56,11 +65,23 @@ vi.mock("./useSettings", async (original) => ({
   useClientSettings: (select: (settings: typeof DEFAULT_CLIENT_SETTINGS) => unknown) =>
     select(DEFAULT_CLIENT_SETTINGS),
 }));
-vi.mock("./useThreadActions", async (original) => ({
-  ...(await original<typeof import("./useThreadActions")>()),
-  canTurnThreadIntoProject: () => false,
-  useThreadActions: () => ({ pinThread: fixture.pin }),
-}));
+vi.mock("./useThreadActions", async (original) => {
+  const actual = await original<typeof import("./useThreadActions")>();
+  return {
+    ...actual,
+    canTurnThreadIntoProject: (ref: Parameters<typeof actual.canTurnThreadIntoProject>[0]) =>
+      fixture.projectMode && actual.canTurnThreadIntoProject(ref),
+    useThreadActions: () => ({ pinThread: fixture.pin, turnThreadIntoProject: fixture.promote }),
+  };
+});
+vi.mock("../state/server", async (original) => {
+  const actual = await original<typeof import("../state/server")>();
+  const { Atom } = await import("effect/reactivity");
+  fixture.configs = Atom.make<ReadonlyMap<EnvironmentId, ServerConfig>>(new Map()).pipe(
+    Atom.keepAlive,
+  );
+  return { ...actual, environmentServerConfigsAtom: fixture.configs };
+});
 vi.mock("../state/use-orchestration-command", async (original) => ({
   ...(await original<typeof import("../state/use-orchestration-command")>()),
   useOrchestrationCommand: () => fixture.other,
@@ -265,3 +286,108 @@ it.each(["denied", "cancelled"] as const)(
     expect(fixture.other).not.toHaveBeenCalled();
   },
 );
+
+const projectShell = makeThreadFixture({
+  id: target.threadId,
+  environmentId: target.environmentId,
+  title: "Literal $& {project} title",
+  worktreePath: "/scratch/worktree",
+});
+const scratchProject: EnvironmentProject = {
+  id: projectShell.projectId,
+  environmentId: target.environmentId,
+  title: "Scratch",
+  workspaceRoot: "/scratch",
+  repositoryIdentity: null,
+  defaultModelSelection: null,
+  scripts: [],
+  createdAt: "2026-07-01T00:00:00.000Z",
+  updatedAt: "2026-07-01T00:00:00.000Z",
+};
+const projectConfig = Schema.decodeSync(ServerConfig)({
+  environment: {
+    environmentId: target.environmentId,
+    label: "Fixture",
+    platform: { os: "linux", arch: "x64" },
+    serverVersion: "0.0.0",
+    capabilities: { repositoryIdentity: true, threadProjectFromScratch: true },
+  },
+  auth: {
+    policy: "loopback-browser",
+    bootstrapMethods: [],
+    sessionMethods: [],
+    sessionCookieName: "test",
+  },
+  cwd: "/test",
+  keybindingsConfigPath: "/test/keybindings.json",
+  keybindings: [],
+  issues: [],
+  providers: [],
+  availableEditors: [],
+  observability: {
+    logsDirectoryPath: "/test/logs",
+    localTracingEnabled: false,
+    otlpTracesEnabled: false,
+    otlpMetricsEnabled: false,
+  },
+  settings: {},
+  scratchWorkspaceRoot: "/scratch",
+});
+it("uses settlement locale for menu project creation success", async () => {
+  vi.clearAllMocks();
+  fixture.locale = "en";
+  fixture.granted = true;
+  const configs = fixture.configs;
+  if (!configs) throw new Error("Config fixture not initialized");
+  const previousConfigs = appAtomRegistry.get(configs);
+  using _restore = {
+    [Symbol.dispose]() {
+      fixture.projectMode = false;
+      appAtomRegistry.set(configs, previousConfigs);
+    },
+  };
+  fixture.projectMode = true;
+  appAtomRegistry.set(configs, new Map([[target.environmentId, projectConfig]]));
+  fixture.show.mockReset().mockResolvedValue("turn-into-project");
+  let finish!: (result: AtomCommandResult<void, unknown>) => void;
+  fixture.promote.mockReset().mockReturnValue(
+    new Promise<AtomCommandResult<void, unknown>>((resolve) => {
+      finish = resolve;
+    }),
+  );
+  await using screen = await render(view());
+  await using _settle = {
+    async [Symbol.asyncDispose]() {
+      await act(async () => {
+        finish(AsyncResult.failure(Cause.interrupt()));
+        await Promise.resolve();
+      });
+    },
+  };
+  await screen.getByRole("button", { name: "Thread menu" }).click();
+  await expect.poll(() => fixture.promote.mock.calls.length).toBe(1);
+  const items: ReadonlyArray<ContextMenuItem<ThreadActionMenuId>> = fixture.show.mock.calls[0]?.[0];
+  expect(items.some((item) => item.id === "turn-into-project" && !item.disabled)).toBe(true);
+  expect(fixture.promote).toHaveBeenCalledExactlyOnceWith(target);
+  expect(fixture.toast).not.toHaveBeenCalled();
+  fixture.locale = "zh-CN";
+  await screen.rerender(view());
+  expect(appAtomRegistry.get(environmentServerConfigsAtom).get(target.environmentId)).toBe(
+    projectConfig,
+  );
+  await act(async () => {
+    finish(AsyncResult.success(undefined));
+  });
+  expect(fixture.toast).toHaveBeenCalledExactlyOnceWith({
+    type: "success",
+    title: translateWebSource("zh-CN", "Project created"),
+    description: projectShell.title,
+  });
+  fixture.locale = "en";
+  await screen.rerender(view());
+  expect(fixture.promote).toHaveBeenCalledTimes(1);
+  expect(fixture.show).toHaveBeenCalledTimes(1);
+  expect(fixture.toast).toHaveBeenCalledTimes(1);
+  expect(fixture.pin).not.toHaveBeenCalled();
+  expect(fixture.other).not.toHaveBeenCalled();
+});

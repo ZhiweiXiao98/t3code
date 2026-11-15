@@ -299,7 +299,7 @@ export function useThreadActionMenu(input: {
           if (result._tag === "Success") {
             toastManager.add({
               type: "success",
-              title: translateWebSource(locale, "Project created"),
+              title: translateWebSource(readWebI18n().locale, "Project created"),
               description: thread.title,
             });
           } else if (!isAtomCommandInterrupted(result)) {
