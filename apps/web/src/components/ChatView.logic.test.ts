@@ -1324,6 +1324,16 @@ it.each(["server", "draft"] as const)(
 );
 
 it.each([
+  [
+    "rewindUnsupported",
+    "This provider does not support reverting conversation history. Start a new thread instead.",
+    "此提供商不支持还原对话历史。请新建会话。",
+  ],
+  [
+    "rewindBusy",
+    "Interrupt the current turn before reverting checkpoints.",
+    "请先中断当前轮次，再还原检查点。",
+  ],
   ["goalResumeFailed", "Failed to resume goal.", "恢复目标失败。"],
   ["goalClearFailed", "Failed to clear goal.", "清除目标失败。"],
   ["forkFailed", "Failed to fork this response.", "从此回复创建分支失败。"],

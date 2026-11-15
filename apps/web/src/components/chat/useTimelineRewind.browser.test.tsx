@@ -1,6 +1,6 @@
 import "~/index.css";
 import { useRef, useState } from "react";
-import { EnvironmentId, ThreadId, RunId } from "@t3tools/contracts";
+import { EnvironmentId, ThreadId, RunId, MessageId } from "@t3tools/contracts";
 import * as Cause from "effect/Cause";
 import { AsyncResult } from "effect/reactivity";
 import { expect, it, vi } from "vite-plus/test";
@@ -11,11 +11,27 @@ import { makeThreadFixture } from "../../test-fixtures";
 import { makeThreadErrorSetter, type LocalThreadErrorEntry } from "../ChatView.logic";
 import { ChatBannerLane } from "./ChatBannerLane";
 const fixture = vi.hoisted(() => ({
+  allowed: true,
+  localApi: true,
+  confirm: vi.fn(),
   fork: vi.fn(),
   wait: vi.fn(),
   rewind: vi.fn(),
   query: vi.fn(),
   locale: "en" as "en" | "zh-CN",
+}));
+vi.mock("../../localApi", async (original) => {
+  const actual = await original<typeof import("../../localApi")>();
+  const api = actual.createLocalApi();
+  return { ...actual, readLocalApi: () => (fixture.localApi ? api : undefined) };
+});
+vi.mock("../../state/session", async (original) => ({
+  ...(await original<typeof import("../../state/session")>()),
+  readEnvironmentScope: () => fixture.allowed,
+}));
+vi.mock("./ChatOverlayHosts", async (original) => ({
+  ...(await original<typeof import("./ChatOverlayHosts")>()),
+  openRevertConfirm: fixture.confirm,
 }));
 vi.mock("./ProviderStatusBanner", async (original) => ({
   ...(await original<typeof import("./ProviderStatusBanner")>()),
@@ -59,6 +75,9 @@ const runId = RunId.make("source-run");
 const activeThread = makeThreadFixture({ ...ref, id: ref.threadId, title: "Literal $& {title}" });
 function setup() {
   fixture.locale = "en";
+  fixture.allowed = true;
+  fixture.localApi = true;
+  fixture.confirm.mockReset();
   fixture.fork.mockReset().mockResolvedValue(AsyncResult.failure(Cause.fail(null)));
   fixture.wait.mockReset().mockResolvedValue(false);
   fixture.rewind.mockReset();
@@ -67,9 +86,11 @@ function setup() {
 function Probe({
   absent = false,
   unavailable = false,
+  eligibility,
 }: {
   absent?: boolean;
   unavailable?: boolean;
+  eligibility?: "unsupported" | "running" | "sending";
 }) {
   const [entries, setEntries] = useState<Record<string, LocalThreadErrorEntry>>({});
   const [, setDismissTick] = useState(0);
@@ -92,11 +113,23 @@ function Probe({
     currentRouteThreadKeyRef: routeRef,
     serverProjection: null,
     activeThread: absent ? undefined : activeThread,
-    timelineMessages: [],
-    phase: "ready",
-    isSendBusy: false,
+    timelineMessages: eligibility
+      ? [
+          {
+            id: MessageId.make("rewind-message"),
+            role: "user",
+            text: "Literal $& {prompt}",
+            runId: null,
+            streaming: false,
+            createdAt: "2026-01-01T00:00:00.000Z",
+            updatedAt: "2026-01-01T00:00:00.000Z",
+          },
+        ]
+      : [],
+    phase: eligibility === "running" ? "running" : "ready",
+    isSendBusy: eligibility === "sending",
     isRevertingCheckpoint: false,
-    supportsConversationRollback: true,
+    supportsConversationRollback: eligibility !== "unsupported",
     activeEnvironmentUnavailable: unavailable,
     activeEnvironmentUnavailableLabel: null,
     promptRef,
@@ -106,6 +139,14 @@ function Probe({
   });
   return (
     <>
+      {eligibility ? (
+        <button
+          type="button"
+          onClick={() => actions.onRevertTimelineTurnStable(1, MessageId.make("rewind-message"))}
+        >
+          Revert
+        </button>
+      ) : null}
       <button
         type="button"
         disabled={busy}
@@ -135,7 +176,14 @@ function Probe({
     </>
   );
 }
-function surface(locale: "en" | "zh-CN", props: { absent?: boolean; unavailable?: boolean } = {}) {
+function surface(
+  locale: "en" | "zh-CN",
+  props: {
+    absent?: boolean;
+    unavailable?: boolean;
+    eligibility?: "unsupported" | "running" | "sending";
+  } = {},
+) {
   fixture.locale = locale;
   return (
     <WebI18nContext
@@ -283,3 +331,46 @@ it("opens a successful fork only after its shell arrives", async () => {
   expect(fixture.fork).toHaveBeenCalledTimes(1);
   expect(fixture.wait).toHaveBeenCalledTimes(1);
 });
+
+it.each(["unsupported", "running", "sending"] as const)(
+  "keeps owned rewind eligibility %s current without operations",
+  async (eligibility) => {
+    setup();
+    await using screen = await render(surface("en", { eligibility }));
+    await screen.getByRole("button", { name: "Revert", exact: true }).click();
+    for (const locale of ["en", "zh-CN", "en"] as const) {
+      await screen.rerender(surface(locale, { eligibility }));
+      await expect
+        .poll(() => screen.container.textContent)
+        .toContain(
+          eligibility === "unsupported"
+            ? locale === "en"
+              ? "This provider does not support reverting conversation history. Start a new thread instead."
+              : "此提供商不支持还原对话历史。请新建会话。"
+            : locale === "en"
+              ? "Interrupt the current turn before reverting checkpoints."
+              : "请先中断当前轮次，再还原检查点。",
+        );
+    }
+    expect(fixture.rewind).not.toHaveBeenCalled();
+    expect(fixture.query).not.toHaveBeenCalled();
+    expect(fixture.fork).not.toHaveBeenCalled();
+    expect(fixture.confirm).not.toHaveBeenCalled();
+  },
+);
+it.each(["scope", "local-api", "absent"] as const)(
+  "keeps rewind eligibility silent behind %s guard",
+  async (guard) => {
+    setup();
+    fixture.localApi = guard !== "local-api";
+    await using screen = await render(
+      surface("en", { eligibility: "unsupported", absent: guard === "absent" }),
+    );
+    fixture.allowed = guard !== "scope";
+    await screen.getByRole("button", { name: "Revert", exact: true }).click();
+    expect(screen.container.querySelector('[data-variant="error"]')).toBeNull();
+    expect(fixture.rewind).not.toHaveBeenCalled();
+    expect(fixture.query).not.toHaveBeenCalled();
+    expect(fixture.confirm).not.toHaveBeenCalled();
+  },
+);

@@ -1203,6 +1203,9 @@ export function isCompactCommandMessage(message: ChatMessage): boolean {
 // can race around promotion, so each write carries its time to let the latest
 // one win when they collide.
 const OWNED_THREAD_ERRORS = {
+  rewindUnsupported:
+    "This provider does not support reverting conversation history. Start a new thread instead.",
+  rewindBusy: "Interrupt the current turn before reverting checkpoints.",
   goalResumeFailed: "Failed to resume goal.",
   goalClearFailed: "Failed to clear goal.",
   resumeFailed: "Could not resume thread.",

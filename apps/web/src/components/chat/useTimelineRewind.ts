@@ -1,5 +1,4 @@
 import { readWebI18n } from "~/i18n/readWebI18n";
-import { translateWebSource } from "~/i18n/messages";
 import type { EnvironmentThreadShell, ThreadStructure } from "@t3tools/client-runtime/state/shell";
 import type { ComposerThreadTarget } from "../../composerDraftStore";
 import type { ComposerHandleRef } from "../../composerHandleContext";
@@ -111,10 +110,8 @@ export function useTimelineRewind(input: TimelineRewindInput) {
     if (!supportsConversationRollback) {
       setThreadError(
         activeThread.id,
-        translateWebSource(
-          readWebI18n().locale,
-          "This provider does not support reverting conversation history. Start a new thread instead.",
-        ),
+        "This provider does not support reverting conversation history. Start a new thread instead.",
+        "rewindUnsupported",
       );
       return;
     }
@@ -130,10 +127,8 @@ export function useTimelineRewind(input: TimelineRewindInput) {
     if (phase === "running" || isSendBusy) {
       setThreadError(
         activeThread.id,
-        translateWebSource(
-          readWebI18n().locale,
-          "Interrupt the current turn before reverting checkpoints.",
-        ),
+        "Interrupt the current turn before reverting checkpoints.",
+        "rewindBusy",
       );
       return;
     }
