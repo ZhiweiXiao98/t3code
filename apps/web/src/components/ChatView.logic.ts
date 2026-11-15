@@ -669,13 +669,19 @@ export async function prepareRevertedMessageAttachments(input: {
       });
       if (result._tag === "Failure") throw squashAtomCommandFailure(result);
       const url = resolveAssetUrl(input.httpBaseUrl, result.value.relativeUrl);
-      if (url === null)
-        throw new Error(
+      if (url === null) {
+        const error = new Error(
           translateWebSource(
             input.readLocale?.() ?? "en",
             "The environment returned an invalid attachment URL.",
           ),
         );
+        ownedRewindFailures.set(error, {
+          message: error.message,
+          code: "rewindInvalidAttachmentUrl",
+        });
+        throw error;
+      }
       const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
       if (!response.ok)
         throw new Error(
@@ -922,7 +928,11 @@ const ownedRewindFailures = new WeakMap<
   Error,
   {
     readonly message: string;
-    readonly code: "rewindChanged" | "rewindTimeout" | "rewindUnsupportedAttachment";
+    readonly code:
+      | "rewindChanged"
+      | "rewindTimeout"
+      | "rewindUnsupportedAttachment"
+      | "rewindInvalidAttachmentUrl";
   }
 >();
 
@@ -1225,6 +1235,7 @@ export function isCompactCommandMessage(message: ChatMessage): boolean {
 // can race around promotion, so each write carries its time to let the latest
 // one win when they collide.
 const OWNED_THREAD_ERRORS = {
+  rewindInvalidAttachmentUrl: "The environment returned an invalid attachment URL.",
   rewindUnsupportedAttachment: "This message has an attachment that cannot be restored.",
   rewindTimeout: "Timed out waiting for the thread to rewind.",
   rewindChanged: "The thread has changed. Select a message to rewind again.",

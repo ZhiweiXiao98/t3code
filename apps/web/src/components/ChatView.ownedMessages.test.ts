@@ -220,3 +220,81 @@ it("keeps actual unsupported attachment ownership and direct messages separate f
   expect(createAssetUrl).not.toHaveBeenCalled();
   expect(message.attachments).toEqual([attachment]);
 });
+
+it("marks only the real rewind invalid URL constructor, not the file-opening helper", async () => {
+  const source = "The environment returned an invalid attachment URL.";
+  const attachment = {
+    type: "file",
+    id: "opaque-file",
+    name: "literal-file-$&-{file}.txt",
+    mimeType: "text/plain",
+    sizeBytes: 1,
+  } satisfies ChatFileAttachment;
+  const environmentId = EnvironmentId.make("invalid-url");
+  const message = {
+    id: MessageId.make("invalid-url-message"),
+    role: "user",
+    text: "opaque",
+    runId: null,
+    streaming: false,
+    createdAt: "2026-11-13T00:00:00.000Z",
+    updatedAt: "2026-11-13T00:00:00.000Z",
+    attachments: [attachment],
+  } satisfies Parameters<typeof prepareRevertedMessageAttachments>[0]["message"];
+  const createAssetUrl = vi.fn(async () =>
+    AsyncResult.success({ relativeUrl: "http://[", expiresAt: 1 }),
+  );
+  for (const locale of ["en", "zh-CN", "en"] as const) {
+    const readLocale = vi.fn(() => locale);
+    const failure = await prepareRevertedMessageAttachments({
+      message,
+      environmentId,
+      httpBaseUrl: "https://example.invalid",
+      readLocale,
+      createAssetUrl,
+    }).then(
+      () => null,
+      (error: unknown) => error,
+    );
+    expect(failure).toBeInstanceOf(Error);
+    if (!(failure instanceof Error)) throw new Error("Expected invalid URL error");
+    expect(failure.message).toBe(locale === "en" ? source : "环境返回了无效的附件 URL。");
+    expect(readLocale).toHaveBeenCalledTimes(1);
+    const owned = readOwnedRewindFailure(failure);
+    expect(owned).toEqual({ error: source, ownedCode: "rewindInvalidAttachmentUrl" });
+    if (!owned) throw new Error("Expected owned error");
+    const entry = { message: owned.error, ownedCode: owned.ownedCode, at: 1 };
+    expect(formatLocalThreadError(source, entry, "zh-CN")).toBe("环境返回了无效的附件 URL。");
+    expect(formatLocalThreadError(source, entry, "en")).toBe(source);
+    expect(formatLocalThreadError(source, { message: source, at: 1 }, "zh-CN")).toBe(source);
+    expect(readOwnedRewindFailure(new Error(failure.message))).toBeUndefined();
+    expect(
+      readOwnedRewindFailure(
+        Object.assign(new Error(failure.message), { ownedCode: "rewindInvalidAttachmentUrl" }),
+      ),
+    ).toBeUndefined();
+    failure.message = "changed";
+    expect(readOwnedRewindFailure(failure)).toBeUndefined();
+    const direct = await resolveFileAttachmentUrl({
+      attachment,
+      environmentId,
+      httpBaseUrl: "https://example.invalid",
+      readLocale: () => locale,
+      createAssetUrl,
+    }).catch((error: unknown) => error);
+    expect(direct).toBeInstanceOf(Error);
+    expect(readOwnedRewindFailure(direct)).toBeUndefined();
+  }
+  expect(createAssetUrl).toHaveBeenCalledTimes(6);
+  expect(createAssetUrl).toHaveBeenCalledWith({
+    environmentId,
+    input: {
+      resource: {
+        _tag: "attachment",
+        attachmentId: attachment.id,
+        fileName: attachment.name,
+        mimeType: attachment.mimeType,
+      },
+    },
+  });
+});

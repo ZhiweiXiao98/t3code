@@ -196,7 +196,8 @@ export async function rewindToMessage(input: {
         | "rewindCapacity"
         | "rewindChanged"
         | "rewindTimeout"
-        | "rewindUnsupportedAttachment";
+        | "rewindUnsupportedAttachment"
+        | "rewindInvalidAttachmentUrl";
       readonly prompt?: never;
     }
   | { readonly error: null; readonly prompt: string }

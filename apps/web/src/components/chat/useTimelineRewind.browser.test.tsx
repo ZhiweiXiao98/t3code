@@ -114,12 +114,14 @@ function Probe({
   eligibility,
   attachmentCase,
   unknownAttachment = false,
+  fileAttachment = false,
 }: {
   absent?: boolean;
   unavailable?: boolean;
   eligibility?: "unsupported" | "running" | "sending";
   attachmentCase?: "owned" | "raw" | "empty";
   unknownAttachment?: boolean;
+  fileAttachment?: boolean;
 }) {
   const [entries, setEntries] = useState<Record<string, LocalThreadErrorEntry>>({});
   const [, setDismissTick] = useState(0);
@@ -160,7 +162,17 @@ function Probe({
                       sizeBytes: 1,
                     },
                   ]
-                : [],
+                : fileAttachment
+                  ? [
+                      {
+                        type: "file",
+                        id: ChatAttachmentId.make("opaque-file"),
+                        name: "literal-file-$&-{file}.txt",
+                        mimeType: "text/plain",
+                        sizeBytes: 1,
+                      },
+                    ]
+                  : [],
               runId: null,
               streaming: false,
               createdAt: "2026-01-01T00:00:00.000Z",
@@ -234,6 +246,7 @@ function surface(
     eligibility?: "unsupported" | "running" | "sending";
     attachmentCase?: "owned" | "raw" | "empty";
     unknownAttachment?: boolean;
+    fileAttachment?: boolean;
   } = {},
 ) {
   fixture.locale = locale;
@@ -740,6 +753,64 @@ it.each(["owned", "raw", "empty"] as const)(
     expect(fixture.prepare).toHaveBeenCalledTimes(1);
     expect(fixture.query).not.toHaveBeenCalled();
     // Background discovery retries are unrelated; no other fetch is allowed.
+    for (const [request, init] of fetch.mock.calls) {
+      const url = request instanceof Request ? request.url : String(request);
+      expect(url).toBe(new URL("/.well-known/t3/environment", window.location.origin).href);
+      expect(init?.method ?? (request instanceof Request ? request.method : "GET")).toBe("GET");
+    }
+    expect(fixture.rewind).not.toHaveBeenCalled();
+    expect(fixture.fork).not.toHaveBeenCalled();
+    expect(useComposerDraftStore.getState().getComposerDraft(ref)).toBe(before);
+  },
+);
+
+it.each(["owned", "raw", "empty"] as const)(
+  "keeps rewind invalid URL %s notice current",
+  async (kind) => {
+    setup();
+    const source = "The environment returned an invalid attachment URL.";
+    const original = useComposerDraftStore.getState();
+    using _restore = { [Symbol.dispose]: () => useComposerDraftStore.setState(original, true) };
+    const before = original.getComposerDraft(ref);
+    fixture.connection.mockReturnValue({ httpBaseUrl: "https://example.invalid" });
+    fixture.query.mockResolvedValue(
+      kind === "owned"
+        ? AsyncResult.success({ relativeUrl: "http://[", expiresAt: 1 })
+        : AsyncResult.failure(Cause.fail(new Error(kind === "raw" ? source : ""))),
+    );
+    await using screen = await render(
+      surface("en", { attachmentCase: "raw", fileAttachment: true }),
+    );
+    using fetch = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("Unexpected fetch"));
+    await screen.getByRole("button", { name: "Confirm revert", exact: true }).click();
+    await expect.poll(() => fixture.query.mock.calls.length).toBe(1);
+    await expect
+      .poll(() => useComposerDraftStore.getState().rewindingThreadKeys.has("fork"))
+      .toBe(false);
+    for (const locale of ["en", "zh-CN", "en"] as const) {
+      await screen.rerender(surface(locale, { attachmentCase: "raw", fileAttachment: true }));
+      if (kind === "empty")
+        expect(screen.container.querySelector('[data-variant="error"]')).toBeNull();
+      else
+        await expect
+          .poll(() => screen.container.textContent)
+          .toContain(
+            kind === "owned" && locale === "zh-CN" ? "环境返回了无效的附件 URL。" : source,
+          );
+    }
+    expect(fixture.connection).toHaveBeenCalledExactlyOnceWith(ref.environmentId);
+    expect(fixture.prepare).toHaveBeenCalledTimes(1);
+    expect(fixture.query).toHaveBeenCalledExactlyOnceWith({
+      environmentId: ref.environmentId,
+      input: {
+        resource: {
+          _tag: "attachment",
+          attachmentId: "opaque-file",
+          fileName: "literal-file-$&-{file}.txt",
+          mimeType: "text/plain",
+        },
+      },
+    });
     for (const [request, init] of fetch.mock.calls) {
       const url = request instanceof Request ? request.url : String(request);
       expect(url).toBe(new URL("/.well-known/t3/environment", window.location.origin).href);
