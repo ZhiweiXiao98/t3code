@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { useI18n } from "~/i18n/WebI18nContext";
 
 import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
@@ -56,6 +57,7 @@ export function PullRequestTitleEditor({
     const result = await update({ environmentId, input: { ...reference, title } });
     setTitleSaving(false);
     if (result._tag === "Failure") {
+      const { t } = readWebI18n();
       toastManager.add({
         type: "error",
         title: t("pullRequests.detail.titleSaveFailed"),
