@@ -215,3 +215,61 @@ it("does not run a ready action without a reference", async () => {
   expect(state.toast).not.toHaveBeenCalled();
   expect(state.success).not.toHaveBeenCalled();
 });
+
+it("uses settlement locale for action runner ready success", async () => {
+  const { AsyncResult } = await import("effect/reactivity");
+  const Cause = await import("effect/Cause");
+  type Result =
+    | ReturnType<typeof AsyncResult.success<undefined>>
+    | ReturnType<typeof AsyncResult.failure<unknown, unknown>>;
+  const pending = deferred<Result>();
+  state.runAction.mockReset().mockReturnValueOnce(pending.promise);
+  state.toast.mockClear();
+  state.success.mockClear();
+  using _restore = {
+    [Symbol.dispose]() {
+      state.locale = "en";
+      state.runAction.mockReset();
+    },
+  };
+  await using screen = await render(readySurface("en"));
+  await using _settle = {
+    async [Symbol.asyncDispose]() {
+      await act(async () => {
+        pending.resolve(AsyncResult.failure(Cause.interrupt()));
+        await pending.promise;
+      });
+    },
+  };
+  await screen.getByRole("button", { name: "Mark ready", exact: true }).click();
+  await expect
+    .element(screen.getByRole("button", { name: "Pending ready", exact: true }))
+    .toBeDisabled();
+  await screen.getByRole("button", { name: "Repeat ready", exact: true }).click();
+  expect(state.runAction).toHaveBeenCalledExactlyOnceWith({
+    environmentId: EnvironmentId.make("environment"),
+    input: { ...readyReference, action: "ready" },
+  });
+  expect(state.toast).not.toHaveBeenCalled();
+  expect(state.success).not.toHaveBeenCalled();
+  await screen.rerender(readySurface("zh-CN"));
+  await act(async () => {
+    pending.resolve(AsyncResult.success(undefined));
+    await pending.promise;
+  });
+  expect(state.toast).toHaveBeenCalledExactlyOnceWith({
+    type: "success",
+    title: "已标记为可供评审",
+  });
+  expect(state.success).toHaveBeenCalledExactlyOnceWith("ready", undefined);
+  expect(state.toast.mock.invocationCallOrder[0]).toBeLessThan(
+    state.success.mock.invocationCallOrder[0]!,
+  );
+  await expect
+    .element(screen.getByRole("button", { name: "Mark ready", exact: true }))
+    .toBeEnabled();
+  await screen.rerender(readySurface("en"));
+  expect(state.toast).toHaveBeenCalledTimes(1);
+  expect(state.success).toHaveBeenCalledTimes(1);
+  expect(state.runAction).toHaveBeenCalledTimes(1);
+});

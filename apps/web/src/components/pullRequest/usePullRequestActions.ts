@@ -141,8 +141,6 @@ export function usePullRequestActionRunner({
   /** Resolve repository settings on click to avoid per-row reads. */
   resolveMergeMethod?: (detail: PullRequestDetail) => PullRequestMergeMethod;
 }) {
-  const { locale } = useI18n();
-  const tx = (source: string) => translateWebSource(locale, source);
   const runAction = useAtomCommand(pullRequestEnvironment.runAction, {
     reportFailure: false,
   });
@@ -186,9 +184,10 @@ export function usePullRequestActionRunner({
       });
       return;
     }
+    const { locale } = readWebI18n();
     toastManager.add({
       type: "success",
-      title: tx(actionSuccessLabels(terminology.singular)[action]),
+      title: translateWebSource(locale, actionSuccessLabels(terminology.singular)[action]),
     });
     onSuccess?.(action, result.value);
   };
