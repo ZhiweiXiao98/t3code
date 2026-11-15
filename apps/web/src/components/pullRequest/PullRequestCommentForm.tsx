@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { translateWebSource } from "~/i18n/messages";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
@@ -99,6 +100,7 @@ export function PullRequestCommentForm({
     });
     if (result._tag === "Failure") {
       setSubmitting(null);
+      const { locale } = readWebI18n();
       toastManager.add({
         type: "error",
         title: translateWebSource(locale, "Could not post the comment"),
