@@ -552,3 +552,44 @@ it("pairs side chat fork ownership without claiming raw collisions", () => {
   expect(entries.edit?.ownedCode).toBeUndefined();
   expect(formatLocalThreadError(source, entries.edit, "zh-CN")).toBe(source);
 });
+
+it.each([
+  [
+    "sideChatMissingShell",
+    "The side chat was created, but it did not reach this client.",
+    "旁支对话已创建，但尚未同步到此客户端。",
+  ],
+  ["sideChatUnavailable", "The side chat is no longer available.", "旁支对话已不可用。"],
+  [
+    "sideChatModeFailed",
+    "Could not set the side chat's permission mode.",
+    "无法设置旁支对话的权限模式。",
+  ],
+  ["sideChatSendFailed", "Could not send the side chat message.", "无法发送旁支对话消息。"],
+] as const)("pairs side chat stage %s without raw lookup", (code, source, chinese) => {
+  const ref = {
+    environmentId: EnvironmentId.make("side-stages"),
+    threadId: ThreadId.make("side-stages"),
+  };
+  let entries: Record<string, LocalThreadErrorEntry> = {};
+  const set = makeThreadErrorSetter({
+    routeThreadRef: ref,
+    routeThreadKey: "side",
+    draftId: null,
+    serverThreadRef: ref,
+    setLocalServerErrorsByThreadKey: (update) => {
+      entries = typeof update === "function" ? update(entries) : update;
+    },
+    setLocalDraftErrorsByDraftId: () => undefined,
+  });
+  set(ref.threadId, source, code);
+  expect(entries.side?.ownedCode).toBe(code);
+  for (const locale of ["en", "zh-CN", "en"] as const)
+    expect(formatLocalThreadError(source, entries.side, locale)).toBe(
+      locale === "en" ? source : chinese,
+    );
+  expect(formatLocalThreadError(source + " stale", entries.side, "zh-CN")).toBe(source + " stale");
+  set(ref.threadId, source);
+  expect(entries.side?.ownedCode).toBeUndefined();
+  expect(formatLocalThreadError(source, entries.side, "zh-CN")).toBe(source);
+});

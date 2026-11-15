@@ -80,17 +80,15 @@ export function useSideChat(input: {
     const targetRef = scopeThreadRef(threadRef.environmentId, targetThreadId);
     if (!(await waitForThreadShell(targetRef))) {
       input.onError(
-        translateWebSource(
-          incrementalLocale,
-          "The side chat was created, but it did not reach this client.",
-        ),
+        "The side chat was created, but it did not reach this client.",
+        "sideChatMissingShell",
       );
       discard();
       return false;
     }
     const sideChat = readThreadShell(targetRef);
     if (sideChat === null) {
-      input.onError("The side chat is no longer available.");
+      input.onError("The side chat is no longer available.", "sideChatUnavailable");
       discard();
       return false;
     }
@@ -100,7 +98,7 @@ export function useSideChat(input: {
         input: { threadId: targetThreadId, runtimeMode, createdAt: new Date().toISOString() },
       });
       if (mode._tag === "Failure") {
-        reportFailure(mode, "Could not set the side chat's permission mode.");
+        reportFailure(mode, "Could not set the side chat's permission mode.", "sideChatModeFailed");
         discard();
         return false;
       }
@@ -121,10 +119,7 @@ export function useSideChat(input: {
         },
       });
       if (turn._tag === "Failure") {
-        reportFailure(
-          turn,
-          translateWebSource(incrementalLocale, "Could not send the side chat message."),
-        );
+        reportFailure(turn, "Could not send the side chat message.", "sideChatSendFailed");
         discard();
         return false;
       }

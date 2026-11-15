@@ -1254,6 +1254,10 @@ export function isCompactCommandMessage(message: ChatMessage): boolean {
 // can race around promotion, so each write carries its time to let the latest
 // one win when they collide.
 const OWNED_THREAD_ERRORS = {
+  sideChatMissingShell: "The side chat was created, but it did not reach this client.",
+  sideChatUnavailable: "The side chat is no longer available.",
+  sideChatModeFailed: "Could not set the side chat's permission mode.",
+  sideChatSendFailed: "Could not send the side chat message.",
   sideChatForkFailed: "Could not start a side chat.",
   queuedEditUploadFailed: "Retry or remove failed uploads before saving.",
   queuedEditAttachmentLimit: translateWebMessage("en", "chat.queuedEdit.tooManyAttachments", {
@@ -1314,6 +1318,9 @@ export function formatLocalThreadError(
 ): string | null {
   const source = ownedThreadErrorSource(entry?.ownedCode, entry?.ownedName);
   if (source === undefined || entry?.message !== message || message !== source) return message;
+  if (locale === "zh-CN" && entry.ownedCode === "sideChatUnavailable") return "旁支对话已不可用。";
+  if (locale === "zh-CN" && entry.ownedCode === "sideChatModeFailed")
+    return "无法设置旁支对话的权限模式。";
   if (entry.ownedCode === "rewindReconnect" && typeof entry.ownedName === "string") {
     return translateWebMessage(locale, "audit15.reconnectRewind", { environment: entry.ownedName });
   }
