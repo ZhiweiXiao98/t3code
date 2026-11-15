@@ -708,3 +708,63 @@ it("does not pair or report a failure after cancelling the only delivered link",
   expect(state.connectPairing).not.toHaveBeenCalled();
   expect(state.toast).not.toHaveBeenCalled();
 });
+
+it("uses settlement locale for pairing success and ignores its queued duplicate", async () => {
+  const initialPanel = useRightPanelStore.getState();
+  const initialDiff = useDiffPanelStore.getState();
+  using _stores = {
+    [Symbol.dispose]: () => {
+      useRightPanelStore.setState(initialPanel, true);
+      useDiffPanelStore.setState(initialDiff, true);
+    },
+  };
+  setup();
+  let finish!: (result: AtomCommandResult<void, unknown>) => void;
+  const pending = new Promise<AtomCommandResult<void, unknown>>((resolve) => {
+    finish = resolve;
+  });
+  state.connectPairing.mockReturnValue(pending);
+  await using coordinator = await mount(pairLink, pairLink);
+  await using _settle = {
+    [Symbol.asyncDispose]: async () => {
+      await act(async () => {
+        finish(AsyncResult.failure(Cause.interrupt()));
+        await Promise.resolve();
+      });
+    },
+  };
+  await vi.waitFor(() =>
+    expect(state.connectPairing).toHaveBeenCalledExactlyOnceWith({ pairingUrl }),
+  );
+  expect(state.confirm).toHaveBeenCalledExactlyOnceWith(
+    "Add the backend at https://vps.example.com?",
+  );
+  expect(state.toast).not.toHaveBeenCalled();
+  await coordinator.rerenderLocale("zh-CN");
+  await act(async () => {
+    finish(AsyncResult.success(undefined));
+    await Promise.resolve();
+  });
+  await vi.waitFor(() => expect(state.toast).toHaveBeenCalledTimes(1));
+  expect(state.toast.mock.calls[0]?.[0]).toMatchObject({
+    type: "success",
+    title: "已添加后端",
+    description: "环境已保存，将在应用启动时自动重新连接。",
+  });
+  await coordinator.rerenderLocale("en");
+  expect(state.confirm).toHaveBeenCalledTimes(1);
+  expect(state.connectPairing).toHaveBeenCalledExactlyOnceWith({ pairingUrl });
+  expect(state.toast).toHaveBeenCalledTimes(1);
+  expect(coordinator.subscriptions()).toBe(1);
+  expect(coordinator.readyCalls()).toBe(1);
+  expect(coordinator.unsubscriptions()).toBe(0);
+  for (const mock of [
+    state.openUrl,
+    state.openPreview,
+    state.preview,
+    state.openScratchProject,
+    state.navigate,
+    state.openLink,
+  ])
+    expect(mock).not.toHaveBeenCalled();
+});

@@ -157,10 +157,14 @@ export function DesktopWebLinkCoordinator() {
       return;
     }
     pairedUrlsRef.current.add(pairingUrl);
+    const successLocale = readWebI18n().locale;
     toastManager.add({
       type: "success",
-      title: tx("Backend added"),
-      description: tx("The environment is saved and will reconnect on app startup."),
+      title: translateConnectAgentSource(successLocale, "Backend added"),
+      description: translateConnectAgentSource(
+        successLocale,
+        "The environment is saved and will reconnect on app startup.",
+      ),
     });
   };
 
