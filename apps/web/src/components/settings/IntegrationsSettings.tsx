@@ -1,3 +1,4 @@
+import { readWebI18n } from "../../i18n/readWebI18n";
 import { managedCapabilityDenial } from "../../i18n/managedPolicyMessages";
 import { DeviceHostUpdates } from "../device/DeviceHostUpdates";
 import { DeviceToolVersions } from "../device/DeviceToolVersions";
@@ -1303,6 +1304,7 @@ function BrowserProfilesSetting({ disabled }: { readonly disabled: boolean }) {
         });
       })
       .catch(() => {
+        const { t } = readWebI18n();
         toastManager.add({
           type: "error",
           title: t("settings.integrations.profiles.clearFailed", { profile: name }),
