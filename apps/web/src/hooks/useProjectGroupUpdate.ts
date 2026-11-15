@@ -38,7 +38,7 @@ type ProjectGroupMember = Pick<
  * reports the first failure as a toast. Every machine must be connected first.
  */
 export function useProjectGroupUpdate() {
-  const { locale, t } = useI18n();
+  const { t } = useI18n();
   const serverConfigs = useServerConfigs();
   const updateProject = useOrchestrationCommand(projectEnvironment.update, {
     reportFailure: false,
@@ -78,6 +78,7 @@ export function useProjectGroupUpdate() {
         () => undefined,
       );
       if (result._tag === "Failure") {
+        const { locale, t } = readWebI18n();
         reportProjectFailure(
           members.length > 1
             ? t("projectSettings.failureOnEnvironment", {
