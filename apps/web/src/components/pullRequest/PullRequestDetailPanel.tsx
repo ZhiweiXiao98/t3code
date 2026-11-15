@@ -870,6 +870,7 @@ export function PullRequestDetailPanel({
       });
     }
     if (action === "delete-branch") {
+      const { locale: uiLocale } = readWebI18n();
       toastManager.add({ type: "success", title: translateWebSource(uiLocale, "Branch deleted") });
     }
     if (pullRequestActionNeedsHostRefresh(action)) {

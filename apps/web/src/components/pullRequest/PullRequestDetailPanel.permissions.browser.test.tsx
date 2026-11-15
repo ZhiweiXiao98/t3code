@@ -27,6 +27,8 @@ const { permissions, mocks } = vi.hoisted(() => ({
     gitlab: false,
     draftAction: false,
     revertAction: false,
+    deleteAction: false,
+    deleteConnected: true,
     commentAction: false,
     postComment: vi.fn(),
     queue: vi.fn<(submit: (text: string) => void) => void>(),
@@ -53,6 +55,30 @@ vi.mock(import("./usePullRequestActions"), async (original) => {
     ...actual,
     writeHandoffToComposer: (...args: Parameters<typeof actual.writeHandoffToComposer>) =>
       mocks.interceptHandoff ? mocks.writeHandoff(...args) : actual.writeHandoffToComposer(...args),
+  };
+});
+vi.mock(import("~/state/environments"), async (original) => {
+  const actual = await original();
+  return {
+    ...actual,
+    useEnvironments: () => {
+      const value = actual.useEnvironments();
+      return mocks.deleteAction
+        ? {
+            ...value,
+            environments: mocks.deleteConnected
+              ? ([
+                  {
+                    environmentId,
+                    label: "Fixture environment",
+                    serverConfig: null,
+                    connection: { phase: "connected" },
+                  },
+                ] as never)
+              : [],
+          }
+        : value;
+    },
   };
 });
 vi.mock(import("~/hooks/useHandleNewThread"), async (original) => ({
@@ -125,6 +151,7 @@ vi.mock("~/i18n/readWebI18n", () => ({
 
 import { pullRequestEnvironment } from "~/state/pullRequests";
 import { readableFailure } from "./pullRequestDetail.logic";
+import { readLocalApi } from "~/localApi";
 import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
 import { PullRequestDetailPanel } from "./PullRequestDetailPanel";
 
@@ -204,7 +231,15 @@ const revertDetail: PullRequestDetailView = {
   capabilities: { ...detail.capabilities, actions: ["revert"] },
   viewerPermissions: { ...detail.viewerPermissions, actions: ["revert"] },
 };
+const deleteDetail: PullRequestDetailView = {
+  ...detail,
+  state: "closed",
+  headBranch: "feature/$&/{literal}",
+  capabilities: { ...detail.capabilities, deleteBranch: true, actions: ["delete-branch"] },
+  viewerPermissions: { ...detail.viewerPermissions, actions: ["delete-branch"] },
+};
 function selectedDetail() {
+  if (mocks.deleteAction) return deleteDetail;
   if (mocks.revertAction) return revertDetail;
   if (mocks.commentAction) return commentDetail;
   if (mocks.draftAction) return draftDetail;
@@ -1599,3 +1634,126 @@ it("uses settlement locale for revert action success", async () => {
   expect(mocks.toast).toHaveBeenCalledTimes(1);
   expect(mocks.acted).toHaveBeenCalledTimes(2);
 });
+
+it.each(["success", "cancel", "disconnected"] as const)(
+  "uses settlement locale for delete-branch action %s",
+  async (kind) => {
+    const { AsyncResult } = await import("effect/reactivity");
+    const Cause = await import("effect/Cause");
+    type Result =
+      | ReturnType<typeof AsyncResult.success<undefined>>
+      | ReturnType<typeof AsyncResult.failure<unknown, unknown>>;
+    const state = useComposerDraftStore.getState();
+    using _restore = {
+      [Symbol.dispose]() {
+        useComposerDraftStore.setState(state, true);
+        mocks.deleteAction = false;
+        mocks.deleteConnected = true;
+        mocks.locale = "en";
+        mocks.runAction.mockReset();
+      },
+    };
+    setup();
+    mocks.deleteAction = true;
+    mocks.deleteConnected = kind !== "disconnected";
+    using confirm = vi
+      .spyOn(readLocalApi()!.dialogs, "confirm")
+      .mockResolvedValue(kind === "success");
+    mocks.command.mockClear();
+    mocks.toast.mockClear();
+    mocks.acted.mockClear();
+    mocks.refresh.mockClear();
+    mocks.stackRefresh.mockClear();
+    let finish = (_result: Result) => {};
+    mocks.runAction.mockReset().mockReturnValueOnce(
+      new Promise<Result>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    await using screen = await render(copySurface("en"));
+    await using _settle = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          finish(AsyncResult.failure(Cause.interrupt()));
+          await Promise.resolve();
+        });
+      },
+    };
+    const before = useComposerDraftStore.getState();
+    const trigger = screen.getByRole("button", { name: "More pull request actions", exact: true });
+    await trigger.click();
+    const item = page.getByRole("menuitem", { name: /^Delete branch(?:\s|$)/ });
+    await expect.element(item).toBeVisible();
+    if (kind === "disconnected") {
+      await expect.element(item).toHaveAttribute("aria-disabled", "true");
+      await act(async () => {
+        item.element().dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+      });
+      expect(confirm).not.toHaveBeenCalled();
+    } else {
+      await item.click();
+      await expect.poll(() => confirm.mock.calls.length).toBe(1);
+      expect(confirm).toHaveBeenCalledExactlyOnceWith(
+        "Delete branch feature/$&/{literal}?\nThis deletes feature/$&/{literal} from owner/repo. Local branches and worktrees are not changed.",
+        { variant: "destructive" },
+      );
+    }
+    if (kind !== "success") {
+      expect(mocks.runAction).not.toHaveBeenCalled();
+      expect(mocks.acted).not.toHaveBeenCalled();
+      expect(mocks.toast).not.toHaveBeenCalled();
+      expect(mocks.refresh).not.toHaveBeenCalled();
+      expect(mocks.stackRefresh).not.toHaveBeenCalled();
+      expect(mocks.command).not.toHaveBeenCalled();
+      expect(useComposerDraftStore.getState()).toBe(before);
+      return;
+    }
+    await expect.poll(() => mocks.runAction.mock.calls.length).toBe(1);
+    expect(mocks.runAction).toHaveBeenCalledExactlyOnceWith({
+      environmentId,
+      input: {
+        projectId: detail.projectId,
+        repository: detail.repository,
+        number: detail.number,
+        action: "delete-branch",
+      },
+    });
+    expect(confirm.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.runAction.mock.invocationCallOrder[0]!,
+    );
+    expect(mocks.acted).toHaveBeenCalledExactlyOnceWith("delete-branch", "sent");
+    await trigger.click();
+    const pending = page.getByRole("menuitem", { name: /^Deleting branch\.\.\.(?:\s|$)/ });
+    await expect.element(pending).toHaveAttribute("aria-disabled", "true");
+    await act(async () => {
+      pending.element().dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+    });
+    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(mocks.runAction).toHaveBeenCalledTimes(1);
+    expect(mocks.toast).not.toHaveBeenCalled();
+    await screen.rerender(copySurface("zh-CN"));
+    await act(async () => {
+      finish(AsyncResult.success(undefined));
+      await Promise.resolve();
+    });
+    expect(mocks.toast).toHaveBeenCalledExactlyOnceWith({ type: "success", title: "分支已删除" });
+    expect(mocks.acted.mock.calls).toEqual([
+      ["delete-branch", "sent"],
+      ["delete-branch", "done", undefined],
+    ]);
+    expect(mocks.toast.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.acted.mock.invocationCallOrder[1]!,
+    );
+    expect(mocks.refresh).toHaveBeenCalledTimes(1);
+    expect(mocks.stackRefresh).toHaveBeenCalledTimes(1);
+    expect(mocks.command).not.toHaveBeenCalled();
+    expect(useComposerDraftStore.getState()).toBe(before);
+    await screen.rerender(copySurface("en"));
+    await expect
+      .element(page.getByRole("menuitem", { name: /^Delete branch(?:\s|$)/ }))
+      .not.toHaveAttribute("aria-disabled", "true");
+    expect(mocks.toast).toHaveBeenCalledTimes(1);
+    expect(mocks.runAction).toHaveBeenCalledTimes(1);
+    expect(confirm).toHaveBeenCalledTimes(1);
+  },
+);
