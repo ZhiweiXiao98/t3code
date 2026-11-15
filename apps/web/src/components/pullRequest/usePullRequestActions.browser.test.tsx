@@ -589,21 +589,40 @@ const handoffDetail = {
   url: "https://github.com/owner/repo/pull/42",
 };
 const handoffTask = { prompt: "Literal $& {task}" };
-function HandoffProbe() {
+function HandoffProbe({
+  taskless = false,
+  mode = "worktree",
+}: {
+  taskless?: boolean;
+  mode?: "local" | "worktree";
+}) {
   const { handoff, startHandoff } = usePullRequestHandoffs({
     environmentId: EnvironmentId.make("handoff-environment"),
     detail: handoffDetail,
   });
   return (
     <>
-      <button type="button" onClick={() => void startHandoff("conflicts", handoffTask)}>
+      <button
+        type="button"
+        onClick={() =>
+          void startHandoff(
+            taskless ? "prompt-link" : "conflicts",
+            taskless ? null : handoffTask,
+            mode,
+          )
+        }
+      >
         Start handoff
       </button>
       <output aria-label="Handoff state">{handoff ?? "idle"}</output>
     </>
   );
 }
-function handoffSurface(locale: "en" | "zh-CN") {
+function handoffSurface(
+  locale: "en" | "zh-CN",
+  taskless = false,
+  mode: "local" | "worktree" = "worktree",
+) {
   state.locale = locale;
   return (
     <WebI18nContext
@@ -614,7 +633,7 @@ function handoffSurface(locale: "en" | "zh-CN") {
         t: (key, values) => translateWebMessage(locale, key, values),
       }}
     >
-      <HandoffProbe />
+      <HandoffProbe taskless={taskless} mode={mode} />
     </WebI18nContext>
   );
 }
@@ -903,6 +922,120 @@ it.each([
     expect(state.runAction).not.toHaveBeenCalled();
     expect(useComposerDraftStore.getState()).toBe(before);
     await screen.rerender(handoffSurface("en"));
+    expect(state.toast).toHaveBeenCalledTimes(1);
+    expect(state.updateToast).toHaveBeenCalledTimes(1);
+  },
+);
+
+it.each([
+  ["worktree", "worktree", true],
+  ["local", "local", true],
+  ["off-head", "worktree", false],
+] as const)(
+  "uses settlement locale for taskless checkout success: %s",
+  async (_kind, mode, isOnPullRequestHead) => {
+    const { AsyncResult } = await import("effect/reactivity");
+    const before = useComposerDraftStore.getState();
+    using _restore = {
+      [Symbol.dispose]() {
+        useComposerDraftStore.setState(before, true);
+        state.locale = "en";
+        state.newThread.mockReset();
+        state.prepare.mockReset();
+        state.toast.mockReset();
+      },
+    };
+    const opened = {
+      draftId: DraftId.make("fixture-success-draft"),
+      threadId: ThreadId.make("fixture-success-thread"),
+    };
+    const prepared: GitPreparePullRequestThreadResult = {
+      pullRequest: {
+        number: 42,
+        title: "Literal PR",
+        url: handoffDetail.url,
+        baseBranch: "main",
+        headBranch: "feature",
+        state: "open",
+      },
+      branch: "feature/$&/{literal}",
+      worktreePath: mode === "local" ? null : "/literal/$&/{worktree}",
+      isOnPullRequestHead,
+    };
+    const pending = deferred<typeof opened | null>();
+    state.newThread.mockReset().mockResolvedValueOnce(opened).mockReturnValueOnce(pending.promise);
+    state.prepare.mockReset().mockResolvedValueOnce(AsyncResult.success(prepared));
+    state.runAction.mockClear();
+    state.toast.mockReset().mockReturnValue("success-toast");
+    state.updateToast.mockClear();
+    await using screen = await render(handoffSurface("en", true, mode));
+    await using _settle = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          pending.resolve(null);
+          await pending.promise;
+        });
+      },
+    };
+    const button = screen.getByRole("button", { name: "Start handoff", exact: true });
+    await button.click();
+    await expect.poll(() => state.newThread.mock.calls.length).toBe(2);
+    const projectRef = {
+      environmentId: EnvironmentId.make("handoff-environment"),
+      projectId: handoffDetail.projectId,
+    };
+    expect(state.newThread).toHaveBeenNthCalledWith(1, projectRef);
+    expect(state.newThread).toHaveBeenNthCalledWith(2, projectRef, {
+      branch: prepared.branch,
+      worktreePath: prepared.worktreePath,
+      envMode: mode,
+    });
+    expect(state.prepare).toHaveBeenCalledExactlyOnceWith({
+      reference: handoffDetail.url,
+      mode,
+      threadId: opened.threadId,
+    });
+    await expect
+      .element(screen.getByRole("status", { name: "Handoff state" }))
+      .toHaveTextContent("prompt-link");
+    await button.click();
+    expect(state.newThread).toHaveBeenCalledTimes(2);
+    expect(state.toast).toHaveBeenCalledExactlyOnceWith({
+      type: "loading",
+      title: "Preparing the pull request checkout...",
+    });
+    expect(state.updateToast).not.toHaveBeenCalled();
+    await screen.rerender(handoffSurface("zh-CN", true, mode));
+    await act(async () => {
+      pending.resolve(opened);
+      await pending.promise;
+    });
+    expect(state.updateToast).toHaveBeenCalledExactlyOnceWith(
+      "success-toast",
+      isOnPullRequestHead
+        ? {
+            type: "success",
+            title: mode === "local" ? "已在此处检出" : "已检出",
+            description:
+              mode === "local"
+                ? "此仓库已切换到拉取请求的分支，并已打开关联会话。"
+                : "拉取请求已放入独立工作树，并已打开关联会话。",
+          }
+        : {
+            type: "warning",
+            title: "已检出，但未确认是否为最新提交",
+            description:
+              "无法确认此检出目录是否对应拉取请求的最新提交，因此代码可能不同。存在本地提交或未提交更改时，检出目录会保留当前状态。",
+          },
+    );
+    await expect
+      .element(screen.getByRole("status", { name: "Handoff state" }))
+      .toHaveTextContent("idle");
+    expect(state.newThread).toHaveBeenCalledTimes(2);
+    expect(state.prepare).toHaveBeenCalledTimes(1);
+    expect(state.runAction).not.toHaveBeenCalled();
+    expect(useComposerDraftStore.getState()).toBe(before);
+    await screen.rerender(handoffSurface("en", true, mode));
     expect(state.toast).toHaveBeenCalledTimes(1);
     expect(state.updateToast).toHaveBeenCalledTimes(1);
   },

@@ -417,6 +417,7 @@ export function usePullRequestHandoffs({
     }
     setHandoff(null);
     if (task === null) {
+      const { locale, t } = readWebI18n();
       toastManager.update(
         toastId,
         prepared.value.isOnPullRequestHead
