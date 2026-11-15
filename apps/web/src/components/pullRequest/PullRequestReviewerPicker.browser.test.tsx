@@ -204,3 +204,54 @@ it("does not open reviewers when denied or mutate after Escape", async () => {
   expect(fixture.requestReviewers).not.toHaveBeenCalled();
   expect(fixture.toast).not.toHaveBeenCalled();
 });
+
+it.each([
+  { action: "request", requested: false },
+  { action: "withdraw", requested: true },
+])("uses settlement locale for reviewer $action success", async ({ requested }) => {
+  setup(requested);
+  type Result = AtomCommandResult<void, unknown>;
+  let finish = (_result: Result) => {};
+  fixture.requestReviewers.mockReturnValueOnce(
+    new Promise<Result>((resolve) => {
+      finish = resolve;
+    }),
+  );
+  await using screen = await render(surface("en"));
+  await using _settle = {
+    async [Symbol.asyncDispose]() {
+      await act(async () => {
+        finish(AsyncResult.failure(Cause.interrupt()));
+        await Promise.resolve();
+      });
+    },
+  };
+  await userEvent.click(screen.getByRole("combobox", { name: "Request a review", exact: true }));
+  const option = page.getByRole("option").filter({ hasText: label });
+  await userEvent.click(option);
+  await expect.element(option).toHaveAttribute("aria-disabled", "true");
+  expect(fixture.requestReviewers).toHaveBeenCalledExactlyOnceWith({
+    environmentId,
+    input: {
+      ...reference,
+      reviewers: [{ id: "reviewer-id", kind: "user" }],
+      requested: !requested,
+    },
+  });
+  expect(fixture.toast).not.toHaveBeenCalled();
+  await screen.rerender(surface("zh-CN"));
+  await act(async () => {
+    finish(AsyncResult.success(undefined));
+  });
+  await expect.element(option).not.toHaveAttribute("aria-disabled", "true");
+  expect(fixture.toast).toHaveBeenCalledExactlyOnceWith({
+    type: "success",
+    title: requested ? `已撤回向 ${label} 发出的评审请求` : `已请求 ${label} 进行评审`,
+  });
+  expect(fixture.search).not.toHaveBeenCalled();
+  await screen.rerender(surface("en"));
+  expect(fixture.requestReviewers).toHaveBeenCalledTimes(1);
+  expect(fixture.toast).toHaveBeenCalledTimes(1);
+  await userEvent.keyboard("{Escape}");
+  await expect.element(page.getByRole("listbox")).not.toBeInTheDocument();
+});

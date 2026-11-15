@@ -104,6 +104,7 @@ export function PullRequestReviewerPicker({
     // The command reads the loaded list again only for somebody it lacked, and a search result
     // is keyed by what was typed, so the one on screen is read here or it keeps the old request.
     if (hostQuery !== null) searchResult.refresh();
+    const { t } = readWebI18n();
     toastManager.add({
       type: "success",
       title: candidate.isRequested
