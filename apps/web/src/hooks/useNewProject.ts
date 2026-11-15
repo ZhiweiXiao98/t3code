@@ -84,6 +84,7 @@ export function useNewProject() {
     });
     if (result._tag === "Failure") {
       if (!isAtomCommandInterrupted(result)) {
+        const { t } = readWebI18n();
         toastManager.add(
           stackedThreadToast({
             type: "error",
