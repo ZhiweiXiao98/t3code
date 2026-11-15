@@ -908,7 +908,10 @@ export function useComposerSend(input: ComposerSendInput) {
       setThreadError(
         threadIdForSend,
         attachmentCapabilitiesBeforeDispatch.fileBlockReason ??
-          translateWebSource(uiLocale, "This connection cannot change threads."),
+          "This connection cannot change threads.",
+        attachmentCapabilitiesBeforeDispatch.fileBlockReason === null
+          ? "sendPermissionDenied"
+          : undefined,
       );
       setDockedDraftHeroThreadKey((currentThreadKey) =>
         currentThreadKey === activeThreadKey ? null : currentThreadKey,

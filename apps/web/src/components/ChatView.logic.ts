@@ -1254,6 +1254,7 @@ export function isCompactCommandMessage(message: ChatMessage): boolean {
 // can race around promotion, so each write carries its time to let the latest
 // one win when they collide.
 const OWNED_THREAD_ERRORS = {
+  sendPermissionDenied: "This connection cannot change threads.",
   approvalFeedbackContext: "Send approval feedback without attachments or added context.",
   multipleModelsServerOutdated: "Update this server before starting multiple models.",
   worktreeBaseBranchMissing: "Select a base branch before sending in New worktree mode.",

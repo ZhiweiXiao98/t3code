@@ -720,3 +720,31 @@ it("pairs approval feedback context guard without claiming raw text", () => {
   expect(entries.feedback?.ownedCode).toBeUndefined();
   expect(formatLocalThreadError(source, entries.feedback, "zh-CN")).toBe(source);
 });
+
+it("pairs revoked send permission without claiming raw capability text", () => {
+  const source = "This connection cannot change threads.";
+  const ref = {
+    environmentId: EnvironmentId.make("permission"),
+    threadId: ThreadId.make("permission"),
+  };
+  let entries: Record<string, LocalThreadErrorEntry> = {};
+  const set = makeThreadErrorSetter({
+    routeThreadRef: ref,
+    routeThreadKey: "permission",
+    draftId: null,
+    serverThreadRef: ref,
+    setLocalServerErrorsByThreadKey: (update) => {
+      entries = typeof update === "function" ? update(entries) : update;
+    },
+    setLocalDraftErrorsByDraftId: () => undefined,
+  });
+  set(ref.threadId, source, "sendPermissionDenied");
+  expect(entries.permission?.ownedCode).toBe("sendPermissionDenied");
+  for (const locale of ["en", "zh-CN", "en"] as const)
+    expect(formatLocalThreadError(source, entries.permission, locale)).toBe(
+      locale === "en" ? source : "此连接无权修改会话。",
+    );
+  set(ref.threadId, source);
+  expect(entries.permission?.ownedCode).toBeUndefined();
+  expect(formatLocalThreadError(source, entries.permission, "zh-CN")).toBe(source);
+});

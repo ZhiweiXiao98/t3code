@@ -6,9 +6,10 @@ import {
   ProviderInstanceId,
   ProviderDriverKind,
   RuntimeRequestId,
+  ChatAttachmentId,
 } from "@t3tools/contracts";
 import { expect, it, vi } from "vite-plus/test";
-import { render } from "../../../test/render";
+import { act, render } from "../../../test/render";
 import { WebI18nContext } from "../../i18n/WebI18nContext";
 import { translateWebMessage } from "../../i18n/messages";
 import { makeThreadFixture } from "../../test-fixtures";
@@ -20,33 +21,61 @@ import type { ChatComposerHandle } from "./ChatComposer";
 import { ChatBannerLane } from "./ChatBannerLane";
 import { draftSendState } from "./chatViewSend";
 import { useComposerSend } from "./useComposerSend";
-const fixture = vi.hoisted(() => ({
-  allowed: true,
-  start: vi.fn(),
-  multiple: vi.fn(),
-  prepare: vi.fn(),
-  navigate: vi.fn(),
-  newThread: vi.fn(),
-  reset: vi.fn(),
-  dispatch: vi.fn(),
-  context: vi.fn(),
-  pendingChange: vi.fn(),
-  persist: vi.fn(),
-  advance: vi.fn(),
-  feedback: vi.fn(),
-  decline: vi.fn(),
-  respond: vi.fn(),
-  upload: vi.fn(),
-}));
+const fixture = await vi.hoisted(async () => {
+  const { Atom } = await import("effect/reactivity");
+  return {
+    locale: "en" as "en" | "zh-CN",
+    transition: vi.fn(),
+    capture: vi.fn(),
+    dock: vi.fn(),
+    configs: Atom.make(
+      new Map<
+        string,
+        { environment: { capabilities: { fileAttachments: { maxUploadBytes: number } } } }
+      >(),
+    ).pipe(Atom.keepAlive),
+    allowed: true,
+    start: vi.fn(),
+    multiple: vi.fn(),
+    prepare: vi.fn(),
+    navigate: vi.fn(),
+    newThread: vi.fn(),
+    reset: vi.fn(),
+    dispatch: vi.fn(),
+    context: vi.fn(),
+    pendingChange: vi.fn(),
+    persist: vi.fn(),
+    advance: vi.fn(),
+    feedback: vi.fn(),
+    decline: vi.fn(),
+    respond: vi.fn(),
+    upload: vi.fn(),
+  };
+});
 vi.mock("@t3tools/client-runtime/state/thread-requests", async (original) => ({
   ...(await original<typeof import("@t3tools/client-runtime/state/thread-requests")>()),
   sendApprovalFeedback: fixture.feedback,
   declinePendingApprovals: fixture.decline,
 }));
-vi.mock("../../state/server", async (original) => {
-  const actual = await original<typeof import("../../state/server")>();
-  const { Atom } = await import("effect/reactivity");
-  return { ...actual, environmentServerConfigsAtom: Atom.make(new Map()).pipe(Atom.keepAlive) };
+vi.mock("../../state/server", async (original) => ({
+  ...(await original<typeof import("../../state/server")>()),
+  environmentServerConfigsAtom: fixture.configs,
+}));
+vi.mock("./draftHeroTransition", async (original) => ({
+  ...(await original<typeof import("./draftHeroTransition")>()),
+  runMobileComposerTransition: fixture.transition,
+}));
+vi.mock("../../i18n/readWebI18n", async () => {
+  const { translateWebMessage } = await import("../../i18n/messages");
+  return {
+    readWebI18n: () => ({
+      locale: fixture.locale,
+      t: (
+        key: Parameters<typeof translateWebMessage>[1],
+        values?: Parameters<typeof translateWebMessage>[2],
+      ) => translateWebMessage(fixture.locale, key, values),
+    }),
+  };
 });
 vi.mock("../../lib/attachmentUploadQueue", async (original) => ({
   ...(await original<typeof import("../../lib/attachmentUploadQueue")>()),
@@ -132,7 +161,7 @@ const project = {
   createdAt: "2026-01-01T00:00:00Z",
   updatedAt: "2026-01-01T00:00:00Z",
 };
-type Guard = "server" | "branch" | "feedback";
+type Guard = "server" | "branch" | "feedback" | "permission";
 const approval = {
   requestId: RuntimeRequestId.make("feedback-request"),
   requestKind: "command" as const,
@@ -166,12 +195,15 @@ function Probe({
   const [entries, setEntries] = useState<Record<string, LocalThreadErrorEntry>>({});
   const [, setDismiss] = useState(0);
   const [done, setDone] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [docked, setDocked] = useState<string | null>(null);
   const target = guard === "feedback" ? ref : draftId;
   const errorKey = guard === "feedback" ? routeKey : draftId;
   const currentRouteThreadKeyRef = useRef<string | null>(routeKey);
   const promptRef = useRef(prompt);
   const composerImagesRef = useRef([]);
-  const composerFilesRef = useRef([]);
+  const composerFiles = useComposerDraftStore((state) => state.getComposerDraft(target)?.files);
+  const composerFilesRef = useRef(composerFiles ?? []);
   const composerTerminalContextsRef = useRef(guard === "feedback" ? [terminalContext] : []);
   const feedbackUploadsInFlightRef = useRef(new Set<string>());
   const composerRef = useRef<ChatComposerHandle>({
@@ -201,7 +233,7 @@ function Probe({
         answeringPendingUserInput: false,
         prompt,
         images: [],
-        files: [],
+        files: composerFilesRef.current,
         terminalContexts: guard === "feedback" ? [terminalContext] : [],
         previewAnnotations: [],
         reviewComments: [],
@@ -271,8 +303,8 @@ function Probe({
     activeEnvironmentUnavailable: false,
     isSendBusy: false,
     sendQueuesBehindSetup: false,
-    isDraftHeroState: false,
-    panelAnimationsActive: false,
+    isDraftHeroState: guard === "permission",
+    panelAnimationsActive: guard === "permission",
     panelAnimationDurationMs: 0,
     keepFullHistory: false,
     freshSessionAvailable: false,
@@ -292,8 +324,11 @@ function Probe({
     beginLocalDispatch: fixture.dispatch,
     resetLocalDispatch: fixture.reset,
     beginWorktreeSetup: () => undefined,
-    captureDraftHeroComposerRect: () => undefined,
-    setDockedDraftHeroThreadKey: () => undefined,
+    captureDraftHeroComposerRect: fixture.capture,
+    setDockedDraftHeroThreadKey: (value) => {
+      fixture.dock(value);
+      setDocked(value);
+    },
     setSetupQueueSendThreadKey: () => undefined,
     setOptimisticUserMessages: () => undefined,
     optimisticBlobPreviews: { track: () => undefined, release: () => undefined },
@@ -310,14 +345,18 @@ function Probe({
     <>
       <button
         type="button"
+        disabled={pending}
         onClick={async () => {
+          setPending(true);
           await send.onSend();
           setDone(true);
+          setPending(false);
         }}
       >
         Send
       </button>
       <output>{done ? "settled" : "idle"}</output>
+      <output data-testid="dock">{docked ?? "undocked"}</output>
       <ChatBannerLane
         environmentId={ref.environmentId}
         providerStatus={null}
@@ -337,6 +376,7 @@ function Probe({
   );
 }
 function surface(locale: "en" | "zh-CN", props: Parameters<typeof Probe>[0]) {
+  fixture.locale = locale;
   return (
     <WebI18nContext
       value={{
@@ -449,3 +489,149 @@ for (const guard of ["server", "branch", "feedback"] as const)
         expect(mock).not.toHaveBeenCalled();
     },
   );
+
+it.each(["permission", "file-priority"] as const)(
+  "keeps docked send %s notice current",
+  async (kind) => {
+    for (const mock of [
+      fixture.start,
+      fixture.multiple,
+      fixture.prepare,
+      fixture.navigate,
+      fixture.newThread,
+      fixture.reset,
+      fixture.dispatch,
+      fixture.context,
+      fixture.pendingChange,
+      fixture.persist,
+      fixture.advance,
+      fixture.feedback,
+      fixture.decline,
+      fixture.respond,
+      fixture.upload,
+      fixture.transition,
+      fixture.capture,
+      fixture.dock,
+    ])
+      mock.mockReset();
+    fixture.allowed = true;
+    fixture.pendingChange.mockReturnValue(null);
+    const routeKey = `docked-${kind}`;
+    const draftId = DraftId.make(routeKey);
+    const original = useComposerDraftStore.getState();
+    const state = draftSendState(routeKey);
+    const lock = state.sendInFlight.current;
+    const configs = appAtomRegistry.get(fixture.configs);
+    using _restore = {
+      [Symbol.dispose]: () => {
+        useComposerDraftStore.setState(original, true);
+        state.sendInFlight.current = lock;
+        appAtomRegistry.set(fixture.configs, configs);
+        fixture.allowed = true;
+      },
+    };
+    state.sendInFlight.current = false;
+    useComposerDraftStore.getState().setPrompt(draftId, prompt);
+    appAtomRegistry.set(
+      fixture.configs,
+      new Map([
+        [
+          ref.environmentId,
+          { environment: { capabilities: { fileAttachments: { maxUploadBytes: 1024 } } } },
+        ],
+      ]),
+    );
+    if (kind === "file-priority")
+      expect(
+        useComposerDraftStore.getState().addFiles(draftId, [
+          {
+            type: "file",
+            id: ChatAttachmentId.make("permission-file"),
+            name: "$& {file}.txt",
+            mimeType: "text/plain",
+            sizeBytes: 1,
+            file: new File(["x"], "$& {file}.txt", { type: "text/plain" }),
+          },
+        ]),
+      ).toHaveLength(1);
+    const draft = useComposerDraftStore.getState().getComposerDraft(draftId);
+    let update: (() => void | Promise<void>) | undefined;
+    let finish!: () => void;
+    const transition = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    fixture.transition.mockImplementation((callback: () => void | Promise<void>) => {
+      update = callback;
+      return transition;
+    });
+    const props = { guard: "permission" as const, routeKey, draftId, blocked: false };
+    await using screen = await render(surface("en", props));
+    await using _settle = {
+      [Symbol.asyncDispose]: async () => {
+        fixture.allowed = false;
+        await act(async () => {
+          const callback = update;
+          update = undefined;
+          await callback?.();
+          finish();
+          await Promise.resolve();
+        });
+      },
+    };
+    await screen.getByRole("button", { name: "Send", exact: true }).click();
+    await expect.poll(() => fixture.transition.mock.calls.length).toBe(1);
+    await expect.element(screen.getByRole("button", { name: "Send", exact: true })).toBeDisabled();
+    expect(state.sendInFlight.current).toBe(true);
+    expect(fixture.capture).not.toHaveBeenCalled();
+    expect(fixture.dock).not.toHaveBeenCalled();
+    expect(fixture.upload).toHaveBeenCalledTimes(kind === "file-priority" ? 1 : 0);
+    await screen.rerender(surface("zh-CN", props));
+    fixture.allowed = false;
+    if (kind === "file-priority") appAtomRegistry.set(fixture.configs, new Map());
+    await act(async () => {
+      const callback = update;
+      update = undefined;
+      if (!callback) throw new Error("Missing real dock callback");
+      await callback();
+      finish();
+    });
+    await expect.poll(() => screen.container.textContent).toContain("settled");
+    await expect.element(screen.getByRole("button", { name: "Send", exact: true })).toBeEnabled();
+    const rawFileReason = "正在等待服务器，暂时无法发送文件附件";
+    for (const locale of ["zh-CN", "en", "zh-CN", "en"] as const) {
+      await screen.rerender(surface(locale, props));
+      await expect
+        .poll(() => screen.container.textContent)
+        .toContain(
+          kind === "file-priority"
+            ? rawFileReason
+            : locale === "en"
+              ? "This connection cannot change threads."
+              : "此连接无权修改会话。",
+        );
+    }
+    expect(fixture.capture).toHaveBeenCalledTimes(1);
+    expect(fixture.dock).toHaveBeenCalledTimes(2);
+    expect(fixture.dock.mock.calls[0]?.[0]).toBe(routeKey);
+    expect(screen.container.querySelector('[data-testid="dock"]')?.textContent).toBe("undocked");
+    expect(state.sendInFlight.current).toBe(false);
+    expect(useComposerDraftStore.getState().getComposerDraft(draftId)).toBe(draft);
+    expect(fixture.transition).toHaveBeenCalledTimes(1);
+    expect(fixture.upload).toHaveBeenCalledTimes(kind === "file-priority" ? 1 : 0);
+    for (const mock of [
+      fixture.start,
+      fixture.multiple,
+      fixture.prepare,
+      fixture.navigate,
+      fixture.newThread,
+      fixture.reset,
+      fixture.dispatch,
+      fixture.persist,
+      fixture.advance,
+      fixture.feedback,
+      fixture.decline,
+      fixture.respond,
+    ])
+      expect(mock).not.toHaveBeenCalled();
+  },
+);
