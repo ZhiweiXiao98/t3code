@@ -133,7 +133,7 @@ for (const applied of [false, true]) {
           });
         },
       };
-      await userEvent.click(screen.getByRole("button", { name: "Change labels", exact: true }));
+      await userEvent.click(screen.getByRole("combobox", { name: "Change labels", exact: true }));
       const option = page.getByRole("option").filter({ hasText: label });
       await userEvent.click(option);
       await expect.element(option).toHaveAttribute("aria-disabled", "true");
@@ -177,7 +177,7 @@ it("does not open labels when denied or mutate after Escape", async () => {
   await expect.element(page.getByRole("listbox")).not.toBeInTheDocument();
   expect(fixture.query).not.toHaveBeenCalled();
   await screen.rerender(surface("en"));
-  await userEvent.click(trigger);
+  await userEvent.click(screen.getByRole("combobox", { name: "Change labels", exact: true }));
   await expect.element(page.getByRole("option").filter({ hasText: label })).toBeVisible();
   await userEvent.keyboard("{Escape}");
   await expect.element(page.getByRole("listbox")).not.toBeInTheDocument();
