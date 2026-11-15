@@ -2293,11 +2293,12 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
       void (async () => {
         const outcome = await performSnooze(threadRef, preset, opts);
         if (outcome.status === "failure") {
+          const { locale, t } = readWebI18n();
           toastManager.add(
             stackedThreadToast({
               type: "error",
-              title: readWebI18n().t("audit3.snoozeFailed"),
-              description: formatThreadActionError(outcome.error, releaseLocale, t("common.error")),
+              title: t("audit3.snoozeFailed"),
+              description: formatThreadActionError(outcome.error, locale, t("common.error")),
             }),
           );
           return;
