@@ -382,3 +382,28 @@ it.each(["server", "draft"] as const)(
     expect(entries.dynamic?.ownedName).toBeUndefined();
   },
 );
+
+it("pairs queued edit fallback ownership without claiming raw collisions", () => {
+  const source = "Could not save the edited queued message.";
+  const ref = { environmentId: EnvironmentId.make("edit"), threadId: ThreadId.make("edit") };
+  let entries: Record<string, LocalThreadErrorEntry> = {};
+  const set = makeThreadErrorSetter({
+    routeThreadRef: ref,
+    routeThreadKey: "edit",
+    draftId: null,
+    serverThreadRef: ref,
+    setLocalServerErrorsByThreadKey: (update) => {
+      entries = typeof update === "function" ? update(entries) : update;
+    },
+    setLocalDraftErrorsByDraftId: () => undefined,
+  });
+  set(ref.threadId, source, "queuedEditSaveFailed");
+  expect(entries.edit?.ownedCode).toBe("queuedEditSaveFailed");
+  for (const locale of ["en", "zh-CN", "en"] as const)
+    expect(formatLocalThreadError(source, entries.edit, locale)).toBe(
+      locale === "en" ? source : "无法保存编辑后的队列消息。",
+    );
+  set(ref.threadId, source);
+  expect(entries.edit?.ownedCode).toBeUndefined();
+  expect(formatLocalThreadError(source, entries.edit, "zh-CN")).toBe(source);
+});

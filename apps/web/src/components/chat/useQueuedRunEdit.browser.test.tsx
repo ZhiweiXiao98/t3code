@@ -7,17 +7,32 @@ import {
   ThreadId,
   type ScopedThreadRef,
 } from "@t3tools/contracts";
-import { useImperativeHandle, type RefObject } from "react";
+import { useImperativeHandle, useRef, useState, type RefObject } from "react";
 import { describe, expect, it, vi } from "vite-plus/test";
 import { ATTACHMENT_ONLY_BOOTSTRAP_PROMPT } from "@t3tools/shared/composerContextReferences";
 import { toastManager } from "../ui/toast";
 
 import { act, render } from "../../../test/render";
 import { useComposerDraftStore, useComposerThreadDraft } from "../../composerDraftStore";
-import { deriveComposerSendState } from "../ChatView.logic";
+import {
+  makeThreadErrorSetter,
+  type LocalThreadErrorEntry,
+  deriveComposerSendState,
+} from "../ChatView.logic";
 import { ComposerPrimaryActions } from "./ComposerPrimaryActions";
 import { AppAtomRegistryProvider, appAtomRegistry } from "../../rpc/atomRegistry";
 import { useQueuedRunEdit } from "./useQueuedRunEdit";
+
+import { WebI18nContext } from "../../i18n/WebI18nContext";
+import { translateWebMessage } from "../../i18n/messages";
+import { ChatBannerLane } from "./ChatBannerLane";
+import { AsyncResult } from "effect/reactivity";
+import * as Cause from "effect/Cause";
+
+vi.mock("./ProviderStatusBanner", async (original) => ({
+  ...(await original<typeof import("./ProviderStatusBanner")>()),
+  ProviderStatusBanner: () => null,
+}));
 
 interface RunStatus {
   readonly id: RunId;
@@ -35,25 +50,31 @@ const mocks = await vi.hoisted(async () => {
   };
 });
 
-vi.mock("../../state/use-atom-command", () => ({
+vi.mock("../../state/use-atom-command", async (original) => ({
+  ...(await original<typeof import("../../state/use-atom-command")>()),
   useAtomCommand: () => mocks.editQueuedRun,
 }));
 
-vi.mock("../../hooks/useSettings", () => ({
+vi.mock("../../hooks/useSettings", async (original) => ({
+  ...(await original<typeof import("../../hooks/useSettings")>()),
   useEnvironmentIdentificationMode: () => "none",
 }));
 
 const runsKey = (ref: ScopedThreadRef) => `${ref.environmentId}:${ref.threadId}`;
 
-vi.mock("../../state/threads", async () => {
+vi.mock("../../state/threads", async (original) => {
+  const actual = await original<typeof import("../../state/threads")>();
   const { Atom } = await import("effect/reactivity");
   const key = (ref: ScopedThreadRef) => `${ref.environmentId}:${ref.threadId}`;
   return {
+    ...actual,
     threadEnvironment: {
+      ...actual.threadEnvironment,
       snapshotAtom: () => Atom.make(null),
       editQueuedRun: {},
     },
     environmentThreadDetails: {
+      ...actual.environmentThreadDetails,
       statusAtom: () => Atom.make("ready"),
       quietThreadAtom: (ref: ScopedThreadRef) =>
         Atom.make((get) => {
@@ -62,6 +83,7 @@ vi.mock("../../state/threads", async () => {
         }),
     },
     environmentThreadShells: {
+      ...actual.environmentThreadShells,
       threadShellAtom: () => Atom.make(null),
     },
   };
@@ -87,14 +109,26 @@ function Harness(props: {
   readonly runStatus: string;
   readonly hookRef: RefObject<HookResult | null>;
 }) {
+  const promptRef = useRef("");
+  const composerRef = useRef(null);
+  const [entries, setEntries] = useState<Record<string, LocalThreadErrorEntry>>({});
+  const [, setDismiss] = useState(0);
+  const setError = makeThreadErrorSetter({
+    routeThreadRef: props.threadRef,
+    routeThreadKey: "edit",
+    draftId: null,
+    serverThreadRef: props.threadRef,
+    setLocalServerErrorsByThreadKey: setEntries,
+    setLocalDraftErrorsByDraftId: setEntries,
+  });
   const result = useQueuedRunEdit({
     environmentId: ENV,
     routeThreadRef: props.threadRef,
     threadDraftTarget: props.threadRef,
     activeThreadId: props.threadRef.threadId,
     serverProjection: projection([{ id: RUN, status: props.runStatus }]),
-    promptRef: { current: "" },
-    composerRef: { current: null },
+    promptRef,
+    composerRef,
   });
   useImperativeHandle(props.hookRef, () => result);
   const draft = useComposerThreadDraft(result.draftTarget);
@@ -104,24 +138,43 @@ function Harness(props: {
     existingAttachmentCount: result.editingAttachments?.length ?? 0,
     terminalContexts: draft.terminalContexts,
   });
-  return result.isEditing ? (
-    <ComposerPrimaryActions
-      compact={false}
-      canOperateThread
-      pendingAction={null}
-      isRunning={false}
-      canInterrupt={false}
-      isSendBusy={result.isSaving}
-      sendDisabledReason={null}
-      isEnvironmentUnavailable={false}
-      isPreparingWorktree={false}
-      hasSendableContent={sendState.hasSendableContent}
-      isEditingQueuedMessage
-      onSubmitMessage={() => void result.saveEdit(savedContent(draft.prompt), () => {})}
-      onPreviousPendingQuestion={() => {}}
-      onInterrupt={() => {}}
-    />
-  ) : null;
+  return (
+    <>
+      {result.isEditing ? (
+        <ComposerPrimaryActions
+          compact={false}
+          canOperateThread
+          pendingAction={null}
+          isRunning={false}
+          canInterrupt={false}
+          isSendBusy={result.isSaving}
+          sendDisabledReason={null}
+          isEnvironmentUnavailable={false}
+          isPreparingWorktree={false}
+          hasSendableContent={sendState.hasSendableContent}
+          isEditingQueuedMessage
+          onSubmitMessage={() => void result.saveEdit(savedContent(draft.prompt), setError)}
+          onPreviousPendingQuestion={() => {}}
+          onInterrupt={() => {}}
+        />
+      ) : null}
+      <ChatBannerLane
+        environmentId={ENV}
+        providerStatus={null}
+        providerStatusBannerKey={null}
+        setDismissedProviderStatusBannerKey={() => undefined}
+        onOpenProviderSetup={() => undefined}
+        threadId={props.threadRef.threadId}
+        threadError={entries.edit?.message ?? null}
+        localThreadErrorEntry={entries.edit}
+        threadErrorClass={null}
+        threadErrorCode={null}
+        threadErrorBannerKey={null}
+        setThreadError={setError}
+        setThreadErrorBannerDismissTick={setDismiss}
+      />
+    </>
+  );
 }
 
 function view(threadRef: ScopedThreadRef, runStatus: string, hook: { current: HookResult | null }) {
@@ -347,3 +400,87 @@ describe("useQueuedRunEdit", () => {
     ).toBe("newer");
   });
 });
+
+function localizedView(locale: "en" | "zh-CN", hook: { current: HookResult | null }) {
+  return (
+    <WebI18nContext.Provider
+      value={{
+        locale,
+        appLocale: locale,
+        setAppLocale: () => undefined,
+        t: (key, params) => translateWebMessage(locale, key, params),
+      }}
+    >
+      {view(THREAD_A, "queued", hook)}
+    </WebI18nContext.Provider>
+  );
+}
+
+it.each(["failure", "interrupted", "non-error", "raw", "empty"] as const)(
+  "keeps queued edit %s fallback current",
+  async (kind) => {
+    const { hook } = setup();
+    const source = "Could not save the edited queued message.";
+    let resolve: (value: { readonly _tag: "Failure" }) => void = () => undefined;
+    let reject: (reason: unknown) => void = () => undefined;
+    mocks.editQueuedRun.mockReturnValue(
+      new Promise((yes, no) => {
+        resolve = yes;
+        reject = no;
+      }),
+    );
+    await using screen = await render(localizedView("en", hook));
+    await using _settle = {
+      [Symbol.asyncDispose]: async () => {
+        resolve(AsyncResult.failure(Cause.fail(null)));
+        await act(async () => {
+          await Promise.resolve();
+        });
+        if (hook.current?.isEditing) await act(() => requireHook(hook).cancelEdit());
+      },
+    };
+    await beginChangedEdit(hook);
+    await screen.getByRole("button", { name: "Update queued message", exact: true }).click();
+    await expect.poll(() => mocks.editQueuedRun.mock.calls.length).toBe(1);
+    expect(requireHook(hook).isSaving).toBe(true);
+    await expect
+      .element(screen.getByRole("button", { name: "Updating queued message", exact: true }))
+      .toBeDisabled();
+    await screen.rerender(localizedView("zh-CN", hook));
+    if (kind === "failure")
+      resolve(AsyncResult.failure(Cause.fail(new Error("private upstream detail"))));
+    else if (kind === "interrupted") resolve(AsyncResult.failure(Cause.interrupt()));
+    else reject(kind === "non-error" ? null : new Error(kind === "raw" ? source : ""));
+    await expect.poll(() => requireHook(hook).isSaving).toBe(false);
+    for (const locale of ["zh-CN", "en", "zh-CN", "en"] as const) {
+      await screen.rerender(localizedView(locale, hook));
+      if (kind === "empty")
+        expect(screen.container.querySelector('[data-variant="error"]')).toBeNull();
+      else
+        await expect
+          .poll(() => screen.container.textContent)
+          .toContain(
+            (kind === "failure" || kind === "interrupted" || kind === "non-error") &&
+              locale === "zh-CN"
+              ? "无法保存编辑后的队列消息。"
+              : source,
+          );
+    }
+    expect(screen.container.textContent).not.toContain("private upstream detail");
+    expect(requireHook(hook).isEditing).toBe(true);
+    expect(
+      useComposerDraftStore.getState().getComposerDraft(requireHook(hook).draftTarget)?.prompt,
+    ).toBe("changed");
+    expect(mocks.editQueuedRun).toHaveBeenCalledTimes(1);
+    expect(mocks.editQueuedRun.mock.calls[0]?.[0]).toMatchObject({
+      environmentId: ENV,
+      input: {
+        threadId: THREAD_A.threadId,
+        runId: RUN,
+        text: "changed",
+        edit: { messageId: "message-1", attachments: [] },
+      },
+    });
+    await act(() => requireHook(hook).cancelEdit());
+  },
+);

@@ -59,6 +59,7 @@ import { stackedThreadToast, toastManager } from "../ui/toast";
 import type { ChatComposerHandle } from "./ChatComposer";
 import { fileAttachmentCapabilityBlockReason } from "./composerAttachmentFiles";
 import { prepareQueuedEditAttachments, recoverQueuedMessageEdit } from "./queuedMessageEdit";
+import { makeThreadErrorSetter } from "../ChatView.logic";
 import type { EditQueuedRunRequest } from "./QueuedRunsControl";
 
 interface EditingQueuedRun {
@@ -100,7 +101,7 @@ async function submitQueuedRunEdit(input: {
   readonly editing: EditingQueuedRun;
   readonly content: QueuedRunEditContent;
   readonly editQueuedRun: ReturnType<typeof useEditQueuedRunCommand>;
-}): Promise<string | null> {
+}): Promise<{ readonly error: string | null; readonly ownedCode?: "queuedEditSaveFailed" }> {
   const { environmentId, draftTarget, editing, content, locale } = input;
   const editText = content.prompt.trim();
   const newAttachments = [...content.images, ...content.files];
@@ -176,12 +177,12 @@ async function submitQueuedRunEdit(input: {
       },
     });
     return result._tag === "Failure"
-      ? translateWebSource(locale, "Could not save the edited queued message.")
-      : null;
+      ? { error: "Could not save the edited queued message.", ownedCode: "queuedEditSaveFailed" }
+      : { error: null };
   } catch (error) {
     return error instanceof Error
-      ? error.message
-      : translateWebSource(locale, "Could not save the edited queued message.");
+      ? { error: error.message }
+      : { error: "Could not save the edited queued message.", ownedCode: "queuedEditSaveFailed" };
   }
 }
 
@@ -322,7 +323,7 @@ export function useQueuedRunEdit(input: {
 
   const saveEdit = async (
     content: QueuedRunEditContent,
-    setThreadError: (threadId: ThreadId, error: string | null) => void,
+    setThreadError: ReturnType<typeof makeThreadErrorSetter>,
   ) => {
     if (editing === null || isSaving) return;
     const newAttachments = [...content.images, ...content.files];
@@ -346,7 +347,7 @@ export function useQueuedRunEdit(input: {
     // The save's result decides the edit's fate, even if the run starts meanwhile.
     const finishSave = queuedRunEdits.startSave(editKey);
     if (finishSave === null) return;
-    const error = await submitQueuedRunEdit({
+    const result = await submitQueuedRunEdit({
       locale,
       environmentId,
       draftTarget,
@@ -354,7 +355,8 @@ export function useQueuedRunEdit(input: {
       content,
       editQueuedRun: editQueuedRunCommand,
     });
-    setThreadError(editing.threadId, error);
+    const { error } = result;
+    setThreadError(editing.threadId, error, result.ownedCode);
     const current = finishSave(error === null);
     if (error !== null) return;
     releaseDraftAttachments(newAttachments);

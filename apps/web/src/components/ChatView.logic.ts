@@ -1254,6 +1254,7 @@ export function isCompactCommandMessage(message: ChatMessage): boolean {
 // can race around promotion, so each write carries its time to let the latest
 // one win when they collide.
 const OWNED_THREAD_ERRORS = {
+  queuedEditSaveFailed: "Could not save the edited queued message.",
   rewindInvalidAttachmentUrl: "The environment returned an invalid attachment URL.",
   rewindUnsupportedAttachment: "This message has an attachment that cannot be restored.",
   rewindTimeout: "Timed out waiting for the thread to rewind.",
