@@ -138,6 +138,7 @@ vi.mock("./TelemetryExportSettings", async (original) => ({
   ...(await original<typeof import("./TelemetryExportSettings")>()),
   TelemetryExportSettings: () => null,
 }));
+import { ensureLocalApi } from "../../localApi";
 import { serverEnvironment } from "../../state/server";
 import { environmentSession } from "../../state/session";
 import { DiagnosticsSettingsPanel } from "./DiagnosticsSettings";
@@ -401,6 +402,73 @@ it.each(["owned", "raw", "empty", "stale"] as const)(
     expect(fixture.toast).toHaveBeenCalledTimes(1);
     expect(fixture.signal).toHaveBeenCalledTimes(1);
     expect(fixture.refresh).toHaveBeenCalledTimes(1);
+    expect(fixture.open).not.toHaveBeenCalled();
+  },
+);
+
+it.each(["owned", "raw", "empty", "cancel"] as const)(
+  "uses settlement locale for diagnostics signal confirmation: %s",
+  async (kind) => {
+    setup();
+    fixture.processes = true;
+    let reject!: (error: unknown) => void;
+    let resolve!: (value: boolean) => void;
+    const pending = new Promise<boolean>((yes, no) => {
+      resolve = yes;
+      reject = no;
+    });
+    void pending.catch(() => undefined);
+    const confirm = vi.spyOn(ensureLocalApi().dialogs, "confirm").mockReturnValue(pending);
+    using _restore = {
+      [Symbol.dispose]() {
+        confirm.mockRestore();
+        fixture.processes = false;
+        fixture.locale = "en";
+      },
+    };
+    await using screen = await render(surface("en"));
+    await using _drain = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          resolve(false);
+          await pending.catch(() => undefined);
+        });
+      },
+    };
+    const kill = page.getByRole("button", { name: "Send SIGKILL", exact: true });
+    await kill.click();
+    expect(confirm).toHaveBeenCalledExactlyOnceWith(
+      "Send SIGKILL to process 123? This cannot be handled by the process.",
+      { variant: "destructive" },
+    );
+    await expect.element(kill).toBeDisabled();
+    await act(async () => {
+      kill.element().dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    expect(confirm).toHaveBeenCalledTimes(1);
+    fixture.locale = "zh-CN";
+    await screen.rerender(surface("zh-CN"));
+    await act(async () => {
+      if (kind === "cancel") resolve(false);
+      else
+        reject(kind === "owned" ? null : new Error(kind === "raw" ? "Literal $& {confirm}" : ""));
+      await pending.catch(() => undefined);
+    });
+    if (kind === "cancel") expect(fixture.toast).not.toHaveBeenCalled();
+    else
+      expect(fixture.toast).toHaveBeenCalledExactlyOnceWith({
+        type: "error",
+        title: "无法确认信号操作",
+        description:
+          kind === "owned" ? "发送 SIGKILL 失败。" : kind === "raw" ? "Literal $& {confirm}" : "",
+      });
+    fixture.locale = "en";
+    await screen.rerender(surface("en"));
+    await expect.element(kill).toBeEnabled();
+    await expect.element(page.getByText("fixture/$&/{process}", { exact: true })).toBeVisible();
+    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(fixture.signal).not.toHaveBeenCalled();
+    expect(fixture.refresh).not.toHaveBeenCalled();
     expect(fixture.open).not.toHaveBeenCalled();
   },
 );

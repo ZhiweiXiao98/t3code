@@ -922,6 +922,7 @@ function DiagnosticsSettingsBody() {
           { variant: "destructive" },
         );
       } catch (error) {
+        const { t } = readWebI18n();
         clearSignaling();
         toastManager.add({
           type: "error",
