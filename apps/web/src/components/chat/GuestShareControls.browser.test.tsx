@@ -7,11 +7,12 @@ import { page } from "vite-plus/test/browser";
 import { render } from "../../../test/render";
 import { WebI18nContext } from "../../i18n/WebI18nContext";
 import { translateWebMessage } from "../../i18n/messages";
+import { appAtomRegistry, AppAtomRegistryProvider } from "../../rpc/atomRegistry";
+import { guestShareDialogThreadAtom } from "./guestShareDialogState";
 
 const fixture = vi.hoisted(() => ({
   create: vi.fn(),
   permission: null as unknown,
-  thread: null as unknown,
   copy: vi.fn(),
 }));
 vi.mock("../../state/server", async (original) => {
@@ -36,12 +37,6 @@ vi.mock("../../hooks/useCopyToClipboard", async (original) => ({
   ...(await original<typeof import("../../hooks/useCopyToClipboard")>()),
   useCopyToClipboard: () => ({ copyToClipboard: fixture.copy, isCopied: false }),
 }));
-vi.mock("./guestShareDialogState", async (original) => ({
-  ...(await original<typeof import("./guestShareDialogState")>()),
-  get guestShareDialogThreadAtom() {
-    return fixture.thread;
-  },
-}));
 import { GuestShareDialogHost } from "./GuestShareControls";
 const thread = {
   environmentId: EnvironmentId.make("mock-environment"),
@@ -49,9 +44,14 @@ const thread = {
 };
 function setup(allowed = true) {
   fixture.permission = Atom.make(allowed);
-  fixture.thread = Atom.make(thread);
+  appAtomRegistry.set(guestShareDialogThreadAtom, thread);
   fixture.create.mockReset().mockResolvedValue(AsyncResult.failure(Cause.fail(null)));
   fixture.copy.mockReset().mockResolvedValue(undefined);
+  return {
+    [Symbol.dispose]() {
+      appAtomRegistry.set(guestShareDialogThreadAtom, null);
+    },
+  };
 }
 function surface(locale: "en" | "zh-CN") {
   return (
@@ -63,13 +63,15 @@ function surface(locale: "en" | "zh-CN") {
         t: (key, values) => translateWebMessage(locale, key, values),
       }}
     >
-      <GuestShareDialogHost />
+      <AppAtomRegistryProvider>
+        <GuestShareDialogHost />
+      </AppAtomRegistryProvider>
     </WebI18nContext>
   );
 }
 const alertText = () => document.querySelector('[role="alert"]')?.textContent;
 it("keeps owned guest creation failure current without creating another link", async () => {
-  setup();
+  using _session = setup();
   let finish!: (result: ReturnType<typeof AsyncResult.failure>) => void;
   fixture.create.mockReturnValue(
     new Promise((resolve) => {
@@ -100,7 +102,7 @@ it("keeps owned guest creation failure current without creating another link", a
 it.each(["Could not create a guest link.", ""])(
   "preserves raw guest creation failure %j",
   async (message) => {
-    setup();
+    using _session = setup();
     fixture.create.mockResolvedValue(AsyncResult.failure(Cause.fail(new Error(message))));
     await using screen = await render(surface("en"));
     await page.getByRole("button", { name: "Create link", exact: true }).click();
@@ -113,7 +115,7 @@ it.each(["Could not create a guest link.", ""])(
   },
 );
 it("returns interrupted guest creation to idle without an error", async () => {
-  setup();
+  using _session = setup();
   fixture.create.mockResolvedValue(AsyncResult.failure(Cause.interrupt()));
   await using _screen = await render(surface("en"));
   await page.getByRole("button", { name: "Create link", exact: true }).click();
@@ -124,7 +126,7 @@ it("returns interrupted guest creation to idle without an error", async () => {
   expect(fixture.create).toHaveBeenCalledTimes(1);
 });
 it("disables guest creation without permission", async () => {
-  setup(false);
+  using _session = setup(false);
   await using _screen = await render(surface("en"));
   await expect
     .element(page.getByRole("button", { name: "Create link", exact: true }))
@@ -132,7 +134,7 @@ it("disables guest creation without permission", async () => {
   expect(fixture.create).not.toHaveBeenCalled();
 });
 it("clears a failed guest creation when retry is interrupted", async () => {
-  setup();
+  using _session = setup();
   fixture.create
     .mockResolvedValueOnce(AsyncResult.failure(Cause.fail(null)))
     .mockResolvedValueOnce(AsyncResult.failure(Cause.interrupt()));
