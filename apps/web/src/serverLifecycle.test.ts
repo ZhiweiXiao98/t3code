@@ -4,6 +4,8 @@ import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 import * as NodeEvents from "node:events";
 import type { ViteDevServer } from "vite-plus";
+import type { playwright } from "vite-plus/test/browser-playwright";
+import { observeBrowserLifecycle } from "../vite/browserLifecycle";
 import { expect, it, vi } from "vite-plus/test";
 import { observeBrowserServerLifecycle } from "../vite/serverLifecycle";
 
@@ -40,9 +42,7 @@ function fixture(result: Promise<void> = Promise.resolve()) {
   };
   const server = { httpServer: http, close: original } as unknown as ViteDevServer;
   const attach = (target = server) => {
-    const plugin = observeBrowserServerLifecycle();
-    const configure = plugin.configureServer as (server: ViteDevServer) => (() => void) | undefined;
-    configure(target)?.();
+    observeBrowserServerLifecycle(target);
   };
   const text = () =>
     NodeFS.readFileSync(NodePath.join(directory, "browser-server-lifecycle.jsonl"), "utf8");
@@ -318,4 +318,103 @@ it("reopens without FIFO blocking and emits only boolean listening values", () =
   f.http.emit("close");
   expect(f.rows().at(-1)?.listening).toBe(false);
   expect(f.text()).not.toContain("PRIVATE_MALFORMED_LISTENING");
+});
+
+it("registers against the public browser project server, not the middleware root server", () => {
+  using f = fixture();
+  const decoy = { httpServer: null, close: vi.fn(() => Promise.resolve()) };
+  const instance = { openPage: vi.fn(), close: vi.fn(() => Promise.resolve()) };
+  const factory = vi.fn(() => instance);
+  const provider = {
+    name: "playwright",
+    options: {},
+    supportedBrowser: ["chromium"],
+    prewarm: vi.fn(),
+    serverFactory: vi.fn(),
+    providerFactory: factory,
+  } as unknown as ReturnType<typeof playwright>;
+  const project = { vite: decoy, browser: { vite: f.server } } as unknown as Parameters<
+    typeof provider.providerFactory
+  >[0];
+  const wrapped = observeBrowserLifecycle(provider);
+  expect(wrapped.serverFactory).toBe(provider.serverFactory);
+  expect(wrapped.prewarm).toBe(provider.prewarm);
+  expect(wrapped.options).toBe(provider.options);
+  expect(wrapped.providerFactory(project)).toBe(instance);
+  expect(factory).toHaveBeenCalledExactlyOnceWith(project);
+  expect(f.rows().map((row) => row.event)).toEqual(["server-observed"]);
+  expect(f.http.listenerCount("close")).toBe(1);
+  instance.close();
+  // Provider shutdown must not remove the server observer before the HTTP server closes.
+  expect(f.http.listenerCount("close")).toBe(1);
+  f.server.close();
+  f.http.emit("close");
+  expect(f.rows().map((row) => row.event)).toEqual([
+    "server-observed",
+    "server-close-requested",
+    "http-server-closed",
+  ]);
+  expect(decoy.close).not.toHaveBeenCalled();
+});
+
+it("keeps provider registration inert without opt-in and propagates original factory throws", () => {
+  using f = fixture();
+  const error = new Error("PRIVATE_FACTORY_FAILURE");
+  const factory = vi.fn(() => {
+    throw error;
+  });
+  const provider = { providerFactory: factory } as unknown as ReturnType<typeof playwright>;
+  const project = { browser: { vite: f.server } } as unknown as Parameters<
+    typeof provider.providerFactory
+  >[0];
+  delete process.env.T3CODE_BROWSER_LIFECYCLE_DIR;
+  expect(observeBrowserLifecycle(provider)).toBe(provider);
+  process.env.T3CODE_BROWSER_LIFECYCLE_DIR = f.directory;
+  const wrapped = observeBrowserLifecycle(provider);
+  expect(() => wrapped.providerFactory(project)).toThrow(error);
+  expect(factory).toHaveBeenCalledExactlyOnceWith(project);
+  expect(f.server.close).toBe(f.original);
+  expect(NodeFS.readdirSync(f.directory)).toEqual([]);
+});
+
+it.each([undefined, {}])(
+  "preserves provider creation with unavailable public browser server: %s",
+  (browser) => {
+    using f = fixture();
+    const instance = { openPage: vi.fn(), close: vi.fn(() => Promise.resolve()) };
+    const factory = vi.fn(() => instance);
+    const provider = { providerFactory: factory } as unknown as ReturnType<typeof playwright>;
+    const project = { browser } as unknown as Parameters<typeof provider.providerFactory>[0];
+    const wrapped = observeBrowserLifecycle(provider);
+    expect(wrapped.providerFactory(project)).toBe(instance);
+    expect(factory).toHaveBeenCalledExactlyOnceWith(project);
+    expect(factory.mock.contexts[0]).toBe(provider);
+    expect(f.server.close).toBe(f.original);
+    expect(NodeFS.existsSync(NodePath.join(f.directory, "browser-server-lifecycle.jsonl"))).toBe(
+      false,
+    );
+    instance.close();
+  },
+);
+
+it("attaches only once when the same provider factory is reused for the same browser server", () => {
+  using f = fixture();
+  const factory = vi.fn(() => ({ openPage: vi.fn(), close: vi.fn(() => Promise.resolve()) }));
+  const provider = { providerFactory: factory } as unknown as ReturnType<typeof playwright>;
+  const project = { browser: { vite: f.server } } as unknown as Parameters<
+    typeof provider.providerFactory
+  >[0];
+  const wrapped = observeBrowserLifecycle(provider);
+  const first = wrapped.providerFactory(project);
+  const close = f.server.close;
+  const second = wrapped.providerFactory(project);
+  expect(first).not.toBe(second);
+  expect(factory).toHaveBeenCalledTimes(2);
+  expect(factory.mock.contexts).toEqual([provider, provider]);
+  expect(f.server.close).toBe(close);
+  expect(f.http.listenerCount("close")).toBe(1);
+  expect(f.rows().map((row) => row.event)).toEqual(["server-observed"]);
+  first.close();
+  second.close();
+  expect(f.http.listenerCount("close")).toBe(1);
 });

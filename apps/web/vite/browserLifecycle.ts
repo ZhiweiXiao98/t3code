@@ -3,6 +3,7 @@ import * as NodeFS from "node:fs";
 import * as NodePath from "node:path";
 import type { Browser, CDPSession, Page } from "playwright";
 import type { PlaywrightBrowserProvider, playwright } from "vite-plus/test/browser-playwright";
+import { observeBrowserServerLifecycle } from "./serverLifecycle";
 
 type Fields = Record<string, number | boolean | null | string>;
 type Emit = (event: string, fields?: Fields) => void;
@@ -150,6 +151,12 @@ export function observeBrowserLifecycle(provider: ReturnType<typeof playwright>)
     ...provider,
     providerFactory(project: Parameters<typeof provider.providerFactory>[0]) {
       const instance = provider.providerFactory(project) as PlaywrightBrowserProvider;
+      try {
+        // The public browser project owns the real HTTP server; root Vite config can be middleware-only.
+        if (project.browser?.vite) observeBrowserServerLifecycle(project.browser.vite);
+      } catch {
+        /* Diagnostic registration must not change provider creation. */
+      }
       const write = writers.get(directory) ?? writer(directory);
       if (!write) return instance;
       writers.set(directory, write);

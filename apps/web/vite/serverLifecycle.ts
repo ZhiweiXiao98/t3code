@@ -1,7 +1,7 @@
 // @effect-diagnostics nodeBuiltinImport:off - opt-in Node-side CI observation only.
 import * as NodeFS from "node:fs";
 import * as NodePath from "node:path";
-import type { Plugin, ViteDevServer } from "vite-plus";
+import type { ViteDevServer } from "vite-plus";
 
 type Fields = Record<string, number | boolean>;
 const MAX_EVENTS = 2048;
@@ -146,23 +146,16 @@ function createObserver(directory: string) {
 
 // Independent of warm browser provider reuse. No upgrade, socket, error, or data listeners.
 const observers = new Map<string, ReturnType<typeof createObserver>>();
-export function observeBrowserServerLifecycle(): Plugin {
-  return {
-    name: "observe-browser-server-lifecycle",
-    configureServer(server) {
-      const directory = process.env.T3CODE_BROWSER_LIFECYCLE_DIR;
-      if (!directory) return;
-      return () => {
-        try {
-          if (!observers.has(directory)) {
-            if (observers.size >= 32) return;
-            observers.set(directory, createObserver(directory));
-          }
-          observers.get(directory)?.(server);
-        } catch {
-          /* Optional diagnostics must not affect server startup. */
-        }
-      };
-    },
-  };
+export function observeBrowserServerLifecycle(server: ViteDevServer): void {
+  const directory = process.env.T3CODE_BROWSER_LIFECYCLE_DIR;
+  if (!directory) return;
+  try {
+    if (!observers.has(directory)) {
+      if (observers.size >= 32) return;
+      observers.set(directory, createObserver(directory));
+    }
+    observers.get(directory)?.(server);
+  } catch {
+    /* Optional diagnostics must not affect provider startup. */
+  }
 }
