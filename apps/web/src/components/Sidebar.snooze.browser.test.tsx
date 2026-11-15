@@ -168,9 +168,14 @@ it("uses settlement locale for sidebar snooze failures", async () => {
         snoozedUntil: commands.picked.mock.calls.at(-1)?.[0]?.snoozedUntil,
       },
     });
-    await userEvent.click(row, { button: "right" });
-    await userEvent.hover(page.getByRole("menuitem", { name: "Snooze", exact: true }));
-    await page.getByRole("menuitem", { name: /^In 1 hour(?:,|$)/ }).click();
+    if (index === 0) {
+      const picksBeforeDuplicate = commands.picked.mock.calls.length;
+      await userEvent.click(row, { button: "right" });
+      await userEvent.hover(page.getByRole("menuitem", { name: "Snooze", exact: true }));
+      await page.getByRole("menuitem", { name: /^In 1 hour(?:,|$)/ }).click();
+      await expect.poll(() => commands.picked.mock.calls.length).toBe(picksBeforeDuplicate + 1);
+      expect(commands.picked.mock.calls.at(-1)?.[0]?.snoozedUntil).toEqual(expect.any(String));
+    }
     expect(commands.snooze).toHaveBeenCalledTimes(index + 1);
     expect(toast).toHaveBeenCalledTimes(notices);
     await act(() => updateClientSettings({ appLocale: "zh-CN" }));
