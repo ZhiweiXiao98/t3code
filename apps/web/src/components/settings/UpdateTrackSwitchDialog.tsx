@@ -166,8 +166,9 @@ function SwitchPlan({
                   downloadedVersion === null ||
                   !acceptsTrackSwitchRelease(downloadedVersion, release.channel, release.version)
                 ) {
+                  const { locale } = readWebI18n();
                   reportError(
-                    tx("Could not install update"),
+                    translateWebSource(locale, "Could not install update"),
                     locale === "zh-CN"
                       ? `此应用下载的版本为 ${downloadedVersion ?? "无"}，而非 ${release.version} 或更新版本。`
                       : `This app downloaded ${downloadedVersion ?? "nothing"}, not ${release.version} or newer.`,

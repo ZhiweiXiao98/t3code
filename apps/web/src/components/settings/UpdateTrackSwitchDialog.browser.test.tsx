@@ -1,6 +1,11 @@
 import "~/index.css";
 import * as Cause from "effect/Cause";
-import type { DesktopUpdateState } from "@t3tools/contracts";
+import { acceptsTrackSwitchRelease } from "@t3tools/shared/cliRelease";
+import { EnvironmentId, ServerConfig, type DesktopUpdateState } from "@t3tools/contracts";
+import { PrimaryConnectionTarget } from "@t3tools/client-runtime/connection";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
+import type { EnvironmentPresentation } from "~/state/environments";
 import { RegistryContext } from "@effect/atom-react";
 import { AtomRegistry } from "effect/reactivity";
 import { expect, it, vi } from "vite-plus/test";
@@ -18,22 +23,30 @@ const state = vi.hoisted(() => ({
   run: vi.fn(),
   download: vi.fn(),
   install: vi.fn(),
+  getUpdateState: vi.fn(),
+  installMode: false,
+}));
+vi.mock("~/branding", async (original) => ({
+  ...(await original<typeof import("~/branding")>()),
+  APP_VERSION: "1.0.0-nightly.20261001.1",
+}));
+vi.mock("~/env", async (original) => ({
+  ...(await original<typeof import("~/env")>()),
+  isElectron: true,
 }));
 vi.mock("~/state/npmRelease", async (original) => {
   const actual = await original<typeof import("~/state/npmRelease")>();
   const { Atom, AsyncResult } = await import("effect/reactivity");
-  const release = Atom.make(
-    AsyncResult.success({ version: "99.0.0", databaseMigration: undefined }),
-  );
+  const release = Atom.make(AsyncResult.success({ version: "99.0.0", databaseMigration: 10 }));
   return { ...actual, npmReleaseAtom: () => release };
 });
 vi.mock("~/state/desktopUpdate", async (original) => ({
   ...(await original<typeof import("~/state/desktopUpdate")>()),
-  useDesktopUpdateState: () => ({ enabled: false, channelBlockedByPolicy: false }),
+  useDesktopUpdateState: () => ({ enabled: state.installMode, channelBlockedByPolicy: false }),
 }));
 vi.mock("~/state/environments", async (original) => ({
   ...(await original<typeof import("~/state/environments")>()),
-  useEnvironments: () => ({ environments: [] }),
+  useEnvironments: () => ({ environments: state.installMode ? [hostedEnvironment] : [] }),
 }));
 vi.mock("../sidebar/useUpdateEverything", async (original) => ({
   ...(await original<typeof import("../sidebar/useUpdateEverything")>()),
@@ -79,9 +92,11 @@ function setup() {
   state.run.mockReset();
   state.download.mockClear();
   state.install.mockClear();
+  state.getUpdateState.mockReset();
   vi.stubGlobal("desktopBridge", {
     setUpdateChannel: state.channel,
-    getLocalEnvironmentBootstraps: () => [],
+    getLocalEnvironmentBootstraps: () => (state.installMode ? [{}] : []),
+    getUpdateState: state.getUpdateState,
     downloadUpdate: state.download,
     installUpdate: state.install,
   });
@@ -92,6 +107,7 @@ function setup() {
       registry.dispose();
       vi.unstubAllGlobals();
       state.locale = "en";
+      state.installMode = false;
     },
   };
 }
@@ -249,5 +265,126 @@ it.each([
     expect(state.install).not.toHaveBeenCalled();
     await screen.rerender(surface("en", fixture.registry));
     expect(state.toast).toHaveBeenCalledTimes(1);
+  },
+);
+
+const hostedId = EnvironmentId.make("track-install-fixture");
+const hostedEnvironment: EnvironmentPresentation = {
+  environmentId: hostedId,
+  label: "Literal $& {machine}",
+  displayUrl: null,
+  relayManaged: false,
+  connection: { phase: "connected", error: null, traceId: null },
+  entry: {
+    enabled: true,
+    profile: Option.none(),
+    target: new PrimaryConnectionTarget({
+      environmentId: hostedId,
+      label: "Literal $& {machine}",
+      httpBaseUrl: "http://fixture.invalid",
+      wsBaseUrl: "ws://fixture.invalid",
+    }),
+  },
+  serverConfig: Schema.decodeSync(ServerConfig)({
+    environment: {
+      environmentId: hostedId,
+      label: "Literal $& {machine}",
+      platform: { os: "linux", arch: "x64" },
+      serverVersion: "1.0.0-nightly.20261001.1",
+      databaseMigration: 10,
+      capabilities: { repositoryIdentity: true },
+    },
+    auth: {
+      policy: "loopback-browser",
+      bootstrapMethods: [],
+      sessionMethods: [],
+      sessionCookieName: "fixture",
+    },
+    cwd: "/fixture",
+    keybindingsConfigPath: "/fixture/keys.json",
+    keybindings: [],
+    issues: [],
+    providers: [],
+    availableEditors: [],
+    observability: {
+      logsDirectoryPath: "/fixture/logs",
+      localTracingEnabled: false,
+      otlpTracesEnabled: false,
+      otlpMetricsEnabled: false,
+    },
+    settings: {},
+  }),
+};
+it.each([
+  ["missing", null],
+  ["wrong track", "100.0.0-nightly.20261115.1"],
+  ["older literal build", "98.0.0+$&.{literal}"],
+] as const)(
+  "uses settlement locale for update track install mismatch: %s",
+  async (_kind, downloadedVersion) => {
+    using fixture = setup();
+    state.installMode = true;
+    if (downloadedVersion !== null) {
+      expect(acceptsTrackSwitchRelease(downloadedVersion, "latest", "99.0.0")).toBe(false);
+    }
+    state.channel.mockResolvedValue({
+      ...savedUpdateState,
+      enabled: true,
+      status: "downloaded",
+      downloadedVersion: "99.0.0",
+    });
+    let resolve!: (value: DesktopUpdateState) => void;
+    const promise = new Promise<DesktopUpdateState>((done) => {
+      resolve = done;
+    });
+    state.getUpdateState.mockReturnValue(promise);
+    const report = vi.fn();
+    const completed = vi.fn();
+    state.run.mockImplementation(
+      async (options: {
+        installLocal: (
+          reportError: (title: string, description: string) => void,
+        ) => Promise<boolean>;
+      }) => {
+        const result = await options.installLocal(report);
+        completed(result);
+      },
+    );
+    await using screen = await render(surface("en", fixture.registry));
+    await using _drain = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          resolve({ ...savedUpdateState, downloadedVersion });
+          await promise;
+        });
+      },
+    };
+    const confirm = page.getByRole("button", { name: "Switch to Stable", exact: true });
+    await expect.element(confirm).toBeEnabled();
+    await confirm.click();
+    await expect.poll(() => state.getUpdateState.mock.calls.length).toBe(1);
+    expect(state.channel).toHaveBeenCalledExactlyOnceWith("latest", "99.0.0");
+    expect(state.run).toHaveBeenCalledExactlyOnceWith({ installLocal: expect.any(Function) });
+    expect(state.getUpdateState).toHaveBeenCalledExactlyOnceWith();
+    expect(state.close).toHaveBeenCalledExactlyOnceWith();
+    expect(report).not.toHaveBeenCalled();
+    expect(completed).not.toHaveBeenCalled();
+    await screen.rerender(surface("zh-CN", fixture.registry));
+    await act(async () => {
+      resolve({ ...savedUpdateState, downloadedVersion });
+      await promise;
+    });
+    expect(report).toHaveBeenCalledExactlyOnceWith(
+      "无法安装更新",
+      `此应用下载的版本为 ${downloadedVersion ?? "无"}，而非 99.0.0 或更新版本。`,
+    );
+    expect(completed).toHaveBeenCalledExactlyOnceWith(false);
+    expect(report.mock.invocationCallOrder[0]).toBeLessThan(completed.mock.invocationCallOrder[0]!);
+    expect(state.install).not.toHaveBeenCalled();
+    expect(state.download).not.toHaveBeenCalled();
+    expect(state.toast).not.toHaveBeenCalled();
+    await screen.rerender(surface("en", fixture.registry));
+    expect(report).toHaveBeenCalledTimes(1);
+    expect(state.run).toHaveBeenCalledTimes(1);
   },
 );
