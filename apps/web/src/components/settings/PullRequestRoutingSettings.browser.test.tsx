@@ -1,3 +1,5 @@
+import type { EnvironmentCatalogState } from "@t3tools/client-runtime/state/connections";
+import { primaryEnvironmentIdAtom } from "~/state/primaryEnvironment";
 import "~/index.css";
 import { RegistryContext } from "@effect/atom-react";
 import {
@@ -29,7 +31,7 @@ vi.mock("~/connection/catalog", async (original) => {
     ...actual,
     environmentCatalog: {
       ...actual.environmentCatalog,
-      catalogValueAtom: Atom.make({ isReady: true }),
+      catalogValueAtom: Atom.make<EnvironmentCatalogState>({ isReady: true, entries: new Map() }),
       pullRequestRoutingPermissionsValueAtom: Atom.make<
         ReadonlyArray<StoredPullRequestRoutingPermission>
       >([]),
@@ -116,6 +118,7 @@ it.each([
   };
   await using stack = new AsyncDisposableStack();
   const registry = stack.adopt(AtomRegistry.make(), (value) => value.dispose());
+  expect(registry.get(primaryEnvironmentIdAtom)).toBeNull();
   const permissionsBefore = registry.get(environmentCatalog.pullRequestRoutingPermissionsValueAtom);
   await using screen = await render(surface("en", registry));
   await using _drain = {
