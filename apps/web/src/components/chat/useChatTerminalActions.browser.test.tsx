@@ -19,6 +19,28 @@ const fixture = vi.hoisted(() => ({
   focus: vi.fn(),
   context: vi.fn(),
   preview: vi.fn(),
+  openUrl: vi.fn(),
+  resolveUrl: vi.fn(),
+  toast: vi.fn(),
+}));
+vi.mock("../../browser/openFileInPreview", async (original) => ({
+  ...(await original<typeof import("../../browser/openFileInPreview")>()),
+  openUrlInPreview: fixture.openUrl,
+}));
+vi.mock("../../browser/previewRuntime", async (original) => ({
+  ...(await original<typeof import("../../browser/previewRuntime")>()),
+  isPreviewAvailableFor: () => true,
+}));
+vi.mock("../../browser/browserTargetResolver", async (original) => ({
+  ...(await original<typeof import("../../browser/browserTargetResolver")>()),
+  resolveDiscoveredServerUrl: fixture.resolveUrl,
+}));
+vi.mock("../ui/toast", async (original) => ({
+  ...(await original<typeof import("../ui/toast")>()),
+  toastManager: {
+    ...(await original<typeof import("../ui/toast")>()).toastManager,
+    add: fixture.toast,
+  },
 }));
 vi.mock("../terminal/useThreadTerminalActions", async (original) => ({
   ...(await original<typeof import("../terminal/useThreadTerminalActions")>()),
@@ -82,7 +104,7 @@ const project = {
   createdAt: "2026-01-01T00:00:00Z",
   updatedAt: "2026-01-01T00:00:00Z",
 };
-function Probe({ label }: { label: string }) {
+function Probe({ label, preview = false }: { label: string; preview?: boolean }) {
   const [entries, setEntries] = useState<Record<string, LocalThreadErrorEntry>>({});
   const [, setDismiss] = useState(0);
   const [pending, setPending] = useState(false);
@@ -121,7 +143,12 @@ function Probe({ label }: { label: string }) {
         onClick={async () => {
           setPending(true);
           await actions.runProjectScriptStable(
-            { ...script, name: label },
+            {
+              ...script,
+              name: label,
+              autoOpenPreview: preview,
+              previewUrl: "http://localhost:3000/literal",
+            },
             { rememberAsLastInvoked: false, shellHistory: "preserve" },
           );
           setPending(false);
@@ -147,7 +174,7 @@ function Probe({ label }: { label: string }) {
     </>
   );
 }
-function surface(locale: "en" | "zh-CN", label = name) {
+function surface(locale: "en" | "zh-CN", label = name, preview = false) {
   fixture.locale = locale;
   return (
     <WebI18nContext
@@ -158,7 +185,7 @@ function surface(locale: "en" | "zh-CN", label = name) {
         t: (key, values) => translateWebMessage(locale, key, values),
       }}
     >
-      <Probe label={label} />
+      <Probe label={label} preview={preview} />
     </WebI18nContext>
   );
 }
@@ -283,3 +310,106 @@ it.each(["denied", "null-launch"] as const)("does not run a script after %s", as
   expect(fixture.preview).not.toHaveBeenCalled();
   expect(screen.container.querySelector('[data-variant="error"]')).toBeNull();
 });
+
+it.each(["owned", "raw", "empty", "interrupted"] as const)(
+  "uses settlement locale for script preview %s failure",
+  async (kind) => {
+    for (const mock of Object.values(fixture)) if (typeof mock === "function") mock.mockReset();
+    fixture.allowed = true;
+    const initial = useTerminalUiStateStore.getState();
+    using _store = { [Symbol.dispose]: () => useTerminalUiStateStore.setState(initial, true) };
+    let finish!: (result: ReturnType<typeof AsyncResult.failure>) => void;
+    const pending = new Promise<ReturnType<typeof AsyncResult.failure>>((resolve) => {
+      finish = resolve;
+    });
+    fixture.launch.mockImplementation((input: { place: (id: string) => void }) => {
+      input.place("preview-terminal");
+      return {
+        terminalId: "preview-terminal",
+        result: Promise.resolve(AsyncResult.success(undefined)),
+      };
+    });
+    fixture.write.mockResolvedValue(AsyncResult.success(undefined));
+    fixture.resolveUrl.mockReturnValue("https://literal.example/app");
+    fixture.openUrl.mockReturnValue(pending);
+    await using screen = await render(surface("en", name, true));
+    await using _settle = {
+      [Symbol.asyncDispose]: async () => {
+        await act(async () => {
+          finish(AsyncResult.failure(Cause.interrupt()));
+          await Promise.resolve();
+        });
+      },
+    };
+    await screen.getByRole("button", { name: "Run script", exact: true }).click();
+    await expect.poll(() => fixture.openUrl.mock.calls.length).toBe(1);
+    await expect
+      .element(screen.getByRole("button", { name: "Run script", exact: true }))
+      .toBeDisabled();
+    expect(fixture.toast).not.toHaveBeenCalled();
+    expect(fixture.write).toHaveBeenCalledExactlyOnceWith(
+      "preview-terminal",
+      `${script.command}\r`,
+    );
+    expect(fixture.resolveUrl).toHaveBeenCalledExactlyOnceWith(
+      ref.environmentId,
+      "http://localhost:3000/literal",
+    );
+    expect(fixture.openUrl).toHaveBeenCalledExactlyOnceWith({
+      threadRef: ref,
+      url: "https://literal.example/app",
+      openPreview: fixture.preview,
+    });
+    expect(
+      selectThreadTerminalUiState(
+        useTerminalUiStateStore.getState().terminalUiStateByThreadKey,
+        ref,
+      ).activeTerminalId,
+    ).toBe("preview-terminal");
+    for (const [before, after] of [
+      [fixture.context, fixture.launch],
+      [fixture.launch, fixture.focus],
+      [fixture.focus, fixture.write],
+      [fixture.write, fixture.openUrl],
+    ]) {
+      expect(before!.mock.invocationCallOrder[0]).toBeLessThan(after!.mock.invocationCallOrder[0]!);
+    }
+    await screen.rerender(surface("zh-CN", name, true));
+    await act(async () => {
+      finish(
+        AsyncResult.failure(
+          kind === "interrupted"
+            ? Cause.interrupt()
+            : Cause.fail(
+                kind === "owned"
+                  ? null
+                  : new Error(kind === "empty" ? "" : "An unexpected error occurred."),
+              ),
+        ),
+      );
+    });
+    await expect
+      .element(screen.getByRole("button", { name: "Run script", exact: true }))
+      .toBeEnabled();
+    if (kind === "interrupted") expect(fixture.toast).not.toHaveBeenCalled();
+    else {
+      expect(fixture.toast).toHaveBeenCalledTimes(1);
+      expect(fixture.toast.mock.calls[0]?.[0]).toMatchObject({
+        type: "error",
+        title: "无法打开预览",
+        description:
+          kind === "owned"
+            ? "发生意外错误。"
+            : kind === "empty"
+              ? ""
+              : "An unexpected error occurred.",
+      });
+    }
+    await screen.rerender(surface("en", name, true));
+    expect(fixture.launch).toHaveBeenCalledTimes(1);
+    expect(fixture.write).toHaveBeenCalledTimes(1);
+    expect(fixture.openUrl).toHaveBeenCalledTimes(1);
+    expect(fixture.preview).not.toHaveBeenCalled();
+    expect(fixture.toast).toHaveBeenCalledTimes(kind === "interrupted" ? 0 : 1);
+  },
+);

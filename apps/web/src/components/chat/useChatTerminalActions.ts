@@ -1,4 +1,4 @@
-import { useI18n } from "~/i18n/WebI18nContext";
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { translateWebMessage, translateWebSource } from "~/i18n/messages";
 import type {
   EnvironmentProject,
@@ -86,8 +86,6 @@ interface ChatTerminalActionsInput {
  * code blocks, which run in a reused or new drawer terminal.
  */
 export function useChatTerminalActions(input: ChatTerminalActionsInput) {
-  const { locale: uiLocale, t } = useI18n();
-
   const {
     environmentId,
     composerRef,
@@ -314,10 +312,11 @@ export function useChatTerminalActions(input: ChatTerminalActionsInput) {
       });
       if (previewResult._tag === "Failure" && !isAtomCommandInterrupted(previewResult)) {
         const error = squashAtomCommandFailure(previewResult);
+        const { locale, t } = readWebI18n();
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: translateWebSource(uiLocale, "Could not open preview"),
+            title: translateWebSource(locale, "Could not open preview"),
             description: error instanceof Error ? error.message : t("chat.unexpectedError"),
           }),
         );
