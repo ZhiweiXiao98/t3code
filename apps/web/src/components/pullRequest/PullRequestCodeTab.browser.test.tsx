@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+import { userEvent } from "vite-plus/test/browser";
 import { WebI18nContext } from "~/i18n/WebI18nContext";
 import { translateWebMessage } from "~/i18n/messages";
 import { pullRequestEnvironment } from "~/state/pullRequests";
@@ -64,6 +66,11 @@ const { diffAtom, pagedDiffAtom } = await vi.hoisted(async () => {
 const mocks = vi.hoisted(() => ({
   loadComments: vi.fn(),
   resolution: vi.fn(),
+  reply: vi.fn(),
+  edit: vi.fn(),
+  speechQueue: vi.fn<(submit: (text: string) => void) => void>(),
+  speechCancel: vi.fn(),
+  writeAllowed: true,
   otherCommand: vi.fn(),
   toast: vi.fn(),
   locale: "en" as "en" | "zh-CN",
@@ -85,7 +92,39 @@ vi.mock(import("~/state/use-atom-command"), async (original) => ({
       ? mocks.loadComments
       : command === pullRequestEnvironment.setThreadResolution
         ? mocks.resolution
-        : mocks.otherCommand) as never,
+        : command === pullRequestEnvironment.replyToThread
+          ? mocks.reply
+          : command === pullRequestEnvironment.updateComment
+            ? mocks.edit
+            : mocks.otherCommand) as never,
+}));
+vi.mock("~/speech/useTextFieldSpeech", () => ({
+  TextFieldSpeechControls: () => null,
+  SpeechTextField: ({
+    children,
+  }: {
+    children: (speech: {
+      freezesEditor: boolean;
+      blocksSubmission: boolean;
+      preparing: boolean;
+      state: { phase: "idle" };
+      submitAfterDictation: typeof mocks.speechQueue;
+      cancel: typeof mocks.speechCancel;
+    }) => ReactNode;
+  }) =>
+    children({
+      freezesEditor: false,
+      blocksSubmission: true,
+      preparing: false,
+      state: { phase: "idle" },
+      submitAfterDictation: mocks.speechQueue,
+      cancel: mocks.speechCancel,
+    }),
+}));
+vi.mock(import("~/state/session"), async (original) => ({
+  ...(await original()),
+  useEnvironmentScope: () => mocks.writeAllowed,
+  readEnvironmentScope: () => mocks.writeAllowed,
 }));
 vi.mock(import("./usePullRequestFilesViewed"), async () => {
   const { useSyncExternalStore } = await import("react");
@@ -421,6 +460,7 @@ function commentsSurface(
     permission: boolean;
     threadAllowed: boolean;
   },
+  actions?: { reply: boolean; commentPermission: boolean; edit: boolean },
 ) {
   mocks.locale = locale;
   const { nextCommentsCursor: _cursor, ...withoutCursor } = orphan;
@@ -446,6 +486,23 @@ function commentsSurface(
                   review: { ...detail.capabilities.review, resolve: resolution.capability },
                 },
                 viewerPermissions: { ...detail.viewerPermissions, resolve: resolution.permission },
+              }
+            : {}),
+          ...(actions
+            ? {
+                capabilities: {
+                  ...detail.capabilities,
+                  review: { ...detail.capabilities.review, reply: actions.reply },
+                  edit: {
+                    changeRequest: false,
+                    ...detail.capabilities.edit,
+                    comment: actions.edit,
+                  },
+                },
+                viewerPermissions: {
+                  ...detail.viewerPermissions,
+                  comment: actions.commentPermission,
+                },
               }
             : {}),
           reviewThreads: [
@@ -689,6 +746,257 @@ it.each(["capability", "permission", "threadAllowed"] as const)(
     expect(mocks.resolution).not.toHaveBeenCalled();
     expect(mocks.toast).not.toHaveBeenCalled();
     expect(mocks.otherCommand).not.toHaveBeenCalled();
+    expect(refresh).not.toHaveBeenCalled();
+  },
+);
+
+function actionSurface(
+  locale: "en" | "zh-CN",
+  refresh: () => void,
+  actions = { reply: true, commentPermission: true, edit: true },
+) {
+  return commentsSurface(locale, refresh, false, undefined, actions);
+}
+function resetCommentActions() {
+  setup({ paged: false });
+  mocks.reply.mockReset();
+  mocks.edit.mockReset();
+  mocks.speechQueue.mockReset();
+  mocks.speechCancel.mockClear();
+  mocks.toast.mockClear();
+  mocks.otherCommand.mockClear();
+  mocks.loadComments.mockReset();
+  mocks.resolution.mockReset();
+  mocks.writeAllowed = true;
+}
+for (const action of ["reply", "edit"] as const) {
+  it.each([
+    ["owned", null],
+    ["raw", new Error("Literal $& {failure}")],
+    ["empty", new Error("")],
+    ["interrupted", undefined],
+  ] as const)(
+    `uses settlement locale for review-thread ${action} failure: %s`,
+    async (kind, failure) => {
+      const settings = getClientSettings();
+      using _settings = {
+        [Symbol.dispose]() {
+          __setClientSettingsForTests(settings);
+          mocks.writeAllowed = true;
+        },
+      };
+      resetCommentActions();
+      const { AsyncResult } = await import("effect/reactivity");
+      const Cause = await import("effect/Cause");
+      type Result = import("@t3tools/client-runtime/state/runtime").AtomCommandResult<
+        void,
+        unknown
+      >;
+      let finish = (_result: Result) => {};
+      const command = action === "reply" ? mocks.reply : mocks.edit;
+      command.mockReturnValueOnce(
+        new Promise<Result>((resolve) => {
+          finish = resolve;
+        }),
+      );
+      const refresh = vi.fn();
+      await using screen = await render(actionSurface("en", refresh), {
+        container: pagedContainer(),
+      });
+      await using _settle = {
+        async [Symbol.asyncDispose]() {
+          await act(async () => {
+            finish(AsyncResult.failure(Cause.interrupt()));
+            await Promise.resolve();
+          });
+        },
+      };
+      await screen.getByRole("button", { name: /^Conversations not on the current diff/ }).click();
+      await expect
+        .element(screen.getByText(orphan.comments[0]!.body, { exact: true }))
+        .toBeVisible();
+      await screen
+        .getByRole("button", { name: action === "reply" ? "Reply" : "Edit comment", exact: true })
+        .click();
+      const draft = "  Literal $& {draft}\nsecond line  ";
+      const input = screen.getByRole("textbox", {
+        name: action === "reply" ? "Reply to this conversation" : "Edit comment",
+        exact: true,
+      });
+      await userEvent.fill(input, draft);
+      await screen
+        .getByRole("button", { name: action === "reply" ? "Reply" : "Save", exact: true })
+        .click();
+      if (action === "reply") {
+        expect(command).not.toHaveBeenCalled();
+        expect(mocks.speechQueue).toHaveBeenCalledTimes(1);
+        await act(async () => {
+          mocks.speechQueue.mock.calls[0]![0](draft);
+          await Promise.resolve();
+        });
+      }
+      expect(command).toHaveBeenCalledExactlyOnceWith({
+        environmentId: EnvironmentId.make("environment"),
+        input:
+          action === "reply"
+            ? { ...commentsReference, threadId: orphan.id, body: draft.trim() }
+            : {
+                ...commentsReference,
+                commentId: orphan.comments[0]!.id,
+                kind: "review-comment",
+                body: draft,
+              },
+      });
+      const pending = screen.getByRole("button", {
+        name: action === "reply" ? "Reply" : "Saving...",
+        exact: true,
+      });
+      await expect.element(pending).toBeDisabled();
+      await act(async () => {
+        pending.element().dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+        if (action === "reply") mocks.speechQueue.mock.calls[0]![0](draft);
+      });
+      expect(command).toHaveBeenCalledTimes(1);
+      await screen.rerender(actionSurface("zh-CN", refresh));
+      expect(mocks.toast).not.toHaveBeenCalled();
+      await act(async () => {
+        finish(
+          AsyncResult.failure(kind === "interrupted" ? Cause.interrupt() : Cause.fail(failure)),
+        );
+        await Promise.resolve();
+      });
+      expect(mocks.toast).toHaveBeenCalledExactlyOnceWith({
+        type: "error",
+        title: action === "reply" ? "无法发布回复" : "无法保存评论",
+      });
+      await expect
+        .element(
+          screen.getByRole("textbox", {
+            name: action === "reply" ? "回复此对话" : "编辑评论",
+            exact: true,
+          }),
+        )
+        .toHaveValue(draft);
+      await expect
+        .element(
+          screen.getByRole("button", { name: action === "reply" ? "回复" : "保存", exact: true }),
+        )
+        .toBeEnabled();
+      if (action === "reply")
+        await expect
+          .element(screen.getByText(orphan.comments[0]!.body, { exact: true }))
+          .toBeVisible();
+      expect(refresh).not.toHaveBeenCalled();
+      expect(mocks.otherCommand).not.toHaveBeenCalled();
+      expect(mocks.loadComments).not.toHaveBeenCalled();
+      expect(mocks.resolution).not.toHaveBeenCalled();
+      expect(action === "reply" ? mocks.edit : mocks.reply).not.toHaveBeenCalled();
+      await screen.rerender(actionSurface("en", refresh));
+      expect(mocks.toast).toHaveBeenCalledTimes(1);
+      expect(command).toHaveBeenCalledTimes(1);
+      await screen.getByRole("button", { name: "Cancel", exact: true }).click();
+      await expect
+        .element(screen.getByText(orphan.comments[0]!.body, { exact: true }))
+        .toBeVisible();
+    },
+  );
+}
+it("preserves review-thread reply blank and cancellation guards", async () => {
+  const settings = getClientSettings();
+  using _settings = {
+    [Symbol.dispose]() {
+      __setClientSettingsForTests(settings);
+    },
+  };
+  resetCommentActions();
+  const refresh = vi.fn();
+  await using screen = await render(actionSurface("en", refresh), { container: pagedContainer() });
+  await screen.getByRole("button", { name: /^Conversations not on the current diff/ }).click();
+  await screen.getByRole("button", { name: "Reply", exact: true }).click();
+  await screen.getByRole("button", { name: "Reply", exact: true }).click();
+  expect(mocks.speechQueue).toHaveBeenCalledTimes(1);
+  await act(async () => {
+    mocks.speechQueue.mock.calls[0]![0](" \n ");
+  });
+  expect(mocks.reply).not.toHaveBeenCalled();
+  await screen.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect
+    .element(screen.getByRole("textbox", { name: "Reply to this conversation", exact: true }))
+    .not.toBeInTheDocument();
+  expect(mocks.toast).not.toHaveBeenCalled();
+  expect(refresh).not.toHaveBeenCalled();
+});
+it("preserves review-thread edit write-scope and Escape guards", async () => {
+  const settings = getClientSettings();
+  using _settings = {
+    [Symbol.dispose]() {
+      __setClientSettingsForTests(settings);
+      mocks.writeAllowed = true;
+    },
+  };
+  resetCommentActions();
+  const refresh = vi.fn();
+  await using screen = await render(actionSurface("en", refresh), { container: pagedContainer() });
+  await screen.getByRole("button", { name: /^Conversations not on the current diff/ }).click();
+  await screen.getByRole("button", { name: "Edit comment", exact: true }).click();
+  const input = screen.getByRole("textbox", { name: "Edit comment", exact: true });
+  await userEvent.fill(input, "Unsent literal {edit}");
+  const save = screen.getByRole("button", { name: "Save", exact: true });
+  await expect.element(save).toBeEnabled();
+  mocks.writeAllowed = false;
+  await save.click();
+  expect(mocks.edit).not.toHaveBeenCalled();
+  await screen.rerender(actionSurface("en", refresh));
+  await expect.element(save).toBeDisabled();
+  await act(async () => {
+    save.element().dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+    input
+      .element()
+      .dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", ctrlKey: true, bubbles: true }));
+  });
+  expect(mocks.edit).not.toHaveBeenCalled();
+  await input.click();
+  await userEvent.keyboard("{Escape}");
+  await expect
+    .element(screen.getByRole("textbox", { name: "Edit comment", exact: true }))
+    .not.toBeInTheDocument();
+  await expect.element(screen.getByText(orphan.comments[0]!.body, { exact: true })).toBeVisible();
+  expect(mocks.toast).not.toHaveBeenCalled();
+  expect(refresh).not.toHaveBeenCalled();
+});
+it.each(["reply", "commentPermission", "edit"] as const)(
+  "preserves review-thread %s capability gate",
+  async (gate) => {
+    const settings = getClientSettings();
+    using _settings = {
+      [Symbol.dispose]() {
+        __setClientSettingsForTests(settings);
+      },
+    };
+    resetCommentActions();
+    const refresh = vi.fn();
+    await using screen = await render(
+      actionSurface("en", refresh, {
+        reply: true,
+        commentPermission: true,
+        edit: true,
+        [gate]: false,
+      }),
+      { container: pagedContainer() },
+    );
+    await screen.getByRole("button", { name: /^Conversations not on the current diff/ }).click();
+    await expect.element(screen.getByText(orphan.comments[0]!.body, { exact: true })).toBeVisible();
+    await expect
+      .element(
+        screen.getByRole("button", {
+          name: gate === "edit" ? "Edit comment" : "Reply",
+          exact: true,
+        }),
+      )
+      .not.toBeInTheDocument();
+    expect(mocks.reply).not.toHaveBeenCalled();
+    expect(mocks.edit).not.toHaveBeenCalled();
+    expect(mocks.toast).not.toHaveBeenCalled();
     expect(refresh).not.toHaveBeenCalled();
   },
 );

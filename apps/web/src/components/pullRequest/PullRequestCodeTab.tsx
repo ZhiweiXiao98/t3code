@@ -1042,11 +1042,13 @@ function PullRequestCodeTab({
         return result.value;
       }}
       onReply={(body) =>
-        runThreadCommand(t("pullRequests.comments.replyFailed"), () =>
-          replyToThread({
-            environmentId,
-            input: { ...reference, threadId: thread.id, body },
-          }),
+        runThreadCommand(
+          () => readWebI18n().t("pullRequests.comments.replyFailed"),
+          () =>
+            replyToThread({
+              environmentId,
+              input: { ...reference, threadId: thread.id, body },
+            }),
         )
       }
       canEditComment={(comment) =>
@@ -1057,11 +1059,13 @@ function PullRequestCodeTab({
         })
       }
       onEditComment={(commentId, body) =>
-        runThreadCommand(t("pullRequests.comments.saveFailed"), () =>
-          updateComment({
-            environmentId,
-            input: { ...reference, commentId, kind: "review-comment", body },
-          }),
+        runThreadCommand(
+          () => readWebI18n().t("pullRequests.comments.saveFailed"),
+          () =>
+            updateComment({
+              environmentId,
+              input: { ...reference, commentId, kind: "review-comment", body },
+            }),
         )
       }
       onToggleResolved={() =>
