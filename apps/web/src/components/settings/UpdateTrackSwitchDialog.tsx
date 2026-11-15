@@ -1,4 +1,5 @@
 import { useI18n } from "../../i18n/WebI18nContext";
+import { readWebI18n } from "../../i18n/readWebI18n";
 import { translateWebSource } from "../../i18n/messages";
 import { useAtomValue } from "@effect/atom-react";
 import { settlePromise, squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
@@ -109,11 +110,14 @@ function SwitchPlan({
     if (!bridge) return;
     // Stay open while the feed is checked; the run's own progress takes over after.
     setChecking(true);
-    const fail = (description: string) =>
+    const fail = (description: string, failureLocale = locale) =>
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: locale === "zh-CN" ? `无法切换到${label}` : `Could not switch to ${label}`,
+          title:
+            failureLocale === "zh-CN"
+              ? `无法切换到${translateWebSource(failureLocale, channelSwitchLabel(release.channel))}`
+              : `Could not switch to ${translateWebSource(failureLocale, channelSwitchLabel(release.channel))}`,
           description,
         }),
       );
@@ -124,6 +128,8 @@ function SwitchPlan({
     });
     onClose();
     if (!prepared.ok) {
+      const { locale } = readWebI18n();
+      const tx = (source: string) => translateWebSource(locale, source);
       const outdated =
         /^This app found (.+), which is older than (.+)\. Try again in a few minutes\.$/.exec(
           prepared.message,
@@ -137,6 +143,7 @@ function SwitchPlan({
             : missing
               ? `此应用未找到可安装的 ${missing[1]} 构建。`
               : tx(prepared.message),
+        locale,
       );
       return;
     }
