@@ -1238,3 +1238,136 @@ it.each([
     expect(mocks.updateToast).toHaveBeenCalledTimes(1);
   },
 );
+
+it.each([
+  ["worktree", false, true],
+  ["local", true, true],
+  ["off-head", false, false],
+] as const)(
+  "uses settlement locale for panel taskless checkout success: %s",
+  async (_kind, local, onHead) => {
+    const { AsyncResult } = await import("effect/reactivity");
+    const state = useComposerDraftStore.getState();
+    using _restore = {
+      [Symbol.dispose]() {
+        useComposerDraftStore.setState(state, true);
+        mocks.locale = "en";
+        mocks.newThread.mockReset();
+        mocks.prepare.mockReset();
+        mocks.toast.mockReset();
+      },
+    };
+    setup();
+    const opened = {
+      draftId: DraftId.make("panel-taskless-draft"),
+      threadId: ThreadId.make("panel-taskless-thread"),
+    };
+    const prepared: GitPreparePullRequestThreadResult = {
+      pullRequest: {
+        number: 1,
+        title: "Literal PR",
+        url: detail.url,
+        baseBranch: "main",
+        headBranch: "feature",
+        state: "open",
+      },
+      branch: "feature/$&/{literal}",
+      worktreePath: local ? null : "/literal/$&/{worktree}",
+      isOnPullRequestHead: onHead,
+    };
+    let finish = (_value: typeof opened | null) => {};
+    const pending = new Promise<typeof opened | null>((resolve) => {
+      finish = resolve;
+    });
+    void pending.catch(() => {});
+    mocks.newThread.mockReset().mockResolvedValueOnce(opened).mockReturnValueOnce(pending);
+    mocks.prepare.mockReset().mockResolvedValueOnce(AsyncResult.success(prepared));
+    mocks.command.mockClear();
+    mocks.runAction.mockClear();
+    mocks.acted.mockClear();
+    mocks.refresh.mockClear();
+    mocks.toast.mockReset().mockReturnValue("panel-taskless-toast");
+    mocks.updateToast.mockClear();
+    await using screen = await render(copySurface("en"));
+    await using _settle = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          finish(null);
+          await Promise.resolve();
+        });
+      },
+    };
+    const before = useComposerDraftStore.getState();
+    await screen.getByRole("button", { name: "Check out", exact: true }).click();
+    await page
+      .getByRole("menuitem", {
+        name: local ? /^In this repository(?:\s|$)/ : /^In a separate worktree(?:\s|$)/,
+      })
+      .click();
+    await expect.poll(() => mocks.newThread.mock.calls.length).toBe(2);
+    expect(mocks.newThread).toHaveBeenNthCalledWith(1, {
+      environmentId,
+      projectId: detail.projectId,
+    });
+    expect(mocks.newThread).toHaveBeenNthCalledWith(
+      2,
+      { environmentId, projectId: detail.projectId },
+      {
+        branch: prepared.branch,
+        worktreePath: prepared.worktreePath,
+        envMode: local ? "local" : "worktree",
+      },
+    );
+    expect(mocks.prepare).toHaveBeenCalledExactlyOnceWith({
+      reference: detail.url,
+      mode: local ? "local" : "worktree",
+      threadId: opened.threadId,
+    });
+    expect(mocks.toast).toHaveBeenCalledExactlyOnceWith({
+      type: "loading",
+      title: "Preparing the pull request checkout...",
+    });
+    const preparing = screen.getByRole("button", { name: "Checking out...", exact: true });
+    await expect.element(preparing).toBeDisabled();
+    await act(async () => {
+      preparing.element().dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+    });
+    expect(mocks.newThread).toHaveBeenCalledTimes(2);
+    expect(mocks.updateToast).not.toHaveBeenCalled();
+    await screen.rerender(copySurface("zh-CN"));
+    await act(async () => {
+      finish(opened);
+      await Promise.resolve();
+    });
+    expect(mocks.updateToast).toHaveBeenCalledExactlyOnceWith(
+      "panel-taskless-toast",
+      onHead
+        ? {
+            type: "success",
+            title: local ? "已在此处检出" : "已检出",
+            description: local
+              ? "此仓库已切换到变更请求分支，并已打开关联会话。"
+              : "变更请求已在独立工作树中打开，并已创建关联会话。",
+          }
+        : {
+            type: "warning",
+            title: "已检出，但未确认是否为最新提交",
+            description:
+              "无法确认此检出目录是否对应拉取请求的最新提交，因此代码可能不同。存在本地提交或未提交更改时，检出目录会保留当前状态。",
+          },
+    );
+    await screen.rerender(copySurface("en"));
+    await expect
+      .element(screen.getByRole("button", { name: "Check out", exact: true }))
+      .toBeEnabled();
+    expect(mocks.newThread).toHaveBeenCalledTimes(2);
+    expect(mocks.prepare).toHaveBeenCalledTimes(1);
+    expect(mocks.command).not.toHaveBeenCalled();
+    expect(mocks.runAction).not.toHaveBeenCalled();
+    expect(mocks.acted).not.toHaveBeenCalled();
+    expect(mocks.refresh).not.toHaveBeenCalled();
+    expect(useComposerDraftStore.getState()).toBe(before);
+    expect(mocks.toast).toHaveBeenCalledTimes(1);
+    expect(mocks.updateToast).toHaveBeenCalledTimes(1);
+  },
+);

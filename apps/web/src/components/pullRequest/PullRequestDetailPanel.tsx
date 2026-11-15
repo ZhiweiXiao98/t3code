@@ -1108,6 +1108,7 @@ export function PullRequestDetailPanel({
     }
     setHandoff(null);
     if (task === null) {
+      const { t, locale: uiLocale } = readWebI18n();
       toastManager.update(
         toastId,
         prepared.value.isOnPullRequestHead
