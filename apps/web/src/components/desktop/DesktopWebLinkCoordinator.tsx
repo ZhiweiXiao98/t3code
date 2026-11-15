@@ -1,3 +1,5 @@
+import { previewPreconditionMessage } from "~/browser/previewPreconditionMessages";
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateConnectAgentSource } from "~/i18n/connectAgentMessages";
 import type { WebMessageValues } from "~/i18n/messages";
@@ -203,7 +205,12 @@ export function DesktopWebLinkCoordinator() {
     }
     if (result._tag === "Failure") {
       const error = squashAtomCommandFailure(result);
-      reportFailure(url, error instanceof Error ? error.message : url);
+      reportFailure(
+        url,
+        error instanceof Error
+          ? (previewPreconditionMessage(error, readWebI18n().locale) ?? error.message)
+          : url,
+      );
     }
   });
 

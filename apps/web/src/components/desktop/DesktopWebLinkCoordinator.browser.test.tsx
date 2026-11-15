@@ -4,15 +4,25 @@ import { translateWebMessage } from "../../i18n/messages";
 import { EnvironmentId, ProjectId, ThreadId } from "@t3tools/contracts";
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import type { EnvironmentProject } from "@t3tools/client-runtime/state/shell";
+import * as Cause from "effect/Cause";
+import { BrowserSettingsReadError } from "../../browser/openFileInPreview";
 import { AsyncResult, type Atom } from "effect/reactivity";
 import { expect, it, vi } from "vite-plus/test";
 
 import { act, render, stubGlobal } from "../../../test/render";
 
+const realPreview = vi.hoisted(() => ({
+  open: undefined as typeof import("../../browser/openFileInPreview").openUrlInPreview | undefined,
+}));
 const state = vi.hoisted(() => ({
   projects: [] as EnvironmentProject[],
   routeParams: {} as Record<string, string>,
   preview: vi.fn(),
+  openPreview: vi.fn(),
+  openUrl: vi.fn(),
+  defaults: vi.fn(),
+  toast: vi.fn(),
+  previewAvailable: false,
   openLink: vi.fn(async () => undefined),
   navigate: vi.fn(async (): Promise<void> => undefined),
   openScratchProject: vi.fn(async () => null),
@@ -22,6 +32,33 @@ const state = vi.hoisted(() => ({
   locale: "en" as ResolvedAppLocale,
 }));
 
+vi.mock("../../browser/openFileInPreview", async (original) => {
+  const actual = await original<typeof import("../../browser/openFileInPreview")>();
+  realPreview.open = actual.openUrlInPreview;
+  return { ...actual, openUrlInPreview: state.openUrl };
+});
+vi.mock("../../browser/browserDefaults", async (original) => ({
+  ...(await original<typeof import("../../browser/browserDefaults")>()),
+  resolveBrowserDefaults: state.defaults,
+}));
+vi.mock("../../browser/previewRuntime", async (original) => ({
+  ...(await original<typeof import("../../browser/previewRuntime")>()),
+  isPreviewAvailableFor: () => state.previewAvailable,
+}));
+vi.mock("../../i18n/readWebI18n", async (original) => ({
+  ...(await original<typeof import("../../i18n/readWebI18n")>()),
+  readWebI18n: () => ({
+    locale: state.locale,
+    t: (
+      key: Parameters<typeof translateWebMessage>[1],
+      values?: Parameters<typeof translateWebMessage>[2],
+    ) => translateWebMessage(state.locale, key, values),
+  }),
+}));
+vi.mock("../ui/toast", async (original) => {
+  const actual = await original<typeof import("../ui/toast")>();
+  return { ...actual, toastManager: { ...actual.toastManager, add: state.toast } };
+});
 // One connected primary environment that can read pull requests. Its project list and
 // discovery flag start empty so a test can deliver links before they arrive.
 vi.mock(import("@tanstack/react-router"), async (original) => ({
@@ -93,12 +130,15 @@ vi.mock(import("../../connection/onboarding"), async (original) => ({
 }));
 vi.mock(import("../../state/use-atom-command"), async (original) => {
   const actual = await original();
+  const { previewEnvironment } = await import("../../state/preview");
   return {
     ...actual,
     useAtomCommand: ((command: unknown, options: never) =>
       command === "connectPairing"
         ? state.connectPairing
-        : actual.useAtomCommand(command as never, options)) as never,
+        : command === previewEnvironment.open
+          ? state.openPreview
+          : actual.useAtomCommand(command as never, options)) as never,
   };
 });
 
@@ -149,6 +189,9 @@ const pairLink = `t3code://pair?pairingUrl=${encodeURIComponent(pairingUrl)}`;
 
 function setup() {
   vi.clearAllMocks();
+  state.previewAvailable = false;
+  state.openUrl.mockReset();
+  state.defaults.mockReset();
   state.confirm.mockResolvedValue(true);
   state.locale = "en";
   state.localEnvironmentDisabled = false;
@@ -379,3 +422,84 @@ it("holds a launch PR link with Local environment disabled until discovery settl
   expect(state.navigate).toHaveBeenCalledExactlyOnceWith(pullRequestView);
   expect(state.openScratchProject).not.toHaveBeenCalled();
 });
+
+it.each(["owned", "class", "plain", "tag", "empty"] as const)(
+  "localizes desktop preview %s precondition",
+  async (kind) => {
+    const initialPanel = useRightPanelStore.getState();
+    const initialDiff = useDiffPanelStore.getState();
+    using _stores = {
+      [Symbol.dispose]: () => {
+        useRightPanelStore.setState(initialPanel, true);
+        useDiffPanelStore.setState(initialDiff, true);
+      },
+    };
+    setup();
+    state.locale = "zh-CN";
+    state.previewAvailable = true;
+    state.routeParams = { environmentId: "local", threadId: "thread" };
+    useRightPanelStore.getState().openBrowser(threadRef, null);
+    const panel = useRightPanelStore.getState().byThreadKey;
+    let reject!: (cause: unknown) => void;
+    const pending = new Promise<never>((_, r) => {
+      reject = r;
+    });
+    void pending.catch(() => undefined);
+    const source = "Saved browser settings could not be loaded.";
+    const cause = new Error("private settings cause");
+    if (kind === "owned") {
+      if (!realPreview.open) throw new Error("Missing actual preview helper");
+      state.openUrl.mockImplementation(realPreview.open);
+      state.defaults.mockReturnValue(pending);
+    } else
+      state.openUrl.mockResolvedValue(
+        AsyncResult.failure(
+          Cause.fail(
+            kind === "class"
+              ? new BrowserSettingsReadError({ cause })
+              : kind === "tag"
+                ? Object.assign(new Error(source), { _tag: "BrowserSettingsReadError" })
+                : new Error(kind === "empty" ? "" : source),
+          ),
+        ),
+      );
+    const url = "https://literal.example/opaque?value=$%26";
+    await using _coordinator = await mount(url);
+    await using _settle = {
+      [Symbol.asyncDispose]: async () => {
+        await act(async () => {
+          reject(cause);
+          await Promise.resolve();
+        });
+      },
+    };
+    await vi.waitFor(() => expect(state.openUrl).toHaveBeenCalledTimes(1));
+    if (kind === "owned") {
+      expect(state.toast).not.toHaveBeenCalled();
+      await act(async () => reject(cause));
+    }
+    await vi.waitFor(() => expect(state.toast).toHaveBeenCalledTimes(1));
+    expect(state.toast.mock.calls[0]?.[0]).toMatchObject({
+      type: "error",
+      title: "无法打开链接",
+      description: kind === "owned" ? "无法读取浏览器设置。" : kind === "empty" ? "" : source,
+    });
+    expect(state.openUrl).toHaveBeenCalledExactlyOnceWith({
+      threadRef,
+      url,
+      openPreview: state.openPreview,
+    });
+    expect(state.defaults).toHaveBeenCalledTimes(kind === "owned" ? 1 : 0);
+    expect(useRightPanelStore.getState().byThreadKey).toBe(panel);
+    for (const mock of [
+      state.openPreview,
+      state.preview,
+      state.openScratchProject,
+      state.navigate,
+      state.openLink,
+      state.connectPairing,
+      state.confirm,
+    ])
+      expect(mock).not.toHaveBeenCalled();
+  },
+);
