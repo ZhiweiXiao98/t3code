@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { useAtomCommand } from "~/state/use-atom-command";
 import type {
   EnvironmentId,
@@ -87,6 +88,7 @@ export function PullRequestReviewerPicker({
     });
     setPending(null);
     if (result._tag === "Failure") {
+      const { t } = readWebI18n();
       toastManager.add({
         type: "error",
         title: candidate.isRequested
