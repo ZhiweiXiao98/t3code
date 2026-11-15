@@ -1,4 +1,3 @@
-import { readWebI18n } from "~/i18n/readWebI18n";
 import { translateWebSource } from "~/i18n/messages";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
@@ -82,9 +81,8 @@ import { PullRequestListGhost } from "./PullRequestGhosts";
 import { type PullRequestRowTarget } from "./PullRequestRow";
 import { PullRequestsUnavailableState } from "./PullRequestsUnavailableState";
 import { RightPanelTabs } from "../RightPanelTabs";
-import { isCommandPaletteOpen } from "~/commandPaletteBus";
 import { isElectron } from "~/env";
-import { resolveShortcutCommand, shortcutLabelForCommand } from "~/keybindings";
+import { shortcutLabelForCommand } from "~/keybindings";
 import { registerCommands } from "~/shortcuts/dispatcher";
 import { isTerminalFocused } from "~/lib/terminalFocus";
 import { PanelLayoutControls, RightPanelMaximizeControl } from "../chat/PanelLayoutControls";
@@ -93,8 +91,7 @@ import { SidebarInset } from "../ui/sidebar";
 import { useLiveRefresh } from "~/hooks/useLiveRefresh";
 import { useStableCallback } from "~/hooks/useStableCallback";
 import { useOpenPanelPullRequestUrl } from "~/hooks/useOpenPanelPullRequestUrl";
-import { writeTextToClipboard } from "~/hooks/useCopyToClipboard";
-import { toastManager } from "../ui/toast";
+import { usePullRequestsPageShortcuts } from "./usePullRequestsPageShortcuts";
 import { usePanelAnimationSettings, usePanelPresence } from "~/panelAnimations";
 import {
   PULL_REQUESTS_PANEL_REF,
@@ -1424,66 +1421,17 @@ export function PullRequestsPage() {
     selectSurfaceInUrl(null);
   };
 
-  const copyPullRequestFromShortcut = useEffectEvent((event: KeyboardEvent) => {
-    if (!openPanelPullRequestUrl) return;
-    event.preventDefault();
-    event.stopPropagation();
-    if (event.repeat) return;
-    const url = openPanelPullRequestUrl;
-    const { shortLabel, singular } = (
-      sourceControlClients.findByChangeRequestUrl(url) ?? sourceControlClients.get(undefined)
-    ).changeRequest;
-    void writeTextToClipboard(url, `${singular} link`).then(
-      (didCopy) => {
-        if (didCopy)
-          toastManager.add({
-            type: "success",
-            title: readWebI18n().t("audit6.prCopied", { kind: shortLabel }),
-            description: url,
-          });
-      },
-      (error) => {
-        toastManager.add({
-          type: "error",
-          title: readWebI18n().t("audit6.prCopyFailed", { kind: shortLabel }),
-          description: error instanceof Error ? error.message : readWebI18n().t("common.error"),
-        });
-      },
-    );
+  usePullRequestsPageShortcuts({
+    openPanelPullRequestUrl,
+    keybindings,
+    getShortcutContext,
+    activePullRequestSurface,
+    closeSurface,
+    rightPanelAvailable,
+    rightPanelOpen: rightPanelState.isOpen,
+    toggleRightPanel,
+    toggleRightPanelMaximized,
   });
-  const closeActiveSurfaceFromShortcut = useEffectEvent((event: KeyboardEvent) => {
-    if (activePullRequestSurface === null) return;
-    event.preventDefault();
-    event.stopPropagation();
-    if (!event.repeat) closeSurface(activePullRequestSurface);
-  });
-  const toggleRightPanelFromShortcut = useEffectEvent((event: KeyboardEvent) => {
-    if (!rightPanelAvailable) return;
-    event.preventDefault();
-    event.stopPropagation();
-    if (!event.repeat) toggleRightPanel();
-  });
-  const toggleRightPanelMaximizedFromShortcut = useEffectEvent((event: KeyboardEvent) => {
-    if (!rightPanelState.isOpen) return;
-    event.preventDefault();
-    event.stopPropagation();
-    if (!event.repeat) toggleRightPanelMaximized();
-  });
-  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- document keydown listener for the right panel and copy-reference shortcuts
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || isCommandPaletteOpen()) return;
-      const command = resolveShortcutCommand(event, keybindings, {
-        context: getShortcutContext(),
-      });
-      if (command === "rightPanel.close") closeActiveSurfaceFromShortcut(event);
-      if (command === "rightPanel.toggle") toggleRightPanelFromShortcut(event);
-      if (command === "rightPanel.toggleMaximized") toggleRightPanelMaximizedFromShortcut(event);
-      if (command === "thread.copyReference") copyPullRequestFromShortcut(event);
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [keybindings]);
 
   return (
     <SidebarInset className="h-dvh min-h-0 overflow-hidden overscroll-y-none">
