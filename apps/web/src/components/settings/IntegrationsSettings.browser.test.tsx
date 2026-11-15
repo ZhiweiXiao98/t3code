@@ -284,3 +284,53 @@ it("does not clear profile data after cancelling clear confirmation", async () =
   expect(fixture.update).not.toHaveBeenCalled();
   expect(fixture.toast).not.toHaveBeenCalled();
 });
+
+it("uses settlement locale for profile clear success", async () => {
+  setup();
+  const result = AsyncResult.success(undefined);
+  let finish!: (value: typeof result) => void;
+  const pending = new Promise<typeof result>((resolve) => {
+    finish = resolve;
+  });
+  fixture.clear.mockReturnValue(pending);
+  await using screen = await render(surface("en"));
+  await using _drain = {
+    async [Symbol.asyncDispose]() {
+      await act(async () => {
+        finish(result);
+        await pending;
+      });
+      fixture.locale = "en";
+    },
+  };
+  await page.getByRole("button", { name: `${profile.name} options`, exact: true }).click();
+  await page.getByRole("menuitem", { name: "Clear cookies and cache", exact: true }).click();
+  expect(fixture.clear).not.toHaveBeenCalled();
+  await page.getByRole("button", { name: "Clear data", exact: true }).click();
+  expect(fixture.clear).toHaveBeenCalledExactlyOnceWith({
+    environmentId,
+    input: { profileId: profile.id },
+  });
+  await expect.element(page.getByRole("alertdialog")).not.toBeInTheDocument();
+  expect(fixture.toast).not.toHaveBeenCalled();
+  fixture.locale = "zh-CN";
+  await screen.rerender(surface("zh-CN"));
+  await act(async () => {
+    finish(result);
+    await pending;
+  });
+  await expect.poll(() => fixture.toast.mock.calls.length).toBe(1);
+  expect(fixture.toast).toHaveBeenCalledExactlyOnceWith({
+    type: "success",
+    title: `已清除${profile.name}的 Cookie 和缓存`,
+  });
+  expect(fixture.update).not.toHaveBeenCalled();
+  expect(settings.browserProfiles).toEqual([profile]);
+  fixture.locale = "en";
+  await screen.rerender(surface("en"));
+  await expect
+    .element(page.getByRole("button", { name: `${profile.name} options`, exact: true }))
+    .toBeVisible();
+  expect(fixture.clear).toHaveBeenCalledTimes(1);
+  expect(fixture.toast).toHaveBeenCalledTimes(1);
+});

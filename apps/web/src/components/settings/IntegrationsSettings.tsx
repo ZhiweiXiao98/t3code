@@ -1298,6 +1298,7 @@ function BrowserProfilesSetting({ disabled }: { readonly disabled: boolean }) {
       serverProfileData,
     )
       .then(() => {
+        const { t } = readWebI18n();
         toastManager.add({
           type: "success",
           title: t("settings.integrations.profiles.clearSuccess", { profile: name }),
