@@ -718,6 +718,7 @@ export function PullRequestSummaryTab({
       });
       setCommentSaving(false);
       if (result._tag === "Failure") {
+        const { t } = readWebI18n();
         toastManager.add({ type: "error", title: t("pullRequests.comments.saveFailed") });
         return;
       }

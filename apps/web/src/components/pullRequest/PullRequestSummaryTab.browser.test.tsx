@@ -1,5 +1,6 @@
 import { WebI18nContext } from "~/i18n/WebI18nContext";
 import { translateWebMessage } from "~/i18n/messages";
+import { pullRequestEnvironment } from "~/state/pullRequests";
 import { SourceControlProviderKind } from "@t3tools/contracts";
 import { EnvironmentId, ProjectId, type PullRequestDetailView } from "@t3tools/contracts";
 import { expect, it, vi } from "vite-plus/test";
@@ -7,7 +8,9 @@ import { userEvent } from "vite-plus/test/browser";
 
 const state = vi.hoisted(() => ({
   update: vi.fn(),
+  updateComment: vi.fn(),
   canUpdate: true,
+  canWrite: true,
   locale: "en" as "en" | "zh-CN",
   toast: vi.fn(),
 }));
@@ -30,12 +33,13 @@ vi.mock("~/i18n/readWebI18n", () => ({
 
 vi.mock(import("~/state/use-atom-command"), async (original) => ({
   ...(await original()),
-  useAtomCommand: (() => state.update) as never,
+  useAtomCommand: ((command: unknown) =>
+    command === pullRequestEnvironment.updateComment ? state.updateComment : state.update) as never,
 }));
 vi.mock(import("~/state/session"), async (original) => ({
   ...(await original()),
-  readEnvironmentScope: () => true,
-  useEnvironmentScope: () => true,
+  readEnvironmentScope: () => state.canWrite,
+  useEnvironmentScope: () => state.canWrite,
 }));
 vi.mock(import("~/state/pullRequests"), async (original) => {
   const actual = await original();
@@ -55,9 +59,12 @@ vi.mock(import("~/state/pullRequests"), async (original) => {
 });
 
 function setup() {
+  state.updateComment.mockReset();
+  state.updateComment.mockResolvedValue({ _tag: "Success", value: undefined });
   state.update.mockReset();
   state.update.mockResolvedValue({ _tag: "Success", value: undefined });
   state.canUpdate = true;
+  state.canWrite = true;
   state.locale = "en";
   state.toast.mockClear();
 }
@@ -329,5 +336,113 @@ it.each([
     await screen.rerender(surface("en"));
     expect(state.toast).toHaveBeenCalledTimes(1);
     expect(state.update).toHaveBeenCalledTimes(1);
+  },
+);
+
+it.each([
+  ["owned", null],
+  ["raw", new Error("Could not save the comment")],
+  ["empty", new Error("")],
+  ["interrupted", undefined],
+] as const)(
+  "uses settlement locale for pull request comment failure: %s",
+  async (kind, failure) => {
+    setup();
+    const { AsyncResult } = await import("effect/reactivity");
+    const Cause = await import("effect/Cause");
+    type Result = import("@t3tools/client-runtime/state/runtime").AtomCommandResult<void, unknown>;
+    let finish = (_result: Result) => {};
+    state.updateComment.mockReturnValueOnce(
+      new Promise<Result>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const refresh = vi.fn();
+    const withComment: PullRequestDetailView = {
+      ...detail,
+      commentCount: 1,
+      comments: [
+        {
+          id: "comment-literal",
+          kind: "issue-comment",
+          path: null,
+          reviewState: null,
+          author: detail.author,
+          body: "Original comment",
+          createdAt: detail.createdAt,
+          url: `${detail.url}#issuecomment-1`,
+        },
+      ],
+    };
+    const surface = (locale: "en" | "zh-CN") => {
+      state.locale = locale;
+      return (
+        <WebI18nContext
+          value={{
+            locale,
+            appLocale: locale,
+            setAppLocale: () => {},
+            t: (key, values) => translateWebMessage(locale, key, values),
+          }}
+        >
+          <PullRequestSummaryTab
+            scrollerRef={() => {}}
+            environmentId={EnvironmentId.make("environment")}
+            threadRef={null}
+            reference={detail}
+            detail={withComment}
+            activityPending={false}
+            activityError={null}
+            onRefresh={refresh}
+          />
+        </WebI18nContext>
+      );
+    };
+    await using screen = await renderUi(surface("en"));
+    await using _settle = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          finish(AsyncResult.failure(Cause.interrupt()));
+          await Promise.resolve();
+        });
+      },
+    };
+    await userEvent.click(screen.getByRole("button", { name: "Edit comment", exact: true }));
+    const draft = "Literal $& {comment}\nKeep this draft";
+    const input = screen.container.querySelector("textarea")!;
+    await userEvent.clear(input);
+    await userEvent.fill(input, draft);
+    await userEvent.click(screen.getByRole("button", { name: "Save", exact: true }));
+    await expect
+      .element(screen.getByRole("button", { name: "Saving...", exact: true }))
+      .toBeDisabled();
+    expect(state.updateComment).toHaveBeenCalledExactlyOnceWith({
+      environmentId: EnvironmentId.make("environment"),
+      input: { ...detail, commentId: "comment-literal", kind: "issue-comment", body: draft },
+    });
+    expect(refresh).not.toHaveBeenCalled();
+    await screen.rerender(surface("zh-CN"));
+    await act(async () => {
+      finish(AsyncResult.failure(kind === "interrupted" ? Cause.interrupt() : Cause.fail(failure)));
+    });
+    await expect.element(screen.getByRole("button", { name: "保存", exact: true })).toBeEnabled();
+    expect(state.toast).toHaveBeenCalledExactlyOnceWith({ type: "error", title: "无法保存评论" });
+    expect(screen.container.querySelector("textarea")!.value).toBe(draft);
+    expect(refresh).not.toHaveBeenCalled();
+    await screen.rerender(surface("en"));
+    expect(state.toast).toHaveBeenCalledTimes(1);
+    expect(state.updateComment).toHaveBeenCalledTimes(1);
+    expect(state.update).not.toHaveBeenCalled();
+    state.canWrite = false;
+    await screen.rerender(surface("en"));
+    await expect.element(screen.getByRole("button", { name: "Save", exact: true })).toBeDisabled();
+    await userEvent.click(screen.container.querySelector("textarea")!);
+    await userEvent.keyboard("{Control>}{Enter}{/Control}");
+    expect(state.updateComment).toHaveBeenCalledTimes(1);
+    await userEvent.keyboard("{Escape}");
+    await expect
+      .element(screen.getByRole("button", { name: "Edit comment", exact: true }))
+      .toBeVisible();
+    expect(state.updateComment).toHaveBeenCalledTimes(1);
   },
 );
