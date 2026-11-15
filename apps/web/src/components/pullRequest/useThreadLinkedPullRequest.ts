@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
 
@@ -89,6 +90,7 @@ export function useThreadLinkedPullRequest(input: {
       if (result._tag !== "Failure") return;
       relinkKeysRef.current.delete(threadKey);
       if (isAtomCommandInterrupted(result)) return;
+      const { locale } = readWebI18n();
       const error = squashAtomCommandFailure(result);
       toastManager.add(
         stackedThreadToast({
@@ -101,6 +103,7 @@ export function useThreadLinkedPullRequest(input: {
         }),
       );
     });
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Preserve locale-triggered retries after a failed relink; notice copy now reads locale at settlement.
   }, [locale, persisted, replacement, serverThreadRef, updateThreadMetadata]);
 
   const linked = replacement ?? persisted;
