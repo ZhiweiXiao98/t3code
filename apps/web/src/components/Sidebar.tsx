@@ -947,7 +947,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     onCopy: ({ path }) => {
       toastManager.add({
         type: "success",
-        title: t("sidebar.pathCopied"),
+        title: readWebI18n().t("sidebar.pathCopied"),
         description: path,
       });
     },
@@ -966,7 +966,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     onCopy: ({ branch }) => {
       toastManager.add({
         type: "success",
-        title: t("sidebar.branchCopied"),
+        title: readWebI18n().t("sidebar.branchCopied"),
         description: branch,
       });
     },
@@ -984,7 +984,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     onCopy: ({ threadId }) => {
       toastManager.add({
         type: "success",
-        title: t("sidebar.threadIdCopied"),
+        title: readWebI18n().t("sidebar.threadIdCopied"),
         description: threadId,
       });
     },
