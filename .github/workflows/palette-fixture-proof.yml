@@ -1,0 +1,215 @@
+name: Palette fixture red-green proof
+
+on:
+  push:
+    branches: [diagnostics/palette-fixture-isolation-a65512c]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: palette-fixture-proof-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  SOURCE_SHA: b46b4fa90b809e3a8c07637e99a7705bc29119c7
+  SOURCE_TREE: 8530b1f40bb53d6e704d0fa7006a828a27c56b4b
+  PARENT_SOURCE_SHA: a65512cdb8b58bcaea24aa3c7d494f0ebfbc2e31
+  EXPECTED_BRANCH: diagnostics/palette-fixture-isolation-a65512c
+  OBSERVER_COMMIT: a6f2729c3e608a5db4738f1661e1016dcbba3422
+  OBSERVER_SHA256: 0d9765da8dec314036b143b86e0525e31b3924ecc8c779a3ebf52269a94e27b9
+  GREEN_SHA256: e49945b9d0cc0efadcbfcef04acd0b5d5c2672561bfb9c00a4c542261d607d7a
+  RED_SHA256: 1e97958c391e273ed216407b61c7a305eb8642d04e563ca71179b6d8baaf35d1
+  TEST_CASE: palette
+  CLIENT_VERSION: 0.1.9-zh.1
+  CI: "true"
+  VP_REMOTE_CACHE: "off"
+  VP_REMOTE_CACHE_URL: ""
+  CSC_IDENTITY_AUTO_DISCOVERY: "false"
+  T3CODE_DESKTOP_SIGNED: "false"
+  ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
+  ELECTRON_BUILDER_BINARIES_MIRROR: https://github.com/electron-userland/electron-builder-binaries/releases/download/
+
+jobs:
+  fixture:
+    name: Palette fixture (${{ matrix.fixture }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        fixture: [baseline-red, green]
+    env:
+      FIXTURE: ${{ matrix.fixture }}
+    steps:
+      - name: Verify public repository and single diagnostic attempt
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os, re
+          with open(os.environ['GITHUB_EVENT_PATH']) as stream:
+              event = json.load(stream)
+          assert os.environ['GITHUB_REPOSITORY'] == 'ZhiweiXiao98/t3code'
+          assert event['repository']['private'] is False
+          assert os.environ['GITHUB_EVENT_NAME'] == 'push'
+          assert os.environ['GITHUB_RUN_ATTEMPT'] == '1'
+          assert os.environ['GITHUB_REF'] == 'refs/heads/' + os.environ['EXPECTED_BRANCH']
+          for key in ('GITHUB_SHA', 'SOURCE_SHA', 'SOURCE_TREE', 'PARENT_SOURCE_SHA', 'OBSERVER_COMMIT'):
+              assert re.fullmatch('[0-9a-f]{40}', os.environ[key]), key
+          assert event['after'] == os.environ['GITHUB_SHA']
+          PY
+      - name: Verify exact source and load reviewed diagnostic inputs
+        shell: bash
+        env:
+          GIT_TERMINAL_PROMPT: "0"
+        run: |
+          set -euo pipefail
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          git fetch --no-tags --depth=3 origin "$GITHUB_SHA"
+          git sparse-checkout set --no-cone '/*' '!/.repos/'
+          git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD^1)" = "$SOURCE_SHA"
+          test "$(git rev-list --parents -n 1 HEAD | wc -w)" -eq 2
+          test "$(git rev-parse HEAD^1^{tree})" = "$SOURCE_TREE"
+          test "$(git rev-parse HEAD^1^1)" = "$PARENT_SOURCE_SHA"
+          python3 - <<'PY'
+          import os, subprocess
+          def changed(base, head):
+              return set(subprocess.check_output(['git', 'diff', '--name-only', base, head], text=True).splitlines())
+          assert changed(os.environ['SOURCE_SHA'], 'HEAD') == {
+              '.github/workflows/palette-fixture-proof.yml',
+              '.github/diagnostics/CommandPalette.baseline-red.browser.test.tsx',
+          }
+          assert changed(os.environ['PARENT_SOURCE_SHA'], os.environ['SOURCE_SHA']) == {
+              'apps/web/src/components/CommandPalette.browser.test.tsx',
+          }
+          PY
+          cp .github/diagnostics/CommandPalette.baseline-red.browser.test.tsx "$RUNNER_TEMP/palette-baseline-red.tsx"
+          git fetch --no-tags --depth=1 origin "$OBSERVER_COMMIT"
+          git show "$OBSERVER_COMMIT:.github/scripts/observe-focused-browser-tests.py" > "$RUNNER_TEMP/observe-focused-browser-tests.py"
+          printf '%s  %s\n' "$OBSERVER_SHA256" "$RUNNER_TEMP/observe-focused-browser-tests.py" | sha256sum --check --strict
+          printf '%s  %s\n' "$RED_SHA256" "$RUNNER_TEMP/palette-baseline-red.tsx" | sha256sum --check --strict
+          git checkout --detach "$SOURCE_SHA"
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(git rev-parse HEAD^{tree})" = "$SOURCE_TREE"
+          git diff --exit-code
+          git diff --cached --exit-code
+          printf '%s  %s\n' "$GREEN_SHA256" apps/web/src/components/CommandPalette.browser.test.tsx | sha256sum --check --strict
+          if [[ "$FIXTURE" == baseline-red ]]; then
+            cp "$RUNNER_TEMP/palette-baseline-red.tsx" apps/web/src/components/CommandPalette.browser.test.tsx
+          fi
+          printf 'Diagnostic workflow: %s\nExact source: %s\nSource tree: %s\nFixture: %s\n' \
+            "$GITHUB_SHA" "$SOURCE_SHA" "$SOURCE_TREE" "$FIXTURE" >> "$GITHUB_STEP_SUMMARY"
+      - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
+        with:
+          node-version-file: package.json
+          cache: true
+          run-install: false
+      - name: Install locked dependencies
+        run: vp install --frozen-lockfile
+      - name: Install Linux native build libraries
+        run: python3 .github/scripts/ci-ubuntu-packages.py packages libsecret-1-dev pkg-config build-essential imagemagick
+      - name: Install exact web Chromium
+        shell: bash
+        run: |
+          set -euo pipefail
+          browser_cli=apps/web/node_modules/playwright/cli.js
+          python3 .github/scripts/ci-ubuntu-packages.py playwright "$browser_cli"
+          node "$browser_cli" install --only-shell chromium
+      - name: Run all six tests once and preserve the real exit
+        id: tests
+        shell: bash
+        run: python3 "$RUNNER_TEMP/observe-focused-browser-tests.py"
+      - name: Validate exact red or green evidence
+        if: ${{ always() && steps.tests.outcome != 'skipped' }}
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, re, subprocess
+          out = pathlib.Path(os.environ['RUNNER_TEMP']) / 'web-browser-diagnostics'
+          target = pathlib.Path('apps/web/src/components/CommandPalette.browser.test.tsx')
+          fixture = os.environ['FIXTURE']
+          problems = []
+          def require(condition, message):
+              if not condition:
+                  problems.append(message)
+          def git(*args):
+              return subprocess.check_output(['git', *args], text=True).strip()
+          require(git('rev-parse', 'HEAD') == os.environ['SOURCE_SHA'], 'wrong source SHA')
+          require(git('rev-parse', 'HEAD^{tree}') == os.environ['SOURCE_TREE'], 'wrong source tree')
+          expected_changes = {str(target)} if fixture == 'baseline-red' else set()
+          require(set(git('diff', '--name-only').splitlines()) == expected_changes, 'unexpected tracked change')
+          require(not git('diff', '--cached', '--name-only'), 'unexpected staged change')
+          data = target.read_bytes()
+          digest = hashlib.sha256(data).hexdigest()
+          expected_digest = os.environ['RED_SHA256' if fixture == 'baseline-red' else 'GREEN_SHA256']
+          require(digest == expected_digest, 'wrong selected test hash')
+          outcome = json.loads((out / 'outcome.json').read_text())
+          metadata = json.loads((out / 'metadata.json').read_text())
+          require(metadata['source']['stdout'].strip() == os.environ['SOURCE_SHA'], 'observer source mismatch')
+          require(metadata['hashes'][str(target)] == digest, 'observer test hash mismatch')
+          require(metadata['command'] == [
+              'vp', 'test', 'run', '--passWithNoTests', '--project', 'unit',
+              '--project', 'browser', 'src/components/CommandPalette.browser.test.tsx',
+          ], 'unexpected test command')
+          require(not outcome['log']['truncated'], 'test log truncated')
+          text = re.sub(r'\x1b\[[0-9;]*m', '', (out / 'web-test.log').read_text())
+          files = [line.strip() for line in re.findall(r'^\s*Test Files\s+(.+)$', text, re.M)]
+          tests = [line.strip() for line in re.findall(r'^\s*Tests\s+(.+)$', text, re.M)]
+          failed = [line.strip() for line in re.findall(r'^\s*FAIL\s+(?:browser|@t3tools/web \(browser\)) \(chromium\)\s+(.+)$', text, re.M)]
+          require('Unhandled Error' not in text and 'VITEST_BROWSER_CONNECTION_CLOSED' not in text,
+                  'unhandled or transport error is not fixture proof')
+          if fixture == 'baseline-red':
+              require(outcome['test_exit_code'] == 1, 'baseline did not return the intended nonzero exit')
+              require(files == ['1 failed (1)'], 'baseline file summary differs')
+              require(tests == ['1 failed | 5 passed (6)'], 'baseline test counts differ')
+              require(failed == [
+                  'src/components/CommandPalette.browser.test.tsx > CommandPalette open intents > '
+                  'highlights the first project when New thread in... opens from the root list',
+              ], 'baseline failed a different test')
+              require(re.search(r'CommandPalette\.browser\.test\.tsx:144:\d+', text) is not None,
+                      'baseline did not fail the original root-highlight assertion')
+              require('expect(element).toHaveAttribute("data-highlighted")' in text,
+                      'baseline matcher differs')
+              require(re.search(
+                  r'Expected the element to have attribute:\s+data-highlighted\s+Received:\s+null(?:\s|$)',
+                  text,
+              ) is not None, 'baseline did not report an existing element with an absent attribute')
+              invalid_red = (
+                  r'(?:test|hook) timed out|unable to find (?:an? )?element|'
+                  r'cannot find (?:an? )?element|element(?:\(s\))? not found|'
+                  r'no element found|strict mode violation|resolved to 0 elements|'
+                  r'could not resolve[^\n]*element|element could not be found'
+              )
+              require(re.search(invalid_red, text, re.I) is None,
+                      'missing locator or whole-test/hook timeout is not fixture proof')
+          else:
+              require(outcome['test_exit_code'] == 0, 'green test command failed')
+              require(files == ['1 passed (1)'], 'green file summary differs')
+              require(tests == ['6 passed (6)'] and not failed, 'green test counts differ')
+          evidence = {
+              'fixture': fixture, 'source_sha': os.environ['SOURCE_SHA'],
+              'source_tree': os.environ['SOURCE_TREE'], 'test_sha256': digest,
+              'real_test_exit_code': outcome['test_exit_code'],
+              'expected_fixture_evidence': not problems, 'problems': problems,
+              'full_gate_cleared': False,
+          }
+          payload = (json.dumps(evidence, indent=2) + '\n').encode()
+          assert len(payload) <= 65536 and len(data) <= 65536
+          (out / 'fixture-evidence.json').write_bytes(payload)
+          (out / 'selected-test.tsx').write_bytes(data)
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as stream:
+              stream.write(json.dumps(evidence) + '\n')
+              stream.write('The baseline test step retains its real failure. Focused proof does not clear the full gate.\n')
+          assert not problems, problems
+          PY
+      - name: Preserve bounded evidence even after baseline failure
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: palette-fixture-${{ matrix.fixture }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/web-browser-diagnostics/
+          if-no-files-found: error
+          retention-days: 14
