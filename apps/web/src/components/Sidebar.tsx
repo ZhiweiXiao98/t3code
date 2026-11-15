@@ -2872,7 +2872,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
           case "copy-thread":
             void copyThreadReference(
               threadChipCopyTarget(threadRef, thread.title, configuredHostedAppUrl()),
-              releaseLocale,
+              () => readWebI18n().locale,
             );
             return;
           case "copy-thread-id":
