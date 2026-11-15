@@ -30,13 +30,14 @@ const fixture = vi.hoisted(() => ({
   pin: vi.fn(),
   promote: vi.fn(),
   projectMode: false,
+  clipboardMode: false,
   configs: null as Atom.Writable<ReadonlyMap<EnvironmentId, ServerConfig>> | null,
   toast: vi.fn(),
   other: vi.fn(),
 }));
 const target = {
   environmentId: EnvironmentId.make("menu-env"),
-  threadId: ThreadId.make("menu-thread"),
+  threadId: ThreadId.make("Literal-$&-{thread}"),
 };
 const shell = makeThreadFixture({ id: target.threadId, environmentId: target.environmentId });
 vi.mock("../localApi", async (original) => ({
@@ -45,7 +46,8 @@ vi.mock("../localApi", async (original) => ({
 }));
 vi.mock("../state/entities", async (original) => ({
   ...(await original<typeof import("../state/entities")>()),
-  readThreadShell: () => (fixture.projectMode ? projectShell : shell),
+  readThreadShell: () =>
+    fixture.projectMode ? projectShell : fixture.clipboardMode ? clipboardShell : shell,
   readProject: () => (fixture.projectMode ? scratchProject : null),
   useProjects: () => [],
   readEnvironmentServerConfigLoaded: () => true,
@@ -90,10 +92,7 @@ vi.mock("./useHandleNewThread", async (original) => ({
   ...(await original<typeof import("./useHandleNewThread")>()),
   useNewThreadHandler: () => fixture.other,
 }));
-vi.mock("./useCopyToClipboard", async (original) => ({
-  ...(await original<typeof import("./useCopyToClipboard")>()),
-  useCopyToClipboard: () => ({ copyToClipboard: fixture.other }),
-}));
+
 vi.mock("../components/Sidebar.snooze", async (original) => ({
   ...(await original<typeof import("../components/Sidebar.snooze")>()),
   resolveSnoozePresets: () => [],
@@ -115,16 +114,16 @@ vi.mock("../i18n/readWebI18n", async (original) => ({
     };
   },
 }));
-function Probe() {
+function Probe({ projectCwd = "/literal/project" }: { projectCwd?: string | null }) {
   const { openMenu } = useThreadActionMenu({
     threadRef: target,
-    projectCwd: "/literal/project",
+    projectCwd,
     onStartRename: fixture.other,
     canShareWithGuest: false,
   });
   return <button onClick={() => openMenu({ x: 10, y: 20 })}>Thread menu</button>;
 }
-function view() {
+function view(projectCwd: string | null = "/literal/project") {
   const locale = fixture.locale;
   return (
     <WebI18nContext.Provider
@@ -135,7 +134,7 @@ function view() {
         t: (key, values) => translateWebMessage(locale, key, values),
       }}
     >
-      <Probe />
+      <Probe projectCwd={projectCwd} />
     </WebI18nContext.Provider>
   );
 }
@@ -389,5 +388,117 @@ it("uses settlement locale for menu project creation success", async () => {
   expect(fixture.show).toHaveBeenCalledTimes(1);
   expect(fixture.toast).toHaveBeenCalledTimes(1);
   expect(fixture.pin).not.toHaveBeenCalled();
+  expect(fixture.other).not.toHaveBeenCalled();
+});
+
+const clipboardShell = makeThreadFixture({
+  id: target.threadId,
+  environmentId: target.environmentId,
+  branch: "Literal/$&/{branch}",
+  worktreePath: "/literal/$&/{path}",
+});
+it.each([
+  { action: "copy-path", key: "sidebar.pathCopied", value: "/literal/$&/{path}" },
+  { action: "copy-branch", key: "sidebar.branchCopied", value: "Literal/$&/{branch}" },
+  { action: "copy-thread-id", key: "sidebar.threadIdCopied", value: "Literal-$&-{thread}" },
+] as const)("uses settlement locale for menu $action success", async ({ action, key, value }) => {
+  vi.clearAllMocks();
+  fixture.locale = "en";
+  fixture.granted = true;
+  using _mode = {
+    [Symbol.dispose]() {
+      fixture.clipboardMode = false;
+    },
+  };
+  fixture.clipboardMode = true;
+  fixture.show.mockReset().mockResolvedValue(action);
+  let finish!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  using write = vi.spyOn(navigator.clipboard, "writeText").mockReturnValue(pending);
+  await using screen = await render(view());
+  await using _settle = {
+    async [Symbol.asyncDispose]() {
+      await act(async () => {
+        finish();
+        await Promise.resolve();
+      });
+    },
+  };
+  await screen.getByRole("button", { name: "Thread menu" }).click();
+  await expect.poll(() => write.mock.calls.length).toBe(1);
+  const items: ReadonlyArray<ContextMenuItem<ThreadActionMenuId>> = fixture.show.mock.calls[0]?.[0];
+  const copy = items.find((item) => item.id === "copy");
+  expect(copy?.children?.some((item) => item.id === action && !item.disabled)).toBe(true);
+  expect(write).toHaveBeenCalledExactlyOnceWith(value);
+  expect(fixture.toast).not.toHaveBeenCalled();
+  fixture.locale = "zh-CN";
+  await screen.rerender(view());
+  await act(async () => {
+    finish();
+  });
+  expect(fixture.toast).toHaveBeenCalledExactlyOnceWith({
+    type: "success",
+    title: translateWebMessage("zh-CN", key),
+    description: value,
+  });
+  fixture.locale = "en";
+  await screen.rerender(view());
+  expect(write).toHaveBeenCalledTimes(1);
+  expect(fixture.toast).toHaveBeenCalledTimes(1);
+  expect(fixture.show).toHaveBeenCalledTimes(1);
+  expect(fixture.pin).not.toHaveBeenCalled();
+  expect(fixture.promote).not.toHaveBeenCalled();
+  expect(fixture.other).not.toHaveBeenCalled();
+});
+
+it("uses current locale for unavailable path after pending menu", async () => {
+  vi.clearAllMocks();
+  fixture.locale = "en";
+  fixture.granted = true;
+  let choose!: (action: ThreadActionMenuId | null) => void;
+  fixture.show.mockReset().mockReturnValue(
+    new Promise<ThreadActionMenuId | null>((resolve) => {
+      choose = resolve;
+    }),
+  );
+  using write = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue(undefined);
+  await using screen = await render(view(null));
+  await using _settle = {
+    async [Symbol.asyncDispose]() {
+      await act(async () => {
+        choose(null);
+        await Promise.resolve();
+      });
+    },
+  };
+  await screen.getByRole("button", { name: "Thread menu" }).click();
+  await expect.poll(() => fixture.show.mock.calls.length).toBe(1);
+  const items: ReadonlyArray<ContextMenuItem<ThreadActionMenuId>> = fixture.show.mock.calls[0]?.[0];
+  expect(
+    items
+      .find((item) => item.id === "copy")
+      ?.children?.some((item) => item.id === "copy-path" && !item.disabled),
+  ).toBe(true);
+  expect(shell.worktreePath).toBeNull();
+  expect(fixture.toast).not.toHaveBeenCalled();
+  fixture.locale = "zh-CN";
+  await screen.rerender(view(null));
+  await act(async () => {
+    choose("copy-path");
+  });
+  expect(fixture.toast).toHaveBeenCalledTimes(1);
+  expect(fixture.toast.mock.calls[0]?.[0]).toMatchObject({
+    title: "路径不可用",
+    description: "此任务没有可复制的工作区路径。",
+  });
+  fixture.locale = "en";
+  await screen.rerender(view(null));
+  expect(fixture.toast).toHaveBeenCalledTimes(1);
+  expect(fixture.show).toHaveBeenCalledTimes(1);
+  expect(write).not.toHaveBeenCalled();
+  expect(fixture.pin).not.toHaveBeenCalled();
+  expect(fixture.promote).not.toHaveBeenCalled();
   expect(fixture.other).not.toHaveBeenCalled();
 });

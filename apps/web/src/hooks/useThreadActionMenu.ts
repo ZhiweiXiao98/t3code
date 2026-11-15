@@ -119,14 +119,22 @@ export function useThreadActionMenu(input: {
   const timestampFormat = useClientSettings((s) => s.timestampFormat);
   const { copyToClipboard: copyPathToClipboard } = useCopyToClipboard<{ path: string }>({
     onCopy: ({ path }) => {
-      toastManager.add({ type: "success", title: t("sidebar.pathCopied"), description: path });
+      toastManager.add({
+        type: "success",
+        title: readWebI18n().t("sidebar.pathCopied"),
+        description: path,
+      });
     },
     onError: (error) => failureToast("Failed to copy path", error),
   });
   const { copyToClipboard: copyBranchToClipboard } = useCopyToClipboard<{ branch: string }>({
     target: "branch name",
     onCopy: ({ branch }) => {
-      toastManager.add({ type: "success", title: t("sidebar.branchCopied"), description: branch });
+      toastManager.add({
+        type: "success",
+        title: readWebI18n().t("sidebar.branchCopied"),
+        description: branch,
+      });
     },
     onError: (error) => failureToast("Failed to copy branch", error),
   });
@@ -134,7 +142,7 @@ export function useThreadActionMenu(input: {
     onCopy: ({ threadId }) => {
       toastManager.add({
         type: "success",
-        title: t("sidebar.threadIdCopied"),
+        title: readWebI18n().t("sidebar.threadIdCopied"),
         description: threadId,
       });
     },
@@ -310,6 +318,7 @@ export function useThreadActionMenu(input: {
         case "copy-path": {
           const workspacePath = thread.worktreePath ?? projectCwd;
           if (!workspacePath) {
+            const { t } = readWebI18n();
             toastManager.add(
               stackedThreadToast({
                 type: "error",
