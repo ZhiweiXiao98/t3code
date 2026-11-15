@@ -593,3 +593,100 @@ it.each(["owned", "raw", "empty"] as const)(
     expect(useComposerDraftStore.getState().getComposerDraft(ref)).toBe(before);
   },
 );
+
+it.each(["owned", "raw", "empty"] as const)(
+  "keeps rewind timeout %s notice current",
+  async (kind) => {
+    setup();
+    const source = "Timed out waiting for the thread to rewind.";
+    const original = useComposerDraftStore.getState();
+    using _restore = { [Symbol.dispose]: () => useComposerDraftStore.setState(original, true) };
+    const before = original.getComposerDraft(ref);
+    fixture.connection.mockReturnValue({ httpBaseUrl: "https://example.invalid" });
+    if (kind === "owned") fixture.prepare.mockResolvedValueOnce([]);
+    else fixture.prepare.mockRejectedValueOnce(new Error(kind === "raw" ? source : ""));
+    fixture.rewind.mockResolvedValue(AsyncResult.success(undefined));
+    const projection = makeThreadProjectionFixture();
+    const atom = Atom.make({
+      data: Option.some({
+        ...projection,
+        thread: { ...projection.thread, id: ref.threadId },
+        runs: [
+          {
+            id: RunId.make("timeout-witness"),
+            threadId: ref.threadId,
+            ordinal: 2,
+            providerInstanceId: projection.thread.providerInstanceId,
+            modelSelection: projection.thread.modelSelection,
+            providerThreadId: null,
+            userMessageId: MessageId.make("witness-message"),
+            rootNodeId: null,
+            activeAttemptId: null,
+            status: "completed" as const,
+            requestedAt: projection.updatedAt,
+            startedAt: projection.updatedAt,
+            completedAt: projection.updatedAt,
+            checkpointId: null,
+            contextHandoffId: null,
+          },
+        ],
+      }),
+    });
+    using _projection = vi
+      .spyOn(environmentThreadDetails, "stateAtom")
+      .mockReturnValue(atom as never);
+    await using screen = await render(surface("en", { attachmentCase: "raw" }));
+    const realTimeout = globalThis.setTimeout.bind(globalThis);
+    let fired = false;
+    let fire: (() => void) | undefined;
+    let timeoutId: ReturnType<typeof globalThis.setTimeout> | undefined;
+    using _timeout = vi
+      .spyOn(globalThis, "setTimeout")
+      .mockImplementation((callback, delay, ...args) => {
+        const id = realTimeout(callback, delay, ...args);
+        if (delay === 120_000 && typeof callback === "function") {
+          timeoutId = id;
+          fire = () => {
+            fired = true;
+            callback(...args);
+          };
+        }
+        return id;
+      });
+    using clear = vi.spyOn(globalThis, "clearTimeout");
+    using _timerCleanup = {
+      [Symbol.dispose]: () => {
+        if (!fired) fire?.();
+        if (timeoutId !== undefined) globalThis.clearTimeout(timeoutId);
+      },
+    };
+    await screen.getByRole("button", { name: "Confirm revert", exact: true }).click();
+    await expect.poll(() => fixture.prepare.mock.calls.length).toBe(1);
+    if (kind === "owned") {
+      await expect.poll(() => fixture.rewind.mock.calls.length).toBe(1);
+      expect(useComposerDraftStore.getState().rewindingThreadKeys.has("fork")).toBe(true);
+      expect(fire).toBeTypeOf("function");
+      await screen.rerender(surface("zh-CN", { attachmentCase: "raw" }));
+      fire!();
+    }
+    await expect
+      .poll(() => useComposerDraftStore.getState().rewindingThreadKeys.has("fork"))
+      .toBe(false);
+    for (const locale of ["zh-CN", "en", "zh-CN", "en"] as const) {
+      await screen.rerender(surface(locale, { attachmentCase: "raw" }));
+      if (kind === "empty")
+        expect(screen.container.querySelector('[data-variant="error"]')).toBeNull();
+      else
+        await expect
+          .poll(() => screen.container.textContent)
+          .toContain(kind === "owned" && locale === "zh-CN" ? "等待会话回退超时。" : source);
+    }
+    if (kind === "owned") expect(clear).toHaveBeenCalledWith(timeoutId);
+    expect(fixture.rewind).toHaveBeenCalledTimes(kind === "owned" ? 1 : 0);
+    expect(fixture.connection).toHaveBeenCalledExactlyOnceWith(ref.environmentId);
+    expect(fixture.prepare).toHaveBeenCalledTimes(1);
+    expect(fixture.query).not.toHaveBeenCalled();
+    expect(fixture.fork).not.toHaveBeenCalled();
+    expect(useComposerDraftStore.getState().getComposerDraft(ref)).toBe(before);
+  },
+);

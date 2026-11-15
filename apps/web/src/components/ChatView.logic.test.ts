@@ -841,14 +841,25 @@ describe("waitForRevertedMessage", () => {
     const revert = vi.fn(async () => {});
     const waiting = waitForRevertedMessage(threadRef, 1, requestId, revert, 50, () => locale).then(
       () => "unexpected success",
-      (error: Error) => error.message,
+      (error: unknown) => error,
     );
     try {
       await vi.advanceTimersByTimeAsync(0);
       expect(revert).toHaveBeenCalledOnce();
       locale = "zh-CN";
       await vi.advanceTimersByTimeAsync(50);
-      expect(await waiting).toBe("等待会话回退超时。");
+      const failure = await waiting;
+      expect(failure).toBeInstanceOf(Error);
+      if (!(failure instanceof Error)) throw new Error("Expected timeout error");
+      expect(failure.message).toBe("等待会话回退超时。");
+      const { readOwnedRewindFailure } = await import("./ChatView.logic");
+      expect(readOwnedRewindFailure(failure)).toEqual({
+        error: "Timed out waiting for the thread to rewind.",
+        ownedCode: "rewindTimeout",
+      });
+      expect(readOwnedRewindFailure(new Error(failure.message))).toBeUndefined();
+      failure.message = "mutated";
+      expect(readOwnedRewindFailure(failure)).toBeUndefined();
     } finally {
       vi.clearAllTimers();
       vi.useRealTimers();
@@ -873,7 +884,12 @@ describe("waitForRevertedMessage", () => {
         thread: { ...projection.thread, rollbackFailure: { requestId, message } },
       }),
     });
-    await expect(waiting).rejects.toThrow(message);
+    const failure = await waiting.catch((error: unknown) => error);
+    expect(failure).toBeInstanceOf(Error);
+    if (!(failure instanceof Error)) throw new Error("Expected provider failure");
+    expect(failure.message).toBe(message);
+    const { readOwnedRewindFailure } = await import("./ChatView.logic");
+    expect(readOwnedRewindFailure(failure)).toBeUndefined();
   });
 
   it("rejects with the projected reason when the rollback fails for good", async () => {
@@ -1363,6 +1379,7 @@ it.each(["server", "draft"] as const)(
 );
 
 it.each([
+  ["rewindTimeout", "Timed out waiting for the thread to rewind.", "等待会话回退超时。"],
   [
     "rewindChanged",
     "The thread has changed. Select a message to rewind again.",

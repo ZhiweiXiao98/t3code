@@ -913,16 +913,16 @@ export function getStartedThreadModelChangeBlockReason(input: {
   };
 }
 
-const ownedRewindFailures = new WeakMap<Error, string>();
+const ownedRewindFailures = new WeakMap<
+  Error,
+  { readonly message: string; readonly code: "rewindChanged" | "rewindTimeout" }
+>();
 
 export function readOwnedRewindFailure(error: unknown) {
   if (!(error instanceof Error)) return undefined;
-  const originalMessage = ownedRewindFailures.get(error);
-  if (originalMessage === undefined || error.message !== originalMessage) return undefined;
-  return {
-    error: "The thread has changed. Select a message to rewind again.",
-    ownedCode: "rewindChanged" as const,
-  };
+  const owned = ownedRewindFailures.get(error);
+  if (owned === undefined || error.message !== owned.message) return undefined;
+  return { error: OWNED_THREAD_ERRORS[owned.code], ownedCode: owned.code };
 }
 
 export async function waitForRevertedMessage(
@@ -960,7 +960,7 @@ export async function waitForRevertedMessage(
         "The thread has changed. Select a message to rewind again.",
       ),
     );
-    ownedRewindFailures.set(error, error.message);
+    ownedRewindFailures.set(error, { message: error.message, code: "rewindChanged" });
     throw error;
   }
   return new Promise<void>((resolve, reject) => {
@@ -1003,11 +1003,11 @@ export async function waitForRevertedMessage(
     };
     unsubscribe = appAtomRegistry.subscribe(threadAtom, inspect);
     timeout = globalThis.setTimeout(() => {
-      finish(
-        new Error(
-          translateWebSource(readLocale?.() ?? "en", "Timed out waiting for the thread to rewind."),
-        ),
+      const error = new Error(
+        translateWebSource(readLocale?.() ?? "en", "Timed out waiting for the thread to rewind."),
       );
+      ownedRewindFailures.set(error, { message: error.message, code: "rewindTimeout" });
+      finish(error);
     }, timeoutMs);
     Promise.resolve()
       .then(revert)
@@ -1217,6 +1217,7 @@ export function isCompactCommandMessage(message: ChatMessage): boolean {
 // can race around promotion, so each write carries its time to let the latest
 // one win when they collide.
 const OWNED_THREAD_ERRORS = {
+  rewindTimeout: "Timed out waiting for the thread to rewind.",
   rewindChanged: "The thread has changed. Select a message to rewind again.",
   rewindCapacity: "Make room for this message's attachments in the composer before rewinding.",
   rewindFailed: "Failed to revert thread state.",
