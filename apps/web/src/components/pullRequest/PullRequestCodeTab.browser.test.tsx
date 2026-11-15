@@ -1,3 +1,6 @@
+import { WebI18nContext } from "~/i18n/WebI18nContext";
+import { translateWebMessage } from "~/i18n/messages";
+import { pullRequestEnvironment } from "~/state/pullRequests";
 import { sha256 } from "@noble/hashes/sha2";
 import { bytesToHex } from "@noble/hashes/utils";
 import {
@@ -6,11 +9,13 @@ import {
   SourceControlProviderKind,
   type PullRequestDetailView,
   type PullRequestDiffResult,
+  type PullRequestRef,
+  type PullRequestReviewThread,
 } from "@t3tools/contracts";
 import { expect, it, vi } from "vite-plus/test";
 
 import "~/index.css";
-import { __setClientSettingsForTests } from "../../hooks/useSettings";
+import { getClientSettings, __setClientSettingsForTests } from "../../hooks/useSettings";
 import { DEFAULT_CLIENT_SETTINGS } from "@t3tools/contracts/settings";
 
 const { diffAtom, pagedDiffAtom } = await vi.hoisted(async () => {
@@ -57,6 +62,10 @@ const { diffAtom, pagedDiffAtom } = await vi.hoisted(async () => {
 });
 
 const mocks = vi.hoisted(() => ({
+  loadComments: vi.fn(),
+  otherCommand: vi.fn(),
+  toast: vi.fn(),
+  locale: "en" as "en" | "zh-CN",
   paged: false,
   diffCommits: [] as Array<string | undefined>,
   viewedPaths: null as ReadonlySet<string> | null,
@@ -70,7 +79,10 @@ function deliverViewedPaths(paths: ReadonlySet<string> | null) {
 
 vi.mock(import("~/state/use-atom-command"), async (original) => ({
   ...(await original()),
-  useAtomCommand: (() => vi.fn()) as never,
+  useAtomCommand: ((command: unknown) =>
+    command === pullRequestEnvironment.threadComments
+      ? mocks.loadComments
+      : mocks.otherCommand) as never,
 }));
 vi.mock(import("./usePullRequestFilesViewed"), async () => {
   const { useSyncExternalStore } = await import("react");
@@ -107,7 +119,7 @@ vi.mock(import("~/state/pullRequests"), async (original) => {
   };
 });
 
-import { render } from "../../../test/render";
+import { act, render } from "../../../test/render";
 import PullRequestCodeTab from "./PullRequestCodeTab";
 
 const detail: PullRequestDetailView = {
@@ -354,4 +366,171 @@ it("answers a commit's diff link only once that commit's diff is shown", async (
   expect(settled).not.toHaveBeenCalled();
   await screen.rerender(scoped(oid, url));
   await vi.waitFor(() => expect(settled).toHaveBeenCalledWith(url));
+});
+
+vi.mock("../ui/toast", async (original) => ({
+  ...(await original<typeof import("../ui/toast")>()),
+  toastManager: { add: mocks.toast },
+}));
+vi.mock("~/i18n/readWebI18n", () => ({
+  readWebI18n: () => {
+    const locale = mocks.locale;
+    return {
+      locale,
+      t: (
+        key: Parameters<typeof translateWebMessage>[1],
+        values?: Parameters<typeof translateWebMessage>[2],
+      ) => translateWebMessage(locale, key, values),
+    };
+  },
+}));
+const commentsReference: PullRequestRef = {
+  projectId: detail.projectId,
+  repository: detail.repository,
+  number: detail.number,
+};
+const orphan: PullRequestReviewThread = {
+  id: "literal-thread",
+  path: "absent-file.ts",
+  line: null,
+  side: "right",
+  isResolved: false,
+  isOutdated: false,
+  commentCount: 2,
+  nextCommentsCursor: "literal-$&-{cursor}",
+  comments: [
+    {
+      id: "existing-comment",
+      author: detail.author,
+      body: "Literal $& {existing} comment",
+      createdAt: detail.createdAt,
+      url: null,
+    },
+  ],
+};
+function commentsSurface(locale: "en" | "zh-CN", refresh: () => void, hasCursor = true) {
+  mocks.locale = locale;
+  const { nextCommentsCursor: _cursor, ...withoutCursor } = orphan;
+  return (
+    <WebI18nContext
+      value={{
+        locale,
+        appLocale: locale,
+        setAppLocale: () => {},
+        t: (key, values) => translateWebMessage(locale, key, values),
+      }}
+    >
+      <PullRequestCodeTab
+        scrollerRef={() => {}}
+        environmentId={EnvironmentId.make("environment")}
+        reference={commentsReference}
+        detail={{ ...detail, reviewThreads: [hasCursor ? orphan : withoutCursor] }}
+        selectedCommitOid={null}
+        onSelectedCommitChange={() => {}}
+        onRefresh={refresh}
+        refreshToken={0}
+      />
+    </WebI18nContext>
+  );
+}
+it.each([
+  ["owned", null],
+  ["raw", new Error("More comments could not be loaded")],
+  ["empty", new Error("")],
+  ["interrupted", undefined],
+] as const)(
+  "uses settlement locale for review-thread comment loading failure: %s",
+  async (kind, failure) => {
+    const settings = getClientSettings();
+    using _settings = {
+      [Symbol.dispose]() {
+        __setClientSettingsForTests(settings);
+      },
+    };
+    setup({ paged: false });
+    mocks.loadComments.mockReset();
+    mocks.otherCommand.mockClear();
+    mocks.toast.mockClear();
+    const { AsyncResult } = await import("effect/reactivity");
+    const Cause = await import("effect/Cause");
+    type Result = import("@t3tools/client-runtime/state/runtime").AtomCommandResult<
+      import("@t3tools/contracts").PullRequestThreadCommentsResult,
+      unknown
+    >;
+    let finish = (_result: Result) => {};
+    mocks.loadComments.mockReturnValueOnce(
+      new Promise<Result>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const refresh = vi.fn();
+    await using screen = await render(commentsSurface("en", refresh), {
+      container: pagedContainer(),
+    });
+    await using _settle = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          finish(AsyncResult.failure(Cause.interrupt()));
+          await Promise.resolve();
+        });
+      },
+    };
+    await screen.getByRole("button", { name: /^Conversations not on the current diff/ }).click();
+    await expect.element(screen.getByText(orphan.comments[0]!.body, { exact: true })).toBeVisible();
+    await screen.getByRole("button", { name: "Load more comments", exact: true }).click();
+    expect(mocks.loadComments).toHaveBeenCalledExactlyOnceWith({
+      environmentId: EnvironmentId.make("environment"),
+      input: { ...commentsReference, threadId: orphan.id, cursor: orphan.nextCommentsCursor },
+    });
+    const loading = screen.getByRole("button", { name: "Loading…", exact: true });
+    await expect.element(loading).toBeDisabled();
+    await act(async () => {
+      loading.element().dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+    });
+    expect(mocks.loadComments).toHaveBeenCalledTimes(1);
+    await screen.rerender(commentsSurface("zh-CN", refresh));
+    expect(mocks.toast).not.toHaveBeenCalled();
+    await act(async () => {
+      finish(AsyncResult.failure(kind === "interrupted" ? Cause.interrupt() : Cause.fail(failure)));
+      await Promise.resolve();
+    });
+    expect(mocks.toast).toHaveBeenCalledExactlyOnceWith({
+      type: "error",
+      title: "无法加载更多评论",
+    });
+    await expect
+      .element(screen.getByRole("button", { name: "加载更多评论", exact: true }))
+      .toBeEnabled();
+    await expect.element(screen.getByText(orphan.comments[0]!.body, { exact: true })).toBeVisible();
+    expect(refresh).not.toHaveBeenCalled();
+    expect(mocks.otherCommand).not.toHaveBeenCalled();
+    await screen.rerender(commentsSurface("en", refresh));
+    expect(mocks.toast).toHaveBeenCalledTimes(1);
+    expect(mocks.loadComments).toHaveBeenCalledTimes(1);
+  },
+);
+it("omits comment pagination without a review-thread cursor", async () => {
+  const settings = getClientSettings();
+  using _settings = {
+    [Symbol.dispose]() {
+      __setClientSettingsForTests(settings);
+    },
+  };
+  setup({ paged: false });
+  mocks.loadComments.mockReset();
+  mocks.otherCommand.mockClear();
+  mocks.toast.mockClear();
+  const refresh = vi.fn();
+  await using screen = await render(commentsSurface("en", refresh, false), {
+    container: pagedContainer(),
+  });
+  await screen.getByRole("button", { name: /^Conversations not on the current diff/ }).click();
+  await expect.element(screen.getByText(orphan.comments[0]!.body, { exact: true })).toBeVisible();
+  await expect
+    .element(screen.getByRole("button", { name: "Load more comments", exact: true }))
+    .not.toBeInTheDocument();
+  expect(mocks.loadComments).not.toHaveBeenCalled();
+  expect(mocks.otherCommand).not.toHaveBeenCalled();
+  expect(mocks.toast).not.toHaveBeenCalled();
+  expect(refresh).not.toHaveBeenCalled();
 });
