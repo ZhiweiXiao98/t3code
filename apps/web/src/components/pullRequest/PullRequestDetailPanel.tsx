@@ -1094,6 +1094,7 @@ export function PullRequestDetailPanel({
       () => false,
     );
     if (!pointed) {
+      const { t } = readWebI18n();
       setHandoff(null);
       // Sending after failed rebinding would use the previous checkout.
       toastManager.update(toastId, {

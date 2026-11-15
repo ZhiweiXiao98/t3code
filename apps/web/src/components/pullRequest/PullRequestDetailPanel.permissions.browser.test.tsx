@@ -12,6 +12,7 @@ import {
   ProjectId,
   SourceControlProviderKind,
   type PullRequestDetailView,
+  type GitPreparePullRequestThreadResult,
 } from "@t3tools/contracts";
 import { expect, it, vi } from "vite-plus/test";
 import { DraftId, useComposerDraftStore } from "~/composerDraftStore";
@@ -1105,6 +1106,128 @@ it.each([
       .element(screen.getByRole("button", { name: "Resolve conflicts", exact: true }))
       .toBeEnabled();
     expect(mocks.newThread).toHaveBeenCalledTimes(1);
+    expect(mocks.prepare).toHaveBeenCalledTimes(1);
+    expect(mocks.command).not.toHaveBeenCalled();
+    expect(mocks.runAction).not.toHaveBeenCalled();
+    expect(mocks.acted).not.toHaveBeenCalled();
+    expect(mocks.refresh).not.toHaveBeenCalled();
+    expect(useComposerDraftStore.getState()).toBe(before);
+    expect(mocks.toast).toHaveBeenCalledTimes(1);
+    expect(mocks.updateToast).toHaveBeenCalledTimes(1);
+  },
+);
+
+it.each([
+  ["worktree null", false, null],
+  ["local null", true, null],
+  ["raw rejection", false, new Error("Literal $& {retarget failure}")],
+  ["empty rejection", false, new Error("")],
+  ["unknown rejection", false, undefined],
+] as const)(
+  "uses settlement locale for panel checkout retarget failure: %s",
+  async (kind, local, cause) => {
+    const { AsyncResult } = await import("effect/reactivity");
+    const state = useComposerDraftStore.getState();
+    using _restore = {
+      [Symbol.dispose]() {
+        useComposerDraftStore.setState(state, true);
+        mocks.locale = "en";
+        mocks.newThread.mockReset();
+        mocks.prepare.mockReset();
+        mocks.toast.mockReset();
+      },
+    };
+    setup();
+    const opened = {
+      draftId: DraftId.make("panel-pointed-draft"),
+      threadId: ThreadId.make("panel-pointed-thread"),
+    };
+    const prepared: GitPreparePullRequestThreadResult = {
+      pullRequest: {
+        number: 1,
+        title: "Literal PR",
+        url: detail.url,
+        baseBranch: "main",
+        headBranch: "feature",
+        state: "open",
+      },
+      branch: "feature/$&/{literal}",
+      worktreePath: local ? null : "/literal/$&/{worktree}",
+      isOnPullRequestHead: true,
+    };
+    let finish = (_value: null) => {};
+    let reject = (_cause: unknown) => {};
+    const pending = new Promise<null>((resolve, rejectPromise) => {
+      finish = resolve;
+      reject = rejectPromise;
+    });
+    void pending.catch(() => {});
+    mocks.newThread.mockReset().mockResolvedValueOnce(opened).mockReturnValueOnce(pending);
+    mocks.prepare.mockReset().mockResolvedValueOnce(AsyncResult.success(prepared));
+    mocks.command.mockClear();
+    mocks.runAction.mockClear();
+    mocks.acted.mockClear();
+    mocks.refresh.mockClear();
+    mocks.toast.mockReset().mockReturnValue("panel-pointed-toast");
+    mocks.updateToast.mockClear();
+    await using screen = await render(copySurface("en"));
+    await using _settle = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          finish(null);
+          await Promise.resolve();
+        });
+      },
+    };
+    const before = useComposerDraftStore.getState();
+    await screen.getByRole("button", { name: "Resolve conflicts", exact: true }).click();
+    await expect.poll(() => mocks.newThread.mock.calls.length).toBe(2);
+    expect(mocks.newThread).toHaveBeenNthCalledWith(1, {
+      environmentId,
+      projectId: detail.projectId,
+    });
+    expect(mocks.newThread).toHaveBeenNthCalledWith(
+      2,
+      { environmentId, projectId: detail.projectId },
+      {
+        branch: prepared.branch,
+        worktreePath: prepared.worktreePath,
+        envMode: local ? "local" : "worktree",
+      },
+    );
+    expect(mocks.prepare).toHaveBeenCalledExactlyOnceWith({
+      reference: detail.url,
+      mode: "worktree",
+      threadId: opened.threadId,
+    });
+    expect(mocks.toast).toHaveBeenCalledExactlyOnceWith({
+      type: "loading",
+      title: "Preparing the pull request checkout...",
+    });
+    const preparing = screen.getByRole("button", { name: "Preparing...", exact: true });
+    await expect.element(preparing).toBeDisabled();
+    await act(async () => {
+      preparing.element().dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+    });
+    expect(mocks.newThread).toHaveBeenCalledTimes(2);
+    expect(mocks.updateToast).not.toHaveBeenCalled();
+    await screen.rerender(copySurface("zh-CN"));
+    await act(async () => {
+      if (kind.endsWith("null")) finish(null);
+      else reject(cause);
+      await Promise.resolve();
+    });
+    expect(mocks.updateToast).toHaveBeenCalledExactlyOnceWith("panel-pointed-toast", {
+      type: "error",
+      title: "检出完成，但任务未切换过去",
+      description:
+        "检出目录已在 `feature/$&/{literal}` 上准备好。请从分支选择器将任务切换过去，然后重试。",
+    });
+    await screen.rerender(copySurface("en"));
+    await expect
+      .element(screen.getByRole("button", { name: "Resolve conflicts", exact: true }))
+      .toBeEnabled();
+    expect(mocks.newThread).toHaveBeenCalledTimes(2);
     expect(mocks.prepare).toHaveBeenCalledTimes(1);
     expect(mocks.command).not.toHaveBeenCalled();
     expect(mocks.runAction).not.toHaveBeenCalled();
