@@ -1,3 +1,4 @@
+import type { AtomCommandResult } from "@t3tools/client-runtime/state/runtime";
 import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 import { WebI18nContext } from "../../i18n/WebI18nContext";
 import { translateWebMessage } from "../../i18n/messages";
@@ -27,7 +28,10 @@ const state = vi.hoisted(() => ({
   navigate: vi.fn(async (): Promise<void> => undefined),
   openScratchProject: vi.fn(async () => null),
   confirm: vi.fn(async (_message: string) => true),
-  connectPairing: vi.fn(async (_input: { pairingUrl: string }) => ({ _tag: "Success" })),
+  connectPairing: vi.fn(
+    async (_input: { pairingUrl: string }): Promise<AtomCommandResult<void, unknown>> =>
+      (await import("effect/reactivity")).AsyncResult.success(undefined),
+  ),
   localEnvironmentDisabled: false,
   locale: "en" as ResolvedAppLocale,
 }));
@@ -193,6 +197,7 @@ function setup() {
   state.openUrl.mockReset();
   state.defaults.mockReset();
   state.confirm.mockResolvedValue(true);
+  state.connectPairing.mockReset().mockResolvedValue(AsyncResult.success(undefined));
   state.locale = "en";
   state.localEnvironmentDisabled = false;
   state.projects = [];
@@ -600,3 +605,106 @@ it.each(["owned", "raw"] as const)(
       expect(mock).not.toHaveBeenCalled();
   },
 );
+
+it.each(["owned", "raw", "empty", "interrupted"] as const)(
+  "uses settlement locale for pairing %s failure",
+  async (kind) => {
+    const initialPanel = useRightPanelStore.getState();
+    const initialDiff = useDiffPanelStore.getState();
+    using _stores = {
+      [Symbol.dispose]: () => {
+        useRightPanelStore.setState(initialPanel, true);
+        useDiffPanelStore.setState(initialDiff, true);
+      },
+    };
+    setup();
+    let finish!: (result: AtomCommandResult<void, unknown>) => void;
+    const pending = new Promise<AtomCommandResult<void, unknown>>((resolve) => {
+      finish = resolve;
+    });
+    state.connectPairing.mockReturnValue(pending);
+    await using coordinator = await mount(pairLink);
+    await using _settle = {
+      [Symbol.asyncDispose]: async () => {
+        await act(async () => {
+          finish(AsyncResult.failure(Cause.interrupt()));
+          await Promise.resolve();
+        });
+      },
+    };
+    await vi.waitFor(() =>
+      expect(state.connectPairing).toHaveBeenCalledExactlyOnceWith({ pairingUrl }),
+    );
+    expect(state.confirm).toHaveBeenCalledExactlyOnceWith(
+      "Add the backend at https://vps.example.com?",
+    );
+    expect(state.confirm.mock.invocationCallOrder[0]).toBeLessThan(
+      state.connectPairing.mock.invocationCallOrder[0]!,
+    );
+    expect(state.toast).not.toHaveBeenCalled();
+    await coordinator.rerenderLocale("zh-CN");
+    await act(async () =>
+      finish(
+        AsyncResult.failure(
+          kind === "interrupted"
+            ? Cause.interrupt()
+            : Cause.fail(
+                kind === "owned"
+                  ? null
+                  : new Error(kind === "empty" ? "" : "Failed to add backend."),
+              ),
+        ),
+      ),
+    );
+    if (kind !== "interrupted") {
+      await vi.waitFor(() => expect(state.toast).toHaveBeenCalledTimes(1));
+      expect(state.toast.mock.calls[0]?.[0]).toMatchObject({
+        type: "error",
+        title: "无法添加后端",
+        description:
+          kind === "owned" ? "添加后端失败。" : kind === "empty" ? "" : "Failed to add backend.",
+      });
+    } else expect(state.toast).not.toHaveBeenCalled();
+    await coordinator.rerenderLocale("en");
+    expect(state.connectPairing).toHaveBeenCalledTimes(1);
+    expect(state.confirm).toHaveBeenCalledTimes(1);
+    expect(coordinator.subscriptions()).toBe(1);
+    expect(coordinator.readyCalls()).toBe(1);
+    expect(coordinator.unsubscriptions()).toBe(0);
+    expect(state.toast).toHaveBeenCalledTimes(kind === "interrupted" ? 0 : 1);
+    for (const mock of [
+      state.openUrl,
+      state.openPreview,
+      state.preview,
+      state.openScratchProject,
+      state.navigate,
+      state.openLink,
+    ])
+      expect(mock).not.toHaveBeenCalled();
+  },
+);
+
+it("does not pair or report a failure after cancelling the only delivered link", async () => {
+  const initialPanel = useRightPanelStore.getState();
+  const initialDiff = useDiffPanelStore.getState();
+  using _stores = {
+    [Symbol.dispose]: () => {
+      useRightPanelStore.setState(initialPanel, true);
+      useDiffPanelStore.setState(initialDiff, true);
+    },
+  };
+  setup();
+  state.confirm.mockResolvedValue(false);
+  await using coordinator = await mount(pairLink);
+  await vi.waitFor(() =>
+    expect(state.confirm).toHaveBeenCalledExactlyOnceWith(
+      "Add the backend at https://vps.example.com?",
+    ),
+  );
+  await act(async () => {
+    await Promise.resolve();
+  });
+  await coordinator.rerenderLocale("zh-CN");
+  expect(state.connectPairing).not.toHaveBeenCalled();
+  expect(state.toast).not.toHaveBeenCalled();
+});

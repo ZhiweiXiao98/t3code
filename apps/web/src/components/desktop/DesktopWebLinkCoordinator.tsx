@@ -122,14 +122,19 @@ export function DesktopWebLinkCoordinator() {
       }),
     );
 
-  const reportPairingFailure = (error: unknown) =>
+  const reportPairingFailure = (error: unknown) => {
+    const failureLocale = readWebI18n().locale;
     toastManager.add(
       stackedThreadToast({
         type: "error",
-        title: tx("Could not add backend"),
-        description: error instanceof Error ? error.message : tx("Failed to add backend."),
+        title: translateConnectAgentSource(failureLocale, "Could not add backend"),
+        description:
+          error instanceof Error
+            ? error.message
+            : translateConnectAgentSource(failureLocale, "Failed to add backend."),
       }),
     );
+  };
 
   // Any page can open a pairing link, so the user confirms the host before its one-time token is spent.
   const pairFromLink = async (pairingUrl: string) => {
