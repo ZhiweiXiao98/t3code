@@ -37,6 +37,7 @@ const { permissions, mocks } = vi.hoisted(() => ({
     acted: vi.fn(),
     refresh: vi.fn(),
     stackRefresh: vi.fn(),
+    detailRefresh: vi.fn(),
     command: vi.fn(),
     newThread: vi.fn(),
     writeHandoff: vi.fn(),
@@ -104,7 +105,10 @@ vi.mock(import("./usePullRequestDetail"), async (original) => ({
   ...(await original()),
   usePullRequestDetail: (() => ({
     canWriteSourceControl: permissions.checkout,
-    detailQuery: { isPending: false, refresh: mocks.refresh },
+    detailQuery: {
+      isPending: false,
+      refresh: mocks.deleteAction ? mocks.detailRefresh : mocks.refresh,
+    },
     activityQuery: { isPending: false, refresh: mocks.refresh, error: null },
     activity: null,
     sharedSummary: selectedDetail(),
@@ -1663,6 +1667,7 @@ it.each(["success", "cancel", "disconnected"] as const)(
     mocks.toast.mockClear();
     mocks.acted.mockClear();
     mocks.refresh.mockClear();
+    mocks.detailRefresh.mockClear();
     mocks.stackRefresh.mockClear();
     let finish = (_result: Result) => {};
     mocks.runAction.mockReset().mockReturnValueOnce(
