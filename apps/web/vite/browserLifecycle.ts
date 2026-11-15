@@ -71,6 +71,53 @@ function numeric(value: unknown): number | null {
   return typeof value === "number" && Number.isSafeInteger(value) ? value : null;
 }
 
+function socketErrorCategory(message: unknown): string {
+  if (typeof message !== "string" || message.length > 256) return "unknown";
+  if (message === "") return "empty";
+  let code = message;
+  for (const prefix of [
+    "Error in connection establishment: ",
+    "Error during WebSocket handshake: ",
+  ]) {
+    if (message.startsWith(prefix)) {
+      code = message.slice(prefix.length);
+      break;
+    }
+  }
+  switch (code) {
+    case "WebSocket opening handshake was canceled":
+      return "handshake-canceled";
+    case "WebSocket opening handshake timed out":
+      return "handshake-timeout";
+    case "Connection closed before receiving a handshake response":
+      return "connection-closed-before-handshake";
+    case "net::ERR_CONNECTION_RESET":
+      return "connection-reset";
+    case "net::ERR_CONNECTION_CLOSED":
+      return "connection-closed";
+    case "net::ERR_CONNECTION_ABORTED":
+      return "connection-aborted";
+    case "net::ERR_ABORTED":
+      return "request-aborted";
+    case "net::ERR_CONNECTION_REFUSED":
+      return "connection-refused";
+    case "net::ERR_NETWORK_CHANGED":
+      return "network-changed";
+    case "net::ERR_INTERNET_DISCONNECTED":
+      return "network-disconnected";
+    case "net::ERR_INSUFFICIENT_RESOURCES":
+      return "insufficient-resources";
+    case "net::ERR_TIMED_OUT":
+    case "net::ERR_CONNECTION_TIMED_OUT":
+      return "timeout";
+    case "net::ERR_WS_PROTOCOL_ERROR":
+    case "Invalid frame header":
+      return "protocol-error";
+    default:
+      return "unknown";
+  }
+}
+
 // Preserve the stock factory, prewarm, options, server, launch flags and return values.
 export function observeBrowserLifecycle(provider: ReturnType<typeof playwright>) {
   const directory = process.env.T3CODE_BROWSER_LIFECYCLE_DIR;
@@ -180,12 +227,15 @@ export function observeBrowserLifecycle(provider: ReturnType<typeof playwright>)
         const { targetInfo } = await cdp.send("Target.getTargetInfo");
         if (!active) return;
         emit("page-target", { page: id, target: targetId(targetInfo.targetId) });
-        const sockets = new Map<string, { id: number; category: string; code: number | null }>();
+        const sockets = new Map<
+          string,
+          { id: number; category: string; code: number | null; handshake: number | null }
+        >();
         let nextSocket = 0;
         const socket = (request: string) => {
           let value = sockets.get(request);
           if (!value && sockets.size < 2048) {
-            value = { id: ++nextSocket, category: "unknown", code: null };
+            value = { id: ++nextSocket, category: "unknown", code: null, handshake: null };
             sockets.set(request, value);
           }
           return value;
@@ -193,6 +243,12 @@ export function observeBrowserLifecycle(provider: ReturnType<typeof playwright>)
         cdp.on("Network.webSocketCreated", ({ requestId, url }) => {
           const value = socket(requestId);
           if (value) value.category = socketCategory(url);
+        });
+        cdp.on("Network.webSocketHandshakeResponseReceived", ({ requestId, response }) => {
+          const value = socket(requestId);
+          const status = numeric(response.status);
+          if (value)
+            value.handshake = status !== null && status >= 100 && status <= 599 ? status : null;
         });
         const closeFrame =
           (direction: "sent" | "received") =>
@@ -222,9 +278,17 @@ export function observeBrowserLifecycle(provider: ReturnType<typeof playwright>)
           };
         cdp.on("Network.webSocketFrameReceived", closeFrame("received"));
         cdp.on("Network.webSocketFrameSent", closeFrame("sent"));
-        cdp.on("Network.webSocketFrameError", ({ requestId }) => {
+        cdp.on("Network.webSocketFrameError", ({ requestId, errorMessage }) => {
           const value = socket(requestId);
-          if (value) emit("socket-error", { page: id, socket: value.id, teardown });
+          if (value)
+            emit("socket-error", {
+              page: id,
+              socket: value.id,
+              socket_kind: value.category,
+              category: socketErrorCategory(errorMessage),
+              handshake_status: value.handshake,
+              teardown,
+            });
         });
         cdp.on("Network.webSocketClosed", ({ requestId }) => {
           const value = socket(requestId);
@@ -235,6 +299,7 @@ export function observeBrowserLifecycle(provider: ReturnType<typeof playwright>)
               socket_kind: value.category,
               code: value.code,
               category: closeCategory(value.code),
+              handshake_status: value.handshake,
               teardown,
             });
           sockets.delete(requestId);
