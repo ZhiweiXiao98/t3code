@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import {
   localizedReactionName,
   localizedReactionTooltip,
@@ -80,6 +81,7 @@ export function PullRequestReactionBar({
         next.delete(content);
         return { signature: current.signature, values: next };
       });
+      const { t } = readWebI18n();
       toastManager.add({ type: "error", title: t("pullRequests.reactions.saveFailed") });
       return;
     }
