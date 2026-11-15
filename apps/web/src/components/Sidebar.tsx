@@ -2469,6 +2469,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
 
           if (failures.length > 0) {
             const firstError = failures[0];
+            const { locale, t } = readWebI18n();
             toastManager.add(
               stackedThreadToast({
                 type: "error",
@@ -2481,7 +2482,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                         { count: failures.length },
                       )
                     : t("sidebar.snoozeManyFailed"),
-                description: formatThreadActionError(firstError, releaseLocale, t("common.error")),
+                description: formatThreadActionError(firstError, locale, t("common.error")),
               }),
             );
           }
