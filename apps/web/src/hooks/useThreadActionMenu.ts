@@ -82,7 +82,7 @@ export function useThreadActionMenu(input: {
   readonly onFind?: ((threadRef: ScopedThreadRef) => void) | undefined;
   readonly canShareWithGuest: boolean;
 }) {
-  const { locale, t } = useI18n();
+  const { t } = useI18n();
   const failureToast = (title: string, error: unknown) => {
     const { locale, t } = readWebI18n();
     showFailureToast(translateWebSource(locale, title), error, t("common.error"), locale);
@@ -339,7 +339,7 @@ export function useThreadActionMenu(input: {
         case "copy-thread":
           void copyThreadReference(
             threadChipCopyTarget(threadRef, thread.title, configuredHostedAppUrl()),
-            locale,
+            () => readWebI18n().locale,
           );
           return;
         case "copy-thread-id":

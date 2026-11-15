@@ -1,3 +1,9 @@
+import { threadChipCopyTarget } from "@t3tools/client-runtime/thread-reference";
+import {
+  COMPOSER_CONTEXT_CLIPBOARD_MIME,
+  encodeComposerContextFragment,
+} from "@t3tools/shared/composerContextClipboard";
+import { configuredHostedAppUrl } from "../hostedPairing";
 import {
   AuthOrchestrationOperateScope,
   EnvironmentId,
@@ -498,6 +504,70 @@ it("uses current locale for unavailable path after pending menu", async () => {
   expect(fixture.toast).toHaveBeenCalledTimes(1);
   expect(fixture.show).toHaveBeenCalledTimes(1);
   expect(write).not.toHaveBeenCalled();
+  expect(fixture.pin).not.toHaveBeenCalled();
+  expect(fixture.promote).not.toHaveBeenCalled();
+  expect(fixture.other).not.toHaveBeenCalled();
+});
+
+it("uses settlement locale for rich thread reference clipboard success", async () => {
+  vi.clearAllMocks();
+  fixture.locale = "en";
+  fixture.granted = true;
+  using _mode = {
+    [Symbol.dispose]() {
+      fixture.clipboardMode = false;
+    },
+  };
+  fixture.clipboardMode = true;
+  fixture.show.mockReset().mockResolvedValue("copy-thread");
+  let finish!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  using write = vi.spyOn(navigator.clipboard, "write").mockReturnValue(pending);
+  using plain = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue(undefined);
+  await using screen = await render(view());
+  await using _settle = {
+    async [Symbol.asyncDispose]() {
+      await act(async () => {
+        finish();
+        await Promise.resolve();
+      });
+    },
+  };
+  await screen.getByRole("button", { name: "Thread menu" }).click();
+  await expect.poll(() => write.mock.calls.length).toBe(1);
+  const items: ReadonlyArray<ContextMenuItem<ThreadActionMenuId>> = fixture.show.mock.calls[0]?.[0];
+  expect(
+    items
+      .find((item) => item.id === "copy")
+      ?.children?.some((item) => item.id === "copy-thread" && !item.disabled),
+  ).toBe(true);
+  const clipboardItem = write.mock.calls[0]?.[0]?.[0];
+  if (!clipboardItem) throw new Error("Missing rich clipboard item");
+  const expected = threadChipCopyTarget(target, clipboardShell.title, configuredHostedAppUrl());
+  expect(await (await clipboardItem.getType("text/plain")).text()).toBe(expected.value);
+  expect(await (await clipboardItem.getType(COMPOSER_CONTEXT_CLIPBOARD_MIME)).text()).toBe(
+    encodeComposerContextFragment(expected.fragment!),
+  );
+  expect(clipboardItem.types).toContain("text/html");
+  expect(fixture.toast).not.toHaveBeenCalled();
+  fixture.locale = "zh-CN";
+  await screen.rerender(view());
+  await act(async () => {
+    finish();
+  });
+  expect(fixture.toast).toHaveBeenCalledExactlyOnceWith({
+    type: "success",
+    title: translateWebSource("zh-CN", "Thread copied"),
+    description: clipboardShell.title,
+  });
+  fixture.locale = "en";
+  await screen.rerender(view());
+  expect(fixture.toast).toHaveBeenCalledTimes(1);
+  expect(write).toHaveBeenCalledTimes(1);
+  expect(plain).not.toHaveBeenCalled();
+  expect(fixture.show).toHaveBeenCalledTimes(1);
   expect(fixture.pin).not.toHaveBeenCalled();
   expect(fixture.promote).not.toHaveBeenCalled();
   expect(fixture.other).not.toHaveBeenCalled();

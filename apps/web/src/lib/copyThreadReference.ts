@@ -11,7 +11,7 @@ import { writeTextToClipboard } from "../hooks/useCopyToClipboard";
 
 export async function copyThreadReference(
   target: ThreadReferenceCopyTarget,
-  locale: ResolvedAppLocale = "en",
+  locale: ResolvedAppLocale | (() => ResolvedAppLocale) = "en",
 ): Promise<void> {
   const fragment = target.fragment ? encodeComposerContextFragment(target.fragment) : null;
   try {
@@ -21,19 +21,23 @@ export async function copyThreadReference(
       fragment ? { [COMPOSER_CONTEXT_CLIPBOARD_MIME]: fragment } : undefined,
     );
     if (!didCopy) return;
+    const settledLocale = typeof locale === "function" ? locale() : locale;
     toastManager.add({
       type: "success",
-      title: translateWebSource(locale, target.successTitle),
+      title: translateWebSource(settledLocale, target.successTitle),
       description: target.description,
     });
   } catch (error) {
     console.error(error);
+    const settledLocale = typeof locale === "function" ? locale() : locale;
     toastManager.add(
       stackedThreadToast({
         type: "error",
-        title: translateWebSource(locale, target.failureTitle),
+        title: translateWebSource(settledLocale, target.failureTitle),
         description:
-          error instanceof Error ? error.message : translateWebSource(locale, "An error occurred."),
+          error instanceof Error
+            ? error.message
+            : translateWebSource(settledLocale, "An error occurred."),
       }),
     );
   }
