@@ -1,4 +1,5 @@
 import { translateWebSource } from "~/i18n/messages";
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { Tooltip, TooltipTrigger, TooltipPopup } from "../ui/tooltip";
 import type {
@@ -121,6 +122,7 @@ export function PullRequestStackMenu({
     setPending(false);
     onActed();
     if (result._tag === "Failure") {
+      const { locale } = readWebI18n();
       toastManager.update(toastId, {
         type: "error",
         title:

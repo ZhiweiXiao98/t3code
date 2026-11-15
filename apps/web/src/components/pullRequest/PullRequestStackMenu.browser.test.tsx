@@ -3,22 +3,38 @@ import { EnvironmentId, ProjectId } from "@t3tools/contracts";
 import { expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 
-const state = vi.hoisted(() => ({ detail: "" }));
+const state = vi.hoisted(() => ({
+  detail: "",
+  controlled: false,
+  run: vi.fn(),
+  acted: vi.fn(),
+  locale: "en" as "en" | "zh-CN",
+}));
 
-vi.mock(import("~/state/use-atom-command"), async () => {
+vi.mock(import("~/state/use-atom-command"), async (original) => {
+  const actual = await original();
+  const { pullRequestEnvironment } = await import("~/state/pullRequests");
   const { PullRequestOperationError } = await import("@t3tools/contracts");
   const { Cause } = await import("effect");
   const { AsyncResult } = await import("effect/reactivity");
   return {
-    useAtomCommand: (() => async () =>
-      AsyncResult.failure(
-        Cause.fail(new PullRequestOperationError({ operation: "runAction", detail: state.detail })),
-      )) as never,
+    ...actual,
+    useAtomCommand: ((command: unknown, options: Parameters<typeof actual.useAtomCommand>[1]) =>
+      command !== pullRequestEnvironment.runAction
+        ? actual.useAtomCommand(command as never, options)
+        : state.controlled
+          ? state.run
+          : async () =>
+              AsyncResult.failure(
+                Cause.fail(
+                  new PullRequestOperationError({ operation: "runAction", detail: state.detail }),
+                ),
+              )) as never,
   };
 });
 
 import "~/index.css";
-import { render } from "../../../test/render";
+import { act, render } from "../../../test/render";
 import { ToastProvider } from "../ui/toast";
 import { PullRequestStackMenu } from "./PullRequestStackMenu";
 
@@ -73,4 +89,151 @@ it.each([
   }
   await page.getByRole("dialog").getByRole("button", { name: row.label, exact: true }).click();
   await expect.element(page.getByText(row.description, { exact: true })).toBeInTheDocument();
+});
+
+import { WebI18nContext } from "~/i18n/WebI18nContext";
+import { translateWebMessage } from "~/i18n/messages";
+import { toastManager } from "../ui/toast";
+vi.mock(import("~/i18n/readWebI18n"), () => ({
+  readWebI18n: () => {
+    const locale = state.locale;
+    return {
+      locale,
+      t: (
+        key: Parameters<typeof translateWebMessage>[1],
+        values?: Parameters<typeof translateWebMessage>[2],
+      ) => translateWebMessage(locale, key, values),
+    };
+  },
+}));
+const reference = {
+  projectId: ProjectId.make("project"),
+  repository: "owner/repository",
+  number: 2,
+};
+function surface(locale: "en" | "zh-CN") {
+  state.locale = locale;
+  return (
+    <WebI18nContext.Provider
+      value={{
+        locale,
+        appLocale: locale,
+        setAppLocale: () => {},
+        t: (key, values) => translateWebMessage(locale, key, values),
+      }}
+    >
+      <PullRequestStackMenu
+        environmentId={EnvironmentId.make("environment")}
+        reference={reference}
+        hostLabel="GitHub"
+        terminology={sourceControlClients.get("github").changeRequest}
+        stack={{
+          id: "stack",
+          number: 1,
+          url: "https://github.com/owner/repository/stack/1",
+          base: "main",
+          layers: [
+            { number: 2, headBranch: "feature/$&/{literal}", headSha: "abc123", state: "open" },
+          ],
+        }}
+        canMerge
+        canRebase
+        stale={false}
+        mergeMethod="squash"
+        onActed={state.acted}
+      />
+    </WebI18nContext.Provider>
+  );
+}
+it.each([
+  ["merge owned", "merge", null],
+  ["rebase owned", "update-branch", null],
+  ["merge raw", "merge", new Error("Literal $& {host failure}")],
+  ["rebase empty", "update-branch", new Error("")],
+  ["rebase interrupted", "update-branch", undefined],
+] as const)("uses settlement locale for stack failure: %s", async (kind, action, cause) => {
+  const { AsyncResult } = await import("effect/reactivity");
+  const Cause = await import("effect/Cause");
+  type Result = ReturnType<typeof AsyncResult.failure<unknown, unknown>>;
+  using _restore = {
+    [Symbol.dispose]() {
+      state.controlled = false;
+      state.locale = "en";
+      state.run.mockReset();
+    },
+  };
+  state.controlled = true;
+  state.acted.mockClear();
+  let finish = (_result: Result) => {};
+  state.run.mockReset().mockReturnValueOnce(
+    new Promise<Result>((resolve) => {
+      finish = resolve;
+    }),
+  );
+  using add = vi.spyOn(toastManager, "add").mockReturnValue("stack-failure-toast");
+  using update = vi.spyOn(toastManager, "update").mockImplementation(() => {});
+  await using screen = await render(surface("en"));
+  await using _settle = {
+    async [Symbol.asyncDispose]() {
+      await act(async () => {
+        finish(AsyncResult.failure(Cause.interrupt()));
+        await Promise.resolve();
+      });
+    },
+  };
+  const label = action === "merge" ? "Merge stack" : "Rebase stack";
+  if (action === "merge") await screen.getByRole("button", { name: label, exact: true }).click();
+  else {
+    await screen.getByRole("button", { name: "Stack 1, layer 1 of 1" }).click();
+    await page.getByRole("menuitem", { name: label, exact: true }).click();
+  }
+  expect(state.run).not.toHaveBeenCalled();
+  await page.getByRole("dialog").getByRole("button", { name: label, exact: true }).click();
+  expect(state.run).toHaveBeenCalledExactlyOnceWith({
+    environmentId: EnvironmentId.make("environment"),
+    input: {
+      ...reference,
+      stackNumber: 1,
+      expectedStackHeads: [{ number: 2, headSha: "abc123" }],
+      action,
+      ...(action === "merge" ? { mergeMethod: "squash" } : { updateMethod: "rebase" }),
+    },
+  });
+  expect(add).toHaveBeenCalledExactlyOnceWith({
+    type: "loading",
+    title: action === "merge" ? "Merging stack..." : "Rebasing stack...",
+  });
+  const pending = screen.getByRole("button", { name: "Merge stack", exact: true });
+  await expect.element(pending).toBeDisabled();
+  await act(async () => {
+    pending.element().dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+  });
+  expect(state.run).toHaveBeenCalledTimes(1);
+  expect(state.acted).not.toHaveBeenCalled();
+  expect(update).not.toHaveBeenCalled();
+  await screen.rerender(surface("zh-CN"));
+  await act(async () => {
+    finish(
+      AsyncResult.failure(kind.endsWith("interrupted") ? Cause.interrupt() : Cause.fail(cause)),
+    );
+    await Promise.resolve();
+  });
+  expect(update).toHaveBeenCalledExactlyOnceWith("stack-failure-toast", {
+    type: "error",
+    title: action === "merge" ? "无法合并堆叠" : "无法变基堆叠",
+    description: kind.endsWith("raw")
+      ? "Literal $& {host failure}"
+      : action === "merge"
+        ? "托管服务拒绝了合并。请确认你拥有写入权限、所需检查均已通过，并且分支没有冲突。"
+        : "主机拒绝了变基。变基会在首个无法顺利应用的提交处停止。",
+  });
+  expect(state.acted).toHaveBeenCalledExactlyOnceWith();
+  expect(state.acted.mock.invocationCallOrder[0]).toBeLessThan(update.mock.invocationCallOrder[0]!);
+  await screen.rerender(surface("en"));
+  await expect
+    .element(screen.getByRole("button", { name: "Merge stack", exact: true }))
+    .toBeEnabled();
+  expect(state.run).toHaveBeenCalledTimes(1);
+  expect(add).toHaveBeenCalledTimes(1);
+  expect(update).toHaveBeenCalledTimes(1);
 });
