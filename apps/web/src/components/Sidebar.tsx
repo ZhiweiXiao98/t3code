@@ -1897,11 +1897,12 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
       const result = await pinThread(threadRef);
       if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
         const error = squashAtomCommandFailure(result);
+        const { locale, t } = readWebI18n();
         toastManager.add(
           stackedThreadToast({
             type: "error",
             title: t("sidebar.pinFailed"),
-            description: formatThreadActionError(error, releaseLocale, t("common.error")),
+            description: formatThreadActionError(error, locale, t("common.error")),
           }),
         );
       }
