@@ -1,3 +1,7 @@
+import { WebI18nContext } from "~/i18n/WebI18nContext";
+import { translateWebMessage } from "~/i18n/messages";
+import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
+import { readableFailure } from "./pullRequestDetail.logic";
 import "~/index.css";
 import { EnvironmentId, ProjectId } from "@t3tools/contracts";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
@@ -9,6 +13,8 @@ const mocks = vi.hoisted(() => ({
   update:
     vi.fn<(input: unknown) => Promise<{ _tag: "Success" } | { _tag: "Failure"; cause: unknown }>>(),
   notify: vi.fn(),
+  saved: vi.fn(),
+  locale: "en" as "en" | "zh-CN",
 }));
 vi.mock(
   import("~/state/pullRequests"),
@@ -30,7 +36,7 @@ vi.mock(
   () => ({ ActOnEnvironmentPicker: () => null }) as never,
 );
 
-import { render } from "../../../test/render";
+import { act, render } from "../../../test/render";
 import { PullRequestActionsMenu } from "./PullRequestActionsMenu";
 
 const reference = { projectId: ProjectId.make("project"), repository: "owner/repo", number: 7 };
@@ -68,6 +74,8 @@ const openDetail: Detail = {
 function setup() {
   mocks.update.mockReset().mockResolvedValue({ _tag: "Success" });
   mocks.notify.mockReset();
+  mocks.saved.mockReset();
+  mocks.locale = "en";
   return (detail: Detail = openDetail) => (
     <PullRequestActionsMenu
       environmentId={environmentId}
@@ -105,7 +113,7 @@ function setup() {
       showsDeleteBranch={false}
       environmentConnected={true}
       canWriteSourceControl={true}
-      onMaintainerEditsSaved={() => {}}
+      onMaintainerEditsSaved={mocks.saved}
       confirmDeleteBranch={async () => {}}
       pendingAction={null}
       perform={async () => true}
@@ -209,4 +217,99 @@ it.each<[string, Detail]>([
   await screen.getByRole("button", { name: "More pull request actions" }).click();
   await expect.element(page.getByRole("menuitem", { name: "Open on GitHub" })).toBeVisible();
   expect(document.querySelector('[role="menuitemcheckbox"]')).toBeNull();
+});
+
+vi.mock("~/i18n/readWebI18n", () => ({
+  readWebI18n: () => {
+    const locale = mocks.locale;
+    return {
+      locale,
+      t: (
+        key: Parameters<typeof translateWebMessage>[1],
+        values?: Parameters<typeof translateWebMessage>[2],
+      ) => translateWebMessage(locale, key, values),
+    };
+  },
+}));
+it.each([
+  ["owned", null],
+  ["raw", new Error("Could not save maintainer access")],
+  ["empty", new Error("")],
+  ["whitespace", new Error("  \n ")],
+  ["interrupted", undefined],
+] as const)("uses settlement locale for maintainer access failure: %s", async (kind, failure) => {
+  const control = setup();
+  const surface = (locale: "en" | "zh-CN") => {
+    mocks.locale = locale;
+    return (
+      <WebI18nContext
+        value={{
+          locale,
+          appLocale: locale,
+          setAppLocale: () => {},
+          t: (key, values) => translateWebMessage(locale, key, values),
+        }}
+      >
+        {control()}
+      </WebI18nContext>
+    );
+  };
+  type Result = { _tag: "Failure"; cause: unknown };
+  let finish = (_result: Result) => {};
+  mocks.update.mockReturnValueOnce(
+    new Promise((resolve) => {
+      finish = resolve;
+    }),
+  );
+  await using screen = await render(surface("en"));
+  await using _settle = {
+    async [Symbol.asyncDispose]() {
+      await act(async () => {
+        finish({ _tag: "Failure", cause: Cause.interrupt() });
+        await Promise.resolve();
+      });
+    },
+  };
+  await screen.getByRole("button", { name: "More pull request actions", exact: true }).click();
+  const checkbox = page.getByRole("menuitemcheckbox", {
+    name: "Allow edits from maintainers",
+    exact: true,
+  });
+  await expect.element(checkbox).toBeChecked();
+  await checkbox.click();
+  await expect.element(checkbox).not.toBeChecked();
+  await expect.element(checkbox).toBeDisabled();
+  expect(mocks.update).toHaveBeenCalledExactlyOnceWith({
+    environmentId,
+    input: { ...reference, maintainerCanModify: false },
+  });
+  expect(mocks.notify).not.toHaveBeenCalled();
+  expect(mocks.saved).not.toHaveBeenCalled();
+  await screen.rerender(surface("zh-CN"));
+  const result = {
+    _tag: "Failure" as const,
+    cause: kind === "interrupted" ? Cause.interrupt() : Cause.fail(failure),
+  };
+  await act(async () => {
+    finish(result);
+    await Promise.resolve();
+  });
+  expect(mocks.notify).toHaveBeenCalledExactlyOnceWith({
+    type: "error",
+    title: "无法保存维护者权限",
+    description:
+      kind === "raw"
+        ? "Could not save maintainer access"
+        : kind === "interrupted"
+          ? readableFailure(squashAtomCommandFailure(result), "请重试。")
+          : "请重试。",
+  });
+  const restored = page.getByRole("menuitemcheckbox", { name: "允许维护者编辑", exact: true });
+  await expect.element(restored).toBeChecked();
+  await expect.element(restored).toBeEnabled();
+  await expect.element(page.getByRole("status")).not.toBeInTheDocument();
+  expect(mocks.saved).not.toHaveBeenCalled();
+  await screen.rerender(surface("en"));
+  expect(mocks.notify).toHaveBeenCalledTimes(1);
+  expect(mocks.update).toHaveBeenCalledTimes(1);
 });

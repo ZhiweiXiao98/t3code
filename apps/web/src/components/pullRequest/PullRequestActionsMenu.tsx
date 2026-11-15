@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
 import { useAtomValue } from "@effect/atom-react";
@@ -195,6 +196,8 @@ export function PullRequestActionsMenu({
     setMaintainerEditsSaving(false);
     if (result._tag === "Failure") {
       setMaintainerEditsChoice(previousChoice);
+      const { locale } = readWebI18n();
+      const tx = (source: string) => translateWebSource(locale, source);
       toastManager.add({
         type: "error",
         title: tx("Could not save maintainer access"),
