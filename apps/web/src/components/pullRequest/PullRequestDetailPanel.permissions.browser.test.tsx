@@ -428,3 +428,131 @@ it.each([
   expect(mocks.toast).toHaveBeenCalledTimes(1);
   expect(write).toHaveBeenCalledTimes(1);
 });
+
+it.each([
+  ["github pending Chinese", false, "en", "zh-CN", null],
+  ["gitlab pending Chinese", true, "en", "zh-CN", new Error("Literal $& {native checkout}")],
+  ["github English parity", false, "zh-CN", "en", new Error("")],
+] as const)(
+  "localizes checkout clipboard description: %s",
+  async (_name, gitlab, initialLocale, settledLocale, cause) => {
+    const state = useComposerDraftStore.getState();
+    using _restore = {
+      [Symbol.dispose]() {
+        useComposerDraftStore.setState(state, true);
+        mocks.gitlab = false;
+        mocks.locale = "en";
+      },
+    };
+    setup();
+    mocks.gitlab = gitlab;
+    mocks.toast.mockClear();
+    mocks.command.mockClear();
+    let fail = (_cause: unknown) => {};
+    const pending = new Promise<void>((_resolve, reject) => {
+      fail = reject;
+    });
+    void pending.catch(() => {});
+    using write = vi.spyOn(navigator.clipboard, "writeText").mockReturnValue(pending);
+    using rich = vi
+      .spyOn(navigator.clipboard, "write")
+      .mockRejectedValue(new Error("Unexpected rich write"));
+    using external = vi.spyOn(window, "open").mockImplementation(() => null);
+    using error = vi.spyOn(console, "error").mockImplementation(() => {});
+    await using screen = await render(copySurface(initialLocale));
+    await using _settle = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          fail(new Error("Fixture disposed"));
+          await Promise.resolve();
+        });
+      },
+    };
+    await screen
+      .getByRole("button", {
+        name: initialLocale === "en" ? "Copy checkout command" : "复制检出命令",
+        exact: true,
+      })
+      .click();
+    expect(write).toHaveBeenCalledExactlyOnceWith(
+      gitlab ? "glab mr checkout 42" : "gh pr checkout 1",
+    );
+    expect(mocks.toast).not.toHaveBeenCalled();
+    await screen.rerender(copySurface(settledLocale));
+    await act(async () => {
+      fail(cause);
+      await Promise.resolve();
+    });
+    const target =
+      initialLocale === "en"
+        ? gitlab
+          ? "merge request checkout command"
+          : "pull request checkout command"
+        : "拉取请求检出命令";
+    const english = `Failed to copy ${target} to the clipboard.`;
+    expect(mocks.toast).toHaveBeenCalledExactlyOnceWith({
+      type: "error",
+      title: settledLocale === "zh-CN" ? "无法复制检出命令" : "Could not copy checkout command",
+      description:
+        settledLocale === "zh-CN"
+          ? gitlab
+            ? "无法将 合并请求检出命令 复制到剪贴板。"
+            : "无法将 拉取请求检出命令 复制到剪贴板。"
+          : english,
+    });
+    expect(error).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ _tag: "ClipboardWriteError", target, cause, message: english }),
+    );
+    expect(rich).not.toHaveBeenCalled();
+    expect(external).not.toHaveBeenCalled();
+    expect(mocks.command).not.toHaveBeenCalled();
+    await screen.rerender(copySurface(initialLocale));
+    expect(mocks.toast).toHaveBeenCalledTimes(1);
+    expect(write).toHaveBeenCalledTimes(1);
+  },
+);
+it("localizes the actual unavailable checkout clipboard API", async () => {
+  const state = useComposerDraftStore.getState();
+  const clipboard = navigator.clipboard;
+  const descriptor = Object.getOwnPropertyDescriptor(clipboard, "writeText");
+  using _restore = {
+    [Symbol.dispose]() {
+      if (descriptor) Object.defineProperty(clipboard, "writeText", descriptor);
+      else Reflect.deleteProperty(clipboard, "writeText");
+      useComposerDraftStore.setState(state, true);
+      mocks.locale = "en";
+    },
+  };
+  Object.defineProperty(clipboard, "writeText", { configurable: true, value: undefined });
+  using fallback = vi.spyOn(document, "execCommand").mockReturnValue(false);
+  using rich = vi.spyOn(clipboard, "write").mockRejectedValue(new Error("Unexpected rich write"));
+  using error = vi.spyOn(console, "error").mockImplementation(() => {});
+  using external = vi.spyOn(window, "open").mockImplementation(() => null);
+  setup();
+  mocks.toast.mockClear();
+  mocks.command.mockClear();
+  await using screen = await render(copySurface("zh-CN"));
+  await screen.getByRole("button", { name: "复制检出命令", exact: true }).click();
+  await expect
+    .poll(() => mocks.toast.mock.calls)
+    .toEqual([
+      [
+        {
+          type: "error",
+          title: "无法复制检出命令",
+          description: "复制 拉取请求检出命令 时剪贴板 API 不可用。",
+        },
+      ],
+    ]);
+  expect(fallback).toHaveBeenCalledExactlyOnceWith("copy");
+  expect(error).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({
+      _tag: "ClipboardApiUnavailableError",
+      target: "拉取请求检出命令",
+      message: "Clipboard API is unavailable while copying 拉取请求检出命令.",
+    }),
+  );
+  expect(rich).not.toHaveBeenCalled();
+  expect(external).not.toHaveBeenCalled();
+  expect(mocks.command).not.toHaveBeenCalled();
+});

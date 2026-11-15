@@ -85,7 +85,7 @@ import { vcsEnvironment } from "~/state/vcs";
 import { RelativeTime } from "~/components/RelativeTime";
 import { useUiStateStore } from "~/uiStateStore";
 import { useI18n } from "../../i18n/WebI18nContext";
-import { translateWebSource } from "../../i18n/messages";
+import { translateWebMessage, translateWebSource } from "../../i18n/messages";
 
 import { Button } from "../ui/button";
 import { toastManager } from "../ui/toast";
@@ -226,11 +226,36 @@ const OWNED_REFERENCE_TARGETS: Readonly<Record<string, string>> = {
   "change request reference": "变更请求引用",
 };
 
+const OWNED_CHECKOUT_TARGETS = new Map(
+  ["pull request", "merge request", "change request"].flatMap((request) => {
+    const displayTarget = translateWebMessage("zh-CN", "pullRequests.detail.checkoutCommand", {
+      request: translateWebSource("zh-CN", request),
+    });
+    return (["en", "zh-CN"] as const).map(
+      (locale) =>
+        [
+          translateWebMessage(locale, "pullRequests.detail.checkoutCommand", {
+            request: translateWebSource(locale, request),
+          }),
+          displayTarget,
+        ] as const,
+    );
+  }),
+);
+
 function reportCheckoutCommandError(error: Error) {
+  const { locale, t } = readWebI18n();
+  const target = "target" in error && typeof error.target === "string" ? error.target : undefined;
+  const displayTarget = target === undefined ? undefined : OWNED_CHECKOUT_TARGETS.get(target);
   toastManager.add({
     type: "error",
-    title: readWebI18n().t("audit3.checkoutCopyFailed"),
-    description: error.message,
+    title: t("audit3.checkoutCopyFailed"),
+    description:
+      clipboardErrorMessage(
+        error,
+        locale,
+        target !== undefined && displayTarget !== undefined ? { target, displayTarget } : undefined,
+      ) ?? error.message,
   });
 }
 
