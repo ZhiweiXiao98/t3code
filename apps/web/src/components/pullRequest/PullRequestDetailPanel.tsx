@@ -844,6 +844,8 @@ export function PullRequestDetailPanel({
     });
     setPendingAction(null);
     if (result._tag === "Failure") {
+      const { locale } = readWebI18n();
+      const tx = (source: string) => translateWebSource(locale, source);
       // Azure DevOps provides no strategy availability; explain policy failures after the attempt.
       const failure = squashAtomCommandFailure(result);
       const hint = tx(

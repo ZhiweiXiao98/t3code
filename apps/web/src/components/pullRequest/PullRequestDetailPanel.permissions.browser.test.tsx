@@ -18,6 +18,10 @@ import { act, render } from "../../../test/render";
 const { permissions, mocks } = vi.hoisted(() => ({
   mocks: {
     gitlab: false,
+    draftAction: false,
+    runAction: vi.fn(),
+    acted: vi.fn(),
+    refresh: vi.fn(),
     command: vi.fn(),
     newThread: vi.fn(),
     toast: vi.fn(),
@@ -49,8 +53,8 @@ vi.mock(import("./usePullRequestDetail"), async (original) => ({
   ...(await original()),
   usePullRequestDetail: (() => ({
     canWriteSourceControl: permissions.checkout,
-    detailQuery: { isPending: false, refresh: vi.fn() },
-    activityQuery: { isPending: false, refresh: vi.fn(), error: null },
+    detailQuery: { isPending: false, refresh: mocks.refresh },
+    activityQuery: { isPending: false, refresh: mocks.refresh, error: null },
     activity: null,
     sharedSummary: selectedDetail(),
     coreDetail: selectedDetail(),
@@ -69,7 +73,8 @@ vi.mock(import("~/state/usePullRequestStack"), async (original) => ({
 }));
 vi.mock(import("~/state/use-atom-command"), async (original) => ({
   ...(await original()),
-  useAtomCommand: (() => mocks.command) as never,
+  useAtomCommand: ((command: unknown) =>
+    command === pullRequestEnvironment.runAction ? mocks.runAction : mocks.command) as never,
 }));
 
 vi.mock("../ui/toast", async (original) => ({
@@ -89,6 +94,9 @@ vi.mock("~/i18n/readWebI18n", () => ({
   },
 }));
 
+import { pullRequestEnvironment } from "~/state/pullRequests";
+import { readableFailure } from "./pullRequestDetail.logic";
+import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
 import { PullRequestDetailPanel } from "./PullRequestDetailPanel";
 
 const detail: PullRequestDetailView = {
@@ -150,7 +158,13 @@ const gitlabDetail: PullRequestDetailView = {
   number: 42,
   url: "https://gitlab.com/group/project/-/merge_requests/42",
 };
+const draftDetail: PullRequestDetailView = {
+  ...detail,
+  capabilities: { ...detail.capabilities, actions: ["draft"] },
+  viewerPermissions: { ...detail.viewerPermissions, actions: ["draft"] },
+};
 function selectedDetail() {
+  if (mocks.draftAction) return draftDetail;
   return mocks.gitlab ? gitlabDetail : detail;
 }
 
@@ -159,7 +173,12 @@ const draftId = DraftId.make("conflicts-draft");
 const panel = (attach = false) => (
   <PullRequestDetailPanel
     environmentId={environmentId}
-    reference={selectedDetail()}
+    reference={{
+      projectId: selectedDetail().projectId,
+      repository: selectedDetail().repository,
+      number: selectedDetail().number,
+    }}
+    onActed={mocks.acted}
     context="page"
     shortcutsEnabled={false}
     getShortcutContext={() => ({
@@ -176,6 +195,7 @@ const panel = (attach = false) => (
 
 function setup() {
   mocks.gitlab = false;
+  mocks.draftAction = false;
   permissions.checkout = true;
   permissions.operate = true;
   useComposerDraftStore.setState({ draftsByThreadKey: {} });
@@ -645,4 +665,130 @@ it.each([
   await screen.rerender(copySurface("en"));
   expect(mocks.toast).toHaveBeenCalledTimes(1);
   expect(mocks.newThread).toHaveBeenCalledTimes(1);
+});
+
+it.each([
+  ["owned", null],
+  ["raw", new Error("Literal $& {action failure}")],
+  ["empty", new Error("")],
+  ["whitespace", new Error("   ")],
+  ["interrupted", undefined],
+] as const)("uses settlement locale for draft action failure: %s", async (kind, cause) => {
+  const { AsyncResult } = await import("effect/reactivity");
+  const Cause = await import("effect/Cause");
+  type Result = ReturnType<typeof AsyncResult.failure<unknown, unknown>>;
+  const state = useComposerDraftStore.getState();
+  using _restore = {
+    [Symbol.dispose]() {
+      useComposerDraftStore.setState(state, true);
+      mocks.draftAction = false;
+      mocks.locale = "en";
+      mocks.runAction.mockReset();
+    },
+  };
+  setup();
+  mocks.draftAction = true;
+  mocks.command.mockClear();
+  mocks.toast.mockClear();
+  mocks.acted.mockClear();
+  mocks.refresh.mockClear();
+  let finish = (_result: Result) => {};
+  mocks.runAction.mockReset().mockReturnValueOnce(
+    new Promise<Result>((resolve) => {
+      finish = resolve;
+    }),
+  );
+  await using screen = await render(copySurface("en"));
+  await using _settle = {
+    async [Symbol.asyncDispose]() {
+      await act(async () => {
+        finish(AsyncResult.failure(Cause.interrupt()));
+        await Promise.resolve();
+      });
+    },
+  };
+  const before = useComposerDraftStore.getState();
+  const trigger = screen.getByRole("button", { name: "More pull request actions", exact: true });
+  await trigger.click();
+  await page.getByRole("menuitem", { name: "Convert to draft", exact: true }).click();
+  expect(mocks.runAction).toHaveBeenCalledExactlyOnceWith({
+    environmentId,
+    input: {
+      projectId: detail.projectId,
+      repository: detail.repository,
+      number: detail.number,
+      action: "draft",
+    },
+  });
+  expect(mocks.acted.mock.calls).toEqual([["draft", "sent"]]);
+  await trigger.click();
+  const pending = page.getByRole("menuitem", { name: "Convert to draft", exact: true });
+  await expect.element(pending).toHaveAttribute("aria-disabled", "true");
+  await act(async () => {
+    pending.element().dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+  });
+  expect(mocks.runAction).toHaveBeenCalledTimes(1);
+  await screen.rerender(copySurface("zh-CN"));
+  const result: Result = AsyncResult.failure(
+    kind === "interrupted" ? Cause.interrupt() : Cause.fail(cause),
+  );
+  await act(async () => {
+    finish(result);
+    await Promise.resolve();
+  });
+  expect(mocks.toast).toHaveBeenCalledExactlyOnceWith({
+    type: "error",
+    title: "无法转换为草稿",
+    description:
+      kind === "interrupted"
+        ? readableFailure(
+            squashAtomCommandFailure(result),
+            "托管服务拒绝了操作。请确认你拥有此仓库的写入权限。",
+          )
+        : kind === "raw"
+          ? "Literal $& {action failure}"
+          : "托管服务拒绝了操作。请确认你拥有此仓库的写入权限。",
+  });
+  expect(mocks.acted.mock.calls).toEqual([
+    ["draft", "sent"],
+    ["draft", "failed"],
+  ]);
+  await expect
+    .element(page.getByRole("menuitem", { name: "转换为草稿", exact: true }))
+    .not.toHaveAttribute("aria-disabled", "true");
+  expect(draftDetail.isDraft).toBe(false);
+  expect(useComposerDraftStore.getState()).toBe(before);
+  expect(mocks.command).not.toHaveBeenCalled();
+  expect(mocks.refresh).not.toHaveBeenCalled();
+  await screen.rerender(copySurface("en"));
+  expect(mocks.toast).toHaveBeenCalledTimes(1);
+  expect(mocks.runAction).toHaveBeenCalledTimes(1);
+});
+it("guards draft conversion without write permission", async () => {
+  const state = useComposerDraftStore.getState();
+  setup();
+  mocks.draftAction = true;
+  mocks.runAction.mockClear();
+  mocks.acted.mockClear();
+  mocks.toast.mockClear();
+  mocks.refresh.mockClear();
+  using _restore = {
+    [Symbol.dispose]() {
+      useComposerDraftStore.setState(state, true);
+      mocks.draftAction = false;
+      permissions.checkout = true;
+    },
+  };
+  await using screen = await render(copySurface("en"));
+  permissions.checkout = false;
+  await screen.rerender(copySurface("en"));
+  await screen.getByRole("button", { name: "More pull request actions", exact: true }).click();
+  const item = page.getByRole("menuitem", { name: "Convert to draft", exact: true });
+  await expect.element(item).toBeVisible();
+  await expect.element(item).not.toHaveAttribute("aria-disabled", "true");
+  await item.click();
+  expect(mocks.runAction).not.toHaveBeenCalled();
+  expect(mocks.acted).not.toHaveBeenCalled();
+  expect(mocks.toast).not.toHaveBeenCalled();
+  expect(mocks.refresh).not.toHaveBeenCalled();
 });
