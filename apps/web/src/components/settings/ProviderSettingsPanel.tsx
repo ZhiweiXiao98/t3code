@@ -893,6 +893,7 @@ export function EnvironmentProviderSettings({
         instanceId,
       });
       if (updateResult._tag === "Failure") {
+        const { locale: translationLocale } = readWebI18n();
         const error = squashAtomCommandFailure(updateResult);
         toastManager.add({
           type: "error",
