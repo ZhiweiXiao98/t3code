@@ -1,3 +1,8 @@
+import "~/index.css";
+import { WebI18nContext } from "~/i18n/WebI18nContext";
+import { translateWebMessage } from "~/i18n/messages";
+import { derivePhysicalProjectKey } from "@t3tools/client-runtime/state/project-grouping";
+import type { ClientSettings } from "@t3tools/contracts";
 import { RegistryContext } from "@effect/atom-react";
 import type {
   DeleteProjectInput,
@@ -52,6 +57,9 @@ const state = vi.hoisted(() => ({
   releaseUploads: vi.fn(),
   clearDraft: vi.fn(),
   toast: vi.fn(),
+  locale: "en" as "en" | "zh-CN",
+  interceptPersistence: false,
+  persist: vi.fn(),
 }));
 
 // Session grants come from the server; each test drives them through these atoms.
@@ -99,11 +107,33 @@ vi.mock(import("~/state/use-atom-command"), async (original) => ({
   ...(await original()),
   useAtomCommand: ((command: "update" | "delete") => state[command]) as never,
 }));
-vi.mock(import("~/hooks/useSettings"), async (original) => ({
-  ...(await original()),
-  useClientSettings: ((selector?: (settings: typeof DEFAULT_CLIENT_SETTINGS) => unknown) =>
-    selector ? selector(DEFAULT_CLIENT_SETTINGS) : DEFAULT_CLIENT_SETTINGS) as never,
+vi.mock("~/hooks/useSettings", async (original) => {
+  const actual = await original<typeof import("~/hooks/useSettings")>();
+  return {
+    ...actual,
+    useClientSettings: ((selector?: (settings: typeof DEFAULT_CLIENT_SETTINGS) => unknown) =>
+      selector ? selector(DEFAULT_CLIENT_SETTINGS) : DEFAULT_CLIENT_SETTINGS) as never,
+    persistClientSettingsUpdate: (
+      ...args: Parameters<typeof actual.persistClientSettingsUpdate>
+    ) =>
+      state.interceptPersistence
+        ? state.persist(...args)
+        : actual.persistClientSettingsUpdate(...args),
+  };
+});
+vi.mock("~/i18n/readWebI18n", () => ({
+  readWebI18n: () => {
+    const locale = state.locale;
+    return {
+      locale,
+      t: (
+        key: Parameters<typeof translateWebMessage>[1],
+        values?: Parameters<typeof translateWebMessage>[2],
+      ) => translateWebMessage(locale, key, values),
+    };
+  },
 }));
+
 vi.mock(import("~/localApi"), async (original) => ({
   ...(await original()),
   readLocalApi: (() => ({ dialogs: { confirm: state.confirm } })) as never,
@@ -225,7 +255,10 @@ function projectKey() {
   })[0]!.projectKey;
 }
 
-async function mountPanel(search: Omit<SettingsScopeSearch, "project"> = {}) {
+async function mountPanel(
+  search: Omit<SettingsScopeSearch, "project"> = {},
+  locale?: "en" | "zh-CN",
+) {
   const key = projectKey();
   const rootRoute = createRootRoute();
   const settingsRoute = createRoute({
@@ -255,18 +288,38 @@ async function mountPanel(search: Omit<SettingsScopeSearch, "project"> = {}) {
   });
   await router.load();
   await using stack = new AsyncDisposableStack();
-  const screen = stack.use(
-    // The panel's own route tree validates settings search params, which the default router lacks.
-    await render(
+  const content = (language?: "en" | "zh-CN") => {
+    const tree = (
       <RegistryContext.Provider value={appAtomRegistry}>
         <RouterProvider router={router} />
-      </RegistryContext.Provider>,
-      { router: false },
-    ),
+      </RegistryContext.Provider>
+    );
+    if (language === undefined) return tree;
+    state.locale = language;
+    return (
+      <WebI18nContext
+        value={{
+          locale: language,
+          appLocale: language,
+          setAppLocale: () => {},
+          t: (key, values) => translateWebMessage(language, key, values),
+        }}
+      >
+        {tree}
+      </WebI18nContext>
+    );
+  };
+  const screen = stack.use(
+    // The panel's own route tree validates settings search params, which the default router lacks.
+    await render(content(locale), { router: false }),
   );
   await vi.waitFor(() => expect(nameInput(screen)).not.toBeNull());
   stack.move();
-  return { ...screen, router };
+  return {
+    ...screen,
+    router,
+    rerenderLocale: (language: "en" | "zh-CN") => screen.rerender(content(language)),
+  };
 }
 
 async function mountSettings(search: SettingsScopeSearch) {
@@ -703,4 +756,89 @@ describe("project name composition", () => {
       "日本語の名前",
     ]);
   });
+});
+
+it.each([
+  ["owned", null],
+  ["raw", new Error("Literal $& {grouping}")],
+  ["empty", new Error("")],
+] as const)("uses settlement locale for checkout grouping failure: %s", async (_kind, error) => {
+  const drafts = useComposerDraftStore.getState();
+  using _restore = {
+    [Symbol.dispose]() {
+      state.interceptPersistence = false;
+      state.locale = "en";
+      state.persist.mockReset();
+      useComposerDraftStore.setState(drafts, true);
+    },
+  };
+  setup();
+  state.interceptPersistence = true;
+  state.persist.mockReset();
+  // Client grouping intentionally remains editable without project-operation grants.
+  for (const id of [primaryId, remoteId])
+    appAtomRegistry.set(state.sessions.get(id)!, AsyncResult.success(session([])));
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<never>((_resolve, fail) => {
+    reject = fail;
+  });
+  void promise.catch(() => {});
+  state.persist.mockReturnValue(promise);
+  using log = vi.spyOn(console, "error").mockImplementation(() => {});
+  await using screen = await mountPanel({}, "en");
+  await using _drain = {
+    async [Symbol.asyncDispose]() {
+      await act(async () => {
+        reject(null);
+        await promise.catch(() => {});
+      });
+    },
+  };
+  const beforeUrl = screen.router.state.location.href;
+  const projects = state.projects;
+  const control = page.getByRole("combobox", {
+    name: "Grouping rule for /work/primary on primary (primary)",
+    exact: true,
+  });
+  await expect.element(control).toBeEnabled();
+  await control.click();
+  await page.getByRole("option", { name: "Keep separate", exact: true }).click();
+  expect(state.persist).toHaveBeenCalledExactlyOnceWith(expect.any(Function));
+  const update = state.persist.mock.calls[0]![0] as (settings: ClientSettings) => ClientSettings;
+  const snapshot: ClientSettings = {
+    ...DEFAULT_CLIENT_SETTINGS,
+    sidebarProjectGroupingOverrides: { "literal/$&/{other}": "repository_path" },
+  };
+  const result = update(snapshot);
+  const key = derivePhysicalProjectKey(state.projects[0]!);
+  expect(result).toEqual({
+    ...snapshot,
+    sidebarProjectGroupingOverrides: { "literal/$&/{other}": "repository_path", [key]: "separate" },
+  });
+  expect(snapshot.sidebarProjectGroupingOverrides).toEqual({
+    "literal/$&/{other}": "repository_path",
+  });
+  await screen.rerenderLocale("zh-CN");
+  expect(state.toast).not.toHaveBeenCalled();
+  await act(async () => {
+    reject(error);
+    await promise.catch(() => {});
+  });
+  expect(state.toast).toHaveBeenCalledExactlyOnceWith({
+    type: "error",
+    title: "无法保存分组规则",
+    description: error instanceof Error ? error.message : "发生错误。",
+    data: { actionLayout: "stacked-end" },
+  });
+  expect(log).toHaveBeenCalledExactlyOnceWith("Failed to save checkout grouping rule", error);
+  expect(state.projects).toBe(projects);
+  expect(screen.router.state.location.href).toBe(beforeUrl);
+  expect(state.update).not.toHaveBeenCalled();
+  expect(state.delete).not.toHaveBeenCalled();
+  expect(state.confirm).not.toHaveBeenCalled();
+  expect(state.clearDraft).not.toHaveBeenCalled();
+  expect(state.releaseUploads).not.toHaveBeenCalled();
+  await screen.rerenderLocale("en");
+  expect(state.persist).toHaveBeenCalledTimes(1);
+  expect(state.toast).toHaveBeenCalledTimes(1);
 });

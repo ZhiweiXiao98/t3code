@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { projectRemovalMessage } from "../../i18n/confirmationMessages";
 import { useComposerMenuState } from "../chat/useComposerMenuState";
 import { useOrchestrationCommand } from "../../state/use-orchestration-command";
@@ -100,6 +101,7 @@ function CheckoutGroupingSelect({ member }: { member: SidebarProjectGroupMember 
           ),
         })).catch((error) => {
           console.error("Failed to save checkout grouping rule", error);
+          const { locale } = readWebI18n();
           toastManager.add(
             stackedThreadToast({
               type: "error",
