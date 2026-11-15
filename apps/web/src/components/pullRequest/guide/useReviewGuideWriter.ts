@@ -1,5 +1,5 @@
 import { translateWebSource } from "~/i18n/messages";
-import { useI18n } from "~/i18n/WebI18nContext";
+import { readWebI18n } from "~/i18n/readWebI18n";
 import type { EnvironmentId, PullRequestRef } from "@t3tools/contracts";
 import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
 import { useAtomValue } from "@effect/atom-react";
@@ -22,7 +22,6 @@ export function useReviewGuideWriter({
   reference: PullRequestRef;
   title: string | null;
 }) {
-  const { locale: uiLocale } = useI18n();
   const query = useEnvironmentQuery(
     pullRequestEnvironment.reviewGuide({ environmentId, input: reference }),
   );
@@ -51,6 +50,7 @@ export function useReviewGuideWriter({
     const result = await generate({ environmentId, input: reference });
     setStarting(false);
     if (result._tag === "Failure") {
+      const { locale: uiLocale } = readWebI18n();
       useGuideRunStore.getState().settle(guideRunKey(environmentId, reference));
       toastManager.add({
         type: "error",
