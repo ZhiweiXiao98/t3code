@@ -223,9 +223,11 @@ it.each([
     title: action === "merge" ? "无法合并堆叠" : "无法变基堆叠",
     description: kind.endsWith("raw")
       ? "Literal $& {host failure}"
-      : action === "merge"
-        ? "托管服务拒绝了合并。请确认你拥有写入权限、所需检查均已通过，并且分支没有冲突。"
-        : "主机拒绝了变基。变基会在首个无法顺利应用的提交处停止。",
+      : kind.endsWith("interrupted")
+        ? "All fibers interrupted without error"
+        : action === "merge"
+          ? "托管服务拒绝了合并。请确认你拥有写入权限、所需检查均已通过，并且分支没有冲突。"
+          : "主机拒绝了变基。变基会在首个无法顺利应用的提交处停止。",
   });
   expect(state.acted).toHaveBeenCalledExactlyOnceWith();
   expect(state.acted.mock.invocationCallOrder[0]).toBeLessThan(update.mock.invocationCallOrder[0]!);
