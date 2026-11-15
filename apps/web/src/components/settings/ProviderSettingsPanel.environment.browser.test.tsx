@@ -1,3 +1,4 @@
+import * as Cause from "effect/Cause";
 import { RegistryContext } from "@effect/atom-react";
 import {
   DEFAULT_UNIFIED_SETTINGS,
@@ -20,6 +21,8 @@ import { WebI18nContext } from "../../i18n/WebI18nContext";
 import { translateWebMessage } from "../../i18n/messages";
 
 const state = vi.hoisted(() => ({
+  locale: null as "en" | "zh-CN" | null,
+  toast: vi.fn(),
   providers: null as unknown as Atom.Writable<ReadonlyArray<ServerProvider>>,
   providerAuthQuery: null as unknown,
   providerAuth: null as ProviderAuthState | null,
@@ -41,6 +44,35 @@ const state = vi.hoisted(() => ({
   confirm: vi.fn<() => Promise<boolean>>(),
 }));
 
+vi.mock("../../i18n/readWebI18n", async (original) => {
+  const actual = await original<typeof import("../../i18n/readWebI18n")>();
+  return {
+    ...actual,
+    readWebI18n: () => {
+      const locale = state.locale;
+      return locale === null
+        ? actual.readWebI18n()
+        : {
+            locale,
+            t: (
+              key: Parameters<typeof translateWebMessage>[1],
+              values: Parameters<typeof translateWebMessage>[2],
+            ) => translateWebMessage(locale, key, values),
+          };
+    },
+  };
+});
+vi.mock("../ui/toast", async (original) => {
+  const actual = await original<typeof import("../ui/toast")>();
+  return {
+    ...actual,
+    toastManager: {
+      ...actual.toastManager,
+      add: (...args: Parameters<typeof actual.toastManager.add>) =>
+        state.locale === null ? actual.toastManager.add(...args) : state.toast(...args),
+    },
+  };
+});
 vi.mock(import("../../state/server"), async (original) => {
   const actual = await original();
   const { Atom } = await import("effect/reactivity");
@@ -527,3 +559,95 @@ describe("EnvironmentProviderSettings health check interval", () => {
     expect(state.updateSettings).not.toHaveBeenCalled();
   });
 });
+
+it.each(["owned", "raw", "empty", "interrupted"] as const)(
+  "uses settlement locale for provider update failure: %s",
+  async (kind) => {
+    await setup();
+    state.locale = "en";
+    state.toast.mockReset();
+    using _restore = {
+      [Symbol.dispose]() {
+        state.locale = null;
+      },
+    };
+    const instance = {
+      driver: ProviderDriverKind.make("codex"),
+      enabled: true,
+      displayName: "Literal $& {provider}",
+    };
+    state.settings = { ...DEFAULT_UNIFIED_SETTINGS, providerInstances: { [customId]: instance } };
+    const originalSettings = state.settings;
+    const result = AsyncResult.failure(
+      kind === "interrupted"
+        ? Cause.interrupt()
+        : Cause.fail(
+            kind === "owned"
+              ? null
+              : new Error(kind === "empty" ? "" : "Literal $& {settings error}"),
+          ),
+    );
+    let resolve!: (value: typeof result) => void;
+    const pending = new Promise<typeof result>((done) => {
+      resolve = done;
+    });
+    state.mutateProviderInstance.mockReturnValueOnce(pending);
+    const surface = (locale: "en" | "zh-CN") => (
+      <WebI18nContext
+        value={{
+          locale,
+          appLocale: locale,
+          setAppLocale: () => undefined,
+          t: (key, values) => translateWebMessage(locale, key, values),
+        }}
+      >
+        {panel()}
+      </WebI18nContext>
+    );
+    await using screen = await render(surface("en"));
+    await using _drain = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          resolve(result);
+          await pending;
+        });
+      },
+    };
+    await userEvent.click(
+      page.getByRole("switch", { name: "Enable Literal $& {provider}", exact: true }).first(),
+    );
+    expect(state.mutateProviderInstance).toHaveBeenCalledExactlyOnceWith(
+      { operation: "upsert", instanceId: customId, instance: { ...instance, enabled: false } },
+      {},
+    );
+    expect(state.mutationEnvironmentIds).toContain(environmentId);
+    expect(state.toast).not.toHaveBeenCalled();
+    state.locale = "zh-CN";
+    await screen.rerender(surface("zh-CN"));
+    await act(async () => {
+      resolve(result);
+      await pending;
+    });
+    if (kind === "interrupted") expect(state.toast).not.toHaveBeenCalled();
+    else
+      expect(state.toast).toHaveBeenCalledExactlyOnceWith({
+        type: "error",
+        title: "无法更新提供商实例",
+        description:
+          kind === "owned"
+            ? "设置更新失败。"
+            : kind === "empty"
+              ? ""
+              : "Literal $& {settings error}",
+      });
+    expect(state.settings).toBe(originalSettings);
+    expect(state.settings.providerInstances[customId]).toBe(instance);
+    expect(state.updateSettings).not.toHaveBeenCalled();
+    expect(state.updateProvider).not.toHaveBeenCalled();
+    expect(state.uninstall).not.toHaveBeenCalled();
+    expect(state.confirm).not.toHaveBeenCalled();
+    state.locale = "en";
+    await screen.rerender(surface("en"));
+    expect(state.toast).toHaveBeenCalledTimes(kind === "interrupted" ? 0 : 1);
+  },
+);

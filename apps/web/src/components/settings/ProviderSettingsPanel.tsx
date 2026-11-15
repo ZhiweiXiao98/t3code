@@ -1,3 +1,4 @@
+import { readWebI18n } from "../../i18n/readWebI18n";
 import { translateWebSource } from "../../i18n/messages";
 import { SettingsGroup } from "./SettingsGroup";
 import { RefreshIcon } from "~/components/ui/refresh-icon";
@@ -843,6 +844,7 @@ export function EnvironmentProviderSettings({
       patch,
     );
     if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
+      const { locale: translationLocale } = readWebI18n();
       const error = squashAtomCommandFailure(result);
       toastManager.add({
         type: "error",
