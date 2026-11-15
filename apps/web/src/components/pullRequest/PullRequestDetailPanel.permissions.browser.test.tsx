@@ -17,6 +17,10 @@ import {
 import { expect, it, vi } from "vite-plus/test";
 import { DraftId, useComposerDraftStore } from "~/composerDraftStore";
 import { act, render } from "../../../test/render";
+import {
+  buildAskAboutPullRequestHandoff,
+  buildExplainPullRequestHandoff,
+} from "./pullRequestDetail.logic";
 
 const { permissions, mocks } = vi.hoisted(() => ({
   mocks: {
@@ -31,6 +35,8 @@ const { permissions, mocks } = vi.hoisted(() => ({
     refresh: vi.fn(),
     command: vi.fn(),
     newThread: vi.fn(),
+    writeHandoff: vi.fn(),
+    interceptHandoff: false,
     prepare: vi.fn(),
     updateToast: vi.fn(),
     toast: vi.fn(),
@@ -39,6 +45,14 @@ const { permissions, mocks } = vi.hoisted(() => ({
   permissions: { checkout: true, operate: true },
 }));
 
+vi.mock(import("./usePullRequestActions"), async (original) => {
+  const actual = await original();
+  return {
+    ...actual,
+    writeHandoffToComposer: (...args: Parameters<typeof actual.writeHandoffToComposer>) =>
+      mocks.interceptHandoff ? mocks.writeHandoff(...args) : actual.writeHandoffToComposer(...args),
+  };
+});
 vi.mock(import("~/hooks/useHandleNewThread"), async (original) => ({
   ...(await original()),
   useNewThreadHandler: () => mocks.newThread,
@@ -1369,5 +1383,117 @@ it.each([
     expect(useComposerDraftStore.getState()).toBe(before);
     expect(mocks.toast).toHaveBeenCalledTimes(1);
     expect(mocks.updateToast).toHaveBeenCalledTimes(1);
+  },
+);
+
+it.each(["question", "explain"] as const)(
+  "uses settlement locale for ask-thread success: %s",
+  async (kind) => {
+    const state = useComposerDraftStore.getState();
+    using _restore = {
+      [Symbol.dispose]() {
+        useComposerDraftStore.setState(state, true);
+        mocks.locale = "en";
+        mocks.newThread.mockReset();
+        mocks.writeHandoff.mockReset();
+        mocks.interceptHandoff = false;
+      },
+    };
+    setup();
+    mocks.interceptHandoff = true;
+    const opened = {
+      draftId: DraftId.make("panel-ask-success"),
+      threadId: ThreadId.make("panel-ask-success-thread"),
+    };
+    let finish = (_value: typeof opened | null) => {};
+    mocks.newThread.mockReset().mockReturnValueOnce(
+      new Promise<typeof opened | null>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    mocks.writeHandoff.mockReset();
+    mocks.toast.mockClear();
+    mocks.prepare.mockClear();
+    mocks.command.mockClear();
+    mocks.runAction.mockClear();
+    mocks.acted.mockClear();
+    mocks.refresh.mockClear();
+    await using screen = await render(copySurface("en"));
+    await using _settle = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          finish(null);
+          await Promise.resolve();
+        });
+      },
+    };
+    const before = useComposerDraftStore.getState();
+    const trigger = screen.getByRole("button", { name: "More pull request actions", exact: true });
+    await trigger.click();
+    await page
+      .getByRole("menuitem", {
+        name: kind === "question" ? /^Ask a question(?:\s|$)/ : /^Explain this PR(?:\s|$)/,
+      })
+      .click();
+    expect(mocks.newThread).toHaveBeenCalledExactlyOnceWith({
+      environmentId,
+      projectId: detail.projectId,
+    });
+    await trigger.click();
+    const opening = page.getByRole("menuitem", { name: /^Opening\.\.\.(?:\s|$)/ });
+    await expect.element(opening).toBeVisible();
+    await expect.element(opening).toHaveAttribute("aria-disabled", "true");
+    await act(async () => {
+      opening.element().dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+    });
+    expect(mocks.newThread).toHaveBeenCalledTimes(1);
+    expect(mocks.writeHandoff).not.toHaveBeenCalled();
+    expect(mocks.toast).not.toHaveBeenCalled();
+    await screen.rerender(copySurface("zh-CN"));
+    await act(async () => {
+      finish(opened);
+      await Promise.resolve();
+    });
+    const input = {
+      number: detail.number,
+      title: detail.title,
+      url: detail.url,
+      headBranch: detail.headBranch,
+      baseBranch: detail.baseBranch,
+      state: detail.state,
+      isDraft: detail.isDraft,
+    };
+    expect(mocks.writeHandoff).toHaveBeenCalledExactlyOnceWith(
+      opened.draftId,
+      kind === "question"
+        ? buildAskAboutPullRequestHandoff(input)
+        : buildExplainPullRequestHandoff(input),
+    );
+    expect(mocks.toast).toHaveBeenCalledExactlyOnceWith({
+      type: "success",
+      title: "已在任务中提问",
+      description:
+        kind === "question"
+          ? "变更请求已添加到输入框。输入问题后发送。"
+          : "问题已放入输入框。请检查后发送。",
+    });
+    expect(mocks.writeHandoff.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.toast.mock.invocationCallOrder[0]!,
+    );
+    await screen.rerender(copySurface("en"));
+    const restored = page.getByRole("menuitem", {
+      name: kind === "question" ? /^Ask a question(?:\s|$)/ : /^Explain this PR(?:\s|$)/,
+    });
+    await expect.element(restored).toBeVisible();
+    await expect.element(restored).not.toHaveAttribute("aria-disabled", "true");
+    expect(mocks.newThread).toHaveBeenCalledTimes(1);
+    expect(mocks.writeHandoff).toHaveBeenCalledTimes(1);
+    expect(mocks.toast).toHaveBeenCalledTimes(1);
+    expect(mocks.prepare).not.toHaveBeenCalled();
+    expect(mocks.command).not.toHaveBeenCalled();
+    expect(mocks.runAction).not.toHaveBeenCalled();
+    expect(mocks.acted).not.toHaveBeenCalled();
+    expect(mocks.refresh).not.toHaveBeenCalled();
+    expect(useComposerDraftStore.getState()).toBe(before);
   },
 );

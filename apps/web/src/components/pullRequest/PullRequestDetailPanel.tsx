@@ -996,13 +996,15 @@ export function PullRequestDetailPanel({
       });
       return;
     }
+    const { t: currentT, locale: currentLocale } = readWebI18n();
+    const currentTx = (source: string) => translateWebSource(currentLocale, source);
     toastManager.add({
       type: "success",
-      title: t("pullRequests.handoff.askedInThread"),
+      title: currentT("pullRequests.handoff.askedInThread"),
       description:
         task.prompt.length > 0
-          ? tx("The question is in the composer. Read it over, then send.")
-          : uiLocale === "zh-CN"
+          ? currentTx("The question is in the composer. Read it over, then send.")
+          : currentLocale === "zh-CN"
             ? "变更请求已添加到输入框。输入问题后发送。"
             : `The ${terminology.singular} is in the composer. Type your question, then send.`,
     });
