@@ -140,6 +140,7 @@ export function PullRequestStackMenu({
         ),
       });
     } else {
+      const { locale, t } = readWebI18n();
       toastManager.update(toastId, {
         type: "success",
         title:

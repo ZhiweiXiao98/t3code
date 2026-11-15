@@ -111,7 +111,7 @@ const reference = {
   repository: "owner/repository",
   number: 2,
 };
-function surface(locale: "en" | "zh-CN") {
+function surface(locale: "en" | "zh-CN", hostLabel = "GitHub") {
   state.locale = locale;
   return (
     <WebI18nContext.Provider
@@ -125,7 +125,7 @@ function surface(locale: "en" | "zh-CN") {
       <PullRequestStackMenu
         environmentId={EnvironmentId.make("environment")}
         reference={reference}
-        hostLabel="GitHub"
+        hostLabel={hostLabel}
         terminology={sourceControlClients.get("github").changeRequest}
         stack={{
           id: "stack",
@@ -237,3 +237,92 @@ it.each([
   expect(add).toHaveBeenCalledTimes(1);
   expect(update).toHaveBeenCalledTimes(1);
 });
+
+it.each(["merge", "update-branch"] as const)(
+  "uses settlement locale for stack success: %s",
+  async (action) => {
+    const { AsyncResult } = await import("effect/reactivity");
+    const Cause = await import("effect/Cause");
+    type Result =
+      | ReturnType<typeof AsyncResult.success<undefined>>
+      | ReturnType<typeof AsyncResult.failure<unknown, unknown>>;
+    using _restore = {
+      [Symbol.dispose]() {
+        state.controlled = false;
+        state.locale = "en";
+        state.run.mockReset();
+      },
+    };
+    state.controlled = true;
+    state.acted.mockClear();
+    let finish = (_result: Result) => {};
+    state.run.mockReset().mockReturnValueOnce(
+      new Promise<Result>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    using add = vi.spyOn(toastManager, "add").mockReturnValue("stack-success-toast");
+    using update = vi.spyOn(toastManager, "update").mockImplementation(() => {});
+    await using screen = await render(surface("en", "Literal $& {host}"));
+    await using _settle = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          finish(AsyncResult.failure(Cause.interrupt()));
+          await Promise.resolve();
+        });
+      },
+    };
+    const label = action === "merge" ? "Merge stack" : "Rebase stack";
+    if (action === "merge") await screen.getByRole("button", { name: label, exact: true }).click();
+    else {
+      await screen.getByRole("button", { name: "Stack 1, layer 1 of 1" }).click();
+      await page.getByRole("menuitem", { name: label, exact: true }).click();
+    }
+    expect(state.run).not.toHaveBeenCalled();
+    await page.getByRole("dialog").getByRole("button", { name: label, exact: true }).click();
+    expect(state.run).toHaveBeenCalledExactlyOnceWith({
+      environmentId: EnvironmentId.make("environment"),
+      input: {
+        ...reference,
+        stackNumber: 1,
+        expectedStackHeads: [{ number: 2, headSha: "abc123" }],
+        action,
+        ...(action === "merge" ? { mergeMethod: "squash" } : { updateMethod: "rebase" }),
+      },
+    });
+    expect(add).toHaveBeenCalledExactlyOnceWith({
+      type: "loading",
+      title: action === "merge" ? "Merging stack..." : "Rebasing stack...",
+    });
+    const pending = screen.getByRole("button", { name: "Merge stack", exact: true });
+    await expect.element(pending).toBeDisabled();
+    await act(async () => {
+      pending.element().dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+    });
+    expect(state.run).toHaveBeenCalledTimes(1);
+    expect(state.acted).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+    await screen.rerender(surface("zh-CN", "Literal $& {host}"));
+    await act(async () => {
+      finish(AsyncResult.success(undefined));
+      await Promise.resolve();
+    });
+    expect(update).toHaveBeenCalledExactlyOnceWith("stack-success-toast", {
+      type: "success",
+      title: action === "merge" ? "堆叠合并请求已完成" : "堆叠已变基",
+      description:
+        action === "merge" ? "Literal $& {host} 已合并堆叠或将其加入合并队列。" : undefined,
+    });
+    expect(state.acted).toHaveBeenCalledExactlyOnceWith();
+    expect(state.acted.mock.invocationCallOrder[0]).toBeLessThan(
+      update.mock.invocationCallOrder[0]!,
+    );
+    await screen.rerender(surface("en", "Literal $& {host}"));
+    await expect
+      .element(screen.getByRole("button", { name: "Merge stack", exact: true }))
+      .toBeEnabled();
+    expect(state.run).toHaveBeenCalledTimes(1);
+    expect(add).toHaveBeenCalledTimes(1);
+    expect(update).toHaveBeenCalledTimes(1);
+  },
+);
