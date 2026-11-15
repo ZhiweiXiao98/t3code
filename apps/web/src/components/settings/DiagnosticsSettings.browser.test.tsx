@@ -5,6 +5,7 @@ import {
   AuthDiagnosticsReadScope,
   AuthEnvironmentMaintainScope,
   type ServerProcessDiagnosticsResult,
+  type ServerSignalProcessResult,
   AuthOrchestrationOperateScope,
   EnvironmentId,
 } from "@t3tools/contracts";
@@ -321,3 +322,85 @@ it("blocks diagnostics signal after call-time scope denial", async () => {
   expect(fixture.toast).not.toHaveBeenCalled();
   expect(fixture.refresh).not.toHaveBeenCalled();
 });
+
+it.each(["owned", "raw", "empty", "stale"] as const)(
+  "uses settlement locale for diagnostics non-signaled result: %s",
+  async (kind) => {
+    setup();
+    fixture.processes = true;
+    // Empty is defensive consumer coverage, not a valid wire message; stale tests recognizer compatibility.
+    const message =
+      kind === "owned"
+        ? Option.none<string>()
+        : Option.some(
+            kind === "raw"
+              ? "Literal $& {signal}"
+              : kind === "empty"
+                ? ""
+                : "Process is not a live descendant of the server.",
+          );
+    const value: ServerSignalProcessResult = {
+      pid: 123,
+      signal: "SIGINT",
+      signaled: false,
+      message,
+    };
+    const result = AsyncResult.success(value);
+    let finish!: (value: typeof result) => void;
+    const pending = new Promise<typeof result>((resolve) => {
+      finish = resolve;
+    });
+    fixture.signal.mockReturnValue(pending);
+    await using screen = await render(surface("en"));
+    await using _drain = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          finish(result);
+          await pending;
+        });
+        fixture.processes = false;
+        fixture.locale = "en";
+      },
+    };
+    const send = page.getByRole("button", { name: "Send SIGINT", exact: true });
+    await send.click();
+    expect(fixture.signal).toHaveBeenCalledExactlyOnceWith({
+      environmentId: EnvironmentId.make("diagnostics-fixture"),
+      input: { pid: 123, startTimeMs: 456, signal: "SIGINT" },
+    });
+    await expect.element(send).toBeDisabled();
+    await act(async () => {
+      send.element().dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    expect(fixture.signal).toHaveBeenCalledTimes(1);
+    expect(fixture.refresh).not.toHaveBeenCalled();
+    fixture.locale = "zh-CN";
+    await screen.rerender(surface("zh-CN"));
+    await act(async () => {
+      finish(result);
+      await pending;
+    });
+    expect(fixture.toast).toHaveBeenCalledExactlyOnceWith(
+      kind === "stale"
+        ? {
+            type: "info",
+            title: "进程已退出",
+            description: "此进程已不再是 T3 服务器的子进程，可能已经退出。",
+          }
+        : {
+            type: "error",
+            title: "无法发送 SIGINT",
+            description:
+              kind === "owned" ? "发送 SIGINT 失败。" : kind === "raw" ? "Literal $& {signal}" : "",
+          },
+    );
+    expect(fixture.refresh).toHaveBeenCalledTimes(1);
+    fixture.locale = "en";
+    await screen.rerender(surface("en"));
+    await expect.element(send).toBeEnabled();
+    expect(fixture.toast).toHaveBeenCalledTimes(1);
+    expect(fixture.signal).toHaveBeenCalledTimes(1);
+    expect(fixture.refresh).toHaveBeenCalledTimes(1);
+    expect(fixture.open).not.toHaveBeenCalled();
+  },
+);

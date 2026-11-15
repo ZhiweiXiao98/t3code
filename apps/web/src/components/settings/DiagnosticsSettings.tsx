@@ -962,6 +962,7 @@ function DiagnosticsSettingsBody() {
       return;
     }
     if (!result.value.signaled) {
+      const { t } = readWebI18n();
       const message = Option.getOrUndefined(result.value.message);
       refreshProcesses();
       if (isStaleProcessSignalMessage(message)) {
