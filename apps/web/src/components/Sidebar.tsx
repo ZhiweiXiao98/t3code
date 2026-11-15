@@ -952,6 +952,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
       });
     },
     onError: (error) => {
+      const { t } = readWebI18n();
       toastManager.add(
         stackedThreadToast({
           type: "error",
@@ -971,6 +972,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
       });
     },
     onError: (error) => {
+      const { t } = readWebI18n();
       toastManager.add(
         stackedThreadToast({
           type: "error",
@@ -989,6 +991,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
       });
     },
     onError: (error) => {
+      const { t } = readWebI18n();
       toastManager.add(
         stackedThreadToast({
           type: "error",

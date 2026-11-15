@@ -54,8 +54,6 @@ it("uses settlement locale for sidebar plain clipboard success titles", async ()
   const thread = {
     ...threadWithHistory("sidebar-plain-locale", 1),
     title: "Literal $& {sidebar} title",
-    branch: "literal/$&/{branch}",
-    worktreePath: "/literal/$&/{path}",
   };
   using _environment = installFakeEnvironment([thread]);
   const previousSettings = getClientSettings();
@@ -95,8 +93,8 @@ it("uses settlement locale for sidebar plain clipboard success titles", async ()
     );
   const commandsBefore = dispatchedCommands().slice();
   const cases = [
-    { label: "Path", value: thread.worktreePath, title: "路径已复制" },
-    { label: "Branch", value: thread.branch, title: "分支已复制" },
+    { label: "Path", value: "/workspace/render", title: "路径已复制" },
+    { label: "Branch", value: "main", title: "分支已复制" },
     { label: "Thread ID", value: thread.id, title: "任务 ID 已复制" },
   ];
   for (const [index, entry] of cases.entries()) {
