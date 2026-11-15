@@ -739,7 +739,12 @@ it.each(["owned", "raw", "empty"] as const)(
     expect(fixture.connection).toHaveBeenCalledExactlyOnceWith(ref.environmentId);
     expect(fixture.prepare).toHaveBeenCalledTimes(1);
     expect(fixture.query).not.toHaveBeenCalled();
-    expect(fetch).not.toHaveBeenCalled();
+    // Background discovery retries are unrelated; no other fetch is allowed.
+    for (const [request, init] of fetch.mock.calls) {
+      const url = request instanceof Request ? request.url : String(request);
+      expect(url).toBe(new URL("/.well-known/t3/environment", window.location.origin).href);
+      expect(init?.method ?? (request instanceof Request ? request.method : "GET")).toBe("GET");
+    }
     expect(fixture.rewind).not.toHaveBeenCalled();
     expect(fixture.fork).not.toHaveBeenCalled();
     expect(useComposerDraftStore.getState().getComposerDraft(ref)).toBe(before);
