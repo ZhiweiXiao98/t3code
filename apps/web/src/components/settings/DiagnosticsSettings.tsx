@@ -1,3 +1,4 @@
+import { readWebI18n } from "../../i18n/readWebI18n";
 import { translateWebSource } from "../../i18n/messages";
 import { ProcessSignalActions } from "./ProcessSignalActions";
 import { resolveUsageAccess } from "@t3tools/client-runtime/state/usage-access";
@@ -949,6 +950,7 @@ function DiagnosticsSettingsBody() {
     clearSignaling();
     if (result._tag === "Failure") {
       if (!isAtomCommandInterrupted(result)) {
+        const { t } = readWebI18n();
         const error = squashAtomCommandFailure(result);
         toastManager.add({
           type: "error",
