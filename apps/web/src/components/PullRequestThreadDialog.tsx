@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import {
   AuthOrchestrationOperateScope,
   type EnvironmentId,
@@ -157,6 +158,14 @@ export function PullRequestThreadDialog({
       if (isAtomCommandInterrupted(result)) {
         preparePullRequestThreadAction.resetError();
       } else {
+        const { t } = readWebI18n();
+        const requestLabel = t(
+          terminology.shortLabel === "MR"
+            ? "sourceControl.changeRequest.mergeRequest"
+            : terminology.shortLabel === "PR"
+              ? "sourceControl.changeRequest.pullRequest"
+              : "sourceControl.changeRequest.generic",
+        );
         const error = squashAtomCommandFailure(result);
         setPrepareErrorMessage(
           error instanceof Error
