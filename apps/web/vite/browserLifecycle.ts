@@ -118,6 +118,30 @@ function socketErrorCategory(message: unknown): string {
   }
 }
 
+function networkProcessSnapshot(value: unknown): { pids: Set<number>; count: number } | undefined {
+  if (value === null || typeof value !== "object" || !("processInfo" in value)) return;
+  const records: unknown = value.processInfo;
+  if (!Array.isArray(records) || records.length > 256) return;
+  const pids = new Set<number>();
+  const seen = new Set<number>();
+  for (const record of records as unknown[]) {
+    if (record === null || typeof record !== "object" || !("id" in record) || !("type" in record))
+      return;
+    const pid = numeric(record.id);
+    if (
+      pid === null ||
+      pid <= 0 ||
+      seen.has(pid) ||
+      typeof record.type !== "string" ||
+      record.type.length > 256
+    )
+      return;
+    seen.add(pid);
+    if (record.type === "network.mojom.NetworkService") pids.add(pid);
+  }
+  return { pids, count: records.length };
+}
+
 // Preserve the stock factory, prewarm, options, server, launch flags and return values.
 export function observeBrowserLifecycle(provider: ReturnType<typeof playwright>) {
   const directory = process.env.T3CODE_BROWSER_LIFECYCLE_DIR;
@@ -154,6 +178,126 @@ export function observeBrowserLifecycle(provider: ReturnType<typeof playwright>)
       const close = instance.close.bind(instance);
       const browsers = new WeakSet<Browser>();
       const pages = new WeakSet<Page>();
+      const browserIds = new WeakMap<Browser, number>();
+      const processSamplers = new WeakMap<
+        Browser,
+        { error: () => void; stop: (reason: string) => void }
+      >();
+      const processErrorSeen = new WeakSet<Browser>();
+      const stopProcessSamplers: Array<() => void> = [];
+      let nextBrowser = 0;
+      let processRequests = 0;
+      const browserId = (browser: Browser) => {
+        let id = browserIds.get(browser);
+        if (id === undefined) {
+          id = ++nextBrowser;
+          browserIds.set(browser, id);
+        }
+        return id;
+      };
+      const observeProcesses = (browser: Browser, cdp: CDPSession) => {
+        const id = browserId(browser);
+        let stopped = false;
+        let inFlight = false;
+        let followup = false;
+        let sequence = 0;
+        let previous: Set<number> | undefined;
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const stop = (reason: string) => {
+          if (stopped) return;
+          stopped = true;
+          clearTimeout(timer);
+          timer = undefined;
+          emit("process-sampling-stopped", {
+            browser: id,
+            reason,
+            pending: inFlight,
+            samples: sequence,
+          });
+          previous = undefined;
+          processSamplers.delete(browser);
+        };
+        const sample = async (reason: string) => {
+          if (!active || stopped || inFlight) return;
+          if (processRequests >= 512) {
+            stop("budget");
+            return;
+          }
+          processRequests++;
+          inFlight = true;
+          const sampleId = ++sequence;
+          const requested = Date.now();
+          emit("process-sample-requested", {
+            browser: id,
+            sample: sampleId,
+            requested_ms: requested,
+            reason,
+          });
+          try {
+            const response: unknown = await cdp.send("SystemInfo.getProcessInfo");
+            if (!active || stopped) return;
+            const snapshot = networkProcessSnapshot(response);
+            emit("process-sample-completed", {
+              browser: id,
+              sample: sampleId,
+              requested_ms: requested,
+              result: snapshot ? "complete" : "invalid",
+              process_count: snapshot?.count ?? null,
+              network_count: snapshot?.pids.size ?? null,
+            });
+            if (snapshot) {
+              for (const pid of snapshot.pids) {
+                if (!previous?.has(pid))
+                  emit("network-service-observed", { browser: id, sample: sampleId, pid });
+              }
+              if (previous) {
+                for (const pid of previous) {
+                  if (!snapshot.pids.has(pid))
+                    emit("network-service-missing", { browser: id, sample: sampleId, pid });
+                }
+              }
+              previous = snapshot.pids;
+            }
+          } catch {
+            if (active && !stopped)
+              emit("process-sample-completed", {
+                browser: id,
+                sample: sampleId,
+                requested_ms: requested,
+                result: "unavailable",
+              });
+          } finally {
+            inFlight = false;
+            if (active && !stopped) {
+              if (followup) {
+                followup = false;
+                void sample("socket-error");
+              } else if (processRequests >= 512) {
+                stop("budget");
+              } else {
+                timer = setTimeout(() => {
+                  timer = undefined;
+                  void sample("periodic");
+                }, 5000);
+                timer.unref();
+              }
+            }
+          }
+        };
+        const error = () => {
+          if (!active || stopped) return;
+          if (inFlight) followup = true;
+          else {
+            clearTimeout(timer);
+            timer = undefined;
+            void sample("socket-error");
+          }
+        };
+        processSamplers.set(browser, { error, stop });
+        stopProcessSamplers.push(() => stop("provider-close"));
+        void sample("initial");
+        if (processErrorSeen.has(browser)) error();
+      };
       const targets = new Map<string, number>();
       let nextPage = 0;
       let nextTarget = 0;
@@ -170,11 +314,23 @@ export function observeBrowserLifecycle(provider: ReturnType<typeof playwright>)
       const observeBrowser = async (browser: Browser) => {
         if (!active || browsers.has(browser)) return;
         browsers.add(browser);
-        const disconnected = () => emit("browser-disconnected", { teardown });
+        let isDisconnected = false;
+        const disconnected = () => {
+          isDisconnected = true;
+          emit("browser-disconnected", { teardown });
+          processSamplers.get(browser)?.stop("browser-disconnected");
+        };
         browser.on("disconnected", disconnected);
         disposers.push(() => browser.off("disconnected", disconnected));
         const cdp = await browser.newBrowserCDPSession();
         if (!track(cdp)) return;
+        if (!isDisconnected) {
+          try {
+            observeProcesses(browser, cdp);
+          } catch {
+            emit("process-observation-unavailable", { browser: browserId(browser) });
+          }
+        }
         cdp.on("Target.targetCrashed", ({ targetId: target, status, errorCode }) => {
           const category = ["crashed", "killed", "oom", "abnormal", "normal"].includes(status)
             ? status
@@ -193,11 +349,11 @@ export function observeBrowserLifecycle(provider: ReturnType<typeof playwright>)
         await cdp.send("Target.setDiscoverTargets", { discover: true });
       };
 
-      const observePage = async (page: Page) => {
+      const observePage = async (page: Page, browser: Browser | null) => {
         if (!active || pages.has(page)) return;
         pages.add(page);
         const id = ++nextPage;
-        emit("page-observed", { page: id });
+        emit("page-observed", { page: id, browser: browser ? browserId(browser) : null });
         const closed = () => emit("page-closed", { page: id, teardown });
         const crashed = () => emit("page-crashed", { page: id, teardown });
         const navigated = (frame: ReturnType<Page["mainFrame"]>) =>
@@ -289,6 +445,10 @@ export function observeBrowserLifecycle(provider: ReturnType<typeof playwright>)
               handshake_status: value.handshake,
               teardown,
             });
+          if (active && browser && !processErrorSeen.has(browser)) {
+            processErrorSeen.add(browser);
+            processSamplers.get(browser)?.error();
+          }
         });
         cdp.on("Network.webSocketClosed", ({ requestId }) => {
           const value = socket(requestId);
@@ -314,7 +474,7 @@ export function observeBrowserLifecycle(provider: ReturnType<typeof playwright>)
         try {
           const page = instance.getPage(sessionId);
           const browser = page.context().browser();
-          void observePage(page).catch(() => emit("page-observation-unavailable"));
+          void observePage(page, browser).catch(() => emit("page-observation-unavailable"));
           if (browser) {
             void observeBrowser(browser).catch(() => emit("browser-observation-unavailable"));
           }
@@ -329,6 +489,14 @@ export function observeBrowserLifecycle(provider: ReturnType<typeof playwright>)
         try {
           return close(options);
         } finally {
+          for (const stop of stopProcessSamplers) {
+            try {
+              stop();
+            } catch {
+              /* Sampling never owns the browser lifetime. */
+            }
+          }
+          stopProcessSamplers.length = 0;
           active = false;
           for (const dispose of disposers) {
             try {
