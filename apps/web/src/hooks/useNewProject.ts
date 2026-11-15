@@ -17,7 +17,7 @@ import { projectEnvironment } from "~/state/projects";
 import { sourceControlEnvironment } from "~/state/sourceControl";
 import { useAtomCommand } from "~/state/use-atom-command";
 import { useNewThreadHandler } from "./useHandleNewThread";
-import { useI18n, type WebTranslate } from "~/i18n/WebI18nContext";
+import { type WebTranslate } from "~/i18n/WebI18nContext";
 import { suggestAppAccessForRemote } from "../components/sourceControlAppAccessToast";
 
 function errorMessage(error: unknown, t: WebTranslate): string {
@@ -27,7 +27,6 @@ function errorMessage(error: unknown, t: WebTranslate): string {
 }
 
 export function useNewProject() {
-  const { t } = useI18n();
   const createNew = useAtomCommand(projectEnvironment.createNew, { reportFailure: false });
   const publishRepository = useAtomCommand(sourceControlEnvironment.publishRepository, {
     reportFailure: false,
@@ -64,6 +63,7 @@ export function useNewProject() {
       }
       return;
     }
+    const { t } = readWebI18n();
     toastManager.add(
       stackedThreadToast({
         type: "success",
@@ -98,6 +98,7 @@ export function useNewProject() {
     }
 
     const { projectId, workspaceRoot, commitError } = result.value;
+    const { t } = readWebI18n();
     toastManager.add(
       stackedThreadToast(
         commitError === undefined
