@@ -1,3 +1,4 @@
+import type { EnvironmentCatalogState } from "@t3tools/client-runtime/state/connections";
 import { EnvironmentId, ProjectId, ThreadId } from "@t3tools/contracts";
 import { describe, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
@@ -5,6 +6,7 @@ import { page, userEvent } from "vite-plus/test/browser";
 import { act, render } from "../../test/render";
 import { openCommandPalette } from "../commandPaletteBus";
 import { useCommandPaletteStore } from "../commandPaletteStore";
+import { LAST_USED_PROJECT_STORAGE_KEY } from "../hooks/useHandleNewThread";
 import { makeThreadFixture } from "../test-fixtures";
 import type { Project, Thread } from "../types";
 import { CommandPalette } from "./CommandPalette";
@@ -21,17 +23,42 @@ vi.mock("../state/entities", async (original) => ({
   useVisibleThreadShells: () => entities.threads,
 }));
 
+// Keep discovery pending so a remembered project cannot silently enable fallback.
+vi.mock(import("../connection/catalog"), async (original) => {
+  const actual = await original();
+  const { Atom } = await import("effect/reactivity");
+  return {
+    ...actual,
+    environmentCatalog: {
+      ...actual.environmentCatalog,
+      catalogValueAtom: Atom.make<EnvironmentCatalogState>({
+        isReady: false,
+        entries: new Map(),
+      }),
+    },
+  };
+});
+
 function setup(state: { projects?: ReadonlyArray<Project>; threads?: ReadonlyArray<Thread> } = {}) {
+  using stack = new DisposableStack();
+  const previousProject = localStorage.getItem(LAST_USED_PROJECT_STORAGE_KEY);
+  stack.defer(() => {
+    if (previousProject === null) localStorage.removeItem(LAST_USED_PROJECT_STORAGE_KEY);
+    else localStorage.setItem(LAST_USED_PROJECT_STORAGE_KEY, previousProject);
+  });
+  localStorage.removeItem(LAST_USED_PROJECT_STORAGE_KEY);
+
   useCommandPaletteStore.setState(useCommandPaletteStore.getInitialState(), true);
   entities.projects = state.projects ?? [];
   entities.threads = state.threads ?? [];
+  return stack.move();
 }
 
 describe("CommandPalette open intents", () => {
   it("drags a searched thread into the current composer without navigating", async () => {
     const environmentId = EnvironmentId.make("remote");
     const threadId = ThreadId.make("dragged-thread");
-    setup({
+    using _fixture = setup({
       threads: [makeThreadFixture({ environmentId, id: threadId, title: "Drag this thread" })],
     });
     const onDrop = vi.fn();
@@ -79,7 +106,7 @@ describe("CommandPalette open intents", () => {
   });
 
   it("opens New thread in... with focus in the search input, not the Back button", async () => {
-    setup();
+    using _fixture = setup();
     await using _screen = await render(<CommandPalette>{null}</CommandPalette>);
 
     openCommandPalette({ open: "new-thread-in" });
@@ -100,28 +127,40 @@ describe("CommandPalette open intents", () => {
       updatedAt: "2026-03-01T00:00:00.000Z",
       scripts: [],
     });
-    setup({
-      projects: [project("acme", "Acme"), project("beta", "Beta"), project("gamma", "Gamma")],
+    using storage = new DisposableStack();
+    const previousProject = localStorage.getItem(LAST_USED_PROJECT_STORAGE_KEY);
+    storage.defer(() => {
+      if (previousProject === null) localStorage.removeItem(LAST_USED_PROJECT_STORAGE_KEY);
+      else localStorage.setItem(LAST_USED_PROJECT_STORAGE_KEY, previousProject);
     });
-    await using _screen = await render(<CommandPalette>{null}</CommandPalette>);
+    const staleProject = JSON.stringify("environment-render:project-render");
+    localStorage.setItem(LAST_USED_PROJECT_STORAGE_KEY, staleProject);
 
-    openCommandPalette({});
-    await expect
-      .element(page.getByPlaceholder("Search commands, projects, and threads..."))
-      .toHaveFocus();
-    await userEvent.keyboard("{ArrowDown}");
-    await expect
-      .element(page.getByRole("option", { name: /^New thread in\.\.\./ }))
-      .toHaveAttribute("data-highlighted");
-    await userEvent.keyboard("{Enter}");
+    {
+      using _fixture = setup({
+        projects: [project("acme", "Acme"), project("beta", "Beta"), project("gamma", "Gamma")],
+      });
+      await using _screen = await render(<CommandPalette>{null}</CommandPalette>);
 
-    await expect.element(page.getByPlaceholder("Search...")).toHaveFocus();
-    await expect.element(page.getByRole("option").first()).toHaveAttribute("data-highlighted");
-    await expect.element(page.getByRole("option").nth(1)).not.toHaveAttribute("data-highlighted");
+      openCommandPalette({});
+      await expect
+        .element(page.getByPlaceholder("Search commands, projects, and threads..."))
+        .toHaveFocus();
+      await userEvent.keyboard("{ArrowDown}");
+      await expect
+        .element(page.getByRole("option", { name: /^New thread in\.\.\./ }))
+        .toHaveAttribute("data-highlighted");
+      await userEvent.keyboard("{Enter}");
+
+      await expect.element(page.getByPlaceholder("Search...")).toHaveFocus();
+      await expect.element(page.getByRole("option").first()).toHaveAttribute("data-highlighted");
+      await expect.element(page.getByRole("option").nth(1)).not.toHaveAttribute("data-highlighted");
+    }
+    expect(localStorage.getItem(LAST_USED_PROJECT_STORAGE_KEY)).toBe(staleProject);
   });
 
   it("opens a search intent with its query in the focused input", async () => {
-    setup();
+    using _fixture = setup();
     await using _screen = await render(<CommandPalette>{null}</CommandPalette>);
 
     openCommandPalette({ query: "acme" });
@@ -135,7 +174,7 @@ describe("CommandPalette open intents", () => {
     const environmentId = EnvironmentId.make("local");
     const projectId = ProjectId.make("acme");
     const parentId = ThreadId.make("parent");
-    setup({
+    using _fixture = setup({
       projects: [
         {
           id: projectId,
@@ -179,7 +218,7 @@ describe("CommandPalette open intents", () => {
 });
 
 it("keeps the MCP action searchable as its displayed title follows the current language", async () => {
-  setup();
+  using _fixture = setup();
   const palette = (locale: "en" | "zh-CN") => (
     <WebI18nContext
       value={{
