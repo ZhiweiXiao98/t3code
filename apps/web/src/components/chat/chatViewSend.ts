@@ -189,7 +189,7 @@ export async function rewindToMessage(input: {
 }): Promise<
   | {
       readonly error: string;
-      readonly ownedCode?: "rewindAttachmentsPending" | "rewindFailed";
+      readonly ownedCode?: "rewindAttachmentsPending" | "rewindFailed" | "rewindCapacity";
       readonly prompt?: never;
     }
   | { readonly error: null; readonly prompt: string }
@@ -220,12 +220,10 @@ export async function rewindToMessage(input: {
       (draft?.images.length ?? 0) + (draft?.files.length ?? 0) + files.length >
       PROVIDER_SEND_TURN_MAX_ATTACHMENTS
     ) {
-      throw new Error(
-        translateWebSource(
-          readWebI18n().locale,
-          "Make room for this message's attachments in the composer before rewinding.",
-        ),
-      );
+      return {
+        error: "Make room for this message's attachments in the composer before rewinding.",
+        ownedCode: "rewindCapacity",
+      };
     }
     const commandId = CommandId.make(randomUUID());
     await waitForRevertedMessage(

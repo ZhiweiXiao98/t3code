@@ -1324,6 +1324,11 @@ it.each(["server", "draft"] as const)(
 );
 
 it.each([
+  [
+    "rewindCapacity",
+    "Make room for this message's attachments in the composer before rewinding.",
+    "请先在输入框中为此消息的附件腾出空间，再回退会话。",
+  ],
   ["rewindFailed", "Failed to revert thread state.", "还原会话状态失败。"],
   [
     "rewindAttachmentsPending",

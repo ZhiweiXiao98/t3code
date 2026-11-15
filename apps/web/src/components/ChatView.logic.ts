@@ -1203,6 +1203,7 @@ export function isCompactCommandMessage(message: ChatMessage): boolean {
 // can race around promotion, so each write carries its time to let the latest
 // one win when they collide.
 const OWNED_THREAD_ERRORS = {
+  rewindCapacity: "Make room for this message's attachments in the composer before rewinding.",
   rewindFailed: "Failed to revert thread state.",
   rewindAttachmentsPending: "Wait for attachments to finish preparing before rewinding.",
   rewindUnsupported:

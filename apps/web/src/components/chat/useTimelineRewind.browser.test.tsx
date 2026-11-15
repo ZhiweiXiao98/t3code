@@ -1,6 +1,13 @@
 import "~/index.css";
 import { useRef, useState } from "react";
-import { EnvironmentId, ThreadId, RunId, MessageId } from "@t3tools/contracts";
+import {
+  EnvironmentId,
+  ThreadId,
+  RunId,
+  MessageId,
+  ChatAttachmentId,
+  PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
+} from "@t3tools/contracts";
 import * as Cause from "effect/Cause";
 import { AsyncResult } from "effect/reactivity";
 import { expect, it, vi } from "vite-plus/test";
@@ -12,6 +19,10 @@ import { makeThreadFixture } from "../../test-fixtures";
 import { makeThreadErrorSetter, type LocalThreadErrorEntry } from "../ChatView.logic";
 import { ChatBannerLane } from "./ChatBannerLane";
 const fixture = vi.hoisted(() => ({
+  prepareDefault: undefined as
+    | typeof import("../ChatView.logic").prepareRevertedMessageAttachments
+    | undefined,
+  prepare: vi.fn(),
   connection: vi.fn(),
   allowed: true,
   localApi: true,
@@ -22,6 +33,12 @@ const fixture = vi.hoisted(() => ({
   query: vi.fn(),
   locale: "en" as "en" | "zh-CN",
 }));
+vi.mock("../ChatView.logic", async (original) => {
+  const actual = await original<typeof import("../ChatView.logic")>();
+  fixture.prepareDefault = actual.prepareRevertedMessageAttachments;
+  fixture.prepare.mockImplementation(actual.prepareRevertedMessageAttachments);
+  return { ...actual, prepareRevertedMessageAttachments: fixture.prepare };
+});
 vi.mock("../../localApi", async (original) => {
   const actual = await original<typeof import("../../localApi")>();
   const api = actual.createLocalApi();
@@ -81,6 +98,8 @@ function setup() {
   fixture.allowed = true;
   fixture.localApi = true;
   fixture.confirm.mockReset();
+  if (!fixture.prepareDefault) throw new Error("Preparation mock is not initialized");
+  fixture.prepare.mockReset().mockImplementation(fixture.prepareDefault);
   fixture.connection.mockReset().mockReturnValue(null);
   fixture.fork.mockReset().mockResolvedValue(AsyncResult.failure(Cause.fail(null)));
   fixture.wait.mockReset().mockResolvedValue(false);
@@ -473,5 +492,57 @@ it.each(["null", "undefined", "raw", "empty"] as const)(
     expect(fixture.query).not.toHaveBeenCalled();
     expect(fixture.fork).not.toHaveBeenCalled();
     expect(useComposerDraftStore.getState().getComposerDraft(ref)).toBe(originalDraft);
+  },
+);
+
+it.each(["owned", "raw", "empty"] as const)(
+  "keeps rewind capacity %s notice current",
+  async (kind) => {
+    setup();
+    const source = "Make room for this message's attachments in the composer before rewinding.";
+    const original = useComposerDraftStore.getState();
+    using _restore = { [Symbol.dispose]: () => useComposerDraftStore.setState(original, true) };
+    const files = Array.from({ length: PROVIDER_SEND_TURN_MAX_ATTACHMENTS }, (_, index) => ({
+      type: "file" as const,
+      id: ChatAttachmentId.make(`capacity-${index}`),
+      name: `literal-$&-{file}-${index}.txt`,
+      mimeType: "text/plain",
+      sizeBytes: 1,
+      file: new File(["x"], `literal-$&-{file}-${index}.txt`, { type: "text/plain" }),
+    }));
+    expect(original.addFiles(ref, files)).toHaveLength(PROVIDER_SEND_TURN_MAX_ATTACHMENTS);
+    const before = useComposerDraftStore.getState().getComposerDraft(ref);
+    expect(before?.files).toHaveLength(PROVIDER_SEND_TURN_MAX_ATTACHMENTS);
+    fixture.connection.mockReturnValue({ httpBaseUrl: "https://example.invalid" });
+    if (kind === "owned")
+      fixture.prepare.mockResolvedValueOnce([
+        new File(["y"], "restored-$&-{file}.txt", { type: "text/plain" }),
+      ]);
+    else fixture.prepare.mockRejectedValueOnce(new Error(kind === "raw" ? source : ""));
+    await using screen = await render(surface("en", { attachmentCase: "raw" }));
+    await screen.getByRole("button", { name: "Confirm revert", exact: true }).click();
+    await expect.poll(() => fixture.prepare.mock.calls.length).toBe(1);
+    await expect
+      .poll(() => useComposerDraftStore.getState().rewindingThreadKeys.has("fork"))
+      .toBe(false);
+    for (const locale of ["en", "zh-CN", "en"] as const) {
+      await screen.rerender(surface(locale, { attachmentCase: "raw" }));
+      if (kind === "empty")
+        expect(screen.container.querySelector('[data-variant="error"]')).toBeNull();
+      else
+        await expect
+          .poll(() => screen.container.textContent)
+          .toContain(
+            kind === "owned" && locale === "zh-CN"
+              ? "请先在输入框中为此消息的附件腾出空间，再回退会话。"
+              : source,
+          );
+    }
+    expect(fixture.connection).toHaveBeenCalledExactlyOnceWith(ref.environmentId);
+    expect(fixture.prepare).toHaveBeenCalledTimes(1);
+    expect(fixture.rewind).not.toHaveBeenCalled();
+    expect(fixture.query).not.toHaveBeenCalled();
+    expect(fixture.fork).not.toHaveBeenCalled();
+    expect(useComposerDraftStore.getState().getComposerDraft(ref)).toBe(before);
   },
 );
