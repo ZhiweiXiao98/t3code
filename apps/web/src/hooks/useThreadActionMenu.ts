@@ -189,7 +189,10 @@ export function useThreadActionMenu(input: {
         threadActionRequiresOperate(action) &&
         !readEnvironmentScope(threadRef.environmentId, AuthOrchestrationOperateScope)
       ) {
-        failureToast("Thread action unavailable", new Error(localThreadPermissionMessage(locale)));
+        failureToast(
+          "Thread action unavailable",
+          new Error(localThreadPermissionMessage(readWebI18n().locale)),
+        );
         return;
       }
       if (action.startsWith("snooze:")) {

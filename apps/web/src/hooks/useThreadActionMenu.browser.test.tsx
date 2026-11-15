@@ -216,3 +216,52 @@ it("rechecks permission after mocked native menu selection", async () => {
   expect(fixture.other).not.toHaveBeenCalled();
   expect(fixture.toast).toHaveBeenCalledTimes(1);
 });
+
+it.each(["denied", "cancelled"] as const)(
+  "uses current locale after pending menu %s selection",
+  async (kind) => {
+    vi.clearAllMocks();
+    fixture.locale = "en";
+    fixture.granted = true;
+    let choose!: (action: ThreadActionMenuId | null) => void;
+    fixture.show.mockReset().mockReturnValue(
+      new Promise<ThreadActionMenuId | null>((resolve) => {
+        choose = resolve;
+      }),
+    );
+    await using screen = await render(view());
+    await using _settle = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          choose(null);
+          await Promise.resolve();
+        });
+      },
+    };
+    await screen.getByRole("button", { name: "Thread menu" }).click();
+    await expect.poll(() => fixture.show.mock.calls.length).toBe(1);
+    const items: ReadonlyArray<ContextMenuItem<ThreadActionMenuId>> =
+      fixture.show.mock.calls[0]?.[0];
+    expect(items.some((item) => item.id === "pin" && !item.disabled)).toBe(true);
+    expect(fixture.toast).not.toHaveBeenCalled();
+    fixture.locale = "zh-CN";
+    await screen.rerender(view());
+    fixture.granted = false;
+    await act(async () => {
+      choose(kind === "denied" ? "pin" : null);
+    });
+    if (kind === "denied") {
+      expect(fixture.toast).toHaveBeenCalledTimes(1);
+      expect(fixture.toast.mock.calls[0]?.[0]).toMatchObject({
+        title: translateWebSource("zh-CN", "Thread action unavailable"),
+        description: "此连接无权修改会话。",
+      });
+    } else expect(fixture.toast).not.toHaveBeenCalled();
+    fixture.locale = "en";
+    await screen.rerender(view());
+    expect(fixture.toast).toHaveBeenCalledTimes(kind === "denied" ? 1 : 0);
+    expect(fixture.show).toHaveBeenCalledTimes(1);
+    expect(fixture.pin).not.toHaveBeenCalled();
+    expect(fixture.other).not.toHaveBeenCalled();
+  },
+);
