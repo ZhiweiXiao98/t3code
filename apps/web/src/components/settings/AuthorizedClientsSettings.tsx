@@ -302,6 +302,7 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
       });
     },
     onError: (error, { value, kind }) => {
+      const { locale: translationLocale } = readWebI18n();
       // Captured per attempt so concurrent copies cannot make the dialog
       // reveal a different value than the one that failed.
       setFailedCopyValue(value);
