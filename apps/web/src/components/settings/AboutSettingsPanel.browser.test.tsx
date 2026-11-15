@@ -324,3 +324,121 @@ it.each(["owned", "raw", "empty", "cancel"] as const)(
     expect(router.state.location.pathname).toBe("/settings/about");
   },
 );
+
+it.each(["owned", "raw", "empty", "resolved"] as const)(
+  "uses settlement locale for About install rejection: %s",
+  async (kind) => {
+    fixture.toast.mockReset();
+    fixture.download.mockReset();
+    fixture.install.mockReset();
+    fixture.check.mockReset();
+    fixture.providers.mockReset();
+    fixture.locale = "en";
+    fixture.installing = true;
+    expect(resolveDesktopUpdateButtonAction(installState)).toBe("install");
+    expect(appAtomRegistry.get(primaryEnvironmentIdAtom)).toBeNull();
+    const resolved: DesktopUpdateActionResult = {
+      accepted: true,
+      completed: true,
+      state: installState,
+    };
+    let resolve!: (value: DesktopUpdateActionResult) => void;
+    let reject!: (error: unknown) => void;
+    const pending = new Promise<DesktopUpdateActionResult>((yes, no) => {
+      resolve = yes;
+      reject = no;
+    });
+    void pending.catch(() => undefined);
+    const confirm = vi.spyOn(ensureLocalApi().dialogs, "confirm").mockResolvedValue(true);
+    fixture.install.mockReturnValue(pending);
+    const descriptor = Object.getOwnPropertyDescriptor(window, "desktopBridge");
+    Object.defineProperty(window, "desktopBridge", {
+      configurable: true,
+      value: {
+        downloadUpdate: fixture.download,
+        installUpdate: fixture.install,
+        checkForUpdate: fixture.check,
+      },
+    });
+    using _restore = {
+      [Symbol.dispose]() {
+        confirm.mockRestore();
+        if (descriptor) Object.defineProperty(window, "desktopBridge", descriptor);
+        else Reflect.deleteProperty(window, "desktopBridge");
+        fixture.locale = "en";
+        fixture.installing = false;
+      },
+    };
+    const root = createRootRoute({ component: AboutSettingsPanel });
+    const router = createRouter({
+      routeTree: root,
+      history: createMemoryHistory({ initialEntries: ["/settings/about"] }),
+    });
+    await router.load();
+    const surface = (locale: "en" | "zh-CN") => (
+      <WebI18nContext
+        value={{
+          locale,
+          appLocale: locale,
+          setAppLocale: () => undefined,
+          t: (key, values) => translateWebMessage(locale, key, values),
+        }}
+      >
+        <AppAtomRegistryProvider>
+          <RouterProvider router={router} />
+        </AppAtomRegistryProvider>
+      </WebI18nContext>
+    );
+    await using screen = await render(surface("en"), { router: false });
+    await using _drain = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          resolve(resolved);
+          await pending.catch(() => undefined);
+        });
+      },
+    };
+    const install = page.getByRole("button", { name: "Install", exact: true });
+    await install.click();
+    expect(confirm).toHaveBeenCalledExactlyOnceWith(
+      "Install update 1.1.0 and restart T3 Code?\n\nAny running tasks will be interrupted. Make sure you're ready before continuing.",
+    );
+    await expect.poll(() => fixture.install.mock.calls.length).toBe(1);
+    expect(fixture.install).toHaveBeenCalledExactlyOnceWith();
+    expect(confirm.mock.invocationCallOrder[0]).toBeLessThan(
+      fixture.install.mock.invocationCallOrder[0]!,
+    );
+    await expect.element(install).toBeDisabled();
+    await act(async () => {
+      install.element().dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(fixture.toast).not.toHaveBeenCalled();
+    fixture.locale = "zh-CN";
+    await screen.rerender(surface("zh-CN"));
+    await act(async () => {
+      if (kind === "resolved") resolve(resolved);
+      else
+        reject(kind === "owned" ? null : new Error(kind === "raw" ? "Literal $& {install}" : ""));
+      await pending.catch(() => undefined);
+    });
+    if (kind === "resolved") expect(fixture.toast).not.toHaveBeenCalled();
+    else
+      expect(fixture.toast).toHaveBeenCalledExactlyOnceWith({
+        type: "error",
+        title: "无法安装更新",
+        description: kind === "owned" ? "安装失败。" : kind === "raw" ? "Literal $& {install}" : "",
+        data: { actionLayout: "stacked-end" },
+      });
+    await expect.element(page.getByRole("button", { name: "安装", exact: true })).toBeEnabled();
+    fixture.locale = "en";
+    await screen.rerender(surface("en"));
+    expect(fixture.toast).toHaveBeenCalledTimes(kind === "resolved" ? 0 : 1);
+    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(fixture.download).not.toHaveBeenCalled();
+    expect(fixture.install).toHaveBeenCalledExactlyOnceWith();
+    expect(fixture.check).not.toHaveBeenCalled();
+    expect(fixture.providers).not.toHaveBeenCalled();
+    expect(router.state.location.pathname).toBe("/settings/about");
+  },
+);
