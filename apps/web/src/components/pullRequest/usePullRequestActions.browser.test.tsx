@@ -1,3 +1,7 @@
+import { WebI18nContext } from "~/i18n/WebI18nContext";
+import { translateWebMessage } from "~/i18n/messages";
+import { readableFailure } from "./pullRequestDetail.logic";
+import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
 import { EnvironmentId, ProjectId, type PullRequestRef } from "@t3tools/contracts";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
 import { expect, it, vi } from "vite-plus/test";
@@ -6,7 +10,28 @@ import { userEvent } from "vite-plus/test/browser";
 import { act, render } from "../../../test/render";
 import { usePullRequestActionRunner } from "./usePullRequestActions";
 
-const state = vi.hoisted(() => ({ runAction: vi.fn() }));
+const state = vi.hoisted(() => ({
+  runAction: vi.fn(),
+  toast: vi.fn(),
+  success: vi.fn(),
+  locale: "en" as "en" | "zh-CN",
+}));
+vi.mock("../ui/toast", async (original) => ({
+  ...(await original<typeof import("../ui/toast")>()),
+  toastManager: { add: state.toast },
+}));
+vi.mock("~/i18n/readWebI18n", () => ({
+  readWebI18n: () => {
+    const locale = state.locale;
+    return {
+      locale,
+      t: (
+        key: Parameters<typeof translateWebMessage>[1],
+        values?: Parameters<typeof translateWebMessage>[2],
+      ) => translateWebMessage(locale, key, values),
+    };
+  },
+}));
 vi.mock(import("~/state/use-atom-command"), () => ({
   useAtomCommand: (() => state.runAction) as never,
 }));
@@ -71,4 +96,122 @@ it("keeps pending merges with their pull request when navigating between threads
     await secondResult.promise;
   });
   await expect.element(button).toHaveTextContent("Merge");
+});
+
+const readyReference: PullRequestRef = {
+  projectId: ProjectId.make("ready-project"),
+  repository: "literal-owner/repo",
+  number: 42,
+};
+function ReadyProbe({ reference }: { reference: PullRequestRef | null }) {
+  const { actionPending, perform } = usePullRequestActionRunner({
+    environmentId: EnvironmentId.make("environment"),
+    reference,
+    terminology: sourceControlClients.get(undefined).changeRequest,
+    onSuccess: state.success,
+  });
+  return (
+    <>
+      <button type="button" disabled={actionPending} onClick={() => void perform("ready")}>
+        {actionPending ? "Pending ready" : "Mark ready"}
+      </button>
+      <button type="button" onClick={() => void perform("ready")}>
+        Repeat ready
+      </button>
+    </>
+  );
+}
+function readySurface(locale: "en" | "zh-CN", reference: PullRequestRef | null = readyReference) {
+  state.locale = locale;
+  return (
+    <WebI18nContext
+      value={{
+        locale,
+        appLocale: locale,
+        setAppLocale: () => {},
+        t: (key, values) => translateWebMessage(locale, key, values),
+      }}
+    >
+      <ReadyProbe reference={reference} />
+    </WebI18nContext>
+  );
+}
+it.each([
+  ["owned", null],
+  ["raw", new Error("Literal $& {host failure}")],
+  ["empty", new Error("")],
+  ["whitespace", new Error("   ")],
+  ["interrupted", undefined],
+] as const)("uses settlement locale for action runner failure: %s", async (kind, cause) => {
+  const { AsyncResult } = await import("effect/reactivity");
+  const Cause = await import("effect/Cause");
+  type Result = ReturnType<typeof AsyncResult.failure<unknown, unknown>>;
+  const pending = deferred<Result>();
+  state.runAction.mockReset().mockReturnValueOnce(pending.promise);
+  state.toast.mockClear();
+  state.success.mockClear();
+  using _restore = {
+    [Symbol.dispose]() {
+      state.locale = "en";
+      state.runAction.mockReset();
+    },
+  };
+  await using screen = await render(readySurface("en"));
+  await using _settle = {
+    async [Symbol.asyncDispose]() {
+      await act(async () => {
+        pending.resolve(AsyncResult.failure(Cause.interrupt()));
+        await pending.promise;
+      });
+    },
+  };
+  await screen.getByRole("button", { name: "Mark ready", exact: true }).click();
+  await expect
+    .element(screen.getByRole("button", { name: "Pending ready", exact: true }))
+    .toBeDisabled();
+  await screen.getByRole("button", { name: "Repeat ready", exact: true }).click();
+  expect(state.runAction).toHaveBeenCalledExactlyOnceWith({
+    environmentId: EnvironmentId.make("environment"),
+    input: { ...readyReference, action: "ready" },
+  });
+  await screen.rerender(readySurface("zh-CN"));
+  expect(state.toast).not.toHaveBeenCalled();
+  const result: Result = AsyncResult.failure(
+    kind === "interrupted" ? Cause.interrupt() : Cause.fail(cause),
+  );
+  await act(async () => {
+    pending.resolve(result);
+    await pending.promise;
+  });
+  expect(state.toast).toHaveBeenCalledExactlyOnceWith({
+    type: "error",
+    title: "无法标记为可供评审",
+    description:
+      kind === "raw"
+        ? "Literal $& {host failure}"
+        : kind === "interrupted"
+          ? readableFailure(
+              squashAtomCommandFailure(result),
+              "托管服务拒绝了操作。请确认你拥有此仓库的写入权限。",
+            )
+          : "托管服务拒绝了操作。请确认你拥有此仓库的写入权限。",
+  });
+  await expect
+    .element(screen.getByRole("button", { name: "Mark ready", exact: true }))
+    .toBeEnabled();
+  expect(state.success).not.toHaveBeenCalled();
+  await screen.rerender(readySurface("en"));
+  expect(state.toast).toHaveBeenCalledTimes(1);
+  expect(state.runAction).toHaveBeenCalledTimes(1);
+});
+it("does not run a ready action without a reference", async () => {
+  state.runAction.mockReset();
+  state.toast.mockClear();
+  state.success.mockClear();
+  await using screen = await render(readySurface("en", null));
+  await screen.getByRole("button", { name: "Mark ready", exact: true }).click();
+  await screen.getByRole("button", { name: "Repeat ready", exact: true }).click();
+  expect(state.runAction).not.toHaveBeenCalled();
+  expect(state.toast).not.toHaveBeenCalled();
+  expect(state.success).not.toHaveBeenCalled();
 });

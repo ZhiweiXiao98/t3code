@@ -174,6 +174,8 @@ export function usePullRequestActionRunner({
     pendingRef.current.delete(actionKey);
     setPendingKeys(new Set(pendingRef.current));
     if (result._tag === "Failure") {
+      const { locale } = readWebI18n();
+      const tx = (source: string) => translateWebSource(locale, source);
       toastManager.add({
         type: "error",
         title: tx(actionFailureLabels(terminology.singular)[action]),
