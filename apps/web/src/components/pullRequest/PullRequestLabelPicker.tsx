@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { useAtomCommand } from "~/state/use-atom-command";
 import type { EnvironmentId, PullRequestLabelCandidate, PullRequestRef } from "@t3tools/contracts";
 import { CheckIcon, TagIcon } from "lucide-react";
@@ -56,6 +57,7 @@ export function PullRequestLabelPicker({
     });
     setPending(null);
     if (result._tag === "Failure") {
+      const { t } = readWebI18n();
       toastManager.add({
         type: "error",
         title: candidate.isApplied
