@@ -376,3 +376,105 @@ it("keeps pairing scope denial and cancellation free of credential commands", as
   expect(state.revoke).not.toHaveBeenCalled();
   expect(state.toast).not.toHaveBeenCalled();
 });
+
+const dummyCredential = "fixture-only/$&/{pairing-code}";
+function copyCodeSurface(locale: "en" | "zh-CN") {
+  state.locale = locale;
+  return (
+    <WebI18nContext
+      value={{
+        locale,
+        appLocale: locale,
+        setAppLocale: () => {},
+        t: (key, values) => translateWebMessage(locale, key, values),
+      }}
+    >
+      <PairingClientsList
+        servedByEnvironment={false}
+        endpointUrl={null}
+        endpoints={[]}
+        defaultEndpointKey={null}
+        isLoading={false}
+        pairingLinks={[
+          {
+            id: "copy-fixture",
+            subject: "fixture-only",
+            label: "Literal $& {client}",
+            scopes: [],
+            createdAt: "2026-01-01T00:00:00Z",
+            expiresAt: "2100-01-01T00:00:00Z",
+          },
+        ]}
+        createdPairingCredentials={new Map([["copy-fixture", dummyCredential]])}
+        sharedPairingLinkId={null}
+        clientSessions={[]}
+        revokingPairingLinkId={null}
+        revokingClientSessionId={null}
+        onRevokePairingLink={state.revoke}
+        onRevokeClientSession={state.revoke}
+        canRevoke={false}
+      />
+    </WebI18nContext>
+  );
+}
+it.each(["zh-CN", "en"] as const)(
+  "uses settlement locale for pairing code copy success: %s",
+  async (locale) => {
+    using _setup = setupPairing();
+    const descriptor = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    let resolve!: () => void;
+    const promise = new Promise<void>((done) => {
+      resolve = done;
+    });
+    const writeText = vi.fn(() => promise);
+    const write = vi.fn();
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText, write },
+    });
+    vi.stubGlobal("isSecureContext", true);
+    using _clipboard = {
+      [Symbol.dispose]() {
+        if (descriptor) Object.defineProperty(navigator, "clipboard", descriptor);
+        else Reflect.deleteProperty(navigator, "clipboard");
+        vi.unstubAllGlobals();
+      },
+    };
+    await using screen = await render(copyCodeSurface("en"));
+    await using _drain = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          resolve();
+          await promise;
+        });
+      },
+    };
+    await expect
+      .element(screen.getByRole("heading", { name: "Literal $& {client}", exact: true }))
+      .toBeVisible();
+    await screen.getByRole("button", { name: "Copy code", exact: true }).click();
+    expect(writeText).toHaveBeenCalledExactlyOnceWith(dummyCredential);
+    expect(state.toast).not.toHaveBeenCalled();
+    await screen.rerender(copyCodeSurface(locale));
+    expect(state.toast).not.toHaveBeenCalled();
+    await act(async () => {
+      resolve();
+      await promise;
+    });
+    expect(state.toast).toHaveBeenCalledExactlyOnceWith({
+      type: "success",
+      title: locale === "zh-CN" ? "已复制配对码" : "Pairing code copied",
+      description:
+        locale === "zh-CN"
+          ? "请将其粘贴到另一个客户端以完成配对。"
+          : "Paste it into another client to finish pairing.",
+    });
+    expect(writeText).toHaveBeenCalledExactlyOnceWith(dummyCredential);
+    expect(write).not.toHaveBeenCalled();
+    expect(state.create).not.toHaveBeenCalled();
+    expect(state.created).not.toHaveBeenCalled();
+    expect(state.revoke).not.toHaveBeenCalled();
+    await screen.rerender(copyCodeSurface("en"));
+    expect(state.toast).toHaveBeenCalledTimes(1);
+  },
+);

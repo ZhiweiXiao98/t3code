@@ -275,6 +275,7 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
     kind: "code" | "hosted-link" | "link";
   }>({
     onCopy: ({ kind }) => {
+      const { locale: translationLocale } = readWebI18n();
       toastManager.add({
         type: "success",
         title:
