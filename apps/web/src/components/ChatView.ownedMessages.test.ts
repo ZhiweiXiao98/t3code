@@ -467,3 +467,63 @@ it("pairs queued upload fallback ownership without claiming raw collisions", () 
   expect(entries.edit?.ownedCode).toBeUndefined();
   expect(formatLocalThreadError(source, entries.edit, "zh-CN")).toBe(source);
 });
+
+it.each(["server", "draft"] as const)("pairs reconnect labels atomically in the %s map", (kind) => {
+  const ref = {
+    environmentId: EnvironmentId.make("dynamic"),
+    threadId: ThreadId.make("dynamic"),
+  };
+  let entries: Record<string, LocalThreadErrorEntry> = {};
+  const update = (value: SetStateAction<Record<string, LocalThreadErrorEntry>>) => {
+    entries = typeof value === "function" ? value(entries) : value;
+  };
+  const set = makeThreadErrorSetter({
+    routeThreadRef: ref,
+    routeThreadKey: "dynamic",
+    draftId: null,
+    serverThreadRef: kind === "server" ? ref : null,
+    setLocalServerErrorsByThreadKey: update,
+    setLocalDraftErrorsByDraftId: update,
+  });
+  for (const name of ["{name}/$&:\n.txt", "other", ""] as const) {
+    const source = `Reconnect ${name} before reverting checkpoints.`;
+    set(ref.threadId, source, "rewindReconnect", name);
+    const entry = entries.dynamic!;
+    expect(entry).toMatchObject({
+      message: source,
+      ownedCode: "rewindReconnect",
+      ownedName: name,
+    });
+    for (const locale of ["en", "zh-CN", "en"] as const)
+      expect(formatLocalThreadError(source, entry, locale)).toBe(
+        locale === "en" ? source : `请重新连接 ${name} 后再还原检查点。`,
+      );
+    set(ref.threadId, source, "rewindReconnect", name);
+    expect(entries.dynamic).toBe(entry);
+    expect(shouldPromoteLocalThreadError(entry, { ...entry, ownedName: name + "different" })).toBe(
+      true,
+    );
+    expect(shouldPromoteLocalThreadError(entry, { ...entry })).toBe(false);
+    expect(formatLocalThreadError(source, { ...entry, ownedName: name + "wrong" }, "zh-CN")).toBe(
+      source,
+    );
+    expect(formatLocalThreadError(source + "stale", entry, "zh-CN")).toBe(source + "stale");
+    set(ref.threadId, source);
+    expect(entries.dynamic?.ownedCode).toBeUndefined();
+    expect(entries.dynamic?.ownedName).toBeUndefined();
+    expect(formatLocalThreadError(source, entries.dynamic, "zh-CN")).toBe(source);
+    set(ref.threadId, source, "rewindReconnect");
+    expect(entries.dynamic?.ownedCode).toBeUndefined();
+    set(ref.threadId, source, "rewindReconnect", name + "wrong");
+    expect(entries.dynamic?.ownedName).toBeUndefined();
+  }
+  for (const raw of ["", "   ", null]) {
+    set(ref.threadId, raw);
+    expect(entries.dynamic?.message).toBe(raw);
+  }
+  const name = "literal SocketCloseError label";
+  set(ref.threadId, `Reconnect ${name} before reverting checkpoints.`, "rewindReconnect", name);
+  expect(entries.dynamic?.message).toBeNull();
+  expect(entries.dynamic?.ownedCode).toBeUndefined();
+  expect(entries.dynamic?.ownedName).toBeUndefined();
+});

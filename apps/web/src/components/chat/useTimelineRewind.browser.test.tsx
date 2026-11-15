@@ -111,6 +111,7 @@ function setup() {
 function Probe({
   absent = false,
   unavailable = false,
+  reconnectLabel,
   eligibility,
   attachmentCase,
   unknownAttachment = false,
@@ -119,6 +120,7 @@ function Probe({
 }: {
   absent?: boolean;
   unavailable?: boolean;
+  reconnectLabel?: string;
   eligibility?: "unsupported" | "running" | "sending";
   attachmentCase?: "owned" | "raw" | "empty";
   unknownAttachment?: boolean;
@@ -148,7 +150,7 @@ function Probe({
     serverProjection: null,
     activeThread: absent ? undefined : activeThread,
     timelineMessages:
-      eligibility || attachmentCase
+      eligibility || attachmentCase || reconnectLabel !== undefined
         ? [
             {
               id: MessageId.make("rewind-message"),
@@ -187,7 +189,7 @@ function Probe({
     isRevertingCheckpoint: false,
     supportsConversationRollback: eligibility !== "unsupported",
     activeEnvironmentUnavailable: unavailable,
-    activeEnvironmentUnavailableLabel: null,
+    activeEnvironmentUnavailableLabel: reconnectLabel ?? null,
     promptRef,
     composerRef: attachmentCase ? (attachmentComposerRef as never) : composerRef,
     composerDraftTarget: ref,
@@ -203,7 +205,7 @@ function Probe({
           Confirm revert
         </button>
       ) : null}
-      {eligibility ? (
+      {eligibility || reconnectLabel !== undefined ? (
         <button
           type="button"
           onClick={() => actions.onRevertTimelineTurnStable(1, MessageId.make("rewind-message"))}
@@ -245,6 +247,7 @@ function surface(
   props: {
     absent?: boolean;
     unavailable?: boolean;
+    reconnectLabel?: string;
     eligibility?: "unsupported" | "running" | "sending";
     attachmentCase?: "owned" | "raw" | "empty";
     unknownAttachment?: boolean;
@@ -908,3 +911,48 @@ it.each(["owned", "raw", "empty"] as const)(
     expect(useComposerDraftStore.getState().getComposerDraft(ref)).toBe(before);
   },
 );
+
+it("keeps owned reconnect label current without another rewind", async () => {
+  setup();
+  fixture.localApi = true;
+  const label = "literal $& {environment}\nremote";
+  await using screen = await render(surface("en", { unavailable: true, reconnectLabel: label }));
+  await screen.getByRole("button", { name: "Revert", exact: true }).click();
+  await expect
+    .poll(() => screen.container.textContent)
+    .toContain(`Reconnect ${label} before reverting checkpoints.`);
+  for (const locale of ["zh-CN", "en", "zh-CN", "en"] as const) {
+    await screen.rerender(
+      surface(locale, { unavailable: true, reconnectLabel: "new environment label" }),
+    );
+    await expect
+      .poll(() => screen.container.textContent)
+      .toContain(
+        locale === "en"
+          ? `Reconnect ${label} before reverting checkpoints.`
+          : `请重新连接 ${label} 后再还原检查点。`,
+      );
+  }
+  expect(fixture.confirm).not.toHaveBeenCalled();
+  expect(fixture.query).not.toHaveBeenCalled();
+  expect(fixture.rewind).not.toHaveBeenCalled();
+  expect(fixture.fork).not.toHaveBeenCalled();
+});
+
+it("keeps transport-like reconnect labels suppressed", async () => {
+  setup();
+  fixture.localApi = true;
+  await using screen = await render(
+    surface("en", { unavailable: true, reconnectLabel: "literal SocketCloseError label" }),
+  );
+  await screen.getByRole("button", { name: "Revert", exact: true }).click();
+  for (const locale of ["en", "zh-CN", "en"] as const) {
+    await screen.rerender(
+      surface(locale, { unavailable: true, reconnectLabel: "literal SocketCloseError label" }),
+    );
+    expect(screen.container.querySelector('[data-variant="error"]')).toBeNull();
+  }
+  expect(fixture.confirm).not.toHaveBeenCalled();
+  expect(fixture.query).not.toHaveBeenCalled();
+  expect(fixture.rewind).not.toHaveBeenCalled();
+});

@@ -1284,7 +1284,10 @@ const OWNED_THREAD_ERRORS = {
 
 export type LocalThreadErrorEntry = {
   readonly message: string | null;
-  readonly ownedCode?: keyof typeof OWNED_THREAD_ERRORS | "rewindRestoreAttachment";
+  readonly ownedCode?:
+    | keyof typeof OWNED_THREAD_ERRORS
+    | "rewindRestoreAttachment"
+    | "rewindReconnect";
   readonly ownedName?: string;
   readonly at: number;
 };
@@ -1293,6 +1296,11 @@ function ownedThreadErrorSource(code: LocalThreadErrorEntry["ownedCode"], name?:
   if (code === "rewindRestoreAttachment") {
     return typeof name === "string"
       ? translateWebMessage("en", "audit15.restoreAttachment", { name })
+      : undefined;
+  }
+  if (code === "rewindReconnect") {
+    return typeof name === "string"
+      ? translateWebMessage("en", "audit15.reconnectRewind", { environment: name })
       : undefined;
   }
   return code === undefined || name !== undefined ? undefined : OWNED_THREAD_ERRORS[code];
@@ -1305,6 +1313,9 @@ export function formatLocalThreadError(
 ): string | null {
   const source = ownedThreadErrorSource(entry?.ownedCode, entry?.ownedName);
   if (source === undefined || entry?.message !== message || message !== source) return message;
+  if (entry.ownedCode === "rewindReconnect" && typeof entry.ownedName === "string") {
+    return translateWebMessage(locale, "audit15.reconnectRewind", { environment: entry.ownedName });
+  }
   if (entry.ownedCode === "queuedEditAttachmentLimit") {
     return translateWebMessage(locale, "chat.queuedEdit.tooManyAttachments", {
       count: PROVIDER_SEND_TURN_MAX_ATTACHMENTS,

@@ -1,4 +1,4 @@
-import { readWebI18n } from "~/i18n/readWebI18n";
+import { translateWebMessage } from "~/i18n/messages";
 import type { EnvironmentThreadShell, ThreadStructure } from "@t3tools/client-runtime/state/shell";
 import type { ComposerThreadTarget } from "../../composerDraftStore";
 import type { ComposerHandleRef } from "../../composerHandleContext";
@@ -118,9 +118,11 @@ export function useTimelineRewind(input: TimelineRewindInput) {
     if (activeEnvironmentUnavailable && activeEnvironmentUnavailableLabel) {
       setThreadError(
         activeThread.id,
-        readWebI18n().t("audit15.reconnectRewind", {
+        translateWebMessage("en", "audit15.reconnectRewind", {
           environment: activeEnvironmentUnavailableLabel,
         }),
+        "rewindReconnect",
+        activeEnvironmentUnavailableLabel,
       );
       return;
     }
