@@ -900,6 +900,7 @@ export function PullRequestDetailPanel({
       input: { ...reference, body },
     });
     if (commentResult._tag === "Failure") {
+      const { t } = readWebI18n();
       setPendingAction(null);
       toastManager.add({ type: "error", title: t("pullRequests.comments.postFailed") });
       return { commentPosted: false };

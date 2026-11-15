@@ -19,6 +19,10 @@ const { permissions, mocks } = vi.hoisted(() => ({
   mocks: {
     gitlab: false,
     draftAction: false,
+    commentAction: false,
+    postComment: vi.fn(),
+    queue: vi.fn<(submit: (text: string) => void) => void>(),
+    cancelSpeech: vi.fn(),
     runAction: vi.fn(),
     acted: vi.fn(),
     refresh: vi.fn(),
@@ -74,7 +78,11 @@ vi.mock(import("~/state/usePullRequestStack"), async (original) => ({
 vi.mock(import("~/state/use-atom-command"), async (original) => ({
   ...(await original()),
   useAtomCommand: ((command: unknown) =>
-    command === pullRequestEnvironment.runAction ? mocks.runAction : mocks.command) as never,
+    command === pullRequestEnvironment.runAction
+      ? mocks.runAction
+      : command === pullRequestEnvironment.comment
+        ? mocks.postComment
+        : mocks.command) as never,
 }));
 
 vi.mock("../ui/toast", async (original) => ({
@@ -163,7 +171,14 @@ const draftDetail: PullRequestDetailView = {
   capabilities: { ...detail.capabilities, actions: ["draft"] },
   viewerPermissions: { ...detail.viewerPermissions, actions: ["draft"] },
 };
+const commentDetail: PullRequestDetailView = {
+  ...detail,
+  state: "closed",
+  capabilities: { ...detail.capabilities, comment: true, actions: ["reopen"] },
+  viewerPermissions: { ...detail.viewerPermissions, comment: true, actions: ["reopen"] },
+};
 function selectedDetail() {
+  if (mocks.commentAction) return commentDetail;
   if (mocks.draftAction) return draftDetail;
   return mocks.gitlab ? gitlabDetail : detail;
 }
@@ -196,6 +211,7 @@ const panel = (attach = false) => (
 function setup() {
   mocks.gitlab = false;
   mocks.draftAction = false;
+  mocks.commentAction = false;
   permissions.checkout = true;
   permissions.operate = true;
   useComposerDraftStore.setState({ draftsByThreadKey: {} });
@@ -791,4 +807,105 @@ it("guards draft conversion without write permission", async () => {
   expect(mocks.acted).not.toHaveBeenCalled();
   expect(mocks.toast).not.toHaveBeenCalled();
   expect(mocks.refresh).not.toHaveBeenCalled();
+});
+
+vi.mock("~/speech/useTextFieldSpeech", async (original) => ({
+  ...(await original<typeof import("~/speech/useTextFieldSpeech")>()),
+  TextFieldSpeechControls: () => null,
+  useTextFieldSpeech: () => ({
+    blocksSubmission: true,
+    preparing: false,
+    freezesEditor: false,
+    submitAfterDictation: mocks.queue,
+    cancel: mocks.cancelSpeech,
+  }),
+}));
+it.each([
+  ["owned", null],
+  ["raw", new Error("Literal $& {comment failure}")],
+  ["empty", new Error("")],
+  ["interrupted", undefined],
+] as const)("uses settlement locale for comment action failure: %s", async (kind, cause) => {
+  const { AsyncResult } = await import("effect/reactivity");
+  const Cause = await import("effect/Cause");
+  type Result = ReturnType<typeof AsyncResult.failure<unknown, unknown>>;
+  const before = useComposerDraftStore.getState();
+  using _restore = {
+    [Symbol.dispose]() {
+      useComposerDraftStore.setState(before, true);
+      mocks.locale = "en";
+      mocks.commentAction = false;
+      mocks.postComment.mockReset();
+      mocks.queue.mockReset();
+    },
+  };
+  setup();
+  mocks.commentAction = true;
+  mocks.postComment.mockReset();
+  mocks.queue.mockReset();
+  mocks.toast.mockClear();
+  mocks.command.mockClear();
+  mocks.runAction.mockClear();
+  mocks.acted.mockClear();
+  mocks.refresh.mockClear();
+  let finish = (_result: Result) => {};
+  mocks.postComment.mockReturnValueOnce(
+    new Promise<Result>((resolve) => {
+      finish = resolve;
+    }),
+  );
+  await using screen = await render(copySurface("en"));
+  await using _settle = {
+    async [Symbol.asyncDispose]() {
+      await act(async () => {
+        finish(AsyncResult.failure(Cause.interrupt()));
+        await Promise.resolve();
+      });
+    },
+  };
+  await screen.getByRole("button", { name: "Comment on pull request", exact: true }).click();
+  const input = page.getByRole("textbox", { name: "Comment on this pull request", exact: true });
+  const draft = "  Literal $& {comment}\nbody  ";
+  await input.fill(draft);
+  await page.getByRole("button", { name: "Reopen with comment", exact: true }).click();
+  expect(mocks.queue).toHaveBeenCalledTimes(1);
+  expect(mocks.postComment).not.toHaveBeenCalled();
+  await act(async () => {
+    mocks.queue.mock.calls[0]![0](draft);
+  });
+  expect(mocks.postComment).toHaveBeenCalledExactlyOnceWith({
+    environmentId,
+    input: {
+      projectId: detail.projectId,
+      repository: detail.repository,
+      number: detail.number,
+      body: draft.trim(),
+    },
+  });
+  await expect.element(input).toBeDisabled();
+  const reopening = page.getByRole("button", { name: "Reopening...", exact: true });
+  await expect.element(reopening).toBeDisabled();
+  await act(async () => {
+    reopening.element().dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+  });
+  expect(mocks.queue).toHaveBeenCalledTimes(1);
+  await screen.rerender(copySurface("zh-CN"));
+  await act(async () => {
+    finish(AsyncResult.failure(kind === "interrupted" ? Cause.interrupt() : Cause.fail(cause)));
+    await Promise.resolve();
+  });
+  expect(mocks.toast).toHaveBeenCalledExactlyOnceWith({ type: "error", title: "无法发布评论" });
+  const retained = page.getByRole("textbox", { name: "对此拉取请求发表评论", exact: true });
+  await expect.element(retained).toBeEnabled();
+  await expect.element(retained).toHaveValue(draft);
+  await expect
+    .element(page.getByRole("button", { name: "发表评论并重新打开", exact: true }))
+    .toBeEnabled();
+  expect(mocks.runAction).not.toHaveBeenCalled();
+  expect(mocks.acted).not.toHaveBeenCalled();
+  expect(mocks.refresh).not.toHaveBeenCalled();
+  expect(mocks.command).not.toHaveBeenCalled();
+  await screen.rerender(copySurface("en"));
+  expect(mocks.toast).toHaveBeenCalledTimes(1);
+  expect(mocks.postComment).toHaveBeenCalledTimes(1);
 });
