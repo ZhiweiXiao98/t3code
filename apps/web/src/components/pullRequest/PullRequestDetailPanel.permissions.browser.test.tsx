@@ -107,7 +107,7 @@ vi.mock(import("./usePullRequestDetail"), async (original) => ({
     canWriteSourceControl: permissions.checkout,
     detailQuery: {
       isPending: false,
-      refresh: mocks.deleteAction ? mocks.detailRefresh : mocks.refresh,
+      refresh: mocks.deleteAction || mocks.commentAction ? mocks.detailRefresh : mocks.refresh,
     },
     activityQuery: { isPending: false, refresh: mocks.refresh, error: null },
     activity: null,
@@ -915,6 +915,8 @@ it.each([
   mocks.runAction.mockClear();
   mocks.acted.mockClear();
   mocks.refresh.mockClear();
+  mocks.detailRefresh.mockClear();
+  mocks.stackRefresh.mockClear();
   let finish = (_result: Result) => {};
   mocks.postComment.mockReturnValueOnce(
     new Promise<Result>((resolve) => {
@@ -971,6 +973,7 @@ it.each([
   expect(mocks.runAction).not.toHaveBeenCalled();
   expect(mocks.acted).not.toHaveBeenCalled();
   expect(mocks.refresh).not.toHaveBeenCalled();
+  expect(mocks.stackRefresh).not.toHaveBeenCalled();
   expect(mocks.command).not.toHaveBeenCalled();
   await screen.rerender(copySurface("en"));
   expect(mocks.toast).toHaveBeenCalledTimes(1);
