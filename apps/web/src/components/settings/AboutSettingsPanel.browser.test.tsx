@@ -4,7 +4,11 @@ import { page } from "vite-plus/test/browser";
 import type { EnvironmentCatalogState } from "@t3tools/client-runtime/state/connections";
 import { appAtomRegistry } from "../../rpc/atomRegistry";
 import { primaryEnvironmentIdAtom } from "../../state/primaryEnvironment";
-import type { DesktopUpdateActionResult, DesktopUpdateState } from "@t3tools/contracts";
+import type {
+  DesktopUpdateActionResult,
+  DesktopUpdateCheckResult,
+  DesktopUpdateState,
+} from "@t3tools/contracts";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -17,6 +21,7 @@ import { WebI18nContext } from "../../i18n/WebI18nContext";
 import { translateWebMessage } from "../../i18n/messages";
 
 const fixture = vi.hoisted(() => ({
+  checking: false,
   installing: false,
   locale: "en" as "en" | "zh-CN",
   toast: vi.fn(),
@@ -42,7 +47,8 @@ vi.mock("../../env", async (original) => ({
 }));
 vi.mock("../../state/desktopUpdate", async (original) => ({
   ...(await original<typeof import("../../state/desktopUpdate")>()),
-  useDesktopUpdateState: () => (fixture.installing ? installState : updateState),
+  useDesktopUpdateState: () =>
+    fixture.checking ? checkState : fixture.installing ? installState : updateState,
 }));
 vi.mock("../../state/managedPolicy", async (original) => ({
   ...(await original<typeof import("../../state/managedPolicy")>()),
@@ -110,6 +116,7 @@ const updateState: DesktopUpdateState = {
   errorContext: null,
   canRetry: false,
 };
+const checkState: DesktopUpdateState = { ...updateState, status: "idle", availableVersion: null };
 const installState: DesktopUpdateState = {
   ...updateState,
   status: "downloaded",
@@ -439,6 +446,109 @@ it.each(["owned", "raw", "empty", "resolved"] as const)(
     expect(fixture.install).toHaveBeenCalledExactlyOnceWith();
     expect(fixture.check).not.toHaveBeenCalled();
     expect(fixture.providers).not.toHaveBeenCalled();
+    expect(router.state.location.pathname).toBe("/settings/about");
+  },
+);
+
+it.each(["owned", "raw", "empty", "resolved"] as const)(
+  "uses settlement locale for About update check rejection: %s",
+  async (kind) => {
+    fixture.installing = false;
+    fixture.checking = true;
+    fixture.toast.mockReset();
+    fixture.download.mockReset();
+    fixture.install.mockReset();
+    fixture.check.mockReset();
+    fixture.providers.mockReset();
+    fixture.locale = "en";
+    expect(resolveDesktopUpdateButtonAction(checkState)).toBe("none");
+    expect(appAtomRegistry.get(primaryEnvironmentIdAtom)).toBeNull();
+    const resolved: DesktopUpdateCheckResult = { checked: true, state: checkState };
+    let resolve!: (value: DesktopUpdateCheckResult) => void;
+    let reject!: (error: unknown) => void;
+    const pending = new Promise<DesktopUpdateCheckResult>((yes, no) => {
+      resolve = yes;
+      reject = no;
+    });
+    void pending.catch(() => undefined);
+    fixture.check.mockReturnValue(pending);
+    const descriptor = Object.getOwnPropertyDescriptor(window, "desktopBridge");
+    Object.defineProperty(window, "desktopBridge", {
+      configurable: true,
+      value: {
+        downloadUpdate: fixture.download,
+        installUpdate: fixture.install,
+        checkForUpdate: fixture.check,
+      },
+    });
+    using _restore = {
+      [Symbol.dispose]() {
+        if (descriptor) Object.defineProperty(window, "desktopBridge", descriptor);
+        else Reflect.deleteProperty(window, "desktopBridge");
+        fixture.locale = "en";
+        fixture.checking = false;
+      },
+    };
+    const root = createRootRoute({ component: AboutSettingsPanel });
+    const router = createRouter({
+      routeTree: root,
+      history: createMemoryHistory({ initialEntries: ["/settings/about"] }),
+    });
+    await router.load();
+    const surface = (locale: "en" | "zh-CN") => (
+      <WebI18nContext
+        value={{
+          locale,
+          appLocale: locale,
+          setAppLocale: () => undefined,
+          t: (key, values) => translateWebMessage(locale, key, values),
+        }}
+      >
+        <AppAtomRegistryProvider>
+          <RouterProvider router={router} />
+        </AppAtomRegistryProvider>
+      </WebI18nContext>
+    );
+    await using screen = await render(surface("en"), { router: false });
+    await using _drain = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          resolve(resolved);
+          await pending.catch(() => undefined);
+        });
+      },
+    };
+    await page.getByRole("button", { name: "Check for Updates", exact: true }).click();
+    expect(fixture.check).toHaveBeenCalledExactlyOnceWith();
+    expect(fixture.providers).toHaveBeenCalledExactlyOnceWith();
+    expect(fixture.providers.mock.invocationCallOrder[0]).toBeLessThan(
+      fixture.check.mock.invocationCallOrder[0]!,
+    );
+    expect(fixture.toast).not.toHaveBeenCalled();
+    fixture.locale = "zh-CN";
+    await screen.rerender(surface("zh-CN"));
+    await act(async () => {
+      if (kind === "resolved") resolve(resolved);
+      else reject(kind === "owned" ? null : new Error(kind === "raw" ? "Literal $& {check}" : ""));
+      await pending.catch(() => undefined);
+    });
+    if (kind === "resolved") expect(fixture.toast).not.toHaveBeenCalled();
+    else
+      expect(fixture.toast).toHaveBeenCalledExactlyOnceWith({
+        type: "error",
+        title: "无法检查更新",
+        description:
+          kind === "owned" ? "检查更新失败。" : kind === "raw" ? "Literal $& {check}" : "",
+        data: { actionLayout: "stacked-end" },
+      });
+    await expect.element(page.getByRole("button", { name: "检查更新", exact: true })).toBeEnabled();
+    fixture.locale = "en";
+    await screen.rerender(surface("en"));
+    expect(fixture.toast).toHaveBeenCalledTimes(kind === "resolved" ? 0 : 1);
+    expect(fixture.download).not.toHaveBeenCalled();
+    expect(fixture.install).not.toHaveBeenCalled();
+    expect(fixture.check).toHaveBeenCalledExactlyOnceWith();
+    expect(fixture.providers).toHaveBeenCalledExactlyOnceWith();
     expect(router.state.location.pathname).toBe("/settings/about");
   },
 );

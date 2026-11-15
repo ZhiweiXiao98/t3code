@@ -287,6 +287,7 @@ function AboutVersionSection() {
         }
       })
       .catch((error: unknown) => {
+        const { t } = readWebI18n();
         toastManager.add(
           stackedThreadToast({
             type: "error",
