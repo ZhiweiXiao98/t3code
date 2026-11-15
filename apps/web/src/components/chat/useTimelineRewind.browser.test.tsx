@@ -9,13 +9,15 @@ import {
   PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
 } from "@t3tools/contracts";
 import * as Cause from "effect/Cause";
-import { AsyncResult } from "effect/reactivity";
+import * as Option from "effect/Option";
+import { environmentThreadDetails } from "../../state/threads";
+import { Atom, AsyncResult } from "effect/reactivity";
 import { expect, it, vi } from "vite-plus/test";
 import { render } from "../../../test/render";
 import { WebI18nContext } from "../../i18n/WebI18nContext";
 import { translateWebMessage } from "../../i18n/messages";
 import { useComposerDraftStore } from "../../composerDraftStore";
-import { makeThreadFixture } from "../../test-fixtures";
+import { makeThreadFixture, makeThreadProjectionFixture } from "../../test-fixtures";
 import { makeThreadErrorSetter, type LocalThreadErrorEntry } from "../ChatView.logic";
 import { ChatBannerLane } from "./ChatBannerLane";
 const fixture = vi.hoisted(() => ({
@@ -538,6 +540,51 @@ it.each(["owned", "raw", "empty"] as const)(
               : source,
           );
     }
+    expect(fixture.connection).toHaveBeenCalledExactlyOnceWith(ref.environmentId);
+    expect(fixture.prepare).toHaveBeenCalledTimes(1);
+    expect(fixture.rewind).not.toHaveBeenCalled();
+    expect(fixture.query).not.toHaveBeenCalled();
+    expect(fixture.fork).not.toHaveBeenCalled();
+    expect(useComposerDraftStore.getState().getComposerDraft(ref)).toBe(before);
+  },
+);
+
+it.each(["owned", "raw", "empty"] as const)(
+  "keeps rewind changed %s notice current",
+  async (kind) => {
+    setup();
+    const source = "The thread has changed. Select a message to rewind again.";
+    const original = useComposerDraftStore.getState();
+    using _restore = { [Symbol.dispose]: () => useComposerDraftStore.setState(original, true) };
+    const before = original.getComposerDraft(ref);
+    fixture.connection.mockReturnValue({ httpBaseUrl: "https://example.invalid" });
+    if (kind === "owned") fixture.prepare.mockResolvedValueOnce([]);
+    else fixture.prepare.mockRejectedValueOnce(new Error(kind === "raw" ? source : ""));
+    const projection = makeThreadProjectionFixture();
+    const atom = Atom.make({ data: Option.some({ ...projection, runs: [] }) });
+    using projectionRead = vi
+      .spyOn(environmentThreadDetails, "stateAtom")
+      .mockReturnValue(atom as never);
+    await using screen = await render(surface("en", { attachmentCase: "raw" }));
+    await screen.getByRole("button", { name: "Confirm revert", exact: true }).click();
+    await expect.poll(() => fixture.prepare.mock.calls.length).toBe(1);
+    await expect
+      .poll(() => useComposerDraftStore.getState().rewindingThreadKeys.has("fork"))
+      .toBe(false);
+    for (const locale of ["en", "zh-CN", "en"] as const) {
+      await screen.rerender(surface(locale, { attachmentCase: "raw" }));
+      if (kind === "empty")
+        expect(screen.container.querySelector('[data-variant="error"]')).toBeNull();
+      else
+        await expect
+          .poll(() => screen.container.textContent)
+          .toContain(
+            kind === "owned" && locale === "zh-CN"
+              ? "会话已更改。请重新选择要回退到的消息。"
+              : source,
+          );
+    }
+    expect(projectionRead).toHaveBeenCalledTimes(kind === "owned" ? 1 : 0);
     expect(fixture.connection).toHaveBeenCalledExactlyOnceWith(ref.environmentId);
     expect(fixture.prepare).toHaveBeenCalledTimes(1);
     expect(fixture.rewind).not.toHaveBeenCalled();

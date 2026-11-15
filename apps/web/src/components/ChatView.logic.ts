@@ -913,6 +913,18 @@ export function getStartedThreadModelChangeBlockReason(input: {
   };
 }
 
+const ownedRewindFailures = new WeakMap<Error, string>();
+
+export function readOwnedRewindFailure(error: unknown) {
+  if (!(error instanceof Error)) return undefined;
+  const originalMessage = ownedRewindFailures.get(error);
+  if (originalMessage === undefined || error.message !== originalMessage) return undefined;
+  return {
+    error: "The thread has changed. Select a message to rewind again.",
+    ownedCode: "rewindChanged" as const,
+  };
+}
+
 export async function waitForRevertedMessage(
   threadRef: ScopedThreadRef,
   turnCount: number,
@@ -942,12 +954,14 @@ export async function waitForRevertedMessage(
     return latest === undefined || run.ordinal > latest.ordinal ? run : latest;
   }, undefined);
   if (witness === undefined) {
-    throw new Error(
+    const error = new Error(
       translateWebSource(
         readLocale?.() ?? "en",
         "The thread has changed. Select a message to rewind again.",
       ),
     );
+    ownedRewindFailures.set(error, error.message);
+    throw error;
   }
   return new Promise<void>((resolve, reject) => {
     let settled = false;
@@ -1203,6 +1217,7 @@ export function isCompactCommandMessage(message: ChatMessage): boolean {
 // can race around promotion, so each write carries its time to let the latest
 // one win when they collide.
 const OWNED_THREAD_ERRORS = {
+  rewindChanged: "The thread has changed. Select a message to rewind again.",
   rewindCapacity: "Make room for this message's attachments in the composer before rewinding.",
   rewindFailed: "Failed to revert thread state.",
   rewindAttachmentsPending: "Wait for attachments to finish preparing before rewinding.",

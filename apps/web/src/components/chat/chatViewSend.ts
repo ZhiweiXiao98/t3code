@@ -42,6 +42,7 @@ import {
   readFileAsDataUrl,
   prepareRevertedMessageAttachments,
   waitForRevertedMessage,
+  readOwnedRewindFailure,
 } from "../ChatView.logic";
 import { readPreparedConnection } from "../../state/session";
 import { recallableComposerPrompt } from "./composerPromptHistory";
@@ -189,7 +190,11 @@ export async function rewindToMessage(input: {
 }): Promise<
   | {
       readonly error: string;
-      readonly ownedCode?: "rewindAttachmentsPending" | "rewindFailed" | "rewindCapacity";
+      readonly ownedCode?:
+        | "rewindAttachmentsPending"
+        | "rewindFailed"
+        | "rewindCapacity"
+        | "rewindChanged";
       readonly prompt?: never;
     }
   | { readonly error: null; readonly prompt: string }
@@ -277,6 +282,8 @@ export async function rewindToMessage(input: {
     store.addFiles(draftTarget, restoredFiles, { allowDuplicates: true });
     return { error: null, prompt: nextPrompt };
   } catch (error) {
+    const owned = readOwnedRewindFailure(error);
+    if (owned) return owned;
     return error instanceof Error
       ? { error: error.message }
       : { error: "Failed to revert thread state.", ownedCode: "rewindFailed" };

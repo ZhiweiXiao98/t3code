@@ -795,6 +795,45 @@ describe("waitForRevertedMessage", () => {
 
   afterEach(() => vi.restoreAllMocks());
 
+  it("recognizes only unchanged actual missing-witness errors", async () => {
+    const { readOwnedRewindFailure } = await import("./ChatView.logic");
+    const { state, projection } = projectionAtom();
+    appAtomRegistry.set(state, { data: Option.some({ ...projection, runs: [] }) });
+    const revert = vi.fn(async () => {});
+    const english = "The thread has changed. Select a message to rewind again.";
+    for (const locale of ["en", "zh-CN", "en"] as const) {
+      const failure = await waitForRevertedMessage(
+        threadRef,
+        1,
+        requestId,
+        revert,
+        undefined,
+        () => locale,
+      ).then(
+        () => null,
+        (error: unknown) => error,
+      );
+      expect(failure).toBeInstanceOf(Error);
+      if (!(failure instanceof Error)) throw new Error("Expected actual error");
+      expect(failure.message).toBe(
+        locale === "en" ? english : "会话已更改。请重新选择要回退到的消息。",
+      );
+      expect(readOwnedRewindFailure(failure)).toEqual({
+        error: english,
+        ownedCode: "rewindChanged",
+      });
+      expect(readOwnedRewindFailure(new Error(failure.message))).toBeUndefined();
+      expect(
+        readOwnedRewindFailure(
+          Object.assign(new Error(failure.message), { ownedCode: "rewindChanged" }),
+        ),
+      ).toBeUndefined();
+      failure.message = "mutated";
+      expect(readOwnedRewindFailure(failure)).toBeUndefined();
+    }
+    expect(revert).not.toHaveBeenCalled();
+  });
+
   it("reads the locale when its own rewind timeout fires, not when the wait begins", async () => {
     vi.useFakeTimers();
     projectionAtom();
@@ -1324,6 +1363,11 @@ it.each(["server", "draft"] as const)(
 );
 
 it.each([
+  [
+    "rewindChanged",
+    "The thread has changed. Select a message to rewind again.",
+    "会话已更改。请重新选择要回退到的消息。",
+  ],
   [
     "rewindCapacity",
     "Make room for this message's attachments in the composer before rewinding.",
