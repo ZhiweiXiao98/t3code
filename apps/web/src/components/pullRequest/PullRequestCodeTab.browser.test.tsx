@@ -98,7 +98,8 @@ vi.mock(import("~/state/use-atom-command"), async (original) => ({
             ? mocks.edit
             : mocks.otherCommand) as never,
 }));
-vi.mock("~/speech/useTextFieldSpeech", () => ({
+vi.mock("~/speech/useTextFieldSpeech", async (original) => ({
+  ...(await original<typeof import("~/speech/useTextFieldSpeech")>()),
   TextFieldSpeechControls: () => null,
   SpeechTextField: ({
     children,
