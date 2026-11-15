@@ -7,7 +7,12 @@ import {
   type ComposerFileAttachment,
   type ComposerImageAttachment,
 } from "../../composerDraftStore";
-import { prepareQueuedEditAttachments, recoverQueuedMessageEdit } from "./queuedMessageEdit";
+import {
+  createQueuedEditUploadFailure,
+  isOwnedQueuedEditUploadFailure,
+  prepareQueuedEditAttachments,
+  recoverQueuedMessageEdit,
+} from "./queuedMessageEdit";
 
 const environmentId = EnvironmentId.make("remote-environment");
 const threadTarget = scopeThreadRef(environmentId, ThreadId.make("thread:edit"));
@@ -63,15 +68,34 @@ describe("queued message file edits", () => {
   });
 
   it("fails a save instead of dropping a file whose upload is missing", async () => {
-    await expect(
-      prepareQueuedEditAttachments({
-        existingAttachments: [],
-        images: [image],
-        files: [file],
-        uploadFiles: async () => [],
-        readImage: async () => "image",
-      }),
-    ).rejects.toThrow("Retry or remove");
+    const error = await prepareQueuedEditAttachments({
+      existingAttachments: [],
+      images: [image],
+      files: [file],
+      uploadFiles: async () => [],
+      readImage: async () => "image",
+    }).catch((error: unknown) => error);
+    expect(error).toBeInstanceOf(Error);
+    if (!(error instanceof Error)) throw new Error("Expected missing upload");
+    expect(error.message).toBe("Retry or remove failed uploads before saving.");
+    expect(isOwnedQueuedEditUploadFailure(error)).toBe(true);
+    expect(isOwnedQueuedEditUploadFailure(new Error(error.message))).toBe(false);
+    expect(
+      isOwnedQueuedEditUploadFailure(
+        Object.assign(new Error(error.message), { ownedCode: "queuedEditUploadFailed" }),
+      ),
+    ).toBe(false);
+    error.message = "changed";
+    expect(isOwnedQueuedEditUploadFailure(error)).toBe(false);
+    for (const locale of ["en", "zh-CN", "en"] as const) {
+      const actual = createQueuedEditUploadFailure(locale);
+      expect(actual.message).toBe(
+        locale === "en"
+          ? "Retry or remove failed uploads before saving."
+          : "保存前请重试或移除上传失败的附件。",
+      );
+      expect(isOwnedQueuedEditUploadFailure(actual)).toBe(true);
+    }
   });
 
   it("keeps file-only edits when another client starts the queued run", () => {

@@ -442,3 +442,28 @@ it("pairs queued attachment limit ownership without claiming raw collisions", ()
   expect(entries.limit?.ownedCode).toBeUndefined();
   expect(entries.limit?.ownedName).toBeUndefined();
 });
+
+it("pairs queued upload fallback ownership without claiming raw collisions", () => {
+  const source = "Retry or remove failed uploads before saving.";
+  const ref = { environmentId: EnvironmentId.make("edit"), threadId: ThreadId.make("edit") };
+  let entries: Record<string, LocalThreadErrorEntry> = {};
+  const set = makeThreadErrorSetter({
+    routeThreadRef: ref,
+    routeThreadKey: "edit",
+    draftId: null,
+    serverThreadRef: ref,
+    setLocalServerErrorsByThreadKey: (update) => {
+      entries = typeof update === "function" ? update(entries) : update;
+    },
+    setLocalDraftErrorsByDraftId: () => undefined,
+  });
+  set(ref.threadId, source, "queuedEditUploadFailed");
+  expect(entries.edit?.ownedCode).toBe("queuedEditUploadFailed");
+  for (const locale of ["en", "zh-CN", "en"] as const)
+    expect(formatLocalThreadError(source, entries.edit, locale)).toBe(
+      locale === "en" ? source : "保存前请重试或移除上传失败的附件。",
+    );
+  set(ref.threadId, source);
+  expect(entries.edit?.ownedCode).toBeUndefined();
+  expect(formatLocalThreadError(source, entries.edit, "zh-CN")).toBe(source);
+});

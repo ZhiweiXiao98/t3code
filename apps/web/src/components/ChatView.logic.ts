@@ -1254,6 +1254,7 @@ export function isCompactCommandMessage(message: ChatMessage): boolean {
 // can race around promotion, so each write carries its time to let the latest
 // one win when they collide.
 const OWNED_THREAD_ERRORS = {
+  queuedEditUploadFailed: "Retry or remove failed uploads before saving.",
   queuedEditAttachmentLimit: translateWebMessage("en", "chat.queuedEdit.tooManyAttachments", {
     count: PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
   }),

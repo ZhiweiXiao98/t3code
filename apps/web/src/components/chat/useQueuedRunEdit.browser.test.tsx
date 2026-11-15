@@ -45,6 +45,20 @@ const mocks = await vi.hoisted(async () => {
   return {
     prepare: vi.fn(),
     upload: vi.fn(),
+    uploadDefault: undefined as
+      | typeof import("../../lib/attachmentUploadQueue").startAttachmentUpload
+      | undefined,
+    waitUploads: vi.fn(),
+    waitDefault: undefined as
+      | typeof import("../../lib/attachmentUploadQueue").awaitAttachmentUploads
+      | undefined,
+    lookup: vi.fn(),
+    configs: Atom.make(
+      new Map<
+        string,
+        { environment: { capabilities: { fileAttachments: { maxUploadBytes: number } } } }
+      >(),
+    ),
     editQueuedRun: vi.fn<(value: unknown) => Promise<{ readonly _tag: "Success" | "Failure" }>>(),
     // The projection's runs per thread, written by each test to stand in for the server.
     threadRuns: Atom.family((_key: string) =>
@@ -60,9 +74,23 @@ vi.mock("./queuedMessageEdit", async (original) => {
 });
 vi.mock("../../lib/attachmentUploadQueue", async (original) => {
   const actual = await original<typeof import("../../lib/attachmentUploadQueue")>();
+  mocks.uploadDefault = actual.startAttachmentUpload;
+  mocks.waitDefault = actual.awaitAttachmentUploads;
   mocks.upload.mockImplementation(actual.startAttachmentUpload);
-  return { ...actual, startAttachmentUpload: mocks.upload };
+  mocks.waitUploads.mockImplementation(actual.awaitAttachmentUploads);
+  mocks.lookup.mockImplementation(actual.getUploadedAttachments);
+  return {
+    ...actual,
+    startAttachmentUpload: mocks.upload,
+    awaitAttachmentUploads: mocks.waitUploads,
+    getUploadedAttachments: mocks.lookup,
+  };
 });
+
+vi.mock("../../state/server", async (original) => ({
+  ...(await original<typeof import("../../state/server")>()),
+  environmentServerConfigsAtom: mocks.configs,
+}));
 
 vi.mock("../../state/use-atom-command", async (original) => ({
   ...(await original<typeof import("../../state/use-atom-command")>()),
@@ -207,7 +235,11 @@ function view(threadRef: ScopedThreadRef, runStatus: string, hook: { current: Ho
 function setup() {
   mocks.editQueuedRun.mockReset();
   mocks.prepare.mockClear();
-  mocks.upload.mockClear();
+  if (!mocks.uploadDefault || !mocks.waitDefault) throw new Error("Upload mocks not initialized");
+  mocks.upload.mockReset().mockImplementation(mocks.uploadDefault);
+  mocks.waitUploads.mockReset().mockImplementation(mocks.waitDefault);
+  mocks.lookup.mockClear();
+  appAtomRegistry.set(mocks.configs, new Map());
   useComposerDraftStore.setState({ draftsByThreadKey: {}, draftThreadsByThreadKey: {} });
   setRuns(THREAD_A, "queued");
   setRuns(THREAD_B, "queued");
@@ -568,3 +600,84 @@ it("keeps queued attachment limit current without starting a save", async () => 
   expect(mocks.prepare).not.toHaveBeenCalled();
   expect(mocks.upload).not.toHaveBeenCalled();
 });
+
+it.each(["owned", "raw", "empty"] as const)(
+  "keeps queued missing upload %s notice current",
+  async (kind) => {
+    const { hook } = setup();
+    const source = "Retry or remove failed uploads before saving.";
+    appAtomRegistry.set(
+      mocks.configs,
+      new Map([
+        [ENV, { environment: { capabilities: { fileAttachments: { maxUploadBytes: 1024 } } } }],
+      ]),
+    );
+    let resolve: () => void = () => undefined;
+    let reject: (reason: unknown) => void = () => undefined;
+    mocks.waitUploads.mockReturnValueOnce(
+      new Promise<void>((yes, no) => {
+        resolve = yes;
+        reject = no;
+      }),
+    );
+    mocks.upload.mockImplementationOnce(() => undefined);
+    await using screen = await render(localizedView("en", hook));
+    await using _cleanup = {
+      [Symbol.asyncDispose]: async () => {
+        resolve();
+        await act(async () => {
+          await Promise.resolve();
+        });
+        if (hook.current?.isEditing) await act(() => requireHook(hook).cancelEdit());
+        appAtomRegistry.set(mocks.configs, new Map());
+      },
+    };
+    await beginChangedEdit(hook);
+    const file = {
+      type: "file" as const,
+      id: ChatAttachmentId.make(`missing-${kind}`),
+      name: "literal-$&-{file}.txt",
+      mimeType: "text/plain",
+      sizeBytes: 1,
+      file: new File(["x"], "literal-$&-{file}.txt", { type: "text/plain" }),
+    };
+    await act(() => {
+      expect(
+        useComposerDraftStore.getState().addFiles(requireHook(hook).draftTarget, [file]),
+      ).toHaveLength(1);
+    });
+    const before = useComposerDraftStore.getState().getComposerDraft(requireHook(hook).draftTarget);
+    await screen.getByRole("button", { name: "Update queued message", exact: true }).click();
+    await expect.poll(() => mocks.waitUploads.mock.calls.length).toBe(1);
+    expect(requireHook(hook).isSaving).toBe(true);
+    await screen.rerender(localizedView("zh-CN", hook));
+    if (kind === "owned") resolve();
+    else reject(new Error(kind === "raw" ? source : ""));
+    await expect.poll(() => requireHook(hook).isSaving).toBe(false);
+    for (const locale of ["zh-CN", "en", "zh-CN", "en"] as const) {
+      await screen.rerender(localizedView(locale, hook));
+      if (kind === "empty")
+        expect(screen.container.querySelector('[data-variant="error"]')).toBeNull();
+      else
+        await expect
+          .poll(() => screen.container.textContent)
+          .toContain(
+            kind === "owned" && locale === "zh-CN" ? "保存前请重试或移除上传失败的附件。" : source,
+          );
+    }
+    expect(mocks.prepare).toHaveBeenCalledTimes(1);
+    expect(mocks.upload).toHaveBeenCalledExactlyOnceWith({
+      environmentId: ENV,
+      image: file,
+      draftTarget: requireHook(hook).draftTarget,
+    });
+    expect(mocks.waitUploads).toHaveBeenCalledExactlyOnceWith([file.id]);
+    expect(mocks.lookup).toHaveBeenCalledTimes(kind === "owned" ? 1 : 0);
+    if (kind === "owned") expect(mocks.lookup.mock.results[0]?.value).toBeNull();
+    expect(mocks.editQueuedRun).not.toHaveBeenCalled();
+    expect(requireHook(hook).isEditing).toBe(true);
+    expect(useComposerDraftStore.getState().getComposerDraft(requireHook(hook).draftTarget)).toBe(
+      before,
+    );
+  },
+);

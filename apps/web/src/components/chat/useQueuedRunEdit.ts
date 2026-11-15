@@ -58,7 +58,12 @@ import { useAtomCommand } from "../../state/use-atom-command";
 import { stackedThreadToast, toastManager } from "../ui/toast";
 import type { ChatComposerHandle } from "./ChatComposer";
 import { fileAttachmentCapabilityBlockReason } from "./composerAttachmentFiles";
-import { prepareQueuedEditAttachments, recoverQueuedMessageEdit } from "./queuedMessageEdit";
+import {
+  createQueuedEditUploadFailure,
+  isOwnedQueuedEditUploadFailure,
+  prepareQueuedEditAttachments,
+  recoverQueuedMessageEdit,
+} from "./queuedMessageEdit";
 import { makeThreadErrorSetter } from "../ChatView.logic";
 import type { EditQueuedRunRequest } from "./QueuedRunsControl";
 
@@ -101,7 +106,10 @@ async function submitQueuedRunEdit(input: {
   readonly editing: EditingQueuedRun;
   readonly content: QueuedRunEditContent;
   readonly editQueuedRun: ReturnType<typeof useEditQueuedRunCommand>;
-}): Promise<{ readonly error: string | null; readonly ownedCode?: "queuedEditSaveFailed" }> {
+}): Promise<{
+  readonly error: string | null;
+  readonly ownedCode?: "queuedEditSaveFailed" | "queuedEditUploadFailed";
+}> {
   const { environmentId, draftTarget, editing, content, locale } = input;
   const editText = content.prompt.trim();
   const newAttachments = [...content.images, ...content.files];
@@ -123,8 +131,7 @@ async function submitQueuedRunEdit(input: {
     await awaitAttachmentUploads(files.map((file) => file.id));
     validateFiles();
     const uploaded = getUploadedAttachments({ environmentId, images: files });
-    if (uploaded === null)
-      throw new Error(translateWebSource(locale, "Retry or remove failed uploads before saving."));
+    if (uploaded === null) throw createQueuedEditUploadFailure(locale);
     return uploaded;
   };
   try {
@@ -180,6 +187,12 @@ async function submitQueuedRunEdit(input: {
       ? { error: "Could not save the edited queued message.", ownedCode: "queuedEditSaveFailed" }
       : { error: null };
   } catch (error) {
+    if (isOwnedQueuedEditUploadFailure(error)) {
+      return {
+        error: "Retry or remove failed uploads before saving.",
+        ownedCode: "queuedEditUploadFailed",
+      };
+    }
     return error instanceof Error
       ? { error: error.message }
       : { error: "Could not save the edited queued message.", ownedCode: "queuedEditSaveFailed" };
