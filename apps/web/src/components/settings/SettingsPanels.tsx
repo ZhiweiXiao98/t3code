@@ -276,12 +276,16 @@ function AboutVersionSection() {
       .checkForUpdate()
       .then((result) => {
         if (!result.checked) {
+          const { t } = readWebI18n();
+          const currentDenial = hasDesktopBridge
+            ? managedUpdatesDenial(primaryPolicy, t)
+            : undefined;
           toastManager.add(
             stackedThreadToast({
               type: "error",
               title: t("settings.about.error.checkTitle"),
               description:
-                updatesDenial ?? result.state.message ?? t("settings.about.error.unavailable"),
+                currentDenial ?? result.state.message ?? t("settings.about.error.unavailable"),
             }),
           );
         }

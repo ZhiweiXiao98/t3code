@@ -552,3 +552,106 @@ it.each(["owned", "raw", "empty", "resolved"] as const)(
     expect(router.state.location.pathname).toBe("/settings/about");
   },
 );
+
+it.each(["owned", "raw", "empty"] as const)(
+  "uses settlement locale for About unchecked update result: %s",
+  async (kind) => {
+    fixture.installing = false;
+    fixture.checking = true;
+    fixture.toast.mockReset();
+    fixture.download.mockReset();
+    fixture.install.mockReset();
+    fixture.check.mockReset();
+    fixture.providers.mockReset();
+    fixture.locale = "en";
+    expect(resolveDesktopUpdateButtonAction(checkState)).toBe("none");
+    expect(appAtomRegistry.get(primaryEnvironmentIdAtom)).toBeNull();
+    const resolved: DesktopUpdateCheckResult = {
+      checked: false,
+      state: {
+        ...checkState,
+        message: kind === "owned" ? null : kind === "raw" ? "Literal $& {check}" : "",
+      },
+    };
+    let resolve!: (value: DesktopUpdateCheckResult) => void;
+    const pending = new Promise<DesktopUpdateCheckResult>((yes) => {
+      resolve = yes;
+    });
+    fixture.check.mockReturnValue(pending);
+    const descriptor = Object.getOwnPropertyDescriptor(window, "desktopBridge");
+    Object.defineProperty(window, "desktopBridge", {
+      configurable: true,
+      value: {
+        downloadUpdate: fixture.download,
+        installUpdate: fixture.install,
+        checkForUpdate: fixture.check,
+      },
+    });
+    using _restore = {
+      [Symbol.dispose]() {
+        if (descriptor) Object.defineProperty(window, "desktopBridge", descriptor);
+        else Reflect.deleteProperty(window, "desktopBridge");
+        fixture.locale = "en";
+        fixture.checking = false;
+      },
+    };
+    const root = createRootRoute({ component: AboutSettingsPanel });
+    const router = createRouter({
+      routeTree: root,
+      history: createMemoryHistory({ initialEntries: ["/settings/about"] }),
+    });
+    await router.load();
+    const surface = (locale: "en" | "zh-CN") => (
+      <WebI18nContext
+        value={{
+          locale,
+          appLocale: locale,
+          setAppLocale: () => undefined,
+          t: (key, values) => translateWebMessage(locale, key, values),
+        }}
+      >
+        <AppAtomRegistryProvider>
+          <RouterProvider router={router} />
+        </AppAtomRegistryProvider>
+      </WebI18nContext>
+    );
+    await using screen = await render(surface("en"), { router: false });
+    await using _drain = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          resolve(resolved);
+          await pending.catch(() => undefined);
+        });
+      },
+    };
+    await page.getByRole("button", { name: "Check for Updates", exact: true }).click();
+    expect(fixture.check).toHaveBeenCalledExactlyOnceWith();
+    expect(fixture.providers).toHaveBeenCalledExactlyOnceWith();
+    expect(fixture.providers.mock.invocationCallOrder[0]).toBeLessThan(
+      fixture.check.mock.invocationCallOrder[0]!,
+    );
+    expect(fixture.toast).not.toHaveBeenCalled();
+    fixture.locale = "zh-CN";
+    await screen.rerender(surface("zh-CN"));
+    await act(async () => {
+      resolve(resolved);
+      await pending;
+    });
+    expect(fixture.toast).toHaveBeenCalledExactlyOnceWith({
+      type: "error",
+      title: "无法检查更新",
+      description:
+        kind === "owned" ? "此构建不支持自动更新。" : kind === "raw" ? "Literal $& {check}" : "",
+      data: { actionLayout: "stacked-end" },
+    });
+    await expect.element(page.getByRole("button", { name: "检查更新", exact: true })).toBeEnabled();
+    fixture.locale = "en";
+    await screen.rerender(surface("en"));
+    expect(fixture.toast).toHaveBeenCalledTimes(1);
+    expect(fixture.download).not.toHaveBeenCalled();
+    expect(fixture.install).not.toHaveBeenCalled();
+    expect(fixture.check).toHaveBeenCalledExactlyOnceWith();
+    expect(fixture.providers).toHaveBeenCalledExactlyOnceWith();
+    expect(router.state.location.pathname).toBe("/settings/about");
+  },
+);
