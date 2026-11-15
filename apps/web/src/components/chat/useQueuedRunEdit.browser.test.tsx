@@ -58,7 +58,7 @@ const mocks = await vi.hoisted(async () => {
         string,
         { environment: { capabilities: { fileAttachments: { maxUploadBytes: number } } } }
       >(),
-    ),
+    ).pipe(Atom.keepAlive),
     editQueuedRun: vi.fn<(value: unknown) => Promise<{ readonly _tag: "Success" | "Failure" }>>(),
     // The projection's runs per thread, written by each test to stand in for the server.
     threadRuns: Atom.family((_key: string) =>
@@ -647,10 +647,18 @@ it.each(["owned", "raw", "empty"] as const)(
       ).toHaveLength(1);
     });
     const before = useComposerDraftStore.getState().getComposerDraft(requireHook(hook).draftTarget);
+    expect(
+      appAtomRegistry.get(mocks.configs).get(ENV)?.environment.capabilities.fileAttachments
+        .maxUploadBytes,
+    ).toBe(1024);
     await screen.getByRole("button", { name: "Update queued message", exact: true }).click();
     await expect.poll(() => mocks.waitUploads.mock.calls.length).toBe(1);
     expect(requireHook(hook).isSaving).toBe(true);
     await screen.rerender(localizedView("zh-CN", hook));
+    expect(
+      appAtomRegistry.get(mocks.configs).get(ENV)?.environment.capabilities.fileAttachments
+        .maxUploadBytes,
+    ).toBe(1024);
     if (kind === "owned") resolve();
     else reject(new Error(kind === "raw" ? source : ""));
     await expect.poll(() => requireHook(hook).isSaving).toBe(false);
