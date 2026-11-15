@@ -1448,6 +1448,14 @@ function ScheduledTaskDestination({
                 : "scheduled-task-destination"
             }
             aria-label={onThreadModeChange ? tx("Destination thread") : undefined}
+            onKeyDown={(event) => {
+              if (event.key !== "Escape" || event.nativeEvent.isComposing || !open || disabled)
+                return;
+              // Escape can arrive before the popup's deferred autofocus leaves this trigger.
+              event.preventDefault();
+              event.stopPropagation();
+              handleOpenChange(false);
+            }}
             disabled={disabled}
             render={<Button variant="outline" size="sm" />}
             className="w-full justify-between"

@@ -332,6 +332,58 @@ it("localizes the destination picker and deletion consequence while preserving t
   await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
 });
 
+it.each(["first open", "reopen"] as const)(
+  "keeps the task editor when Escape targets the destination trigger on %s",
+  async (opening) => {
+    setup();
+    await using _screen = await render(<ScheduledTasksSettings taskId={task.id} />);
+    const dialog = page.getByRole("dialog");
+    const name = dialog.getByRole("textbox", { name: "Name" });
+    await expect.element(name).toHaveValue("Review issues");
+    await userEvent.fill(name, "My unsaved task");
+    const selectedThread = dialog.getByText("Fix login bug", { exact: true });
+    await userEvent.click(selectedThread);
+    const search = page.getByPlaceholder("Search all threads...");
+    await expect.element(search).toBeVisible();
+    if (opening === "reopen") {
+      await userEvent.fill(search, "first search");
+      await userEvent.keyboard("{Escape}");
+      await expect.element(search).not.toBeInTheDocument();
+      await expect.element(selectedThread).toBeVisible();
+      await userEvent.click(selectedThread);
+      await expect.element(search).toHaveValue("");
+    }
+    await userEvent.fill(search, "no matching thread");
+    await expect.element(page.getByText("No threads found.", { exact: true })).toBeVisible();
+    const trigger = document.getElementById("scheduled-task-destination");
+    if (!trigger) throw new Error("Scheduled task destination trigger is missing");
+    const destination = page.elementLocator(trigger);
+    await expect.element(destination).toHaveAttribute("aria-expanded", "true");
+    // Reproduce the adverse trigger target independently of autofocus timing, rather than
+    // forcing focus into the popup to hide the trigger's Escape ownership gap.
+    await act(() => trigger.focus());
+    await expect.element(destination).toHaveFocus();
+    await userEvent.keyboard("{Escape}");
+    expect(trigger.isConnected, "Destination Escape must preserve the task editor").toBe(true);
+    await expect.element(destination).toHaveAttribute("aria-expanded", "false");
+    await expect.element(search).not.toBeInTheDocument();
+    await expect.element(selectedThread).toBeVisible();
+    await expect.element(name).toHaveValue("My unsaved task");
+
+    await userEvent.click(selectedThread);
+    await expect.element(search).toHaveValue("");
+    await userEvent.fill(search, "another search");
+    await userEvent.keyboard("{Escape}");
+    await expect.element(search).not.toBeInTheDocument();
+    await expect.element(selectedThread).toBeVisible();
+    await act(() => trigger.focus());
+    await expect.element(destination).toHaveFocus();
+    await expect.element(destination).toHaveAttribute("aria-expanded", "false");
+    await userEvent.keyboard("{Escape}");
+    await expect.element(dialog).not.toBeInTheDocument();
+  },
+);
+
 it("localizes all schedule display modes without changing the scheduled time or weekday ordering", () => {
   const interval = { type: "interval", everyMs: 120_000 } as const;
   expect(scheduleLabel(interval)).toBe("Every 2 min");
