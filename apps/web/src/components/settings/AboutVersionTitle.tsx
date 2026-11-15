@@ -1,3 +1,4 @@
+import { readWebI18n } from "../../i18n/readWebI18n";
 import { translateWebSource } from "../../i18n/messages";
 import { useI18n } from "../../i18n/WebI18nContext";
 import { useRef } from "react";
@@ -18,10 +19,11 @@ export function AboutVersionTitle() {
     target: tx("version"),
     onCopy: () => showAnchoredCopySuccessToast(copyButtonRef),
     onError: (error) => {
+      const { locale } = readWebI18n();
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: tx("Could not copy version"),
+          title: translateWebSource(locale, "Could not copy version"),
           description: error.message,
         }),
       );
