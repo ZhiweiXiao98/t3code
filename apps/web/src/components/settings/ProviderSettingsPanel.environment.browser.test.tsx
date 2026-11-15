@@ -1019,3 +1019,103 @@ it.each(["local", "missing agent"] as const)(
     expect(state.settings).toBe(originalSettings);
   },
 );
+
+it.each(["owned", "raw", "empty", "interrupted"] as const)(
+  "uses settlement locale for provider update command failure: %s",
+  async (kind) => {
+    await setup();
+    state.locale = "en";
+    state.toast.mockReset();
+    using _restore = {
+      [Symbol.dispose]() {
+        state.locale = null;
+      },
+    };
+    const instance = {
+      driver: ProviderDriverKind.make("codex"),
+      enabled: true,
+      displayName: "Literal $& {provider}",
+    };
+    state.settings = { ...DEFAULT_UNIFIED_SETTINGS, providerInstances: { [codexId]: instance } };
+    const originalSettings = state.settings;
+    await setProviders([provider()]);
+    const result = AsyncResult.failure(
+      kind === "interrupted"
+        ? Cause.interrupt()
+        : Cause.fail(
+            kind === "owned"
+              ? null
+              : new Error(kind === "empty" ? "" : "Literal $& {update error}"),
+          ),
+    );
+    let resolve!: (value: typeof result) => void;
+    const pending = new Promise<typeof result>((done) => {
+      resolve = done;
+    });
+    state.updateProvider.mockReturnValueOnce(pending);
+    const surface = (locale: "en" | "zh-CN") => (
+      <WebI18nContext
+        value={{
+          locale,
+          appLocale: locale,
+          setAppLocale: () => undefined,
+          t: (key, values) => translateWebMessage(locale, key, values),
+        }}
+      >
+        {panel({ targetInstanceId: codexId })}
+      </WebI18nContext>
+    );
+    await using screen = await render(surface("en"));
+    await using _drain = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          resolve(result);
+          await pending;
+        });
+      },
+    };
+    await userEvent.click(
+      page.getByRole("button", { name: "Update available, view details", exact: true }).first(),
+    );
+    await userEvent.click(page.getByRole("button", { name: "Update now", exact: true }));
+    expect(state.updateProvider).toHaveBeenCalledExactlyOnceWith({
+      environmentId,
+      input: { provider: "codex", instanceId: codexId },
+    });
+    const updating = page.getByRole("button", { name: "Updating", exact: true });
+    await expect.element(updating).toBeDisabled();
+    await act(async () =>
+      updating.element().dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true })),
+    );
+    expect(state.updateProvider).toHaveBeenCalledTimes(1);
+    expect(state.toast).not.toHaveBeenCalled();
+    state.locale = "zh-CN";
+    await screen.rerender(surface("zh-CN"));
+    await act(async () => {
+      resolve(result);
+      await pending;
+    });
+    if (kind === "interrupted") expect(state.toast).not.toHaveBeenCalled();
+    else
+      expect(state.toast).toHaveBeenCalledExactlyOnceWith({
+        type: "error",
+        title: "无法更新 Codex",
+        description:
+          kind === "owned"
+            ? "无法启动服务提供方更新命令。"
+            : kind === "empty"
+              ? ""
+              : "Literal $& {update error}",
+        data: { actionLayout: "stacked-end" },
+      });
+    await expect.element(page.getByRole("button", { name: "立即更新", exact: true })).toBeEnabled();
+    expect(state.settings).toBe(originalSettings);
+    expect(state.mutateProviderInstance).not.toHaveBeenCalled();
+    expect(state.updateSettings).not.toHaveBeenCalled();
+    expect(state.uninstall).not.toHaveBeenCalled();
+    expect(state.confirm).not.toHaveBeenCalled();
+    state.locale = "en";
+    await screen.rerender(surface("en"));
+    expect(state.toast).toHaveBeenCalledTimes(kind === "interrupted" ? 0 : 1);
+  },
+);

@@ -719,6 +719,7 @@ export function EnvironmentProviderSettings({
         },
       });
       if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
+        const { t } = readWebI18n();
         const error = squashAtomCommandFailure(result);
         toastManager.add(
           stackedThreadToast({
