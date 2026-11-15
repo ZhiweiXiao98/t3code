@@ -1,3 +1,4 @@
+import { readWebI18n } from "../../i18n/readWebI18n";
 import { translateWebSource } from "../../i18n/messages";
 import { ProviderInstanceIcon } from "../chat/ProviderInstanceIcon";
 
@@ -409,6 +410,7 @@ export function AddProviderInstanceDialog({
       instance: nextInstance,
     });
     if (result._tag === "Failure") {
+      const { t } = readWebI18n();
       const error = squashAtomCommandFailure(result);
       setIsSaving(false);
       toastManager.add({
