@@ -2841,6 +2841,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
             });
             if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
               const error = squashAtomCommandFailure(result);
+              const { t } = readWebI18n();
               toastManager.add(
                 stackedThreadToast({
                   type: "error",
