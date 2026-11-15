@@ -7,6 +7,8 @@ import {
   AuthOrchestrationOperateScope,
   AuthSourceControlWriteScope,
   EnvironmentId,
+  GitCommandError,
+  ThreadId,
   ProjectId,
   SourceControlProviderKind,
   type PullRequestDetailView,
@@ -989,6 +991,121 @@ it.each([
       .toBeEnabled();
     expect(mocks.newThread).toHaveBeenCalledTimes(1);
     expect(mocks.prepare).not.toHaveBeenCalled();
+    expect(mocks.command).not.toHaveBeenCalled();
+    expect(mocks.runAction).not.toHaveBeenCalled();
+    expect(mocks.acted).not.toHaveBeenCalled();
+    expect(mocks.refresh).not.toHaveBeenCalled();
+    expect(useComposerDraftStore.getState()).toBe(before);
+    expect(mocks.toast).toHaveBeenCalledTimes(1);
+    expect(mocks.updateToast).toHaveBeenCalledTimes(1);
+  },
+);
+
+const panelCheckoutHint =
+  "Check that the branch still exists and is not checked out elsewhere, then try again.";
+it.each([
+  ["owned", null],
+  ["raw", new Error("Literal $& {prepare failure}")],
+  ["empty", new Error("")],
+  ["interrupted", undefined],
+  [
+    "typed diagnostic",
+    new GitCommandError({
+      cwd: "/literal/workspace",
+      operation: "GitVcsDriver.createWorktree",
+      command: "git worktree add",
+      detail: panelCheckoutHint,
+      reason: "path_already_exists",
+    }),
+  ],
+] as const)(
+  "uses settlement locale for panel checkout preparation failure: %s",
+  async (kind, cause) => {
+    const { AsyncResult } = await import("effect/reactivity");
+    const Cause = await import("effect/Cause");
+    type Result = ReturnType<typeof AsyncResult.failure<unknown, unknown>>;
+    const state = useComposerDraftStore.getState();
+    using _restore = {
+      [Symbol.dispose]() {
+        useComposerDraftStore.setState(state, true);
+        mocks.locale = "en";
+        mocks.newThread.mockReset();
+        mocks.prepare.mockReset();
+        mocks.toast.mockReset();
+      },
+    };
+    setup();
+    const opened = {
+      draftId: DraftId.make("panel-prepare-draft"),
+      threadId: ThreadId.make("panel-prepare-thread"),
+    };
+    mocks.newThread.mockReset().mockResolvedValueOnce(opened);
+    let finish = (_result: Result) => {};
+    mocks.prepare.mockReset().mockReturnValueOnce(
+      new Promise<Result>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    mocks.command.mockClear();
+    mocks.runAction.mockClear();
+    mocks.acted.mockClear();
+    mocks.refresh.mockClear();
+    mocks.toast.mockReset().mockReturnValue("panel-prepare-toast");
+    mocks.updateToast.mockClear();
+    await using screen = await render(copySurface("en"));
+    await using _settle = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          finish(AsyncResult.failure(Cause.interrupt()));
+          await Promise.resolve();
+        });
+      },
+    };
+    const before = useComposerDraftStore.getState();
+    await screen.getByRole("button", { name: "Resolve conflicts", exact: true }).click();
+    await expect.poll(() => mocks.prepare.mock.calls.length).toBe(1);
+    expect(mocks.newThread).toHaveBeenCalledExactlyOnceWith({
+      environmentId,
+      projectId: detail.projectId,
+    });
+    expect(mocks.prepare).toHaveBeenCalledExactlyOnceWith({
+      reference: detail.url,
+      mode: "worktree",
+      threadId: opened.threadId,
+    });
+    expect(mocks.toast).toHaveBeenCalledExactlyOnceWith({
+      type: "loading",
+      title: "Preparing the pull request checkout...",
+    });
+    const preparing = screen.getByRole("button", { name: "Preparing...", exact: true });
+    await expect.element(preparing).toBeDisabled();
+    await act(async () => {
+      preparing.element().dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+    });
+    expect(mocks.newThread).toHaveBeenCalledTimes(1);
+    expect(mocks.prepare).toHaveBeenCalledTimes(1);
+    expect(mocks.updateToast).not.toHaveBeenCalled();
+    await screen.rerender(copySurface("zh-CN"));
+    await act(async () => {
+      finish(AsyncResult.failure(kind === "interrupted" ? Cause.interrupt() : Cause.fail(cause)));
+      await Promise.resolve();
+    });
+    expect(mocks.updateToast).toHaveBeenCalledExactlyOnceWith("panel-prepare-toast", {
+      type: "error",
+      title: "无法准备检出变更请求",
+      description:
+        kind === "raw"
+          ? "Literal $& {prepare failure}"
+          : kind === "typed diagnostic"
+            ? panelCheckoutHint + " (path_already_exists)"
+            : "请确认该分支仍然存在且未在其他位置检出，然后重试。",
+    });
+    await screen.rerender(copySurface("en"));
+    await expect
+      .element(screen.getByRole("button", { name: "Resolve conflicts", exact: true }))
+      .toBeEnabled();
+    expect(mocks.newThread).toHaveBeenCalledTimes(1);
+    expect(mocks.prepare).toHaveBeenCalledTimes(1);
     expect(mocks.command).not.toHaveBeenCalled();
     expect(mocks.runAction).not.toHaveBeenCalled();
     expect(mocks.acted).not.toHaveBeenCalled();

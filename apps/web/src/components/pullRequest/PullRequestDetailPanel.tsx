@@ -1069,6 +1069,8 @@ export function PullRequestDetailPanel({
       threadId: opened.threadId,
     });
     if (prepared._tag === "Failure") {
+      const { locale: uiLocale } = readWebI18n();
+      const tx = (source: string) => translateWebSource(uiLocale, source);
       setHandoff(null);
       toastManager.update(toastId, {
         type: "error",
