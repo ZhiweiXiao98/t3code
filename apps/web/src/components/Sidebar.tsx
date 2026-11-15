@@ -1645,11 +1645,12 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
       if (result._tag === "Failure") {
         if (!isAtomCommandInterrupted(result)) {
           const error = squashAtomCommandFailure(result);
+          const { locale, t } = readWebI18n();
           toastManager.add(
             stackedThreadToast({
               type: "error",
               title: t("composer.thread.settleFailed"),
-              description: formatThreadActionError(error, releaseLocale, t("common.error")),
+              description: formatThreadActionError(error, locale, t("common.error")),
             }),
           );
         }

@@ -115,7 +115,7 @@ it("uses settlement locale for sidebar pin failures", async () => {
         environmentId: ENVIRONMENT_ID,
         threadId: thread.id,
       }),
-      description: "此环境的服务器尚不支持置顶。请更新服务器以使用此功能。",
+      description: "此环境的服务器尚不支持置顶。请更新服务器以使用置顶功能。",
       interrupted: false,
     },
     {
