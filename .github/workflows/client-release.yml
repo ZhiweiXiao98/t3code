@@ -288,8 +288,7 @@ jobs:
           T3CODE_TRANSFER_BUDGET_RESULT_PATH: ${{ runner.temp }}/thread-transfer-result.json
         run:
           "set -euo pipefail\nif [[ \"$SUITE\" == clients ]]; then\n  vp run --parallel --concurrency-limit 2 --filter '!t3'\
-          \ --filter '!@t3tools/monorepo' --filter '!@t3tools/web' test\nelif [[ \"$SUITE\" == web ]]; then\n  vp run --filter\
-          \ @t3tools/web test\nelse\n  vp run --filter t3 test --shard \"${SUITE#server-}/3\"\nfi\n"
+          \ --filter '!@t3tools/monorepo' --filter '!@t3tools/web' test\nelif [[ \"$SUITE\" == web ]]; then\n  python3 .github/scripts/observe-web-tests.py\nelse\n  vp run --filter t3 test --shard \"${SUITE#server-}/3\"\nfi\n"
       - name: Detect transfer budget report
         id: transfer_budget
         if: always() && startsWith(matrix.suite, 'server-')
@@ -310,6 +309,14 @@ jobs:
           node apps/web/scripts/verify-built-boot.ts
 
           "
+      - name: Preserve Web browser diagnostics
+        if: ${{ always() && matrix.suite == 'web' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-browser-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/web-browser-diagnostics/
+          if-no-files-found: error
+          retention-days: 14
   bundle:
     name: Build validated desktop bundle
     needs: source
