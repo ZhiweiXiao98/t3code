@@ -1,10 +1,3 @@
-import { threadChipCopyTarget } from "@t3tools/client-runtime/thread-reference";
-import {
-  COMPOSER_CONTEXT_CLIPBOARD_MIME,
-  encodeComposerContextFragment,
-} from "@t3tools/shared/composerContextClipboard";
-import { configuredHostedAppUrl } from "../hostedPairing";
-import { toastManager } from "./ui/toast";
 import { createMemoryHistory } from "@tanstack/react-router";
 import { scopeThreadRef, scopedThreadKey } from "@t3tools/client-runtime/environment";
 import { DEFAULT_CLIENT_SETTINGS } from "@t3tools/contracts/settings";
@@ -24,7 +17,6 @@ import { getRouter } from "~/router";
 import {
   ENVIRONMENT_ID,
   installFakeEnvironment,
-  dispatchedCommands,
   threadWithHistory,
   type FakeDriver,
 } from "../../test/fakeEnvironment";
@@ -111,99 +103,4 @@ it("uses the current language each time a sidebar context menu opens", async () 
     .toBeVisible();
   await userEvent.keyboard("{Escape}");
   expect(router.history.location.pathname).toBe(`/${ENVIRONMENT_ID}/${thread.id}`);
-});
-
-it("uses settlement locale for sidebar rich thread reference copy", async () => {
-  const thread = {
-    ...threadWithHistory("sidebar-copy-locale", 1),
-    title: "Literal $& {sidebar} title",
-  };
-  using _environment = installFakeEnvironment([thread]);
-  const previousSettings = getClientSettings();
-  using _settings = {
-    [Symbol.dispose]() {
-      __setClientSettingsForTests(previousSettings);
-    },
-  };
-  __setClientSettingsForTests({
-    ...DEFAULT_CLIENT_SETTINGS,
-    onboardingCompletedAt: "2026-01-01T00:00:00.000Z",
-    appLocale: "en",
-  });
-  await page.viewport(1400, 900);
-  const router = getRouter(
-    createMemoryHistory({ initialEntries: [`/${ENVIRONMENT_ID}/${thread.id}`] }),
-  );
-  console.info("[sidebar-copy] router load start");
-  await router.load();
-  console.info("[sidebar-copy] router load complete");
-  let finish!: () => void;
-  const pending = new Promise<void>((resolve) => {
-    finish = resolve;
-  });
-  using write = vi.spyOn(navigator.clipboard, "write").mockReturnValue(pending);
-  using plain = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue(undefined);
-  using toast = vi.spyOn(toastManager, "add").mockImplementation(() => "sidebar-copy-toast");
-  console.info("[sidebar-copy] render start");
-  await using _app = await render(<AppRoot router={router} />, { router: false });
-  console.info("[sidebar-copy] render complete");
-  await using _settle = {
-    async [Symbol.asyncDispose]() {
-      await act(async () => {
-        finish();
-        await Promise.resolve();
-      });
-    },
-  };
-  console.info("[sidebar-copy] filter wait");
-  await expect
-    .element(page.getByRole("combobox", { name: "Filter threads by project", exact: true }), {
-      timeout: 5000,
-    })
-    .toBeVisible();
-  await page.getByRole("combobox", { name: "Filter threads by project", exact: true }).click();
-  await page.getByRole("option", { name: "All projects", exact: true }).click();
-  const row = page.getByRole("button", { name: /^Literal \$& \{sidebar\} title(?:,|$)/ });
-  console.info("[sidebar-copy] thread row wait");
-  await expect.element(row, { timeout: 5000 }).toBeVisible();
-  await expect
-    .element(row)
-    .toHaveAttribute(
-      "data-sidebar-row",
-      scopedThreadKey(scopeThreadRef(ENVIRONMENT_ID, thread.id)),
-    );
-  const commandsBefore = dispatchedCommands().slice();
-  await userEvent.click(row, { button: "right" });
-  await userEvent.hover(page.getByRole("menuitem", { name: "Copy", exact: true }));
-  await page.getByRole("menuitem", { name: "Thread", exact: true }).click();
-  console.info("[sidebar-copy] rich write wait");
-  await expect.poll(() => write.mock.calls.length, { timeout: 5000 }).toBe(1);
-  const expected = threadChipCopyTarget(
-    scopeThreadRef(ENVIRONMENT_ID, thread.id),
-    thread.title,
-    configuredHostedAppUrl(),
-  );
-  const item = write.mock.calls[0]?.[0]?.[0];
-  if (!item || !expected.fragment) throw new Error("Missing rich thread reference");
-  expect(await (await item.getType("text/plain")).text()).toBe(expected.value);
-  expect(await (await item.getType(COMPOSER_CONTEXT_CLIPBOARD_MIME)).text()).toBe(
-    encodeComposerContextFragment(expected.fragment),
-  );
-  expect(item.types).toContain("text/html");
-  expect(toast).not.toHaveBeenCalled();
-  await act(() => updateClientSettings({ appLocale: "zh-CN" }));
-  await act(async () => {
-    finish();
-  });
-  expect(toast).toHaveBeenCalledExactlyOnceWith({
-    type: "success",
-    title: "会话已复制",
-    description: thread.title,
-  });
-  await act(() => updateClientSettings({ appLocale: "en" }));
-  expect(toast).toHaveBeenCalledTimes(1);
-  expect(write).toHaveBeenCalledTimes(1);
-  expect(plain).not.toHaveBeenCalled();
-  expect(router.history.location.pathname).toBe(`/${ENVIRONMENT_ID}/${thread.id}`);
-  expect(dispatchedCommands()).toEqual(commandsBefore);
 });

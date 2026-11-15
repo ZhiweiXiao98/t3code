@@ -90,8 +90,13 @@ describe("query failure presentation boundaries", () => {
     expect(source("../state/entities.ts")).toContain(
       "reject(new ProjectAppearanceTimeoutError({}))",
     );
-    expect(source("../hooks/useNewProject.ts")).toContain(
-      "projectAppearanceFailureMessage(readWebI18n().locale, error)",
+    const openFailure = source("../hooks/useNewProject.ts").match(
+      /waitForProject\(projectRef\)\.catch\(\(error: unknown\) => \{([\s\S]*?)return null;/,
+    )?.[1];
+    expect(openFailure).toBeDefined();
+    expect(openFailure).toMatch(/^\s*const \{ locale, t \} = readWebI18n\(\);/);
+    expect(openFailure).toContain(
+      "projectAppearanceFailureMessage(locale, error) ?? errorMessage(error, t)",
     );
     for (const locale of ["en", "zh-CN", "en"] as const) {
       expect(projectAppearanceFailureMessage(locale, failure)).toBe(
