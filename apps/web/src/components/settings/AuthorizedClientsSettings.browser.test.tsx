@@ -1,3 +1,7 @@
+import * as Cause from "effect/Cause";
+import { AsyncResult } from "effect/reactivity";
+import { AuthAccessWriteScope, AuthOrchestrationReadScope } from "@t3tools/contracts";
+import { page, userEvent } from "vite-plus/test/browser";
 import * as Schema from "effect/Schema";
 import { AdvertisedEndpoint } from "@t3tools/contracts";
 import { createAdvertisedEndpoint } from "@t3tools/shared/advertisedEndpoint";
@@ -12,7 +16,7 @@ import {
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import "~/index.css";
-import { render } from "../../../test/render";
+import { act, render } from "../../../test/render";
 import {
   AuthorizedClientsHeaderAction,
   AdvertisedEndpointListRow,
@@ -28,6 +32,13 @@ const serviceId = EnvironmentId.make("service");
 const state = vi.hoisted(() => ({
   primaryEnvironmentId: null as string | null,
   policies: new Map<string, unknown>(),
+  locale: "en" as "en" | "zh-CN",
+  grant: true,
+  create: vi.fn(),
+  toast: vi.fn(),
+  created: vi.fn(),
+  revoke: vi.fn(),
+  scope: vi.fn(),
 }));
 
 vi.mock(import("../../state/environments"), async (original) => ({
@@ -44,10 +55,29 @@ vi.mock(import("../../state/entities"), async (original) => ({
       ]),
     )) as never,
 }));
-vi.mock(import("../../state/use-atom-command"), async (original) => ({
-  ...(await original()),
-  useAtomCommand: (() => vi.fn()) as never,
+vi.mock("../../state/use-atom-command", async (original) => {
+  const actual = await original<typeof import("../../state/use-atom-command")>();
+  const { authEnvironment } = await import("~/state/auth");
+  return {
+    ...actual,
+    useAtomCommand: (...args: Parameters<typeof actual.useAtomCommand>) =>
+      args[0] === authEnvironment.createPairingCredential
+        ? state.create
+        : actual.useAtomCommand(...args),
+  };
+});
+vi.mock("~/state/session", async (original) => ({
+  ...(await original<typeof import("~/state/session")>()),
+  readEnvironmentScope: (...args: unknown[]) => {
+    state.scope(...args);
+    return state.grant;
+  },
 }));
+vi.mock("../ui/toast", async (original) => ({
+  ...(await original<typeof import("../ui/toast")>()),
+  toastManager: { add: state.toast },
+}));
+vi.mock("~/i18n/readWebI18n", () => ({ readWebI18n: () => ({ locale: state.locale }) }));
 
 const remoteClientsOff: ManagedPolicySummary = {
   organization: "Example Corp",
@@ -199,4 +229,150 @@ it("localizes producer-marked endpoint rows and QR choices without changing sele
   expect(endpointDefaultPreferenceKey(core)).toBe(defaultKey);
   expect(custom.label).toBe("Custom HTTPS");
   expect(revoke).not.toHaveBeenCalled();
+});
+
+function pairingSurface(locale: "en" | "zh-CN") {
+  state.locale = locale;
+  return (
+    <WebI18nContext
+      value={{
+        locale,
+        appLocale: locale,
+        setAppLocale: () => {},
+        t: (key, values) => translateWebMessage(locale, key, values),
+      }}
+    >
+      <AuthorizedClientsHeaderAction
+        environmentId={serviceId}
+        onPairingLinkCreated={state.created}
+        clientSessions={null}
+        isRevokingOtherClients={false}
+        onRevokeOtherClients={state.revoke}
+        delegatableScopes={[AuthOrchestrationReadScope]}
+      />
+    </WebI18nContext>
+  );
+}
+function setupPairing() {
+  const policies = state.policies;
+  const primary = state.primaryEnvironmentId;
+  setup([]);
+  state.grant = true;
+  state.create.mockReset();
+  state.scope.mockClear();
+  state.toast.mockClear();
+  state.created.mockClear();
+  state.revoke.mockClear();
+  return {
+    [Symbol.dispose]() {
+      state.policies = policies;
+      state.primaryEnvironmentId = primary;
+      state.locale = "en";
+      state.grant = true;
+      state.create.mockReset();
+    },
+  };
+}
+it.each([
+  ["owned", Cause.fail(null)],
+  ["raw", Cause.fail(new Error("Literal $& {pairing}"))],
+  ["empty", Cause.fail(new Error(""))],
+  ["interrupted", Cause.interrupt()],
+] as const)("uses settlement locale for pairing link failure: %s", async (kind, cause) => {
+  using _setup = setupPairing();
+  let resolve!: (result: {
+    readonly _tag: "Failure";
+    readonly cause: Cause.Cause<unknown>;
+  }) => void;
+  const promise = new Promise<{ readonly _tag: "Failure"; readonly cause: Cause.Cause<unknown> }>(
+    (done) => {
+      resolve = done;
+    },
+  );
+  state.create.mockReturnValue(promise);
+  await using screen = await render(pairingSurface("en"));
+  await using _drain = {
+    async [Symbol.asyncDispose]() {
+      await act(async () => {
+        resolve(AsyncResult.failure(Cause.interrupt()));
+        await promise;
+      });
+    },
+  };
+  await screen.getByRole("button", { name: "Create link", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Create pairing link", exact: true });
+  await expect.element(dialog).toBeVisible();
+  const label = dialog.getByRole("textbox", { name: "Client label (optional)", exact: true });
+  const draft = "  Literal $& {client}  ";
+  await userEvent.fill(label, draft);
+  const scope = dialog.getByRole("checkbox", { name: /^View environment/ });
+  await expect.element(scope).toBeChecked();
+  await dialog.getByRole("button", { name: "Create link", exact: true }).click();
+  expect(state.create).toHaveBeenCalledExactlyOnceWith({
+    environmentId: serviceId,
+    input: { label: draft.trim(), scopes: [AuthOrchestrationReadScope] },
+  });
+  expect(state.scope.mock.calls).toEqual([
+    [serviceId, AuthAccessWriteScope],
+    [serviceId, AuthOrchestrationReadScope],
+  ]);
+  const pending = dialog.getByRole("button", { name: "Creating…", exact: true });
+  await expect.element(pending).toBeDisabled();
+  await expect.element(label).toBeDisabled();
+  await expect.element(scope).toBeDisabled();
+  await expect.element(dialog.getByRole("button", { name: "Cancel", exact: true })).toBeDisabled();
+  await act(async () => {
+    pending.element().dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+  });
+  expect(state.create).toHaveBeenCalledTimes(1);
+  await screen.rerender(pairingSurface("zh-CN"));
+  expect(state.toast).not.toHaveBeenCalled();
+  await act(async () => {
+    resolve(AsyncResult.failure(cause));
+    await promise;
+  });
+  if (kind === "interrupted") expect(state.toast).not.toHaveBeenCalled();
+  else
+    expect(state.toast).toHaveBeenCalledExactlyOnceWith({
+      type: "error",
+      title: "无法创建配对 URL",
+      description:
+        kind === "owned" ? "创建配对 URL 失败。" : kind === "empty" ? "" : "Literal $& {pairing}",
+      data: { actionLayout: "stacked-end" },
+    });
+  const current = page.getByRole("dialog", { name: "创建配对链接", exact: true });
+  await expect.element(current).toBeVisible();
+  await expect
+    .element(current.getByRole("textbox", { name: "客户端名称（可选）", exact: true }))
+    .toHaveValue(draft);
+  await expect
+    .element(current.getByRole("button", { name: "创建链接", exact: true }))
+    .toBeEnabled();
+  expect(state.created).not.toHaveBeenCalled();
+  expect(state.revoke).not.toHaveBeenCalled();
+});
+it("keeps pairing scope denial and cancellation free of credential commands", async () => {
+  using _setup = setupPairing();
+  await using screen = await render(pairingSurface("en"));
+  await screen.getByRole("button", { name: "Create link", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Create pairing link", exact: true });
+  const scope = dialog.getByRole("checkbox", { name: /^View environment/ });
+  await scope.click();
+  await expect
+    .element(dialog.getByRole("button", { name: "Create link", exact: true }))
+    .toBeDisabled();
+  await scope.click();
+  await expect
+    .element(dialog.getByRole("button", { name: "Create link", exact: true }))
+    .toBeEnabled();
+  state.grant = false;
+  await dialog.getByRole("button", { name: "Create link", exact: true }).click();
+  expect(state.scope).toHaveBeenCalledExactlyOnceWith(serviceId, AuthAccessWriteScope);
+  expect(state.create).not.toHaveBeenCalled();
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect.element(dialog).not.toBeInTheDocument();
+  expect(state.create).not.toHaveBeenCalled();
+  expect(state.created).not.toHaveBeenCalled();
+  expect(state.revoke).not.toHaveBeenCalled();
+  expect(state.toast).not.toHaveBeenCalled();
 });

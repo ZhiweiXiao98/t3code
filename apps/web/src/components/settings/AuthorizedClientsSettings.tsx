@@ -1,6 +1,7 @@
 import { advertisedEndpointLabel } from "./advertisedEndpointMessages";
 import { managedCapabilityDenial } from "../../i18n/managedPolicyMessages";
 import { useI18n, type WebTranslate } from "~/i18n/WebI18nContext";
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { translateWebSource } from "~/i18n/messages";
 import { AUTH_SCOPE_OPTIONS as PAIRING_SCOPE_OPTIONS } from "@t3tools/shared/authScopeOptions";
 import { PlugIcon, PlusIcon, QrCodeIcon } from "lucide-react";
@@ -740,7 +741,11 @@ export const AuthorizedClientsHeaderAction = memo(function AuthorizedClientsHead
       setDialogOpen(false);
     } else if (!isAtomCommandInterrupted(result)) {
       const error = squashAtomCommandFailure(result);
-      const message = error instanceof Error ? error.message : "Failed to create pairing URL.";
+      const { locale } = readWebI18n();
+      const message =
+        error instanceof Error
+          ? error.message
+          : translateWebSource(locale, "Failed to create pairing URL.");
       toastManager.add(
         stackedThreadToast({
           type: "error",
