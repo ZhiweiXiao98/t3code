@@ -1,3 +1,4 @@
+import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
 import "~/index.css";
 import { page } from "vite-plus/test/browser";
 import { WebI18nContext } from "~/i18n/WebI18nContext";
@@ -15,7 +16,7 @@ import { DraftId, useComposerDraftStore } from "~/composerDraftStore";
 import { act, render } from "../../../test/render";
 
 const { permissions, mocks } = vi.hoisted(() => ({
-  mocks: { command: vi.fn(), toast: vi.fn(), locale: "en" as "en" | "zh-CN" },
+  mocks: { gitlab: false, command: vi.fn(), toast: vi.fn(), locale: "en" as "en" | "zh-CN" },
   permissions: { checkout: true, operate: true },
 }));
 
@@ -41,9 +42,9 @@ vi.mock(import("./usePullRequestDetail"), async (original) => ({
     detailQuery: { isPending: false, refresh: vi.fn() },
     activityQuery: { isPending: false, refresh: vi.fn(), error: null },
     activity: null,
-    sharedSummary: detail,
-    coreDetail: detail,
-    detail,
+    sharedSummary: selectedDetail(),
+    coreDetail: selectedDetail(),
+    detail: selectedDetail(),
   })) as never,
 }));
 vi.mock(import("~/state/usePullRequestStack"), async (original) => ({
@@ -132,12 +133,23 @@ const detail: PullRequestDetailView = {
   },
 };
 
+const gitlabDetail: PullRequestDetailView = {
+  ...detail,
+  provider: SourceControlProviderKind.make("gitlab"),
+  repository: "group/project",
+  number: 42,
+  url: "https://gitlab.com/group/project/-/merge_requests/42",
+};
+function selectedDetail() {
+  return mocks.gitlab ? gitlabDetail : detail;
+}
+
 const environmentId = EnvironmentId.make("environment");
 const draftId = DraftId.make("conflicts-draft");
 const panel = (attach = false) => (
   <PullRequestDetailPanel
     environmentId={environmentId}
-    reference={detail}
+    reference={selectedDetail()}
     context="page"
     shortcutsEnabled={false}
     getShortcutContext={() => ({
@@ -153,6 +165,7 @@ const panel = (attach = false) => (
 );
 
 function setup() {
+  mocks.gitlab = false;
   permissions.checkout = true;
   permissions.operate = true;
   useComposerDraftStore.setState({ draftsByThreadKey: {} });
@@ -330,4 +343,88 @@ it("localizes the actual unavailable reference clipboard API", async () => {
   expect(rich).not.toHaveBeenCalled();
   expect(external).not.toHaveBeenCalled();
   expect(mocks.command).not.toHaveBeenCalled();
+});
+
+it.each([
+  ["number success", "number", true],
+  ["link success", "link", true],
+  ["number failure", "number", false],
+  ["link failure", "link", false],
+] as const)("translates GitLab reference copy labels: %s", async (_name, kind, success) => {
+  const state = useComposerDraftStore.getState();
+  using _state = {
+    [Symbol.dispose]() {
+      useComposerDraftStore.setState(state, true);
+      mocks.gitlab = false;
+      mocks.locale = "en";
+    },
+  };
+  setup();
+  mocks.gitlab = true;
+  mocks.command.mockClear();
+  mocks.toast.mockClear();
+  const client = sourceControlClients.get(gitlabDetail.provider);
+  expect(client.changeRequest.shortLabel).toBe("MR");
+  expect(client.changeRequest.singular).toBe("merge request");
+  const cause = new Error("Literal $& {GitLab clipboard cause}");
+  let finish = () => {};
+  let fail = (_cause: unknown) => {};
+  const pending = new Promise<void>((resolve, reject) => {
+    finish = resolve;
+    fail = reject;
+  });
+  void pending.catch(() => {});
+  using write = vi.spyOn(navigator.clipboard, "writeText").mockReturnValue(pending);
+  using rich = vi
+    .spyOn(navigator.clipboard, "write")
+    .mockRejectedValue(new Error("Unexpected rich write"));
+  using external = vi.spyOn(window, "open").mockImplementation(() => null);
+  using error = vi.spyOn(console, "error").mockImplementation(() => {});
+  await using screen = await render(copySurface("en"));
+  await using _settle = {
+    async [Symbol.asyncDispose]() {
+      await act(async () => {
+        fail(new Error("Fixture disposed"));
+        await Promise.resolve();
+      });
+    },
+  };
+  await screen.getByRole("button", { name: "More merge request actions", exact: true }).click();
+  await page
+    .getByRole("menuitem", {
+      name: kind === "number" ? /^Copy MR number(?:\s|$)/ : /^Copy link(?:\s|$)/,
+    })
+    .click();
+  expect(write).toHaveBeenCalledExactlyOnceWith(kind === "number" ? "#42" : gitlabDetail.url);
+  expect(mocks.toast).not.toHaveBeenCalled();
+  await screen.rerender(copySurface("zh-CN"));
+  await act(async () => {
+    if (success) finish();
+    else fail(cause);
+    await Promise.resolve();
+  });
+  expect(mocks.toast).toHaveBeenCalledExactlyOnceWith(
+    success
+      ? { type: "success", title: kind === "number" ? "已复制合并请求编号" : "已复制合并请求链接" }
+      : {
+          type: "error",
+          title: kind === "number" ? "复制合并请求编号失败" : "复制合并请求链接失败",
+          description: "无法将 合并请求引用 复制到剪贴板。",
+        },
+  );
+  if (success) expect(error).not.toHaveBeenCalled();
+  else
+    expect(error).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        _tag: "ClipboardWriteError",
+        target: "merge request reference",
+        cause,
+      }),
+    );
+  expect(rich).not.toHaveBeenCalled();
+  expect(external).not.toHaveBeenCalled();
+  expect(mocks.command).not.toHaveBeenCalled();
+  await screen.rerender(copySurface("en"));
+  expect(mocks.toast).toHaveBeenCalledTimes(1);
+  expect(write).toHaveBeenCalledTimes(1);
 });

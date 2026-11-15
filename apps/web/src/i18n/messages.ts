@@ -12934,6 +12934,8 @@ const ZH_CN_SOURCE_MESSAGES: Readonly<Record<string, string>> = {
   "Checkout command copied": "检出命令已复制",
   "PR number": "拉取请求编号",
   "PR link": "拉取请求链接",
+  "MR number": "合并请求编号",
+  "MR link": "合并请求链接",
   Filter: "筛选",
   "Bot comments": "机器人评论",
   "Resolved or dismissed": "已解决或已驳回",
