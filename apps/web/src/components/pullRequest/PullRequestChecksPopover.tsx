@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { translateWebSource } from "~/i18n/messages";
 import type * as React from "react";
 import type {
@@ -107,6 +108,7 @@ function ChecksBody({
                       if (!check.url) return;
                       void openLink(check.url).catch((error: unknown) => {
                         console.error(error);
+                        const { t } = readWebI18n();
                         toastManager.add({
                           type: "error",
                           title: t("pullRequests.checks.openFailed"),

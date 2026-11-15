@@ -588,6 +588,7 @@ export function PullRequestSummaryTab({
   const openCheck = (url: string) => {
     void openLink(url).catch((error: unknown) => {
       console.error(error);
+      const { t } = readWebI18n();
       toastManager.add({ type: "error", title: t("pullRequests.checks.openFailed") });
     });
   };

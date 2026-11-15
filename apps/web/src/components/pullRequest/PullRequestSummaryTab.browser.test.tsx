@@ -2,11 +2,13 @@ import { WebI18nContext } from "~/i18n/WebI18nContext";
 import { translateWebMessage } from "~/i18n/messages";
 import { pullRequestEnvironment } from "~/state/pullRequests";
 import { SourceControlProviderKind } from "@t3tools/contracts";
-import { EnvironmentId, ProjectId, type PullRequestDetailView } from "@t3tools/contracts";
+import { EnvironmentId, ProjectId, ThreadId, type PullRequestDetailView } from "@t3tools/contracts";
 import { expect, it, vi } from "vite-plus/test";
 import { userEvent } from "vite-plus/test/browser";
 
 const state = vi.hoisted(() => ({
+  open: vi.fn(),
+  refs: vi.fn(),
   update: vi.fn(),
   updateComment: vi.fn(),
   canUpdate: true,
@@ -58,7 +60,17 @@ vi.mock(import("~/state/pullRequests"), async (original) => {
   };
 });
 
+vi.mock("~/browser/useOpenLink", () => ({
+  useOpenLink: (ref: unknown) => {
+    state.refs(ref);
+    return state.open;
+  },
+}));
+
 function setup() {
+  state.open.mockReset();
+  state.open.mockResolvedValue(undefined);
+  state.refs.mockClear();
   state.updateComment.mockReset();
   state.updateComment.mockResolvedValue({ _tag: "Success", value: undefined });
   state.update.mockReset();
@@ -446,3 +458,102 @@ it.each([
     expect(state.updateComment).toHaveBeenCalledTimes(1);
   },
 );
+
+const checkRef = {
+  environmentId: EnvironmentId.make("check-environment"),
+  threadId: ThreadId.make("check-thread"),
+};
+const checkUrl = "https://checks.example.invalid/literal?value=$&{check}";
+function checkSurface(locale: "en" | "zh-CN", withUrl = true) {
+  state.locale = locale;
+  const checks = [
+    {
+      name: "Literal $& {check}",
+      status: "failure" as const,
+      description: null,
+      url: withUrl ? checkUrl : null,
+    },
+  ];
+  return (
+    <WebI18nContext
+      value={{
+        locale,
+        appLocale: locale,
+        setAppLocale: () => {},
+        t: (key, values) => translateWebMessage(locale, key, values),
+      }}
+    >
+      <PullRequestSummaryTab
+        scrollerRef={() => {}}
+        environmentId={checkRef.environmentId}
+        threadRef={checkRef}
+        reference={detail}
+        detail={{ ...detail, checks }}
+        activityPending={false}
+        activityError={null}
+        onRefresh={() => {}}
+      />
+    </WebI18nContext>
+  );
+}
+it.each([
+  ["owned", null],
+  ["raw", new Error("Unable to open check details")],
+  ["empty", new Error("")],
+  ["success", undefined],
+] as const)("uses settlement locale for summary check details: %s", async (kind, failure) => {
+  setup();
+  let resolve = () => {};
+  let reject = (_error: unknown) => {};
+  const pending = new Promise<void>((yes, no) => {
+    resolve = yes;
+    reject = no;
+  });
+  state.open.mockReturnValueOnce(pending);
+  using logged = vi.spyOn(console, "error").mockImplementation(() => {});
+  await using screen = await renderUi(checkSurface("en"));
+  await using _settle = {
+    async [Symbol.asyncDispose]() {
+      await act(async () => {
+        resolve();
+        await Promise.resolve();
+      });
+    },
+  };
+  await userEvent.click(screen.getByRole("button", { name: "Checks", exact: true }));
+  await userEvent.click(screen.getByRole("button", { name: /Literal \$& \{check\}/ }));
+  expect(state.open).toHaveBeenCalledExactlyOnceWith(checkUrl);
+  expect(state.refs).toHaveBeenLastCalledWith(checkRef);
+  expect(state.toast).not.toHaveBeenCalled();
+  await screen.rerender(checkSurface("zh-CN"));
+  await act(async () => {
+    if (kind === "success") resolve();
+    else reject(failure);
+    await Promise.resolve();
+  });
+  if (kind === "success") {
+    expect(state.toast).not.toHaveBeenCalled();
+    expect(logged).not.toHaveBeenCalled();
+  } else {
+    expect(state.toast).toHaveBeenCalledExactlyOnceWith({
+      type: "error",
+      title: "无法打开检查详情",
+    });
+    expect(logged).toHaveBeenCalledExactlyOnceWith(failure);
+  }
+  await screen.rerender(checkSurface("en"));
+  expect(state.open).toHaveBeenCalledTimes(1);
+  expect(state.toast).toHaveBeenCalledTimes(kind === "success" ? 0 : 1);
+});
+it("does not open summary check details without a URL", async () => {
+  setup();
+  await using screen = await renderUi(checkSurface("en", false));
+  await userEvent.click(screen.getByRole("button", { name: "Checks", exact: true }));
+  const row = screen.getByRole("button", { name: /Literal \$& \{check\}/ });
+  await expect.element(row).toBeDisabled();
+  await act(async () => {
+    row.element().dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+  });
+  expect(state.open).not.toHaveBeenCalled();
+  expect(state.toast).not.toHaveBeenCalled();
+});
