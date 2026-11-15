@@ -23,6 +23,7 @@ import { thirdPartyLicensesPlugin } from "../../scripts/lib/third-party-licenses
 import { tailwindPlugins } from "./vite/tailwind";
 import { warmBundledDevPlugin } from "./vite/warmBundledDev";
 import { observeBrowserLifecycle } from "./vite/browserLifecycle";
+import { observeBrowserServerLifecycle } from "./vite/serverLifecycle";
 
 const repoEnv = loadRepoEnv();
 Object.assign(process.env, repoEnv);
@@ -267,6 +268,7 @@ export default defineConfig(() => {
     },
     assetsInclude: ["**/*.wasm"],
     plugins: [
+      observeBrowserServerLifecycle(),
       devCompressionPlugin(),
       chunkCycleGuardPlugin(),
       builtDev
