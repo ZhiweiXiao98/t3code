@@ -1324,6 +1324,8 @@ it.each(["server", "draft"] as const)(
 );
 
 it.each([
+  ["goalResumeFailed", "Failed to resume goal.", "恢复目标失败。"],
+  ["goalClearFailed", "Failed to clear goal.", "清除目标失败。"],
   ["forkFailed", "Failed to fork this response.", "从此回复创建分支失败。"],
   [
     "forkMissing",

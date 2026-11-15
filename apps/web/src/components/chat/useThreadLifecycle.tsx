@@ -517,7 +517,11 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
     onOpenThread: onOpenRelatedThreadStable,
   });
 
-  const sendStandaloneCommand = async (text: string, failureMessage: string) => {
+  const sendStandaloneCommand = async (
+    text: string,
+    failureMessage: string,
+    ownedCode?: Parameters<ReturnType<typeof makeThreadErrorSetter>>[2],
+  ) => {
     if (!activeThread || !clientSettingsHydrated || sendInFlightRef.current) return;
     const context = composerRef.current?.getSendContext();
     if (!context?.providerAvailable) return;
@@ -570,7 +574,11 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
       resetLocalDispatch();
       if (!isAtomCommandInterrupted(result)) {
         const error = squashAtomCommandFailure(result);
-        setThreadError(threadId, error instanceof Error ? error.message : failureMessage);
+        setThreadError(
+          threadId,
+          error instanceof Error ? error.message : failureMessage,
+          error instanceof Error ? undefined : ownedCode,
+        );
       }
     } else {
       clearUsageLimitsFor(routeThreadKey);

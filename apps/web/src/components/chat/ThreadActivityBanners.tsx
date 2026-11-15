@@ -1,3 +1,4 @@
+import type { LocalThreadErrorEntry } from "../ChatView.logic";
 import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 import { activityTemplate, childInputTitle } from "./activityPresentationMessages";
 import { readWebI18n } from "~/i18n/readWebI18n";
@@ -100,7 +101,11 @@ export function goalNowItem(input: {
   readonly threadId: ThreadId;
   readonly goal: OrchestrationV2ProviderGoal;
   readonly isWorking: boolean;
-  readonly onSendCommand: (text: string, failureMessage: string) => Promise<void>;
+  readonly onSendCommand: (
+    text: string,
+    failureMessage: string,
+    ownedCode?: LocalThreadErrorEntry["ownedCode"],
+  ) => Promise<void>;
 }): ThreadNowItem {
   const { t: residualT } = readWebI18n();
   const uiLocale = input.locale ?? readWebI18n().locale;
@@ -125,7 +130,9 @@ export function goalNowItem(input: {
         {presentation.canResume && !isWorking ? (
           <>
             <InlineButton
-              onClick={() => void onSendCommand("/goal resume", residualT("chatResidual.copy26"))}
+              onClick={() =>
+                void onSendCommand("/goal resume", "Failed to resume goal.", "goalResumeFailed")
+              }
             >
               {translateWebSource(uiLocale, "Resume")}
             </InlineButton>
@@ -134,7 +141,9 @@ export function goalNowItem(input: {
         ) : null}
         <InlineButton
           tone="muted"
-          onClick={() => void onSendCommand("/goal clear", residualT("chatResidual.copy27"))}
+          onClick={() =>
+            void onSendCommand("/goal clear", "Failed to clear goal.", "goalClearFailed")
+          }
         >
           {residualT("chatResidual.copy28")}
         </InlineButton>

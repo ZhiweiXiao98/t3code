@@ -1,5 +1,5 @@
 import "~/index.css";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { AsyncResult } from "effect/reactivity";
 import { WebI18nContext } from "../../i18n/WebI18nContext";
 import { translateWebMessage } from "../../i18n/messages";
@@ -8,14 +8,26 @@ import { ChatBannerLane } from "./ChatBannerLane";
 import * as Cause from "effect/Cause";
 import { scopedThreadKey, scopeThreadRef } from "@t3tools/client-runtime/environment";
 import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/shell";
-import { EnvironmentId, ThreadId } from "@t3tools/contracts";
+import { EnvironmentId, ProviderInstanceId, ThreadId } from "@t3tools/contracts";
 import { expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 
 const state = vi.hoisted(() => ({
   childThreadInputs: [] as EnvironmentThreadShell[],
   allowed: true,
+  locale: "en" as "en" | "zh-CN",
   switchRef: (async () => undefined) as (input: unknown) => Promise<unknown>,
+}));
+
+vi.mock("../../i18n/readWebI18n", async (original) => ({
+  ...(await original<typeof import("../../i18n/readWebI18n")>()),
+  readWebI18n: () => ({
+    locale: state.locale,
+    t: (
+      key: Parameters<typeof translateWebMessage>[1],
+      values: Parameters<typeof translateWebMessage>[2],
+    ) => translateWebMessage(state.locale, key, values),
+  }),
 }));
 
 vi.mock("./ProviderStatusBanner", async (original) => ({
@@ -64,6 +76,7 @@ const environmentId = EnvironmentId.make("environment:test");
 
 function setup() {
   state.allowed = true;
+  state.locale = "en";
   state.childThreadInputs = [];
   state.switchRef = async () => undefined;
 }
@@ -122,6 +135,8 @@ it.each([
 function RestoreBranchHarness(props: {
   readonly thread: ThreadInput;
   readonly showErrors?: boolean;
+  readonly goal?: boolean;
+  readonly settled?: () => void;
   readonly currentRouteThreadKeyRef: { readonly current: string | null };
   readonly refreshGitStatus: () => void;
   readonly focusComposer: () => void;
@@ -137,6 +152,7 @@ function RestoreBranchHarness(props: {
     setLocalDraftErrorsByDraftId: setEntries,
   });
   const entry = entries[props.thread.routeThreadKey];
+  const sendInFlightRef = useRef(false);
   const lifecycle = useThreadLifecycle({
     ...props.thread,
     threadDetailRef: props.showErrors ? null : props.thread.threadDetailRef,
@@ -144,7 +160,9 @@ function RestoreBranchHarness(props: {
     currentRouteThreadKeyRef: props.currentRouteThreadKeyRef,
     canOperateThread: true,
     clientSettingsHydrated: true,
-    activeThreadShell: null,
+    activeThreadShell: props.goal
+      ? ({ goal: { objective: "opaque/$&/{goal}", status: "paused" } } as EnvironmentThreadShell)
+      : null,
     limitRecoveryHoldsSnooze: false,
     activeLatestRun: null as never,
     activeProjectCwd: "/repo",
@@ -157,14 +175,25 @@ function RestoreBranchHarness(props: {
     activePendingUserInput: null as never,
     gitStatusQuery: { refresh: props.refreshGitStatus },
     nowMinute: "",
-    composerRef: { current: { focusAtEnd: props.focusComposer } } as never,
+    composerRef: {
+      current: {
+        focusAtEnd: props.focusComposer,
+        getSendContext: () => ({
+          providerAvailable: true,
+          selectedModelSelection: {
+            instanceId: ProviderInstanceId.make("codex"),
+            model: "gpt-5.5",
+          },
+        }),
+      },
+    } as never,
     composerDraftTarget: { kind: "thread", ref: props.thread.activeThreadRef } as never,
-    sendInFlightRef: { current: false },
+    sendInFlightRef,
     setOptimisticUserMessages: () => undefined,
     setThreadError: setError,
     clearUsageLimitsFor: () => undefined,
     beginLocalDispatch: () => undefined,
-    resetLocalDispatch: () => undefined,
+    resetLocalDispatch: props.settled ?? (() => undefined),
     scrollToEnd: () => undefined,
     persistThreadSettingsForNextTurn: async () => ({ _tag: "Success", value: undefined }) as never,
   });
@@ -173,6 +202,7 @@ function RestoreBranchHarness(props: {
       {lifecycle.childInputNow?.description}
       {lifecycle.childInputNow?.actions}
       {lifecycle.workNow?.actions}
+      {lifecycle.goalNow?.actions}
       {props.showErrors ? (
         <ChatBannerLane
           environmentId={environmentId}
@@ -414,3 +444,97 @@ it("does not stop background work after permission is denied", async () => {
   await screen.getByRole("button", { name: "Stop", exact: true }).click();
   expect(interrupt).not.toHaveBeenCalled();
 });
+
+it.each([
+  { action: "resume", kind: "owned" },
+  { action: "clear", kind: "owned" },
+  { action: "resume", kind: "raw" },
+  { action: "clear", kind: "raw" },
+  { action: "resume", kind: "empty" },
+  { action: "clear", kind: "interrupted" },
+] as const)(
+  "keeps $kind goal $action failure current without another command",
+  async ({ action, kind }) => {
+    setup();
+    const thread = threadInput(`goal-${action}`, "main");
+    const currentRouteThreadKeyRef = { current: thread.routeThreadKey };
+    const settled = vi.fn();
+    let finish!: (value: unknown) => void;
+    const command = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    state.switchRef = command;
+    const surface = (locale: "en" | "zh-CN") => {
+      state.locale = locale;
+      return (
+        <WebI18nContext
+          value={{
+            locale,
+            appLocale: locale,
+            setAppLocale: () => undefined,
+            t: (key, values) => translateWebMessage(locale, key, values),
+          }}
+        >
+          <RestoreBranchHarness
+            thread={thread}
+            currentRouteThreadKeyRef={currentRouteThreadKeyRef}
+            refreshGitStatus={() => undefined}
+            focusComposer={() => undefined}
+            showErrors
+            goal
+            settled={settled}
+          />
+        </WebI18nContext>
+      );
+    };
+    await using screen = await render(surface("en"));
+    await screen
+      .getByRole("button", { name: action === "resume" ? "Resume" : "Clear", exact: true })
+      .click();
+    await expect.poll(() => command.mock.calls.length).toBe(1);
+    await screen.rerender(surface("zh-CN"));
+    await screen
+      .getByRole("button", { name: action === "resume" ? "继续" : "清除", exact: true })
+      .click();
+    expect(command).toHaveBeenCalledTimes(1);
+    finish(
+      AsyncResult.failure(
+        kind === "interrupted"
+          ? Cause.interrupt()
+          : Cause.fail(
+              kind === "owned"
+                ? null
+                : new Error(kind === "empty" ? "" : `Failed to ${action} goal.`),
+            ),
+      ),
+    );
+    await expect.poll(() => settled.mock.calls.length).toBe(1);
+    for (const locale of ["zh-CN", "en", "zh-CN", "en"] as const) {
+      await screen.rerender(surface(locale));
+      if (kind === "empty" || kind === "interrupted")
+        expect(screen.container.querySelector('[data-variant="error"]')).toBeNull();
+      else
+        await expect
+          .poll(() => screen.container.textContent)
+          .toContain(
+            locale === "en" || kind === "raw"
+              ? `Failed to ${action} goal.`
+              : action === "resume"
+                ? "恢复目标失败。"
+                : "清除目标失败。",
+          );
+    }
+    expect(command).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        environmentId,
+        input: expect.objectContaining({
+          threadId: thread.activeThreadId,
+          message: expect.objectContaining({ text: `/goal ${action}`, attachments: [] }),
+        }),
+      }),
+    );
+  },
+);

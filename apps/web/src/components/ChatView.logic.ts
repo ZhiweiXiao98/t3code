@@ -1203,6 +1203,8 @@ export function isCompactCommandMessage(message: ChatMessage): boolean {
 // can race around promotion, so each write carries its time to let the latest
 // one win when they collide.
 const OWNED_THREAD_ERRORS = {
+  goalResumeFailed: "Failed to resume goal.",
+  goalClearFailed: "Failed to clear goal.",
   resumeFailed: "Could not resume thread.",
   forkFailed: "Failed to fork this response.",
   forkMissing:
