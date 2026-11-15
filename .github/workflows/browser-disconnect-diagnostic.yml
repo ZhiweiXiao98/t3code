@@ -1,0 +1,216 @@
+# Observation only. This workflow is not a release or candidate acceptance gate.
+name: Diagnose exact 4ce8274c web browser disconnect
+
+"on":
+  push:
+    branches: [diagnostics/browser-disconnect-4ce8274c]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: browser-disconnect-diagnostic-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  SOURCE_SHA: 4ce8274c7236f2282b85fbdfcd96ba01128a7191
+  CLIENT_VERSION: 0.1.9-zh.1
+  CI: "true"
+  CSC_IDENTITY_AUTO_DISCOVERY: "false"
+  T3CODE_DESKTOP_SIGNED: "false"
+  ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
+  ELECTRON_BUILDER_BINARIES_MIRROR: https://github.com/electron-userland/electron-builder-binaries/releases/download/
+
+jobs:
+  diagnose-web:
+    name: Observe unchanged exact-source full web suite
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Validate diagnostic scope and check out exact source
+        shell: bash
+        env:
+          EVENT_REPOSITORY: ${{ github.repository }}
+          EVENT_REF: ${{ github.ref }}
+          REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
+          GIT_TERMINAL_PROMPT: "0"
+        run: |
+          set -euo pipefail
+          test "$EVENT_REPOSITORY" = ZhiweiXiao98/t3code
+          test "$EVENT_REF" = refs/heads/diagnostics/browser-disconnect-4ce8274c
+          test "$REPOSITORY_PRIVATE" = false
+          mkdir -p "$RUNNER_TEMP/browser-disconnect"
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
+          git sparse-checkout set --no-cone '/*' '!/.repos/'
+          git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          git rev-parse HEAD | tee "$RUNNER_TEMP/browser-disconnect/source-sha.txt"
+
+      - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
+        with:
+          node-version-file: package.json
+          cache: true
+          run-install: false
+
+      - name: Install locked dependencies
+        run: vp install --frozen-lockfile
+
+      - name: Install original web job native libraries
+        run: python3 .github/scripts/ci-ubuntu-packages.py packages libsecret-1-dev pkg-config build-essential imagemagick
+
+      - name: Install the locked Chromium headless shell
+        shell: bash
+        run: |
+          set -euo pipefail
+          browser_cli=apps/web/node_modules/playwright/cli.js
+          python3 .github/scripts/ci-ubuntu-packages.py playwright "$browser_cli"
+          node "$browser_cli" install --only-shell chromium
+          {
+            node --version
+            vp --version
+            node "$browser_cli" --version
+            sha256sum pnpm-lock.yaml apps/web/vite.config.ts apps/web/test/browserSetup.ts
+            find "$HOME/.cache/ms-playwright" -type f -name chrome-headless-shell -executable \
+              -exec '{}' --version \; -exec sha256sum '{}' \;
+          } > "$RUNNER_TEMP/browser-disconnect/versions.txt" 2>&1
+
+      - name: Run unchanged full web suite with observations
+        shell: bash
+        env:
+          DEBUG: vitest:browser:*,pw:browser*
+          VITEST_PW_DEBUG: "1"
+        run: |
+          python3 - <<'PY'
+          import datetime, json, os, pathlib, subprocess, sys, threading, time
+
+          out = pathlib.Path(os.environ["RUNNER_TEMP"]) / "browser-disconnect"
+          out.mkdir(exist_ok=True)
+          started = time.time()
+          stop = threading.Event()
+
+          def utc():
+              return datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+          def command(argv, limit=65536):
+              try:
+                  result = subprocess.run(argv, capture_output=True, text=True, errors="replace", timeout=5)
+                  return {"exit_code": result.returncode,
+                          "stdout": result.stdout[:limit], "stderr": result.stderr[:4096]}
+              except (OSError, subprocess.TimeoutExpired) as error:
+                  return {"unavailable": type(error).__name__}
+
+          def read(path, limit=16384):
+              try:
+                  with open(path) as stream:
+                      return stream.read(limit)
+              except OSError as error:
+                  return {"unavailable": type(error).__name__}
+
+          cgroup_root = pathlib.Path("/sys/fs/cgroup")
+          cgroups = {cgroup_root}
+          for line in pathlib.Path("/proc/self/cgroup").read_text().splitlines():
+              if line.startswith("0::"):
+                  current = (cgroup_root / line[3:].lstrip("/")).resolve()
+                  while current == cgroup_root or cgroup_root in current.parents:
+                      cgroups.add(current)
+                      if current == cgroup_root:
+                          break
+                      current = current.parent
+
+          def snapshot():
+              disks = {}
+              for path in ("/tmp", os.getcwd()):
+                  stats = os.statvfs(path)
+                  disks[path] = {"available_bytes": stats.f_bavail * stats.f_frsize,
+                                 "free_inodes": stats.f_favail}
+              groups = {}
+              for group in sorted(cgroups):
+                  groups[str(group)] = {
+                      name: read(group / name) for name in (
+                          "memory.current", "memory.peak", "memory.max", "memory.events",
+                          "memory.events.local", "memory.pressure", "pids.current", "pids.max")
+                  }
+              processes = command(["ps", "-eo", "pid,ppid,comm,rss,vsz,stat,etime", "--sort=-rss"])
+              if "stdout" in processes:
+                  rows = processes["stdout"].splitlines()
+                  processes["stdout"] = "\n".join(rows[:26])
+                  processes["browser_and_runner"] = "\n".join(
+                      row for row in rows if any(name in row.lower() for name in ("chrome", "node", "vp", "python")))[:65536]
+              return {"utc": utc(), "elapsed_s": round(time.time() - started, 2),
+                      "meminfo": read("/proc/meminfo"), "disks": disks,
+                      "cgroups": groups, "processes": processes}
+
+          def safe_snapshot():
+              try:
+                  return snapshot()
+              except Exception as error:
+                  return {"utc": utc(), "collection_error": type(error).__name__}
+
+          def collect():
+              with (out / "resources.jsonl").open("a", buffering=1) as stream:
+                  while True:
+                      stream.write(json.dumps(safe_snapshot()) + "\n")
+                      if stop.wait(5):
+                          break
+
+          metadata = {"scope": "Observational diagnostic; not candidate acceptance",
+                      "source_sha": os.environ["SOURCE_SHA"],
+                      "started_utc": utc(), "cpu_count": os.cpu_count(),
+                      "command": ["vp", "run", "--filter", "@t3tools/web", "test"],
+                      "environment": {key: os.environ.get(key) for key in (
+                          "GITHUB_SHA", "GITHUB_REF", "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT",
+                          "RUNNER_OS", "RUNNER_ARCH", "ImageOS", "ImageVersion", "CI",
+                          "DEBUG", "VITEST_PW_DEBUG")},
+                      "limits": read("/proc/self/limits")}
+          (out / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
+          (out / "resources-before.json").write_text(json.dumps(safe_snapshot(), indent=2) + "\n")
+          observer = threading.Thread(target=collect, daemon=True)
+          observer.start()
+          argv = ["/usr/bin/time", "-v", "-o", str(out / "time.txt"), *metadata["command"]]
+          process = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+          saved_bytes = 0
+          limit = 128 * 1024 * 1024
+          try:
+              with (out / "web-test.log").open("wb") as stream:
+                  while True:
+                      chunk = process.stdout.read1(8192)
+                      if not chunk:
+                          break
+                      sys.stdout.buffer.write(chunk)
+                      sys.stdout.buffer.flush()
+                      remaining = max(0, limit - saved_bytes)
+                      stream.write(chunk[:remaining])
+                      saved_bytes += len(chunk)
+              code = process.wait()
+          finally:
+              stop.set()
+              observer.join(timeout=10)
+          outcome = {"test_exit_code": code, "finished_utc": utc(),
+                     "elapsed_s": round(time.time() - started, 2),
+                     "log_bytes": saved_bytes, "log_truncated": saved_bytes > limit}
+          print(json.dumps(outcome), flush=True)
+          try:
+              (out / "outcome.json").write_text(json.dumps(outcome, indent=2) + "\n")
+              (out / "resources-after.json").write_text(json.dumps(safe_snapshot(), indent=2) + "\n")
+              kernel = command(["journalctl", "--no-pager", "-b", "-k", "-n", "200",
+                                "--since", "@" + str(int(started)), "-o", "short-iso",
+                                "--grep=oom|Out of memory|Killed process|segfault|trap|general protection"])
+              (out / "kernel.json").write_text(json.dumps(kernel, indent=2) + "\n")
+          except Exception as error:
+              print("Diagnostic finalization failed: " + type(error).__name__, file=sys.stderr)
+          finally:
+              sys.exit(code if code >= 0 else 128 - code)
+          PY
+
+      - name: Preserve diagnostic evidence even when tests fail
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-browser-disconnect-4ce8274c-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/browser-disconnect/
+          if-no-files-found: error
+          retention-days: 14
