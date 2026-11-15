@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
 import { summarizePullRequestRouting } from "./PullRequestRoutingSettings.logic";
@@ -84,7 +85,8 @@ export function PullRequestRoutingSettings({
               void update({ environmentId: environment.environmentId, permission }).then(
                 (result) => {
                   setSaving(false);
-                  if (result._tag === "Failure")
+                  if (result._tag === "Failure") {
+                    const { locale } = readWebI18n();
                     toastManager.add({
                       type: "error",
                       title: translateWebSource(
@@ -92,6 +94,7 @@ export function PullRequestRoutingSettings({
                         "Could not save pull request routing permission",
                       ),
                     });
+                  }
                 },
               );
             }}
