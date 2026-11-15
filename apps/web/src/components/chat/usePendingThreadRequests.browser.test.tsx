@@ -134,6 +134,8 @@ function Probe({
 }) {
   const [entries, setEntries] = useState<Record<string, LocalThreadErrorEntry>>({});
   const [, setDismissTick] = useState(0);
+  const promptRef = useRef("");
+  const composerRef = useRef(null);
   const setError = makeThreadErrorSetter({
     routeThreadRef: ref,
     routeThreadKey: "pending",
@@ -149,8 +151,8 @@ function Probe({
     supportsQuestionAttachments: true,
     composerDraftTarget: ref,
     setComposerDraftPrompt: () => undefined,
-    promptRef: useRef(""),
-    composerRef: useRef(null),
+    promptRef,
+    composerRef,
     setThreadError: setError,
   });
   const busy =
