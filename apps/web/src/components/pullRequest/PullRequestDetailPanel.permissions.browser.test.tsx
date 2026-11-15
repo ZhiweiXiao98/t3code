@@ -107,7 +107,7 @@ vi.mock(import("./usePullRequestDetail"), async (original) => ({
     canWriteSourceControl: permissions.checkout,
     detailQuery: {
       isPending: false,
-      refresh: mocks.deleteAction || mocks.commentAction ? mocks.detailRefresh : mocks.refresh,
+      refresh: mocks.detailRefresh,
     },
     activityQuery: { isPending: false, refresh: mocks.refresh, error: null },
     activity: null,
@@ -276,6 +276,10 @@ const panel = (attach = false) => (
 );
 
 function setup() {
+  // Background detail reads must not count as operation-triggered activity or stack refreshes.
+  mocks.detailRefresh.mockClear();
+  mocks.refresh.mockClear();
+  mocks.stackRefresh.mockClear();
   mocks.gitlab = false;
   mocks.draftAction = false;
   mocks.commentAction = false;
@@ -843,6 +847,7 @@ it.each([
   expect(useComposerDraftStore.getState()).toBe(before);
   expect(mocks.command).not.toHaveBeenCalled();
   expect(mocks.refresh).not.toHaveBeenCalled();
+  expect(mocks.stackRefresh).not.toHaveBeenCalled();
   await screen.rerender(copySurface("en"));
   expect(mocks.toast).toHaveBeenCalledTimes(1);
   expect(mocks.runAction).toHaveBeenCalledTimes(1);
@@ -874,6 +879,7 @@ it("guards draft conversion without write permission", async () => {
   expect(mocks.acted).not.toHaveBeenCalled();
   expect(mocks.toast).not.toHaveBeenCalled();
   expect(mocks.refresh).not.toHaveBeenCalled();
+  expect(mocks.stackRefresh).not.toHaveBeenCalled();
 });
 
 vi.mock("~/speech/useTextFieldSpeech", async (original) => ({
@@ -1061,6 +1067,7 @@ it.each([
     expect(mocks.runAction).not.toHaveBeenCalled();
     expect(mocks.acted).not.toHaveBeenCalled();
     expect(mocks.refresh).not.toHaveBeenCalled();
+    expect(mocks.stackRefresh).not.toHaveBeenCalled();
     expect(useComposerDraftStore.getState()).toBe(before);
     expect(mocks.toast).toHaveBeenCalledTimes(1);
     expect(mocks.updateToast).toHaveBeenCalledTimes(1);
@@ -1176,6 +1183,7 @@ it.each([
     expect(mocks.runAction).not.toHaveBeenCalled();
     expect(mocks.acted).not.toHaveBeenCalled();
     expect(mocks.refresh).not.toHaveBeenCalled();
+    expect(mocks.stackRefresh).not.toHaveBeenCalled();
     expect(useComposerDraftStore.getState()).toBe(before);
     expect(mocks.toast).toHaveBeenCalledTimes(1);
     expect(mocks.updateToast).toHaveBeenCalledTimes(1);
@@ -1298,6 +1306,7 @@ it.each([
     expect(mocks.runAction).not.toHaveBeenCalled();
     expect(mocks.acted).not.toHaveBeenCalled();
     expect(mocks.refresh).not.toHaveBeenCalled();
+    expect(mocks.stackRefresh).not.toHaveBeenCalled();
     expect(useComposerDraftStore.getState()).toBe(before);
     expect(mocks.toast).toHaveBeenCalledTimes(1);
     expect(mocks.updateToast).toHaveBeenCalledTimes(1);
@@ -1431,6 +1440,7 @@ it.each([
     expect(mocks.runAction).not.toHaveBeenCalled();
     expect(mocks.acted).not.toHaveBeenCalled();
     expect(mocks.refresh).not.toHaveBeenCalled();
+    expect(mocks.stackRefresh).not.toHaveBeenCalled();
     expect(useComposerDraftStore.getState()).toBe(before);
     expect(mocks.toast).toHaveBeenCalledTimes(1);
     expect(mocks.updateToast).toHaveBeenCalledTimes(1);
@@ -1545,6 +1555,7 @@ it.each(["question", "explain"] as const)(
     expect(mocks.runAction).not.toHaveBeenCalled();
     expect(mocks.acted).not.toHaveBeenCalled();
     expect(mocks.refresh).not.toHaveBeenCalled();
+    expect(mocks.stackRefresh).not.toHaveBeenCalled();
     expect(useComposerDraftStore.getState()).toBe(before);
   },
 );
