@@ -2330,7 +2330,7 @@ export default function ChatView(props: ChatViewProps) {
         });
   const copyActiveThreadReference = () => {
     if (activeThreadReferenceCopyTarget === null) return;
-    void copyThreadReference(activeThreadReferenceCopyTarget, uiLocale);
+    void copyThreadReference(activeThreadReferenceCopyTarget, () => readWebI18n().locale);
   };
   const pullRequestPanelTarget = activeThread
     ? threadPullRequestPanelTarget({
