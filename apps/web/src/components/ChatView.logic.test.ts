@@ -1258,3 +1258,67 @@ describe("deriveAvailableRevertTurnCounts", () => {
     expect(deriveAvailableRevertTurnCounts(null).size).toBe(0);
   });
 });
+
+it.each(["server", "draft"] as const)(
+  "keeps local resume ownership paired in %s replacement and promotion",
+  async (mode) => {
+    const { makeThreadErrorSetter, formatLocalThreadError, shouldPromoteLocalThreadError } =
+      await import("./ChatView.logic");
+    const ref = {
+      environmentId: EnvironmentId.make("owned-env"),
+      threadId: ThreadId.make("owned-thread"),
+    };
+    let entries: Record<string, import("./ChatView.logic").LocalThreadErrorEntry> = {};
+    const key = mode === "server" ? "owned" : ref.threadId;
+    const updateEntries = (update: import("react").SetStateAction<typeof entries>) => {
+      entries = typeof update === "function" ? update(entries) : update;
+    };
+    const set = makeThreadErrorSetter({
+      routeThreadRef: ref,
+      routeThreadKey: "owned",
+      draftId: null,
+      serverThreadRef: mode === "server" ? ref : null,
+      setLocalServerErrorsByThreadKey:
+        mode === "server"
+          ? updateEntries
+          : () => {
+              throw new Error("Unexpected server write");
+            },
+      setLocalDraftErrorsByDraftId:
+        mode === "draft"
+          ? updateEntries
+          : () => {
+              throw new Error("Unexpected draft write");
+            },
+    });
+    set(ref.threadId, "Could not resume thread.", "resumeFailed");
+    const owned = entries[key]!;
+    expect(owned.ownedCode).toBe("resumeFailed");
+    expect(formatLocalThreadError(owned.message, owned, "zh-CN")).toBe("无法恢复会话。");
+    expect(formatLocalThreadError(owned.message, owned, "en")).toBe("Could not resume thread.");
+    set(ref.threadId, "Could not resume thread.");
+    const raw = entries[key]!;
+    expect(raw.ownedCode).toBeUndefined();
+    expect(formatLocalThreadError(raw.message, raw, "zh-CN")).toBe(raw.message);
+    expect(shouldPromoteLocalThreadError(raw, { ...owned, at: raw.at })).toBe(true);
+    expect(shouldPromoteLocalThreadError(raw, { ...owned, at: raw.at - 1 })).toBe(false);
+    expect(shouldPromoteLocalThreadError(owned, { ...owned, at: owned.at + 1 })).toBe(false);
+    expect(formatLocalThreadError("server raw", owned, "zh-CN")).toBe("server raw");
+    set(ref.threadId, "");
+    expect(entries[key]?.message).toBe("");
+    set(ref.threadId, " \n ");
+    expect(entries[key]?.message).toBe(" \n ");
+    set(ref.threadId, "Socket is not connected", "resumeFailed");
+    expect(entries[key]?.message).toBeNull();
+    expect(entries[key]?.ownedCode).toBeUndefined();
+    expect(
+      formatLocalThreadError(
+        "Could not resume thread.",
+        { message: null, at: 1, ownedCode: "resumeFailed" },
+        "zh-CN",
+      ),
+    ).toBe("Could not resume thread.");
+    set(ref.threadId, null);
+    expect(entries[key]?.message).toBeNull();
+  },
+);

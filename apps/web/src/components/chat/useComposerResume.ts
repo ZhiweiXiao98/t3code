@@ -1,5 +1,3 @@
-import { useI18n } from "~/i18n/WebI18nContext";
-import { translateWebSource } from "~/i18n/messages";
 import {
   type EnvironmentId,
   type ProviderInteractionMode,
@@ -54,8 +52,6 @@ interface ComposerResumeInput {
  * in its queue. Shares the per-route send lock with the composer's send paths.
  */
 export function useComposerResume(input: ComposerResumeInput) {
-  const { locale: uiLocale } = useI18n();
-
   const {
     environmentId,
     routeThreadKey,
@@ -150,9 +146,8 @@ export function useComposerResume(input: ComposerResumeInput) {
         const error = squashAtomCommandFailure(result);
         setThreadError(
           threadId,
-          error instanceof Error
-            ? error.message
-            : translateWebSource(uiLocale, "Could not resume thread."),
+          error instanceof Error ? error.message : "Could not resume thread.",
+          error instanceof Error ? undefined : "resumeFailed",
         );
       }
     } else {

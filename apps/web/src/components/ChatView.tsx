@@ -377,6 +377,7 @@ import {
   isCompactCommandMessage,
   type LocalThreadErrorEntry,
   makeThreadErrorSetter,
+  shouldPromoteLocalThreadError,
 } from "./ChatView.logic";
 
 const EMPTY_PROVIDERS: ServerProvider[] = [];
@@ -761,11 +762,7 @@ export default function ChatView(props: ChatViewProps) {
     delete remainingDraftErrors[draftId];
     setLocalDraftErrorsByDraftId(remainingDraftErrors);
     const currentEntry = localServerErrorsByThreadKey[routeThreadKey];
-    if (
-      currentEntry === undefined ||
-      (currentEntry.at <= promotedDraftError.at &&
-        currentEntry.message !== promotedDraftError.message)
-    ) {
+    if (shouldPromoteLocalThreadError(currentEntry, promotedDraftError)) {
       setLocalServerErrorsByThreadKey({
         ...localServerErrorsByThreadKey,
         [routeThreadKey]: promotedDraftError,
@@ -3382,6 +3379,15 @@ export default function ChatView(props: ChatViewProps) {
               onOpenProviderSetup={openProviderSetupStable}
               threadId={activeThread.id}
               threadError={timelineThreadError}
+              localThreadErrorEntry={
+                isServerThread
+                  ? localServerError !== null
+                    ? localServerErrorsByThreadKey[routeThreadKey]
+                    : undefined
+                  : draftId
+                    ? localDraftErrorsByDraftId[draftId]
+                    : undefined
+              }
               threadErrorClass={
                 threadErrorIsServerRuntimeError ? (serverRuntime?.lastErrorClass ?? null) : null
               }

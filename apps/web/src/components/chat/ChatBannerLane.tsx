@@ -1,3 +1,5 @@
+import { useI18n } from "~/i18n/WebI18nContext";
+import { formatLocalThreadError, type LocalThreadErrorEntry } from "../ChatView.logic";
 import type {
   EnvironmentId,
   OrchestrationV2ProviderFailureClass,
@@ -21,12 +23,14 @@ export function ChatBannerLane(props: {
   onOpenProviderSetup: (instanceId: ProviderInstanceId) => void;
   threadId: ThreadId;
   threadError: string | null;
+  localThreadErrorEntry?: LocalThreadErrorEntry | undefined;
   threadErrorClass: OrchestrationV2ProviderFailureClass | null;
   threadErrorCode: string | null;
   threadErrorBannerKey: string | null;
   setThreadError: (threadId: ThreadId | null, error: string | null) => void;
   setThreadErrorBannerDismissTick: Dispatch<SetStateAction<number>>;
 }) {
+  const { locale } = useI18n();
   const {
     providerStatus,
     providerStatusBannerKey,
@@ -49,7 +53,7 @@ export function ChatBannerLane(props: {
         onOpenProviderSetup={onOpenProviderSetup}
       />
       <ThreadErrorBanner
-        error={threadError}
+        error={formatLocalThreadError(threadError, props.localThreadErrorEntry, locale)}
         errorClass={threadErrorClass}
         errorCode={threadErrorCode}
         onDismiss={() => {

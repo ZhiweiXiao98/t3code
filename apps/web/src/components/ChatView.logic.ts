@@ -1204,8 +1204,37 @@ export function isCompactCommandMessage(message: ChatMessage): boolean {
 // one win when they collide.
 export type LocalThreadErrorEntry = {
   readonly message: string | null;
+  readonly ownedCode?: "resumeFailed";
   readonly at: number;
 };
+
+export function formatLocalThreadError(
+  message: string | null,
+  entry: LocalThreadErrorEntry | undefined,
+  locale: ResolvedAppLocale,
+): string | null {
+  return entry?.ownedCode === "resumeFailed" &&
+    entry.message === message &&
+    message === "Could not resume thread."
+    ? translateWebSource(locale, "Could not resume thread.")
+    : message;
+}
+
+function sameLocalThreadError(
+  left: LocalThreadErrorEntry | undefined,
+  right: LocalThreadErrorEntry,
+): boolean {
+  return (left?.message ?? null) === right.message && left?.ownedCode === right.ownedCode;
+}
+
+export function shouldPromoteLocalThreadError(
+  current: LocalThreadErrorEntry | undefined,
+  promoted: LocalThreadErrorEntry,
+): boolean {
+  return (
+    current === undefined || (current.at <= promoted.at && !sameLocalThreadError(current, promoted))
+  );
+}
 
 export function chatActionErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "An error occurred.";
@@ -1235,10 +1264,20 @@ export function makeThreadErrorSetter(input: {
     update: SetStateAction<Record<string, LocalThreadErrorEntry>>,
   ) => void;
 }) {
-  return (targetThreadId: ThreadId | null, error: string | null) => {
+  return (
+    targetThreadId: ThreadId | null,
+    error: string | null,
+    ownedCode?: LocalThreadErrorEntry["ownedCode"],
+  ) => {
     if (!targetThreadId) return;
     const nextError = sanitizeThreadErrorMessage(error);
-    const nextEntry: LocalThreadErrorEntry = { message: nextError, at: Date.now() };
+    const nextEntry: LocalThreadErrorEntry = {
+      message: nextError,
+      at: Date.now(),
+      ...(ownedCode === "resumeFailed" && nextError === "Could not resume thread."
+        ? { ownedCode }
+        : {}),
+    };
     const { routeThreadRef, serverThreadRef } = input;
     if (
       serverThreadRef &&
@@ -1247,7 +1286,7 @@ export function makeThreadErrorSetter(input: {
       serverThreadRef.threadId === targetThreadId
     ) {
       input.setLocalServerErrorsByThreadKey((existing) => {
-        if ((existing[input.routeThreadKey]?.message ?? null) === nextError) {
+        if (sameLocalThreadError(existing[input.routeThreadKey], nextEntry)) {
           return existing;
         }
         return { ...existing, [input.routeThreadKey]: nextEntry };
@@ -1256,7 +1295,7 @@ export function makeThreadErrorSetter(input: {
     }
     const localDraftErrorKey = input.draftId ?? targetThreadId;
     input.setLocalDraftErrorsByDraftId((existing) => {
-      if ((existing[localDraftErrorKey]?.message ?? null) === nextError) {
+      if (sameLocalThreadError(existing[localDraftErrorKey], nextEntry)) {
         return existing;
       }
       return { ...existing, [localDraftErrorKey]: nextEntry };
