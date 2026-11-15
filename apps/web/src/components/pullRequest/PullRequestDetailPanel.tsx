@@ -541,14 +541,21 @@ export function PullRequestDetailPanel({
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
   const { copyToClipboard: copyReference } = useCopyToClipboard<string>({
     target: `${terminology.singular} reference`,
-    onCopy: (label) =>
-      toastManager.add({ type: "success", title: t("pullRequests.detail.copied", { label }) }),
-    onError: (error, label) =>
+    onCopy: (label) => {
+      const { locale, t } = readWebI18n();
+      toastManager.add({
+        type: "success",
+        title: t("pullRequests.detail.copied", { label: translateWebSource(locale, label) }),
+      });
+    },
+    onError: (error, label) => {
+      const { locale, t } = readWebI18n();
       toastManager.add({
         type: "error",
-        title: t("pullRequests.detail.copyFailed", { label: tx(label) }),
+        title: t("pullRequests.detail.copyFailed", { label: translateWebSource(locale, label) }),
         description: error.message,
-      }),
+      });
+    },
   });
   const copyFromShortcut = useEffectEvent((event: KeyboardEvent) => {
     if (!shortcutsEnabled || event.defaultPrevented || isCommandPaletteOpen()) return;

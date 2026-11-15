@@ -1,3 +1,7 @@
+import "~/index.css";
+import { page } from "vite-plus/test/browser";
+import { WebI18nContext } from "~/i18n/WebI18nContext";
+import { translateWebMessage } from "~/i18n/messages";
 import {
   AuthOrchestrationOperateScope,
   AuthSourceControlWriteScope,
@@ -10,7 +14,8 @@ import { expect, it, vi } from "vite-plus/test";
 import { DraftId, useComposerDraftStore } from "~/composerDraftStore";
 import { act, render } from "../../../test/render";
 
-const { permissions } = vi.hoisted(() => ({
+const { permissions, mocks } = vi.hoisted(() => ({
+  mocks: { command: vi.fn(), toast: vi.fn(), locale: "en" as "en" | "zh-CN" },
   permissions: { checkout: true, operate: true },
 }));
 
@@ -53,7 +58,24 @@ vi.mock(import("~/state/usePullRequestStack"), async (original) => ({
 }));
 vi.mock(import("~/state/use-atom-command"), async (original) => ({
   ...(await original()),
-  useAtomCommand: (() => vi.fn()) as never,
+  useAtomCommand: (() => mocks.command) as never,
+}));
+
+vi.mock("../ui/toast", async (original) => ({
+  ...(await original<typeof import("../ui/toast")>()),
+  toastManager: { add: mocks.toast },
+}));
+vi.mock("~/i18n/readWebI18n", () => ({
+  readWebI18n: () => {
+    const locale = mocks.locale;
+    return {
+      locale,
+      t: (
+        key: Parameters<typeof translateWebMessage>[1],
+        values?: Parameters<typeof translateWebMessage>[2],
+      ) => translateWebMessage(locale, key, values),
+    };
+  },
 }));
 
 import { PullRequestDetailPanel } from "./PullRequestDetailPanel";
@@ -162,3 +184,103 @@ it("can still add conflict resolution to an existing composer without checkout s
   expect(draft?.prompt).toContain("conflicts");
   expect(draft?.prompt).toContain(detail.url);
 });
+
+function copySurface(locale: "en" | "zh-CN") {
+  mocks.locale = locale;
+  return (
+    <WebI18nContext
+      value={{
+        locale,
+        appLocale: locale,
+        setAppLocale: () => {},
+        t: (key, values) => translateWebMessage(locale, key, values),
+      }}
+    >
+      {panel()}
+    </WebI18nContext>
+  );
+}
+it.each([
+  ["number success", "number", true, null],
+  ["link success", "link", true, null],
+  ["number failure", "number", false, null],
+  ["link raw failure", "link", false, new Error("Literal $& {native}")],
+  ["number empty failure", "number", false, new Error("")],
+] as const)(
+  "uses settlement locale for detail reference copy: %s",
+  async (_name, kind, success, cause) => {
+    const state = useComposerDraftStore.getState();
+    using _state = {
+      [Symbol.dispose]() {
+        useComposerDraftStore.setState(state, true);
+        mocks.locale = "en";
+      },
+    };
+    setup();
+    mocks.command.mockClear();
+    mocks.toast.mockClear();
+    let finish = () => {};
+    let fail = (_cause: unknown) => {};
+    const pending = new Promise<void>((resolve, reject) => {
+      finish = resolve;
+      fail = reject;
+    });
+    void pending.catch(() => {});
+    using write = vi.spyOn(navigator.clipboard, "writeText").mockReturnValue(pending);
+    using rich = vi
+      .spyOn(navigator.clipboard, "write")
+      .mockRejectedValue(new Error("Unexpected rich clipboard write"));
+    using external = vi.spyOn(window, "open").mockImplementation(() => null);
+    using error = vi.spyOn(console, "error").mockImplementation(() => {});
+    await using screen = await render(copySurface("en"));
+    await using _settle = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          fail(new Error("Fixture disposed"));
+          await Promise.resolve();
+        });
+      },
+    };
+    await screen.getByRole("button", { name: "More pull request actions", exact: true }).click();
+    await page
+      .getByRole("menuitem", {
+        name: kind === "number" ? /^Copy PR number(?:\s|$)/ : /^Copy link(?:\s|$)/,
+      })
+      .click();
+    expect(write).toHaveBeenCalledExactlyOnceWith(kind === "number" ? "#1" : detail.url);
+    expect(mocks.toast).not.toHaveBeenCalled();
+    await screen.rerender(copySurface("zh-CN"));
+    await act(async () => {
+      if (success) finish();
+      else fail(cause);
+      await Promise.resolve();
+    });
+    expect(mocks.toast).toHaveBeenCalledExactlyOnceWith(
+      success
+        ? {
+            type: "success",
+            title: kind === "number" ? "已复制拉取请求编号" : "已复制拉取请求链接",
+          }
+        : {
+            type: "error",
+            title: kind === "number" ? "复制拉取请求编号失败" : "复制拉取请求链接失败",
+            description: "Failed to copy pull request reference to the clipboard.",
+          },
+    );
+    if (success) expect(error).not.toHaveBeenCalled();
+    else
+      expect(error).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+          _tag: "ClipboardWriteError",
+          target: "pull request reference",
+          cause,
+        }),
+      );
+    expect(rich).not.toHaveBeenCalled();
+    expect(external).not.toHaveBeenCalled();
+    expect(mocks.command).not.toHaveBeenCalled();
+    await screen.rerender(copySurface("en"));
+    expect(mocks.toast).toHaveBeenCalledTimes(1);
+    expect(write).toHaveBeenCalledTimes(1);
+  },
+);
