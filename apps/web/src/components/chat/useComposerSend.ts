@@ -925,14 +925,20 @@ export function useComposerSend(input: ComposerSendInput) {
       (sendCtx?.shownPendingApprovalIds.length ?? 0) > 0
     ) {
       await awaitAttachmentUploads(composerAttachmentsSnapshot.map((attachment) => attachment.id));
+      const fileBlockReason = readLiveAttachmentCapabilities().fileBlockReason;
+      const missingUploads =
+        fileBlockReason === null &&
+        getUploadedAttachments({ environmentId, images: composerAttachmentsSnapshot }) === null;
       const uploadBlockReason =
-        readLiveAttachmentCapabilities().fileBlockReason ??
-        (getUploadedAttachments({ environmentId, images: composerAttachmentsSnapshot }) === null
-          ? readWebI18n().t("v019.retryUploads")
-          : null);
+        fileBlockReason ??
+        (missingUploads ? "Retry or remove failed uploads before sending." : null);
       if (uploadBlockReason !== null) {
         sendInFlightRef.current = false;
-        setThreadError(threadIdForSend, uploadBlockReason);
+        setThreadError(
+          threadIdForSend,
+          uploadBlockReason,
+          missingUploads ? "sendUploadsFailed" : undefined,
+        );
         setDockedDraftHeroThreadKey((currentThreadKey) =>
           currentThreadKey === activeThreadKey ? null : currentThreadKey,
         );

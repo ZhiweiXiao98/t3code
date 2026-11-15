@@ -50,6 +50,11 @@ const fixture = await vi.hoisted(async () => {
     decline: vi.fn(),
     respond: vi.fn(),
     upload: vi.fn(),
+    waitUploads: vi.fn(),
+    lookup: vi.fn(),
+    lookupDefault: undefined as
+      | typeof import("../../lib/attachmentUploadQueue").getUploadedAttachments
+      | undefined,
   };
 });
 vi.mock("@t3tools/client-runtime/state/thread-requests", async (original) => ({
@@ -77,11 +82,18 @@ vi.mock("../../i18n/readWebI18n", async () => {
     }),
   };
 });
-vi.mock("../../lib/attachmentUploadQueue", async (original) => ({
-  ...(await original<typeof import("../../lib/attachmentUploadQueue")>()),
-  startAttachmentUpload: fixture.upload,
-  retryAttachmentUpload: fixture.upload,
-}));
+vi.mock("../../lib/attachmentUploadQueue", async (original) => {
+  const actual = await original<typeof import("../../lib/attachmentUploadQueue")>();
+  fixture.lookupDefault = actual.getUploadedAttachments;
+  fixture.lookup.mockImplementation(actual.getUploadedAttachments);
+  return {
+    ...actual,
+    startAttachmentUpload: fixture.upload,
+    retryAttachmentUpload: fixture.upload,
+    awaitAttachmentUploads: fixture.waitUploads,
+    getUploadedAttachments: fixture.lookup,
+  };
+});
 vi.mock("../../state/session", async (original) => ({
   ...(await original<typeof import("../../state/session")>()),
   readEnvironmentScope: () => fixture.allowed,
@@ -161,7 +173,7 @@ const project = {
   createdAt: "2026-01-01T00:00:00Z",
   updatedAt: "2026-01-01T00:00:00Z",
 };
-type Guard = "server" | "branch" | "feedback" | "permission";
+type Guard = "server" | "branch" | "feedback" | "permission" | "uploads";
 const approval = {
   requestId: RuntimeRequestId.make("feedback-request"),
   requestKind: "command" as const,
@@ -197,8 +209,8 @@ function Probe({
   const [done, setDone] = useState(false);
   const [pending, setPending] = useState(false);
   const [docked, setDocked] = useState<string | null>(null);
-  const target = guard === "feedback" ? ref : draftId;
-  const errorKey = guard === "feedback" ? routeKey : draftId;
+  const target = guard === "feedback" || guard === "uploads" ? ref : draftId;
+  const errorKey = guard === "feedback" || guard === "uploads" ? routeKey : draftId;
   const currentRouteThreadKeyRef = useRef<string | null>(routeKey);
   const promptRef = useRef(prompt);
   const composerImagesRef = useRef([]);
@@ -246,15 +258,16 @@ function Probe({
         selectedProvider: ProviderDriverKind.make("codex"),
         selectedModel: "gpt-5",
         selectedProviderModels: [],
-        shownPendingApprovalIds: guard === "feedback" ? [approval.requestId] : [],
+        shownPendingApprovalIds:
+          guard === "feedback" || guard === "uploads" ? [approval.requestId] : [],
       };
     },
   });
   const setError = makeThreadErrorSetter({
     routeThreadRef: ref,
     routeThreadKey: routeKey,
-    draftId: guard === "feedback" ? null : draftId,
-    serverThreadRef: guard === "feedback" ? ref : null,
+    draftId: guard === "feedback" || guard === "uploads" ? null : draftId,
+    serverThreadRef: guard === "feedback" || guard === "uploads" ? ref : null,
     setLocalServerErrorsByThreadKey: setEntries,
     setLocalDraftErrorsByDraftId: setEntries,
   });
@@ -262,16 +275,16 @@ function Probe({
     environmentId: ref.environmentId,
     routeThreadKey: routeKey,
     currentRouteThreadKeyRef,
-    draftId: guard === "feedback" ? null : draftId,
+    draftId: guard === "feedback" || guard === "uploads" ? null : draftId,
     draftThread: null,
     activeThread: thread,
     activeThreadKey: routeKey,
     activeThreadBranch: guard === "branch" ? null : "main",
     activeProject: project,
     activeProjectDefaultModelSelection: selection,
-    activeMessageCount: guard === "feedback" ? 1 : 0,
-    isServerThread: guard === "feedback",
-    isLocalDraftThread: guard !== "feedback",
+    activeMessageCount: guard === "feedback" || guard === "uploads" ? 1 : 0,
+    isServerThread: guard === "feedback" || guard === "uploads",
+    isLocalDraftThread: guard !== "feedback" && guard !== "uploads",
     isGitRepo: true,
     phase: "ready",
     runtimeMode: "full-access",
@@ -316,7 +329,12 @@ function Probe({
     needsLoadBalancing: false,
     loadBalancing: { pending: false, failed: false, environmentId: null, refresh: () => undefined },
     readPendingEnvironmentChange: fixture.pendingChange,
-    pendingApprovals: guard === "feedback" ? [approval] : [],
+    pendingApprovals:
+      guard === "uploads"
+        ? [{ ...approval, supportsFeedback: false }]
+        : guard === "feedback"
+          ? [approval]
+          : [],
     respondingRequestIds: [],
     activePendingProgress: null,
     onAdvanceActivePendingUserInput: fixture.advance,
@@ -631,6 +649,149 @@ it.each(["permission", "file-priority"] as const)(
       fixture.feedback,
       fixture.decline,
       fixture.respond,
+    ])
+      expect(mock).not.toHaveBeenCalled();
+  },
+);
+
+it.each(["owned", "capability-priority"] as const)(
+  "keeps pending send uploads %s notice current",
+  async (kind) => {
+    for (const mock of [
+      fixture.start,
+      fixture.multiple,
+      fixture.prepare,
+      fixture.navigate,
+      fixture.newThread,
+      fixture.reset,
+      fixture.dispatch,
+      fixture.context,
+      fixture.pendingChange,
+      fixture.persist,
+      fixture.advance,
+      fixture.feedback,
+      fixture.decline,
+      fixture.respond,
+      fixture.upload,
+      fixture.waitUploads,
+      fixture.transition,
+      fixture.capture,
+      fixture.dock,
+    ])
+      mock.mockReset();
+    if (!fixture.lookupDefault) throw new Error("Missing actual attachment lookup");
+    fixture.lookup.mockReset().mockImplementation(fixture.lookupDefault);
+    fixture.allowed = true;
+    fixture.pendingChange.mockReturnValue(null);
+    const routeKey = `pending-uploads-${kind}`;
+    const draftId = DraftId.make(routeKey);
+    const original = useComposerDraftStore.getState();
+    const state = draftSendState(routeKey);
+    const lock = state.sendInFlight.current;
+    const configs = appAtomRegistry.get(fixture.configs);
+    using _restore = {
+      [Symbol.dispose]: () => {
+        useComposerDraftStore.setState(original, true);
+        state.sendInFlight.current = lock;
+        appAtomRegistry.set(fixture.configs, configs);
+      },
+    };
+    state.sendInFlight.current = false;
+    useComposerDraftStore.getState().setPrompt(ref, prompt);
+    appAtomRegistry.set(
+      fixture.configs,
+      new Map([
+        [
+          ref.environmentId,
+          { environment: { capabilities: { fileAttachments: { maxUploadBytes: 1024 } } } },
+        ],
+      ]),
+    );
+    const file = {
+      type: "file" as const,
+      id: ChatAttachmentId.make(`send-upload-${kind}`),
+      name: "$& {upload}.txt",
+      mimeType: "text/plain",
+      sizeBytes: 1,
+      file: new File(["x"], "$& {upload}.txt", { type: "text/plain" }),
+    };
+    expect(useComposerDraftStore.getState().addFiles(ref, [file])).toHaveLength(1);
+    const draft = useComposerDraftStore.getState().getComposerDraft(ref);
+    let finish!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    fixture.waitUploads.mockReturnValue(pending);
+    const props = { guard: "uploads" as const, routeKey, draftId, blocked: false };
+    await using screen = await render(surface("en", props));
+    await using _settle = {
+      [Symbol.asyncDispose]: async () => {
+        appAtomRegistry.set(fixture.configs, new Map());
+        await act(async () => {
+          finish();
+          await Promise.resolve();
+        });
+      },
+    };
+    await screen.getByRole("button", { name: "Send", exact: true }).click();
+    await expect.poll(() => fixture.waitUploads.mock.calls.length).toBe(1);
+    await expect.element(screen.getByRole("button", { name: "Send", exact: true })).toBeDisabled();
+    expect(state.sendInFlight.current).toBe(true);
+    expect(fixture.lookup).not.toHaveBeenCalled();
+    expect(fixture.waitUploads).toHaveBeenCalledWith([file.id]);
+    expect(fixture.upload).toHaveBeenCalledExactlyOnceWith({
+      environmentId: ref.environmentId,
+      image: file,
+      draftTarget: ref,
+    });
+    await screen.rerender(surface("zh-CN", props));
+    if (kind === "capability-priority") appAtomRegistry.set(fixture.configs, new Map());
+    await act(async () => {
+      finish();
+    });
+    await expect.poll(() => screen.container.textContent).toContain("settled");
+    await expect.element(screen.getByRole("button", { name: "Send", exact: true })).toBeEnabled();
+    for (const locale of ["zh-CN", "en", "zh-CN", "en"] as const) {
+      await screen.rerender(surface(locale, props));
+      await expect
+        .poll(() => screen.container.textContent)
+        .toContain(
+          kind === "capability-priority"
+            ? "正在等待服务器，暂时无法发送文件附件"
+            : locale === "en"
+              ? "Retry or remove failed uploads before sending."
+              : "请重试或移除上传失败的附件后再发送。",
+        );
+    }
+    expect(fixture.lookup).toHaveBeenCalledTimes(kind === "owned" ? 1 : 0);
+    if (kind === "owned") {
+      expect(fixture.lookup).toHaveBeenCalledWith({
+        environmentId: ref.environmentId,
+        images: [file],
+      });
+      expect(fixture.lookup.mock.results[0]?.value).toBeNull();
+    }
+    expect(fixture.dock).toHaveBeenCalledTimes(1);
+    expect(screen.container.querySelector('[data-testid="dock"]')?.textContent).toBe("undocked");
+    expect(state.sendInFlight.current).toBe(false);
+    expect(useComposerDraftStore.getState().getComposerDraft(ref)).toBe(draft);
+    expect(fixture.waitUploads).toHaveBeenCalledTimes(1);
+    expect(fixture.upload).toHaveBeenCalledTimes(1);
+    for (const mock of [
+      fixture.start,
+      fixture.multiple,
+      fixture.prepare,
+      fixture.navigate,
+      fixture.newThread,
+      fixture.reset,
+      fixture.dispatch,
+      fixture.persist,
+      fixture.advance,
+      fixture.feedback,
+      fixture.decline,
+      fixture.respond,
+      fixture.transition,
+      fixture.capture,
     ])
       expect(mock).not.toHaveBeenCalled();
   },

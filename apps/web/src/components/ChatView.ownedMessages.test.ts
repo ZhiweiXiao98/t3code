@@ -748,3 +748,28 @@ it("pairs revoked send permission without claiming raw capability text", () => {
   expect(entries.permission?.ownedCode).toBeUndefined();
   expect(formatLocalThreadError(source, entries.permission, "zh-CN")).toBe(source);
 });
+
+it("pairs missing send uploads without claiming raw capability text", () => {
+  const source = "Retry or remove failed uploads before sending.";
+  const ref = { environmentId: EnvironmentId.make("uploads"), threadId: ThreadId.make("uploads") };
+  let entries: Record<string, LocalThreadErrorEntry> = {};
+  const set = makeThreadErrorSetter({
+    routeThreadRef: ref,
+    routeThreadKey: "uploads",
+    draftId: null,
+    serverThreadRef: ref,
+    setLocalServerErrorsByThreadKey: (update) => {
+      entries = typeof update === "function" ? update(entries) : update;
+    },
+    setLocalDraftErrorsByDraftId: () => undefined,
+  });
+  set(ref.threadId, source, "sendUploadsFailed");
+  expect(entries.uploads?.ownedCode).toBe("sendUploadsFailed");
+  for (const locale of ["en", "zh-CN", "en"] as const)
+    expect(formatLocalThreadError(source, entries.uploads, locale)).toBe(
+      locale === "en" ? source : "请重试或移除上传失败的附件后再发送。",
+    );
+  set(ref.threadId, source);
+  expect(entries.uploads?.ownedCode).toBeUndefined();
+  expect(formatLocalThreadError(source, entries.uploads, "zh-CN")).toBe(source);
+});
