@@ -381,10 +381,11 @@ export function usePullRequestHandoffs({
       threadId: opened.threadId,
     });
     if (prepared._tag === "Failure") {
+      const { locale, t } = readWebI18n();
       setHandoff(null);
       toastManager.update(toastId, {
         type: "error",
-        title: readWebI18n().t("audit3.checkoutPrepareFailed", {
+        title: t("audit3.checkoutPrepareFailed", {
           request: translateWebSource(locale, terminology.singular),
         }),
         description: checkoutFailureDescription(

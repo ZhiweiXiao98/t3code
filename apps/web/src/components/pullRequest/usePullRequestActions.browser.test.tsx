@@ -1,10 +1,12 @@
-import { useComposerDraftStore } from "~/composerDraftStore";
+import { DraftId, useComposerDraftStore } from "~/composerDraftStore";
 import { WebI18nContext } from "~/i18n/WebI18nContext";
 import { translateWebMessage } from "~/i18n/messages";
 import { readableFailure } from "./pullRequestDetail.logic";
 import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
 import {
   EnvironmentId,
+  GitCommandError,
+  ThreadId,
   ProjectId,
   SourceControlProviderKind,
   type PullRequestRef,
@@ -691,3 +693,105 @@ it.each([
     expect(state.updateToast).toHaveBeenCalledTimes(1);
   },
 );
+
+const checkoutHint =
+  "Check that the branch still exists and is not checked out elsewhere, then try again.";
+it.each([
+  ["owned", null],
+  ["raw", new Error("Literal $& {checkout failure}")],
+  ["empty", new Error("")],
+  ["interrupted", undefined],
+  [
+    "typed diagnostic",
+    new GitCommandError({
+      cwd: "/literal/workspace",
+      operation: "GitVcsDriver.createWorktree",
+      command: "git worktree add",
+      detail: checkoutHint,
+      reason: "path_already_exists",
+    }),
+  ],
+] as const)("uses settlement locale for checkout preparation failure: %s", async (kind, cause) => {
+  const { AsyncResult } = await import("effect/reactivity");
+  const Cause = await import("effect/Cause");
+  type Result = ReturnType<typeof AsyncResult.failure<unknown, unknown>>;
+  const before = useComposerDraftStore.getState();
+  using _restore = {
+    [Symbol.dispose]() {
+      useComposerDraftStore.setState(before, true);
+      state.locale = "en";
+      state.newThread.mockReset();
+      state.prepare.mockReset();
+      state.toast.mockReset();
+    },
+  };
+  const opened = {
+    draftId: DraftId.make("fixture-handoff-draft"),
+    threadId: ThreadId.make("fixture-handoff-thread"),
+  };
+  const pending = deferred<Result>();
+  state.newThread.mockReset().mockResolvedValueOnce(opened);
+  state.prepare.mockReset().mockReturnValueOnce(pending.promise);
+  state.runAction.mockClear();
+  state.toast.mockReset().mockReturnValue("prepare-toast");
+  state.updateToast.mockClear();
+  await using screen = await render(handoffSurface("en"));
+  await using _settle = {
+    async [Symbol.asyncDispose]() {
+      await act(async () => {
+        pending.resolve(AsyncResult.failure(Cause.interrupt()));
+        await pending.promise;
+      });
+    },
+  };
+  const button = screen.getByRole("button", { name: "Start handoff", exact: true });
+  await button.click();
+  await expect.poll(() => state.prepare.mock.calls.length).toBe(1);
+  expect(state.newThread).toHaveBeenCalledExactlyOnceWith({
+    environmentId: EnvironmentId.make("handoff-environment"),
+    projectId: handoffDetail.projectId,
+  });
+  expect(state.prepare).toHaveBeenCalledExactlyOnceWith({
+    reference: handoffDetail.url,
+    mode: "worktree",
+    threadId: opened.threadId,
+  });
+  await expect
+    .element(screen.getByRole("status", { name: "Handoff state" }))
+    .toHaveTextContent("conflicts");
+  await button.click();
+  expect(state.newThread).toHaveBeenCalledTimes(1);
+  expect(state.prepare).toHaveBeenCalledTimes(1);
+  expect(state.toast).toHaveBeenCalledExactlyOnceWith({
+    type: "loading",
+    title: "Preparing the pull request checkout...",
+  });
+  expect(state.updateToast).not.toHaveBeenCalled();
+  await screen.rerender(handoffSurface("zh-CN"));
+  await act(async () => {
+    pending.resolve(
+      AsyncResult.failure(kind === "interrupted" ? Cause.interrupt() : Cause.fail(cause)),
+    );
+    await pending.promise;
+  });
+  expect(state.updateToast).toHaveBeenCalledExactlyOnceWith("prepare-toast", {
+    type: "error",
+    title: "无法准备检出拉取请求",
+    description:
+      kind === "raw"
+        ? "Literal $& {checkout failure}"
+        : kind === "typed diagnostic"
+          ? checkoutHint + " (path_already_exists)"
+          : "请确认该分支仍然存在且未在其他位置检出，然后重试。",
+  });
+  await expect
+    .element(screen.getByRole("status", { name: "Handoff state" }))
+    .toHaveTextContent("idle");
+  expect(state.newThread).toHaveBeenCalledTimes(1);
+  expect(state.prepare).toHaveBeenCalledTimes(1);
+  expect(state.runAction).not.toHaveBeenCalled();
+  expect(useComposerDraftStore.getState()).toBe(before);
+  await screen.rerender(handoffSurface("en"));
+  expect(state.toast).toHaveBeenCalledTimes(1);
+  expect(state.updateToast).toHaveBeenCalledTimes(1);
+});
