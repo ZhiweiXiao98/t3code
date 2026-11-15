@@ -81,3 +81,60 @@ it("uses the current language for a scratch failure after switching while it is 
     }),
   );
 });
+
+it("evaluates a supplied lazy scratch title only when reporting settled failure", async () => {
+  let locale: "en" | "zh-CN" = "en";
+  using _i18n = vi
+    .spyOn(webI18n, "readWebI18n")
+    .mockImplementation(() => ({
+      locale,
+      t: (key, values) => translateWebMessage(locale, key, values),
+    }));
+  using toast = vi.spyOn(toastManager, "add").mockReturnValue("lazy-failure");
+  let finish!: (value: Awaited<ReturnType<typeof runtime.runAtomCommand>>) => void;
+  const result = new Promise<Awaited<ReturnType<typeof runtime.runAtomCommand>>>((resolve) => {
+    finish = resolve;
+  });
+  using run = vi.spyOn(runtime, "runAtomCommand").mockReturnValueOnce(result);
+  const title = vi.fn(() => (locale === "en" ? "Owned title" : "当前标题"));
+  const pending = actions(local, "/scratch").openScratchProject(local, title);
+  expect(title).not.toHaveBeenCalled();
+  locale = "zh-CN";
+  finish(AsyncResult.failure(Cause.fail(new Error("literal $& {detail}"))));
+  expect(await pending).toBeNull();
+  expect(title).toHaveBeenCalledTimes(1);
+  expect(toast).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({ title: "当前标题", description: "literal $& {detail}" }),
+  );
+  expect(run).toHaveBeenCalledTimes(1);
+});
+
+it.each(["success", "interrupted"] as const)(
+  "does not evaluate lazy scratch title on %s",
+  async (kind) => {
+    using toast = vi.spyOn(toastManager, "add").mockReturnValue("unused");
+    using _run = vi
+      .spyOn(runtime, "runAtomCommand")
+      .mockResolvedValueOnce(
+        kind === "success" ? AsyncResult.success(null) : AsyncResult.failure(Cause.interrupt()),
+      );
+    const title = vi.fn(() => "must not run");
+    await actions(local, "/scratch").openScratchProject(local, title);
+    expect(title).not.toHaveBeenCalled();
+    expect(toast).not.toHaveBeenCalled();
+  },
+);
+
+it.each(["literal $& {title}", ""])(
+  "preserves explicit scratch title %s and empty Error",
+  async (title) => {
+    using toast = vi.spyOn(toastManager, "add").mockReturnValue("raw");
+    using _run = vi
+      .spyOn(runtime, "runAtomCommand")
+      .mockResolvedValueOnce(AsyncResult.failure(Cause.fail(new Error(""))));
+    await actions(local, "/scratch").openScratchProject(local, title);
+    expect(toast).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ title, description: "" }),
+    );
+  },
+);

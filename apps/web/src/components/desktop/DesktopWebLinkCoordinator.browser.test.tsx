@@ -1,3 +1,5 @@
+import * as Schema from "effect/Schema";
+import { ServerConfig } from "@t3tools/contracts";
 import type { AtomCommandResult } from "@t3tools/client-runtime/state/runtime";
 import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 import { WebI18nContext } from "../../i18n/WebI18nContext";
@@ -12,6 +14,35 @@ import { expect, it, vi } from "vite-plus/test";
 
 import { act, render, stubGlobal } from "../../../test/render";
 
+const scratchConfig = Schema.decodeSync(ServerConfig)({
+  environment: {
+    environmentId: EnvironmentId.make("local"),
+    label: "local",
+    platform: { os: "linux", arch: "x64" },
+    serverVersion: "0.0.0",
+    capabilities: { repositoryIdentity: true },
+  },
+  auth: {
+    policy: "loopback-browser",
+    bootstrapMethods: [],
+    sessionMethods: [],
+    sessionCookieName: "test",
+  },
+  cwd: "/test",
+  keybindingsConfigPath: "/test/keybindings.json",
+  keybindings: [],
+  issues: [],
+  providers: [],
+  availableEditors: [],
+  observability: {
+    logsDirectoryPath: "/test/logs",
+    localTracingEnabled: false,
+    otlpTracesEnabled: false,
+    otlpMetricsEnabled: false,
+  },
+  settings: {},
+  scratchWorkspaceRoot: "/test/scratch",
+});
 const realPreview = vi.hoisted(() => ({
   open: undefined as typeof import("../../browser/openFileInPreview").openUrlInPreview | undefined,
 }));
@@ -27,6 +58,10 @@ const state = vi.hoisted(() => ({
   openLink: vi.fn(async () => undefined),
   navigate: vi.fn(async (): Promise<void> => undefined),
   openScratchProject: vi.fn(async () => null),
+  realScratch: false,
+  scratchCommand: undefined as unknown,
+  runScratch: vi.fn(),
+  scratchThread: vi.fn(async () => null),
   confirm: vi.fn(async (_message: string) => true),
   connectPairing: vi.fn(
     async (_input: { pairingUrl: string }): Promise<AtomCommandResult<void, unknown>> =>
@@ -112,13 +147,50 @@ vi.mock(import("../../state/entities"), async (original) => ({
     ref.threadId === "thread" ? ({ projectId: "effect", worktreePath: null } as never) : null,
   readProject: () => state.projects[0] ?? null,
 }));
-vi.mock(import("../../hooks/useScratchProject"), async (original) => ({
-  ...(await original()),
-  useScratchProject: (() => ({
-    scratchEnvironmentId: () => "local",
-    openScratchProject: state.openScratchProject,
-  })) as never,
-}));
+vi.mock(import("../../hooks/useScratchProject"), async (original) => {
+  const actual = await original();
+  const { appAtomRegistry } = await import("../../rpc/atomRegistry");
+  const { projectEnvironment } = await import("../../state/projects");
+  const { EnvironmentId } = await import("@t3tools/contracts");
+  state.scratchCommand = projectEnvironment.openScratch;
+  const local = EnvironmentId.make("local");
+
+  return {
+    ...actual,
+    useScratchProject: () =>
+      state.realScratch
+        ? actual.createScratchProjectActions({
+            environments: () => [
+              {
+                environmentId: local,
+                connection: { phase: "connected", error: null, traceId: null },
+                serverConfig: scratchConfig,
+              },
+            ],
+            primaryEnvironmentId: () => local,
+            registry: appAtomRegistry,
+            handleNewThread: state.scratchThread,
+          })
+        : {
+            scratchEnvironmentId: () => local,
+            scratchWorkspaceRootFor: () => null,
+            startScratchThread: async () => {
+              await state.scratchThread();
+            },
+            openScratchProject: state.openScratchProject,
+          },
+  };
+});
+vi.mock("@t3tools/client-runtime/state/runtime", async (original) => {
+  const actual = await original<typeof import("@t3tools/client-runtime/state/runtime")>();
+  return {
+    ...actual,
+    runAtomCommand: (...args: Parameters<typeof actual.runAtomCommand>) =>
+      state.realScratch && args[1] === state.scratchCommand
+        ? state.runScratch(...args)
+        : actual.runAtomCommand(...args),
+  };
+});
 
 vi.mock("../../state/use-atom-query-runner", () => ({
   useAtomQueryRunner: () => state.preview,
@@ -194,6 +266,8 @@ const pairLink = `t3code://pair?pairingUrl=${encodeURIComponent(pairingUrl)}`;
 function setup() {
   vi.clearAllMocks();
   state.previewAvailable = false;
+  state.realScratch = false;
+  state.runScratch.mockReset();
   state.openUrl.mockReset();
   state.defaults.mockReset();
   state.confirm.mockResolvedValue(true);
@@ -765,6 +839,66 @@ it("uses settlement locale for pairing success and ignores its queued duplicate"
     state.openScratchProject,
     state.navigate,
     state.openLink,
+  ])
+    expect(mock).not.toHaveBeenCalled();
+});
+
+it("uses the current supplied title for a real scratch failure from an OS link", async () => {
+  const initialPanel = useRightPanelStore.getState();
+  const initialDiff = useDiffPanelStore.getState();
+  using _stores = {
+    [Symbol.dispose]: () => {
+      useRightPanelStore.setState(initialPanel, true);
+      useDiffPanelStore.setState(initialDiff, true);
+      state.realScratch = false;
+    },
+  };
+  setup();
+  state.realScratch = true;
+  let finish!: (result: AtomCommandResult<void, unknown>) => void;
+  const pending = new Promise<AtomCommandResult<void, unknown>>((resolve) => {
+    finish = resolve;
+  });
+  state.runScratch.mockReturnValue(pending);
+  await using coordinator = await mount("https://literal.example/scratch");
+  await using _settle = {
+    [Symbol.asyncDispose]: async () => {
+      await act(async () => {
+        finish(AsyncResult.failure(Cause.interrupt()));
+        await Promise.resolve();
+      });
+    },
+  };
+  await vi.waitFor(() => expect(state.runScratch).toHaveBeenCalledTimes(1));
+  expect(state.toast).not.toHaveBeenCalled();
+  await coordinator.rerenderLocale("zh-CN");
+  await act(async () => finish(AsyncResult.failure(Cause.fail(new Error("literal $& {detail}")))));
+  await vi.waitFor(() => expect(state.toast).toHaveBeenCalledTimes(1));
+  expect(state.toast.mock.calls[0]?.[0]).toMatchObject({
+    title: "无法打开链接",
+    description: "literal $& {detail}",
+  });
+  const { projectEnvironment } = await import("../../state/projects");
+  expect(state.runScratch).toHaveBeenCalledExactlyOnceWith(
+    appAtomRegistry,
+    projectEnvironment.openScratch,
+    { environmentId, input: {} },
+    { label: projectEnvironment.openScratch.label, reportFailure: false, reportDefect: true },
+  );
+  await coordinator.rerenderLocale("en");
+  expect(state.toast).toHaveBeenCalledTimes(1);
+  expect(coordinator.subscriptions()).toBe(1);
+  expect(coordinator.readyCalls()).toBe(1);
+  for (const mock of [
+    state.openScratchProject,
+    state.scratchThread,
+    state.openUrl,
+    state.openPreview,
+    state.preview,
+    state.navigate,
+    state.openLink,
+    state.connectPairing,
+    state.confirm,
   ])
     expect(mock).not.toHaveBeenCalled();
 });

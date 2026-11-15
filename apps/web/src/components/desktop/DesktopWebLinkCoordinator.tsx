@@ -174,7 +174,9 @@ export function DesktopWebLinkCoordinator() {
       reportFailure(url);
       return null;
     }
-    const project = await openScratchProject(environmentId, tx("Could not open the link"));
+    const project = await openScratchProject(environmentId, () =>
+      translateConnectAgentSource(readWebI18n().locale, "Could not open the link"),
+    );
     if (!project) return null;
     const opened = await openThread(scopeProjectRef(project.environmentId, project.id));
     if (!opened) {

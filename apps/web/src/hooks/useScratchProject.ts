@@ -21,12 +21,12 @@ import { projectEnvironment } from "~/state/projects";
 import { readWebI18n } from "~/i18n/readWebI18n";
 import { type NewThreadHandler, useNewThreadHandler } from "./useHandleNewThread";
 
-function reportScratchFailure(title: string | undefined, error: unknown) {
+function reportScratchFailure(title: string | (() => string) | undefined, error: unknown) {
   const { t } = readWebI18n();
   toastManager.add(
     stackedThreadToast({
       type: "error",
-      title: title ?? t("newProject.scratchError"),
+      title: (typeof title === "function" ? title() : title) ?? t("newProject.scratchError"),
       description: error instanceof Error ? error.message : t("common.error"),
     }),
   );
@@ -63,7 +63,7 @@ export function createScratchProjectActions(input: {
 
   const openScratchProject = async (
     environmentId: EnvironmentId,
-    failureTitle?: string,
+    failureTitle?: string | (() => string),
   ): Promise<EnvironmentProject | null> => {
     const command = projectEnvironment.openScratch;
     const result = await runAtomCommand(
