@@ -63,6 +63,7 @@ const { diffAtom, pagedDiffAtom } = await vi.hoisted(async () => {
 
 const mocks = vi.hoisted(() => ({
   loadComments: vi.fn(),
+  resolution: vi.fn(),
   otherCommand: vi.fn(),
   toast: vi.fn(),
   locale: "en" as "en" | "zh-CN",
@@ -82,7 +83,9 @@ vi.mock(import("~/state/use-atom-command"), async (original) => ({
   useAtomCommand: ((command: unknown) =>
     command === pullRequestEnvironment.threadComments
       ? mocks.loadComments
-      : mocks.otherCommand) as never,
+      : command === pullRequestEnvironment.setThreadResolution
+        ? mocks.resolution
+        : mocks.otherCommand) as never,
 }));
 vi.mock(import("./usePullRequestFilesViewed"), async () => {
   const { useSyncExternalStore } = await import("react");
@@ -408,7 +411,17 @@ const orphan: PullRequestReviewThread = {
     },
   ],
 };
-function commentsSurface(locale: "en" | "zh-CN", refresh: () => void, hasCursor = true) {
+function commentsSurface(
+  locale: "en" | "zh-CN",
+  refresh: () => void,
+  hasCursor = true,
+  resolution?: {
+    resolved: boolean;
+    capability: boolean;
+    permission: boolean;
+    threadAllowed: boolean;
+  },
+) {
   mocks.locale = locale;
   const { nextCommentsCursor: _cursor, ...withoutCursor } = orphan;
   return (
@@ -424,7 +437,26 @@ function commentsSurface(locale: "en" | "zh-CN", refresh: () => void, hasCursor 
         scrollerRef={() => {}}
         environmentId={EnvironmentId.make("environment")}
         reference={commentsReference}
-        detail={{ ...detail, reviewThreads: [hasCursor ? orphan : withoutCursor] }}
+        detail={{
+          ...detail,
+          ...(resolution
+            ? {
+                capabilities: {
+                  ...detail.capabilities,
+                  review: { ...detail.capabilities.review, resolve: resolution.capability },
+                },
+                viewerPermissions: { ...detail.viewerPermissions, resolve: resolution.permission },
+              }
+            : {}),
+          reviewThreads: [
+            {
+              ...(hasCursor ? orphan : withoutCursor),
+              ...(resolution
+                ? { isResolved: resolution.resolved, canResolve: resolution.threadAllowed }
+                : {}),
+            },
+          ],
+        }}
         selectedCommitOid={null}
         onSelectedCommitChange={() => {}}
         onRefresh={refresh}
@@ -534,3 +566,129 @@ it("omits comment pagination without a review-thread cursor", async () => {
   expect(mocks.toast).not.toHaveBeenCalled();
   expect(refresh).not.toHaveBeenCalled();
 });
+
+it.each([
+  ["resolve owned", false, null],
+  ["unresolve owned", true, null],
+  ["raw", false, new Error("The conversation could not be updated")],
+  ["empty", false, new Error("")],
+  ["interrupted", false, undefined],
+] as const)(
+  "uses settlement locale for review-thread resolution failure: %s",
+  async (kind, resolved, failure) => {
+    const settings = getClientSettings();
+    using _settings = {
+      [Symbol.dispose]() {
+        __setClientSettingsForTests(settings);
+      },
+    };
+    setup({ paged: false });
+    mocks.resolution.mockReset();
+    mocks.otherCommand.mockClear();
+    mocks.loadComments.mockReset();
+    mocks.toast.mockClear();
+    const { AsyncResult } = await import("effect/reactivity");
+    const Cause = await import("effect/Cause");
+    type Result = import("@t3tools/client-runtime/state/runtime").AtomCommandResult<void, unknown>;
+    let finish = (_result: Result) => {};
+    mocks.resolution.mockReturnValueOnce(
+      new Promise<Result>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const refresh = vi.fn();
+    const options = { resolved, capability: true, permission: true, threadAllowed: true };
+    const surface = (locale: "en" | "zh-CN") => commentsSurface(locale, refresh, false, options);
+    await using screen = await render(surface("en"), { container: pagedContainer() });
+    await using _settle = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          finish(AsyncResult.failure(Cause.interrupt()));
+          await Promise.resolve();
+        });
+      },
+    };
+    await screen.getByRole("button", { name: /^Conversations not on the current diff/ }).click();
+    if (resolved) {
+      await screen.getByRole("button", { name: /^Resolved ·/ }).click();
+    }
+    await expect.element(screen.getByText(orphan.comments[0]!.body, { exact: true })).toBeVisible();
+    const action = screen.getByRole("button", {
+      name: resolved ? "Unresolve" : "Resolve",
+      exact: true,
+    });
+    await expect.element(action).toBeEnabled();
+    await action.click();
+    expect(mocks.resolution).toHaveBeenCalledExactlyOnceWith({
+      environmentId: EnvironmentId.make("environment"),
+      input: { ...commentsReference, threadId: orphan.id, resolved: !resolved },
+    });
+    await expect.element(action).toBeDisabled();
+    await act(async () => {
+      action.element().dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+    });
+    expect(mocks.resolution).toHaveBeenCalledTimes(1);
+    await screen.rerender(surface("zh-CN"));
+    expect(mocks.toast).not.toHaveBeenCalled();
+    await act(async () => {
+      finish(AsyncResult.failure(kind === "interrupted" ? Cause.interrupt() : Cause.fail(failure)));
+      await Promise.resolve();
+    });
+    expect(mocks.toast).toHaveBeenCalledExactlyOnceWith({ type: "error", title: "无法更新对话" });
+    await expect
+      .element(
+        screen.getByRole("button", {
+          name: resolved ? "标记为未解决" : "标记为已解决",
+          exact: true,
+        }),
+      )
+      .toBeEnabled();
+    await expect.element(screen.getByText(orphan.comments[0]!.body, { exact: true })).toBeVisible();
+    expect(refresh).not.toHaveBeenCalled();
+    expect(mocks.otherCommand).not.toHaveBeenCalled();
+    expect(mocks.loadComments).not.toHaveBeenCalled();
+    await screen.rerender(surface("en"));
+    await expect
+      .element(
+        screen.getByRole("button", { name: resolved ? "Unresolve" : "Resolve", exact: true }),
+      )
+      .toBeEnabled();
+    expect(mocks.toast).toHaveBeenCalledTimes(1);
+    expect(mocks.resolution).toHaveBeenCalledTimes(1);
+  },
+);
+it.each(["capability", "permission", "threadAllowed"] as const)(
+  "omits review-thread resolution without %s",
+  async (denied) => {
+    const settings = getClientSettings();
+    using _settings = {
+      [Symbol.dispose]() {
+        __setClientSettingsForTests(settings);
+      },
+    };
+    setup({ paged: false });
+    mocks.resolution.mockReset();
+    mocks.toast.mockClear();
+    mocks.otherCommand.mockClear();
+    const refresh = vi.fn();
+    await using screen = await render(
+      commentsSurface("en", refresh, false, {
+        resolved: false,
+        capability: true,
+        permission: true,
+        threadAllowed: true,
+        [denied]: false,
+      }),
+      { container: pagedContainer() },
+    );
+    await screen.getByRole("button", { name: /^Conversations not on the current diff/ }).click();
+    await expect.element(screen.getByText(orphan.comments[0]!.body, { exact: true })).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: "Resolve", exact: true }))
+      .not.toBeInTheDocument();
+    expect(mocks.resolution).not.toHaveBeenCalled();
+    expect(mocks.toast).not.toHaveBeenCalled();
+    expect(mocks.otherCommand).not.toHaveBeenCalled();
+    expect(refresh).not.toHaveBeenCalled();
+  },
+);

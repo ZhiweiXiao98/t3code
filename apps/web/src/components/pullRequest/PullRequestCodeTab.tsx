@@ -992,7 +992,7 @@ function PullRequestCodeTab({
   };
 
   const runThreadCommand = async (
-    label: string,
+    label: string | (() => string),
     run: () => Promise<{ readonly _tag: string }>,
   ): Promise<boolean> => {
     if (threadPending) return false;
@@ -1000,7 +1000,7 @@ function PullRequestCodeTab({
     const result = await run();
     setThreadPending(false);
     if (result._tag === "Failure") {
-      toastManager.add({ type: "error", title: label });
+      toastManager.add({ type: "error", title: typeof label === "function" ? label() : label });
       return false;
     }
     onRefresh();
@@ -1065,11 +1065,13 @@ function PullRequestCodeTab({
         )
       }
       onToggleResolved={() =>
-        void runThreadCommand(t("pullRequests.comments.updateConversationFailed"), () =>
-          setThreadResolution({
-            environmentId,
-            input: { ...reference, threadId: thread.id, resolved: !thread.isResolved },
-          }),
+        void runThreadCommand(
+          () => readWebI18n().t("pullRequests.comments.updateConversationFailed"),
+          () =>
+            setThreadResolution({
+              environmentId,
+              input: { ...reference, threadId: thread.id, resolved: !thread.isResolved },
+            }),
         )
       }
       onReacted={onRefresh}
