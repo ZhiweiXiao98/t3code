@@ -1,3 +1,4 @@
+import { previewPreconditionMessage } from "~/browser/previewPreconditionMessages";
 import { readWebI18n } from "~/i18n/readWebI18n";
 import { translateWebMessage, translateWebSource } from "~/i18n/messages";
 import type {
@@ -317,7 +318,10 @@ export function useChatTerminalActions(input: ChatTerminalActionsInput) {
           stackedThreadToast({
             type: "error",
             title: translateWebSource(locale, "Could not open preview"),
-            description: error instanceof Error ? error.message : t("chat.unexpectedError"),
+            description:
+              error instanceof Error
+                ? (previewPreconditionMessage(error, locale) ?? error.message)
+                : t("chat.unexpectedError"),
           }),
         );
       }

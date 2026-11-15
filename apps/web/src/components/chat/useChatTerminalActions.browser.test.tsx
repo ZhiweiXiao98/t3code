@@ -11,6 +11,10 @@ import { selectThreadTerminalUiState, useTerminalUiStateStore } from "../../term
 import { makeThreadErrorSetter, type LocalThreadErrorEntry } from "../ChatView.logic";
 import { ChatBannerLane } from "./ChatBannerLane";
 import { useChatTerminalActions } from "./useChatTerminalActions";
+import { BrowserSettingsReadError } from "../../browser/openFileInPreview";
+const realPreview = vi.hoisted(() => ({
+  open: undefined as typeof import("../../browser/openFileInPreview").openUrlInPreview | undefined,
+}));
 const fixture = vi.hoisted(() => ({
   locale: "en" as "en" | "zh-CN",
   allowed: true,
@@ -20,12 +24,18 @@ const fixture = vi.hoisted(() => ({
   context: vi.fn(),
   preview: vi.fn(),
   openUrl: vi.fn(),
+  defaults: vi.fn(),
   resolveUrl: vi.fn(),
   toast: vi.fn(),
 }));
-vi.mock("../../browser/openFileInPreview", async (original) => ({
-  ...(await original<typeof import("../../browser/openFileInPreview")>()),
-  openUrlInPreview: fixture.openUrl,
+vi.mock("../../browser/openFileInPreview", async (original) => {
+  const actual = await original<typeof import("../../browser/openFileInPreview")>();
+  realPreview.open = actual.openUrlInPreview;
+  return { ...actual, openUrlInPreview: fixture.openUrl };
+});
+vi.mock("../../browser/browserDefaults", async (original) => ({
+  ...(await original<typeof import("../../browser/browserDefaults")>()),
+  resolveBrowserDefaults: fixture.defaults,
 }));
 vi.mock("../../browser/previewRuntime", async (original) => ({
   ...(await original<typeof import("../../browser/previewRuntime")>()),
@@ -411,5 +421,100 @@ it.each(["owned", "raw", "empty", "interrupted"] as const)(
     expect(fixture.openUrl).toHaveBeenCalledTimes(1);
     expect(fixture.preview).not.toHaveBeenCalled();
     expect(fixture.toast).toHaveBeenCalledTimes(kind === "interrupted" ? 0 : 1);
+  },
+);
+
+it.each(["owned", "class", "plain", "tag", "empty"] as const)(
+  "preserves script preview settings %s provenance",
+  async (kind) => {
+    for (const mock of Object.values(fixture)) if (typeof mock === "function") mock.mockReset();
+    fixture.allowed = true;
+    const initial = useTerminalUiStateStore.getState();
+    using _store = { [Symbol.dispose]: () => useTerminalUiStateStore.setState(initial, true) };
+    let rejectSettings!: (cause: unknown) => void;
+    let finish!: (result: ReturnType<typeof AsyncResult.failure>) => void;
+    const settings = new Promise<never>((_, reject) => {
+      rejectSettings = reject;
+    });
+    // Only the actual helper consumes this rejected settings promise.
+    if (kind === "owned") fixture.defaults.mockReturnValue(settings);
+    void settings.catch(() => undefined);
+    const pending = new Promise<ReturnType<typeof AsyncResult.failure>>((resolve) => {
+      finish = resolve;
+    });
+    fixture.launch.mockImplementation((input: { place: (id: string) => void }) => {
+      input.place("settings-terminal");
+      return {
+        terminalId: "settings-terminal",
+        result: Promise.resolve(AsyncResult.success(undefined)),
+      };
+    });
+    fixture.write.mockResolvedValue(AsyncResult.success(undefined));
+    fixture.resolveUrl.mockReturnValue("https://literal.example/settings");
+    if (kind === "owned") {
+      if (!realPreview.open) throw new Error("Real preview helper not initialized");
+      fixture.openUrl.mockImplementation(realPreview.open);
+    } else fixture.openUrl.mockReturnValue(pending);
+    await using screen = await render(surface("en", name, true));
+    await using _settle = {
+      [Symbol.asyncDispose]: async () => {
+        await act(async () => {
+          rejectSettings(null);
+          finish(AsyncResult.failure(Cause.interrupt()));
+          await Promise.resolve();
+        });
+      },
+    };
+    await screen.getByRole("button", { name: "Run script", exact: true }).click();
+    await expect
+      .poll(() =>
+        kind === "owned" ? fixture.defaults.mock.calls.length : fixture.openUrl.mock.calls.length,
+      )
+      .toBe(1);
+    await expect
+      .element(screen.getByRole("button", { name: "Run script", exact: true }))
+      .toBeDisabled();
+    expect(fixture.toast).not.toHaveBeenCalled();
+    await screen.rerender(surface("zh-CN", name, true));
+    const source = "Saved browser settings could not be loaded.";
+    const cause = new Error("private settings detail");
+    await act(async () => {
+      if (kind === "owned") rejectSettings(cause);
+      else
+        finish(
+          AsyncResult.failure(
+            Cause.fail(
+              kind === "class"
+                ? new BrowserSettingsReadError({ cause })
+                : kind === "tag"
+                  ? Object.assign(new Error(source), { _tag: "BrowserSettingsReadError" })
+                  : new Error(kind === "empty" ? "" : source),
+            ),
+          ),
+        );
+    });
+    await expect
+      .element(screen.getByRole("button", { name: "Run script", exact: true }))
+      .toBeEnabled();
+    expect(fixture.toast).toHaveBeenCalledTimes(1);
+    expect(fixture.toast.mock.calls[0]?.[0]).toMatchObject({
+      type: "error",
+      title: "无法打开预览",
+      description: kind === "owned" ? "无法读取浏览器设置。" : kind === "empty" ? "" : source,
+    });
+    await screen.rerender(surface("en", name, true));
+    expect(fixture.launch).toHaveBeenCalledTimes(1);
+    expect(fixture.write).toHaveBeenCalledExactlyOnceWith(
+      "settings-terminal",
+      `${script.command}\r`,
+    );
+    expect(fixture.openUrl).toHaveBeenCalledExactlyOnceWith({
+      threadRef: ref,
+      url: "https://literal.example/settings",
+      openPreview: fixture.preview,
+    });
+    expect(fixture.defaults).toHaveBeenCalledTimes(kind === "owned" ? 1 : 0);
+    expect(fixture.preview).not.toHaveBeenCalled();
+    expect(fixture.toast).toHaveBeenCalledTimes(1);
   },
 );
