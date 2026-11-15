@@ -45,6 +45,15 @@ vi.mock("../i18n/WebI18nContext", () => ({
     ) => translateWebMessage("en", key, values),
   }),
 }));
+vi.mock("../i18n/readWebI18n", () => ({
+  readWebI18n: () => ({
+    locale: "en",
+    t: (
+      key: Parameters<typeof translateWebMessage>[1],
+      values?: Parameters<typeof translateWebMessage>[2],
+    ) => translateWebMessage("en", key, values),
+  }),
+}));
 vi.mock("react", () => ({
   useCallback: (callback: unknown) => callback,
   useMemo: (factory: () => unknown) => factory(),

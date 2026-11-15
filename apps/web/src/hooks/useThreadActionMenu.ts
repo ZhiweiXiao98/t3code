@@ -1,3 +1,4 @@
+import { readWebI18n } from "../i18n/readWebI18n";
 import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 import { translateWebSource } from "../i18n/messages";
 import { useI18n } from "../i18n/WebI18nContext";
@@ -82,8 +83,10 @@ export function useThreadActionMenu(input: {
   readonly canShareWithGuest: boolean;
 }) {
   const { locale, t } = useI18n();
-  const failureToast = (title: string, error: unknown) =>
+  const failureToast = (title: string, error: unknown) => {
+    const { locale, t } = readWebI18n();
     showFailureToast(translateWebSource(locale, title), error, t("common.error"), locale);
+  };
   const { threadRef, projectCwd, onStartRename, onFind, canShareWithGuest } = input;
   const router = useRouter();
   const projects = useProjects();
