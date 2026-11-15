@@ -181,7 +181,13 @@ function SwitchPlan({
     );
     if (result._tag === "Failure") {
       const error = squashAtomCommandFailure(result);
-      fail(error instanceof Error ? error.message : tx("An unexpected error occurred."));
+      const { locale } = readWebI18n();
+      fail(
+        error instanceof Error
+          ? error.message
+          : translateWebSource(locale, "An unexpected error occurred."),
+        locale,
+      );
     }
   };
 

@@ -1,4 +1,6 @@
 import "~/index.css";
+import * as Cause from "effect/Cause";
+import type { DesktopUpdateState } from "@t3tools/contracts";
 import { RegistryContext } from "@effect/atom-react";
 import { AtomRegistry } from "effect/reactivity";
 import { expect, it, vi } from "vite-plus/test";
@@ -74,7 +76,7 @@ function setup() {
   state.channel.mockReset();
   state.toast.mockClear();
   state.close.mockClear();
-  state.run.mockClear();
+  state.run.mockReset();
   state.download.mockClear();
   state.install.mockClear();
   vi.stubGlobal("desktopBridge", {
@@ -163,3 +165,89 @@ it("cancels update track preparation without changing the track", async () => {
   expect(state.download).not.toHaveBeenCalled();
   expect(state.install).not.toHaveBeenCalled();
 });
+
+const savedUpdateState: DesktopUpdateState = {
+  enabled: false,
+  status: "up-to-date",
+  channel: "latest",
+  currentVersion: "99.0.0",
+  hostArch: "x64",
+  appArch: "x64",
+  runningUnderArm64Translation: false,
+  availableVersion: null,
+  downloadedVersion: null,
+  releaseNotes: [],
+  omittedReleaseCount: 0,
+  downloadPercent: null,
+  checkedAt: null,
+  message: null,
+  errorContext: null,
+  canRetry: false,
+};
+it.each([
+  ["owned", null, "发生了意外错误。"],
+  ["raw", new Error("Literal $& {fleet}"), "Literal $& {fleet}"],
+  ["empty", new Error(""), ""],
+  [
+    "interruption diagnostic",
+    Cause.squash(Cause.interrupt()),
+    "All fibers interrupted without error",
+  ],
+] as const)(
+  "uses settlement locale for update track fleet failure: %s",
+  async (_kind, error, description) => {
+    using fixture = setup();
+    state.channel.mockResolvedValue(savedUpdateState);
+    let reject!: (error: unknown) => void;
+    const promise = new Promise<never>((_resolve, fail) => {
+      reject = fail;
+    });
+    void promise.catch(() => {});
+    state.run.mockReturnValue(promise);
+    await using screen = await render(surface("en", fixture.registry));
+    await using _drain = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          reject(null);
+          await promise.catch(() => {});
+        });
+      },
+    };
+    await page.getByRole("button", { name: "Switch to Stable", exact: true }).click();
+    await expect.poll(() => state.run.mock.calls.length).toBe(1);
+    expect(state.channel).toHaveBeenCalledExactlyOnceWith("latest", undefined);
+    expect(state.close).toHaveBeenCalledExactlyOnceWith();
+    expect(state.run).toHaveBeenCalledExactlyOnceWith({});
+    expect(state.channel.mock.invocationCallOrder[0]).toBeLessThan(
+      state.close.mock.invocationCallOrder[0]!,
+    );
+    expect(state.close.mock.invocationCallOrder[0]).toBeLessThan(
+      state.run.mock.invocationCallOrder[0]!,
+    );
+    const checking = page.getByRole("button", { name: "Checking…", exact: true });
+    await expect.element(checking).toBeDisabled();
+    await act(async () => {
+      checking.element().dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+    });
+    expect(state.run).toHaveBeenCalledTimes(1);
+    await screen.rerender(surface("zh-CN", fixture.registry));
+    expect(state.toast).not.toHaveBeenCalled();
+    await act(async () => {
+      reject(error);
+      await promise.catch(() => {});
+    });
+    expect(state.toast).toHaveBeenCalledExactlyOnceWith({
+      type: "error",
+      title: "无法切换到稳定版",
+      description,
+      data: { actionLayout: "stacked-end" },
+    });
+    expect(state.close).toHaveBeenCalledTimes(1);
+    expect(state.channel).toHaveBeenCalledTimes(1);
+    expect(state.run).toHaveBeenCalledTimes(1);
+    expect(state.download).not.toHaveBeenCalled();
+    expect(state.install).not.toHaveBeenCalled();
+    await screen.rerender(surface("en", fixture.registry));
+    expect(state.toast).toHaveBeenCalledTimes(1);
+  },
+);
