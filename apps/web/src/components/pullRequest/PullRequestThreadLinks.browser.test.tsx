@@ -123,6 +123,7 @@ function surface(locale: "en" | "zh-CN", url: string) {
       <Menu>
         <MenuTrigger>Thread actions</MenuTrigger>
         <MenuPopup keepMounted>
+          <p className="px-2 py-1 text-xs">Thread link controls</p>
           <PullRequestThreadLinks
             environmentId={target.environmentId}
             reference={reference}
@@ -237,6 +238,7 @@ it.each(["unsupported", "unparseable"] as const)(
     );
     await screen.getByRole("button", { name: "Thread actions", exact: true }).click();
     await expect.element(page.getByRole("menu")).toBeVisible();
+    await expect.element(page.getByText("Thread link controls", { exact: true })).toBeVisible();
     await expect.element(page.getByRole("menuitem")).not.toBeInTheDocument();
     expect(mocks.change).not.toHaveBeenCalled();
     expect(mocks.toast).not.toHaveBeenCalled();
