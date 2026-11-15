@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { cliCommandFailureMessage, installedCliDescription } from "./cliCommandPresentation";
 import { translateWebExtraSource } from "~/i18n/webExtraMessages";
 import { useState } from "react";
@@ -23,7 +24,6 @@ const FAILURE_TITLES = {
 
 /** The desktop `t3` command's state, and its actions with a toast on failure. */
 export function useDesktopCliCommand() {
-  const { locale } = useI18n();
   const bridge = getDesktopCliCommandBridge();
   const query = useEnvironmentQuery(bridge ? desktopCliCommandStateAtom : null);
   const [pending, setPending] = useState(false);
@@ -34,6 +34,7 @@ export function useDesktopCliCommand() {
     void bridge[action]()
       .then(refreshDesktopCliCommandState)
       .catch((error: unknown) => {
+        const { locale } = readWebI18n();
         toastManager.add(
           stackedThreadToast({
             type: "error",
