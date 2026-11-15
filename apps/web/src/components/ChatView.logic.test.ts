@@ -1324,6 +1324,7 @@ it.each(["server", "draft"] as const)(
 );
 
 it.each([
+  ["stopBackgroundFailed", "Failed to stop background work.", "停止后台任务失败。"],
   ["approvalFailed", "Failed to submit approval decision.", "提交审批决定失败。"],
   ["inputFailed", "Failed to submit user input.", "提交用户输入失败。"],
   ["dismissFailed", "Failed to dismiss the question.", "忽略问题失败。"],

@@ -1,3 +1,10 @@
+import "~/index.css";
+import { useState } from "react";
+import { AsyncResult } from "effect/reactivity";
+import { WebI18nContext } from "../../i18n/WebI18nContext";
+import { translateWebMessage } from "../../i18n/messages";
+import { makeThreadErrorSetter, type LocalThreadErrorEntry } from "../ChatView.logic";
+import { ChatBannerLane } from "./ChatBannerLane";
 import * as Cause from "effect/Cause";
 import { scopedThreadKey, scopeThreadRef } from "@t3tools/client-runtime/environment";
 import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/shell";
@@ -7,13 +14,26 @@ import { page } from "vite-plus/test/browser";
 
 const state = vi.hoisted(() => ({
   childThreadInputs: [] as EnvironmentThreadShell[],
+  allowed: true,
   switchRef: (async () => undefined) as (input: unknown) => Promise<unknown>,
 }));
 
+vi.mock("./ProviderStatusBanner", async (original) => ({
+  ...(await original<typeof import("./ProviderStatusBanner")>()),
+  ProviderStatusBanner: () => null,
+}));
+vi.mock("./useForceStopThread", async (original) => ({
+  ...(await original<typeof import("./useForceStopThread")>()),
+  useForceStopThread: () => ({
+    canForceStop: false,
+    stoppingThreadId: null,
+    forceStopThread: async () => undefined,
+  }),
+}));
 vi.mock(import("../../state/session"), async (importOriginal) => ({
   ...(await importOriginal()),
   useEnvironmentScope: (() => true) as never,
-  readEnvironmentScope: (() => true) as never,
+  readEnvironmentScope: (() => state.allowed) as never,
 }));
 
 vi.mock(import("../../state/use-atom-command"), async (importOriginal) => ({
@@ -43,6 +63,7 @@ import { useThreadLifecycle } from "./useThreadLifecycle";
 const environmentId = EnvironmentId.make("environment:test");
 
 function setup() {
+  state.allowed = true;
   state.childThreadInputs = [];
   state.switchRef = async () => undefined;
 }
@@ -100,12 +121,25 @@ it.each([
 
 function RestoreBranchHarness(props: {
   readonly thread: ThreadInput;
+  readonly showErrors?: boolean;
   readonly currentRouteThreadKeyRef: { readonly current: string | null };
   readonly refreshGitStatus: () => void;
   readonly focusComposer: () => void;
 }) {
+  const [entries, setEntries] = useState<Record<string, LocalThreadErrorEntry>>({});
+  const [, setDismissTick] = useState(0);
+  const setError = makeThreadErrorSetter({
+    routeThreadRef: props.thread.activeThreadRef,
+    routeThreadKey: props.thread.routeThreadKey,
+    draftId: null,
+    serverThreadRef: props.thread.activeThreadRef,
+    setLocalServerErrorsByThreadKey: setEntries,
+    setLocalDraftErrorsByDraftId: setEntries,
+  });
+  const entry = entries[props.thread.routeThreadKey];
   const lifecycle = useThreadLifecycle({
     ...props.thread,
+    threadDetailRef: props.showErrors ? null : props.thread.threadDetailRef,
     environmentId,
     currentRouteThreadKeyRef: props.currentRouteThreadKeyRef,
     canOperateThread: true,
@@ -127,7 +161,7 @@ function RestoreBranchHarness(props: {
     composerDraftTarget: { kind: "thread", ref: props.thread.activeThreadRef } as never,
     sendInFlightRef: { current: false },
     setOptimisticUserMessages: () => undefined,
-    setThreadError: () => undefined,
+    setThreadError: setError,
     clearUsageLimitsFor: () => undefined,
     beginLocalDispatch: () => undefined,
     resetLocalDispatch: () => undefined,
@@ -139,6 +173,23 @@ function RestoreBranchHarness(props: {
       {lifecycle.childInputNow?.description}
       {lifecycle.childInputNow?.actions}
       {lifecycle.workNow?.actions}
+      {props.showErrors ? (
+        <ChatBannerLane
+          environmentId={environmentId}
+          providerStatus={null}
+          providerStatusBannerKey={null}
+          setDismissedProviderStatusBannerKey={() => undefined}
+          onOpenProviderSetup={() => undefined}
+          threadId={props.thread.activeThreadId}
+          threadError={entry?.message ?? null}
+          localThreadErrorEntry={entry}
+          threadErrorClass={null}
+          threadErrorCode={null}
+          threadErrorBannerKey={null}
+          setThreadError={setError}
+          setThreadErrorBannerDismissTick={setDismissTick}
+        />
+      ) : null}
       <button
         type="button"
         disabled={lifecycle.isRestoringThreadBranch}
@@ -267,3 +318,99 @@ it.each(["Success", "Failure"] as const)(
     completions[1]!({ _tag: "Success", value: undefined });
   },
 );
+
+it.each(["owned", "raw", "empty", "interrupted"] as const)(
+  "keeps background stop %s failure current without another interrupt",
+  async (kind) => {
+    setup();
+    const thread = threadInput("stop-fixture", "main");
+    const currentRouteThreadKeyRef = { current: thread.routeThreadKey };
+    const refreshGitStatus = vi.fn();
+    const focusComposer = vi.fn();
+    let finish!: (result: unknown) => void;
+    const interrupt = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    state.switchRef = interrupt;
+    const surface = (locale: "en" | "zh-CN") => (
+      <WebI18nContext
+        value={{
+          locale,
+          appLocale: locale,
+          setAppLocale: () => undefined,
+          t: (key, values) => translateWebMessage(locale, key, values),
+        }}
+      >
+        <RestoreBranchHarness
+          thread={thread}
+          currentRouteThreadKeyRef={currentRouteThreadKeyRef}
+          refreshGitStatus={refreshGitStatus}
+          focusComposer={focusComposer}
+          showErrors
+        />
+      </WebI18nContext>
+    );
+    await using screen = await render(surface("en"));
+    await screen.getByRole("button", { name: "Stop", exact: true }).click();
+    await expect
+      .element(screen.getByRole("button", { name: "Stopping...", exact: true }))
+      .toBeDisabled();
+    await screen.rerender(surface("zh-CN"));
+    finish(
+      AsyncResult.failure(
+        kind === "interrupted"
+          ? Cause.interrupt()
+          : Cause.fail(
+              kind === "owned"
+                ? null
+                : new Error(kind === "empty" ? "" : "Failed to stop background work."),
+            ),
+      ),
+    );
+    for (const locale of ["zh-CN", "en", "zh-CN", "en"] as const) {
+      await screen.rerender(surface(locale));
+      await expect
+        .element(
+          screen.getByRole("button", { name: locale === "en" ? "Stop" : "停止", exact: true }),
+        )
+        .toBeEnabled();
+      if (kind === "empty" || kind === "interrupted")
+        expect(screen.container.querySelector('[data-variant="error"]')).toBeNull();
+      else
+        await expect
+          .poll(() => screen.container.textContent)
+          .toContain(
+            kind === "owned" && locale === "zh-CN"
+              ? "停止后台任务失败。"
+              : "Failed to stop background work.",
+          );
+    }
+    expect(interrupt).toHaveBeenCalledExactlyOnceWith({
+      environmentId,
+      input: { threadId: thread.activeThreadId },
+    });
+    expect(refreshGitStatus).not.toHaveBeenCalled();
+    expect(focusComposer).not.toHaveBeenCalled();
+  },
+);
+it("does not stop background work after permission is denied", async () => {
+  setup();
+  state.allowed = false;
+  const interrupt = vi.fn();
+  state.switchRef = interrupt;
+  const thread = threadInput("denied-stop", "main");
+  await using screen = await render(
+    <RestoreBranchHarness
+      thread={thread}
+      currentRouteThreadKeyRef={{ current: thread.routeThreadKey }}
+      refreshGitStatus={() => undefined}
+      focusComposer={() => undefined}
+      showErrors
+    />,
+  );
+  await screen.getByRole("button", { name: "Stop", exact: true }).click();
+  expect(interrupt).not.toHaveBeenCalled();
+});

@@ -1204,6 +1204,7 @@ export function isCompactCommandMessage(message: ChatMessage): boolean {
 // one win when they collide.
 const OWNED_THREAD_ERRORS = {
   resumeFailed: "Could not resume thread.",
+  stopBackgroundFailed: "Failed to stop background work.",
   approvalFailed: "Failed to submit approval decision.",
   inputFailed: "Failed to submit user input.",
   dismissFailed: "Failed to dismiss the question.",
