@@ -1,6 +1,6 @@
+import type { makeThreadErrorSetter } from "../ChatView.logic";
 import { translateChatSource } from "~/i18n/chatSourceMessages";
 import { useI18n } from "~/i18n/WebI18nContext";
-import { translateWebSource } from "~/i18n/messages";
 
 import type { ThreadStructure } from "@t3tools/client-runtime/state/shell";
 import {
@@ -125,10 +125,9 @@ export function usePendingThreadRequests(input: {
   readonly setComposerDraftPrompt: (target: ScopedThreadRef | DraftId, prompt: string) => void;
   readonly promptRef: { current: string };
   readonly composerRef: RefObject<ChatComposerHandle | null>;
-  readonly setThreadError: (threadId: ThreadId, error: string | null) => void;
+  readonly setThreadError: ReturnType<typeof makeThreadErrorSetter>;
 }) {
   const { locale } = useI18n();
-  const tx = (source: string) => translateWebSource(locale, source);
   const {
     environmentId,
     activeThreadId,
@@ -294,7 +293,8 @@ export function usePendingThreadRequests(input: {
       const error = squashAtomCommandFailure(result);
       setThreadError(
         activeThreadId,
-        error instanceof Error ? error.message : tx("Failed to submit approval decision."),
+        error instanceof Error ? error.message : "Failed to submit approval decision.",
+        error instanceof Error ? undefined : "approvalFailed",
       );
     }
     setRespondingRequestIds((existing) => existing.filter((id) => id !== requestId));
@@ -333,7 +333,8 @@ export function usePendingThreadRequests(input: {
       if (!uploaded) {
         setThreadError(
           activeThreadId,
-          tx("Wait for attachments to finish uploading, or remove failed uploads."),
+          "Wait for attachments to finish uploading, or remove failed uploads.",
+          "uploadsPending",
         );
         return;
       }
@@ -359,7 +360,8 @@ export function usePendingThreadRequests(input: {
       const error = squashAtomCommandFailure(result);
       setThreadError(
         activeThreadId,
-        error instanceof Error ? error.message : tx("Failed to submit user input."),
+        error instanceof Error ? error.message : "Failed to submit user input.",
+        error instanceof Error ? undefined : "inputFailed",
       );
     }
     userInputResponsesInFlight.current.delete(responseKey);
@@ -381,7 +383,8 @@ export function usePendingThreadRequests(input: {
       const error = squashAtomCommandFailure(result);
       setThreadError(
         activeThreadId,
-        error instanceof Error ? error.message : tx("Failed to dismiss the question."),
+        error instanceof Error ? error.message : "Failed to dismiss the question.",
+        error instanceof Error ? undefined : "dismissFailed",
       );
     }
     setRespondingUserInputRequestIds((existing) => existing.filter((id) => id !== requestId));

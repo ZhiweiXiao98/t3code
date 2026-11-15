@@ -1202,9 +1202,17 @@ export function isCompactCommandMessage(message: ChatMessage): boolean {
 // Errors surface through two maps (draft-keyed and thread-keyed) whose entries
 // can race around promotion, so each write carries its time to let the latest
 // one win when they collide.
+const OWNED_THREAD_ERRORS = {
+  resumeFailed: "Could not resume thread.",
+  approvalFailed: "Failed to submit approval decision.",
+  inputFailed: "Failed to submit user input.",
+  dismissFailed: "Failed to dismiss the question.",
+  uploadsPending: "Wait for attachments to finish uploading, or remove failed uploads.",
+} as const;
+
 export type LocalThreadErrorEntry = {
   readonly message: string | null;
-  readonly ownedCode?: "resumeFailed";
+  readonly ownedCode?: keyof typeof OWNED_THREAD_ERRORS;
   readonly at: number;
 };
 
@@ -1213,10 +1221,9 @@ export function formatLocalThreadError(
   entry: LocalThreadErrorEntry | undefined,
   locale: ResolvedAppLocale,
 ): string | null {
-  return entry?.ownedCode === "resumeFailed" &&
-    entry.message === message &&
-    message === "Could not resume thread."
-    ? translateWebSource(locale, "Could not resume thread.")
+  const source = entry?.ownedCode === undefined ? undefined : OWNED_THREAD_ERRORS[entry.ownedCode];
+  return source !== undefined && entry?.message === message && message === source
+    ? translateWebSource(locale, source)
     : message;
 }
 
@@ -1274,7 +1281,7 @@ export function makeThreadErrorSetter(input: {
     const nextEntry: LocalThreadErrorEntry = {
       message: nextError,
       at: Date.now(),
-      ...(ownedCode === "resumeFailed" && nextError === "Could not resume thread."
+      ...(ownedCode !== undefined && nextError === OWNED_THREAD_ERRORS[ownedCode]
         ? { ownedCode }
         : {}),
     };

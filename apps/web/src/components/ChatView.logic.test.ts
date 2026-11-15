@@ -1322,3 +1322,44 @@ it.each(["server", "draft"] as const)(
     expect(entries[key]?.message).toBeNull();
   },
 );
+
+it.each([
+  ["approvalFailed", "Failed to submit approval decision.", "提交审批决定失败。"],
+  ["inputFailed", "Failed to submit user input.", "提交用户输入失败。"],
+  ["dismissFailed", "Failed to dismiss the question.", "忽略问题失败。"],
+  [
+    "uploadsPending",
+    "Wait for attachments to finish uploading, or remove failed uploads.",
+    "请等待附件上传完成，或移除上传失败的附件。",
+  ],
+] as const)("formats only paired owned pending-request %s", async (ownedCode, message, chinese) => {
+  const { formatLocalThreadError, makeThreadErrorSetter } = await import("./ChatView.logic");
+  const ref = {
+    environmentId: EnvironmentId.make("pending-map"),
+    threadId: ThreadId.make("pending-map"),
+  };
+  let entries: Record<string, import("./ChatView.logic").LocalThreadErrorEntry> = {};
+  const set = makeThreadErrorSetter({
+    routeThreadRef: ref,
+    routeThreadKey: "pending",
+    draftId: null,
+    serverThreadRef: ref,
+    setLocalServerErrorsByThreadKey: (update) => {
+      entries = typeof update === "function" ? update(entries) : update;
+    },
+    setLocalDraftErrorsByDraftId: () => undefined,
+  });
+  set(ref.threadId, message, ownedCode);
+  const entry = entries.pending!;
+  expect(entry.ownedCode).toBe(ownedCode);
+  const before = entries;
+  set(ref.threadId, message, ownedCode);
+  expect(entries).toBe(before);
+  set(ref.threadId, message);
+  expect(entries.pending?.ownedCode).toBeUndefined();
+  expect(entries).not.toBe(before);
+  expect(formatLocalThreadError(message, entry, "zh-CN")).toBe(chinese);
+  expect(formatLocalThreadError(message, entry, "en")).toBe(message);
+  expect(formatLocalThreadError(message, { message, at: 1 }, "zh-CN")).toBe(message);
+  expect(formatLocalThreadError(message, { ...entry, message: "stale" }, "zh-CN")).toBe(message);
+});
