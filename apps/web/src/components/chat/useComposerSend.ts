@@ -532,7 +532,11 @@ export function useComposerSend(input: ComposerSendInput) {
             branch: activeThreadBranch,
           });
     if (multipleModelBlock === "server-outdated") {
-      setThreadError(activeThread.id, "Update this server before starting multiple models.");
+      setThreadError(
+        activeThread.id,
+        "Update this server before starting multiple models.",
+        "multipleModelsServerOutdated",
+      );
       return;
     }
     if (multipleModelBlock === "needs-new-git-thread") {
@@ -774,7 +778,11 @@ export function useComposerSend(input: ComposerSendInput) {
       freshContext: freshArm !== undefined,
     });
     if (missingWorktreeBaseBranch) {
-      setThreadError(threadIdForSend, "Select a base branch before sending in New worktree mode.");
+      setThreadError(
+        threadIdForSend,
+        "Select a base branch before sending in New worktree mode.",
+        "worktreeBaseBranchMissing",
+      );
       return;
     }
     // Records bind attachments by the id each side knows: the local id for the optimistic

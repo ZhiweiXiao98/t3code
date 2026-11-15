@@ -1254,6 +1254,8 @@ export function isCompactCommandMessage(message: ChatMessage): boolean {
 // can race around promotion, so each write carries its time to let the latest
 // one win when they collide.
 const OWNED_THREAD_ERRORS = {
+  multipleModelsServerOutdated: "Update this server before starting multiple models.",
+  worktreeBaseBranchMissing: "Select a base branch before sending in New worktree mode.",
   multipleModelsFailed: "Failed to send messages.",
   sideChatMissingShell: "The side chat was created, but it did not reach this client.",
   sideChatUnavailable: "The side chat is no longer available.",
@@ -1325,6 +1327,10 @@ export function formatLocalThreadError(
 ): string | null {
   const source = ownedThreadErrorSource(entry?.ownedCode, entry?.ownedName);
   if (source === undefined || entry?.message !== message || message !== source) return message;
+  if (locale === "zh-CN" && entry.ownedCode === "multipleModelsServerOutdated")
+    return "启动多个模型前，请更新此服务器。";
+  if (locale === "zh-CN" && entry.ownedCode === "worktreeBaseBranchMissing")
+    return "请先选择基础分支，再以新工作树模式发送。";
   if (locale === "zh-CN" && entry.ownedCode === "sideChatUnavailable") return "旁支对话已不可用。";
   if (locale === "zh-CN" && entry.ownedCode === "sideChatModeFailed")
     return "无法设置旁支对话的权限模式。";

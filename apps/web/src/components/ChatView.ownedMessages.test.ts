@@ -654,3 +654,41 @@ it("pairs script failure literal names without claiming raw collisions", () => {
   expect(entries.script?.message).toBeNull();
   expect(entries.script?.ownedCode).toBeUndefined();
 });
+
+it.each([
+  [
+    "multipleModelsServerOutdated",
+    "Update this server before starting multiple models.",
+    "启动多个模型前，请更新此服务器。",
+  ],
+  [
+    "worktreeBaseBranchMissing",
+    "Select a base branch before sending in New worktree mode.",
+    "请先选择基础分支，再以新工作树模式发送。",
+  ],
+] as const)("pairs early send guard %s without raw lookup", (code, source, chinese) => {
+  const ref = {
+    environmentId: EnvironmentId.make("send-guard"),
+    threadId: ThreadId.make("send-guard"),
+  };
+  let entries: Record<string, LocalThreadErrorEntry> = {};
+  const set = makeThreadErrorSetter({
+    routeThreadRef: ref,
+    routeThreadKey: "guard",
+    draftId: null,
+    serverThreadRef: ref,
+    setLocalServerErrorsByThreadKey: (update) => {
+      entries = typeof update === "function" ? update(entries) : update;
+    },
+    setLocalDraftErrorsByDraftId: () => undefined,
+  });
+  set(ref.threadId, source, code);
+  expect(entries.guard?.ownedCode).toBe(code);
+  for (const locale of ["en", "zh-CN", "en"] as const)
+    expect(formatLocalThreadError(source, entries.guard, locale)).toBe(
+      locale === "en" ? source : chinese,
+    );
+  set(ref.threadId, source);
+  expect(entries.guard?.ownedCode).toBeUndefined();
+  expect(formatLocalThreadError(source, entries.guard, "zh-CN")).toBe(source);
+});
