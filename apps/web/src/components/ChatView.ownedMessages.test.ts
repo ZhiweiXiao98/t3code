@@ -3,6 +3,8 @@ import {
   MessageId,
   ProviderInstanceId,
   type ChatFileAttachment,
+  type ChatUnknownAttachment,
+  ThreadId,
 } from "@t3tools/contracts";
 import { AsyncResult } from "effect/reactivity";
 import { expect, it, vi } from "vite-plus/test";
@@ -11,6 +13,10 @@ import {
   makeModelDisabledReason,
   resolveFileAttachmentUrl,
   prepareRevertedMessageAttachments,
+  readOwnedRewindFailure,
+  makeThreadErrorSetter,
+  formatLocalThreadError,
+  type LocalThreadErrorEntry,
 } from "./ChatView.logic";
 
 it("keeps provider-switch eligibility identical while localizing the owned denial and tooltip", () => {
@@ -136,4 +142,81 @@ it("preserves attachment names and fetch arguments in a localized restore failur
   } finally {
     vi.unstubAllGlobals();
   }
+});
+
+it("keeps actual unsupported attachment ownership and direct messages separate from raw collisions", async () => {
+  const source = "This message has an attachment that cannot be restored.";
+  const attachment = {
+    type: "future-attachment",
+    id: "unknown",
+    name: "literal-$&-{file}",
+    mimeType: "application/x-future",
+    sizeBytes: 1,
+  } satisfies ChatUnknownAttachment;
+  const ref = {
+    environmentId: EnvironmentId.make("unknown-attachment"),
+    threadId: ThreadId.make("unknown-attachment"),
+  };
+  const message = {
+    id: MessageId.make("unknown-message"),
+    role: "user",
+    text: "opaque",
+    runId: null,
+    streaming: false,
+    createdAt: "2026-11-13T00:00:00.000Z",
+    updatedAt: "2026-11-13T00:00:00.000Z",
+    attachments: [attachment],
+  } satisfies Parameters<typeof prepareRevertedMessageAttachments>[0]["message"];
+  const createAssetUrl = vi.fn(async () =>
+    AsyncResult.success({ relativeUrl: "/opaque", expiresAt: 1 }),
+  );
+  let entries: Record<string, LocalThreadErrorEntry> = {};
+  const set = makeThreadErrorSetter({
+    routeThreadRef: ref,
+    routeThreadKey: "unknown",
+    draftId: null,
+    serverThreadRef: ref,
+    setLocalServerErrorsByThreadKey: (update) => {
+      entries = typeof update === "function" ? update(entries) : update;
+    },
+    setLocalDraftErrorsByDraftId: () => undefined,
+  });
+  for (const locale of ["en", "zh-CN", "en"] as const) {
+    const readLocale = vi.fn(() => locale);
+    const failure = await prepareRevertedMessageAttachments({
+      message,
+      environmentId: ref.environmentId,
+      httpBaseUrl: "https://example.invalid",
+      readLocale,
+      createAssetUrl,
+    }).then(
+      () => null,
+      (error: unknown) => error,
+    );
+    expect(failure).toBeInstanceOf(Error);
+    if (!(failure instanceof Error)) throw new Error("Expected attachment error");
+    expect(failure.message).toBe(locale === "en" ? source : "此消息包含无法恢复的附件。");
+    expect(readLocale).toHaveBeenCalledTimes(1);
+    const owned = readOwnedRewindFailure(failure);
+    expect(owned).toEqual({ error: source, ownedCode: "rewindUnsupportedAttachment" });
+    if (!owned) throw new Error("Expected owned error");
+    set(ref.threadId, owned.error, owned.ownedCode);
+    expect(formatLocalThreadError(source, entries.unknown, "zh-CN")).toBe(
+      "此消息包含无法恢复的附件。",
+    );
+    expect(formatLocalThreadError(source, entries.unknown, "en")).toBe(source);
+    set(ref.threadId, source);
+    expect(entries.unknown?.ownedCode).toBeUndefined();
+    expect(formatLocalThreadError(source, entries.unknown, "zh-CN")).toBe(source);
+    expect(readOwnedRewindFailure(new Error(failure.message))).toBeUndefined();
+    expect(
+      readOwnedRewindFailure(
+        Object.assign(new Error(failure.message), { ownedCode: "rewindUnsupportedAttachment" }),
+      ),
+    ).toBeUndefined();
+    failure.message = "changed";
+    expect(readOwnedRewindFailure(failure)).toBeUndefined();
+  }
+  expect(createAssetUrl).not.toHaveBeenCalled();
+  expect(message.attachments).toEqual([attachment]);
 });

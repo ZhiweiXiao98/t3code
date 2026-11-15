@@ -644,12 +644,17 @@ export async function prepareRevertedMessageAttachments(input: {
   return Promise.all(
     (input.message.attachments ?? []).map(async (attachment) => {
       if (attachment.type !== "image" && attachment.type !== "file") {
-        throw new Error(
+        const error = new Error(
           translateWebSource(
             input.readLocale?.() ?? "en",
             "This message has an attachment that cannot be restored.",
           ),
         );
+        ownedRewindFailures.set(error, {
+          message: error.message,
+          code: "rewindUnsupportedAttachment",
+        });
+        throw error;
       }
       const result = await input.createAssetUrl({
         environmentId: input.environmentId,
@@ -915,7 +920,10 @@ export function getStartedThreadModelChangeBlockReason(input: {
 
 const ownedRewindFailures = new WeakMap<
   Error,
-  { readonly message: string; readonly code: "rewindChanged" | "rewindTimeout" }
+  {
+    readonly message: string;
+    readonly code: "rewindChanged" | "rewindTimeout" | "rewindUnsupportedAttachment";
+  }
 >();
 
 export function readOwnedRewindFailure(error: unknown) {
@@ -1217,6 +1225,7 @@ export function isCompactCommandMessage(message: ChatMessage): boolean {
 // can race around promotion, so each write carries its time to let the latest
 // one win when they collide.
 const OWNED_THREAD_ERRORS = {
+  rewindUnsupportedAttachment: "This message has an attachment that cannot be restored.",
   rewindTimeout: "Timed out waiting for the thread to rewind.",
   rewindChanged: "The thread has changed. Select a message to rewind again.",
   rewindCapacity: "Make room for this message's attachments in the composer before rewinding.",

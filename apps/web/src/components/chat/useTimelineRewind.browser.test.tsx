@@ -113,11 +113,13 @@ function Probe({
   unavailable = false,
   eligibility,
   attachmentCase,
+  unknownAttachment = false,
 }: {
   absent?: boolean;
   unavailable?: boolean;
   eligibility?: "unsupported" | "running" | "sending";
   attachmentCase?: "owned" | "raw" | "empty";
+  unknownAttachment?: boolean;
 }) {
   const [entries, setEntries] = useState<Record<string, LocalThreadErrorEntry>>({});
   const [, setDismissTick] = useState(0);
@@ -148,6 +150,17 @@ function Probe({
               id: MessageId.make("rewind-message"),
               role: "user",
               text: "Literal $& {prompt}",
+              attachments: unknownAttachment
+                ? [
+                    {
+                      type: "future-attachment",
+                      id: ChatAttachmentId.make("unknown-attachment"),
+                      name: "literal-$&-{file}",
+                      mimeType: "application/x-future",
+                      sizeBytes: 1,
+                    },
+                  ]
+                : [],
               runId: null,
               streaming: false,
               createdAt: "2026-01-01T00:00:00.000Z",
@@ -220,6 +233,7 @@ function surface(
     unavailable?: boolean;
     eligibility?: "unsupported" | "running" | "sending";
     attachmentCase?: "owned" | "raw" | "empty";
+    unknownAttachment?: boolean;
   } = {},
 ) {
   fixture.locale = locale;
@@ -686,6 +700,47 @@ it.each(["owned", "raw", "empty"] as const)(
     expect(fixture.connection).toHaveBeenCalledExactlyOnceWith(ref.environmentId);
     expect(fixture.prepare).toHaveBeenCalledTimes(1);
     expect(fixture.query).not.toHaveBeenCalled();
+    expect(fixture.fork).not.toHaveBeenCalled();
+    expect(useComposerDraftStore.getState().getComposerDraft(ref)).toBe(before);
+  },
+);
+
+it.each(["owned", "raw", "empty"] as const)(
+  "keeps rewind unknown attachment %s notice current",
+  async (kind) => {
+    setup();
+    const source = "This message has an attachment that cannot be restored.";
+    const original = useComposerDraftStore.getState();
+    using _restore = { [Symbol.dispose]: () => useComposerDraftStore.setState(original, true) };
+    const before = original.getComposerDraft(ref);
+    fixture.connection.mockReturnValue({ httpBaseUrl: "https://example.invalid" });
+    if (kind !== "owned")
+      fixture.prepare.mockRejectedValueOnce(new Error(kind === "raw" ? source : ""));
+    await using screen = await render(
+      surface("en", { attachmentCase: "raw", unknownAttachment: true }),
+    );
+    using fetch = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("Unexpected fetch"));
+    await screen.getByRole("button", { name: "Confirm revert", exact: true }).click();
+    await expect.poll(() => fixture.prepare.mock.calls.length).toBe(1);
+    await expect
+      .poll(() => useComposerDraftStore.getState().rewindingThreadKeys.has("fork"))
+      .toBe(false);
+    for (const locale of ["en", "zh-CN", "en"] as const) {
+      await screen.rerender(surface(locale, { attachmentCase: "raw", unknownAttachment: true }));
+      if (kind === "empty")
+        expect(screen.container.querySelector('[data-variant="error"]')).toBeNull();
+      else
+        await expect
+          .poll(() => screen.container.textContent)
+          .toContain(
+            kind === "owned" && locale === "zh-CN" ? "此消息包含无法恢复的附件。" : source,
+          );
+    }
+    expect(fixture.connection).toHaveBeenCalledExactlyOnceWith(ref.environmentId);
+    expect(fixture.prepare).toHaveBeenCalledTimes(1);
+    expect(fixture.query).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+    expect(fixture.rewind).not.toHaveBeenCalled();
     expect(fixture.fork).not.toHaveBeenCalled();
     expect(useComposerDraftStore.getState().getComposerDraft(ref)).toBe(before);
   },
