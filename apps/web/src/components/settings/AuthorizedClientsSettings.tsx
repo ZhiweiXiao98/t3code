@@ -1,3 +1,4 @@
+import { clipboardErrorMessage } from "~/i18n/clipboardErrorMessages";
 import { advertisedEndpointLabel } from "./advertisedEndpointMessages";
 import { managedCapabilityDenial } from "../../i18n/managedPolicyMessages";
 import { useI18n, type WebTranslate } from "~/i18n/WebI18nContext";
@@ -321,7 +322,10 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
                 : translateAuthorizedClientsSource(translationLocale, "Could not copy pairing code")
             : translateAuthorizedClientsSource(translationLocale, "Clipboard copy unavailable"),
           description: canCopyToClipboard
-            ? error.message
+            ? (clipboardErrorMessage(error, translationLocale, {
+                target: "text",
+                displayTarget: "文本",
+              }) ?? error.message)
             : translateAuthorizedClientsSource(
                 translationLocale,
                 "Showing the full value instead.",

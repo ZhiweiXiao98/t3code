@@ -481,71 +481,85 @@ it.each(["zh-CN", "en"] as const)(
 );
 
 it.each([
-  ["owned", null],
-  ["raw", new Error("Literal $& {native}")],
-  ["empty", new Error("")],
-] as const)("uses settlement locale for pairing code copy failure: %s", async (_kind, cause) => {
-  using _setup = setupPairing();
-  const descriptor = Object.getOwnPropertyDescriptor(navigator, "clipboard");
-  let reject!: (cause: unknown) => void;
-  const promise = new Promise<never>((_resolve, fail) => {
-    reject = fail;
-  });
-  void promise.catch(() => {});
-  const writeText = vi.fn(() => promise);
-  const write = vi.fn();
-  Object.defineProperty(navigator, "clipboard", {
-    configurable: true,
-    value: { writeText, write },
-  });
-  vi.stubGlobal("isSecureContext", true);
-  using _clipboard = {
-    [Symbol.dispose]() {
-      if (descriptor) Object.defineProperty(navigator, "clipboard", descriptor);
-      else Reflect.deleteProperty(navigator, "clipboard");
-      vi.unstubAllGlobals();
-    },
-  };
-  using log = vi.spyOn(console, "error").mockImplementation(() => {});
-  await using screen = await render(copyCodeSurface("en"));
-  await using _drain = {
-    async [Symbol.asyncDispose]() {
-      await act(async () => {
-        reject(null);
-        await promise.catch(() => {});
-      });
-    },
-  };
-  await screen.getByRole("button", { name: "Copy code", exact: true }).click();
-  expect(writeText).toHaveBeenCalledExactlyOnceWith(dummyCredential);
-  expect(state.toast).not.toHaveBeenCalled();
-  await screen.rerender(copyCodeSurface("zh-CN"));
-  await act(async () => {
-    reject(cause);
-    await promise.catch(() => {});
-  });
-  expect(state.toast).toHaveBeenCalledExactlyOnceWith({
-    type: "error",
-    title: "无法复制配对码",
-    description: "Failed to copy text to the clipboard.",
-    data: { actionLayout: "stacked-end" },
-  });
-  expect(log).toHaveBeenCalledExactlyOnceWith(expect.any(ClipboardWriteError));
-  expect(log.mock.calls[0]?.[0]).toMatchObject({ target: "text", cause });
-  const dialog = page.getByRole("dialog", { name: "配对码", exact: true });
-  await expect.element(dialog).toBeVisible();
-  await expect.element(dialog.getByRole("textbox")).toHaveValue(dummyCredential);
-  await expect.element(dialog.getByRole("textbox")).toHaveAttribute("readonly", "");
-  await dialog.getByRole("button", { name: "完成", exact: true }).click();
-  await expect.element(dialog).not.toBeInTheDocument();
-  expect(writeText).toHaveBeenCalledTimes(1);
-  expect(write).not.toHaveBeenCalled();
-  expect(state.create).not.toHaveBeenCalled();
-  expect(state.created).not.toHaveBeenCalled();
-  expect(state.revoke).not.toHaveBeenCalled();
-  await screen.rerender(copyCodeSurface("en"));
-  expect(state.toast).toHaveBeenCalledTimes(1);
-});
+  ["owned", null, "zh-CN"],
+  ["raw", new Error("Literal $& {native}"), "zh-CN"],
+  ["empty", new Error(""), "zh-CN"],
+  ["English", new Error("Literal $& {native}"), "en"],
+] as const)(
+  "uses settlement locale for pairing code copy failure: %s",
+  async (_kind, cause, locale) => {
+    using _setup = setupPairing();
+    const descriptor = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    let reject!: (cause: unknown) => void;
+    const promise = new Promise<never>((_resolve, fail) => {
+      reject = fail;
+    });
+    void promise.catch(() => {});
+    const writeText = vi.fn(() => promise);
+    const write = vi.fn();
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText, write },
+    });
+    vi.stubGlobal("isSecureContext", true);
+    using _clipboard = {
+      [Symbol.dispose]() {
+        if (descriptor) Object.defineProperty(navigator, "clipboard", descriptor);
+        else Reflect.deleteProperty(navigator, "clipboard");
+        vi.unstubAllGlobals();
+      },
+    };
+    using log = vi.spyOn(console, "error").mockImplementation(() => {});
+    await using screen = await render(copyCodeSurface("en"));
+    await using _drain = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          reject(null);
+          await promise.catch(() => {});
+        });
+      },
+    };
+    await screen.getByRole("button", { name: "Copy code", exact: true }).click();
+    expect(writeText).toHaveBeenCalledExactlyOnceWith(dummyCredential);
+    expect(state.toast).not.toHaveBeenCalled();
+    await screen.rerender(copyCodeSurface(locale));
+    await act(async () => {
+      reject(cause);
+      await promise.catch(() => {});
+    });
+    expect(state.toast).toHaveBeenCalledExactlyOnceWith({
+      type: "error",
+      title: locale === "zh-CN" ? "无法复制配对码" : "Could not copy pairing code",
+      description:
+        locale === "zh-CN" ? "无法将 文本 复制到剪贴板。" : "Failed to copy text to the clipboard.",
+      data: { actionLayout: "stacked-end" },
+    });
+    expect(log).toHaveBeenCalledExactlyOnceWith(expect.any(ClipboardWriteError));
+    expect(log.mock.calls[0]?.[0]).toMatchObject({
+      target: "text",
+      cause,
+      message: "Failed to copy text to the clipboard.",
+    });
+    const dialog = page.getByRole("dialog", {
+      name: locale === "zh-CN" ? "配对码" : "Pairing code",
+      exact: true,
+    });
+    await expect.element(dialog).toBeVisible();
+    await expect.element(dialog.getByRole("textbox")).toHaveValue(dummyCredential);
+    await expect.element(dialog.getByRole("textbox")).toHaveAttribute("readonly", "");
+    await dialog
+      .getByRole("button", { name: locale === "zh-CN" ? "完成" : "Done", exact: true })
+      .click();
+    await expect.element(dialog).not.toBeInTheDocument();
+    expect(writeText).toHaveBeenCalledTimes(1);
+    expect(write).not.toHaveBeenCalled();
+    expect(state.create).not.toHaveBeenCalled();
+    expect(state.created).not.toHaveBeenCalled();
+    expect(state.revoke).not.toHaveBeenCalled();
+    await screen.rerender(copyCodeSurface("en"));
+    expect(state.toast).toHaveBeenCalledTimes(1);
+  },
+);
 it("reveals the dummy pairing code without copying when clipboard is absent", async () => {
   using _setup = setupPairing();
   const descriptor = Object.getOwnPropertyDescriptor(navigator, "clipboard");
