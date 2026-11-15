@@ -1,6 +1,6 @@
 import { EnvironmentId, ThreadId, type DiscoveredLocalServer } from "@t3tools/contracts";
 import * as Cause from "effect/Cause";
-import { AsyncResult } from "effect/reactivity";
+import { AsyncResult, Atom } from "effect/reactivity";
 import { expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 
@@ -28,19 +28,6 @@ vi.mock(import("../../state/session"), async (original) => ({
   ...(await original()),
   useEnvironmentScope: () => true,
 }));
-vi.mock(import("@effect/atom-react"), async (original) => {
-  const actual = await original();
-  return {
-    ...actual,
-    useAtomValue: ((...args: Parameters<typeof actual.useAtomValue>) => {
-      const value = actual.useAtomValue(...args);
-      return args[0] ===
-        previewEnvironment.stopLocalServer.permissionAtom(EnvironmentId.make("env"))
-        ? true
-        : value;
-    }) as typeof actual.useAtomValue,
-  };
-});
 vi.mock(import("../../state/environments"), async (original) => ({
   ...(await original()),
   useEnvironment: (() => ({
@@ -104,6 +91,10 @@ function setup() {
   state.openPort.mockReset().mockResolvedValue(AsyncResult.success(undefined));
   state.openPreview.mockReset();
   state.stop.mockReset().mockResolvedValue(AsyncResult.success(undefined));
+  const stopPermission = Atom.make(true);
+  return vi
+    .spyOn(previewEnvironment.stopLocalServer, "permissionAtom")
+    .mockReturnValue(stopPermission);
 }
 
 const localizedPanel = () => (
@@ -120,7 +111,7 @@ const localizedPanel = () => (
 );
 
 it("pages servers four at a time, collapses back, and resets on thread switch", async () => {
-  setup();
+  using _permission = setup();
   await using screen = await render(panel("a"));
   const count = (selector: string) => screen.container.querySelectorAll(selector).length;
   const expectRows = (rows: number) => vi.waitFor(() => expect(count("li")).toBe(rows));
@@ -143,7 +134,7 @@ it("pages servers four at a time, collapses back, and resets on thread switch", 
 });
 
 it("localizes server action failures at completion without translating raw errors", async () => {
-  setup();
+  using _permission = setup();
   const raw = new Error("Unable to open preview");
   state.openExternal.mockRejectedValue(raw);
   state.openPort.mockResolvedValue(AsyncResult.failure(Cause.fail(raw)));
@@ -240,17 +231,26 @@ it("localizes server action failures at completion without translating raw error
   );
 
   toast.mockClear();
+  const openCalls = state.openPort.mock.calls.length;
+  const stopCalls = state.stop.mock.calls.length;
   state.openPort.mockResolvedValue(AsyncResult.failure(Cause.interrupt()));
   state.stop.mockResolvedValue(AsyncResult.failure(Cause.interrupt()));
   await act(async () =>
     row.element().dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true })),
   );
+  await vi.waitFor(() => expect(state.openPort).toHaveBeenCalledTimes(openCalls + 1));
+  const stop = screen.getByRole("button", { name: "停止 localhost:3000", exact: true });
+  await expect.element(stop).toBeVisible();
+  await expect.element(stop).toBeEnabled();
   await act(async () =>
-    screen
-      .getByRole("button", { name: "停止 localhost:3000", exact: true })
-      .element()
-      .dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true })),
+    stop.element().dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true })),
   );
+  await vi.waitFor(() => expect(state.stop).toHaveBeenCalledTimes(stopCalls + 1));
+  expect(state.stop).toHaveBeenLastCalledWith({
+    environmentId: EnvironmentId.make("env"),
+    input: { pid: 1, port: 3000 },
+  });
+  await expect.element(stop).toBeEnabled();
   expect(toast).not.toHaveBeenCalled();
 });
 
@@ -260,7 +260,7 @@ it.each([
 ] as const)(
   "localizes the server browser modifier tooltip on %s",
   async (platform, english, chinese) => {
-    setup();
+    using _permission = setup();
     using _platform = vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
     await using screen = await render(localizedPanel());
     const row = screen.getByRole("button", { name: /^localhost:3000/ });
