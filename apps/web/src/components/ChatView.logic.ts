@@ -1204,6 +1204,9 @@ export function isCompactCommandMessage(message: ChatMessage): boolean {
 // one win when they collide.
 const OWNED_THREAD_ERRORS = {
   resumeFailed: "Could not resume thread.",
+  forkFailed: "Failed to fork this response.",
+  forkMissing:
+    "The fork was created, but its thread data did not reach this client. Reconnect and try opening it from the sidebar.",
   stopBackgroundFailed: "Failed to stop background work.",
   approvalFailed: "Failed to submit approval decision.",
   inputFailed: "Failed to submit user input.",

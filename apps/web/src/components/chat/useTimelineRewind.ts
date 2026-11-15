@@ -1,5 +1,4 @@
 import { readWebI18n } from "~/i18n/readWebI18n";
-import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
 import type { EnvironmentThreadShell, ThreadStructure } from "@t3tools/client-runtime/state/shell";
 import type { ComposerThreadTarget } from "../../composerDraftStore";
@@ -61,8 +60,6 @@ interface TimelineRewindInput {
  * the composer) and forking a new thread from a run.
  */
 export function useTimelineRewind(input: TimelineRewindInput) {
-  const { locale: uiLocale } = useI18n();
-
   const {
     environmentId,
     routeThreadRef,
@@ -208,9 +205,8 @@ export function useTimelineRewind(input: TimelineRewindInput) {
         const error = squashAtomCommandFailure(result);
         setThreadError(
           activeThread.id,
-          error instanceof Error
-            ? error.message
-            : translateWebSource(uiLocale, "Failed to fork this response."),
+          error instanceof Error ? error.message : "Failed to fork this response.",
+          error instanceof Error ? undefined : "forkFailed",
         );
       }
       return;
@@ -219,10 +215,8 @@ export function useTimelineRewind(input: TimelineRewindInput) {
     if (!targetThreadReady) {
       setThreadError(
         activeThread.id,
-        translateWebSource(
-          readWebI18n().locale,
-          "The fork was created, but its thread data did not reach this client. Reconnect and try opening it from the sidebar.",
-        ),
+        "The fork was created, but its thread data did not reach this client. Reconnect and try opening it from the sidebar.",
+        "forkMissing",
       );
       return;
     }

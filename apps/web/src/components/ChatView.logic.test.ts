@@ -1324,6 +1324,12 @@ it.each(["server", "draft"] as const)(
 );
 
 it.each([
+  ["forkFailed", "Failed to fork this response.", "从此回复创建分支失败。"],
+  [
+    "forkMissing",
+    "The fork was created, but its thread data did not reach this client. Reconnect and try opening it from the sidebar.",
+    "分支会话已创建，但其数据未能到达此客户端。请重新连接，然后尝试从侧边栏打开。",
+  ],
   ["stopBackgroundFailed", "Failed to stop background work.", "停止后台任务失败。"],
   ["approvalFailed", "Failed to submit approval decision.", "提交审批决定失败。"],
   ["inputFailed", "Failed to submit user input.", "提交用户输入失败。"],
