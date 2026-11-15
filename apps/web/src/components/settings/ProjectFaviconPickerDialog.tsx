@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { useAtomValue } from "@effect/atom-react";
 import type { EnvironmentId } from "@t3tools/contracts";
 import { isWindowsAbsolutePath } from "@t3tools/shared/path";
@@ -106,6 +107,7 @@ export function ProjectFaviconPickerDialog(props: {
                         onSelect(path);
                       })
                       .catch((error: unknown) => {
+                        const { t } = readWebI18n();
                         toastManager.add({
                           type: "error",
                           title: t("projectIcon.openFailed"),
