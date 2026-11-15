@@ -115,7 +115,11 @@ export function DesktopWebLinkCoordinator() {
 
   const reportFailure = (url: string, description = url) =>
     toastManager.add(
-      stackedThreadToast({ type: "error", title: tx("Could not open the link"), description }),
+      stackedThreadToast({
+        type: "error",
+        title: translateConnectAgentSource(readWebI18n().locale, "Could not open the link"),
+        description,
+      }),
     );
 
   const reportPairingFailure = (error: unknown) =>

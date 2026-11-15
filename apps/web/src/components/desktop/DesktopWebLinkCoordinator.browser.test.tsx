@@ -208,38 +208,56 @@ function setup() {
 /** Mounts the coordinator behind a desktop bridge that hands over `urls` once the renderer is ready. */
 async function mount(...urls: string[]) {
   let deliver: ((url: string) => void) | undefined;
+  let subscriptions = 0;
+  let unsubscriptions = 0;
+  let readyCalls = 0;
   await using stack = new AsyncDisposableStack();
   stack.use(
     stubGlobal("desktopBridge", {
       getClientSettings: async () => null,
       webLinks: {
         onOpen: (listener: (url: string) => void) => {
+          subscriptions += 1;
           deliver = listener;
-          return () => undefined;
+          return () => {
+            unsubscriptions += 1;
+          };
         },
         setReady: async (ready: boolean) => {
-          if (ready) for (const url of urls.splice(0)) deliver?.(url);
+          if (ready) {
+            readyCalls += 1;
+            for (const url of urls.splice(0)) deliver?.(url);
+          }
         },
       },
     }),
   );
-  stack.use(
-    await render(
-      <AppAtomRegistryProvider>
-        <WebI18nContext
-          value={{
-            locale: state.locale,
-            appLocale: state.locale,
-            setAppLocale: () => undefined,
-            t: (key, values) => translateWebMessage(state.locale, key, values),
-          }}
-        >
-          <DesktopWebLinkCoordinator />
-        </WebI18nContext>
-      </AppAtomRegistryProvider>,
-    ),
+  const view = () => (
+    <AppAtomRegistryProvider>
+      <WebI18nContext
+        value={{
+          locale: state.locale,
+          appLocale: state.locale,
+          setAppLocale: () => undefined,
+          t: (key, values) => translateWebMessage(state.locale, key, values),
+        }}
+      >
+        <DesktopWebLinkCoordinator />
+      </WebI18nContext>
+    </AppAtomRegistryProvider>
   );
-  return stack.move();
+  const screen = stack.use(await render(view()));
+  const owned = stack.move();
+  return {
+    [Symbol.asyncDispose]: () => owned.disposeAsync(),
+    rerenderLocale: async (locale: ResolvedAppLocale) => {
+      state.locale = locale;
+      await screen.rerender(view());
+    },
+    subscriptions: () => subscriptions,
+    unsubscriptions: () => unsubscriptions,
+    readyCalls: () => readyCalls,
+  };
 }
 
 it("holds a launch PR link until project discovery settles, then opens the PR view", async () => {
@@ -491,6 +509,85 @@ it.each(["owned", "class", "plain", "tag", "empty"] as const)(
     });
     expect(state.defaults).toHaveBeenCalledTimes(kind === "owned" ? 1 : 0);
     expect(useRightPanelStore.getState().byThreadKey).toBe(panel);
+    for (const mock of [
+      state.openPreview,
+      state.preview,
+      state.openScratchProject,
+      state.navigate,
+      state.openLink,
+      state.connectPairing,
+      state.confirm,
+    ])
+      expect(mock).not.toHaveBeenCalled();
+  },
+);
+
+it.each(["owned", "raw"] as const)(
+  "uses current title for pending desktop preview %s failure",
+  async (kind) => {
+    const initialPanel = useRightPanelStore.getState();
+    const initialDiff = useDiffPanelStore.getState();
+    using _stores = {
+      [Symbol.dispose]: () => {
+        useRightPanelStore.setState(initialPanel, true);
+        useDiffPanelStore.setState(initialDiff, true);
+      },
+    };
+    setup();
+    state.previewAvailable = true;
+    state.routeParams = { environmentId: "local", threadId: "thread" };
+    useRightPanelStore.getState().openBrowser(threadRef, null);
+    let reject!: (cause: unknown) => void;
+    const pending = new Promise<never>((_, r) => {
+      reject = r;
+    });
+    void pending.catch(() => undefined);
+    if (!realPreview.open) throw new Error("Missing actual helper");
+    if (kind === "owned") {
+      state.openUrl.mockImplementation(realPreview.open);
+      state.defaults.mockReturnValue(pending);
+    } else
+      state.openUrl.mockImplementation(async () => {
+        try {
+          await pending;
+        } catch (error) {
+          return AsyncResult.failure(Cause.fail(error));
+        }
+      });
+    const url = "https://literal.example/title";
+    await using coordinator = await mount(url);
+    await using _settle = {
+      [Symbol.asyncDispose]: async () => {
+        await act(async () => {
+          reject(new Error("private fallback"));
+          await Promise.resolve();
+        });
+      },
+    };
+    await vi.waitFor(() =>
+      expect(kind === "owned" ? state.defaults : state.openUrl).toHaveBeenCalledTimes(1),
+    );
+    expect(state.toast).not.toHaveBeenCalled();
+    await coordinator.rerenderLocale("zh-CN");
+    const raw = "Could not open the link";
+    await act(async () => reject(new Error(raw)));
+    await vi.waitFor(() => expect(state.toast).toHaveBeenCalledTimes(1));
+    expect(state.toast.mock.calls[0]?.[0]).toMatchObject({
+      type: "error",
+      title: "无法打开链接",
+      description: kind === "owned" ? "无法读取浏览器设置。" : raw,
+    });
+    await coordinator.rerenderLocale("en");
+    expect(coordinator.readyCalls()).toBe(1);
+    expect(coordinator.subscriptions()).toBe(1);
+    expect(coordinator.unsubscriptions()).toBe(0);
+    expect(state.openUrl).toHaveBeenCalledExactlyOnceWith({
+      threadRef,
+      url,
+      openPreview: state.openPreview,
+    });
+    expect(state.defaults).toHaveBeenCalledTimes(kind === "owned" ? 1 : 0);
+    expect(state.toast).toHaveBeenCalledTimes(1);
     for (const mock of [
       state.openPreview,
       state.preview,
