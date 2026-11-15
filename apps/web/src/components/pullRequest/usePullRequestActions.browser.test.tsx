@@ -1,3 +1,4 @@
+import { useComposerDraftStore } from "~/composerDraftStore";
 import { WebI18nContext } from "~/i18n/WebI18nContext";
 import { translateWebMessage } from "~/i18n/messages";
 import { readableFailure } from "./pullRequestDetail.logic";
@@ -14,17 +15,24 @@ import { userEvent } from "vite-plus/test/browser";
 
 import { act, render } from "../../../test/render";
 import { type EnvironmentPullRequestEntry } from "./pullRequestList.logic";
-import { usePullRequestActionRunner, usePullRequestCloseBatch } from "./usePullRequestActions";
+import {
+  usePullRequestActionRunner,
+  usePullRequestCloseBatch,
+  usePullRequestHandoffs,
+} from "./usePullRequestActions";
 
 const state = vi.hoisted(() => ({
   runAction: vi.fn(),
   toast: vi.fn(),
+  updateToast: vi.fn(),
+  newThread: vi.fn(),
+  prepare: vi.fn(),
   success: vi.fn(),
   locale: "en" as "en" | "zh-CN",
 }));
 vi.mock("../ui/toast", async (original) => ({
   ...(await original<typeof import("../ui/toast")>()),
-  toastManager: { add: state.toast },
+  toastManager: { add: state.toast, update: state.updateToast },
 }));
 vi.mock("~/i18n/readWebI18n", () => ({
   readWebI18n: () => {
@@ -555,5 +563,131 @@ it.each(["one", "two", "mixed"] as const)(
     expect(state.toast).toHaveBeenCalledTimes(1);
     expect(state.success).toHaveBeenCalledTimes(kind === "two" ? 2 : 1);
     expect(state.runAction).toHaveBeenCalledTimes(entries.length);
+  },
+);
+
+vi.mock(import("~/hooks/useHandleNewThread"), async (original) => ({
+  ...(await original()),
+  useNewThreadHandler: () => state.newThread,
+}));
+vi.mock(import("~/state/sourceControlActions"), async (original) => ({
+  ...(await original()),
+  usePreparePullRequestThreadAction: () => ({
+    isAllowed: true,
+    isPending: false,
+    resetError: () => {},
+    run: state.prepare,
+    error: null,
+  }),
+}));
+const handoffDetail = {
+  projectId: ProjectId.make("handoff-project"),
+  workspaceRoot: "/literal/$&/{workspace}",
+  url: "https://github.com/owner/repo/pull/42",
+};
+const handoffTask = { prompt: "Literal $& {task}" };
+function HandoffProbe() {
+  const { handoff, startHandoff } = usePullRequestHandoffs({
+    environmentId: EnvironmentId.make("handoff-environment"),
+    detail: handoffDetail,
+  });
+  return (
+    <>
+      <button type="button" onClick={() => void startHandoff("conflicts", handoffTask)}>
+        Start handoff
+      </button>
+      <output aria-label="Handoff state">{handoff ?? "idle"}</output>
+    </>
+  );
+}
+function handoffSurface(locale: "en" | "zh-CN") {
+  state.locale = locale;
+  return (
+    <WebI18nContext
+      value={{
+        locale,
+        appLocale: locale,
+        setAppLocale: () => {},
+        t: (key, values) => translateWebMessage(locale, key, values),
+      }}
+    >
+      <HandoffProbe />
+    </WebI18nContext>
+  );
+}
+it.each([
+  ["null", false, null],
+  ["raw rejection", true, new Error("Literal $& {thread failure}")],
+  ["empty rejection", true, new Error("")],
+  ["unknown rejection", true, undefined],
+] as const)(
+  "uses settlement locale for checkout thread opening failure: %s",
+  async (_kind, reject, cause) => {
+    const before = useComposerDraftStore.getState();
+    using _restore = {
+      [Symbol.dispose]() {
+        useComposerDraftStore.setState(before, true);
+        state.locale = "en";
+        state.newThread.mockReset();
+        state.toast.mockReset();
+      },
+    };
+    let finish = () => {};
+    let fail = (_cause: unknown) => {};
+    const pending = new Promise<null>((resolve, reject) => {
+      finish = () => resolve(null);
+      fail = reject;
+    });
+    void pending.catch(() => {});
+    state.newThread.mockReset().mockReturnValueOnce(pending);
+    state.prepare.mockClear();
+    state.runAction.mockClear();
+    state.toast.mockReset().mockReturnValue("handoff-toast");
+    state.updateToast.mockClear();
+    await using screen = await render(handoffSurface("en"));
+    await using _settle = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          finish();
+          await pending.catch(() => {});
+        });
+      },
+    };
+    const button = screen.getByRole("button", { name: "Start handoff", exact: true });
+    await button.click();
+    await expect
+      .element(screen.getByRole("status", { name: "Handoff state" }))
+      .toHaveTextContent("conflicts");
+    await button.click();
+    expect(state.newThread).toHaveBeenCalledExactlyOnceWith({
+      environmentId: EnvironmentId.make("handoff-environment"),
+      projectId: handoffDetail.projectId,
+    });
+    expect(state.toast).toHaveBeenCalledExactlyOnceWith({
+      type: "loading",
+      title: "Preparing the pull request checkout...",
+    });
+    expect(state.updateToast).not.toHaveBeenCalled();
+    await screen.rerender(handoffSurface("zh-CN"));
+    await act(async () => {
+      if (reject) fail(cause);
+      else finish();
+      await pending.catch(() => {});
+    });
+    expect(state.updateToast).toHaveBeenCalledExactlyOnceWith("handoff-toast", {
+      type: "error",
+      title: "无法为检出目录打开任务",
+      description: "请从项目中重试，或先打开一个任务。",
+    });
+    await expect
+      .element(screen.getByRole("status", { name: "Handoff state" }))
+      .toHaveTextContent("idle");
+    expect(state.prepare).not.toHaveBeenCalled();
+    expect(state.runAction).not.toHaveBeenCalled();
+    expect(useComposerDraftStore.getState()).toBe(before);
+    await screen.rerender(handoffSurface("en"));
+    expect(state.newThread).toHaveBeenCalledTimes(1);
+    expect(state.toast).toHaveBeenCalledTimes(1);
+    expect(state.updateToast).toHaveBeenCalledTimes(1);
   },
 );

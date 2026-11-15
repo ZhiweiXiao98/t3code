@@ -363,6 +363,7 @@ export function usePullRequestHandoffs({
       () => null,
     );
     if (opened === null) {
+      const { locale } = readWebI18n();
       setHandoff(null);
       toastManager.update(toastId, {
         type: "error",
