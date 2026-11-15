@@ -1,3 +1,4 @@
+import type { LocalThreadErrorEntry } from "../ChatView.logic";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
 import type { ModelSelection, RuntimeMode, ScopedThreadRef } from "@t3tools/contracts";
@@ -31,7 +32,7 @@ export function useSideChat(input: {
     readonly runtimeMode: RuntimeMode;
     readonly modelSelection: ModelSelection | undefined;
   };
-  readonly onError: (message: string) => void;
+  readonly onError: (message: string, ownedCode?: LocalThreadErrorEntry["ownedCode"]) => void;
 }) {
   const { locale: incrementalLocale } = useI18n();
   const pendingRef = useRef(false);
@@ -46,10 +47,14 @@ export function useSideChat(input: {
   const reportFailure = (
     failure: Extract<AtomCommandResult<unknown, unknown>, { readonly _tag: "Failure" }>,
     fallback: string,
+    ownedCode?: LocalThreadErrorEntry["ownedCode"],
   ) => {
     if (isAtomCommandInterrupted(failure)) return;
     const error = squashAtomCommandFailure(failure);
-    input.onError(error instanceof Error ? error.message : fallback);
+    input.onError(
+      error instanceof Error ? error.message : fallback,
+      error instanceof Error ? undefined : ownedCode,
+    );
   };
   const start = async (threadRef: ScopedThreadRef, prompt: string | undefined) => {
     const { runtimeMode, modelSelection } = input.readSettings();
@@ -63,7 +68,7 @@ export function useSideChat(input: {
       },
     });
     if (fork._tag === "Failure") {
-      reportFailure(fork, translateWebSource(incrementalLocale, "Could not start a side chat."));
+      reportFailure(fork, "Could not start a side chat.", "sideChatForkFailed");
       return false;
     }
     // Drops the empty side chat a failed start leaves behind; one that got its message stays.

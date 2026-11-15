@@ -527,3 +527,28 @@ it.each(["server", "draft"] as const)("pairs reconnect labels atomically in the 
   expect(entries.dynamic?.ownedCode).toBeUndefined();
   expect(entries.dynamic?.ownedName).toBeUndefined();
 });
+
+it("pairs side chat fork ownership without claiming raw collisions", () => {
+  const source = "Could not start a side chat.";
+  const ref = { environmentId: EnvironmentId.make("edit"), threadId: ThreadId.make("edit") };
+  let entries: Record<string, LocalThreadErrorEntry> = {};
+  const set = makeThreadErrorSetter({
+    routeThreadRef: ref,
+    routeThreadKey: "edit",
+    draftId: null,
+    serverThreadRef: ref,
+    setLocalServerErrorsByThreadKey: (update) => {
+      entries = typeof update === "function" ? update(entries) : update;
+    },
+    setLocalDraftErrorsByDraftId: () => undefined,
+  });
+  set(ref.threadId, source, "sideChatForkFailed");
+  expect(entries.edit?.ownedCode).toBe("sideChatForkFailed");
+  for (const locale of ["en", "zh-CN", "en"] as const)
+    expect(formatLocalThreadError(source, entries.edit, locale)).toBe(
+      locale === "en" ? source : "无法启动旁支对话。",
+    );
+  set(ref.threadId, source);
+  expect(entries.edit?.ownedCode).toBeUndefined();
+  expect(formatLocalThreadError(source, entries.edit, "zh-CN")).toBe(source);
+});
