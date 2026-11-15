@@ -862,6 +862,7 @@ export function PullRequestDetailPanel({
       return false;
     }
     if (action === "revert") {
+      const { locale: uiLocale } = readWebI18n();
       toastManager.add({
         type: "success",
         title:

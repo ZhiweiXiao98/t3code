@@ -26,6 +26,7 @@ const { permissions, mocks } = vi.hoisted(() => ({
   mocks: {
     gitlab: false,
     draftAction: false,
+    revertAction: false,
     commentAction: false,
     postComment: vi.fn(),
     queue: vi.fn<(submit: (text: string) => void) => void>(),
@@ -33,6 +34,7 @@ const { permissions, mocks } = vi.hoisted(() => ({
     runAction: vi.fn(),
     acted: vi.fn(),
     refresh: vi.fn(),
+    stackRefresh: vi.fn(),
     command: vi.fn(),
     newThread: vi.fn(),
     writeHandoff: vi.fn(),
@@ -91,7 +93,7 @@ vi.mock(import("~/state/usePullRequestStack"), async (original) => ({
     isFresh: true,
     isPending: false,
     error: null,
-    refresh: vi.fn(),
+    refresh: mocks.stackRefresh,
   })) as never,
 }));
 vi.mock(import("~/state/use-atom-command"), async (original) => ({
@@ -196,7 +198,14 @@ const commentDetail: PullRequestDetailView = {
   capabilities: { ...detail.capabilities, comment: true, actions: ["reopen"] },
   viewerPermissions: { ...detail.viewerPermissions, comment: true, actions: ["reopen"] },
 };
+const revertDetail: PullRequestDetailView = {
+  ...detail,
+  state: "merged",
+  capabilities: { ...detail.capabilities, actions: ["revert"] },
+  viewerPermissions: { ...detail.viewerPermissions, actions: ["revert"] },
+};
 function selectedDetail() {
+  if (mocks.revertAction) return revertDetail;
   if (mocks.commentAction) return commentDetail;
   if (mocks.draftAction) return draftDetail;
   return mocks.gitlab ? gitlabDetail : detail;
@@ -1497,3 +1506,96 @@ it.each(["question", "explain"] as const)(
     expect(useComposerDraftStore.getState()).toBe(before);
   },
 );
+
+it("uses settlement locale for revert action success", async () => {
+  const { AsyncResult } = await import("effect/reactivity");
+  const Cause = await import("effect/Cause");
+  type Result =
+    | ReturnType<typeof AsyncResult.success<undefined>>
+    | ReturnType<typeof AsyncResult.failure<unknown, unknown>>;
+  const state = useComposerDraftStore.getState();
+  using _restore = {
+    [Symbol.dispose]() {
+      useComposerDraftStore.setState(state, true);
+      mocks.revertAction = false;
+      mocks.locale = "en";
+      mocks.runAction.mockReset();
+    },
+  };
+  setup();
+  mocks.revertAction = true;
+  mocks.command.mockClear();
+  mocks.toast.mockClear();
+  mocks.acted.mockClear();
+  mocks.refresh.mockClear();
+  mocks.stackRefresh.mockClear();
+  let finish = (_result: Result) => {};
+  mocks.runAction.mockReset().mockReturnValueOnce(
+    new Promise<Result>((resolve) => {
+      finish = resolve;
+    }),
+  );
+  await using screen = await render(copySurface("en"));
+  await using _settle = {
+    async [Symbol.asyncDispose]() {
+      await act(async () => {
+        finish(AsyncResult.failure(Cause.interrupt()));
+        await Promise.resolve();
+      });
+    },
+  };
+  const before = useComposerDraftStore.getState();
+  const trigger = screen.getByRole("button", { name: "More pull request actions", exact: true });
+  await trigger.click();
+  await page.getByRole("menuitem", { name: "Revert changes", exact: true }).click();
+  expect(mocks.runAction).not.toHaveBeenCalled();
+  expect(mocks.acted).not.toHaveBeenCalled();
+  await page.getByRole("menuitem", { name: "Confirm revert?", exact: true }).click();
+  expect(mocks.runAction).toHaveBeenCalledExactlyOnceWith({
+    environmentId,
+    input: {
+      projectId: detail.projectId,
+      repository: detail.repository,
+      number: detail.number,
+      action: "revert",
+    },
+  });
+  expect(mocks.acted).toHaveBeenCalledExactlyOnceWith("revert", "sent");
+  await trigger.click();
+  const pending = page.getByRole("menuitem", { name: "Revert changes", exact: true });
+  await expect.element(pending).toHaveAttribute("aria-disabled", "true");
+  await act(async () => {
+    pending.element().dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+  });
+  expect(mocks.runAction).toHaveBeenCalledTimes(1);
+  expect(mocks.toast).not.toHaveBeenCalled();
+  expect(mocks.refresh).not.toHaveBeenCalled();
+  expect(mocks.stackRefresh).not.toHaveBeenCalled();
+  await screen.rerender(copySurface("zh-CN"));
+  await act(async () => {
+    finish(AsyncResult.success(undefined));
+    await Promise.resolve();
+  });
+  expect(mocks.toast).toHaveBeenCalledExactlyOnceWith({
+    type: "success",
+    title: "已创建回退变更请求",
+  });
+  expect(mocks.acted.mock.calls).toEqual([
+    ["revert", "sent"],
+    ["revert", "done", undefined],
+  ]);
+  expect(mocks.toast.mock.invocationCallOrder[0]).toBeLessThan(
+    mocks.acted.mock.invocationCallOrder[1]!,
+  );
+  expect(mocks.refresh).toHaveBeenCalledTimes(1);
+  expect(mocks.stackRefresh).toHaveBeenCalledTimes(1);
+  expect(mocks.command).not.toHaveBeenCalled();
+  expect(useComposerDraftStore.getState()).toBe(before);
+  await screen.rerender(copySurface("en"));
+  await expect
+    .element(page.getByRole("menuitem", { name: "Revert changes", exact: true }))
+    .not.toHaveAttribute("aria-disabled", "true");
+  expect(mocks.runAction).toHaveBeenCalledTimes(1);
+  expect(mocks.toast).toHaveBeenCalledTimes(1);
+  expect(mocks.acted).toHaveBeenCalledTimes(2);
+});
