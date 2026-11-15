@@ -10,6 +10,7 @@ import {
   ProjectId,
   SourceControlProviderKind,
   type PullRequestRef,
+  type GitPreparePullRequestThreadResult,
 } from "@t3tools/contracts";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
 import { expect, it, vi } from "vite-plus/test";
@@ -795,3 +796,114 @@ it.each([
   expect(state.toast).toHaveBeenCalledTimes(1);
   expect(state.updateToast).toHaveBeenCalledTimes(1);
 });
+
+it.each([
+  ["worktree null", "/literal/$&/{worktree}", false, null],
+  ["local null", null, false, null],
+  ["raw rejection", "/literal/$&/{worktree}", true, new Error("Literal $& {retarget failure}")],
+  ["empty rejection", null, true, new Error("")],
+  ["unknown rejection", "/literal/$&/{worktree}", true, undefined],
+] as const)(
+  "uses settlement locale for checkout retarget failure: %s",
+  async (_kind, worktreePath, reject, cause) => {
+    const { AsyncResult } = await import("effect/reactivity");
+    const before = useComposerDraftStore.getState();
+    using _restore = {
+      [Symbol.dispose]() {
+        useComposerDraftStore.setState(before, true);
+        state.locale = "en";
+        state.newThread.mockReset();
+        state.prepare.mockReset();
+        state.toast.mockReset();
+      },
+    };
+    const opened = {
+      draftId: DraftId.make("fixture-pointed-draft"),
+      threadId: ThreadId.make("fixture-pointed-thread"),
+    };
+    const prepared: GitPreparePullRequestThreadResult = {
+      pullRequest: {
+        number: 42,
+        title: "Literal PR",
+        url: handoffDetail.url,
+        baseBranch: "main",
+        headBranch: "feature",
+        state: "open",
+      },
+      branch: "feature/$&/{literal}",
+      worktreePath,
+      isOnPullRequestHead: true,
+    };
+    let finish = () => {};
+    let fail = (_cause: unknown) => {};
+    const pending = new Promise<null>((resolve, reject) => {
+      finish = () => resolve(null);
+      fail = reject;
+    });
+    void pending.catch(() => {});
+    state.newThread.mockReset().mockResolvedValueOnce(opened).mockReturnValueOnce(pending);
+    state.prepare.mockReset().mockResolvedValueOnce(AsyncResult.success(prepared));
+    state.runAction.mockClear();
+    state.toast.mockReset().mockReturnValue("pointed-toast");
+    state.updateToast.mockClear();
+    await using screen = await render(handoffSurface("en"));
+    await using _settle = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          finish();
+          await pending.catch(() => {});
+        });
+      },
+    };
+    const button = screen.getByRole("button", { name: "Start handoff", exact: true });
+    await button.click();
+    await expect.poll(() => state.newThread.mock.calls.length).toBe(2);
+    const projectRef = {
+      environmentId: EnvironmentId.make("handoff-environment"),
+      projectId: handoffDetail.projectId,
+    };
+    expect(state.newThread).toHaveBeenNthCalledWith(1, projectRef);
+    expect(state.newThread).toHaveBeenNthCalledWith(2, projectRef, {
+      branch: prepared.branch,
+      worktreePath,
+      envMode: worktreePath === null ? "local" : "worktree",
+    });
+    expect(state.prepare).toHaveBeenCalledExactlyOnceWith({
+      reference: handoffDetail.url,
+      mode: "worktree",
+      threadId: opened.threadId,
+    });
+    await expect
+      .element(screen.getByRole("status", { name: "Handoff state" }))
+      .toHaveTextContent("conflicts");
+    await button.click();
+    expect(state.newThread).toHaveBeenCalledTimes(2);
+    expect(state.toast).toHaveBeenCalledExactlyOnceWith({
+      type: "loading",
+      title: "Preparing the pull request checkout...",
+    });
+    expect(state.updateToast).not.toHaveBeenCalled();
+    await screen.rerender(handoffSurface("zh-CN"));
+    await act(async () => {
+      if (reject) fail(cause);
+      else finish();
+      await pending.catch(() => {});
+    });
+    expect(state.updateToast).toHaveBeenCalledExactlyOnceWith("pointed-toast", {
+      type: "error",
+      title: "检出完成，但任务未切换过去",
+      description:
+        "已在 `feature/$&/{literal}` 准备好检出目录。请从分支选择器将任务指向该目录，然后重试。",
+    });
+    await expect
+      .element(screen.getByRole("status", { name: "Handoff state" }))
+      .toHaveTextContent("idle");
+    expect(state.newThread).toHaveBeenCalledTimes(2);
+    expect(state.prepare).toHaveBeenCalledTimes(1);
+    expect(state.runAction).not.toHaveBeenCalled();
+    expect(useComposerDraftStore.getState()).toBe(before);
+    await screen.rerender(handoffSurface("en"));
+    expect(state.toast).toHaveBeenCalledTimes(1);
+    expect(state.updateToast).toHaveBeenCalledTimes(1);
+  },
+);

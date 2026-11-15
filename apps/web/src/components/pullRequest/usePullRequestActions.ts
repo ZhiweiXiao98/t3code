@@ -404,6 +404,7 @@ export function usePullRequestHandoffs({
       () => false,
     );
     if (!pointed) {
+      const { locale, t } = readWebI18n();
       setHandoff(null);
       toastManager.update(toastId, {
         type: "error",
