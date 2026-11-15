@@ -526,7 +526,7 @@ function OpenCommandPaletteDialog(props: {
         });
   const copyActiveThreadReference = async () => {
     if (activeThreadReferenceCopyTarget === null) return;
-    await copyThreadReference(activeThreadReferenceCopyTarget, uiLocale);
+    await copyThreadReference(activeThreadReferenceCopyTarget, () => readWebI18n().locale);
   };
   // Side chats and subagents open inside their parent, so opening a project never lands on one.
   const threads = useVisibleThreadShells().filter((thread) => !isSidebarHiddenThread(thread));
