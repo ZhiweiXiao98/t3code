@@ -2,6 +2,7 @@ import {
   EnvironmentId,
   MessageId,
   ProviderInstanceId,
+  PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
   type ChatFileAttachment,
   type ChatUnknownAttachment,
   ThreadId,
@@ -406,4 +407,38 @@ it("pairs queued edit fallback ownership without claiming raw collisions", () =>
   set(ref.threadId, source);
   expect(entries.edit?.ownedCode).toBeUndefined();
   expect(formatLocalThreadError(source, entries.edit, "zh-CN")).toBe(source);
+});
+
+it("pairs queued attachment limit ownership without claiming raw collisions", () => {
+  const source = `A message can have at most ${PROVIDER_SEND_TURN_MAX_ATTACHMENTS} attachments.`;
+  const ref = { environmentId: EnvironmentId.make("limit"), threadId: ThreadId.make("limit") };
+  let entries: Record<string, LocalThreadErrorEntry> = {};
+  const set = makeThreadErrorSetter({
+    routeThreadRef: ref,
+    routeThreadKey: "limit",
+    draftId: null,
+    serverThreadRef: ref,
+    setLocalServerErrorsByThreadKey: (update) => {
+      entries = typeof update === "function" ? update(entries) : update;
+    },
+    setLocalDraftErrorsByDraftId: () => undefined,
+  });
+  set(ref.threadId, source, "queuedEditAttachmentLimit");
+  expect(entries.limit?.ownedCode).toBe("queuedEditAttachmentLimit");
+  for (const locale of ["en", "zh-CN", "en"] as const)
+    expect(formatLocalThreadError(source, entries.limit, locale)).toBe(
+      locale === "en"
+        ? source
+        : `每条消息最多可添加 ${PROVIDER_SEND_TURN_MAX_ATTACHMENTS} 个附件。`,
+    );
+  set(ref.threadId, source);
+  expect(entries.limit?.ownedCode).toBeUndefined();
+  expect(formatLocalThreadError(source, entries.limit, "zh-CN")).toBe(source);
+  const wrongCount = `A message can have at most ${PROVIDER_SEND_TURN_MAX_ATTACHMENTS + 1} attachments.`;
+  set(ref.threadId, wrongCount, "queuedEditAttachmentLimit");
+  expect(entries.limit?.ownedCode).toBeUndefined();
+  expect(formatLocalThreadError(wrongCount, entries.limit, "zh-CN")).toBe(wrongCount);
+  set(ref.threadId, source, "queuedEditAttachmentLimit", "unexpected name");
+  expect(entries.limit?.ownedCode).toBeUndefined();
+  expect(entries.limit?.ownedName).toBeUndefined();
 });

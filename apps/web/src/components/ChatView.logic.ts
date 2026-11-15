@@ -1254,6 +1254,9 @@ export function isCompactCommandMessage(message: ChatMessage): boolean {
 // can race around promotion, so each write carries its time to let the latest
 // one win when they collide.
 const OWNED_THREAD_ERRORS = {
+  queuedEditAttachmentLimit: translateWebMessage("en", "chat.queuedEdit.tooManyAttachments", {
+    count: PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
+  }),
   queuedEditSaveFailed: "Could not save the edited queued message.",
   rewindInvalidAttachmentUrl: "The environment returned an invalid attachment URL.",
   rewindUnsupportedAttachment: "This message has an attachment that cannot be restored.",
@@ -1301,6 +1304,11 @@ export function formatLocalThreadError(
 ): string | null {
   const source = ownedThreadErrorSource(entry?.ownedCode, entry?.ownedName);
   if (source === undefined || entry?.message !== message || message !== source) return message;
+  if (entry.ownedCode === "queuedEditAttachmentLimit") {
+    return translateWebMessage(locale, "chat.queuedEdit.tooManyAttachments", {
+      count: PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
+    });
+  }
   return entry.ownedCode === "rewindRestoreAttachment" && typeof entry.ownedName === "string"
     ? translateWebMessage(locale, "audit15.restoreAttachment", { name: entry.ownedName })
     : translateWebSource(locale, source);

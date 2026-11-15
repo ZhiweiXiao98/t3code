@@ -200,7 +200,7 @@ export function useQueuedRunEdit(input: {
   readonly promptRef: { current: string };
   readonly composerRef: RefObject<ChatComposerHandle | null>;
 }) {
-  const { t, locale } = useI18n();
+  const { locale } = useI18n();
   const {
     environmentId,
     routeThreadRef,
@@ -333,7 +333,10 @@ export function useQueuedRunEdit(input: {
     ) {
       setThreadError(
         editing.threadId,
-        t("chat.queuedEdit.tooManyAttachments", { count: PROVIDER_SEND_TURN_MAX_ATTACHMENTS }),
+        translateWebMessage("en", "chat.queuedEdit.tooManyAttachments", {
+          count: PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
+        }),
+        "queuedEditAttachmentLimit",
       );
       return;
     }

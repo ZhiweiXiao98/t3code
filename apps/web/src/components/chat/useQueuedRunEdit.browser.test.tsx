@@ -1,6 +1,7 @@
 import type { ThreadStructure } from "@t3tools/client-runtime/state/shell";
 import {
   EnvironmentId,
+  PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
   ChatAttachmentId,
   MessageId,
   RunId,
@@ -42,12 +43,25 @@ interface RunStatus {
 const mocks = await vi.hoisted(async () => {
   const { Atom } = await import("effect/reactivity");
   return {
+    prepare: vi.fn(),
+    upload: vi.fn(),
     editQueuedRun: vi.fn<(value: unknown) => Promise<{ readonly _tag: "Success" | "Failure" }>>(),
     // The projection's runs per thread, written by each test to stand in for the server.
     threadRuns: Atom.family((_key: string) =>
       Atom.make<ReadonlyArray<RunStatus> | null>(null).pipe(Atom.keepAlive),
     ),
   };
+});
+
+vi.mock("./queuedMessageEdit", async (original) => {
+  const actual = await original<typeof import("./queuedMessageEdit")>();
+  mocks.prepare.mockImplementation(actual.prepareQueuedEditAttachments);
+  return { ...actual, prepareQueuedEditAttachments: mocks.prepare };
+});
+vi.mock("../../lib/attachmentUploadQueue", async (original) => {
+  const actual = await original<typeof import("../../lib/attachmentUploadQueue")>();
+  mocks.upload.mockImplementation(actual.startAttachmentUpload);
+  return { ...actual, startAttachmentUpload: mocks.upload };
 });
 
 vi.mock("../../state/use-atom-command", async (original) => ({
@@ -153,7 +167,12 @@ function Harness(props: {
           isPreparingWorktree={false}
           hasSendableContent={sendState.hasSendableContent}
           isEditingQueuedMessage
-          onSubmitMessage={() => void result.saveEdit(savedContent(draft.prompt), setError)}
+          onSubmitMessage={() =>
+            void result.saveEdit(
+              { ...savedContent(draft.prompt), images: draft.images, files: draft.files },
+              setError,
+            )
+          }
           onPreviousPendingQuestion={() => {}}
           onInterrupt={() => {}}
         />
@@ -187,6 +206,8 @@ function view(threadRef: ScopedThreadRef, runStatus: string, hook: { current: Ho
 
 function setup() {
   mocks.editQueuedRun.mockReset();
+  mocks.prepare.mockClear();
+  mocks.upload.mockClear();
   useComposerDraftStore.setState({ draftsByThreadKey: {}, draftThreadsByThreadKey: {} });
   setRuns(THREAD_A, "queued");
   setRuns(THREAD_B, "queued");
@@ -484,3 +505,66 @@ it.each(["failure", "interrupted", "non-error", "raw", "empty"] as const)(
     await act(() => requireHook(hook).cancelEdit());
   },
 );
+
+it("keeps queued attachment limit current without starting a save", async () => {
+  const { hook } = setup();
+  const source = `A message can have at most ${PROVIDER_SEND_TURN_MAX_ATTACHMENTS} attachments.`;
+  await using screen = await render(localizedView("en", hook));
+  await using _cancel = {
+    [Symbol.asyncDispose]: async () => {
+      await act(() => hook.current?.cancelEdit());
+    },
+  };
+  const attachments = Array.from({ length: PROVIDER_SEND_TURN_MAX_ATTACHMENTS }, (_, index) => ({
+    type: "file" as const,
+    id: ChatAttachmentId.make(`existing-${index}`),
+    name: `literal-$&-{file}-${index}.txt`,
+    mimeType: "text/plain",
+    sizeBytes: 1,
+  }));
+  await act(() =>
+    requireHook(hook).beginEdit({
+      runId: RUN,
+      messageId: MessageId.make("limit-message"),
+      text: "original",
+      attachments,
+    }),
+  );
+  expect(requireHook(hook).editingAttachments).toHaveLength(PROVIDER_SEND_TURN_MAX_ATTACHMENTS);
+  const file = {
+    type: "file" as const,
+    id: ChatAttachmentId.make("new-file"),
+    name: "new-$&-{file}.txt",
+    mimeType: "text/plain",
+    sizeBytes: 1,
+    file: new File(["x"], "new-$&-{file}.txt", { type: "text/plain" }),
+  };
+  await act(() => {
+    expect(
+      useComposerDraftStore.getState().addFiles(requireHook(hook).draftTarget, [file]),
+    ).toHaveLength(1);
+  });
+  const before = useComposerDraftStore.getState().getComposerDraft(requireHook(hook).draftTarget);
+  expect(before?.files).toHaveLength(1);
+  await screen.getByRole("button", { name: "Update queued message", exact: true }).click();
+  await expect.poll(() => screen.container.textContent).toContain(source);
+  for (const locale of ["zh-CN", "en", "zh-CN", "en"] as const) {
+    await screen.rerender(localizedView(locale, hook));
+    await expect
+      .poll(() => screen.container.textContent)
+      .toContain(
+        locale === "en"
+          ? source
+          : `每条消息最多可添加 ${PROVIDER_SEND_TURN_MAX_ATTACHMENTS} 个附件。`,
+      );
+    expect(requireHook(hook).isSaving).toBe(false);
+    expect(requireHook(hook).isEditing).toBe(true);
+    expect(requireHook(hook).editingAttachments).toHaveLength(PROVIDER_SEND_TURN_MAX_ATTACHMENTS);
+  }
+  expect(useComposerDraftStore.getState().getComposerDraft(requireHook(hook).draftTarget)).toBe(
+    before,
+  );
+  expect(mocks.editQueuedRun).not.toHaveBeenCalled();
+  expect(mocks.prepare).not.toHaveBeenCalled();
+  expect(mocks.upload).not.toHaveBeenCalled();
+});
