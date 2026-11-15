@@ -268,24 +268,62 @@ it("localizes the destination picker and deletion consequence while preserving t
   );
   await using screen = await render(settings("zh-CN"));
   const dialog = page.getByRole("dialog");
+  const logDestinationState = (milestone: string) => {
+    const active = document.activeElement;
+    const trigger = document.getElementById("scheduled-task-destination");
+    console.info("scheduled-task-destination-diagnostic", {
+      milestone: milestone.slice(0, 80),
+      activeTag: active?.tagName.slice(0, 40) ?? null,
+      activeId: active?.id.slice(0, 120) ?? null,
+      activeRole: active?.getAttribute("role")?.slice(0, 40) ?? null,
+      activeSlot: active?.getAttribute("data-slot")?.slice(0, 80) ?? null,
+      expanded: trigger?.getAttribute("aria-expanded")?.slice(0, 10) ?? null,
+      dialogCount: document.querySelectorAll('[role="dialog"]').length,
+      popupStates: Array.from(document.querySelectorAll('[data-slot="combobox-popup"]'))
+        .slice(0, 4)
+        .map((popup) => ({
+          open: popup.hasAttribute("data-open"),
+          closed: popup.hasAttribute("data-closed"),
+          ending: popup.hasAttribute("data-ending-style"),
+        })),
+    });
+  };
   await expect.element(dialog.getByText("Fix login bug", { exact: true })).toBeVisible();
+  const destinationElement = document.getElementById("scheduled-task-destination");
+  if (!destinationElement) throw new Error("Scheduled task destination trigger is missing");
+  const destination = page.elementLocator(destinationElement);
+  logDestinationState("initial-editor");
   await expect
     .element(dialog.getByText("删除此会话也会删除该定时任务。", { exact: true }))
     .toBeVisible();
   await userEvent.click(dialog.getByText("Fix login bug", { exact: true }));
   const search = page.getByPlaceholder("搜索所有会话...");
   await expect.element(search).toBeVisible();
+  await expect.element(destination).toHaveAttribute("aria-expanded", "true");
+  logDestinationState("first-open");
   await userEvent.fill(search, "no matching thread");
   await expect.element(page.getByText("未找到会话。", { exact: true })).toBeVisible();
+  logDestinationState("before-first-escape");
   await userEvent.keyboard("{Escape}");
+  logDestinationState("after-first-escape");
+  await expect.element(destination).toHaveAttribute("aria-expanded", "false");
+  await expect.element(search).not.toBeInTheDocument();
   await expect.element(dialog.getByText("Fix login bug", { exact: true })).toBeVisible();
   await userEvent.click(dialog.getByText("Fix login bug", { exact: true }));
   await expect.element(page.getByPlaceholder("搜索所有会话...")).toHaveValue("");
   await expect
     .element(page.getByRole("option", { name: "每次运行新建会话", exact: true }))
     .toBeVisible();
+  await expect.element(destination).toHaveAttribute("aria-expanded", "true");
+  logDestinationState("before-second-escape");
   await userEvent.keyboard("{Escape}");
+  logDestinationState("after-second-escape");
+  await expect.element(destination).toHaveAttribute("aria-expanded", "false");
+  await expect.element(search).not.toBeInTheDocument();
+  await expect.element(dialog.getByText("Fix login bug", { exact: true })).toBeVisible();
+  logDestinationState("before-locale-rerender");
   await screen.rerender(settings("en"));
+  logDestinationState("after-locale-rerender");
   await expect.element(dialog.getByText("Fix login bug", { exact: true })).toBeVisible();
   await expect
     .element(dialog.getByText("Deleting the thread also deletes this task.", { exact: true }))
