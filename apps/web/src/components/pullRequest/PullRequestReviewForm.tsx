@@ -151,10 +151,11 @@ export function PullRequestReviewForm({
       submittedComments.map((comment) => comment.id),
     );
     clearSummary(reviewKey, submittedBody);
+    const { locale: settledLocale } = readWebI18n();
     toastManager.add({
       type: "success",
       title:
-        uiLocale === "zh-CN"
+        settledLocale === "zh-CN"
           ? verdict.value === "approve"
             ? "变更请求已批准"
             : verdict.value === "request-changes"

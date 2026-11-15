@@ -3,7 +3,7 @@ import { translateWebMessage } from "~/i18n/messages";
 import { readableFailure } from "./pullRequestDetail.logic";
 import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
 import { createRef, useRef, useState } from "react";
-import { EnvironmentId, ProjectId } from "@t3tools/contracts";
+import { EnvironmentId, ProjectId, type PullRequestReviewVerdict } from "@t3tools/contracts";
 import { expect, it, vi } from "vite-plus/test";
 import { act, render } from "../../../test/render";
 import { PullRequestReviewForm } from "./PullRequestReviewForm";
@@ -88,9 +88,11 @@ const reviewKey = pullRequestReviewKey(reviewRef);
 function PendingReview({
   onSubmitted,
   onPending,
+  verdict = "comment",
 }: {
   onSubmitted: () => void;
   onPending: (pending: boolean) => void;
+  verdict?: PullRequestReviewVerdict;
 }) {
   const [pending, setPending] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -101,7 +103,7 @@ function PendingReview({
       reference={reviewRef}
       completionScope={null}
       term="pull request"
-      verdicts={["comment"]}
+      verdicts={[verdict]}
       requestChangesSummaryRequired={false}
       textareaRef={textareaRef}
       pending={pending}
@@ -117,6 +119,7 @@ function reviewSurface(
   locale: "en" | "zh-CN",
   submitted: () => void,
   pending: (value: boolean) => void,
+  verdict: PullRequestReviewVerdict = "comment",
 ) {
   mocks.locale = locale;
   return (
@@ -128,7 +131,7 @@ function reviewSurface(
         t: (key, values) => translateWebMessage(locale, key, values),
       }}
     >
-      <PendingReview onSubmitted={submitted} onPending={pending} />
+      <PendingReview onSubmitted={submitted} onPending={pending} verdict={verdict} />
     </WebI18nContext>
   );
 }
@@ -247,4 +250,94 @@ it("does not submit an empty review after dictation completes", async () => {
   expect(pending).not.toHaveBeenCalled();
   expect(submitted).not.toHaveBeenCalled();
   expect(mocks.toast).not.toHaveBeenCalled();
+});
+
+it.each([
+  ["comment", "评审已提交"],
+  ["approve", "变更请求已批准"],
+  ["request-changes", "已请求修改"],
+] as const)("uses settlement locale for review submission success: %s", async (verdict, title) => {
+  const { AsyncResult } = await import("effect/reactivity");
+  const Cause = await import("effect/Cause");
+  mocks.submit.mockReset();
+  mocks.queue.mockReset();
+  mocks.toast.mockClear();
+  const before = usePullRequestReviewStore.getState();
+  using _store = {
+    [Symbol.dispose]() {
+      usePullRequestReviewStore.setState(before, true);
+    },
+  };
+  const summary = "Literal $& {submitted} summary";
+  const newerSummary = "Literal $& {newer} summary";
+  const comment = {
+    id: "submitted-comment",
+    body: "Literal {submitted} line",
+    path: "a.ts",
+    position: { kind: "added" as const, newLine: 1 },
+  };
+  const newerComment = { ...comment, id: "newer-comment", body: "Literal {newer} line" };
+  before.clear(reviewKey);
+  before.setSummary(reviewKey, summary);
+  before.addComment(reviewKey, comment);
+  type Result = import("@t3tools/client-runtime/state/runtime").AtomCommandResult<void, unknown>;
+  let finish = (_result: Result) => {};
+  mocks.submit.mockReturnValueOnce(
+    new Promise<Result>((resolve) => {
+      finish = resolve;
+    }),
+  );
+  const submitted = vi.fn();
+  const pending = vi.fn();
+  await using screen = await render(reviewSurface("en", submitted, pending, verdict));
+  await using _settle = {
+    async [Symbol.asyncDispose]() {
+      await act(async () => {
+        finish(AsyncResult.failure(Cause.interrupt()));
+        await Promise.resolve();
+      });
+    },
+  };
+  await screen.getByRole("button", { name: "Submit review", exact: true }).click();
+  expect(mocks.queue).toHaveBeenCalledTimes(1);
+  await act(async () => {
+    mocks.queue.mock.calls[0]![0](summary);
+  });
+  expect(mocks.submit).toHaveBeenCalledExactlyOnceWith({
+    environmentId: EnvironmentId.make("review-env"),
+    input: { ...reviewRef, verdict, body: summary, comments: [comment] },
+  });
+  await expect
+    .element(screen.getByRole("button", { name: "Submitting...", exact: true }))
+    .toBeDisabled();
+  expect(pending).toHaveBeenCalledExactlyOnceWith(true);
+  expect(submitted).not.toHaveBeenCalled();
+  expect(mocks.toast).not.toHaveBeenCalled();
+  if (verdict === "comment")
+    await act(async () => {
+      usePullRequestReviewStore.getState().setSummary(reviewKey, newerSummary);
+      usePullRequestReviewStore.getState().addComment(reviewKey, newerComment);
+    });
+  await screen.rerender(reviewSurface("zh-CN", submitted, pending, verdict));
+  await act(async () => {
+    finish(AsyncResult.success(undefined));
+    await Promise.resolve();
+  });
+  expect(mocks.toast).toHaveBeenCalledExactlyOnceWith({ type: "success", title });
+  expect(submitted).toHaveBeenCalledTimes(1);
+  expect(mocks.toast.mock.invocationCallOrder[0]).toBeLessThan(
+    submitted.mock.invocationCallOrder[0]!,
+  );
+  expect(pending.mock.calls).toEqual([[true], [false]]);
+  expect(usePullRequestReviewStore.getState().drafts[reviewKey]).toEqual(
+    verdict === "comment" ? [newerComment] : undefined,
+  );
+  expect(usePullRequestReviewStore.getState().summaries[reviewKey]).toBe(
+    verdict === "comment" ? newerSummary : undefined,
+  );
+  await expect.element(screen.getByRole("button", { name: "提交评审", exact: true })).toBeEnabled();
+  await screen.rerender(reviewSurface("en", submitted, pending, verdict));
+  expect(mocks.toast).toHaveBeenCalledTimes(1);
+  expect(submitted).toHaveBeenCalledTimes(1);
+  expect(mocks.submit).toHaveBeenCalledTimes(1);
 });
