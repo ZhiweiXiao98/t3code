@@ -2575,6 +2575,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
       });
       if (firstFailure !== null) {
         const firstError = squashAtomCommandFailure(firstFailure);
+        const { t } = readWebI18n();
         toastManager.add(
           stackedThreadToast({
             type: "error",

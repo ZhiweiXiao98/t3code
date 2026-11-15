@@ -1,0 +1,282 @@
+import { useThreadSelectionStore } from "../threadSelectionStore";
+import { useComposerDraftStore } from "../composerDraftStore";
+import { readThreadShell } from "../state/entities";
+import type { AtomCommandResult } from "@t3tools/client-runtime/state/runtime";
+import * as Cause from "effect/Cause";
+import { AsyncResult } from "effect/reactivity";
+import { toastManager } from "./ui/toast";
+import { createMemoryHistory } from "@tanstack/react-router";
+import { scopeThreadRef, scopedThreadKey } from "@t3tools/client-runtime/environment";
+import { DEFAULT_CLIENT_SETTINGS } from "@t3tools/contracts/settings";
+import type * as Context from "effect/Context";
+import { expect, it, vi } from "vite-plus/test";
+import { page, userEvent } from "vite-plus/test/browser";
+
+import { AppRoot } from "~/AppRoot";
+// The thread route loads ChatView lazily; its first transform would eat the test's timeout.
+import "~/components/ChatView";
+import {
+  __setClientSettingsForTests,
+  updateClientSettings,
+  getClientSettings,
+} from "~/hooks/useSettings";
+import { getRouter } from "~/router";
+import {
+  ENVIRONMENT_ID,
+  installFakeEnvironment,
+  dispatchedCommands,
+  threadWithHistory,
+  type FakeDriver,
+} from "../../test/fakeEnvironment";
+import { act, render } from "../../test/render";
+
+const commands = vi.hoisted(() => ({
+  remove: vi.fn(),
+  stop: vi.fn(),
+  confirm: vi.fn(),
+  release: vi.fn(),
+}));
+vi.mock("../state/use-atom-command", async (original) => {
+  const actual = await original<typeof import("../state/use-atom-command")>();
+  const { threadEnvironment } = await import("../state/threads");
+  return {
+    ...actual,
+    useAtomCommand: (...args: Parameters<typeof actual.useAtomCommand>) =>
+      args[0] === threadEnvironment.delete
+        ? commands.remove
+        : args[0] === threadEnvironment.stopSession
+          ? commands.stop
+          : actual.useAtomCommand(...args),
+  };
+});
+
+vi.mock("../lib/composerDraftUploads", async (original) => ({
+  ...(await original<typeof import("../lib/composerDraftUploads")>()),
+  releaseComposerDraftUploads: commands.release,
+}));
+vi.mock("../confirmDialog", async (original) => ({
+  ...(await original<typeof import("../confirmDialog")>()),
+  requestConfirmDialog: (...args: unknown[]) => commands.confirm(...args),
+}));
+
+// The socket is the only fake layer; see test/appScenarios.renders.tsx.
+vi.mock("../../../../packages/client-runtime/src/connection/driver.ts", async (importOriginal) => {
+  const [actual, { fakeDriver }, Layer] = await Promise.all([
+    importOriginal<{ readonly ConnectionDriver: Context.Key<unknown, FakeDriver> }>(),
+    import("../../test/fakeEnvironment"),
+    import("effect/Layer"),
+  ]);
+  return { ...actual, layer: Layer.succeed(actual.ConnectionDriver, fakeDriver) };
+});
+
+vi.mock(import("~/rpc/requestLatencyState"), async (original) => ({
+  ...(await original()),
+  trackRpcRequestSent: () => {},
+}));
+
+vi.mock(import("~/state/server"), async (original) => {
+  const actual = await original();
+  const { Atom } = await import("effect/reactivity");
+  const { compileResolvedKeybindingsConfig } = await import("@t3tools/shared/keybindings");
+  const keybindings = compileResolvedKeybindingsConfig([
+    { key: "mod+shift+]", command: "thread.next", when: "!previewFocus && !previewOpen" },
+    { key: "mod+1", command: "thread.jump.1", when: "!previewFocus" },
+  ]);
+  return { ...actual, primaryServerKeybindingsAtom: Atom.make(keybindings) };
+});
+
+it("uses settlement locale for sidebar bulk delete failures", async () => {
+  const thread = {
+    ...threadWithHistory("sidebar-bulk-delete-locale", 1),
+    title: "Literal $& {sidebar} title",
+  };
+  const second = {
+    ...threadWithHistory("sidebar-bulk-delete-second", 1),
+    title: "Second literal {target}",
+  };
+  using _environment = installFakeEnvironment([thread, second]);
+  const previousSelection = useThreadSelectionStore.getState();
+  using _selection = {
+    [Symbol.dispose]() {
+      useThreadSelectionStore.setState(previousSelection);
+    },
+  };
+  useThreadSelectionStore.getState().clearSelection();
+  const previousSettings = getClientSettings();
+  using _settings = {
+    [Symbol.dispose]() {
+      __setClientSettingsForTests(previousSettings);
+    },
+  };
+  __setClientSettingsForTests({
+    ...DEFAULT_CLIENT_SETTINGS,
+    onboardingCompletedAt: "2026-01-01T00:00:00.000Z",
+    appLocale: "en",
+    confirmThreadDelete: true,
+  });
+  await page.viewport(1400, 900);
+  const router = getRouter(
+    createMemoryHistory({ initialEntries: [`/${ENVIRONMENT_ID}/${thread.id}`] }),
+  );
+  await router.load();
+  using rich = vi.spyOn(navigator.clipboard, "write").mockResolvedValue(undefined);
+  using plain = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue(undefined);
+  using toast = vi.spyOn(toastManager, "add").mockImplementation(() => "sidebar-copy-toast");
+  commands.release.mockClear();
+  using clearDraft = vi
+    .spyOn(useComposerDraftStore.getState(), "clearDraftThread")
+    .mockImplementation(() => {});
+  await using _app = await render(<AppRoot router={router} />, { router: false });
+  await expect
+    .element(page.getByRole("combobox", { name: "Filter threads by project", exact: true }), {
+      timeout: 5000,
+    })
+    .toBeVisible();
+  await page.getByRole("combobox", { name: "Filter threads by project", exact: true }).click();
+  await page.getByRole("option", { name: "All projects", exact: true }).click();
+  const row = page.getByRole("button", { name: /^Literal \$& \{sidebar\} title(?:,|$)/ });
+  await expect.element(row, { timeout: 5000 }).toBeVisible();
+  await expect
+    .element(row)
+    .toHaveAttribute(
+      "data-sidebar-row",
+      scopedThreadKey(scopeThreadRef(ENVIRONMENT_ID, thread.id)),
+    );
+  const secondRow = page.getByRole("button", { name: /^Second literal \{target\}(?:,|$)/ });
+  await expect.element(secondRow, { timeout: 5000 }).toBeVisible();
+  const refs = [thread, second].map((target) => scopeThreadRef(ENVIRONMENT_ID, target.id));
+  const shells = refs.map(readThreadShell);
+  for (const shell of shells) {
+    expect(shell).not.toBeNull();
+    expect(shell?.worktreePath).toBeNull();
+  }
+  const selectedKeys = refs.map(scopedThreadKey);
+  const commandsBefore = dispatchedCommands().slice();
+  await userEvent.click(row, { modifiers: ["Control"] });
+  await userEvent.click(secondRow, { modifiers: ["Control"] });
+  expect([...useThreadSelectionStore.getState().selectedThreadKeys]).toEqual(selectedKeys);
+  const cases = [
+    { cause: null, description: "发生错误。", interrupted: false },
+    {
+      cause: new Error("Failed to delete threads"),
+      description: "Failed to delete threads",
+      interrupted: false,
+    },
+    { cause: new Error(""), description: "", interrupted: false },
+    { cause: null, description: "", interrupted: true },
+  ];
+  commands.remove.mockReset();
+  commands.stop.mockReset().mockResolvedValue(AsyncResult.success(undefined));
+  commands.confirm.mockReset().mockResolvedValue(true);
+  let notices = 0;
+  let deletions = 0;
+  let stops = 0;
+  for (const [index, entry] of cases.entries()) {
+    let finish!: (result: AtomCommandResult<unknown, unknown>) => void;
+    let finishSecond!: (result: AtomCommandResult<unknown, unknown>) => void;
+    const pending = new Promise<AtomCommandResult<unknown, unknown>>((resolve) => {
+      finish = resolve;
+    });
+    const secondPending = new Promise<AtomCommandResult<unknown, unknown>>((resolve) => {
+      finishSecond = resolve;
+    });
+    commands.remove.mockReturnValueOnce(pending);
+    if (!entry.interrupted) commands.remove.mockReturnValueOnce(secondPending);
+    await using _settle = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          finish(AsyncResult.failure(Cause.interrupt()));
+          finishSecond(AsyncResult.failure(Cause.interrupt()));
+          await Promise.resolve();
+        });
+      },
+    };
+    await userEvent.click(row, { button: "right" });
+    const remove = page.getByRole("menuitem", { name: "Delete (2)", exact: true });
+    await expect.element(remove).toBeEnabled();
+    await remove.click();
+    await expect
+      .poll(() => commands.remove.mock.calls.length, { timeout: 5000 })
+      .toBe(deletions + 1);
+    expect(commands.confirm).toHaveBeenNthCalledWith(
+      index + 1,
+      "Delete 2 threads?\nThis permanently clears conversation history for these threads.",
+      { variant: "destructive" },
+    );
+    expect(commands.confirm.mock.invocationCallOrder[index]).toBeLessThan(
+      commands.remove.mock.invocationCallOrder[deletions]!,
+    );
+    expect(commands.remove).toHaveBeenNthCalledWith(deletions + 1, {
+      environmentId: ENVIRONMENT_ID,
+      input: { threadId: thread.id },
+    });
+    if (shells[0]?.runtime != null) {
+      expect(commands.stop).toHaveBeenNthCalledWith(++stops, {
+        environmentId: ENVIRONMENT_ID,
+        input: { threadId: thread.id },
+      });
+      expect(commands.stop.mock.invocationCallOrder[stops - 1]).toBeLessThan(
+        commands.remove.mock.invocationCallOrder[deletions]!,
+      );
+    }
+    expect(commands.stop).toHaveBeenCalledTimes(stops);
+    expect(toast).toHaveBeenCalledTimes(notices);
+    await act(() => updateClientSettings({ appLocale: "zh-CN" }));
+    await act(async () => {
+      finish(AsyncResult.failure(entry.interrupted ? Cause.interrupt() : Cause.fail(entry.cause)));
+    });
+    deletions++;
+    if (!entry.interrupted) {
+      await expect
+        .poll(() => commands.remove.mock.calls.length, { timeout: 5000 })
+        .toBe(deletions + 1);
+      expect(commands.remove).toHaveBeenNthCalledWith(deletions + 1, {
+        environmentId: ENVIRONMENT_ID,
+        input: { threadId: second.id },
+      });
+      if (shells[1]?.runtime != null) {
+        expect(commands.stop).toHaveBeenNthCalledWith(++stops, {
+          environmentId: ENVIRONMENT_ID,
+          input: { threadId: second.id },
+        });
+        expect(commands.stop.mock.invocationCallOrder[stops - 1]).toBeLessThan(
+          commands.remove.mock.invocationCallOrder[deletions]!,
+        );
+      }
+      expect(toast).toHaveBeenCalledTimes(notices);
+      await act(async () => {
+        finishSecond(AsyncResult.failure(Cause.fail(new Error("Second private failure"))));
+      });
+      deletions++;
+      expect(toast.mock.calls[notices]?.[0]).toMatchObject({
+        type: "error",
+        title: "删除多个任务失败",
+        description: entry.description,
+      });
+      notices++;
+    }
+    await act(() => updateClientSettings({ appLocale: "en" }));
+    expect(toast).toHaveBeenCalledTimes(notices);
+    expect(commands.remove).toHaveBeenCalledTimes(deletions);
+    expect(commands.stop).toHaveBeenCalledTimes(stops);
+    expect([...useThreadSelectionStore.getState().selectedThreadKeys]).toEqual(selectedKeys);
+  }
+  commands.confirm.mockResolvedValueOnce(false);
+  await userEvent.click(row, { button: "right" });
+  await page.getByRole("menuitem", { name: "Delete (2)", exact: true }).click();
+  await expect.poll(() => commands.confirm.mock.calls.length).toBe(cases.length + 1);
+  await act(async () => {
+    await Promise.resolve();
+  });
+  expect(commands.remove).toHaveBeenCalledTimes(deletions);
+  expect(commands.stop).toHaveBeenCalledTimes(stops);
+  for (const [index, ref] of refs.entries()) expect(readThreadShell(ref)).toBe(shells[index]);
+  expect([...useThreadSelectionStore.getState().selectedThreadKeys]).toEqual(selectedKeys);
+  expect(toast).toHaveBeenCalledTimes(notices);
+  expect(commands.release).not.toHaveBeenCalled();
+  expect(clearDraft).not.toHaveBeenCalled();
+  expect(rich).not.toHaveBeenCalled();
+  expect(plain).not.toHaveBeenCalled();
+  expect(router.history.location.pathname).toBe(`/${ENVIRONMENT_ID}/${thread.id}`);
+  expect(dispatchedCommands()).toEqual(commandsBefore);
+});
