@@ -14,7 +14,7 @@ import { CheckIcon, UserPlusIcon } from "lucide-react";
 import { useState } from "react";
 
 import { pullRequestEnvironment } from "~/state/pullRequests";
-import { useI18n } from "../../i18n/WebI18nContext";
+import { useI18n, type WebTranslate } from "../../i18n/WebI18nContext";
 import { useEnvironmentQuery } from "~/state/query";
 import { useDebouncedValue } from "~/state/queries";
 import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
@@ -24,15 +24,11 @@ import { PullRequestCandidatePicker } from "./PullRequestCandidatePicker";
 import { PullRequestActorLabel } from "./pullRequestPresentation";
 import { readableFailure } from "./pullRequestDetail.logic";
 
-const TRUNCATED_LABELS: Record<ReviewerTruncation, (error: string | null) => string> = {
-  unsearchable: () =>
-    "This repository has more people with access than are listed here. Ask for the rest on the host.",
-  searchable: () =>
-    "This repository has more people with access than are listed here. Search to find them.",
-  "search-failed": (error) =>
-    `Only the people already listed are matched: the host search failed. ${error ?? ""}`,
-  "search-truncated": () =>
-    "More people match than the host returned. Keep typing to narrow it down.",
+const TRUNCATED_LABELS: Record<ReviewerTruncation, Parameters<WebTranslate>[0]> = {
+  unsearchable: "pullRequests.reviewers.truncated",
+  searchable: "pullRequests.reviewers.truncatedSearchable",
+  "search-failed": "pullRequests.reviewers.truncatedSearchFailed",
+  "search-truncated": "pullRequests.reviewers.truncatedSearchResults",
 };
 
 export function PullRequestReviewerPicker({
@@ -137,7 +133,9 @@ export function PullRequestReviewerPicker({
       noMatchLabel={t("pullRequests.reviewers.noMatch")}
       errorLabel={t("pullRequests.reviewers.readFailed")}
       truncated={truncation !== null}
-      truncatedLabel={truncation === null ? "" : TRUNCATED_LABELS[truncation](searchError)}
+      truncatedLabel={
+        truncation === null ? "" : t(TRUNCATED_LABELS[truncation], { error: searchError ?? "" })
+      }
       candidateKey={(candidate) => `${candidate.kind}:${candidate.id}`}
       disabled={pending !== null}
       onSelect={(candidate) => void toggle(candidate)}

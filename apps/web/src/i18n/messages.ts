@@ -2938,6 +2938,12 @@ const EN_MESSAGES = {
   "pullRequests.reviewers.empty": "Nobody else has access to this repository.",
   "pullRequests.reviewers.noMatch": "Nobody with access matches that.",
   "pullRequests.reviewers.readFailed": "The people with access could not be read.",
+  "pullRequests.reviewers.truncatedSearchable":
+    "This repository has more people with access than are listed here. Search to find them.",
+  "pullRequests.reviewers.truncatedSearchFailed":
+    "Only the people already listed are matched: the host search failed. {error}",
+  "pullRequests.reviewers.truncatedSearchResults":
+    "More people match than the host returned. Keep typing to narrow it down.",
   "pullRequests.reviewers.truncated":
     "This repository has more people with access than are listed here. Ask for the rest on the host.",
   "pullRequests.reviewers.team": "team",
@@ -7661,6 +7667,11 @@ const ZH_CN_MESSAGES = {
   "pullRequests.reviewers.empty": "没有其他人可以访问此仓库。",
   "pullRequests.reviewers.noMatch": "没有匹配的可访问人员。",
   "pullRequests.reviewers.readFailed": "无法读取有权访问的人员。",
+  "pullRequests.reviewers.truncatedSearchable":
+    "此处未列出所有有权访问的人员，请搜索以查找其余人员。",
+  "pullRequests.reviewers.truncatedSearchFailed": "仅匹配已列出的人员：托管服务搜索失败。{error}",
+  "pullRequests.reviewers.truncatedSearchResults":
+    "匹配的人员多于托管服务返回的结果，请继续输入以缩小范围。",
   "pullRequests.reviewers.truncated": "此处未列出所有有权访问的人员，请在托管服务中选择其余人员。",
   "pullRequests.reviewers.team": "团队",
   "pullRequests.reviewers.alreadyAsked": "已请求",

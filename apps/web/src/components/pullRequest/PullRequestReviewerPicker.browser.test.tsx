@@ -14,6 +14,9 @@ import { readableFailure } from "./pullRequestDetail.logic";
 const fixture = vi.hoisted(() => ({
   locale: "en" as "en" | "zh-CN",
   requested: false,
+  truncated: false,
+  searchable: false,
+  searchFailure: false,
   requestReviewers: vi.fn(),
   toast: vi.fn(),
   query: vi.fn(),
@@ -36,6 +39,7 @@ vi.mock("~/state/use-atom-command", async (original) => {
 vi.mock("~/state/pullRequests", async (original) => {
   const actual = await original<typeof import("../../state/pullRequests")>();
   const { Atom, AsyncResult } = await import("effect/reactivity");
+  const Cause = await import("effect/Cause");
   const candidates = [false, true].map((isRequested) =>
     Atom.make(
       AsyncResult.success({
@@ -53,17 +57,23 @@ vi.mock("~/state/pullRequests", async (original) => {
       }),
     ),
   );
+  const truncatedCandidates = candidates.map((atom) =>
+    Atom.map(atom, (result) => AsyncResult.map(result, (data) => ({ ...data, truncated: true }))),
+  );
+  const searchFailure = Atom.make(
+    AsyncResult.failure(Cause.fail(new Error("Literal $& {host error}"))),
+  );
   return {
     ...actual,
     pullRequestEnvironment: {
       ...actual.pullRequestEnvironment,
       reviewerSearch: (input: unknown) => {
         fixture.search(input);
-        return candidates[0]!;
+        return fixture.searchFailure ? searchFailure : truncatedCandidates[0]!;
       },
       reviewerCandidates: (input: unknown) => {
         fixture.query(input);
-        return candidates[fixture.requested ? 1 : 0]!;
+        return (fixture.truncated ? truncatedCandidates : candidates)[fixture.requested ? 1 : 0]!;
       },
     },
   };
@@ -99,13 +109,16 @@ function surface(locale: "en" | "zh-CN", allowed = true) {
         environmentId={environmentId}
         reference={reference}
         allowed={allowed}
-        searchable={false}
+        searchable={fixture.searchable}
       />
     </WebI18nContext>
   );
 }
 function setup(applied = false) {
   fixture.requested = applied;
+  fixture.truncated = false;
+  fixture.searchable = false;
+  fixture.searchFailure = false;
   fixture.locale = "en";
   fixture.requestReviewers.mockReset();
   fixture.toast.mockClear();
@@ -252,6 +265,74 @@ it.each([
   await screen.rerender(surface("en"));
   expect(fixture.requestReviewers).toHaveBeenCalledTimes(1);
   expect(fixture.toast).toHaveBeenCalledTimes(1);
+  await userEvent.keyboard("{Escape}");
+  await expect.element(page.getByRole("listbox")).not.toBeInTheDocument();
+});
+
+it.each([
+  {
+    name: "unsearchable",
+    searchable: false,
+    search: false,
+    failure: false,
+    en: "This repository has more people with access than are listed here. Ask for the rest on the host.",
+    zh: "此处未列出所有有权访问的人员，请在托管服务中选择其余人员。",
+  },
+  {
+    name: "searchable",
+    searchable: true,
+    search: false,
+    failure: false,
+    en: "This repository has more people with access than are listed here. Search to find them.",
+    zh: "此处未列出所有有权访问的人员，请搜索以查找其余人员。",
+  },
+  {
+    name: "search-failed",
+    searchable: true,
+    search: true,
+    failure: true,
+    en: "Only the people already listed are matched: the host search failed. Literal $& {host error}",
+    zh: "仅匹配已列出的人员：托管服务搜索失败。Literal $& {host error}",
+  },
+  {
+    name: "search-truncated",
+    searchable: true,
+    search: true,
+    failure: false,
+    en: "More people match than the host returned. Keep typing to narrow it down.",
+    zh: "匹配的人员多于托管服务返回的结果，请继续输入以缩小范围。",
+  },
+])("translates reviewer truncation notice: $name", async (scenario) => {
+  setup();
+  fixture.truncated = true;
+  fixture.searchable = scenario.searchable;
+  fixture.searchFailure = scenario.failure;
+  await using screen = await render(surface("en"));
+  await userEvent.click(screen.getByRole("combobox", { name: "Request a review", exact: true }));
+  if (scenario.search) {
+    await userEvent.fill(
+      page.getByRole("combobox", { name: "Search people with access", exact: true }),
+      "Literal",
+    );
+    await vi.waitFor(() =>
+      expect(fixture.search).toHaveBeenCalledWith({
+        environmentId,
+        input: { ...reference, query: "Literal" },
+      }),
+    );
+  }
+  await expect.element(page.getByText(scenario.en, { exact: true })).toBeVisible();
+  const notice = page.getByText(scenario.en, { exact: true }).element();
+  const searchCalls = fixture.search.mock.calls.length;
+  await screen.rerender(surface("zh-CN"));
+  expect(notice.isConnected).toBe(true);
+  await expect.poll(() => notice.textContent).toBe(scenario.zh);
+  await expect.element(page.getByRole("option").filter({ hasText: label })).toBeVisible();
+  await screen.rerender(surface("en"));
+  await expect.element(page.getByText(scenario.en, { exact: true })).toBeVisible();
+  if (!scenario.search) expect(searchCalls).toBe(0);
+  expect(fixture.requestReviewers).not.toHaveBeenCalled();
+  expect(fixture.toast).not.toHaveBeenCalled();
   await userEvent.keyboard("{Escape}");
   await expect.element(page.getByRole("listbox")).not.toBeInTheDocument();
 });
