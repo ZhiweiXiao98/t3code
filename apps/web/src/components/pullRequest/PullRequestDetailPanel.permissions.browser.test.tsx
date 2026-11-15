@@ -28,6 +28,8 @@ const { permissions, mocks } = vi.hoisted(() => ({
     refresh: vi.fn(),
     command: vi.fn(),
     newThread: vi.fn(),
+    prepare: vi.fn(),
+    updateToast: vi.fn(),
     toast: vi.fn(),
     locale: "en" as "en" | "zh-CN",
   },
@@ -49,7 +51,7 @@ vi.mock(import("~/state/sourceControlActions"), async (original) => ({
   ...(await original()),
   usePreparePullRequestThreadAction: (() => ({
     isAllowed: permissions.checkout,
-    run: vi.fn(),
+    run: mocks.prepare,
     error: null,
   })) as never,
 }));
@@ -87,7 +89,7 @@ vi.mock(import("~/state/use-atom-command"), async (original) => ({
 
 vi.mock("../ui/toast", async (original) => ({
   ...(await original<typeof import("../ui/toast")>()),
-  toastManager: { add: mocks.toast },
+  toastManager: { add: mocks.toast, update: mocks.updateToast },
 }));
 vi.mock("~/i18n/readWebI18n", () => ({
   readWebI18n: () => {
@@ -909,3 +911,90 @@ it.each([
   expect(mocks.toast).toHaveBeenCalledTimes(1);
   expect(mocks.postComment).toHaveBeenCalledTimes(1);
 });
+
+it.each([
+  ["null", false, null],
+  ["raw rejection", true, new Error("Literal $& {checkout thread}")],
+  ["empty rejection", true, new Error("")],
+  ["unknown rejection", true, undefined],
+] as const)(
+  "uses settlement locale for panel checkout thread failure: %s",
+  async (_kind, reject, cause) => {
+    const state = useComposerDraftStore.getState();
+    using _restore = {
+      [Symbol.dispose]() {
+        useComposerDraftStore.setState(state, true);
+        mocks.locale = "en";
+        mocks.newThread.mockReset();
+        mocks.toast.mockReset();
+      },
+    };
+    setup();
+    mocks.newThread.mockReset();
+    mocks.prepare.mockClear();
+    mocks.command.mockClear();
+    mocks.runAction.mockClear();
+    mocks.acted.mockClear();
+    mocks.refresh.mockClear();
+    mocks.toast.mockReset().mockReturnValue("panel-handoff-toast");
+    mocks.updateToast.mockClear();
+    let finish = () => {};
+    let fail = (_cause: unknown) => {};
+    const pending = new Promise<null>((resolve, reject) => {
+      finish = () => resolve(null);
+      fail = reject;
+    });
+    void pending.catch(() => {});
+    mocks.newThread.mockReturnValueOnce(pending);
+    await using screen = await render(copySurface("en"));
+    await using _settle = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          finish();
+          await pending.catch(() => {});
+        });
+      },
+    };
+    const before = useComposerDraftStore.getState();
+    await screen.getByRole("button", { name: "Resolve conflicts", exact: true }).click();
+    expect(mocks.newThread).toHaveBeenCalledExactlyOnceWith({
+      environmentId,
+      projectId: detail.projectId,
+    });
+    expect(mocks.toast).toHaveBeenCalledExactlyOnceWith({
+      type: "loading",
+      title: "Preparing the pull request checkout...",
+    });
+    expect(mocks.updateToast).not.toHaveBeenCalled();
+    const preparing = screen.getByRole("button", { name: "Preparing...", exact: true });
+    await expect.element(preparing).toBeDisabled();
+    await act(async () => {
+      preparing.element().dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+    });
+    expect(mocks.newThread).toHaveBeenCalledTimes(1);
+    await screen.rerender(copySurface("zh-CN"));
+    await act(async () => {
+      if (reject) fail(cause);
+      else finish();
+      await pending.catch(() => {});
+    });
+    expect(mocks.updateToast).toHaveBeenCalledExactlyOnceWith("panel-handoff-toast", {
+      type: "error",
+      title: "无法为检出目录打开任务",
+      description: "请从项目中重试，或先打开一个任务。",
+    });
+    await screen.rerender(copySurface("en"));
+    await expect
+      .element(screen.getByRole("button", { name: "Resolve conflicts", exact: true }))
+      .toBeEnabled();
+    expect(mocks.newThread).toHaveBeenCalledTimes(1);
+    expect(mocks.prepare).not.toHaveBeenCalled();
+    expect(mocks.command).not.toHaveBeenCalled();
+    expect(mocks.runAction).not.toHaveBeenCalled();
+    expect(mocks.acted).not.toHaveBeenCalled();
+    expect(mocks.refresh).not.toHaveBeenCalled();
+    expect(useComposerDraftStore.getState()).toBe(before);
+    expect(mocks.toast).toHaveBeenCalledTimes(1);
+    expect(mocks.updateToast).toHaveBeenCalledTimes(1);
+  },
+);

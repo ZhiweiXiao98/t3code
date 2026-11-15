@@ -1054,6 +1054,7 @@ export function PullRequestDetailPanel({
       () => null,
     );
     if (opened === null) {
+      const { t } = readWebI18n();
       setHandoff(null);
       toastManager.update(toastId, {
         type: "error",
