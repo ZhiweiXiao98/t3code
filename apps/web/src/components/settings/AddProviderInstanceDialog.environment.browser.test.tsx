@@ -425,3 +425,92 @@ it.each(["owned", "raw", "empty", "interrupted"] as const)(
     expect(actions.toast).toHaveBeenCalledTimes(1);
   },
 );
+
+it("uses settlement locale for provider creation success", async () => {
+  setup();
+  actions.onCreated.mockReset();
+  actions.locale = "en";
+  using _restore = {
+    [Symbol.dispose]() {
+      actions.locale = null;
+    },
+  };
+  const result = { _tag: "Success" as const, value: {} };
+  const pending = deferred<typeof result>();
+  settingsHooks.mutate.mockReturnValueOnce(pending.promise);
+  const surface = (locale: "en" | "zh-CN") => (
+    <WebI18nContext
+      value={{
+        locale,
+        appLocale: locale,
+        setAppLocale: () => undefined,
+        t: (key, values) => translateWebMessage(locale, key, values),
+      }}
+    >
+      <AddProviderInstanceDialog
+        open
+        environmentId={remoteEnvironmentId}
+        environmentLabel="Remote device"
+        onOpenChange={actions.onOpenChange}
+        onCreated={actions.onCreated}
+      />
+    </WebI18nContext>
+  );
+
+  await using screen = await render(surface("en"));
+  await using _drain = {
+    async [Symbol.asyncDispose]() {
+      await act(async () => {
+        pending.resolve(result);
+        await pending.promise;
+      });
+    },
+  };
+  await click("Configure manually");
+  const draft = "  Literal $& {provider}  ";
+  await type("#add-provider-label", draft);
+  await click("Next");
+  const instanceId = input("#add-provider-instance-id").value;
+  await click("Add instance");
+  expect(settingsHooks.useMutation).toHaveBeenCalledWith(remoteEnvironmentId);
+  expect(settingsHooks.mutate).toHaveBeenCalledExactlyOnceWith({
+    operation: "create",
+    instanceId,
+    instance: {
+      driver: "codex",
+      enabled: true,
+      displayName: draft.trim(),
+      config: { setupMode: "existing" },
+    },
+  });
+  expect(button("Adding...").disabled).toBe(true);
+  await act(async () => button("Adding...").click());
+  expect(settingsHooks.mutate).toHaveBeenCalledTimes(1);
+  expect(actions.onCreated).not.toHaveBeenCalled();
+  expect(actions.onOpenChange).not.toHaveBeenCalled();
+  expect(actions.toast).not.toHaveBeenCalled();
+  actions.locale = "zh-CN";
+  await screen.rerender(surface("zh-CN"));
+  await act(async () => {
+    pending.resolve(result);
+    await pending.promise;
+  });
+  expect(actions.onCreated).toHaveBeenCalledExactlyOnceWith(instanceId, "codex");
+  expect(actions.toast).toHaveBeenCalledExactlyOnceWith({
+    type: "success",
+    title: "已添加服务提供方实例",
+    description: `已添加 Codex 实例“${instanceId}”。`,
+  });
+  expect(actions.onOpenChange).toHaveBeenCalledExactlyOnceWith(false);
+  expect(actions.onCreated.mock.invocationCallOrder[0]).toBeLessThan(
+    actions.toast.mock.invocationCallOrder[0]!,
+  );
+  expect(actions.toast.mock.invocationCallOrder[0]).toBeLessThan(
+    actions.onOpenChange.mock.invocationCallOrder[0]!,
+  );
+  actions.locale = "en";
+  await screen.rerender(surface("en"));
+  expect(actions.toast).toHaveBeenCalledTimes(1);
+  expect(actions.onCreated).toHaveBeenCalledTimes(1);
+  expect(actions.onOpenChange).toHaveBeenCalledTimes(1);
+});

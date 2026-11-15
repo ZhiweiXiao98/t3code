@@ -427,10 +427,11 @@ export function AddProviderInstanceDialog({
       setWizardStep(2);
       return;
     }
+    const { locale: currentLocale, t: currentT } = readWebI18n();
     toastManager.add({
       type: "success",
-      title: translateWebSource(translationLocale, "Provider instance added"),
-      description: t("providers.add.toast.addedDescription", {
+      title: translateWebSource(currentLocale, "Provider instance added"),
+      description: currentT("providers.add.toast.addedDescription", {
         provider: driverOption.label,
         id: instanceId,
       }),
