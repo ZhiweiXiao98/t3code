@@ -1293,7 +1293,8 @@ export type LocalThreadErrorEntry = {
   readonly ownedCode?:
     | keyof typeof OWNED_THREAD_ERRORS
     | "rewindRestoreAttachment"
-    | "rewindReconnect";
+    | "rewindReconnect"
+    | "scriptFailed";
   readonly ownedName?: string;
   readonly at: number;
 };
@@ -1302,6 +1303,11 @@ function ownedThreadErrorSource(code: LocalThreadErrorEntry["ownedCode"], name?:
   if (code === "rewindRestoreAttachment") {
     return typeof name === "string"
       ? translateWebMessage("en", "audit15.restoreAttachment", { name })
+      : undefined;
+  }
+  if (code === "scriptFailed") {
+    return typeof name === "string"
+      ? translateWebMessage("en", "audit15.scriptFailed", { name })
       : undefined;
   }
   if (code === "rewindReconnect") {
@@ -1322,6 +1328,9 @@ export function formatLocalThreadError(
   if (locale === "zh-CN" && entry.ownedCode === "sideChatUnavailable") return "旁支对话已不可用。";
   if (locale === "zh-CN" && entry.ownedCode === "sideChatModeFailed")
     return "无法设置旁支对话的权限模式。";
+  if (entry.ownedCode === "scriptFailed" && typeof entry.ownedName === "string") {
+    return translateWebMessage(locale, "audit15.scriptFailed", { name: entry.ownedName });
+  }
   if (entry.ownedCode === "rewindReconnect" && typeof entry.ownedName === "string") {
     return translateWebMessage(locale, "audit15.reconnectRewind", { environment: entry.ownedName });
   }

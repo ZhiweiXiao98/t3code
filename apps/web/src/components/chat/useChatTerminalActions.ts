@@ -1,6 +1,5 @@
-import { readWebI18n } from "~/i18n/readWebI18n";
 import { useI18n } from "~/i18n/WebI18nContext";
-import { translateWebSource } from "~/i18n/messages";
+import { translateWebMessage, translateWebSource } from "~/i18n/messages";
 import type {
   EnvironmentProject,
   EnvironmentThreadShell,
@@ -274,7 +273,9 @@ export function useChatTerminalActions(input: ChatTerminalActionsInput) {
           activeThreadId,
           error instanceof Error
             ? error.message
-            : readWebI18n().t("audit15.scriptFailed", { name: script.name }),
+            : translateWebMessage("en", "audit15.scriptFailed", { name: script.name }),
+          error instanceof Error ? undefined : "scriptFailed",
+          error instanceof Error ? undefined : script.name,
         );
       }
       return;
@@ -294,7 +295,9 @@ export function useChatTerminalActions(input: ChatTerminalActionsInput) {
           activeThreadId,
           error instanceof Error
             ? error.message
-            : readWebI18n().t("audit15.scriptFailed", { name: script.name }),
+            : translateWebMessage("en", "audit15.scriptFailed", { name: script.name }),
+          error instanceof Error ? undefined : "scriptFailed",
+          error instanceof Error ? undefined : script.name,
         );
       }
       return;

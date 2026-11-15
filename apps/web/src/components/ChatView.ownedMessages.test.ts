@@ -618,3 +618,39 @@ it("pairs multiple-model fallback ownership without claiming raw collisions", ()
   expect(entries.edit?.ownedCode).toBeUndefined();
   expect(formatLocalThreadError(source, entries.edit, "zh-CN")).toBe(source);
 });
+
+it("pairs script failure literal names without claiming raw collisions", () => {
+  const name = "Literal $& {name}\nscript";
+  const source = `Failed to run script "${name}".`;
+  const ref = { environmentId: EnvironmentId.make("script"), threadId: ThreadId.make("script") };
+  let entries: Record<string, LocalThreadErrorEntry> = {};
+  const set = makeThreadErrorSetter({
+    routeThreadRef: ref,
+    routeThreadKey: "script",
+    draftId: null,
+    serverThreadRef: ref,
+    setLocalServerErrorsByThreadKey: (update) => {
+      entries = typeof update === "function" ? update(entries) : update;
+    },
+    setLocalDraftErrorsByDraftId: () => undefined,
+  });
+  set(ref.threadId, source, "scriptFailed", name);
+  expect(entries.script?.ownedCode).toBe("scriptFailed");
+  for (const locale of ["en", "zh-CN", "en"] as const)
+    expect(formatLocalThreadError(source, entries.script, locale)).toBe(
+      locale === "en" ? source : `无法运行脚本“${name}”。`,
+    );
+  expect(formatLocalThreadError(source, { ...entries.script!, ownedName: "other" }, "zh-CN")).toBe(
+    source,
+  );
+  set(ref.threadId, source, "scriptFailed");
+  expect(entries.script?.ownedCode).toBeUndefined();
+  set(ref.threadId, source, "scriptFailed", name);
+  set(ref.threadId, source);
+  expect(entries.script?.ownedName).toBeUndefined();
+  expect(formatLocalThreadError(source, entries.script, "zh-CN")).toBe(source);
+  const transportName = "literal SocketCloseError name";
+  set(ref.threadId, `Failed to run script "${transportName}".`, "scriptFailed", transportName);
+  expect(entries.script?.message).toBeNull();
+  expect(entries.script?.ownedCode).toBeUndefined();
+});
