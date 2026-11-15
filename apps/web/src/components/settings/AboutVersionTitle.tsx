@@ -1,3 +1,4 @@
+import { clipboardErrorMessage } from "../../i18n/clipboardErrorMessages";
 import { readWebI18n } from "../../i18n/readWebI18n";
 import { translateWebSource } from "../../i18n/messages";
 import { useI18n } from "../../i18n/WebI18nContext";
@@ -14,9 +15,10 @@ export function AboutVersionTitle() {
   const { locale } = useI18n();
   const tx = (source: string) => translateWebSource(locale, source);
 
+  const copyTarget = tx("version");
   const copyButtonRef = useRef<HTMLButtonElement>(null);
   const { copyToClipboard } = useCopyToClipboard<void>({
-    target: tx("version"),
+    target: copyTarget,
     onCopy: () => showAnchoredCopySuccessToast(copyButtonRef),
     onError: (error) => {
       const { locale } = readWebI18n();
@@ -24,7 +26,11 @@ export function AboutVersionTitle() {
         stackedThreadToast({
           type: "error",
           title: translateWebSource(locale, "Could not copy version"),
-          description: error.message,
+          description:
+            clipboardErrorMessage(error, locale, {
+              target: copyTarget,
+              displayTarget: translateWebSource(locale, "version"),
+            }) ?? error.message,
         }),
       );
     },
