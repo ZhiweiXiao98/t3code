@@ -59,6 +59,12 @@ vi.mock(import("~/state/server"), async (original) => {
 it("uses the current language each time a sidebar context menu opens", async () => {
   const thread = threadWithHistory("locale-menu", 1);
   using _environment = installFakeEnvironment([thread]);
+  const previousSettings = getClientSettings();
+  using _settings = {
+    [Symbol.dispose]() {
+      __setClientSettingsForTests(previousSettings);
+    },
+  };
   const settings = {
     ...DEFAULT_CLIENT_SETTINGS,
     onboardingCompletedAt: "2026-01-01T00:00:00.000Z",
@@ -128,7 +134,9 @@ it("uses settlement locale for sidebar rich thread reference copy", async () => 
   const router = getRouter(
     createMemoryHistory({ initialEntries: [`/${ENVIRONMENT_ID}/${thread.id}`] }),
   );
+  console.info("[sidebar-copy] router load start");
   await router.load();
+  console.info("[sidebar-copy] router load complete");
   let finish!: () => void;
   const pending = new Promise<void>((resolve) => {
     finish = resolve;
@@ -136,7 +144,9 @@ it("uses settlement locale for sidebar rich thread reference copy", async () => 
   using write = vi.spyOn(navigator.clipboard, "write").mockReturnValue(pending);
   using plain = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue(undefined);
   using toast = vi.spyOn(toastManager, "add").mockImplementation(() => "sidebar-copy-toast");
+  console.info("[sidebar-copy] render start");
   await using _app = await render(<AppRoot router={router} />, { router: false });
+  console.info("[sidebar-copy] render complete");
   await using _settle = {
     async [Symbol.asyncDispose]() {
       await act(async () => {
@@ -145,10 +155,17 @@ it("uses settlement locale for sidebar rich thread reference copy", async () => 
       });
     },
   };
+  console.info("[sidebar-copy] filter wait");
+  await expect
+    .element(page.getByRole("combobox", { name: "Filter threads by project", exact: true }), {
+      timeout: 5000,
+    })
+    .toBeVisible();
   await page.getByRole("combobox", { name: "Filter threads by project", exact: true }).click();
   await page.getByRole("option", { name: "All projects", exact: true }).click();
   const row = page.getByRole("button", { name: /^Literal \$& \{sidebar\} title(?:,|$)/ });
-  await expect.element(row).toBeVisible();
+  console.info("[sidebar-copy] thread row wait");
+  await expect.element(row, { timeout: 5000 }).toBeVisible();
   await expect
     .element(row)
     .toHaveAttribute(
@@ -159,7 +176,8 @@ it("uses settlement locale for sidebar rich thread reference copy", async () => 
   await userEvent.click(row, { button: "right" });
   await userEvent.hover(page.getByRole("menuitem", { name: "Copy", exact: true }));
   await page.getByRole("menuitem", { name: "Thread", exact: true }).click();
-  await expect.poll(() => write.mock.calls.length).toBe(1);
+  console.info("[sidebar-copy] rich write wait");
+  await expect.poll(() => write.mock.calls.length, { timeout: 5000 }).toBe(1);
   const expected = threadChipCopyTarget(
     scopeThreadRef(ENVIRONMENT_ID, thread.id),
     thread.title,
