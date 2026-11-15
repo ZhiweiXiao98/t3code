@@ -102,11 +102,12 @@ function EnabledPullRequestThreadLinks({
     setPending(false);
     if (result._tag === "Failure") {
       const error = squashAtomCommandFailure(result);
+      const { locale, t } = readWebI18n();
       toastManager.add({
         type: "error",
         title: remove
-          ? readWebI18n().t("audit3.unlinkFailed", { request: translateWebSource(locale, term) })
-          : readWebI18n().t("audit3.linkFailed", { request: translateWebSource(locale, term) }),
+          ? t("audit3.unlinkFailed", { request: translateWebSource(locale, term) })
+          : t("audit3.linkFailed", { request: translateWebSource(locale, term) }),
         description: error instanceof Error ? error.message : String(error),
       });
       return;
