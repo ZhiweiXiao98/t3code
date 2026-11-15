@@ -5,7 +5,28 @@ import { EnvironmentId, ProjectId, type PullRequestDetailView } from "@t3tools/c
 import { expect, it, vi } from "vite-plus/test";
 import { userEvent } from "vite-plus/test/browser";
 
-const state = vi.hoisted(() => ({ update: vi.fn(), canUpdate: true }));
+const state = vi.hoisted(() => ({
+  update: vi.fn(),
+  canUpdate: true,
+  locale: "en" as "en" | "zh-CN",
+  toast: vi.fn(),
+}));
+vi.mock("../ui/toast", async (original) => ({
+  ...(await original<typeof import("../ui/toast")>()),
+  toastManager: { add: state.toast },
+}));
+vi.mock("~/i18n/readWebI18n", () => ({
+  readWebI18n: () => {
+    const locale = state.locale;
+    return {
+      locale,
+      t: (
+        key: Parameters<typeof translateWebMessage>[1],
+        values?: Parameters<typeof translateWebMessage>[2],
+      ) => translateWebMessage(locale, key, values),
+    };
+  },
+}));
 
 vi.mock(import("~/state/use-atom-command"), async (original) => ({
   ...(await original()),
@@ -37,6 +58,8 @@ function setup() {
   state.update.mockReset();
   state.update.mockResolvedValue({ _tag: "Success", value: undefined });
   state.canUpdate = true;
+  state.locale = "en";
+  state.toast.mockClear();
 }
 
 import { act, render as renderUi } from "../../../test/render";
@@ -226,5 +249,85 @@ it.each(["en", "zh-CN"] as const)(
         }),
       )
       .toBeVisible();
+  },
+);
+
+it.each([
+  ["owned", null],
+  ["raw", new Error("Could not save the description")],
+  ["empty", new Error("")],
+  ["interrupted", undefined],
+] as const)(
+  "uses settlement locale for pull request description failure: %s",
+  async (kind, failure) => {
+    setup();
+    const { AsyncResult } = await import("effect/reactivity");
+    const Cause = await import("effect/Cause");
+    type Result = import("@t3tools/client-runtime/state/runtime").AtomCommandResult<void, unknown>;
+    let finish = (_result: Result) => {};
+    state.update.mockReturnValueOnce(
+      new Promise<Result>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const refresh = vi.fn();
+    const surface = (locale: "en" | "zh-CN") => {
+      state.locale = locale;
+      return (
+        <WebI18nContext
+          value={{
+            locale,
+            appLocale: locale,
+            setAppLocale: () => {},
+            t: (key, values) => translateWebMessage(locale, key, values),
+          }}
+        >
+          <PullRequestSummaryTab
+            scrollerRef={() => {}}
+            environmentId={EnvironmentId.make("environment")}
+            threadRef={null}
+            reference={detail}
+            detail={detail}
+            activityPending={false}
+            activityError={null}
+            onRefresh={refresh}
+          />
+        </WebI18nContext>
+      );
+    };
+    await using screen = await renderUi(surface("en"));
+    await using _settle = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          finish(AsyncResult.failure(Cause.interrupt()));
+          await Promise.resolve();
+        });
+      },
+    };
+    await userEvent.click(screen.getByRole("button", { name: "Edit description", exact: true }));
+    const draft = "Literal $& {description}\nKeep this draft";
+    const input = screen.container.querySelector("textarea")!;
+    await userEvent.clear(input);
+    await userEvent.fill(input, draft);
+    await userEvent.click(screen.getByRole("button", { name: "Save", exact: true }));
+    await expect
+      .element(screen.getByRole("button", { name: "Saving...", exact: true }))
+      .toBeDisabled();
+    expect(state.update).toHaveBeenCalledExactlyOnceWith({
+      environmentId: EnvironmentId.make("environment"),
+      input: { ...detail, body: draft },
+    });
+    expect(refresh).not.toHaveBeenCalled();
+    await screen.rerender(surface("zh-CN"));
+    await act(async () => {
+      finish(AsyncResult.failure(kind === "interrupted" ? Cause.interrupt() : Cause.fail(failure)));
+    });
+    await expect.element(screen.getByRole("button", { name: "保存", exact: true })).toBeEnabled();
+    expect(state.toast).toHaveBeenCalledExactlyOnceWith({ type: "error", title: "无法保存说明" });
+    expect(screen.container.querySelector("textarea")!.value).toBe(draft);
+    expect(refresh).toHaveBeenCalledTimes(1);
+    await screen.rerender(surface("en"));
+    expect(state.toast).toHaveBeenCalledTimes(1);
+    expect(state.update).toHaveBeenCalledTimes(1);
   },
 );

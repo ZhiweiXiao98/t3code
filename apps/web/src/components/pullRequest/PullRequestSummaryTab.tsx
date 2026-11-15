@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { translateWebSource } from "~/i18n/messages";
 import { parsePullRequestAnchor } from "@t3tools/shared/pullRequestAnchor";
 import { holdLinkedNodeInView } from "./holdLinkedNodeInView";
@@ -681,8 +682,10 @@ export function PullRequestSummaryTab({
     descriptionSavesRunning.current -= 1;
     const saved = result._tag === "Success";
     setDescriptionDraft((draft) => settleDescriptionSave(draft, key, saved));
-    if (!saved)
+    if (!saved) {
+      const { t } = readWebI18n();
       toastManager.add({ type: "error", title: t("pullRequests.description.saveFailed") });
+    }
     if (descriptionSavesRunning.current === 0) onRefresh();
     return saved;
   };
