@@ -946,6 +946,7 @@ export function EnvironmentProviderSettings({
     if (!confirmed) return;
     const result = await persistProviderInstance({ operation: "remove", instanceId });
     if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
+      const { locale: translationLocale } = readWebI18n();
       const error = squashAtomCommandFailure(result);
       toastManager.add({
         type: "error",
