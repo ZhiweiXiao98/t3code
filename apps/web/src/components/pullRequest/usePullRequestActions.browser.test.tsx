@@ -2,13 +2,19 @@ import { WebI18nContext } from "~/i18n/WebI18nContext";
 import { translateWebMessage } from "~/i18n/messages";
 import { readableFailure } from "./pullRequestDetail.logic";
 import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
-import { EnvironmentId, ProjectId, type PullRequestRef } from "@t3tools/contracts";
+import {
+  EnvironmentId,
+  ProjectId,
+  SourceControlProviderKind,
+  type PullRequestRef,
+} from "@t3tools/contracts";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
 import { expect, it, vi } from "vite-plus/test";
 import { userEvent } from "vite-plus/test/browser";
 
 import { act, render } from "../../../test/render";
-import { usePullRequestActionRunner } from "./usePullRequestActions";
+import { type EnvironmentPullRequestEntry } from "./pullRequestList.logic";
+import { usePullRequestActionRunner, usePullRequestCloseBatch } from "./usePullRequestActions";
 
 const state = vi.hoisted(() => ({
   runAction: vi.fn(),
@@ -272,4 +278,175 @@ it("uses settlement locale for action runner ready success", async () => {
   expect(state.toast).toHaveBeenCalledTimes(1);
   expect(state.success).toHaveBeenCalledTimes(1);
   expect(state.runAction).toHaveBeenCalledTimes(1);
+});
+
+const closeFirst: EnvironmentPullRequestEntry = {
+  environmentId: EnvironmentId.make("close-environment"),
+  provider: SourceControlProviderKind.make("github"),
+  host: "github.com",
+  projectId: ProjectId.make("close-project"),
+  projectTitle: "Literal project",
+  repository: "owner/repo",
+  number: 41,
+  title: "Literal $& {first}",
+  url: "https://github.com/owner/repo/pull/41",
+  author: { login: "author", name: null, avatarUrl: null },
+  headBranch: "feature",
+  baseBranch: "main",
+  state: "open",
+  isDraft: false,
+  mergeability: "mergeable",
+  additions: 0,
+  deletions: 0,
+  createdAt: "2026-09-01T00:00:00Z",
+  updatedAt: "2026-09-01T00:00:00Z",
+  viewerReviewRequested: false,
+  labels: [],
+};
+const closeSecond: EnvironmentPullRequestEntry = {
+  ...closeFirst,
+  number: 42,
+  title: "Literal $& {second}",
+  url: "https://github.com/owner/repo/pull/42",
+};
+const closeEntries = [closeFirst, closeSecond] as const;
+function CloseProbe({ entries }: { entries: readonly EnvironmentPullRequestEntry[] }) {
+  const { close, closingKeys } = usePullRequestCloseBatch(state.success);
+  return (
+    <>
+      <button type="button" onClick={() => void close(entries)}>
+        Close batch
+      </button>
+      <output aria-label="Pending closes">{closingKeys.size}</output>
+    </>
+  );
+}
+function closeSurface(
+  locale: "en" | "zh-CN",
+  entries: readonly EnvironmentPullRequestEntry[] = closeEntries,
+) {
+  state.locale = locale;
+  return (
+    <WebI18nContext
+      value={{
+        locale,
+        appLocale: locale,
+        setAppLocale: () => {},
+        t: (key, values) => translateWebMessage(locale, key, values),
+      }}
+    >
+      <CloseProbe entries={entries} />
+    </WebI18nContext>
+  );
+}
+it.each([
+  ["owned", null],
+  ["raw", new Error("Literal $& {first failure}")],
+  ["empty", new Error("")],
+  ["interrupted", undefined],
+] as const)("uses settlement locale for close batch failure: %s", async (kind, cause) => {
+  const { AsyncResult } = await import("effect/reactivity");
+  const Cause = await import("effect/Cause");
+  type Result = ReturnType<typeof AsyncResult.failure<unknown, unknown>>;
+  const first = deferred<Result>();
+  const second = deferred<Result>();
+  state.runAction
+    .mockReset()
+    .mockReturnValueOnce(first.promise)
+    .mockReturnValueOnce(second.promise);
+  state.toast.mockClear();
+  state.success.mockClear();
+  using _restore = {
+    [Symbol.dispose]() {
+      state.locale = "en";
+      state.runAction.mockReset();
+    },
+  };
+  await using screen = await render(closeSurface("en"));
+  await using _settle = {
+    async [Symbol.asyncDispose]() {
+      await act(async () => {
+        first.resolve(AsyncResult.failure(Cause.interrupt()));
+        second.resolve(AsyncResult.failure(Cause.interrupt()));
+        await Promise.all([first.promise, second.promise]);
+      });
+    },
+  };
+  const button = screen.getByRole("button", { name: "Close batch", exact: true });
+  await button.click();
+  await expect
+    .element(screen.getByRole("status", { name: "Pending closes" }))
+    .toHaveTextContent("2");
+  await button.click();
+  expect(state.runAction).toHaveBeenCalledTimes(2);
+  for (const [index, entry] of closeEntries.entries()) {
+    expect(state.runAction).toHaveBeenNthCalledWith(index + 1, {
+      environmentId: entry.environmentId,
+      input: {
+        projectId: entry.projectId,
+        host: entry.host,
+        repository: entry.repository,
+        number: entry.number,
+        action: "close",
+      },
+    });
+  }
+  await screen.rerender(closeSurface("zh-CN"));
+  const firstResult: Result = AsyncResult.failure(
+    kind === "interrupted" ? Cause.interrupt() : Cause.fail(cause),
+  );
+  const secondResult: Result = AsyncResult.failure(
+    kind === "interrupted"
+      ? Cause.interrupt()
+      : Cause.fail(new Error("Literal $& {second failure}")),
+  );
+  await act(async () => {
+    second.resolve(secondResult);
+    await second.promise;
+  });
+  await expect
+    .element(screen.getByRole("status", { name: "Pending closes" }))
+    .toHaveTextContent("1");
+  expect(state.toast).not.toHaveBeenCalled();
+  expect(state.success).not.toHaveBeenCalled();
+  await act(async () => {
+    first.resolve(firstResult);
+    await first.promise;
+  });
+  const hint = "托管服务拒绝了操作。请确认你拥有写入权限，或此请求由你创建。";
+  const firstText =
+    kind === "raw"
+      ? "Literal $& {first failure}"
+      : kind === "interrupted"
+        ? readableFailure(squashAtomCommandFailure(firstResult), hint)
+        : hint;
+  const secondText =
+    kind === "interrupted"
+      ? readableFailure(squashAtomCommandFailure(secondResult), hint)
+      : "Literal $& {second failure}";
+  expect(state.toast).toHaveBeenCalledExactlyOnceWith({
+    type: "error",
+    title: "已关闭 2 个拉取请求中的 0 个",
+    description: "#42: " + secondText + "\n#41: " + firstText,
+  });
+  await expect
+    .element(screen.getByRole("status", { name: "Pending closes" }))
+    .toHaveTextContent("0");
+  expect(state.success).not.toHaveBeenCalled();
+  await screen.rerender(closeSurface("en"));
+  expect(state.toast).toHaveBeenCalledTimes(1);
+  expect(state.runAction).toHaveBeenCalledTimes(2);
+});
+it("ignores closed entries in the close batch", async () => {
+  state.runAction.mockReset();
+  state.toast.mockClear();
+  state.success.mockClear();
+  await using screen = await render(closeSurface("en", [{ ...closeFirst, state: "closed" }]));
+  await screen.getByRole("button", { name: "Close batch", exact: true }).click();
+  await expect
+    .element(screen.getByRole("status", { name: "Pending closes" }))
+    .toHaveTextContent("0");
+  expect(state.runAction).not.toHaveBeenCalled();
+  expect(state.toast).not.toHaveBeenCalled();
+  expect(state.success).not.toHaveBeenCalled();
 });

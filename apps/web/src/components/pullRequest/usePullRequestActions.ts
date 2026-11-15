@@ -198,7 +198,7 @@ export function usePullRequestActionRunner({
 export function usePullRequestCloseBatch(
   onClosed: (entry: EnvironmentPullRequestEntry, reply: PullRequestSummary | undefined) => void,
 ) {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const runAction = useAtomCommand(pullRequestEnvironment.runAction, { reportFailure: false });
   const pending = useRef(new Set<string>());
   const [closingKeys, setClosingKeys] = useState<ReadonlySet<string>>(() => new Set());
@@ -227,6 +227,7 @@ export function usePullRequestCloseBatch(
         pending.current.delete(pullRequestEntryKey(entry));
         setClosingKeys(new Set(pending.current));
         if (result._tag === "Failure") {
+          const { locale } = readWebI18n();
           failures.push(
             `#${entry.number}: ${readableFailure(squashAtomCommandFailure(result), translateWebSource(locale, actionFailureHints(sourceControlClients.get(entry.provider).changeRequest.singular).close))}`,
           );
@@ -241,7 +242,7 @@ export function usePullRequestCloseBatch(
       type: failures.length > 0 ? "error" : "success",
       title:
         failures.length > 0
-          ? t("pullRequests.speed.closedPartial", { closed, total: batch.length })
+          ? readWebI18n().t("pullRequests.speed.closedPartial", { closed, total: batch.length })
           : t(closed === 1 ? "pullRequests.speed.closedOne" : "pullRequests.speed.closedMany", {
               count: closed,
             }),
