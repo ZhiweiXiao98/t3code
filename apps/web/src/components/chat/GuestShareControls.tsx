@@ -63,7 +63,7 @@ type CreateState =
   | { readonly status: "idle" }
   | { readonly status: "creating" }
   | { readonly status: "created"; readonly url: string }
-  | { readonly status: "failed"; readonly message: string };
+  | { readonly status: "failed"; readonly message: string | { readonly code: "createFailed" } };
 
 function GuestShareDialog({
   threadRef,
@@ -101,7 +101,7 @@ function GuestShareDialog({
     const error = squashAtomCommandFailure(result);
     setState({
       status: "failed",
-      message: error instanceof Error ? error.message : tx("Could not create a guest link."),
+      message: error instanceof Error ? error.message : { code: "createFailed" },
     });
   };
 
@@ -144,7 +144,9 @@ function GuestShareDialog({
           )}
           {state.status === "failed" ? (
             <p role="alert" className="text-destructive text-xs">
-              {state.message}
+              {typeof state.message === "string"
+                ? state.message
+                : tx("Could not create a guest link.")}
             </p>
           ) : null}
         </DialogPanel>
