@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { translateWebSource } from "~/i18n/messages";
 import {
   parsePullRequestAnchor,
@@ -268,6 +269,7 @@ function ConversationCard({
     });
     setSaving(false);
     if (result._tag === "Failure") {
+      const { t } = readWebI18n();
       toastManager.add({ type: "error", title: t("pullRequests.comments.saveFailed") });
       return;
     }

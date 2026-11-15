@@ -1,3 +1,4 @@
+import { pullRequestEnvironment } from "~/state/pullRequests";
 import { WebI18nContext } from "../../i18n/WebI18nContext";
 import { translateWebMessage } from "../../i18n/messages";
 import {
@@ -9,7 +10,7 @@ import {
 import { expect, it, vi } from "vite-plus/test";
 import { userEvent } from "vite-plus/test/browser";
 
-import { render } from "../../../test/render";
+import { act, render } from "../../../test/render";
 import "../../index.css";
 import { PullRequestTimelineTab } from "./PullRequestTimelineTab";
 
@@ -229,4 +230,176 @@ it("localizes owned timeline verbs while preserving comment text and author", as
   await expect.element(screen.getByText("reviewed", { exact: true })).toBeVisible();
   await screen.rerender(surface("en"));
   await expect.element(screen.getByText("commented", { exact: true })).toBeVisible();
+});
+
+const editing = vi.hoisted(() => ({
+  update: vi.fn(),
+  toast: vi.fn(),
+  locale: "en" as "en" | "zh-CN",
+}));
+vi.mock("../ui/toast", async (original) => ({
+  ...(await original<typeof import("../ui/toast")>()),
+  toastManager: { add: editing.toast },
+}));
+vi.mock("~/i18n/readWebI18n", () => ({
+  readWebI18n: () => {
+    const locale = editing.locale;
+    return {
+      locale,
+      t: (
+        key: Parameters<typeof translateWebMessage>[1],
+        values?: Parameters<typeof translateWebMessage>[2],
+      ) => translateWebMessage(locale, key, values),
+    };
+  },
+}));
+vi.mock(import("~/state/use-atom-command"), async (original) => {
+  const actual = await original();
+  return {
+    ...actual,
+    useAtomCommand: ((command: unknown, options: unknown) =>
+      command === pullRequestEnvironment.updateComment
+        ? editing.update
+        : actual.useAtomCommand(
+            command as never,
+            options as never,
+          )) as typeof actual.useAtomCommand,
+  };
+});
+vi.mock(import("~/state/session"), async (original) => ({
+  ...(await original()),
+  readEnvironmentScope: () => true,
+  useEnvironmentScope: () => true,
+}));
+const editableDetail: PullRequestDetailView = {
+  ...detail,
+  commits: [],
+  commentCount: 1,
+  capabilities: { ...detail.capabilities, edit: { changeRequest: false, comment: true } },
+  comments: [
+    {
+      id: "timeline-comment",
+      kind: "issue-comment",
+      path: null,
+      reviewState: null,
+      author: detail.author,
+      body: "Original timeline comment",
+      createdAt: detail.createdAt,
+      url: `${detail.url}#issuecomment-42`,
+    },
+  ],
+};
+function editSurface(locale: "en" | "zh-CN", refresh: () => void, allowed = true) {
+  editing.locale = locale;
+  return (
+    <WebI18nContext
+      value={{
+        locale,
+        appLocale: locale,
+        setAppLocale: () => {},
+        t: (key, values) => translateWebMessage(locale, key, values),
+      }}
+    >
+      <div style={{ height: 600 }}>
+        <PullRequestTimelineTab
+          scrollerRef={() => {}}
+          detail={
+            allowed
+              ? editableDetail
+              : {
+                  ...editableDetail,
+                  capabilities: {
+                    ...editableDetail.capabilities,
+                    edit: { changeRequest: false, comment: false },
+                  },
+                }
+          }
+          environmentId={EnvironmentId.make("environment")}
+          reference={detail}
+          order="oldest"
+          onOpenCommit={() => {}}
+          onRefresh={refresh}
+        />
+      </div>
+    </WebI18nContext>
+  );
+}
+it.each([
+  ["owned", null],
+  ["raw", new Error("Could not save the comment")],
+  ["empty", new Error("")],
+  ["interrupted", undefined],
+] as const)("uses settlement locale for timeline comment failure: %s", async (kind, failure) => {
+  editing.update.mockReset();
+  editing.toast.mockClear();
+  const { AsyncResult } = await import("effect/reactivity");
+  const Cause = await import("effect/Cause");
+  type Result = import("@t3tools/client-runtime/state/runtime").AtomCommandResult<void, unknown>;
+  let finish = (_result: Result) => {};
+  editing.update.mockReturnValueOnce(
+    new Promise<Result>((resolve) => {
+      finish = resolve;
+    }),
+  );
+  const refresh = vi.fn();
+  const draft = "Literal $& {timeline}\ncomment";
+  await using screen = await render(editSurface("en", refresh));
+  await using _settle = {
+    async [Symbol.asyncDispose]() {
+      await act(async () => {
+        finish(AsyncResult.failure(Cause.interrupt()));
+        await Promise.resolve();
+      });
+    },
+  };
+  await userEvent.click(screen.getByRole("button", { name: /^1 comments\b/ }));
+  await userEvent.click(screen.getByRole("button", { name: "Edit comment", exact: true }));
+  await userEvent.fill(screen.getByRole("textbox", { name: "Edit comment", exact: true }), draft);
+  await userEvent.click(screen.getByRole("button", { name: "Save", exact: true }));
+  await expect
+    .element(screen.getByRole("button", { name: "Saving...", exact: true }))
+    .toBeDisabled();
+  expect(editing.update).toHaveBeenCalledExactlyOnceWith({
+    environmentId: EnvironmentId.make("environment"),
+    input: { ...detail, commentId: "timeline-comment", kind: "issue-comment", body: draft },
+  });
+  expect(editing.toast).not.toHaveBeenCalled();
+  expect(refresh).not.toHaveBeenCalled();
+  await screen.rerender(editSurface("zh-CN", refresh));
+  await act(async () => {
+    finish(AsyncResult.failure(kind === "interrupted" ? Cause.interrupt() : Cause.fail(failure)));
+    await Promise.resolve();
+  });
+  expect(editing.toast).toHaveBeenCalledExactlyOnceWith({ type: "error", title: "无法保存评论" });
+  await expect.element(screen.getByRole("button", { name: "保存", exact: true })).toBeEnabled();
+  await expect
+    .element(screen.getByRole("textbox", { name: "编辑评论", exact: true }))
+    .toHaveValue(draft);
+  expect(refresh).not.toHaveBeenCalled();
+  await screen.rerender(editSurface("en", refresh));
+  expect(editing.toast).toHaveBeenCalledTimes(1);
+  expect(editing.update).toHaveBeenCalledTimes(1);
+});
+it("keeps timeline comment edit capability and Escape controls", async () => {
+  editing.update.mockReset();
+  editing.toast.mockClear();
+  const refresh = vi.fn();
+  await using screen = await render(editSurface("en", refresh, false));
+  await userEvent.click(screen.getByRole("button", { name: /^1 comments\b/ }));
+  await expect
+    .element(screen.getByRole("button", { name: "Edit comment", exact: true }))
+    .not.toBeInTheDocument();
+  await screen.rerender(editSurface("en", refresh));
+  await userEvent.click(screen.getByRole("button", { name: "Edit comment", exact: true }));
+  await userEvent.fill(
+    screen.getByRole("textbox", { name: "Edit comment", exact: true }),
+    "Discard {literal}",
+  );
+  await userEvent.keyboard("{Escape}");
+  await expect
+    .element(screen.getByRole("textbox", { name: "Edit comment", exact: true }))
+    .not.toBeInTheDocument();
+  expect(editing.update).not.toHaveBeenCalled();
+  expect(editing.toast).not.toHaveBeenCalled();
+  expect(refresh).not.toHaveBeenCalled();
 });
