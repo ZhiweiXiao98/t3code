@@ -1203,6 +1203,7 @@ export function isCompactCommandMessage(message: ChatMessage): boolean {
 // can race around promotion, so each write carries its time to let the latest
 // one win when they collide.
 const OWNED_THREAD_ERRORS = {
+  rewindAttachmentsPending: "Wait for attachments to finish preparing before rewinding.",
   rewindUnsupported:
     "This provider does not support reverting conversation history. Start a new thread instead.",
   rewindBusy: "Interrupt the current turn before reverting checkpoints.",

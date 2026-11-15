@@ -1325,6 +1325,11 @@ it.each(["server", "draft"] as const)(
 
 it.each([
   [
+    "rewindAttachmentsPending",
+    "Wait for attachments to finish preparing before rewinding.",
+    "请等待附件准备完成后再回退。",
+  ],
+  [
     "rewindUnsupported",
     "This provider does not support reverting conversation history. Start a new thread instead.",
     "此提供商不支持还原对话历史。请新建会话。",

@@ -187,18 +187,20 @@ export async function rewindToMessage(input: {
     };
   }) => Promise<AtomCommandResult<unknown, unknown>>;
 }): Promise<
-  | { readonly error: string; readonly prompt?: never }
+  | {
+      readonly error: string;
+      readonly ownedCode?: "rewindAttachmentsPending";
+      readonly prompt?: never;
+    }
   | { readonly error: null; readonly prompt: string }
 > {
   const { message, environmentId, draftTarget } = input;
   try {
     if (input.composerHasPendingAttachments) {
-      throw new Error(
-        translateWebSource(
-          readWebI18n().locale,
-          "Wait for attachments to finish preparing before rewinding.",
-        ),
-      );
+      return {
+        error: "Wait for attachments to finish preparing before rewinding.",
+        ownedCode: "rewindAttachmentsPending",
+      };
     }
     const connection = readPreparedConnection(environmentId);
     if (!connection)

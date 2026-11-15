@@ -7,10 +7,12 @@ import { expect, it, vi } from "vite-plus/test";
 import { render } from "../../../test/render";
 import { WebI18nContext } from "../../i18n/WebI18nContext";
 import { translateWebMessage } from "../../i18n/messages";
+import { useComposerDraftStore } from "../../composerDraftStore";
 import { makeThreadFixture } from "../../test-fixtures";
 import { makeThreadErrorSetter, type LocalThreadErrorEntry } from "../ChatView.logic";
 import { ChatBannerLane } from "./ChatBannerLane";
 const fixture = vi.hoisted(() => ({
+  connection: vi.fn(),
   allowed: true,
   localApi: true,
   confirm: vi.fn(),
@@ -28,6 +30,7 @@ vi.mock("../../localApi", async (original) => {
 vi.mock("../../state/session", async (original) => ({
   ...(await original<typeof import("../../state/session")>()),
   readEnvironmentScope: () => fixture.allowed,
+  readPreparedConnection: fixture.connection,
 }));
 vi.mock("./ChatOverlayHosts", async (original) => ({
   ...(await original<typeof import("./ChatOverlayHosts")>()),
@@ -78,6 +81,7 @@ function setup() {
   fixture.allowed = true;
   fixture.localApi = true;
   fixture.confirm.mockReset();
+  fixture.connection.mockReset().mockReturnValue(null);
   fixture.fork.mockReset().mockResolvedValue(AsyncResult.failure(Cause.fail(null)));
   fixture.wait.mockReset().mockResolvedValue(false);
   fixture.rewind.mockReset();
@@ -87,16 +91,19 @@ function Probe({
   absent = false,
   unavailable = false,
   eligibility,
+  attachmentCase,
 }: {
   absent?: boolean;
   unavailable?: boolean;
   eligibility?: "unsupported" | "running" | "sending";
+  attachmentCase?: "owned" | "raw" | "empty";
 }) {
   const [entries, setEntries] = useState<Record<string, LocalThreadErrorEntry>>({});
   const [, setDismissTick] = useState(0);
   const [busy, setBusy] = useState(false);
   const promptRef = useRef("");
   const composerRef = useRef(null);
+  const attachmentComposerRef = useRef({ hasPendingAttachments: () => attachmentCase === "owned" });
   const routeRef = useRef("fork");
   const setError = makeThreadErrorSetter({
     routeThreadRef: ref,
@@ -113,19 +120,20 @@ function Probe({
     currentRouteThreadKeyRef: routeRef,
     serverProjection: null,
     activeThread: absent ? undefined : activeThread,
-    timelineMessages: eligibility
-      ? [
-          {
-            id: MessageId.make("rewind-message"),
-            role: "user",
-            text: "Literal $& {prompt}",
-            runId: null,
-            streaming: false,
-            createdAt: "2026-01-01T00:00:00.000Z",
-            updatedAt: "2026-01-01T00:00:00.000Z",
-          },
-        ]
-      : [],
+    timelineMessages:
+      eligibility || attachmentCase
+        ? [
+            {
+              id: MessageId.make("rewind-message"),
+              role: "user",
+              text: "Literal $& {prompt}",
+              runId: null,
+              streaming: false,
+              createdAt: "2026-01-01T00:00:00.000Z",
+              updatedAt: "2026-01-01T00:00:00.000Z",
+            },
+          ]
+        : [],
     phase: eligibility === "running" ? "running" : "ready",
     isSendBusy: eligibility === "sending",
     isRevertingCheckpoint: false,
@@ -133,12 +141,20 @@ function Probe({
     activeEnvironmentUnavailable: unavailable,
     activeEnvironmentUnavailableLabel: null,
     promptRef,
-    composerRef,
+    composerRef: attachmentCase ? (attachmentComposerRef as never) : composerRef,
     composerDraftTarget: ref,
     setThreadError: setError,
   });
   return (
     <>
+      {attachmentCase ? (
+        <button
+          type="button"
+          onClick={() => actions.onConfirmRevertStable(1, MessageId.make("rewind-message"), false)}
+        >
+          Confirm revert
+        </button>
+      ) : null}
       {eligibility ? (
         <button
           type="button"
@@ -182,6 +198,7 @@ function surface(
     absent?: boolean;
     unavailable?: boolean;
     eligibility?: "unsupported" | "running" | "sending";
+    attachmentCase?: "owned" | "raw" | "empty";
   } = {},
 ) {
   fixture.locale = locale;
@@ -372,5 +389,45 @@ it.each(["scope", "local-api", "absent"] as const)(
     expect(fixture.rewind).not.toHaveBeenCalled();
     expect(fixture.query).not.toHaveBeenCalled();
     expect(fixture.confirm).not.toHaveBeenCalled();
+  },
+);
+
+it.each(["owned", "raw", "empty"] as const)(
+  "keeps rewind attachment preflight %s",
+  async (attachmentCase) => {
+    setup();
+    const source = "Wait for attachments to finish preparing before rewinding.";
+    if (attachmentCase !== "owned")
+      fixture.connection.mockImplementation(() => {
+        throw new Error(attachmentCase === "raw" ? source : "");
+      });
+    const originalKeys = useComposerDraftStore.getState().rewindingThreadKeys;
+    const originalDraft = useComposerDraftStore.getState().getComposerDraft(ref);
+    using _restore = {
+      [Symbol.dispose]: () => useComposerDraftStore.setState({ rewindingThreadKeys: originalKeys }),
+    };
+    await using screen = await render(surface("en", { attachmentCase }));
+    await screen.getByRole("button", { name: "Confirm revert", exact: true }).click();
+    await expect
+      .poll(() => useComposerDraftStore.getState().rewindingThreadKeys.has("fork"))
+      .toBe(false);
+    for (const locale of ["en", "zh-CN", "en"] as const) {
+      await screen.rerender(surface(locale, { attachmentCase }));
+      if (attachmentCase === "empty")
+        expect(screen.container.querySelector('[data-variant="error"]')).toBeNull();
+      else
+        await expect
+          .poll(() => screen.container.textContent)
+          .toContain(
+            attachmentCase === "owned" && locale === "zh-CN"
+              ? "请等待附件准备完成后再回退。"
+              : source,
+          );
+    }
+    expect(fixture.connection).toHaveBeenCalledTimes(attachmentCase === "owned" ? 0 : 1);
+    expect(fixture.rewind).not.toHaveBeenCalled();
+    expect(fixture.query).not.toHaveBeenCalled();
+    expect(fixture.fork).not.toHaveBeenCalled();
+    expect(useComposerDraftStore.getState().getComposerDraft(ref)).toBe(originalDraft);
   },
 );
