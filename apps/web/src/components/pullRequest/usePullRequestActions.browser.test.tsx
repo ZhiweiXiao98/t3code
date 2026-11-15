@@ -450,3 +450,110 @@ it("ignores closed entries in the close batch", async () => {
   expect(state.toast).not.toHaveBeenCalled();
   expect(state.success).not.toHaveBeenCalled();
 });
+
+it.each(["one", "two", "mixed"] as const)(
+  "uses settlement locale for close batch success: %s",
+  async (kind) => {
+    const { AsyncResult } = await import("effect/reactivity");
+    const Cause = await import("effect/Cause");
+    type Result =
+      | ReturnType<typeof AsyncResult.success<undefined>>
+      | ReturnType<typeof AsyncResult.failure<unknown, unknown>>;
+    const first = deferred<Result>();
+    const second = deferred<Result>();
+    const entries = kind === "one" ? [closeFirst] : closeEntries;
+    state.runAction
+      .mockReset()
+      .mockReturnValueOnce(first.promise)
+      .mockReturnValueOnce(second.promise);
+    state.toast.mockClear();
+    state.success.mockClear();
+    using _restore = {
+      [Symbol.dispose]() {
+        state.locale = "en";
+        state.runAction.mockReset();
+      },
+    };
+    await using screen = await render(closeSurface("en", entries));
+    await using _settle = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          first.resolve(AsyncResult.failure(Cause.interrupt()));
+          second.resolve(AsyncResult.failure(Cause.interrupt()));
+          await Promise.all([first.promise, second.promise]);
+        });
+      },
+    };
+    const button = screen.getByRole("button", { name: "Close batch", exact: true });
+    await button.click();
+    await expect
+      .element(screen.getByRole("status", { name: "Pending closes" }))
+      .toHaveTextContent(String(entries.length));
+    await button.click();
+    expect(state.runAction).toHaveBeenCalledTimes(entries.length);
+    for (const [index, entry] of entries.entries()) {
+      expect(state.runAction).toHaveBeenNthCalledWith(index + 1, {
+        environmentId: entry.environmentId,
+        input: {
+          projectId: entry.projectId,
+          host: entry.host,
+          repository: entry.repository,
+          number: entry.number,
+          action: "close",
+        },
+      });
+    }
+    await screen.rerender(closeSurface("zh-CN", entries));
+    if (kind !== "one") {
+      await act(async () => {
+        second.resolve(AsyncResult.success(undefined));
+        await second.promise;
+      });
+      await expect
+        .element(screen.getByRole("status", { name: "Pending closes" }))
+        .toHaveTextContent("1");
+      expect(state.success).toHaveBeenCalledExactlyOnceWith(closeSecond, undefined);
+      expect(state.toast).not.toHaveBeenCalled();
+    }
+    await act(async () => {
+      first.resolve(
+        kind === "mixed"
+          ? AsyncResult.failure(Cause.fail(new Error("Literal $& {mixed failure}")))
+          : AsyncResult.success(undefined),
+      );
+      await first.promise;
+    });
+    expect(state.success.mock.calls).toEqual(
+      kind === "one"
+        ? [[closeFirst, undefined]]
+        : kind === "two"
+          ? [
+              [closeSecond, undefined],
+              [closeFirst, undefined],
+            ]
+          : [[closeSecond, undefined]],
+    );
+    expect(state.toast).toHaveBeenCalledExactlyOnceWith(
+      kind === "mixed"
+        ? {
+            type: "error",
+            title: "已关闭 2 个拉取请求中的 1 个",
+            description: "#41: Literal $& {mixed failure}",
+          }
+        : {
+            type: "success",
+            title: kind === "one" ? "已关闭 1 个拉取请求" : "已关闭 2 个拉取请求",
+          },
+    );
+    expect(state.success.mock.invocationCallOrder.at(-1)).toBeLessThan(
+      state.toast.mock.invocationCallOrder[0]!,
+    );
+    await expect
+      .element(screen.getByRole("status", { name: "Pending closes" }))
+      .toHaveTextContent("0");
+    await screen.rerender(closeSurface("en", entries));
+    expect(state.toast).toHaveBeenCalledTimes(1);
+    expect(state.success).toHaveBeenCalledTimes(kind === "two" ? 2 : 1);
+    expect(state.runAction).toHaveBeenCalledTimes(entries.length);
+  },
+);
