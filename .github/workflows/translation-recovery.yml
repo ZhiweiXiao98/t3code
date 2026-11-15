@@ -1,0 +1,129 @@
+name: Localization recovery exact-source checks
+on:
+  push:
+    branches: [validation/i18n-recovery-round22]
+permissions:
+  contents: read
+concurrency:
+  group: i18n-recovery-round22
+  cancel-in-progress: false
+env:
+  CI: "true"
+  SOURCE_SHA: 7ff6fc004f3f08e2ee75bc9b60d833b03819476d
+  PARENT_SHA: d4fa24deceb43c3ccdc1118434b0e71e319d7c28
+  BASE_SHA: d4fa24deceb43c3ccdc1118434b0e71e319d7c28
+  VP_REMOTE_CACHE: "off"
+  VP_REMOTE_CACHE_URL: ""
+jobs:
+  regression:
+    name: Exact-source changed-file and browser regressions
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Verify public repository and check out exact source
+        shell: bash
+        env:
+          GIT_TERMINAL_PROMPT: "0"
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os
+          event = json.load(open(os.environ["GITHUB_EVENT_PATH"]))
+          assert os.environ["GITHUB_REPOSITORY"] == "ZhiweiXiao98/t3code"
+          assert event["repository"]["private"] is False
+          assert os.environ["GITHUB_REF"] == "refs/heads/validation/i18n-recovery-round22"
+          PY
+          git init .
+          git remote add origin "https://github.com/ZhiweiXiao98/t3code.git"
+          git fetch --no-tags --depth=64 origin "$SOURCE_SHA"
+          git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(git rev-parse HEAD^)" = "$PARENT_SHA"
+          test "$(git rev-parse HEAD^{tree})" = b631fa4ec03f93e6b0f138c2b53ec6d0b0548e8c
+          git diff --exit-code
+          printf 'Source: %s\nBase: %s\n' "$SOURCE_SHA" "$BASE_SHA" >> "$GITHUB_STEP_SUMMARY"
+      - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
+        with:
+          node-version-file: package.json
+          cache: true
+          run-install: false
+      - name: Install locked dependencies
+        run: vp install --frozen-lockfile
+      - name: Install official Chromium and system dependencies
+        run: node apps/web/node_modules/playwright/cli.js install --with-deps chromium
+      - name: Verify transplanted original clipboard rejection policy control
+        shell: bash
+        run: |
+          set -euo pipefail
+          saved=$(mktemp -d "$RUNNER_TEMP/cached-errors-baseline.XXXXXX")
+          files=(apps/web/src/components/pullRequest/usePullRequestsPageShortcuts.ts)
+          for file in "${files[@]}"; do mkdir -p "$saved/$(dirname "$file")"; cp "$file" "$saved/$file"; done
+          restore_source() { for file in "${files[@]}"; do cp "$saved/$file" "$file"; done; }
+          trap restore_source EXIT
+          python3 - <<'PY'
+          import hashlib, os, pathlib, subprocess
+          path = pathlib.Path("apps/web/src/components/pullRequest/usePullRequestsPageShortcuts.ts")
+          fixed = path.read_text()
+          assert hashlib.sha256(fixed.encode()).hexdigest() == "961a55e7cdc0b1f79a0012386a349fee6aeaedbe54b05cd4cccea7c4d4033149"
+          old = subprocess.check_output(["git", "show", os.environ["BASE_SHA"] + ":apps/web/src/components/pullRequest/PullRequestsPage.tsx"], text=True)
+          assert hashlib.sha256(old.encode()).hexdigest() == "2ac6130d65b42b2e6b190551c30e3f5c877a92e43eaf8735577c89d2ba7528a3"
+          start = old.index("      (error) => {", old.index("const copyPullRequestFromShortcut"))
+          end = old.index("\n    );", start)
+          original = old[start:end]
+          assert hashlib.sha256((original + "\n").encode()).hexdigest() == "4307837618155a52181a5055e738c729dac55cb6f32bc026230bad0f2e18680d"
+          start = fixed.index("      (error) => {", fixed.index("const copyPullRequestFromShortcut"))
+          end = fixed.index("\n    );", start)
+          control = fixed[:start] + original + fixed[end:]
+          assert hashlib.sha256(control.encode()).hexdigest() == "744d81ae15b9e04b667da7b78aaf9e98a6c7d6ad2cc882dfd0a2b93c952bddb4"
+          path.write_text(control)
+          print("Transplanted original rejection callback control, not untouched historical Page rendering.")
+          PY
+          set +e
+          vp test run apps/web/src/components/pullRequest/usePullRequestsPageShortcuts.browser.test.tsx -t 'localizes page shortcut clipboard failure: github' 2>&1 | tee "$RUNNER_TEMP/title-baseline.log"
+          baseline_status=${PIPESTATUS[0]}
+          set -e
+          restore_source
+          echo '961a55e7cdc0b1f79a0012386a349fee6aeaedbe54b05cd4cccea7c4d4033149  apps/web/src/components/pullRequest/usePullRequestsPageShortcuts.ts' | sha256sum -c -
+          trap - EXIT
+          test "$baseline_status" -ne 0
+          python3 -c 'import pathlib,re,sys; p=pathlib.Path(sys.argv[1]); p.write_text(re.sub(r"\x1b\[[0-9;]*m", "", p.read_text()))' "$RUNNER_TEMP/title-baseline.log"
+          grep -E "Tests[[:space:]]+1 failed" "$RUNNER_TEMP/title-baseline.log"
+          grep -E "AssertionError:.*to be called once with arguments" "$RUNNER_TEMP/title-baseline.log"
+          grep -F '无法将 拉取请求链接 复制到剪贴板。' "$RUNNER_TEMP/title-baseline.log"
+          grep -F 'Failed to copy pull request link to the clipboard.' "$RUNNER_TEMP/title-baseline.log"
+          if grep -E "Unhandled Errors|Unhandled Rejection|Test timed out|locator[.][[:alpha:]]+: Timeout|Failed to import test file|is not a function|does not provide an export|change in the order of Hooks|Rendered (fewer|more) hooks|Should have a queue|invalid-hook-call|Cannot find element with locator" "$RUNNER_TEMP/title-baseline.log"; then
+            echo "Baseline failed for a fixture or runtime reason, not verified localization behavior." >&2
+            exit 1
+          fi
+          git diff --exit-code
+      - name: Run changed-file regression checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          vp run check:changed "$BASE_SHA" --concurrency 2 2>&1 | tee "$RUNNER_TEMP/recovery-checks.log"
+      - name: Verify tested source unchanged
+        if: always()
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          git diff --exit-code
+          git diff --cached --exit-code
+      - name: Upload exact-source check evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: localization-recovery-checks
+          path: |
+            ${{ runner.temp }}/recovery-checks.log
+            ${{ runner.temp }}/title-baseline.log
+          if-no-files-found: warn
+
+
+
+
+
+
+
+
+
+
