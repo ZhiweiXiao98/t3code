@@ -16,10 +16,20 @@ import { DraftId, useComposerDraftStore } from "~/composerDraftStore";
 import { act, render } from "../../../test/render";
 
 const { permissions, mocks } = vi.hoisted(() => ({
-  mocks: { gitlab: false, command: vi.fn(), toast: vi.fn(), locale: "en" as "en" | "zh-CN" },
+  mocks: {
+    gitlab: false,
+    command: vi.fn(),
+    newThread: vi.fn(),
+    toast: vi.fn(),
+    locale: "en" as "en" | "zh-CN",
+  },
   permissions: { checkout: true, operate: true },
 }));
 
+vi.mock(import("~/hooks/useHandleNewThread"), async (original) => ({
+  ...(await original()),
+  useNewThreadHandler: () => mocks.newThread,
+}));
 vi.mock(import("~/state/session"), async (original) => ({
   ...(await original()),
   useEnvironmentScope: (_environmentId: unknown, scope: unknown) =>
@@ -555,4 +565,84 @@ it("localizes the actual unavailable checkout clipboard API", async () => {
   expect(rich).not.toHaveBeenCalled();
   expect(external).not.toHaveBeenCalled();
   expect(mocks.command).not.toHaveBeenCalled();
+});
+
+it.each([
+  ["owned", null],
+  ["raw", new Error("Literal $& {thread failure}")],
+  ["empty", new Error("")],
+  ["undefined", undefined],
+] as const)("uses settlement locale for ask-thread failure: %s", async (_kind, cause) => {
+  const state = useComposerDraftStore.getState();
+  using _restore = {
+    [Symbol.dispose]() {
+      useComposerDraftStore.setState(state, true);
+      mocks.locale = "en";
+      mocks.newThread.mockReset();
+    },
+  };
+  setup();
+  mocks.toast.mockClear();
+  mocks.command.mockClear();
+  mocks.newThread.mockReset();
+  let fail = (_cause: unknown) => {};
+  const pending = new Promise<never>((_resolve, reject) => {
+    fail = reject;
+  });
+  void pending.catch(() => {});
+  mocks.newThread.mockReturnValueOnce(pending);
+  using external = vi.spyOn(window, "open").mockImplementation(() => null);
+  using write = vi
+    .spyOn(navigator.clipboard, "writeText")
+    .mockRejectedValue(new Error("Unexpected clipboard write"));
+  using rich = vi
+    .spyOn(navigator.clipboard, "write")
+    .mockRejectedValue(new Error("Unexpected rich write"));
+  await using screen = await render(copySurface("en"));
+  await using _settle = {
+    async [Symbol.asyncDispose]() {
+      await act(async () => {
+        fail(new Error("Fixture disposed"));
+        await Promise.resolve();
+      });
+    },
+  };
+  const before = useComposerDraftStore.getState();
+  const trigger = screen.getByRole("button", { name: "More pull request actions", exact: true });
+  await trigger.click();
+  await page.getByRole("menuitem", { name: /^Ask a question(?:\s|$)/ }).click();
+  expect(mocks.newThread).toHaveBeenCalledExactlyOnceWith({
+    environmentId,
+    projectId: detail.projectId,
+  });
+  await trigger.click();
+  const opening = page.getByRole("menuitem", { name: /^Opening\.\.\.(?:\s|$)/ });
+  await expect.element(opening).toBeVisible();
+  await expect.element(opening).toHaveAttribute("aria-disabled", "true");
+  await act(async () => {
+    opening.element().dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+  });
+  expect(mocks.newThread).toHaveBeenCalledTimes(1);
+  await screen.rerender(copySurface("zh-CN"));
+  expect(mocks.toast).not.toHaveBeenCalled();
+  await act(async () => {
+    fail(cause);
+    await Promise.resolve();
+  });
+  expect(mocks.toast).toHaveBeenCalledExactlyOnceWith({
+    type: "error",
+    title: "无法打开任务",
+    description: "请从项目中重试，或先打开一个任务。",
+  });
+  const restored = page.getByRole("menuitem", { name: /^提问(?:\s|$)/ });
+  await expect.element(restored).toBeVisible();
+  await expect.element(restored).not.toHaveAttribute("aria-disabled", "true");
+  expect(useComposerDraftStore.getState()).toBe(before);
+  expect(mocks.command).not.toHaveBeenCalled();
+  expect(external).not.toHaveBeenCalled();
+  expect(write).not.toHaveBeenCalled();
+  expect(rich).not.toHaveBeenCalled();
+  await screen.rerender(copySurface("en"));
+  expect(mocks.toast).toHaveBeenCalledTimes(1);
+  expect(mocks.newThread).toHaveBeenCalledTimes(1);
 });

@@ -985,6 +985,7 @@ export function PullRequestDetailPanel({
       }
     }
     if (opened === null) {
+      const { t } = readWebI18n();
       toastManager.add({
         type: "error",
         title: t("pullRequests.handoff.openThreadFailed"),
