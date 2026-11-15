@@ -593,3 +593,28 @@ it.each([
   expect(entries.side?.ownedCode).toBeUndefined();
   expect(formatLocalThreadError(source, entries.side, "zh-CN")).toBe(source);
 });
+
+it("pairs multiple-model fallback ownership without claiming raw collisions", () => {
+  const source = "Failed to send messages.";
+  const ref = { environmentId: EnvironmentId.make("edit"), threadId: ThreadId.make("edit") };
+  let entries: Record<string, LocalThreadErrorEntry> = {};
+  const set = makeThreadErrorSetter({
+    routeThreadRef: ref,
+    routeThreadKey: "edit",
+    draftId: null,
+    serverThreadRef: ref,
+    setLocalServerErrorsByThreadKey: (update) => {
+      entries = typeof update === "function" ? update(entries) : update;
+    },
+    setLocalDraftErrorsByDraftId: () => undefined,
+  });
+  set(ref.threadId, source, "multipleModelsFailed");
+  expect(entries.edit?.ownedCode).toBe("multipleModelsFailed");
+  for (const locale of ["en", "zh-CN", "en"] as const)
+    expect(formatLocalThreadError(source, entries.edit, locale)).toBe(
+      locale === "en" ? source : "发送消息失败。",
+    );
+  set(ref.threadId, source);
+  expect(entries.edit?.ownedCode).toBeUndefined();
+  expect(formatLocalThreadError(source, entries.edit, "zh-CN")).toBe(source);
+});

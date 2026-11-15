@@ -238,9 +238,8 @@ export function useMultipleModelSend(input: MultipleModelSendInput) {
       failedSelections.push(...selections);
       setThreadError(
         threadId,
-        error instanceof Error
-          ? error.message
-          : translateWebSource(readWebI18n().locale, "Failed to send messages."),
+        error instanceof Error ? error.message : "Failed to send messages.",
+        error instanceof Error ? undefined : "multipleModelsFailed",
       );
     }
     const restoreFailedDraft = () => {

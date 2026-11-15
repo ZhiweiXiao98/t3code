@@ -1254,6 +1254,7 @@ export function isCompactCommandMessage(message: ChatMessage): boolean {
 // can race around promotion, so each write carries its time to let the latest
 // one win when they collide.
 const OWNED_THREAD_ERRORS = {
+  multipleModelsFailed: "Failed to send messages.",
   sideChatMissingShell: "The side chat was created, but it did not reach this client.",
   sideChatUnavailable: "The side chat is no longer available.",
   sideChatModeFailed: "Could not set the side chat's permission mode.",
