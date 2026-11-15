@@ -126,14 +126,13 @@ export function useNewProject() {
     const projectRef = scopeProjectRef(input.environmentId, projectId);
     // Wait for the stored project path; drafts use it as their key.
     const project = await waitForProject(projectRef).catch((error: unknown) => {
+      const { locale, t } = readWebI18n();
       toastManager.add(
         stackedThreadToast({
           type: "error",
           title: t("newProject.openError"),
           description: t("newProject.openErrorDescription", {
-            error:
-              projectAppearanceFailureMessage(readWebI18n().locale, error) ??
-              errorMessage(error, t),
+            error: projectAppearanceFailureMessage(locale, error) ?? errorMessage(error, t),
           }),
         }),
       );
@@ -141,6 +140,7 @@ export function useNewProject() {
     });
     if (project === null) return true;
     await handleNewThread(projectRef).catch((error: unknown) => {
+      const { t } = readWebI18n();
       toastManager.add(
         stackedThreadToast({
           type: "error",

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { EnvironmentId } from "@t3tools/contracts";
+import { EnvironmentId, ProjectId } from "@t3tools/contracts";
 import type { AtomCommandResult } from "@t3tools/client-runtime/state/runtime";
 import * as Cause from "effect/Cause";
 import { AsyncResult } from "effect/reactivity";
@@ -7,6 +7,9 @@ import { expect, it, vi } from "vite-plus/test";
 import { act, render } from "../../test/render";
 import { WebI18nContext } from "../i18n/WebI18nContext";
 import { translateWebMessage } from "../i18n/messages";
+import type { EnvironmentProject } from "@t3tools/client-runtime/state/models";
+import { scopeProjectRef } from "@t3tools/client-runtime/environment";
+import { ProjectAppearanceTimeoutError } from "../i18n/queryFailureMessages";
 import { useNewProject } from "./useNewProject";
 
 const fixture = vi.hoisted(() => ({
@@ -159,5 +162,116 @@ it.each(["owned", "raw", "collision", "empty", "whitespace", "interrupted"] as c
     expect(fixture.publish).not.toHaveBeenCalled();
     expect(fixture.wait).not.toHaveBeenCalled();
     expect(fixture.thread).not.toHaveBeenCalled();
+  },
+);
+
+const createdProject: EnvironmentProject = {
+  environmentId,
+  id: ProjectId.make("created-project"),
+  title: "Literal $& {project}",
+  workspaceRoot: "/literal/{project}",
+  repositoryIdentity: null,
+  defaultModelSelection: null,
+  scripts: [],
+  createdAt: "2026-07-01T00:00:00.000Z",
+  updatedAt: "2026-07-01T00:00:00.000Z",
+};
+it.each([
+  { stage: "wait", kind: "owned" },
+  { stage: "wait", kind: "raw" },
+  { stage: "wait", kind: "empty" },
+  { stage: "wait", kind: "whitespace" },
+  { stage: "wait", kind: "typed" },
+  { stage: "thread", kind: "owned" },
+  { stage: "thread", kind: "raw" },
+  { stage: "thread", kind: "empty" },
+  { stage: "thread", kind: "whitespace" },
+] as const)(
+  "uses settlement locale for project open $stage $kind failure",
+  async ({ stage, kind }) => {
+    vi.clearAllMocks();
+    fixture.locale = "en";
+    fixture.create.mockReset().mockResolvedValue(
+      AsyncResult.success({
+        projectId: createdProject.id,
+        workspaceRoot: createdProject.workspaceRoot,
+      }),
+    );
+    let reject!: (error: unknown) => void;
+    const pending = new Promise<never>((_resolve, fail) => {
+      reject = fail;
+    });
+    void pending.catch(() => {});
+    fixture.wait
+      .mockReset()
+      .mockReturnValue(stage === "wait" ? pending : Promise.resolve(createdProject));
+    fixture.thread
+      .mockReset()
+      .mockReturnValue(stage === "thread" ? pending : Promise.resolve(null));
+    await using screen = await render(view());
+    await using _settle = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          reject(null);
+          await Promise.resolve();
+        });
+      },
+    };
+    await screen.getByRole("button", { name: "Create project" }).click();
+    await expect
+      .poll(() => (stage === "wait" ? fixture.wait : fixture.thread).mock.calls.length)
+      .toBe(1);
+    await expect.element(screen.getByRole("button", { name: "Create project" })).toBeDisabled();
+    expect(fixture.toast).toHaveBeenCalledTimes(1);
+    const firstToast = fixture.toast.mock.calls[0]?.[0];
+    fixture.locale = "zh-CN";
+    await screen.rerender(view());
+    const raw =
+      kind === "raw"
+        ? translateWebMessage("en", "common.error")
+        : kind === "whitespace"
+          ? " \n "
+          : "";
+    await act(async () => {
+      reject(
+        kind === "owned"
+          ? null
+          : kind === "typed"
+            ? new ProjectAppearanceTimeoutError({})
+            : new Error(raw),
+      );
+    });
+    await expect.poll(() => screen.container.textContent).toContain("true");
+    const detail =
+      kind === "typed"
+        ? translateWebMessage("zh-CN", "audit11.projectTimeout")
+        : kind === "raw"
+          ? raw
+          : translateWebMessage("zh-CN", "common.error");
+    expect(fixture.toast).toHaveBeenCalledTimes(2);
+    expect(fixture.toast.mock.calls[1]?.[0]).toMatchObject({
+      title: translateWebMessage("zh-CN", "newProject.openError"),
+      description:
+        stage === "wait"
+          ? translateWebMessage("zh-CN", "newProject.openErrorDescription", { error: detail })
+          : detail,
+    });
+    expect(fixture.toast.mock.calls[0]?.[0]).toEqual(firstToast);
+    fixture.locale = "en";
+    await screen.rerender(view());
+    expect(fixture.create).toHaveBeenCalledExactlyOnceWith({
+      environmentId,
+      input: { name: "Literal $& {project}" },
+    });
+    expect(fixture.wait).toHaveBeenCalledExactlyOnceWith(
+      scopeProjectRef(environmentId, createdProject.id),
+    );
+    if (stage === "wait") expect(fixture.thread).not.toHaveBeenCalled();
+    else
+      expect(fixture.thread).toHaveBeenCalledExactlyOnceWith(
+        scopeProjectRef(environmentId, createdProject.id),
+      );
+    expect(fixture.publish).not.toHaveBeenCalled();
+    expect(fixture.toast).toHaveBeenCalledTimes(2);
   },
 );
