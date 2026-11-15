@@ -84,12 +84,10 @@ it("uses the current language for a scratch failure after switching while it is 
 
 it("evaluates a supplied lazy scratch title only when reporting settled failure", async () => {
   let locale: "en" | "zh-CN" = "en";
-  using _i18n = vi
-    .spyOn(webI18n, "readWebI18n")
-    .mockImplementation(() => ({
-      locale,
-      t: (key, values) => translateWebMessage(locale, key, values),
-    }));
+  using _i18n = vi.spyOn(webI18n, "readWebI18n").mockImplementation(() => ({
+    locale,
+    t: (key, values) => translateWebMessage(locale, key, values),
+  }));
   using toast = vi.spyOn(toastManager, "add").mockReturnValue("lazy-failure");
   let finish!: (value: Awaited<ReturnType<typeof runtime.runAtomCommand>>) => void;
   const result = new Promise<Awaited<ReturnType<typeof runtime.runAtomCommand>>>((resolve) => {
