@@ -1,0 +1,155 @@
+name: Qualify deferred orchestrator close observer once
+on:
+  push:
+    branches: [validation/orchestrator-canonical-a0b0b320c51b]
+permissions:
+  contents: read
+concurrency:
+  group: orchestrator-close-qualification-${{ github.ref }}
+  cancel-in-progress: false
+env:
+  CI: 'true'
+  VP_REMOTE_CACHE: 'off'
+  VP_REMOTE_CACHE_URL: ''
+  SOURCE_SHA: a0b0b320c51b09bec72fd094c3b34ca19126e3bf
+  SOURCE_TREE: 56c56dc72706c2a0f349b7f95f30bc63de21d564
+  PARENT_SHA: 7c35fc57d4697cb00982a5906934687f662f1d33
+  REPORTER_SHA256: a26eafa736f4479a3194700a1ca60d45067678b069e4d458fec1fbfa479473dd
+  QUALIFIER_SHA256: 433a680963a6cce866b7f606df71029bef2eda80d487048c9b46259b120b852c
+  EXPECTED_BRANCH: validation/orchestrator-canonical-a0b0b320c51b
+jobs:
+  qualify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Guard exact public three-path diagnostic child and anonymous source checkout
+        env:
+          GIT_TERMINAL_PROMPT: '0'
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          python3 - <<'PY'
+          import os,re,json,urllib.request
+          assert os.environ['GITHUB_REPOSITORY']=='ZhiweiXiao98/t3code'
+          assert os.environ['GITHUB_EVENT_NAME']=='push' and os.environ['GITHUB_RUN_ATTEMPT']=='1'
+          assert os.environ['GITHUB_REF']=='refs/heads/'+os.environ['EXPECTED_BRANCH']
+          for k in ['SOURCE_SHA','SOURCE_TREE','PARENT_SHA']:assert re.fullmatch('[0-9a-f]{40}',os.environ[k])
+          for k in ['REPORTER_SHA256','QUALIFIER_SHA256']:assert re.fullmatch('[0-9a-f]{64}',os.environ[k])
+          req=urllib.request.Request('https://api.github.com/repos/ZhiweiXiao98/t3code',headers={'Accept':'application/vnd.github+json'})
+          with urllib.request.urlopen(req,timeout=30) as r:
+            b=r.read(1024*1024+1);assert len(b)<=1024*1024;j=json.loads(b)
+          assert j['full_name']=='ZhiweiXiao98/t3code' and j['private'] is False
+          PY
+          git init .
+          git remote add origin https://github.com/ZhiweiXiao98/t3code.git
+          git -c credential.helper= -c protocol.allow=never -c protocol.https.allow=always fetch --no-tags --depth=3 origin "$GITHUB_SHA"
+          test "$(git rev-parse FETCH_HEAD^)" = "$SOURCE_SHA"
+          test "$(git rev-parse "$SOURCE_SHA^" )" = "$PARENT_SHA"
+          test "$(git rev-list --parents -n 1 FETCH_HEAD | wc -w)" -eq 2
+          test "$(git rev-list --parents -n 1 "$SOURCE_SHA" | wc -w)" -eq 2
+          test "$(git rev-parse "$SOURCE_SHA^{tree}")" = "$SOURCE_TREE"
+          python3 - <<'PY'
+          import subprocess,os
+          actual=subprocess.check_output(['git','diff-tree','--no-commit-id','--name-status','-r',os.environ['SOURCE_SHA'],'FETCH_HEAD'],text=True).splitlines()
+          expected=['A\t.github/workflows/orchestrator-close-qualification.yml','A\t.github/diagnostics/orchestrator-close/module-identity.mjs','A\t.github/diagnostics/orchestrator-close/qualify-observer.py']
+          assert sorted(actual)==sorted(expected)
+          PY
+          mkdir "$RUNNER_TEMP/observer-tools"
+          git show 'FETCH_HEAD:.github/diagnostics/orchestrator-close/module-identity.mjs' > "$RUNNER_TEMP/observer-tools/module-identity.mjs"
+          git show 'FETCH_HEAD:.github/diagnostics/orchestrator-close/qualify-observer.py' > "$RUNNER_TEMP/observer-tools/qualify-observer.py"
+          echo "$REPORTER_SHA256  $RUNNER_TEMP/observer-tools/module-identity.mjs" | sha256sum -c -
+          echo "$QUALIFIER_SHA256  $RUNNER_TEMP/observer-tools/qualify-observer.py" | sha256sum -c -
+          git sparse-checkout set --no-cone '/*' '!/.repos/'
+          git checkout --detach "$SOURCE_SHA"
+          test -z "$(git status --porcelain --untracked-files=no)"
+      - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
+        with:
+          node-version: 26.12.1
+          cache: true
+          run-install: false
+      - name: Install exact frozen dependencies
+        timeout-minutes: 12
+        run: |
+          set -euo pipefail
+          test "$(node --version)" = v26.12.1
+          vp install --frozen-lockfile
+      - name: Install official locked Chromium
+        id: browser_setup
+        timeout-minutes: 6
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/ci-ubuntu-packages.py playwright apps/web/node_modules/playwright/cli.js
+          node apps/web/node_modules/playwright/cli.js install --only-shell chromium
+      - name: Run six orchestrator unit cases once
+        id: unit
+        timeout-minutes: 5
+        working-directory: apps/web
+        run: vp test run src/orchestratorSocket.test.ts --project unit
+      - name: Run unchanged browser case once with additive module reporter
+        id: browser
+        if: ${{ !cancelled() && steps.browser_setup.outcome == 'success' }}
+        timeout-minutes: 8
+        working-directory: apps/web
+        run: |
+          python3 - <<'PY'
+          import os,sys,subprocess
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP']);private=root/'v019-private';log=private/'unit.raw.log';fd=None;valid=True;total=0
+          try:
+            private.mkdir(mode=0o700);(private/'unit-browser-lifecycle').mkdir(mode=0o700)
+          except OSError:print('Observer directory unavailable; original browser invocation still runs',flush=True)
+          try:fd=log.open('xb')
+          except OSError:valid=False;print('Private capture unavailable; original browser invocation still runs',flush=True)
+          env={**os.environ,'T3CODE_BROWSER_LIFECYCLE_DIR':str(private/'unit-browser-lifecycle')}
+          cmd=['vp','test','run','src/components/ChatView.copyReference.browser.test.tsx','--project','browser','--reporter','default','--reporter',str(root/'observer-tools/module-identity.mjs')]
+          proc=subprocess.Popen(cmd,env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+          for block in iter(lambda:proc.stdout.read(65536),b''):
+            try:sys.stdout.buffer.write(block);sys.stdout.buffer.flush()
+            except OSError:pass
+            total+=len(block)
+            if fd and valid:
+              if total>16*1024*1024:valid=False
+              else:
+                try:fd.write(block)
+                except OSError:valid=False
+          code=proc.wait()
+          if fd:
+            try:fd.close()
+            except OSError:valid=False
+          if not valid:
+            try:log.unlink(missing_ok=True)
+            except OSError:pass
+            print('Bounded private capture incomplete; qualification must fail',flush=True)
+          sys.exit(code if code>=0 else 128-code)
+          PY
+      - name: Independently qualify positive observer and exact completed module
+        id: evidence
+        if: ${{ !cancelled() && steps.browser_setup.outcome == 'success' }}
+        run: python3 "$RUNNER_TEMP/observer-tools/qualify-observer.py"
+      - name: Require unchanged source and every mandatory outcome
+        if: ${{ always() }}
+        env:
+          UNIT_OUTCOME: ${{ steps.unit.outcome }}
+          BROWSER_OUTCOME: ${{ steps.browser.outcome }}
+          EVIDENCE_OUTCOME: ${{ steps.evidence.outcome }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(git rev-parse HEAD^{tree})" = "$SOURCE_TREE"
+          test -z "$(git status --porcelain --untracked-files=no)"
+          test "$UNIT_OUTCOME" = success
+          test "$BROWSER_OUTCOME" = success
+          test "$EVIDENCE_OUTCOME" = success
+      - name: Upload only strict bounded qualification evidence
+        if: ${{ !cancelled() && steps.evidence.outputs.safe_artifacts == 'true' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: orchestrator-close-qualification-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/v019-evidence/browser-lifecycle.jsonl
+            ${{ runner.temp }}/v019-evidence/browser-server-lifecycle.jsonl
+            ${{ runner.temp }}/v019-evidence/module-identity.json
+            ${{ runner.temp }}/v019-evidence/observer-verdict.json
+          if-no-files-found: error
+          retention-days: 14
