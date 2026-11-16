@@ -1,0 +1,257 @@
+name: Exact final installer clean-start validation
+'on':
+  push:
+    branches:
+    - validation/v0.1.9-final-installs-7ea820c5
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: final-installs-7ea820c5
+  cancel-in-progress: false
+env:
+  CLIENT_VERSION: 0.1.9-zh.1
+  CI: 'true'
+  CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+  T3CODE_DESKTOP_SIGNED: 'false'
+  ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
+  ELECTRON_BUILDER_BINARIES_MIRROR: https://github.com/electron-userland/electron-builder-binaries/releases/download/
+jobs:
+  source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    if: github.repository == 'ZhiweiXiao98/t3code' && github.event.repository.private == false
+    outputs:
+      sha: ${{ steps.source.outputs.sha }}
+    steps:
+    - uses: actions/github-script@v8
+      id: source
+      with:
+        script: "const {owner, repo} = context.repo;\nconst source = '7ea820c5c31cd7014fe47c8525ca24ad148f5de0';\n\
+          const producer = 43869073781;\nconst codeRun = 43873592997;\nconst codeHead = '656b737096b00e495bd67550a4b0061ee7046d60';\n\
+          if (context.payload.repository.private !== false) throw new Error('Only public free standard runners');\n\
+          const build = (await github.rest.actions.getWorkflowRun({owner,repo,run_id:producer})).data;\nconst code\
+          \ = (await github.rest.actions.getWorkflowRun({owner,repo,run_id:codeRun})).data;\nif (build.head_sha\
+          \ !== source || build.run_attempt !== 1 || build.status !== 'completed') throw new Error('Unexpected producer');\n\
+          if (code.head_sha !== codeHead || code.run_attempt !== 1 || code.conclusion !== 'success') throw new Error('Final\
+          \ source code gates not successful');\nconst jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun,{owner,repo,run_id:producer,filter:'latest',per_page:100});\n\
+          for (const name of ['Desktop win x64 (integrity checked)','Desktop mac x64 (integrity checked)']) {\n\
+          \ const matches=jobs.filter(j=>j.name===name);\n if(matches.length!==1 || matches[0].conclusion!=='success'\
+          \ || matches[0].head_sha!==source) throw new Error(`Producer not successful: ${name}`);\n}\nconst all\
+          \ = await github.paginate(github.rest.actions.listWorkflowRunArtifacts,{owner,repo,run_id:producer,per_page:100});\n\
+          const artifacts=all.filter(a=>['client-win-x64','client-mac-x64'].includes(a.name));\nif(artifacts.length!==2\
+          \ || new Set(artifacts.map(a=>a.name)).size!==2) throw new Error('Missing/duplicate installer artifact');\n\
+          for(const a of artifacts) if(a.expired || a.workflow_run?.head_sha!==source || a.workflow_run?.id!==producer\
+          \ || !/^sha256:[a-f0-9]{64}$/.test(a.digest||'')) throw new Error('Invalid installer artifact provenance');\n\
+          core.info(JSON.stringify({source,producer,codeRun,codeHead,artifacts:artifacts.map(a=>({id:a.id,name:a.name,digest:a.digest}))}));\n\
+          core.setOutput('sha',source);\nconst fs=require('node:fs'); const path=require('node:path'); const crypto=require('node:crypto');\n\
+          const dir=path.join(process.env.RUNNER_TEMP,'installer-proof'); fs.mkdirSync(dir,{recursive:true});\n\
+          for (const a of artifacts) {\n if(a.size_in_bytes>512*1024*1024) throw new Error('Installer archive exceeds\
+          \ bounded validation budget');\n const response=await github.rest.actions.downloadArtifact({owner,repo,artifact_id:a.id,archive_format:'zip'});\n\
+          \ const bytes=Buffer.from(response.data);\n if(bytes.length!==a.size_in_bytes || 'sha256:'+crypto.createHash('sha256').update(bytes).digest('hex')!==a.digest)\
+          \ throw new Error('Installer ZIP bytes fail digest validation');\n fs.writeFileSync(path.join(dir,a.name+'.zip'),bytes);\n\
+          }\nfs.writeFileSync(path.join(dir,'provenance.json'),JSON.stringify({source,producer,codeRun,codeHead,artifacts:artifacts.map(a=>({id:a.id,name:a.name,digest:a.digest}))},null,2));\n"
+    - name: Derive installer byte hashes from verified ZIPs
+      run: "python3 - <<'PY'\nimport hashlib,json,os,pathlib,zipfile\nroot=pathlib.Path(os.environ['RUNNER_TEMP'])/'installer-proof'\n\
+        expected={'client-win-x64':['T3-Code-0.1.9-zh.1-x64.exe'],'client-mac-x64':['T3-Code-0.1.9-zh.1-x64.dmg','T3-Code-0.1.9-zh.1-x64.zip']}\n\
+        proof=json.loads((root/'provenance.json').read_text());proof['assets']={}\nfor artifact,names in expected.items():\n\
+        \ with zipfile.ZipFile(root/(artifact+'.zip')) as z:\n  assert sum(f.file_size for f in z.infolist())<=1024*1024*1024\n\
+        \  assert z.testzip() is None\n  for name in names:\n   members=[f for f in z.infolist() if pathlib.PurePosixPath(f.filename).name==name];assert\
+        \ len(members)==1\n   f=members[0];h=hashlib.sha256()\n   with z.open(f) as stream:\n    while block:=stream.read(1024*1024):h.update(block)\n\
+        \   proof['assets'][name]={'sha256':h.hexdigest(),'size':f.file_size}\n(root/'verified-assets.json').write_text(json.dumps(proof,indent=2))\n\
+        PY\n"
+    - uses: actions/upload-artifact@v7
+      with:
+        name: verified-original-installers
+        path: ${{ runner.temp }}/installer-proof/verified-assets.json
+        if-no-files-found: error
+        retention-days: 14
+  desktop-clean-install:
+    name: Clean desktop ${{ matrix.display }} first start
+    needs:
+    - source
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - runner: windows-2022
+          kind: nsis
+          artifact: client-win-x64
+          suffix: x64.exe
+          display: nsis
+    steps:
+    - name: Checkout exact source without credentials
+      shell: bash
+      env:
+        SOURCE_SHA: ${{ needs.source.outputs.sha }}
+        GIT_TERMINAL_PROMPT: '0'
+      run: 'set -euo pipefail
+
+        git init .
+
+        git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+
+        git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
+
+        git sparse-checkout set --no-cone ''/*'' ''!/.repos/''
+
+        git checkout --detach FETCH_HEAD
+
+        test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+
+        '
+    - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
+      with:
+        node-version-file: package.json
+        run-install: false
+    - uses: actions/download-artifact@v8
+      with:
+        name: ${{ matrix.artifact }}
+        path: candidate
+        run-id: 43869073781
+        github-token: ${{ github.token }}
+      if: matrix.kind == 'nsis'
+    - uses: actions/download-artifact@v8
+      with:
+        name: verified-original-installers
+        path: ${{ runner.temp }}/installer-proof
+    - name: Verify downloaded installer bytes before execution
+      shell: bash
+      run: "node <<'NODE'\nconst fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');\n\
+        (async()=>{\n const proof=JSON.parse(fs.readFileSync(path.join(process.env.RUNNER_TEMP,'installer-proof','verified-assets.json'),'utf8'));\n\
+        \ if(proof.source!=='7ea820c5c31cd7014fe47c8525ca24ad148f5de0'||proof.producer!==43869073781||proof.codeRun!==43873592997)throw\
+        \ new Error('Wrong installer provenance');\n const names=process.platform==='win32'?['T3-Code-0.1.9-zh.1-x64.exe']:['T3-Code-0.1.9-zh.1-x64.dmg','T3-Code-0.1.9-zh.1-x64.zip'];\n\
+        \ for(const name of names){const file=path.join('candidate',name),expected=proof.assets[name];if(!expected||fs.statSync(file).size!==expected.size)throw\
+        \ new Error('Wrong installer size');const h=crypto.createHash('sha256');for await(const chunk of fs.createReadStream(file))h.update(chunk);if(h.digest('hex')!==expected.sha256)throw\
+        \ new Error('Wrong installer hash');}\n console.log('Exact source installer bytes match verified original\
+        \ producer ZIPs');\n})().catch(e=>{console.error(e);process.exitCode=1});\nNODE\n"
+    - name: Install pinned acceptance driver
+      shell: bash
+      run: npm install --prefix "$RUNNER_TEMP/acceptance-tools" --no-save --ignore-scripts playwright-core@1.60.0
+      if: matrix.kind == 'nsis'
+    - name: Install NSIS and launch clean installed entry
+      if: matrix.kind == 'nsis'
+      shell: pwsh
+      run: '$ErrorActionPreference = ''Stop''
+
+        $asset = Join-Path $env:GITHUB_WORKSPACE "candidate/T3-Code-$env:CLIENT_VERSION-x64.exe"
+
+        $artifacts = Join-Path $env:RUNNER_TEMP ''acceptance-artifacts''
+
+        New-Item -ItemType Directory -Force -Path $artifacts | Out-Null
+
+        Get-FileHash -Algorithm SHA256 $asset | Format-List | Out-File (Join-Path $artifacts ''asset-sha256.txt'')
+
+        $installDir = Join-Path $env:RUNNER_TEMP (''t3-clean-install-'' + [guid]::NewGuid().ToString(''N''))
+
+        $installer = Start-Process -FilePath $asset -ArgumentList "/S /D=$installDir" -Wait -PassThru
+
+        if ($installer.ExitCode -ne 0) { throw "NSIS failed: $($installer.ExitCode)" }
+
+        $executable = Join-Path $installDir ''T3 Code (Beta).exe''
+
+        if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) { throw ''Installed executable missing'' }
+
+        node .github/scripts/check-clean-desktop-first-start.mjs --executable $executable --platform Windows --playwright-module
+        "$env:RUNNER_TEMP/acceptance-tools/node_modules/playwright-core/index.mjs" --artifacts-dir $artifacts
+
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+        '
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      if: always()
+      with:
+        name: clean-install-${{ matrix.kind }}
+        path: ${{ runner.temp }}/acceptance-artifacts
+        if-no-files-found: error
+        retention-days: 14
+  mac-clean-install:
+    name: Clean macOS ${{ matrix.arch }} ${{ matrix.format }} first start
+    needs:
+    - source
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - runner: macos-15-intel
+          arch: x64
+          format: dmg
+        - runner: macos-15-intel
+          arch: x64
+          format: zip
+    steps:
+    - name: Checkout exact source without credentials
+      shell: bash
+      env:
+        SOURCE_SHA: ${{ needs.source.outputs.sha }}
+        GIT_TERMINAL_PROMPT: '0'
+      run: 'set -euo pipefail
+
+        git init .
+
+        git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+
+        git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
+
+        git sparse-checkout set --no-cone ''/*'' ''!/.repos/''
+
+        git checkout --detach FETCH_HEAD
+
+        test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+
+        '
+    - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
+      with:
+        node-version-file: package.json
+        run-install: false
+    - uses: actions/download-artifact@v8
+      with:
+        name: client-mac-${{ matrix.arch }}
+        path: candidate
+        run-id: 43869073781
+        github-token: ${{ github.token }}
+    - uses: actions/download-artifact@v8
+      with:
+        name: verified-original-installers
+        path: ${{ runner.temp }}/installer-proof
+    - name: Verify downloaded installer bytes before execution
+      shell: bash
+      run: "node <<'NODE'\nconst fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');\n\
+        (async()=>{\n const proof=JSON.parse(fs.readFileSync(path.join(process.env.RUNNER_TEMP,'installer-proof','verified-assets.json'),'utf8'));\n\
+        \ if(proof.source!=='7ea820c5c31cd7014fe47c8525ca24ad148f5de0'||proof.producer!==43869073781||proof.codeRun!==43873592997)throw\
+        \ new Error('Wrong installer provenance');\n const names=process.platform==='win32'?['T3-Code-0.1.9-zh.1-x64.exe']:['T3-Code-0.1.9-zh.1-x64.dmg','T3-Code-0.1.9-zh.1-x64.zip'];\n\
+        \ for(const name of names){const file=path.join('candidate',name),expected=proof.assets[name];if(!expected||fs.statSync(file).size!==expected.size)throw\
+        \ new Error('Wrong installer size');const h=crypto.createHash('sha256');for await(const chunk of fs.createReadStream(file))h.update(chunk);if(h.digest('hex')!==expected.sha256)throw\
+        \ new Error('Wrong installer hash');}\n console.log('Exact source installer bytes match verified original\
+        \ producer ZIPs');\n})().catch(e=>{console.error(e);process.exitCode=1});\nNODE\n"
+    - name: Install pinned acceptance driver
+      run: npm install --prefix "$RUNNER_TEMP/acceptance-tools" --no-save --ignore-scripts playwright-core@1.60.0
+    - name: Copy candidate and verify complete bundle
+      shell: bash
+      env:
+        ARCH: ${{ matrix.arch }}
+        FORMAT: ${{ matrix.format }}
+      run: "set -euo pipefail\ninstall_root=$(mktemp -d \"$RUNNER_TEMP/t3-clean-install.XXXXXX\")\nasset=\"$GITHUB_WORKSPACE/candidate/T3-Code-$CLIENT_VERSION-$ARCH.$FORMAT\"\
+        \nmkdir -p \"$RUNNER_TEMP/acceptance-artifacts\"\nshasum -a 256 \"$asset\" | tee \"$RUNNER_TEMP/acceptance-artifacts/asset-sha256.txt\"\
+        \nif [[ \"$FORMAT\" == dmg ]]; then\n  mount=\"$RUNNER_TEMP/t3-candidate-mount\"\n  hdiutil attach -nobrowse\
+        \ -readonly -mountpoint \"$mount\" \"$asset\"\n  trap 'hdiutil detach \"$mount\" >/dev/null || true' EXIT\n\
+        \  ditto \"$mount/T3 Code (Beta).app\" \"$install_root/T3 Code (Beta).app\"\nelse\n  ditto -x -k \"$asset\"\
+        \ \"$install_root\"\nfi\napp=\"$install_root/T3 Code (Beta).app\"\nbash .github/scripts/verify-macos-distribution.sh\
+        \ \"$app\" --signature-only 2>&1 | tee \"$RUNNER_TEMP/acceptance-artifacts/signature.txt\"\nexecutable=$(/usr/libexec/PlistBuddy\
+        \ -c 'Print :CFBundleExecutable' \"$app/Contents/Info.plist\")\necho \"T3_CANDIDATE_EXECUTABLE=$app/Contents/MacOS/$executable\"\
+        \ >> \"$GITHUB_ENV\"\n"
+    - name: Launch with empty data and normal sandbox
+      run: node .github/scripts/check-clean-desktop-first-start.mjs --executable "$T3_CANDIDATE_EXECUTABLE" --platform
+        macOS --playwright-module "$RUNNER_TEMP/acceptance-tools/node_modules/playwright-core/index.mjs" --artifacts-dir
+        "$RUNNER_TEMP/acceptance-artifacts"
+    - uses: actions/upload-artifact@v7
+      if: always()
+      with:
+        name: clean-install-mac-${{ matrix.arch }}-${{ matrix.format }}
+        path: ${{ runner.temp }}/acceptance-artifacts
+        if-no-files-found: warn
+        retention-days: 14
