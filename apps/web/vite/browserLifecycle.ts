@@ -5,6 +5,7 @@ import type { Browser, CDPSession, Page } from "playwright";
 import type { PlaywrightBrowserProvider, playwright } from "vite-plus/test/browser-playwright";
 import { createFrameActivity, recordFrameActivity } from "./frameActivity";
 import { sampleSocketLifecycleState } from "./socketLifecycleState";
+import { observeOrchestratorSocket } from "./orchestratorSocket";
 import { observeBrowserServerLifecycle } from "./serverLifecycle";
 
 type Fields = Record<string, number | boolean | null | string>;
@@ -364,6 +365,17 @@ export function observeBrowserLifecycle(provider: ReturnType<typeof playwright>)
         pages.add(page);
         const id = ++nextPage;
         emit("page-observed", { page: id, browser: browser ? browserId(browser) : null });
+        if (id <= 64) {
+          disposers.push(
+            observeOrchestratorSocket(
+              page,
+              (event, fields) => emit(event, { page: id, ...fields }),
+              () => active,
+            ),
+          );
+        } else if (id === 65) {
+          emit("orchestrator-socket-page-budget-reached");
+        }
         const closed = () => emit("page-closed", { page: id, teardown });
         const crashed = () => emit("page-crashed", { page: id, teardown });
         const navigated = (frame: ReturnType<Page["mainFrame"]>) =>

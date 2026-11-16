@@ -22,6 +22,7 @@ import { loadRepoEnv } from "../../scripts/lib/public-config";
 import { thirdPartyLicensesPlugin } from "../../scripts/lib/third-party-licenses";
 import { tailwindPlugins } from "./vite/tailwind";
 import { warmBundledDevPlugin } from "./vite/warmBundledDev";
+import { orchestratorObservationScripts } from "./vite/orchestratorSocket";
 import { observeBrowserLifecycle } from "./vite/browserLifecycle";
 
 const repoEnv = loadRepoEnv();
@@ -135,6 +136,9 @@ const browserTestProject = {
       enabled: true,
       headless: true,
       provider: observeBrowserLifecycle(playwright()),
+      orchestratorScripts: orchestratorObservationScripts(
+        Boolean(process.env.T3CODE_BROWSER_LIFECYCLE_DIR),
+      ),
       instances: [{ browser: "chromium" }],
       screenshotFailures: false,
       commands: {
