@@ -1,0 +1,97 @@
+name: Office fetch isolation controlled diagnostic
+permissions:
+  contents: read
+concurrency:
+  group: office-fetch-ff58c179
+  cancel-in-progress: false
+jobs:
+  shards:
+    if: github.repository == 'ZhiweiXiao98/t3code' && github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: 'true'
+      SOURCE_SHA: ff58c179c13482b537a6fa7bebc042aa17a26358
+      GIT_TERMINAL_PROMPT: '0'
+    steps:
+    - name: Checkout exact diagnostic source without credentials
+      shell: bash
+      run: 'set -euo pipefail
+
+        git init .
+
+        git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+
+        git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
+
+        git sparse-checkout set --no-cone ''/*'' ''!/.repos/''
+
+        git checkout --detach FETCH_HEAD
+
+        test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+
+        '
+    - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
+      with:
+        node-version-file: package.json
+        cache: true
+        run-install: false
+    - run: vp install --frozen-lockfile
+    - name: Install same browser and native prerequisites
+      shell: bash
+      run: 'set -euo pipefail
+
+        python3 .github/scripts/ci-ubuntu-packages.py packages libsecret-1-dev pkg-config build-essential
+        imagemagick
+
+        python3 .github/scripts/ci-ubuntu-packages.py playwright apps/web/node_modules/playwright/cli.js
+
+        node apps/web/node_modules/playwright/cli.js install --only-shell chromium
+
+        '
+    - name: Exercise four controls and five fixed-noise repetitions
+      shell: bash
+      run: "set -euo pipefail\npython3 - <<'PY'\nimport os,pathlib,json,subprocess,hashlib,base64,re\n\
+        root=pathlib.Path(os.environ['RUNNER_TEMP'])/'office-fetch-diagnostic';root.mkdir()\ntarget=pathlib.Path('apps/web/src/components/files/OfficeViewer.chapter.browser.test.tsx')\n\
+        original=target.read_text()\nassert hashlib.sha256(target.read_bytes()).hexdigest()=='d772cbe7e35574c5805f8a0a2b47a3e13940ff3f3342e6dfc6ff16ddc54de9e3'\n\
+        fixed=base64.b64decode('aW1wb3J0IHsgcGFnZSB9IGZyb20gInZpdGUtcGx1cy90ZXN0L2Jyb3dzZXIiOwppbXBvcnQgSlNaaXAgZnJvbSAianN6aXAiOwppbXBvcnQgeyBleHBlY3QsIGl0LCB2aSB9IGZyb20gInZpdGUtcGx1cy90ZXN0IjsKaW1wb3J0IHsgcmVuZGVyLCBzdHViR2xvYmFsIH0gZnJvbSAiLi4vLi4vLi4vdGVzdC9yZW5kZXIiOwppbXBvcnQgeyBXZWJJMThuQ29udGV4dCB9IGZyb20gIn4vaTE4bi9XZWJJMThuQ29udGV4dCI7CmltcG9ydCB7IHRyYW5zbGF0ZVdlYk1lc3NhZ2UgfSBmcm9tICJ+L2kxOG4vbWVzc2FnZXMiOwppbXBvcnQgeyBvcGVuRXB1YiB9IGZyb20gIi4vZXh0ZW5kZWREb2N1bWVudFByZXZpZXciOwppbXBvcnQgT2ZmaWNlVmlld2VyIGZyb20gIi4vT2ZmaWNlVmlld2VyIjsKCml0KCJyZWxvY2FsaXplcyBnZW5lcmF0ZWQgY2hhcHRlciBuYXZpZ2F0aW9uIHdpdGhvdXQgcmVvcGVuaW5nIHRoZSBmaWxlIG9yIHRyYW5zbGF0aW5nIGF1dGhvcmVkIHRpdGxlcyIsIGFzeW5jICgpID0+IHsKICBjb25zdCBhcmNoaXZlID0gbmV3IEpTWmlwKCkKICAgIC5maWxlKAogICAgICAiTUVUQS1JTkYvY29udGFpbmVyLnhtbCIsCiAgICAgICc8Y29udGFpbmVyPjxyb290ZmlsZXM+PHJvb3RmaWxlIGZ1bGwtcGF0aD0iYm9vay5vcGYiLz48L3Jvb3RmaWxlcz48L2NvbnRhaW5lcj4nLAogICAgKQogICAgLmZpbGUoCiAgICAgICJib29rLm9wZiIsCiAgICAgICc8cGFja2FnZT48bWFuaWZlc3Q+PGl0ZW0gaWQ9ImEiIGhyZWY9ImEueGh0bWwiIG1lZGlhLXR5cGU9ImFwcGxpY2F0aW9uL3hodG1sK3htbCIvPjxpdGVtIGlkPSJiIiBocmVmPSJiLnhodG1sIiBtZWRpYS10eXBlPSJhcHBsaWNhdGlvbi94aHRtbCt4bWwiLz48L21hbmlmZXN0PjxzcGluZT48aXRlbXJlZiBpZHJlZj0iYSIvPjxpdGVtcmVmIGlkcmVmPSJiIi8+PC9zcGluZT48L3BhY2thZ2U+JywKICAgICkKICAgIC5maWxlKCJhLnhodG1sIiwgIjxodG1sPjxoZWFkPjx0aXRsZT48L3RpdGxlPjwvaGVhZD48Ym9keT5vcGFxdWUve2JvZHl9LyQmYW1wOzwvYm9keT48L2h0bWw+IikKICAgIC5maWxlKCJiLnhodG1sIiwgIjxodG1sPjxoZWFkPjx0aXRsZT5DaGFwdGVyIDE8L3RpdGxlPjwvaGVhZD48Ym9keT5zZWNvbmQ8L2JvZHk+PC9odG1sPiIpOwogIGNvbnN0IHJlc3VsdCA9IGF3YWl0IG9wZW5FcHViKGFyY2hpdmUpOwogIGNvbnN0IHBvc3RlZCA9IHZpLmZuKCk7CiAgY2xhc3MgRmFrZVdvcmtlciBleHRlbmRzIEV2ZW50VGFyZ2V0IHsKICAgIHBvc3RNZXNzYWdlKG1lc3NhZ2U6IHVua25vd24pIHsKICAgICAgcG9zdGVkKG1lc3NhZ2UpOwogICAgICBxdWV1ZU1pY3JvdGFzaygoKSA9PgogICAgICAgIHRoaXMuZGlzcGF0Y2hFdmVudChuZXcgTWVzc2FnZUV2ZW50KCJtZXNzYWdlIiwgeyBkYXRhOiBzdHJ1Y3R1cmVkQ2xvbmUocmVzdWx0KSB9KSksCiAgICAgICk7CiAgICB9CiAgICB0ZXJtaW5hdGUoKSB7fQogIH0KICB1c2luZyBfd29ya2VyID0gc3R1Ykdsb2JhbCgiV29ya2VyIiwgRmFrZVdvcmtlcik7CiAgY29uc3Qgc291cmNlID0gImh0dHBzOi8vZXhhbXBsZS50ZXN0L2Jvb2suZXB1YiI7CiAgY29uc3Qgb3JpZ2luYWxGZXRjaCA9IGdsb2JhbFRoaXMuZmV0Y2guYmluZChnbG9iYWxUaGlzKTsKICBjb25zdCBmaWxlRmV0Y2ggPSB2aS5mbjx0eXBlb2YgZ2xvYmFsVGhpcy5mZXRjaD4oCiAgICBhc3luYyAoKSA9PiBuZXcgUmVzcG9uc2UobmV3IFVpbnQ4QXJyYXkoWzEsIDIsIDNdKSksCiAgKTsKICB1c2luZyBfZmV0Y2ggPSBzdHViR2xvYmFsKCJmZXRjaCIsICgoaW5wdXQsIGluaXQpID0+IHsKICAgIGNvbnN0IHVybCA9IHR5cGVvZiBpbnB1dCA9PT0gInN0cmluZyIgPyBpbnB1dCA6IGlucHV0IGluc3RhbmNlb2YgVVJMID8gaW5wdXQuaHJlZiA6IGlucHV0LnVybDsKICAgIHJldHVybiB1cmwgPT09IHNvdXJjZSA/IGZpbGVGZXRjaChpbnB1dCwgaW5pdCkgOiBvcmlnaW5hbEZldGNoKGlucHV0LCBpbml0KTsKICB9KSBzYXRpc2ZpZXMgdHlwZW9mIGdsb2JhbFRoaXMuZmV0Y2gpOwogIGNvbnN0IHN1cmZhY2UgPSAobG9jYWxlOiAiZW4iIHwgInpoLUNOIikgPT4gKAogICAgPFdlYkkxOG5Db250ZXh0CiAgICAgIHZhbHVlPXt7CiAgICAgICAgbG9jYWxlLAogICAgICAgIGFwcExvY2FsZTogbG9jYWxlLAogICAgICAgIHNldEFwcExvY2FsZTogKCkgPT4ge30sCiAgICAgICAgdDogKGtleSwgdmFsdWVzKSA9PiB0cmFuc2xhdGVXZWJNZXNzYWdlKGxvY2FsZSwga2V5LCB2YWx1ZXMpLAogICAgICB9fQogICAgPgogICAgICA8T2ZmaWNlVmlld2VyIHNyYz17c291cmNlfSBuYW1lPSJvcGFxdWUve2ZpbGV9LyQmLmVwdWIiIGtpbmQ9ImVwdWIiIC8+CiAgICA8L1dlYkkxOG5Db250ZXh0PgogICk7CiAgYXdhaXQgdXNpbmcgc2NyZWVuID0gYXdhaXQgcmVuZGVyKHN1cmZhY2UoImVuIikpOwogIGF3YWl0IGV4cGVjdAogICAgLmVsZW1lbnQoc2NyZWVuLmdldEJ5Um9sZSgiY29tYm9ib3giLCB7IG5hbWU6ICJDaGFwdGVyIiB9KSkKICAgIC50b0hhdmVUZXh0Q29udGVudCgiQ2hhcHRlciAxIik7CiAgYXdhaXQgc2NyZWVuLnJlcmVuZGVyKHN1cmZhY2UoInpoLUNOIikpOwogIGF3YWl0IGV4cGVjdC5lbGVtZW50KHNjcmVlbi5nZXRCeVJvbGUoImNvbWJvYm94IiwgeyBuYW1lOiAi56ug6IqCIiB9KSkudG9IYXZlVGV4dENvbnRlbnQoIuesrCAxIOeroCIpOwogIGF3YWl0IHNjcmVlbi5nZXRCeVJvbGUoImNvbWJvYm94IiwgeyBuYW1lOiAi56ug6IqCIiB9KS5jbGljaygpOwogIGF3YWl0IHBhZ2UuZ2V0QnlSb2xlKCJvcHRpb24iLCB7IG5hbWU6ICJDaGFwdGVyIDEiLCBleGFjdDogdHJ1ZSB9KS5jbGljaygpOwogIGF3YWl0IGV4cGVjdAogICAgLmVsZW1lbnQoc2NyZWVuLmdldEJ5Um9sZSgiY29tYm9ib3giLCB7IG5hbWU6ICLnq6DoioIiIH0pKQogICAgLnRvSGF2ZVRleHRDb250ZW50KCJDaGFwdGVyIDEiKTsKICBhd2FpdCBzY3JlZW4ucmVyZW5kZXIoc3VyZmFjZSgiZW4iKSk7CiAgYXdhaXQgZXhwZWN0CiAgICAuZWxlbWVudChzY3JlZW4uZ2V0QnlSb2xlKCJjb21ib2JveCIsIHsgbmFtZTogIkNoYXB0ZXIiIH0pKQogICAgLnRvSGF2ZVRleHRDb250ZW50KCJDaGFwdGVyIDEiKTsKICAvLyBCYWNrZ3JvdW5kIGRpc2NvdmVyeSBhbmQgb3RoZXIgdW5yZWxhdGVkIHJlcXVlc3RzIG11c3Qgbm90IGNvdW50IGFzIHJlb3BlbmluZyB0aGlzIGZpbGUuCiAgZXhwZWN0KGF3YWl0IChhd2FpdCBmZXRjaCgiZGF0YTp0ZXh0L3BsYWluLHVucmVsYXRlZC1yZXF1ZXN0IikpLnRleHQoKSkudG9CZSgidW5yZWxhdGVkLXJlcXVlc3QiKTsKICBleHBlY3QoZmlsZUZldGNoKS50b0hhdmVCZWVuQ2FsbGVkRXhhY3RseU9uY2VXaXRoKHNvdXJjZSwgeyBzaWduYWw6IGV4cGVjdC5hbnkoQWJvcnRTaWduYWwpIH0pOwogIGV4cGVjdChwb3N0ZWQpLnRvSGF2ZUJlZW5DYWxsZWRPbmNlKCk7Cn0pOwo=').decode()\n\
+        assert hashlib.sha256(fixed.encode()).hexdigest()=='24c0aa8651a6c7feee5c2109014764acc50b86c3c8a785a7ee627b6a1bb8e34d'\n\
+        observer=pathlib.Path('.github/scripts/observe-web-tests.py').read_text()\nanchor='COMMAND = [\"\
+        vp\", \"run\", \"--filter\", \"@t3tools/web\", \"test\"]'\nassert observer.count(anchor)==1\n\
+        injection='  expect(await (await fetch(\"data:text/plain,unrelated-request\")).text()).toBe(\"\
+        unrelated-request\");'\nassert fixed.count(injection)==1\nsummary=[]\ncases=[('baseline-clean',original,False),('baseline-noise',original.replace('\
+        \  expect(fetch).toHaveBeenCalledOnce();','  await globalThis.fetch(\"data:text/plain,unrelated-request\"\
+        );\\n  console.info(\"FETCH_CALL_URLS\", fetch.mock.calls.map(call => String(call[0])));\\n  expect(fetch).toHaveBeenCalledOnce();'),True),('fixed-clean',fixed.replace(injection,''),False),('fixed-duplicate-file',fixed.replace('\
+        \  expect(fileFetch).toHaveBeenCalledExactlyOnceWith(', '  await globalThis.fetch(source);\\n\
+        \  expect(fileFetch).toHaveBeenCalledExactlyOnceWith('),'duplicate')]+[('fixed-noise-'+str(i),fixed,False)\
+        \ for i in range(1,6)]\nfor label,content,negative in cases:\n target.write_text(content)\n d=root/label;d.mkdir();out=d/'web-browser-diagnostics';out.mkdir()\n\
+        \ command=['vp','run','--filter','@t3tools/web','test','src/components/files/OfficeViewer.chapter.browser.test.tsx','--reporter=default','--reporter=json','--outputFile.json='+str(out/'results.json')]\n\
+        \ monitor=d/'observer.py';monitor.write_text(observer.replace(anchor,'COMMAND = '+repr(command)))\n\
+        \ status=subprocess.run(['python3',str(monitor)],env=dict(os.environ,RUNNER_TEMP=str(d))).returncode\n\
+        \ result=json.loads((out/'results.json').read_text())\n tests=[a for f in result['testResults']\
+        \ for a in f['assertionResults']]\n assert len(tests)==1 and len(result['testResults'])==1\n assert\
+        \ result['testResults'][0]['name'].endswith('/src/components/files/OfficeViewer.chapter.browser.test.tsx')\n\
+        \ assert tests[0]['fullName']=='relocalizes generated chapter navigation without reopening the\
+        \ file or translating authored titles'\n assert result['numPendingTests']==0 and result.get('numTodoTests',0)==0\
+        \ and result.get('numRuntimeErrorTestSuites',0)==0\n assert result.get('unhandledErrors',[])==[]\n\
+        \ failure=re.sub(r'\\x1b\\[[0-9;]*m','',' '.join(tests[0].get('failureMessages',[])))\n expectedFailure=('to\
+        \ be called once, but got 2 times' in failure) if negative is True else ('to be called once with\
+        \ arguments' in failure and re.search(r'Number of calls:\\s*2',failure) is not None)\n valid=(status==1\
+        \ and tests[0]['status']=='failed' and result['numFailedTests']==1 and expectedFailure) if negative\
+        \ else (status==0 and tests[0]['status']=='passed' and result['numFailedTests']==0 and result['numPendingTests']==0)\n\
+        \ summary.append({'case':label,'exit':status,'status':tests[0]['status'],'expectedNegative':negative,'valid':valid,'failure':failure})\n\
+        target.write_text(original)\n(root/'summary.json').write_text(json.dumps({'source':os.environ['SOURCE_SHA'],'purpose':'controlled\
+        \ test-isolation diagnostic, not full source gate','cases':summary},indent=2))\nassert all(x['valid']\
+        \ for x in summary),summary\n\nPY\n"
+    - name: Preserve each real result
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: office-fetch-diagnostic-${{ github.run_id }}
+        path: ${{ runner.temp }}/office-fetch-diagnostic/
+        if-no-files-found: error
+        retention-days: 14
+'on':
+  push:
+    branches:
+    - validation/v0.1.9-office-fetch-ff58c179
