@@ -630,6 +630,7 @@ export function EnvironmentProviderSettings({
         input: { instanceId, elicitationId: action.elicitationId },
       }).then((result) => {
         if (result._tag === "Success" && !result.value.accepted) {
+          const { locale: translationLocale } = readWebI18n();
           toastManager.add({
             type: "warning",
             title: translateWebSource(translationLocale, "Authentication request expired"),
