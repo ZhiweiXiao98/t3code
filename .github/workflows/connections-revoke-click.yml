@@ -1,0 +1,140 @@
+name: Diagnostic Connections revoke click delivery
+on:
+  push:
+    branches: [validation/connections-revoke-click-53180]
+permissions:
+  contents: read
+concurrency:
+  group: connections-revoke-click-53180
+  cancel-in-progress: false
+env:
+  CI: "true"
+  SOURCE_SHA: c3baa0b1e609e798cd5cfe9dc9d859ef32822ce5
+  SOURCE_TREE: 0fcfcb784335841497ab67260ceab6abbc8b07e0
+  BASE_SHA: 53180fb688f2c708248be0c1e3720bef24654d9e
+  VP_REMOTE_CACHE: "off"
+  VP_REMOTE_CACHE_URL: ""
+jobs:
+  diagnostic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Verify public repository and exact push
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/connections-click-evidence"
+          python3 - <<'PY'
+          import json, os, re
+          e=json.load(open(os.environ['GITHUB_EVENT_PATH']))
+          assert os.environ['GITHUB_REPOSITORY']=='ZhiweiXiao98/t3code'
+          assert e['repository']['private'] is False
+          assert os.environ['GITHUB_EVENT_NAME']=='push'
+          assert os.environ['GITHUB_REF']=='refs/heads/validation/connections-revoke-click-53180'
+          assert e['after']==os.environ['GITHUB_SHA']
+          for k in ['SOURCE_SHA','SOURCE_TREE','GITHUB_SHA']:
+              assert re.fullmatch('[0-9a-f]{40}',os.environ[k])
+          PY
+      - name: Checkout and verify exact instrumented source
+        shell: bash
+        env:
+          GIT_TERMINAL_PROMPT: "0"
+        run: |
+          set -euo pipefail
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          git fetch --no-tags --depth=3 origin "$GITHUB_SHA"
+          test "$(git rev-parse FETCH_HEAD^1)" = "$SOURCE_SHA"
+          test "$(git rev-list --parents -n1 FETCH_HEAD | wc -w)" -eq 2
+          test "$(git rev-parse "$SOURCE_SHA^1")" = "$BASE_SHA"
+          test "$(git rev-list --parents -n1 "$SOURCE_SHA" | wc -w)" -eq 2
+          test "$(git rev-parse "$SOURCE_SHA^{tree}")" = "$SOURCE_TREE"
+          test "$(git diff --name-only "$BASE_SHA" "$SOURCE_SHA")" = apps/web/src/components/settings/ConnectionsSettings.browser.test.tsx
+          test "$(git diff --name-only "$SOURCE_SHA" FETCH_HEAD)" = .github/workflows/connections-revoke-click.yml
+          git sparse-checkout set --no-cone '/*' '!/.repos/'
+          git checkout --detach "$SOURCE_SHA"
+          git diff --exit-code
+          git diff --cached --exit-code
+          echo '306f84e8e1d99a4b3fa3e19f92f5f026da3dc546f4db8febd2ff3240b1dfc60c  apps/web/src/components/settings/ConnectionsSettings.browser.test.tsx' | sha256sum --check
+          printf 'source=%s\ntree=%s\nbase=%s\noperation=%s\n' "$SOURCE_SHA" "$SOURCE_TREE" "$BASE_SHA" "$GITHUB_SHA" > "$RUNNER_TEMP/connections-click-evidence/provenance.txt"
+          git diff "$BASE_SHA" HEAD -- apps/web/src/components/settings/ConnectionsSettings.browser.test.tsx > "$RUNNER_TEMP/connections-click-evidence/instrumentation.patch"
+      - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
+        with:
+          node-version-file: package.json
+          cache: true
+          run-install: false
+      - name: Install frozen dependencies and official Chromium
+        shell: bash
+        run: |
+          set -euo pipefail
+          vp install --frozen-lockfile
+          node apps/web/node_modules/playwright/cli.js install --with-deps --only-shell chromium
+          node --version > "$RUNNER_TEMP/connections-click-evidence/runtime.txt"
+          node -p "require('./apps/web/node_modules/playwright/package.json').version" >> "$RUNNER_TEMP/connections-click-evidence/runtime.txt"
+      - name: Run the entire Connections settings fixture once
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code
+          git diff --cached --exit-code
+          set +e
+          vp test run apps/web/src/components/settings/ConnectionsSettings.browser.test.tsx 2>&1 | tee "$RUNNER_TEMP/connections-click-full.log"
+          result=${PIPESTATUS[0]}
+          set -e
+          printf '%s\n' "$result" > "$RUNNER_TEMP/connections-click-evidence/test-exit.txt"
+          exit "$result"
+      - name: Record final integrity and bounded observation excerpt
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/connections-click-evidence"
+          if git rev-parse HEAD >/dev/null 2>&1; then
+            { git rev-parse HEAD HEAD^{tree}; git status --short; } > "$RUNNER_TEMP/connections-click-evidence/integrity.txt"
+            git diff --exit-code
+            git diff --cached --exit-code
+            test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+            test "$(git rev-parse HEAD^{tree})" = "$SOURCE_TREE"
+            echo '306f84e8e1d99a4b3fa3e19f92f5f026da3dc546f4db8febd2ff3240b1dfc60c  apps/web/src/components/settings/ConnectionsSettings.browser.test.tsx' | sha256sum --check >> "$RUNNER_TEMP/connections-click-evidence/integrity.txt"
+          fi
+          python3 - <<'PY'
+          import os, pathlib
+          p=pathlib.Path(os.environ['RUNNER_TEMP'])/'connections-click-evidence'
+          full=pathlib.Path(os.environ['RUNNER_TEMP'])/'connections-click-full.log'
+          limit=1024*1024
+          total=full.stat().st_size if full.exists() else 0
+          with (p/'test.log').open('wb') as output:
+              if full.exists():
+                  with full.open('rb') as source:
+                      output.write(source.read(limit))
+          emitted=0
+          remaining=0
+          excerpt_limit=80*1024
+          with (p/'observations.txt').open('wb') as output:
+              if full.exists():
+                  with full.open('rb') as source:
+                      while True:
+                          line=source.readline(8192)
+                          if not line: break
+                          if b'CONNECTIONS_REVOKE_CLICK_DIAGNOSTIC' in line: remaining=18
+                          if remaining:
+                              chunk=line[:512]
+                              if emitted+len(chunk)<=excerpt_limit:
+                                  output.write(chunk)
+                                  emitted+=len(chunk)
+                              remaining-=1
+          (p/'log-limits.json').write_text(__import__('json').dumps({
+              'fullLogBytes':total, 'artifactLogByteLimit':limit,
+              'artifactLogTruncated':total>limit,
+              'diagnosticByteLimit':excerpt_limit, 'diagnosticBytes':emitted,
+              'diagnosticLineByteLimit':512, 'diagnosticReadChunkLimit':8192,
+              'diagnosticExcerptMayBeTruncated':True,
+          },indent=2)+'\n')
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: connections-revoke-click-${{ github.run_id }}
+          path: ${{ runner.temp }}/connections-click-evidence/
+          if-no-files-found: error
+          retention-days: 14
