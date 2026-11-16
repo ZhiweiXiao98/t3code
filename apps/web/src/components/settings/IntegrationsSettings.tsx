@@ -1688,6 +1688,7 @@ function BrowserProfilesSetting({ disabled }: { readonly disabled: boolean }) {
             await readLocalApi()
               ?.shell.openSystemSettings("full-disk-access")
               .catch(() => {
+                const { locale } = readWebI18n();
                 toastManager.add({
                   type: "error",
                   title: translateWebSource(locale, "Could not open System Settings"),
