@@ -1067,12 +1067,17 @@ export function GeneralSettingsPanel() {
                   className="w-full sm:w-40"
                   aria-label={translateWebExtraSource(locale, "Quit shortcut behavior")}
                 >
-                  <SelectValue>{QUIT_CONFIRMATION_MODE_LABELS[settings.confirmQuit]}</SelectValue>
+                  <SelectValue>
+                    {translateWebExtraSource(
+                      locale,
+                      QUIT_CONFIRMATION_MODE_LABELS[settings.confirmQuit],
+                    )}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectPopup align="end" alignItemWithTrigger={false}>
                   {Object.entries(QUIT_CONFIRMATION_MODE_LABELS).map(([value, label]) => (
                     <SelectItem hideIndicator key={value} value={value}>
-                      {label}
+                      {translateWebExtraSource(locale, label)}
                     </SelectItem>
                   ))}
                 </SelectPopup>
