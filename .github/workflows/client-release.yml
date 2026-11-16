@@ -937,8 +937,8 @@ jobs:
     timeout-minutes: 120
     env:
       APP_VARIANT: community
-      T3CODE_MOBILE_VERSION: 0.1.9-zh.1
-      T3CODE_MOBILE_VERSION_CODE: "1000416"
+      T3CODE_MOBILE_VERSION: 0.1.9-zh.2
+      T3CODE_MOBILE_VERSION_CODE: "1000417"
       T3CODE_MOBILE_UPDATES_ENABLED: "0"
       EXPO_NO_GIT_STATUS: "1"
       EXPO_NO_TELEMETRY: "1"
@@ -1014,8 +1014,8 @@ jobs:
           test -x \"$build_tools/apksigner\"\nif \"$build_tools/apksigner\" verify \"$apk\"; then\n  echo 'Unexpected signed\
           \ APK: refusing candidate upload.' >&2\n  exit 1\nfi\nunzip -t \"$apk\"\n\"$build_tools/aapt\" dump badging \"$apk\"\
           \ | tee \"$RUNNER_TEMP/android-badging.txt\"\ngrep -F \"package: name='com.zhiweixiao.t3code.zhcn' versionCode='$T3CODE_MOBILE_VERSION_CODE'\
-          \ versionName='$CLIENT_VERSION'\" \"$RUNNER_TEMP/android-badging.txt\"\nmkdir -p android-candidate\ncp \"$apk\" \"\
-          android-candidate/T3-Code-zh-CN-Android-$CLIENT_VERSION-arm64-UNSIGNED-NOT-INSTALLABLE.apk\"\nprintf '%s\\n' 'UNSIGNED:\
+          \ versionName='$T3CODE_MOBILE_VERSION'\" \"$RUNNER_TEMP/android-badging.txt\"\nmkdir -p android-candidate\ncp \"$apk\" \"\
+          android-candidate/T3-Code-zh-CN-Android-$T3CODE_MOBILE_VERSION-arm64-UNSIGNED-NOT-INSTALLABLE.apk\"\nprintf '%s\\n' 'UNSIGNED:\
           \ This build artifact is not installable. Publication requires the separate fixed-identity signing and APK verification\
           \ gates. No private signing material is included in this artifact.' > android-candidate/SIGNING-BLOCKER.txt\ncat android-candidate/SIGNING-BLOCKER.txt\
           \ >> \"$GITHUB_STEP_SUMMARY\"\n"
