@@ -908,7 +908,7 @@ function DeviceIntegrationControls({
   enabled: boolean;
   agentAccessEnabled: boolean;
 }) {
-  const { locale, t } = useI18n();
+  const { locale } = useI18n();
   const canConfigure = useEnvironmentScope(environmentId, AuthSettingsWriteScope);
   const { state, loaded } = useDeviceState(environmentId);
   const { scope, environments, connectedEnvironments } = useSettingsScope();
@@ -952,6 +952,7 @@ function DeviceIntegrationControls({
       return result?.status !== "fulfilled" || result.value._tag === "Failure";
     });
     if (failed.length > 0) {
+      const { locale, t } = readWebI18n();
       toastManager.add({
         type: "error",
         title: translateWebSource(locale, "Device settings not saved on all environments"),
