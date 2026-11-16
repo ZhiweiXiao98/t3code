@@ -11,6 +11,7 @@ import { serverEnvironment } from "~/state/server";
 import { useEnvironmentsWithScope } from "~/state/session";
 import { useAtomCommand } from "~/state/use-atom-command";
 import { useI18n } from "~/i18n/WebI18nContext";
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { translateWebSource } from "~/i18n/messages";
 import {
   canOneClickUpdateProviderCandidate,
@@ -25,7 +26,6 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
 // `refreshModels` always drops the server's hour-long latest-version cache. `modelCatalogOnly`
 // drops it only when the model manifest changed.
 export function useCheckProviderUpdates() {
-  const { locale } = useI18n();
   const { environments } = useEnvironments();
   const manageableIds = useEnvironmentsWithScope(environments, AuthProvidersManageScope);
   const refreshProviders = useAtomCommand(serverEnvironment.refreshProviders, {
@@ -44,6 +44,7 @@ export function useCheckProviderUpdates() {
         .map(async ({ environmentId, label }) => {
           const result = await refreshProviders({ environmentId, input: { refreshModels: true } });
           if (result._tag !== "Failure" || isAtomCommandInterrupted(result)) return [];
+          const { locale } = readWebI18n();
           const error = squashAtomCommandFailure(result);
           return [
             `${label}: ${error instanceof Error ? error.message : translateWebSource(locale, "Refresh failed.")}`,
@@ -52,6 +53,7 @@ export function useCheckProviderUpdates() {
     );
     const lines = failures.flat();
     if (quiet || lines.length === 0) return;
+    const { locale } = readWebI18n();
     toastManager.add(
       stackedThreadToast({
         type: "error",
