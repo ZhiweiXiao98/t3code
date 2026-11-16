@@ -1,3 +1,4 @@
+import { readWebI18n } from "../../i18n/readWebI18n";
 import { useI18n } from "../../i18n/WebI18nContext";
 import {
   translateVoiceSettingsMessage,
@@ -621,8 +622,6 @@ function CleanupModelRow() {
 }
 
 function useVoiceModels(prepared: PreparedConnection | null) {
-  const { locale } = useI18n();
-  const t = translateVoiceSettingsMessage.bind(null, locale);
   const canManage = useEnvironmentScope(prepared?.environmentId ?? null, AuthSettingsWriteScope);
   const [models, setModels] = useState<readonly EnvironmentSpeechModel[]>([]);
   const [status, setStatus] = useState<EnvironmentSpeechStatus | null>(null);
@@ -662,7 +661,10 @@ function useVoiceModels(prepared: PreparedConnection | null) {
         if (current !== epoch.current || revision !== refreshRevision.current) return;
         toastManager.add({
           type: "error",
-          title: t("Could not load transcription models"),
+          title: translateVoiceSettingsMessage(
+            readWebI18n().locale,
+            "Could not load transcription models",
+          ),
           description: error instanceof Error ? error.message : String(error),
         });
       }

@@ -1,3 +1,9 @@
+import { RegistryContext } from "@effect/atom-react";
+import { AsyncResult, AtomRegistry } from "effect/reactivity";
+import type { EnvironmentCatalogState } from "@t3tools/client-runtime/state/connections";
+import { environmentCatalog } from "../../connection/catalog";
+import { primaryEnvironmentIdAtom } from "../../state/primaryEnvironment";
+import { environmentPresentations } from "../../state/presentation";
 import {
   BearerConnectionTarget,
   PrimaryConnectionTarget,
@@ -12,7 +18,7 @@ import {
 } from "@t3tools/contracts";
 import { expect, it, vi } from "vite-plus/test";
 import { userEvent } from "vite-plus/test/browser";
-import { render } from "../../../test/render";
+import { act, render } from "../../../test/render";
 import { __setClientSettingsForTests, getClientSettings } from "../../hooks/useSettings";
 import {
   useEnvironmentSpeechInput,
@@ -20,6 +26,8 @@ import {
 } from "../../speech/useEnvironmentSpeechInput";
 import { chooseAudioDestination, chooseTranscriptCleanup } from "../../speech/voiceConsent";
 import { useEnvironmentScope } from "../../state/session";
+import * as webI18n from "../../i18n/readWebI18n";
+import * as speechRuntime from "../../speech/runEnvironmentSpeech";
 import { toastManager } from "../ui/toast";
 import { SettingsScopeProvider } from "./SettingsScopeContext";
 import { SpeechLanguageSelect } from "./SpeechLanguageSelect";
@@ -29,6 +37,8 @@ import { VoiceSettingsPanel } from "./VoiceSettingsPanel";
 
 vi.mock(import("../../speech/useEnvironmentSpeechInput"), { spy: true });
 vi.mock(import("../../state/session"), { spy: true });
+vi.mock(import("../../i18n/readWebI18n"), { spy: true });
+vi.mock(import("../../speech/runEnvironmentSpeech"), { spy: true });
 
 // The real connection runtime authorizes relay requests with a signed-in cloud session.
 vi.mock("../../connection/runtime", async () => {
@@ -621,3 +631,145 @@ it("keeps punctuation in a saved dictionary term and its alias", async () => {
     { term: "O'Reilly", aliases: ['"Oh Really"'] },
   ]);
 });
+
+it.each(["zh-CN", "en", "unmounted"] as const)(
+  "uses settlement locale for foreground voice model load failure: %s",
+  async (outcome) => {
+    using registryDisposal = new DisposableStack();
+    const registry = registryDisposal.adopt(
+      AtomRegistry.make({
+        initialValues: [
+          [
+            environmentCatalog.catalogAtom,
+            AsyncResult.success({
+              isReady: true,
+              entries: new Map(),
+            } satisfies EnvironmentCatalogState),
+            { skipInitialRun: true },
+          ],
+          [
+            environmentCatalog.networkStatusAtom,
+            AsyncResult.success("online" as const),
+            { skipInitialRun: true },
+          ],
+        ],
+      }),
+      (value) => value.dispose(),
+    );
+    expect(registry.get(primaryEnvironmentIdAtom)).toBeNull();
+    expect(registry.get(environmentPresentations.presentationsAtom).size).toBe(0);
+    const target = new PrimaryConnectionTarget({
+      environmentId: EnvironmentId.make("voice-settlement"),
+      label: "Literal $& {voice}",
+      httpBaseUrl: window.location.origin,
+      wsBaseUrl: "ws://localhost",
+    });
+    const prepared: PreparedConnection = {
+      ...target,
+      target,
+      socketUrl: target.wsBaseUrl,
+      httpAuthorization: null,
+    };
+    const status = {
+      supported: false,
+      reason: "fixture unavailable",
+    } satisfies EnvironmentSpeechStatus;
+    const models = deferred<Response>();
+    const requests: Array<{ path: string; method: string }> = [];
+    using _network = vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = new URL(input instanceof Request ? input.url : input, window.location.href);
+      const method = init?.method ?? (input instanceof Request ? input.method : "GET");
+      requests.push({ path: url.pathname + url.search, method });
+      if (
+        url.origin === window.location.origin &&
+        method === "GET" &&
+        url.pathname === "/api/voice/status"
+      )
+        return Promise.resolve(Response.json(status));
+      if (
+        url.origin === window.location.origin &&
+        method === "GET" &&
+        url.pathname === "/api/voice/models" &&
+        url.search === "?benchmarks=1"
+      )
+        return models.promise;
+      throw new Error("Unexpected request in isolated voice fixture");
+    });
+    const mediaDescriptor = Object.getOwnPropertyDescriptor(navigator, "mediaDevices");
+    Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: undefined });
+    using _media = {
+      [Symbol.dispose]() {
+        if (mediaDescriptor) Object.defineProperty(navigator, "mediaDevices", mediaDescriptor);
+        else Reflect.deleteProperty(navigator, "mediaDevices");
+      },
+    };
+    using _scope = vi.mocked(useEnvironmentScope).mockReturnValue(false);
+    using _destination = vi.mocked(useVoiceTranscriptionDestination).mockReturnValue({
+      environmentId: target.environmentId,
+      label: target.label,
+      grantId: "fixture",
+      prepared,
+    });
+    using notify = vi.spyOn(toastManager, "add").mockReturnValue("fixture");
+    let currentLocale: "en" | "zh-CN" = "en";
+    using _locale = vi.spyOn(webI18n, "readWebI18n").mockImplementation(() => {
+      const locale = currentLocale;
+      return { locale, t: (key, values) => translateWebMessage(locale, key, values) };
+    });
+    using run = vi.spyOn(speechRuntime, "runEnvironmentSpeech");
+    run.mockClear();
+    const surface = (locale: "en" | "zh-CN") => (
+      <WebI18nContext
+        value={{
+          locale,
+          appLocale: locale,
+          setAppLocale: () => {},
+          t: (key, values) => translateWebMessage(locale, key, values),
+        }}
+      >
+        <RegistryContext.Provider value={registry}>
+          <SettingsScopeProvider search={{}} onChange={() => {}}>
+            <VoiceSettingsPanel />
+          </SettingsScopeProvider>
+        </RegistryContext.Provider>
+      </WebI18nContext>
+    );
+    await using screen = await render(surface("en"));
+    await using _drain = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          models.resolve(new Response(null, { status: 503 }));
+          await Promise.allSettled(
+            run.mock.results
+              .filter((result) => result.type === "return")
+              .map((result) => result.value),
+          );
+        });
+      },
+    };
+    await vi.waitFor(() =>
+      expect(requests).toEqual([
+        { path: "/api/voice/status", method: "GET" },
+        { path: "/api/voice/models?benchmarks=1", method: "GET" },
+      ]),
+    );
+    expect(notify).not.toHaveBeenCalled();
+    currentLocale = outcome === "en" ? "en" : "zh-CN";
+    await screen.rerender(outcome === "unmounted" ? <></> : surface(currentLocale));
+    await act(async () => {
+      models.resolve(new Response(null, { status: 503 }));
+      await Promise.allSettled(
+        run.mock.results.filter((result) => result.type === "return").map((result) => result.value),
+      );
+    });
+    if (outcome === "unmounted") expect(notify).not.toHaveBeenCalled();
+    else
+      expect(notify).toHaveBeenCalledExactlyOnceWith({
+        type: "error",
+        title: outcome === "en" ? "Could not load transcription models" : "无法加载转写模型",
+        description: `Remote environment endpoint ${window.location.origin}/api/voice/models?benchmarks=1 returned undeclared status 503.`,
+      });
+    expect(requests).toHaveLength(2);
+    expect(run).toHaveBeenCalledTimes(2);
+  },
+);
