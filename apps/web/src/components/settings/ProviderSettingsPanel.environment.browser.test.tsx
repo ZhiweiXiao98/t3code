@@ -1402,3 +1402,87 @@ it.each([false, true])(
     expect(state.toast).toHaveBeenCalledTimes(accepted ? 0 : 1);
   },
 );
+
+it("uses settlement locale for provider update command copy success", async () => {
+  await setup();
+  state.locale = "en";
+  state.toast.mockReset();
+  const descriptor = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+  using _restore = {
+    [Symbol.dispose]() {
+      if (descriptor) Object.defineProperty(navigator, "clipboard", descriptor);
+      else Reflect.deleteProperty(navigator, "clipboard");
+      state.locale = null;
+    },
+  };
+  let resolve!: () => void;
+  const pending = new Promise<void>((done) => {
+    resolve = done;
+  });
+  const writeText = vi.fn().mockReturnValue(pending);
+  const write = vi.fn().mockResolvedValue(undefined);
+  Object.defineProperty(navigator, "clipboard", {
+    configurable: true,
+    value: { writeText, write },
+  });
+  const instance = {
+    driver: ProviderDriverKind.make("codex"),
+    enabled: true,
+    displayName: "Literal $& {provider}",
+  };
+  state.settings = { ...DEFAULT_UNIFIED_SETTINGS, providerInstances: { [codexId]: instance } };
+  const originalSettings = state.settings;
+  const command = "fixture-command --literal '$& {command}'";
+  const live = provider();
+  await setProviders([
+    { ...live, versionAdvisory: { ...live.versionAdvisory!, updateCommand: command } },
+  ]);
+  const surface = (locale: "en" | "zh-CN") => (
+    <WebI18nContext
+      value={{
+        locale,
+        appLocale: locale,
+        setAppLocale: () => undefined,
+        t: (key, values) => translateWebMessage(locale, key, values),
+      }}
+    >
+      {panel({ targetInstanceId: codexId })}
+    </WebI18nContext>
+  );
+  await using screen = await render(surface("en"));
+  await using _drain = {
+    async [Symbol.asyncDispose]() {
+      await act(async () => {
+        resolve();
+        await pending;
+      });
+    },
+  };
+  await userEvent.click(
+    page.getByRole("button", { name: "Update available, view details", exact: true }).first(),
+  );
+  await userEvent.click(page.getByRole("button", { name: "Copy update command", exact: true }));
+  expect(writeText).toHaveBeenCalledExactlyOnceWith(command);
+  expect(write).not.toHaveBeenCalled();
+  expect(state.toast).not.toHaveBeenCalled();
+  state.locale = "zh-CN";
+  await screen.rerender(surface("zh-CN"));
+  await act(async () => {
+    resolve();
+    await pending;
+  });
+  expect(state.toast).toHaveBeenCalledExactlyOnceWith({
+    type: "success",
+    title: "已复制 Literal $& {provider} 更新命令",
+    description: "准备好后，在终端中运行此命令即可更新。",
+  });
+  expect(state.settings).toBe(originalSettings);
+  expect(state.updateProvider).not.toHaveBeenCalled();
+  expect(state.mutateProviderInstance).not.toHaveBeenCalled();
+  expect(state.updateSettings).not.toHaveBeenCalled();
+  expect(state.uninstall).not.toHaveBeenCalled();
+  expect(state.acceptUrlAuth).not.toHaveBeenCalled();
+  state.locale = "en";
+  await screen.rerender(surface("en"));
+  expect(state.toast).toHaveBeenCalledTimes(1);
+});

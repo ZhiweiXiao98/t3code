@@ -1,5 +1,6 @@
 "use client";
 
+import { readWebI18n } from "../../i18n/readWebI18n";
 import { translateWebSource } from "../../i18n/messages";
 
 import { useI18n, splitWebTranslation } from "../../i18n/WebI18nContext";
@@ -852,6 +853,7 @@ export function ProviderInstanceCard({
       );
   const { copyToClipboard } = useCopyToClipboard<{ providerName: string }>({
     onCopy: ({ providerName }) => {
+      const { t } = readWebI18n();
       toastManager.add({
         type: "success",
         title: t("providers.update.commandCopied", { provider: providerName }),
