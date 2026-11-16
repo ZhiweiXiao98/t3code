@@ -5,6 +5,7 @@ import { SnapShotSetupDialog } from "./SnapShotSetupDialog";
 import {
   DEFAULT_CLIENT_SETTINGS,
   type DesktopCaptureConfigPreview,
+  type DesktopCaptureConfigApplied,
   type DesktopSnapShotState,
 } from "@t3tools/contracts";
 import { page, userEvent } from "vite-plus/test/browser";
@@ -17,6 +18,24 @@ const bridge = vi.hoisted(() => ({
   applySnapShotConfig: vi.fn(),
   setSnapShotShortcutSuppressed: vi.fn(),
 }));
+const settlement = vi.hoisted(() => ({ active: false, locale: "en" as "en" | "zh-CN" }));
+vi.mock("../../i18n/readWebI18n", async (original) => {
+  const actual = await original<typeof import("../../i18n/readWebI18n")>();
+  return {
+    ...actual,
+    readWebI18n: () => {
+      if (!settlement.active) return actual.readWebI18n();
+      const locale = settlement.locale;
+      return {
+        locale,
+        t: (
+          key: Parameters<typeof translateWebMessage>[1],
+          values: Parameters<typeof translateWebMessage>[2],
+        ) => translateWebMessage(locale, key, values),
+      };
+    },
+  };
+});
 const toast = vi.hoisted(() => vi.fn());
 vi.mock(import("../../lib/desktopSnapShot"), async (original) => ({
   ...(await original()),
@@ -260,5 +279,121 @@ it.each(["preview", "apply"] as const)(
     expect(bridge.setSnapShotShortcutSuppressed).not.toHaveBeenCalled();
     expect(complete).not.toHaveBeenCalled();
     expect(toast).not.toHaveBeenCalled();
+  },
+);
+
+it.each(["zh-CN", "en"] as const)(
+  "uses settlement locale for capture shortcut save success: %s",
+  async (locale) => {
+    using _env = setup();
+    settlement.active = true;
+    settlement.locale = "en";
+    using _restore = {
+      [Symbol.dispose]() {
+        settlement.active = false;
+        settlement.locale = "en";
+      },
+    };
+    let finishApply!: (result: DesktopCaptureConfigApplied) => void;
+    const applying = new Promise<DesktopCaptureConfigApplied>((resolve) => {
+      finishApply = resolve;
+    });
+    let finishSaved!: () => void;
+    const saving = new Promise<void>((resolve) => {
+      finishSaved = resolve;
+    });
+    const onSaved = vi.fn().mockReturnValue(saving);
+    const onBusyChange = vi.fn();
+    bridge.applySnapShotConfig.mockReturnValue(applying);
+    const surface = (locale: "en" | "zh-CN") => (
+      <WebI18nContext
+        value={{
+          locale,
+          appLocale: locale,
+          setAppLocale: () => {},
+          t: (key, values) => translateWebMessage(locale, key, values),
+        }}
+      >
+        <CaptureShortcutConfig
+          state={{
+            mode: "portal",
+            linuxBackend: "niri",
+            shortcut: DEFAULT_CLIENT_SETTINGS.snapShotShortcut,
+            shortcutRegistered: false,
+            shortcutActionRegistered: true,
+            shortcutMessage: null,
+            message: null,
+          }}
+          onSaved={onSaved}
+          onComplete={complete}
+          onBusyChange={onBusyChange}
+        />
+      </WebI18nContext>
+    );
+    await using screen = await render(surface("en"));
+    await using _drain = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          finishApply({ backupPath: "/fixture/backup", warning: null });
+          finishSaved();
+          await applying;
+          await saving;
+        });
+      },
+    };
+    await screen.getByRole("button", { name: "Review changes", exact: true }).click();
+    await expect
+      .element(screen.getByRole("button", { name: "Save shortcut", exact: true }))
+      .toBeEnabled();
+    expect(bridge.previewSnapShotConfig).toHaveBeenCalledExactlyOnceWith({
+      operation: "install",
+      chooseFile: false,
+    });
+    expect(bridge.applySnapShotConfig).not.toHaveBeenCalled();
+    await screen.getByRole("button", { name: "Save shortcut", exact: true }).click();
+    expect(bridge.applySnapShotConfig).toHaveBeenCalledExactlyOnceWith(preview.id);
+    const busy = screen.getByRole("button", { name: "Saving…", exact: true });
+    await expect.element(busy).toBeDisabled();
+    await act(() => {
+      busy.element().dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+    });
+    expect(bridge.applySnapShotConfig).toHaveBeenCalledTimes(1);
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(toast).not.toHaveBeenCalled();
+    expect(complete).not.toHaveBeenCalled();
+    await act(async () => {
+      finishApply({ backupPath: "/fixture/backup", warning: null });
+      await applying;
+    });
+    expect(onSaved).toHaveBeenCalledExactlyOnceWith();
+    expect(toast).not.toHaveBeenCalled();
+    expect(complete).not.toHaveBeenCalled();
+    settlement.locale = locale;
+    await screen.rerender(surface(locale));
+    await act(async () => {
+      finishSaved();
+      await saving;
+    });
+    expect(toast).toHaveBeenCalledExactlyOnceWith({
+      type: "success",
+      title: locale === "zh-CN" ? "快捷键已保存" : "Shortcut saved",
+      description:
+        locale === "zh-CN"
+          ? "在其他应用中使用 Ctrl+Shift+2。"
+          : "Use Ctrl+Shift+2 from another app.",
+    });
+    expect(complete).toHaveBeenCalledExactlyOnceWith();
+    expect(bridge.applySnapShotConfig.mock.invocationCallOrder[0]).toBeLessThan(
+      onSaved.mock.invocationCallOrder[0]!,
+    );
+    expect(onSaved.mock.invocationCallOrder[0]).toBeLessThan(toast.mock.invocationCallOrder[0]!);
+    expect(toast.mock.invocationCallOrder[0]).toBeLessThan(complete.mock.invocationCallOrder[0]!);
+    expect(onBusyChange).toHaveBeenLastCalledWith(false);
+    await screen.rerender(surface(locale));
+    expect(toast).toHaveBeenCalledTimes(1);
+    expect(complete).toHaveBeenCalledTimes(1);
+    expect(bridge.previewSnapShotConfig).toHaveBeenCalledTimes(1);
+    expect(bridge.applySnapShotConfig).toHaveBeenCalledTimes(1);
+    expect(bridge.setSnapShotShortcutSuppressed).not.toHaveBeenCalled();
   },
 );

@@ -1,3 +1,4 @@
+import { readWebI18n } from "../../i18n/readWebI18n";
 import { useI18n } from "../../i18n/WebI18nContext";
 import { translateWebSource } from "../../i18n/messages";
 import {
@@ -134,6 +135,7 @@ export function CaptureShortcutConfig({
       setResult(applied);
       await onSaved?.();
       if (!applied.warning && preview.operation === "install" && onComplete) {
+        const { locale, t } = readWebI18n();
         toastManager.add({
           type: "success",
           title: translateWebSource(locale, "Shortcut saved"),
