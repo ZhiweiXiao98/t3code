@@ -265,7 +265,7 @@ it.each(["owned", "raw", "empty", "interrupted", "cancel"] as const)(
     await expect
       .element(dialog.getByRole("alert"))
       .toHaveTextContent(
-        "This app cannot confirm it is one of your machines. The pairing code you paste is sent there.",
+        "Check this addressThis app cannot confirm it is one of your machines. The pairing code you paste is sent there.https://fixture.invalid",
       );
     await expect
       .element(dialog.getByRole("alert").getByText("https://fixture.invalid", { exact: true }))
