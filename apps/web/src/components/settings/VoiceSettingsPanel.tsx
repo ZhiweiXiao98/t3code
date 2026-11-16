@@ -697,7 +697,11 @@ function useVoiceModels(prepared: PreparedConnection | null) {
     };
   }, [downloading, prepared, refresh]);
 
-  const run = async (label: string, work: () => Promise<unknown>, downloadId?: string) => {
+  const run = async (
+    label: string | (() => string),
+    work: () => Promise<unknown>,
+    downloadId?: string,
+  ) => {
     if (!prepared || !canManage) return;
     const current = epoch.current;
     if (downloadId) setRequestedDownload(downloadId);
@@ -708,7 +712,7 @@ function useVoiceModels(prepared: PreparedConnection | null) {
       if (current === epoch.current)
         toastManager.add({
           type: "error",
-          title: label,
+          title: typeof label === "function" ? label() : label,
           description: error instanceof Error ? error.message : String(error),
         });
     }
@@ -1024,8 +1028,14 @@ function SpeechModelBrowser(props: {
                         model.id,
                       ),
                     onSelect: () =>
-                      void run(t("Could not select the model"), () =>
-                        runEnvironmentSpeech(selectEnvironmentSpeechModel(prepared, model.id)),
+                      void run(
+                        () =>
+                          translateVoiceSettingsMessage(
+                            readWebI18n().locale,
+                            "Could not select the model",
+                          ),
+                        () =>
+                          runEnvironmentSpeech(selectEnvironmentSpeechModel(prepared, model.id)),
                       ),
                     onCancel: () =>
                       void run(t("Could not cancel the download"), () =>

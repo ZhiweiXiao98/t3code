@@ -773,3 +773,212 @@ it.each(["zh-CN", "en", "unmounted"] as const)(
     expect(run).toHaveBeenCalledTimes(2);
   },
 );
+
+it.each(["zh-CN", "en", "unmounted"] as const)(
+  "uses settlement locale for voice model selection failure: %s",
+  async (outcome) => {
+    using registryDisposal = new DisposableStack();
+    const registry = registryDisposal.adopt(
+      AtomRegistry.make({
+        initialValues: [
+          [
+            environmentCatalog.catalogAtom,
+            AsyncResult.success({
+              isReady: true,
+              entries: new Map(),
+            } satisfies EnvironmentCatalogState),
+            { skipInitialRun: true },
+          ],
+          [
+            environmentCatalog.networkStatusAtom,
+            AsyncResult.success("online" as const),
+            { skipInitialRun: true },
+          ],
+        ],
+      }),
+      (value) => value.dispose(),
+    );
+    expect(registry.get(primaryEnvironmentIdAtom)).toBeNull();
+    expect(registry.get(environmentPresentations.presentationsAtom).size).toBe(0);
+    const target = new PrimaryConnectionTarget({
+      environmentId: EnvironmentId.make("voice-select-settlement"),
+      label: "Literal $& {voice}",
+      httpBaseUrl: window.location.origin,
+      wsBaseUrl: "ws://localhost",
+    });
+    const prepared: PreparedConnection = {
+      ...target,
+      target,
+      socketUrl: target.wsBaseUrl,
+      httpAuthorization: null,
+    };
+    const model: EnvironmentSpeechModel = {
+      id: "literal-model",
+      name: "Literal $& {model}",
+      description: "",
+      size: 100,
+      languages: ["en"],
+      accuracy: 1,
+      speed: 1,
+      recommended: true,
+      supportsStreaming: false,
+      supportsTranslation: false,
+      supportsLanguageDetection: false,
+      active: false,
+      state: "installed",
+    };
+    const status = {
+      supported: true,
+      state: "missing-model",
+      modelId: model.id,
+      model: model.name,
+      size: model.size,
+      supportsStreaming: false,
+      supportsTranslation: false,
+      acceleration: "cpu",
+      modelUnloadTimeout: "never",
+      gpuDevices: [],
+      benchmarkTier: "cpu",
+    } satisfies EnvironmentSpeechStatus;
+    const selection = deferred<Response>();
+    const selectBodies: Array<unknown> = [];
+    const requests: Array<{ path: string; method: string }> = [];
+    using _network = vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = new URL(input instanceof Request ? input.url : input, window.location.href);
+      const method = init?.method ?? (input instanceof Request ? input.method : "GET");
+      requests.push({ path: url.pathname + url.search, method });
+      if (
+        url.origin === window.location.origin &&
+        method === "GET" &&
+        url.pathname === "/api/voice/status"
+      )
+        return Promise.resolve(Response.json(status));
+      if (
+        url.origin === window.location.origin &&
+        method === "GET" &&
+        url.pathname === "/api/voice/models" &&
+        url.search === "?benchmarks=1"
+      )
+        return Promise.resolve(Response.json({ models: [model] }));
+      if (
+        url.origin === window.location.origin &&
+        method === "POST" &&
+        url.pathname === "/api/voice/models/select" &&
+        url.search === ""
+      ) {
+        selectBodies.push(JSON.parse(new TextDecoder().decode(init?.body as Uint8Array)));
+        return selection.promise;
+      }
+      throw new Error("Unexpected request in isolated voice fixture");
+    });
+    const mediaDescriptor = Object.getOwnPropertyDescriptor(navigator, "mediaDevices");
+    Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: undefined });
+    using _media = {
+      [Symbol.dispose]() {
+        if (mediaDescriptor) Object.defineProperty(navigator, "mediaDevices", mediaDescriptor);
+        else Reflect.deleteProperty(navigator, "mediaDevices");
+      },
+    };
+    using _scope = vi.mocked(useEnvironmentScope).mockReturnValue(true);
+    using _destination = vi.mocked(useVoiceTranscriptionDestination).mockReturnValue({
+      environmentId: target.environmentId,
+      label: target.label,
+      grantId: "fixture",
+      prepared,
+    });
+    using notify = vi.spyOn(toastManager, "add").mockReturnValue("fixture");
+    let currentLocale: "en" | "zh-CN" = "en";
+    using _locale = vi.spyOn(webI18n, "readWebI18n").mockImplementation(() => {
+      const locale = currentLocale;
+      return { locale, t: (key, values) => translateWebMessage(locale, key, values) };
+    });
+    using run = vi.spyOn(speechRuntime, "runEnvironmentSpeech");
+    run.mockClear();
+    const surface = (locale: "en" | "zh-CN") => (
+      <WebI18nContext
+        value={{
+          locale,
+          appLocale: locale,
+          setAppLocale: () => {},
+          t: (key, values) => translateWebMessage(locale, key, values),
+        }}
+      >
+        <RegistryContext.Provider value={registry}>
+          <SettingsScopeProvider search={{}} onChange={() => {}}>
+            <VoiceSettingsPanel />
+          </SettingsScopeProvider>
+        </RegistryContext.Provider>
+      </WebI18nContext>
+    );
+    await using screen = await render(surface("en"));
+    await using _drain = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          selection.resolve(new Response(null, { status: 503 }));
+          await Promise.allSettled(
+            run.mock.results
+              .filter((result) => result.type === "return")
+              .map((result) => result.value),
+          );
+          // The failed action starts its recovery reads after the first snapshot.
+          await Promise.allSettled(
+            run.mock.results
+              .filter((result) => result.type === "return")
+              .map((result) => result.value),
+          );
+        });
+      },
+    };
+    await vi.waitFor(() =>
+      expect(requests).toEqual([
+        { path: "/api/voice/status", method: "GET" },
+        { path: "/api/voice/models?benchmarks=1", method: "GET" },
+      ]),
+    );
+    const useModel = screen.getByRole("button", { name: "Use model", exact: true });
+    await expect.element(useModel).toBeEnabled();
+    await useModel.click();
+    await vi.waitFor(() => expect(selectBodies).toEqual([{ modelId: model.id }]));
+    await expect.element(useModel).toBeDisabled();
+    expect(notify).not.toHaveBeenCalled();
+    currentLocale = outcome === "en" ? "en" : "zh-CN";
+    await screen.rerender(outcome === "unmounted" ? <></> : surface(currentLocale));
+    await act(async () => {
+      selection.resolve(new Response(null, { status: 503 }));
+      await Promise.allSettled(
+        run.mock.results.filter((result) => result.type === "return").map((result) => result.value),
+      );
+      await Promise.allSettled(
+        run.mock.results.filter((result) => result.type === "return").map((result) => result.value),
+      );
+    });
+    if (outcome === "unmounted") expect(notify).not.toHaveBeenCalled();
+    else
+      expect(notify).toHaveBeenCalledExactlyOnceWith({
+        type: "error",
+        title: outcome === "en" ? "Could not select the model" : "无法选择模型",
+        description: `Remote environment endpoint ${window.location.origin}/api/voice/models/select returned undeclared status 503.`,
+      });
+    const expected = [
+      { path: "/api/voice/status", method: "GET" },
+      { path: "/api/voice/models?benchmarks=1", method: "GET" },
+      { path: "/api/voice/models/select", method: "POST" },
+      ...(outcome === "unmounted"
+        ? []
+        : [
+            { path: "/api/voice/status", method: "GET" },
+            { path: "/api/voice/models?benchmarks=1", method: "GET" },
+          ]),
+    ];
+    await vi.waitFor(() => expect(requests).toEqual(expected));
+    expect(run).toHaveBeenCalledTimes(expected.length);
+    expect(selectBodies).toHaveLength(1);
+    if (outcome !== "unmounted") {
+      await screen.rerender(surface("en"));
+      await expect
+        .element(screen.getByRole("button", { name: "Use model", exact: true }))
+        .toBeEnabled();
+      expect(notify).toHaveBeenCalledTimes(1);
+    }
+  },
+);
