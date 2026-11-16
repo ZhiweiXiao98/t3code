@@ -273,7 +273,10 @@ function LinkEnvironmentAction({ environmentId }: { readonly environmentId: Envi
       });
       handleOpenChange(false);
     } else if (!isAtomCommandInterrupted(result)) {
-      failureToast(tx("Could not link the environment"), String(squashAtomCommandFailure(result)));
+      failureToast(
+        translateWebSource(readWebI18n().locale, "Could not link the environment"),
+        String(squashAtomCommandFailure(result)),
+      );
     }
   };
   return (
