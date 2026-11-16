@@ -503,7 +503,59 @@ it.each(["raw", "query", "interrupted", "denied"] as const)(
     await page.getByRole("button", { name: /Authorized clients/ }).click();
     if (kind !== "query") {
       if (kind === "denied") fixture.writeAtCall = false;
-      await page.getByRole("button", { name: "Revoke", exact: true }).click();
+      const action = page.getByRole("button", { name: "Revoke", exact: true });
+      // Diagnostic-only: observe delivery without changing the native click or its assertions.
+      {
+        using listeners = new DisposableStack();
+        if (kind === "interrupted") {
+          let retained: Element | null = null;
+          try {
+            retained = action.query();
+          } catch {
+            /* Observation must not change locator readiness. */
+          }
+          const panel = retained?.closest('[data-slot="collapsible-panel"]');
+          let entries = 0;
+          const sample = (stage: string, event?: Event) => {
+            if (stage !== "after" && entries >= 7) return;
+            entries++;
+            try {
+              const rect = retained?.getBoundingClientRect();
+              let currentIsRetained = false;
+              try {
+                currentIsRetained = retained !== null && action.query() === retained;
+              } catch {
+                // A missing current node is recorded, never retried or substituted.
+              }
+              console.info("CONNECTIONS_REVOKE_CLICK_DIAGNOSTIC", {
+                stage,
+                pathContainsRetained:
+                  event && retained ? event.composedPath().includes(retained) : null,
+                targetIsRetained: event && retained ? event.target === retained : null,
+                connected: retained?.isConnected ?? false,
+                disabled: retained?.matches(":disabled") ?? null,
+                currentIsRetained,
+                rect: rect ? [rect.x, rect.y, rect.width, rect.height].map(Math.round) : null,
+                panelStarting: panel?.hasAttribute("data-starting-style") ?? false,
+                panelEnding: panel?.hasAttribute("data-ending-style") ?? false,
+                panelOpen: panel?.hasAttribute("data-open") ?? false,
+                writeAtCall: fixture.writeAtCall,
+                commandCalls: fixture.revokePairing.mock.calls.length,
+              });
+            } catch {
+              // Diagnostic sampling must never replace the original interaction failure.
+            }
+          };
+          for (const type of ["pointerdown", "pointerup", "click"] as const) {
+            const listener = (event: Event) => sample(type, event);
+            document.addEventListener(type, listener, true);
+            listeners.defer(() => document.removeEventListener(type, listener, true));
+          }
+          sample("before");
+          listeners.defer(() => sample("after"));
+        }
+        await action.click();
+      }
     }
     if (kind === "raw" || kind === "query") {
       await expect.element(page.getByText(english, { exact: true })).toBeVisible();

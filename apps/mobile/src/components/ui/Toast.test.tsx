@@ -79,9 +79,8 @@ vi.mock("../../i18n/mobileStrings", () => ({
 }));
 import { Toast } from "./Toast";
 
-it.runIf(platform.OS === "ios")(
-  "applies provenance to normal and single-line toast text and VoiceOver without retranslating opaque content",
-  () => {
+if (platform.OS === "ios") {
+  it("applies provenance to normal and single-line toast text and VoiceOver without retranslating opaque content", () => {
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
     try {
       for (const localizeMessage of [undefined, false, true]) {
@@ -124,12 +123,9 @@ it.runIf(platform.OS === "ios")(
     } finally {
       vi.unstubAllGlobals();
     }
-  },
-);
-
-it.runIf(platform.OS === "android")(
-  "keeps the Android swipe-dismiss accessibility alert in the same provenance mode",
-  () => {
+  });
+} else {
+  it("keeps the Android swipe-dismiss accessibility alert in the same provenance mode", () => {
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
     try {
       for (const localizeMessage of [undefined, false, true]) {
@@ -166,5 +162,5 @@ it.runIf(platform.OS === "android")(
     } finally {
       vi.unstubAllGlobals();
     }
-  },
-);
+  });
+}

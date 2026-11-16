@@ -676,7 +676,51 @@ it.each([
       exact: true,
     });
     await expect.element(action).toBeEnabled();
-    await action.click();
+    // Diagnostic-only: observe delivery without changing the native click or its assertions.
+    {
+      using listeners = new DisposableStack();
+      if (kind === "resolve owned") {
+        const retained = action.element();
+        const panel = retained.closest('[data-slot="collapsible-panel"]');
+        let entries = 0;
+        const sample = (stage: string, event?: Event) => {
+          if (stage !== "after" && entries >= 7) return;
+          entries++;
+          try {
+            const rect = retained.getBoundingClientRect();
+            let currentIsRetained = false;
+            try {
+              currentIsRetained = action.element() === retained;
+            } catch {
+              // A missing current node is recorded, never retried or substituted.
+            }
+            console.info("PR_RESOLUTION_CLICK_DIAGNOSTIC", {
+              stage,
+              pathContainsRetained: event ? event.composedPath().includes(retained) : null,
+              targetIsRetained: event ? event.target === retained : null,
+              connected: retained.isConnected,
+              disabled: retained.matches(":disabled"),
+              currentIsRetained,
+              rect: [rect.x, rect.y, rect.width, rect.height].map(Math.round),
+              panelStarting: panel?.hasAttribute("data-starting-style") ?? false,
+              panelEnding: panel?.hasAttribute("data-ending-style") ?? false,
+              panelOpen: panel?.hasAttribute("data-open") ?? false,
+              commandCalls: mocks.resolution.mock.calls.length,
+            });
+          } catch {
+            // Diagnostic sampling must never replace the original interaction failure.
+          }
+        };
+        for (const type of ["pointerdown", "pointerup", "click"] as const) {
+          const listener = (event: Event) => sample(type, event);
+          document.addEventListener(type, listener, true);
+          listeners.defer(() => document.removeEventListener(type, listener, true));
+        }
+        sample("before");
+        listeners.defer(() => sample("after"));
+      }
+      await action.click();
+    }
     expect(mocks.resolution).toHaveBeenCalledExactlyOnceWith({
       environmentId: EnvironmentId.make("environment"),
       input: { ...commentsReference, threadId: orphan.id, resolved: !resolved },
