@@ -10,6 +10,8 @@ import { translateWebMessage } from "../../i18n/messages";
 
 const fixture = vi.hoisted(() => ({
   active: false,
+  saveMode: false,
+  upsert: vi.fn(),
   path: null as string | null,
   allowed: true,
   locale: "en" as "en" | "zh-CN",
@@ -53,7 +55,12 @@ vi.mock(import("../../state/session"), async (original) => ({
 }));
 vi.mock(import("../../state/use-atom-command"), async (original) => ({
   ...(await original()),
-  useAtomCommand: (() => (fixture.active ? fixture.mutation : vi.fn())) as never,
+  useAtomCommand: ((command: unknown) =>
+    fixture.saveMode && command === serverEnvironment.upsertKeybinding
+      ? fixture.upsert
+      : fixture.active
+        ? fixture.mutation
+        : vi.fn()) as never,
 }));
 vi.mock(import("./SettingsScopeContext"), async (original) => ({
   ...(await original()),
@@ -74,6 +81,7 @@ vi.mock(import("./SettingsScopeContext"), async (original) => ({
   }) as never,
 }));
 
+import { serverEnvironment } from "../../state/server";
 import { toastManager } from "../ui/toast";
 import { Dialog, DialogPopup, DialogTitle } from "../ui/dialog";
 import { KeybindingsSettingsPanel } from "./KeybindingsSettings";
@@ -353,5 +361,166 @@ it("does not open the keybindings editor without a path or current scope", async
   await screen.rerender(surface());
   await expect.element(button).toBeDisabled();
   expect(fixture.mutation).not.toHaveBeenCalled();
+  expect(toast).not.toHaveBeenCalled();
+});
+
+it.each(["owned", "raw", "empty", "interrupted"] as const)(
+  "uses settlement locale for keybinding save failure: %s",
+  async (kind) => {
+    fixture.active = true;
+    fixture.saveMode = true;
+    fixture.allowed = true;
+    fixture.path = null;
+    fixture.locale = "en";
+    fixture.upsert.mockReset();
+    fixture.mutation.mockReset();
+    fixture.open.mockReset();
+    using _restore = {
+      [Symbol.dispose]() {
+        fixture.active = false;
+        fixture.saveMode = false;
+        fixture.allowed = true;
+        fixture.path = null;
+        fixture.locale = "en";
+      },
+    };
+    let finish!: (result: AsyncResult.AsyncResult<never, unknown>) => void;
+    const pending = new Promise<AsyncResult.AsyncResult<never, unknown>>((resolve) => {
+      finish = resolve;
+    });
+    fixture.upsert.mockReturnValue(pending);
+    using toast = vi.spyOn(toastManager, "add").mockImplementation(() => "fixture-toast");
+    const surface = (locale: "en" | "zh-CN") => (
+      <WebI18nContext
+        value={{
+          locale,
+          appLocale: locale,
+          setAppLocale: () => {},
+          t: (key, values) => translateWebMessage(locale, key, values),
+        }}
+      >
+        <RegistryProvider>
+          <KeybindingsSettingsPanel />
+        </RegistryProvider>
+      </WebI18nContext>
+    );
+    await using screen = await render(surface("en"));
+    await using _drain = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          finish(AsyncResult.failure(Cause.interrupt()));
+          await pending;
+        });
+      },
+    };
+    await screen.getByRole("button", { name: /^Edit shortcut for Sidebar: Toggle:/ }).click();
+    const input = screen.getByRole("textbox", {
+      name: "Keybinding for Sidebar: Toggle",
+      exact: true,
+    });
+    await expect.element(input).toHaveFocus();
+    await userEvent.keyboard("{F8}");
+    await expect.element(input).toHaveValue("f8");
+    await screen.getByRole("button", { name: "Save", exact: true }).click();
+    expect(fixture.upsert).toHaveBeenCalledExactlyOnceWith({
+      environmentId: "env",
+      input: {
+        command: "sidebar.toggle",
+        key: "f8",
+        replace: { command: "sidebar.toggle", key: "mod+b" },
+      },
+    });
+    const saving = screen.getByRole("button", { name: "Saving", exact: true });
+    await expect.element(saving).toBeDisabled();
+    await act(() => {
+      saving.element().dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+    });
+    expect(fixture.upsert).toHaveBeenCalledTimes(1);
+    expect(toast).not.toHaveBeenCalled();
+    fixture.locale = "zh-CN";
+    await screen.rerender(surface("zh-CN"));
+    await act(async () => {
+      finish(
+        AsyncResult.failure(
+          kind === "interrupted"
+            ? Cause.interrupt()
+            : Cause.fail(
+                kind === "raw"
+                  ? new Error("Literal $& {save}")
+                  : kind === "empty"
+                    ? new Error("")
+                    : null,
+              ),
+        ),
+      );
+      await pending;
+    });
+    if (kind === "interrupted") expect(toast).not.toHaveBeenCalled();
+    else
+      expect(toast).toHaveBeenCalledExactlyOnceWith({
+        type: "error",
+        title: "无法保存快捷键",
+        description:
+          kind === "raw" ? "Literal $& {save}" : kind === "empty" ? "" : "未能保存快捷键。",
+      });
+    await expect.element(screen.getByRole("button", { name: "保存", exact: true })).toBeEnabled();
+    fixture.locale = "en";
+    await screen.rerender(surface("en"));
+    await expect
+      .element(screen.getByRole("textbox", { name: "Keybinding for Sidebar: Toggle", exact: true }))
+      .toHaveValue("f8");
+    expect(toast).toHaveBeenCalledTimes(kind === "interrupted" ? 0 : 1);
+    expect(fixture.upsert).toHaveBeenCalledTimes(1);
+    expect(fixture.mutation).not.toHaveBeenCalled();
+    expect(fixture.open).not.toHaveBeenCalled();
+  },
+);
+
+it("rechecks write scope before saving a recorded keybinding and allows Escape cancellation", async () => {
+  fixture.active = true;
+  fixture.saveMode = true;
+  fixture.allowed = true;
+  fixture.path = null;
+  fixture.locale = "en";
+  fixture.upsert.mockReset();
+  fixture.mutation.mockReset();
+  fixture.open.mockReset();
+  using _restore = {
+    [Symbol.dispose]() {
+      fixture.active = false;
+      fixture.saveMode = false;
+      fixture.allowed = true;
+      fixture.path = null;
+      fixture.locale = "en";
+    },
+  };
+  using toast = vi.spyOn(toastManager, "add").mockImplementation(() => "fixture-toast");
+  await using screen = await render(
+    <RegistryProvider>
+      <KeybindingsSettingsPanel />
+    </RegistryProvider>,
+  );
+  await screen.getByRole("button", { name: /^Edit shortcut for Sidebar: Toggle:/ }).click();
+  const input = screen.getByRole("textbox", {
+    name: "Keybinding for Sidebar: Toggle",
+    exact: true,
+  });
+  await expect.element(input).toHaveFocus();
+  await userEvent.keyboard("{F8}");
+  const save = screen.getByRole("button", { name: "Save", exact: true });
+  await expect.element(save).toBeEnabled();
+  fixture.allowed = false;
+  await save.click();
+  expect(fixture.upsert).not.toHaveBeenCalled();
+  await input.click();
+  await userEvent.keyboard("{Escape}");
+  await expect
+    .element(screen.getByRole("button", { name: /^Edit shortcut for Sidebar: Toggle:/ }))
+    .toBeVisible();
+  await expect
+    .element(screen.getByRole("button", { name: "Save", exact: true }))
+    .not.toBeInTheDocument();
+  expect(fixture.mutation).not.toHaveBeenCalled();
+  expect(fixture.open).not.toHaveBeenCalled();
   expect(toast).not.toHaveBeenCalled();
 });

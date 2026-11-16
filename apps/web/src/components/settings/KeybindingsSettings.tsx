@@ -1464,6 +1464,7 @@ export function KeybindingsSettingsPanel() {
         return;
       }
       if (!isAtomCommandInterrupted(failed)) {
+        const { t } = readWebI18n();
         const error = squashAtomCommandFailure(failed);
         toastManager.add({
           title: t("keybindings.error.saveTitle"),
