@@ -273,7 +273,7 @@ it.each(["owned", "raw", "empty", "interrupted", "cancel"] as const)(
     await expect.element(submit).toBeEnabled();
     if (kind === "cancel") {
       await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
-      await expect.element(dialog).not.toBeVisible();
+      await expect.element(dialog).not.toBeInTheDocument();
       expect(fixture.createLink).not.toHaveBeenCalled();
       expect(fixture.mint).not.toHaveBeenCalled();
       expect(toast).not.toHaveBeenCalled();
