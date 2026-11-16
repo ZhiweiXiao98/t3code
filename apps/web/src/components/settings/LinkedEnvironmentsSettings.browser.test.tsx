@@ -4,6 +4,7 @@ import {
   AuthAccessWriteScope,
   AuthSessionState,
   EnvironmentId,
+  PeerLink,
   PeerLinkSummary,
 } from "@t3tools/contracts";
 import {
@@ -76,6 +77,7 @@ vi.mock("~/i18n/readWebI18n", async (original) => ({
   },
 }));
 import { peerLinkEnvironment } from "../../state/peerLinks";
+import { accessConfig } from "../auth/ConnectAgentSurface";
 import { toastManager } from "../ui/toast";
 import { LinkedEnvironmentsSettings } from "./LinkedEnvironmentsSettings";
 const environmentId = EnvironmentId.make("local-fixture");
@@ -515,5 +517,145 @@ it.each(["not_allowed", "unavailable", "raw", "null"] as const)(
     expect(fixture.unlink).not.toHaveBeenCalled();
     expect(toast).toHaveBeenCalledTimes(1);
     expect(registry.get(links)).toBe(loaded);
+  },
+);
+
+const createdLink = Schema.decodeSync(PeerLink)({
+  environmentId: "created-peer-fixture",
+  label: "Returned $& {peer}",
+  urls: ["https://fixture.invalid/direct"],
+  access: "approval-required",
+  linkedAt: DateTime.makeUnsafe("2026-01-01T00:00:00Z"),
+  expiresAt: DateTime.makeUnsafe("2100-01-01T00:00:00Z"),
+  lastReachedAt: null,
+  lastError: null,
+});
+it.each(["zh-CN", "en"] as const)(
+  "uses settlement locale for direct environment link success: %s",
+  async (settlementLocale) => {
+    fixture.locale = "en";
+    fixture.direct = true;
+    fixture.createLink.mockReset();
+    fixture.unlink.mockReset();
+    fixture.mint.mockReset().mockImplementation(() => {
+      throw new Error("unexpected pairing-code mint");
+    });
+    using stack = new DisposableStack();
+    const registry = stack.adopt(AtomRegistry.make(), (r) => r.dispose());
+    stack.defer(() => {
+      fixture.locale = "en";
+      fixture.direct = false;
+    });
+    using _list = vi.spyOn(peerLinkEnvironment, "list").mockReturnValue(links);
+    using _linkPermission = vi
+      .spyOn(peerLinkEnvironment.link, "permissionAtom")
+      .mockReturnValue(allowed);
+    using _unlinkPermission = vi
+      .spyOn(peerLinkEnvironment.unlink, "permissionAtom")
+      .mockReturnValue(denied);
+    using toast = vi.spyOn(toastManager, "add").mockImplementation(() => "fixture");
+    let finish!: (result: ReturnType<typeof AsyncResult.success<PeerLink>>) => void;
+    const pending = new Promise<ReturnType<typeof AsyncResult.success<PeerLink>>>((resolve) => {
+      finish = resolve;
+    });
+    fixture.createLink.mockReturnValue(pending);
+    const surface = (locale: "en" | "zh-CN") => (
+      <WebI18nContext
+        value={{
+          locale,
+          appLocale: locale,
+          setAppLocale: () => {},
+          t: (key, values) => translateWebMessage(locale, key, values),
+        }}
+      >
+        <RegistryContext.Provider value={registry}>
+          <LinkedEnvironmentsSettings
+            environmentId={environmentId}
+            environmentLabel={null}
+            isSearchTarget={false}
+          />
+        </RegistryContext.Provider>
+      </WebI18nContext>
+    );
+    await using screen = await render(surface("en"));
+    await using _drain = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          finish(AsyncResult.success(createdLink));
+          await pending;
+        });
+      },
+    };
+    await screen.getByRole("button", { name: "Link", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "Link an environment", exact: true });
+    const submit = dialog.getByRole("button", { name: "Link", exact: true });
+    await expect.element(submit).toBeDisabled();
+    await dialog
+      .getByRole("textbox", { name: "Address", exact: true })
+      .fill("  https://fixture.invalid/direct  ");
+    await expect.element(submit).toBeDisabled();
+    await dialog
+      .getByRole("textbox", { name: "Pairing code", exact: true })
+      .fill("  dummy-not-a-credential  ");
+    await expect
+      .element(dialog.getByRole("alert"))
+      .toHaveTextContent(
+        "Check this addressThis app cannot confirm it is one of your machines. The pairing code you paste is sent there.https://fixture.invalid",
+      );
+    await expect
+      .element(dialog.getByRole("alert").getByText("https://fixture.invalid", { exact: true }))
+      .toBeVisible();
+    await expect.element(submit).toBeEnabled();
+    await submit.click();
+    expect(fixture.createLink).toHaveBeenCalledExactlyOnceWith({
+      environmentId,
+      input: {
+        url: "https://fixture.invalid/direct",
+        pairingCode: "dummy-not-a-credential",
+        access: "approval-required",
+      },
+    });
+    await expect
+      .element(dialog.getByRole("button", { name: "Linking…", exact: true }))
+      .toBeDisabled();
+    await expect
+      .element(dialog.getByRole("button", { name: "Cancel", exact: true }))
+      .toBeDisabled();
+
+    fixture.locale = settlementLocale;
+    await screen.rerender(surface(settlementLocale));
+    expect(toast).not.toHaveBeenCalled();
+    await act(async () => {
+      finish(AsyncResult.success(createdLink));
+      await pending;
+    });
+    expect(toast).toHaveBeenCalledExactlyOnceWith({
+      type: "success",
+      title:
+        settlementLocale === "zh-CN" ? "已关联 Returned $& {peer}" : "Linked Returned $& {peer}",
+    });
+    await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+    await screen.rerender(surface("en"));
+    await screen.getByRole("button", { name: "Link", exact: true }).click();
+    const reopened = page.getByRole("dialog", { name: "Link an environment", exact: true });
+    await expect
+      .element(reopened.getByRole("textbox", { name: "Address", exact: true }))
+      .toHaveValue("");
+    await expect
+      .element(reopened.getByRole("textbox", { name: "Pairing code", exact: true }))
+      .toHaveValue("");
+    await expect
+      .element(
+        reopened.getByRole("combobox", { name: "What agents here may do there", exact: true }),
+      )
+      .toHaveTextContent(accessConfig["approval-required"].label);
+    await expect
+      .element(reopened.getByRole("button", { name: "Link", exact: true }))
+      .toBeDisabled();
+    expect(fixture.createLink).toHaveBeenCalledTimes(1);
+    expect(fixture.mint).not.toHaveBeenCalled();
+    expect(fixture.unlink).not.toHaveBeenCalled();
+    expect(registry.get(links)).toBe(loaded);
+    expect(toast).toHaveBeenCalledTimes(1);
   },
 );

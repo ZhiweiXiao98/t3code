@@ -270,6 +270,7 @@ function LinkEnvironmentAction({ environmentId }: { readonly environmentId: Envi
     setBusy(false);
     if (result === null) return;
     if (result._tag === "Success") {
+      const { locale } = readWebI18n();
       toastManager.add({
         type: "success",
         title: locale === "zh-CN" ? `已关联 ${result.value.label}` : `Linked ${result.value.label}`,
