@@ -31,8 +31,15 @@ it("relocalizes generated chapter navigation without reopening the file or trans
     terminate() {}
   }
   using _worker = stubGlobal("Worker", FakeWorker);
-  const fetch = vi.fn(async () => new Response(new Uint8Array([1, 2, 3])));
-  using _fetch = stubGlobal("fetch", fetch);
+  const source = "https://example.test/book.epub";
+  const originalFetch = globalThis.fetch.bind(globalThis);
+  const fileFetch = vi.fn<typeof globalThis.fetch>(
+    async () => new Response(new Uint8Array([1, 2, 3])),
+  );
+  using _fetch = stubGlobal("fetch", ((input, init) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    return url === source ? fileFetch(input, init) : originalFetch(input, init);
+  }) satisfies typeof globalThis.fetch);
   const surface = (locale: "en" | "zh-CN") => (
     <WebI18nContext
       value={{
@@ -42,7 +49,7 @@ it("relocalizes generated chapter navigation without reopening the file or trans
         t: (key, values) => translateWebMessage(locale, key, values),
       }}
     >
-      <OfficeViewer src="https://example.test/book.epub" name="opaque/{file}/$&.epub" kind="epub" />
+      <OfficeViewer src={source} name="opaque/{file}/$&.epub" kind="epub" />
     </WebI18nContext>
   );
   await using screen = await render(surface("en"));
@@ -60,6 +67,8 @@ it("relocalizes generated chapter navigation without reopening the file or trans
   await expect
     .element(screen.getByRole("combobox", { name: "Chapter" }))
     .toHaveTextContent("Chapter 1");
-  expect(fetch).toHaveBeenCalledOnce();
+  // Background discovery and other unrelated requests must not count as reopening this file.
+  expect(await (await fetch("data:text/plain,unrelated-request")).text()).toBe("unrelated-request");
+  expect(fileFetch).toHaveBeenCalledExactlyOnceWith(source, { signal: expect.any(AbortSignal) });
   expect(posted).toHaveBeenCalledOnce();
 });
