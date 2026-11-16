@@ -1,3 +1,4 @@
+import { readWebI18n } from "../../i18n/readWebI18n";
 import { useI18n } from "../../i18n/WebI18nContext";
 import { translateWebSource } from "../../i18n/messages";
 import { useAtomValue } from "@effect/atom-react";
@@ -123,7 +124,10 @@ function LinkedEnvironmentRow({
     const result = await unlink({ environmentId, input: { environmentId: link.environmentId } });
     setBusy(false);
     if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
-      failureToast(tx("Could not forget the link"), String(squashAtomCommandFailure(result)));
+      failureToast(
+        translateWebSource(readWebI18n().locale, "Could not forget the link"),
+        String(squashAtomCommandFailure(result)),
+      );
     }
   };
   const status =
