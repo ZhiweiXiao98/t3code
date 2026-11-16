@@ -1488,7 +1488,7 @@ it("uses settlement locale for provider update command copy success", async () =
   expect(state.toast).toHaveBeenCalledTimes(1);
 });
 
-it.each(["owned", "raw", "empty"] as const)(
+it.each(["owned", "raw", "empty", "English"] as const)(
   "uses settlement locale for provider update command copy failure: %s",
   async (kind) => {
     await setup();
@@ -1556,16 +1556,21 @@ it.each(["owned", "raw", "empty"] as const)(
     expect(writeText).toHaveBeenCalledExactlyOnceWith(command);
     expect(write).not.toHaveBeenCalled();
     expect(state.toast).not.toHaveBeenCalled();
-    state.locale = "zh-CN";
-    await screen.rerender(surface("zh-CN"));
+    const settlementLocale = kind === "English" ? "en" : "zh-CN";
+    state.locale = settlementLocale;
+    await screen.rerender(surface(settlementLocale));
     await act(async () => {
       reject(cause);
       await pending.catch(() => undefined);
     });
     expect(state.toast).toHaveBeenCalledExactlyOnceWith({
       type: "error",
-      title: "无法复制 Literal $& {provider} 更新命令",
-      description: "Failed to copy text to the clipboard.",
+      title:
+        kind === "English"
+          ? "Could not copy Literal $& {provider} update command"
+          : "无法复制 Literal $& {provider} 更新命令",
+      description:
+        kind === "English" ? "Failed to copy text to the clipboard." : "无法将 文本 复制到剪贴板。",
       data: { actionLayout: "stacked-end" },
     });
     expect(log).toHaveBeenCalledTimes(1);

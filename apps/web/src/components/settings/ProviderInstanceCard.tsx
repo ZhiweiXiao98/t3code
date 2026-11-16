@@ -1,5 +1,6 @@
 "use client";
 
+import { clipboardErrorMessage } from "../../i18n/clipboardErrorMessages";
 import { readWebI18n } from "../../i18n/readWebI18n";
 import { translateWebSource } from "../../i18n/messages";
 
@@ -861,12 +862,14 @@ export function ProviderInstanceCard({
       });
     },
     onError: (error, { providerName }) => {
-      const { t } = readWebI18n();
+      const { locale, t } = readWebI18n();
       toastManager.add(
         stackedThreadToast({
           type: "error",
           title: t("providers.update.copyFailed", { provider: providerName }),
-          description: error.message,
+          description:
+            clipboardErrorMessage(error, locale, { target: "text", displayTarget: "文本" }) ??
+            error.message,
         }),
       );
     },
