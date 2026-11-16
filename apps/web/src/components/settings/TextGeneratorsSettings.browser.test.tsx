@@ -1,20 +1,38 @@
+import "~/index.css";
+import type { EnvironmentCatalogState } from "@t3tools/client-runtime/state/connections";
+import { RegistryContext } from "@effect/atom-react";
+import { AsyncResult, AtomRegistry } from "effect/reactivity";
+import { primaryEnvironmentIdAtom } from "~/state/primaryEnvironment";
 import { EnvironmentId, ProviderInstanceId } from "@t3tools/contracts";
 import { expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 
-import { render } from "../../../test/render";
+import { act, render } from "../../../test/render";
 import { WebI18nContext } from "../../i18n/WebI18nContext";
 import { translateWebMessage } from "../../i18n/messages";
 
 const state = vi.hoisted(() => ({
   update: vi.fn(),
+  modelsMode: false,
+  locale: "en" as "en" | "zh-CN",
+  refresh: vi.fn(),
   check: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
 }));
 vi.mock("../../hooks/useSettings", async (original) => ({
   ...(await original()),
   useEnvironmentSettings: () => ({
-    textGenerators: {},
+    textGenerators: state.modelsMode
+      ? {
+          fixtureGenerator: {
+            kind: "openaiCompatible",
+            baseUrl: "https://fixture.invalid/v1",
+            apiKey: "fixture-not-a-secret",
+            label: "Literal $& {name}",
+            enabled: true,
+          },
+        }
+      : {},
     providerInstances: {},
     textGenerationModelSelection: { instanceId: "existing", model: "model/id" },
     sourceControlWriterModelSelection: null,
@@ -22,12 +40,49 @@ vi.mock("../../hooks/useSettings", async (original) => ({
   }),
   useUpdateEnvironmentSettings: () => state.update,
 }));
-vi.mock("../../textGenerators", async (original) => ({
-  ...(await original()),
-  checkTextGeneratorConfig: state.check,
-  rereadTextGeneratorModels: () => undefined,
-  useTextGenerationTargets: () => ({ entries: [], providers: [] }),
-}));
+vi.mock("../../textGenerators", async (original) => {
+  const actual = await original<typeof import("../../textGenerators")>();
+  return {
+    ...actual,
+    refreshTextGeneratorModels: (...args: Parameters<typeof actual.refreshTextGeneratorModels>) =>
+      state.modelsMode ? state.refresh(...args) : actual.refreshTextGeneratorModels(...args),
+    useTextGeneratorModels: (...args: Parameters<typeof actual.useTextGeneratorModels>) =>
+      state.modelsMode
+        ? AsyncResult.success([{ id: "literal/model", name: "Literal model" }])
+        : actual.useTextGeneratorModels(...args),
+    checkTextGeneratorConfig: state.check,
+    rereadTextGeneratorModels: () => undefined,
+    useTextGenerationTargets: () => ({ entries: [], providers: [] }),
+  };
+});
+vi.mock("~/connection/catalog", async (original) => {
+  const actual = await original<typeof import("~/connection/catalog")>();
+  const { Atom } = await import("effect/reactivity");
+  return {
+    ...actual,
+    environmentCatalog: {
+      ...actual.environmentCatalog,
+      catalogValueAtom: Atom.make<EnvironmentCatalogState>({ isReady: true, entries: new Map() }),
+    },
+  };
+});
+vi.mock("~/i18n/readWebI18n", async (original) => {
+  const actual = await original<typeof import("~/i18n/readWebI18n")>();
+  return {
+    ...actual,
+    readWebI18n: () => {
+      if (!state.modelsMode) return actual.readWebI18n();
+      const locale = state.locale;
+      return {
+        locale,
+        t: (
+          key: Parameters<typeof translateWebMessage>[1],
+          values: Parameters<typeof translateWebMessage>[2],
+        ) => translateWebMessage(locale, key, values),
+      };
+    },
+  };
+});
 vi.mock("../chat/ProviderModelPicker", () => ({ ProviderModelPicker: () => null }));
 vi.mock("./SecretSourceInput", () => ({
   useSecretSources: () => [],
@@ -44,9 +99,11 @@ vi.mock("./SecretSourceInput", () => ({
   }) => <input id={id} value={value} onChange={onChange} aria-label={label} />,
 }));
 
+import { toastManager } from "../ui/toast";
 import { TextGeneratorsSettings } from "./TextGeneratorsSettings";
 
 function setup() {
+  state.modelsMode = false;
   state.update.mockReset();
   state.check
     .mockReset()
@@ -122,5 +179,84 @@ it.each([
     );
     await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
     expect(state.update).toHaveBeenCalledTimes(2);
+  },
+);
+
+it.each(["raw", "empty", "success"] as const)(
+  "uses settlement locale for text generator model refresh: %s",
+  async (kind) => {
+    setup();
+    state.modelsMode = true;
+    state.locale = "en";
+    state.refresh.mockReset();
+    using stack = new DisposableStack();
+    const registry = stack.adopt(AtomRegistry.make(), (value) => value.dispose());
+    expect(registry.get(primaryEnvironmentIdAtom)).toBeNull();
+    stack.defer(() => {
+      state.modelsMode = false;
+      state.locale = "en";
+    });
+    using toast = vi.spyOn(toastManager, "add").mockImplementation(() => "fixture-toast");
+    let finish!: (result: { error: string } | { count: number }) => void;
+    const pending = new Promise<{ error: string } | { count: number }>((resolve) => {
+      finish = resolve;
+    });
+    state.refresh.mockReturnValue(pending);
+    const surface = (locale: ResolvedAppLocale) => (
+      <RegistryContext.Provider value={registry}>{settings(locale)}</RegistryContext.Provider>
+    );
+    await using screen = await render(surface("en"));
+    await using _drain = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          finish({ count: 1 });
+          await pending;
+        });
+      },
+    };
+    await screen
+      .getByRole("button", { name: "More actions for Literal $& {name}", exact: true })
+      .click();
+    await page.getByRole("menuitem", { name: "Show models", exact: true }).click();
+    const dialog = page.getByRole("dialog");
+    await expect.element(dialog.getByText("Literal model", { exact: true })).toBeVisible();
+    const refresh = dialog.getByRole("button", { name: "Refresh", exact: true });
+    await refresh.click();
+    expect(state.refresh).toHaveBeenCalledExactlyOnceWith(
+      EnvironmentId.make("fixture"),
+      ProviderInstanceId.make("fixtureGenerator"),
+    );
+    await expect.element(refresh).toBeDisabled();
+    await expect.element(refresh).toHaveAttribute("aria-busy", "true");
+    await act(() => {
+      refresh.element().dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+    });
+    expect(state.refresh).toHaveBeenCalledTimes(1);
+    expect(toast).not.toHaveBeenCalled();
+    state.locale = "zh-CN";
+    await screen.rerender(surface("zh-CN"));
+    await act(async () => {
+      finish(
+        kind === "success" ? { count: 1 } : { error: kind === "raw" ? "Literal $& {error}" : "" },
+      );
+      await pending;
+    });
+    if (kind === "success") expect(toast).not.toHaveBeenCalled();
+    else
+      expect(toast).toHaveBeenCalledExactlyOnceWith({
+        type: "error",
+        title: "无法加载 Literal $& {name} 的模型",
+        description: kind === "raw" ? "Literal $& {error}" : "",
+      });
+    const settled = dialog.getByRole("button", { name: "刷新", exact: true });
+    await expect.element(settled).toBeEnabled();
+    await expect.element(settled).toHaveAttribute("aria-busy", "false");
+    await expect.element(dialog.getByText("Literal model", { exact: true })).toBeVisible();
+    await dialog.getByRole("button", { name: "完成", exact: true }).click();
+    await expect.element(dialog).not.toBeInTheDocument();
+    expect(state.update).not.toHaveBeenCalled();
+    expect(state.check).not.toHaveBeenCalled();
+    expect(state.refresh).toHaveBeenCalledTimes(1);
+    expect(toast).toHaveBeenCalledTimes(kind === "success" ? 0 : 1);
   },
 );

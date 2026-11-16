@@ -1,3 +1,4 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateConnectAgentSource } from "~/i18n/connectAgentMessages";
 import type { WebMessageValues } from "~/i18n/messages";
@@ -733,9 +734,10 @@ function TextGeneratorModelsDialog({
     const outcome = await refreshTextGeneratorModels(environmentId, saved.id);
     setRefreshing(false);
     if ("error" in outcome) {
+      const { locale } = readWebI18n();
       toastManager.add({
         type: "error",
-        title: tx("Couldn't load {name} models", { name }),
+        title: translateConnectAgentSource(locale, "Couldn't load {name} models", { name }),
         description: outcome.error,
       });
     }
