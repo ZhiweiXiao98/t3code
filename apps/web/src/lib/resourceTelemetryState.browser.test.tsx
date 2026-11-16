@@ -49,6 +49,20 @@ vi.mock("../components/settings/settingsLayout", () => ({
   ),
 }));
 
+// Retry-state tests own their locale and must not import the live settings/theme graph.
+vi.mock(import("../i18n/readWebI18n"), async () => {
+  const { translateWebMessage } = await import("../i18n/messages");
+  return {
+    readWebI18n: () => ({
+      locale: "en" as const,
+      t: (
+        key: Parameters<typeof translateWebMessage>[1],
+        values?: Parameters<typeof translateWebMessage>[2],
+      ) => translateWebMessage("en", key, values),
+    }),
+  };
+});
+
 vi.mock("../state/environments", () => ({ usePrimaryEnvironment: () => null }));
 vi.mock("../state/session", () => ({
   readEnvironmentScope: () => true,
