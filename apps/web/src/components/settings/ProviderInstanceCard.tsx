@@ -861,6 +861,7 @@ export function ProviderInstanceCard({
       });
     },
     onError: (error, { providerName }) => {
+      const { t } = readWebI18n();
       toastManager.add(
         stackedThreadToast({
           type: "error",

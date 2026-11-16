@@ -1,3 +1,4 @@
+import { ClipboardWriteError } from "../../hooks/useCopyToClipboard";
 import * as Cause from "effect/Cause";
 import { RegistryContext } from "@effect/atom-react";
 import {
@@ -1486,3 +1487,103 @@ it("uses settlement locale for provider update command copy success", async () =
   await screen.rerender(surface("en"));
   expect(state.toast).toHaveBeenCalledTimes(1);
 });
+
+it.each(["owned", "raw", "empty"] as const)(
+  "uses settlement locale for provider update command copy failure: %s",
+  async (kind) => {
+    await setup();
+    state.locale = "en";
+    state.toast.mockReset();
+    const descriptor = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    using _restore = {
+      [Symbol.dispose]() {
+        if (descriptor) Object.defineProperty(navigator, "clipboard", descriptor);
+        else Reflect.deleteProperty(navigator, "clipboard");
+        state.locale = null;
+      },
+    };
+    const cause =
+      kind === "owned" ? null : new Error(kind === "empty" ? "" : "Literal $& {clipboard error}");
+    using log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    let reject!: (cause: unknown) => void;
+    const pending = new Promise<void>((_done, fail) => {
+      reject = fail;
+    });
+    void pending.catch(() => undefined);
+    const writeText = vi.fn().mockReturnValue(pending);
+    const write = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText, write },
+    });
+    const instance = {
+      driver: ProviderDriverKind.make("codex"),
+      enabled: true,
+      displayName: "Literal $& {provider}",
+    };
+    state.settings = { ...DEFAULT_UNIFIED_SETTINGS, providerInstances: { [codexId]: instance } };
+    const originalSettings = state.settings;
+    const command = "fixture-command --literal '$& {command}'";
+    const live = provider();
+    await setProviders([
+      { ...live, versionAdvisory: { ...live.versionAdvisory!, updateCommand: command } },
+    ]);
+    const surface = (locale: "en" | "zh-CN") => (
+      <WebI18nContext
+        value={{
+          locale,
+          appLocale: locale,
+          setAppLocale: () => undefined,
+          t: (key, values) => translateWebMessage(locale, key, values),
+        }}
+      >
+        {panel({ targetInstanceId: codexId })}
+      </WebI18nContext>
+    );
+    await using screen = await render(surface("en"));
+    await using _drain = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          reject(cause);
+          await pending.catch(() => undefined);
+        });
+      },
+    };
+    await userEvent.click(
+      page.getByRole("button", { name: "Update available, view details", exact: true }).first(),
+    );
+    await userEvent.click(page.getByRole("button", { name: "Copy update command", exact: true }));
+    expect(writeText).toHaveBeenCalledExactlyOnceWith(command);
+    expect(write).not.toHaveBeenCalled();
+    expect(state.toast).not.toHaveBeenCalled();
+    state.locale = "zh-CN";
+    await screen.rerender(surface("zh-CN"));
+    await act(async () => {
+      reject(cause);
+      await pending.catch(() => undefined);
+    });
+    expect(state.toast).toHaveBeenCalledExactlyOnceWith({
+      type: "error",
+      title: "无法复制 Literal $& {provider} 更新命令",
+      description: "Failed to copy text to the clipboard.",
+      data: { actionLayout: "stacked-end" },
+    });
+    expect(log).toHaveBeenCalledTimes(1);
+    const error = log.mock.calls[0]?.[0];
+    expect(error).toBeInstanceOf(ClipboardWriteError);
+    expect(error).toMatchObject({
+      target: "text",
+      cause,
+      message: "Failed to copy text to the clipboard.",
+    });
+    expect(state.settings).toBe(originalSettings);
+    expect(state.updateProvider).not.toHaveBeenCalled();
+    expect(state.mutateProviderInstance).not.toHaveBeenCalled();
+    expect(state.updateSettings).not.toHaveBeenCalled();
+    expect(state.uninstall).not.toHaveBeenCalled();
+    expect(state.acceptUrlAuth).not.toHaveBeenCalled();
+    state.locale = "en";
+    await screen.rerender(surface("en"));
+    expect(state.toast).toHaveBeenCalledTimes(1);
+  },
+);
