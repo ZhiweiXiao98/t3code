@@ -1077,15 +1077,21 @@ it.each(["owned", "raw", "empty", "interrupted"] as const)(
     await userEvent.click(
       page.getByRole("button", { name: "Update available, view details", exact: true }).first(),
     );
-    await userEvent.click(page.getByRole("button", { name: "Update now", exact: true }));
+    const update = page.getByRole("button", { name: "Update now", exact: true });
+    await expect.element(update).toBeVisible();
+    const updateButton = update.element();
+    await userEvent.click(update);
     expect(state.updateProvider).toHaveBeenCalledExactlyOnceWith({
       environmentId,
       input: { provider: "codex", instanceId: codexId },
     });
-    const updating = page.getByRole("button", { name: "Updating", exact: true });
-    await expect.element(updating).toBeDisabled();
+    // The pending Spinner contributes its own accessible Loading label. Retain the
+    // real button rather than looking it up by an incomplete accessible name.
+    expect(updateButton.isConnected).toBe(true);
+    await expect.element(page.elementLocator(updateButton)).toBeDisabled();
+    expect(updateButton.textContent?.trim()).toBe("Updating");
     await act(async () =>
-      updating.element().dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true })),
+      updateButton.dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true })),
     );
     expect(state.updateProvider).toHaveBeenCalledTimes(1);
     expect(state.toast).not.toHaveBeenCalled();
