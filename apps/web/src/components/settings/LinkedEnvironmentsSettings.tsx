@@ -237,7 +237,10 @@ function LinkEnvironmentAction({ environmentId }: { readonly environmentId: Envi
     const minted = await mintPairingCodeOn(targetId, access);
     if (Result.isSuccess(minted)) return minted.success;
     setMintFailed((failed) => new Set(failed).add(targetId));
-    failureToast(tx("Could not link the environment"), linkRequestFailureMessage(minted.failure));
+    failureToast(
+      translateWebSource(readWebI18n().locale, "Could not link the environment"),
+      linkRequestFailureMessage(minted.failure),
+    );
     return null;
   };
   const submit = async () => {

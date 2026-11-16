@@ -1,6 +1,20 @@
 import "~/index.css";
 import { RegistryContext } from "@effect/atom-react";
-import { EnvironmentId, PeerLinkSummary } from "@t3tools/contracts";
+import {
+  AuthAccessWriteScope,
+  AuthSessionState,
+  EnvironmentId,
+  PeerLinkSummary,
+} from "@t3tools/contracts";
+import {
+  PrimaryConnectionTarget,
+  type PreparedConnection,
+} from "@t3tools/client-runtime/connection";
+import type { LinkableMachine } from "@t3tools/client-runtime/link-request";
+import { PeerPairingCodeError } from "@t3tools/client-runtime/state/peerPairingCode";
+import * as Option from "effect/Option";
+import * as Result from "effect/Result";
+import { environmentSession } from "../../state/session";
 import * as Schema from "effect/Schema";
 import * as DateTime from "effect/DateTime";
 import * as Cause from "effect/Cause";
@@ -15,6 +29,7 @@ const fixture = vi.hoisted(() => ({
   locale: "en" as "en" | "zh-CN",
   unlink: vi.fn(),
   direct: false,
+  machine: false,
   createLink: vi.fn(),
   mint: vi.fn(),
   confirm: vi.fn(),
@@ -30,7 +45,7 @@ vi.mock("~/state/use-atom-command", async (original) => {
     useAtomCommand: ((command, options) =>
       (command as unknown) === peerLinkEnvironment.unlink
         ? fixture.unlink
-        : fixture.direct && (command as unknown) === peerLinkEnvironment.link
+        : (fixture.direct || fixture.machine) && (command as unknown) === peerLinkEnvironment.link
           ? fixture.createLink
           : actual.useAtomCommand(command, options)) as typeof actual.useAtomCommand,
   };
@@ -40,7 +55,7 @@ vi.mock("~/state/peerLinks", async (original) => {
   return {
     ...actual,
     useLinkableMachines: (...args: Parameters<typeof actual.useLinkableMachines>) =>
-      fixture.direct ? [] : actual.useLinkableMachines(...args),
+      fixture.machine ? [mintMachine] : fixture.direct ? [] : actual.useLinkableMachines(...args),
   };
 });
 vi.mock("~/state/peerPairingCode", async (original) => ({
@@ -334,5 +349,170 @@ it.each(["owned", "raw", "empty", "interrupted", "cancel"] as const)(
     expect(fixture.unlink).not.toHaveBeenCalled();
     expect(registry.get(links)).toBe(loaded);
     expect(toast).toHaveBeenCalledTimes(kind === "interrupted" ? 0 : 1);
+  },
+);
+
+const mintMachine: LinkableMachine = {
+  environmentId: EnvironmentId.make("mint-target-fixture"),
+  label: "Literal $& {machine}",
+  machine: "server",
+  connected: true,
+  connectOnly: false,
+  linked: false,
+  urls: ["https://mint-target.invalid"],
+};
+const prepared: PreparedConnection = {
+  environmentId: mintMachine.environmentId,
+  label: mintMachine.label,
+  httpBaseUrl: mintMachine.urls[0]!,
+  socketUrl: "wss://mint-target.invalid/ws",
+  httpAuthorization: null,
+  target: new PrimaryConnectionTarget({
+    environmentId: mintMachine.environmentId,
+    label: mintMachine.label,
+    httpBaseUrl: mintMachine.urls[0]!,
+    wsBaseUrl: "wss://mint-target.invalid",
+  }),
+};
+const mintPrepared = Atom.make(Option.some(prepared));
+const mintSession = Atom.make(
+  AsyncResult.success(
+    Schema.decodeSync(AuthSessionState)({
+      authenticated: true,
+      auth: {
+        policy: "loopback-browser",
+        bootstrapMethods: [],
+        sessionMethods: [],
+        sessionCookieName: "fixture",
+      },
+      scopes: [AuthAccessWriteScope],
+    }),
+  ),
+);
+it.each(["not_allowed", "unavailable", "raw", "null"] as const)(
+  "uses settlement locale for environment pairing mint failure: %s",
+  async (kind) => {
+    fixture.locale = "en";
+    fixture.machine = true;
+    fixture.mint.mockReset();
+    fixture.unlink.mockReset();
+    fixture.createLink.mockReset().mockImplementation(() => {
+      throw new Error("unexpected link command");
+    });
+    using stack = new DisposableStack();
+    const registry = stack.adopt(AtomRegistry.make(), (r) => r.dispose());
+    stack.defer(() => {
+      fixture.locale = "en";
+      fixture.machine = false;
+    });
+    using _list = vi.spyOn(peerLinkEnvironment, "list").mockReturnValue(links);
+    using _linkPermission = vi
+      .spyOn(peerLinkEnvironment.link, "permissionAtom")
+      .mockReturnValue(allowed);
+    using _unlinkPermission = vi
+      .spyOn(peerLinkEnvironment.unlink, "permissionAtom")
+      .mockReturnValue(denied);
+    using _prepared = vi
+      .spyOn(environmentSession, "preparedConnectionValueAtom")
+      .mockReturnValue(mintPrepared);
+    using _session = vi.spyOn(environmentSession, "sessionStateAtom").mockReturnValue(mintSession);
+    using toast = vi.spyOn(toastManager, "add").mockImplementation(() => "fixture");
+    let finish!: (result: Result.Result<string, unknown>) => void;
+    const pending = new Promise<Result.Result<string, unknown>>((resolve) => {
+      finish = resolve;
+    });
+    fixture.mint.mockReturnValue(pending);
+    const surface = (locale: "en" | "zh-CN") => (
+      <WebI18nContext
+        value={{
+          locale,
+          appLocale: locale,
+          setAppLocale: () => {},
+          t: (key, values) => translateWebMessage(locale, key, values),
+        }}
+      >
+        <RegistryContext.Provider value={registry}>
+          <LinkedEnvironmentsSettings
+            environmentId={environmentId}
+            environmentLabel={null}
+            isSearchTarget={false}
+          />
+        </RegistryContext.Provider>
+      </WebI18nContext>
+    );
+    await using screen = await render(surface("en"));
+    await using _drain = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          finish(Result.fail(null));
+          await pending;
+        });
+      },
+    };
+    await screen.getByRole("button", { name: "Link", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "Link an environment", exact: true });
+    await expect.element(dialog.getByRole("button", { name: "Link", exact: true })).toBeDisabled();
+    expect(fixture.mint).not.toHaveBeenCalled();
+    await dialog.getByRole("combobox", { name: "Machine", exact: true }).click();
+    await page.getByRole("option", { name: mintMachine.label, exact: true }).click();
+    expect(_prepared).toHaveBeenCalledWith(mintMachine.environmentId);
+    expect(_session).toHaveBeenCalledWith(mintMachine.environmentId);
+    expect(dialog.getByRole("textbox", { name: "Pairing code", exact: true }).query()).toBeNull();
+    await expect.element(dialog.getByRole("button", { name: "Link", exact: true })).toBeEnabled();
+    await dialog.getByRole("button", { name: "Link", exact: true }).click();
+    expect(fixture.mint).toHaveBeenCalledExactlyOnceWith(
+      mintMachine.environmentId,
+      "approval-required",
+    );
+    expect(fixture.createLink).not.toHaveBeenCalled();
+    await expect
+      .element(dialog.getByRole("button", { name: "Linking…", exact: true }))
+      .toBeDisabled();
+    await expect
+      .element(dialog.getByRole("button", { name: "Cancel", exact: true }))
+      .toBeDisabled();
+    fixture.locale = "zh-CN";
+    await screen.rerender(surface("zh-CN"));
+    expect(toast).not.toHaveBeenCalled();
+    const failure =
+      kind === "raw"
+        ? new Error("opaque dummy diagnostic")
+        : kind === "null"
+          ? null
+          : new PeerPairingCodeError({ reason: kind, cause: "opaque dummy diagnostic" });
+    await act(async () => {
+      finish(Result.fail(failure));
+      await pending;
+    });
+    const current = page.getByRole("dialog", { name: "关联环境", exact: true });
+    await expect.element(current.getByRole("button", { name: "关联", exact: true })).toBeDisabled();
+    await expect.element(current.getByRole("button", { name: "取消", exact: true })).toBeEnabled();
+    expect(toast).toHaveBeenCalledExactlyOnceWith({
+      type: "error",
+      title: "无法关联环境",
+      description:
+        kind === "not_allowed"
+          ? "Your session there cannot create pairing codes. Paste a code from there instead."
+          : kind === "unavailable"
+            ? "Could not get a pairing code from there. Paste a code from there instead."
+            : "Could not answer the request. Try again.",
+      data: { actionLayout: "stacked-end" },
+    });
+    await screen.rerender(surface("en"));
+    await expect
+      .element(dialog.getByRole("textbox", { name: "Pairing code", exact: true }))
+      .toBeVisible();
+    await expect
+      .element(dialog.getByRole("combobox", { name: "Machine", exact: true }))
+      .toHaveTextContent(mintMachine.label);
+    await dialog
+      .getByRole("textbox", { name: "Pairing code", exact: true })
+      .fill("dummy-not-a-credential");
+    await expect.element(dialog.getByRole("button", { name: "Link", exact: true })).toBeEnabled();
+    expect(fixture.mint).toHaveBeenCalledTimes(1);
+    expect(fixture.createLink).not.toHaveBeenCalled();
+    expect(fixture.unlink).not.toHaveBeenCalled();
+    expect(toast).toHaveBeenCalledTimes(1);
+    expect(registry.get(links)).toBe(loaded);
   },
 );
