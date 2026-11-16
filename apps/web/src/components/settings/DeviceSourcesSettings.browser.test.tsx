@@ -116,6 +116,7 @@ it.each([
 
 const fixture = vi.hoisted(() => ({
   active: false,
+  allowed: true,
   locale: "en" as "en" | "zh-CN",
   test: vi.fn(),
   update: vi.fn(),
@@ -152,7 +153,7 @@ vi.mock("../../state/session", async (original) => {
   return {
     ...actual,
     readEnvironmentScope: (...args: Parameters<typeof actual.readEnvironmentScope>) =>
-      fixture.active ? true : actual.readEnvironmentScope(...args),
+      fixture.active ? fixture.allowed : actual.readEnvironmentScope(...args),
   };
 });
 vi.mock("../../state/use-atom-command", async (original) => {
@@ -412,6 +413,123 @@ it.each([
     expect(fixture.test).toHaveBeenCalledTimes(1);
     expect(toast).toHaveBeenCalledTimes(1);
     expect(fixture.update).not.toHaveBeenCalled();
+    expect(fixture.list).not.toHaveBeenCalled();
+  },
+);
+
+it.each(["owned", "raw", "empty", "interrupted", "denied"] as const)(
+  "uses settlement locale for device host removal failure: %s",
+  async (kind) => {
+    fixture.active = true;
+    fixture.allowed = true;
+    fixture.locale = "en";
+    fixture.test.mockReset();
+    fixture.update.mockReset();
+    fixture.list.mockReset();
+    using stack = new DisposableStack();
+    const registry = stack.adopt(AtomRegistry.make(), (value) => value.dispose());
+    expect(registry.get(primaryEnvironmentIdAtom)).toBeNull();
+    stack.defer(() => {
+      fixture.active = false;
+      fixture.allowed = true;
+      fixture.locale = "en";
+    });
+    using toast = vi.spyOn(toastManager, "add").mockImplementation(() => "fixture-toast");
+    let finish!: (result: AsyncResult.AsyncResult<never, unknown>) => void;
+    const pending = new Promise<AsyncResult.AsyncResult<never, unknown>>((resolve) => {
+      finish = resolve;
+    });
+    fixture.update.mockReturnValue(pending);
+    const surface = (locale: "en" | "zh-CN") => (
+      <WebI18nContext
+        value={{
+          locale,
+          appLocale: locale,
+          setAppLocale: () => {},
+          t: (key, values) => translateWebMessage(locale, key, values),
+        }}
+      >
+        <RegistryContext.Provider value={registry}>
+          <DeviceSourcesSettings supportsEas={false} supportsSimlock={false} />
+        </RegistryContext.Provider>
+      </WebI18nContext>
+    );
+    await using screen = await render(surface("en"));
+    await using _drain = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          finish(AsyncResult.failure(Cause.interrupt()));
+          await pending;
+        });
+      },
+    };
+    await screen.getByRole("button", { name: "More", exact: true }).click();
+    const remove = page.getByRole("menuitem", { name: "Remove", exact: true });
+    await expect.element(remove).toBeEnabled();
+    if (kind === "denied") fixture.allowed = false;
+    await remove.click();
+    if (kind === "denied") {
+      expect(fixture.update).not.toHaveBeenCalled();
+      expect(toast).toHaveBeenCalledExactlyOnceWith({
+        type: "error",
+        title: "Device host not removed everywhere",
+        description: translateWebMessage("en", "audit6.settingsDenied", {
+          labels: "Literal $& {environment}",
+        }),
+      });
+    } else {
+      expect(fixture.update).toHaveBeenCalledExactlyOnceWith({
+        environmentId,
+        input: { patch: { deviceHosts: [] } },
+      });
+      const more = screen.getByRole("button", { name: "More", exact: true });
+      await expect.element(more).toBeDisabled();
+      await expect
+        .element(screen.getByRole("button", { name: "Edit", exact: true }))
+        .toBeDisabled();
+      await act(() => {
+        more.element().dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+      });
+      expect(fixture.update).toHaveBeenCalledTimes(1);
+      expect(toast).not.toHaveBeenCalled();
+      fixture.locale = "zh-CN";
+      await screen.rerender(surface("zh-CN"));
+      await act(async () => {
+        finish(
+          AsyncResult.failure(
+            kind === "interrupted"
+              ? Cause.interrupt()
+              : Cause.fail(
+                  kind === "owned" ? null : new Error(kind === "raw" ? "Literal $& {write}" : ""),
+                ),
+          ),
+        );
+        await pending;
+      });
+      expect(toast).toHaveBeenCalledExactlyOnceWith({
+        type: "error",
+        title: "部分环境中的设备主机未能移除",
+        description:
+          "Literal $& {environment}: " +
+          (kind === "owned"
+            ? "null"
+            : kind === "raw"
+              ? "Literal $& {write}"
+              : kind === "empty"
+                ? ""
+                : "All fibers interrupted without error"),
+      });
+    }
+    fixture.locale = "en";
+    await screen.rerender(surface("en"));
+    await expect.element(screen.getByRole("button", { name: "More", exact: true })).toBeEnabled();
+    await expect.element(screen.getByRole("button", { name: "Edit", exact: true })).toBeEnabled();
+    await expect.element(screen.getByText(host.label, { exact: true })).toBeVisible();
+    expect(scopedEnvironment.serverConfig.settings).toBe(settings);
+    expect(settings.deviceHosts).toEqual([host]);
+    expect(fixture.update).toHaveBeenCalledTimes(kind === "denied" ? 0 : 1);
+    expect(toast).toHaveBeenCalledTimes(1);
+    expect(fixture.test).not.toHaveBeenCalled();
     expect(fixture.list).not.toHaveBeenCalled();
   },
 );

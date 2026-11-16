@@ -183,7 +183,7 @@ export function DeviceSourcesSettings(props: {
   /** Writes one settings patch per environment; reports the environments it could not change. */
   const write = async (
     patches: ReadonlyArray<{ environmentId: EnvironmentId; patch: ServerSettingsPatch }>,
-    failedTitle: string,
+    failedTitle: string | (() => string),
   ) => {
     if (projectScope) return false;
     const name = (environmentId: EnvironmentId) =>
@@ -194,7 +194,7 @@ export function DeviceSourcesSettings(props: {
     if (unwritable.length > 0) {
       toastManager.add({
         type: "error",
-        title: failedTitle,
+        title: typeof failedTitle === "function" ? failedTitle() : failedTitle,
         description: readWebI18n().t("audit6.settingsDenied", {
           labels: unwritable.map((patch) => name(patch.environmentId)).join(", "),
         }),
@@ -215,7 +215,11 @@ export function DeviceSourcesSettings(props: {
         : [];
     });
     if (failed.length === 0) return true;
-    toastManager.add({ type: "error", title: failedTitle, description: failed.join("\n") });
+    toastManager.add({
+      type: "error",
+      title: typeof failedTitle === "function" ? failedTitle() : failedTitle,
+      description: failed.join("\n"),
+    });
     return false;
   };
 
@@ -240,7 +244,11 @@ export function DeviceSourcesSettings(props: {
               ),
             },
           })),
-        remove ? tx("Device host not removed everywhere") : tx("Device host not saved everywhere"),
+        () =>
+          translateWebSource(
+            readWebI18n().locale,
+            remove ? "Device host not removed everywhere" : "Device host not saved everywhere",
+          ),
       );
       if (saved) setEditing(null);
     } catch (error) {
