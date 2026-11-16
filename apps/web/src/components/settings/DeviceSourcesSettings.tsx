@@ -318,10 +318,11 @@ export function DeviceSourcesSettings(props: {
     );
     if (!checked) return;
     const failed = targets.filter((target) => checked[target.environmentId]?.status === "failed");
+    const failureLocale = failed.length > 0 ? readWebI18n().locale : locale;
     toastManager.add({
       type: failed.length ? "error" : "success",
       title: failed.length
-        ? locale === "zh-CN"
+        ? failureLocale === "zh-CN"
           ? `${host.label}：${targets.length} 个环境中有 ${failed.length} 个失败`
           : `${host.label}: ${failed.length} of ${targets.length} environments failed`
         : locale === "zh-CN"

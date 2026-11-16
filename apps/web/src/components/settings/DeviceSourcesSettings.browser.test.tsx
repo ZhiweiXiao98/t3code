@@ -1,12 +1,23 @@
-import { EnvironmentId, DevicePlatformAvailability } from "@t3tools/contracts";
+import "~/index.css";
+import { RegistryContext } from "@effect/atom-react";
+import { AsyncResult, AtomRegistry } from "effect/reactivity";
+import * as Cause from "effect/Cause";
+import type { EnvironmentCatalogState } from "@t3tools/client-runtime/state/connections";
+import {
+  EnvironmentId,
+  DevicePlatformAvailability,
+  ServerSettings,
+  SshDeviceHostConfig,
+  type DeviceHostSummary,
+} from "@t3tools/contracts";
 import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 import * as Schema from "effect/Schema";
-import { expect, it } from "vite-plus/test";
+import { expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
-import { render } from "../../../test/render";
+import { act, render } from "../../../test/render";
 import { WebI18nContext } from "../../i18n/WebI18nContext";
 import { translateWebMessage } from "../../i18n/messages";
-import { SourcePlatforms } from "./DeviceSourcesSettings";
+import { DeviceSourcesSettings, SourcePlatforms } from "./DeviceSourcesSettings";
 
 const decode = Schema.decodeUnknownSync(DevicePlatformAvailability);
 const original = "The pool has no iOS devices.";
@@ -100,5 +111,211 @@ it.each([
     await using screen = await render(platforms("zh-CN", [entry], true));
     await userEvent.click(screen.getByRole("button"));
     await expect.element(page.getByText(original, { exact: true })).toBeVisible();
+  },
+);
+
+const fixture = vi.hoisted(() => ({
+  active: false,
+  locale: "en" as "en" | "zh-CN",
+  test: vi.fn(),
+  update: vi.fn(),
+  list: vi.fn(),
+}));
+vi.mock("~/connection/catalog", async (original) => {
+  const actual = await original<typeof import("~/connection/catalog")>();
+  const { Atom } = await import("effect/reactivity");
+  return {
+    ...actual,
+    environmentCatalog: {
+      ...actual.environmentCatalog,
+      catalogValueAtom: Atom.make<EnvironmentCatalogState>({ isReady: true, entries: new Map() }),
+    },
+  };
+});
+vi.mock("../../state/device", async (original) => {
+  const actual = await original<typeof import("../../state/device")>();
+  const { Atom, AsyncResult } = await import("effect/reactivity");
+  const state = Atom.make(
+    AsyncResult.initial<import("@t3tools/contracts").DeviceServiceState, unknown>(false),
+  );
+  return {
+    ...actual,
+    deviceEnvironment: {
+      ...actual.deviceEnvironment,
+      state: (input: Parameters<typeof actual.deviceEnvironment.state>[0]) =>
+        fixture.active ? state : actual.deviceEnvironment.state(input),
+    },
+  };
+});
+vi.mock("../../state/session", async (original) => {
+  const actual = await original<typeof import("../../state/session")>();
+  return {
+    ...actual,
+    readEnvironmentScope: (...args: Parameters<typeof actual.readEnvironmentScope>) =>
+      fixture.active ? true : actual.readEnvironmentScope(...args),
+  };
+});
+vi.mock("../../state/use-atom-command", async (original) => {
+  const actual = await original<typeof import("../../state/use-atom-command")>();
+  return {
+    ...actual,
+    useAtomCommand: ((command, options) => {
+      if (fixture.active && (command as unknown) === deviceEnvironment.testHost)
+        return fixture.test;
+      if (fixture.active && (command as unknown) === deviceEnvironment.list) return fixture.list;
+      if (fixture.active && (command as unknown) === serverEnvironment.updateSettings)
+        return fixture.update;
+      return actual.useAtomCommand(command, options);
+    }) as typeof actual.useAtomCommand,
+  };
+});
+vi.mock("./SettingsScopeContext", async (original) => {
+  const actual = await original<typeof import("./SettingsScopeContext")>();
+  return {
+    ...actual,
+    useSettingsScope: (() =>
+      fixture.active
+        ? {
+            scope: { kind: "environment" },
+            environment: scopedEnvironment,
+            environments: [scopedEnvironment],
+            connectedEnvironments: [scopedEnvironment],
+            targets: [],
+            target: null,
+          }
+        : actual.useSettingsScope()) as typeof actual.useSettingsScope,
+  };
+});
+vi.mock("~/i18n/readWebI18n", async (original) => {
+  const actual = await original<typeof import("~/i18n/readWebI18n")>();
+  return {
+    ...actual,
+    readWebI18n: () => {
+      if (!fixture.active) return actual.readWebI18n();
+      const locale = fixture.locale;
+      return {
+        locale,
+        t: (
+          key: Parameters<typeof translateWebMessage>[1],
+          values: Parameters<typeof translateWebMessage>[2],
+        ) => translateWebMessage(locale, key, values),
+      };
+    },
+  };
+});
+import { deviceEnvironment } from "../../state/device";
+import { serverEnvironment } from "../../state/server";
+import { primaryEnvironmentIdAtom } from "../../state/primaryEnvironment";
+import { toastManager } from "../ui/toast";
+const host = Schema.decodeSync(SshDeviceHostConfig)({
+  id: "fixture-host",
+  label: "Literal $& {host}",
+  target: "fixture.invalid",
+  port: 2222,
+});
+const settings = Schema.decodeSync(ServerSettings)({
+  enableDeviceSupport: true,
+  deviceHosts: [host],
+});
+const environmentId = EnvironmentId.make("device-test-fixture");
+const scopedEnvironment = {
+  environmentId,
+  label: "Literal $& {environment}",
+  displayUrl: null,
+  connection: { phase: "connected" as const },
+  serverConfig: { settings },
+};
+
+it.each(["owned", "raw", "empty", "interrupted"] as const)(
+  "uses settlement locale for device host test failure: %s",
+  async (kind) => {
+    fixture.active = true;
+    fixture.locale = "en";
+    fixture.test.mockReset();
+    fixture.update.mockReset();
+    fixture.list.mockReset();
+    using stack = new DisposableStack();
+    const registry = stack.adopt(AtomRegistry.make(), (value) => value.dispose());
+    expect(registry.get(primaryEnvironmentIdAtom)).toBeNull();
+    stack.defer(() => {
+      fixture.active = false;
+      fixture.locale = "en";
+    });
+    using toast = vi.spyOn(toastManager, "add").mockImplementation(() => "fixture-toast");
+    let finish!: (result: AsyncResult.AsyncResult<DeviceHostSummary, unknown>) => void;
+    const pending = new Promise<AsyncResult.AsyncResult<DeviceHostSummary, unknown>>((resolve) => {
+      finish = resolve;
+    });
+    fixture.test.mockReturnValue(pending);
+    const surface = (locale: "en" | "zh-CN") => (
+      <WebI18nContext
+        value={{
+          locale,
+          appLocale: locale,
+          setAppLocale: () => {},
+          t: (key, values) => translateWebMessage(locale, key, values),
+        }}
+      >
+        <RegistryContext.Provider value={registry}>
+          <DeviceSourcesSettings supportsEas={false} supportsSimlock={false} />
+        </RegistryContext.Provider>
+      </WebI18nContext>
+    );
+    await using screen = await render(surface("en"));
+    await using _drain = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          finish(AsyncResult.failure(Cause.interrupt()));
+          await pending;
+        });
+      },
+    };
+    await screen.getByRole("button", { name: "More", exact: true }).click();
+    await page.getByRole("menuitem", { name: "Test connection", exact: true }).click();
+    expect(fixture.test).toHaveBeenCalledExactlyOnceWith({ environmentId, input: host });
+    await expect.element(screen.getByText("Testing connection", { exact: true })).toBeVisible();
+    await screen.getByRole("button", { name: "More", exact: true }).click();
+    await page.getByRole("menuitem", { name: "Test connection", exact: true }).click();
+    expect(fixture.test).toHaveBeenCalledTimes(1);
+    expect(toast).not.toHaveBeenCalled();
+    fixture.locale = "zh-CN";
+    await screen.rerender(surface("zh-CN"));
+    await act(async () => {
+      finish(
+        AsyncResult.failure(
+          kind === "interrupted"
+            ? Cause.interrupt()
+            : Cause.fail(
+                kind === "owned" ? null : new Error(kind === "raw" ? "Literal $& {error}" : ""),
+              ),
+        ),
+      );
+      await pending;
+    });
+    expect(toast).toHaveBeenCalledExactlyOnceWith({
+      type: "error",
+      title: "Literal $& {host}：1 个环境中有 1 个失败",
+      description:
+        "Literal $& {environment}: " +
+        (kind === "owned"
+          ? "null"
+          : kind === "raw"
+            ? "Literal $& {error}"
+            : kind === "empty"
+              ? ""
+              : "All fibers interrupted without error"),
+    });
+    fixture.locale = "en";
+    await screen.rerender(surface("en"));
+    await expect.element(screen.getByRole("button", { name: "More", exact: true })).toBeEnabled();
+    await expect
+      .element(screen.getByText("Testing connection", { exact: true }))
+      .not.toBeInTheDocument();
+    await expect.element(screen.getByText(host.label, { exact: true })).toBeVisible();
+    expect(scopedEnvironment.serverConfig.settings).toBe(settings);
+    expect(fixture.test).toHaveBeenCalledTimes(1);
+    expect(toast).toHaveBeenCalledTimes(1);
+    expect(fixture.update).not.toHaveBeenCalled();
+    expect(fixture.list).not.toHaveBeenCalled();
   },
 );
