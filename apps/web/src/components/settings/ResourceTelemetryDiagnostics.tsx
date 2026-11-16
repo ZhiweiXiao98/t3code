@@ -988,6 +988,7 @@ function ResourceTelemetryDiagnosticsBody({
         );
       } catch (error) {
         clearSignaling();
+        const { t } = readWebI18n();
         toastManager.add({
           type: "error",
           title: t("diagnostics.signal.confirmFailed"),
