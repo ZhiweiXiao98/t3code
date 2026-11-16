@@ -1,0 +1,87 @@
+name: 评审对话点击稳定性对照
+on:
+  push:
+    branches: [validation/v0.1.9-pr-click-stability-e2507e33]
+permissions:
+  contents: read
+concurrency:
+  group: pr-click-stability-e2507e33
+  cancel-in-progress: false
+jobs:
+  shards:
+    if: github.repository == 'ZhiweiXiao98/t3code' && github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include:
+          - mode: baseline
+            source: 6f9621658877b137a9e88b3376919332c1c75d92
+          - mode: fixed
+            source: e2507e33ba837bbe674f43cc4bbd1424981dc1a1
+    env:
+      CI: "true"
+      SOURCE_SHA: ${{ matrix.source }}
+      MODE: ${{ matrix.mode }}
+      GIT_TERMINAL_PROMPT: "0"
+    steps:
+      - name: Checkout exact diagnostic source without credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
+          git sparse-checkout set --no-cone '/*' '!/.repos/'
+          git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
+        with:
+          node-version-file: package.json
+          cache: true
+          run-install: false
+      - run: vp install --frozen-lockfile
+      - name: Install same browser and native prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/ci-ubuntu-packages.py packages libsecret-1-dev pkg-config build-essential imagemagick
+          python3 .github/scripts/ci-ubuntu-packages.py playwright apps/web/node_modules/playwright/cli.js
+          node apps/web/node_modules/playwright/cli.js install --only-shell chromium
+      - name: Run five independent test processes without retrying assertions
+        shell: bash
+        run: |
+          set -euo pipefail
+          export EVIDENCE_ROOT="$RUNNER_TEMP/pr-click-comparison"
+          mkdir -p "$EVIDENCE_ROOT"
+          python3 - <<'PY'
+          import os, pathlib, json, subprocess
+          original = pathlib.Path(".github/scripts/observe-web-tests.py").read_text()
+          old = 'COMMAND = ["vp", "run", "--filter", "@t3tools/web", "test"]'
+          assert original.count(old) == 1
+          root = pathlib.Path(os.environ["EVIDENCE_ROOT"])
+          statuses = []
+          for iteration in range(1, 6):
+              iteration_root = root / str(iteration)
+              iteration_root.mkdir()
+              output = iteration_root / "web-browser-diagnostics"
+              output.mkdir()
+              command = ["vp", "run", "--filter", "@t3tools/web", "test", "src/components/pullRequest/PullRequestCodeTab.browser.test.tsx", "--reporter=default", "--reporter=json", "--outputFile.json=" + str(output / "results.json")]
+              script = iteration_root / "observer.py"
+              script.write_text(original.replace(old, "COMMAND = " + repr(command)))
+              environment = dict(os.environ, RUNNER_TEMP=str(iteration_root))
+              status = subprocess.run(["python3", str(script)], env=environment).returncode
+              statuses.append(status)
+          (root / "comparison.json").write_text(json.dumps({"mode": os.environ["MODE"], "source": os.environ["SOURCE_SHA"], "statuses": statuses, "iterations": 5, "purpose": "diagnostic comparison only, not full release acceptance"}, indent=2))
+          raise SystemExit(int(any(statuses)))
+          PY
+      - name: Preserve all five outcomes
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: pr-click-${{ matrix.mode }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/pr-click-comparison/
+          if-no-files-found: error
+          retention-days: 14
