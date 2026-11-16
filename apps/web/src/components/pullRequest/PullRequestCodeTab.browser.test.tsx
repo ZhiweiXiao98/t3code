@@ -676,6 +676,34 @@ it.each([
       exact: true,
     });
     await expect.element(action).toBeEnabled();
+    // The action is inside animated overflow-hidden panels. Visibility/enabled
+    // alone does not mean their clipping and hit target have settled yet.
+    await expect
+      .poll(() => {
+        let ancestor: Element | null = action.element().parentElement;
+        let panels = 0;
+        while (ancestor) {
+          if (ancestor.matches('[data-slot="collapsible-panel"]')) {
+            panels++;
+            if (
+              !ancestor.hasAttribute("data-open") ||
+              ancestor.hasAttribute("data-starting-style") ||
+              ancestor.hasAttribute("data-ending-style") ||
+              ancestor
+                .getAnimations()
+                .some(
+                  (animation) =>
+                    animation.playState !== "finished" && animation.playState !== "idle",
+                )
+            ) {
+              return false;
+            }
+          }
+          ancestor = ancestor.parentElement;
+        }
+        return panels > 0;
+      })
+      .toBe(true);
     // Diagnostic-only: observe delivery without changing the native click or its assertions.
     {
       using listeners = new DisposableStack();
