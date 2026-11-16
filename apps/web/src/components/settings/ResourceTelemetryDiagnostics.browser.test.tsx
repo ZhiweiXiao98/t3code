@@ -3,10 +3,12 @@ import { RegistryContext } from "@effect/atom-react";
 import {
   EnvironmentId,
   type ResourceTelemetrySnapshot,
+  type ServerSignalProcessResult,
   type ResourceTelemetryHistory,
 } from "@t3tools/contracts";
 import type { EnvironmentCatalogState } from "@t3tools/client-runtime/state/connections";
 import * as Cause from "effect/Cause";
+import * as Option from "effect/Option";
 import { AsyncResult, AtomRegistry } from "effect/reactivity";
 import { expect, it, vi } from "vite-plus/test";
 import { act, render } from "../../../test/render";
@@ -356,5 +358,115 @@ it.each(["owned", "raw", "empty", "cancel"] as const)(
     expect(fixture.retry).not.toHaveBeenCalled();
     expect(refresh).not.toHaveBeenCalled();
     expect(toast).toHaveBeenCalledTimes(kind === "cancel" ? 0 : 1);
+  },
+);
+
+it.each(["owned", "raw", "empty", "signaled"] as const)(
+  "uses settlement locale for resource non-signaled result: %s",
+  async (kind) => {
+    fixture.locale = "en";
+    fixture.allowed = true;
+    fixture.processes = true;
+    fixture.retry.mockReset();
+    fixture.signal.mockReset();
+    using stack = new DisposableStack();
+    const registry = stack.adopt(AtomRegistry.make(), (value) => value.dispose());
+    expect(registry.get(primaryEnvironmentIdAtom)).toBeNull();
+    stack.defer(() => {
+      fixture.locale = "en";
+      fixture.allowed = true;
+      fixture.processes = false;
+    });
+    using refresh = vi.spyOn(registry, "refresh");
+    using toast = vi.spyOn(toastManager, "add").mockImplementation(() => "fixture-toast");
+    using confirm = vi.spyOn(ensureLocalApi().dialogs, "confirm").mockResolvedValue(false);
+    let finish!: (result: AsyncResult.AsyncResult<ServerSignalProcessResult, unknown>) => void;
+    const pending = new Promise<AsyncResult.AsyncResult<ServerSignalProcessResult, unknown>>(
+      (resolve) => {
+        finish = resolve;
+      },
+    );
+    fixture.signal.mockReturnValue(pending);
+    const environmentId = EnvironmentId.make("signal-fixture");
+    const surface = (locale: "en" | "zh-CN") => (
+      <WebI18nContext
+        value={{
+          locale,
+          appLocale: locale,
+          setAppLocale: () => {},
+          t: (key, values) => translateWebMessage(locale, key, values),
+        }}
+      >
+        <RegistryContext.Provider value={registry}>
+          <ResourceTelemetryDiagnostics environmentId={environmentId} />
+        </RegistryContext.Provider>
+      </WebI18nContext>
+    );
+    await using screen = await render(surface("en"));
+    await using _drain = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          finish(AsyncResult.failure(Cause.interrupt()));
+          await pending;
+        });
+      },
+    };
+    const send = screen.getByRole("button", { name: "Send SIGINT", exact: true });
+    await send.click();
+    expect(fixture.signal).toHaveBeenCalledExactlyOnceWith({
+      environmentId,
+      input: { pid: 123, startTimeMs: 1000, signal: "SIGINT" },
+    });
+    await expect.element(send).toBeDisabled();
+    await expect
+      .element(screen.getByRole("button", { name: "Send SIGKILL", exact: true }))
+      .toBeDisabled();
+    await act(() => {
+      send.element().dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+    });
+    expect(fixture.signal).toHaveBeenCalledTimes(1);
+    expect(toast).not.toHaveBeenCalled();
+    fixture.locale = "zh-CN";
+    await screen.rerender(surface("zh-CN"));
+    // Empty is defensive consumer coverage, not a valid TrimmedNonEmptyString wire value.
+    const result: ServerSignalProcessResult = {
+      pid: 123,
+      signal: "SIGINT",
+      signaled: kind === "signaled",
+      message:
+        kind === "raw"
+          ? Option.some("Literal $& {signal}")
+          : kind === "empty"
+            ? Option.some("")
+            : Option.none(),
+    };
+    await act(async () => {
+      finish(AsyncResult.success(result));
+      await pending;
+    });
+    if (kind === "signaled") expect(toast).not.toHaveBeenCalled();
+    else
+      expect(toast).toHaveBeenCalledExactlyOnceWith({
+        type: "error",
+        title: "无法发送 SIGINT",
+        description:
+          kind === "owned"
+            ? "向进程 123 发送 SIGINT 失败。"
+            : kind === "raw"
+              ? "Literal $& {signal}"
+              : "",
+      });
+    fixture.locale = "en";
+    await screen.rerender(surface("en"));
+    await expect.element(send).toBeEnabled();
+    await expect
+      .element(screen.getByRole("button", { name: "Send SIGKILL", exact: true }))
+      .toBeEnabled();
+    await expect.element(screen.getByText("Literal $& {process}", { exact: true })).toBeVisible();
+    expect(fixture.signal).toHaveBeenCalledTimes(1);
+    expect(confirm).not.toHaveBeenCalled();
+    expect(fixture.retry).not.toHaveBeenCalled();
+    expect(refresh).not.toHaveBeenCalled();
+    expect(toast).toHaveBeenCalledTimes(kind === "signaled" ? 0 : 1);
   },
 );

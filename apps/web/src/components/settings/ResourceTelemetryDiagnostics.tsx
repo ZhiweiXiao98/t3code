@@ -1020,6 +1020,7 @@ function ResourceTelemetryDiagnosticsBody({
           throw squashAtomCommandFailure(result);
         }
         if (result.value.signaled) return;
+        const { t } = readWebI18n();
         toastManager.add({
           type: "error",
           title: t("diagnostics.signal.sendFailedTitle", { signal }),
