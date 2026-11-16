@@ -3,6 +3,7 @@ import * as NodeFS from "node:fs";
 import * as NodePath from "node:path";
 import type { Browser, CDPSession, Page } from "playwright";
 import type { PlaywrightBrowserProvider, playwright } from "vite-plus/test/browser-playwright";
+import { createFrameActivity, recordFrameActivity } from "./frameActivity";
 import { observeBrowserServerLifecycle } from "./serverLifecycle";
 
 type Fields = Record<string, number | boolean | null | string>;
@@ -392,13 +393,25 @@ export function observeBrowserLifecycle(provider: ReturnType<typeof playwright>)
         emit("page-target", { page: id, target: targetId(targetInfo.targetId) });
         const sockets = new Map<
           string,
-          { id: number; category: string; code: number | null; handshake: number | null }
+          {
+            id: number;
+            category: string;
+            code: number | null;
+            handshake: number | null;
+            activity: ReturnType<typeof createFrameActivity>;
+          }
         >();
         let nextSocket = 0;
         const socket = (request: string) => {
           let value = sockets.get(request);
           if (!value && sockets.size < 2048) {
-            value = { id: ++nextSocket, category: "unknown", code: null, handshake: null };
+            value = {
+              id: ++nextSocket,
+              category: "unknown",
+              code: null,
+              handshake: null,
+              activity: createFrameActivity(),
+            };
             sockets.set(request, value);
           }
           return value;
@@ -422,7 +435,19 @@ export function observeBrowserLifecycle(provider: ReturnType<typeof playwright>)
             requestId: string;
             response: { opcode: number; payloadData: string };
           }) => {
-            if (response.opcode !== 8) return;
+            if (response.opcode !== 8) {
+              if (
+                response.opcode !== 1 &&
+                response.opcode !== 2 &&
+                response.opcode !== 9 &&
+                response.opcode !== 10
+              )
+                return;
+              const value = socket(requestId);
+              if (value)
+                recordFrameActivity(value.activity, direction, response.opcode, Date.now());
+              return;
+            }
             const value = socket(requestId);
             if (!value) return;
             // CDP non-text payloads are base64. Decode only the two status bytes, never the reason.
@@ -450,6 +475,7 @@ export function observeBrowserLifecycle(provider: ReturnType<typeof playwright>)
               socket_kind: value.category,
               category: socketErrorCategory(errorMessage),
               handshake_status: value.handshake,
+              ...value.activity,
               teardown,
             });
           if (active && browser && !processErrorSeen.has(browser)) {
@@ -467,6 +493,7 @@ export function observeBrowserLifecycle(provider: ReturnType<typeof playwright>)
               code: value.code,
               category: closeCategory(value.code),
               handshake_status: value.handshake,
+              ...value.activity,
               teardown,
             });
           sockets.delete(requestId);
