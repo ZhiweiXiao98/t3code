@@ -1,5 +1,6 @@
 import { translateWebSource } from "../../i18n/messages";
 import { useI18n } from "../../i18n/WebI18nContext";
+import { readWebI18n } from "../../i18n/readWebI18n";
 import { useAtomValue } from "@effect/atom-react";
 import {
   AVAILABLE_CONNECTION_STATE,
@@ -171,11 +172,13 @@ export function ConnectionDiagnosisPanel({
   const { locale: sourceLocale } = useI18n();
   const { copyToClipboard } = useCopyToClipboard({
     target: translateWebSource(sourceLocale, "connection diagnostics"),
-    onCopy: () =>
+    onCopy: () => {
+      const { locale } = readWebI18n();
       toastManager.add({
         type: "success",
-        title: translateWebSource(sourceLocale, "Diagnostics copied"),
-      }),
+        title: translateWebSource(locale, "Diagnostics copied"),
+      });
+    },
     onError: (error) =>
       toastManager.add(
         stackedThreadToast({
