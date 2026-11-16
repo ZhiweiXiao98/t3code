@@ -99,7 +99,7 @@ it("keeps the optional main-window script inert until its deferred installer is 
   expect(orchestratorObservationScripts(false)).toEqual([]);
   const scripts = orchestratorObservationScripts(true);
   expect(scripts).toHaveLength(1);
-  expect(scripts[0]?.content).toContain('value: () => import("vite-plus/test/client")');
+  expect(scripts[0]?.content).toContain('value: () => import("@vitest/browser/client")');
   expect(scripts[0]?.content).not.toContain("new WebSocket");
   expect(scripts[0]?.content).not.toContain("setTimeout");
   expect(scripts[0]?.content).not.toContain("setInterval");

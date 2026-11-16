@@ -91,7 +91,7 @@ export function orchestratorObservationScripts(enabled: boolean) {
       const install = ${installSocketListeners.toString()};
       Object.defineProperty(globalThis, ${JSON.stringify(INSTALL)}, {
         configurable: true,
-        value: () => import("vite-plus/test/client").then(({ client }) => {
+        value: () => import("@vitest/browser/client").then(({ client }) => {
           if (globalThis[${JSON.stringify(CANCELLED)}]) return "cancelled";
           if (globalThis[${JSON.stringify(STOP)}]) return "already-installed";
           const relay = globalThis[${JSON.stringify(BINDING)}];
