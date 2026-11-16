@@ -75,7 +75,6 @@ export function useCheckProviderUpdates() {
 }
 
 export function useProviderUpdates() {
-  const { t } = useI18n();
   const { environments } = useEnvironments();
   const manageableIds = useEnvironmentsWithScope(environments, AuthProvidersManageScope);
   const providersByEnvironment = useEnvironmentProviders();
@@ -113,6 +112,7 @@ export function useProviderUpdates() {
         })),
       ),
     );
+    const { t } = readWebI18n();
     const view = quiet ? null : getProviderUpdateRunToastView(runs, t);
     if (view) {
       toastManager.add(

@@ -25,6 +25,8 @@ const state = vi.hoisted(() => ({
   checks: [] as { environmentId: EnvironmentId; input: unknown }[],
   locale: "en" as "en" | "zh-CN",
   deferredCheck: null as Promise<AsyncResult.AsyncResult<unknown, unknown>> | null,
+  deferredUpdate: null as Promise<ProviderUpdateRun["result"]> | null,
+  updateInputs: [] as { environmentId: EnvironmentId; input: unknown }[],
   checkResult: null as AsyncResult.AsyncResult<unknown, unknown> | null,
   sessions: new Map<EnvironmentId, Atom.Writable<AsyncResult.AsyncResult<AuthSessionState>>>(),
 }));
@@ -53,7 +55,8 @@ vi.mock(import("~/state/use-atom-command"), () => ({
     async ({ environmentId, input }: { environmentId: EnvironmentId; input: unknown }) => {
       if (command !== "refresh") {
         state.requests.push(environmentId);
-        return AsyncResult.success(undefined);
+        state.updateInputs.push({ environmentId, input });
+        return state.deferredUpdate ?? AsyncResult.success(undefined);
       }
       state.checks.push({ environmentId, input });
       return state.deferredCheck ?? state.checkResult ?? AsyncResult.success(undefined);
@@ -69,6 +72,7 @@ vi.mock("~/i18n/readWebI18n", () => ({
 
 import { WebI18nContext } from "~/i18n/WebI18nContext";
 import { translateWebMessage, type WebMessageKey } from "~/i18n/messages";
+import type { ProviderUpdateRun } from "./ProviderUpdateLaunchNotification.logic";
 import { appAtomRegistry } from "~/rpc/atomRegistry";
 import { toastManager } from "./ui/toast";
 import { useCheckProviderUpdates, useProviderUpdates } from "./ProviderUpdatesAction";
@@ -123,6 +127,8 @@ function setup() {
   state.requests = [];
   state.checks = [];
   state.checkResult = null;
+  state.deferredUpdate = null;
+  state.updateInputs = [];
   state.deferredCheck = null;
   state.locale = "en";
   const sessions = new Map<EnvironmentId, Atom.Writable<AsyncResult.AsyncResult<AuthSessionState>>>(
@@ -293,6 +299,128 @@ it.each(["owned", "raw", "empty", "interrupted", "quiet"] as const)(
         await running;
       });
       state.deferredCheck = null;
+      state.locale = "en";
+    }
+  },
+);
+
+it.each(["owned", "raw", "empty", "success", "interrupted", "quiet"] as const)(
+  "uses settlement locale for provider update aggregate: %s",
+  async (kind) => {
+    setup();
+    using stack = new DisposableStack();
+    const registry = stack.adopt(AtomRegistry.make(), (value) => value.dispose());
+    state.environments[1]!.label = "Literal $& {environment}";
+    let finish!: (result: ProviderUpdateRun["result"]) => void;
+    state.deferredUpdate = new Promise((resolve) => {
+      finish = resolve;
+    });
+    let updates!: ReturnType<typeof useProviderUpdates>;
+    function Probe() {
+      const next = useProviderUpdates();
+      useEffect(() => {
+        updates = next;
+      }, [next]);
+      return null;
+    }
+    function surface(locale: "en" | "zh-CN") {
+      state.locale = locale;
+      return (
+        <WebI18nContext.Provider
+          value={{
+            locale,
+            appLocale: locale,
+            setAppLocale: () => {},
+            t: (key, values) => translateWebMessage(locale, key, values),
+          }}
+        >
+          <RegistryContext.Provider value={registry}>
+            <Probe />
+          </RegistryContext.Provider>
+        </WebI18nContext.Provider>
+      );
+    }
+    using toast = vi.spyOn(toastManager, "add").mockImplementation(() => "fixture-toast");
+    await using screen = await render(surface("en"));
+    let running!: Promise<ProviderUpdateRun[]>;
+    const result: ProviderUpdateRun["result"] =
+      kind === "success"
+        ? AsyncResult.success({
+            providers: [
+              {
+                ...provider,
+                updateState: {
+                  status: "succeeded",
+                  startedAt: "2026-10-21T00:00:00.000Z",
+                  finishedAt: "2026-10-21T00:01:00.000Z",
+                  message: "Literal $& {diagnostic}",
+                  output: null,
+                },
+              },
+            ],
+          })
+        : AsyncResult.failure(
+            kind === "interrupted"
+              ? Cause.interrupt()
+              : Cause.fail(
+                  kind === "raw"
+                    ? new Error("Literal $& {error}")
+                    : kind === "empty"
+                      ? new Error("")
+                      : null,
+                ),
+          );
+    try {
+      await act(() => {
+        running = updates.updateAll({ quiet: kind === "quiet" });
+      });
+      const environmentId = state.environments[1]!.environmentId;
+      expect(state.updateInputs).toEqual([
+        { environmentId, input: { provider: provider.driver, instanceId: provider.instanceId } },
+      ]);
+      expect(toast).not.toHaveBeenCalled();
+      await screen.rerender(surface("zh-CN"));
+      let runs!: ProviderUpdateRun[];
+      await act(async () => {
+        finish(result);
+        runs = await running;
+      });
+      expect(runs).toEqual([
+        {
+          environmentId,
+          machineLabel: "Literal $& {environment}",
+          driver: provider.driver,
+          instanceId: provider.instanceId,
+          result,
+        },
+      ]);
+      expect(runs[0]!.result).toBe(result);
+      if (kind === "quiet" || kind === "interrupted") {
+        expect(toast).not.toHaveBeenCalled();
+      } else {
+        expect(toast).toHaveBeenCalledExactlyOnceWith({
+          type: kind === "success" ? "success" : "error",
+          title: kind === "success" ? "服务提供方已更新" : "服务提供方更新失败",
+          description: (
+            <span className="whitespace-pre-line">
+              {kind === "success"
+                ? "新会话将使用更新后的服务提供方。"
+                : `Literal $& {environment} · Codex: ${kind === "raw" ? "Literal $& {error}" : kind === "empty" ? "" : "服务提供方更新失败。"}`}
+            </span>
+          ),
+          data: { actionLayout: "stacked-end" },
+        });
+      }
+      await screen.rerender(surface("en"));
+      expect(toast).toHaveBeenCalledTimes(kind === "quiet" || kind === "interrupted" ? 0 : 1);
+      expect(state.updateInputs).toHaveLength(1);
+      expect(state.checks).toEqual([]);
+    } finally {
+      await act(async () => {
+        finish(AsyncResult.failure(Cause.interrupt()));
+        await running;
+      });
+      state.deferredUpdate = null;
       state.locale = "en";
     }
   },
