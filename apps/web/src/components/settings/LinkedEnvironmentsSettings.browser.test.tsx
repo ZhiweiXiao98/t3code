@@ -374,6 +374,7 @@ const prepared: PreparedConnection = {
     wsBaseUrl: "wss://mint-target.invalid",
   }),
 };
+const mintCodeLabel = `Pairing code Create a link on ${mintMachine.label}: Settings → Connections → Create link, then paste its code here.`;
 const mintPrepared = Atom.make(Option.some(prepared));
 const mintSession = Atom.make(
   AsyncResult.success(
@@ -457,7 +458,7 @@ it.each(["not_allowed", "unavailable", "raw", "null"] as const)(
     await page.getByRole("option", { name: mintMachine.label, exact: true }).click();
     expect(_prepared).toHaveBeenCalledWith(mintMachine.environmentId);
     expect(_session).toHaveBeenCalledWith(mintMachine.environmentId);
-    expect(dialog.getByRole("textbox", { name: "Pairing code", exact: true }).query()).toBeNull();
+    expect(dialog.getByRole("textbox", { name: mintCodeLabel, exact: true }).query()).toBeNull();
     await expect.element(dialog.getByRole("button", { name: "Link", exact: true })).toBeEnabled();
     await dialog.getByRole("button", { name: "Link", exact: true }).click();
     expect(fixture.mint).toHaveBeenCalledExactlyOnceWith(
@@ -500,13 +501,13 @@ it.each(["not_allowed", "unavailable", "raw", "null"] as const)(
     });
     await screen.rerender(surface("en"));
     await expect
-      .element(dialog.getByRole("textbox", { name: "Pairing code", exact: true }))
+      .element(dialog.getByRole("textbox", { name: mintCodeLabel, exact: true }))
       .toBeVisible();
     await expect
       .element(dialog.getByRole("combobox", { name: "Machine", exact: true }))
       .toHaveTextContent(mintMachine.label);
     await dialog
-      .getByRole("textbox", { name: "Pairing code", exact: true })
+      .getByRole("textbox", { name: mintCodeLabel, exact: true })
       .fill("dummy-not-a-credential");
     await expect.element(dialog.getByRole("button", { name: "Link", exact: true })).toBeEnabled();
     expect(fixture.mint).toHaveBeenCalledTimes(1);
