@@ -1033,11 +1033,11 @@ jobs:
   web-shards:
     name: Web full coverage shard ${{ matrix.shard }}/4
     needs:
-    - source
-    - bundle
-    - linux
-    - desktop
-    - android
+      - source
+      - bundle
+      - linux
+      - desktop
+      - android
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     strategy:
@@ -1045,197 +1045,200 @@ jobs:
       max-parallel: 2
       matrix:
         shard:
-        - 1
-        - 2
-        - 3
-        - 4
+          - 1
+          - 2
+          - 3
+          - 4
     steps:
-    - name: Checkout exact source without credentials
-      shell: bash
-      env:
-        SOURCE_SHA: ${{ needs.source.outputs.sha }}
-        GIT_TERMINAL_PROMPT: '0'
-      run: 'set -euo pipefail
+      - name: Checkout exact source without credentials
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ needs.source.outputs.sha }}
+          GIT_TERMINAL_PROMPT: "0"
+        run: 'set -euo pipefail
 
-        git init .
+          git init .
 
-        git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
 
-        git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
+          git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
 
-        git sparse-checkout set --no-cone ''/*'' ''!/.repos/''
+          git sparse-checkout set --no-cone ''/*'' ''!/.repos/''
 
-        git checkout --detach FETCH_HEAD
+          git checkout --detach FETCH_HEAD
 
-        test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
 
-        '
-    - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
-      with:
-        node-version-file: package.json
-        cache: true
-        run-install: false
-    - name: Install locked dependencies
-      id: dependencies
-      run: vp install --frozen-lockfile
-    - name: Install Linux native build libraries
-      run: python3 .github/scripts/ci-ubuntu-packages.py packages libsecret-1-dev pkg-config build-essential imagemagick
-    - name: Install Chromium for web and server browser tests
-      shell: bash
-      env:
-        SUITE: web
-      run: "set -euo pipefail\nbrowser_cli=apps/server/node_modules/playwright-core/cli.js\nif [[ \"$SUITE\" == web\
-        \ ]]; then\n  browser_cli=apps/web/node_modules/playwright/cli.js\nfi\npython3 .github/scripts/ci-ubuntu-packages.py\
-        \ playwright \"$browser_cli\"\nnode \"$browser_cli\" install --only-shell chromium\nif [[ \"$SUITE\" == server-*\
-        \ ]]; then\n  test \"$(node -p \"require('./apps/server/node_modules/playwright-core/package.json').version\"\
-        )\" = \"$(node -p \"require('./apps/server/package.json').dependencies['playwright-core']\")\"\n  browser_revision=$(node\
-        \ -p \"require('./apps/server/node_modules/playwright-core/browsers.json').browsers.find(browser => browser.name\
-        \ === 'chromium-headless-shell').revision\")\n  browser_root=\"$HOME/.cache/ms-playwright/chromium_headless_shell-$browser_revision\"\
-        \n  mapfile -t browsers < <(find \"$browser_root\" -type f -name chrome-headless-shell)\n  test \"${#browsers[@]}\"\
-        \ -eq 1\n  browser=\"${browsers[0]}\"\n  test -x \"$browser\"\n  test \"${T3CODE_SERVER_BROWSER_SANDBOX:-1}\"\
-        \ != 0\n  echo \"T3CODE_TEST_HEADLESS_SHELL=$browser\" >> \"$GITHUB_ENV\"\n  node -p \"JSON.stringify({node:\
-        \ process.version, undici: process.versions.undici, playwright: require('./apps/server/node_modules/playwright-core/package.json').version})\"\
-        \n  \"$browser\" --version\n  sha256sum \"$browser\"\nfi\n"
-    - name: Run complete Web partition
-      env:
-        SOURCE_SHA: ${{ needs.source.outputs.sha }}
-        WEB_SHARD: ${{ matrix.shard }}
-      run: python3 .github/scripts/run-web-shard.py
-    - name: Preserve partition evidence
-      if: always()
-      uses: actions/upload-artifact@v7
-      with:
-        name: web-validation-shard-${{ matrix.shard }}-${{ github.run_id }}-${{ github.run_attempt }}
-        path: ${{ runner.temp }}/web-browser-diagnostics/
-        if-no-files-found: error
-        retention-days: 14
+          '
+      - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
+        with:
+          node-version-file: package.json
+          cache: true
+          run-install: false
+      - name: Install locked dependencies
+        id: dependencies
+        run: vp install --frozen-lockfile
+      - name: Install Linux native build libraries
+        run: python3 .github/scripts/ci-ubuntu-packages.py packages libsecret-1-dev pkg-config build-essential imagemagick
+      - name: Install Chromium for web and server browser tests
+        shell: bash
+        env:
+          SUITE: web
+        run:
+          "set -euo pipefail\nbrowser_cli=apps/server/node_modules/playwright-core/cli.js\nif [[ \"$SUITE\" == web\
+          \ ]]; then\n  browser_cli=apps/web/node_modules/playwright/cli.js\nfi\npython3 .github/scripts/ci-ubuntu-packages.py\
+          \ playwright \"$browser_cli\"\nnode \"$browser_cli\" install --only-shell chromium\nif [[ \"$SUITE\" == server-*\
+          \ ]]; then\n  test \"$(node -p \"require('./apps/server/node_modules/playwright-core/package.json').version\"\
+          )\" = \"$(node -p \"require('./apps/server/package.json').dependencies['playwright-core']\")\"\n  browser_revision=$(node\
+          \ -p \"require('./apps/server/node_modules/playwright-core/browsers.json').browsers.find(browser => browser.name\
+          \ === 'chromium-headless-shell').revision\")\n  browser_root=\"$HOME/.cache/ms-playwright/chromium_headless_shell-$browser_revision\"\
+          \n  mapfile -t browsers < <(find \"$browser_root\" -type f -name chrome-headless-shell)\n  test \"${#browsers[@]}\"\
+          \ -eq 1\n  browser=\"${browsers[0]}\"\n  test -x \"$browser\"\n  test \"${T3CODE_SERVER_BROWSER_SANDBOX:-1}\"\
+          \ != 0\n  echo \"T3CODE_TEST_HEADLESS_SHELL=$browser\" >> \"$GITHUB_ENV\"\n  node -p \"JSON.stringify({node:\
+          \ process.version, undici: process.versions.undici, playwright: require('./apps/server/node_modules/playwright-core/package.json').version})\"\
+          \n  \"$browser\" --version\n  sha256sum \"$browser\"\nfi\n"
+      - name: Run complete Web partition
+        env:
+          SOURCE_SHA: ${{ needs.source.outputs.sha }}
+          WEB_SHARD: ${{ matrix.shard }}
+        run: python3 .github/scripts/run-web-shard.py
+      - name: Preserve partition evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-validation-shard-${{ matrix.shard }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/web-browser-diagnostics/
+          if-no-files-found: error
+          retention-days: 14
   web-coverage:
     name: Require complete Web assertion coverage
     needs:
-    - source
-    - web-shards
+      - source
+      - web-shards
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-    - name: Require successful producers
-      env:
-        SOURCE_RESULT: ${{ needs.source.result }}
-        SHARDS_RESULT: ${{ needs.web-shards.result }}
-      run: test "$SOURCE_RESULT" = success && test "$SHARDS_RESULT" = success
-    - name: Checkout exact source without credentials
-      shell: bash
-      env:
-        SOURCE_SHA: ${{ needs.source.outputs.sha }}
-        GIT_TERMINAL_PROMPT: '0'
-      run: 'set -euo pipefail
+      - name: Require successful producers
+        env:
+          SOURCE_RESULT: ${{ needs.source.result }}
+          SHARDS_RESULT: ${{ needs.web-shards.result }}
+        run: test "$SOURCE_RESULT" = success && test "$SHARDS_RESULT" = success
+      - name: Checkout exact source without credentials
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ needs.source.outputs.sha }}
+          GIT_TERMINAL_PROMPT: "0"
+        run: 'set -euo pipefail
 
-        git init .
+          git init .
 
-        git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
 
-        git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
+          git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
 
-        git sparse-checkout set --no-cone ''/*'' ''!/.repos/''
+          git sparse-checkout set --no-cone ''/*'' ''!/.repos/''
 
-        git checkout --detach FETCH_HEAD
+          git checkout --detach FETCH_HEAD
 
-        test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
 
-        '
-    - name: Verify own-run artifact producers and digests
-      uses: actions/github-script@v8
-      with:
-        script: "const {owner, repo} = context.repo;\nconst run_id = context.runId;\nconst attempt = process.env.GITHUB_RUN_ATTEMPT;\n\
-          const expected = new Set([1,2,3,4].map(i => `web-validation-shard-${i}-${run_id}-${attempt}`));\nconst all\
-          \ = await github.paginate(github.rest.actions.listWorkflowRunArtifacts, {owner, repo, run_id, per_page:100});\n\
-          const artifacts = all.filter(a => expected.has(a.name));\nif (artifacts.length !== 4 || new Set(artifacts.map(a\
-          \ => a.name)).size !== 4) throw new Error('Require exactly four own-run partition artifacts');\nfor (const\
-          \ a of artifacts) {\n  if (a.expired || a.workflow_run?.id !== run_id || a.workflow_run?.head_sha !== context.sha\
-          \ || !/^sha256:[a-f0-9]{64}$/.test(a.digest || '')) throw new Error('Artifact producer identity or digest\
-          \ invalid');\n}\ncore.info(JSON.stringify(artifacts.map(a => ({id:a.id,name:a.name,digest:a.digest,run:a.workflow_run.id,head:a.workflow_run.head_sha}))));\n"
-    - uses: actions/download-artifact@v8
-      with:
-        pattern: web-validation-shard-*-${{ github.run_id }}-${{ github.run_attempt }}
-        path: ${{ runner.temp }}/web-partitions
-    - name: Verify every original file and named assertion
-      env:
-        SOURCE_SHA: ${{ needs.source.outputs.sha }}
-      run: 'set -euo pipefail
+          '
+      - name: Verify own-run artifact producers and digests
+        uses: actions/github-script@v8
+        with:
+          script:
+            "const {owner, repo} = context.repo;\nconst run_id = context.runId;\nconst attempt = process.env.GITHUB_RUN_ATTEMPT;\n\
+            const expected = new Set([1,2,3,4].map(i => `web-validation-shard-${i}-${run_id}-${attempt}`));\nconst all\
+            \ = await github.paginate(github.rest.actions.listWorkflowRunArtifacts, {owner, repo, run_id, per_page:100});\n\
+            const artifacts = all.filter(a => expected.has(a.name));\nif (artifacts.length !== 4 || new Set(artifacts.map(a\
+            \ => a.name)).size !== 4) throw new Error('Require exactly four own-run partition artifacts');\nfor (const\
+            \ a of artifacts) {\n  if (a.expired || a.workflow_run?.id !== run_id || a.workflow_run?.head_sha !== context.sha\
+            \ || !/^sha256:[a-f0-9]{64}$/.test(a.digest || '')) throw new Error('Artifact producer identity or digest\
+            \ invalid');\n}\ncore.info(JSON.stringify(artifacts.map(a => ({id:a.id,name:a.name,digest:a.digest,run:a.workflow_run.id,head:a.workflow_run.head_sha}))));\n"
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: web-validation-shard-*-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/web-partitions
+      - name: Verify every original file and named assertion
+        env:
+          SOURCE_SHA: ${{ needs.source.outputs.sha }}
+        run: 'set -euo pipefail
 
-        python3 .github/scripts/verify-web-shards.test.py
+          python3 .github/scripts/verify-web-shards.test.py
 
-        python3 .github/scripts/verify-web-shards.py --root "$RUNNER_TEMP/web-partitions" --manifest .github/scripts/web-test-inventory.json
-        --source "$SOURCE_SHA" --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT" --workflow-sha "$GITHUB_SHA"
-        --lock-hash "$(sha256sum pnpm-lock.yaml | cut -d" " -f1)" | tee "$RUNNER_TEMP/web-coverage.json"
+          python3 .github/scripts/verify-web-shards.py --root "$RUNNER_TEMP/web-partitions" --manifest .github/scripts/web-test-inventory.json
+          --source "$SOURCE_SHA" --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT" --workflow-sha "$GITHUB_SHA"
+          --lock-hash "$(sha256sum pnpm-lock.yaml | cut -d" " -f1)" | tee "$RUNNER_TEMP/web-coverage.json"
 
-        '
-    - uses: actions/upload-artifact@v7
-      with:
-        name: web-complete-coverage-${{ github.run_id }}-${{ github.run_attempt }}
-        path: ${{ runner.temp }}/web-coverage.json
-        if-no-files-found: error
-        retention-days: 14
+          '
+      - uses: actions/upload-artifact@v7
+        with:
+          name: web-complete-coverage-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/web-coverage.json
+          if-no-files-found: error
+          retention-days: 14
   web-built-boot:
     name: Build and boot validated Web client
     needs:
-    - source
-    - web-coverage
+      - source
+      - web-coverage
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
-    - name: Checkout exact source without credentials
-      shell: bash
-      env:
-        SOURCE_SHA: ${{ needs.source.outputs.sha }}
-        GIT_TERMINAL_PROMPT: '0'
-      run: 'set -euo pipefail
+      - name: Checkout exact source without credentials
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ needs.source.outputs.sha }}
+          GIT_TERMINAL_PROMPT: "0"
+        run: 'set -euo pipefail
 
-        git init .
+          git init .
 
-        git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
 
-        git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
+          git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
 
-        git sparse-checkout set --no-cone ''/*'' ''!/.repos/''
+          git sparse-checkout set --no-cone ''/*'' ''!/.repos/''
 
-        git checkout --detach FETCH_HEAD
+          git checkout --detach FETCH_HEAD
 
-        test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
 
-        '
-    - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
-      with:
-        node-version-file: package.json
-        cache: true
-        run-install: false
-    - name: Install locked dependencies
-      id: dependencies
-      run: vp install --frozen-lockfile
-    - name: Install Linux native build libraries
-      run: python3 .github/scripts/ci-ubuntu-packages.py packages libsecret-1-dev pkg-config build-essential imagemagick
-    - name: Install Chromium for web and server browser tests
-      shell: bash
-      env:
-        SUITE: web
-      run: "set -euo pipefail\nbrowser_cli=apps/server/node_modules/playwright-core/cli.js\nif [[ \"$SUITE\" == web\
-        \ ]]; then\n  browser_cli=apps/web/node_modules/playwright/cli.js\nfi\npython3 .github/scripts/ci-ubuntu-packages.py\
-        \ playwright \"$browser_cli\"\nnode \"$browser_cli\" install --only-shell chromium\nif [[ \"$SUITE\" == server-*\
-        \ ]]; then\n  test \"$(node -p \"require('./apps/server/node_modules/playwright-core/package.json').version\"\
-        )\" = \"$(node -p \"require('./apps/server/package.json').dependencies['playwright-core']\")\"\n  browser_revision=$(node\
-        \ -p \"require('./apps/server/node_modules/playwright-core/browsers.json').browsers.find(browser => browser.name\
-        \ === 'chromium-headless-shell').revision\")\n  browser_root=\"$HOME/.cache/ms-playwright/chromium_headless_shell-$browser_revision\"\
-        \n  mapfile -t browsers < <(find \"$browser_root\" -type f -name chrome-headless-shell)\n  test \"${#browsers[@]}\"\
-        \ -eq 1\n  browser=\"${browsers[0]}\"\n  test -x \"$browser\"\n  test \"${T3CODE_SERVER_BROWSER_SANDBOX:-1}\"\
-        \ != 0\n  echo \"T3CODE_TEST_HEADLESS_SHELL=$browser\" >> \"$GITHUB_ENV\"\n  node -p \"JSON.stringify({node:\
-        \ process.version, undici: process.versions.undici, playwright: require('./apps/server/node_modules/playwright-core/package.json').version})\"\
-        \n  \"$browser\" --version\n  sha256sum \"$browser\"\nfi\n"
-    - name: Boot the built web client
-      run: 'vp run --filter @t3tools/web build
+          '
+      - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
+        with:
+          node-version-file: package.json
+          cache: true
+          run-install: false
+      - name: Install locked dependencies
+        id: dependencies
+        run: vp install --frozen-lockfile
+      - name: Install Linux native build libraries
+        run: python3 .github/scripts/ci-ubuntu-packages.py packages libsecret-1-dev pkg-config build-essential imagemagick
+      - name: Install Chromium for web and server browser tests
+        shell: bash
+        env:
+          SUITE: web
+        run:
+          "set -euo pipefail\nbrowser_cli=apps/server/node_modules/playwright-core/cli.js\nif [[ \"$SUITE\" == web\
+          \ ]]; then\n  browser_cli=apps/web/node_modules/playwright/cli.js\nfi\npython3 .github/scripts/ci-ubuntu-packages.py\
+          \ playwright \"$browser_cli\"\nnode \"$browser_cli\" install --only-shell chromium\nif [[ \"$SUITE\" == server-*\
+          \ ]]; then\n  test \"$(node -p \"require('./apps/server/node_modules/playwright-core/package.json').version\"\
+          )\" = \"$(node -p \"require('./apps/server/package.json').dependencies['playwright-core']\")\"\n  browser_revision=$(node\
+          \ -p \"require('./apps/server/node_modules/playwright-core/browsers.json').browsers.find(browser => browser.name\
+          \ === 'chromium-headless-shell').revision\")\n  browser_root=\"$HOME/.cache/ms-playwright/chromium_headless_shell-$browser_revision\"\
+          \n  mapfile -t browsers < <(find \"$browser_root\" -type f -name chrome-headless-shell)\n  test \"${#browsers[@]}\"\
+          \ -eq 1\n  browser=\"${browsers[0]}\"\n  test -x \"$browser\"\n  test \"${T3CODE_SERVER_BROWSER_SANDBOX:-1}\"\
+          \ != 0\n  echo \"T3CODE_TEST_HEADLESS_SHELL=$browser\" >> \"$GITHUB_ENV\"\n  node -p \"JSON.stringify({node:\
+          \ process.version, undici: process.versions.undici, playwright: require('./apps/server/node_modules/playwright-core/package.json').version})\"\
+          \n  \"$browser\" --version\n  sha256sum \"$browser\"\nfi\n"
+      - name: Boot the built web client
+        run: "vp run --filter @t3tools/web build
 
-        node apps/web/scripts/verify-built-boot.ts
+          node apps/web/scripts/verify-built-boot.ts
 
-        '
+          "
 "on":
   push:
     branches:
@@ -1246,4 +1249,3 @@ jobs:
         description: Exact full commit SHA to validate and build
         required: true
         type: string
-
