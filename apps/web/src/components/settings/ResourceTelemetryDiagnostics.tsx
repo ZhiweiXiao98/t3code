@@ -1,3 +1,4 @@
+import { readWebI18n } from "../../i18n/readWebI18n";
 import { translateWebSource } from "../../i18n/messages";
 import { ProcessSignalActions } from "./ProcessSignalActions";
 import { AuthEnvironmentMaintainScope } from "@t3tools/contracts";
@@ -1063,6 +1064,7 @@ function ResourceTelemetryDiagnosticsBody({
         }
       })
       .catch((error: unknown) => {
+        const { locale } = readWebI18n();
         toastManager.add({
           type: "error",
           title: translateWebSource(locale, "Could not restart resource monitor"),
