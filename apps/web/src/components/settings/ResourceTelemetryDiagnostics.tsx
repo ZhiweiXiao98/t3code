@@ -1033,6 +1033,7 @@ function ResourceTelemetryDiagnosticsBody({
         });
       })
       .catch((error: unknown) => {
+        const { t } = readWebI18n();
         toastManager.add({
           type: "error",
           title: t("diagnostics.signal.sendFailedTitle", { signal }),

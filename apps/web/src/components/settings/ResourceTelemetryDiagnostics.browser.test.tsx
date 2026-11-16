@@ -470,3 +470,105 @@ it.each(["owned", "raw", "empty", "signaled"] as const)(
     expect(toast).toHaveBeenCalledTimes(kind === "signaled" ? 0 : 1);
   },
 );
+
+it.each(["owned", "raw", "empty", "interrupted"] as const)(
+  "uses settlement locale for resource signal command failure: %s",
+  async (kind) => {
+    fixture.locale = "en";
+    fixture.allowed = true;
+    fixture.processes = true;
+    fixture.retry.mockReset();
+    fixture.signal.mockReset();
+    using stack = new DisposableStack();
+    const registry = stack.adopt(AtomRegistry.make(), (value) => value.dispose());
+    expect(registry.get(primaryEnvironmentIdAtom)).toBeNull();
+    stack.defer(() => {
+      fixture.locale = "en";
+      fixture.allowed = true;
+      fixture.processes = false;
+    });
+    using refresh = vi.spyOn(registry, "refresh");
+    using toast = vi.spyOn(toastManager, "add").mockImplementation(() => "fixture-toast");
+    using confirm = vi.spyOn(ensureLocalApi().dialogs, "confirm").mockResolvedValue(false);
+    let finish!: (result: AsyncResult.AsyncResult<ServerSignalProcessResult, unknown>) => void;
+    const pending = new Promise<AsyncResult.AsyncResult<ServerSignalProcessResult, unknown>>(
+      (resolve) => {
+        finish = resolve;
+      },
+    );
+    fixture.signal.mockReturnValue(pending);
+    const environmentId = EnvironmentId.make("signal-fixture");
+    const surface = (locale: "en" | "zh-CN") => (
+      <WebI18nContext
+        value={{
+          locale,
+          appLocale: locale,
+          setAppLocale: () => {},
+          t: (key, values) => translateWebMessage(locale, key, values),
+        }}
+      >
+        <RegistryContext.Provider value={registry}>
+          <ResourceTelemetryDiagnostics environmentId={environmentId} />
+        </RegistryContext.Provider>
+      </WebI18nContext>
+    );
+    await using screen = await render(surface("en"));
+    await using _drain = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          finish(AsyncResult.failure(Cause.interrupt()));
+          await pending;
+        });
+      },
+    };
+    const send = screen.getByRole("button", { name: "Send SIGINT", exact: true });
+    await send.click();
+    expect(fixture.signal).toHaveBeenCalledExactlyOnceWith({
+      environmentId,
+      input: { pid: 123, startTimeMs: 1000, signal: "SIGINT" },
+    });
+    await expect.element(send).toBeDisabled();
+    await expect
+      .element(screen.getByRole("button", { name: "Send SIGKILL", exact: true }))
+      .toBeDisabled();
+    await act(() => {
+      send.element().dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+    });
+    expect(fixture.signal).toHaveBeenCalledTimes(1);
+    expect(toast).not.toHaveBeenCalled();
+    fixture.locale = "zh-CN";
+    await screen.rerender(surface("zh-CN"));
+    await act(async () => {
+      finish(
+        AsyncResult.failure(
+          kind === "interrupted"
+            ? Cause.interrupt()
+            : Cause.fail(
+                kind === "owned" ? null : new Error(kind === "raw" ? "Literal $& {signal}" : ""),
+              ),
+        ),
+      );
+      await pending;
+    });
+    if (kind === "interrupted") expect(toast).not.toHaveBeenCalled();
+    else
+      expect(toast).toHaveBeenCalledExactlyOnceWith({
+        type: "error",
+        title: "无法发送 SIGINT",
+        description:
+          kind === "owned" ? "发送 SIGINT 失败。" : kind === "raw" ? "Literal $& {signal}" : "",
+      });
+    fixture.locale = "en";
+    await screen.rerender(surface("en"));
+    await expect.element(send).toBeEnabled();
+    await expect
+      .element(screen.getByRole("button", { name: "Send SIGKILL", exact: true }))
+      .toBeEnabled();
+    await expect.element(screen.getByText("Literal $& {process}", { exact: true })).toBeVisible();
+    expect(fixture.signal).toHaveBeenCalledTimes(1);
+    expect(confirm).not.toHaveBeenCalled();
+    expect(fixture.retry).not.toHaveBeenCalled();
+    expect(refresh).not.toHaveBeenCalled();
+    expect(toast).toHaveBeenCalledTimes(kind === "interrupted" ? 0 : 1);
+  },
+);
