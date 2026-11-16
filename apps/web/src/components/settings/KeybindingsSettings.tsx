@@ -1426,12 +1426,11 @@ export function KeybindingsSettingsPanel() {
       if (result._tag === "Success" || isAtomCommandInterrupted(result)) {
         return;
       }
+      const { locale, t } = readWebI18n();
       const error = squashAtomCommandFailure(result);
       toastManager.add({
         title: t("keybindings.error.openTitle"),
-        description:
-          editorFailureMessage(error, readWebI18n().locale) ??
-          t("keybindings.error.openDescription"),
+        description: editorFailureMessage(error, locale) ?? t("keybindings.error.openDescription"),
         type: "error",
       });
     })();

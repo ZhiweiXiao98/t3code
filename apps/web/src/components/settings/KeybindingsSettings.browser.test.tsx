@@ -2,20 +2,58 @@ import { RegistryProvider } from "@effect/atom-react";
 import { describe, expect, it, vi } from "vite-plus/test";
 import { page, userEvent, type Locator } from "vite-plus/test/browser";
 
-import { render } from "../../../test/render";
+import * as Cause from "effect/Cause";
+import { AsyncResult } from "effect/reactivity";
+import { act, render } from "../../../test/render";
 import { WebI18nContext } from "../../i18n/WebI18nContext";
 import { translateWebMessage } from "../../i18n/messages";
 
+const fixture = vi.hoisted(() => ({
+  active: false,
+  path: null as string | null,
+  allowed: true,
+  locale: "en" as "en" | "zh-CN",
+  open: vi.fn(),
+  mutation: vi.fn(),
+}));
+vi.mock("../../editorPreferences", async (original) => {
+  const actual = await original<typeof import("../../editorPreferences")>();
+  return {
+    ...actual,
+    useOpenInPreferredEditor: (...args: Parameters<typeof actual.useOpenInPreferredEditor>) => {
+      const open = actual.useOpenInPreferredEditor(...args);
+      return fixture.active ? fixture.open : open;
+    },
+  };
+});
+vi.mock("~/i18n/readWebI18n", async (original) => {
+  const actual = await original<typeof import("~/i18n/readWebI18n")>();
+  return {
+    ...actual,
+    readWebI18n: () => {
+      if (!fixture.active) return actual.readWebI18n();
+      const locale = fixture.locale;
+      return {
+        locale,
+        t: (
+          key: Parameters<typeof translateWebMessage>[1],
+          values: Parameters<typeof translateWebMessage>[2],
+        ) => translateWebMessage(locale, key, values),
+      };
+    },
+  };
+});
+
 vi.mock(import("../../state/session"), async (original) => ({
   ...(await original()),
-  useEnvironmentScope: () => true,
+  useEnvironmentScope: () => fixture.allowed,
   useEnvironmentsWithScope: ((environments: ReadonlyArray<{ environmentId: string }>) =>
     new Set(environments.map(({ environmentId }) => environmentId))) as never,
-  readEnvironmentScope: () => true,
+  readEnvironmentScope: () => fixture.allowed,
 }));
 vi.mock(import("../../state/use-atom-command"), async (original) => ({
   ...(await original()),
-  useAtomCommand: (() => vi.fn()) as never,
+  useAtomCommand: (() => (fixture.active ? fixture.mutation : vi.fn())) as never,
 }));
 vi.mock(import("./SettingsScopeContext"), async (original) => ({
   ...(await original()),
@@ -23,7 +61,7 @@ vi.mock(import("./SettingsScopeContext"), async (original) => ({
     const environment = {
       environmentId: "env",
       label: "Build workstation",
-      serverConfig: { keybindings: [], keybindingsConfigPath: null, availableEditors: [] },
+      serverConfig: { keybindings: [], keybindingsConfigPath: fixture.path, availableEditors: [] },
     };
     return {
       scope: { kind: "environment" },
@@ -36,6 +74,7 @@ vi.mock(import("./SettingsScopeContext"), async (original) => ({
   }) as never,
 }));
 
+import { toastManager } from "../ui/toast";
 import { Dialog, DialogPopup, DialogTitle } from "../ui/dialog";
 import { KeybindingsSettingsPanel } from "./KeybindingsSettings";
 
@@ -190,4 +229,129 @@ it("relocalizes a real invalid when expression while preserving the draft and di
   await screen.rerender(surface("en"));
   await expect.element(expression).toHaveValue("terminalFocus &&");
   await expect.element(screen.getByRole("button", { name: "Save", exact: true })).toBeDisabled();
+});
+
+it.each(["owned", "raw", "empty", "interrupted"] as const)(
+  "uses settlement locale for keybindings editor failure: %s",
+  async (kind) => {
+    fixture.active = true;
+    fixture.path = "/fixture/Literal $& {path}/keybindings.json";
+    fixture.allowed = true;
+    fixture.locale = "en";
+    fixture.open.mockReset();
+    fixture.mutation.mockReset();
+    using _restore = {
+      [Symbol.dispose]() {
+        fixture.active = false;
+        fixture.path = null;
+        fixture.allowed = true;
+        fixture.locale = "en";
+      },
+    };
+    let finish!: (result: AsyncResult.AsyncResult<never, unknown>) => void;
+    const pending = new Promise<AsyncResult.AsyncResult<never, unknown>>((resolve) => {
+      finish = resolve;
+    });
+    fixture.open.mockReturnValue(pending);
+    using toast = vi.spyOn(toastManager, "add").mockImplementation(() => "fixture-toast");
+    const surface = (locale: "en" | "zh-CN") => (
+      <WebI18nContext
+        value={{
+          locale,
+          appLocale: locale,
+          setAppLocale: () => {},
+          t: (key, values) => translateWebMessage(locale, key, values),
+        }}
+      >
+        <RegistryProvider>
+          <KeybindingsSettingsPanel />
+        </RegistryProvider>
+      </WebI18nContext>
+    );
+    await using screen = await render(surface("en"));
+    await using _drain = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          finish(AsyncResult.failure(Cause.interrupt()));
+          await pending;
+        });
+      },
+    };
+    await screen.getByRole("button", { name: "Open keybindings.json", exact: true }).click();
+    expect(fixture.open).toHaveBeenCalledExactlyOnceWith(fixture.path);
+    expect(toast).not.toHaveBeenCalled();
+    fixture.locale = "zh-CN";
+    await screen.rerender(surface("zh-CN"));
+    await act(async () => {
+      finish(
+        AsyncResult.failure(
+          kind === "interrupted"
+            ? Cause.interrupt()
+            : Cause.fail(
+                kind === "raw"
+                  ? new Error("Literal $& {editor}")
+                  : kind === "empty"
+                    ? new Error("")
+                    : null,
+              ),
+        ),
+      );
+      await pending;
+    });
+    if (kind === "interrupted") expect(toast).not.toHaveBeenCalled();
+    else
+      expect(toast).toHaveBeenCalledExactlyOnceWith({
+        type: "error",
+        title: "无法打开快捷键配置文件",
+        description:
+          kind === "raw"
+            ? "Literal $& {editor}"
+            : kind === "empty"
+              ? ""
+              : "未能打开快捷键配置文件。",
+      });
+    fixture.locale = "en";
+    await screen.rerender(surface("en"));
+    expect(toast).toHaveBeenCalledTimes(kind === "interrupted" ? 0 : 1);
+    expect(fixture.mutation).not.toHaveBeenCalled();
+    expect(fixture.open).toHaveBeenCalledTimes(1);
+  },
+);
+
+it("does not open the keybindings editor without a path or current scope", async () => {
+  fixture.active = true;
+  fixture.path = null;
+  fixture.allowed = true;
+  fixture.locale = "en";
+  fixture.open.mockReset();
+  fixture.mutation.mockReset();
+  using _restore = {
+    [Symbol.dispose]() {
+      fixture.active = false;
+      fixture.path = null;
+      fixture.allowed = true;
+    },
+  };
+  using toast = vi.spyOn(toastManager, "add").mockImplementation(() => "fixture-toast");
+  const surface = () => (
+    <RegistryProvider>
+      <KeybindingsSettingsPanel />
+    </RegistryProvider>
+  );
+  await using screen = await render(surface());
+  const button = screen.getByRole("button", { name: "Open keybindings.json", exact: true });
+  await expect.element(button).toBeDisabled();
+  await act(() => {
+    button.element().dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+  });
+  fixture.path = "/fixture/keybindings.json";
+  await screen.rerender(surface());
+  await expect.element(button).toBeEnabled();
+  fixture.allowed = false;
+  await button.click();
+  expect(fixture.open).not.toHaveBeenCalled();
+  await screen.rerender(surface());
+  await expect.element(button).toBeDisabled();
+  expect(fixture.mutation).not.toHaveBeenCalled();
+  expect(toast).not.toHaveBeenCalled();
 });
