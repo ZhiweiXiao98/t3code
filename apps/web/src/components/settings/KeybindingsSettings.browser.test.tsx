@@ -1,3 +1,4 @@
+import { compileResolvedKeybindingsConfig } from "@t3tools/shared/keybindings";
 import { RegistryProvider } from "@effect/atom-react";
 import { describe, expect, it, vi } from "vite-plus/test";
 import { page, userEvent, type Locator } from "vite-plus/test/browser";
@@ -11,6 +12,8 @@ import { translateWebMessage } from "../../i18n/messages";
 const fixture = vi.hoisted(() => ({
   active: false,
   saveMode: false,
+  removeMode: false,
+  remove: vi.fn(),
   upsert: vi.fn(),
   path: null as string | null,
   allowed: true,
@@ -56,11 +59,13 @@ vi.mock(import("../../state/session"), async (original) => ({
 vi.mock(import("../../state/use-atom-command"), async (original) => ({
   ...(await original()),
   useAtomCommand: ((command: unknown) =>
-    fixture.saveMode && command === serverEnvironment.upsertKeybinding
-      ? fixture.upsert
-      : fixture.active
-        ? fixture.mutation
-        : vi.fn()) as never,
+    fixture.removeMode && command === serverEnvironment.removeKeybinding
+      ? fixture.remove
+      : fixture.saveMode && command === serverEnvironment.upsertKeybinding
+        ? fixture.upsert
+        : fixture.active
+          ? fixture.mutation
+          : vi.fn()) as never,
 }));
 vi.mock(import("./SettingsScopeContext"), async (original) => ({
   ...(await original()),
@@ -68,7 +73,15 @@ vi.mock(import("./SettingsScopeContext"), async (original) => ({
     const environment = {
       environmentId: "env",
       label: "Build workstation",
-      serverConfig: { keybindings: [], keybindingsConfigPath: fixture.path, availableEditors: [] },
+      serverConfig: {
+        keybindings: fixture.removeMode
+          ? compileResolvedKeybindingsConfig([
+              { command: "sidebar.toggle", key: "f8", when: "terminalFocus" },
+            ])
+          : [],
+        keybindingsConfigPath: fixture.path,
+        availableEditors: [],
+      },
     };
     return {
       scope: { kind: "environment" },
@@ -524,3 +537,115 @@ it("rechecks write scope before saving a recorded keybinding and allows Escape c
   expect(fixture.open).not.toHaveBeenCalled();
   expect(toast).not.toHaveBeenCalled();
 });
+
+it.each(["owned", "raw", "empty", "interrupted", "denied"] as const)(
+  "uses settlement locale for keybinding remove failure: %s",
+  async (kind) => {
+    fixture.active = true;
+    fixture.removeMode = true;
+    fixture.allowed = true;
+    fixture.locale = "en";
+    fixture.remove.mockReset();
+    fixture.upsert.mockReset();
+    fixture.mutation.mockReset();
+    fixture.open.mockReset();
+    using _restore = {
+      [Symbol.dispose]() {
+        fixture.active = false;
+        fixture.removeMode = false;
+        fixture.allowed = true;
+        fixture.locale = "en";
+      },
+    };
+    let finish!: (result: AsyncResult.AsyncResult<never, unknown>) => void;
+    const pending = new Promise<AsyncResult.AsyncResult<never, unknown>>((resolve) => {
+      finish = resolve;
+    });
+    fixture.remove.mockReturnValue(pending);
+    using toast = vi.spyOn(toastManager, "add").mockImplementation(() => "fixture-toast");
+    const surface = (locale: "en" | "zh-CN") => (
+      <WebI18nContext
+        value={{
+          locale,
+          appLocale: locale,
+          setAppLocale: () => {},
+          t: (key, values) => translateWebMessage(locale, key, values),
+        }}
+      >
+        <RegistryProvider>
+          <KeybindingsSettingsPanel />
+        </RegistryProvider>
+      </WebI18nContext>
+    );
+    await using screen = await render(surface("en"));
+    await using _drain = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          finish(AsyncResult.failure(Cause.interrupt()));
+          await pending;
+        });
+      },
+    };
+    const trigger = screen.getByRole("button", {
+      name: "Actions for Sidebar: Toggle",
+      exact: true,
+    });
+    await trigger.click();
+    const remove = page.getByRole("menuitem", { name: "Remove", exact: true });
+    await expect.element(remove).toBeEnabled();
+    if (kind === "denied") fixture.allowed = false;
+    await remove.click();
+    if (kind === "denied") {
+      expect(fixture.remove).not.toHaveBeenCalled();
+      expect(toast).not.toHaveBeenCalled();
+    } else {
+      expect(fixture.remove).toHaveBeenCalledExactlyOnceWith({
+        environmentId: "env",
+        input: { command: "sidebar.toggle", key: "f8", when: "terminalFocus" },
+      });
+      await expect.element(trigger).toBeDisabled();
+      await act(() => {
+        trigger.element().dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+      });
+      expect(fixture.remove).toHaveBeenCalledTimes(1);
+      expect(toast).not.toHaveBeenCalled();
+      fixture.locale = "zh-CN";
+      await screen.rerender(surface("zh-CN"));
+      await act(async () => {
+        finish(
+          AsyncResult.failure(
+            kind === "interrupted"
+              ? Cause.interrupt()
+              : Cause.fail(
+                  kind === "raw"
+                    ? new Error("Literal $& {remove}")
+                    : kind === "empty"
+                      ? new Error("")
+                      : null,
+                ),
+          ),
+        );
+        await pending;
+      });
+      if (kind === "interrupted") expect(toast).not.toHaveBeenCalled();
+      else
+        expect(toast).toHaveBeenCalledExactlyOnceWith({
+          type: "error",
+          title: "无法移除快捷键",
+          description:
+            kind === "raw" ? "Literal $& {remove}" : kind === "empty" ? "" : "未能移除快捷键。",
+        });
+      fixture.locale = "en";
+      await screen.rerender(surface("en"));
+      expect(toast).toHaveBeenCalledTimes(kind === "interrupted" ? 0 : 1);
+      expect(fixture.remove).toHaveBeenCalledTimes(1);
+    }
+    await expect.element(trigger).toBeEnabled();
+    await expect
+      .element(screen.getByRole("button", { name: /^Edit shortcut for Sidebar: Toggle:/ }))
+      .toBeVisible();
+    expect(fixture.upsert).not.toHaveBeenCalled();
+    expect(fixture.mutation).not.toHaveBeenCalled();
+    expect(fixture.open).not.toHaveBeenCalled();
+  },
+);

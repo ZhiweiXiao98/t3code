@@ -1374,7 +1374,7 @@ function useKeybindingCatalog() {
 }
 
 export function KeybindingsSettingsPanel() {
-  const { locale, t } = useI18n();
+  const { locale } = useI18n();
   const { environment: primaryEnvironment, connectedEnvironments } = useSettingsScope();
   const canOpenKeybindingsFile = useEnvironmentScope(
     primaryEnvironment?.environmentId ?? null,
@@ -1497,6 +1497,7 @@ export function KeybindingsSettingsPanel() {
       setSavingCommand(null);
       const result = results.find((entry) => entry._tag === "Failure") ?? results[0];
       if (result?._tag === "Failure" && !isAtomCommandInterrupted(result)) {
+        const { t } = readWebI18n();
         const error = squashAtomCommandFailure(result);
         toastManager.add({
           title: t("keybindings.error.removeTitle"),
