@@ -152,6 +152,7 @@ function ReclaimRow({
     setRequested(true);
     const result = await reclaim({ environmentId, input: {} });
     if (result._tag === "Success") {
+      const { t } = readWebI18n();
       toastManager.add({
         type: "success",
         title: t("storage.database.reclaiming", { amount, environment: label }),

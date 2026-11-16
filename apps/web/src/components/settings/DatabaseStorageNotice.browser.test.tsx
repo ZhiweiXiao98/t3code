@@ -186,3 +186,99 @@ it.each(["owned", "raw", "empty", "interrupted", "cancel"] as const)(
     expect(get).toHaveBeenCalledWith("database-storage-notice-dismissed");
   },
 );
+
+it.each(["zh-CN", "en"] as const)(
+  "uses settlement locale for database reclaim success: %s",
+  async (locale) => {
+    fixture.locale = "en";
+    fixture.reclaim.mockReset();
+    using stack = new DisposableStack();
+    const registry = stack.adopt(AtomRegistry.make(), (value) => value.dispose());
+    expect(registry.get(primaryEnvironmentIdAtom)).toBeNull();
+    stack.defer(() => {
+      fixture.locale = "en";
+    });
+    const originalGet = Storage.prototype.getItem;
+    using get = vi.spyOn(Storage.prototype, "getItem").mockImplementation(function (
+      this: Storage,
+      key,
+    ) {
+      return key === "database-storage-notice-dismissed" ? null : originalGet.call(this, key);
+    });
+    using set = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {});
+    using toast = vi.spyOn(toastManager, "add").mockImplementation(() => "fixture-toast");
+    const environmentId = EnvironmentId.make("reclaim-fixture");
+    const label = "Literal $& {environment}";
+    let finish!: (result: AsyncResult.AsyncResult<void, unknown>) => void;
+    const pending = new Promise<AsyncResult.AsyncResult<void, unknown>>((resolve) => {
+      finish = resolve;
+    });
+    fixture.reclaim.mockReturnValue(pending);
+    const surface = (locale: "en" | "zh-CN") => (
+      <WebI18nContext
+        value={{
+          locale,
+          appLocale: locale,
+          setAppLocale: () => {},
+          t: (key, values) => translateWebMessage(locale, key, values),
+        }}
+      >
+        <RegistryContext.Provider value={registry}>
+          <DatabaseStorageNotice environments={[{ environmentId, label }]} />
+        </RegistryContext.Provider>
+      </WebI18nContext>
+    );
+    await using screen = await render(surface("en"));
+    await using _drain = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          finish(AsyncResult.failure(Cause.interrupt()));
+          await pending;
+        });
+      },
+    };
+    await screen.getByRole("button", { name: "Reclaim", exact: true }).click();
+    const confirm = page.getByRole("button", { name: "Restart and reclaim", exact: true });
+    await expect.element(confirm).toBeVisible();
+    expect(fixture.reclaim).not.toHaveBeenCalled();
+
+    await confirm.click();
+    expect(fixture.reclaim).toHaveBeenCalledExactlyOnceWith({ environmentId, input: {} });
+    await expect
+      .element(screen.getByRole("button", { name: "Restarting…", exact: true }))
+      .toBeDisabled();
+    expect(toast).not.toHaveBeenCalled();
+    fixture.locale = locale;
+    await screen.rerender(surface(locale));
+    await act(async () => {
+      finish(AsyncResult.success(undefined));
+      await pending;
+    });
+    expect(toast).toHaveBeenCalledExactlyOnceWith({
+      type: "success",
+      title:
+        locale === "zh-CN"
+          ? `正在回收 ${label} 上的 2.0 GiB 空间`
+          : `Reclaiming 2.0 GiB on ${label}`,
+      description:
+        locale === "zh-CN"
+          ? "该设备上的 T3 Code 正在重启，预计约 1 分钟后恢复。"
+          : "T3 Code there restarts and is back in about 1 min.",
+    });
+    const restarting = screen.getByRole("button", {
+      name: locale === "zh-CN" ? "正在重启…" : "Restarting…",
+      exact: true,
+    });
+    await expect.element(restarting).toBeDisabled();
+    await act(() => {
+      restarting
+        .element()
+        .dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+    });
+    expect(fixture.reclaim).toHaveBeenCalledTimes(1);
+    await screen.rerender(surface(locale));
+    expect(toast).toHaveBeenCalledTimes(1);
+    expect(set).not.toHaveBeenCalled();
+    expect(get).toHaveBeenCalledWith("database-storage-notice-dismissed");
+  },
+);
