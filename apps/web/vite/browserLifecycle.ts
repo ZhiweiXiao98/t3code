@@ -164,6 +164,7 @@ export function observeBrowserLifecycle(provider: ReturnType<typeof playwright>)
       const providerId = ++nextProvider;
       let active = true;
       const disposers: Array<() => void> = [];
+      const activitySnapshots: Array<() => void> = [];
       const emit: Emit = (event, fields = {}) => {
         if (active) write(event, { provider: providerId, ...fields });
       };
@@ -416,6 +417,38 @@ export function observeBrowserLifecycle(provider: ReturnType<typeof playwright>)
           }
           return value;
         };
+        // Snapshot only existing observations; normal async provider shutdown detaches
+        // CDP before socket-close events necessarily arrive. No claim of full traffic coverage.
+        if (activitySnapshots.length < 64) {
+          activitySnapshots.push(() => {
+            const values = [...sockets.values()];
+            const hasData = (value: (typeof values)[number]) =>
+              value.activity.sent_data_count > 0 || value.activity.received_data_count > 0;
+            const isVitest = (value: (typeof values)[number]) =>
+              value.category === "tester" ||
+              value.category === "orchestrator" ||
+              value.category === "vitest-other";
+            values.sort((a, b) => Number(isVitest(b)) - Number(isVitest(a)) || a.id - b.id);
+            emit("socket-activity-coverage", {
+              page: id,
+              reason: "normalteardown",
+              tracked_sockets: values.length,
+              sockets_with_data: values.filter(hasData).length,
+              emitted_sockets: Math.min(values.length, 16),
+              omitted_sockets: Math.max(0, values.length - 16),
+            });
+            for (const value of values.slice(0, 16)) {
+              emit("socket-activity-snapshot", {
+                page: id,
+                socket: value.id,
+                socket_kind: value.category,
+                reason: "normalteardown",
+                handshake_status: value.handshake,
+                ...value.activity,
+              });
+            }
+          });
+        }
         cdp.on("Network.webSocketCreated", ({ requestId, url }) => {
           const value = socket(requestId);
           if (value) value.category = socketCategory(url);
@@ -521,6 +554,19 @@ export function observeBrowserLifecycle(provider: ReturnType<typeof playwright>)
         teardown = true;
         emit("provider-close-requested");
         try {
+          try {
+            emit("socket-activity-pages", {
+              reason: "normalteardown",
+              observed_pages: nextPage,
+              snapshot_pages: activitySnapshots.length,
+              omitted_pages: Math.max(0, nextPage - activitySnapshots.length),
+            });
+            for (const snapshot of activitySnapshots) snapshot();
+          } catch {
+            emit("socket-activity-snapshot-unavailable");
+          } finally {
+            activitySnapshots.length = 0;
+          }
           return close(options);
         } finally {
           for (const stop of stopProcessSamplers) {
