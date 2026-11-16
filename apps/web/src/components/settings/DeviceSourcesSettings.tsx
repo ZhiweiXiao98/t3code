@@ -319,13 +319,14 @@ export function DeviceSourcesSettings(props: {
     if (!checked) return;
     const failed = targets.filter((target) => checked[target.environmentId]?.status === "failed");
     const failureLocale = failed.length > 0 ? readWebI18n().locale : locale;
+    const successLocale = failed.length === 0 ? readWebI18n().locale : locale;
     toastManager.add({
       type: failed.length ? "error" : "success",
       title: failed.length
         ? failureLocale === "zh-CN"
           ? `${host.label}：${targets.length} 个环境中有 ${failed.length} 个失败`
           : `${host.label}: ${failed.length} of ${targets.length} environments failed`
-        : locale === "zh-CN"
+        : successLocale === "zh-CN"
           ? `${host.label}：连接检查通过`
           : `${host.label}: connection checks passed`,
       description: failed.length
@@ -335,7 +336,10 @@ export function DeviceSourcesSettings(props: {
               return `${target.label}: ${result?.status === "failed" ? result.error : "failed"}`;
             })
             .join("\n")
-        : tx("Connected or already available locally on each selected environment."),
+        : translateWebSource(
+            successLocale,
+            "Connected or already available locally on each selected environment.",
+          ),
     });
   };
 

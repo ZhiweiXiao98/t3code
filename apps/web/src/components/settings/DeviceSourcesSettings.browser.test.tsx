@@ -319,3 +319,99 @@ it.each(["owned", "raw", "empty", "interrupted"] as const)(
     expect(fixture.list).not.toHaveBeenCalled();
   },
 );
+
+it.each([
+  { kind: "ssh", locale: "zh-CN" },
+  { kind: "local", locale: "zh-CN" },
+  { kind: "ssh", locale: "en" },
+] as const)(
+  "uses settlement locale for device host test success: $kind $locale",
+  async ({ kind, locale }) => {
+    fixture.active = true;
+    fixture.locale = "en";
+    fixture.test.mockReset();
+    fixture.update.mockReset();
+    fixture.list.mockReset();
+    using stack = new DisposableStack();
+    const registry = stack.adopt(AtomRegistry.make(), (value) => value.dispose());
+    expect(registry.get(primaryEnvironmentIdAtom)).toBeNull();
+    stack.defer(() => {
+      fixture.active = false;
+      fixture.locale = "en";
+    });
+    using toast = vi.spyOn(toastManager, "add").mockImplementation(() => "fixture-toast");
+    let finish!: (result: AsyncResult.AsyncResult<DeviceHostSummary, unknown>) => void;
+    const pending = new Promise<AsyncResult.AsyncResult<DeviceHostSummary, unknown>>((resolve) => {
+      finish = resolve;
+    });
+    fixture.test.mockReturnValue(pending);
+    const surface = (locale: "en" | "zh-CN") => (
+      <WebI18nContext
+        value={{
+          locale,
+          appLocale: locale,
+          setAppLocale: () => {},
+          t: (key, values) => translateWebMessage(locale, key, values),
+        }}
+      >
+        <RegistryContext.Provider value={registry}>
+          <DeviceSourcesSettings supportsEas={false} supportsSimlock={false} />
+        </RegistryContext.Provider>
+      </WebI18nContext>
+    );
+    await using screen = await render(surface("en"));
+    await using _drain = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          finish(AsyncResult.failure(Cause.interrupt()));
+          await pending;
+        });
+      },
+    };
+    await screen.getByRole("button", { name: "More", exact: true }).click();
+    await page.getByRole("menuitem", { name: "Test connection", exact: true }).click();
+    expect(fixture.test).toHaveBeenCalledExactlyOnceWith({ environmentId, input: host });
+    await expect.element(screen.getByText("Testing connection", { exact: true })).toBeVisible();
+    await screen.getByRole("button", { name: "More", exact: true }).click();
+    await page.getByRole("menuitem", { name: "Test connection", exact: true }).click();
+    expect(fixture.test).toHaveBeenCalledTimes(1);
+    expect(toast).not.toHaveBeenCalled();
+    fixture.locale = locale;
+    await screen.rerender(surface(locale));
+    const result: DeviceHostSummary = {
+      id: kind === "local" ? "local" : host.id,
+      label: host.label,
+      kind,
+      platforms: [{ platform: "ios", available: true }],
+      hubInstalled: false,
+      agentDeviceInstalled: false,
+    };
+    await act(async () => {
+      finish(AsyncResult.success(result));
+      await pending;
+    });
+    expect(toast).toHaveBeenCalledExactlyOnceWith({
+      type: "success",
+      title:
+        locale === "zh-CN"
+          ? "Literal $& {host}：连接检查通过"
+          : "Literal $& {host}: connection checks passed",
+      description:
+        locale === "zh-CN"
+          ? "已连接，或在每个所选环境中已可在本地使用。"
+          : "Connected or already available locally on each selected environment.",
+    });
+    fixture.locale = "en";
+    await screen.rerender(surface("en"));
+    await expect.element(screen.getByRole("button", { name: "More", exact: true })).toBeEnabled();
+    await expect
+      .element(screen.getByText("Testing connection", { exact: true }))
+      .not.toBeInTheDocument();
+    await expect.element(screen.getByText(host.label, { exact: true })).toBeVisible();
+    expect(scopedEnvironment.serverConfig.settings).toBe(settings);
+    expect(fixture.test).toHaveBeenCalledTimes(1);
+    expect(toast).toHaveBeenCalledTimes(1);
+    expect(fixture.update).not.toHaveBeenCalled();
+    expect(fixture.list).not.toHaveBeenCalled();
+  },
+);
