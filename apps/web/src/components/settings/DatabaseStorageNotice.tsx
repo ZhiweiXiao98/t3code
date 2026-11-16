@@ -1,3 +1,4 @@
+import { readWebI18n } from "../../i18n/readWebI18n";
 import { translateWebSource } from "../../i18n/messages";
 import { useI18n } from "../../i18n/WebI18nContext";
 import { useAtomValue } from "@effect/atom-react";
@@ -160,11 +161,12 @@ function ReclaimRow({
     }
     setRequested(false);
     if (isAtomCommandInterrupted(result)) return;
+    const { t: currentT } = readWebI18n();
     const error = squashAtomCommandFailure(result);
     toastManager.add({
       type: "error",
-      title: t("storage.database.reclaimFailed", { environment: label }),
-      description: error instanceof Error ? error.message : t("common.error"),
+      title: currentT("storage.database.reclaimFailed", { environment: label }),
+      description: error instanceof Error ? error.message : currentT("common.error"),
     });
   };
   return (
