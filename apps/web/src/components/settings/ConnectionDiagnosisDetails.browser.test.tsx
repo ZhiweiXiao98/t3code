@@ -188,7 +188,10 @@ it.each(["owned", "raw", "empty", "English"] as const)(
     expect(fixture.toast).toHaveBeenCalledExactlyOnceWith({
       type: "error",
       title: locale === "zh-CN" ? "无法复制诊断信息" : "Could not copy diagnostics",
-      description: "Failed to copy connection diagnostics to the clipboard.",
+      description:
+        locale === "zh-CN"
+          ? "无法将 连接诊断 复制到剪贴板。"
+          : "Failed to copy connection diagnostics to the clipboard.",
       data: { actionLayout: "stacked-end" },
     });
     expect(log).toHaveBeenCalledExactlyOnceWith(

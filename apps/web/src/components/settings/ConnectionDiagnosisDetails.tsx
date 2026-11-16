@@ -1,6 +1,7 @@
 import { translateWebSource } from "../../i18n/messages";
 import { useI18n } from "../../i18n/WebI18nContext";
 import { readWebI18n } from "../../i18n/readWebI18n";
+import { clipboardErrorMessage } from "../../i18n/clipboardErrorMessages";
 import { useAtomValue } from "@effect/atom-react";
 import {
   AVAILABLE_CONNECTION_STATE,
@@ -170,8 +171,9 @@ export function ConnectionDiagnosisPanel({
   readonly onAddRoute: (() => void) | null;
 }) {
   const { locale: sourceLocale } = useI18n();
+  const copyTarget = translateWebSource(sourceLocale, "connection diagnostics");
   const { copyToClipboard } = useCopyToClipboard({
-    target: translateWebSource(sourceLocale, "connection diagnostics"),
+    target: copyTarget,
     onCopy: () => {
       const { locale } = readWebI18n();
       toastManager.add({
@@ -185,7 +187,11 @@ export function ConnectionDiagnosisPanel({
         stackedThreadToast({
           type: "error",
           title: translateWebSource(locale, "Could not copy diagnostics"),
-          description: error.message,
+          description:
+            clipboardErrorMessage(error, locale, {
+              target: copyTarget,
+              displayTarget: translateWebSource(locale, "connection diagnostics"),
+            }) ?? error.message,
         }),
       );
     },
