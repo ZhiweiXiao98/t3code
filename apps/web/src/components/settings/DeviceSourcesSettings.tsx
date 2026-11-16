@@ -303,7 +303,7 @@ export function DeviceSourcesSettings(props: {
         environmentId: patch.environmentId,
         patch: { simlockDeviceHosts: patch.hosts },
       })),
-      tx("Simlock host not saved everywhere"),
+      () => translateWebSource(readWebI18n().locale, "Simlock host not saved everywhere"),
     );
     if (saved) setEditing(null);
   };
@@ -315,7 +315,7 @@ export function DeviceSourcesSettings(props: {
           environmentId: environment.environmentId,
           patch: { simlockDeviceHosts: updateSimlockDeviceHosts(environment.hosts, host, true) },
         })),
-      tx("Simlock host not removed everywhere"),
+      () => translateWebSource(readWebI18n().locale, "Simlock host not removed everywhere"),
     );
 
   const [testing, setTesting] = useState<ReadonlySet<string>>(new Set());
