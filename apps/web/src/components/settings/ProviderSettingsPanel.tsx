@@ -641,6 +641,7 @@ export function EnvironmentProviderSettings({
           return;
         }
         if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
+          const { locale: translationLocale } = readWebI18n();
           const error = squashAtomCommandFailure(result);
           toastManager.add({
             type: "error",

@@ -1125,3 +1125,167 @@ it.each(["owned", "raw", "empty", "interrupted"] as const)(
     expect(state.toast).toHaveBeenCalledTimes(kind === "interrupted" ? 0 : 1);
   },
 );
+
+it.each(["owned", "raw", "empty", "interrupted"] as const)(
+  "uses settlement locale for provider authentication failure: %s",
+  async (kind) => {
+    await setup();
+    state.locale = "en";
+    state.toast.mockReset();
+    using _restore = {
+      [Symbol.dispose]() {
+        state.locale = null;
+      },
+    };
+    const instanceId = ProviderInstanceId.make("acpRegistry_fixture");
+    const action = {
+      elicitationId: "fixture-auth-request",
+      url: "https://auth.example.invalid/fixture?literal=$%26",
+      message: "Literal $& {authentication request}",
+    };
+    state.settings = {
+      ...DEFAULT_UNIFIED_SETTINGS,
+      providerInstances: {
+        [instanceId]: {
+          driver: ProviderDriverKind.make("acpRegistry"),
+          enabled: true,
+          config: { agentId: "fixture-agent" },
+        },
+      },
+    };
+    const originalSettings = state.settings;
+    await setProviders([
+      {
+        ...provider(),
+        instanceId,
+        driver: ProviderDriverKind.make("acpRegistry"),
+        auth: { status: "unauthenticated", action },
+      },
+    ]);
+    const result = AsyncResult.failure(
+      kind === "interrupted"
+        ? Cause.interrupt()
+        : Cause.fail(
+            kind === "owned"
+              ? null
+              : new Error(kind === "empty" ? "" : "Literal $& {authentication error}"),
+          ),
+    );
+    let resolve!: (value: typeof result) => void;
+    const pending = new Promise<typeof result>((done) => {
+      resolve = done;
+    });
+    state.acceptUrlAuth.mockReturnValueOnce(pending);
+    const surface = (locale: "en" | "zh-CN") => (
+      <WebI18nContext
+        value={{
+          locale,
+          appLocale: locale,
+          setAppLocale: () => undefined,
+          t: (key, values) => translateWebMessage(locale, key, values),
+        }}
+      >
+        {panel({ targetInstanceId: instanceId })}
+      </WebI18nContext>
+    );
+    await using screen = await render(surface("en"));
+    await using _drain = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          resolve(result);
+          await pending;
+        });
+      },
+    };
+    const link = page.getByRole("link", { name: "Continue authentication", exact: true });
+    const element = link.element();
+    expect(element.getAttribute("href")).toBe(action.url);
+    expect(element.getAttribute("target")).toBe("_blank");
+    let prevented = false;
+    const preventNavigation = (event: Event) => {
+      event.preventDefault();
+      prevented = event.defaultPrevented;
+    };
+    element.addEventListener("click", preventNavigation);
+    using _listener = {
+      [Symbol.dispose]() {
+        element.removeEventListener("click", preventNavigation);
+      },
+    };
+    await userEvent.click(link);
+    expect(prevented).toBe(true);
+    expect(state.acceptUrlAuth).toHaveBeenCalledExactlyOnceWith({
+      environmentId,
+      input: { instanceId, elicitationId: action.elicitationId },
+    });
+    expect(state.toast).not.toHaveBeenCalled();
+    state.locale = "zh-CN";
+    await screen.rerender(surface("zh-CN"));
+    await act(async () => {
+      resolve(result);
+      await pending;
+    });
+    if (kind === "interrupted") expect(state.toast).not.toHaveBeenCalled();
+    else
+      expect(state.toast).toHaveBeenCalledExactlyOnceWith({
+        type: "error",
+        title: "无法继续认证",
+        description:
+          kind === "owned"
+            ? "认证请求已过期。"
+            : kind === "empty"
+              ? ""
+              : "Literal $& {authentication error}",
+      });
+    expect(state.settings).toBe(originalSettings);
+    expect(
+      page.getByRole("link", { name: "继续认证", exact: true }).element().getAttribute("href"),
+    ).toBe(action.url);
+    expect(state.mutateProviderInstance).not.toHaveBeenCalled();
+    expect(state.updateSettings).not.toHaveBeenCalled();
+    expect(state.updateProvider).not.toHaveBeenCalled();
+    expect(state.uninstall).not.toHaveBeenCalled();
+    expect(state.refresh).not.toHaveBeenCalled();
+    state.locale = "en";
+    await screen.rerender(surface("en"));
+    expect(state.toast).toHaveBeenCalledTimes(kind === "interrupted" ? 0 : 1);
+  },
+);
+
+it("does not expose provider authentication action in a read-only panel", async () => {
+  await setup();
+  const instanceId = ProviderInstanceId.make("acpRegistry_fixture");
+  const action = {
+    elicitationId: "fixture-auth-request",
+    url: "https://auth.example.invalid/fixture",
+    message: "Literal authentication request",
+  };
+  state.settings = {
+    ...DEFAULT_UNIFIED_SETTINGS,
+    providerInstances: {
+      [instanceId]: {
+        driver: ProviderDriverKind.make("acpRegistry"),
+        enabled: true,
+        displayName: "Read-only fixture",
+        config: { agentId: "fixture-agent" },
+      },
+    },
+  };
+  await setProviders([
+    {
+      ...provider(),
+      instanceId,
+      driver: ProviderDriverKind.make("acpRegistry"),
+      auth: { status: "unauthenticated", action },
+    },
+  ]);
+  await using _screen = await render(panel({ targetInstanceId: instanceId, readOnly: true }));
+  await expect
+    .element(page.getByRole("switch", { name: "Enable Read-only fixture", exact: true }).first())
+    .toBeDisabled();
+  await expect
+    .element(page.getByRole("link", { name: "Continue authentication", exact: true }))
+    .not.toBeInTheDocument();
+  expect(state.acceptUrlAuth).not.toHaveBeenCalled();
+  expect(state.mutateProviderInstance).not.toHaveBeenCalled();
+});
