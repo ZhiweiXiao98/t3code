@@ -1,0 +1,68 @@
+name: Web 单 worker 全量受控诊断
+on:
+  push:
+    branches: [validation/v0.1.9-web-single-worker-e2507e33-recovery]
+permissions:
+  contents: read
+concurrency:
+  group: web-single-worker-e2507e33-recovery
+  cancel-in-progress: false
+jobs:
+  shards:
+    if: github.repository == 'ZhiweiXiao98/t3code' && github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      CI: "true"
+      SOURCE_SHA: e2507e33ba837bbe674f43cc4bbd1424981dc1a1
+      GIT_TERMINAL_PROMPT: "0"
+    steps:
+      - name: Checkout exact diagnostic source without credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
+          git sparse-checkout set --no-cone '/*' '!/.repos/'
+          git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
+        with:
+          node-version-file: package.json
+          cache: true
+          run-install: false
+      - run: vp install --frozen-lockfile
+      - name: Install same browser and native prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/ci-ubuntu-packages.py packages libsecret-1-dev pkg-config build-essential imagemagick
+          python3 .github/scripts/ci-ubuntu-packages.py playwright apps/web/node_modules/playwright/cli.js
+          node apps/web/node_modules/playwright/cli.js install --only-shell chromium
+      - name: Record complete test inventory and run one bounded unsharded single-worker suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/web-browser-diagnostics"
+          (cd apps/web && vp test list --project unit --project browser --filesOnly --json="$RUNNER_TEMP/web-browser-diagnostics/all-files.json")
+          python3 - <<'PY'
+          import os, pathlib, json
+          source = pathlib.Path(".github/scripts/observe-web-tests.py").read_text()
+          old = 'COMMAND = ["vp", "run", "--filter", "@t3tools/web", "test"]'
+          assert source.count(old) == 1
+          command = ["vp", "run", "--filter", "@t3tools/web", "test", "--maxWorkers=1", "--reporter=default", "--reporter=json", "--outputFile.json=" + os.environ["RUNNER_TEMP"] + "/web-browser-diagnostics/single-worker-results.json"]
+          target = pathlib.Path(os.environ["RUNNER_TEMP"]) / "observe-single-worker.py"
+          target.write_text(source.replace(old, "COMMAND = " + repr(command)))
+          pathlib.Path(os.environ["RUNNER_TEMP"] + "/web-browser-diagnostics/experiment.json").write_text(json.dumps({"source": os.environ["SOURCE_SHA"], "maxWorkers": 1, "sharded": False, "purpose": "diagnostic only; not release acceptance", "changed": "single-worker limit and JSON reporter only", "command": command}, indent=2))
+          PY
+          python3 "$RUNNER_TEMP/observe-single-worker.py"
+      - name: Preserve evidence regardless of test outcome
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-single-worker-e2507e33-${{ github.run_id }}
+          path: ${{ runner.temp }}/web-browser-diagnostics/
+          if-no-files-found: error
+          retention-days: 14
+
