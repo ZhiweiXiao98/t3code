@@ -179,14 +179,16 @@ export function ConnectionDiagnosisPanel({
         title: translateWebSource(locale, "Diagnostics copied"),
       });
     },
-    onError: (error) =>
+    onError: (error) => {
+      const { locale } = readWebI18n();
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: translateWebSource(sourceLocale, "Could not copy diagnostics"),
+          title: translateWebSource(locale, "Could not copy diagnostics"),
           description: error.message,
         }),
-      ),
+      );
+    },
   });
   return (
     <div className="mt-2 grid gap-3 border-t border-border/50 pt-2 text-xs">
