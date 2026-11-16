@@ -278,7 +278,11 @@ export function DeviceSourcesSettings(props: {
           ),
         },
       })),
-      remove ? tx("EAS host not removed everywhere") : tx("EAS host not saved everywhere"),
+      () =>
+        translateWebSource(
+          readWebI18n().locale,
+          remove ? "EAS host not removed everywhere" : "EAS host not saved everywhere",
+        ),
     );
     if (saved) setEditing(null);
   };
