@@ -4,6 +4,7 @@ import * as NodePath from "node:path";
 import type { Browser, CDPSession, Page } from "playwright";
 import type { PlaywrightBrowserProvider, playwright } from "vite-plus/test/browser-playwright";
 import { createFrameActivity, recordFrameActivity } from "./frameActivity";
+import { sampleSocketLifecycleState } from "./socketLifecycleState";
 import { observeBrowserServerLifecycle } from "./serverLifecycle";
 
 type Fields = Record<string, number | boolean | null | string>;
@@ -445,6 +446,7 @@ export function observeBrowserLifecycle(provider: ReturnType<typeof playwright>)
                 reason: "normalteardown",
                 handshake_status: value.handshake,
                 ...value.activity,
+                ...sampleSocketLifecycleState(page, browser),
               });
             }
           });
@@ -509,6 +511,7 @@ export function observeBrowserLifecycle(provider: ReturnType<typeof playwright>)
               category: socketErrorCategory(errorMessage),
               handshake_status: value.handshake,
               ...value.activity,
+              ...sampleSocketLifecycleState(page, browser),
               teardown,
             });
           if (active && browser && !processErrorSeen.has(browser)) {
@@ -527,6 +530,7 @@ export function observeBrowserLifecycle(provider: ReturnType<typeof playwright>)
               category: closeCategory(value.code),
               handshake_status: value.handshake,
               ...value.activity,
+              ...sampleSocketLifecycleState(page, browser),
               teardown,
             });
           sockets.delete(requestId);

@@ -12,6 +12,7 @@ afterEach(() => vi.unstubAllEnvs());
 function fixture() {
   const directory = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "socket-snapshot-"));
   vi.stubEnv("T3CODE_BROWSER_LIFECYCLE_DIR", directory);
+  const state = { pageClosed: false, contextClosed: false };
   const result = Promise.resolve();
   const close = vi.fn(() => result);
   const cdps: Array<NodeEvents.EventEmitter & { detach: ReturnType<typeof vi.fn> }> = [];
@@ -25,7 +26,12 @@ function fixture() {
       });
       cdps.push(cdp);
       return Object.assign(new NodeEvents.EventEmitter(), {
-        context: () => ({ browser: () => null, newCDPSession: async () => cdp }),
+        context: () => ({
+          browser: () => null,
+          newCDPSession: async () => cdp,
+          isClosed: () => state.contextClosed,
+        }),
+        isClosed: () => state.pageClosed,
         mainFrame: () => null,
       });
     },
@@ -41,7 +47,7 @@ function fixture() {
       .trim()
       .split("\n")
       .map((line) => JSON.parse(line) as Record<string, unknown>);
-  return { observed, close, result, cdps, rows, text };
+  return { observed, close, result, cdps, rows, text, state };
 }
 
 async function open(f: ReturnType<typeof fixture>) {
@@ -127,4 +133,33 @@ it("bounds retained page callbacks and reports omitted page coverage", async () 
     omitted_pages: 1,
   });
   for (const cdp of f.cdps) expect(cdp.detach).toHaveBeenCalledTimes(1);
+});
+
+it("samples lifecycle states freshly on error, closed and teardown snapshot records", async () => {
+  const f = fixture();
+  const cdp = await open(f);
+  cdp.emit("Network.webSocketFrameError", { requestId: "first", errorMessage: "" });
+  expect(f.rows().find((row) => row.event === "socket-error")).toMatchObject({
+    page_closed: false,
+    context_closed: false,
+    browser_connected: null,
+  });
+  f.state.contextClosed = true;
+  cdp.emit("Network.webSocketClosed", { requestId: "first" });
+  expect(f.rows().find((row) => row.event === "socket-closed")).toMatchObject({
+    page_closed: false,
+    context_closed: true,
+    browser_connected: null,
+  });
+  cdp.emit("Network.webSocketCreated", {
+    requestId: "second",
+    url: "ws://localhost/__vitest_browser_api__?type=tester",
+  });
+  f.state.pageClosed = true;
+  expect(f.observed.close()).toBe(f.result);
+  expect(f.rows().find((row) => row.event === "socket-activity-snapshot")).toMatchObject({
+    page_closed: true,
+    context_closed: true,
+    browser_connected: null,
+  });
 });
