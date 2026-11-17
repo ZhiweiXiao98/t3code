@@ -59,16 +59,32 @@ vi.mock("react-native", () => ({
       onClick={() => onValueChange(!value)}
     />
   ),
-  FlatList: ({
+}));
+// Native scrolling and virtualization are outside these display/interaction assertions.
+vi.mock("../../native/NativeScrollViewMarker", () => ({
+  NativeScrollView: ({ children }: { children?: ReactNode }) => <>{children}</>,
+}));
+vi.mock("@legendapp/list/react-native", () => ({
+  LegendList: <T,>({
+    data,
+    keyExtractor,
+    renderItem,
     ListHeaderComponent,
     ListEmptyComponent,
   }: {
+    data: readonly T[];
+    keyExtractor: (item: T) => string;
+    renderItem: (info: { item: T; index: number }) => ReactNode;
     ListHeaderComponent?: ReactNode;
     ListEmptyComponent?: ReactNode;
   }) => (
     <>
       {ListHeaderComponent}
-      {ListEmptyComponent}
+      {data.length === 0
+        ? ListEmptyComponent
+        : data.map((item, index) => (
+            <div key={keyExtractor(item)}>{renderItem({ item, index })}</div>
+          ))}
     </>
   ),
 }));

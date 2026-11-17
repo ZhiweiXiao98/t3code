@@ -136,12 +136,60 @@ it("uses settlement locale for sidebar bulk regenerate title failures", async ()
     { cause: null, description: "", interrupted: true },
   ];
   commands.update.mockReset();
+  // Preserve the real pointer flow and strict selection assertion. A failed click can be
+  // consumed by a drag cancellation or clear selection through navigation; record which
+  // path occurred instead of retrying the click (which would toggle a successful selection).
+  const selectionTrace: unknown[] = [];
+  const recordSelection = (phase: string, event?: Event) => {
+    if (selectionTrace.length === 64) selectionTrace.shift();
+    const pointer = event instanceof MouseEvent ? event : undefined;
+    selectionTrace.push({
+      phase,
+      type: event?.type,
+      row:
+        event?.target instanceof Element
+          ? event.target.closest("[data-sidebar-row]")?.getAttribute("data-sidebar-row")
+          : undefined,
+      ctrl: pointer?.ctrlKey,
+      meta: pointer?.metaKey,
+      button: pointer?.button,
+      buttons: pointer?.buttons,
+      prevented: event?.defaultPrevented,
+      platform: navigator.platform,
+      route: router.history.location.pathname,
+      selection: [...useThreadSelectionStore.getState().selectedThreadKeys],
+    });
+  };
+  const recordCapture = (event: Event) => recordSelection("capture", event);
+  const recordBubble = (event: Event) => recordSelection("bubble", event);
+  const eventTypes = ["pointerdown", "pointerup", "pointercancel", "click", "blur", "resize"];
+  for (const type of eventTypes) {
+    window.addEventListener(type, recordCapture, true);
+    window.addEventListener(type, recordBubble);
+  }
+  const unsubscribeSelection = useThreadSelectionStore.subscribe(() => recordSelection("store"));
+  using _selectionTrace = {
+    [Symbol.dispose]() {
+      unsubscribeSelection();
+      for (const type of eventTypes) {
+        window.removeEventListener(type, recordCapture, true);
+        window.removeEventListener(type, recordBubble);
+      }
+    },
+  };
   let notices = 0;
   for (const [index, entry] of cases.entries()) {
     // The batch action now clears selection when dispatched; reselect for each case.
+    selectionTrace.length = 0;
+    recordSelection(`case-${index}:before`);
     await userEvent.click(row, { modifiers: ["Control"] });
+    recordSelection(`case-${index}:first-click-returned`);
     await userEvent.click(secondRow, { modifiers: ["Control"] });
-    expect([...useThreadSelectionStore.getState().selectedThreadKeys]).toEqual(selectedKeys);
+    recordSelection(`case-${index}:second-click-returned`);
+    expect(
+      [...useThreadSelectionStore.getState().selectedThreadKeys],
+      JSON.stringify(selectionTrace),
+    ).toEqual(selectedKeys);
     let finish!: (result: AtomCommandResult<unknown, unknown>) => void;
     const pending = new Promise<AtomCommandResult<unknown, unknown>>((resolve) => {
       finish = resolve;
