@@ -95,13 +95,17 @@ export function observeMenuInteractions() {
       }
       record("coverage-stop");
       // Teardown may precede final result assignment. Never gate evidence on it.
-      console.info("[browser-menu-interaction-trace]", {
-        utc: Date.now(),
-        testName,
-        taskState,
-        dropped,
-        entries,
-      });
+      // One serialized argument survives Vitest's shallow console object formatter.
+      console.info(
+        JSON.stringify({
+          event: "[browser-menu-interaction-trace]",
+          utc: Date.now(),
+          testName,
+          taskState,
+          dropped,
+          entries,
+        }),
+      );
       active = false;
     },
   };
