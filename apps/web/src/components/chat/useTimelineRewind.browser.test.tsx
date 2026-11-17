@@ -227,8 +227,7 @@ function Probe({
       <ChatBannerLane
         environmentId={ref.environmentId}
         providerStatus={null}
-        providerStatusBannerKey={null}
-        setDismissedProviderStatusBannerKey={() => undefined}
+        providerStatusDismissalKey={null}
         onOpenProviderSetup={() => undefined}
         threadId={ref.threadId}
         threadError={entries.fork?.message ?? null}

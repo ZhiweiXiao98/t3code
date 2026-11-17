@@ -138,7 +138,11 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
   const upstreamMessages = useMessages();
   const m = (message: Parameters<typeof upstreamMessages>[0]) => {
     const text = upstreamMessages(message);
-    return text === "Agents" ? t("settings.group.agents") : translateWebSource(locale, text);
+    return text == null
+      ? text
+      : text === "Agents"
+        ? t("settings.group.agents")
+        : translateWebSource(locale, text);
   };
   const navArea = workspaceAreaProps(
     "settings-nav",

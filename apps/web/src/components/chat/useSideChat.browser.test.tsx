@@ -105,8 +105,7 @@ function Probe({ absent = false }: { absent?: boolean }) {
       <ChatBannerLane
         environmentId={ref.environmentId}
         providerStatus={null}
-        providerStatusBannerKey={null}
-        setDismissedProviderStatusBannerKey={() => undefined}
+        providerStatusDismissalKey={null}
         onOpenProviderSetup={() => undefined}
         threadId={ref.threadId}
         threadError={entries.side?.message ?? null}

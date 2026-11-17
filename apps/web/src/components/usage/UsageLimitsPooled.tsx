@@ -669,8 +669,14 @@ function PoolSection({ pool, now }: { readonly pool: LimitPool; readonly now: nu
             pool={window}
             color={color}
             now={now}
-            label={details ? translateWebSource(locale, details.label) : undefined}
-            description={details ? translateWebSource(locale, details.description) : undefined}
+            label={
+              details?.label == null ? details?.label : translateWebSource(locale, details.label)
+            }
+            description={
+              details?.description === undefined
+                ? undefined
+                : translateWebSource(locale, details.description)
+            }
           />
         );
       })}

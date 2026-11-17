@@ -237,6 +237,7 @@ function Probe({
     insertTextAtEnd: () => false,
     pasteTextAtEnd: () => false,
     citeAssistantText: () => false,
+    replyToResponse: () => false,
     openModelPicker: () => undefined,
     stepReasoningEffort: () => undefined,
     toggleModelPicker: () => undefined,
@@ -337,7 +338,13 @@ function Probe({
     openUsageLimits: () => false,
     clearUsageLimitsFor: () => undefined,
     needsLoadBalancing: false,
-    loadBalancing: { pending: false, failed: false, environmentId: null, refresh: () => undefined },
+    loadBalancing: {
+      pending: false,
+      failed: false,
+      environmentId: null,
+      refresh: () => undefined,
+      refreshSelection: async () => null,
+    },
     readPendingEnvironmentChange: fixture.pendingChange,
     refreshBeforeSend: () => null,
     pendingApprovals:
@@ -390,8 +397,7 @@ function Probe({
       <ChatBannerLane
         environmentId={ref.environmentId}
         providerStatus={null}
-        providerStatusBannerKey={null}
-        setDismissedProviderStatusBannerKey={() => undefined}
+        providerStatusDismissalKey={null}
         onOpenProviderSetup={() => undefined}
         threadId={ref.threadId}
         threadError={entries[errorKey]?.message ?? null}

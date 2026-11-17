@@ -20,7 +20,6 @@ const fixture = vi.hoisted(() => ({
   locale: "en" as "en" | "zh-CN",
   update: vi.fn(),
   toast: vi.fn(),
-  saved: vi.fn(),
 }));
 vi.mock("~/state/use-atom-command", async (original) => {
   const actual = await original<typeof import("../../state/use-atom-command")>();
@@ -133,7 +132,6 @@ function view(canWrite = true) {
         pullRequestKey="literal-pr"
         detail={detail}
         canWriteSourceControl={canWrite}
-        onSaved={fixture.saved}
       />
     </WebI18nContext.Provider>
   );
@@ -142,7 +140,6 @@ function setup() {
   fixture.locale = "en";
   fixture.update.mockReset();
   fixture.toast.mockReset().mockReturnValue("title-toast");
-  fixture.saved.mockReset();
 }
 const interruptedResult = AsyncResult.failure(Cause.interrupt());
 it.each([
@@ -225,7 +222,9 @@ it.each([
     title: "无法保存标题",
     description: entry.description,
   });
-  expect(fixture.saved).not.toHaveBeenCalled();
+  await expect
+    .element(screen.getByRole("button", { name: "编辑标题", exact: true }))
+    .not.toBeInTheDocument();
   fixture.locale = "en";
   await screen.rerender(view());
   expect(fixture.update).toHaveBeenCalledTimes(1);
@@ -252,6 +251,8 @@ it("preserves title permission, unchanged and Escape guards", async () => {
     .element(screen.getByRole("button", { name: "Edit title", exact: true }))
     .toBeVisible();
   expect(fixture.update).not.toHaveBeenCalled();
-  expect(fixture.saved).not.toHaveBeenCalled();
+  await expect
+    .element(screen.getByRole("heading", { name: detail.title, exact: true }))
+    .toBeVisible();
   expect(fixture.toast).not.toHaveBeenCalled();
 });

@@ -162,7 +162,7 @@ const SHORTCUT_MODES = {
   hold: { label: "Hold", hint: "Record while held" },
   toggle: { label: "Toggle", hint: "Tap to start, tap to stop" },
 } as const satisfies Record<VoiceShortcutMode, { label: string; hint: string }>;
-const UNLOAD_LABELS: Record<SpeechModelUnloadTimeout, string> = {
+const UNLOAD_LABELS = {
   never: "Never",
   immediately: "Immediately",
   min_2: "After 2 minutes",

@@ -260,8 +260,7 @@ function Harness(props: {
       <ChatBannerLane
         environmentId={ENV}
         providerStatus={null}
-        providerStatusBannerKey={null}
-        setDismissedProviderStatusBannerKey={() => undefined}
+        providerStatusDismissalKey={null}
         onOpenProviderSetup={() => undefined}
         threadId={props.threadRef.threadId}
         threadError={entries.edit?.message ?? null}

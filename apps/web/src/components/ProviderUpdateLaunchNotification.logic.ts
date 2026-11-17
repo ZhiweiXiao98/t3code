@@ -484,6 +484,7 @@ export function getProviderUpdateSidebarPillView(
   );
   if (succeededProviders.length > 0) {
     const succeededProvider = succeededProviders[0]!;
+    const succeededVersion = succeededProvider.installedVersion ?? succeededProvider.version;
     terminalCandidates.push({
       key: `succeeded:${succeededProviders
         .map(
@@ -499,18 +500,13 @@ export function getProviderUpdateSidebarPillView(
             ? getProviderUpdatedTitle(succeededProvider)
             : translateWebMessage(
                 locale,
-                (succeededProvider.installedVersion ?? succeededProvider.version)
+                succeededVersion
                   ? "providerUpdate.pill.updatedVersion"
                   : "providerUpdate.pill.updatedOne",
                 {
                   provider:
                     PROVIDER_DISPLAY_NAMES[succeededProvider.driver] ?? succeededProvider.driver,
-                  version:
-                    (succeededProvider.installedVersion ?? succeededProvider.version)
-                      ? formatVersion(
-                          succeededProvider.installedVersion ?? succeededProvider.version,
-                        )
-                      : "",
+                  version: succeededVersion ? formatVersion(succeededVersion) : "",
                 },
               )
           : translateWebMessage(locale, "providerUpdate.pill.updatedMany", {

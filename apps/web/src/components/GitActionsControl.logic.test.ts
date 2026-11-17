@@ -354,6 +354,7 @@ describe("localized Git action progress", () => {
     assert.equal(formatGitActionElapsed(0, 65000, "zh-CN"), "1 分 5 秒");
     assert.include(
       resolveFeatureBranchUnavailableReason({
+        action: "commit_push",
         branchName: "feature/do-not-translate",
         hasWorkingTreeChanges: false,
         locale: "zh-CN",
