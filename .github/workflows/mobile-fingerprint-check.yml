@@ -24,6 +24,8 @@ concurrency:
 
 jobs:
   fingerprint:
+    if: >-
+      github.repository == 'pingdotgg/t3code'
     name: Native fingerprint diff
     runs-on: blacksmith-8vcpu-ubuntu-2404
     permissions:
