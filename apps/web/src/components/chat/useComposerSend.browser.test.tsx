@@ -292,6 +292,7 @@ function Probe({
     activeThreadKey: routeKey,
     activeThreadBranch: guard === "branch" ? null : "main",
     activeProject: project,
+    activeProjectIsScratch: false,
     activeProjectDefaultModelSelection: selection,
     activeMessageCount: isServerScenario ? 1 : 0,
     isServerThread: isServerScenario,
@@ -354,7 +355,7 @@ function Probe({
           ? [approval]
           : [],
     respondingRequestIds: [],
-    activePendingProgress: null,
+    activePendingUserInput: null,
     onAdvanceActivePendingUserInput: fixture.advance,
     onRespondToApproval: fixture.respond,
     beginLocalDispatch: fixture.dispatch,
@@ -376,6 +377,7 @@ function Probe({
     sideChatDisabledReason: null,
     handleNewThreadInActiveProject: fixture.newThread,
     persistThreadSettingsForNextTurn: fixture.persist,
+    linkCheckoutPullRequest: () => undefined,
   });
   return (
     <>

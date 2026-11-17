@@ -168,7 +168,11 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
       translateWebSource(locale, SETTINGS_SECTION_LABELS[item.to]),
     ],
   }));
-  const results = searchSettings(query, localizedSearchableItems, m);
+  const results = searchSettings(
+    query,
+    localizedSearchableItems,
+    (message) => m(message) ?? message,
+  );
   const isSearching = query.trim().length > 0;
   const hasResults = results.length > 0;
   const maxResultIndex = Math.max(results.length - 1, 0);
