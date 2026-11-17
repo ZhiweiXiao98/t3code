@@ -1,0 +1,392 @@
+name: Exact signed ARM64 candidate macOS HVF installation
+'on':
+  push:
+    branches:
+    - validation/v0.1.9-signed-android-install-74039745-macos-hvf
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: android-exact-candidate-install-740
+  cancel-in-progress: false
+jobs:
+  install:
+    if: github.repository == 'ZhiweiXiao98/t3code' && github.event.repository.private == false
+    runs-on: macos-15-intel
+    timeout-minutes: 35
+    steps:
+    - name: Validate original signed candidate, install and capture actual screens
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      shell: bash
+      run: "set -euo pipefail\nmkdir \"$RUNNER_TEMP/install-tools\"\ncd \"$RUNNER_TEMP/install-tools\"\
+        \ncat > runtime_host.py <<'LOCAL_REVIEWED_EOF'\n\"\"\"Existing macOS Intel HVF only; no permissions\
+        \ or system settings changed.\"\"\"\nimport os,re,json,time,subprocess\nfrom pathlib import Path\n\
+        def need(v,m):\n if not v:raise ValueError(m)\ndef clean_env():\n return {k:v for k,v in os.environ.items()\
+        \ if k not in ('GITHUB_TOKEN','GH_TOKEN','LD_LIBRARY_PATH','LD_PRELOAD','DYLD_LIBRARY_PATH','DYLD_INSERT_LIBRARIES','ANDROID_I_WANT_MY_TCG')}\n\
+        def check_host(em,out,run):\n need(run(['/usr/bin/uname','-s']).strip()=='Darwin','macOS only')\n\
+        \ need(run(['/usr/bin/uname','-m']).strip()=='x86_64','Intel only')\n run(['/usr/bin/sw_vers'],out/'macos-version.txt')\n\
+        \ accel=run([em,'-accel-check'],out/'acceleration.txt',timeout=60)\n need(re.search(r'(?m)^0\\\
+        s*$',accel) and 'Hypervisor.Framework' in accel,'existing HVF acceleration unavailable; no settings\
+        \ changes')\n run([em,'-version'],out/'emulator-version.txt',timeout=60)\ndef wait_services(adb,out,proc,*,budget=180,clock=time.monotonic,sleep=time.sleep,execute=subprocess.run):\n\
+        \ deadline=clock()+budget;attempt=0\n commands=[('activity-service',['service','check','activity']),('package-service',['service','check','package']),('input-service',['service','check','input']),('android-package',['cmd','package','list','packages','android']),('activity-user',['cmd','activity','get-current-user']),('input-state',['dumpsys','input'])]\n\
+        \ while clock()<deadline:\n  need(proc.poll() is None,'emulator exited before system services\
+        \ became ready')\n  attempt+=1;ok=True;observations=[]\n  for label,args in commands:\n   remaining=deadline-clock()\n\
+        \   if remaining<=0:ok=False;break\n   try:\n    p=execute([str(adb),'-s','emulator-5554','shell',*args],stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=min(10,remaining),env=clean_env())\n\
+        \    raw=p.stdout;text=raw.decode(errors='replace');passed=p.returncode==0\n    if label.endswith('-service'):passed=passed\
+        \ and re.search(r'(?m)^Service '+args[-1]+r': found\\s*$',text) is not None\n    elif label=='android-package':passed=passed\
+        \ and 'package:android' in text.splitlines()\n    elif label=='activity-user':passed=passed and\
+        \ re.fullmatch(r'\\d+',text.strip()) is not None\n    else:passed=passed and bool(text.strip())\
+        \ and ('Input Manager State' in text or 'INPUT MANAGER' in text)\n    observations.append({'command':args,'returncode':p.returncode,'ready':bool(passed)})\n\
+        \   except subprocess.TimeoutExpired as e:\n    raw=e.output or b'';passed=False;observations.append({'command':args,'timeout':True,'ready':False})\n\
+        \   (out/f'service-ready-{attempt:03d}-{label}.txt').write_bytes(raw)\n   ok=ok and bool(passed)\n\
+        \  (out/'service-readiness.json').write_text(json.dumps({'attempt':attempt,'ready':ok,'budget_seconds':budget,'commands':observations},indent=2)+'\\\
+        n')\n  if ok:return\n  remaining=deadline-clock()\n  if remaining>0:sleep(min(5,remaining))\n\
+        \ raise ValueError('Android activity/package/input services not ready within bounded wait; APK\
+        \ not installed')\n\ndef existing_build_tools(sdk,out):\n candidates=[]\n for p in (Path(sdk)/'build-tools').iterdir():\n\
+        \  if re.fullmatch(r'\\d+\\.\\d+\\.\\d+',p.name) and all((p/n).is_file() for n in ('aapt2','apksigner')):candidates.append(p)\n\
+        \ need(candidates,'no existing complete Android build-tools; do not install software')\n selected=max(candidates,key=lambda\
+        \ p:tuple(map(int,p.name.split('.'))))\n (out/'build-tools-selection.json').write_text(json.dumps({'path':str(selected),'installed':False})+'\\\
+        n')\n return selected\nLOCAL_REVIEWED_EOF\ncat > runtime_image.py <<'LOCAL_REVIEWED_EOF'\n\"\"\
+        \"One official SDK package, existing licenses only; no host permission changes.\"\"\"\nimport\
+        \ hashlib,json,subprocess,re\nfrom pathlib import Path\nPACKAGE='system-images;android-30;google_apis;x86_64'\n\
+        def need(v,m):\n if not v:raise ValueError(m)\ndef sha(b):return hashlib.sha256(b).hexdigest()\n\
+        def licenses(sdk):\n p=Path(sdk)/'licenses'\n if not p.is_dir():return {}\n files=list(p.iterdir());need(all(f.is_file()\
+        \ and not f.is_symlink() for f in files),'unexpected license entry')\n return {f.name:sha(f.read_bytes())\
+        \ for f in sorted(files)}\ndef properties(raw):\n values={}\n for line in raw.decode().splitlines():\n\
+        \  if '=' in line and not line.lstrip().startswith('#'):\n   k,v=line.split('=',1);need(k.strip()\
+        \ not in values,'duplicate SDK property');values[k.strip()]=v.strip()\n need(values.get('AndroidVersion.ApiLevel')=='30'\
+        \ and values.get('SystemImage.Abi')=='x86_64' and values.get('SystemImage.TagId')=='google_apis','wrong\
+        \ official image kind')\n need(re.fullmatch(r'\\d+(?:\\.\\d+)*',values.get('Pkg.Revision','')),'missing\
+        \ image revision')\n return values\n\ndef ensure(sdk,pins,out,run):\n sdk=Path(sdk);out=Path(out);image=sdk/'system-images/android-30/google_apis/x86_64';before=licenses(sdk)\n\
+        \ (out/'sdk-licenses-before.json').write_text(json.dumps(before,sort_keys=True)+'\\n')\n installed=False\n\
+        \ if not image.is_dir():\n  need(pins.get('allow_official_image_install') is True,'reviewed image\
+        \ missing; install disabled')\n  need(before,'no existing accepted SDK license records; do not\
+        \ accept new licenses')\n  manager=sdk/'cmdline-tools/latest/bin/sdkmanager';need(manager.is_file(),'existing\
+        \ SDK manager missing')\n  # Never --licenses, never yes; every unforeseen license prompt gets\
+        \ a refusal.\n  try:run([manager,'--install',PACKAGE,'--channel=0'],out/'image-install.txt',timeout=360,input=b'n\\\
+        n'*100)\n  finally:\n   after=licenses(sdk);(out/'sdk-licenses-after.json').write_text(json.dumps(after,sort_keys=True)+'\\\
+        n')\n   need(after==before,'license records changed unexpectedly; halt without restoration')\n\
+        \  installed=True\n need(image.is_dir(),'official image unavailable or license was not previously\
+        \ accepted')\n raw=(image/'source.properties').read_bytes();meta=properties(raw)\n # Optional\
+        \ exact previously-observed pin. Null means record actual official fixed-package revision, not\
+        \ fabricate one.\n if pins.get('image_source_properties_sha256') is not None:need(sha(raw)==pins['image_source_properties_sha256'],'reviewed\
+        \ image revision changed')\n (out/'image-source.properties').write_bytes(raw)\n result={'package':PACKAGE,'installed_this_run':installed,'source_properties_sha256':sha(raw),'properties':meta,'license_records_unchanged':licenses(sdk)==before,'new_license_accepted':False}\n\
+        \ need(result['license_records_unchanged'],'license records changed')\n (out/'image-runtime.json').write_text(json.dumps(result,sort_keys=True,indent=2)+'\\\
+        n');return result\n\ndef ensure_emulator(sdk,pins,out,run):\n sdk=Path(sdk);out=Path(out);em=sdk/'emulator/emulator';before=licenses(sdk)\n\
+        \ if not em.is_file():\n  need(pins.get('allow_official_emulator_install') is True and before,'official\
+        \ emulator missing or existing licenses unavailable')\n  manager=sdk/'cmdline-tools/latest/bin/sdkmanager';need(manager.is_file(),'SDK\
+        \ manager missing')\n  try:run([manager,'--install','emulator','--channel=0'],out/'emulator-install.txt',timeout=360,input=b'n\\\
+        n'*100)\n  finally:need(licenses(sdk)==before,'license records changed unexpectedly')\n need(em.is_file(),'official\
+        \ emulator unavailable or license refused')\n props=(sdk/'emulator/source.properties').read_bytes();(out/'emulator-source.properties').write_bytes(props)\n\
+        \ h=sha(em.read_bytes())\n if pins.get('emulator_binary_sha256') is not None:need(h==pins['emulator_binary_sha256'],'reviewed\
+        \ emulator changed')\n (out/'emulator-binary.json').write_text(json.dumps({'sha256':h,'source_properties_sha256':sha(props),'new_license_accepted':False,'license_records':licenses(sdk)},indent=2)+'\\\
+        n');return em\nLOCAL_REVIEWED_EOF\ncat > install_candidate.py <<'LOCAL_REVIEWED_EOF'\n\"\"\"Candidate-only\
+        \ exact ARM64 APK install/launch evidence. Not release approval.\"\"\"\nimport os,json,re,hashlib,subprocess,time,urllib.request,urllib.error,urllib.parse,zipfile,stat\n\
+        import runtime_image,runtime_host\nfrom pathlib import Path\nSOURCE='74039745b1b44834c30dd9cb275f1c224072dd96'\n\
+        CERT='82f2437cbceb94fe6fe4a60a1c0de99f643124c64a648a27de9ce92bd39ecd88'\nPACKAGE='com.zhiweixiao.t3code.zhcn';VERSION='0.1.9-zh.2';CODE=1000417\n\
+        APK='T3-Code-zh-CN-Android-0.1.9-zh.2-arm64-v8a.apk'\nREPO='ZhiweiXiao98/t3code';BRANCH='validation/v0.1.9-signed-android-install-74039745-macos-hvf'\n\
+        WORKFLOW='.github/workflows/android-install-candidate.yml'\ndef need(v,m):\n if not v:raise ValueError(m)\n\
+        def sha(b):return hashlib.sha256(b).hexdigest()\ndef run(args,out=None,timeout=90,input=None,check=True):\n\
+        \ p=subprocess.run([str(a) for a in args],input=input,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=timeout,env=runtime_host.clean_env())\n\
+        \ if out:Path(out).write_bytes(p.stdout)\n if check:need(p.returncode==0,'command failed: '+str(args[0])+';\
+        \ see captured evidence')\n return p.stdout.decode(errors='replace')\nclass NoRedirect(urllib.request.HTTPRedirectHandler):\n\
+        \ def redirect_request(self,*a,**kw):return None\nclass API:\n def get(self,path):\n  need(path.startswith('/'),'API\
+        \ suffix');req=urllib.request.Request('https://api.github.com/repos/'+REPO+path,headers={'Authorization':'Bearer\
+        \ '+os.environ['GITHUB_TOKEN'],'Accept':'application/vnd.github+json'})\n  return urllib.request.build_opener(NoRedirect()).open(req,timeout=60)\n\
+        \ def json(self,path):\n  with self.get(path) as r:return json.load(r)\n def download(self,p,dest):\n\
+        \  try:self.get('/actions/artifacts/'+str(p['artifact_api']['id'])+'/zip')\n  except urllib.error.HTTPError\
+        \ as e:\n   need(e.code==302,'artifact redirect required; no retry');url=e.headers.get('Location','')\n\
+        \  else:raise ValueError('unexpected download response')\n  u=urllib.parse.urlparse(url);need(u.scheme=='https'\
+        \ and not u.username and not u.password and u.hostname and (u.hostname.endswith('.blob.core.windows.net')\
+        \ or u.hostname.endswith('.githubusercontent.com') or u.hostname.endswith('.actions.githubusercontent.com')),'storage\
+        \ origin')\n  size=p['artifact_api']['size_in_bytes'];h=hashlib.sha256();total=0\n  with urllib.request.build_opener(NoRedirect()).open(url,timeout=120)\
+        \ as r,Path(dest).open('xb') as f:\n   while True:\n    b=r.read(min(1048576,size-total+1))\n\
+        \    if not b:break\n    total+=len(b);need(total<=size,'oversized ZIP');h.update(b);f.write(b)\n\
+        \  need(total==size and 'sha256:'+h.hexdigest()==p['artifact_api']['digest'],'ZIP bytes')\ndef\
+        \ validate(p):\n need(p.get('enabled') is True,'BLOCKED: actual signed pins and image review required')\n\
+        \ need(p['source']==SOURCE and p['certificate']==CERT and p['package']==PACKAGE and p['version_name']==VERSION\
+        \ and p['version_code']==CODE,'identity')\n for k in ['apk_sha256','signed_provenance_sha256']:\n\
+        \  need(re.fullmatch('[a-f0-9]{64}',p.get(k) or '') is not None,'unreviewed '+k)\n need(type(p.get('apk_size'))is\
+        \ int and 0<p['apk_size']<200*1024**2,'APK size')\n need(p['image_package']=='system-images;android-30;google_apis;x86_64','one\
+        \ reviewed image only')\n need(p['artifact_api']['workflow_run']['id']==p['producer_api']['run_id']==p['run_api']['id'],'signed\
+        \ producer binding')\n need(p['artifact_api']['workflow_run']['head_sha']==p['producer_api']['head_sha']==p['run_api']['head_sha'],'signed\
+        \ operation binding')\n need(p['run_api']['conclusion']==p['producer_api']['conclusion']=='success','sign\
+        \ success')\n need(p['run_api']['id']==44006894711 and p['producer_api']['id']==133784319512 and\
+        \ p['artifact_api']['id']==14294302746 and p['run_api']['head_sha']=='5b48c3abd7c38618d63a899059fdb852d66a34d7','exact\
+        \ original signing operation')\n need(p.get('hardware_acceleration')=='macos-intel-hvf' and p.get('allow_official_emulator_install')\
+        \ is False,'reviewed existing macOS HVF mode required')\n need(0<p['artifact_api']['size_in_bytes']<220*1024**2,'ZIP\
+        \ budget')\ndef check_api(api,p):\n need(api.json('/git/ref/heads/maintenance/v0.1.9-zh-cloud')['object']['sha']==SOURCE,'source\
+        \ moved')\n need(api.json('/actions/artifacts/'+str(p['artifact_api']['id']))==p['artifact_api'],'signed\
+        \ artifact changed')\n need(p['artifact_api']['expired'] is False,'expired artifact')\n from datetime\
+        \ import datetime,timezone\n need(datetime.fromisoformat(p['artifact_api']['expires_at'].replace('Z','+00:00'))>datetime.now(timezone.utc),'expired\
+        \ artifact')\n need(api.json('/actions/jobs/'+str(p['producer_api']['id']))==p['producer_api'],'signed\
+        \ producer changed')\n r=api.json('/actions/runs/'+str(p['run_api']['id']));need(all(r[k]==v for\
+        \ k,v in p['run_api'].items()),'signed run changed')\n need(r['repository']['full_name']==r['head_repository']['full_name']==REPO\
+        \ and r['repository']['private'] is False,'repository mismatch')\ndef unzip(path,p,out):\n with\
+        \ zipfile.ZipFile(path) as z:\n  need(len(z.infolist())==3 and set(z.namelist())=={APK,'BUILD-PROVENANCE.json','SHA256SUMS.txt'},'signed-only\
+        \ ZIP inventory')\n  need(sum(i.file_size for i in z.infolist())<220*1024**2,'expanded ZIP budget')\n\
+        \  for i in z.infolist():need(not i.is_dir() and not i.flag_bits&1 and stat.S_IFMT(i.external_attr>>16)\
+        \ in (0,stat.S_IFREG),'unsafe ZIP')\n  need(z.testzip() is None,'CRC');b=z.read(APK);need(len(b)==p['apk_size']\
+        \ and sha(b)==p['apk_sha256'],'APK bytes')\n  prov=z.read('BUILD-PROVENANCE.json');need(sha(prov)==p['signed_provenance_sha256']\
+        \ and len(prov)==p['signed_provenance_size'],'provenance bytes')\n  need(json.loads(prov)==p['signed_provenance'],'provenance\
+        \ object changed')\n  sums=z.read('SHA256SUMS.txt');need(sums.decode()==p['sha256sums'] and sha(sums)==p['sha256sums_sha256'],'exact\
+        \ two-entry checksum bytes')\n  need(sums.decode()==p['apk_sha256']+'  '+APK+'\\n'+p['signed_provenance_sha256']+'\
+        \  BUILD-PROVENANCE.json\\n','checksum entries')\n  (out/'candidate.apk').write_bytes(b);(out/'signed-provenance.json').write_bytes(prov)\n\
+        def inspect_badging(s):\n need(re.search(r\"package: name='\"+re.escape(PACKAGE)+r\"' versionCode='1000417'\
+        \ versionName='0.1.9-zh.2'\",s),'package/version')\n need(re.search(r\"native-code:\\s*'arm64-v8a'\\\
+        s*(?:\\n|$)\",s),'ARM64-only candidate')\n ms=re.findall(r\"(?m)^(?:minSdkVersion|sdkVersion):'(\\\
+        d+)'$\",s);need(len(ms)==1 and int(ms[0])==24,'actual minSdk mismatch or incompatible with API30')\n\
+        \ return int(ms[0])\ndef check_device(abi,bridge):\n need('arm64-v8a' in abi.strip().split(','),'image\
+        \ does not expose arm64-v8a')\n need(bridge.strip() not in ('','0'),'missing native bridge')\n\
+        def main():\n p=json.loads(Path('pins.json').read_text());validate(p)\n need(os.environ['GITHUB_REPOSITORY']==REPO\
+        \ and os.environ['GITHUB_EVENT_NAME']=='push' and os.environ['GITHUB_REF']=='refs/heads/'+BRANCH\
+        \ and os.environ['GITHUB_RUN_ATTEMPT']=='1','wrong/duplicate operation')\n out=Path(os.environ['RUNNER_TEMP'])/'android-install-evidence';out.mkdir(exist_ok=False)\n\
+        \ api=API();op=os.environ['GITHUB_SHA'];need(api.json('/git/ref/heads/'+BRANCH)['object']['sha']==op,'operation\
+        \ branch changed')\n c=api.json('/git/commits/'+op);d=api.json('/compare/'+SOURCE+'...'+op)\n\
+        \ need([x['sha'] for x in c['parents']]==[SOURCE] and d['ahead_by']==1 and d['behind_by']==0 and\
+        \ [(x['filename'],x['status']) for x in d['files']]==[(WORKFLOW,'added')],'exact operation')\n\
+        \ check_api(api,p);api.download(p,out/'signed.zip');unzip(out/'signed.zip',p,out)\n sdk=Path(os.environ['ANDROID_HOME']);adb=sdk/'platform-tools/adb';em=sdk/'emulator/emulator';bt=runtime_host.existing_build_tools(sdk,out);image=sdk/'system-images/android-30/google_apis/x86_64'\n\
+        \ b=run([bt/'aapt2','dump','badging',out/'candidate.apk'],out/'badging.txt');min_sdk=inspect_badging(b)\n\
+        \ cert=run([bt/'apksigner','verify','--verbose','--print-certs',out/'candidate.apk'],out/'signature.txt');need(re.findall(r'Signer\
+        \ #\\d+ certificate SHA-256 digest: ([a-fA-F0-9]+)',cert)==[CERT],'original certificate required')\n\
+        \ em=runtime_image.ensure_emulator(sdk,p,out,run)\n runtime_host.check_host(em,out,run)\n image_result=runtime_image.ensure(sdk,p,out,run)\n\
+        \ run([adb,'start-server'],out/'adb-server.txt')\n need(run([adb,'devices'],out/'adb-devices-before.txt').strip()=='List\
+        \ of devices attached','unexpected existing device; do not touch it')\n os.environ['ANDROID_AVD_HOME']=str(Path(os.environ['RUNNER_TEMP'])/'isolated-avd');Path(os.environ['ANDROID_AVD_HOME']).mkdir(exist_ok=False)\n\
+        \ avd=sdk/'cmdline-tools/latest/bin/avdmanager';run([avd,'create','avd','-n','t3candidate','-k',p['image_package'],'--force'],out/'avd.txt',input=b'no\\\
+        n')\n log=(out/'emulator.log').open('wb');emuenv=runtime_host.clean_env()\n emuargs=[str(em),'-avd','t3candidate','-port','5554','-no-window','-no-audio','-no-boot-anim','-no-snapshot','-wipe-data','-gpu','swiftshader','-accel','on','-memory','2048','-cores','2','-skin','480x800']\n\
+        \ (out/'emulator-command.json').write_text(json.dumps({'args':emuargs,'acceleration':'Existing\
+        \ macOS Hypervisor.Framework; no permissions/settings changes'},indent=2)+'\\n')\n proc=subprocess.Popen(emuargs,stdout=log,stderr=subprocess.STDOUT,env=emuenv)\n\
+        \ def ad(*args,outfile=None,timeout=90):return run([adb,'-s','emulator-5554',*args],out/outfile\
+        \ if outfile else None,timeout)\n try:\n  deadline=time.monotonic()+900\n  while True:\n   need(proc.poll()\
+        \ is None,'hardware-accelerated emulator exited; inspect emulator.log')\n   need(time.monotonic()<deadline,'hardware-accelerated\
+        \ boot exceeded 15-minute budget')\n   state=run([adb,'-s','emulator-5554','shell','getprop','sys.boot_completed'],check=False,timeout=20).strip()\n\
+        \   if state=='1':break\n   time.sleep(5)\n  abi=ad('shell','getprop','ro.product.cpu.abilist64',outfile='abilist64.txt');bridge=ad('shell','getprop','ro.dalvik.vm.native.bridge',outfile='native-bridge.txt');check_device(abi,bridge)\n\
+        \  ad('shell','getprop',outfile='properties.txt')\n  runtime_host.wait_services(adb,out,proc)\n\
+        \  need('Success' in ad('install','--no-streaming',str(out/'candidate.apk'),outfile='install.txt',timeout=180),'installation\
+        \ failed')\n  paths=ad('shell','pm','path',PACKAGE,outfile='installed-path.txt').splitlines();need(len(paths)==1\
+        \ and paths[0].startswith('package:/data/app/') and paths[0].endswith('/base.apk'),'unexpected\
+        \ installed APK layout')\n  ad('pull',paths[0][8:],str(out/'installed-base.apk'),timeout=120);need(sha((out/'installed-base.apk').read_bytes())==p['apk_sha256'],'installed\
+        \ bytes changed')\n  package=ad('shell','dumpsys','package',PACKAGE,outfile='package.txt');need('versionCode=1000417'\
+        \ in package and 'primaryCpuAbi=arm64-v8a' in package,'installed package/ABI')\n  component=ad('shell','cmd','package','resolve-activity','--brief',PACKAGE).strip().splitlines()[-1];need(re.fullmatch(re.escape(PACKAGE)+r'/[A-Za-z0-9_.$]+',component),'launcher\
+        \ not resolved')\n  # Do not connect accounts/servers, type text, grant permissions, or dismiss\
+        \ unknown dialogs.\n  for phase in ('initial','restart'):\n   if phase=='restart':ad('shell','am','force-stop',PACKAGE)\n\
+        \   started=ad('shell','am','start','-W','-n',component,outfile=phase+'-launch.txt');need('Status:\
+        \ ok' in started,'launch failed')\n   time.sleep(8);pid=ad('shell','pidof',PACKAGE).strip();need(re.fullmatch(r'\\\
+        d+',pid),'application process missing')\n   activities=ad('shell','dumpsys','activity','activities',outfile=phase+'-activity.txt');need(any(PACKAGE\
+        \ in x and ('mResumedActivity' in x or 'topResumedActivity' in x) for x in activities.splitlines()),'app\
+        \ not resumed')\n   ad('shell','uiautomator','dump','/sdcard/t3-ui.xml');ad('pull','/sdcard/t3-ui.xml',str(out/(phase+'-ui.xml')))\n\
+        \   screenshot=subprocess.run([str(adb),'-s','emulator-5554','exec-out','screencap','-p'],stdout=subprocess.PIPE,check=True,timeout=30,env={k:v\
+        \ for k,v in os.environ.items() if k not in ('GITHUB_TOKEN','GH_TOKEN')}).stdout;need(screenshot.startswith(b'\\\
+        x89PNG\\r\\n\\x1a\\n'),'PNG capture');(out/(phase+'.png')).write_bytes(screenshot)\n  ad('logcat','-d','-v','threadtime',outfile='logcat.txt')\n\
+        \  result={'source':SOURCE,'signed_apk_sha256':p['apk_sha256'],'installed_base_sha256':p['apk_sha256'],'min_sdk':min_sdk,'install_launch_restart':True,'screen_review':'REQUIRED:\
+        \ inspect PNG/XML for blank/error/permission screens and accessible page navigation','all_pages_accepted':False,'image':image_result,'device_scope':'macOS\
+        \ Intel HVF-accelerated API30 Google APIs x86_64 with advertised ARM64 translation; not physical\
+        \ device','release_performed':False}\n  (out/'result.json').write_text(json.dumps(result,indent=2)+'\\\
+        n');check_api(api,p)\n finally:\n  # Preserve unexpected permission/blank/crash screens without\
+        \ granting anything.\n  try:\n   shot=subprocess.run([str(adb),'-s','emulator-5554','exec-out','screencap','-p'],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,timeout=30,env={k:v\
+        \ for k,v in os.environ.items() if k not in ('GITHUB_TOKEN','GH_TOKEN')})\n   if shot.stdout.startswith(b'\\\
+        x89PNG\\r\\n\\x1a\\n'):(out/'final-diagnostic.png').write_bytes(shot.stdout)\n  except Exception:pass\n\
+        \  for args,name in [([adb,'-s','emulator-5554','logcat','-d','-v','threadtime'],'logcat-final.txt'),([adb,'-s','emulator-5554','shell','dumpsys','activity','activities'],'final-activity.txt'),([adb,'-s','emulator-5554','shell','service','list'],'final-services.txt'),([adb,'-s','emulator-5554','shell','dumpsys','input'],'final-input.txt'),([adb,'-s','emulator-5554','emu','kill'],'emulator-stop.txt')]:\n\
+        \   try:run(args,out/name,timeout=30,check=False)\n   except Exception:pass\n  try:\n   if proc.poll()\
+        \ is None:\n    proc.terminate()\n    try:proc.wait(timeout=10)\n    except subprocess.TimeoutExpired:proc.kill();proc.wait(timeout=10)\n\
+        \  finally:log.close()\nif __name__=='__main__':\n try:main()\n except Exception as e:\n  output=Path(os.environ.get('RUNNER_TEMP','/tmp'))/'android-install-evidence'\n\
+        \  output.mkdir(exist_ok=True)\n  (output/'failure.json').write_text(json.dumps({'stage':'candidate-install','exception_class':type(e).__name__,'message':re.sub(r'https?://\\\
+        S+','[URL omitted]',str(e))[:500],'accepted':False,'release_performed':False})+'\\n')\n  raise\
+        \ SystemExit('Candidate installation did not complete; inspect preserved evidence. No automatic\
+        \ retry.')\nLOCAL_REVIEWED_EOF\ncat > pins.json <<'LOCAL_REVIEWED_EOF'\n{\n  \"enabled\": true,\n\
+        \  \"source\": \"74039745b1b44834c30dd9cb275f1c224072dd96\",\n  \"certificate\": \"82f2437cbceb94fe6fe4a60a1c0de99f643124c64a648a27de9ce92bd39ecd88\"\
+        ,\n  \"package\": \"com.zhiweixiao.t3code.zhcn\",\n  \"version_name\": \"0.1.9-zh.2\",\n  \"version_code\"\
+        : 1000417,\n  \"apk_sha256\": \"cb5ed0fe3682d278f5f0a6e03de859cdc9d1f2e6a6c9bb8bc9d43292c11ae4e0\"\
+        ,\n  \"apk_size\": 100647067,\n  \"signed_provenance_sha256\": \"b9e1c8668567080a3eb8eeb62b95f8eabd06284b3c207b98270400311236ed28\"\
+        ,\n  \"artifact_api\": {\n    \"id\": 14294302746,\n    \"node_id\": \"MDg6QXJ0aWZhY3QxNDI5NDMwMjc0Ng==\"\
+        ,\n    \"name\": \"android-signed-reviewed-44006894711\",\n    \"size_in_bytes\": 47073321,\n\
+        \    \"url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/artifacts/14294302746\"\
+        ,\n    \"archive_download_url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/artifacts/14294302746/zip\"\
+        ,\n    \"expired\": false,\n    \"digest\": \"sha256:f2f9c21d038e5e685456f586163012dfb1b553f645b3b70b1d96a3684d81f977\"\
+        ,\n    \"created_at\": \"2026-11-17T03:01:33Z\",\n    \"updated_at\": \"2026-11-17T03:01:33Z\"\
+        ,\n    \"expires_at\": \"2026-12-01T03:01:30Z\",\n    \"workflow_run\": {\n      \"id\": 44006894711,\n\
+        \      \"repository_id\": 1333196089,\n      \"head_repository_id\": 1333196089,\n      \"head_branch\"\
+        : \"signing/android-bootstrap\",\n      \"head_sha\": \"5b48c3abd7c38618d63a899059fdb852d66a34d7\"\
+        \n    }\n  },\n  \"producer_api\": {\n    \"id\": 133784319512,\n    \"run_id\": 44006894711,\n\
+        \    \"workflow_name\": \"Stage exact reviewed Android candidate only\",\n    \"head_branch\"\
+        : \"signing/android-bootstrap\",\n    \"run_url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/44006894711\"\
+        ,\n    \"run_attempt\": 1,\n    \"node_id\": \"CR_kwDOT3b1Oc8AAAAfJiq2GA\",\n    \"head_sha\"\
+        : \"5b48c3abd7c38618d63a899059fdb852d66a34d7\",\n    \"url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/133784319512\"\
+        ,\n    \"html_url\": \"https://github.com/ZhiweiXiao98/t3code/actions/runs/44006894711/job/133784319512\"\
+        ,\n    \"status\": \"completed\",\n    \"conclusion\": \"success\",\n    \"created_at\": \"2026-11-17T02:59:09Z\"\
+        ,\n    \"started_at\": \"2026-11-17T02:59:13Z\",\n    \"completed_at\": \"2026-11-17T03:01:35Z\"\
+        ,\n    \"name\": \"sign\",\n    \"steps\": [\n      {\n        \"name\": \"Set up job\",\n   \
+        \     \"status\": \"completed\",\n        \"conclusion\": \"success\",\n        \"number\": 1,\n\
+        \        \"started_at\": \"2026-11-17T02:59:13Z\",\n        \"completed_at\": \"2026-11-17T02:59:15Z\"\
+        \n      },\n      {\n        \"name\": \"Fetch only reviewed signing tools from exact workflow\
+        \ commit\",\n        \"status\": \"completed\",\n        \"conclusion\": \"success\",\n      \
+        \  \"number\": 2,\n        \"started_at\": \"2026-11-17T02:59:15Z\",\n        \"completed_at\"\
+        : \"2026-11-17T02:59:26Z\"\n      },\n      {\n        \"name\": \"Fetch exact public non-secret\
+        \ regression fixtures\",\n        \"status\": \"completed\",\n        \"conclusion\": \"success\"\
+        ,\n        \"number\": 3,\n        \"started_at\": \"2026-11-17T02:59:26Z\",\n        \"completed_at\"\
+        : \"2026-11-17T02:59:27Z\"\n      },\n      {\n        \"name\": \"Run reviewed non-secret signing\
+        \ safety tests (no publisher)\",\n        \"status\": \"completed\",\n        \"conclusion\":\
+        \ \"success\",\n        \"number\": 4,\n        \"started_at\": \"2026-11-17T02:59:27Z\",\n  \
+        \      \"completed_at\": \"2026-11-17T02:59:35Z\"\n      },\n      {\n        \"name\": \"Verify\
+        \ candidate CI, ZIP and APK without signing Secrets\",\n        \"status\": \"completed\",\n \
+        \       \"conclusion\": \"success\",\n        \"number\": 5,\n        \"started_at\": \"2026-11-17T02:59:35Z\"\
+        ,\n        \"completed_at\": \"2026-11-17T03:01:23Z\"\n      },\n      {\n        \"name\": \"\
+        Sign only reviewed APK with fixed recovered identity\",\n        \"status\": \"completed\",\n\
+        \        \"conclusion\": \"success\",\n        \"number\": 6,\n        \"started_at\": \"2026-11-17T03:01:23Z\"\
+        ,\n        \"completed_at\": \"2026-11-17T03:01:28Z\"\n      },\n      {\n        \"name\": \"\
+        Upload only signed APK and public provenance\",\n        \"status\": \"completed\",\n        \"\
+        conclusion\": \"success\",\n        \"number\": 7,\n        \"started_at\": \"2026-11-17T03:01:28Z\"\
+        ,\n        \"completed_at\": \"2026-11-17T03:01:34Z\"\n      },\n      {\n        \"name\": \"\
+        Complete job\",\n        \"status\": \"completed\",\n        \"conclusion\": \"success\",\n  \
+        \      \"number\": 8,\n        \"started_at\": \"2026-11-17T03:01:34Z\",\n        \"completed_at\"\
+        : \"2026-11-17T03:01:34Z\"\n      }\n    ],\n    \"check_run_url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/133784319512\"\
+        ,\n    \"labels\": [\n      \"ubuntu-24.04\"\n    ],\n    \"runner_id\": 1000010145,\n    \"runner_name\"\
+        : \"GitHub Actions 1000010145\",\n    \"runner_group_id\": 0,\n    \"runner_group_name\": \"GitHub\
+        \ Actions\"\n  },\n  \"run_api\": {\n    \"id\": 44006894711,\n    \"head_sha\": \"5b48c3abd7c38618d63a899059fdb852d66a34d7\"\
+        ,\n    \"head_branch\": \"signing/android-bootstrap\",\n    \"path\": \".github/workflows/android-sign-reviewed.yml\"\
+        ,\n    \"run_attempt\": 1,\n    \"event\": \"push\",\n    \"status\": \"completed\",\n    \"conclusion\"\
+        : \"success\"\n  },\n  \"image_package\": \"system-images;android-30;google_apis;x86_64\",\n \
+        \ \"image_source_properties_sha256\": null,\n  \"emulator_binary_sha256\": null,\n  \"blocked_reason\"\
+        : null,\n  \"allow_official_image_install\": true,\n  \"image_revision_policy\": \"Record actual\
+        \ official API30 Google APIs x86_64 revision; optional preflight hash pins if already installed\"\
+        ,\n  \"signed_provenance\": {\n    \"enabled\": true,\n    \"candidate_run_id\": 43901004126,\n\
+        \    \"candidate_attempt\": 1,\n    \"candidate_source_sha\": \"74039745b1b44834c30dd9cb275f1c224072dd96\"\
+        ,\n    \"candidate_source_tree_sha\": \"2849e01639a6ec5242b4041b65762ef78ac08a51\",\n    \"candidate_artifact_id\"\
+        : 14246066879,\n    \"candidate_artifact_zip_sha256\": \"0b6bf435e1ace45f4fe50701aff952022931c36211a697f3dd9c9fbb5baddc6e\"\
+        ,\n    \"candidate_artifact_zip_size\": 46794499,\n    \"candidate_producer_job_id\": 133419166178,\n\
+        \    \"candidate_producer_attempt\": 1,\n    \"candidate_producer_started_at\": \"2026-11-16T15:54:33Z\"\
+        ,\n    \"candidate_producer_completed_at\": \"2026-11-16T16:20:10Z\",\n    \"candidate_unsigned_apk_sha256\"\
+        : \"bb6e519ad4a6fbab7985c860444c0fbbd5778c44c03a15418ccb66017157598e\",\n    \"candidate_unsigned_apk_size\"\
+        : 100363332,\n    \"blocked\": [],\n    \"distributed_gate_pins_sha256\": null,\n    \"apk_receipt_run\"\
+        : 43992008242,\n    \"receipt_pins_sha256\": \"46789050a7544795e8ec62e64ceaaa3b5b0d3abb57b420ea014b9653e8795a08\"\
+        ,\n    \"unsigned_apk_sha256\": \"bb6e519ad4a6fbab7985c860444c0fbbd5778c44c03a15418ccb66017157598e\"\
+        ,\n    \"recovery_run_id\": 40649758501,\n    \"certificate_sha256\": \"82f2437cbceb94fe6fe4a60a1c0de99f643124c64a648a27de9ce92bd39ecd88\"\
+        ,\n    \"encrypted_container_sha256\": \"7e4922f7de02c1c739e627eb3ef87fa1fb639329ed27613dff8b4f0fdad2d397\"\
+        ,\n    \"candidate_apk_zip_entry\": \"T3-Code-zh-CN-Android-0.1.9-zh.2-arm64-UNSIGNED-NOT-INSTALLABLE.apk\"\
+        ,\n    \"producer\": {\n      \"original_job_id\": 133419166178,\n      \"original_attempt\":\
+        \ 1,\n      \"latest_job_id\": 133419166178,\n      \"latest_attempt\": 1,\n      \"started_at\"\
+        : \"2026-11-16T15:54:33Z\",\n      \"completed_at\": \"2026-11-16T16:20:10Z\",\n      \"artifact_created_at\"\
+        : \"2026-11-16T16:20:06Z\",\n      \"artifact_updated_at\": \"2026-11-16T16:20:06Z\"\n    },\n\
+        \    \"supplemental_coverage\": \"original strict manifest + five named raw reports + six original\
+        \ upload logs\",\n    \"ui_validation\": {\n      \"schema\": \"v019-ui-partition-semantic-result-1\"\
+        ,\n      \"source\": \"74039745b1b44834c30dd9cb275f1c224072dd96\",\n      \"run\": 43992265580,\n\
+        \      \"partitions\": 4,\n      \"files\": 330,\n      \"passed_tests\": 3045,\n      \"scenario_steps\"\
+        : 61,\n      \"screenshots\": 5,\n      \"dual_toast_cases\": 2,\n      \"observers\": 4,\n  \
+        \    \"installed_app_acceptance\": false\n    },\n    \"release_gates\": {\n      \"scope\": \"\
+        Exact-source distributed logical release gates; original full run remains failure\",\n      \"\
+        passed\": 26,\n      \"total\": 26\n    },\n    \"receipt_provenance\": {\n      \"collector_run\"\
+        : 44002947263,\n      \"artifact_id\": 14293750072,\n      \"zip_sha256\": \"7aeeb79fd9efd61a143f8aaae5e84078ce8b40d60ce7632427b6d0cd6e78e0bf\"\
+        \n    },\n    \"validated_release_jobs\": [\n      {\n        \"id\": 133419166178,\n        \"\
+        name\": \"Android arm64 unsigned candidate (NOT installable)\",\n        \"run_attempt\": 1,\n\
+        \        \"started_at\": \"2026-11-16T15:54:33Z\",\n        \"completed_at\": \"2026-11-16T16:20:10Z\"\
+        ,\n        \"conclusion\": \"success\"\n      },\n      {\n        \"id\": 133725664245,\n   \
+        \     \"name\": \"Desktop mac arm64 (integrity checked)\",\n        \"run_attempt\": 1,\n    \
+        \    \"started_at\": \"2026-11-17T00:39:18Z\",\n        \"completed_at\": \"2026-11-17T00:44:44Z\"\
+        ,\n        \"conclusion\": \"success\"\n      },\n      {\n        \"id\": 133728157419,\n   \
+        \     \"name\": \"Clean macOS arm64 dmg first start\",\n        \"run_attempt\": 1,\n        \"\
+        started_at\": \"2026-11-17T00:44:46Z\",\n        \"completed_at\": \"2026-11-17T00:46:04Z\",\n\
+        \        \"conclusion\": \"success\"\n      },\n      {\n        \"id\": 133728157328,\n     \
+        \   \"name\": \"Clean macOS arm64 zip first start\",\n        \"run_attempt\": 1,\n        \"\
+        started_at\": \"2026-11-17T00:44:47Z\",\n        \"completed_at\": \"2026-11-17T00:46:31Z\",\n\
+        \        \"conclusion\": \"success\"\n      },\n      {\n        \"id\": 133417375043,\n     \
+        \   \"name\": \"Build validated desktop bundle\",\n        \"run_attempt\": 1,\n        \"started_at\"\
+        : \"2026-11-16T15:51:53Z\",\n        \"completed_at\": \"2026-11-16T15:54:30Z\",\n        \"conclusion\"\
+        : \"success\"\n      },\n      {\n        \"id\": 133423109560,\n        \"name\": \"Desktop mac\
+        \ x64 (integrity checked)\",\n        \"run_attempt\": 1,\n        \"started_at\": \"2026-11-16T16:01:00Z\"\
+        ,\n        \"completed_at\": \"2026-11-16T16:16:40Z\",\n        \"conclusion\": \"success\"\n\
+        \      },\n      {\n        \"id\": 133423106015,\n        \"name\": \"Desktop win x64 (integrity\
+        \ checked)\",\n        \"run_attempt\": 1,\n        \"started_at\": \"2026-11-16T16:00:31Z\",\n\
+        \        \"completed_at\": \"2026-11-16T16:09:55Z\",\n        \"conclusion\": \"success\"\n  \
+        \    },\n      {\n        \"id\": 133710481504,\n        \"name\": \"Chinese UI and restart Clean\
+        \ macOS x64 dmg first start\",\n        \"run_attempt\": 2,\n        \"started_at\": \"2026-11-17T00:06:42Z\"\
+        ,\n        \"completed_at\": \"2026-11-17T00:09:41Z\",\n        \"conclusion\": \"success\"\n\
+        \      },\n      {\n        \"id\": 133710481888,\n        \"name\": \"Chinese UI and restart\
+        \ Clean macOS x64 zip first start\",\n        \"run_attempt\": 2,\n        \"started_at\": \"\
+        2026-11-17T00:06:41Z\",\n        \"completed_at\": \"2026-11-17T00:09:17Z\",\n        \"conclusion\"\
+        : \"success\"\n      },\n      {\n        \"id\": 133419166277,\n        \"name\": \"Linux x64\
+        \ and embedded Windows WSL runtime\",\n        \"run_attempt\": 1,\n        \"started_at\": \"\
+        2026-11-16T15:54:33Z\",\n        \"completed_at\": \"2026-11-16T16:00:27Z\",\n        \"conclusion\"\
+        : \"success\"\n      },\n      {\n        \"id\": 133423105207,\n        \"name\": \"Clean desktop\
+        \ deb first start\",\n        \"run_attempt\": 1,\n        \"started_at\": \"2026-11-16T16:00:31Z\"\
+        ,\n        \"completed_at\": \"2026-11-16T16:03:27Z\",\n        \"conclusion\": \"success\"\n\
+        \      },\n      {\n        \"id\": 133435653311,\n        \"name\": \"Mobile native static analysis\"\
+        ,\n        \"run_attempt\": 1,\n        \"started_at\": \"2026-11-16T16:20:04Z\",\n        \"\
+        completed_at\": \"2026-11-16T16:27:55Z\",\n        \"conclusion\": \"success\"\n      },\n   \
+        \   {\n        \"id\": 133444752535,\n        \"name\": \"Lint and typecheck\",\n        \"run_attempt\"\
+        : 1,\n        \"started_at\": \"2026-11-16T16:33:30Z\",\n        \"completed_at\": \"2026-11-16T16:36:03Z\"\
+        ,\n        \"conclusion\": \"success\"\n      },\n      {\n        \"id\": 133435653269,\n   \
+        \     \"name\": \"Rust native formatting and tests\",\n        \"run_attempt\": 1,\n        \"\
+        started_at\": \"2026-11-16T16:19:34Z\",\n        \"completed_at\": \"2026-11-16T16:20:47Z\",\n\
+        \        \"conclusion\": \"success\"\n      },\n      {\n        \"id\": 133417263498,\n     \
+        \   \"name\": \"Validate exact source\",\n        \"run_attempt\": 1,\n        \"started_at\"\
+        : \"2026-11-16T15:51:42Z\",\n        \"completed_at\": \"2026-11-16T15:51:49Z\",\n        \"conclusion\"\
+        : \"success\"\n      },\n      {\n        \"id\": 133435653280,\n        \"name\": \"Tests (clients)\"\
+        ,\n        \"run_attempt\": 1,\n        \"started_at\": \"2026-11-16T16:19:34Z\",\n        \"\
+        completed_at\": \"2026-11-16T16:26:50Z\",\n        \"conclusion\": \"success\"\n      },\n   \
+        \   {\n        \"id\": 133435653276,\n        \"name\": \"Tests (server-1)\",\n        \"run_attempt\"\
+        : 1,\n        \"started_at\": \"2026-11-16T16:19:34Z\",\n        \"completed_at\": \"2026-11-16T16:29:28Z\"\
+        ,\n        \"conclusion\": \"success\"\n      },\n      {\n        \"id\": 133435653245,\n   \
+        \     \"name\": \"Tests (server-2)\",\n        \"run_attempt\": 1,\n        \"started_at\": \"\
+        2026-11-16T16:19:34Z\",\n        \"completed_at\": \"2026-11-16T16:29:22Z\",\n        \"conclusion\"\
+        : \"success\"\n      },\n      {\n        \"id\": 133435653261,\n        \"name\": \"Tests (server-3)\"\
+        ,\n        \"run_attempt\": 1,\n        \"started_at\": \"2026-11-16T16:19:34Z\",\n        \"\
+        completed_at\": \"2026-11-16T16:26:16Z\",\n        \"conclusion\": \"success\"\n      },\n   \
+        \   {\n        \"id\": 133435653459,\n        \"name\": \"Web full coverage shard 1/4\",\n   \
+        \     \"run_attempt\": 1,\n        \"started_at\": \"2026-11-16T16:19:34Z\",\n        \"completed_at\"\
+        : \"2026-11-16T16:25:04Z\",\n        \"conclusion\": \"success\"\n      },\n      {\n        \"\
+        id\": 133435653170,\n        \"name\": \"Web full coverage shard 2/4\",\n        \"run_attempt\"\
+        : 1,\n        \"started_at\": \"2026-11-16T16:19:35Z\",\n        \"completed_at\": \"2026-11-16T16:24:10Z\"\
+        ,\n        \"conclusion\": \"success\"\n      },\n      {\n        \"id\": 133435653238,\n   \
+        \     \"name\": \"Web full coverage shard 3/4\",\n        \"run_attempt\": 1,\n        \"started_at\"\
+        : \"2026-11-16T16:24:13Z\",\n        \"completed_at\": \"2026-11-16T16:28:49Z\",\n        \"conclusion\"\
+        : \"success\"\n      },\n      {\n        \"id\": 133435653231,\n        \"name\": \"Web full\
+        \ coverage shard 4/4\",\n        \"run_attempt\": 1,\n        \"started_at\": \"2026-11-16T16:25:06Z\"\
+        ,\n        \"completed_at\": \"2026-11-16T16:30:15Z\",\n        \"conclusion\": \"success\"\n\
+        \      },\n      {\n        \"id\": 133442991392,\n        \"name\": \"Build and boot validated\
+        \ Web client\",\n        \"run_attempt\": 1,\n        \"started_at\": \"2026-11-16T16:30:48Z\"\
+        ,\n        \"completed_at\": \"2026-11-16T16:33:28Z\",\n        \"conclusion\": \"success\"\n\
+        \      },\n      {\n        \"id\": 133442664330,\n        \"name\": \"Require complete Web assertion\
+        \ coverage\",\n        \"run_attempt\": 1,\n        \"started_at\": \"2026-11-16T16:30:18Z\",\n\
+        \        \"completed_at\": \"2026-11-16T16:30:45Z\",\n        \"conclusion\": \"success\"\n  \
+        \    },\n      {\n        \"id\": 133452308296,\n        \"name\": \"Chinese UI and restart Clean\
+        \ desktop nsis first start\",\n        \"run_attempt\": 1,\n        \"started_at\": \"2026-11-16T16:45:08Z\"\
+        ,\n        \"completed_at\": \"2026-11-16T16:47:08Z\",\n        \"conclusion\": \"success\"\n\
+        \      }\n    ],\n    \"signed_apk_sha256\": \"cb5ed0fe3682d278f5f0a6e03de859cdc9d1f2e6a6c9bb8bc9d43292c11ae4e0\"\
+        ,\n    \"signed_apk_size\": 100647067,\n    \"apk_signature_verified\": true,\n    \"distribution_state\"\
+        : \"signed-candidate-not-published\",\n    \"installed_app_acceptance\": false,\n    \"publication_performed\"\
+        : false,\n    \"source_sha\": \"74039745b1b44834c30dd9cb275f1c224072dd96\",\n    \"candidate_artifact_sha256\"\
+        : \"0b6bf435e1ace45f4fe50701aff952022931c36211a697f3dd9c9fbb5baddc6e\",\n    \"package_name\"\
+        : \"com.zhiweixiao.t3code.zhcn\",\n    \"version_name\": \"0.1.9-zh.2\",\n    \"version_code\"\
+        : 1000417\n  },\n  \"signed_provenance_size\": 9144,\n  \"sha256sums\": \"cb5ed0fe3682d278f5f0a6e03de859cdc9d1f2e6a6c9bb8bc9d43292c11ae4e0\
+        \  T3-Code-zh-CN-Android-0.1.9-zh.2-arm64-v8a.apk\\nb9e1c8668567080a3eb8eeb62b95f8eabd06284b3c207b98270400311236ed28\
+        \  BUILD-PROVENANCE.json\\n\",\n  \"sha256sums_sha256\": \"5cd756d074495d1fea72b30547175d3d3f5d69f783d0f5e30c0e01617b74969d\"\
+        ,\n  \"allow_official_emulator_install\": false,\n  \"expected_minimum_sdk\": 24,\n  \"preflight_run\"\
+        : 44011087028,\n  \"preflight_receipt_zip_sha256\": \"c8d603b21c41417e33666dbfb1b898d41637b92bbac9637573c7e616b68958bb\"\
+        ,\n  \"hardware_acceleration\": \"macos-intel-hvf\"\n}\nLOCAL_REVIEWED_EOF\ncat > payload-manifest.json\
+        \ <<'LOCAL_REVIEWED_EOF'\n{\n  \"install_candidate.py\": \"49db51b7a5d507e1c7a8da2aa3b5b69df0e2b33fe23f26c5fc959099627f35a3\"\
+        ,\n  \"pins.json\": \"fb4a2260dbd59c59c9cf977c22cf49c1d38ad17aad171634a96a9efe464dd133\",\n  \"\
+        runtime_host.py\": \"2d444c921754748f06140cf9c48c9674fb45b01af8b2dbfdc0aa9052fe9adeef\",\n  \"\
+        runtime_image.py\": \"e0c77862478191609658b3e43eb0d8bf6c2585ece39c3e3059c607097e4ba84e\"\n}\n\
+        LOCAL_REVIEWED_EOF\npython3 -c \"import hashlib; assert hashlib.sha256(open('payload-manifest.json','rb').read()).hexdigest()=='b8ebe63878c0bc9ff0e449a4a52ddd8da87e33a36a32a30453cbcd2f0a1f1da9'\"\
+        \npython3 - <<'VERIFY_PAYLOAD'\nimport json,hashlib,pathlib\nfor n,h in json.load(open('payload-manifest.json')).items():\n\
+        \ assert '/' not in n and n not in ('.','..')\n assert hashlib.sha256(pathlib.Path(n).read_bytes()).hexdigest()==h\n\
+        VERIFY_PAYLOAD\npython3 install_candidate.py\n"
+    - name: Preserve diagnostic and screen evidence even on failure
+      if: ${{ always() }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: android-exact-install-${{ github.run_id }}-${{ github.run_attempt }}
+        path: '${{ runner.temp }}/android-install-evidence/*.json
+
+          ${{ runner.temp }}/android-install-evidence/*.xml
+
+          ${{ runner.temp }}/android-install-evidence/*.png
+
+          ${{ runner.temp }}/android-install-evidence/*.log
+
+          ${{ runner.temp }}/android-install-evidence/*.txt
+
+          ${{ runner.temp }}/android-install-evidence/*.properties'
+        if-no-files-found: warn
+        retention-days: 14
