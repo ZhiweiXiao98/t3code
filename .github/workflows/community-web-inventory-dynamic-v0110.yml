@@ -1,0 +1,77 @@
+name: Collect exact v0.1.10 Web assertion inventory (not execution)
+'on':
+  push:
+    branches:
+    - validation/v0.1.10-web-inventory-dynamic-e4ff88f9
+    paths:
+    - .github/workflows/community-web-inventory-dynamic-v0110.yml
+permissions:
+  contents: read
+concurrency:
+  group: v0110-web-inventory-dynamic-e4ff88f9
+  cancel-in-progress: false
+jobs:
+  collect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    if: github.repository == 'ZhiweiXiao98/t3code' && github.event_name == 'push' && github.run_attempt == 1
+    steps:
+    - name: Validate single operation and exact source
+      shell: bash
+      env:
+        GIT_TERMINAL_PROMPT: '0'
+      run: 'set -euo pipefail
+
+        [[ "$GITHUB_REF" == "refs/heads/validation/v0.1.10-web-inventory-dynamic-e4ff88f9" ]]
+
+        [[ "$GITHUB_RUN_ATTEMPT" == 1 ]]
+
+        git init .
+
+        git remote add origin "https://github.com/ZhiweiXiao98/t3code.git"
+
+        git fetch --no-tags --depth=2 origin "$GITHUB_SHA"
+
+        test "$(git show -s --format=%P FETCH_HEAD)" = "e4ff88f974118ed8cfbdc82d60cfb711847084e9"
+
+        test "$(git diff-tree --no-commit-id --name-only -r FETCH_HEAD)" = ".github/workflows/community-web-inventory-dynamic-v0110.yml"
+
+        test "$(git diff-tree --no-commit-id --name-status -r FETCH_HEAD)" = $''A\t.github/workflows/community-web-inventory-dynamic-v0110.yml''
+
+        git sparse-checkout set --no-cone ''/*'' ''!/.repos/''
+
+        git checkout --detach ''e4ff88f974118ed8cfbdc82d60cfb711847084e9''
+
+        test "$(git rev-parse HEAD^{tree})" = ''c3c403e3b9bb89487a21f5f231ce3f0ded2b709c''
+
+        '
+    - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
+      with:
+        node-version-file: package.json
+        cache: true
+        run-install: false
+    - name: Install locked dependencies
+      run: vp install --frozen-lockfile
+    - name: Prepare original Web runtime dependencies
+      run: 'python3 .github/scripts/ci-ubuntu-packages.py packages libsecret-1-dev pkg-config build-essential imagemagick
+
+        python3 .github/scripts/ci-ubuntu-packages.py playwright apps/web/node_modules/playwright/cli.js
+
+        node apps/web/node_modules/playwright/cli.js install --only-shell chromium
+
+        '
+    - name: Collect runtime test declarations; reject import failures
+      shell: bash
+      run: "python3 - <<'PY'\nimport hashlib\nimport json\nimport os\nfrom pathlib import Path\nimport subprocess\n\nSOURCE = 'e4ff88f974118ed8cfbdc82d60cfb711847084e9'\nTREE = 'c3c403e3b9bb89487a21f5f231ce3f0ded2b709c'\nFILES_SHA = 'b9d7c0ba16e347da742c87ddc6aeb3de70eef41b43e5f5f92f2d1bb1c3943262'\n\n\ndef digest(value):\n    return hashlib.sha256(json.dumps(value, ensure_ascii=False, separators=(',', ':')).encode()).hexdigest()\n\n\ndef normalize(path):\n    prefix = str(Path.cwd() / 'apps/web') + '/'\n    assert path.startswith(prefix), ('Unexpected test path', path)\n    result = path[len(prefix):]\n    assert '..' not in Path(result).parts\n    return result\n\n\ndef validate(files, declarations):\n    paths = [normalize(item['file']) for item in files]\n    assert len(paths) == len(set(paths)) == 765, 'Incomplete or duplicate file enumeration'\n    assert digest(sorted(paths)) == FILES_SHA, 'Unexpected file inventory'\n    grouped = {path: [] for path in paths}\n    for item in declarations:\n\
+        \        path = normalize(item['file'])\n        assert path in grouped, ('Undiscovered test file', path)\n        assert isinstance(item['name'], str) and item['name'], 'Empty test name'\n        assert item.get('projectName') in ['unit', 'browser'], 'Unexpected test project'\n        grouped[path].append(item['name'])\n    assert all(grouped.values()), 'Import-failed, skipped, or unregistered file'\n    return {path: {'tests': len(names), 'names_sha256': digest(sorted(names))}\n            for path, names in sorted(grouped.items())}\n\n\ndef main():\n    out = Path(os.environ['RUNNER_TEMP']) / 'web-inventory-collection'\n    out.mkdir(exist_ok=False)\n    assert subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip() == SOURCE\n    assert subprocess.check_output(['git', 'rev-parse', 'HEAD^{tree}'], text=True).strip() == TREE\n    metadata = {'source': SOURCE, 'tree': TREE, 'operation': os.environ['GITHUB_SHA'],\n                'run': os.environ['GITHUB_RUN_ID'],\
+        \ 'attempt': os.environ['GITHUB_RUN_ATTEMPT'],\n                'lock_sha256': hashlib.sha256(Path('pnpm-lock.yaml').read_bytes()).hexdigest(),\n                'execution_pass': False, 'commands': []}\n    (out / 'metadata.json').write_text(json.dumps(metadata, indent=2))\n    for name, flags in [('all-files', ['--filesOnly']), ('declarations', ['--no-static-parse'])]:\n        command = ['vp', 'test', 'list', '--project', 'unit', '--project', 'browser', *flags,\n                   '--json=' + str(out / (name + '.json'))]\n        with (out / (name + '.log')).open('w') as log:\n            result = subprocess.run(command, cwd='apps/web', stdout=log, stderr=subprocess.STDOUT, timeout=600)\n        metadata['commands'].append({'command': command, 'exit_code': result.returncode})\n        (out / 'metadata.json').write_text(json.dumps(metadata, indent=2))\n        assert result.returncode == 0, ('Collection command failed', name)\n        # Vitest can return zero on suite import errors\
+        \ but deliberately omits JSON.\n        assert (out / (name + '.json')).is_file(), ('Missing fresh collection JSON', name)\n    files = json.loads((out / 'all-files.json').read_text())\n    declarations = json.loads((out / 'declarations.json').read_text())\n    inventory = validate(files, declarations)\n    result = {'schema': 1, 'baseline_source': SOURCE, 'baseline_run': os.environ['GITHUB_RUN_ID'],\n              'baseline_attempt': os.environ['GITHUB_RUN_ATTEMPT'],\n              'provenance': 'actual Vitest collection only; not test execution or passing result',\n              'tests': sum(x['tests'] for x in inventory.values()), 'files': inventory}\n    (out / 'expected-inventory.json').write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\\n')\n    hashes = {str(p.relative_to(out)): hashlib.sha256(p.read_bytes()).hexdigest()\n              for p in sorted(out.iterdir()) if p.is_file()}\n    (out / 'receipt.json').write_text(json.dumps({'source': SOURCE, 'tree': TREE,\
+        \ 'files': len(inventory),\n        'registered': result['tests'], 'execution_pass': False, 'sha256': hashes}, indent=2))\n\n\nif __name__ == '__main__':\n    main()\n\nPY\n"
+    - name: Preserve collection and errors (not passing proof)
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: web-inventory-${{ github.run_id }}-${{ github.run_attempt }}
+        path: ${{ runner.temp }}/web-inventory-collection/
+        if-no-files-found: warn
+        retention-days: 14
