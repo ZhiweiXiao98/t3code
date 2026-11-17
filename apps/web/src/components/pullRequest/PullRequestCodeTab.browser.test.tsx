@@ -14,7 +14,7 @@ import {
   type PullRequestReviewThread,
 } from "@t3tools/contracts";
 import { expect, it, vi } from "vite-plus/test";
-import { userEvent } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 
 import "~/index.css";
 import { getClientSettings, __setClientSettingsForTests } from "../../hooks/useSettings";
@@ -987,9 +987,13 @@ for (const action of ["reply", "edit"] as const) {
         }),
       );
       const refresh = vi.fn();
+      const container = pagedContainer();
+      // Keep scoped locators anchored when transient portal nodes change the surrounding DOM.
+      container.dataset.testid = `review-thread-${action}-${kind}`;
       await using screen = await render(actionSurface("en", refresh), {
-        container: pagedContainer(),
+        container,
       });
+      const root = page.getByTestId(container.dataset.testid);
       await using _settle = {
         async [Symbol.asyncDispose]() {
           await act(async () => {
@@ -998,23 +1002,21 @@ for (const action of ["reply", "edit"] as const) {
           });
         },
       };
-      await screen.getByRole("button", { name: /^Conversations not on the current diff/ }).click();
-      await expect
-        .element(screen.getByText(orphan.comments[0]!.body, { exact: true }))
-        .toBeVisible();
-      await screen
+      await root.getByRole("button", { name: /^Conversations not on the current diff/ }).click();
+      await expect.element(root.getByText(orphan.comments[0]!.body, { exact: true })).toBeVisible();
+      await root
         .getByRole("button", {
           name: action === "reply" ? "Reply" : "Edit comment",
           exact: true,
         })
         .click();
       const draft = "  Literal $& {draft}\nsecond line  ";
-      const input = screen.getByRole("textbox", {
+      const input = root.getByRole("textbox", {
         name: action === "reply" ? "Reply to this conversation" : "Edit comment",
         exact: true,
       });
       await userEvent.fill(input, draft);
-      await screen
+      await root
         .getByRole("button", {
           name: action === "reply" ? "Reply" : "Save",
           exact: true,
@@ -1040,7 +1042,7 @@ for (const action of ["reply", "edit"] as const) {
                 body: draft,
               },
       });
-      const pending = screen.getByRole("button", {
+      const pending = root.getByRole("button", {
         name: action === "reply" ? "Reply" : "Saving...",
         exact: true,
       });
@@ -1064,7 +1066,7 @@ for (const action of ["reply", "edit"] as const) {
       });
       await expect
         .element(
-          screen.getByRole("textbox", {
+          root.getByRole("textbox", {
             name: action === "reply" ? "回复此对话" : "编辑评论",
             exact: true,
           }),
@@ -1072,7 +1074,7 @@ for (const action of ["reply", "edit"] as const) {
         .toHaveValue(draft);
       await expect
         .element(
-          screen.getByRole("button", {
+          root.getByRole("button", {
             name: action === "reply" ? "回复" : "保存",
             exact: true,
           }),
@@ -1080,7 +1082,7 @@ for (const action of ["reply", "edit"] as const) {
         .toBeEnabled();
       if (action === "reply")
         await expect
-          .element(screen.getByText(orphan.comments[0]!.body, { exact: true }))
+          .element(root.getByText(orphan.comments[0]!.body, { exact: true }))
           .toBeVisible();
       expect(refresh).not.toHaveBeenCalled();
       expect(mocks.otherCommand).not.toHaveBeenCalled();
@@ -1090,10 +1092,8 @@ for (const action of ["reply", "edit"] as const) {
       await screen.rerender(actionSurface("en", refresh));
       expect(mocks.toast).toHaveBeenCalledTimes(1);
       expect(command).toHaveBeenCalledTimes(1);
-      await screen.getByRole("button", { name: "Cancel", exact: true }).click();
-      await expect
-        .element(screen.getByText(orphan.comments[0]!.body, { exact: true }))
-        .toBeVisible();
+      await root.getByRole("button", { name: "Cancel", exact: true }).click();
+      await expect.element(root.getByText(orphan.comments[0]!.body, { exact: true })).toBeVisible();
     },
   );
 }
