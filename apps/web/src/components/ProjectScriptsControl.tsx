@@ -13,19 +13,10 @@ import {
   squashAtomCommandFailure,
 } from "@t3tools/client-runtime/state/runtime";
 import { projectScriptMenuLabel } from "@t3tools/shared/projectScripts";
-import {
-  ChevronDownIcon,
-  DownloadIcon,
-  PlusIcon,
-  SettingsIcon,
-  WrenchIcon,
-} from "lucide-react";
+import { ChevronDownIcon, DownloadIcon, PlusIcon, SettingsIcon, WrenchIcon } from "lucide-react";
 import React, { useState } from "react";
 
-import {
-  commandForProjectScript,
-  primaryProjectScript,
-} from "~/projectScripts";
+import { commandForProjectScript, primaryProjectScript } from "~/projectScripts";
 import { shortcutLabelForCommand } from "~/keybindings";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { serverEnvironment } from "~/state/server";
@@ -78,9 +69,7 @@ interface ProjectScriptsControlProps {
   fileScripts?: ReadonlyArray<T3ProjectFileScript>;
   preferredScriptId?: string | null;
   onRunScript?: ((script: ProjectScript) => void) | undefined;
-  onAddScript: (
-    input: NewProjectScriptInput,
-  ) => Promise<ProjectScriptActionResult>;
+  onAddScript: (input: NewProjectScriptInput) => Promise<ProjectScriptActionResult>;
   onUpdateScript: (
     scriptId: string,
     input: NewProjectScriptInput,
@@ -107,8 +96,8 @@ export default function ProjectScriptsControl({
   const ActionGroup = isPanel ? "div" : Group;
   const panelAnchorRef = React.useRef<HTMLDivElement | null>(null);
   const keybindings =
-    useAtomValue(serverEnvironment.configValueAtom(environmentId))
-      ?.keybindings ?? DEFAULT_RESOLVED_KEYBINDINGS;
+    useAtomValue(serverEnvironment.configValueAtom(environmentId))?.keybindings ??
+    DEFAULT_RESOLVED_KEYBINDINGS;
   const [actionsMenuOpen, setActionsMenuOpen] = useState({
     presentation,
     scripts: false,
@@ -117,13 +106,11 @@ export default function ProjectScriptsControl({
   if (actionsMenuOpen.presentation !== presentation) {
     setActionsMenuOpen({ presentation, scripts: false, imports: false });
   }
-  const [editorRequest, setEditorRequest] =
-    useState<ProjectScriptEditorRequest | null>(null);
+  const [editorRequest, setEditorRequest] = useState<ProjectScriptEditorRequest | null>(null);
 
   const primaryScript =
-    (preferredScriptId
-      ? scripts.find((script) => script.id === preferredScriptId)
-      : undefined) ?? primaryProjectScript(scripts);
+    (preferredScriptId ? scripts.find((script) => script.id === preferredScriptId) : undefined) ??
+    primaryProjectScript(scripts);
   const importableScripts = fileScripts.filter(
     (fileScript) =>
       !scripts.some(
@@ -143,10 +130,7 @@ export default function ProjectScriptsControl({
     setEditorRequest(editorRequestForScript(script, keybindings));
   };
 
-  const submitScript = (
-    scriptId: string | null,
-    input: NewProjectScriptInput,
-  ) =>
+  const submitScript = (scriptId: string | null, input: NewProjectScriptInput) =>
     scriptId === null ? onAddScript(input) : onUpdateScript(scriptId, input);
 
   const importFileScript = async (fileScript: T3ProjectFileScript) => {
@@ -155,17 +139,12 @@ export default function ProjectScriptsControl({
       command: fileScript.command,
       icon: fileScript.icon ?? "play",
       runOnWorktreeCreate: fileScript.runOnWorktreeCreate ?? false,
-      waitForSetup:
-        fileScript.runOnWorktreeCreate === true && fileScript.async === false,
+      waitForSetup: fileScript.runOnWorktreeCreate === true && fileScript.async === false,
       runOnSettle: fileScript.runOnSettle ?? false,
       stopOnSettle: fileScript.stopOnSettle ?? false,
-      ...(readEnvironmentScope(environmentId, AuthSettingsWriteScope)
-        ? { keybinding: null }
-        : {}),
+      ...(readEnvironmentScope(environmentId, AuthSettingsWriteScope) ? { keybinding: null } : {}),
       previewUrl: fileScript.previewUrl ?? null,
-      autoOpenPreview: fileScript.previewUrl
-        ? (fileScript.autoOpenPreview ?? false)
-        : false,
+      autoOpenPreview: fileScript.previewUrl ? (fileScript.autoOpenPreview ?? false) : false,
     };
     const result = await onAddScript(payload);
     if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
@@ -173,8 +152,7 @@ export default function ProjectScriptsControl({
       setEditorRequest({
         scriptId: null,
         initial: payload,
-        error:
-          error instanceof Error ? error.message : { code: "importFailed" },
+        error: error instanceof Error ? error.message : { code: "importFailed" },
       });
     }
   };
@@ -183,9 +161,7 @@ export default function ProjectScriptsControl({
     <>
       {scripts.length > 0 && <MenuSeparator />}
       <MenuGroup>
-        <MenuGroupLabel>
-          {translateWebSource(uiLocale, "From t3.json")}
-        </MenuGroupLabel>
+        <MenuGroupLabel>{translateWebSource(uiLocale, "From t3.json")}</MenuGroupLabel>
         {importableScripts.map((fileScript) => (
           <MenuItem
             density={presentation === "menu" ? "touch" : "default"}
@@ -226,14 +202,10 @@ export default function ProjectScriptsControl({
             <span className="relative ms-auto flex h-6 min-w-6 items-center justify-end">
               {shortcutLabel &&
                 (presentation === "menu" ? (
-                  <MenuShortcut className="ms-0 mr-7">
-                    {shortcutLabel}
-                  </MenuShortcut>
+                  <MenuShortcut className="ms-0 mr-7">{shortcutLabel}</MenuShortcut>
                 ) : (
                   <span className="transition-opacity group-hover:opacity-0 group-focus-visible:opacity-0">
-                    <MenuShortcut className="ms-0">
-                      {shortcutLabel}
-                    </MenuShortcut>
+                    <MenuShortcut className="ms-0">{shortcutLabel}</MenuShortcut>
                   </span>
                 ))}
               <span
@@ -263,10 +235,7 @@ export default function ProjectScriptsControl({
         );
       })}
       {importMenuItems}
-      <MenuItem
-        density={presentation === "menu" ? "touch" : "default"}
-        onClick={openAddDialog}
-      >
+      <MenuItem density={presentation === "menu" ? "touch" : "default"} onClick={openAddDialog}>
         <PlusIcon className="size-4" />
         <MenuItemLabel>
           {isPanel
@@ -292,10 +261,7 @@ export default function ProjectScriptsControl({
                 {translateWebSource(uiLocale, "Run")} {primaryScript.name}
               </MenuItemLabel>
               <MenuShortcut>
-                {shortcutLabelForCommand(
-                  keybindings,
-                  commandForProjectScript(primaryScript.id),
-                )}
+                {shortcutLabelForCommand(keybindings, commandForProjectScript(primaryScript.id))}
               </MenuShortcut>
             </MenuItem>
           )}
@@ -312,9 +278,7 @@ export default function ProjectScriptsControl({
             >
               <MenuSubTrigger density="touch">
                 <ScriptIcon icon="play" className="size-4" />
-                <MenuItemLabel>
-                  {translateWebSource(uiLocale, "Project actions")}
-                </MenuItemLabel>
+                <MenuItemLabel>{translateWebSource(uiLocale, "Project actions")}</MenuItemLabel>
               </MenuSubTrigger>
               <MenuSubPopup>{scriptItems}</MenuSubPopup>
             </MenuSub>
@@ -324,9 +288,7 @@ export default function ProjectScriptsControl({
               onClick={openAddDialog}
             >
               <PlusIcon className="size-4" />
-              <MenuItemLabel>
-                {translateWebSource(uiLocale, "Add project action…")}
-              </MenuItemLabel>
+              <MenuItemLabel>{translateWebSource(uiLocale, "Add project action…")}</MenuItemLabel>
             </MenuItem>
           )}
         </>
@@ -349,11 +311,7 @@ export default function ProjectScriptsControl({
                   variant={isPanel ? "ghost" : "outline"}
                   part="primary"
                   panel={isPanel}
-                  className={
-                    isPanel
-                      ? undefined
-                      : "w-7 sm:w-6 @3xl/header-actions:w-auto!"
-                  }
+                  className={isPanel ? undefined : "w-7 sm:w-6 @3xl/header-actions:w-auto!"}
                   aria-label={`${translateWebSource(uiLocale, "Run")} ${primaryScript.name}`}
                   // Tooltip replaces the button data-slot, so toolbar theming needs a separate hook.
                   data-toolbar-control=""
@@ -364,18 +322,12 @@ export default function ProjectScriptsControl({
             >
               <ScriptIcon
                 icon={primaryScript.icon}
-                {...(isPanel
-                  ? { className: THREAD_DETAILS_PANEL_ICON_CLASS }
-                  : {})}
+                {...(isPanel ? { className: THREAD_DETAILS_PANEL_ICON_CLASS } : {})}
               />
               <span
                 className={cn(
                   "sr-only @3xl/header-actions:not-sr-only @3xl/header-actions:ml-0.5",
-                  isPanel &&
-                    cn(
-                      "not-sr-only ml-0 truncate",
-                      THREAD_DETAILS_PANEL_LABEL_CLASS,
-                    ),
+                  isPanel && cn("not-sr-only ml-0 truncate", THREAD_DETAILS_PANEL_LABEL_CLASS),
                 )}
               >
                 {primaryScript.name}
@@ -391,10 +343,7 @@ export default function ProjectScriptsControl({
             </TooltipPopup>
           </Tooltip>
           {isPanel ? (
-            <span
-              aria-hidden="true"
-              className={THREAD_DETAILS_PANEL_SPLIT_SEPARATOR_CLASS}
-            />
+            <span aria-hidden="true" className={THREAD_DETAILS_PANEL_SPLIT_SEPARATOR_CLASS} />
           ) : (
             <GroupSeparator className="hidden @3xl/header-actions:block" />
           )}
@@ -418,10 +367,7 @@ export default function ProjectScriptsControl({
                         variant={isPanel ? "ghost" : "outline"}
                         part="secondary"
                         panel={isPanel}
-                        aria-label={translateWebSource(
-                          uiLocale,
-                          "Script actions",
-                        )}
+                        aria-label={translateWebSource(uiLocale, "Script actions")}
                         data-toolbar-control=""
                       />
                     }
@@ -429,9 +375,7 @@ export default function ProjectScriptsControl({
                 }
               >
                 <ChevronDownIcon
-                  className={
-                    isPanel ? THREAD_DETAILS_PANEL_CHEVRON_CLASS : "size-4"
-                  }
+                  className={isPanel ? THREAD_DETAILS_PANEL_CHEVRON_CLASS : "size-4"}
                 />
               </TooltipTrigger>
               <TooltipPopup side="top">Script actions</TooltipPopup>
@@ -467,19 +411,11 @@ export default function ProjectScriptsControl({
               }
             >
               <WrenchIcon className={THREAD_DETAILS_PANEL_ICON_CLASS} />
-              <span
-                className={cn(
-                  "min-w-0 truncate",
-                  THREAD_DETAILS_PANEL_LABEL_CLASS,
-                )}
-              >
+              <span className={cn("min-w-0 truncate", THREAD_DETAILS_PANEL_LABEL_CLASS)}>
                 {t("projectSettings.actions")}
               </span>
             </ThreadDetailsControl>
-            <span
-              aria-hidden="true"
-              className={THREAD_DETAILS_PANEL_SPLIT_SEPARATOR_CLASS}
-            />
+            <span aria-hidden="true" className={THREAD_DETAILS_PANEL_SPLIT_SEPARATOR_CLASS} />
             <Menu
               highlightItemOnHover={false}
               open={actionsMenuOpen.imports}
@@ -497,22 +433,13 @@ export default function ProjectScriptsControl({
                     size="sm"
                     variant="ghost"
                     part="secondary"
-                    aria-label={translateWebSource(
-                      uiLocale,
-                      "Choose project action",
-                    )}
+                    aria-label={translateWebSource(uiLocale, "Choose project action")}
                   />
                 }
               >
-                <ChevronDownIcon
-                  className={THREAD_DETAILS_PANEL_CHEVRON_CLASS}
-                />
+                <ChevronDownIcon className={THREAD_DETAILS_PANEL_CHEVRON_CLASS} />
               </MenuTrigger>
-              <MenuPopup
-                align="end"
-                anchor={panelAnchorRef}
-                className="w-(--anchor-width)"
-              >
+              <MenuPopup align="end" anchor={panelAnchorRef} className="w-(--anchor-width)">
                 {scriptItems}
               </MenuPopup>
             </Menu>
@@ -556,9 +483,7 @@ export default function ProjectScriptsControl({
                 variant={isPanel ? "ghost" : "outline"}
                 part="row"
                 panel={isPanel}
-                className={
-                  isPanel ? undefined : "w-7 sm:w-6 @3xl/header-actions:w-auto!"
-                }
+                className={isPanel ? undefined : "w-7 sm:w-6 @3xl/header-actions:w-auto!"}
                 aria-label={
                   isPanel
                     ? translateWebSource(uiLocale, "Add project script")
@@ -573,8 +498,7 @@ export default function ProjectScriptsControl({
             <span
               className={cn(
                 "sr-only @3xl/header-actions:not-sr-only @3xl/header-actions:ml-0.5",
-                isPanel &&
-                  cn("not-sr-only ml-0.5", THREAD_DETAILS_PANEL_LABEL_CLASS),
+                isPanel && cn("not-sr-only ml-0.5", THREAD_DETAILS_PANEL_LABEL_CLASS),
               )}
             >
               {isPanel

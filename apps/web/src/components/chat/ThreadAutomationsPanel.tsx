@@ -1,17 +1,8 @@
-import {
-  splitWebTranslation,
-  useI18n,
-  type WebTranslate,
-} from "~/i18n/WebI18nContext";
+import { splitWebTranslation, useI18n, type WebTranslate } from "~/i18n/WebI18nContext";
 import { useAtomValue } from "@effect/atom-react";
 import { ThreadDetailsControl } from "./ThreadDetailsControl";
 import { useNavigate } from "@tanstack/react-router";
-import {
-  CalendarClockIcon,
-  PencilIcon,
-  PlayIcon,
-  Settings2Icon,
-} from "lucide-react";
+import { CalendarClockIcon, PencilIcon, PlayIcon, Settings2Icon } from "lucide-react";
 import { useState } from "react";
 import {
   AuthOrchestrationOperateScope,
@@ -87,12 +78,9 @@ export function ThreadAutomationsPanel(props: {
       input: {},
     }),
   );
-  const setTaskEnabled = useAtomCommand(
-    serverEnvironment.setScheduledTaskEnabled,
-    {
-      label: "thread automation toggle",
-    },
-  );
+  const setTaskEnabled = useAtomCommand(serverEnvironment.setScheduledTaskEnabled, {
+    label: "thread automation toggle",
+  });
   const runTaskNow = useAtomCommand(serverEnvironment.runScheduledTaskNow, {
     label: "thread automation run now",
   });
@@ -148,10 +136,7 @@ export function ThreadAutomationsPanel(props: {
     });
     setBusyTaskId(null);
     if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
-      reportFailure(
-        residualT("chatResidual.automationRunError"),
-        squashAtomCommandFailure(result),
-      );
+      reportFailure(residualT("chatResidual.automationRunError"), squashAtomCommandFailure(result));
     }
   };
 
@@ -258,9 +243,7 @@ export function ThreadAutomationsPanel(props: {
                         name: task.title,
                       })}
                       disabled={
-                        !canOperate ||
-                        busyTaskId !== null ||
-                        task.lastRunStatus === "running"
+                        !canOperate || busyTaskId !== null || task.lastRunStatus === "running"
                       }
                       onClick={() => void runNow(task)}
                     >

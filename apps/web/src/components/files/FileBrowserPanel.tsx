@@ -6,12 +6,7 @@ import type {
   ContextMenuOpenContext as TreeContextMenuOpenContext,
 } from "@pierre/trees";
 import type { EnvironmentId, ProjectEntry } from "@t3tools/contracts";
-import {
-  FileTree,
-  useFileTree,
-  useFileTreeSearch,
-  useFileTreeSelector,
-} from "@pierre/trees/react";
+import { FileTree, useFileTree, useFileTreeSearch, useFileTreeSelector } from "@pierre/trees/react";
 import { settlePromise } from "@t3tools/client-runtime/state/runtime";
 import { serializeComposerFileLink } from "@t3tools/shared/composerTrigger";
 import * as AsyncResult from "effect/reactivity/AsyncResult";
@@ -28,10 +23,7 @@ import { writeTextToClipboard } from "~/hooks/useCopyToClipboard";
 import { useStableCallback } from "~/hooks/useStableCallback";
 import { useTheme } from "~/hooks/useTheme";
 import { useWorkspaceMutationRefresh } from "~/hooks/useWorkspaceMutationRefresh";
-import {
-  useFileContextMenu,
-  type FileContextMenuAction,
-} from "~/fileContextMenu";
+import { useFileContextMenu, type FileContextMenuAction } from "~/fileContextMenu";
 import { readLocalApi } from "~/localApi";
 import { T3_PIERRE_ICONS } from "~/pierre-icons";
 import { PIERRE_TREE_UNSAFE_CSS, pierreTreeStyle } from "~/pierre-tree-theme";
@@ -45,18 +37,12 @@ import {
   setAllDirectoriesExpanded,
   writeExpandedDirectories,
 } from "./fileTreeExpansion";
-import {
-  buildFileTreePathUpdates,
-  shouldRebuildFileTree,
-} from "./fileTreePathReconciliation";
+import { buildFileTreePathUpdates, shouldRebuildFileTree } from "./fileTreePathReconciliation";
 import { loadFileAncestors } from "./loadFileAncestors";
 import { useDirectoryEntries } from "./useDirectoryEntries";
 import { useProjectPathSearch } from "~/state/queries";
 import { isMacPlatform } from "~/lib/utils";
-import {
-  type PreviewAction,
-  subscribePreviewAction,
-} from "../preview/previewActionBus";
+import { type PreviewAction, subscribePreviewAction } from "../preview/previewActionBus";
 
 interface FileBrowserPanelProps {
   environmentId: EnvironmentId;
@@ -77,10 +63,7 @@ function treePath(entry: ProjectEntry): string {
   return entry.kind === "directory" ? `${entry.path}/` : entry.path;
 }
 
-function RefreshFilesButton(props: {
-  isPending: boolean;
-  onRefresh: () => void;
-}) {
+function RefreshFilesButton(props: { isPending: boolean; onRefresh: () => void }) {
   const { locale } = useI18n();
   return (
     <Tooltip>
@@ -167,9 +150,7 @@ function buildTreeEntries(
   const directoryPaths = directories.map(treePath);
   // Expanding a folder lists it, and an ignored one such as `node_modules` can hold tens of
   // thousands, so expand all skips ignored folders. They still open by hand.
-  const expandableDirectoryPaths = directories
-    .filter((entry) => !entry.ignored)
-    .map(treePath);
+  const expandableDirectoryPaths = directories.filter((entry) => !entry.ignored).map(treePath);
   return {
     entries,
     entryKinds,
@@ -212,25 +193,13 @@ export default function FileBrowserPanel({
     { environmentId, cwd: hostFolder ? null : cwd, query: query.slice(0, 256) },
     200,
   );
-  const {
-    entries,
-    entryKinds,
-    treePaths,
-    directoryPaths,
-    expandableDirectoryPaths,
-  } = buildTreeEntries(
-    directoryEntries,
-    pathSearch.entries,
-    pathSearch.isPending,
-    query,
-  );
+  const { entries, entryKinds, treePaths, directoryPaths, expandableDirectoryPaths } =
+    buildTreeEntries(directoryEntries, pathSearch.entries, pathSearch.isPending, query);
   const entryKindsRef = useRef(entryKinds);
   const previousTreePathsRef = useRef<readonly string[] | null>(null);
   const syncingSelectionRef = useRef(false);
   const treeSelectionPathRef = useRef<string | null>(null);
-  const handledRevealRef = useRef<{ path: string; revealId: number } | null>(
-    null,
-  );
+  const handledRevealRef = useRef<{ path: string; revealId: number } | null>(null);
 
   // Shadow-DOM row rects are unreliable; capture the composed contextmenu event's viewport position.
   const contextMenuPointerRef = useRef<{
@@ -249,8 +218,7 @@ export default function FileBrowserPanel({
       const relativePath = item.path.replace(/\/$/, "");
       const mention = serializeComposerFileLink(panelPath(relativePath));
       const pointer = contextMenuPointerRef.current;
-      const pointerIsFresh =
-        pointer !== null && performance.now() - pointer.at < 1000;
+      const pointerIsFresh = pointer !== null && performance.now() - pointer.at < 1000;
       const anchorRect = context.anchorElement.getBoundingClientRect();
       const position = pointerIsFresh
         ? { x: pointer.x, y: pointer.y }
@@ -281,13 +249,9 @@ export default function FileBrowserPanel({
         if (clicked === null) return;
         // Open-with submenu ids are absent from the top-level item list.
         const isFileMenuAction =
-          fileMenuItems.some((entry) => entry.id === clicked) ||
-          clicked.startsWith("editor:");
+          fileMenuItems.some((entry) => entry.id === clicked) || clicked.startsWith("editor:");
         if (isFileMenuAction) {
-          await fileContextMenu.activate(
-            clicked as FileContextMenuAction,
-            fileTarget,
-          );
+          await fileContextMenu.activate(clicked as FileContextMenuAction, fileTarget);
           return;
         }
         if (clicked === "copy-mention") {
@@ -301,10 +265,7 @@ export default function FileBrowserPanel({
           } catch (error) {
             toastManager.add({
               type: "error",
-              title: translateWebSource(
-                newCopyLocale,
-                "Failed to copy mention",
-              ),
+              title: translateWebSource(newCopyLocale, "Failed to copy mention"),
               description:
                 error instanceof Error
                   ? error.message
@@ -348,9 +309,7 @@ export default function FileBrowserPanel({
 
   const loadingDirectoriesRef = useRef(loadingDirectories);
   const dragMention = createFileTreeDragMentionController(
-    hostFolder
-      ? { mentionPath: (path: string) => joinHostPath(cwd, path) }
-      : {},
+    hostFolder ? { mentionPath: (path: string) => joinHostPath(cwd, path) } : {},
   );
   const { model } = useFileTree({
     composition: {
@@ -402,8 +361,7 @@ export default function FileBrowserPanel({
   }, [loadingDirectories, model]);
   const search = useFileTreeSearch(model);
   // Pierre restores the unfiltered tree when a search has no matches.
-  const hasNoSearchMatches =
-    search.value.trim().length > 0 && search.matchingPaths.length === 0;
+  const hasNoSearchMatches = search.value.trim().length > 0 && search.matchingPaths.length === 0;
   const allDirectoriesExpanded = useFileTreeSelector(model, (currentModel) =>
     areAllDirectoriesExpanded(currentModel, expandableDirectoryPaths),
   );
@@ -427,8 +385,7 @@ export default function FileBrowserPanel({
   };
   const onPanelAction = useEffectEvent((action: PreviewAction) => {
     // Hidden panel tabs stay mounted; only the visible Files tab answers.
-    if (action === "find" && searchInputRef.current?.getClientRects().length)
-      focusSearch();
+    if (action === "find" && searchInputRef.current?.getClientRects().length) focusSearch();
   });
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- subscribes to the panel find command, which fires while focus is anywhere in the right panel
   useEffect(() => {
@@ -438,9 +395,7 @@ export default function FileBrowserPanel({
   const expandedPathsRef = useRef(new Set<string>());
   const expansionRoot = `${environmentId}:${cwd}`;
   // Folders expanded when the panel last unmounted; each reopens once lazy loading lists it.
-  const [pendingExpandedPaths] = useState(
-    () => new Set(readExpandedDirectories(expansionRoot)),
-  );
+  const [pendingExpandedPaths] = useState(() => new Set(readExpandedDirectories(expansionRoot)));
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- subscribes to the Pierre tree model to load directories as they are expanded
   useEffect(() => {
     const currentPaths = new Set(directoryPaths);
@@ -453,11 +408,7 @@ export default function FileBrowserPanel({
       let changed = false;
       for (const path of directoryPaths) {
         const item = model.getItem(path);
-        if (
-          item?.isDirectory() &&
-          pendingExpandedPaths.delete(path) &&
-          "expand" in item
-        ) {
+        if (item?.isDirectory() && pendingExpandedPaths.delete(path) && "expand" in item) {
           item.expand();
         }
         if (item?.isDirectory() && "isExpanded" in item && item.isExpanded()) {
@@ -467,8 +418,7 @@ export default function FileBrowserPanel({
             void load(path.replace(/\/$/, ""));
           }
         } else {
-          if (item?.isDirectory() && expandedPathsRef.current.has(path))
-            setExpandAll(false);
+          if (item?.isDirectory() && expandedPathsRef.current.has(path)) setExpandAll(false);
           if (expandedPathsRef.current.delete(path)) changed = true;
         }
       }
@@ -578,8 +528,7 @@ export default function FileBrowserPanel({
     ) {
       return;
     }
-    const selectedTreePath =
-      selectedKind === "directory" ? `${selectedPath}/` : selectedPath;
+    const selectedTreePath = selectedKind === "directory" ? `${selectedPath}/` : selectedPath;
     const selectedItem = model.getItem(selectedTreePath);
     if (!selectedItem) return;
 
@@ -607,8 +556,7 @@ export default function FileBrowserPanel({
     let ancestorPath = "";
     for (const segment of segments.slice(0, -1)) {
       ancestorPath = ancestorPath ? `${ancestorPath}/${segment}` : segment;
-      const item =
-        model.getItem(`${ancestorPath}/`) ?? model.getItem(ancestorPath);
+      const item = model.getItem(`${ancestorPath}/`) ?? model.getItem(ancestorPath);
       if (item && "expand" in item) item.expand();
     }
 
@@ -636,22 +584,11 @@ export default function FileBrowserPanel({
         };
       }}
       // Capture dragstart before the tree selects the row so selection sees the drag flag.
-      onDragStartCapture={(event) =>
-        dragMention.handleDragStart(event.nativeEvent)
-      }
-      onDragEnd={() =>
-        dragMention.handleDragEnd((path) => model.getItem(path)?.deselect())
-      }
+      onDragStartCapture={(event) => dragMention.handleDragStart(event.nativeEvent)}
+      onDragEnd={() => dragMention.handleDragEnd((path) => model.getItem(path)?.deselect())}
       onKeyDown={(event) => {
-        const isModPressed = isMacPlatform(navigator.platform)
-          ? event.metaKey
-          : event.ctrlKey;
-        if (
-          !isModPressed ||
-          event.altKey ||
-          event.shiftKey ||
-          event.key.toLowerCase() !== "f"
-        )
+        const isModPressed = isMacPlatform(navigator.platform) ? event.metaKey : event.ctrlKey;
+        if (!isModPressed || event.altKey || event.shiftKey || event.key.toLowerCase() !== "f")
           return;
         event.preventDefault();
         focusSearch();
@@ -682,10 +619,7 @@ export default function FileBrowserPanel({
                   variant="ghost"
                   aria-label={
                     expandAll || allDirectoriesExpanded
-                      ? translateWebSource(
-                          newCopyLocale,
-                          "Collapse all folders",
-                        )
+                      ? translateWebSource(newCopyLocale, "Collapse all folders")
                       : translateWebSource(newCopyLocale, "Expand all folders")
                   }
                   onClick={toggleAllDirectories}
@@ -712,16 +646,12 @@ export default function FileBrowserPanel({
           onClick={handleRefresh}
           className="p-4 text-left text-xs leading-relaxed text-destructive"
         >
-          {error ?? pathSearch.error}{" "}
-          {translateWebSource(newCopyLocale, "Click to retry.")}
+          {error ?? pathSearch.error} {translateWebSource(newCopyLocale, "Click to retry.")}
         </button>
       ) : null}
       {query.trim() && pathSearch.truncated && !pathSearch.isPending ? (
         <div className="px-3 py-1 text-xs text-muted-foreground">
-          {translateWebSource(
-            newCopyLocale,
-            "More matches available. Refine your search.",
-          )}
+          {translateWebSource(newCopyLocale, "More matches available. Refine your search.")}
         </div>
       ) : null}
       {(!ready || pathSearch.isPending) && (
@@ -737,15 +667,8 @@ export default function FileBrowserPanel({
         </div>
       )}
       {hasNoSearchMatches ? (
-        ready &&
-        !isPending &&
-        !pathSearch.isPending &&
-        !error &&
-        !pathSearch.error ? (
-          <div
-            role="status"
-            className="px-3 py-4 text-xs text-muted-foreground"
-          >
+        ready && !isPending && !pathSearch.isPending && !error && !pathSearch.error ? (
+          <div role="status" className="px-3 py-4 text-xs text-muted-foreground">
             {translateWebSource(newCopyLocale, "No matching files.")}
           </div>
         ) : null

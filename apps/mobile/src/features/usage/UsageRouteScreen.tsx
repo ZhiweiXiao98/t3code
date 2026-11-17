@@ -297,7 +297,9 @@ function UsageScreen(props: {
                   <ChatGptUsageSummary selectedEnvironmentIds={selectedEnvironmentIds} />
                   {merged.duplicateSources.length > 0 ? (
                     <Text className="text-sm text-foreground-muted">
-                      {localizeMobileString(`Counted once across environments sharing a transcript directory: ${merged.duplicateSources.join(", ")}`)}
+                      {localizeMobileString(
+                        `Counted once across environments sharing a transcript directory: ${merged.duplicateSources.join(", ")}`,
+                      )}
                     </Text>
                   ) : null}
                   {isPending ? (
@@ -326,7 +328,11 @@ function UsageScreen(props: {
                   ) : (
                     <>
                       {sourceMessages.map((message) => (
-                        <Text localize={false} key={message} className="text-sm text-foreground-muted">
+                        <Text
+                          localize={false}
+                          key={message}
+                          className="text-sm text-foreground-muted"
+                        >
                           {message}
                         </Text>
                       ))}

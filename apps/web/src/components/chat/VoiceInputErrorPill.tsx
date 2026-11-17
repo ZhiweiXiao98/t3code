@@ -16,18 +16,15 @@ const VOICE_ERROR_LABELS: Record<string, string> = {
   "This draft is no longer available.": "Draft unavailable",
   "Another voice recording is already active.": "Already recording",
   "Voice transcription is not available.": "Voice input unavailable",
-  "Voice transcription is still finishing. Try again shortly.":
-    "Still transcribing",
-  "Voice transcription is not available for this language.":
-    "Language unsupported",
+  "Voice transcription is still finishing. Try again shortly.": "Still transcribing",
+  "Voice transcription is not available for this language.": "Language unsupported",
   "Could not prepare voice transcription.": "Couldn’t start",
   "Could not start voice recording.": "Couldn’t start",
   "Voice recording was interrupted.": "Recording interrupted",
   "Could not finish voice recording.": "Couldn’t finish",
   "Could not transcribe this recording.": "Transcription failed",
   "Voice transcription on this environment failed.": "Transcription failed",
-  "The draft changed while voice input was running. The transcript was not added.":
-    "Draft changed",
+  "The draft changed while voice input was running. The transcript was not added.": "Draft changed",
   "No speech was detected.": "No speech heard",
   "Microphone processing failed.": "Mic failed",
   "The microphone disconnected.": "Mic disconnected",
@@ -35,9 +32,7 @@ const VOICE_ERROR_LABELS: Record<string, string> = {
 
 function voiceErrorLabel(error: string | null): string {
   return (
-    (error &&
-      Object.hasOwn(VOICE_ERROR_LABELS, error) &&
-      VOICE_ERROR_LABELS[error]) ||
+    (error && Object.hasOwn(VOICE_ERROR_LABELS, error) && VOICE_ERROR_LABELS[error]) ||
     "Voice input failed"
   );
 }
@@ -61,19 +56,14 @@ export function VoiceInputErrorPill(props: {
   const errorMessage =
     locale === "zh-CN" &&
     props.errorSource === "browser-transcription-destination" &&
-    props.error ===
-      "Voice transcription failed. Check the destination in Settings → Voice."
+    props.error === "Voice transcription failed. Check the destination in Settings → Voice."
       ? "语音转写失败。请在设置 → 语音中检查目标。"
       : locale === "zh-CN" &&
           props.errorSource === "browser-openrouter-model" &&
           props.error === "Choose an OpenRouter model in Settings → Voice."
         ? "请在设置 → 语音中选择 OpenRouter 模型。"
-        : translateVoiceSettingsError(
-            locale,
-            props.error ?? "Voice input failed",
-          );
+        : translateVoiceSettingsError(locale, props.error ?? "Voice input failed");
   const navigate = useNavigate();
-  const message = props.error ?? "Voice input failed";
   const openSettings = props.errorAction === "settings";
   const compact = props.size === "compact";
   const action = openSettings

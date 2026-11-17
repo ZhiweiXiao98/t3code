@@ -192,7 +192,12 @@ vi.mock("./scheduled-task-editor", () => ({
     editor: state.editor,
     voiceOwnerKey: "scheduled-task:test",
     readEditor: () => state.editor,
-    setEditor: (update: ScheduledTaskEditor | null | ((current: ScheduledTaskEditor | null) => ScheduledTaskEditor | null)) => {
+    setEditor: (
+      update:
+        | ScheduledTaskEditor
+        | null
+        | ((current: ScheduledTaskEditor | null) => ScheduledTaskEditor | null),
+    ) => {
       state.editor = typeof update === "function" ? update(state.editor) : update;
     },
     hasChanges: false,

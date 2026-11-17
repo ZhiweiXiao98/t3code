@@ -11,19 +11,8 @@ import { builtInSecretProviderDefinitions } from "@t3tools/secret-provider-defin
 import { useAtomValue } from "@effect/atom-react";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
-import {
-  AlertTriangleIcon,
-  CheckIcon,
-  KeyRoundIcon,
-  RefreshCwIcon,
-  TypeIcon,
-} from "lucide-react";
-import {
-  useState,
-  type ComponentProps,
-  type ComponentType,
-  type ReactNode,
-} from "react";
+import { AlertTriangleIcon, CheckIcon, KeyRoundIcon, RefreshCwIcon, TypeIcon } from "lucide-react";
+import { useState, type ComponentProps, type ComponentType, type ReactNode } from "react";
 
 import { isSecretsFeatureEnabled } from "../../env";
 import { useEnvironmentSettings } from "../../hooks/useSettings";
@@ -32,13 +21,7 @@ import { serverEnvironment } from "../../state/server";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { Button } from "../ui/button";
 import { DraftInput } from "../ui/draft-input";
-import {
-  Select,
-  SelectItem,
-  SelectPopup,
-  SelectTrigger,
-  SelectValue,
-} from "../ui/select";
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
 import { Spinner } from "../ui/spinner";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { SecretInput } from "./SecretInput";
@@ -55,30 +38,19 @@ const STORED_VALUE = "__stored__";
 const decodeSecretReference = Schema.decodeUnknownOption(SecretReference);
 
 /** Secret providers a setting can point at; empty when the environment cannot read references. */
-export function useSecretSources(
-  environmentId: EnvironmentId,
-): ReadonlyArray<SecretSource> {
-  const providers = useEnvironmentSettings(
-    environmentId,
-    (settings) => settings.secretProviders,
-  );
+export function useSecretSources(environmentId: EnvironmentId): ReadonlyArray<SecretSource> {
+  const providers = useEnvironmentSettings(environmentId, (settings) => settings.secretProviders);
   const supported = useAtomValue(
     serverEnvironment.configValueAtom(environmentId),
     (config) => config?.secretReferences === true,
   );
   if (!isSecretsFeatureEnabled || !supported) return NO_SECRET_SOURCES;
-  return (
-    Object.entries(providers) as Array<[SecretProviderId, SecretProviderConfig]>
-  )
-    .filter(
-      ([, config]) => classifySecretProvider(config).kind !== "unsupported",
-    )
+  return (Object.entries(providers) as Array<[SecretProviderId, SecretProviderConfig]>)
+    .filter(([, config]) => classifySecretProvider(config).kind !== "unsupported")
     .map(([id, config]) => ({ id, kind: config.kind, label: config.label }));
 }
 
-function SourceIcon(props: {
-  readonly icon: ComponentType<{ readonly className?: string }>;
-}) {
+function SourceIcon(props: { readonly icon: ComponentType<{ readonly className?: string }> }) {
   return <props.icon className="size-3.5 shrink-0" />;
 }
 
@@ -107,17 +79,13 @@ export function SecretSourceSelect(props: {
   const { value, sources } = props;
   const known = value === null || sources.some((source) => source.id === value);
   const title =
-    value === null
-      ? tx("Value")
-      : (sources.find((source) => source.id === value)?.label ?? value);
+    value === null ? tx("Value") : (sources.find((source) => source.id === value)?.label ?? value);
   return (
     <Select
       value={value ?? STORED_VALUE}
       onValueChange={(next) =>
         props.onValueChange(
-          next === STORED_VALUE || next === null
-            ? null
-            : (next as SecretProviderId),
+          next === STORED_VALUE || next === null ? null : (next as SecretProviderId),
         )
       }
       {...(props.disabled === undefined ? {} : { disabled: props.disabled })}
@@ -125,17 +93,11 @@ export function SecretSourceSelect(props: {
       <SelectTrigger
         size="sm"
         className="w-auto min-w-0 shrink-0"
-        aria-label={
-          locale === "zh-CN" ? `${props.label}来源` : `${props.label} source`
-        }
+        aria-label={locale === "zh-CN" ? `${props.label}来源` : `${props.label} source`}
         title={title}
       >
         <SelectValue>
-          <SourceIcon
-            icon={
-              value === null ? TypeIcon : known ? OnePasswordIcon : KeyRoundIcon
-            }
-          />
+          <SourceIcon icon={value === null ? TypeIcon : known ? OnePasswordIcon : KeyRoundIcon} />
         </SelectValue>
       </SelectTrigger>
       <SelectPopup align="start" alignItemWithTrigger={false}>
@@ -179,9 +141,7 @@ function SecretCheckButton(props: {
     serverEnvironment.configValueAtom(environmentId),
     (config) => config?.environment.capabilities.secretSourceCheck === true,
   );
-  const canCheck = useAtomValue(
-    serverEnvironment.checkSecretSource.permissionAtom(environmentId),
-  );
+  const canCheck = useAtomValue(serverEnvironment.checkSecretSource.permissionAtom(environmentId));
   const checkSecretSource = useAtomCommand(serverEnvironment.checkSecretSource);
   const secretKey = `${secret.provider}\u0000${secret.reference}`;
   const [check, setCheck] = useState<{
@@ -244,11 +204,7 @@ function SecretCheckButton(props: {
               type="button"
               size="icon-micro"
               variant="ghost-muted"
-              disabled={
-                props.disabled === true ||
-                !canCheck ||
-                state?.status === "checking"
-              }
+              disabled={props.disabled === true || !canCheck || state?.status === "checking"}
               onClick={() => void run()}
               aria-label={
                 state?.status === "failed"
@@ -280,10 +236,7 @@ function SecretCheckButton(props: {
   );
 }
 
-type SecretSourceInputProps = Omit<
-  ComponentProps<typeof SecretInput>,
-  "value" | "children"
-> & {
+type SecretSourceInputProps = Omit<ComponentProps<typeof SecretInput>, "value" | "children"> & {
   readonly value: string | SecretReference;
   /** Offers a check of the committed reference on this environment. */
   readonly environmentId?: EnvironmentId | undefined;
@@ -311,22 +264,14 @@ export function SecretSourceInput({
   const { locale } = useI18n();
   const tx = (source: string) => translateWebSource(locale, source);
   // A provider picked here applies once a reference for it is committed.
-  const [pendingProvider, setPendingProvider] =
-    useState<SecretProviderId | null>(null);
-  const [rejectedReference, setRejectedReference] = useState<string | null>(
-    null,
-  );
+  const [pendingProvider, setPendingProvider] = useState<SecretProviderId | null>(null);
+  const [rejectedReference, setRejectedReference] = useState<string | null>(null);
   const secret = typeof value === "string" ? undefined : value;
   const input = { ...rest, value: typeof value === "string" ? value : "" };
   const provider = pendingProvider ?? secret?.provider ?? null;
-  const reference =
-    secret !== undefined && secret.provider === provider
-      ? secret.reference
-      : "";
+  const reference = secret !== undefined && secret.provider === provider ? secret.reference : "";
   const providerSource = sources.find((source) => source.id === provider);
-  const definition =
-    providerSource &&
-    builtInSecretProviderDefinitions.find(providerSource.kind);
+  const definition = providerSource && builtInSecretProviderDefinitions.find(providerSource.kind);
   const label = input["aria-label"] ?? tx("Secret");
   const source =
     sources.length === 0 && provider === null ? null : (
@@ -363,11 +308,8 @@ export function SecretSourceInput({
             onCommit={(next) => {
               if (next.trim().length === 0) {
                 setRejectedReference(null);
-                onValidityChange?.(
-                  pendingProvider === null && secret !== undefined,
-                );
-                if (pendingProvider === null && secret !== undefined)
-                  onSecretChange(undefined);
+                onValidityChange?.(pendingProvider === null && secret !== undefined);
+                if (pendingProvider === null && secret !== undefined) onSecretChange(undefined);
                 return;
               }
               const decoded = decodeSecretReference({
@@ -390,9 +332,7 @@ export function SecretSourceInput({
             autoComplete="off"
             placeholder={definition?.referencePlaceholder}
             spellCheck={false}
-            aria-label={
-              locale === "zh-CN" ? `${label}引用` : `${label} reference`
-            }
+            aria-label={locale === "zh-CN" ? `${label}引用` : `${label} reference`}
             aria-invalid={rejectedReference !== null}
           />
           {environmentId !== undefined &&
@@ -409,10 +349,7 @@ export function SecretSourceInput({
         </div>
         {rejectedReference !== null ? (
           <p className="text-2xs text-destructive">
-            {tx(
-              definition?.invalidReferenceMessage ??
-                "Enter a valid secret reference.",
-            )}
+            {tx(definition?.invalidReferenceMessage ?? "Enter a valid secret reference.")}
           </p>
         ) : null}
       </div>

@@ -12,10 +12,7 @@ import {
   type ServerConfig,
   type ServerSelfUpdateCapability,
 } from "@t3tools/contracts";
-import {
-  cliReleaseChannelOf,
-  desktopUpdateChannelOf,
-} from "@t3tools/shared/cliRelease";
+import { cliReleaseChannelOf, desktopUpdateChannelOf } from "@t3tools/shared/cliRelease";
 import { compareSemverVersions } from "@t3tools/shared/semver";
 
 import {
@@ -23,23 +20,16 @@ import {
   resolveVersionMismatch,
   supportsDesktopAppUpdate,
 } from "~/versionSkew";
-import type {
-  ServerUpdateOutcome,
-  ServerUpdateTarget,
-} from "../ServerUpdateAction";
+import type { ServerUpdateOutcome, ServerUpdateTarget } from "../ServerUpdateAction";
 
-const translateEnglish: WebTranslate = (key, values) =>
-  translateWebMessage("en", key, values);
+const translateEnglish: WebTranslate = (key, values) => translateWebMessage("en", key, values);
 
 export interface UpdateEverythingMachine {
   readonly environmentId: EnvironmentId;
   readonly label: string;
   readonly serverConfig: {
     readonly environment: ServerConfig["environment"];
-    readonly settings: Pick<
-      ServerConfig["settings"],
-      "continueThreadsAfterServerUpdate"
-    >;
+    readonly settings: Pick<ServerConfig["settings"], "continueThreadsAfterServerUpdate">;
     readonly managedPolicy?: ServerConfig["managedPolicy"];
   } | null;
   readonly connected: boolean;
@@ -64,18 +54,14 @@ export function collectRestartingMachines(
     if (
       config === null ||
       !machine.connected ||
-      !(
-        updated.has(machine.environmentId) ||
-        (installsLocal && machine.hostedByThisApp)
-      )
+      !(updated.has(machine.environmentId) || (installsLocal && machine.hostedByThisApp))
     ) {
       return [];
     }
     return [
       {
         environmentId: machine.environmentId,
-        continuesThreads:
-          config.settings.continueThreadsAfterServerUpdate === true,
+        continuesThreads: config.settings.continueThreadsAfterServerUpdate === true,
       },
     ];
   });
@@ -105,10 +91,7 @@ export function collectServerUpdateTargets(
     if (machine.hostedByThisApp) continue;
     if (
       config !== null &&
-      resolveVersionMismatch(
-        config.environment.serverVersion,
-        targetVersion,
-      ) === null
+      resolveVersionMismatch(config.environment.serverVersion, targetVersion) === null
     ) {
       continue;
     }
@@ -165,15 +148,11 @@ export function collectServerUpdateTargets(
   return { targets, skipped };
 }
 
-function unavailableReason(
-  machine: UpdateEverythingMachine,
-  t: WebTranslate,
-): string | null {
+function unavailableReason(machine: UpdateEverythingMachine, t: WebTranslate): string | null {
   if (machine.serverConfig === null || !machine.connected)
     return t("updateEverything.notConnected");
   if (!machine.canMaintain) return t("updateEverything.noPermission");
-  if (machine.updateState.status === "running")
-    return t("updateEverything.alreadyUpdating");
+  if (machine.updateState.status === "running") return t("updateEverything.alreadyUpdating");
   return null;
 }
 
@@ -234,12 +213,8 @@ export function localSwitchBlockReason(
   localEnvironmentEnabled: boolean | WebTranslate = true,
   translate: WebTranslate = translateEnglish,
 ): string | null {
-  const t =
-    typeof localEnvironmentEnabled === "function"
-      ? localEnvironmentEnabled
-      : translate;
-  if (localEnvironmentEnabled === false || !crossesTrack(appVersion, release))
-    return null;
+  const t = typeof localEnvironmentEnabled === "function" ? localEnvironmentEnabled : translate;
+  if (localEnvironmentEnabled === false || !crossesTrack(appVersion, release)) return null;
   if (
     hosted.length === 0 ||
     hosted.length < backendCount ||
@@ -249,14 +224,7 @@ export function localSwitchBlockReason(
   }
   return (
     hosted
-      .map((server) =>
-        channelSwitchBlockReason(
-          appVersion,
-          release,
-          server.databaseMigration,
-          t,
-        ),
-      )
+      .map((server) => channelSwitchBlockReason(appVersion, release, server.databaseMigration, t))
       .find((reason) => reason !== null) ?? null
   );
 }
@@ -319,8 +287,7 @@ export function collectChannelSwitchTargets(
         : { targetDatabaseMigration: release.databaseMigration }),
     });
     const serverVersion = config?.environment.serverVersion;
-    const sameTrack =
-      serverVersion !== undefined && isOnTrack(serverVersion, release.channel);
+    const sameTrack = serverVersion !== undefined && isOnTrack(serverVersion, release.channel);
     if (
       config !== null &&
       sameTrack &&
@@ -341,19 +308,11 @@ export function collectChannelSwitchTargets(
       continue;
     }
     const unavailable = unavailableReason(machine, t);
-    if (
-      config === null ||
-      serverVersion === undefined ||
-      unavailable !== null
-    ) {
+    if (config === null || serverVersion === undefined || unavailable !== null) {
       skip(unavailable ?? t("updateEverything.notConnected"));
       continue;
     }
-    const managedDenial = managedMachineUpdateDenial(
-      config,
-      release.version,
-      t,
-    );
+    const managedDenial = managedMachineUpdateDenial(config, release.version, t);
     if (managedDenial !== undefined) {
       skip(managedDenial);
       continue;
@@ -405,10 +364,7 @@ export function awaitsTrackSwitch(
 }
 
 function isOnTrack(version: string, channel: DesktopUpdateChannel): boolean {
-  return (
-    cliReleaseChannelOf(version) !== "preview" &&
-    desktopUpdateChannelOf(version) === channel
-  );
+  return cliReleaseChannelOf(version) !== "preview" && desktopUpdateChannelOf(version) === channel;
 }
 
 /** How a switch moves a host, or why it never can from here, whatever the release. */
@@ -416,9 +372,7 @@ function trackSwitchMove(
   config: NonNullable<UpdateEverythingMachine["serverConfig"]>,
   sameTrack: boolean,
   t: WebTranslate = translateEnglish,
-):
-  | { readonly selfUpdate: ServerSelfUpdateCapability }
-  | { readonly skip: string } {
+): { readonly selfUpdate: ServerSelfUpdateCapability } | { readonly skip: string } {
   if (cliReleaseChannelOf(config.environment.serverVersion) === "preview") {
     return { skip: t("updateEverything.previewBuild") };
   }
@@ -455,19 +409,14 @@ export async function runUpdateEverything<Providers, Servers>(
   readonly servers: Servers;
 }> {
   const staged = new Map(
-    Array.from(steps.stageServers?.() ?? [], ([id, stage]) => [
-      id,
-      stage.catch(() => undefined),
-    ]),
+    Array.from(steps.stageServers?.() ?? [], ([id, stage]) => [id, stage.catch(() => undefined)]),
   );
   const [localReady, remote] = await Promise.all([
     steps.downloadLocal?.() ?? Promise.resolve(true),
-    steps
-      .updateProviders()
-      .then(async (providers) => ({
-        providers,
-        servers: await steps.updateServers(staged),
-      })),
+    steps.updateProviders().then(async (providers) => ({
+      providers,
+      servers: await steps.updateServers(staged),
+    })),
   ]);
   return { localReady, ...remote };
 }
@@ -519,9 +468,7 @@ export function isServerUpdateHandedOff(state: ServerUpdateState): boolean {
   return state.status === "running" && state.stage === "resuming";
 }
 
-export function closeFinishedUpdateRun(
-  run: UpdateEverythingRun,
-): UpdateEverythingRun | null {
+export function closeFinishedUpdateRun(run: UpdateEverythingRun): UpdateEverythingRun | null {
   return run.phase === "servers" &&
     run.localVersion === null &&
     run.machines.every((machine) => machine.result === "done")
@@ -531,10 +478,7 @@ export function closeFinishedUpdateRun(
 
 const UPDATE_SLOW_AFTER_MS = 3 * 60 * 1000;
 
-export function formatUpdateElapsed(
-  ms: number,
-  t: WebTranslate = translateEnglish,
-): string {
+export function formatUpdateElapsed(ms: number, t: WebTranslate = translateEnglish): string {
   const minutes = Math.floor(ms / 60_000);
   if (minutes < 1) return t("updateEverything.elapsedLessMinute");
   if (minutes < 60) return t("updateEverything.elapsedMinutes", { minutes });
@@ -561,8 +505,7 @@ export interface UpdateCapsuleView {
   readonly action: "later" | "retry" | "dismiss" | null;
 }
 
-const isActive = (status: UpdateRunMachineStatus) =>
-  status !== "done" && status !== "failed";
+const isActive = (status: UpdateRunMachineStatus) => status !== "done" && status !== "failed";
 
 export function describeUpdateCapsule(
   run: UpdateEverythingRun,
@@ -586,12 +529,8 @@ export function describeUpdateCapsule(
       action: null,
     };
   }
-  const active = machines.filter(
-    ({ status }) => isActive(status) && status !== "waiting",
-  );
-  const slowest = active.toSorted(
-    (a, b) => a.machine.startedAt - b.machine.startedAt,
-  )[0];
+  const active = machines.filter(({ status }) => isActive(status) && status !== "waiting");
+  const slowest = active.toSorted((a, b) => a.machine.startedAt - b.machine.startedAt)[0];
   if (slowest && now - slowest.machine.startedAt >= UPDATE_SLOW_AFTER_MS) {
     return {
       tone: "slow",
@@ -618,8 +557,7 @@ export function describeUpdateCapsule(
     return {
       tone: "default",
       label: t("updateEverything.downloadingProgress", {
-        progress:
-          local.percent === null ? "" : ` ${Math.floor(local.percent)}%`,
+        progress: local.percent === null ? "" : ` ${Math.floor(local.percent)}%`,
       }),
       action: null,
     };
@@ -635,8 +573,7 @@ export function describeUpdateCapsule(
             })
           : t("updateEverything.failedCount", { count: failed.length }),
       action:
-        !run.trackSwitch &&
-        failed.some(({ machine }) => machine.server !== null)
+        !run.trackSwitch && failed.some(({ machine }) => machine.server !== null)
           ? "retry"
           : "dismiss",
     };
@@ -692,23 +629,15 @@ export function collectUpdateEverythingResult(
 ): UpdateEverythingResult {
   return {
     localVersion: input.localVersion,
-    updatedServers: input.servers.filter(
-      ({ outcome }) => outcome.status === "updated",
-    ).length,
-    updatedProviders: input.providers.filter(
-      (outcome) => outcome.status === "updated",
-    ).length,
+    updatedServers: input.servers.filter(({ outcome }) => outcome.status === "updated").length,
+    updatedProviders: input.providers.filter((outcome) => outcome.status === "updated").length,
     restarting: [],
     failures: [
-      ...input.localFailures.map((failure) =>
-        t("updateEverything.localFailure", { failure }),
-      ),
+      ...input.localFailures.map((failure) => t("updateEverything.localFailure", { failure })),
       ...input.servers.flatMap(({ label, outcome }) =>
         outcome.status === "failed" ? [`${label}: ${outcome.message}`] : [],
       ),
-      ...input.providers.flatMap((outcome) =>
-        outcome.status === "failed" ? [outcome.line] : [],
-      ),
+      ...input.providers.flatMap((outcome) => (outcome.status === "failed" ? [outcome.line] : [])),
     ],
   };
 }
@@ -747,9 +676,7 @@ export function getUpdateEverythingToastView(
       title: t("updateEverything.updatedSummary", {
         items: joinList(parts, t),
       }),
-      ...(restarting.length === 0
-        ? {}
-        : { description: restarting.join("\n") }),
+      ...(restarting.length === 0 ? {} : { description: restarting.join("\n") }),
     };
   }
   return {
@@ -770,10 +697,7 @@ export interface UpdateEverythingPlan {
     readonly label: string;
   }>;
   readonly servers: ReadonlyArray<
-    Pick<
-      ServerUpdateTarget,
-      "environmentId" | "serverLabel" | "selfUpdate" | "targetVersion"
-    >
+    Pick<ServerUpdateTarget, "environmentId" | "serverLabel" | "selfUpdate" | "targetVersion">
   >;
   readonly providerMachines: ReadonlyArray<{
     readonly environmentId: EnvironmentId;
@@ -791,11 +715,7 @@ export interface UpdateEverythingRow {
   readonly providers: ReadonlyArray<string>;
 }
 
-function countLabel(
-  count: number,
-  noun: "server" | "provider",
-  t: WebTranslate,
-): string | null {
+function countLabel(count: number, noun: "server" | "provider", t: WebTranslate): string | null {
   if (count === 0) return null;
   return t(
     noun === "server"
@@ -882,8 +802,7 @@ export function describeUpdateEverything(
     summary,
     version:
       plan.localVersion ??
-      plan.servers.find((server) => server.selfUpdate !== "desktop-managed")
-        ?.targetVersion ??
+      plan.servers.find((server) => server.selfUpdate !== "desktop-managed")?.targetVersion ??
       null,
     providerCount,
     rows: Array.from(rows.values()),

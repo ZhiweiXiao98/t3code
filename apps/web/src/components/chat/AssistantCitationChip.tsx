@@ -1,9 +1,5 @@
-import { translateWebSource } from "~/i18n/messages";
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
-import type {
-  AssistantCitation,
-  ResponseContextRecord,
-} from "@t3tools/contracts";
+import type { AssistantCitation, ResponseContextRecord } from "@t3tools/contracts";
 import {
   assistantCitationLabel,
   serializeAssistantCitation,
@@ -29,11 +25,7 @@ import {
 } from "../../lib/assistantCitationNavigation";
 import { cn } from "~/lib/utils";
 import { useQuietThreadShell } from "~/state/entities";
-import {
-  ContextChip,
-  ContextChipAction,
-  ContextChipLabel,
-} from "../ContextChip";
+import { ContextChip, ContextChipAction, ContextChipLabel } from "../ContextChip";
 import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
 import { AssistantCitationCommentEditor } from "./AssistantCitationCommentEditor";
 import { resolveAssistantCitationCommentDismissal } from "./assistantCitationCommentDismissal";
@@ -50,13 +42,7 @@ function useCitationSourceLinkProps(citation: AssistantCitation) {
     ...assistantCitationRoute(citation, sourceThread),
     "data-markdown-copy": serializeAssistantCitation(citation),
     onClick: (event: ReactMouseEvent<HTMLAnchorElement>) => {
-      if (
-        event.button !== 0 ||
-        event.metaKey ||
-        event.ctrlKey ||
-        event.shiftKey ||
-        event.altKey
-      ) {
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
         return;
       }
       event.preventDefault();
@@ -97,11 +83,7 @@ function ResponseCard({
     // One copy boundary for the card and its comment, so a copied card carries the comment once.
     <span
       data-markdown-copy={copyMarkdown}
-      className={cn(
-        "block",
-        !leading && "mt-[0.65rem]",
-        !trailing && "mb-[0.65rem]",
-      )}
+      className={cn("block", !leading && "mt-[0.65rem]", !trailing && "mb-[0.65rem]")}
     >
       <Link
         {...linkProps}
@@ -114,10 +96,7 @@ function ResponseCard({
         className="block min-w-0 rounded-lg bg-black/10 px-2.5 py-1.5 text-start text-sm text-muted-foreground! no-underline! wrap-break-word hover:bg-black/14 focus-visible:outline-2 focus-visible:outline-ring dark:bg-black/35 dark:hover:bg-black/50"
       >
         {title ? (
-          <span
-            className="block truncate text-xs font-medium text-foreground/80"
-            dir="auto"
-          >
+          <span className="block truncate text-xs font-medium text-foreground/80" dir="auto">
             {title}
           </span>
         ) : null}
@@ -126,10 +105,7 @@ function ResponseCard({
         </span>
       </Link>
       {comment ? (
-        <span
-          className="mt-1.5 block whitespace-pre-wrap"
-          dir={textDirection(comment)}
-        >
+        <span className="mt-1.5 block whitespace-pre-wrap" dir={textDirection(comment)}>
           {comment}
         </span>
       ) : null}
@@ -219,7 +195,7 @@ export function AssistantCitationChip({
     onRestoreFocus?: () => void;
   };
 }) {
-  const { locale: releaseLocale, t } = useI18n();
+  const { t } = useI18n();
   const sourceLinkProps = useCitationSourceLinkProps(citation);
   const commentInputRef = useRef<HTMLTextAreaElement>(null);
   const commentPopupRef = useRef<HTMLDivElement>(null);
@@ -229,8 +205,7 @@ export function AssistantCitationChip({
     useState<AssistantCitationSourceAnchor | null>(null);
   const commentOpen = commentEditor?.open ?? false;
   const sourceAnchor = commentEditor?.sourceAnchor;
-  const activeSourceAnchor =
-    sourceAnchor === unavailableSourceAnchor ? undefined : sourceAnchor;
+  const activeSourceAnchor = sourceAnchor === unavailableSourceAnchor ? undefined : sourceAnchor;
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- drops the uncommitted comment draft held in a ref once the parent closes the comment editor
   useEffect(() => {
     if (!commentOpen) draftCommentRef.current = null;
@@ -241,8 +216,7 @@ export function AssistantCitationChip({
       draft: draftCommentRef.current,
       savedComment: citation.comment,
     });
-    if (dismissal.kind === "commit")
-      return commentEditor?.onSave(dismissal.comment) ?? true;
+    if (dismissal.kind === "commit") return commentEditor?.onSave(dismissal.comment) ?? true;
     return dismissal.kind !== "keep-open";
   };
   const onSourceUnavailable = useEffectEvent(() => {
@@ -256,8 +230,7 @@ export function AssistantCitationChip({
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- observes the cited DOM source while the comment editor is open and reacts when it disappears
   useEffect(() => {
     if (!commentOpen || sourceAnchor === unavailableSourceAnchor) return;
-    const anchor =
-      sourceAnchor ?? findAssistantCitationSourceAnchor(document, citation);
+    const anchor = sourceAnchor ?? findAssistantCitationSourceAnchor(document, citation);
     if (!anchor) return;
     return observeAssistantCitationCommentSource({
       anchor,
@@ -271,8 +244,7 @@ export function AssistantCitationChip({
         getBoundingClientRect: () => {
           const rects = activeSourceAnchor.range.getClientRects();
           const rect =
-            rects.item(rects.length - 1) ??
-            activeSourceAnchor.range.getBoundingClientRect();
+            rects.item(rects.length - 1) ?? activeSourceAnchor.range.getBoundingClientRect();
           // Code blocks and tables scroll sideways inside the message, so the cited
           // text can end in their hidden overflow. Base UI only shifts the popup while
           // it still touches the anchor, so clamp the anchor to the message's width.
@@ -316,11 +288,7 @@ export function AssistantCitationChip({
           }}
         >
           <PopoverTrigger
-            aria-label={
-              citation.comment
-                ? t("citation.editComment")
-                : t("citation.addComment")
-            }
+            aria-label={citation.comment ? t("citation.editComment") : t("citation.addComment")}
             data-citation-comment-trigger="true"
             render={<ContextChipAction />}
           >
@@ -338,10 +306,7 @@ export function AssistantCitationChip({
                 const input = commentInputRef.current;
                 if (input) {
                   input.focus({ preventScroll: true });
-                  input.setSelectionRange(
-                    input.value.length,
-                    input.value.length,
-                  );
+                  input.setSelectionRange(input.value.length, input.value.length);
                   // Moving the caret doesn't scroll a long comment to it.
                   input.scrollTop = input.scrollHeight;
                 }
@@ -353,8 +318,7 @@ export function AssistantCitationChip({
                       const activeElement = document.activeElement;
                       if (
                         activeElement === document.body ||
-                        (activeElement !== null &&
-                          commentPopupRef.current?.contains(activeElement))
+                        (activeElement !== null && commentPopupRef.current?.contains(activeElement))
                       ) {
                         commentEditor.onRestoreFocus?.();
                       }
@@ -385,8 +349,7 @@ export function AssistantCitationChip({
                 {...(commentEditor.onSaveAndSend
                   ? {
                       onSubmitAndSend: (comment: string) => {
-                        if (!commentEditor.onSaveAndSend?.(comment))
-                          return false;
+                        if (!commentEditor.onSaveAndSend?.(comment)) return false;
                         commentEditor.onOpenChange(false);
                         return true;
                       },

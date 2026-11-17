@@ -7,7 +7,6 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   codexRateLimitsFailure,
   codexMessageResetAt,
-  codexRateLimitsFailureMessage,
   codexRateLimitsToLimits,
   codexRateLimitsToUpdate,
   codexTimeZone,

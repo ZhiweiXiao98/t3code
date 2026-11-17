@@ -291,6 +291,7 @@ it.effect("installs the build the update action downloaded, not the one it offer
       yield* listen.pipe(
         Effect.provide(
           Layer.mergeAll(
+            DesktopClientSettings.layerTest(),
             FileSystem.layerNoop({ readFileString: () => Effect.succeed("0.1.3") }),
             Layer.succeed(DesktopEnvironment.DesktopEnvironment, {
               appVersion: "0.1.3",

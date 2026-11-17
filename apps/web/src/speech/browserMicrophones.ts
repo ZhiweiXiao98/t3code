@@ -46,15 +46,12 @@ export async function listBrowserMicrophones(): Promise<BrowserMicrophone[]> {
 
 /** Applies a change to the saved order. Skipped before hydration so defaults never replace a saved order. */
 export function updateMicrophoneOrder(
-  change: (
-    order: ReadonlyArray<MicrophoneEntry>,
-  ) => ReadonlyArray<MicrophoneEntry>,
+  change: (order: ReadonlyArray<MicrophoneEntry>) => ReadonlyArray<MicrophoneEntry>,
 ): ReadonlyArray<MicrophoneEntry> {
   const known = microphoneOrder(getClientSettings());
   if (!isClientSettingsHydrated()) return known;
   const next = change(known);
-  if (next !== known)
-    void updateClientSettings({ voiceMicrophones: [...next] });
+  if (next !== known) void updateClientSettings({ voiceMicrophones: [...next] });
   return next;
 }
 

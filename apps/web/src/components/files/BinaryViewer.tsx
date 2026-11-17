@@ -1,8 +1,5 @@
 import { createFilePreviewError } from "@t3tools/shared/filePreview";
-import {
-  filePreviewFailureMessage,
-  filePreviewWorkerError,
-} from "./filePreviewErrorMessages";
+import { filePreviewFailureMessage, filePreviewWorkerError } from "./filePreviewErrorMessages";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
 /* oxlint-disable react/no-array-index-key -- Read-only cells retain their database row and column positions. */
@@ -12,12 +9,7 @@ import {
   hostPreviewMimeTypeFromExtension,
 } from "@t3tools/shared/filePreview";
 import { formatAttachmentSize } from "@t3tools/client-runtime/state/attachments";
-import {
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  FileIcon,
-  FolderIcon,
-} from "lucide-react";
+import { ChevronLeftIcon, ChevronRightIcon, FileIcon, FolderIcon } from "lucide-react";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 
 import {
@@ -47,10 +39,7 @@ type Archive = Extract<BinaryWorkerResult, { type: "archive" }>;
 type Database = Extract<BinaryWorkerResult, { type: "sqlite" }>;
 type Rows = Extract<BinaryWorkerResult, { type: "rows" }>;
 
-function ArchiveFile(props: {
-  readonly path: string;
-  readonly bytes: Uint8Array<ArrayBuffer>;
-}) {
+function ArchiveFile(props: { readonly path: string; readonly bytes: Uint8Array<ArrayBuffer> }) {
   const { locale: previewLocale } = useI18n();
   const [url, setUrl] = useState<string | null>(null);
   const kind = filePreviewKind({ name: props.path });
@@ -68,9 +57,7 @@ function ArchiveFile(props: {
     const extension = props.path.slice(props.path.lastIndexOf("."));
     const objectUrl = URL.createObjectURL(
       new Blob([props.bytes], {
-        type:
-          hostPreviewMimeTypeFromExtension(extension) ??
-          "application/octet-stream",
+        type: hostPreviewMimeTypeFromExtension(extension) ?? "application/octet-stream",
       }),
     );
     // oxlint-disable-next-line react/set-state-in-effect -- Publish a Blob URL only after registering its cleanup.
@@ -78,11 +65,7 @@ function ArchiveFile(props: {
     return () => URL.revokeObjectURL(objectUrl);
   }, [props.bytes, props.path, kind]);
   if (kind === "image")
-    return url ? (
-      <PreviewImage key={url} src={url} name={props.path} />
-    ) : (
-      <FileSurfaceLoading />
-    );
+    return url ? <PreviewImage key={url} src={url} name={props.path} /> : <FileSurfaceLoading />;
   if (!text)
     return (
       <FileSurfaceFailure
@@ -96,10 +79,7 @@ function ArchiveFile(props: {
     <>
       {text.truncated ? (
         <FileSurfaceNotice>
-          {translateWebSource(
-            previewLocale,
-            "Preview limited to the first 1 MB.",
-          )}
+          {translateWebSource(previewLocale, "Preview limited to the first 1 MB.")}
         </FileSurfaceNotice>
       ) : null}
       <Suspense fallback={<FileSurfaceLoading />}>
@@ -120,10 +100,7 @@ export default function BinaryViewer(props: {
   const [archive, setArchive] = useState<Archive | null>(null);
   const [database, setDatabase] = useState<Database | null>(null);
   const [rows, setRows] = useState<Rows | null>(null);
-  const [entry, setEntry] = useState<Extract<
-    BinaryWorkerResult,
-    { type: "entry" }
-  > | null>(null);
+  const [entry, setEntry] = useState<Extract<BinaryWorkerResult, { type: "entry" }> | null>(null);
   const [folder, setFolder] = useState("");
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [selectedTable, setSelectedTable] = useState("");
@@ -138,9 +115,7 @@ export default function BinaryViewer(props: {
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
       setError(
-        createFilePreviewError(
-          "This file took too long to preview. Close it and try again.",
-        ),
+        createFilePreviewError("This file took too long to preview. Close it and try again."),
       );
       setBusy(false);
       workerRef.current?.terminate();
@@ -151,12 +126,9 @@ export default function BinaryViewer(props: {
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Own the binary fetch, archive or database worker, message subscription, and request timeout for this file.
   useEffect(() => {
     const controller = new AbortController();
-    const worker = new Worker(
-      new URL("./binaryPreview.worker.ts", import.meta.url),
-      {
-        type: "module",
-      },
-    );
+    const worker = new Worker(new URL("./binaryPreview.worker.ts", import.meta.url), {
+      type: "module",
+    });
     workerRef.current = worker;
     const fail = (failure: Error) => {
       if (controller.signal.aborted) return;
@@ -169,57 +141,39 @@ export default function BinaryViewer(props: {
     };
     timerRef.current = setTimeout(
       () =>
-        fail(
-          createFilePreviewError(
-            "This file took too long to preview. Close it and try again.",
-          ),
-        ),
+        fail(createFilePreviewError("This file took too long to preview. Close it and try again.")),
       30_000,
     );
     worker.addEventListener("error", () =>
-      fail(
-        createFilePreviewError(
-          "Could not load the file viewer. Close it and try again.",
-        ),
-      ),
+      fail(createFilePreviewError("Could not load the file viewer. Close it and try again.")),
     );
-    worker.addEventListener(
-      "message",
-      (event: MessageEvent<BinaryWorkerResult>) => {
-        if (controller.signal.aborted) return;
-        if (timerRef.current) clearTimeout(timerRef.current);
-        const result = event.data;
-        setBusy(false);
-        if (result.type === "error") setError(filePreviewWorkerError(result));
-        else if (result.type === "archive") setArchive(result);
-        else if (result.type === "entry") setEntry(result);
-        else if (result.type === "rows") setRows(result);
-        else {
-          setDatabase(result);
-          const table = result.tables[0];
-          if (table) {
-            setSelectedTable(table.name);
-            send({ type: "rows", table: table.name, page: 0 });
-          }
+    worker.addEventListener("message", (event: MessageEvent<BinaryWorkerResult>) => {
+      if (controller.signal.aborted) return;
+      if (timerRef.current) clearTimeout(timerRef.current);
+      const result = event.data;
+      setBusy(false);
+      if (result.type === "error") setError(filePreviewWorkerError(result));
+      else if (result.type === "archive") setArchive(result);
+      else if (result.type === "entry") setEntry(result);
+      else if (result.type === "rows") setRows(result);
+      else {
+        setDatabase(result);
+        const table = result.tables[0];
+        if (table) {
+          setSelectedTable(table.name);
+          send({ type: "rows", table: table.name, page: 0 });
         }
-      },
-    );
+      }
+    });
     void readBinaryPreview(props.src, controller.signal)
       .then((bytes) => {
         if (!controller.signal.aborted) {
           setSizeBytes(bytes.byteLength);
-          worker.postMessage(
-            { type: "open", name: props.name, kind: props.kind, bytes },
-            [bytes],
-          );
+          worker.postMessage({ type: "open", name: props.name, kind: props.kind, bytes }, [bytes]);
         }
       })
       .catch((cause: unknown) =>
-        fail(
-          cause instanceof Error
-            ? cause
-            : createFilePreviewError("Could not read this file."),
-        ),
+        fail(cause instanceof Error ? cause : createFilePreviewError("Could not read this file.")),
       );
     return () => {
       controller.abort();
@@ -245,10 +199,7 @@ export default function BinaryViewer(props: {
     const rest = item.path.slice(folder.length).replace(/\/$/, "");
     if (!rest) continue;
     const slash = rest.indexOf("/");
-    const path =
-      slash < 0
-        ? item.path.replace(/\/$/, "")
-        : `${folder}${rest.slice(0, slash)}`;
+    const path = slash < 0 ? item.path.replace(/\/$/, "") : `${folder}${rest.slice(0, slash)}`;
     const directory = slash >= 0 || item.directory;
     const key = `${path}${directory ? "/" : ""}`;
     const previous = children.get(key);
@@ -282,8 +233,7 @@ export default function BinaryViewer(props: {
             <ChevronLeftIcon className="size-3.5" />
           </FileSurfaceAction>
           <span className="min-w-0 flex-1 truncate">
-            {selectedPath ??
-              (folder || translateWebSource(previewLocale, "Archive contents"))}
+            {selectedPath ?? (folder || translateWebSource(previewLocale, "Archive contents"))}
           </span>
           <span className="shrink-0 text-muted-foreground">
             {t("files.residual.entries", {
@@ -406,8 +356,7 @@ export default function BinaryViewer(props: {
               {[...children.values()]
                 .sort(
                   (a, b) =>
-                    Number(b.directory) - Number(a.directory) ||
-                    a.path.localeCompare(b.path),
+                    Number(b.directory) - Number(a.directory) || a.path.localeCompare(b.path),
                 )
                 .map((item) => (
                   <tr
@@ -432,18 +381,14 @@ export default function BinaryViewer(props: {
                         ) : (
                           <FileIcon className="size-4 shrink-0 text-muted-foreground" />
                         )}
-                        <span className="truncate">
-                          {item.path.slice(folder.length)}
-                        </span>
+                        <span className="truncate">{item.path.slice(folder.length)}</span>
                       </button>
                     </td>
                     <td className="w-20 border-b border-border/60 px-3 py-2 text-right whitespace-nowrap text-muted-foreground tabular-nums">
                       {formatAttachmentSize(item.size)}
                     </td>
                     <td className="w-28 border-b border-border/60 px-3 py-2 text-right whitespace-nowrap text-muted-foreground">
-                      {item.modified
-                        ? new Date(item.modified).toLocaleDateString()
-                        : "-"}
+                      {item.modified ? new Date(item.modified).toLocaleDateString() : "-"}
                     </td>
                   </tr>
                 ))}
@@ -497,10 +442,7 @@ export default function BinaryViewer(props: {
         </div>
       ) : (
         <p className="p-6 text-xs text-muted-foreground">
-          {translateWebSource(
-            previewLocale,
-            "This database has no readable tables.",
-          )}
+          {translateWebSource(previewLocale, "This database has no readable tables.")}
         </p>
       )}
     </div>

@@ -53,10 +53,7 @@ import {
   SettingsSection,
   useSettingsSearchTargetId,
 } from "./settingsLayout";
-import {
-  searchableSetting,
-  sourceControlHostSettingsSearchId,
-} from "./settingsSearch";
+import { searchableSetting, sourceControlHostSettingsSearchId } from "./settingsSearch";
 import { PullRequestGlyph } from "~/components/pullRequest/pullRequestIcons";
 import { isSourceControlProviderOffered } from "@t3tools/client-runtime/operations/projects";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
@@ -83,16 +80,11 @@ function isProviderDiscoveryItem(
   return "auth" in item;
 }
 
-function isVcsNotReady(
-  item: VcsDiscoveryItem | SourceControlProviderDiscoveryItem,
-): boolean {
+function isVcsNotReady(item: VcsDiscoveryItem | SourceControlProviderDiscoveryItem): boolean {
   return !isProviderDiscoveryItem(item) && !item.implemented;
 }
 
-function localizeInstallHint(
-  hint: string,
-  t: ReturnType<typeof useI18n>["t"],
-): string {
+function localizeInstallHint(hint: string, t: ReturnType<typeof useI18n>["t"]): string {
   if (hint.startsWith("Install Git from")) {
     return t("sourceControl.hint.git");
   }
@@ -134,7 +126,7 @@ function authPresentation(
 }
 
 function RedactedAccount(props: { readonly account: string | null }) {
-  const { locale, t } = useI18n();
+  const { t } = useI18n();
   return (
     <RedactedSensitiveText
       value={props.account}
@@ -145,9 +137,7 @@ function RedactedAccount(props: { readonly account: string | null }) {
   );
 }
 
-function itemStatusDot(
-  item: VcsDiscoveryItem | SourceControlProviderDiscoveryItem,
-): string {
+function itemStatusDot(item: VcsDiscoveryItem | SourceControlProviderDiscoveryItem): string {
   if (isVcsNotReady(item)) return "bg-muted-foreground/35";
   if (isProviderDiscoveryItem(item)) {
     return item.status === "available" && item.auth.status === "authenticated"
@@ -161,15 +151,11 @@ function itemStatusDot(
 function sourceControlItemIcon(
   item: VcsDiscoveryItem | SourceControlProviderDiscoveryItem,
 ): ReactNode {
-  const host = isProviderDiscoveryItem(item)
-    ? sourceControlClients.find(item.kind)
-    : undefined;
+  const host = isProviderDiscoveryItem(item) ? sourceControlClients.find(item.kind) : undefined;
   const Icon = isProviderDiscoveryItem(item)
     ? host && sourceControlIcon(host)
     : VCS_ICONS[item.kind];
-  return Icon ? (
-    <Icon className="size-4.5 text-foreground/80" aria-hidden />
-  ) : null;
+  return Icon ? <Icon className="size-4.5 text-foreground/80" aria-hidden /> : null;
 }
 
 function SourceControlItemMark({
@@ -181,12 +167,7 @@ function SourceControlItemMark({
   const icon = sourceControlItemIcon(item);
 
   if (!icon) {
-    return (
-      <span
-        className={cn("size-2 shrink-0 rounded-full", dotClassName)}
-        aria-hidden
-      />
-    );
+    return <span className={cn("size-2 shrink-0 rounded-full", dotClassName)} aria-hidden />;
   }
 
   return (
@@ -215,11 +196,7 @@ function itemSummary({
   readonly t: ReturnType<typeof useI18n>["t"];
 }) {
   if (isVcsNotReady(item)) {
-    return (
-      <span>
-        {t("sourceControl.summary.comingSoon", { provider: item.label })}
-      </span>
-    );
+    return <span>{t("sourceControl.summary.comingSoon", { provider: item.label })}</span>;
   }
 
   if (item.status !== "available") {
@@ -258,14 +235,10 @@ function itemSummary({
       );
     }
 
-    if (
-      auth.status === "unauthenticated" &&
-      auth.accounts?.some((entry) => entry.authenticated)
-    ) {
+    if (auth.status === "unauthenticated" && auth.accounts?.some((entry) => entry.authenticated)) {
       return (
         <span>
-          {optionLabel(auth.detail) ??
-            t("settingsControls.hostsOff", { provider: item.label })}
+          {optionLabel(auth.detail) ?? t("settingsControls.hostsOff", { provider: item.label })}
         </span>
       );
     }
@@ -280,9 +253,7 @@ function itemSummary({
       return (
         <span>
           {beforeCommand}
-          <code className="rounded bg-muted px-1 py-px text-2xs">
-            {item.executable}
-          </code>
+          <code className="rounded bg-muted px-1 py-px text-2xs">{item.executable}</code>
           {afterCommand}
         </span>
       );
@@ -325,16 +296,12 @@ function DiscoveryItemRow({
   const [isExpanded, setIsExpanded] = useState(false);
   const hasDetails = children !== undefined;
   const searchTargetId = useSettingsSearchTargetId();
-  const [seenSearchTargetId, setSeenSearchTargetId] = useState<string | null>(
-    null,
-  );
-  const targetsThisRow =
-    searchTargetId === sourceControlHostSettingsSearchId(item.kind);
+  const [seenSearchTargetId, setSeenSearchTargetId] = useState<string | null>(null);
+  const targetsThisRow = searchTargetId === sourceControlHostSettingsSearchId(item.kind);
   if (targetsThisRow && !isExpanded && seenSearchTargetId !== searchTargetId) {
     setIsExpanded(true);
   }
-  if (seenSearchTargetId !== searchTargetId)
-    setSeenSearchTargetId(searchTargetId);
+  if (seenSearchTargetId !== searchTargetId) setSeenSearchTargetId(searchTargetId);
 
   return (
     <div
@@ -348,12 +315,8 @@ function DiscoveryItemRow({
           <div className="min-w-0 flex-1 space-y-1">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <SourceControlItemMark item={item} />
-              <span className="truncate text-sm font-medium text-foreground">
-                {item.label}
-              </span>
-              {version ? (
-                <code className="text-xs text-muted-foreground">{version}</code>
-              ) : null}
+              <span className="truncate text-sm font-medium text-foreground">{item.label}</span>
+              {version ? <code className="text-xs text-muted-foreground">{version}</code> : null}
               {isVcsNotReady(item) ? (
                 <Badge variant="warning" size="sm">
                   {t("sourceControl.status.comingSoon")}
@@ -381,10 +344,7 @@ function DiscoveryItemRow({
                 })}
               >
                 <ChevronDownIcon
-                  className={cn(
-                    "size-3.5 transition-transform",
-                    isExpanded && "rotate-180",
-                  )}
+                  className={cn("size-3.5 transition-transform", isExpanded && "rotate-180")}
                 />
               </Button>
             ) : null}
@@ -405,10 +365,7 @@ function DiscoveryItemRow({
                   }
                 />
                 <TooltipPopup side="top">
-                  {translateWebSource(
-                    locale,
-                    "Offer when adding or publishing a project",
-                  )}
+                  {translateWebSource(locale, "Offer when adding or publishing a project")}
                 </TooltipPopup>
               </Tooltip>
             ) : !isVcsNotReady(item) ? (
@@ -445,10 +402,7 @@ function SourceControlSectionSkeleton({
   return (
     <SettingsSection title={title} headerAction={headerAction}>
       {SOURCE_CONTROL_SKELETON_ROWS.map((row) => (
-        <div
-          key={row}
-          className="first:rounded-t-xl last:rounded-b-xl px-3 py-3 sm:px-4"
-        >
+        <div key={row} className="first:rounded-t-xl last:rounded-b-xl px-3 py-3 sm:px-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0 flex-1 space-y-2">
               <div className="flex items-center gap-2">
@@ -499,21 +453,14 @@ function EmptySourceControlDiscovery({
         </EmptyMedia>
         <EmptyHeader>
           <EmptyTitle>
-            {hasError
-              ? t("sourceControl.empty.scanFailed")
-              : t("sourceControl.empty.title")}
+            {hasError ? t("sourceControl.empty.scanFailed") : t("sourceControl.empty.title")}
           </EmptyTitle>
           <EmptyDescription>
             {hasError ? error : t("sourceControl.empty.description")}
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={onScan}
-            disabled={isPending}
-          >
+          <Button size="sm" variant="outline" onClick={onScan} disabled={isPending}>
             <RefreshIcon size="sm" refreshing={isPending} />
             {translateWebSource(locale, "Scan")}
           </Button>
@@ -528,13 +475,9 @@ export function SourceControlSettingsPanel() {
   const { scope, environment, connectedEnvironments } = useSettingsScope();
 
   const environmentId =
-    environment?.connection.phase === "connected"
-      ? environment.environmentId
-      : null;
-  const aggregate =
-    scope.environmentIds.length !== 1 && connectedEnvironments.length > 1;
-  const environmentSuffix =
-    aggregate && environment ? ` · ${environment.label}` : "";
+    environment?.connection.phase === "connected" ? environment.environmentId : null;
+  const aggregate = scope.environmentIds.length !== 1 && connectedEnvironments.length > 1;
+  const environmentSuffix = aggregate && environment ? ` · ${environment.label}` : "";
   const discovery = useEnvironmentQuery(
     environmentId === null
       ? null
@@ -545,8 +488,7 @@ export function SourceControlSettingsPanel() {
   );
   const result = discovery.data ?? EMPTY_DISCOVERY_RESULT;
   const hasVersionControlSystems = result.versionControlSystems.length > 0;
-  const hasDiscoveryItems =
-    hasVersionControlSystems || result.sourceControlProviders.length > 0;
+  const hasDiscoveryItems = hasVersionControlSystems || result.sourceControlProviders.length > 0;
   const isInitialScanPending = discovery.isPending && discovery.data === null;
   const handleScan = () => {
     discovery.refresh();
@@ -563,8 +505,7 @@ export function SourceControlSettingsPanel() {
       intervalMs: null,
     },
   );
-  const offeredProviders =
-    environment?.serverConfig?.settings.offeredSourceControlProviders;
+  const offeredProviders = environment?.serverConfig?.settings.offeredSourceControlProviders;
   const updateSettings = useAtomCommand(serverEnvironment.updateSettings, {
     label: "save source control providers",
   });
@@ -643,9 +584,7 @@ export function SourceControlSettingsPanel() {
           </Button>
         }
       />
-      <TooltipPopup side="top">
-        {t("sourceControl.action.rescanTooltip")}
-      </TooltipPopup>
+      <TooltipPopup side="top">{t("sourceControl.action.rescanTooltip")}</TooltipPopup>
     </Tooltip>
   );
 
@@ -692,11 +631,7 @@ export function SourceControlSettingsPanel() {
 
           {result.sourceControlProviders.length > 0 ? (
             <SettingsSection
-              id={
-                hasVersionControlSystems
-                  ? undefined
-                  : searchableSetting("source-control").id
-              }
+              id={hasVersionControlSystems ? undefined : searchableSetting("source-control").id}
               title={
                 hasVersionControlSystems
                   ? t("sourceControl.providers")
@@ -709,10 +644,7 @@ export function SourceControlSettingsPanel() {
                   key={`provider:${item.kind}`}
                   item={item}
                   offered={{
-                    checked: isSourceControlProviderOffered(
-                      offeredProviders,
-                      item.kind,
-                    ),
+                    checked: isSourceControlProviderOffered(offeredProviders, item.kind),
                     disabled: !canUpdateSettings,
                     onChange: (checked) =>
                       void updateSettings({

@@ -44,7 +44,8 @@ export function useScheduledTaskDestinationLabel(
   threadId: ThreadId | null,
 ): string {
   const thread = useScheduledTaskThread(environmentId, threadId);
-  if (environmentId === null || threadId === null) return localizeMobileString(NEW_THREAD_DESTINATION_LABEL);
+  if (environmentId === null || threadId === null)
+    return localizeMobileString(NEW_THREAD_DESTINATION_LABEL);
   return thread?.title.trim() || formatMobileMessage("Thread {0}", [threadId]);
 }
 

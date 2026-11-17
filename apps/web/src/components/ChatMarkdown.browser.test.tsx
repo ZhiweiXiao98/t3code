@@ -28,10 +28,7 @@ vi.mock(import("mdast-util-from-markdown"), async (original) => {
     ...actual,
     fromMarkdown: ((source: string, ...rest: never[]) => {
       parsedSources.push(String(source));
-      return (actual.fromMarkdown as (...args: unknown[]) => unknown)(
-        source,
-        ...rest,
-      );
+      return (actual.fromMarkdown as (...args: unknown[]) => unknown)(source, ...rest);
     }) as typeof actual.fromMarkdown,
   };
 });
@@ -39,9 +36,7 @@ vi.mock(import("mdast-util-from-markdown"), async (original) => {
 vi.mock(import("../state/use-atom-query-runner"), async (original) => ({
   ...(await original()),
   useAtomQueryRunner: ((family: unknown) =>
-    family === filesystemEnvironment.getMetadata
-      ? filesystemMetadata
-      : workspaceSearch) as never,
+    family === filesystemEnvironment.getMetadata ? filesystemMetadata : workspaceSearch) as never,
 }));
 
 // Atoms derived from the server config run in the real registry over a missing config.
@@ -102,8 +97,7 @@ vi.mock(import("../state/filesystem"), async (original) => {
 });
 vi.mock(import("../remoteOpen"), async (original) => ({
   ...(await original()),
-  useRemoteOpenResolution: () =>
-    ({ state: { mode: "local-exec" }, isResolved: true }) as never,
+  useRemoteOpenResolution: () => ({ state: { mode: "local-exec" }, isResolved: true }) as never,
 }));
 const { renderDiagram } = vi.hoisted(() => ({
   renderDiagram: vi.fn<(source: string) => Promise<string> | undefined>(),
@@ -132,8 +126,7 @@ vi.mock(import("../hooks/useTheme"), async (original) => {
   };
   return {
     ...(await original()),
-    useRenderedAppearance: () =>
-      useSyncExternalStore(subscribe, () => appearance.value),
+    useRenderedAppearance: () => useSyncExternalStore(subscribe, () => appearance.value),
   };
 });
 
@@ -141,9 +134,7 @@ const settingsOverrides = vi.hoisted(() => ({ mathRenderingEnabled: false }));
 vi.mock(import("../hooks/useSettings"), async (original) => {
   const actual = await original();
   type Settings = ReturnType<typeof actual.getClientSettings>;
-  function useClientSettings<T = Settings>(
-    select?: (settings: Settings) => T,
-  ): T {
+  function useClientSettings<T = Settings>(select?: (settings: Settings) => T): T {
     const settings = { ...actual.getClientSettings(), ...settingsOverrides };
     return select ? select(settings) : (settings as T);
   }
@@ -170,14 +161,10 @@ it("keeps compact audio playback loaded across signed URL renewals", async () =>
   await screen.rerender(preview(renewed));
   expect(screen.container.querySelector("audio")).toBe(audio);
   expect(audio.getAttribute("src")).toBe(original);
-  await expect
-    .element(screen.getByRole("button", { name: "Pause clip.wav" }))
-    .toBeEnabled();
+  await expect.element(screen.getByRole("button", { name: "Pause clip.wav" })).toBeEnabled();
   await screen.rerender(preview(renewed, "clip-v2"));
   expect(screen.container.querySelector("audio")).not.toBe(audio);
-  expect(screen.container.querySelector("audio")?.getAttribute("src")).toBe(
-    renewed,
-  );
+  expect(screen.container.querySelector("audio")?.getAttribute("src")).toBe(renewed);
 });
 
 function setup() {
@@ -185,18 +172,11 @@ function setup() {
   parsedSources.length = 0;
   settingsOverrides.mathRenderingEnabled = false;
   renderDiagram.mockReset();
-  workspaceSearch
-    .mockReset()
-    .mockResolvedValue(AsyncResult.success({ entries: [] }));
-  filesystemMetadata
-    .mockReset()
-    .mockResolvedValue(AsyncResult.success({ entries: [null] }));
+  workspaceSearch.mockReset().mockResolvedValue(AsyncResult.success({ entries: [] }));
+  filesystemMetadata.mockReset().mockResolvedValue(AsyncResult.success({ entries: [null] }));
 }
 
-function renderText(
-  text: string,
-  props: Partial<Parameters<typeof ChatMarkdown>[0]> = {},
-) {
+function renderText(text: string, props: Partial<Parameters<typeof ChatMarkdown>[0]> = {}) {
   return render(<ChatMarkdown cwd="/tmp/project" text={text} {...props} />);
 }
 
@@ -210,8 +190,7 @@ const SOURCE_NUMBER_PLUGINS = [remarkEnableOrderedListNumbers];
 
 it("keeps decimal markers in nested user lists while documents keep their counter styles", async () => {
   setup();
-  const text =
-    "1. Outer\n   1. Nested\n   7. Skipped\n      1. Deeper\n      4. Fourth";
+  const text = "1. Outer\n   1. Nested\n   7. Skipped\n      1. Deeper\n      4. Fourth";
   await using screen = await render(
     <div className="grid grid-cols-2 gap-8 p-8">
       <section>
@@ -229,20 +208,13 @@ it("keeps decimal markers in nested user lists while documents keep their counte
       </section>
     </div>,
   );
-  await expect
-    .element(screen.getByText("User message", { exact: true }))
-    .toBeVisible();
-  const [message, preview] =
-    screen.container.querySelectorAll(".chat-markdown");
+  await expect.element(screen.getByText("User message", { exact: true })).toBeVisible();
+  const [message, preview] = screen.container.querySelectorAll(".chat-markdown");
   expect(
-    [...message!.querySelectorAll("ol")].map(
-      (list) => getComputedStyle(list).listStyleType,
-    ),
+    [...message!.querySelectorAll("ol")].map((list) => getComputedStyle(list).listStyleType),
   ).toEqual(["decimal", "decimal", "decimal"]);
   expect(
-    [...preview!.querySelectorAll("ol")].map(
-      (list) => getComputedStyle(list).listStyleType,
-    ),
+    [...preview!.querySelectorAll("ol")].map((list) => getComputedStyle(list).listStyleType),
   ).toEqual(["decimal", "lower-alpha", "lower-roman"]);
 });
 
@@ -264,9 +236,7 @@ it("loads a host image through the page's own route when there is no environment
       <ChatMarkdown cwd={undefined} text="![Shot](</work/my shot.png>)" />
     </HostImageUrlContext>,
   );
-  await expect
-    .element(screen.getByAltText("Shot"))
-    .toHaveAttribute("src", pixel);
+  await expect.element(screen.getByAltText("Shot")).toHaveAttribute("src", pixel);
   expect(new Set(hostImageUrl.mock.calls.map(([path]) => path))).toEqual(
     new Set(["/work/my shot.png"]),
   );
@@ -327,27 +297,17 @@ it("sizes a raw HTML image by width and height written with px units", async () 
 it("reuses the parse of a streaming reply's finished blocks when it remounts", async () => {
   setup();
   const message = (
-    <ChatMarkdown
-      cwd="/tmp/project"
-      text={"Finished block\n\nStill growing"}
-      isStreaming
-    />
+    <ChatMarkdown cwd="/tmp/project" text={"Finished block\n\nStill growing"} isStreaming />
   );
   {
     await using first = await render(
-      <ChatMarkdown
-        cwd="/tmp/project"
-        text={"Finished block\n\n"}
-        isStreaming
-      />,
+      <ChatMarkdown cwd="/tmp/project" text={"Finished block\n\n"} isStreaming />,
     );
     await first.rerender(message);
   }
   await using screen = await render(message);
   await expect.element(screen.getByText("Still growing")).toBeVisible();
-  expect(
-    parsedSources.filter((source) => source.includes("Finished block")),
-  ).toHaveLength(1);
+  expect(parsedSources.filter((source) => source.includes("Finished block"))).toHaveLength(1);
 });
 
 it("reuses the parse of a remounted message that has stable extra plugins", async () => {
@@ -355,11 +315,7 @@ it("reuses the parse of a remounted message that has stable extra plugins", asyn
   const parsed = vi.fn();
   const countingPlugins = [() => () => void parsed()];
   const message = (
-    <ChatMarkdown
-      cwd="/tmp/project"
-      text="Cached text"
-      extraRemarkPlugins={countingPlugins}
-    />
+    <ChatMarkdown cwd="/tmp/project" text="Cached text" extraRemarkPlugins={countingPlugins} />
   );
   {
     await using first = await render(
@@ -397,32 +353,22 @@ it("highlights a code block's own source when an earlier block of the same lengt
   await getSyntaxHighlighterPromise("ts");
   {
     await using screen = await renderText(`\`\`\`ts\n${first}\n\`\`\``);
-    await vi.waitFor(() =>
-      expect(highlightedText(screen.container)).toBe(first),
-    );
+    await vi.waitFor(() => expect(highlightedText(screen.container)).toBe(first));
   }
   await using screen = await renderText(`\`\`\`ts\n${second}\n\`\`\``);
-  await vi.waitFor(() =>
-    expect(highlightedText(screen.container)).toBe(second),
-  );
+  await vi.waitFor(() => expect(highlightedText(screen.container)).toBe(second));
 });
 
 describe("ChatMarkdown favicon privacy", () => {
   it("suppresses private link images while preserving public links across updates", async () => {
     setup();
-    const markdown = (url: string) => (
-      <ChatMarkdown cwd="/tmp/project" text={`[Link](${url})`} />
-    );
+    const markdown = (url: string) => <ChatMarkdown cwd="/tmp/project" text={`[Link](${url})`} />;
     await using screen = await render(markdown("https://example.com"));
     const { container, rerender } = screen;
-    expect(
-      [...container.querySelectorAll("img")].map((image) => image.src),
-    ).toEqual(["https://www.google.com/s2/favicons?domain=example.com&sz=32"]);
-    for (const url of [
-      "http://192.168.1.10:8080",
-      "http://localhost:3000",
-      "http://home.arpa",
-    ]) {
+    expect([...container.querySelectorAll("img")].map((image) => image.src)).toEqual([
+      "https://www.google.com/s2/favicons?domain=example.com&sz=32",
+    ]);
+    for (const url of ["http://192.168.1.10:8080", "http://localhost:3000", "http://home.arpa"]) {
       await rerender(markdown(url));
       expect(container.querySelectorAll("img")).toHaveLength(0);
     }
@@ -438,21 +384,15 @@ describe("ChatMarkdown external link labels", () => {
   it("keeps a leading emoji whole", async () => {
     setup();
     await using screen = await render(
-      <ChatMarkdown
-        cwd="/tmp/project"
-        text="[😀 Read the documentation](https://example.com)"
-      />,
+      <ChatMarkdown cwd="/tmp/project" text="[😀 Read the documentation](https://example.com)" />,
     );
     await vi.waitFor(() => {
       const link = screen.container.querySelector("a");
       expect(link?.textContent).toContain("😀 Read");
       const walker = document.createTreeWalker(link!, NodeFilter.SHOW_TEXT);
       const textNodes: string[] = [];
-      while (walker.nextNode())
-        textNodes.push(walker.currentNode.nodeValue ?? "");
-      expect(textNodes.filter((node) => /\p{Surrogate}/u.test(node))).toEqual(
-        [],
-      );
+      while (walker.nextNode()) textNodes.push(walker.currentNode.nodeValue ?? "");
+      expect(textNodes.filter((node) => /\p{Surrogate}/u.test(node))).toEqual([]);
     });
   });
 });
@@ -469,9 +409,7 @@ describe("ChatMarkdown streaming", () => {
         onRunShellCommand={onRunShellCommand}
       />
     );
-    await using screen = await render(
-      message("```bash\necho hello\n```", true),
-    );
+    await using screen = await render(message("```bash\necho hello\n```", true));
     const { container, rerender } = screen;
     const runButtons = () => buttonsLabelled(container, "Run in terminal");
     expect(runButtons()).toHaveLength(0);
@@ -525,8 +463,7 @@ describe("ChatMarkdown streaming", () => {
     await using rendered = await render(message("- [ ] First\n- [ ] Second"));
     rerender = rendered.rerender;
     const { container } = rendered;
-    const checkboxes = () =>
-      container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
+    const checkboxes = () => container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
     const original = checkboxes()[1]!;
     await rerender(message("- [ ] A longer first task\n- [ ] Second"));
     expect(checkboxes()[1]).toBe(original);
@@ -547,19 +484,12 @@ describe("ChatMarkdown streaming", () => {
     async (_, onTaskListChange) => {
       setup();
       const message = (text: string) => (
-        <ChatMarkdown
-          cwd="/tmp/project"
-          text={text}
-          onTaskListChange={onTaskListChange}
-        />
+        <ChatMarkdown cwd="/tmp/project" text={text} onTaskListChange={onTaskListChange} />
       );
-      await using screen = await render(
-        message("- [x] Completed item\n- [ ] Pending item"),
-      );
+      await using screen = await render(message("- [x] Completed item\n- [ ] Pending item"));
       await screen.rerender(message("- [ ] Pending item"));
-      const checkboxes = screen.container.querySelectorAll<HTMLInputElement>(
-        'input[type="checkbox"]',
-      );
+      const checkboxes =
+        screen.container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
       expect(checkboxes).toHaveLength(1);
       expect(checkboxes[0]!.checked).toBe(false);
     },
@@ -602,11 +532,7 @@ describe("ChatMarkdown workspace file opens", () => {
     await act(async () => other!.click());
     await act(async () => resolvePending(result));
 
-    expect(openFile).toHaveBeenCalledExactlyOnceWith(
-      threadRef,
-      "/elsewhere/b.md",
-      9,
-    );
+    expect(openFile).toHaveBeenCalledExactlyOnceWith(threadRef, "/elsewhere/b.md", 9);
     expect(workspaceSearch).toHaveBeenCalledOnce();
   });
 });
@@ -634,42 +560,24 @@ describe("ChatMarkdown skill chips", () => {
       .spyOn(useRightPanelStore.getState(), "openFile")
       .mockImplementation(() => {});
 
-    await userEvent.click(
-      screen.getByRole("button", { name: "Skill Review. Show details" }),
-    );
-    await expect
-      .element(page.getByText("Reviews the current branch."))
-      .toBeVisible();
-    await userEvent.click(
-      page.getByRole("button", { name: "View instructions" }),
-    );
+    await userEvent.click(screen.getByRole("button", { name: "Skill Review. Show details" }));
+    await expect.element(page.getByText("Reviews the current branch.")).toBeVisible();
+    await userEvent.click(page.getByRole("button", { name: "View instructions" }));
 
-    expect(openFile).toHaveBeenCalledExactlyOnceWith(
-      threadRef,
-      "/skills/review/SKILL.md",
-    );
+    expect(openFile).toHaveBeenCalledExactlyOnceWith(threadRef, "/skills/review/SKILL.md");
   });
 
   it("names a mentioned model as its provider does, without a thread", async () => {
     setup();
-    await using screen = await renderText(
-      "Ask (model:codex/gpt-6.1), not model:openai/gpt-4o.",
-      {
-        environmentId: EnvironmentId.make("models"),
-      },
-    );
+    await using screen = await renderText("Ask (model:codex/gpt-6.1), not model:openai/gpt-4o.", {
+      environmentId: EnvironmentId.make("models"),
+    });
 
     await expect
-      .element(
-        screen.getByRole("button", { name: "Model GPT-6.1. Show details" }),
-      )
+      .element(screen.getByRole("button", { name: "Model GPT-6.1. Show details" }))
       .toBeVisible();
-    expect(
-      buttonsLabelled(screen.container, "Model gpt-4o. Show details"),
-    ).toEqual([]);
-    expect(screen.container.textContent).toBe(
-      "Ask (GPT-6.1), not model:openai/gpt-4o.",
-    );
+    expect(buttonsLabelled(screen.container, "Model gpt-4o. Show details")).toEqual([]);
+    expect(screen.container.textContent).toBe("Ask (GPT-6.1), not model:openai/gpt-4o.");
   });
 });
 
@@ -688,29 +596,24 @@ describe("ChatMarkdown headings", () => {
       />
     );
     await using screen = await render(message(text, true));
-    await expect
-      .element(screen.getByRole("note"))
-      .toHaveTextContent("Insight A streaming note.");
+    await expect.element(screen.getByRole("note")).toHaveTextContent("Insight A streaming note.");
     await screen.rerender(
       message(
         `${text}\n${rule}\n\n## Setup\n\nAfter [source][src].\n\n[src]:\n  https://example.com`,
         false,
       ),
     );
-    await expect
-      .element(screen.getByRole("note"))
-      .toHaveTextContent("Insight A streaming note.");
-    expect(
-      [...screen.container.querySelectorAll("h2")].map((heading) => heading.id),
-    ).toEqual(["user-content-setup", "user-content-setup-1"]);
+    await expect.element(screen.getByRole("note")).toHaveTextContent("Insight A streaming note.");
+    expect([...screen.container.querySelectorAll("h2")].map((heading) => heading.id)).toEqual([
+      "user-content-setup",
+      "user-content-setup-1",
+    ]);
     expect(
       [...screen.container.querySelectorAll("a")].filter(
         (link) => link.href === "https://example.com/",
       ),
     ).toHaveLength(2);
-    await expect
-      .element(screen.getByRole("note"))
-      .not.toHaveTextContent("After");
+    await expect.element(screen.getByRole("note")).not.toHaveTextContent("After");
   });
 
   it("never gives two headings the same id, even when a suffix matches another heading", async () => {
@@ -720,9 +623,7 @@ describe("ChatMarkdown headings", () => {
       { parseRawHtml: true },
     );
     const { container } = screen;
-    expect(
-      [...container.querySelectorAll("h2")].map((heading) => heading.id),
-    ).toEqual([
+    expect([...container.querySelectorAll("h2")].map((heading) => heading.id)).toEqual([
       "user-content-setup",
       "user-content-setup-1",
       "user-content-setup-1-1",
@@ -756,9 +657,7 @@ describe("ChatMarkdown inline code selection", () => {
       "Before [docs](https://example.com/docs) after words\n\nBefore [App.tsx](/tmp/project/src/App.tsx) after words",
     );
     const tripleClickWord = async (paragraph: HTMLElement, word: string) => {
-      const text = [...paragraph.childNodes].find((node) =>
-        node.textContent?.includes(word),
-      )!;
+      const text = [...paragraph.childNodes].find((node) => node.textContent?.includes(word))!;
       const range = document.createRange();
       range.setStart(text, text.textContent!.indexOf(word));
       range.setEnd(text, text.textContent!.indexOf(word) + word.length);
@@ -793,8 +692,7 @@ describe("ChatMarkdown copy", () => {
   it("copies a fully selected callout as alert Markdown and a partial one as text", async () => {
     setup();
     await using screen = await renderText("> [!WARNING]\n> Back up first.");
-    const [label, body] =
-      screen.container.querySelectorAll('[role="note"] > p');
+    const [label, body] = screen.container.querySelectorAll('[role="note"] > p');
     const select = (startNode: Node, endNode: Node, endOffset: number) => {
       const range = document.createRange();
       range.setStart(startNode, 0);
@@ -810,9 +708,7 @@ describe("ChatMarkdown copy", () => {
     expect(select(labelText, bodyText, bodyText.textContent!.length)).toBe(
       "> [!WARNING]\n> Back up first.",
     );
-    expect(select(labelText, bodyText, "Back up".length)).toBe(
-      "Warning\n\nBack up",
-    );
+    expect(select(labelText, bodyText, "Back up".length)).toBe("Warning\n\nBack up");
   });
 
   it("copies part of inline code without prose escapes", async () => {
@@ -855,13 +751,8 @@ describe("ChatMarkdown copy", () => {
       );
       const start = [...screen.container.querySelectorAll("li")]
         .flatMap((item) => [...item.childNodes])
-        .find(
-          (node) =>
-            node.nodeType === Node.TEXT_NODE && node.textContent === from,
-        )!;
-      const after = [...screen.container.querySelectorAll("p")].at(
-        -1,
-      )!.firstChild!;
+        .find((node) => node.nodeType === Node.TEXT_NODE && node.textContent === from)!;
+      const after = [...screen.container.querySelectorAll("p")].at(-1)!.firstChild!;
       const range = document.createRange();
       range.setStart(start, 0);
       range.setEnd(after, after.textContent!.length);
@@ -888,9 +779,7 @@ describe("ChatMarkdown file chip tooltips", () => {
       "/tmp/project/packages/client-runtime/src/state/generated/environment-connection-handshake-retry-policy-fixtures.ts";
     await using screen = await renderText(`See [the fixtures](${path}).`);
 
-    await userEvent.hover(
-      screen.container.querySelector(".chat-markdown-file-link")!,
-    );
+    await userEvent.hover(screen.container.querySelector(".chat-markdown-file-link")!);
     const tooltip = page.getByText(path);
     await expect.element(tooltip).toBeVisible();
 
@@ -905,9 +794,7 @@ describe("ChatMarkdown file chip tooltips", () => {
 
 describe("ChatMarkdown editor deep links", () => {
   const hrefs = (container: HTMLElement) =>
-    [...container.querySelectorAll("a")].map((link) =>
-      link.getAttribute("href"),
-    );
+    [...container.querySelectorAll("a")].map((link) => link.getAttribute("href"));
 
   it("keeps local editor file links", async () => {
     setup();
@@ -976,21 +863,13 @@ it("relocalizes GitHub alert headings without changing Markdown user content", a
   );
   await using screen = await render(surface("en"));
   for (const label of ["Note", "Tip", "Important", "Warning", "Caution"])
-    await expect
-      .element(screen.getByText(label, { exact: true }))
-      .toBeVisible();
+    await expect.element(screen.getByText(label, { exact: true })).toBeVisible();
   await screen.rerender(surface("zh-CN"));
   for (const label of ["说明", "提示", "重要", "警告", "注意"])
-    await expect
-      .element(screen.getByText(label, { exact: true }))
-      .toBeVisible();
-  await expect
-    .element(screen.getByText("opaque Note/{user}/$&", { exact: true }))
-    .toBeVisible();
+    await expect.element(screen.getByText(label, { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("opaque Note/{user}/$&", { exact: true })).toBeVisible();
   await screen.rerender(surface("en"));
-  await expect
-    .element(screen.getByText("Warning", { exact: true }))
-    .toBeVisible();
+  await expect.element(screen.getByText("Warning", { exact: true })).toBeVisible();
   expect(text).toContain("[!WARNING]");
 });
 
@@ -1004,9 +883,7 @@ describe("ChatMarkdown host media", () => {
       },
     });
     await vi.waitFor(() =>
-      expect(screen.container.textContent).toContain(
-        MISSING_FILE_ACCESS_MESSAGE,
-      ),
+      expect(screen.container.textContent).toContain(MISSING_FILE_ACCESS_MESSAGE),
     );
     expect(screen.container.textContent).not.toContain("Retry video");
   });

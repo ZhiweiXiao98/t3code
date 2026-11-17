@@ -26,7 +26,9 @@ export function ContentStatus(props: ContentStatusProps) {
     return (
       <View className="items-center gap-3 border-b border-border bg-card px-4 py-6">
         <AppActivityIndicator size="small" />
-        <Text localize={props.localizeDetail} className="text-xs text-foreground-muted">{props.detail}</Text>
+        <Text localize={props.localizeDetail} className="text-xs text-foreground-muted">
+          {props.detail}
+        </Text>
       </View>
     );
   }
@@ -35,7 +37,12 @@ export function ContentStatus(props: ContentStatusProps) {
       {props.title ? (
         <Text className="text-sm font-t3-bold text-foreground">{props.title}</Text>
       ) : null}
-      <Text localize={props.localizeDetail} className="text-xs leading-normal text-foreground-muted">{props.detail}</Text>
+      <Text
+        localize={props.localizeDetail}
+        className="text-xs leading-normal text-foreground-muted"
+      >
+        {props.detail}
+      </Text>
     </View>
   );
 }

@@ -43,9 +43,17 @@ const ONCE_FORMATTER = new Intl.DateTimeFormat(undefined, {
 });
 
 const WEEKDAY_ZH = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"] as const;
-const ONCE_FORMATTER_ZH_CN = new Intl.DateTimeFormat("zh-CN", { dateStyle: "medium", timeStyle: "short" });
+const ONCE_FORMATTER_ZH_CN = new Intl.DateTimeFormat("zh-CN", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
 
-export function scheduleLabel(schedule: ScheduledTaskSchedule, timeZoneOrChinese?: string | boolean, runAt?: string | null, locale: "en" | "zh-CN" = "en"): string {
+export function scheduleLabel(
+  schedule: ScheduledTaskSchedule,
+  timeZoneOrChinese?: string | boolean,
+  runAt?: string | null,
+  locale: "en" | "zh-CN" = "en",
+): string {
   const chinese = typeof timeZoneOrChinese === "boolean" ? timeZoneOrChinese : locale === "zh-CN";
   const timeZone = typeof timeZoneOrChinese === "string" ? timeZoneOrChinese : undefined;
   if (schedule.type === "webhook") return chinese ? "收到 Webhook 时" : "On webhook";
@@ -79,9 +87,11 @@ export function scheduleLabel(schedule: ScheduledTaskSchedule, timeZoneOrChinese
             .map((day) => (chinese ? WEEKDAY_ZH[day] : WEEKDAY_LABELS[day]))
             .join(chinese ? "、" : ", ");
   const zone = scheduleTimeZoneLabel(timeZone, runAt);
-  return (chinese ? `${days} ${schedule.timeOfDay}` : `${days} at ${schedule.timeOfDay}`) + (zone === undefined ? "" : ` ${zone}`);
+  return (
+    (chinese ? `${days} ${schedule.timeOfDay}` : `${days} at ${schedule.timeOfDay}`) +
+    (zone === undefined ? "" : ` ${zone}`)
+  );
 }
-
 
 export function matchesScheduledTaskScope(
   scope: ResolvedSettingsScope,

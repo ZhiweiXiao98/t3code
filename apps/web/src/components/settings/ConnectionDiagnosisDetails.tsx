@@ -17,10 +17,7 @@ import { ChevronRightIcon } from "lucide-react";
 
 import { APP_VERSION } from "~/branding";
 import { environmentCatalog } from "~/connection/catalog";
-import {
-  type EnvironmentPresentation,
-  useRelayEnvironmentDiscovery,
-} from "~/state/environments";
+import { type EnvironmentPresentation, useRelayEnvironmentDiscovery } from "~/state/environments";
 import { useCopyToClipboard } from "../../hooks/useCopyToClipboard";
 import { useDeadlinePassed } from "../../hooks/useDeadline";
 import { useNowSecond } from "../../hooks/useNowSecond";
@@ -41,23 +38,18 @@ export function useConnectionDiagnosis(environment: EnvironmentPresentation) {
     useAtomValue(environmentCatalog.stateAtom(environmentId)),
     () => AVAILABLE_CONNECTION_STATE,
   );
-  const relayStatus =
-    useRelayEnvironmentDiscovery().environments.get(environmentId)?.status;
+  const relayStatus = useRelayEnvironmentDiscovery().environments.get(environmentId)?.status;
   const routes = connectionRoutes(environment.entry);
   const relayOnly = routes.length === 1 && hasRelayRoute(environment.entry);
   const phase = environment.connection.phase;
   const diagnosis =
-    environment.entry.enabled &&
-    phase !== "connected" &&
-    phase !== "unsupported"
+    environment.entry.enabled && phase !== "connected" && phase !== "unsupported"
       ? presentConnectionDiagnosis({
           hostLabel: environment.label,
           state,
           via: relayOnly ? "relay" : "direct",
           // With a direct route as well, the relay's health says nothing about the route in use.
-          relayStatus: relayOnly
-            ? Option.getOrNull(relayStatus ?? Option.none())
-            : null,
+          relayStatus: relayOnly ? Option.getOrNull(relayStatus ?? Option.none()) : null,
           clientVersion: APP_VERSION,
           serverVersion: environment.serverConfig?.environment.serverVersion,
         })
@@ -75,9 +67,7 @@ export function useConnectionDiagnosis(environment: EnvironmentPresentation) {
             label: localize(hop.label),
           })),
           steps: diagnosis.steps.map(localize),
-          facts: diagnosis.facts.map(
-            ([label, value]) => [localize(label), value] as const,
-          ),
+          facts: diagnosis.facts.map(([label, value]) => [localize(label), value] as const),
         };
   return { diagnosis: localizedDiagnosis, state, relayOnly };
 }
@@ -200,10 +190,7 @@ export function ConnectionDiagnosisPanel({
           description:
             clipboardErrorMessage(error, locale, {
               target: copyTarget,
-              displayTarget: translateWebSource(
-                locale,
-                "connection diagnostics",
-              ),
+              displayTarget: translateWebSource(locale, "connection diagnostics"),
             }) ?? error.message,
         }),
       );
@@ -217,20 +204,14 @@ export function ConnectionDiagnosisPanel({
             key={hop.hop}
             className={cn(
               "flex gap-2",
-              hop.result === "failed"
-                ? "text-destructive"
-                : "text-muted-foreground",
+              hop.result === "failed" ? "text-destructive" : "text-muted-foreground",
             )}
           >
             <span aria-hidden className="w-3 text-center">
               {HOP_MARK[hop.result]}
             </span>
-            <span className={cn(hop.result === "ok" && "text-foreground")}>
-              {hop.label}
-            </span>
-            <span>
-              {translateWebSource(sourceLocale, HOP_NOTE[hop.result])}
-            </span>
+            <span className={cn(hop.result === "ok" && "text-foreground")}>{hop.label}</span>
+            <span>{translateWebSource(sourceLocale, HOP_NOTE[hop.result])}</span>
           </li>
         ))}
       </ol>
@@ -278,12 +259,7 @@ export function ConnectionDiagnosisPanel({
           {translateWebSource(sourceLocale, "Copy diagnostics")}
         </Button>
         {onAddRoute ? (
-          <Button
-            type="button"
-            size="xs"
-            variant="outline"
-            onClick={onAddRoute}
-          >
+          <Button type="button" size="xs" variant="outline" onClick={onAddRoute}>
             {translateWebSource(sourceLocale, "Add direct route")}
           </Button>
         ) : null}

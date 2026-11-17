@@ -1,14 +1,7 @@
-import {
-  legacyLocaleForLanguage,
-  resolvedWebLanguage,
-} from "./localePreference";
+import { legacyLocaleForLanguage, resolvedWebLanguage } from "./localePreference";
 import { readRuntimeLocales } from "./readRuntimeLocales";
 import { getClientSettings } from "../hooks/useSettings";
-import {
-  translateWebMessage,
-  type WebMessageKey,
-  type WebMessageValues,
-} from "./messages";
+import { translateWebMessage, type WebMessageKey, type WebMessageValues } from "./messages";
 
 /** Capture the current locale for non-React actions, without calling a hook. */
 export function readWebI18n() {
@@ -17,7 +10,6 @@ export function readWebI18n() {
   );
   return {
     locale,
-    t: (key: WebMessageKey, values?: WebMessageValues) =>
-      translateWebMessage(locale, key, values),
+    t: (key: WebMessageKey, values?: WebMessageValues) => translateWebMessage(locale, key, values),
   };
 }

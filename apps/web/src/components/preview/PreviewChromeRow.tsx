@@ -16,11 +16,7 @@ import {
 } from "react";
 
 import { Button } from "~/components/ui/button";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "~/components/ui/input-group";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "~/components/ui/input-group";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "~/components/ui/tooltip";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { cn } from "~/lib/utils";
@@ -147,15 +143,9 @@ export function PreviewChromeRow({
                 <Button
                   variant="ghost"
                   size="icon-xs"
-                  onClick={
-                    refreshDisabled ? NOOP : loading ? onStopLoading : onRefresh
-                  }
+                  onClick={refreshDisabled ? NOOP : loading ? onStopLoading : onRefresh}
                   disabled={refreshDisabled}
-                  aria-label={
-                    loading
-                      ? t("browserPreview.stop")
-                      : t("browserPreview.refresh")
-                  }
+                  aria-label={loading ? t("browserPreview.stop") : t("browserPreview.refresh")}
                   type="button"
                 />
               }
@@ -187,10 +177,7 @@ export function PreviewChromeRow({
                     setInputFocused(false);
                   }}
                   onKeyDown={(event) => {
-                    if (
-                      event.nativeEvent.isComposing ||
-                      event.keyCode === 229
-                    ) {
+                    if (event.nativeEvent.isComposing || event.keyCode === 229) {
                       // A trusted Enter would still submit the form implicitly.
                       if (event.key === "Enter") event.preventDefault();
                       return;
@@ -231,9 +218,7 @@ export function PreviewChromeRow({
                   >
                     <ExternalLink />
                   </TooltipTrigger>
-                  <TooltipPopup>
-                    {t("browserPreview.openSystemBrowser")}
-                  </TooltipPopup>
+                  <TooltipPopup>{t("browserPreview.openSystemBrowser")}</TooltipPopup>
                 </Tooltip>
               </span>
             </InputGroupAddon>
@@ -250,9 +235,7 @@ export function PreviewChromeRow({
                   onClick={onPickElement}
                   disabled={pickDisabled}
                   aria-label={
-                    pickActive
-                      ? t("browserPreview.cancelAnnotation")
-                      : t("browserPreview.annotate")
+                    pickActive ? t("browserPreview.cancelAnnotation") : t("browserPreview.annotate")
                   }
                   aria-pressed={pickActive ? "true" : "false"}
                   type="button"
@@ -295,9 +278,7 @@ export function PreviewChromeRow({
               ) : null}
             </TooltipTrigger>
             <TooltipPopup>
-              {recording
-                ? t("browserPreview.stopRecording")
-                : t("browserPreview.recordHint")}
+              {recording ? t("browserPreview.stopRecording") : t("browserPreview.recordHint")}
             </TooltipPopup>
           </Tooltip>
         ) : null}
@@ -310,9 +291,7 @@ export function PreviewChromeRow({
                   size="icon-xs"
                   onClick={onPictureInPicture}
                   aria-label={
-                    pictureInPicture
-                      ? t("browserPreview.closeFloating")
-                      : t("browserPreview.float")
+                    pictureInPicture ? t("browserPreview.closeFloating") : t("browserPreview.float")
                   }
                   aria-pressed={pictureInPicture ? "true" : "false"}
                   type="button"
@@ -320,14 +299,10 @@ export function PreviewChromeRow({
                 />
               }
             >
-              <PictureInPicture2
-                className={cn(pictureInPicture && "text-primary")}
-              />
+              <PictureInPicture2 className={cn(pictureInPicture && "text-primary")} />
             </TooltipTrigger>
             <TooltipPopup>
-              {pictureInPicture
-                ? t("browserPreview.closeFloating")
-                : t("browserPreview.float")}
+              {pictureInPicture ? t("browserPreview.closeFloating") : t("browserPreview.float")}
             </TooltipPopup>
           </Tooltip>
         ) : null}

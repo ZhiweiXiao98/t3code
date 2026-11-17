@@ -1,9 +1,4 @@
-import {
-  EnvironmentId,
-  ProjectId,
-  ThreadId,
-  type PullRequestRef,
-} from "@t3tools/contracts";
+import { EnvironmentId, ProjectId, ThreadId, type PullRequestRef } from "@t3tools/contracts";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
 import { expect, it, vi } from "vite-plus/test";
 import { userEvent } from "vite-plus/test/browser";
@@ -11,10 +6,7 @@ import { userEvent } from "vite-plus/test/browser";
 import { act, render } from "../../../test/render";
 import { useComposerDraftStore } from "~/composerDraftStore";
 import { ToastProvider } from "../ui/toast";
-import {
-  usePullRequestActionRunner,
-  usePullRequestHandoffs,
-} from "./usePullRequestActions";
+import { usePullRequestActionRunner, usePullRequestHandoffs } from "./usePullRequestActions";
 
 const state = vi.hoisted(() => ({
   runAction: vi.fn(),
@@ -48,11 +40,7 @@ function MergeButton({ reference }: { reference: PullRequestRef }) {
     terminology: sourceControlClients.get(undefined).changeRequest,
   });
   return (
-    <button
-      type="button"
-      disabled={actionPending}
-      onClick={() => void perform("merge")}
-    >
+    <button type="button" disabled={actionPending} onClick={() => void perform("merge")}>
       {actionPending ? "Merging..." : "Merge"}
     </button>
   );
@@ -109,10 +97,7 @@ function FixChecksButton() {
     },
   });
   return (
-    <button
-      type="button"
-      onClick={() => void startHandoff("fix", { prompt: "Fix the checks" })}
-    >
+    <button type="button" onClick={() => void startHandoff("fix", { prompt: "Fix the checks" })}>
       Fix
     </button>
   );
@@ -150,9 +135,7 @@ it("stops a pull request handoff when its loading toast is dismissed", async () 
     name: "Preparing the pull request checkout...",
   });
   await expect.element(toast).toBeVisible();
-  await userEvent.click(
-    toast.getByRole("button", { name: "Dismiss notification" }),
-  );
+  await userEvent.click(toast.getByRole("button", { name: "Dismiss notification" }));
   await expect.element(toast).not.toBeInTheDocument();
   await act(async () => {
     prepared.resolve({
@@ -168,8 +151,7 @@ it("stops a pull request handoff when its loading toast is dismissed", async () 
   });
 
   expect(state.newThread).toHaveBeenCalledTimes(1);
-  expect(
-    useComposerDraftStore.getState().getComposerDraft("draft-2" as never)
-      ?.prompt ?? "",
-  ).toBe("");
+  expect(useComposerDraftStore.getState().getComposerDraft("draft-2" as never)?.prompt ?? "").toBe(
+    "",
+  );
 });

@@ -13,9 +13,7 @@ export async function copyThreadReference(
   target: ThreadReferenceCopyTarget,
   locale: ResolvedAppLocale | (() => ResolvedAppLocale) = "en",
 ): Promise<void> {
-  const fragment = target.fragment
-    ? encodeComposerContextFragment(target.fragment)
-    : null;
+  const fragment = target.fragment ? encodeComposerContextFragment(target.fragment) : null;
   try {
     await writeTextToClipboard(
       target.value,

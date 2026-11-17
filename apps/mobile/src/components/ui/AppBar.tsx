@@ -2,7 +2,7 @@ import { localizeMobileString } from "../../i18n/mobileStrings";
 import { Toolbar } from "./Toolbar";
 import { AppActivityIndicator } from "./AppActivityIndicator";
 import { mailMenuItems } from "./menuActionItems";
-import type { HeaderBarButtonMailSearchToolbarItem, SearchBarCommands } from "react-native-screens";
+import type { SearchBarCommands } from "react-native-screens";
 import { NavigationContext, NavigationRouteContext } from "@react-navigation/native";
 import { use, useId, useLayoutEffect, useRef, useSyncExternalStore } from "react";
 import { View } from "react-native";
@@ -126,7 +126,10 @@ export function AppBar(props: AppBarProps) {
                   ? () => [
                       createNativeMailSearchToolbarItem({
                         showsSearchDismissButton: true,
-                        placeholder: search.localizePlaceholder === false ? (search.compactPlaceholder ?? search.placeholder) : localizeMobileString(search.compactPlaceholder ?? search.placeholder),
+                        placeholder:
+                          search.localizePlaceholder === false
+                            ? (search.compactPlaceholder ?? search.placeholder)
+                            : localizeMobileString(search.compactPlaceholder ?? search.placeholder),
                         onSearchTextChange: search.onChangeText,
                         searchTextChangeId: `${headerId}-search-text`,
                         ...(menu
@@ -156,7 +159,10 @@ export function AppBar(props: AppBarProps) {
                       ...(search.mode === "inline" || duoBottomSearch
                         ? { obscureBackground: false }
                         : undefined),
-                      placeholder: search.localizePlaceholder === false ? search.placeholder : localizeMobileString(search.placeholder),
+                      placeholder:
+                        search.localizePlaceholder === false
+                          ? search.placeholder
+                          : localizeMobileString(search.placeholder),
                       ref: searchBarRef,
                       onChangeText: (event) => reportSearchText(event.nativeEvent.text),
                       onCancelButtonPress: () => reportSearchText(""),

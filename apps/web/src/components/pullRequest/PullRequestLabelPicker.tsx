@@ -1,10 +1,6 @@
 import { readWebI18n } from "~/i18n/readWebI18n";
 import { useAtomCommand } from "~/state/use-atom-command";
-import type {
-  EnvironmentId,
-  PullRequestLabelCandidate,
-  PullRequestRef,
-} from "@t3tools/contracts";
+import type { EnvironmentId, PullRequestLabelCandidate, PullRequestRef } from "@t3tools/contracts";
 import { CheckIcon, TagIcon } from "lucide-react";
 import { useState } from "react";
 
@@ -64,16 +60,10 @@ export function PullRequestLabelPicker({
     matches(entry, query),
   );
 
-  const send = async (
-    labels: ReadonlyArray<PullRequestLabelCandidate>,
-    applied: boolean,
-  ) => {
+  const send = async (labels: ReadonlyArray<PullRequestLabelCandidate>, applied: boolean) => {
     for (const batch of changeBatches(labels)) await sendBatch(batch, applied);
   };
-  const sendBatch = async (
-    labels: ReadonlyArray<PullRequestLabelCandidate>,
-    applied: boolean,
-  ) => {
+  const sendBatch = async (labels: ReadonlyArray<PullRequestLabelCandidate>, applied: boolean) => {
     const names = labels.map((label) => label.name);
     const result = await setLabels({
       environmentId,
@@ -99,9 +89,7 @@ export function PullRequestLabelPicker({
     const latest = candidatesQuery.data?.candidates ?? [];
     const { add, remove } = selectionChanges(
       draft,
-      (name, label) =>
-        latest.find((entry) => entry.name === name)?.isApplied ??
-        label.isApplied,
+      (name, label) => latest.find((entry) => entry.name === name)?.isApplied ?? label.isApplied,
     );
     setDraft(emptySelection());
     // Adding first keeps the Labels row from showing empty between the two writes.
@@ -130,12 +118,7 @@ export function PullRequestLabelPicker({
       candidateKey={(candidate) => candidate.name}
       onSelect={(candidate) =>
         setDraft((current) =>
-          toggleSelection(
-            current,
-            candidate.name,
-            candidate,
-            candidate.isApplied,
-          ),
+          toggleSelection(current, candidate.name, candidate, candidate.isApplied),
         )
       }
     >
@@ -151,10 +134,7 @@ export function PullRequestLabelPicker({
             <span className="min-w-0 flex-1 truncate">
               {candidate.name}
               {candidate.description ? (
-                <span className="text-muted-foreground">
-                  {" "}
-                  · {candidate.description}
-                </span>
+                <span className="text-muted-foreground"> · {candidate.description}</span>
               ) : null}
             </span>
             {isSelected(draft, candidate.name, candidate.isApplied) ? (

@@ -87,7 +87,9 @@ export function PullRequestLabelsScreen({ route }: StaticScreenProps<PullRequest
           if (!AsyncResult.isFailure(response)) return;
           const cause = squashAtomCommandFailure(response);
           Dialog.alertWithLiteralMessage(
-            formatMobileMessage(applied ? "Couldn't add {0}" : "Couldn't remove {0}", [names.join(", ")]),
+            formatMobileMessage(applied ? "Couldn't add {0}" : "Couldn't remove {0}", [
+              names.join(", "),
+            ]),
             pullRequestActionFailure(cause, MOBILE_LOCALE, "The provider refused the change."),
           );
         };

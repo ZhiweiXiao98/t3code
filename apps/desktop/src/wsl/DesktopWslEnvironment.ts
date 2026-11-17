@@ -149,9 +149,14 @@ const TIMEOUT_RESULT: ShellResult = {
 
 const formatWslShellTransportFailureReason = (
   failure: ShellResult["transportFailure"],
-  subject: "Node.js" | "the staged runtime" = "Node.js",
+  subject: "Node.js" | "the staged runtime" | "the login-shell PATH" = "Node.js",
 ): WslFailureReason | null => {
-  const chineseSubject = subject === "Node.js" ? subject : "暂存运行时";
+  const chineseSubject =
+    subject === "Node.js"
+      ? subject
+      : subject === "the login-shell PATH"
+        ? "登录 shell 的 PATH"
+        : "暂存运行时";
   switch (failure) {
     case "timeout":
       return wslFailureReason(

@@ -59,11 +59,7 @@ export function SourceControlTokenSettings({
     .map(([saved]) => saved);
   const sourceKey = JSON.stringify([normalizedHost, savedToken ?? ""]);
   const draft =
-    pending?.key === sourceKey
-      ? pending.draft
-      : isSecretReference(savedToken)
-        ? savedToken
-        : "";
+    pending?.key === sourceKey ? pending.draft : isSecretReference(savedToken) ? savedToken : "";
   const submission = typeof draft === "string" ? draft.trim() : draft;
 
   const save = async (target: string, token: SettingsSecretValue) => {
@@ -91,8 +87,7 @@ export function SourceControlTokenSettings({
       className="grid gap-3"
       onSubmit={(event) => {
         event.preventDefault();
-        if (normalizedHost && submission !== "")
-          void save(normalizedHost, submission);
+        if (normalizedHost && submission !== "") void save(normalizedHost, submission);
       }}
     >
       {/* Locked while saving: a successful save clears the draft, which would drop edits made mid-request. */}
@@ -148,12 +143,8 @@ export function SourceControlTokenSettings({
               configured={isSaved && !isSecretReference(savedToken)}
               value={draft}
               sources={secretSources}
-              onChange={(event) =>
-                setPending({ key: sourceKey, draft: event.target.value })
-              }
-              onSecretChange={(secret) =>
-                setPending({ key: sourceKey, draft: secret ?? "" })
-              }
+              onChange={(event) => setPending({ key: sourceKey, draft: event.target.value })}
+              onSecretChange={(secret) => setPending({ key: sourceKey, draft: secret ?? "" })}
             />
           </div>
         </div>

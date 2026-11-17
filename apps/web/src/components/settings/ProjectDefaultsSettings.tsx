@@ -4,10 +4,7 @@ import {
   type ModelSelection,
   type WorktreeSubmodules,
 } from "@t3tools/contracts";
-import {
-  createModelSelection,
-  pickModelSelection,
-} from "@t3tools/shared/model";
+import { createModelSelection, pickModelSelection } from "@t3tools/shared/model";
 import { resolveProjectSettings } from "@t3tools/shared/projectSettings";
 import { useNavigate } from "@tanstack/react-router";
 
@@ -17,30 +14,15 @@ import {
   getCustomModelOptionsByInstance,
 } from "../../modelSelection";
 import { providerInstanceEntriesFor } from "../../providerInstances";
-import {
-  useEnvironmentProviders,
-  useEnvironments,
-} from "../../state/environments";
+import { useEnvironmentProviders, useEnvironments } from "../../state/environments";
 import { firstManagedDenial } from "../../state/managedPolicy";
 import { EMPTY_SERVER_PROVIDERS } from "../../state/server";
-import {
-  resolveEnvModeLabel,
-  WORKTREE_SUBMODULES_LABELS,
-} from "../BranchToolbar.logic";
+import { resolveEnvModeLabel, WORKTREE_SUBMODULES_LABELS } from "../BranchToolbar.logic";
 import { ProviderModelPicker } from "../chat/ProviderModelPicker";
-import {
-  runtimeModeConfig,
-  runtimeModeOptions,
-} from "../chat/runtimeModeConfig";
+import { runtimeModeConfig, runtimeModeOptions } from "../chat/runtimeModeConfig";
 import { PULL_REQUEST_MERGE_METHOD_LABELS } from "../pullRequest/pullRequestDetail.logic";
 import { TraitsPicker } from "../chat/TraitsPicker";
-import {
-  Select,
-  SelectItem,
-  SelectPopup,
-  SelectTrigger,
-  SelectValue,
-} from "../ui/select";
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
 import { toastManager } from "../ui/toast";
 import { Switch } from "../ui/switch";
 import { translateWebSource } from "../../i18n/messages";
@@ -64,20 +46,11 @@ import {
 } from "./useScopedSettings";
 
 const WORKTREE_SUBMODULES_OPTIONS = ["recursive", "top-level", "none"] as const;
-function isWorktreeSubmodules(
-  value: string | null,
-): value is WorktreeSubmodules {
-  return (
-    value !== null &&
-    (WORKTREE_SUBMODULES_OPTIONS as readonly string[]).includes(value)
-  );
+function isWorktreeSubmodules(value: string | null): value is WorktreeSubmodules {
+  return value !== null && (WORKTREE_SUBMODULES_OPTIONS as readonly string[]).includes(value);
 }
 
-export function ProjectDefaultsSettings({
-  category,
-}: {
-  category: ProjectSettingsCategory;
-}) {
+export function ProjectDefaultsSettings({ category }: { category: ProjectSettingsCategory }) {
   const { locale, t } = useI18n();
   const translate = (source: string) => translateWebSource(locale, source);
   const { scope, target, targets, connectedEnvironments } = useSettingsScope();
@@ -88,19 +61,13 @@ export function ProjectDefaultsSettings({
   const { environments } = useEnvironments();
   const providersByEnvironment = useEnvironmentProviders();
   const representative = target
-    ? environments.find(
-        (environment) => environment.environmentId === target.environmentId,
-      )
+    ? environments.find((environment) => environment.environmentId === target.environmentId)
     : undefined;
   const providers =
     (representative?.serverConfig
       ? providersByEnvironment.get(representative.environmentId)
       : undefined) ?? EMPTY_SERVER_PROVIDERS;
-  const entries = providerInstanceEntriesFor(
-    providers,
-    settings,
-    target?.projectId ?? null,
-  );
+  const entries = providerInstanceEntriesFor(providers, settings, target?.projectId ?? null);
   const presentation = resolveDefaultModelSettingsPresentation({
     entries,
     providers,
@@ -114,29 +81,21 @@ export function ProjectDefaultsSettings({
     selection?.instanceId,
     selection?.model,
   );
-  const activeEntry = entries.find(
-    (entry) => entry.instanceId === selection?.instanceId,
-  );
+  const activeEntry = entries.find((entry) => entry.instanceId === selection?.instanceId);
   const mixedModel = defaultModelSelectionsAreMixed(
     clientSettings,
     targets.map((candidate) => ({
       projectId: candidate.projectId,
       settings: candidate.settings,
-      providers:
-        providersByEnvironment.get(candidate.environmentId) ??
-        EMPTY_SERVER_PROVIDERS,
+      providers: providersByEnvironment.get(candidate.environmentId) ?? EMPTY_SERVER_PROVIDERS,
     })),
   );
   const automaticModel =
     targets.length > 0 &&
-    targets.every(
-      (candidate) => candidate.settings.defaultModelSelection === null,
-    );
+    targets.every((candidate) => candidate.settings.defaultModelSelection === null);
   const mixedFallback = useScopedSettingsMixed(["fallbackModelSelection"]);
   const fallbackSelection = settings.fallbackModelSelection ?? selection;
-  const fallbackEntry = entries.find(
-    (entry) => entry.instanceId === fallbackSelection?.instanceId,
-  );
+  const fallbackEntry = entries.find((entry) => entry.instanceId === fallbackSelection?.instanceId);
   const fallbackModelOptions = getCustomModelOptionsByInstance(
     settings,
     providers,
@@ -147,9 +106,7 @@ export function ProjectDefaultsSettings({
   const PermissionIcon = runtimeModeConfig[settings.defaultRuntimeMode].icon;
   const mixedWorkspace = useScopedSettingsMixed(["defaultThreadEnvMode"]);
   const mixedAutoPull = useScopedSettingsMixed(["defaultAutoPull"]);
-  const mixedAgentCredits = useScopedSettingsMixed([
-    "removeAgentCreditsOnMerge",
-  ]);
+  const mixedAgentCredits = useScopedSettingsMixed(["removeAgentCreditsOnMerge"]);
   const mixedMergeMethod = useScopedSettingsMixed(["pullRequestMergeMethod"]);
   const modelSource = useScopedSettingSource(["defaultModelSelection"]);
   const isProjectScope = scope.kind === "project" || scope.kind === "checkout";
@@ -164,9 +121,7 @@ export function ProjectDefaultsSettings({
     : null;
 
   const setModel = (value: ModelSelection | null) => {
-    const reason = value
-      ? modelDisabledReason(value.instanceId, value.model)
-      : null;
+    const reason = value ? modelDisabledReason(value.instanceId, value.model) : null;
     if (reason) {
       toastManager.add({
         type: "error",
@@ -203,10 +158,7 @@ export function ProjectDefaultsSettings({
       }
       resetAction={
         settings.defaultModelSelection !== null ? (
-          <SettingResetButton
-            label="default model"
-            onClick={() => setModel(null)}
-          />
+          <SettingResetButton label="default model" onClick={() => setModel(null)} />
         ) : null
       }
       control={
@@ -222,9 +174,7 @@ export function ProjectDefaultsSettings({
               triggerClassName={SETTINGS_PICKER_TRIGGER_CLASSNAME}
               {...(mixedModel
                 ? {
-                    triggerLabel: translate(
-                      automaticModel ? "Automatic (mixed)" : "Mixed",
-                    ),
+                    triggerLabel: translate(automaticModel ? "Automatic (mixed)" : "Mixed"),
                   }
                 : {})}
               getModelDisabledReason={modelDisabledReason}
@@ -239,19 +189,10 @@ export function ProjectDefaultsSettings({
                   });
               }}
               onInstanceModelChange={(instanceId, model) =>
-                setModel(
-                  pickModelSelection(
-                    mixedModel ? null : selection,
-                    instanceId,
-                    model,
-                  ),
-                )
+                setModel(pickModelSelection(mixedModel ? null : selection, instanceId, model))
               }
             />
-            {!mixedModel &&
-            !presentation.providerNote &&
-            !effortDisabledReason &&
-            activeEntry ? (
+            {!mixedModel && !presentation.providerNote && !effortDisabledReason && activeEntry ? (
               <TraitsPicker
                 provider={activeEntry.driverKind}
                 models={activeEntry.models}
@@ -260,13 +201,7 @@ export function ProjectDefaultsSettings({
                 allowPromptInjectedEffort={false}
                 triggerClassName={SETTINGS_PICKER_TRIGGER_CLASSNAME}
                 onModelOptionsChange={(options) =>
-                  setModel(
-                    createModelSelection(
-                      selection.instanceId,
-                      selection.model,
-                      options,
-                    ),
-                  )
+                  setModel(createModelSelection(selection.instanceId, selection.model, options))
                 }
               />
             ) : null}
@@ -301,18 +236,13 @@ export function ProjectDefaultsSettings({
       }
       control={
         <Select
-          value={
-            mixedWorkspace ? null : (effective?.defaultThreadEnvMode ?? null)
-          }
+          value={mixedWorkspace ? null : (effective?.defaultThreadEnvMode ?? null)}
           onValueChange={(value) => {
             if (value === "local" || value === "worktree")
               updateSettings({ defaultThreadEnvMode: value });
           }}
         >
-          <SelectTrigger
-            size="sm"
-            aria-label={translateWebSource(locale, "Default workspace")}
-          >
+          <SelectTrigger size="sm" aria-label={translateWebSource(locale, "Default workspace")}>
             <SelectValue>
               {(value: string | null) =>
                 value === "local" || value === "worktree"
@@ -324,12 +254,8 @@ export function ProjectDefaultsSettings({
             </SelectValue>
           </SelectTrigger>
           <SelectPopup align="end" alignItemWithTrigger={false}>
-            <SelectItem value="local">
-              {translate(resolveEnvModeLabel("local"))}
-            </SelectItem>
-            <SelectItem value="worktree">
-              {translate(resolveEnvModeLabel("worktree"))}
-            </SelectItem>
+            <SelectItem value="local">{translate(resolveEnvModeLabel("local"))}</SelectItem>
+            <SelectItem value="worktree">{translate(resolveEnvModeLabel("worktree"))}</SelectItem>
           </SelectPopup>
         </Select>
       }
@@ -388,9 +314,7 @@ export function ProjectDefaultsSettings({
                 });
               }}
             />
-            {settings.fallbackModelSelection !== null &&
-            fallbackEntry &&
-            !mixedFallback ? (
+            {settings.fallbackModelSelection !== null && fallbackEntry && !mixedFallback ? (
               <TraitsPicker
                 provider={fallbackEntry.driverKind}
                 models={fallbackEntry.models}
@@ -421,11 +345,7 @@ export function ProjectDefaultsSettings({
 
   return (
     <SettingsSection
-      id={
-        category === "source-control"
-          ? "source-control-defaults"
-          : "project-defaults"
-      }
+      id={category === "source-control" ? "source-control-defaults" : "project-defaults"}
       title={category === "source-control" ? "Repositories" : "New threads"}
     >
       {category === "project" ? (
@@ -449,14 +369,12 @@ export function ProjectDefaultsSettings({
                 : "Default permissions for new threads. Projects can override them."
             }
             resetAction={
-              settings.defaultRuntimeMode !==
-              DEFAULT_SERVER_SETTINGS.defaultRuntimeMode ? (
+              settings.defaultRuntimeMode !== DEFAULT_SERVER_SETTINGS.defaultRuntimeMode ? (
                 <SettingResetButton
                   label="default permissions"
                   onClick={() =>
                     updateSettings({
-                      defaultRuntimeMode:
-                        DEFAULT_SERVER_SETTINGS.defaultRuntimeMode,
+                      defaultRuntimeMode: DEFAULT_SERVER_SETTINGS.defaultRuntimeMode,
                     })
                   }
                 />
@@ -469,19 +387,14 @@ export function ProjectDefaultsSettings({
                   if (value) updateSettings({ defaultRuntimeMode: value });
                 }}
               >
-                <SelectTrigger
-                  size="sm"
-                  aria-label={translate("Default permissions")}
-                >
+                <SelectTrigger size="sm" aria-label={translate("Default permissions")}>
                   {!mixedPermissions && (
                     <PermissionIcon className="size-3.5 shrink-0 text-muted-foreground" />
                   )}
                   <SelectValue>
                     {mixedPermissions
                       ? translateWebSource(locale, "Mixed")
-                      : translate(
-                          runtimeModeConfig[settings.defaultRuntimeMode].label,
-                        )}
+                      : translate(runtimeModeConfig[settings.defaultRuntimeMode].label)}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectPopup align="end" alignItemWithTrigger={false}>
@@ -490,8 +403,7 @@ export function ProjectDefaultsSettings({
                     const Icon = option.icon;
                     const managedReason = firstManagedDenial(
                       connectedEnvironments.map(
-                        (environment) =>
-                          environment.serverConfig?.managedPolicy,
+                        (environment) => environment.serverConfig?.managedPolicy,
                       ),
                       (policy) => managedRuntimeModeDenial(policy, mode, t),
                     );
@@ -547,9 +459,7 @@ export function ProjectDefaultsSettings({
                 aria-label={translate(translate("Default automatic pull"))}
                 mixed={mixedAutoPull}
                 checked={mixedAutoPull ? false : settings.defaultAutoPull}
-                onCheckedChange={(enabled) =>
-                  updateSettings({ defaultAutoPull: enabled })
-                }
+                onCheckedChange={(enabled) => updateSettings({ defaultAutoPull: enabled })}
               />
             }
           />
@@ -564,22 +474,15 @@ export function ProjectDefaultsSettings({
                 <SettingResetButton
                   label="agent credit removal"
                   tooltip="Keep agent credits"
-                  onClick={() =>
-                    updateSettings({ removeAgentCreditsOnMerge: false })
-                  }
+                  onClick={() => updateSettings({ removeAgentCreditsOnMerge: false })}
                 />
               ) : null
             }
             control={
               <Switch
-                aria-label={translateWebSource(
-                  locale,
-                  "Remove agent credits when merging",
-                )}
+                aria-label={translateWebSource(locale, "Remove agent credits when merging")}
                 mixed={mixedAgentCredits}
-                checked={
-                  mixedAgentCredits ? false : settings.removeAgentCreditsOnMerge
-                }
+                checked={mixedAgentCredits ? false : settings.removeAgentCreditsOnMerge}
                 onCheckedChange={(enabled) =>
                   updateSettings({ removeAgentCreditsOnMerge: enabled })
                 }
@@ -601,27 +504,16 @@ export function ProjectDefaultsSettings({
                 <SettingResetButton
                   label="default merge method"
                   tooltip="Reset to last selected"
-                  onClick={() =>
-                    updateSettings({ pullRequestMergeMethod: null })
-                  }
+                  onClick={() => updateSettings({ pullRequestMergeMethod: null })}
                 />
               ) : null
             }
             control={
               <Select
-                value={
-                  mixedMergeMethod
-                    ? null
-                    : (settings.pullRequestMergeMethod ?? "last")
-                }
+                value={mixedMergeMethod ? null : (settings.pullRequestMergeMethod ?? "last")}
                 onValueChange={(value) => {
-                  if (value === "last")
-                    updateSettings({ pullRequestMergeMethod: null });
-                  else if (
-                    value === "merge" ||
-                    value === "squash" ||
-                    value === "rebase"
-                  )
+                  if (value === "last") updateSettings({ pullRequestMergeMethod: null });
+                  else if (value === "merge" || value === "squash" || value === "rebase")
                     updateSettings({ pullRequestMergeMethod: value });
                 }}
               >
@@ -631,9 +523,7 @@ export function ProjectDefaultsSettings({
                 >
                   <SelectValue>
                     {(value: string | null) =>
-                      value === "merge" ||
-                      value === "squash" ||
-                      value === "rebase"
+                      value === "merge" || value === "squash" || value === "rebase"
                         ? translate(PULL_REQUEST_MERGE_METHOD_LABELS[value])
                         : value === "last"
                           ? translate("Last selected")
@@ -698,18 +588,12 @@ export function WorktreeSubmodulesRow() {
       }
       control={
         <Select
-          value={
-            mixedSubmodules ? null : (effective?.worktreeSubmodules ?? null)
-          }
+          value={mixedSubmodules ? null : (effective?.worktreeSubmodules ?? null)}
           onValueChange={(value) => {
-            if (isWorktreeSubmodules(value))
-              updateSettings({ worktreeSubmodules: value });
+            if (isWorktreeSubmodules(value)) updateSettings({ worktreeSubmodules: value });
           }}
         >
-          <SelectTrigger
-            size="sm"
-            aria-label={translate("Worktree submodules")}
-          >
+          <SelectTrigger size="sm" aria-label={translate("Worktree submodules")}>
             <SelectValue>
               {(value: string | null) =>
                 isWorktreeSubmodules(value)

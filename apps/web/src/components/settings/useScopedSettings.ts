@@ -17,19 +17,13 @@ import {
   type UnifiedSettings,
 } from "@t3tools/contracts";
 
-import {
-  persistClientSettingsPatch,
-  useMergedSettings,
-} from "../../hooks/useSettings";
+import { persistClientSettingsPatch, useMergedSettings } from "../../hooks/useSettings";
 import { appAtomRegistry } from "../../rpc/atomRegistry";
 import { readEnvironment } from "../../state/environments";
 import { serverEnvironment } from "../../state/server";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { toastManager } from "../ui/toast";
-import {
-  useOptionalSettingsScope,
-  useSettingsScope,
-} from "./SettingsScopeContext";
+import { useOptionalSettingsScope, useSettingsScope } from "./SettingsScopeContext";
 import {
   createScopedSettingsWriter,
   pendingScopedWritesAtom,
@@ -51,22 +45,15 @@ export function useScopedSettings<T = UnifiedSettings>(
   selector?: (settings: UnifiedSettings) => T,
 ): T {
   const { target } = useSettingsScope();
-  return useMergedSettings(
-    target?.settings ?? DEFAULT_SERVER_SETTINGS,
-    selector,
-  );
+  return useMergedSettings(target?.settings ?? DEFAULT_SERVER_SETTINGS, selector);
 }
 
-export function useScopedSettingsMixed(
-  keys: readonly (keyof ServerSettings)[],
-): boolean {
+export function useScopedSettingsMixed(keys: readonly (keyof ServerSettings)[]): boolean {
   const { targets } = useSettingsScope();
   return scopedSettingsAreMixed(targets, keys);
 }
 
-export function useScopedSettingSource(
-  keys: readonly (keyof ServerSettings)[],
-) {
+export function useScopedSettingSource(keys: readonly (keyof ServerSettings)[]) {
   const { targets } = useSettingsScope();
   return scopedSettingsSource(targets, keys);
 }
@@ -89,10 +76,10 @@ function useRunScopedPlan() {
         title: translateWebSource(locale, "Setting not saved"),
         description:
           environmentLabel !== undefined
-            ? translateWebSource(
-                locale,
-                "Connect {environment} to save this setting.",
-              ).replace("{environment}", () => environmentLabel)
+            ? translateWebSource(locale, "Connect {environment} to save this setting.").replace(
+                "{environment}",
+                () => environmentLabel,
+              )
             : translateWebSource(locale, plan.unavailableReason),
       });
       onFailed?.();
@@ -120,16 +107,15 @@ function useRunScopedPlan() {
       environments,
       planner,
       async (request) => {
-        const missing = requiredScopesForServerSettingsPatch(
-          request.input.patch,
-        ).find((scope) => !readEnvironmentScope(request.environmentId, scope));
+        const missing = requiredScopesForServerSettingsPatch(request.input.patch).find(
+          (scope) => !readEnvironmentScope(request.environmentId, scope),
+        );
         const result = missing
           ? AsyncResult.failure(
               Cause.fail(
                 new EnvironmentAuthorizationError({
                   requiredScope: missing,
-                  message:
-                    "This connection lacks permission to change these settings.",
+                  message: "This connection lacks permission to change these settings.",
                 }),
               ),
             )
@@ -137,53 +123,43 @@ function useRunScopedPlan() {
               settle(request.environmentId);
               throw error;
             });
-        settle(
-          request.environmentId,
-          result._tag === "Success" ? result.value : undefined,
-        );
+        settle(request.environmentId, result._tag === "Success" ? result.value : undefined);
         return { ...result, sourceMessage: missing !== undefined };
       },
       persistClientSettingsPatch,
-    ).then(
-      ({ failedEnvironments, savedEnvironments, savedEnvironmentCount }) => {
-        if (failedEnvironments.length === 0) return;
-        onFailed?.();
-        const { locale } = readWebI18n();
-        toastManager.add({
-          type: "error",
-          title: translateWebSource(
-            locale,
-            savedEnvironmentCount > 0
-              ? "Setting saved on some environments"
-              : "Setting not saved",
-          ),
-          description: [
-            ...failedEnvironments.map(({ label, message, sourceMessage }) =>
-              translateWebSource(
-                locale,
-                "Could not save on {environment}: {message}",
-              ).replace(/\{(environment|message)\}/g, (_, key: string) =>
+    ).then(({ failedEnvironments, savedEnvironments, savedEnvironmentCount }) => {
+      if (failedEnvironments.length === 0) return;
+      onFailed?.();
+      const { locale } = readWebI18n();
+      toastManager.add({
+        type: "error",
+        title: translateWebSource(
+          locale,
+          savedEnvironmentCount > 0 ? "Setting saved on some environments" : "Setting not saved",
+        ),
+        description: [
+          ...failedEnvironments.map(({ label, message, sourceMessage }) =>
+            translateWebSource(locale, "Could not save on {environment}: {message}").replace(
+              /\{(environment|message)\}/g,
+              (_, key: string) =>
                 key === "environment"
                   ? label
                   : sourceMessage
                     ? translateWebSource(locale, message)
                     : message,
-              ),
             ),
-            ...(savedEnvironmentCount > 0
-              ? [
-                  translateWebSource(
-                    locale,
-                    "Saved on {environments}.",
-                  ).replace("{environments}", () =>
-                    savedEnvironments.map(({ label }) => label).join(", "),
-                  ),
-                ]
-              : []),
-          ].join("\n"),
-        });
-      },
-    );
+          ),
+          ...(savedEnvironmentCount > 0
+            ? [
+                translateWebSource(locale, "Saved on {environments}.").replace(
+                  "{environments}",
+                  () => savedEnvironments.map(({ label }) => label).join(", "),
+                ),
+              ]
+            : []),
+        ].join("\n"),
+      });
+    });
   };
 }
 
@@ -191,14 +167,10 @@ export function useUpdateScopedSettings() {
   const { scope, environments, deviceOnly } = useSettingsScope();
   const run = useRunScopedPlan();
   /** `onFailed` runs when any target rejects or drops the patch, so a draft can fall back. */
-  return (
-    patch: ScopedSettingsPatch,
-    options?: { readonly onFailed?: () => void },
-  ) =>
+  return (patch: ScopedSettingsPatch, options?: { readonly onFailed?: () => void }) =>
     run(
       environments,
-      (current) =>
-        planScopedSettingsPatch(scope, current, patch, { deviceOnly }),
+      (current) => planScopedSettingsPatch(scope, current, patch, { deviceOnly }),
       options?.onFailed,
     );
 }
@@ -208,9 +180,7 @@ export function useClearScopedSettings() {
   const run = useRunScopedPlan();
   return (keys: readonly ProjectScopedServerSettingKey[]) => {
     if (context === null) return;
-    run(context.environments, (current) =>
-      planScopedSettingsClear(context.scope, current, keys),
-    );
+    run(context.environments, (current) => planScopedSettingsClear(context.scope, current, keys));
   };
 }
 
@@ -222,18 +192,13 @@ export function useClearProjectOverrides() {
     keys: readonly ProjectScopedServerSettingKey[],
   ) => {
     if (context === null) return;
-    run(context.environments, (current) =>
-      planProjectOverridesClear(current, entries, keys),
-    );
+    run(context.environments, (current) => planProjectOverridesClear(current, entries, keys));
   };
 }
 
 export function useScopedSettingsWriteAllowed() {
   const { connectedEnvironments } = useSettingsScope();
-  const writable = useEnvironmentsWithScope(
-    connectedEnvironments,
-    AuthSettingsWriteScope,
-  );
+  const writable = useEnvironmentsWithScope(connectedEnvironments, AuthSettingsWriteScope);
   return (
     connectedEnvironments.length > 0 &&
     connectedEnvironments.every((target) => writable.has(target.environmentId))

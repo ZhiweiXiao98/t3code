@@ -29,13 +29,7 @@ import {
   UsersIcon,
 } from "lucide-react";
 import * as Schema from "effect/Schema";
-import {
-  useEffect,
-  useEffectEvent,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 
 import { pullRequestEnvironment } from "~/state/pullRequests";
 import { useLocalStorage } from "~/hooks/useLocalStorage";
@@ -48,11 +42,7 @@ import { formatFullTimestamp } from "~/timestampFormat";
 
 import { Button } from "../ui/button";
 import { PullRequestEditButton } from "./PullRequestEditButton";
-import {
-  Collapsible,
-  CollapsiblePanel,
-  CollapsibleTrigger,
-} from "../ui/collapsible";
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "../ui/collapsible";
 import {
   Menu,
   MenuCheckboxItem,
@@ -126,22 +116,14 @@ function CommentIdentity({
   detail: PullRequestDetailView;
 }) {
   const { locale } = useI18n();
-  const timestampFormat = useClientSettings(
-    (settings) => settings.timestampFormat,
-  );
+  const timestampFormat = useClientSettings((settings) => settings.timestampFormat);
   const actor = comment.author;
   const profileUrl = actor
-    ? sourceControlClients
-        .get(detail.provider)
-        .authorProfileUrl(actor.login, detail.url)
+    ? sourceControlClients.get(detail.provider).authorProfileUrl(actor.login, detail.url)
     : null;
   return (
     <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 gap-y-1 text-xs">
-      <PullRequestActorLabel
-        actor={actor}
-        profileUrl={profileUrl}
-        className="max-w-full"
-      />
+      <PullRequestActorLabel actor={actor} profileUrl={profileUrl} className="max-w-full" />
       <Tooltip>
         <TooltipTrigger
           render={
@@ -163,9 +145,7 @@ function CommentIdentity({
         </TooltipTrigger>
         <TooltipPopup>
           {formatFullTimestamp(comment.createdAt, timestampFormat, locale)}
-          {comment.url
-            ? ` · ${translateWebSource(locale, "Open comment on host")}`
-            : ""}
+          {comment.url ? ` · ${translateWebSource(locale, "Open comment on host")}` : ""}
         </TooltipPopup>
       </Tooltip>
     </div>
@@ -186,15 +166,11 @@ function CommentLocation({
   return (
     <div className="mt-2 flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
       <Tooltip>
-        <TooltipTrigger render={<span className="truncate font-mono" />}>
-          {label}
-        </TooltipTrigger>
+        <TooltipTrigger render={<span className="truncate font-mono" />}>{label}</TooltipTrigger>
         <TooltipPopup>{label}</TooltipPopup>
       </Tooltip>
       {thread?.isOutdated ? (
-        <span className="shrink-0">
-          {translateWebSource(uiLocale, "Outdated")}
-        </span>
+        <span className="shrink-0">{translateWebSource(uiLocale, "Outdated")}</span>
       ) : null}
     </div>
   );
@@ -296,9 +272,7 @@ function chatSubject(
       ? { kind: "thread", thread }
       : null;
   }
-  return visibleBody(comment.body) === null
-    ? null
-    : { kind: "comment", comment };
+  return visibleBody(comment.body) === null ? null : { kind: "comment", comment };
 }
 
 function AddToChatButton({ onClick }: { onClick: () => void }) {
@@ -367,10 +341,7 @@ function CollapsedComment({
               {label}
               <ChevronDownIcon
                 aria-hidden
-                className={cn(
-                  "size-3.5 transition-transform",
-                  open && "rotate-180",
-                )}
+                className={cn("size-3.5 transition-transform", open && "rotate-180")}
               />
             </CollapsibleTrigger>
             {/* Collapsed, the status label already says "Resolved". */}
@@ -382,9 +353,7 @@ function CollapsedComment({
           {!open && body ? (
             <CollapsibleTrigger
               className="mt-2 block w-full truncate text-left text-xs text-muted-foreground hover:text-foreground"
-              onClick={() =>
-                statusTriggerRef.current?.focus({ preventScroll: true })
-              }
+              onClick={() => statusTriggerRef.current?.focus({ preventScroll: true })}
             >
               {pullRequestCommentPreview(body)}
             </CollapsibleTrigger>
@@ -394,11 +363,7 @@ function CollapsedComment({
           {open ? (
             <div className="px-3 pb-3">
               {body === null && !editing.canEdit(comment) ? null : (
-                <CommentBody
-                  className="mt-2"
-                  comment={comment}
-                  editing={editing}
-                />
+                <CommentBody className="mt-2" comment={comment} editing={editing} />
               )}
               {replies ? <div className="mt-3">{replies}</div> : null}
             </div>
@@ -461,12 +426,8 @@ function Section({
   const setOpenWithScrollAnchor = (nextOpen: boolean) => {
     if (!nextOpen) {
       const heading = headingRef.current;
-      const section = heading?.closest<HTMLElement>(
-        "[data-pull-request-summary-section]",
-      );
-      const scroller = heading?.closest<HTMLElement>(
-        "[data-pull-request-summary-scroll]",
-      );
+      const section = heading?.closest<HTMLElement>("[data-pull-request-summary-section]");
+      const scroller = heading?.closest<HTMLElement>("[data-pull-request-summary-scroll]");
       if (heading && section && scroller) {
         const target = sectionCollapseAnchorScrollTop({
           scrollTop: scroller.scrollTop,
@@ -564,8 +525,7 @@ export function PullRequestSummaryTab({
   const { locale: uiLocale, t } = useI18n();
   const terminology = sourceControlClients.get(detail.provider).changeRequest;
   const [shown, setShown] = useState({ url: detail.url, count: COMMENT_PAGE });
-  const shownConversations =
-    shown.url === detail.url ? shown.count : COMMENT_PAGE;
+  const shownConversations = shown.url === detail.url ? shown.count : COMMENT_PAGE;
   const [commentFilter, setCommentFilter] = useLocalStorage(
     COMMENT_FILTER_STORAGE_KEY,
     DEFAULT_COMMENT_FILTER,
@@ -575,10 +535,7 @@ export function PullRequestSummaryTab({
     detail.comments,
     pullRequestConversationThreads(detail),
   );
-  const filteredItems = filterPullRequestConversationItems(
-    items,
-    commentFilter,
-  );
+  const filteredItems = filterPullRequestConversationItems(items, commentFilter);
   const commentCount = items.reduce(
     (count, item) => count + pullRequestConversationItemComments(item).length,
     0,
@@ -589,11 +546,11 @@ export function PullRequestSummaryTab({
       (count, item) => count + pullRequestConversationItemComments(item).length,
       0,
     );
-  const { shown: recentItems, hidden: hiddenConversationCount } =
-    pagePullRequestConversationItems(filteredItems, shownConversations);
-  const [commentOrder, setCommentOrder] = useState<"newest" | "oldest">(
-    "newest",
+  const { shown: recentItems, hidden: hiddenConversationCount } = pagePullRequestConversationItems(
+    filteredItems,
+    shownConversations,
   );
+  const [commentOrder, setCommentOrder] = useState<"newest" | "oldest">("newest");
   const visibleItems = orderPullRequestComments(recentItems, commentOrder);
   const showOldestCommentsButton =
     hiddenConversationCount > 0 ? (
@@ -615,10 +572,7 @@ export function PullRequestSummaryTab({
       </Button>
     ) : null;
   // Verdicts outside the visible comment window still count.
-  const reviewOutcomes = latestPullRequestReviewOutcomes(
-    detail.comments,
-    detail.commits,
-  );
+  const reviewOutcomes = latestPullRequestReviewOutcomes(detail.comments, detail.commits);
   // Host login casing varies; normalize to preserve verdicts and deduplicate reviewers.
   const outcomeByLogin = new Map(
     reviewOutcomes.flatMap((entry) =>
@@ -638,8 +592,7 @@ export function PullRequestSummaryTab({
         (entry) =>
           !detail.reviewers.some(
             (actor) =>
-              entry.actor !== null &&
-              reviewerKey(actor.login) === reviewerKey(entry.actor.login),
+              entry.actor !== null && reviewerKey(actor.login) === reviewerKey(entry.actor.login),
           ),
       )
       .map((entry) => ({
@@ -668,25 +621,20 @@ export function PullRequestSummaryTab({
   const updateComment = useAtomCommand(pullRequestEnvironment.updateComment, {
     reportFailure: false,
   });
-  const canUpdate = useAtomValue(
-    pullRequestEnvironment.update.permissionAtom(environmentId),
-  );
-  const canEditDescription =
-    canUpdate && canEditPullRequestChangeRequest(detail);
+  const canUpdate = useAtomValue(pullRequestEnvironment.update.permissionAtom(environmentId));
+  const canEditDescription = canUpdate && canEditPullRequestChangeRequest(detail);
   // The editor keeps the body it opened from, so a failed save cannot reset what was typed.
   const [bodyScope, setBodyScope] = useState<{
     readonly url: string;
     readonly body: string;
   } | null>(null);
-  const [descriptionDraft, setDescriptionDraft] =
-    useState<DescriptionDraft | null>(null);
+  const [descriptionDraft, setDescriptionDraft] = useState<DescriptionDraft | null>(null);
   const descriptionDraftKept = descriptionDraftInForce(
     descriptionDraft,
     detail.url,
     detail.observedAt,
   );
-  if (descriptionDraftKept !== descriptionDraft)
-    setDescriptionDraft(descriptionDraftKept);
+  if (descriptionDraftKept !== descriptionDraft) setDescriptionDraft(descriptionDraftKept);
   const description = descriptionDraftKept?.body ?? detail.body;
   const descriptionSaving = (descriptionDraftKept?.saves ?? 0) > 0;
   const descriptionSavesRunning = useRef(0);
@@ -696,16 +644,13 @@ export function PullRequestSummaryTab({
     readonly commentId: string;
   } | null>(null);
   const [commentSaving, setCommentSaving] = useState(false);
-  const editingCommentId =
-    commentScope?.pullRequest === detail.url ? commentScope.commentId : null;
+  const editingCommentId = commentScope?.pullRequest === detail.url ? commentScope.commentId : null;
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const location = parsePullRequestAnchor(revealUrl);
   const [checksReveals, setChecksReveals] = useState(0);
   const [descriptionReveals, setDescriptionReveals] = useState(0);
-  const [seenRevealUrl, setSeenRevealUrl] = useState<string | undefined>(
-    undefined,
-  );
+  const [seenRevealUrl, setSeenRevealUrl] = useState<string | undefined>(undefined);
   if (revealUrl !== seenRevealUrl) {
     setSeenRevealUrl(revealUrl);
     if (location?.kind === "checks") setChecksReveals((count) => count + 1);
@@ -719,9 +664,7 @@ export function PullRequestSummaryTab({
     if (revealUrl === undefined || !root) return;
     let target: HTMLElement | null | undefined;
     if (location?.kind === "checks") {
-      target = root.querySelector<HTMLElement>(
-        '[data-pull-request-summary-section="checks"]',
-      );
+      target = root.querySelector<HTMLElement>('[data-pull-request-summary-section="checks"]');
     } else if (location?.kind === "summary") {
       if (location.anchor === "top") {
         stopHolding.current?.();
@@ -731,9 +674,7 @@ export function PullRequestSummaryTab({
       target = /^issue-\d+$/.test(location.anchor)
         ? root.querySelector<HTMLElement>("[data-pr-description]")
         : [...root.querySelectorAll<HTMLElement>("[id]")].find(
-            (node) =>
-              node.id === location.anchor ||
-              node.id === `user-content-${location.anchor}`,
+            (node) => node.id === location.anchor || node.id === `user-content-${location.anchor}`,
           );
     }
     // A heading may still be rendering; the link stays pending until it appears.
@@ -741,8 +682,7 @@ export function PullRequestSummaryTab({
     stopHolding.current?.();
     const heading = target.hasAttribute("data-pull-request-summary-section")
       ? null
-      : target.closest("[data-pull-request-summary-section]")
-          ?.firstElementChild;
+      : target.closest("[data-pull-request-summary-section]")?.firstElementChild;
     stopHolding.current = holdLinkedNodeInView(
       target,
       root,
@@ -755,13 +695,7 @@ export function PullRequestSummaryTab({
   useEffect(() => {
     revealSummary();
     // oxlint-disable-next-line react/exhaustive-effect-dependencies -- retries once the description markdown renders, including after its editor closes
-  }, [
-    revealUrl,
-    description,
-    checksReveals,
-    descriptionReveals,
-    editingDescription,
-  ]);
+  }, [revealUrl, description, checksReveals, descriptionReveals, editingDescription]);
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- the hold observes DOM outside React and must end with the tab
   useEffect(() => () => stopHolding.current?.(), []);
   // Checkbox ticks and the editor share one draft, so each starts from the other's latest body.
@@ -790,22 +724,12 @@ export function PullRequestSummaryTab({
     if (descriptionSaving) return;
     if (await saveDescription(body)) setBodyScope(null);
   };
-  const toggleTask = ({
-    markerOffset,
-    checked,
-  }: {
-    markerOffset: number;
-    checked: boolean;
-  }) => {
+  const toggleTask = ({ markerOffset, checked }: { markerOffset: number; checked: boolean }) => {
     const body = setMarkdownTaskChecked(description, markerOffset, checked);
     if (body !== description) void saveDescription(body);
   };
 
-  const completionScope = pullRequestCompletionScope(
-    detail,
-    environmentId,
-    reference,
-  );
+  const completionScope = pullRequestCompletionScope(detail, environmentId, reference);
   const commentEditing: CommentEditing = {
     cwd: detail.workspaceRoot,
     environmentId,
@@ -815,11 +739,7 @@ export function PullRequestSummaryTab({
     editingId: editingCommentId,
     saving: commentSaving,
     onEdit: (comment) =>
-      setCommentScope(
-        comment === null
-          ? null
-          : { pullRequest: detail.url, commentId: comment.id },
-      ),
+      setCommentScope(comment === null ? null : { pullRequest: detail.url, commentId: comment.id }),
     onSave: async (comment, body) => {
       if (commentSaving || comment.kind === "review") return;
       setCommentSaving(true);
@@ -858,9 +778,7 @@ export function PullRequestSummaryTab({
     />
   );
 
-  const resolveButtonFor = (
-    thread: PullRequestConversationThread | undefined,
-  ) =>
+  const resolveButtonFor = (thread: PullRequestConversationThread | undefined) =>
     thread === undefined ? null : (
       <PullRequestResolveThreadButton
         environmentId={environmentId}
@@ -934,11 +852,7 @@ export function PullRequestSummaryTab({
           </div>
         )}
         {body === null && !commentEditing.canEdit(comment) ? null : (
-          <CommentBody
-            className="px-3 py-3"
-            comment={comment}
-            editing={commentEditing}
-          />
+          <CommentBody className="px-3 py-3" comment={comment} editing={commentEditing} />
         )}
       </article>
     );
@@ -950,15 +864,11 @@ export function PullRequestSummaryTab({
     const replies =
       item.kind === "thread" && item.replies.length > 0 ? (
         <div className="ml-4 space-y-2 border-l-2 border-border/60 pl-3">
-          {item.replies.map((reply) =>
-            renderCommentCard(reply, undefined, { reply: true }),
-          )}
+          {item.replies.map((reply) => renderCommentCard(reply, undefined, { reply: true }))}
         </div>
       ) : null;
     const moreReplies =
-      item.kind === "thread" && item.hasMoreReplies ? (
-        <PullRequestMoreReplies {...item} />
-      ) : null;
+      item.kind === "thread" && item.hasMoreReplies ? <PullRequestMoreReplies {...item} /> : null;
     if (isPullRequestCommentFinished(comment, thread)) {
       const chat = chatSubject(comment, thread);
       return (
@@ -968,19 +878,12 @@ export function PullRequestSummaryTab({
           editing={commentEditing}
           detail={detail}
           thread={thread}
-          label={translateWebSource(
-            uiLocale,
-            thread?.isResolved ? "Resolved" : "Review dismissed",
-          )}
+          label={translateWebSource(uiLocale, thread?.isResolved ? "Resolved" : "Review dismissed")}
           body={visibleBody(comment.body)}
-          replyCount={
-            item.kind === "thread" ? item.replies.length + item.moreReplies : 0
-          }
+          replyCount={item.kind === "thread" ? item.replies.length + item.moreReplies : 0}
           replies={replies}
           moreReplies={moreReplies}
-          onAddToChat={
-            onAddToChat && chat !== null ? () => onAddToChat(chat) : undefined
-          }
+          onAddToChat={onAddToChat && chat !== null ? () => onAddToChat(chat) : undefined}
           reactionBar={reactionBarFor(comment)}
           resolveButton={resolveButtonFor(thread)}
         />
@@ -1013,9 +916,7 @@ export function PullRequestSummaryTab({
           >
             <span className="flex min-w-0 flex-wrap items-center gap-1.5">
               {reviewerEntries.length === 0 ? (
-                <span className="text-muted-foreground">
-                  {t("common.none")}
-                </span>
+                <span className="text-muted-foreground">{t("common.none")}</span>
               ) : (
                 <span className="flex items-center -space-x-1">
                   {reviewerEntries.map((entry) => {
@@ -1054,16 +955,8 @@ export function PullRequestSummaryTab({
                               />
                               <span className="sr-only">
                                 {entry.stale
-                                  ? localizedReviewOutcome(
-                                      t,
-                                      entry.outcome,
-                                      true,
-                                    )
-                                  : localizedReviewOutcome(
-                                      t,
-                                      entry.outcome,
-                                      false,
-                                    )}
+                                  ? localizedReviewOutcome(t, entry.outcome, true)
+                                  : localizedReviewOutcome(t, entry.outcome, false)}
                               </span>
                             </>
                           ) : null}
@@ -1072,16 +965,8 @@ export function PullRequestSummaryTab({
                           {entry.outcome
                             ? `${named}: ${
                                 entry.stale
-                                  ? localizedReviewOutcome(
-                                      t,
-                                      entry.outcome,
-                                      true,
-                                    )
-                                  : localizedReviewOutcome(
-                                      t,
-                                      entry.outcome,
-                                      false,
-                                    )
+                                  ? localizedReviewOutcome(t, entry.outcome, true)
+                                  : localizedReviewOutcome(t, entry.outcome, false)
                               }`
                             : named}
                         </TooltipPopup>
@@ -1094,9 +979,7 @@ export function PullRequestSummaryTab({
               {detail.capabilities.reviewers.request &&
               detail.capabilities.reviewers.listCandidates ? (
                 <PullRequestReviewerPicker
-                  searchable={
-                    detail.capabilities.reviewers.searchCandidates === true
-                  }
+                  searchable={detail.capabilities.reviewers.searchCandidates === true}
                   environmentId={environmentId}
                   reference={reference}
                   allowed={detail.viewerPermissions.requestReviewers}
@@ -1105,15 +988,10 @@ export function PullRequestSummaryTab({
             </span>
           </MetaRow>
           {detail.labels.length > 0 || detail.capabilities.labels === true ? (
-            <MetaRow
-              icon={<TagIcon className="size-3.5" />}
-              label={t("pullRequests.labels.title")}
-            >
+            <MetaRow icon={<TagIcon className="size-3.5" />} label={t("pullRequests.labels.title")}>
               <span className="flex min-w-0 flex-wrap items-center gap-1">
                 {detail.labels.length === 0 ? (
-                  <span className="text-muted-foreground">
-                    {t("common.none")}
-                  </span>
+                  <span className="text-muted-foreground">{t("common.none")}</span>
                 ) : (
                   detail.labels.map((label) => (
                     <PullRequestLabelChip
@@ -1159,9 +1037,7 @@ export function PullRequestSummaryTab({
                   : `${capitalizeTerm(terminology.singular)} description`
               }
               placeholder={
-                uiLocale === "zh-CN"
-                  ? "描述此变更请求"
-                  : `Describe this ${terminology.singular}`
+                uiLocale === "zh-CN" ? "描述此变更请求" : `Describe this ${terminology.singular}`
               }
               saving={descriptionSaving}
               onSave={(body) => void saveBody(body)}
@@ -1184,9 +1060,7 @@ export function PullRequestSummaryTab({
               {canEditDescription ? (
                 <PullRequestEditButton
                   aria-label={t("pullRequests.description.edit")}
-                  onClick={() =>
-                    setBodyScope({ url: detail.url, body: description })
-                  }
+                  onClick={() => setBodyScope({ url: detail.url, body: description })}
                 />
               ) : null}
             </div>
@@ -1203,67 +1077,58 @@ export function PullRequestSummaryTab({
       >
         {checksStale ? (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span>
-              {translateWebSource(uiLocale, "Check details are out of date.")}
-            </span>
+            <span>{translateWebSource(uiLocale, "Check details are out of date.")}</span>
             <Button size="xs" variant="ghost" onClick={onRefreshChecks}>
               {translateWebSource(uiLocale, "Refresh")}
             </Button>
           </div>
         ) : detail.checks.length === 0 ? (
-          <p className="text-xs text-muted-foreground">
-            {t("pullRequests.checks.none")}
-          </p>
+          <p className="text-xs text-muted-foreground">{t("pullRequests.checks.none")}</p>
         ) : (
           detail.checks.map(
             (
               check,
               index,
             ) => /* oxlint-disable react/no-array-index-key -- Check names and URLs can repeat; these status rows have no local state. */ {
-              const finding = { kind: "check", check } as const;
-              const failing =
-                check.status === "failure" || check.status === "cancelled";
-              return (
-                <div
-                  key={`${index}:${check.name}:${check.url ?? ""}`}
-                  className="group flex items-center gap-2 rounded-md pr-1 hover:bg-accent/60"
-                >
-                  <button
-                    type="button"
-                    disabled={!check.url}
-                    onClick={() => check.url && openCheck(check.url)}
-                    className={cn(
-                      "flex min-w-0 flex-1 items-start gap-2 rounded-md px-2 py-2 text-left text-xs leading-5 [&>svg]:mt-0.5",
-                      check.url ? "cursor-pointer" : "cursor-default",
-                    )}
+                const finding = { kind: "check", check } as const;
+                const failing = check.status === "failure" || check.status === "cancelled";
+                return (
+                  <div
+                    key={`${index}:${check.name}:${check.url ?? ""}`}
+                    className="group flex items-center gap-2 rounded-md pr-1 hover:bg-accent/60"
                   >
-                    <PullRequestCheckStatusIcon status={check.status} />
-                    <span className="min-w-0 flex-1 wrap-anywhere">
-                      {check.name}
-                    </span>
-                    <span className="shrink-0 text-muted-foreground">
-                      {pullRequestCheckStatusLabel(check, t)}
-                    </span>
-                  </button>
-                  {onFixFinding && failing ? (
-                    <Button
-                      size="xs"
-                      variant="ghost"
-                      className="shrink-0"
-                      disabled={
-                        pendingFinding !== null && pendingFinding !== undefined
-                      }
-                      onClick={() => onFixFinding(finding)}
+                    <button
+                      type="button"
+                      disabled={!check.url}
+                      onClick={() => check.url && openCheck(check.url)}
+                      className={cn(
+                        "flex min-w-0 flex-1 items-start gap-2 rounded-md px-2 py-2 text-left text-xs leading-5 [&>svg]:mt-0.5",
+                        check.url ? "cursor-pointer" : "cursor-default",
+                      )}
                     >
-                      <HammerIcon className="size-3" />
-                      {pendingFinding === pullRequestFindingKey(finding)
-                        ? t("pullRequests.actions.preparing")
-                        : fixCheckLabel}
-                    </Button>
-                  ) : null}
-                </div>
-              );
-            } /* oxlint-enable react/no-array-index-key */,
+                      <PullRequestCheckStatusIcon status={check.status} />
+                      <span className="min-w-0 flex-1 wrap-anywhere">{check.name}</span>
+                      <span className="shrink-0 text-muted-foreground">
+                        {pullRequestCheckStatusLabel(check, t)}
+                      </span>
+                    </button>
+                    {onFixFinding && failing ? (
+                      <Button
+                        size="xs"
+                        variant="ghost"
+                        className="shrink-0"
+                        disabled={pendingFinding !== null && pendingFinding !== undefined}
+                        onClick={() => onFixFinding(finding)}
+                      >
+                        <HammerIcon className="size-3" />
+                        {pendingFinding === pullRequestFindingKey(finding)
+                          ? t("pullRequests.actions.preparing")
+                          : fixCheckLabel}
+                      </Button>
+                    ) : null}
+                  </div>
+                );
+              } /* oxlint-enable react/no-array-index-key */,
           )
         )}
       </Section>
@@ -1286,15 +1151,11 @@ export function PullRequestSummaryTab({
               </MenuTrigger>
               <MenuPopup align="end">
                 <MenuGroup>
-                  <MenuGroupLabel>
-                    {translateWebSource(uiLocale, "Show")}
-                  </MenuGroupLabel>
+                  <MenuGroupLabel>{translateWebSource(uiLocale, "Show")}</MenuGroupLabel>
                   <MenuCheckboxItem
                     checked={commentFilter.bots}
                     closeOnClick={false}
-                    onCheckedChange={(bots) =>
-                      setCommentFilter((value) => ({ ...value, bots }))
-                    }
+                    onCheckedChange={(bots) => setCommentFilter((value) => ({ ...value, bots }))}
                   >
                     {translateWebSource(uiLocale, "Bot comments")}
                   </MenuCheckboxItem>
@@ -1318,11 +1179,7 @@ export function PullRequestSummaryTab({
                   ? t("pullRequests.comments.showOldestFirst")
                   : t("pullRequests.comments.showNewestFirst")
               }
-              onClick={() =>
-                setCommentOrder((value) =>
-                  value === "newest" ? "oldest" : "newest",
-                )
-              }
+              onClick={() => setCommentOrder((value) => (value === "newest" ? "oldest" : "newest"))}
             >
               <ArrowDownUpIcon aria-hidden className="size-3" />
               {commentOrder === "newest"
@@ -1370,9 +1227,7 @@ export function PullRequestSummaryTab({
                     size="sm"
                     variant="ghost"
                     className="w-full"
-                    onClick={() =>
-                      setShown({ url: detail.url, count: COMMENT_PAGE })
-                    }
+                    onClick={() => setShown({ url: detail.url, count: COMMENT_PAGE })}
                   >
                     {t("pullRequests.comments.recentConversations", {
                       count: COMMENT_PAGE,

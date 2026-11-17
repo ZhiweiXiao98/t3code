@@ -40,10 +40,7 @@ function ThreadNowLine({
       className={cn(lineClassName, "items-baseline")}
       data-thread-now-line="true"
     >
-      <span
-        aria-hidden
-        className="flex size-3.5 shrink-0 self-center items-center justify-center"
-      >
+      <span aria-hidden className="flex size-3.5 shrink-0 self-center items-center justify-center">
         {item.icon}
       </span>
       {/* Title and detail read as one line that gives way before the actions, so Stop stays
@@ -67,9 +64,7 @@ function ThreadNowLine({
         ) : null}
       </NoticeText>
       {item.actions ? (
-        <span className="ms-1.5 flex shrink-0 items-baseline gap-2.5">
-          {item.actions}
-        </span>
+        <span className="ms-1.5 flex shrink-0 items-baseline gap-2.5">{item.actions}</span>
       ) : null}
     </div>
   );
@@ -78,17 +73,11 @@ function ThreadNowLine({
 function ThreadSyncLine({ phase }: { readonly phase: ThreadSyncPhase }) {
   const { t } = useI18n();
   return (
-    <div
-      className={lineClassName}
-      role="status"
-      data-composer-sync-status={phase}
-    >
+    <div className={lineClassName} role="status" data-composer-sync-status={phase}>
       <RefreshCwIcon aria-hidden />
       <span className="truncate">
         {t(
-          phase === "loading"
-            ? "composer.state.messagesLoading"
-            : "composer.state.messagesSyncing",
+          phase === "loading" ? "composer.state.messagesLoading" : "composer.state.messagesSyncing",
         )}
       </span>
     </div>

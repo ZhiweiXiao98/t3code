@@ -6,10 +6,7 @@ import { page, userEvent } from "vite-plus/test/browser";
 import { render } from "../../../test/render";
 import "~/index.css";
 import { chooseAudioDestination } from "../../speech/voiceConsent";
-import {
-  useEnvironmentScope,
-  usePreparedConnection,
-} from "../../state/session";
+import { useEnvironmentScope, usePreparedConnection } from "../../state/session";
 import { VoiceSettingsPanel } from "./VoiceSettingsPanel";
 import { SettingsScopeProvider } from "./SettingsScopeContext";
 
@@ -54,11 +51,7 @@ const id = EnvironmentId.make("voice-host");
 const grantKey = "t3code:voice-audio-grant:v1";
 
 async function withVoicePanel(
-  route: (
-    url: URL,
-    request: RequestInfo | URL,
-    init?: RequestInit,
-  ) => Promise<Response> | null,
+  route: (url: URL, request: RequestInfo | URL, init?: RequestInit) => Promise<Response> | null,
   body: (screen: Awaited<ReturnType<typeof render>>) => Promise<void>,
 ) {
   const target = new PrimaryConnectionTarget({
@@ -76,15 +69,10 @@ async function withVoicePanel(
   using cleanup = new DisposableStack();
   cleanup.defer(() => chooseAudioDestination(null));
   const fetch = globalThis.fetch;
-  using _network = vi
-    .spyOn(globalThis, "fetch")
-    .mockImplementation((request, init) => {
-      const url = new URL(
-        request instanceof Request ? request.url : request,
-        window.location.href,
-      );
-      return route(url, request, init) ?? fetch(request, init);
-    });
+  using _network = vi.spyOn(globalThis, "fetch").mockImplementation((request, init) => {
+    const url = new URL(request instanceof Request ? request.url : request, window.location.href);
+    return route(url, request, init) ?? fetch(request, init);
+  });
   await vi.mocked(useEnvironmentScope).withImplementation(
     () => true,
     async () => {
@@ -139,9 +127,7 @@ it("enables the chosen provider only after a successful setup", async () => {
   await withVoicePanel(
     (url, request, init) => {
       if (url.pathname === "/api/voice/cloud/keys")
-        return Promise.resolve(
-          Response.json({ openai: writes.length > 0, xai: true }),
-        );
+        return Promise.resolve(Response.json({ openai: writes.length > 0, xai: true }));
       if (url.pathname !== "/api/voice/cloud/openai/key") return null;
       if (rejectNextWrite) {
         rejectNextWrite = false;
@@ -159,26 +145,18 @@ it("enables the chosen provider only after a successful setup", async () => {
       await destination.click();
       await page.getByRole("option", { name: "OpenAI via Laptop" }).click();
       const dialog = page.getByRole("dialog");
-      await dialog
-        .getByRole("combobox", { name: "OpenAI API key source" })
-        .click();
+      await dialog.getByRole("combobox", { name: "OpenAI API key source" }).click();
       await page.getByRole("option", { name: "Work vault" }).click();
-      await dialog
-        .getByLabelText("OpenAI API key reference")
-        .fill("op://Work/Voice/key");
+      await dialog.getByLabelText("OpenAI API key reference").fill("op://Work/Voice/key");
       await userEvent.keyboard("{Enter}");
       await expect.element(dialog.getByRole("alert")).toBeVisible();
       expect(writes).toEqual([]);
-      await expect
-        .element(dialog.getByRole("button", { name: "Save and enable" }))
-        .toBeEnabled();
+      await expect.element(dialog.getByRole("button", { name: "Save and enable" })).toBeEnabled();
       await dialog.getByLabelText("OpenAI API key reference").click();
       await userEvent.keyboard("{Enter}");
       await expect.element(dialog).not.toBeInTheDocument();
       await expect.element(destination).toHaveTextContent("OpenAI via Laptop");
-      expect(writes).toEqual([
-        { key: { provider: "work", reference: "op://Work/Voice/key" } },
-      ]);
+      expect(writes).toEqual([{ key: { provider: "work", reference: "op://Work/Voice/key" } }]);
     },
   );
 });
@@ -204,9 +182,7 @@ it("keeps the active provider's grant when editing its key", async () => {
     async (screen) => {
       await screen.getByRole("button", { name: "Manage key" }).click();
       const dialog = page.getByRole("dialog");
-      await dialog
-        .getByLabelText("OpenAI API key", { exact: true })
-        .fill("replacement");
+      await dialog.getByLabelText("OpenAI API key", { exact: true }).fill("replacement");
       await userEvent.keyboard("{Enter}");
       await expect.element(dialog).not.toBeInTheDocument();
       expect(writes).toEqual([{ key: "replacement" }]);
@@ -227,16 +203,12 @@ it("uses a provider's saved key without writing it, and turns dictation off", as
         name: "Transcribe with",
       });
       await destination.click();
-      await page
-        .getByRole("option", { name: "Grok Voice Transcribe via Laptop" })
-        .click();
+      await page.getByRole("option", { name: "Grok Voice Transcribe via Laptop" }).click();
       await page
         .getByRole("dialog")
         .getByRole("button", { name: "Use Grok Voice Transcribe" })
         .click();
-      await expect
-        .element(destination)
-        .toHaveTextContent("Grok Voice Transcribe via Laptop");
+      await expect.element(destination).toHaveTextContent("Grok Voice Transcribe via Laptop");
       await destination.click();
       await page.getByRole("option", { name: "Off", exact: true }).click();
       await expect.element(destination).toHaveTextContent("Off");
@@ -249,17 +221,13 @@ it("OpenRouter needs an exact model, and changing it writes no credential", asyn
   const writes: unknown[] = [];
   const grantModel = () => {
     const raw = window.localStorage.getItem(grantKey);
-    const parsed = raw
-      ? (JSON.parse(raw) as { destination?: { model?: string } })
-      : null;
+    const parsed = raw ? (JSON.parse(raw) as { destination?: { model?: string } }) : null;
     return parsed?.destination?.model ?? null;
   };
   await withVoicePanel(
     (url, request, init) => {
       if (url.pathname === "/api/voice/cloud/keys")
-        return Promise.resolve(
-          Response.json({ openai: false, xai: false, openrouter: true }),
-        );
+        return Promise.resolve(Response.json({ openai: false, xai: false, openrouter: true }));
       if (url.pathname === "/api/voice/cloud/openrouter/models")
         return Promise.resolve(
           Response.json({
@@ -288,9 +256,7 @@ it("OpenRouter needs an exact model, and changing it writes no credential", asyn
       const picker = dialog.getByRole("combobox", { name: "OpenRouter model" });
       await expect.element(picker).toBeVisible();
       await picker.fill("listen");
-      await expect
-        .element(page.getByRole("option", { name: /Other: Listen 2/ }))
-        .toBeVisible();
+      await expect.element(page.getByRole("option", { name: /Other: Listen 2/ })).toBeVisible();
       await page.getByRole("option", { name: /Other: Listen 2/ }).click();
       await expect.element(save).toBeEnabled();
       const key = dialog.getByLabelText("OpenRouter API key", { exact: true });
@@ -299,9 +265,7 @@ it("OpenRouter needs an exact model, and changing it writes no credential", asyn
       await key.fill("");
       await save.click();
       await expect.element(dialog).not.toBeInTheDocument();
-      await expect
-        .element(destination)
-        .toHaveTextContent("OpenRouter via Laptop");
+      await expect.element(destination).toHaveTextContent("OpenRouter via Laptop");
       expect(grantModel()).toBe("other/listen-2");
       expect(writes).toEqual([]);
       await screen.getByRole("button", { name: "Manage OpenRouter" }).click();
@@ -313,9 +277,7 @@ it("OpenRouter needs an exact model, and changing it writes no credential", asyn
       await page.getByRole("option", { name: /Acme: Transcribe 1/ }).click();
       await dialog.getByRole("button", { name: "Save" }).click();
       await expect.element(dialog).not.toBeInTheDocument();
-      await expect
-        .element(destination)
-        .toHaveTextContent("OpenRouter via Laptop");
+      await expect.element(destination).toHaveTextContent("OpenRouter via Laptop");
       expect(grantModel()).toBe("acme/transcribe-1");
       expect(writes).toEqual([]);
     },

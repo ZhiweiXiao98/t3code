@@ -75,9 +75,7 @@ vi.mock(import("~/state/peerLinks"), async (original) => {
 
 /** Stands in for the chat composer, which reads the same list while a thread is open. */
 function ComposerReader() {
-  const result = useAtomValue(
-    peerLinkEnvironment.list({ environmentId: hostId, input: {} }),
-  );
+  const result = useAtomValue(peerLinkEnvironment.list({ environmentId: hostId, input: {} }));
   return AsyncResult.isSuccess(result) ? <p>Composer loaded</p> : null;
 }
 
@@ -104,9 +102,7 @@ describe("LinkedEnvironmentsSettings", () => {
       </RegistryContext.Provider>,
     );
 
-    await expect
-      .element(screen.getByRole("heading", { name: "boat-task" }))
-      .toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: "boat-task" })).toBeVisible();
   });
 
   it("leaves a list that is still loading to answer", async () => {
@@ -132,9 +128,7 @@ describe("LinkedEnvironmentsSettings", () => {
     await expect.element(screen.getByRole("status")).toBeVisible();
 
     answer();
-    await expect
-      .element(screen.getByRole("heading", { name: "boat-task" }))
-      .toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: "boat-task" })).toBeVisible();
     expect(server).toMatchObject({ started: 1, interrupted: 0 });
   });
 });

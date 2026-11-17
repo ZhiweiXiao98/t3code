@@ -37,9 +37,7 @@ vi.mock(import("~/state/entities"), async (importOriginal) => ({
     ])) as never,
   useProjects: (() => state.projects) as never,
   useQuietThreadShell: ((ref: unknown) =>
-    ref === null
-      ? null
-      : { branch: null, pullRequests: state.pullRequests }) as never,
+    ref === null ? null : { branch: null, pullRequests: state.pullRequests }) as never,
 }));
 const queryData = () => ({
   projectId: ProjectId.make("project"),
@@ -55,14 +53,12 @@ const queryData = () => ({
   changedFiles: 1,
   additions: 1,
   deletions: 0,
-  checks: [state.status, ...(state.extraStatus ? [state.extraStatus] : [])].map(
-    (status) => ({
-      name: `CI-${status}`,
-      status,
-      description: null,
-      url: null,
-    }),
-  ),
+  checks: [state.status, ...(state.extraStatus ? [state.extraStatus] : [])].map((status) => ({
+    name: `CI-${status}`,
+    status,
+    description: null,
+    url: null,
+  })),
   capabilities: { actions: ["merge"], mergeMethods: state.mergeMethods },
   viewerPermissions: { actions: ["merge"] },
   mergeCapabilities: {
@@ -73,10 +69,8 @@ const queryData = () => ({
 });
 vi.mock(import("~/state/query"), async (importOriginal) => ({
   ...(await importOriginal()),
-  useEnvironmentQuerySelector: ((
-    _atom: unknown,
-    select: (result: unknown) => unknown,
-  ) => select(AsyncResult.success(queryData()))) as never,
+  useEnvironmentQuerySelector: ((_atom: unknown, select: (result: unknown) => unknown) =>
+    select(AsyncResult.success(queryData()))) as never,
   useEnvironmentQueryIsNewer: () => true,
   useEnvironmentQueryRefresh: () => ({
     refresh: vi.fn(),
@@ -93,22 +87,15 @@ vi.mock(import("~/state/query"), async (importOriginal) => ({
     isPending: false,
   })) as never,
 }));
-vi.mock(
-  import("../pullRequest/usePullRequestActions"),
-  async (importOriginal) => ({
-    ...(await importOriginal()),
-    usePullRequestActionRunner: () => ({
-      actionPending: false,
-      perform: state.perform,
-    }),
-    usePullRequestDefaultMergeMethodResolver: ((
-        _environmentId: unknown,
-        projectId: unknown,
-      ) =>
-      () =>
-        state.projectMergeMethods[String(projectId)]) as never,
+vi.mock(import("../pullRequest/usePullRequestActions"), async (importOriginal) => ({
+  ...(await importOriginal()),
+  usePullRequestActionRunner: () => ({
+    actionPending: false,
+    perform: state.perform,
   }),
-);
+  usePullRequestDefaultMergeMethodResolver: ((_environmentId: unknown, projectId: unknown) => () =>
+    state.projectMergeMethods[String(projectId)]) as never,
+}));
 
 vi.mock(import("~/hooks/useHandleNewThread"), async (original) => ({
   ...(await original()),
@@ -294,9 +281,9 @@ it("adds the failing checks to a given composer instead of opening a new thread"
   await clickButton(screen.container, "Fix");
   expect(state.newThread).not.toHaveBeenCalled();
   expect(state.prepareThread).not.toHaveBeenCalled();
-  expect(
-    useComposerDraftStore.getState().getComposerDraft(threadRef)?.prompt,
-  ).toContain("https://github.com/owner/repo/pull/1");
+  expect(useComposerDraftStore.getState().getComposerDraft(threadRef)?.prompt).toContain(
+    "https://github.com/owner/repo/pull/1",
+  );
 });
 
 const repositoryClone = {
@@ -324,41 +311,35 @@ it.each([
     repository: "owner/other",
     expected: "squash",
   },
-])(
-  "merges a linked pull request with $name",
-  async ({ thread, repository, expected }) => {
-    await using screen = await setup();
-    state.mergeMethods = ["merge", "squash", "rebase"];
-    state.projects = [scratchProject, repositoryProject, repositoryClone];
-    state.projectMergeMethods = {
-      scratch: "squash",
-      repository: "rebase",
-      clone: "merge",
-    };
-    useUiStateStore.getState().setPullRequestMergeMethod("squash");
-    state.pullRequests = [
-      {
-        host: "github.com",
-        repository,
-        number: 1,
-        url: `https://github.com/${repository}/pull/1`,
-        source: "manual",
-        linkedAt: "2026-10-30T00:00:00.000Z",
-        snapshot: null,
-        stack: null,
-      },
-    ];
-    await act(async () => {
-      await screen.rerender(
-        <ThreadDetailsThreadPrRows
-          threadRef={threadRef}
-          project={thread as never}
-        />,
-      );
-    });
-    await clickButton(screen.container, "Merge");
-    expect(
-      document.querySelector('[role="alertdialog"]')!.textContent,
-    ).toContain(`using ${expected}`);
-  },
-);
+])("merges a linked pull request with $name", async ({ thread, repository, expected }) => {
+  await using screen = await setup();
+  state.mergeMethods = ["merge", "squash", "rebase"];
+  state.projects = [scratchProject, repositoryProject, repositoryClone];
+  state.projectMergeMethods = {
+    scratch: "squash",
+    repository: "rebase",
+    clone: "merge",
+  };
+  useUiStateStore.getState().setPullRequestMergeMethod("squash");
+  state.pullRequests = [
+    {
+      host: "github.com",
+      repository,
+      number: 1,
+      url: `https://github.com/${repository}/pull/1`,
+      source: "manual",
+      linkedAt: "2026-10-30T00:00:00.000Z",
+      snapshot: null,
+      stack: null,
+    },
+  ];
+  await act(async () => {
+    await screen.rerender(
+      <ThreadDetailsThreadPrRows threadRef={threadRef} project={thread as never} />,
+    );
+  });
+  await clickButton(screen.container, "Merge");
+  expect(document.querySelector('[role="alertdialog"]')!.textContent).toContain(
+    `using ${expected}`,
+  );
+});

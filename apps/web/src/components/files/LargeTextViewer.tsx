@@ -1,35 +1,18 @@
 import { createFilePreviewError } from "@t3tools/shared/filePreview";
-import {
-  filePreviewFailureMessage,
-  filePreviewWorkerError,
-} from "./filePreviewErrorMessages";
+import { filePreviewFailureMessage, filePreviewWorkerError } from "./filePreviewErrorMessages";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
-import {
-  useEffect,
-  useImperativeHandle,
-  useRef,
-  useState,
-  type RefObject,
-} from "react";
+import { useEffect, useImperativeHandle, useRef, useState, type RefObject } from "react";
 import { parseDelimitedPreview } from "@t3tools/shared/delimitedPreview";
 import { formatAttachmentSize } from "@t3tools/client-runtime/state/attachments";
 import { useClientSettings } from "~/hooks/useSettings";
-import {
-  FileSurfaceFailure,
-  FileSurfaceLoading,
-  FileSurfaceNotice,
-} from "./fileSurfaceChrome";
+import { FileSurfaceFailure, FileSurfaceLoading, FileSurfaceNotice } from "./fileSurfaceChrome";
 import { PREVIEW_PAGE_ROWS, type TextPreviewResult } from "./largeTextProtocol";
 import VirtualTablePreview from "./VirtualTablePreview";
 
 const FIRST_SCREEN_BYTES = 16 * 1024;
 
-function firstScreen(
-  text: string,
-  delimiter: "," | "\t" | null,
-  complete: boolean,
-) {
+function firstScreen(text: string, delimiter: "," | "\t" | null, complete: boolean) {
   if (!text || text.includes("\0")) return [];
   const rows = delimiter
     ? parseDelimitedPreview(text, delimiter, {
@@ -61,10 +44,7 @@ export default function LargeTextViewer(props: {
   readonly wordWrap?: boolean;
 }) {
   const { t, locale: previewLocale } = useI18n();
-  const [meta, setMeta] = useState<Extract<
-    TextPreviewResult,
-    { type: "meta" }
-  > | null>(null);
+  const [meta, setMeta] = useState<Extract<TextPreviewResult, { type: "meta" }> | null>(null);
   const [pages, setPages] = useState(new Map<number, string[][]>());
   const [error, setError] = useState<Error | null>(null);
   const worker = useRef<Worker | null>(null);
@@ -108,67 +88,53 @@ export default function LargeTextViewer(props: {
     };
     const startWorker = () => {
       if (controller.signal.aborted) return;
-      const engine = new Worker(
-        new URL("./largeText.worker.ts", import.meta.url),
-        {
-          type: "module",
-        },
-      );
+      const engine = new Worker(new URL("./largeText.worker.ts", import.meta.url), {
+        type: "module",
+      });
       worker.current = engine;
-      engine.addEventListener(
-        "message",
-        (event: MessageEvent<TextPreviewResult>) => {
-          const result = event.data;
-          if (result.type === "copy") {
-            copyPending.current?.resolve(result.text);
-            copyPending.current = null;
-          } else if (result.type === "error") {
-            copyPending.current?.reject(filePreviewWorkerError(result));
-            copyPending.current = null;
-            if (result.operation !== "copy")
-              setError(filePreviewWorkerError(result));
-          } else if (result.type === "meta") {
-            indexed = true;
-            if (prefetched) {
-              setPages(new Map());
-              pending.current.clear();
-              prefetched = false;
-            }
-            setMeta(result);
-          } else if (result.type === "page") {
-            pending.current.delete(result.index);
-            setPages((old) => {
-              const previous = old.get(result.index);
-              if (
-                previous?.length === result.rows.length &&
-                previous.every(
-                  (row, index) =>
-                    row.length === result.rows[index]!.length &&
-                    row.every(
-                      (cell, column) => cell === result.rows[index]![column],
-                    ),
-                )
-              )
-                return old;
-              const next = new Map(old);
-              next.delete(result.index);
-              next.set(result.index, result.rows);
-              if (next.size > 12)
-                next.delete([...next.keys()].find((key) => key !== 0)!);
-              return next;
-            });
+      engine.addEventListener("message", (event: MessageEvent<TextPreviewResult>) => {
+        const result = event.data;
+        if (result.type === "copy") {
+          copyPending.current?.resolve(result.text);
+          copyPending.current = null;
+        } else if (result.type === "error") {
+          copyPending.current?.reject(filePreviewWorkerError(result));
+          copyPending.current = null;
+          if (result.operation !== "copy") setError(filePreviewWorkerError(result));
+        } else if (result.type === "meta") {
+          indexed = true;
+          if (prefetched) {
+            setPages(new Map());
+            pending.current.clear();
+            prefetched = false;
           }
-        },
-      );
+          setMeta(result);
+        } else if (result.type === "page") {
+          pending.current.delete(result.index);
+          setPages((old) => {
+            const previous = old.get(result.index);
+            if (
+              previous?.length === result.rows.length &&
+              previous.every(
+                (row, index) =>
+                  row.length === result.rows[index]!.length &&
+                  row.every((cell, column) => cell === result.rows[index]![column]),
+              )
+            )
+              return old;
+            const next = new Map(old);
+            next.delete(result.index);
+            next.set(result.index, result.rows);
+            if (next.size > 12) next.delete([...next.keys()].find((key) => key !== 0)!);
+            return next;
+          });
+        }
+      });
       engine.addEventListener("error", () => {
-        copyPending.current?.reject(
-          createFilePreviewError("The text viewer stopped."),
-        );
+        copyPending.current?.reject(createFilePreviewError("The text viewer stopped."));
         copyPending.current = null;
         setError(
-          createFilePreviewError(
-            "Could not load the text viewer. Close the file and try again.",
-          ),
+          createFilePreviewError("Could not load the text viewer. Close the file and try again."),
         );
       });
       engine.postMessage(
@@ -183,8 +149,7 @@ export default function LargeTextViewer(props: {
       );
     };
     const scheduleWorker = () => {
-      if (prefetched)
-        requestAnimationFrame(() => requestAnimationFrame(startWorker));
+      if (prefetched) requestAnimationFrame(() => requestAnimationFrame(startWorker));
       else startWorker();
     };
     // Only this bounded prefix is parsed on the main thread. Indexing the full
@@ -206,16 +171,13 @@ export default function LargeTextViewer(props: {
         .then(async (response) => {
           if (
             !response.ok ||
-            Number(response.headers.get("content-length")) >
-              FIRST_SCREEN_BYTES ||
+            Number(response.headers.get("content-length")) > FIRST_SCREEN_BYTES ||
             response.status !== 206
           ) {
             await response.body?.cancel();
             return;
           }
-          const total = Number(
-            response.headers.get("content-range")?.split("/")[1],
-          );
+          const total = Number(response.headers.get("content-range")?.split("/")[1]);
           paintFirstScreen(await response.text(), total <= FIRST_SCREEN_BYTES);
         })
         .catch(() => {
@@ -265,10 +227,7 @@ export default function LargeTextViewer(props: {
         role="status"
       >
         {t(props.delimiter ? "files.residual.rows" : "files.residual.lines", {
-          count: Math.max(
-            0,
-            meta.count - (props.delimiter && meta.count ? 1 : 0),
-          ).toLocaleString(),
+          count: Math.max(0, meta.count - (props.delimiter && meta.count ? 1 : 0)).toLocaleString(),
         })}
         {props.delimiter
           ? t("files.residual.columnsSuffix", {

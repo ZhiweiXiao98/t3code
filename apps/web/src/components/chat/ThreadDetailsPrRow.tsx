@@ -11,11 +11,7 @@ import { ThreadDetailsControl } from "./ThreadDetailsControl";
 import { PullRequestGlyph } from "../pullRequest/pullRequestIcons";
 import { selectEnvironmentQueryData } from "@t3tools/client-runtime/state/runtime";
 import type { EnvironmentProject } from "@t3tools/client-runtime/state/shell";
-import type {
-  EnvironmentId,
-  ProjectId,
-  PullRequestRef,
-} from "@t3tools/contracts";
+import type { EnvironmentId, ProjectId, PullRequestRef } from "@t3tools/contracts";
 import {
   ArrowUpRightIcon,
   EyeIcon,
@@ -90,9 +86,8 @@ import {
 } from "./threadDetailsPanelStyles";
 
 // A null checks response is settled; polling cannot find checks.
-const isSettledWithoutChecks = (
-  result: AsyncResult.AsyncResult<unknown, unknown>,
-) => result._tag === "Success" && result.value === null;
+const isSettledWithoutChecks = (result: AsyncResult.AsyncResult<unknown, unknown>) =>
+  result._tag === "Success" && result.value === null;
 
 export function ThreadDetailsPrRow({
   environmentId,
@@ -126,9 +121,7 @@ export function ThreadDetailsPrRow({
   const { locale: newCopyLocale } = useI18n();
   const serverConfigs = useServerConfigs();
   const supportsPullRequests = serverConfigs.get(environmentId) !== undefined;
-  const repository = sourceControlClients.repositorySelector(
-    project?.repositoryIdentity,
-  );
+  const repository = sourceControlClients.repositorySelector(project?.repositoryIdentity);
   const reference: PullRequestRef | null =
     supportsPullRequests && project !== null
       ? linkedReference
@@ -145,33 +138,19 @@ export function ThreadDetailsPrRow({
           input: { ...reference, allowStale: false },
         });
   // Select query parts because polling rebuilds unchanged results.
-  const detailData = useEnvironmentQuerySelector(
-    detailAtom,
-    selectEnvironmentQueryData,
-  );
+  const detailData = useEnvironmentQuerySelector(detailAtom, selectEnvironmentQueryData);
   const detailQuery = useEnvironmentQueryRefresh(detailAtom);
   const supportsChecks =
-    serverConfigs.get(environmentId)?.environment.capabilities
-      .pullRequestChecks === true;
+    serverConfigs.get(environmentId)?.environment.capabilities.pullRequestChecks === true;
   const checksAtom =
     supportsChecks && reference !== null && detailData !== null
       ? pullRequestEnvironment.checks({ environmentId, input: reference })
       : null;
-  const checksData = useEnvironmentQuerySelector(
-    checksAtom,
-    selectEnvironmentQueryData,
-  );
-  const checksSettledEmpty = useEnvironmentQuerySelector(
-    checksAtom,
-    isSettledWithoutChecks,
-  );
+  const checksData = useEnvironmentQuerySelector(checksAtom, selectEnvironmentQueryData);
+  const checksSettledEmpty = useEnvironmentQuerySelector(checksAtom, isSettledWithoutChecks);
   const checksQuery = useEnvironmentQueryRefresh(checksAtom);
   const checksAreNewer = useEnvironmentQueryIsNewer(checksAtom, detailAtom);
-  const detail = resolvePullRequestDetailChecks(
-    detailData,
-    checksData,
-    checksAreNewer,
-  );
+  const detail = resolvePullRequestDetailChecks(detailData, checksData, checksAreNewer);
   const terminology = sourceControlClients.get(
     detail?.provider ?? project?.repositoryIdentity?.provider,
   ).changeRequest;
@@ -189,8 +168,7 @@ export function ThreadDetailsPrRow({
   );
   usePullRequestChecksRefresh({
     refresh: () => {
-      if (!checksQuery.isPending() && !detailQuery.isPending())
-        checksQuery.refresh();
+      if (!checksQuery.isPending() && !detailQuery.isPending()) checksQuery.refresh();
     },
     enabled: open && supportsChecks && !checksSettledEmpty,
     key: `workspace-pr-checks:${refreshKey}`,
@@ -210,14 +188,11 @@ export function ThreadDetailsPrRow({
     environmentId,
     detail,
   });
-  const lastSelectedMergeMethod = useUiStateStore(
-    (state) => state.pullRequestMergeMethod,
+  const lastSelectedMergeMethod = useUiStateStore((state) => state.pullRequestMergeMethod);
+  const resolveProjectDefaultMergeMethod = usePullRequestDefaultMergeMethodResolver(
+    environmentId,
+    (project?.id as ProjectId | undefined) ?? null,
   );
-  const resolveProjectDefaultMergeMethod =
-    usePullRequestDefaultMergeMethodResolver(
-      environmentId,
-      (project?.id as ProjectId | undefined) ?? null,
-    );
   const [confirmingMerge, setConfirmingMerge] = useState(false);
 
   const rowAction = resolveThreadPanelPullRequestAction(detail);
@@ -225,10 +200,8 @@ export function ThreadDetailsPrRow({
     setConfirmingMerge(false);
   }
   const conflicting = isPullRequestConflicting(detail);
-  const checksState =
-    detail === null ? "none" : classifyPullRequestChecks(detail.checks);
-  const checksRollup =
-    detail === null ? null : pullRequestChecksState(detail.checks);
+  const checksState = detail === null ? "none" : classifyPullRequestChecks(detail.checks);
+  const checksRollup = detail === null ? null : pullRequestChecksState(detail.checks);
   const selectedMergeMethod = resolvePullRequestMergeMethod(
     allowedPullRequestMergeMethods(detail),
     null,
@@ -250,10 +223,7 @@ export function ThreadDetailsPrRow({
           ? "变基合并"
           : "合并提交"
       : selectedMergeMethod;
-  const handOff = (
-    kind: "conflicts" | "findings",
-    task: PullRequestThreadTask,
-  ) => {
+  const handOff = (kind: "conflicts" | "findings", task: PullRequestThreadTask) => {
     if (composerTarget === undefined) {
       void startHandoff(kind, task);
       return;
@@ -341,25 +311,16 @@ export function ThreadDetailsPrRow({
       >
         <div className="flex min-w-0 max-w-80 flex-col gap-2 px-1 py-2">
           <div className="flex min-w-0 items-baseline gap-1.5 text-xs leading-none">
-            <span className="min-w-0 truncate font-medium text-foreground">
-              {detail.title}
-            </span>
-            <span className="shrink-0 text-muted-foreground">
-              #{detail.number}
-            </span>
+            <span className="min-w-0 truncate font-medium text-foreground">{detail.title}</span>
+            <span className="shrink-0 text-muted-foreground">#{detail.number}</span>
           </div>
           <div className="grid gap-1.5 pl-0.5 text-xs text-muted-foreground">
             <div className="flex min-w-0 items-center gap-2">
               <statePresentation.Icon
                 aria-hidden
-                className={cn(
-                  "size-3 shrink-0",
-                  statePresentation.toneClassName,
-                )}
+                className={cn("size-3 shrink-0", statePresentation.toneClassName)}
               />
-              <div className="min-w-0 truncate text-foreground/75">
-                {statePresentation.label}
-              </div>
+              <div className="min-w-0 truncate text-foreground/75">{statePresentation.label}</div>
             </div>
             <div className="flex min-w-0 items-center gap-2">
               <GitBranchIcon className="size-3 shrink-0 stroke-muted-foreground" />
@@ -385,10 +346,7 @@ export function ThreadDetailsPrRow({
             ) : null}
             {detail.isDraft && conflicting ? (
               <div className="flex min-w-0 items-start gap-2 text-destructive">
-                <TriangleAlertIcon
-                  aria-hidden
-                  className="mt-0.5 size-3 shrink-0 stroke-current"
-                />
+                <TriangleAlertIcon aria-hidden className="mt-0.5 size-3 shrink-0 stroke-current" />
                 <div className="min-w-0 flex-1 wrap-break-word">
                   {residualT("chatResidual.mergeConflicts", {
                     branch: detail.baseBranch,
@@ -405,14 +363,10 @@ export function ThreadDetailsPrRow({
                     : "pullRequests.code.fileCountMany",
                   { count: detail.changedFiles.toLocaleString() },
                 )}
-                <PullRequestDiffStat
-                  additions={detail.additions}
-                  deletions={detail.deletions}
-                />
+                <PullRequestDiffStat additions={detail.additions} deletions={detail.deletions} />
               </div>
             </div>
-            {reference !== null &&
-            (detail.additions > 0 || detail.deletions > 0) ? (
+            {reference !== null && (detail.additions > 0 || detail.deletions > 0) ? (
               <PullRequestChangeBreakdownRows
                 environmentId={environmentId}
                 reference={reference}
@@ -439,10 +393,7 @@ export function ThreadDetailsPrRow({
           tooltip:
             composerTarget === undefined
               ? residualT("chatCorrection.resolveHint")
-              : translateChatSource(
-                  newCopyLocale,
-                  "Resolve the conflicts in this thread",
-                ),
+              : translateChatSource(newCopyLocale, "Resolve the conflicts in this thread"),
           onClick: startResolveConflicts,
         }
       : rowAction === "ready"
@@ -465,20 +416,14 @@ export function ThreadDetailsPrRow({
               destructive: true,
               suffix:
                 handoff === "findings" ? (
-                  <Spinner
-                    size="xs"
-                    aria-label={residualT("chatCorrection.preparing")}
-                  />
+                  <Spinner size="xs" aria-label={residualT("chatCorrection.preparing")} />
                 ) : (
                   newThreadSuffix
                 ),
               tooltip:
                 composerTarget === undefined
                   ? residualT("chatCorrection.fixHint")
-                  : translateChatSource(
-                      newCopyLocale,
-                      "Fix the failing checks in this thread",
-                    ),
+                  : translateChatSource(newCopyLocale, "Fix the failing checks in this thread"),
               onClick: startFixChecks,
             }
           : rowAction === "merge"
@@ -497,8 +442,7 @@ export function ThreadDetailsPrRow({
             : null;
 
   const watching =
-    onStopWatching !== undefined &&
-    (detail?.state ?? pr?.state ?? "open") === "open";
+    onStopWatching !== undefined && (detail?.state ?? pr?.state ?? "open") === "open";
   const watchControl = (part: "secondary" | "icon") =>
     watching ? (
       <Tooltip>
@@ -517,10 +461,7 @@ export function ThreadDetailsPrRow({
         >
           <EyeIcon
             aria-hidden
-            className={cn(
-              part === "icon" ? "size-3.5" : "size-4",
-              "group-hover/watch:hidden",
-            )}
+            className={cn(part === "icon" ? "size-3.5" : "size-4", "group-hover/watch:hidden")}
           />
           <EyeOffIcon
             aria-hidden
@@ -571,13 +512,11 @@ export function ThreadDetailsPrRow({
     </Tooltip>
   );
 
-  const showChecks =
-    detail !== null && checksRollup !== null && !conflicting && !detail.isDraft;
+  const showChecks = detail !== null && checksRollup !== null && !conflicting && !detail.isDraft;
 
   return (
     <>
-      {detail !== null &&
-      (showChecks || trailingAction !== null || watching) ? (
+      {detail !== null && (showChecks || trailingAction !== null || watching) ? (
         <div className="pb-1.5">
           {openRow(detail.title, "row", true)}
           <div className="flex h-5 min-w-0 items-center gap-0.5 ps-9 pe-2.5 text-xs text-muted-foreground">
@@ -587,12 +526,7 @@ export function ThreadDetailsPrRow({
                 checksState={checksRollup}
                 checks={detail.checks}
                 variant="count"
-                render={
-                  <ThreadDetailsControl
-                    part="meta"
-                    className="min-w-0 shrink"
-                  />
-                }
+                render={<ThreadDetailsControl part="meta" className="min-w-0 shrink" />}
               />
             ) : null}
             {watchControl("icon")}
@@ -606,17 +540,13 @@ export function ThreadDetailsPrRow({
                       variant="ghost"
                       size="sm"
                       part="meta"
-                      tone={
-                        trailingAction.destructive ? "destructive" : "primary"
-                      }
+                      tone={trailingAction.destructive ? "destructive" : "primary"}
                       disabled={actionPending || handoff !== null}
                       onClick={trailingAction.onClick}
                     />
                   }
                 >
-                  {trailingAction.pending
-                    ? trailingAction.pendingLabel
-                    : trailingAction.label}
+                  {trailingAction.pending ? trailingAction.pendingLabel : trailingAction.label}
                   {trailingAction.suffix}
                 </TooltipTrigger>
                 <TooltipPopup side="top">{trailingAction.tooltip}</TooltipPopup>
@@ -627,20 +557,14 @@ export function ThreadDetailsPrRow({
       ) : watching ? (
         <div className={THREAD_DETAILS_PANEL_SPLIT_GROUP_CLASS}>
           {openRow(label, "primary")}
-          <span
-            aria-hidden="true"
-            className={THREAD_DETAILS_PANEL_SPLIT_SEPARATOR_CLASS}
-          />
+          <span aria-hidden="true" className={THREAD_DETAILS_PANEL_SPLIT_SEPARATOR_CLASS} />
           {watchControl("secondary")}
         </div>
       ) : (
         openRow(label, "row")
       )}
       {rowAction === "merge" ? (
-        <AlertDialog
-          open={confirmingMerge}
-          onOpenChange={(open) => setConfirmingMerge(open)}
-        >
+        <AlertDialog open={confirmingMerge} onOpenChange={(open) => setConfirmingMerge(open)}>
           <AlertDialogPopup>
             <AlertDialogHeader>
               <AlertDialogTitle>

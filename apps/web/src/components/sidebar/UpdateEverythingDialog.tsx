@@ -16,17 +16,10 @@ import {
   AlertDialogTitle,
 } from "../ui/alert-dialog";
 import { Button } from "../ui/button";
-import {
-  Collapsible,
-  CollapsiblePanel,
-  CollapsibleTrigger,
-} from "../ui/collapsible";
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "../ui/collapsible";
 import { MiddleTruncate } from "../ui/middle-truncate";
 import { ScrollArea } from "../ui/scroll-area";
-import type {
-  RestartingMachine,
-  UpdateEverythingRow,
-} from "./updateEverything.logic";
+import type { RestartingMachine, UpdateEverythingRow } from "./updateEverything.logic";
 
 const isRunning = (status: string) =>
   status === "preparing" || status === "starting" || status === "running";
@@ -39,11 +32,9 @@ const runningThreadCountAtom = Atom.family((environmentIds: string) =>
       .reduce(
         (count, id) =>
           count +
-          get(
-            environmentThreadShells.environmentThreadsAtom(
-              EnvironmentId.make(id),
-            ),
-          ).filter((thread) => isRunning(thread.status)).length,
+          get(environmentThreadShells.environmentThreadsAtom(EnvironmentId.make(id))).filter(
+            (thread) => isRunning(thread.status),
+          ).length,
         0,
       ),
   ).pipe(Atom.withLabel(`update-everything-running-threads:${environmentIds}`)),
@@ -135,15 +126,11 @@ function UpdateEverythingDialogContent({
   );
   const running = stopped + continuing;
   const threads = t(
-    running === 1
-      ? "updateEverything.runningThreadOne"
-      : "updateEverything.runningThreadMany",
+    running === 1 ? "updateEverything.runningThreadOne" : "updateEverything.runningThreadMany",
     { count: running },
   );
   const restarting = new Set(restarts.map((machine) => machine.environmentId));
-  const updating = rows.filter(
-    (row) => row.app !== null || row.providers.length > 0,
-  );
+  const updating = rows.filter((row) => row.app !== null || row.providers.length > 0);
   const skipped = rows.filter((row) => row.skipped !== null);
 
   return (
@@ -212,9 +199,7 @@ function UpdateEverythingDialogContent({
                 <span role="cell">
                   {row.app !== null ? t(APP_LABELS[row.app]) : null}
                   {row.app === null && row.skipped !== null ? (
-                    <span className="text-muted-foreground">
-                      {t("updateEverything.skipped")}
-                    </span>
+                    <span className="text-muted-foreground">{t("updateEverything.skipped")}</span>
                   ) : null}
                   {row.app === "this-app" ? (
                     <span className="block text-muted-foreground text-xs">
@@ -231,8 +216,7 @@ function UpdateEverythingDialogContent({
                   ))}
                 </span>
                 <span role="cell" className="text-right">
-                  {row.environmentId !== null &&
-                  restarting.has(row.environmentId) ? (
+                  {row.environmentId !== null && restarting.has(row.environmentId) ? (
                     <RunningThreads environmentId={row.environmentId} />
                   ) : null}
                 </span>
@@ -242,10 +226,7 @@ function UpdateEverythingDialogContent({
           {skipped.length > 0 ? (
             <Collapsible>
               <CollapsibleTrigger className="flex items-center gap-1 text-muted-foreground text-xs hover:text-foreground data-panel-open:[&_svg]:rotate-90">
-                <ChevronRightIcon
-                  className="size-3.5 transition-transform"
-                  aria-hidden
-                />
+                <ChevronRightIcon className="size-3.5 transition-transform" aria-hidden />
                 {t("updateEverything.skippedCount", { count: skipped.length })}
               </CollapsibleTrigger>
               <CollapsiblePanel>
@@ -278,10 +259,7 @@ function UpdateEverythingDialogContent({
                 : t("updateEverything.threadsMixed", { threads, continuing })}
           </p>
         ) : null}
-        <AlertDialogClose
-          ref={cancelRef}
-          render={<Button variant="outline" disabled={busy} />}
-        >
+        <AlertDialogClose ref={cancelRef} render={<Button variant="outline" disabled={busy} />}>
           {t("common.cancel")}
         </AlertDialogClose>
         <Button disabled={disabledReason !== null || busy} onClick={onConfirm}>
@@ -292,11 +270,7 @@ function UpdateEverythingDialogContent({
   );
 }
 
-function RunningThreads({
-  environmentId,
-}: {
-  readonly environmentId: EnvironmentId;
-}) {
+function RunningThreads({ environmentId }: { readonly environmentId: EnvironmentId }) {
   const { t } = useI18n();
   const count = useAtomValue(runningThreadCountAtom(environmentId));
   return count > 0 ? (

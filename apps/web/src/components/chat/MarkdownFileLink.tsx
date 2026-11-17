@@ -10,11 +10,7 @@ import {
   squashAtomCommandFailure,
   type AtomCommandResult,
 } from "@t3tools/client-runtime/state/runtime";
-import type {
-  ContextMenuSource,
-  EnvironmentId,
-  ScopedThreadRef,
-} from "@t3tools/contracts";
+import type { ContextMenuSource, EnvironmentId, ScopedThreadRef } from "@t3tools/contracts";
 import { memo, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { FolderIcon } from "lucide-react";
 
@@ -53,9 +49,7 @@ interface MarkdownFileLinkProps {
   onOpenInPanel: (panelPath: string, line: number | undefined) => void;
   resolveCopyPaths: () => Promise<ReturnType<typeof markdownFileCopyPaths>>;
   openInEditorMenuLabel: string;
-  onOpenInBrowser?:
-    | (() => Promise<AtomCommandResult<unknown, unknown>>)
-    | undefined;
+  onOpenInBrowser?: (() => Promise<AtomCommandResult<unknown, unknown>>) | undefined;
   onOpenMedia?: (() => void) | undefined;
   onReveal?: (() => Promise<AtomCommandResult<unknown, unknown>>) | undefined;
   revealLabel?: string | undefined;
@@ -106,8 +100,7 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
             type: "error",
             title: translateRelease("markdownFile.openFailed"),
             description:
-              editorFailureMessage(error, readWebI18n().locale) ??
-              translateRelease("common.error"),
+              editorFailureMessage(error, readWebI18n().locale) ?? translateRelease("common.error"),
           }),
         );
       } catch (cause) {
@@ -120,8 +113,7 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
             type: "error",
             title: translateRelease("markdownFile.openFailed"),
             description:
-              editorFailureMessage(cause, readWebI18n().locale) ??
-              translateRelease("common.error"),
+              editorFailureMessage(cause, readWebI18n().locale) ?? translateRelease("common.error"),
           }),
         );
       }
@@ -173,10 +165,7 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
           stackedThreadToast({
             type: "error",
             title: translateRelease("markdownFile.openBrowserFailed"),
-            description:
-              cause instanceof Error
-                ? cause.message
-                : translateRelease("common.error"),
+            description: cause instanceof Error ? cause.message : translateRelease("common.error"),
           }),
         );
       }
@@ -202,10 +191,7 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
           stackedThreadToast({
             type: "error",
             title: translateRelease("markdownFile.revealFailed"),
-            description:
-              error instanceof Error
-                ? error.message
-                : translateRelease("common.error"),
+            description: error instanceof Error ? error.message : translateRelease("common.error"),
           }),
         );
       } catch (cause) {
@@ -217,10 +203,7 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
           stackedThreadToast({
             type: "error",
             title: translateRelease("markdownFile.revealFailed"),
-            description:
-              cause instanceof Error
-                ? cause.message
-                : translateRelease("common.error"),
+            description: cause instanceof Error ? cause.message : translateRelease("common.error"),
           }),
         );
       }
@@ -232,9 +215,7 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
     title: "Full path" | "Relative path",
   ) => {
     const localizedTitle = translateRelease(
-      title === "Full path"
-        ? "markdownFile.fullPath"
-        : "markdownFile.relativePath",
+      title === "Full path" ? "markdownFile.fullPath" : "markdownFile.relativePath",
     );
     if (typeof window === "undefined" || !navigator.clipboard?.writeText) {
       toastManager.add(
@@ -243,27 +224,19 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
           title: translateRelease("audit5.copyFailed", {
             label: localizedTitle,
           }),
-          description: translateWebSource(
-            releaseLocale,
-            "Clipboard API unavailable.",
-          ),
+          description: translateWebSource(releaseLocale, "Clipboard API unavailable."),
         }),
       );
       return;
     }
 
-    const value = resolveValue().then((text) =>
-      formatFilePathForClipboard(text, targetPath),
-    );
+    const value = resolveValue().then((text) => formatFilePathForClipboard(text, targetPath));
     // Start the write before workspace lookup finishes so Safari retains the user gesture.
     const write =
-      typeof navigator.clipboard.write === "function" &&
-      typeof ClipboardItem !== "undefined"
+      typeof navigator.clipboard.write === "function" && typeof ClipboardItem !== "undefined"
         ? navigator.clipboard.write([
             new ClipboardItem({
-              "text/plain": value.then(
-                (text) => new Blob([text], { type: "text/plain" }),
-              ),
+              "text/plain": value.then((text) => new Blob([text], { type: "text/plain" })),
             }),
           ])
         : value.then((text) => navigator.clipboard.writeText(text));
@@ -292,10 +265,7 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
             title: translateRelease("audit5.copyFailed", {
               label: localizedTitle,
             }),
-            description:
-              error instanceof Error
-                ? error.message
-                : translateRelease("common.error"),
+            description: error instanceof Error ? error.message : translateRelease("common.error"),
           }),
         );
       },
@@ -324,22 +294,16 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
                 },
               ] as const)
             : []),
-          ...(onOpen
-            ? ([{ id: "open", label: openInEditorMenuLabel }] as const)
-            : []),
+          ...(onOpen ? ([{ id: "open", label: openInEditorMenuLabel }] as const) : []),
           ...(onOpenInBrowser
             ? ([
                 {
                   id: "open-in-browser",
-                  label: translateRelease(
-                    "markdownFile.openInIntegratedBrowser",
-                  ),
+                  label: translateRelease("markdownFile.openInIntegratedBrowser"),
                 },
               ] as const)
             : []),
-          ...(onReveal && revealLabel
-            ? ([{ id: "reveal", label: revealLabel }] as const)
-            : []),
+          ...(onReveal && revealLabel ? ([{ id: "reveal", label: revealLabel }] as const) : []),
           ...copyItems.map(({ id, label }) => ({ id, label })),
         ] as const,
         position,
@@ -437,10 +401,7 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
               <FileTagChipContent
                 icon={
                   isAppBundle ? (
-                    <AppBundleIcon
-                      environmentId={environmentId}
-                      path={iconPath}
-                    />
+                    <AppBundleIcon environmentId={environmentId} path={iconPath} />
                   ) : undefined
                 }
                 path={iconPath}
@@ -466,10 +427,7 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
               <FileTagChipContent
                 icon={
                   isAppBundle ? (
-                    <AppBundleIcon
-                      environmentId={environmentId}
-                      path={iconPath}
-                    />
+                    <AppBundleIcon environmentId={environmentId} path={iconPath} />
                   ) : undefined
                 }
                 path={iconPath}
@@ -482,11 +440,7 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
         }
       />
       <TooltipPopup side="top" variant="code">
-        <WorkspaceEntryTooltip
-          path={iconPath}
-          label={targetPath}
-          environmentId={environmentId}
-        />
+        <WorkspaceEntryTooltip path={iconPath} label={targetPath} environmentId={environmentId} />
       </TooltipPopup>
     </Tooltip>
   );
@@ -520,18 +474,14 @@ function areMarkdownFileLinkPropsEqual(
   );
 }
 
-function AppBundleIcon(props: {
-  environmentId: EnvironmentId | null;
-  path: string;
-}) {
+function AppBundleIcon(props: { environmentId: EnvironmentId | null; path: string }) {
   const asset = useAssetUrlState(props.environmentId, {
     _tag: "native-app-icon",
     app: { _tag: "app-path", path: props.path },
   });
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const [loadedUrl, setLoadedUrl] = useState<string | null>(null);
-  const url =
-    asset._tag === "Success" && asset.url !== failedUrl ? asset.url : null;
+  const url = asset._tag === "Success" && asset.url !== failedUrl ? asset.url : null;
   const loaded = url !== null && loadedUrl === url;
   return (
     <span
@@ -539,17 +489,12 @@ function AppBundleIcon(props: {
       aria-hidden="true"
       className="relative me-[0.2em] inline-block size-[1em] align-[calc((1cap-1em)/2)]"
     >
-      <FolderIcon
-        className={cn("size-full text-icon-muted", loaded && "invisible")}
-      />
+      <FolderIcon className={cn("size-full text-icon-muted", loaded && "invisible")} />
       {url !== null && (
         <img
           src={url}
           alt=""
-          className={cn(
-            "absolute inset-0 size-full object-contain",
-            !loaded && "invisible",
-          )}
+          className={cn("absolute inset-0 size-full object-contain", !loaded && "invisible")}
           onLoad={() => setLoadedUrl(url)}
           onError={() => setFailedUrl(url)}
         />

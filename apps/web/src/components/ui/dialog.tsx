@@ -25,13 +25,7 @@ import { useI18n } from "~/i18n/WebI18nContext";
 
 const ControlledOpenContext = createContext<boolean | undefined>(undefined);
 
-function RetainedWhileClosed({
-  open,
-  children,
-}: {
-  open: boolean;
-  children: ReactNode;
-}) {
+function RetainedWhileClosed({ open, children }: { open: boolean; children: ReactNode }) {
   const controlledOpen = use(ControlledOpenContext);
   const isOpen = open && controlledOpen !== false;
   const [retained, setRetained] = useState(children);
@@ -41,15 +35,10 @@ function RetainedWhileClosed({
   return isOpen ? children : retained;
 }
 
-function renderRetainedPopup(
-  props: ComponentProps<"div">,
-  state: { open: boolean },
-) {
+function renderRetainedPopup(props: ComponentProps<"div">, state: { open: boolean }) {
   return (
     <div {...props}>
-      <RetainedWhileClosed open={state.open}>
-        {props.children}
-      </RetainedWhileClosed>
+      <RetainedWhileClosed open={state.open}>{props.children}</RetainedWhileClosed>
     </div>
   );
 }
@@ -95,9 +84,7 @@ function DialogBackdrop({
     <DialogPrimitive.Backdrop
       forceRender
       className={cn(
-        variant === "media"
-          ? DIALOG_MEDIA_BACKDROP_CLASS
-          : DIALOG_BACKDROP_CLASS,
+        variant === "media" ? DIALOG_MEDIA_BACKDROP_CLASS : DIALOG_BACKDROP_CLASS,
         className,
       )}
       data-slot="dialog-backdrop"
@@ -106,10 +93,7 @@ function DialogBackdrop({
   );
 }
 
-function DialogViewport({
-  className,
-  ...props
-}: DialogPrimitive.Viewport.Props) {
+function DialogViewport({ className, ...props }: DialogPrimitive.Viewport.Props) {
   return (
     <DialogPrimitive.Viewport
       // Electron drag regions ignore z-index, so without no-drag a click over a header drag strip never reaches the page.
@@ -173,14 +157,10 @@ function DialogPopup({
   return (
     <DialogPortal>
       {/* Media opens from inside other overlays (a composer chip, a popover), so it sits above them. */}
-      <DialogBackdrop
-        className={variant === "media" ? "z-[60]" : undefined}
-        variant={variant}
-      />
+      <DialogBackdrop className={variant === "media" ? "z-[60]" : undefined} variant={variant} />
       <DialogViewport
         className={cn(
-          bottomStickOnMobile &&
-            "max-sm:grid-rows-[1fr_auto] max-sm:p-0 max-sm:pt-12",
+          bottomStickOnMobile && "max-sm:grid-rows-[1fr_auto] max-sm:p-0 max-sm:pt-12",
           variant === "media" &&
             "z-[60] grid-rows-1 place-items-center px-4 max-[8rem]:px-0 pb-6 pt-[calc(var(--media-dialog-titlebar-height,0px)+1.5rem)] [-webkit-app-region:no-drag]",
           variant === "media" &&
@@ -201,10 +181,7 @@ function DialogPopup({
   );
 }
 
-type DialogActionProps = Omit<
-  React.ComponentProps<typeof Button>,
-  "variant"
-> & {
+type DialogActionProps = Omit<React.ComponentProps<typeof Button>, "variant"> & {
   variant?: Exclude<ButtonVariant, `${string}destructive${string}`>;
 };
 
@@ -249,20 +226,14 @@ function DialogFooter({
 function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
   return (
     <DialogPrimitive.Title
-      className={cn(
-        "wrap-anywhere font-semibold text-xl leading-snug",
-        className,
-      )}
+      className={cn("wrap-anywhere font-semibold text-xl leading-snug", className)}
       data-slot="dialog-title"
       {...props}
     />
   );
 }
 
-function DialogDescription({
-  className,
-  ...props
-}: DialogPrimitive.Description.Props) {
+function DialogDescription({ className, ...props }: DialogPrimitive.Description.Props) {
   return (
     <DialogPrimitive.Description
       className={cn("text-muted-foreground text-sm", className)}

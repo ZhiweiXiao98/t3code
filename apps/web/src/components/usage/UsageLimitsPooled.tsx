@@ -42,12 +42,7 @@ import { RedactedSensitiveText } from "../settings/RedactedSensitiveText";
 import { Button } from "../ui/button";
 import { OpenAI } from "../Icons";
 import { Alert, AlertTitle } from "../ui/alert";
-import {
-  Popover,
-  PopoverCreateHandle,
-  PopoverPopup,
-  PopoverTrigger,
-} from "../ui/popover";
+import { Popover, PopoverCreateHandle, PopoverPopup, PopoverTrigger } from "../ui/popover";
 import {
   PaceIcon,
   ResetCreditDialog,
@@ -125,8 +120,7 @@ function AccountName({
   readonly account: LimitAccount;
   readonly className?: string;
 }) {
-  if (account.displayName)
-    return <span className={className}>{account.displayName}</span>;
+  if (account.displayName) return <span className={className}>{account.displayName}</span>;
   if (account.email) {
     return (
       <span className={cn("inline-flex min-w-0 items-center", className)}>
@@ -141,13 +135,7 @@ function AccountName({
   );
 }
 
-function Row({
-  label,
-  children,
-}: {
-  readonly label: string;
-  readonly children: ReactNode;
-}) {
+function Row({ label, children }: { readonly label: string; readonly children: ReactNode }) {
   return (
     <div className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-x-3">
       <span className="text-muted-foreground">{label}</span>
@@ -173,9 +161,7 @@ function SegmentPopover({
 }) {
   const { locale: sourceLocale } = useI18n();
   const { t } = useI18n();
-  const timestampFormat = usePrimarySettings(
-    (settings) => settings.timestampFormat,
-  );
+  const timestampFormat = usePrimarySettings((settings) => settings.timestampFormat);
   const remaining = remainingPercent(window);
   const timeLeft = paceRemainingPercent(window, now);
   const resetsIn = localizedResetsIn(window, now, t);
@@ -185,13 +171,7 @@ function SegmentPopover({
       : account.sourceLabel;
   const choices =
     redeem && account.redeem && account.limits.resetCredits?.availableCount
-      ? localizedResetCreditChoices(
-          account.limits.resetCredits,
-          account.redeem.input,
-          now,
-          t,
-          true,
-        )
+      ? localizedResetCreditChoices(account.limits.resetCredits, account.redeem.input, now, t, true)
       : [];
   return (
     <div className="flex w-72 max-w-[calc(100vw-3rem)] flex-col gap-2.5 text-xs">
@@ -199,9 +179,7 @@ function SegmentPopover({
         <span className="flex items-center gap-2 text-sm font-medium text-foreground">
           <AccountAvatar account={account} />
           <span className="truncate">
-            {account.displayName ??
-              providerClients.get(account.driver)?.label ??
-              account.driver}
+            {account.displayName ?? providerClients.get(account.driver)?.label ?? account.driver}
           </span>
         </span>
         {account.email ? (
@@ -215,15 +193,11 @@ function SegmentPopover({
         ) : null}
       </div>
       <div className="flex flex-col gap-1 border-t border-border/60 pt-2.5">
-        {account.plan ? (
-          <Row label={t("usage.limits.plan")}>{account.plan}</Row>
-        ) : null}
+        {account.plan ? <Row label={t("usage.limits.plan")}>{account.plan}</Row> : null}
         {where ? (
           <Row
             label={
-              account.environments.length > 0
-                ? t("usage.limits.signedIn")
-                : t("usage.limits.via")
+              account.environments.length > 0 ? t("usage.limits.signedIn") : t("usage.limits.via")
             }
           >
             {where}
@@ -269,9 +243,7 @@ function SegmentPopover({
                   className="ms-auto"
                   onClick={() => onRedeem(choice)}
                 >
-                  {redeem.busy
-                    ? t("usage.limits.usingCredit")
-                    : choice.actionLabel}
+                  {redeem.busy ? t("usage.limits.usingCredit") : choice.actionLabel}
                 </Button>
               ) : null}
             </span>
@@ -287,10 +259,7 @@ function SegmentPopover({
  * segment moves it instead of opening a second one. The payload is the segment
  * it currently describes.
  */
-type SegmentPayload = Omit<
-  Parameters<typeof SegmentPopover>[0],
-  "now" | "onRedeem"
->;
+type SegmentPayload = Omit<Parameters<typeof SegmentPopover>[0], "now" | "onRedeem">;
 const SegmentPopoverContext = createContext<ReturnType<
   typeof PopoverCreateHandle<SegmentPayload>
 > | null>(null);
@@ -386,14 +355,8 @@ function RedeemableSegment({
       />
       {/* The popover closed before the confirm, so progress and the outcome need a home outside it. */}
       {redeem.busy || redeem.status ? (
-        <span
-          role="status"
-          className="col-span-full text-xs text-muted-foreground"
-        >
-          <AccountName
-            account={props.account}
-            className="font-medium text-foreground"
-          />{" "}
+        <span role="status" className="col-span-full text-xs text-muted-foreground">
+          <AccountName account={props.account} className="font-medium text-foreground" />{" "}
           {redeem.busy ? t("v019.usingResetCredit") : redeem.status}
         </span>
       ) : null}
@@ -440,9 +403,7 @@ function SegmentTriggers({
             aria-label={`${account.displayName ?? (account.email ? accountInitials(account.email) : account.driver)}: ${[
               t("usage.limits.remaining", { percent: remaining }),
               resetsIn,
-              timeLeft === null
-                ? null
-                : t("usage.limits.windowRemaining", { percent: timeLeft }),
+              timeLeft === null ? null : t("usage.limits.windowRemaining", { percent: timeLeft }),
               credits === 0
                 ? null
                 : credits === 1
@@ -455,10 +416,7 @@ function SegmentTriggers({
           />
         }
       >
-        <div
-          aria-hidden
-          className="absolute inset-0 overflow-hidden rounded-md"
-        >
+        <div aria-hidden className="absolute inset-0 overflow-hidden rounded-md">
           {/* Clipped inside the rounded clip so the bar's own corners keep their antialiasing. */}
           <div className="absolute inset-0" style={paceMark?.gap}>
             <div
@@ -514,10 +472,7 @@ function SegmentTriggers({
                       ·
                     </span>
                   ) : null}
-                  <span
-                    aria-hidden
-                    className="inline-flex items-center gap-0.5 font-semibold"
-                  >
+                  <span aria-hidden className="inline-flex items-center gap-0.5 font-semibold">
                     <TicketIcon className="size-3" aria-hidden />
                     {credits}
                   </span>
@@ -566,13 +521,8 @@ function LegendRow({
         <span className="sr-only">{t("usage.limits.segment")} </span>
         <span className="relative">{index}</span>
       </span>
-      <AccountName
-        account={account}
-        className="min-w-0 truncate font-medium text-foreground"
-      />
-      <span className="shrink-0 font-semibold text-foreground tabular-nums">
-        {remaining}%
-      </span>
+      <AccountName account={account} className="min-w-0 truncate font-medium text-foreground" />
+      <span className="shrink-0 font-semibold text-foreground tabular-nums">{remaining}%</span>
       <span className="ms-auto flex shrink-0 items-center gap-1.5 text-2xs text-muted-foreground tabular-nums">
         {resetsIn ? `↻ ${resetsIn}` : ""}
         {credits ? (
@@ -606,9 +556,7 @@ function PoolBar({
   readonly color: string;
   readonly now: number;
 }) {
-  const restores = new Map(
-    pool.resets.map((reset) => [reset.member.account.key, reset]),
-  );
+  const restores = new Map(pool.resets.map((reset) => [reset.member.account.key, reset]));
   return (
     <div className="@container/pool min-w-0">
       <div
@@ -625,10 +573,7 @@ function PoolBar({
               window={member.window}
               reset={restores.get(member.account.key)}
               refillPercent={member.refillPercent}
-              color={
-                normalizeProviderAccentColor(member.account.accentColor) ??
-                color
-              }
+              color={normalizeProviderAccentColor(member.account.accentColor) ?? color}
               now={now}
               index={position + 1}
               showAccountName={pool.columns.length > 1}
@@ -692,21 +637,13 @@ function PoolWindowCard({
       </div>
       <PoolBar pool={pool} color={color} now={now} />
       {description ? (
-        <p className="text-xs text-muted-foreground md:col-span-2">
-          {description}
-        </p>
+        <p className="text-xs text-muted-foreground md:col-span-2">{description}</p>
       ) : null}
     </div>
   );
 }
 
-function PoolSection({
-  pool,
-  now,
-}: {
-  readonly pool: LimitPool;
-  readonly now: number;
-}) {
+function PoolSection({ pool, now }: { readonly pool: LimitPool; readonly now: number }) {
   const { locale } = useI18n();
   const color = barColor(pool.driver);
   const label = providerClients.get(pool.driver)?.label ?? String(pool.driver);
@@ -725,23 +662,15 @@ function PoolSection({
       </h2>
       {windows.map((window) => {
         const details =
-          pool.driver === "cursor"
-            ? cursorUsageWindowDetails(window.id, pool)
-            : undefined;
+          pool.driver === "cursor" ? cursorUsageWindowDetails(window.id, pool) : undefined;
         return (
           <PoolWindowCard
             key={`${window.kind}:${window.id}`}
             pool={window}
             color={color}
             now={now}
-            label={
-              details ? translateWebSource(locale, details.label) : undefined
-            }
-            description={
-              details
-                ? translateWebSource(locale, details.description)
-                : undefined
-            }
+            label={details ? translateWebSource(locale, details.label) : undefined}
+            description={details ? translateWebSource(locale, details.description) : undefined}
           />
         );
       })}
@@ -757,12 +686,8 @@ export function UsageLimitsPooled({
   readonly now: number;
 }) {
   const { locale: uiLocale, t } = useI18n();
-  const [segmentPopover] = useState(() =>
-    PopoverCreateHandle<SegmentPayload>(),
-  );
-  const segmentPopoverActions = useRef<PopoverPrimitive.Root.Actions | null>(
-    null,
-  );
+  const [segmentPopover] = useState(() => PopoverCreateHandle<SegmentPayload>());
+  const segmentPopoverActions = useRef<PopoverPrimitive.Root.Actions | null>(null);
   const pools = collectLimitPools(collectLimitAccounts(presentations), now);
   const notices = collectLimitNotices(
     presentations,
@@ -773,9 +698,7 @@ export function UsageLimitsPooled({
   const externalLinks = collectExternalUsageLinks(presentations);
   return (
     <div className="flex flex-col gap-8">
-      {pools.length === 0 &&
-      notices.length === 0 &&
-      externalLinks.length === 0 ? (
+      {pools.length === 0 && notices.length === 0 && externalLinks.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           {translateWebSource(
             uiLocale,

@@ -182,7 +182,12 @@ export function PullRequestReviewersScreen({ route }: StaticScreenProps<PullRequ
           const cause = squashAtomCommandFailure(response);
           const logins = people.map((person) => person.login).join(", ");
           Dialog.alertWithLiteralMessage(
-            formatMobileMessage(requested ? "Couldn't request a review from {0}" : "Couldn't remove the review request from {0}", [logins]),
+            formatMobileMessage(
+              requested
+                ? "Couldn't request a review from {0}"
+                : "Couldn't remove the review request from {0}",
+              [logins],
+            ),
             pullRequestActionFailure(cause, MOBILE_LOCALE, "The provider refused the change."),
           );
         };

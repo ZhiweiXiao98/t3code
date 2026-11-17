@@ -57,7 +57,9 @@ function readSystemLocales(): ReadonlyArray<string> {
 
 export function useLanguagePreference(): string {
   const preferences = useAtomValue(mobilePreferencesAtom);
-  return resolveMobileLanguagePreference(AsyncResult.isSuccess(preferences) ? preferences.value : {});
+  return resolveMobileLanguagePreference(
+    AsyncResult.isSuccess(preferences) ? preferences.value : {},
+  );
 }
 
 /** Translates the screens inside it into the saved language; "system" follows the device. */

@@ -36,8 +36,7 @@ export const NO_TURN_DETAIL: TurnDetail = {
   tailId: null,
 };
 
-const translateEnglish: WebTranslate = (key, values) =>
-  translateWebMessage("en", key, values);
+const translateEnglish: WebTranslate = (key, values) => translateWebMessage("en", key, values);
 
 const ACTIVITY_MAX_LENGTH = 120;
 // Parsing is synchronous, and nobody listens to a longer message through a live region.
@@ -47,21 +46,15 @@ const MESSAGE_MAX_LENGTH = 2_000;
 function cutText(text: string, maxLength: number): string | null {
   if (text.length <= maxLength) return null;
   const characters = Array.from(text);
-  return characters.length > maxLength
-    ? characters.slice(0, maxLength).join("")
-    : null;
+  return characters.length > maxLength ? characters.slice(0, maxLength).join("") : null;
 }
 
 // On screen these labels are a path or a query beside an icon.
 function withVerb(work: WorkLogEntry, label: string, t: WebTranslate) {
   if (work.itemType === "file_change") return t("v019.editing", { label });
-  if (work.itemType !== "file_search" && work.itemType !== "web_search")
-    return label;
+  if (work.itemType !== "file_search" && work.itemType !== "web_search") return label;
   if (/^search(?:ed|ing)?\s/i.test(label)) return label;
-  return t(
-    work.itemType === "web_search" ? "v019.searchingWeb" : "v019.searching",
-    { label },
-  );
+  return t(work.itemType === "web_search" ? "v019.searchingWeb" : "v019.searching", { label });
 }
 
 type MessageEntry = Extract<TimelineEntry, { kind: "message" }>;
@@ -88,11 +81,8 @@ function stepLabel(
   // Reasoning text is never read out.
   if (work.itemType === "reasoning") return t("chat.activity.thinking");
   const status = work.toolLifecycleStatus;
-  if (status === "failed" || status === "declined" || status === "stopped")
-    return null;
-  const label = liveWorkEntryLabel(work, workspaceRoot, true)
-    .replace(/\s+/g, " ")
-    .trim();
+  if (status === "failed" || status === "declined" || status === "stopped") return null;
+  const label = liveWorkEntryLabel(work, workspaceRoot, true).replace(/\s+/g, " ").trim();
   if (label === "") return null;
   const spoken = withVerb(work, label, t);
   const cut = cutText(spoken, ACTIVITY_MAX_LENGTH);
@@ -129,24 +119,18 @@ export function turnDetail(
     if (entry.kind === "work") {
       const work = entry.entry;
       if (work.sourceActivityKind === "context-compaction") {
-        activity ??=
-          work.toolLifecycleStatus === "inProgress" ? work.label : null;
+        activity ??= work.toolLifecycleStatus === "inProgress" ? work.label : null;
         continue;
       }
       // Notices, todo lists and checkpoints sit beside the turn's steps without being one.
       if (work.tone !== "tool" && work.itemType !== "reasoning") continue;
       markContinued(entry, work.runId ?? null);
       // A request is spoken as the thread's status; once answered, the step it was for goes on.
-      if (
-        work.itemType === "approval_request" ||
-        work.itemType === "user_input_request"
-      )
-        continue;
+      if (work.itemType === "approval_request" || work.itemType === "user_input_request") continue;
       if (activity === undefined) activity = stepLabel(work, workspaceRoot, t);
       continue;
     }
-    if (entry.kind === "message" && entry.message.role !== "assistant")
-      continue;
+    if (entry.kind === "message" && entry.message.role !== "assistant") continue;
     // A reply, plan or rendered page is newer than any step before it.
     activity ??= null;
     const runId = timelineEntryRunId(entry);
@@ -168,8 +152,7 @@ export function turnDetail(
   // Nothing is known to be new when the entry last seen is gone, or there was none.
   let tailKnown = !fresh;
   if (knownTailId !== null) {
-    for (; !tailKnown && index >= 0; index -= 1)
-      tailKnown = entries[index]!.id === knownTailId;
+    for (; !tailKnown && index >= 0; index -= 1) tailKnown = entries[index]!.id === knownTailId;
   }
   return {
     activity: activity ?? null,
@@ -212,9 +195,7 @@ export function nextTurnDetailAnnouncement(
   const memory: TurnDetailMemory = {
     // A step is spoken again after a pause for an approval or a question.
     activity: next.status === "working" ? next.activity : null,
-    messages: new Map(
-      next.messages.map((message) => [message.id, message.finished]),
-    ),
+    messages: new Map(next.messages.map((message) => [message.id, message.finished])),
     tailId: next.tailId,
   };
   // A turn that already ended is history, however late its entries arrive.
@@ -239,8 +220,6 @@ export function nextTurnDetailAnnouncement(
       .filter((text) => text !== "")
       .map((text) => `${MESSAGE_AUTHOR}: ${text}`),
     activity:
-      next.level === "everything" && memory.activity !== previous.activity
-        ? memory.activity
-        : null,
+      next.level === "everything" && memory.activity !== previous.activity ? memory.activity : null,
   };
 }

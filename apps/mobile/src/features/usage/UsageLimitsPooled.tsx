@@ -201,11 +201,11 @@ function PoolWindowCard({
       <View className={wide ? "gap-1" : "flex-row items-start justify-between gap-3"}>
         <View className="gap-1">
           {label !== null ? (
-          <Text localize={false} className="text-sm font-t3-medium text-foreground">
-            {label !== undefined
-              ? localizeMobileString(label)
-              : formatUsageWindowLabel(pool, MOBILE_LOCALE)}
-          </Text>
+            <Text localize={false} className="text-sm font-t3-medium text-foreground">
+              {label !== undefined
+                ? localizeMobileString(label)
+                : formatUsageWindowLabel(pool, MOBILE_LOCALE)}
+            </Text>
           ) : null}
           <View className="flex-row items-baseline gap-1.5">
             <Text className="text-3xl font-t3-bold tabular-nums text-foreground">

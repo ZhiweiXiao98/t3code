@@ -61,19 +61,13 @@ it("keeps each registry image when adding a model from another ACP agent", async
     })),
   ).map((entry, index) => ({
     ...entry,
-    ...(index === 0
-      ? { acpRegistryIconUrl: icons[0] }
-      : { acpRegistryAgentId: "picker-by-id" }),
+    ...(index === 0 ? { acpRegistryIconUrl: icons[0] } : { acpRegistryAgentId: "picker-by-id" }),
   }));
   const first = { instanceId: entries[0]!.instanceId, model: "first" };
-  const options = new Map(
-    entries.map((entry) => [entry.instanceId, entry.models]),
-  );
+  const options = new Map(entries.map((entry) => [entry.instanceId, entry.models]));
 
   function Picker() {
-    const [selection, setSelection] = useState<ReadonlyArray<ModelSelection>>([
-      first,
-    ]);
+    const [selection, setSelection] = useState<ReadonlyArray<ModelSelection>>([first]);
     return (
       <ProviderModelPicker
         environmentId={null}
@@ -83,12 +77,8 @@ it("keeps each registry image when adding a model from another ACP agent", async
         lockedProvider={null}
         instanceEntries={entries}
         modelOptionsByInstance={options}
-        onToggleModel={(instanceId, model) =>
-          setSelection([...selection, { instanceId, model }])
-        }
-        onInstanceModelChange={(instanceId, model) =>
-          setSelection([{ instanceId, model }])
-        }
+        onToggleModel={(instanceId, model) => setSelection([...selection, { instanceId, model }])}
+        onInstanceModelChange={(instanceId, model) => setSelection([{ instanceId, model }])}
       />
     );
   }
@@ -96,15 +86,11 @@ it("keeps each registry image when adding a model from another ACP agent", async
   await using screen = await render(<Picker />);
   const imageWidths = () =>
     Array.from(
-      screen.container.querySelectorAll<HTMLImageElement>(
-        "[data-chat-provider-model-picker] img",
-      ),
+      screen.container.querySelectorAll<HTMLImageElement>("[data-chat-provider-model-picker] img"),
       (image) => image.naturalWidth,
     );
   await vi.waitFor(() => expect(imageWidths()).toEqual([11]));
-  await screen
-    .getByRole("button", { name: "First model", exact: true })
-    .click();
+  await screen.getByRole("button", { name: "First model", exact: true }).click();
   await page.getByRole("button", { name: "Second agent", exact: true }).click();
   await userEvent.keyboard("{Shift>}");
   try {
@@ -188,15 +174,11 @@ it("keeps a docked picker open after a pick and hands focus to that model's effo
   await expect.element(search).toHaveFocus();
 
   await page.getByRole("option", { name: /Second model/ }).click();
-  await expect
-    .element(page.getByRole("radio", { name: "Medium" }))
-    .toHaveFocus();
+  await expect.element(page.getByRole("radio", { name: "Medium" })).toHaveFocus();
 
   await page.getByRole("option", { name: /Plain model/ }).click();
   await page.getByRole("option", { name: /Second model/ }).click();
-  await expect
-    .element(page.getByRole("radio", { name: "Medium" }))
-    .toHaveFocus();
+  await expect.element(page.getByRole("radio", { name: "Medium" })).toHaveFocus();
   await userEvent.keyboard("{Escape}");
   await expect.element(search).not.toBeInTheDocument();
 });
@@ -254,22 +236,14 @@ it.each([
       </WebI18nContext>
     );
     await using screen = await render(picker("zh-CN"));
-    await userEvent.click(
-      screen.getByRole("button", { name: "自动", exact: true }),
-    );
+    await userEvent.click(screen.getByRole("button", { name: "自动", exact: true }));
     await userEvent.click(page.getByRole("option", { name: /自动/ }));
     expect(onSelect).toHaveBeenCalledWith(instanceId, modelId);
     await userEvent.keyboard("{Escape}");
     await screen.rerender(picker("en"));
-    await expect
-      .element(screen.getByRole("button", { name: "Auto", exact: true }))
-      .toBeVisible();
-    await userEvent.click(
-      screen.getByRole("button", { name: "Auto", exact: true }),
-    );
-    await expect
-      .element(page.getByRole("option", { name: /Auto/ }))
-      .toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "Auto", exact: true })).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Auto", exact: true }));
+    await expect.element(page.getByRole("option", { name: /Auto/ })).toBeVisible();
     await userEvent.keyboard("{Escape}");
   },
 );
@@ -302,8 +276,7 @@ it("opens on the active provider when every favorite belongs to a disabled provi
     favorites: [{ provider: claude!.instanceId, model: "claude" }],
   });
   using _settings = {
-    [Symbol.dispose]: () =>
-      __setClientSettingsForTests(DEFAULT_CLIENT_SETTINGS),
+    [Symbol.dispose]: () => __setClientSettingsForTests(DEFAULT_CLIENT_SETTINGS),
   };
 
   await using screen = await render(
@@ -313,17 +286,13 @@ it("opens on the active provider when every favorite belongs to a disabled provi
       model="codex"
       lockedProvider={null}
       instanceEntries={entries}
-      modelOptionsByInstance={
-        new Map(entries.map((entry) => [entry.instanceId, entry.models]))
-      }
+      modelOptionsByInstance={new Map(entries.map((entry) => [entry.instanceId, entry.models]))}
       triggerAriaLabel="Choose model"
       onInstanceModelChange={() => {}}
     />,
   );
   await screen.getByRole("button", { name: "Choose model" }).click();
-  await expect
-    .element(page.getByRole("option", { name: /Codex model/ }))
-    .toBeVisible();
+  await expect.element(page.getByRole("option", { name: /Codex model/ })).toBeVisible();
 });
 
 it("keeps the touch keyboard down while choosing a provider", async () => {
@@ -373,9 +342,7 @@ it("keeps the touch keyboard down while choosing a provider", async () => {
       model="codex"
       lockedProvider={null}
       instanceEntries={entries}
-      modelOptionsByInstance={
-        new Map(entries.map((entry) => [entry.instanceId, entry.models]))
-      }
+      modelOptionsByInstance={new Map(entries.map((entry) => [entry.instanceId, entry.models]))}
       triggerAriaLabel="Choose model"
       onInstanceModelChange={() => {}}
     />,
@@ -386,8 +353,6 @@ it("keeps the touch keyboard down while choosing a provider", async () => {
   await vi.waitFor(() => expect(document.activeElement).toBe(popup));
 
   await page.getByRole("button", { name: /^Claude/ }).click();
-  await expect
-    .element(page.getByRole("option", { name: /Claude model/ }))
-    .toBeVisible();
+  await expect.element(page.getByRole("option", { name: /Claude model/ })).toBeVisible();
   await expect.element(search).not.toHaveFocus();
 });

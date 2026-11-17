@@ -33,12 +33,9 @@ export default function Presentation(props: {
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Open and paint slides through a worker whose requests and lifetime belong to this presentation.
   useEffect(() => {
     const controller = new AbortController();
-    const worker = new Worker(
-      new URL("./presentation.worker.ts", import.meta.url),
-      {
-        type: "module",
-      },
-    );
+    const worker = new Worker(new URL("./presentation.worker.ts", import.meta.url), {
+      type: "module",
+    });
     const engine = createWorkerClient<SlideMethods>(worker);
     const fail = (cause: unknown) => {
       if (!controller.signal.aborted) onError(cause);
@@ -81,9 +78,7 @@ export default function Presentation(props: {
         return;
       }
       await engine.call("vectors", bitmaps, {
-        transfer: bitmaps.flatMap((value) =>
-          value.bitmap ? [value.bitmap] : [],
-        ),
+        transfer: bitmaps.flatMap((value) => (value.bitmap ? [value.bitmap] : [])),
         signal,
       });
       if (!signal.aborted) await paint(index, canvas, scale, signal, true);
@@ -93,9 +88,7 @@ export default function Presentation(props: {
       .call("open", { bytes }, { transfer: [bytes], signal: controller.signal })
       .then((slides) => {
         if (slides.length === 0 || slides.length > 500)
-          throw createFilePreviewError(
-            "Preview limited to presentations with 1 to 500 slides.",
-          );
+          throw createFilePreviewError("Preview limited to presentations with 1 to 500 slides.");
         setOpened({ slides, paint });
         onDetails(translateCount(slides.length));
       })
@@ -105,9 +98,7 @@ export default function Presentation(props: {
       engine.close();
     };
   }, [source, onDetails, onError, translateCount]);
-  const details = opened
-    ? t("files.residual.slides", { count: opened.slides.length })
-    : null;
+  const details = opened ? t("files.residual.slides", { count: opened.slides.length }) : null;
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Refresh the parent caption when its localized text changes without restarting the document worker.
   useEffect(() => {
     if (details !== null) onDetails(details);
@@ -127,10 +118,7 @@ export default function Presentation(props: {
         >
           <ChevronLeftIcon className="size-3.5" />
         </FileSurfaceAction>
-        <span
-          className="flex-1 text-center text-xs tabular-nums"
-          aria-live="polite"
-        >
+        <span className="flex-1 text-center text-xs tabular-nums" aria-live="polite">
           {t("files.residual.slidePosition", {
             page: page + 1,
             count: opened.slides.length,
@@ -170,9 +158,7 @@ export default function Presentation(props: {
           const slide = opened.slides[index];
           return slide?.notes || slide?.hidden ? (
             <div className="space-y-1 text-xs text-muted-foreground">
-              {slide.hidden ? (
-                <p>{translateWebSource(locale, "Hidden slide")}</p>
-              ) : null}
+              {slide.hidden ? <p>{translateWebSource(locale, "Hidden slide")}</p> : null}
               {slide.notes ? (
                 <p
                   role="note"

@@ -20,10 +20,7 @@ import { useEnvironmentIdentificationMode } from "~/hooks/useSettings";
 import { formatContextWindowTokens } from "~/lib/contextWindow";
 import { cn, isMacPlatform } from "~/lib/utils";
 import { useShortcutModifierState } from "../../shortcutModifierState";
-import {
-  StageBackdropButtonArt,
-  useSidebarStageBackdropVariant,
-} from "../SidebarStageBackdrop";
+import { StageBackdropButtonArt, useSidebarStageBackdropVariant } from "../SidebarStageBackdrop";
 import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
@@ -85,9 +82,7 @@ const formatPendingPrimaryActionLabel = (
     return t("composer.action.submitting");
   }
   if (input.compact) {
-    return input.isLastQuestion
-      ? t("composer.action.submit")
-      : t("composer.action.next");
+    return input.isLastQuestion ? t("composer.action.submit") : t("composer.action.next");
   }
   if (!input.isLastQuestion) {
     return t("composer.action.nextQuestion");
@@ -130,17 +125,11 @@ function useStopPhase(input: {
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- timers that re-enable an unsettled Stop and end the landed click guard
   useEffect(() => {
     if (stopPhase === "pending") {
-      const timeout = setTimeout(
-        () => setStopPhase("timedOut"),
-        STOP_PENDING_MAX_MS,
-      );
+      const timeout = setTimeout(() => setStopPhase("timedOut"), STOP_PENDING_MAX_MS);
       return () => clearTimeout(timeout);
     }
     if (stopPhase === "landed") {
-      const timeout = setTimeout(
-        () => setStopPhase(null),
-        STOP_LANDED_CLICK_GUARD_MS,
-      );
+      const timeout = setTimeout(() => setStopPhase(null), STOP_LANDED_CLICK_GUARD_MS);
       return () => clearTimeout(timeout);
     }
   }, [stopPhase]);
@@ -174,11 +163,7 @@ function StopGenerationButton({
               "flex shrink-0 cursor-pointer items-center justify-center rounded-full bg-destructive/90 text-white shadow-xs shadow-destructive/24 inset-shadow-control-highlight transition-colors duration-150 hover:bg-destructive active:inset-shadow-control-pressed active:shadow-none disabled:cursor-default disabled:opacity-64 disabled:hover:bg-destructive/90 [&_svg]:pointer-events-none",
               insidePendingAction ? "size-8 sm:size-7" : "size-8 sm:h-8 sm:w-8",
             )}
-            onPointerDown={
-              preserveComposerFocusOnPointerDown
-                ? preventPointerFocus
-                : undefined
-            }
+            onPointerDown={preserveComposerFocusOnPointerDown ? preventPointerFocus : undefined}
             disabled={!canOperateThread || isStopDisabled}
             onClick={() => {
               if (!canOperateThread || isStopDisabled) return;
@@ -193,21 +178,12 @@ function StopGenerationButton({
           />
         }
       >
-        <svg
-          width="12"
-          height="12"
-          viewBox="0 0 12 12"
-          fill="currentColor"
-          aria-hidden="true"
-        >
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
           <rect x="2" y="2" width="8" height="8" rx="1.5" />
         </svg>
       </TooltipTrigger>
       <TooltipPopup>
-        {translateWebSource(
-          locale,
-          stopPhase === "pending" ? "Stopping…" : "Interrupt",
-        )}
+        {translateWebSource(locale, stopPhase === "pending" ? "Stopping…" : "Interrupt")}
       </TooltipPopup>
     </Tooltip>
   );
@@ -312,9 +288,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
     }) === "queue";
   const alternateAction = alternateComposerDispatchAction(followUpBehavior);
   const isSendDisabled = !canOperateThread || sendDisabledReason !== null;
-  const stageBackdropVariant = useSidebarStageBackdropVariant(
-    environmentIdentificationMode,
-  );
+  const stageBackdropVariant = useSidebarStageBackdropVariant(environmentIdentificationMode);
 
   const renderStopGenerationButton = (insidePendingAction: boolean) => (
     <StopGenerationButton
@@ -340,12 +314,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
 
   if (pendingAction) {
     return (
-      <div
-        className={cn(
-          "flex items-center justify-end",
-          compact ? "gap-1.5" : "gap-2",
-        )}
-      >
+      <div className={cn("flex items-center justify-end", compact ? "gap-1.5" : "gap-2")}>
         {pendingAction.questionIndex > 0 ? (
           compact ? (
             <Button
@@ -373,11 +342,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
         {children}
         <button
           type="submit"
-          className={cn(
-            messageActionPillClassName,
-            "h-8 sm:h-7",
-            compact ? "px-3" : "px-4",
-          )}
+          className={cn(messageActionPillClassName, "h-8 sm:h-7", compact ? "px-3" : "px-4")}
           {...pointerFocusProps}
           onClick={(event) => {
             if (stopPhase === "landed") event.preventDefault();
@@ -423,8 +388,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
     );
   }
 
-  const showResume =
-    canResume && !hasSendableContent && !isEditingQueuedMessage;
+  const showResume = canResume && !hasSendableContent && !isEditingQueuedMessage;
 
   const compactTokens =
     compactBeforeSendTokens !== null && !showResume && !isEditingQueuedMessage
@@ -460,9 +424,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
       : isRunning && !isEditingQueuedMessage && canSteer
         ? t("audit19.composer.dispatchHint", {
             action: t(
-              followUpBehavior === "queue"
-                ? "audit19.composer.queue"
-                : "audit19.composer.steer",
+              followUpBehavior === "queue" ? "audit19.composer.queue" : "audit19.composer.steer",
             ),
             modifier: isMacPlatform(navigator.platform) ? "⌘" : "Ctrl",
             shortcut: alternateShortcutLabel
@@ -471,9 +433,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
                 })
               : "",
             alternate: t(
-              alternateAction === "queue"
-                ? "audit19.composer.queue"
-                : "audit19.composer.steer",
+              alternateAction === "queue" ? "audit19.composer.queue" : "audit19.composer.steer",
             ),
           })
         : submitLabel);
@@ -505,10 +465,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
       aria-label={submitStatus ?? submitLabel}
     >
       {stageBackdropVariant ? (
-        <span
-          className="pointer-events-none absolute inset-0 -z-10"
-          aria-hidden="true"
-        >
+        <span className="pointer-events-none absolute inset-0 -z-10" aria-hidden="true">
           <StageBackdropButtonArt variant={stageBackdropVariant} />
         </span>
       ) : null}
@@ -523,13 +480,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
       ) : isRunning ? (
         <CornerUpRightIcon className="size-4" aria-hidden="true" />
       ) : (
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 14 14"
-          fill="none"
-          aria-hidden="true"
-        >
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
           <path
             d="M7 11.5V2.5M7 2.5L3 6.5M7 2.5L11 6.5"
             stroke="currentColor"
@@ -544,9 +495,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
 
   const submit = (
     <Tooltip key="submit">
-      <TooltipTrigger render={<span className="inline-flex" />}>
-        {sendButton}
-      </TooltipTrigger>
+      <TooltipTrigger render={<span className="inline-flex" />}>{sendButton}</TooltipTrigger>
       <TooltipPopup>{submitTooltip}</TooltipPopup>
     </Tooltip>
   );
@@ -560,10 +509,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
   }
 
   return withStopButton(
-    <div
-      data-chat-composer-compact-send="true"
-      className="flex items-center gap-2"
-    >
+    <div data-chat-composer-compact-send="true" className="flex items-center gap-2">
       <Tooltip>
         <TooltipTrigger
           render={

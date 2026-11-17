@@ -69,20 +69,11 @@ function ChecksBody({
   const openLink = useOpenLink(threadRef);
   const [showAll, setShowAll] = useState(false);
   const { attention, running, completed } = groupPullRequestChecks(checks);
-  const canCollapse =
-    attention.length + running.length > 0 && completed.length > 0;
-  const visibleChecks = [
-    ...attention,
-    ...running,
-    ...(showAll || !canCollapse ? completed : []),
-  ];
+  const canCollapse = attention.length + running.length > 0 && completed.length > 0;
+  const visibleChecks = [...attention, ...running, ...(showAll || !canCollapse ? completed : [])];
   const hasDetails = visibleChecks.some((check) => check.url !== null);
   if (checks.length === 0) {
-    return (
-      <p className="text-muted-foreground text-xs">
-        {t("pullRequests.checks.nonePlain")}
-      </p>
-    );
+    return <p className="text-muted-foreground text-xs">{t("pullRequests.checks.nonePlain")}</p>;
   }
   return (
     <>
@@ -103,14 +94,8 @@ function ChecksBody({
               >
                 <PullRequestCheckStatusIcon status={check.status} />
                 <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <span className="min-w-0 truncate">{check.name}</span>
-                    }
-                  />
-                  <TooltipPopup side="top">
-                    {check.description ?? check.name}
-                  </TooltipPopup>
+                  <TooltipTrigger render={<span className="min-w-0 truncate">{check.name}</span>} />
+                  <TooltipPopup side="top">{check.description ?? check.name}</TooltipPopup>
                 </Tooltip>
                 <span className="justify-self-end whitespace-nowrap text-muted-foreground">
                   {pullRequestCheckStatusLabel(check, t)}
@@ -146,9 +131,7 @@ function ChecksBody({
           aria-expanded={showAll}
           onClick={() => setShowAll(!showAll)}
         >
-          {showAll
-            ? t("pullRequests.checks.showLess")
-            : t("pullRequests.checks.showAll")}
+          {showAll ? t("pullRequests.checks.showLess") : t("pullRequests.checks.showAll")}
         </Button>
       ) : null}
     </>
@@ -179,18 +162,12 @@ export function PullRequestChecksPopover({
   const { locale: uiLocale, t } = useI18n();
   const presentation = pullRequestChecksStatePresentation(checksState, t);
   const incompleteCount =
-    checks?.filter(
-      (check) =>
-        check.status === "pending" || check.status === "action-required",
-    ).length ?? 0;
+    checks?.filter((check) => check.status === "pending" || check.status === "action-required")
+      .length ?? 0;
   const failedCount =
-    checks?.filter(
-      (check) => check.status === "failure" || check.status === "cancelled",
-    ).length ?? 0;
-  const summary =
-    checks === undefined || stale
-      ? null
-      : summarizePullRequestChecks(checks, t);
+    checks?.filter((check) => check.status === "failure" || check.status === "cancelled").length ??
+    0;
+  const summary = checks === undefined || stale ? null : summarizePullRequestChecks(checks, t);
   return (
     <Popover>
       <PopoverTrigger
@@ -204,9 +181,7 @@ export function PullRequestChecksPopover({
         }
         render={
           variant === "count" ? (
-            (render ?? (
-              <Button variant="ghost" size="sm" className={className} />
-            ))
+            (render ?? <Button variant="ghost" size="sm" className={className} />)
           ) : (
             <span
               role="button"
@@ -214,19 +189,13 @@ export function PullRequestChecksPopover({
               aria-label={t("pullRequests.checks.aria", {
                 status: presentation.label,
               })}
-              className={cn(
-                "inline-flex shrink-0 cursor-pointer items-center",
-                className,
-              )}
+              className={cn("inline-flex shrink-0 cursor-pointer items-center", className)}
             />
           )
         }
         onClick={(event) => event.stopPropagation()}
       >
-        <presentation.Icon
-          aria-hidden
-          className={cn("size-3.5", presentation.toneClassName)}
-        />
+        <presentation.Icon aria-hidden className={cn("size-3.5", presentation.toneClassName)} />
         {variant === "count" ? (
           <>
             {checks !== undefined && incompleteCount > 0 ? (
@@ -246,9 +215,7 @@ export function PullRequestChecksPopover({
       </PopoverTrigger>
       <PopoverPopup align="start" width="md" side="bottom">
         <p className="mb-2 font-medium text-sm">{presentation.label}</p>
-        {summary === null ? null : (
-          <p className="mb-2 text-muted-foreground text-xs">{summary}</p>
-        )}
+        {summary === null ? null : <p className="mb-2 text-muted-foreground text-xs">{summary}</p>}
         {stale ? (
           <p className="text-muted-foreground text-xs">
             {translateWebSource(

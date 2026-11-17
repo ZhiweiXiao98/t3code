@@ -47,10 +47,7 @@ import {
   appendHandoff,
   readableFailure,
 } from "./pullRequestDetail.logic";
-import {
-  pullRequestEntryKey,
-  type EnvironmentPullRequestEntry,
-} from "./pullRequestList.logic";
+import { pullRequestEntryKey, type EnvironmentPullRequestEntry } from "./pullRequestList.logic";
 
 export function usePullRequestDefaultMergeMethodResolver(
   environmentId: EnvironmentId,
@@ -58,13 +55,9 @@ export function usePullRequestDefaultMergeMethodResolver(
 ) {
   const projectDefault = useEnvironmentSettings(
     environmentId,
-    (settings) =>
-      resolveProjectSettings(settings, projectId).settings
-        .pullRequestMergeMethod,
+    (settings) => resolveProjectSettings(settings, projectId).settings.pullRequestMergeMethod,
   );
-  const legacyOverrides = useClientSettings(
-    (settings) => settings.pullRequestMergeMethodOverrides,
-  );
+  const legacyOverrides = useClientSettings((settings) => settings.pullRequestMergeMethodOverrides);
   const grouping = useClientSettings(selectProjectGroupingSettings);
   const projects = useProjects();
   const primaryEnvironmentId = usePrimaryEnvironmentId();
@@ -72,8 +65,7 @@ export function usePullRequestDefaultMergeMethodResolver(
     if (projectDefault != null) return projectDefault;
     if (Object.keys(legacyOverrides).length === 0) return undefined;
     const project = projects.find(
-      (candidate) =>
-        candidate.environmentId === environmentId && candidate.id === projectId,
+      (candidate) => candidate.environmentId === environmentId && candidate.id === projectId,
     );
     if (!project) return undefined;
     const key =
@@ -87,9 +79,7 @@ export function usePullRequestDefaultMergeMethodResolver(
   };
 }
 
-const actionSuccessLabels = (
-  term: string,
-): Record<PullRequestAction, string> => ({
+const actionSuccessLabels = (term: string): Record<PullRequestAction, string> => ({
   merge: "Merge requested",
   ready: "Marked ready for review",
   draft: "Converted to draft",
@@ -103,9 +93,7 @@ const actionSuccessLabels = (
   "approve-workflows": "Workflows approved",
 });
 
-const actionFailureLabels = (
-  term: string,
-): Record<PullRequestAction, string> => ({
+const actionFailureLabels = (term: string): Record<PullRequestAction, string> => ({
   merge: `Could not merge this ${term}`,
   ready: "Could not mark this ready for review",
   draft: "Could not convert this to a draft",
@@ -119,25 +107,19 @@ const actionFailureLabels = (
   "approve-workflows": "Could not approve workflows",
 });
 
-const actionFailureHints = (
-  term: string,
-): Record<PullRequestAction, string> => ({
+const actionFailureHints = (term: string): Record<PullRequestAction, string> => ({
   merge:
     "The host refused the merge. Check that you have write access, that the checks it requires have passed, and that the branch is not conflicting.",
-  ready:
-    "The host refused it. Check that you have write access to this repository.",
-  draft:
-    "The host refused it. Check that you have write access to this repository.",
-  close:
-    "The host refused it. Check that you have write access, or that you opened it.",
+  ready: "The host refused it. Check that you have write access to this repository.",
+  draft: "The host refused it. Check that you have write access to this repository.",
+  close: "The host refused it. Check that you have write access, or that you opened it.",
   reopen:
     "The host refused it. Check that you have write access, and that the branch still exists.",
   "update-branch":
     "The host refused it. Check that you have write access, and that the base branch has not diverged in a way the host cannot merge.",
   "enable-auto-merge":
     "The host refused it. Check that auto-merge is enabled for this repository and that you have write access.",
-  "disable-auto-merge":
-    "The host refused it. Check that you have write access to this repository.",
+  "disable-auto-merge": "The host refused it. Check that you have write access to this repository.",
   revert: `The host refused it. Check that you have write access and that this ${term} was merged on the host.`,
   "delete-branch":
     "The host refused it. Check that you have write access to the source repository and that the branch has not moved since this page loaded.",
@@ -155,10 +137,7 @@ export function usePullRequestActionRunner({
   environmentId: EnvironmentId;
   reference: PullRequestRef | null;
   terminology: ChangeRequestTerminology;
-  onSuccess?: (
-    action: PullRequestAction,
-    reply: PullRequestSummary | undefined,
-  ) => void;
+  onSuccess?: (action: PullRequestAction, reply: PullRequestSummary | undefined) => void;
   /** Resolve repository settings on click to avoid per-row reads. */
   resolveMergeMethod?: (detail: PullRequestDetail) => PullRequestMergeMethod;
 }) {
@@ -166,9 +145,7 @@ export function usePullRequestActionRunner({
     reportFailure: false,
   });
   const pendingRef = useRef(new Set<string>());
-  const [pendingKeys, setPendingKeys] = useState<ReadonlySet<string>>(
-    () => new Set(),
-  );
+  const [pendingKeys, setPendingKeys] = useState<ReadonlySet<string>>(() => new Set());
   const actionKey =
     reference === null
       ? null
@@ -180,16 +157,8 @@ export function usePullRequestActionRunner({
         ]);
   const actionPending = actionKey !== null && pendingKeys.has(actionKey);
 
-  const perform = async (
-    action: PullRequestAction,
-    method?: PullRequestMergeMethod,
-  ) => {
-    if (
-      actionKey === null ||
-      reference === null ||
-      pendingRef.current.has(actionKey)
-    )
-      return;
+  const perform = async (action: PullRequestAction, method?: PullRequestMergeMethod) => {
+    if (actionKey === null || reference === null || pendingRef.current.has(actionKey)) return;
     pendingRef.current.add(actionKey);
     setPendingKeys(new Set(pendingRef.current));
     const result = await runAction({
@@ -197,11 +166,7 @@ export function usePullRequestActionRunner({
       input: {
         ...reference,
         action,
-        ...(method
-          ? { mergeMethod: method }
-          : resolveMergeMethod
-            ? { resolveMergeMethod }
-            : {}),
+        ...(method ? { mergeMethod: method } : resolveMergeMethod ? { resolveMergeMethod } : {}),
       },
     });
     pendingRef.current.delete(actionKey);
@@ -222,10 +187,7 @@ export function usePullRequestActionRunner({
     const { locale } = readWebI18n();
     toastManager.add({
       type: "success",
-      title: translateWebSource(
-        locale,
-        actionSuccessLabels(terminology.singular)[action],
-      ),
+      title: translateWebSource(locale, actionSuccessLabels(terminology.singular)[action]),
     });
     onSuccess?.(action, result.value);
   };
@@ -234,18 +196,13 @@ export function usePullRequestActionRunner({
 }
 
 export function usePullRequestCloseBatch(
-  onClosed: (
-    entry: EnvironmentPullRequestEntry,
-    reply: PullRequestSummary | undefined,
-  ) => void,
+  onClosed: (entry: EnvironmentPullRequestEntry, reply: PullRequestSummary | undefined) => void,
 ) {
   const runAction = useAtomCommand(pullRequestEnvironment.runAction, {
     reportFailure: false,
   });
   const pending = useRef(new Set<string>());
-  const [closingKeys, setClosingKeys] = useState<ReadonlySet<string>>(
-    () => new Set(),
-  );
+  const [closingKeys, setClosingKeys] = useState<ReadonlySet<string>>(() => new Set());
   const close = async (entries: readonly EnvironmentPullRequestEntry[]) => {
     const batch = entries.filter((entry) => {
       const key = pullRequestEntryKey(entry);
@@ -291,17 +248,10 @@ export function usePullRequestCloseBatch(
               closed,
               total: batch.length,
             })
-          : t(
-              closed === 1
-                ? "pullRequests.speed.closedOne"
-                : "pullRequests.speed.closedMany",
-              {
-                count: closed,
-              },
-            ),
-      ...(failures.length > 0
-        ? { description: failures.slice(0, 3).join("\n") }
-        : {}),
+          : t(closed === 1 ? "pullRequests.speed.closedOne" : "pullRequests.speed.closedMany", {
+              count: closed,
+            }),
+      ...(failures.length > 0 ? { description: failures.slice(0, 3).join("\n") } : {}),
     });
   };
   return { close, closingKeys };
@@ -438,10 +388,7 @@ export function usePullRequestHandoffs({
       setHandoff(null);
       toastManager.update(toastId, {
         type: "error",
-        title: translateWebSource(
-          locale,
-          "Could not open a thread for the checkout",
-        ),
+        title: translateWebSource(locale, "Could not open a thread for the checkout"),
         description: translateWebSource(
           locale,
           "Try again from the project, or open a thread first.",
@@ -467,9 +414,7 @@ export function usePullRequestHandoffs({
           request: translateWebSource(locale, terminology.singular),
         }),
         description: checkoutFailureDescription(
-          isAtomCommandInterrupted(prepared)
-            ? undefined
-            : squashAtomCommandFailure(prepared),
+          isAtomCommandInterrupted(prepared) ? undefined : squashAtomCommandFailure(prepared),
           (source) => translateWebSource(locale, source),
         ),
       });
@@ -492,10 +437,7 @@ export function usePullRequestHandoffs({
       setHandoff(null);
       toastManager.update(toastId, {
         type: "error",
-        title: translateWebSource(
-          locale,
-          "Checked out, but the thread stayed where it was",
-        ),
+        title: translateWebSource(locale, "Checked out, but the thread stayed where it was"),
         description: t("pullRequests.handoff.checkoutThreadMissing", {
           branch: prepared.value.branch,
         }),

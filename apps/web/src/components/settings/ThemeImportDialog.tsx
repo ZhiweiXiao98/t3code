@@ -4,7 +4,7 @@ import { DownloadIcon, PlusIcon } from "lucide-react";
 import type { ChangeEvent, DragEvent, UIEvent } from "react";
 import { settlePromise } from "@t3tools/client-runtime/state/runtime";
 import { useRef, useState } from "react";
-import { formatBytes } from "../../lib/formatBytes";
+
 import { cn } from "../../lib/utils";
 import { useI18n, type WebTranslate } from "../../i18n/WebI18nContext";
 import {
@@ -24,13 +24,7 @@ import {
 } from "../../vscodeThemeImport";
 import { Alert } from "../ui/alert";
 import { Button } from "../ui/button";
-import {
-  Dialog,
-  DialogHeader,
-  DialogPanel,
-  DialogPopup,
-  DialogTitle,
-} from "../ui/dialog";
+import { Dialog, DialogHeader, DialogPanel, DialogPopup, DialogTitle } from "../ui/dialog";
 import { ThemeSearchSection } from "./ThemeSearchSection";
 
 /**
@@ -79,12 +73,9 @@ function formatThemeImportError(
 ): string {
   if (typeof error === "string") return error;
   if ("source" in error) return translateWebSource(locale, error.source);
-  if ("label" in error)
-    return `${error.label}: ${formatThemeImportError(error.error, locale, t)}`;
+  if ("label" in error) return `${error.label}: ${formatThemeImportError(error.error, locale, t)}`;
   if ("parts" in error)
-    return error.parts
-      .map((part) => formatThemeImportError(part, locale, t))
-      .join("; ");
+    return error.parts.map((part) => formatThemeImportError(part, locale, t)).join("; ");
   if (error.code === "oversized")
     return t("settingsControls.themeTooLarge", {
       size: formatByteSize(error.bytes),
@@ -128,15 +119,13 @@ function highlightJson(value: string): string {
     const index = match.index ?? 0;
     highlighted += escapeJsonHtml(value.slice(cursor, index));
 
-    let tokenClass =
-      "text-[var(--app-theme-secondary-foreground,var(--color-amber-600))]";
+    let tokenClass = "text-[var(--app-theme-secondary-foreground,var(--color-amber-600))]";
     if (token.startsWith('"')) {
       tokenClass = /^\s*:/.test(value.slice(index + token.length))
         ? "text-[var(--app-theme-accent,var(--color-blue-600))]"
         : "text-[var(--app-theme-message-action,var(--color-emerald-600))]";
     } else if (token === "true" || token === "false" || token === "null") {
-      tokenClass =
-        "text-[var(--app-theme-accent-surface-foreground,var(--color-violet-600))]";
+      tokenClass = "text-[var(--app-theme-accent-surface-foreground,var(--color-violet-600))]";
     }
     highlighted += `<span class="${tokenClass}">${escapeJsonHtml(token)}</span>`;
     cursor = index + token.length;
@@ -204,10 +193,7 @@ type ImportableThemeFile = {
 
 interface ThemeImportCallbacks {
   onImported: (theme: ThemeDefinition) => boolean;
-  onImportedMany: (
-    themes: ReadonlyArray<ThemeDefinition>,
-    context: { updated: boolean },
-  ) => void;
+  onImportedMany: (themes: ReadonlyArray<ThemeDefinition>, context: { updated: boolean }) => void;
 }
 
 export function ThemeImportDialog({
@@ -229,9 +215,7 @@ export function ThemeImportDialog({
   }));
   if (session.open !== open) {
     setSession(
-      open
-        ? { open, id: session.id + 1, controller: new AbortController() }
-        : { ...session, open },
+      open ? { open, id: session.id + 1, controller: new AbortController() } : { ...session, open },
     );
   }
   const close = () => {
@@ -280,8 +264,7 @@ function ThemeImportBody({
   const [error, setError] = useState<ThemeImportError | null>(null);
   const [isReading, setIsReading] = useState(false);
   const [isDropTarget, setIsDropTarget] = useState(false);
-  const [conflicts, setConflicts] =
-    useState<ReadonlyArray<ThemeDefinition> | null>(null);
+  const [conflicts, setConflicts] = useState<ReadonlyArray<ThemeDefinition> | null>(null);
   // A newer read supersedes an older one still in flight.
   const importRequestRef = useRef(0);
   const isCurrentRequest = (requestId: number) =>
@@ -338,10 +321,7 @@ function ThemeImportBody({
       } catch (cause) {
         failures.push({
           label: file.name,
-          error:
-            cause instanceof Error
-              ? cause.message
-              : { source: "not a theme file" },
+          error: cause instanceof Error ? cause.message : { source: "not a theme file" },
         });
       }
     }
@@ -358,10 +338,7 @@ function ThemeImportBody({
       } catch (cause) {
         failures.push({
           label: theme.label,
-          error:
-            cause instanceof Error
-              ? cause.message
-              : { source: "could not install" },
+          error: cause instanceof Error ? cause.message : { source: "could not install" },
         });
       }
     }
@@ -425,17 +402,12 @@ function ThemeImportBody({
         ...(theme.managed ? { managed: true } : {}),
         ...(theme.css ? { css: theme.css } : {}),
       });
-    if (
-      preferredName &&
-      preferredName.toLowerCase() !== theme.label.toLowerCase()
-    ) {
+    if (preferredName && preferredName.toLowerCase() !== theme.label.toLowerCase()) {
       const candidate = copyNamed(preferredName.slice(0, 48));
       if (!isThemeIdTaken(candidate.id)) return candidate;
     }
     for (let copy = 1; copy < 100; copy += 1) {
-      const candidate = copyNamed(
-        `${theme.label.slice(0, 48 - ` (${copy})`.length)} (${copy})`,
-      );
+      const candidate = copyNamed(`${theme.label.slice(0, 48 - ` (${copy})`.length)} (${copy})`);
       if (!isThemeIdTaken(candidate.id)) return candidate;
     }
     throw copyLimitError(theme.label);
@@ -473,11 +445,9 @@ function ThemeImportBody({
         });
       }
     }
-    if (resolved.length > 0)
-      onImportedMany(resolved, { updated: mode === "update" });
+    if (resolved.length > 0) onImportedMany(resolved, { updated: mode === "update" });
     setConflicts(null);
-    if (failures.length > 0)
-      setError({ parts: [...(error ? [error] : []), ...failures] });
+    if (failures.length > 0) setError({ parts: [...(error ? [error] : []), ...failures] });
     else if (!error) onClose();
   };
 
@@ -506,11 +476,7 @@ function ThemeImportBody({
       }
       onClose();
     } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : { source: "That theme file is invalid." },
-      );
+      setError(cause instanceof Error ? cause.message : { source: "That theme file is invalid." });
     }
   };
 
@@ -543,10 +509,7 @@ function ThemeImportBody({
             setIsDropTarget(true);
           },
           onDragLeave: (event: DragEvent<HTMLDivElement>) => {
-            if (
-              event.currentTarget.contains(event.relatedTarget as Node | null)
-            )
-              return;
+            if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
             setIsDropTarget(false);
           },
           onDrop: handleDrop,
@@ -561,15 +524,8 @@ function ThemeImportBody({
             type="file"
           />
         );
-        const chooseButton = (
-          label = t("appearance.theme.import.chooseFiles"),
-        ) => (
-          <Button
-            disabled={isReading}
-            size="sm"
-            variant="outline"
-            onClick={openFilePicker}
-          >
+        const chooseButton = (label = t("appearance.theme.import.chooseFiles")) => (
+          <Button disabled={isReading} size="sm" variant="outline" onClick={openFilePicker}>
             <DownloadIcon />
             {isReading ? t("appearance.theme.import.reading") : label}
           </Button>
@@ -577,27 +533,18 @@ function ThemeImportBody({
         const editorSection = () => (
           <div className="space-y-2">
             <div className="flex items-baseline justify-between gap-3">
-              <label
-                className="text-sm font-medium"
-                htmlFor="theme-json-editor"
-              >
+              <label className="text-sm font-medium" htmlFor="theme-json-editor">
                 {t("appearance.theme.import.json")}
               </label>
             </div>
-            <ThemeJsonEditor
-              id="theme-json-editor"
-              onChange={setJson}
-              value={json}
-            />
+            <ThemeJsonEditor id="theme-json-editor" onChange={setJson} value={json} />
           </div>
         );
         if (conflicts) {
           return (
             <div className="space-y-3">
               <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
-                <p className="text-sm font-medium">
-                  {t("appearance.theme.import.installed")}
-                </p>
+                <p className="text-sm font-medium">{t("appearance.theme.import.installed")}</p>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {conflicts.map((theme) => theme.label).join(", ")}
                 </p>
@@ -606,18 +553,10 @@ function ThemeImportBody({
                 <Button size="sm" onClick={() => resolveConflicts("update")}>
                   {t("appearance.theme.import.updateExisting")}
                 </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => resolveConflicts("copy")}
-                >
+                <Button size="sm" variant="outline" onClick={() => resolveConflicts("copy")}>
                   {t("appearance.theme.import.keepBoth")}
                 </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setConflicts(null)}
-                >
+                <Button size="sm" variant="ghost" onClick={() => setConflicts(null)}>
                   {t("appearance.theme.import.back")}
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => onClose()}>
@@ -632,16 +571,12 @@ function ThemeImportBody({
             <div
               className={cn(
                 "flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed px-3 py-3 transition-colors",
-                isDropTarget
-                  ? "border-ring bg-accent/20"
-                  : "border-border/80 bg-muted/20",
+                isDropTarget ? "border-ring bg-accent/20" : "border-border/80 bg-muted/20",
               )}
               {...dropHandlers}
             >
               <div className="min-w-0">
-                <p className="text-sm font-medium">
-                  {t("appearance.theme.import.file")}
-                </p>
+                <p className="text-sm font-medium">{t("appearance.theme.import.file")}</p>
                 <p className="truncate text-xs text-muted-foreground">
                   {fileName ?? t("appearance.theme.import.dropFiles")}
                 </p>
@@ -654,10 +589,7 @@ function ThemeImportBody({
               <Button variant="ghost" onClick={() => onClose()}>
                 {t("appearance.theme.cancel")}
               </Button>
-              <Button
-                disabled={!json.trim() || isReading}
-                onClick={handleSubmit}
-              >
+              <Button disabled={!json.trim() || isReading} onClick={handleSubmit}>
                 <PlusIcon />
                 {t("appearance.theme.import.add")}
               </Button>

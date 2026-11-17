@@ -2,7 +2,6 @@ import { clipboardErrorMessage } from "../../i18n/clipboardErrorMessages";
 import { readWebI18n } from "../../i18n/readWebI18n";
 import { translateWebSource } from "../../i18n/messages";
 import { useI18n } from "../../i18n/WebI18nContext";
-import { useRef } from "react";
 
 import { APP_VERSION } from "../../branding";
 import { useCopyToClipboard } from "../../hooks/useCopyToClipboard";
@@ -43,9 +42,7 @@ export function AboutVersionTitle() {
               <InlineButton
                 tone="muted"
                 aria-label={
-                  locale === "zh-CN"
-                    ? `复制版本号 ${APP_VERSION}`
-                    : `Copy version ${APP_VERSION}`
+                  locale === "zh-CN" ? `复制版本号 ${APP_VERSION}` : `Copy version ${APP_VERSION}`
                 }
                 onClick={() => copyToClipboard(APP_VERSION, undefined)}
               >

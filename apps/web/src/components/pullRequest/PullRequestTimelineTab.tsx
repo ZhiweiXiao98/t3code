@@ -28,13 +28,7 @@ import {
   MessageSquareIcon,
   MessageSquarePlusIcon,
 } from "lucide-react";
-import {
-  useEffect,
-  useEffectEvent,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 
 import { cn } from "~/lib/utils";
 import { readLocalApi } from "~/localApi";
@@ -44,11 +38,7 @@ import { useI18n } from "../../i18n/WebI18nContext";
 
 import { Button } from "../ui/button";
 import { PullRequestEditButton } from "./PullRequestEditButton";
-import {
-  Collapsible,
-  CollapsiblePanel,
-  CollapsibleTrigger,
-} from "../ui/collapsible";
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "../ui/collapsible";
 import { toastManager } from "../ui/toast";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import {
@@ -122,20 +112,14 @@ function TimelineBody({
           threadRef={threadRef}
         />
       ) : (
-        <p className="whitespace-pre-wrap text-xs text-muted-foreground">
-          {body}
-        </p>
+        <p className="whitespace-pre-wrap text-xs text-muted-foreground">{body}</p>
       )}
     </div>
   );
 }
 
 function ActorName({ actor }: { actor: PullRequestActor | null }) {
-  return (
-    <span className="font-semibold text-foreground">
-      {actor?.login ?? "ghost"}
-    </span>
-  );
+  return <span className="font-semibold text-foreground">{actor?.login ?? "ghost"}</span>;
 }
 
 function TimelineMarker({
@@ -157,13 +141,7 @@ function TimelineMarker({
   );
 }
 
-function IconMarker({
-  icon,
-  className,
-}: {
-  icon: ReactNode;
-  className?: string | undefined;
-}) {
+function IconMarker({ icon, className }: { icon: ReactNode; className?: string | undefined }) {
   return (
     <TimelineMarker className={className}>
       <span className="flex size-7 items-center justify-center bg-background text-muted-foreground">
@@ -243,13 +221,7 @@ function AddToChatButton({
   );
 }
 
-function OpenOnHostButton({
-  url,
-  onOpen,
-}: {
-  url: string | null;
-  onOpen: (url: string) => void;
-}) {
+function OpenOnHostButton({ url, onOpen }: { url: string | null; onOpen: (url: string) => void }) {
   const { t } = useI18n();
   return url === null ? null : (
     <Button
@@ -323,8 +295,7 @@ function ConversationCard({
         ? {
             "data-pr-link-target": true,
             tabIndex: -1,
-            className:
-              "group rounded-lg py-2 ring-1 ring-primary/40 outline-none",
+            className: "group rounded-lg py-2 ring-1 ring-primary/40 outline-none",
           }
         : { className: "group py-2" })}
     >
@@ -336,9 +307,7 @@ function ConversationCard({
               <span className="text-muted-foreground">
                 {translateWebSource(uiLocale, event.title)}
               </span>
-              {event.reviewState ? (
-                <ReviewStateBadge state={event.reviewState} />
-              ) : null}
+              {event.reviewState ? <ReviewStateBadge state={event.reviewState} /> : null}
             </div>
             <PullRequestMetaLine className="mt-1 flex-wrap text-2xs text-muted-foreground">
               <span>
@@ -404,14 +373,11 @@ function ConversationCard({
   );
 }
 
-function uniqueConversationActors(
-  events: ReadonlyArray<PullRequestTimelineEvent>,
-) {
+function uniqueConversationActors(events: ReadonlyArray<PullRequestTimelineEvent>) {
   const actors = new Map<string, PullRequestActor>();
   for (const event of events) {
     const actor = event.actor;
-    if (actor !== null && !actors.has(actor.login))
-      actors.set(actor.login, actor);
+    if (actor !== null && !actors.has(actor.login)) actors.set(actor.login, actor);
   }
   return [...actors.values()];
 }
@@ -435,9 +401,7 @@ function ConversationGroup({
   const [open, setOpen] = useState(
     () =>
       revealAnchor != null &&
-      events.some((event) =>
-        pullRequestAnchorMatchesUrl(revealAnchor, event.url),
-      ),
+      events.some((event) => pullRequestAnchorMatchesUrl(revealAnchor, event.url)),
   );
   const actors = uniqueConversationActors(events);
   const first = events[0];
@@ -456,9 +420,7 @@ function ConversationGroup({
           <CollapsibleTrigger
             className={cn(
               "flex w-full min-w-0 items-center gap-3 py-2 text-left transition-opacity hover:opacity-100",
-              open
-                ? "text-foreground opacity-100"
-                : "text-muted-foreground opacity-55",
+              open ? "text-foreground opacity-100" : "text-muted-foreground opacity-55",
             )}
           >
             <span className="min-w-0 flex-1">
@@ -553,16 +515,12 @@ function ReviewThreadEvent({
           onClick={() => setExpanded((current) => !current)}
         >
           {thread.path === null ? (
-            <span className="min-w-0 truncate">
-              {translateWebSource(uiLocale, "Overview")}
-            </span>
+            <span className="min-w-0 truncate">{translateWebSource(uiLocale, "Overview")}</span>
           ) : (
             <>
               <FileCode2Icon aria-hidden className="size-3 shrink-0" />
               <span className="min-w-0 truncate font-mono">
-                {thread.line === null
-                  ? thread.path
-                  : `${thread.path}:${thread.line}`}
+                {thread.line === null ? thread.path : `${thread.path}:${thread.line}`}
               </span>
             </>
           )}
@@ -578,9 +536,7 @@ function ReviewThreadEvent({
             </span>
           ) : null}
           {thread.isOutdated ? (
-            <span className="shrink-0 font-medium">
-              {translateWebSource(uiLocale, "Outdated")}
-            </span>
+            <span className="shrink-0 font-medium">{translateWebSource(uiLocale, "Outdated")}</span>
           ) : null}
           {expanded ? null : (
             <span className="shrink-0">
@@ -697,13 +653,7 @@ function CommitEvent({
   );
 }
 
-function LifecycleEvent({
-  event,
-  term,
-}: {
-  event: PullRequestTimelineEvent;
-  term: string;
-}) {
+function LifecycleEvent({ event, term }: { event: PullRequestTimelineEvent; term: string }) {
   const { locale: uiLocale } = useI18n();
   const title = capitalizeTerm(term);
   const presentation =
@@ -728,9 +678,7 @@ function LifecycleEvent({
       <div className="py-1.5 text-xs">
         <div className="flex flex-wrap items-center gap-1.5">
           {event.actor ? <ActorName actor={event.actor} /> : null}
-          <span className="font-semibold text-foreground">
-            {presentation.label}
-          </span>
+          <span className="font-semibold text-foreground">{presentation.label}</span>
         </div>
         <div className="mt-0.5 text-2xs text-muted-foreground">
           <RelativeTime timestamp={event.at} />
@@ -783,14 +731,10 @@ function ReviewVerdictEvent({
               >
                 {pullRequestReviewOutcomeLabel(outcome, t)}
                 {stale ? (
-                  <span className="sr-only">
-                    {t("pullRequests.review.beforeLatest")}
-                  </span>
+                  <span className="sr-only">{t("pullRequests.review.beforeLatest")}</span>
                 ) : null}
               </TooltipTrigger>
-              <TooltipPopup>
-                {pullRequestReviewOutcomeStaleLabel(outcome, t)}
-              </TooltipPopup>
+              <TooltipPopup>{pullRequestReviewOutcomeStaleLabel(outcome, t)}</TooltipPopup>
             </Tooltip>
           </div>
           <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
@@ -870,22 +814,15 @@ export function PullRequestTimelineTab({
   const [linked, setLinked] = useState<{
     readonly anchor: string;
     readonly count: number;
-  } | null>(() =>
-    revealAnchor === null ? null : { anchor: revealAnchor, count: 1 },
-  );
+  } | null>(() => (revealAnchor === null ? null : { anchor: revealAnchor, count: 1 }));
   const [seenRevealUrl, setSeenRevealUrl] = useState(revealUrl);
   if (revealUrl !== seenRevealUrl) {
     setSeenRevealUrl(revealUrl);
     // Each click remounts the linked row, so it opens again even after the user closed it.
-    if (revealAnchor !== null)
-      setLinked({ anchor: revealAnchor, count: (linked?.count ?? 0) + 1 });
+    if (revealAnchor !== null) setLinked({ anchor: revealAnchor, count: (linked?.count ?? 0) + 1 });
   }
   const anchor = linked
-    ? resolvePullRequestReviewAnchor(
-        linked.anchor,
-        detail.comments,
-        detail.reviewThreads,
-      )
+    ? resolvePullRequestReviewAnchor(linked.anchor, detail.comments, detail.reviewThreads)
     : null;
   const listRef = useRef<LegendListRef | null>(null);
   const matches = (event: PullRequestTimelineEvent) =>
@@ -896,18 +833,12 @@ export function PullRequestTimelineTab({
   const reactions: ReactionSurface = {
     revealAnchor: anchor,
     canReact: (event) =>
-      event.comment !== undefined &&
-      canReactPullRequestComment(detail, event.comment),
-    onAddToChat:
-      onAddToChat && ((comment) => onAddToChat({ kind: "comment", comment })),
+      event.comment !== undefined && canReactPullRequestComment(detail, event.comment),
+    onAddToChat: onAddToChat && ((comment) => onAddToChat({ kind: "comment", comment })),
     environmentId,
     threadRef,
     reference,
-    completionScope: pullRequestCompletionScope(
-      detail,
-      environmentId,
-      reference,
-    ),
+    completionScope: pullRequestCompletionScope(detail, environmentId, reference),
     onRefresh,
   };
   const editable = new Map(
@@ -926,20 +857,14 @@ export function PullRequestTimelineTab({
   const reveal = useEffectEvent(() => {
     const list = listRef.current;
     const url = revealUrl;
-    if (url === undefined || revealAnchor === null || targetIndex < 0 || !list)
-      return;
+    if (url === undefined || revealAnchor === null || targetIndex < 0 || !list) return;
     stopHolding.current?.();
-    void list
-      .scrollToIndex({ index: targetIndex, viewPosition: 0, animated: false })
-      .then(() => {
-        const scroller = list.getScrollableNode();
-        const node = scroller?.querySelector<HTMLElement>(
-          "[data-pr-link-target=true]",
-        );
-        if (scroller && node)
-          stopHolding.current = holdLinkedNodeInView(node, scroller, () => 16);
-        onRevealSettled?.(url);
-      });
+    void list.scrollToIndex({ index: targetIndex, viewPosition: 0, animated: false }).then(() => {
+      const scroller = list.getScrollableNode();
+      const node = scroller?.querySelector<HTMLElement>("[data-pr-link-target=true]");
+      if (scroller && node) stopHolding.current = holdLinkedNodeInView(node, scroller, () => 16);
+      onRevealSettled?.(url);
+    });
   });
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- reveals a link destination after activity loading and virtual list mounting
   useEffect(() => {
@@ -989,8 +914,7 @@ export function PullRequestTimelineTab({
         />
       );
     }
-    if (event.kind === "commit")
-      return <CommitEvent event={event} onOpen={onOpenCommit} />;
+    if (event.kind === "commit") return <CommitEvent event={event} onOpen={onOpenCommit} />;
     const outcome = pullRequestReviewOutcome(event.reviewState);
     if (outcome !== null) {
       return (
@@ -1009,10 +933,7 @@ export function PullRequestTimelineTab({
 
   if (events.length === 0) {
     return (
-      <div
-        ref={scrollerRef}
-        className="scrollbar-gutter-both h-full overflow-y-auto px-4 py-5"
-      >
+      <div ref={scrollerRef} className="scrollbar-gutter-both h-full overflow-y-auto px-4 py-5">
         <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
           <PullRequestGlyph.pullRequest className="mb-2 size-5" />
           <p className="text-xs">{t("pullRequests.timeline.empty")}</p>
@@ -1039,10 +960,7 @@ export function PullRequestTimelineTab({
       ListHeaderComponent={
         anchor !== null && targetIndex < 0 && revealUrl === undefined ? (
           <p role="status" className="py-4 text-xs text-muted-foreground">
-            {translateWebSource(
-              uiLocale,
-              "The linked item is not in the loaded activity.",
-            )}
+            {translateWebSource(uiLocale, "The linked item is not in the loaded activity.")}
           </p>
         ) : (
           <div className="h-5" />

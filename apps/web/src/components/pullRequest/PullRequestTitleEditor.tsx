@@ -2,11 +2,7 @@ import { readWebI18n } from "~/i18n/readWebI18n";
 import { useI18n } from "~/i18n/WebI18nContext";
 
 import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
-import type {
-  EnvironmentId,
-  PullRequestDetail,
-  PullRequestRef,
-} from "@t3tools/contracts";
+import type { EnvironmentId, PullRequestDetail, PullRequestRef } from "@t3tools/contracts";
 import { useState } from "react";
 import {
   capitalizeTerm,
@@ -47,8 +43,7 @@ export function PullRequestTitleEditor({
     readonly pullRequestKey: string;
     readonly text: string;
   } | null>(null);
-  const titleDraft =
-    titleScope?.pullRequestKey === pullRequestKey ? titleScope.text : null;
+  const titleDraft = titleScope?.pullRequestKey === pullRequestKey ? titleScope.text : null;
   const [titleSaving, setTitleSaving] = useState(false);
 
   const saveTitle = async (next: string) => {
@@ -96,9 +91,7 @@ export function PullRequestTitleEditor({
         {canEditPullRequestChangeRequest(detail) ? (
           <PullRequestEditButton
             aria-label={t("pullRequests.detail.editTitle")}
-            onClick={() =>
-              setTitleScope({ pullRequestKey, text: detail.title })
-            }
+            onClick={() => setTitleScope({ pullRequestKey, text: detail.title })}
           />
         ) : null}
       </PullRequestDetailTitleRow>
@@ -116,9 +109,7 @@ export function PullRequestTitleEditor({
             ? "变更请求标题"
             : `${capitalizeTerm(sourceControlClients.get(detail.provider).changeRequest.singular)} title`
         }
-        onChange={(event) =>
-          setTitleScope({ pullRequestKey, text: event.target.value })
-        }
+        onChange={(event) => setTitleScope({ pullRequestKey, text: event.target.value })}
         onKeyDown={(event) => {
           if (event.nativeEvent.isComposing || event.keyCode === 229) return;
           if (event.key === "Enter") {
@@ -142,11 +133,7 @@ export function PullRequestTitleEditor({
         <Button
           size="xs"
           variant="outline"
-          disabled={
-            !canWriteSourceControl ||
-            titleSaving ||
-            titleDraft.trim().length === 0
-          }
+          disabled={!canWriteSourceControl || titleSaving || titleDraft.trim().length === 0}
           onClick={() => void saveTitle(titleDraft)}
         >
           {titleSaving ? t("common.saving") : t("common.save")}

@@ -226,7 +226,11 @@ function SettingsList(props: { readonly connections: readonly SettingsListRow[] 
       >
         {sections.length ? (
           sections.map((section, index) => (
-            <SettingsSection key={section.title ?? `untitled-${index}`} title={section.title} localizeTitle={false}>
+            <SettingsSection
+              key={section.title ?? `untitled-${index}`}
+              title={section.title}
+              localizeTitle={false}
+            >
               {section.rows.map(({ id, ...row }) => (
                 <SettingsRow key={id} {...row} />
               ))}

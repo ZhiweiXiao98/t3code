@@ -1,19 +1,12 @@
 import { expect, it } from "vite-plus/test";
-import {
-  resolvedWebLanguage,
-  synchronizedLocalePatch,
-} from "./localePreference";
+import { resolvedWebLanguage, synchronizedLocalePatch } from "./localePreference";
 
 it("retains old saved choices and gives an explicit new language precedence", () => {
   expect(resolvedWebLanguage({ appLocale: "zh-CN" }, ["en-US"])).toBe("zh");
   expect(resolvedWebLanguage({ appLocale: "en" }, ["zh-CN"])).toBe("en");
   expect(resolvedWebLanguage({ appLocale: "system" }, ["zh-CN"])).toBe("zh");
-  expect(
-    resolvedWebLanguage({ language: "fr", appLocale: "zh-CN" }, ["zh-CN"]),
-  ).toBe("fr");
-  expect(
-    resolvedWebLanguage({ language: "system", appLocale: "zh-CN" }, ["en-US"]),
-  ).toBe("en");
+  expect(resolvedWebLanguage({ language: "fr", appLocale: "zh-CN" }, ["zh-CN"])).toBe("fr");
+  expect(resolvedWebLanguage({ language: "system", appLocale: "zh-CN" }, ["en-US"])).toBe("en");
 });
 it("synchronizes both settings entry points without downgrading new languages", () => {
   expect(synchronizedLocalePatch({ appLocale: "zh-CN" })).toEqual({
@@ -49,9 +42,7 @@ it("keeps the last language through serialized settings/restart roundtrip", () =
     ["zh", "zh"],
     ["ja", "ja"],
   ] as const) {
-    saved = JSON.parse(
-      JSON.stringify({ ...saved, ...synchronizedLocalePatch({ language }) }),
-    );
+    saved = JSON.parse(JSON.stringify({ ...saved, ...synchronizedLocalePatch({ language }) }));
     expect(resolvedWebLanguage(saved, ["en-US"])).toBe(expected);
   }
 });

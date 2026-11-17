@@ -1,9 +1,6 @@
 import { readWebI18n } from "~/i18n/readWebI18n";
 import { translateWebExtraSource } from "~/i18n/webExtraMessages";
-import {
-  managedUpdatesDenial,
-  managedUpdatesMessage,
-} from "../../i18n/managedPolicyMessages";
+import { managedUpdatesDenial, managedUpdatesMessage } from "../../i18n/managedPolicyMessages";
 import { useAtomValue } from "@effect/atom-react";
 import { NotificationSettings } from "./NotificationSettings";
 import { PRIVACY_POLICY_URL } from "../../legalLinks";
@@ -32,10 +29,7 @@ import {
   ToolCallVisibility,
 } from "@t3tools/contracts/settings";
 import { desktopUpdateChannelOf } from "@t3tools/shared/cliRelease";
-import {
-  createModelSelection,
-  pickModelSelection,
-} from "@t3tools/shared/model";
+import { createModelSelection, pickModelSelection } from "@t3tools/shared/model";
 import { resolvePastedPath } from "@t3tools/shared/path";
 import * as Equal from "effect/Equal";
 import * as Schema from "effect/Schema";
@@ -55,12 +49,9 @@ import { ProviderModelPicker } from "../chat/ProviderModelPicker";
 import { TraitsPicker } from "../chat/TraitsPicker";
 import { isElectron } from "../../env";
 import { useI18n } from "../../i18n/WebI18nContext";
-import { LanguageSelect } from "../LanguageSelect";
+
 import { translateWebSource } from "../../i18n/messages";
-import {
-  buildHostedChannelSelectionUrl,
-  type HostedAppChannel,
-} from "../../hostedPairing";
+import { buildHostedChannelSelectionUrl, type HostedAppChannel } from "../../hostedPairing";
 import {
   readAppearanceModePreference,
   readThemeHalves,
@@ -73,19 +64,13 @@ import {
   useUpdateScopedSettings,
 } from "./useScopedSettings";
 import { useScopedModelDisabledReason } from "./useScopedModelAvailability";
-import {
-  useOptionalSettingsScope,
-  useSettingsScope,
-} from "./SettingsScopeContext";
+import { useOptionalSettingsScope, useSettingsScope } from "./SettingsScopeContext";
 import { scopedIdleCompaction } from "./scopedSettings";
 import { ProjectDefaultsSettings } from "./ProjectDefaultsSettings";
 import { ThreadTitleInstructionsSettings } from "./ThreadTitleInstructionsSettings";
 import { SnoozePresetsRow } from "./SnoozePresetsSettings";
 import { useDesktopUpdateState } from "../../state/desktopUpdate";
-import {
-  managedTelemetryOffMessage,
-  usePrimaryManagedPolicy,
-} from "../../state/managedPolicy";
+import { managedTelemetryOffMessage, usePrimaryManagedPolicy } from "../../state/managedPolicy";
 import {
   getTextGenerationModelOptionsByInstance,
   resolveAppModelSelectionState,
@@ -103,13 +88,7 @@ import { EMPTY_SERVER_PROVIDERS } from "../../state/server";
 import { Button } from "../ui/button";
 import { DraftInput } from "../ui/draft-input";
 import { Input } from "../ui/input";
-import {
-  Select,
-  SelectItem,
-  SelectPopup,
-  SelectTrigger,
-  SelectValue,
-} from "../ui/select";
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
 import { Switch } from "../ui/switch";
 import { ScopedSwitch } from "./ScopedSwitch";
 import { stackedThreadToast, toastManager } from "../ui/toast";
@@ -137,10 +116,7 @@ import {
   SettingsSection,
 } from "./settingsLayout";
 import { searchableSetting, type SettingsSearchItemId } from "./settingsSearch";
-import {
-  nativeLanguageName,
-  SYSTEM_LANGUAGE,
-} from "@t3tools/client-runtime/locales";
+import { nativeLanguageName, SYSTEM_LANGUAGE } from "@t3tools/client-runtime/locales";
 import { SUPPORTED_LOCALES } from "../../i18n/locales";
 import { BackgroundActivitySettingsRow } from "./BackgroundActivitySettings";
 import { AdvancedSettings } from "./AdvancedSettings";
@@ -153,10 +129,7 @@ import { useCheckProviderUpdates } from "../ProviderUpdatesAction";
 import { canUpdateServer } from "../ServerUpdateAction";
 import { downloadLocalUpdate } from "../sidebar/SidebarUpdatePill";
 import { useUpdateEverythingRun } from "../sidebar/updateEverythingRun";
-import {
-  awaitsTrackSwitch,
-  channelSwitchLabel,
-} from "../sidebar/updateEverything.logic";
+import { awaitsTrackSwitch, channelSwitchLabel } from "../sidebar/updateEverything.logic";
 import { isHostedByThisApp } from "../sidebar/useUpdateEverything";
 
 const RESPONSE_STREAMING_MODE_LABELS: Record<ResponseStreamingMode, string> = {
@@ -164,18 +137,12 @@ const RESPONSE_STREAMING_MODE_LABELS: Record<ResponseStreamingMode, string> = {
   paragraph: "Show finished paragraphs",
 };
 
-const RESPONSE_STREAMING_MODE_DESCRIPTIONS: Record<
-  ResponseStreamingMode,
-  string
-> = {
+const RESPONSE_STREAMING_MODE_DESCRIPTIONS: Record<ResponseStreamingMode, string> = {
   turn: "Text appears once the agent finishes its turn.",
   paragraph: "Each paragraph or code block appears as soon as it is complete.",
 };
 
-const SIDEBAR_PROJECT_SORT_ORDER_LABELS: Record<
-  SidebarProjectSortOrder,
-  string
-> = {
+const SIDEBAR_PROJECT_SORT_ORDER_LABELS: Record<SidebarProjectSortOrder, string> = {
   updated_at: msg("Last user message"),
   created_at: msg("Created at"),
   manual: msg("Manual"),
@@ -203,8 +170,7 @@ const DEFAULT_DRIVER_KIND = ProviderDriverKind.make("codex");
 function AboutVersionSection() {
   const { t, locale } = useI18n();
   const updateState = useDesktopUpdateState();
-  const [switchChannel, setSwitchChannel] =
-    useState<DesktopUpdateChannel | null>(null);
+  const [switchChannel, setSwitchChannel] = useState<DesktopUpdateChannel | null>(null);
   const [isUpdateActionPending, setIsUpdateActionPending] = useState(false);
   const { environments } = useEnvironments();
   const sessionStates = useAtomValue(
@@ -216,14 +182,11 @@ function AboutVersionSection() {
   const updateRun = useUpdateEverythingRun();
   const checkProviderUpdates = useCheckProviderUpdates();
 
-  const hasDesktopBridge =
-    typeof window !== "undefined" && Boolean(window.desktopBridge);
+  const hasDesktopBridge = typeof window !== "undefined" && Boolean(window.desktopBridge);
   const selectedUpdateChannel = updateState?.channel ?? "latest";
   // The desktop updates this machine, whose policy the primary environment reports.
   const primaryPolicy = usePrimaryManagedPolicy();
-  const updatesDenial = hasDesktopBridge
-    ? managedUpdatesDenial(primaryPolicy, t)
-    : undefined;
+  const updatesDenial = hasDesktopBridge ? managedUpdatesDenial(primaryPolicy, t) : undefined;
   const nightlyDeniedBy =
     hasDesktopBridge && primaryPolicy?.limits?.updates?.allowNightly === false
       ? primaryPolicy.organization
@@ -232,8 +195,7 @@ function AboutVersionSection() {
   // A switch that failed part way leaves this app or a server on the other track.
   // With its updater off, a switch cannot move this app, so it is not counted.
   const appOffTrack =
-    updateState?.enabled !== false &&
-    desktopUpdateChannelOf(APP_VERSION) !== selectedUpdateChannel;
+    updateState?.enabled !== false && desktopUpdateChannelOf(APP_VERSION) !== selectedUpdateChannel;
   const unswitchedMachines =
     (appOffTrack ? 1 : 0) +
     environments.filter(
@@ -253,9 +215,7 @@ function AboutVersionSection() {
     const bridge = window.desktopBridge;
     if (!bridge) return;
 
-    const action = updateState
-      ? resolveDesktopUpdateButtonAction(updateState)
-      : "none";
+    const action = updateState ? resolveDesktopUpdateButtonAction(updateState) : "none";
 
     if (action === "download") {
       void downloadLocalUpdate(bridge, { notifyDownloaded: false });
@@ -282,9 +242,7 @@ function AboutVersionSection() {
             type: "error",
             title: t("settings.about.error.confirmTitle"),
             description:
-              error instanceof Error
-                ? error.message
-                : t("settings.about.error.confirmDescription"),
+              error instanceof Error ? error.message : t("settings.about.error.confirmDescription"),
           }),
         );
         return;
@@ -327,9 +285,7 @@ function AboutVersionSection() {
               type: "error",
               title: t("settings.about.error.checkTitle"),
               description:
-                currentDenial ??
-                result.state.message ??
-                t("settings.about.error.unavailable"),
+                currentDenial ?? result.state.message ?? t("settings.about.error.unavailable"),
             }),
           );
         }
@@ -341,20 +297,14 @@ function AboutVersionSection() {
             type: "error",
             title: t("settings.about.error.checkTitle"),
             description:
-              error instanceof Error
-                ? error.message
-                : t("settings.about.error.checkDescription"),
+              error instanceof Error ? error.message : t("settings.about.error.checkDescription"),
           }),
         );
       });
   };
 
-  const action = updateState
-    ? resolveDesktopUpdateButtonAction(updateState)
-    : "none";
-  const buttonTooltip = updateState
-    ? getDesktopUpdateButtonTooltip(updateState, t)
-    : null;
+  const action = updateState ? resolveDesktopUpdateButtonAction(updateState) : "none";
+  const buttonTooltip = updateState ? getDesktopUpdateButtonTooltip(updateState, t) : null;
   const buttonDisabled =
     action === "none"
       ? !canCheckForUpdate(updateState)
@@ -367,9 +317,7 @@ function AboutVersionSection() {
   const statusLabel: Record<string, string> = {
     checking: t("settings.about.action.checking"),
     downloading: t("settings.about.action.downloading"),
-    ...(appOffTrack
-      ? {}
-      : { "up-to-date": t("settings.about.action.upToDate") }),
+    ...(appOffTrack ? {} : { "up-to-date": t("settings.about.action.upToDate") }),
   };
   const buttonLabel =
     actionLabel[action] ??
@@ -402,9 +350,7 @@ function AboutVersionSection() {
                 </Button>
               }
             />
-            {buttonTooltip ? (
-              <TooltipPopup>{buttonTooltip}</TooltipPopup>
-            ) : null}
+            {buttonTooltip ? <TooltipPopup>{buttonTooltip}</TooltipPopup> : null}
           </Tooltip>
         }
       />
@@ -430,13 +376,8 @@ function AboutVersionSection() {
                   ? selectedUpdateChannel === "nightly"
                     ? "稳定版"
                     : "每夜构建版"
-                  : channelSwitchLabel(
-                      selectedUpdateChannel === "nightly"
-                        ? "latest"
-                        : "nightly",
-                    )}
-                .{" "}
-                {/* The dialog moves what it can and says why it skips the rest. */}
+                  : channelSwitchLabel(selectedUpdateChannel === "nightly" ? "latest" : "nightly")}
+                . {/* The dialog moves what it can and says why it skips the rest. */}
                 <Button
                   size="xs"
                   variant="link"
@@ -479,10 +420,7 @@ function AboutVersionSection() {
                 <SelectItem
                   hideIndicator
                   value="nightly"
-                  disabled={
-                    nightlyDeniedBy !== undefined &&
-                    selectedUpdateChannel !== "nightly"
-                  }
+                  disabled={nightlyDeniedBy !== undefined && selectedUpdateChannel !== "nightly"}
                 >
                   {t("settings.about.updateTrack.option.nightly")}
                 </SelectItem>
@@ -532,10 +470,7 @@ function AboutVersionSection() {
       ) : null}
       {hasDesktopBridge ? <CliCommandSettingsRow /> : null}
       {switchChannel === null ? null : (
-        <UpdateTrackSwitchDialog
-          channel={switchChannel}
-          onClose={() => setSwitchChannel(null)}
-        />
+        <UpdateTrackSwitchDialog channel={switchChannel} onClose={() => setSwitchChannel(null)} />
       )}
     </>
   );
@@ -559,43 +494,34 @@ export function useSettingsRestore(onRestored?: () => void) {
     settings.textGenerationModelSelection ?? null,
     DEFAULT_UNIFIED_SETTINGS.textGenerationModelSelection ?? null,
   );
-  const isBackgroundActivityDirty =
-    hasChangedBackgroundActivitySettings(settings);
+  const isBackgroundActivityDirty = hasChangedBackgroundActivitySettings(settings);
 
   const changedSettingLabels = [
     ...(theme !== "system" ? ["Theme"] : []),
     ...(!followSystem ? ["Follow system"] : []),
     ...(themeHalves !== null ? ["Theme mix"] : []),
-    ...(settings.appearanceContrast !==
-    DEFAULT_UNIFIED_SETTINGS.appearanceContrast
+    ...(settings.appearanceContrast !== DEFAULT_UNIFIED_SETTINGS.appearanceContrast
       ? ["Contrast"]
       : []),
-    ...(settings.glassOpacity !== DEFAULT_UNIFIED_SETTINGS.glassOpacity
-      ? ["Glass opacity"]
-      : []),
+    ...(settings.glassOpacity !== DEFAULT_UNIFIED_SETTINGS.glassOpacity ? ["Glass opacity"] : []),
     ...(settings.diffColorScheme !== DEFAULT_UNIFIED_SETTINGS.diffColorScheme
       ? ["Diff colors"]
       : []),
-    ...(settings.chatWidth !== DEFAULT_UNIFIED_SETTINGS.chatWidth
-      ? ["Chat width"]
-      : []),
+    ...(settings.chatWidth !== DEFAULT_UNIFIED_SETTINGS.chatWidth ? ["Chat width"] : []),
     ...(settings.effortDisplay !== DEFAULT_UNIFIED_SETTINGS.effortDisplay
       ? ["Effort display"]
       : []),
-    ...(settings.mathRenderingEnabled !==
-    DEFAULT_UNIFIED_SETTINGS.mathRenderingEnabled
+    ...(settings.mathRenderingEnabled !== DEFAULT_UNIFIED_SETTINGS.mathRenderingEnabled
       ? ["Render math"]
       : []),
-    ...(settings.panelAnimationDurationMs !==
-    DEFAULT_UNIFIED_SETTINGS.panelAnimationDurationMs
+    ...(settings.panelAnimationDurationMs !== DEFAULT_UNIFIED_SETTINGS.panelAnimationDurationMs
       ? ["Panel animations"]
       : []),
     ...(settings.environmentIdentificationMode !==
     DEFAULT_UNIFIED_SETTINGS.environmentIdentificationMode
       ? ["Environment identification"]
       : []),
-    ...(resolveClientLanguage(settings) !==
-    resolveClientLanguage(DEFAULT_UNIFIED_SETTINGS)
+    ...(resolveClientLanguage(settings) !== resolveClientLanguage(DEFAULT_UNIFIED_SETTINGS)
       ? ["Language"]
       : []),
     ...(settings.timestampFormat !== DEFAULT_UNIFIED_SETTINGS.timestampFormat
@@ -604,103 +530,76 @@ export function useSettingsRestore(onRestored?: () => void) {
     ...(settings.notificationMode !== DEFAULT_UNIFIED_SETTINGS.notificationMode
       ? ["Thread notifications"]
       : []),
-    ...(settings.inAppNotificationsEnabled !==
-    DEFAULT_UNIFIED_SETTINGS.inAppNotificationsEnabled
+    ...(settings.inAppNotificationsEnabled !== DEFAULT_UNIFIED_SETTINGS.inAppNotificationsEnabled
       ? ["In-app notifications"]
       : []),
-    ...(settings.sidebarProjectGroupingMode !==
-    DEFAULT_UNIFIED_SETTINGS.sidebarProjectGroupingMode
+    ...(settings.sidebarProjectGroupingMode !== DEFAULT_UNIFIED_SETTINGS.sidebarProjectGroupingMode
       ? ["Project Grouping"]
       : []),
-    ...(settings.sidebarProjectSortOrder !==
-    DEFAULT_UNIFIED_SETTINGS.sidebarProjectSortOrder
+    ...(settings.sidebarProjectSortOrder !== DEFAULT_UNIFIED_SETTINGS.sidebarProjectSortOrder
       ? ["Project order"]
       : []),
-    ...(settings.sidebarWorkingShelfEnabled !==
-    DEFAULT_UNIFIED_SETTINGS.sidebarWorkingShelfEnabled
+    ...(settings.sidebarWorkingShelfEnabled !== DEFAULT_UNIFIED_SETTINGS.sidebarWorkingShelfEnabled
       ? ["Working section"]
       : []),
-    ...(settings.sidebarAutoSettleAfterDays !==
-    DEFAULT_UNIFIED_SETTINGS.sidebarAutoSettleAfterDays
+    ...(settings.sidebarAutoSettleAfterDays !== DEFAULT_UNIFIED_SETTINGS.sidebarAutoSettleAfterDays
       ? ["Auto-settle inactive threads"]
       : []),
     ...(settings.sidebarAutoSettleKeepPullRequests !==
     DEFAULT_UNIFIED_SETTINGS.sidebarAutoSettleKeepPullRequests
       ? ["Keep threads with a PR"]
       : []),
-    ...(settings.sidebarAutoSettleOnMerge !==
-    DEFAULT_UNIFIED_SETTINGS.sidebarAutoSettleOnMerge
+    ...(settings.sidebarAutoSettleOnMerge !== DEFAULT_UNIFIED_SETTINGS.sidebarAutoSettleOnMerge
       ? ["Auto-settle merged threads"]
       : []),
-    ...(settings.autoResumeLimitedThreads !==
-    DEFAULT_UNIFIED_SETTINGS.autoResumeLimitedThreads
+    ...(settings.autoResumeLimitedThreads !== DEFAULT_UNIFIED_SETTINGS.autoResumeLimitedThreads
       ? ["Resume after usage limits"]
       : []),
-    ...(settings.snoozeLimitedThreads !==
-    DEFAULT_UNIFIED_SETTINGS.snoozeLimitedThreads
+    ...(settings.snoozeLimitedThreads !== DEFAULT_UNIFIED_SETTINGS.snoozeLimitedThreads
       ? ["Snooze until limits reset"]
       : []),
-    ...(!Equal.equals(
-      settings.snoozePresets,
-      DEFAULT_UNIFIED_SETTINGS.snoozePresets,
-    )
+    ...(!Equal.equals(settings.snoozePresets, DEFAULT_UNIFIED_SETTINGS.snoozePresets)
       ? ["Snooze options"]
       : []),
-    ...(settings.wordWrap !== DEFAULT_UNIFIED_SETTINGS.wordWrap
-      ? ["Word wrap"]
-      : []),
+    ...(settings.wordWrap !== DEFAULT_UNIFIED_SETTINGS.wordWrap ? ["Word wrap"] : []),
     ...(settings.persistComposerContextStrip !==
     DEFAULT_UNIFIED_SETTINGS.persistComposerContextStrip
       ? ["Composer context"]
       : []),
     ...getChangedTypographySettingLabels(settings),
-    ...(settings.diffFilesCollapsed !==
-    DEFAULT_UNIFIED_SETTINGS.diffFilesCollapsed
+    ...(settings.diffFilesCollapsed !== DEFAULT_UNIFIED_SETTINGS.diffFilesCollapsed
       ? ["Default diff file state"]
       : []),
-    ...(settings.diffIgnoreWhitespace !==
-    DEFAULT_UNIFIED_SETTINGS.diffIgnoreWhitespace
+    ...(settings.diffIgnoreWhitespace !== DEFAULT_UNIFIED_SETTINGS.diffIgnoreWhitespace
       ? ["Diff whitespace changes"]
       : []),
-    ...(settings.diffLayout !== DEFAULT_UNIFIED_SETTINGS.diffLayout
-      ? ["Diff layout"]
-      : []),
-    ...(settings.proactivePanelsEnabled !==
-    DEFAULT_UNIFIED_SETTINGS.proactivePanelsEnabled
+    ...(settings.diffLayout !== DEFAULT_UNIFIED_SETTINGS.diffLayout ? ["Diff layout"] : []),
+    ...(settings.proactivePanelsEnabled !== DEFAULT_UNIFIED_SETTINGS.proactivePanelsEnabled
       ? ["Open pull requests and changes panels proactively"]
       : []),
-    ...(settings.showSkillsInSlashMenu !==
-    DEFAULT_UNIFIED_SETTINGS.showSkillsInSlashMenu
+    ...(settings.showSkillsInSlashMenu !== DEFAULT_UNIFIED_SETTINGS.showSkillsInSlashMenu
       ? ["Show skills in slash menu"]
       : []),
-    ...(settings.composerRichTextEnabled !==
-    DEFAULT_UNIFIED_SETTINGS.composerRichTextEnabled
+    ...(settings.composerRichTextEnabled !== DEFAULT_UNIFIED_SETTINGS.composerRichTextEnabled
       ? ["Rich text composer"]
       : []),
-    ...(settings.sendShortcut !== DEFAULT_UNIFIED_SETTINGS.sendShortcut
-      ? ["Send shortcut"]
-      : []),
+    ...(settings.sendShortcut !== DEFAULT_UNIFIED_SETTINGS.sendShortcut ? ["Send shortcut"] : []),
     ...(settings.followUpBehavior !== DEFAULT_UNIFIED_SETTINGS.followUpBehavior
       ? ["Follow-up behavior"]
       : []),
-    ...(settings.toolCallVisibility !==
-    DEFAULT_UNIFIED_SETTINGS.toolCallVisibility
+    ...(settings.toolCallVisibility !== DEFAULT_UNIFIED_SETTINGS.toolCallVisibility
       ? ["Tool calls in chat"]
       : []),
-    ...(settings.screenReaderAnnouncements !==
-    DEFAULT_UNIFIED_SETTINGS.screenReaderAnnouncements
+    ...(settings.screenReaderAnnouncements !== DEFAULT_UNIFIED_SETTINGS.screenReaderAnnouncements
       ? [translateWebSource(locale, "Screen reader announcements")]
       : []),
-    ...(settings.screenReaderWindowTitle !==
-    DEFAULT_UNIFIED_SETTINGS.screenReaderWindowTitle
+    ...(settings.screenReaderWindowTitle !== DEFAULT_UNIFIED_SETTINGS.screenReaderWindowTitle
       ? ["Screen reader window title"]
       : []),
-    ...(settings.responseStreamingMode !==
-    DEFAULT_UNIFIED_SETTINGS.responseStreamingMode
+    ...(settings.responseStreamingMode !== DEFAULT_UNIFIED_SETTINGS.responseStreamingMode
       ? ["Response streaming"]
       : []),
-    ...(settings.enableProviderUpdateChecks !==
-    DEFAULT_UNIFIED_SETTINGS.enableProviderUpdateChecks
+    ...(settings.enableProviderUpdateChecks !== DEFAULT_UNIFIED_SETTINGS.enableProviderUpdateChecks
       ? ["Provider update checks"]
       : []),
     ...(settings.continueThreadsAfterServerUpdate !==
@@ -708,48 +607,38 @@ export function useSettingsRestore(onRestored?: () => void) {
       ? ["Continue threads after restarts"]
       : []),
     ...(isBackgroundActivityDirty ? ["Background activity"] : []),
-    ...(settings.keepAwakeWhileAgentsWork !==
-    DEFAULT_UNIFIED_SETTINGS.keepAwakeWhileAgentsWork
+    ...(settings.keepAwakeWhileAgentsWork !== DEFAULT_UNIFIED_SETTINGS.keepAwakeWhileAgentsWork
       ? ["Keep awake while agents work"]
       : []),
-    ...(settings.defaultThreadEnvMode !==
-    DEFAULT_UNIFIED_SETTINGS.defaultThreadEnvMode
+    ...(settings.defaultThreadEnvMode !== DEFAULT_UNIFIED_SETTINGS.defaultThreadEnvMode
       ? ["New thread mode"]
       : []),
     ...(settings.newWorktreesStartFromOrigin !==
     DEFAULT_UNIFIED_SETTINGS.newWorktreesStartFromOrigin
       ? ["New worktrees start from remote"]
       : []),
-    ...(settings.addProjectBaseDirectory !==
-    DEFAULT_UNIFIED_SETTINGS.addProjectBaseDirectory
+    ...(settings.addProjectBaseDirectory !== DEFAULT_UNIFIED_SETTINGS.addProjectBaseDirectory
       ? ["Add project base directory"]
       : []),
     ...(settings.ghqCloneLayout !== DEFAULT_UNIFIED_SETTINGS.ghqCloneLayout
       ? ["Clone into host folders"]
       : []),
-    ...(settings.confirmThreadUnpin !==
-    DEFAULT_UNIFIED_SETTINGS.confirmThreadUnpin
+    ...(settings.confirmThreadUnpin !== DEFAULT_UNIFIED_SETTINGS.confirmThreadUnpin
       ? ["Unpin confirmation"]
       : []),
-    ...(settings.confirmThreadArchive !==
-    DEFAULT_UNIFIED_SETTINGS.confirmThreadArchive
+    ...(settings.confirmThreadArchive !== DEFAULT_UNIFIED_SETTINGS.confirmThreadArchive
       ? ["Archive confirmation"]
       : []),
-    ...(settings.confirmThreadDelete !==
-    DEFAULT_UNIFIED_SETTINGS.confirmThreadDelete
+    ...(settings.confirmThreadDelete !== DEFAULT_UNIFIED_SETTINGS.confirmThreadDelete
       ? ["Delete confirmation"]
       : []),
-    ...(settings.confirmQuit !== DEFAULT_UNIFIED_SETTINGS.confirmQuit
-      ? ["Quit shortcut"]
-      : []),
+    ...(settings.confirmQuit !== DEFAULT_UNIFIED_SETTINGS.confirmQuit ? ["Quit shortcut"] : []),
     ...(isTextGenerationModelDirty ? ["Text generation model"] : []),
-    ...(settings.threadTitleInstructions !==
-    DEFAULT_UNIFIED_SETTINGS.threadTitleInstructions
+    ...(settings.threadTitleInstructions !== DEFAULT_UNIFIED_SETTINGS.threadTitleInstructions
       ? ["Thread title instructions"]
       : []),
     ...getChangedBrowserSettingLabels(settings),
-    ...(settings.enableAgentBrowserAccess !==
-    DEFAULT_UNIFIED_SETTINGS.enableAgentBrowserAccess
+    ...(settings.enableAgentBrowserAccess !== DEFAULT_UNIFIED_SETTINGS.enableAgentBrowserAccess
       ? ["Agent browser access"]
       : []),
   ];
@@ -779,8 +668,7 @@ export function useSettingsRestore(onRestored?: () => void) {
     const liveHalves = readThemeHalves();
     const needsThemeReset = previousTheme !== "system";
     const needsMixReset = liveHalves !== null;
-    const needsFollowSystemReset =
-      readAppearanceModePreference(previousTheme) !== "system";
+    const needsFollowSystemReset = readAppearanceModePreference(previousTheme) !== "system";
     const notifyThemeRestoreFailure = () => {
       toastManager.add(
         stackedThreadToast({
@@ -820,11 +708,9 @@ export function useSettingsRestore(onRestored?: () => void) {
       language: resolveClientLanguage(DEFAULT_UNIFIED_SETTINGS),
       timestampFormat: DEFAULT_UNIFIED_SETTINGS.timestampFormat,
       notificationMode: DEFAULT_UNIFIED_SETTINGS.notificationMode,
-      inAppNotificationsEnabled:
-        DEFAULT_UNIFIED_SETTINGS.inAppNotificationsEnabled,
+      inAppNotificationsEnabled: DEFAULT_UNIFIED_SETTINGS.inAppNotificationsEnabled,
       wordWrap: DEFAULT_UNIFIED_SETTINGS.wordWrap,
-      persistComposerContextStrip:
-        DEFAULT_UNIFIED_SETTINGS.persistComposerContextStrip,
+      persistComposerContextStrip: DEFAULT_UNIFIED_SETTINGS.persistComposerContextStrip,
       diffFilesCollapsed: DEFAULT_UNIFIED_SETTINGS.diffFilesCollapsed,
       diffIgnoreWhitespace: DEFAULT_UNIFIED_SETTINGS.diffIgnoreWhitespace,
       diffLayout: DEFAULT_UNIFIED_SETTINGS.diffLayout,
@@ -834,54 +720,37 @@ export function useSettingsRestore(onRestored?: () => void) {
       sendShortcut: DEFAULT_UNIFIED_SETTINGS.sendShortcut,
       followUpBehavior: DEFAULT_UNIFIED_SETTINGS.followUpBehavior,
       toolCallVisibility: DEFAULT_UNIFIED_SETTINGS.toolCallVisibility,
-      screenReaderAnnouncements:
-        DEFAULT_UNIFIED_SETTINGS.screenReaderAnnouncements,
+      screenReaderAnnouncements: DEFAULT_UNIFIED_SETTINGS.screenReaderAnnouncements,
       screenReaderWindowTitle: DEFAULT_UNIFIED_SETTINGS.screenReaderWindowTitle,
-      environmentIdentificationMode:
-        DEFAULT_UNIFIED_SETTINGS.environmentIdentificationMode,
+      environmentIdentificationMode: DEFAULT_UNIFIED_SETTINGS.environmentIdentificationMode,
       glassOpacity: DEFAULT_UNIFIED_SETTINGS.glassOpacity,
-      panelAnimationDurationMs:
-        DEFAULT_UNIFIED_SETTINGS.panelAnimationDurationMs,
-      sidebarProjectGroupingMode:
-        DEFAULT_UNIFIED_SETTINGS.sidebarProjectGroupingMode,
+      panelAnimationDurationMs: DEFAULT_UNIFIED_SETTINGS.panelAnimationDurationMs,
+      sidebarProjectGroupingMode: DEFAULT_UNIFIED_SETTINGS.sidebarProjectGroupingMode,
       sidebarProjectSortOrder: DEFAULT_UNIFIED_SETTINGS.sidebarProjectSortOrder,
-      sidebarWorkingShelfEnabled:
-        DEFAULT_UNIFIED_SETTINGS.sidebarWorkingShelfEnabled,
-      sidebarAutoSettleAfterDays:
-        DEFAULT_UNIFIED_SETTINGS.sidebarAutoSettleAfterDays,
-      sidebarAutoSettleKeepPullRequests:
-        DEFAULT_UNIFIED_SETTINGS.sidebarAutoSettleKeepPullRequests,
-      sidebarAutoSettleOnMerge:
-        DEFAULT_UNIFIED_SETTINGS.sidebarAutoSettleOnMerge,
-      autoResumeLimitedThreads:
-        DEFAULT_UNIFIED_SETTINGS.autoResumeLimitedThreads,
+      sidebarWorkingShelfEnabled: DEFAULT_UNIFIED_SETTINGS.sidebarWorkingShelfEnabled,
+      sidebarAutoSettleAfterDays: DEFAULT_UNIFIED_SETTINGS.sidebarAutoSettleAfterDays,
+      sidebarAutoSettleKeepPullRequests: DEFAULT_UNIFIED_SETTINGS.sidebarAutoSettleKeepPullRequests,
+      sidebarAutoSettleOnMerge: DEFAULT_UNIFIED_SETTINGS.sidebarAutoSettleOnMerge,
+      autoResumeLimitedThreads: DEFAULT_UNIFIED_SETTINGS.autoResumeLimitedThreads,
       snoozeLimitedThreads: DEFAULT_UNIFIED_SETTINGS.snoozeLimitedThreads,
       snoozePresets: DEFAULT_UNIFIED_SETTINGS.snoozePresets,
       responseStreamingMode: DEFAULT_UNIFIED_SETTINGS.responseStreamingMode,
-      enableProviderUpdateChecks:
-        DEFAULT_UNIFIED_SETTINGS.enableProviderUpdateChecks,
-      continueThreadsAfterServerUpdate:
-        DEFAULT_UNIFIED_SETTINGS.continueThreadsAfterServerUpdate,
+      enableProviderUpdateChecks: DEFAULT_UNIFIED_SETTINGS.enableProviderUpdateChecks,
+      continueThreadsAfterServerUpdate: DEFAULT_UNIFIED_SETTINGS.continueThreadsAfterServerUpdate,
       backgroundActivity: DEFAULT_UNIFIED_SETTINGS.backgroundActivity,
-      keepAwakeWhileAgentsWork:
-        DEFAULT_UNIFIED_SETTINGS.keepAwakeWhileAgentsWork,
-      backgroundActivityProfile:
-        DEFAULT_UNIFIED_SETTINGS.backgroundActivityProfile,
-      automaticGitFetchInterval:
-        DEFAULT_UNIFIED_SETTINGS.automaticGitFetchInterval,
-      providerHealthRefreshInterval:
-        DEFAULT_UNIFIED_SETTINGS.providerHealthRefreshInterval,
+      keepAwakeWhileAgentsWork: DEFAULT_UNIFIED_SETTINGS.keepAwakeWhileAgentsWork,
+      backgroundActivityProfile: DEFAULT_UNIFIED_SETTINGS.backgroundActivityProfile,
+      automaticGitFetchInterval: DEFAULT_UNIFIED_SETTINGS.automaticGitFetchInterval,
+      providerHealthRefreshInterval: DEFAULT_UNIFIED_SETTINGS.providerHealthRefreshInterval,
       defaultThreadEnvMode: DEFAULT_UNIFIED_SETTINGS.defaultThreadEnvMode,
-      newWorktreesStartFromOrigin:
-        DEFAULT_UNIFIED_SETTINGS.newWorktreesStartFromOrigin,
+      newWorktreesStartFromOrigin: DEFAULT_UNIFIED_SETTINGS.newWorktreesStartFromOrigin,
       addProjectBaseDirectory: DEFAULT_UNIFIED_SETTINGS.addProjectBaseDirectory,
       ghqCloneLayout: DEFAULT_UNIFIED_SETTINGS.ghqCloneLayout,
       confirmThreadArchive: DEFAULT_UNIFIED_SETTINGS.confirmThreadArchive,
       confirmThreadDelete: DEFAULT_UNIFIED_SETTINGS.confirmThreadDelete,
       confirmThreadUnpin: DEFAULT_UNIFIED_SETTINGS.confirmThreadUnpin,
       confirmQuit: DEFAULT_UNIFIED_SETTINGS.confirmQuit,
-      textGenerationModelSelection:
-        DEFAULT_UNIFIED_SETTINGS.textGenerationModelSelection,
+      textGenerationModelSelection: DEFAULT_UNIFIED_SETTINGS.textGenerationModelSelection,
       threadTitleInstructions: DEFAULT_UNIFIED_SETTINGS.threadTitleInstructions,
       fontFamilySans: DEFAULT_UNIFIED_SETTINGS.fontFamilySans,
       fontFamilyComposer: DEFAULT_UNIFIED_SETTINGS.fontFamilyComposer,
@@ -892,25 +761,17 @@ export function useSettingsRestore(onRestored?: () => void) {
       fontSizeCode: DEFAULT_UNIFIED_SETTINGS.fontSizeCode,
       fontSizeTerminal: DEFAULT_UNIFIED_SETTINGS.fontSizeTerminal,
       browserDefaultViewport: DEFAULT_UNIFIED_SETTINGS.browserDefaultViewport,
-      browserDefaultZoomFactor:
-        DEFAULT_UNIFIED_SETTINGS.browserDefaultZoomFactor,
-      browserDefaultAppearance:
-        DEFAULT_UNIFIED_SETTINGS.browserDefaultAppearance,
-      browserRecordingFrameRate:
-        DEFAULT_UNIFIED_SETTINGS.browserRecordingFrameRate,
-      browserRecordingShowKeyPresses:
-        DEFAULT_UNIFIED_SETTINGS.browserRecordingShowKeyPresses,
-      browserRecordingShowMousePresses:
-        DEFAULT_UNIFIED_SETTINGS.browserRecordingShowMousePresses,
+      browserDefaultZoomFactor: DEFAULT_UNIFIED_SETTINGS.browserDefaultZoomFactor,
+      browserDefaultAppearance: DEFAULT_UNIFIED_SETTINGS.browserDefaultAppearance,
+      browserRecordingFrameRate: DEFAULT_UNIFIED_SETTINGS.browserRecordingFrameRate,
+      browserRecordingShowKeyPresses: DEFAULT_UNIFIED_SETTINGS.browserRecordingShowKeyPresses,
+      browserRecordingShowMousePresses: DEFAULT_UNIFIED_SETTINGS.browserRecordingShowMousePresses,
       browserLinkTarget: DEFAULT_UNIFIED_SETTINGS.browserLinkTarget,
       browserSearchEngine: DEFAULT_UNIFIED_SETTINGS.browserSearchEngine,
       browserCustomSearchUrl: DEFAULT_UNIFIED_SETTINGS.browserCustomSearchUrl,
-      browserAutoShowFloatingPreview:
-        DEFAULT_UNIFIED_SETTINGS.browserAutoShowFloatingPreview,
-      pullRequestLinksOpenInApp:
-        DEFAULT_UNIFIED_SETTINGS.pullRequestLinksOpenInApp,
-      enableAgentBrowserAccess:
-        DEFAULT_UNIFIED_SETTINGS.enableAgentBrowserAccess,
+      browserAutoShowFloatingPreview: DEFAULT_UNIFIED_SETTINGS.browserAutoShowFloatingPreview,
+      pullRequestLinksOpenInApp: DEFAULT_UNIFIED_SETTINGS.pullRequestLinksOpenInApp,
+      enableAgentBrowserAccess: DEFAULT_UNIFIED_SETTINGS.enableAgentBrowserAccess,
     });
     onRestored?.();
   };
@@ -921,8 +782,7 @@ export function useSettingsRestore(onRestored?: () => void) {
   };
 }
 
-const AUTO_SETTLE_DEFAULT_DAYS =
-  DEFAULT_UNIFIED_SETTINGS.sidebarAutoSettleAfterDays ?? 7;
+const AUTO_SETTLE_DEFAULT_DAYS = DEFAULT_UNIFIED_SETTINGS.sidebarAutoSettleAfterDays ?? 7;
 
 function AutoSettleDaysInput({
   value,
@@ -942,8 +802,7 @@ function AutoSettleDaysInput({
     if (next.submit === null) return;
     const { revision } = next.field;
     onCommit(next.submit, {
-      onFailed: () =>
-        setField((current) => failAutoSettleDaysField(current, revision)),
+      onFailed: () => setField((current) => failAutoSettleDaysField(current, revision)),
     });
   };
 
@@ -955,9 +814,7 @@ function AutoSettleDaysInput({
       max={MAX_SIDEBAR_AUTO_SETTLE_AFTER_DAYS}
       className="w-full sm:w-24"
       value={field.draft}
-      onChange={(event) =>
-        setField(editAutoSettleDaysField(field, event.target.value))
-      }
+      onChange={(event) => setField(editAutoSettleDaysField(field, event.target.value))}
       onBlur={commit}
       onKeyDown={(event) => {
         if (event.nativeEvent.isComposing) return;
@@ -969,10 +826,7 @@ function AutoSettleDaysInput({
           setField(cancelAutoSettleDaysField(field));
         }
       }}
-      aria-label={translateWebSource(
-        locale,
-        "Days of inactivity before auto-settle",
-      )}
+      aria-label={translateWebSource(locale, "Days of inactivity before auto-settle")}
     />
   );
 }
@@ -987,7 +841,7 @@ function useTranslatedSearchableSetting() {
 }
 
 export function GeneralSettingsPanel() {
-  const { locale, t } = useI18n();
+  const { locale } = useI18n();
   const gt = useGT();
   const m = useMessages();
   const setting = useTranslatedSearchableSetting();
@@ -996,9 +850,7 @@ export function GeneralSettingsPanel() {
   const lastEnabledProjectGroupingMode = useRef<SidebarProjectGroupingMode>(
     readLastEnabledProjectGroupingMode(),
   );
-  const languageValue = SUPPORTED_LOCALES.includes(
-    resolveClientLanguage(settings),
-  )
+  const languageValue = SUPPORTED_LOCALES.includes(resolveClientLanguage(settings))
     ? resolveClientLanguage(settings)
     : SYSTEM_LANGUAGE;
 
@@ -1010,16 +862,14 @@ export function GeneralSettingsPanel() {
           {...setting("in-app-notifications")}
           description={
             <T>
-              Show a toast when another thread finishes, fails, or needs input
-              or approval while this app has focus.
+              Show a toast when another thread finishes, fails, or needs input or approval while
+              this app has focus.
             </T>
           }
           control={
             <Switch
               checked={settings.inAppNotificationsEnabled}
-              onCheckedChange={(checked) =>
-                updateSettings({ inAppNotificationsEnabled: checked })
-              }
+              onCheckedChange={(checked) => updateSettings({ inAppNotificationsEnabled: checked })}
               aria-label={gt("In-app notifications")}
             />
           }
@@ -1029,9 +879,7 @@ export function GeneralSettingsPanel() {
       <SettingsSection id="sidebar" title={gt("Sidebar")}>
         <SettingsRow
           {...setting("project-grouping")}
-          description={
-            <T>Combine matching repositories across environments.</T>
-          }
+          description={<T>Combine matching repositories across environments.</T>}
           resetAction={
             settings.sidebarProjectGroupingMode !==
             DEFAULT_UNIFIED_SETTINGS.sidebarProjectGroupingMode ? (
@@ -1039,8 +887,7 @@ export function GeneralSettingsPanel() {
                 label="project grouping"
                 onClick={() =>
                   updateSettings({
-                    sidebarProjectGroupingMode:
-                      DEFAULT_UNIFIED_SETTINGS.sidebarProjectGroupingMode,
+                    sidebarProjectGroupingMode: DEFAULT_UNIFIED_SETTINGS.sidebarProjectGroupingMode,
                   })
                 }
               />
@@ -1048,19 +895,11 @@ export function GeneralSettingsPanel() {
           }
           control={
             <Switch
-              checked={isProjectGroupingEnabled(
-                settings.sidebarProjectGroupingMode,
-              )}
+              checked={isProjectGroupingEnabled(settings.sidebarProjectGroupingMode)}
               onCheckedChange={(checked) => {
-                if (
-                  !checked &&
-                  settings.sidebarProjectGroupingMode !== "separate"
-                ) {
-                  lastEnabledProjectGroupingMode.current =
-                    settings.sidebarProjectGroupingMode;
-                  rememberEnabledProjectGroupingMode(
-                    settings.sidebarProjectGroupingMode,
-                  );
+                if (!checked && settings.sidebarProjectGroupingMode !== "separate") {
+                  lastEnabledProjectGroupingMode.current = settings.sidebarProjectGroupingMode;
+                  rememberEnabledProjectGroupingMode(settings.sidebarProjectGroupingMode);
                 }
                 updateSettings({
                   sidebarProjectGroupingMode: projectGroupingModeFromToggle(
@@ -1075,12 +914,7 @@ export function GeneralSettingsPanel() {
         />
         <SettingsRow
           {...setting("project-order")}
-          description={
-            <T>
-              Order of projects in the sidebar project picker and command
-              palette.
-            </T>
-          }
+          description={<T>Order of projects in the sidebar project picker and command palette.</T>}
           resetAction={
             settings.sidebarProjectSortOrder !==
             DEFAULT_UNIFIED_SETTINGS.sidebarProjectSortOrder ? (
@@ -1088,8 +922,7 @@ export function GeneralSettingsPanel() {
                 label="project order"
                 onClick={() =>
                   updateSettings({
-                    sidebarProjectSortOrder:
-                      DEFAULT_UNIFIED_SETTINGS.sidebarProjectSortOrder,
+                    sidebarProjectSortOrder: DEFAULT_UNIFIED_SETTINGS.sidebarProjectSortOrder,
                   })
                 }
               />
@@ -1104,17 +937,9 @@ export function GeneralSettingsPanel() {
                 }
               }}
             >
-              <SelectTrigger
-                size="sm"
-                className="w-full sm:w-44"
-                aria-label={gt("Project order")}
-              >
+              <SelectTrigger size="sm" className="w-full sm:w-44" aria-label={gt("Project order")}>
                 <SelectValue>
-                  {m(
-                    SIDEBAR_PROJECT_SORT_ORDER_LABELS[
-                      settings.sidebarProjectSortOrder
-                    ],
-                  )}
+                  {m(SIDEBAR_PROJECT_SORT_ORDER_LABELS[settings.sidebarProjectSortOrder])}
                 </SelectValue>
               </SelectTrigger>
               <SelectPopup align="end" alignItemWithTrigger={false}>
@@ -1131,9 +956,8 @@ export function GeneralSettingsPanel() {
           {...setting("working-shelf")}
           description={
             <T>
-              Fold working and monitoring threads into a Working section. They
-              return to the top of the inbox when they need you. The boring
-              sidebar in Labs has no Working section.
+              Fold working and monitoring threads into a Working section. They return to the top of
+              the inbox when they need you. The boring sidebar in Labs has no Working section.
             </T>
           }
           resetAction={
@@ -1143,8 +967,7 @@ export function GeneralSettingsPanel() {
                 label={translateWebSource(locale, "Working section")}
                 onClick={() =>
                   updateSettings({
-                    sidebarWorkingShelfEnabled:
-                      DEFAULT_UNIFIED_SETTINGS.sidebarWorkingShelfEnabled,
+                    sidebarWorkingShelfEnabled: DEFAULT_UNIFIED_SETTINGS.sidebarWorkingShelfEnabled,
                   })
                 }
               />
@@ -1165,18 +988,14 @@ export function GeneralSettingsPanel() {
       <SettingsSection id="confirmations" title={gt("Confirmations")}>
         <SettingsRow
           {...setting("unpin-confirmation")}
-          description={
-            <T>Ask before unpinning a thread from the pinned section.</T>
-          }
+          description={<T>Ask before unpinning a thread from the pinned section.</T>}
           resetAction={
-            settings.confirmThreadUnpin !==
-            DEFAULT_UNIFIED_SETTINGS.confirmThreadUnpin ? (
+            settings.confirmThreadUnpin !== DEFAULT_UNIFIED_SETTINGS.confirmThreadUnpin ? (
               <SettingResetButton
                 label="unpin confirmation"
                 onClick={() =>
                   updateSettings({
-                    confirmThreadUnpin:
-                      DEFAULT_UNIFIED_SETTINGS.confirmThreadUnpin,
+                    confirmThreadUnpin: DEFAULT_UNIFIED_SETTINGS.confirmThreadUnpin,
                   })
                 }
               />
@@ -1195,20 +1014,15 @@ export function GeneralSettingsPanel() {
         <SettingsRow
           {...setting("archive-confirmation")}
           description={
-            <T>
-              Require a second click on the inline archive action before a
-              thread is archived.
-            </T>
+            <T>Require a second click on the inline archive action before a thread is archived.</T>
           }
           resetAction={
-            settings.confirmThreadArchive !==
-            DEFAULT_UNIFIED_SETTINGS.confirmThreadArchive ? (
+            settings.confirmThreadArchive !== DEFAULT_UNIFIED_SETTINGS.confirmThreadArchive ? (
               <SettingResetButton
                 label="archive confirmation"
                 onClick={() =>
                   updateSettings({
-                    confirmThreadArchive:
-                      DEFAULT_UNIFIED_SETTINGS.confirmThreadArchive,
+                    confirmThreadArchive: DEFAULT_UNIFIED_SETTINGS.confirmThreadArchive,
                   })
                 }
               />
@@ -1226,18 +1040,14 @@ export function GeneralSettingsPanel() {
         />
         <SettingsRow
           {...setting("delete-confirmation")}
-          description={
-            <T>Ask before deleting a thread and its chat history.</T>
-          }
+          description={<T>Ask before deleting a thread and its chat history.</T>}
           resetAction={
-            settings.confirmThreadDelete !==
-            DEFAULT_UNIFIED_SETTINGS.confirmThreadDelete ? (
+            settings.confirmThreadDelete !== DEFAULT_UNIFIED_SETTINGS.confirmThreadDelete ? (
               <SettingResetButton
                 label="delete confirmation"
                 onClick={() =>
                   updateSettings({
-                    confirmThreadDelete:
-                      DEFAULT_UNIFIED_SETTINGS.confirmThreadDelete,
+                    confirmThreadDelete: DEFAULT_UNIFIED_SETTINGS.confirmThreadDelete,
                   })
                 }
               />
@@ -1273,11 +1083,7 @@ export function GeneralSettingsPanel() {
               <Select
                 value={settings.confirmQuit}
                 onValueChange={(value) => {
-                  if (
-                    value === "direct" ||
-                    value === "hold" ||
-                    value === "double-click"
-                  ) {
+                  if (value === "direct" || value === "hold" || value === "double-click") {
                     updateSettings({ confirmQuit: value });
                   }
                 }}
@@ -1292,13 +1098,11 @@ export function GeneralSettingsPanel() {
                   </SelectValue>
                 </SelectTrigger>
                 <SelectPopup align="end" alignItemWithTrigger={false}>
-                  {Object.entries(QUIT_CONFIRMATION_MODE_LABELS).map(
-                    ([value, label]) => (
-                      <SelectItem hideIndicator key={value} value={value}>
-                        {m(label)}
-                      </SelectItem>
-                    ),
-                  )}
+                  {Object.entries(QUIT_CONFIRMATION_MODE_LABELS).map(([value, label]) => (
+                    <SelectItem hideIndicator key={value} value={value}>
+                      {m(label)}
+                    </SelectItem>
+                  ))}
                 </SelectPopup>
               </Select>
             }
@@ -1309,12 +1113,9 @@ export function GeneralSettingsPanel() {
       <SettingsSection id="display" title={gt("Display")}>
         <SettingsRow
           {...setting("language")}
-          description={
-            <T>System default follows your browser or OS language.</T>
-          }
+          description={<T>System default follows your browser or OS language.</T>}
           resetAction={
-            resolveClientLanguage(settings) !==
-            resolveClientLanguage(DEFAULT_UNIFIED_SETTINGS) ? (
+            resolveClientLanguage(settings) !== resolveClientLanguage(DEFAULT_UNIFIED_SETTINGS) ? (
               <SettingResetButton
                 label="language"
                 onClick={() =>
@@ -1334,11 +1135,7 @@ export function GeneralSettingsPanel() {
                 }
               }}
             >
-              <SelectTrigger
-                size="sm"
-                className="w-full sm:w-40"
-                aria-label={gt("Language")}
-              >
+              <SelectTrigger size="sm" className="w-full sm:w-40" aria-label={gt("Language")}>
                 <SelectValue>
                   {languageValue === SYSTEM_LANGUAGE
                     ? m(TIMESTAMP_FORMAT_LABELS.locale)
@@ -1360,12 +1157,9 @@ export function GeneralSettingsPanel() {
         />
         <SettingsRow
           {...setting("time-format")}
-          description={
-            <T>System default follows your browser or OS clock preference.</T>
-          }
+          description={<T>System default follows your browser or OS clock preference.</T>}
           resetAction={
-            settings.timestampFormat !==
-            DEFAULT_UNIFIED_SETTINGS.timestampFormat ? (
+            settings.timestampFormat !== DEFAULT_UNIFIED_SETTINGS.timestampFormat ? (
               <SettingResetButton
                 label="time format"
                 onClick={() =>
@@ -1380,11 +1174,7 @@ export function GeneralSettingsPanel() {
             <Select
               value={settings.timestampFormat}
               onValueChange={(value) => {
-                if (
-                  value === "locale" ||
-                  value === "12-hour" ||
-                  value === "24-hour"
-                ) {
+                if (value === "locale" || value === "12-hour" || value === "24-hour") {
                   updateSettings({ timestampFormat: value });
                 }
               }}
@@ -1394,9 +1184,7 @@ export function GeneralSettingsPanel() {
                 className="w-full sm:w-40"
                 aria-label={gt("Timestamp format")}
               >
-                <SelectValue>
-                  {m(TIMESTAMP_FORMAT_LABELS[settings.timestampFormat])}
-                </SelectValue>
+                <SelectValue>{m(TIMESTAMP_FORMAT_LABELS[settings.timestampFormat])}</SelectValue>
               </SelectTrigger>
               <SelectPopup align="end" alignItemWithTrigger={false}>
                 <SelectItem hideIndicator value="locale">
@@ -1439,10 +1227,7 @@ export function ChatSettingsPanel() {
       <SettingsSection id="composer" title="Composer">
         <SettingsRow
           {...searchableSetting("composer-rich-text")}
-          title={translateWebExtraSource(
-            translationLocale,
-            "Rich text composer",
-          )}
+          title={translateWebExtraSource(translationLocale, "Rich text composer")}
           description={translateWebExtraSource(
             translationLocale,
             "Show formatted Markdown as you type.",
@@ -1454,8 +1239,7 @@ export function ChatSettingsPanel() {
                 label="rich text composer"
                 onClick={() =>
                   updateSettings({
-                    composerRichTextEnabled:
-                      DEFAULT_UNIFIED_SETTINGS.composerRichTextEnabled,
+                    composerRichTextEnabled: DEFAULT_UNIFIED_SETTINGS.composerRichTextEnabled,
                   })
                 }
               />
@@ -1467,10 +1251,7 @@ export function ChatSettingsPanel() {
               onCheckedChange={(checked) =>
                 updateSettings({ composerRichTextEnabled: Boolean(checked) })
               }
-              aria-label={translateWebExtraSource(
-                translationLocale,
-                "Rich text composer",
-              )}
+              aria-label={translateWebExtraSource(translationLocale, "Rich text composer")}
             />
           }
         />
@@ -1497,25 +1278,19 @@ export function ChatSettingsPanel() {
             <Select
               value={settings.sendShortcut}
               onValueChange={(value) => {
-                const option = sendShortcutOptions.find(
-                  (option) => option.value === value,
-                );
+                const option = sendShortcutOptions.find((option) => option.value === value);
                 if (option) updateSettings({ sendShortcut: option.value });
               }}
             >
               <SelectTrigger
                 size="sm"
                 className="w-auto min-w-0 max-w-full"
-                aria-label={translateWebExtraSource(
-                  translationLocale,
-                  "Send shortcut",
-                )}
+                aria-label={translateWebExtraSource(translationLocale, "Send shortcut")}
               >
                 <SelectValue>
                   {
-                    sendShortcutOptions.find(
-                      (option) => option.value === settings.sendShortcut,
-                    )?.label
+                    sendShortcutOptions.find((option) => option.value === settings.sendShortcut)
+                      ?.label
                   }
                 </SelectValue>
               </SelectTrigger>
@@ -1524,9 +1299,7 @@ export function ChatSettingsPanel() {
                   <SelectItem key={option.value} value={option.value}>
                     <span className="flex items-center justify-between gap-4">
                       {option.label}
-                      {settings.sendShortcut === option.value && (
-                        <CheckIcon aria-hidden="true" />
-                      )}
+                      {settings.sendShortcut === option.value && <CheckIcon aria-hidden="true" />}
                     </span>
                   </SelectItem>
                 ))}
@@ -1534,21 +1307,17 @@ export function ChatSettingsPanel() {
             </Select>
           }
         />
-        <AdvancedSettings
-          targetIds={[searchableSetting("skills-in-slash-menu").id]}
-        >
+        <AdvancedSettings targetIds={[searchableSetting("skills-in-slash-menu").id]}>
           <SettingsRow
             {...searchableSetting("skills-in-slash-menu")}
             description="Also include skills in the / command menu. Skills always appear when you type $."
             resetAction={
-              settings.showSkillsInSlashMenu !==
-              DEFAULT_UNIFIED_SETTINGS.showSkillsInSlashMenu ? (
+              settings.showSkillsInSlashMenu !== DEFAULT_UNIFIED_SETTINGS.showSkillsInSlashMenu ? (
                 <SettingResetButton
                   label="skills in slash menu"
                   onClick={() =>
                     updateSettings({
-                      showSkillsInSlashMenu:
-                        DEFAULT_UNIFIED_SETTINGS.showSkillsInSlashMenu,
+                      showSkillsInSlashMenu: DEFAULT_UNIFIED_SETTINGS.showSkillsInSlashMenu,
                     })
                   }
                 />
@@ -1560,10 +1329,7 @@ export function ChatSettingsPanel() {
                 onCheckedChange={(checked) =>
                   updateSettings({ showSkillsInSlashMenu: Boolean(checked) })
                 }
-                aria-label={translateWebSource(
-                  translationLocale,
-                  "Show skills in slash menu",
-                )}
+                aria-label={translateWebSource(translationLocale, "Show skills in slash menu")}
               />
             }
           />
@@ -1584,8 +1350,7 @@ export function ChatSettingsPanel() {
                 })
           }
           resetAction={
-            settings.followUpBehavior !==
-            DEFAULT_UNIFIED_SETTINGS.followUpBehavior ? (
+            settings.followUpBehavior !== DEFAULT_UNIFIED_SETTINGS.followUpBehavior ? (
               <SettingResetButton
                 label="follow-up behavior"
                 onClick={() =>
@@ -1608,10 +1373,7 @@ export function ChatSettingsPanel() {
               <SelectTrigger
                 size="sm"
                 className="w-auto min-w-0"
-                aria-label={translateWebSource(
-                  translationLocale,
-                  "Follow-up behavior",
-                )}
+                aria-label={translateWebSource(translationLocale, "Follow-up behavior")}
               >
                 <SelectValue>
                   {translateWebSource(
@@ -1663,8 +1425,7 @@ function ToolCallVisibilityRow() {
       {...searchableSetting("tool-call-visibility")}
       description="Hide the commands, edits, and searches agents run. Hide successful keeps failures. Zen shows only final answers. Approvals, questions, and errors always show."
       resetAction={
-        settings.toolCallVisibility !==
-        DEFAULT_UNIFIED_SETTINGS.toolCallVisibility ? (
+        settings.toolCallVisibility !== DEFAULT_UNIFIED_SETTINGS.toolCallVisibility ? (
           <SettingResetButton
             label="tool calls in chat"
             onClick={() =>
@@ -1679,8 +1440,7 @@ function ToolCallVisibilityRow() {
         <Select
           value={settings.toolCallVisibility}
           onValueChange={(value) => {
-            if (isToolCallVisibility(value))
-              updateSettings({ toolCallVisibility: value });
+            if (isToolCallVisibility(value)) updateSettings({ toolCallVisibility: value });
           }}
         >
           <SelectTrigger
@@ -1689,10 +1449,7 @@ function ToolCallVisibilityRow() {
             aria-label={translateWebSource(locale, "Tool calls in chat")}
           >
             <SelectValue>
-              {translateWebSource(
-                locale,
-                TOOL_CALL_VISIBILITY_LABELS[settings.toolCallVisibility],
-              )}
+              {translateWebSource(locale, TOOL_CALL_VISIBILITY_LABELS[settings.toolCallVisibility])}
             </SelectValue>
           </SelectTrigger>
           <SelectPopup align="end" alignItemWithTrigger={false}>
@@ -1708,10 +1465,7 @@ function ToolCallVisibilityRow() {
   );
 }
 
-const SCREEN_READER_ANNOUNCEMENTS_LABELS: Record<
-  ScreenReaderAnnouncements,
-  string
-> = {
+const SCREEN_READER_ANNOUNCEMENTS_LABELS: Record<ScreenReaderAnnouncements, string> = {
   status: "Status only",
   messages: "Status and messages",
   everything: "Everything",
@@ -1737,8 +1491,7 @@ function ScreenReaderAnnouncementsRow() {
             label={translateWebSource(locale, "Screen reader announcements")}
             onClick={() =>
               updateSettings({
-                screenReaderAnnouncements:
-                  DEFAULT_UNIFIED_SETTINGS.screenReaderAnnouncements,
+                screenReaderAnnouncements: DEFAULT_UNIFIED_SETTINGS.screenReaderAnnouncements,
               })
             }
           />
@@ -1756,27 +1509,19 @@ function ScreenReaderAnnouncementsRow() {
           <SelectTrigger
             size="sm"
             className="w-full sm:w-48"
-            aria-label={translateWebSource(
-              locale,
-              "Screen reader announcements",
-            )}
+            aria-label={translateWebSource(locale, "Screen reader announcements")}
           >
             <SelectValue>
               {translateWebSource(
                 locale,
-                SCREEN_READER_ANNOUNCEMENTS_LABELS[
-                  settings.screenReaderAnnouncements
-                ],
+                SCREEN_READER_ANNOUNCEMENTS_LABELS[settings.screenReaderAnnouncements],
               )}
             </SelectValue>
           </SelectTrigger>
           <SelectPopup align="end" alignItemWithTrigger={false}>
             {ScreenReaderAnnouncements.literals.map((value) => (
               <SelectItem key={value} value={value}>
-                {translateWebSource(
-                  locale,
-                  SCREEN_READER_ANNOUNCEMENTS_LABELS[value],
-                )}
+                {translateWebSource(locale, SCREEN_READER_ANNOUNCEMENTS_LABELS[value])}
               </SelectItem>
             ))}
           </SelectPopup>
@@ -1794,14 +1539,12 @@ function ScreenReaderWindowTitleRow() {
       {...searchableSetting("screen-reader-window-title")}
       description="Start the window title with the thread's status, like Needs approval, and its name, so screen readers read them first when you switch apps. Taskbars, shared screens, and time trackers see it too."
       resetAction={
-        settings.screenReaderWindowTitle !==
-        DEFAULT_UNIFIED_SETTINGS.screenReaderWindowTitle ? (
+        settings.screenReaderWindowTitle !== DEFAULT_UNIFIED_SETTINGS.screenReaderWindowTitle ? (
           <SettingResetButton
             label="screen reader window title"
             onClick={() =>
               updateSettings({
-                screenReaderWindowTitle:
-                  DEFAULT_UNIFIED_SETTINGS.screenReaderWindowTitle,
+                screenReaderWindowTitle: DEFAULT_UNIFIED_SETTINGS.screenReaderWindowTitle,
               })
             }
           />
@@ -1810,9 +1553,7 @@ function ScreenReaderWindowTitleRow() {
       control={
         <Switch
           checked={settings.screenReaderWindowTitle}
-          onCheckedChange={(checked) =>
-            updateSettings({ screenReaderWindowTitle: checked })
-          }
+          onCheckedChange={(checked) => updateSettings({ screenReaderWindowTitle: checked })}
           aria-label="Screen reader window title"
         />
       }
@@ -1832,8 +1573,7 @@ function DiffColorsSettingsRow() {
         "Choose colors for additions and deletions, including change counts.",
       )}
       resetAction={
-        settings.diffColorScheme !==
-        DEFAULT_UNIFIED_SETTINGS.diffColorScheme ? (
+        settings.diffColorScheme !== DEFAULT_UNIFIED_SETTINGS.diffColorScheme ? (
           <SettingResetButton
             label="diff colors"
             onClick={() =>
@@ -1872,9 +1612,7 @@ function DiffColorsSettingsRow() {
               <SelectValue>
                 {translateWebSource(
                   translationLocale,
-                  settings.diffColorScheme === "blue-orange"
-                    ? "Blue & orange"
-                    : "Red & green",
+                  settings.diffColorScheme === "blue-orange" ? "Blue & orange" : "Red & green",
                 )}
               </SelectValue>
             </SelectTrigger>
@@ -1928,30 +1666,18 @@ export function DiffsSettingsPanel() {
               <SelectTrigger
                 size="sm"
                 className="w-full sm:w-40"
-                aria-label={translateWebSource(
-                  translationLocale,
-                  "Diff layout",
-                )}
+                aria-label={translateWebSource(translationLocale, "Diff layout")}
               >
                 <SelectValue>
-                  {translateWebSource(
-                    translationLocale,
-                    DIFF_LAYOUT_LABELS[settings.diffLayout],
-                  )}
+                  {translateWebSource(translationLocale, DIFF_LAYOUT_LABELS[settings.diffLayout])}
                 </SelectValue>
               </SelectTrigger>
               <SelectPopup align="end" alignItemWithTrigger={false}>
                 <SelectItem hideIndicator value="stacked">
-                  {translateWebSource(
-                    translationLocale,
-                    DIFF_LAYOUT_LABELS.stacked,
-                  )}
+                  {translateWebSource(translationLocale, DIFF_LAYOUT_LABELS.stacked)}
                 </SelectItem>
                 <SelectItem hideIndicator value="split">
-                  {translateWebSource(
-                    translationLocale,
-                    DIFF_LAYOUT_LABELS.split,
-                  )}
+                  {translateWebSource(translationLocale, DIFF_LAYOUT_LABELS.split)}
                 </SelectItem>
               </SelectPopup>
             </Select>
@@ -1961,14 +1687,12 @@ export function DiffsSettingsPanel() {
           {...searchableSetting("hide-whitespace-changes")}
           description="Set whether the diff panel ignores whitespace-only edits by default."
           resetAction={
-            settings.diffIgnoreWhitespace !==
-            DEFAULT_UNIFIED_SETTINGS.diffIgnoreWhitespace ? (
+            settings.diffIgnoreWhitespace !== DEFAULT_UNIFIED_SETTINGS.diffIgnoreWhitespace ? (
               <SettingResetButton
                 label="diff whitespace changes"
                 onClick={() =>
                   updateSettings({
-                    diffIgnoreWhitespace:
-                      DEFAULT_UNIFIED_SETTINGS.diffIgnoreWhitespace,
+                    diffIgnoreWhitespace: DEFAULT_UNIFIED_SETTINGS.diffIgnoreWhitespace,
                   })
                 }
               />
@@ -1994,14 +1718,12 @@ export function DiffsSettingsPanel() {
             "Start with files expanded or collapsed when opening diffs or a pull request's Code tab.",
           )}
           resetAction={
-            settings.diffFilesCollapsed !==
-            DEFAULT_UNIFIED_SETTINGS.diffFilesCollapsed ? (
+            settings.diffFilesCollapsed !== DEFAULT_UNIFIED_SETTINGS.diffFilesCollapsed ? (
               <SettingResetButton
                 label="default diff file state"
                 onClick={() =>
                   updateSettings({
-                    diffFilesCollapsed:
-                      DEFAULT_UNIFIED_SETTINGS.diffFilesCollapsed,
+                    diffFilesCollapsed: DEFAULT_UNIFIED_SETTINGS.diffFilesCollapsed,
                   })
                 }
               />
@@ -2019,10 +1741,7 @@ export function DiffsSettingsPanel() {
               <SelectTrigger
                 size="sm"
                 className="w-full sm:w-40"
-                aria-label={translateWebSource(
-                  translationLocale,
-                  "Default diff file state",
-                )}
+                aria-label={translateWebSource(translationLocale, "Default diff file state")}
               >
                 <SelectValue>
                   {translateWebSource(
@@ -2053,14 +1772,12 @@ export function DiffsSettingsPanel() {
             "Open linked pull requests first. Otherwise, open Changes for edits to at least 3 files or 50 lines.",
           )}
           resetAction={
-            settings.proactivePanelsEnabled !==
-            DEFAULT_UNIFIED_SETTINGS.proactivePanelsEnabled ? (
+            settings.proactivePanelsEnabled !== DEFAULT_UNIFIED_SETTINGS.proactivePanelsEnabled ? (
               <SettingResetButton
                 label="proactive panels"
                 onClick={() =>
                   updateSettings({
-                    proactivePanelsEnabled:
-                      DEFAULT_UNIFIED_SETTINGS.proactivePanelsEnabled,
+                    proactivePanelsEnabled: DEFAULT_UNIFIED_SETTINGS.proactivePanelsEnabled,
                   })
                 }
               />
@@ -2087,9 +1804,7 @@ export function DiffsSettingsPanel() {
 
 /** The Providers panel can render without a settings scope, as its tests do; this row needs one. */
 export function CompactIdleThreadsRow() {
-  return useOptionalSettingsScope() === null ? null : (
-    <ScopedCompactIdleThreadsRow />
-  );
+  return useOptionalSettingsScope() === null ? null : <ScopedCompactIdleThreadsRow />;
 }
 
 function ScopedCompactIdleThreadsRow() {
@@ -2097,9 +1812,7 @@ function ScopedCompactIdleThreadsRow() {
   const settings = useScopedSettings();
   const updateSettings = useUpdateScopedSettings();
   const { targets } = useSettingsScope();
-  const idleCompaction = scopedIdleCompaction(
-    targets.length > 0 ? targets : [{ settings }],
-  );
+  const idleCompaction = scopedIdleCompaction(targets.length > 0 ? targets : [{ settings }]);
 
   return (
     <SettingsRow
@@ -2113,8 +1826,7 @@ function ScopedCompactIdleThreadsRow() {
         "When to compact an idle Claude thread over 200,000 tokens: after you return, just before its prompt cache expires, or never. Each Claude provider can override this.",
       )}
       resetAction={
-        globalIdleCompaction(settings) !==
-        globalIdleCompaction(DEFAULT_UNIFIED_SETTINGS) ? (
+        globalIdleCompaction(settings) !== globalIdleCompaction(DEFAULT_UNIFIED_SETTINGS) ? (
           <SettingResetButton
             label="compact idle threads"
             onClick={() =>
@@ -2129,9 +1841,7 @@ function ScopedCompactIdleThreadsRow() {
         <Select
           value={idleCompaction.mixed ? null : globalIdleCompaction(settings)}
           onValueChange={(value) => {
-            const mode = IDLE_COMPACTION_MODES.find(
-              (candidate) => candidate.value === value,
-            );
+            const mode = IDLE_COMPACTION_MODES.find((candidate) => candidate.value === value);
             if (mode) updateSettings({ idleCompaction: mode.value });
           }}
         >
@@ -2146,8 +1856,7 @@ function ScopedCompactIdleThreadsRow() {
                   ? translateWebSource(locale, "Mixed")
                   : translateWebExtraSource(
                       locale,
-                      IDLE_COMPACTION_MODES.find((mode) => mode.value === value)
-                        ?.label ?? "",
+                      IDLE_COMPACTION_MODES.find((mode) => mode.value === value)?.label ?? "",
                     )
               }
             </SelectValue>
@@ -2159,9 +1868,7 @@ function ScopedCompactIdleThreadsRow() {
                 key={mode.value}
                 value={mode.value}
                 // A server from before modes has only the on/off switch, so it cannot store "Never".
-                disabled={
-                  mode.value === "off" && !idleCompaction.neverAvailable
-                }
+                disabled={mode.value === "off" && !idleCompaction.neverAvailable}
               >
                 {translateWebExtraSource(locale, mode.label)}
               </SelectItem>
@@ -2178,31 +1885,24 @@ export function ThreadsSettingsPanel() {
   const settings = useScopedSettings();
   const updateSettings = useUpdateScopedSettings();
   const navigate = useNavigate();
-  const { environment, connectedEnvironments, target, scope } =
-    useSettingsScope();
+  const { environment, connectedEnvironments, target, scope } = useSettingsScope();
   const isProjectScope = scope.kind === "project" || scope.kind === "checkout";
   const environmentId = environment?.environmentId ?? null;
   const hasServerTargets = connectedEnvironments.length > 0;
-  const mixedResponseStreamingMode = useScopedSettingsMixed([
-    "responseStreamingMode",
-  ]);
+  const mixedResponseStreamingMode = useScopedSettingsMixed(["responseStreamingMode"]);
   const providersByEnvironment = useEnvironmentProviders();
   const serverProviders =
     (environment?.serverConfig
       ? providersByEnvironment.get(environment.environmentId)
       : undefined) ?? EMPTY_SERVER_PROVIDERS;
   const supportsAutoSettlementScope = connectedEnvironments.every(
-    (target) =>
-      target.serverConfig?.environment.capabilities
-        .threadAutoSettlementScope === true,
+    (target) => target.serverConfig?.environment.capabilities.threadAutoSettlementScope === true,
   );
 
   const textGenerationTargets = useTextGenerationTargets({
     environmentId,
     settings,
-    providers: serverProviders.filter(
-      (provider) => provider.supportsTextGeneration !== false,
-    ),
+    providers: serverProviders.filter((provider) => provider.supportsTextGeneration !== false),
     projectId: target?.projectId ?? null,
     selections: [settings.textGenerationModelSelection],
   });
@@ -2223,13 +1923,12 @@ export function ThreadsSettingsPanel() {
   );
   const textGenProvider: ProviderDriverKind =
     textGenInstanceEntry?.driverKind ?? DEFAULT_DRIVER_KIND;
-  const textGenerationModelOptionsByInstance =
-    getTextGenerationModelOptionsByInstance(
-      settings,
-      textGenerationProviders,
-      textGenInstanceId,
-      textGenModel,
-    );
+  const textGenerationModelOptionsByInstance = getTextGenerationModelOptionsByInstance(
+    settings,
+    textGenerationProviders,
+    textGenInstanceId,
+    textGenModel,
+  );
   const isTextGenerationModelDirty = !Equal.equals(
     settings.textGenerationModelSelection ?? null,
     DEFAULT_UNIFIED_SETTINGS.textGenerationModelSelection ?? null,
@@ -2239,19 +1938,12 @@ export function ThreadsSettingsPanel() {
     textGenerationModelInstanceEntries,
     true,
   );
-  const mixedAddProjectBaseDirectory = useScopedSettingsMixed([
-    "addProjectBaseDirectory",
-  ]);
-  const mixedTextGenerationModel = useScopedSettingsMixed([
-    "textGenerationModelSelection",
-  ]);
+  const mixedAddProjectBaseDirectory = useScopedSettingsMixed(["addProjectBaseDirectory"]);
+  const mixedTextGenerationModel = useScopedSettingsMixed(["textGenerationModelSelection"]);
 
   return (
     <SettingsPageContainer>
-      <SettingsSection
-        id="new-projects"
-        title={translateWebExtraSource(locale, "New projects")}
-      >
+      <SettingsSection id="new-projects" title={translateWebExtraSource(locale, "New projects")}>
         <SettingsRow
           serverScoped
           settingKeys={["addProjectBaseDirectory"]}
@@ -2264,8 +1956,7 @@ export function ThreadsSettingsPanel() {
                 label="add project base directory"
                 onClick={() =>
                   updateSettings({
-                    addProjectBaseDirectory:
-                      DEFAULT_UNIFIED_SETTINGS.addProjectBaseDirectory,
+                    addProjectBaseDirectory: DEFAULT_UNIFIED_SETTINGS.addProjectBaseDirectory,
                   })
                 }
               />
@@ -2275,25 +1966,14 @@ export function ThreadsSettingsPanel() {
             <DraftInput
               size="sm"
               className="w-full sm:w-72"
-              value={
-                mixedAddProjectBaseDirectory
-                  ? ""
-                  : settings.addProjectBaseDirectory
-              }
-              onCommit={(next) =>
-                updateSettings({ addProjectBaseDirectory: next })
-              }
+              value={mixedAddProjectBaseDirectory ? "" : settings.addProjectBaseDirectory}
+              onCommit={(next) => updateSettings({ addProjectBaseDirectory: next })}
               normalizeDraft={resolvePastedPath}
               placeholder={
-                mixedAddProjectBaseDirectory
-                  ? translateWebSource(locale, "Mixed")
-                  : "~/"
+                mixedAddProjectBaseDirectory ? translateWebSource(locale, "Mixed") : "~/"
               }
               spellCheck={false}
-              aria-label={translateWebExtraSource(
-                locale,
-                "Add project base directory",
-              )}
+              aria-label={translateWebExtraSource(locale, "Add project base directory")}
             />
           }
         />
@@ -2303,8 +1983,7 @@ export function ThreadsSettingsPanel() {
           {...searchableSetting("ghq-clone-layout")}
           description="Clones go to github.com/owner/repo under the folder above, like ghq."
           resetAction={
-            settings.ghqCloneLayout !==
-            DEFAULT_UNIFIED_SETTINGS.ghqCloneLayout ? (
+            settings.ghqCloneLayout !== DEFAULT_UNIFIED_SETTINGS.ghqCloneLayout ? (
               <SettingResetButton
                 label="clone into host folders"
                 onClick={() =>
@@ -2319,9 +1998,7 @@ export function ThreadsSettingsPanel() {
             <ScopedSwitch
               settingKeys={["ghqCloneLayout"]}
               checked={settings.ghqCloneLayout}
-              onCheckedChange={(checked) =>
-                updateSettings({ ghqCloneLayout: Boolean(checked) })
-              }
+              onCheckedChange={(checked) => updateSettings({ ghqCloneLayout: Boolean(checked) })}
               aria-label={translateWebSource(locale, "Clone into host folders")}
             />
           }
@@ -2352,10 +2029,7 @@ export function ThreadsSettingsPanel() {
               onCheckedChange={(checked) =>
                 updateSettings({ autoResumeLimitedThreads: Boolean(checked) })
               }
-              aria-label={translateWebSource(
-                locale,
-                "Resume after usage limits",
-              )}
+              aria-label={translateWebSource(locale, "Resume after usage limits")}
             />
           }
         />
@@ -2374,10 +2048,7 @@ export function ThreadsSettingsPanel() {
               onCheckedChange={(checked) =>
                 updateSettings({ snoozeLimitedThreads: Boolean(checked) })
               }
-              aria-label={translateWebSource(
-                locale,
-                "Snooze until limits reset",
-              )}
+              aria-label={translateWebSource(locale, "Snooze until limits reset")}
             />
           }
         />
@@ -2397,8 +2068,7 @@ export function ThreadsSettingsPanel() {
                   label="auto-settle on merge"
                   onClick={() =>
                     updateSettings({
-                      sidebarAutoSettleOnMerge:
-                        DEFAULT_UNIFIED_SETTINGS.sidebarAutoSettleOnMerge,
+                      sidebarAutoSettleOnMerge: DEFAULT_UNIFIED_SETTINGS.sidebarAutoSettleOnMerge,
                     })
                   }
                 />
@@ -2411,10 +2081,7 @@ export function ThreadsSettingsPanel() {
                 onCheckedChange={(checked) =>
                   updateSettings({ sidebarAutoSettleOnMerge: Boolean(checked) })
                 }
-                aria-label={translateWebSource(
-                  locale,
-                  "Auto-settle merged threads",
-                )}
+                aria-label={translateWebSource(locale, "Auto-settle merged threads")}
               />
             }
           />
@@ -2444,15 +2111,10 @@ export function ThreadsSettingsPanel() {
                 checked={settings.sidebarAutoSettleAfterDays !== null}
                 onCheckedChange={(checked) =>
                   updateSettings({
-                    sidebarAutoSettleAfterDays: checked
-                      ? AUTO_SETTLE_DEFAULT_DAYS
-                      : null,
+                    sidebarAutoSettleAfterDays: checked ? AUTO_SETTLE_DEFAULT_DAYS : null,
                   })
                 }
-                aria-label={translateWebSource(
-                  locale,
-                  "Auto-settle inactive threads",
-                )}
+                aria-label={translateWebSource(locale, "Auto-settle inactive threads")}
               />
             }
           />
@@ -2466,17 +2128,13 @@ export function ThreadsSettingsPanel() {
                 <AutoSettleDaysInput
                   value={settings.sidebarAutoSettleAfterDays}
                   onCommit={(days, options) =>
-                    updateSettings(
-                      { sidebarAutoSettleAfterDays: days },
-                      options,
-                    )
+                    updateSettings({ sidebarAutoSettleAfterDays: days }, options)
                   }
                 />
               }
             />
           ) : null}
-          {settings.sidebarAutoSettleAfterDays !== null &&
-          supportsAutoSettlementScope ? (
+          {settings.sidebarAutoSettleAfterDays !== null && supportsAutoSettlementScope ? (
             <SettingsRow
               serverScoped
               settingKeys={["sidebarAutoSettleKeepPullRequests"]}
@@ -2494,10 +2152,7 @@ export function ThreadsSettingsPanel() {
                       sidebarAutoSettleKeepPullRequests: checked,
                     })
                   }
-                  aria-label={translateWebExtraSource(
-                    locale,
-                    "Keep threads with a PR",
-                  )}
+                  aria-label={translateWebExtraSource(locale, "Keep threads with a PR")}
                 />
               }
             />
@@ -2534,10 +2189,7 @@ export function ThreadsSettingsPanel() {
               </span>
             ) : !hasTextGenerationProvider ? (
               <span className="text-sm text-muted-foreground">
-                {translateWebSource(
-                  locale,
-                  "No text generation providers available.",
-                )}
+                {translateWebSource(locale, "No text generation providers available.")}
               </span>
             ) : (
               <div className="flex flex-wrap items-center justify-end gap-1.5">
@@ -2549,15 +2201,11 @@ export function ThreadsSettingsPanel() {
                   instanceEntries={textGenerationModelInstanceEntries}
                   modelOptionsByInstance={textGenerationModelOptionsByInstance}
                   triggerClassName={SETTINGS_PICKER_TRIGGER_CLASSNAME}
-                  {...(mixedTextGenerationModel
-                    ? { triggerLabel: "Mixed" }
-                    : {})}
+                  {...(mixedTextGenerationModel ? { triggerLabel: "Mixed" } : {})}
                   getModelDisabledReason={textGenerationModelDisabledReason}
                   {...(environmentId
                     ? {
-                        onOpenProviderSetup: (
-                          instanceId: ProviderInstanceId,
-                        ) => {
+                        onOpenProviderSetup: (instanceId: ProviderInstanceId) => {
                           void navigate({
                             to: "/settings/providers",
                             search: { environmentId, instanceId },
@@ -2566,10 +2214,7 @@ export function ThreadsSettingsPanel() {
                       }
                     : {})}
                   onInstanceModelChange={(instanceId, model) => {
-                    const reason = textGenerationModelDisabledReason(
-                      instanceId,
-                      model,
-                    );
+                    const reason = textGenerationModelDisabledReason(instanceId, model);
                     if (reason) {
                       toastManager.add({
                         type: "error",
@@ -2579,18 +2224,17 @@ export function ThreadsSettingsPanel() {
                       return;
                     }
                     updateSettings({
-                      textGenerationModelSelection:
-                        resolveAppModelSelectionState(
-                          {
-                            ...settings,
-                            textGenerationModelSelection: pickModelSelection(
-                              textGenerationModelSelection,
-                              instanceId,
-                              model,
-                            ),
-                          },
-                          textGenerationProviders,
-                        ),
+                      textGenerationModelSelection: resolveAppModelSelectionState(
+                        {
+                          ...settings,
+                          textGenerationModelSelection: pickModelSelection(
+                            textGenerationModelSelection,
+                            instanceId,
+                            model,
+                          ),
+                        },
+                        textGenerationProviders,
+                      ),
                     });
                   }}
                 />
@@ -2605,19 +2249,17 @@ export function ThreadsSettingsPanel() {
                     triggerClassName={SETTINGS_PICKER_TRIGGER_CLASSNAME}
                     onModelOptionsChange={(nextOptions) => {
                       updateSettings({
-                        textGenerationModelSelection:
-                          resolveAppModelSelectionState(
-                            {
-                              ...settings,
-                              textGenerationModelSelection:
-                                createModelSelection(
-                                  textGenInstanceId,
-                                  textGenModel,
-                                  nextOptions,
-                                ),
-                            },
-                            textGenerationProviders,
-                          ),
+                        textGenerationModelSelection: resolveAppModelSelectionState(
+                          {
+                            ...settings,
+                            textGenerationModelSelection: createModelSelection(
+                              textGenInstanceId,
+                              textGenModel,
+                              nextOptions,
+                            ),
+                          },
+                          textGenerationProviders,
+                        ),
                       });
                     }}
                   />
@@ -2642,19 +2284,15 @@ export function ThreadsSettingsPanel() {
               locale,
               mixedResponseStreamingMode
                 ? "The selected targets use different streaming modes."
-                : RESPONSE_STREAMING_MODE_DESCRIPTIONS[
-                    settings.responseStreamingMode
-                  ],
+                : RESPONSE_STREAMING_MODE_DESCRIPTIONS[settings.responseStreamingMode],
             )}
             resetAction={
-              settings.responseStreamingMode !==
-              DEFAULT_UNIFIED_SETTINGS.responseStreamingMode ? (
+              settings.responseStreamingMode !== DEFAULT_UNIFIED_SETTINGS.responseStreamingMode ? (
                 <SettingResetButton
                   label="response streaming"
                   onClick={() =>
                     updateSettings({
-                      responseStreamingMode:
-                        DEFAULT_UNIFIED_SETTINGS.responseStreamingMode,
+                      responseStreamingMode: DEFAULT_UNIFIED_SETTINGS.responseStreamingMode,
                     })
                   }
                 />
@@ -2662,11 +2300,7 @@ export function ThreadsSettingsPanel() {
             }
             control={
               <Select
-                value={
-                  mixedResponseStreamingMode
-                    ? null
-                    : settings.responseStreamingMode
-                }
+                value={mixedResponseStreamingMode ? null : settings.responseStreamingMode}
                 onValueChange={(value) => {
                   if (value === "turn" || value === "paragraph") {
                     updateSettings({ responseStreamingMode: value });
@@ -2676,34 +2310,23 @@ export function ThreadsSettingsPanel() {
                 <SelectTrigger
                   size="sm"
                   className="w-full sm:w-56"
-                  aria-label={translateWebExtraSource(
-                    locale,
-                    "Response streaming",
-                  )}
+                  aria-label={translateWebExtraSource(locale, "Response streaming")}
                 >
                   <SelectValue>
                     {(value: ResponseStreamingMode | null) =>
                       translateWebExtraSource(
                         locale,
-                        value === null
-                          ? "Mixed"
-                          : RESPONSE_STREAMING_MODE_LABELS[value],
+                        value === null ? "Mixed" : RESPONSE_STREAMING_MODE_LABELS[value],
                       )
                     }
                   </SelectValue>
                 </SelectTrigger>
                 <SelectPopup align="end" alignItemWithTrigger={false}>
                   <SelectItem hideIndicator value="turn">
-                    {translateWebExtraSource(
-                      locale,
-                      RESPONSE_STREAMING_MODE_LABELS.turn,
-                    )}
+                    {translateWebExtraSource(locale, RESPONSE_STREAMING_MODE_LABELS.turn)}
                   </SelectItem>
                   <SelectItem hideIndicator value="paragraph">
-                    {translateWebExtraSource(
-                      locale,
-                      RESPONSE_STREAMING_MODE_LABELS.paragraph,
-                    )}
+                    {translateWebExtraSource(locale, RESPONSE_STREAMING_MODE_LABELS.paragraph)}
                   </SelectItem>
                 </SelectPopup>
               </Select>
@@ -2721,8 +2344,7 @@ export function MaintenanceSettingsPanel() {
   const updateSettings = useUpdateScopedSettings();
   const { scope, environment, connectedEnvironments } = useSettingsScope();
   const environmentId = environment?.environmentId ?? null;
-  const isEnvironmentScope =
-    scope.environmentIds.length === 1 && environmentId !== null;
+  const isEnvironmentScope = scope.environmentIds.length === 1 && environmentId !== null;
   const hasServerTargets = connectedEnvironments.length > 0;
 
   return (
@@ -2743,8 +2365,7 @@ export function MaintenanceSettingsPanel() {
                 label="provider update checks"
                 onClick={() =>
                   updateSettings({
-                    enableProviderUpdateChecks:
-                      DEFAULT_UNIFIED_SETTINGS.enableProviderUpdateChecks,
+                    enableProviderUpdateChecks: DEFAULT_UNIFIED_SETTINGS.enableProviderUpdateChecks,
                   })
                 }
               />
@@ -2757,19 +2378,13 @@ export function MaintenanceSettingsPanel() {
               onCheckedChange={(checked) =>
                 updateSettings({ enableProviderUpdateChecks: Boolean(checked) })
               }
-              aria-label={translateWebExtraSource(
-                translationLocale,
-                "Check provider versions",
-              )}
+              aria-label={translateWebExtraSource(translationLocale, "Check provider versions")}
             />
           }
         />
         <SettingsRow
           {...searchableSetting("continue-threads-after-server-update")}
-          title={translateWebExtraSource(
-            translationLocale,
-            "Continue threads after restarts",
-          )}
+          title={translateWebExtraSource(translationLocale, "Continue threads after restarts")}
           serverScoped
           settingKeys={["continueThreadsAfterServerUpdate"]}
           description="Automatically resume interrupted threads after an update, crash, or machine restart on the selected environments."
@@ -2829,8 +2444,7 @@ export function MaintenanceSettingsPanel() {
                 label="keep awake while agents work"
                 onClick={() =>
                   updateSettings({
-                    keepAwakeWhileAgentsWork:
-                      DEFAULT_UNIFIED_SETTINGS.keepAwakeWhileAgentsWork,
+                    keepAwakeWhileAgentsWork: DEFAULT_UNIFIED_SETTINGS.keepAwakeWhileAgentsWork,
                   })
                 }
               />
@@ -2863,10 +2477,7 @@ export function MaintenanceSettingsPanel() {
           control={
             <Button
               render={
-                <Link
-                  to="/settings/diagnostics"
-                  search={{ machine: environmentId ?? undefined }}
-                />
+                <Link to="/settings/diagnostics" search={{ machine: environmentId ?? undefined }} />
               }
               size="sm"
               variant="outline"
@@ -2899,11 +2510,7 @@ export function AboutSettingsPanel() {
               primaryPolicy.supportUrl ? (
                 <Button
                   render={
-                    <a
-                      href={primaryPolicy.supportUrl}
-                      target="_blank"
-                      rel="noreferrer noopener"
-                    />
+                    <a href={primaryPolicy.supportUrl} target="_blank" rel="noreferrer noopener" />
                   }
                   size="sm"
                   variant="outline"
@@ -2931,11 +2538,7 @@ export function AboutSettingsPanel() {
             {...searchableSetting("welcome-page")}
             description="See your agents, import projects, and set up your phone."
             control={
-              <Button
-                size="sm"
-                variant="outline"
-                render={<Link to="/welcome" />}
-              >
+              <Button size="sm" variant="outline" render={<Link to="/welcome" />}>
                 {translateWebSource(translationLocale, "Open")}
               </Button>
             }
@@ -2956,13 +2559,7 @@ export function AboutSettingsPanel() {
           }
           control={
             <Button
-              render={
-                <a
-                  href={PRIVACY_POLICY_URL}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                />
-              }
+              render={<a href={PRIVACY_POLICY_URL} target="_blank" rel="noreferrer noopener" />}
               size="sm"
               variant="outline"
             >

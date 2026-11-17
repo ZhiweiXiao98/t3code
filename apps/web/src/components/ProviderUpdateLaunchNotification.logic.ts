@@ -28,11 +28,7 @@ export type ProviderSettingsUpdateCandidate = ServerProvider & {
   };
 };
 
-export type ProviderUpdateSidebarPillTone =
-  | "loading"
-  | "warning"
-  | "error"
-  | "success";
+export type ProviderUpdateSidebarPillTone = "loading" | "warning" | "error" | "success";
 
 export interface ProviderUpdateSidebarPillView {
   readonly key: string;
@@ -69,23 +65,16 @@ function chooseRepresentativeProvider(
   if (current.instanceId === defaultInstanceId) {
     return current;
   }
-  return candidate.checkedAt.localeCompare(current.checkedAt) >= 0
-    ? candidate
-    : current;
+  return candidate.checkedAt.localeCompare(current.checkedAt) >= 0 ? candidate : current;
 }
 
-function dedupeProvidersByDriver<T extends ServerProvider>(
-  providers: ReadonlyArray<T>,
-): T[] {
+function dedupeProvidersByDriver<T extends ServerProvider>(providers: ReadonlyArray<T>): T[] {
   const latestProviderByDriver = new Map<ProviderDriverKind, T>();
 
   for (const provider of providers) {
     latestProviderByDriver.set(
       provider.driver,
-      chooseRepresentativeProvider(
-        latestProviderByDriver.get(provider.driver),
-        provider,
-      ) as T,
+      chooseRepresentativeProvider(latestProviderByDriver.get(provider.driver), provider) as T,
     );
   }
 
@@ -95,20 +84,14 @@ function dedupeProvidersByDriver<T extends ServerProvider>(
 function getProviderUpdatedTitle(
   provider: Pick<ServerProvider, "driver" | "version" | "installedVersion">,
 ): string {
-  const providerName =
-    PROVIDER_DISPLAY_NAMES[provider.driver] ?? provider.driver;
+  const providerName = PROVIDER_DISPLAY_NAMES[provider.driver] ?? provider.driver;
   const version = provider.installedVersion ?? provider.version;
-  return version
-    ? `${providerName} updated: ${formatVersion(version)}`
-    : `${providerName} updated`;
+  return version ? `${providerName} updated: ${formatVersion(version)}` : `${providerName} updated`;
 }
 
 // Only OpenCode reports an installed CLI apart from a running external server.
 export function getProviderRestartNotice(
-  provider: Pick<
-    ServerProvider,
-    "version" | "installedVersion" | "updateState"
-  >,
+  provider: Pick<ServerProvider, "version" | "installedVersion" | "updateState">,
 ): string | null {
   return provider.updateState?.status === "succeeded" &&
     provider.installedVersion != null &&
@@ -127,8 +110,7 @@ function getProviderUpdatedDescription(providerCount: number): string {
 function getProviderFailedUpdateTitle(
   provider: Pick<ServerProvider, "driver" | "versionAdvisory">,
 ): string {
-  const providerName =
-    PROVIDER_DISPLAY_NAMES[provider.driver] ?? provider.driver;
+  const providerName = PROVIDER_DISPLAY_NAMES[provider.driver] ?? provider.driver;
   const attemptedVersion = provider.versionAdvisory?.latestVersion;
   return attemptedVersion
     ? `${providerName} ${formatVersion(attemptedVersion)} update failed`
@@ -147,13 +129,8 @@ export function isProviderUpdateCandidate(
   );
 }
 
-export function isProviderUpdateActive(
-  provider: Pick<ServerProvider, "updateState">,
-): boolean {
-  return (
-    provider.updateState?.status === "queued" ||
-    provider.updateState?.status === "running"
-  );
+export function isProviderUpdateActive(provider: Pick<ServerProvider, "updateState">): boolean {
+  return provider.updateState?.status === "queued" || provider.updateState?.status === "running";
 }
 
 export function collectProviderUpdateCandidates(
@@ -186,9 +163,7 @@ export function hasOneClickUpdateProviderCandidate(
     return false;
   }
 
-  const driverProviders = providers.filter(
-    (provider) => provider.driver === candidate.driver,
-  );
+  const driverProviders = providers.filter((provider) => provider.driver === candidate.driver);
   if (driverProviders.length === 0) {
     return false;
   }
@@ -199,11 +174,7 @@ export function hasOneClickUpdateProviderCandidate(
       continue;
     }
     const advisory = provider.versionAdvisory;
-    if (
-      !advisory ||
-      advisory.canUpdate !== true ||
-      advisory.updateCommand === null
-    ) {
+    if (!advisory || advisory.canUpdate !== true || advisory.updateCommand === null) {
       return false;
     }
     updateCommands.add(advisory.updateCommand);
@@ -217,14 +188,11 @@ export function canOneClickUpdateProviderCandidate(
   providers: ReadonlyArray<ServerProvider>,
 ): boolean {
   return (
-    !isProviderUpdateActive(candidate) &&
-    hasOneClickUpdateProviderCandidate(candidate, providers)
+    !isProviderUpdateActive(candidate) && hasOneClickUpdateProviderCandidate(candidate, providers)
   );
 }
 
-function formatProviderList(
-  providers: ReadonlyArray<Pick<ServerProvider, "driver">>,
-) {
+function formatProviderList(providers: ReadonlyArray<Pick<ServerProvider, "driver">>) {
   const names = providers.map(
     (provider) => PROVIDER_DISPLAY_NAMES[provider.driver] ?? provider.driver,
   );
@@ -261,10 +229,8 @@ export type ProviderUpdateRunTranslate = (
   values?: Readonly<Record<string, string | number>>,
 ) => string;
 
-const translateProviderUpdateRunEnglish: ProviderUpdateRunTranslate = (
-  key,
-  values,
-) => translateWebMessage("en", key, values);
+const translateProviderUpdateRunEnglish: ProviderUpdateRunTranslate = (key, values) =>
+  translateWebMessage("en", key, values);
 
 /**
  * What one provider update in a cross-machine run did. A failure carries a
@@ -322,9 +288,7 @@ export function getProviderUpdateRunToastView(
   const successMessages = [
     ...new Set(
       settled.flatMap((outcome) =>
-        outcome.status === "updated" && outcome.message
-          ? [outcome.message]
-          : [],
+        outcome.status === "updated" && outcome.message ? [outcome.message] : [],
       ),
     ),
   ];
@@ -380,9 +344,7 @@ function isRecentTerminalProvider(
   return finishedAt !== null && finishedAt >= visibleAfterIso;
 }
 
-function latestFinishedAtForProviders(
-  providers: ReadonlyArray<ServerProvider>,
-): string | null {
+function latestFinishedAtForProviders(providers: ReadonlyArray<ServerProvider>): string | null {
   return providers.reduce<string | null>((latest, provider) => {
     const finishedAt = getUpdateFinishedAt(provider);
     if (finishedAt === null) {
@@ -393,18 +355,12 @@ function latestFinishedAtForProviders(
 }
 
 /** Use each driver's latest finished instance so an older default-instance result cannot hide it. */
-function latestTerminalProvidersByDriver(
-  providers: ReadonlyArray<ServerProvider>,
-) {
+function latestTerminalProvidersByDriver(providers: ReadonlyArray<ServerProvider>) {
   const latestProviderByDriver = new Map<ProviderDriverKind, ServerProvider>();
 
   for (const provider of providers) {
     const current = latestProviderByDriver.get(provider.driver);
-    if (
-      !current ||
-      (getUpdateFinishedAt(provider) ?? "") >=
-        (getUpdateFinishedAt(current) ?? "")
-    ) {
+    if (!current || (getUpdateFinishedAt(provider) ?? "") >= (getUpdateFinishedAt(current) ?? "")) {
       latestProviderByDriver.set(provider.driver, provider);
     }
   }
@@ -418,19 +374,14 @@ export function getProviderUpdateSidebarPillView(
 ): ProviderUpdateSidebarPillView | null {
   const locale = options?.locale ?? "en";
   // Filter active instances before deduplicating drivers because update state is per instance.
-  const activeProviders = dedupeProvidersByDriver(
-    providers.filter(isProviderUpdateActive),
-  );
+  const activeProviders = dedupeProvidersByDriver(providers.filter(isProviderUpdateActive));
   if (activeProviders.length > 0) {
     const activeProvider = activeProviders[0]!;
     const activeProviderName =
       PROVIDER_DISPLAY_NAMES[activeProvider.driver] ?? activeProvider.driver;
     return {
       key: `loading:${activeProviders
-        .map(
-          (provider) =>
-            `${provider.driver}:${provider.updateState?.status ?? "idle"}`,
-        )
+        .map((provider) => `${provider.driver}:${provider.updateState?.status ?? "idle"}`)
         .toSorted()
         .join("|")}`,
       tone: "loading",
@@ -456,9 +407,7 @@ export function getProviderUpdateSidebarPillView(
   }
 
   const recentTerminalProviders = latestTerminalProvidersByDriver(
-    providers.filter((provider) =>
-      isRecentTerminalProvider(provider, options?.visibleAfterIso),
-    ),
+    providers.filter((provider) => isRecentTerminalProvider(provider, options?.visibleAfterIso)),
   );
   const terminalCandidates: ProviderUpdateSidebarPillView[] = [];
 
@@ -481,9 +430,7 @@ export function getProviderUpdateSidebarPillView(
           ? locale === "en"
             ? getProviderFailedUpdateTitle(failedProvider)
             : translateWebMessage(locale, "providerUpdate.pill.failedOne", {
-                provider:
-                  PROVIDER_DISPLAY_NAMES[failedProvider.driver] ??
-                  failedProvider.driver,
+                provider: PROVIDER_DISPLAY_NAMES[failedProvider.driver] ?? failedProvider.driver,
               })
           : translateWebMessage(locale, "providerUpdate.pill.failedMany", {
               count: failedProviders.length,
@@ -504,8 +451,7 @@ export function getProviderUpdateSidebarPillView(
   if (unchangedProviders.length > 0) {
     const unchangedProvider = unchangedProviders[0]!;
     const unchangedProviderName =
-      PROVIDER_DISPLAY_NAMES[unchangedProvider.driver] ??
-      unchangedProvider.driver;
+      PROVIDER_DISPLAY_NAMES[unchangedProvider.driver] ?? unchangedProvider.driver;
     terminalCandidates.push({
       key: `unchanged:${unchangedProviders
         .map(
@@ -553,20 +499,16 @@ export function getProviderUpdateSidebarPillView(
             ? getProviderUpdatedTitle(succeededProvider)
             : translateWebMessage(
                 locale,
-                (succeededProvider.installedVersion ??
-                  succeededProvider.version)
+                (succeededProvider.installedVersion ?? succeededProvider.version)
                   ? "providerUpdate.pill.updatedVersion"
                   : "providerUpdate.pill.updatedOne",
                 {
                   provider:
-                    PROVIDER_DISPLAY_NAMES[succeededProvider.driver] ??
-                    succeededProvider.driver,
+                    PROVIDER_DISPLAY_NAMES[succeededProvider.driver] ?? succeededProvider.driver,
                   version:
-                    (succeededProvider.installedVersion ??
-                    succeededProvider.version)
+                    (succeededProvider.installedVersion ?? succeededProvider.version)
                       ? formatVersion(
-                          succeededProvider.installedVersion ??
-                            succeededProvider.version,
+                          succeededProvider.installedVersion ?? succeededProvider.version,
                         )
                       : "",
                 },
@@ -575,11 +517,7 @@ export function getProviderUpdateSidebarPillView(
               count: succeededProviders.length,
             }),
       description:
-        [
-          ...new Set(
-            succeededProviders.map(getProviderRestartNotice).filter(Boolean),
-          ),
-        ].join("\n") ||
+        [...new Set(succeededProviders.map(getProviderRestartNotice).filter(Boolean))].join("\n") ||
         (locale === "en"
           ? getProviderUpdatedDescription(succeededProviders.length)
           : translateWebMessage(locale, "providerUpdate.pill.updatedDetail")),
@@ -602,10 +540,8 @@ export function getProviderUpdateSidebarPillView(
             : right.tone === "warning"
               ? unchangedProviders
               : succeededProviders;
-        const leftFinishedAt =
-          latestFinishedAtForProviders(leftProviders) ?? "";
-        const rightFinishedAt =
-          latestFinishedAtForProviders(rightProviders) ?? "";
+        const leftFinishedAt = latestFinishedAtForProviders(leftProviders) ?? "";
+        const rightFinishedAt = latestFinishedAtForProviders(rightProviders) ?? "";
         return rightFinishedAt.localeCompare(leftFinishedAt);
       })
       .find((candidate) => !options?.dismissedKeys?.has(candidate.key)) ?? null

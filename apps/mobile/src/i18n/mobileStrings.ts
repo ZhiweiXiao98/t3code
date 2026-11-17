@@ -13,10 +13,14 @@ const ZH_CN_MESSAGES = {
   "messages queued to send": "有消息排队等待发送",
   "regenerating title": "正在重新生成标题",
 
-  "Cursor signed you in but could not create an API key. Your team's settings may restrict API keys: ask a team admin, or add CURSOR_API_KEY in provider settings.": "Cursor 已登录，但无法创建 API 密钥。团队设置可能限制了 API 密钥：请联系团队管理员，或在提供商设置中添加 CURSOR_API_KEY。",
-  "Cursor sign-in failed or timed out. Check that this machine can reach Cursor, then start sign-in again.": "Cursor 登录失败或超时。请检查此电脑能否连接 Cursor，然后重新登录。",
-  "Antigravity has not started after 90 seconds. Its runtime may be stuck starting on this machine.": "Antigravity 在 90 秒后仍未启动。其运行时可能在此电脑上启动卡住。",
-  "Antigravity did not respond. Its runtime may not run on this machine.": "Antigravity 未响应。其运行时可能无法在此电脑上运行。",
+  "Cursor signed you in but could not create an API key. Your team's settings may restrict API keys: ask a team admin, or add CURSOR_API_KEY in provider settings.":
+    "Cursor 已登录，但无法创建 API 密钥。团队设置可能限制了 API 密钥：请联系团队管理员，或在提供商设置中添加 CURSOR_API_KEY。",
+  "Cursor sign-in failed or timed out. Check that this machine can reach Cursor, then start sign-in again.":
+    "Cursor 登录失败或超时。请检查此电脑能否连接 Cursor，然后重新登录。",
+  "Antigravity has not started after 90 seconds. Its runtime may be stuck starting on this machine.":
+    "Antigravity 在 90 秒后仍未启动。其运行时可能在此电脑上启动卡住。",
+  "Antigravity did not respond. Its runtime may not run on this machine.":
+    "Antigravity 未响应。其运行时可能无法在此电脑上运行。",
   "Waiting for {0} to approve this device": "正在等待 {0} 批准此设备",
 
   "Server update failed.": "服务器更新失败。",

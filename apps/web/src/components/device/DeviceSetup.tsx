@@ -3,11 +3,7 @@ import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebMessage, translateWebSource } from "~/i18n/messages";
 import { deviceAvailabilityReason } from "~/i18n/deviceAvailabilityMessages";
 import { DeviceHostUpdates } from "./DeviceHostUpdates";
-import type {
-  DevicePlatform,
-  DeviceServiceState,
-  EnvironmentId,
-} from "@t3tools/contracts";
+import type { DevicePlatform, DeviceServiceState, EnvironmentId } from "@t3tools/contracts";
 import { Check, CircleAlert } from "lucide-react";
 import { AuthSettingsWriteScope } from "@t3tools/contracts";
 import { useAtomMount } from "@effect/atom-react";
@@ -15,25 +11,15 @@ import { useState } from "react";
 
 import { Button } from "~/components/ui/button";
 import { DialogClose } from "~/components/ui/dialog";
-import {
-  WizardHeader,
-  WizardPanel,
-  WizardSteps,
-  WizardFooter,
-} from "~/components/ui/wizard";
+import { WizardHeader, WizardPanel, WizardSteps, WizardFooter } from "~/components/ui/wizard";
 import { Spinner } from "~/components/ui/spinner";
 import { Switch } from "~/components/ui/switch";
-import {
-  deviceEnvironment,
-  deviceHostProbeAtom,
-  NO_DEVICE_PROBE_ATOM,
-} from "~/state/device";
+import { deviceEnvironment, deviceHostProbeAtom, NO_DEVICE_PROBE_ATOM } from "~/state/device";
 import { useAtomCommand } from "~/state/use-atom-command";
 import { readEnvironmentScope, useEnvironmentScope } from "~/state/session";
 import { cn } from "~/lib/utils";
 
-const platformName = (platform: DevicePlatform) =>
-  platform === "ios" ? "iOS" : "Android";
+const platformName = (platform: DevicePlatform) => (platform === "ios" ? "iOS" : "Android");
 
 const deviceHubDescription =
   "Enable this environment to open simulators and emulators, whether they run here or on a remote device host.";
@@ -73,9 +59,7 @@ export function deviceHubReadiness(state: DeviceServiceState) {
 
 /** A ready host keeps its devices usable but may still carry a discovery warning. */
 function deviceHostDiagnostics(
-  hosts: ReadonlyArray<
-    Pick<DeviceServiceState["hosts"][number], "id" | "label">
-  >,
+  hosts: ReadonlyArray<Pick<DeviceServiceState["hosts"][number], "id" | "label">>,
   hostStatuses: DeviceServiceState["hostStatuses"],
 ) {
   return hosts.flatMap((host) => {
@@ -87,19 +71,14 @@ function deviceHostDiagnostics(
 }
 
 function DeviceHostDiagnostics(props: {
-  readonly hosts: ReadonlyArray<
-    Pick<DeviceServiceState["hosts"][number], "id" | "label">
-  >;
+  readonly hosts: ReadonlyArray<Pick<DeviceServiceState["hosts"][number], "id" | "label">>;
   readonly hostStatuses: DeviceServiceState["hostStatuses"];
   readonly className?: string;
 }) {
   const diagnostics = deviceHostDiagnostics(props.hosts, props.hostStatuses);
   if (diagnostics.length === 0) return null;
   return (
-    <div
-      role="status"
-      className={cn("space-y-1 text-xs text-muted-foreground", props.className)}
-    >
+    <div role="status" className={cn("space-y-1 text-xs text-muted-foreground", props.className)}>
       {diagnostics.map(({ hostId, label, detail }) => (
         <p key={hostId} className="whitespace-pre-line break-words">
           {label}: {detail}
@@ -114,14 +93,8 @@ export function platformSetupStatus(
   platform: DevicePlatform,
   locale: ResolvedAppLocale = "en",
 ) {
-  const hasDevices = state.devices.some(
-    (device) => device.platform === platform,
-  );
-  if (
-    platform === "android" &&
-    !hasDevices &&
-    isAndroidDiscoveryUncertain(state)
-  ) {
+  const hasDevices = state.devices.some((device) => device.platform === platform);
+  if (platform === "android" && !hasDevices && isAndroidDiscoveryUncertain(state)) {
     return {
       ready: false,
       message: translateWebSource(
@@ -161,13 +134,9 @@ export function platformSetupStatus(
     ) {
       return {
         ready: false,
-        message: translateWebMessage(
-          locale,
-          "audit20.device.discoveryProblem",
-          {
-            platform: platformName(platform),
-          },
-        ),
+        message: translateWebMessage(locale, "audit20.device.discoveryProblem", {
+          platform: platformName(platform),
+        }),
       };
     }
     return {
@@ -193,9 +162,7 @@ export function platformSetupStatus(
       remoteHost?.kind === "eas"
         ? translateWebMessage(
             locale,
-            platform === "ios"
-              ? "device.cloudIosAvailability"
-              : "device.cloudAndroidAvailability",
+            platform === "ios" ? "device.cloudIosAvailability" : "device.cloudAndroidAvailability",
             { host: remoteHost.label },
           )
         : translateWebMessage(
@@ -218,27 +185,18 @@ export function DeviceSetup(props: {
   readonly onComplete?: () => void;
 }) {
   const { locale: devicePreviewLocale } = useI18n();
-  const canConfigure = useEnvironmentScope(
-    props.environmentId,
-    AuthSettingsWriteScope,
-  );
+  const canConfigure = useEnvironmentScope(props.environmentId, AuthSettingsWriteScope);
   const configure = useAtomCommand(deviceEnvironment.configure);
   const list = useAtomCommand(deviceEnvironment.list, { reportFailure: false });
-  const [pending, setPending] = useState<
-    "hub" | "check" | "agent" | "complete" | null
-  >(null);
+  const [pending, setPending] = useState<"hub" | "check" | "agent" | "complete" | null>(null);
   const [step, setStep] = useState(0);
   const enabled = props.state.hostStatus !== "disabled";
   const { ready, busy } = deviceHubReadiness(props.state);
   const localPlatformsUnavailable = props.state.hosts.some(
-    (host) =>
-      host.kind === "local" &&
-      !host.platforms.some((platform) => platform.available),
+    (host) => host.kind === "local" && !host.platforms.some((platform) => platform.available),
   );
 
-  useAtomMount(
-    enabled ? deviceHostProbeAtom(props.environmentId) : NO_DEVICE_PROBE_ATOM,
-  );
+  useAtomMount(enabled ? deviceHostProbeAtom(props.environmentId) : NO_DEVICE_PROBE_ATOM);
 
   const update = async (
     kind: NonNullable<typeof pending>,
@@ -248,8 +206,7 @@ export function DeviceSetup(props: {
       onboardingCompleted?: boolean;
     },
   ) => {
-    if (!readEnvironmentScope(props.environmentId, AuthSettingsWriteScope))
-      return;
+    if (!readEnvironmentScope(props.environmentId, AuthSettingsWriteScope)) return;
     setPending(kind);
     const result = await configure({
       environmentId: props.environmentId,
@@ -276,17 +233,12 @@ export function DeviceSetup(props: {
           ]}
           currentStep={step}
           onStepChange={setStep}
-          isStepDisabled={(requested) =>
-            busy || pending !== null || requested > step
-          }
+          isStepDisabled={(requested) => busy || pending !== null || requested > step}
         />
       </WizardHeader>
 
       <WizardPanel>
-        <DeviceHostUpdates
-          state={props.state}
-          environmentId={props.environmentId}
-        />
+        <DeviceHostUpdates state={props.state} environmentId={props.environmentId} />
         {step === 0 ? (
           <section className="space-y-3 text-sm">
             <h3 className="font-medium">
@@ -299,10 +251,7 @@ export function DeviceSetup(props: {
               <Switch
                 checked={enabled}
                 disabled={!canConfigure || busy || pending !== null}
-                aria-label={translateWebSource(
-                  devicePreviewLocale,
-                  "Enable device hub",
-                )}
+                aria-label={translateWebSource(devicePreviewLocale, "Enable device hub")}
                 onCheckedChange={(checked) =>
                   void update("hub", {
                     enabled: Boolean(checked),
@@ -321,10 +270,7 @@ export function DeviceSetup(props: {
         {step === 1 || (step === 0 && enabled && localPlatformsUnavailable) ? (
           <section className={cn("space-y-3 text-sm", step === 0 && "mt-4")}>
             <h3 className="font-medium">
-              {translateWebSource(
-                devicePreviewLocale,
-                "Check simulator support",
-              )}
+              {translateWebSource(devicePreviewLocale, "Check simulator support")}
             </h3>
             <DevicePlatformSetup
               state={props.state}
@@ -348,10 +294,7 @@ export function DeviceSetup(props: {
             </h3>
             <div className="flex items-start justify-between gap-4">
               <p className="text-muted-foreground">
-                {translateWebSource(
-                  devicePreviewLocale,
-                  agentDeviceDescription,
-                )}
+                {translateWebSource(devicePreviewLocale, agentDeviceDescription)}
               </p>
               <Switch
                 checked={props.state.agentAccessEnabled}
@@ -365,10 +308,7 @@ export function DeviceSetup(props: {
                 }
               />
             </div>
-            <AgentDeviceSetupStatus
-              state={props.state}
-              pending={pending === "agent"}
-            />
+            <AgentDeviceSetupStatus state={props.state} pending={pending === "agent"} />
             <p className="text-xs text-muted-foreground">
               {translateWebSource(
                 devicePreviewLocale,
@@ -399,18 +339,13 @@ export function DeviceSetup(props: {
           </Button>
         )}
         {step < 2 ? (
-          <Button
-            disabled={!ready || pending !== null}
-            onClick={() => setStep(step + 1)}
-          >
+          <Button disabled={!ready || pending !== null} onClick={() => setStep(step + 1)}>
             {translateWebSource(devicePreviewLocale, "Continue")}
           </Button>
         ) : (
           <Button
             disabled={!canConfigure || !ready || pending !== null}
-            onClick={() =>
-              void update("complete", { onboardingCompleted: true })
-            }
+            onClick={() => void update("complete", { onboardingCompleted: true })}
           >
             {pending === "complete"
               ? translateWebSource(devicePreviewLocale, "Saving…")
@@ -434,15 +369,8 @@ export function DeviceHubSetupStatus({
   const { locale: devicePreviewLocale } = useI18n();
   if (!pending && !deviceHubReadiness(state).ready) return null;
   return (
-    <p
-      role="status"
-      className="flex items-center gap-2 text-xs text-muted-foreground"
-    >
-      {pending ? (
-        <Spinner size="xs" />
-      ) : (
-        <Check className="size-3 text-success" />
-      )}
+    <p role="status" className="flex items-center gap-2 text-xs text-muted-foreground">
+      {pending ? <Spinner size="xs" /> : <Check className="size-3 text-success" />}
       {pending
         ? state.hostStatus === "installing"
           ? compact
@@ -469,30 +397,19 @@ function DevicePlatformSetup(props: {
   const { locale } = useI18n();
   return (
     <div className="space-y-3">
-      <PlatformStatus
-        platform="iOS"
-        status={platformSetupStatus(props.state, "ios", locale)}
-      />
+      <PlatformStatus platform="iOS" status={platformSetupStatus(props.state, "ios", locale)} />
       <PlatformStatus
         platform="Android"
         status={platformSetupStatus(props.state, "android", locale)}
       />
-      <DeviceHostDiagnostics
-        hosts={props.state.hosts}
-        hostStatuses={props.state.hostStatuses}
-      />
+      <DeviceHostDiagnostics hosts={props.state.hosts} hostStatuses={props.state.hostStatuses} />
       <p className="text-xs text-muted-foreground">
         {translateWebSource(
           locale,
           "You can use either platform. Fixing a missing platform does not block the other one.",
         )}
       </p>
-      <Button
-        size="compact"
-        variant="outline"
-        disabled={props.disabled}
-        onClick={props.onCheck}
-      >
+      <Button size="compact" variant="outline" disabled={props.disabled} onClick={props.onCheck}>
         {props.checking ? <Spinner size="xs" /> : null}
         {props.checking
           ? translateWebSource(locale, "Checking…")
@@ -522,10 +439,7 @@ export function AgentDeviceSetupStatus(props: {
             ? "Updating…"
             : "Updating agent access…";
     return (
-      <p
-        role="status"
-        className="flex items-center gap-2 text-xs text-muted-foreground"
-      >
+      <p role="status" className="flex items-center gap-2 text-xs text-muted-foreground">
         <Spinner size="xs" />
         {translateWebSource(devicePreviewLocale, label)}
       </p>
@@ -537,10 +451,7 @@ export function AgentDeviceSetupStatus(props: {
     props.state.hosts.some((host) => host.agentDeviceInstalled)
   ) {
     return (
-      <p
-        role="status"
-        className="flex items-center gap-2 text-xs text-muted-foreground"
-      >
+      <p role="status" className="flex items-center gap-2 text-xs text-muted-foreground">
         <Check className="size-3 text-success" />
         {translateWebSource(devicePreviewLocale, "Agent tools are ready.")}
       </p>
@@ -557,21 +468,14 @@ function PlatformStatus(props: {
   const { locale } = useI18n();
   return (
     <div
-      className={cn(
-        "flex gap-2",
-        !props.compact && "rounded-md border border-border/60 px-3 py-2",
-      )}
+      className={cn("flex gap-2", !props.compact && "rounded-md border border-border/60 px-3 py-2")}
     >
       {props.status.ready ? (
         <Check className="mt-0.5 size-4 shrink-0 text-success" />
       ) : (
         <CircleAlert className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
       )}
-      <div
-        className={cn(
-          props.compact && props.status.ready && "flex items-center gap-2",
-        )}
-      >
+      <div className={cn(props.compact && props.status.ready && "flex items-center gap-2")}>
         <p className="font-medium">{props.platform}</p>
         <p className="text-xs text-muted-foreground">
           {props.compact && props.status.ready

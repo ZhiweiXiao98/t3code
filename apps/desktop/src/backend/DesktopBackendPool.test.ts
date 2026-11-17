@@ -129,6 +129,7 @@ function layerPool(
     readonly clientSettings?: DesktopClientSettings.DesktopClientSettings["Service"];
   } = {},
 ): Layer.Layer<DesktopBackendPool.DesktopBackendPool> {
+  const primaryConfig = options.config ?? options.primaryConfig;
   return DesktopBackendPool.layer.pipe(
     Layer.provideMerge(
       Layer.mergeAll(
@@ -192,8 +193,8 @@ function layerPool(
         Layer.succeed(DesktopBackendConfiguration.DesktopBackendConfiguration, {
           resolvePrimary:
             options.resolvePrimary ??
-            ((options.config ?? options.primaryConfig)
-              ? Effect.succeed(options.config ?? options.primaryConfig)
+            (primaryConfig
+              ? Effect.succeed(primaryConfig)
               : Effect.die("unexpected primary config resolve")),
           resolvePrimaryLabel: Ref.get(labelRef),
           resolveWsl: () => Effect.die("unexpected WSL config resolve"),
