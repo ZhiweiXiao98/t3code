@@ -1,0 +1,86 @@
+name: Execute exact v0.1.10 complete Web partitions (diagnostic)
+'on':
+  push:
+    branches:
+    - validation/v0.1.10-web-execution-e4ff88f9
+    paths:
+    - .github/workflows/community-web-execution-v0110.yml
+permissions:
+  contents: read
+concurrency:
+  group: v0110-web-execution-e4ff88f9
+  cancel-in-progress: false
+jobs:
+  web-shards:
+    name: Web full coverage shard ${{ matrix.shard }}/4
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        shard:
+        - 1
+        - 2
+        - 3
+        - 4
+    steps:
+    - name: Validate single operation and exact source
+      shell: bash
+      env:
+        GIT_TERMINAL_PROMPT: '0'
+      run: 'set -euo pipefail
+
+        [[ "$GITHUB_REF" == "refs/heads/validation/v0.1.10-web-execution-e4ff88f9" ]]
+
+        [[ "$GITHUB_RUN_ATTEMPT" == 1 ]]
+
+        git init .
+
+        git remote add origin "https://github.com/ZhiweiXiao98/t3code.git"
+
+        git fetch --no-tags --depth=2 origin "$GITHUB_SHA"
+
+        test "$(git show -s --format=%P FETCH_HEAD)" = "e4ff88f974118ed8cfbdc82d60cfb711847084e9"
+
+        test "$(git diff-tree --no-commit-id --name-only -r FETCH_HEAD)" = ".github/workflows/community-web-execution-v0110.yml"
+
+        test "$(git diff-tree --no-commit-id --name-status -r FETCH_HEAD)" = $''A\t.github/workflows/community-web-execution-v0110.yml''
+
+        git sparse-checkout set --no-cone ''/*'' ''!/.repos/''
+
+        git checkout --detach ''e4ff88f974118ed8cfbdc82d60cfb711847084e9''
+
+        test "$(git rev-parse HEAD^{tree})" = ''c3c403e3b9bb89487a21f5f231ce3f0ded2b709c''
+
+        '
+    - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
+      with:
+        node-version-file: package.json
+        cache: true
+        run-install: false
+    - name: Install locked dependencies
+      id: dependencies
+      run: vp install --frozen-lockfile
+    - name: Install Linux native build libraries
+      run: python3 .github/scripts/ci-ubuntu-packages.py packages libsecret-1-dev pkg-config build-essential imagemagick
+    - name: Install Chromium for web and server browser tests
+      shell: bash
+      env:
+        SUITE: web
+      run: "set -euo pipefail\nbrowser_cli=apps/server/node_modules/playwright-core/cli.js\nif [[ \"$SUITE\" == web ]]; then\n  browser_cli=apps/web/node_modules/playwright/cli.js\nfi\npython3 .github/scripts/ci-ubuntu-packages.py playwright \"$browser_cli\"\nnode \"$browser_cli\" install --only-shell chromium\nif [[ \"$SUITE\" == server-* ]]; then\n  test \"$(node -p \"require('./apps/server/node_modules/playwright-core/package.json').version\")\" = \"$(node -p \"require('./apps/server/package.json').dependencies['playwright-core']\")\"\n  browser_revision=$(node -p \"require('./apps/server/node_modules/playwright-core/browsers.json').browsers.find(browser => browser.name === 'chromium-headless-shell').revision\")\n  browser_root=\"$HOME/.cache/ms-playwright/chromium_headless_shell-$browser_revision\"\n  mapfile -t browsers < <(find \"$browser_root\" -type f -name chrome-headless-shell)\n  test \"${#browsers[@]}\" -eq 1\n  browser=\"${browsers[0]}\"\n  test -x \"$browser\"\n  test \"${T3CODE_SERVER_BROWSER_SANDBOX:-1}\"\
+        \ != 0\n  echo \"T3CODE_TEST_HEADLESS_SHELL=$browser\" >> \"$GITHUB_ENV\"\n  node -p \"JSON.stringify({node: process.version, undici: process.versions.undici, playwright: require('./apps/server/node_modules/playwright-core/package.json').version})\"\n  \"$browser\" --version\n  sha256sum \"$browser\"\nfi\n"
+    - name: Run complete Web partition
+      env:
+        SOURCE_SHA: e4ff88f974118ed8cfbdc82d60cfb711847084e9
+        WEB_SHARD: ${{ matrix.shard }}
+      run: python3 .github/scripts/run-web-shard.py
+    - name: Preserve partition evidence
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: web-validation-shard-${{ matrix.shard }}-${{ github.run_id }}-${{ github.run_attempt }}
+        path: ${{ runner.temp }}/web-browser-diagnostics/
+        if-no-files-found: error
+        retention-days: 14
+    if: github.repository == 'ZhiweiXiao98/t3code' && github.event_name == 'push' && github.run_attempt == 1
