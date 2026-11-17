@@ -19,6 +19,8 @@ declare module "vite-plus/test/browser" {
 beforeEach(async ({ task }) => {
   await commands.resetPointer();
   if (import.meta.env.VITE_T3_MENU_TRACE !== "1") return;
+  // Match the focused experiment's 19 original Sidebar files, not every browser test.
+  if (!/\/src\/components\/Sidebar[^/]*\.browser\.test\.tsx$/.test(task.file.filepath)) return;
   // Returned teardown runs even for a timed-out test. Observe only; never alter focus.
   const menuObservation = observeMenuInteractions();
   return () => menuObservation.finish(task.result?.state, task.name);

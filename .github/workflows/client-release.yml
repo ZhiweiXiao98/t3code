@@ -9,6 +9,7 @@ concurrency:
 env:
   CLIENT_VERSION: 0.1.10-zh.1
   CI: "true"
+  VITE_T3_MENU_TRACE: "1"
   CSC_IDENTITY_AUTO_DISCOVERY: "false"
   T3CODE_DESKTOP_SIGNED: "false"
   ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
