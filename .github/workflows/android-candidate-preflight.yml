@@ -1,0 +1,115 @@
+name: Exact unsigned Android candidate public preflight
+'on':
+  push:
+    branches:
+    - validation/v0.1.9-apk-preflight-74039745b1b4
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: apk-preflight-74039745
+  cancel-in-progress: false
+jobs:
+  preflight:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+    - name: Verify exact public candidate without checkout or secrets
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      shell: bash
+      run: "set -euo pipefail\npython3 <<'PYCODE'\nimport hashlib, json, os, re, subprocess, urllib.error, urllib.parse,\
+        \ urllib.request, zipfile\nfrom pathlib import Path, PurePosixPath\nfrom datetime import datetime, timezone\n\
+        REPO = \"ZhiweiXiao98/t3code\"\nUNSIGNED_APK_NAME = \"T3-Code-zh-CN-Android-0.1.9-zh.2-arm64-UNSIGNED-NOT-INSTALLABLE.apk\"\
+        \n\ndef require(condition, message):\n    if not condition:\n        raise ValueError(message)\n\ndef digest(path):\n\
+        \    h = hashlib.sha256()\n    with open(path, 'rb') as stream:\n        for block in iter(lambda: stream.read(1024\
+        \ * 1024), b''):\n            h.update(block)\n    return h.hexdigest()\n\ndef copy_limited(source, target,\
+        \ maximum):\n    require(type(maximum) is int and maximum > 0, 'Invalid reviewed download limit')\n    total\
+        \ = 0\n    while True:\n        block = source.read(min(1024 * 1024, maximum - total + 1))\n        if not\
+        \ block:\n            return total\n        total += len(block)\n        require(total <= maximum, 'Artifact\
+        \ exceeds reviewed download limit')\n        target.write(block)\n\nclass NoRedirect(urllib.request.HTTPRedirectHandler):\n\
+        \    def redirect_request(self, *args, **kwargs):\n        return None\n\nclass Api:\n    def __init__(self):\n\
+        \        self.token = os.environ.get('GITHUB_TOKEN', '')\n        require(bool(self.token), 'Read-only Actions\
+        \ token required')\n\n    def request(self, suffix):\n        return urllib.request.Request('https://api.github.com/repos/'\
+        \ + REPO + suffix,\n                                      headers={'Authorization': 'Bearer ' + self.token,\n\
+        \                                               'Accept': 'application/vnd.github+json'})\n\n    def json(self,\
+        \ suffix):\n        with urllib.request.urlopen(self.request(suffix), timeout=60) as response:\n       \
+        \     return json.load(response)\n\n    def download(self, artifact_id, destination, maximum):\n       \
+        \ # Do not forward GitHub Authorization to signed object-storage URLs.\n        try:\n            urllib.request.build_opener(NoRedirect()).open(self.request('/actions/artifacts/'\
+        \ + str(artifact_id) + '/zip'), timeout=60)\n        except urllib.error.HTTPError as error:\n         \
+        \   require(error.code == 302, 'Artifact redirect missing')\n            location = error.headers.get('Location',\
+        \ '')\n        else:\n            raise ValueError('Unexpected artifact download response')\n        url\
+        \ = urllib.parse.urlparse(location)\n        require(url.scheme == 'https' and url.hostname and\n      \
+        \          (url.hostname.endswith('.blob.core.windows.net') or url.hostname.endswith('.githubusercontent.com')\
+        \ or url.hostname.endswith('.actions.githubusercontent.com')),\n                'Unexpected artifact storage\
+        \ host')\n        with urllib.request.urlopen(location, timeout=120) as response, open(destination, 'xb')\
+        \ as out:\n            copy_limited(response, out, maximum)\n\ndef safe_members(archive):\n    seen = set()\n\
+        \    files = []\n    for item in archive.infolist():\n        path = PurePosixPath(item.filename)\n    \
+        \    require(not path.is_absolute() and '..' not in path.parts and '\\\\' not in item.filename and item.filename\
+        \ not in seen, 'Unsafe/duplicate ZIP path')\n        seen.add(item.filename)\n        require((item.external_attr\
+        \ >> 16) & 0o170000 != 0o120000, 'ZIP symlink rejected')\n        require(item.file_size <= 512 * 1024 *\
+        \ 1024, 'ZIP member too large')\n        if not item.is_dir():\n            files.append(item)\n    return\
+        \ files\n\ndef tools():\n    root = Path(os.environ['ANDROID_HOME']) / 'build-tools' / '36.0.0'\n    for\
+        \ executable in ('aapt2', 'zipalign', 'apksigner'):\n        require((root / executable).is_file(), 'Fixed\
+        \ Android build-tools 36.0.0 missing; stop')\n    return root\n\ndef run(command):\n    result = subprocess.run([str(x)\
+        \ for x in command], capture_output=True, text=True)\n    require(result.returncode == 0, 'Reviewed APK\
+        \ tool validation failed; no command output exposed')\n    return result.stdout + '\\n' + result.stderr\n\
+        \ndef check_badging(text):\n    require(\"package: name='com.zhiweixiao.t3code.zhcn' versionCode='1000417'\
+        \ versionName='0.1.9-zh.2'\" in text, 'APK package/version mismatch')\n    natives = re.findall(r'^native-code:\\\
+        s*(.*)$', text, re.M)\n    require(natives == [\"'arm64-v8a'\"], 'APK must contain exactly arm64-v8a native\
+        \ code')\n\ndef check_unsigned(apk, tool, process=None):\n    if process is None:\n        process = subprocess.run\n\
+        \    result = process([str(tool / 'apksigner'), 'verify', '--verbose', str(apk)],\n                    \
+        \ capture_output=True, text=True)\n    require(result.returncode == 1 and 'DOES NOT VERIFY' in result.stdout\
+        \ + result.stderr,\n            'APK signature verification must fail; this check alone does not prove absence\
+        \ of a signature')\n\ndef candidate_entry(archive):\n    members = safe_members(archive)\n    require(sum(x.file_size\
+        \ for x in members) <= 600 * 1024 * 1024, 'Candidate ZIP too large')\n    require(archive.testzip() is None,\
+        \ 'Candidate ZIP integrity failure')\n    apks = [x for x in members if x.filename.endswith('.apk')]\n \
+        \   require(len(apks) == 1 and apks[0].filename == UNSIGNED_APK_NAME and\n            {x.filename for x\
+        \ in members} == {UNSIGNED_APK_NAME, 'SIGNING-BLOCKER.txt'} and len(members) == 2,\n            'Unexpected\
+        \ candidate ZIP entries or APK filename')\n    return apks[0]\n\nSOURCE = '74039745b1b44834c30dd9cb275f1c224072dd96'\n\
+        TREE = '2849e01639a6ec5242b4041b65762ef78ac08a51'\nRUN = 43901004126\nARTIFACT = 14246066879\nZIP_SIZE =\
+        \ 46794499\nZIP_SHA = '0b6bf435e1ace45f4fe50701aff952022931c36211a697f3dd9c9fbb5baddc6e'\nPRODUCER = 133419166178\n\
+        BRANCH = 'validation/v0.1.9-apk-preflight-74039745b1b4'\nWORKFLOW = '.github/workflows/android-candidate-preflight.yml'\n\
+        \ndef stamp(s):\n    require(isinstance(s,str) and s.endswith('Z'), 'Invalid timestamp')\n    return datetime.fromisoformat(s.replace('Z','+00:00'))\n\
+        \ndef snapshot(api):\n    require(os.environ['GITHUB_REPOSITORY']==REPO and os.environ['GITHUB_REF']=='refs/heads/'+BRANCH\
+        \ and os.environ['GITHUB_EVENT_NAME']=='push','Operation event mismatch')\n    require(api.json('')['private']\
+        \ is False,'Public standard-runner repository required')\n    require(api.json('/git/ref/heads/maintenance/v0.1.9-zh-cloud')['object']['sha']==SOURCE,'Maintenance\
+        \ source moved')\n    require(api.json('/git/commits/'+SOURCE)['tree']['sha']==TREE,'Source tree changed')\n\
+        \    op=os.environ['GITHUB_SHA'];commit=api.json('/git/commits/'+op)\n    require([v['sha'] for v in commit['parents']]==[SOURCE],'Operation\
+        \ must be direct source child')\n    diff=api.json('/compare/'+SOURCE+'...'+op)\n    require(diff['ahead_by']==1\
+        \ and diff['behind_by']==0 and len(diff['files'])==1 and diff['files'][0]['filename']==WORKFLOW and diff['files'][0]['status']=='added','Operation\
+        \ altered application')\n    r=api.json('/actions/runs/'+str(RUN))\n    require(r['head_sha']==SOURCE and\
+        \ r['head_branch']=='maintenance/v0.1.9-zh-cloud' and r['run_attempt']==1 and r['status']=='completed' and\
+        \ r['path']=='.github/workflows/client-release.yml','Candidate run identity mismatch')\n    require(r['repository']['full_name']==r['head_repository']['full_name']==REPO,'Candidate\
+        \ repository mismatch')\n    jobs=api.json('/actions/runs/'+str(RUN)+'/attempts/1/jobs?per_page=100')\n\
+        \    require(jobs['total_count']==len(jobs['jobs']) and jobs['total_count']<=100,'Job pagination unexpected')\n\
+        \    js=[j for j in jobs['jobs'] if j['id']==PRODUCER]\n    require(len(js)==1,'Producer missing')\n   \
+        \ j=js[0];require(j['name']=='Android arm64 unsigned candidate (NOT installable)' and j['status']=='completed'\
+        \ and j['conclusion']=='success' and j['run_attempt']==1 and j['head_sha']==SOURCE and j['run_id']==RUN\
+        \ and j['head_branch']=='maintenance/v0.1.9-zh-cloud','Producer identity/result mismatch')\n    require(j['started_at']=='2026-11-16T15:54:33Z'\
+        \ and j['completed_at']=='2026-11-16T16:20:10Z','Producer interval changed')\n    a=api.json('/actions/artifacts/'+str(ARTIFACT));w=a['workflow_run']\n\
+        \    require(a['id']==ARTIFACT and a['name']=='android-UNSIGNED-NOT-INSTALLABLE' and a['size_in_bytes']==ZIP_SIZE\
+        \ and a['digest']=='sha256:'+ZIP_SHA and a['expired'] is False and stamp(a['expires_at'])>datetime.now(timezone.utc),'Artifact\
+        \ metadata mismatch/expired')\n    require(w['id']==RUN and w['head_sha']==SOURCE and w['head_branch']=='maintenance/v0.1.9-zh-cloud','Artifact\
+        \ source mismatch')\n    require(stamp(j['started_at'])<=stamp(a['created_at'])<=stamp(a['updated_at'])<=stamp(j['completed_at']),'Artifact\
+        \ producer interval mismatch')\n    upload=[s for s in j['steps'] if s['name']=='Run actions/upload-artifact@v7'];require(len(upload)==1\
+        \ and upload[0]['conclusion']=='success','Upload step missing')\n    require(stamp(upload[0]['started_at'])<=stamp(a['created_at'])<=stamp(a['updated_at'])<=stamp(upload[0]['completed_at']),'Artifact\
+        \ upload interval mismatch')\n    return {'source':SOURCE,'tree':TREE,'operation':op,'run':{k:r[k] for k\
+        \ in ['id','head_sha','run_attempt','status','conclusion','updated_at']},'producer':j,'artifact':a}\n\n\
+        def main():\n    api=Api();before=snapshot(api)\n    root=Path(os.environ['RUNNER_TEMP'])/'public-apk-preflight';root.mkdir(exist_ok=False)\n\
+        \    archive=root/'candidate.zip';api.download(ARTIFACT,archive,ZIP_SIZE)\n    require(archive.stat().st_size==ZIP_SIZE\
+        \ and digest(archive)==ZIP_SHA,'Candidate archive byte mismatch')\n    with zipfile.ZipFile(archive) as\
+        \ z:\n        entry=candidate_entry(z);apk=root/UNSIGNED_APK_NAME\n        with z.open(entry) as src,apk.open('xb')\
+        \ as dst:copy_limited(src,dst,512*1024*1024)\n    tool=tools();badging=run([tool/'aapt2','dump','badging',apk]);check_badging(badging);check_unsigned(apk,tool)\n\
+        \    require(snapshot(api)==before,'Evidence changed during preflight')\n    out=Path(os.environ['RUNNER_TEMP'])/'public-apk-receipt';out.mkdir(exist_ok=False)\n\
+        \    receipt={'schema':1,'scope':'Unsigned byte preflight only; NOT signing/release/full gate approval','source':SOURCE,'source_tree':TREE,'producer_run':RUN,'producer_attempt':1,'producer_job':PRODUCER,'producer_started_at':before['producer']['started_at'],'producer_completed_at':before['producer']['completed_at'],'artifact_id':ARTIFACT,'artifact_zip_size':ZIP_SIZE,'artifact_zip_sha256':ZIP_SHA,'apk_filename':UNSIGNED_APK_NAME,'apk_size':apk.stat().st_size,'apk_sha256':digest(apk),'package':'com.zhiweixiao.t3code.zhcn','version_name':'0.1.9-zh.2','version_code':1000417,'abi':['arm64-v8a'],'signature_verification':'apksigner验证未通过，非可安装签名包；此结果本身不证明不存在签名','preflight_run':int(os.environ['GITHUB_RUN_ID']),'preflight_attempt':int(os.environ['GITHUB_RUN_ATTEMPT']),'operation_sha':os.environ['GITHUB_SHA']}\n\
+        \    (out/'apk-receipt.json').write_text(json.dumps(receipt,sort_keys=True,indent=2)+'\\n')\n    (out/'source-metadata.json').write_text(json.dumps(before,sort_keys=True,indent=2)+'\\\
+        n')\n    print('Exact unsigned APK bytes/package/version preflight passed. No signing or publication performed.')\n\
+        if __name__=='__main__':main()\nPYCODE\n"
+    - name: Upload only public APK receipt
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: android-candidate-receipt-${{ github.run_id }}-${{ github.run_attempt }}
+        path: ${{ runner.temp }}/public-apk-receipt/*.json
+        if-no-files-found: error
+        retention-days: 14
