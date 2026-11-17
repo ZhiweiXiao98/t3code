@@ -40,7 +40,7 @@ for (const missing of ["Welcome to T3 Code", "Start without an agent", "Start"])
 const navigate = new AsyncFunction(
   "path",
   "page",
-  functionBody(cjk, "navigate", "async function assertChinese"),
+  functionBody(cjk, "navigate", "async function languageControl"),
 );
 for (const origin of ["t3code://app/", "http://127.0.0.1:1234/"]) {
   let actual;
@@ -139,3 +139,6 @@ NodeAssert.throws(() =>
   ),
 );
 console.log("2 CJK per-session signal fixture cases passed");
+
+// Keep the current settings-language contract in the original CI driver suite.
+await import("./test-language-driver.mjs");
