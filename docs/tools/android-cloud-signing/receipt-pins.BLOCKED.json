@@ -1,0 +1,469 @@
+{
+  "ready": true,
+  "collector_run_id": 44002947263,
+  "collector_operation": "9bffbffebd3ec1ce90d50e09a0796f5119f966a4",
+  "source": "74039745b1b44834c30dd9cb275f1c224072dd96",
+  "artifact_id": 14293750072,
+  "zip_sha256": "7aeeb79fd9efd61a143f8aaae5e84078ce8b40d60ce7632427b6d0cd6e78e0bf",
+  "zip_size": 15427835,
+  "members": {
+    "artifact-14241732573.zip": {
+      "size": 782,
+      "sha256": "fdf606198136e966a2e923218655bd232859bc428c1151a6fddd73462abfd538"
+    },
+    "artifact-14245068276.zip": {
+      "size": 133180,
+      "sha256": "aabe1015e5c000bcc4278667988a0440ab7b3d6d99331c60e252093f0a854f94"
+    },
+    "artifact-14244275941.zip": {
+      "size": 4984375,
+      "sha256": "d30303ad6ada8db3e4bddfe1ca03537b4a691214731f0a2bc5b17c9c4ec06454"
+    },
+    "artifact-14246342476.zip": {
+      "size": 182858,
+      "sha256": "6d92586a67d626a080585f8ae93f4980114122d9f5068f0f14082733cf328ddd"
+    },
+    "artifact-14246372986.zip": {
+      "size": 129978,
+      "sha256": "838618d9ad8b9be447aa08676f9fbb06999de52ef282881def7fae99b7763482"
+    },
+    "artifact-14246458035.zip": {
+      "size": 314,
+      "sha256": "dc50889626b28a2788720e074f05e5226272d2f4a7867d786da17a9c4aabb700"
+    },
+    "artifact-14246631311.zip": {
+      "size": 125062,
+      "sha256": "10536a7a1c259a7e35ab3d943f3450be65678025370fafdfd75da0605edb004f"
+    },
+    "artifact-14246875809.zip": {
+      "size": 501,
+      "sha256": "7548480f4fcc0468416ffd795c5aff403b617e5c8ac3fef92a492e87bec87f8b"
+    },
+    "artifact-14247088274.zip": {
+      "size": 639,
+      "sha256": "ce1c065ff6c120b784df1f47f9792703707beaebd3171c2f5980d1f1777743ec"
+    },
+    "artifact-14247921476.zip": {
+      "size": 1403154,
+      "sha256": "e7ea2a0d28d8780b02393623503c1b070bb71dcff0447e7dcd1c5d7f6f29b517"
+    },
+    "artifact-14284283347.zip": {
+      "size": 1824107,
+      "sha256": "01dc141199ed283746115195e7d2f4f5eb70df0136b05fcf6500b872aba59552"
+    },
+    "artifact-14284553040.zip": {
+      "size": 1829756,
+      "sha256": "57c6dbd3625860f96681d2e22d7b69487c5ea2687e25211fdd4e5bce26dbb710"
+    },
+    "artifact-14286393304.zip": {
+      "size": 2839,
+      "sha256": "a10aafcc778162286e07fa14b4fa976a20874f84d1c66a1e0d4348abf71a23ca"
+    },
+    "artifact-14286393306.zip": {
+      "size": 3954,
+      "sha256": "ea0b0b5f5f52df1523ef9ed93823a97e36173f1eaa9a14f746611f2a49dc842b"
+    },
+    "artifact-14286503377.zip": {
+      "size": 674,
+      "sha256": "ebc9c8b38d1b66d546965364dc2da17b7e44ef28c03bd3f476a4d02ac61f6eb3"
+    },
+    "artifact-14286737715.zip": {
+      "size": 3781,
+      "sha256": "fa77fae3f143c796adffb08892e68ed25dff87d9a72404f36b2bc1339f754bbf"
+    },
+    "artifact-14286787745.zip": {
+      "size": 1626,
+      "sha256": "a44ad7c19f800ec354a858a6945154a1662240e45235a6e2b08b24e11e73b462"
+    },
+    "artifact-14286917420.zip": {
+      "size": 1748,
+      "sha256": "edc7288e9cd376ef013202b6c1dcbfea7bf4356b1f1aa31d0ac7fd0a5bd4f4b7"
+    },
+    "artifact-14287016756.zip": {
+      "size": 2771,
+      "sha256": "51cff727d4cfd90460a80e35be049e18523ea1867a7cb0ea3ce31e07b7cd150c"
+    },
+    "artifact-14287241336.zip": {
+      "size": 1556986,
+      "sha256": "98bb6ac5f987e04533124a55a8253694c8736a06b96f50fbd9858aabd0108684"
+    },
+    "artifact-14287605318.zip": {
+      "size": 780,
+      "sha256": "6619853915321d581a755de702c957b5188157e03b7ef557fb3a80b446c22a0f"
+    },
+    "artifact-14287635292.zip": {
+      "size": 961,
+      "sha256": "91437efed7855c32804aa873356afcbba28e1e5125788578d75dc3ff0f847428"
+    },
+    "artifact-14287750719.zip": {
+      "size": 4806,
+      "sha256": "78674d18d0632b95767bd088d44acb44cc2c973f11317691779f93b0dc6e079d"
+    },
+    "artifact-14287766081.zip": {
+      "size": 1554616,
+      "sha256": "9248728168cf04f50a21c6f71215f01bf1ac0f53d5a04d74788cf74894192798"
+    },
+    "artifact-14287935299.zip": {
+      "size": 883,
+      "sha256": "eeb4ac002cb46904957da4d77d20ce2fc0699aae9bc5933cd8db4925bc3ed843"
+    },
+    "artifact-14288732401.zip": {
+      "size": 1526957,
+      "sha256": "0b6138fa068b408c114655c55ab14e3ff22c7eff6d3259684e1ab916f5729da9"
+    },
+    "collected-before-semantic-review.json": {
+      "size": 257120,
+      "sha256": "c8b168b998ef3b4f5185264c8fc8f5dc48af931bb9e82d58c75635608f0314a8"
+    },
+    "collector-operation.json": {
+      "size": 343,
+      "sha256": "7d0ea6c69be0af591285d8194d5f1acba76eefd6470f599bccedfc5f385de030"
+    },
+    "job-133725695689.log": {
+      "size": 55779,
+      "sha256": "7c29743816dceeffdb027e84910704966f2086d44f15fbeb6d9324050fdcfe15"
+    },
+    "job-133725695991.log": {
+      "size": 47992,
+      "sha256": "5a8f368fc5c9d710eede08effff8196ae9ca5a3437624635c72356efc943bf30"
+    },
+    "job-133725696061.log": {
+      "size": 47251,
+      "sha256": "3fb16ead187e5197d26c55285bb2e539675b8eeae358456fc9af57b9e7163c8d"
+    },
+    "job-133725696177.log": {
+      "size": 71010,
+      "sha256": "3a0a804c6998d740328ab85799320eddb1e577b079e9e9d00110e3459e24c3b7"
+    },
+    "job-133727490903.log": {
+      "size": 13675,
+      "sha256": "b9e70f0559119e09e2fd5224f68429a3292d95caeb7d0a6996c3bc76641557ff"
+    },
+    "job-133725696208.log": {
+      "size": 49902,
+      "sha256": "ce0613f32a1c46a19faea7010a827cb0151c4698fb04a29468dfd4662c506ac8"
+    },
+    "job-133735578007.log": {
+      "size": 823099,
+      "sha256": "3b20b69bec820d616374a99235dd45d196a7ff3e3fb7e37be6c7203ccd460cf4"
+    },
+    "original-byte-receipts.json": {
+      "size": 260775,
+      "sha256": "d156dd18297c40a3d37fe3663e13f6ccd23101969ef872342247a2d0ad70ec70"
+    }
+  },
+  "producer": {
+    "id": 133771243061,
+    "run_id": 44002947263,
+    "workflow_name": "Read-only original proof receipts 740",
+    "head_branch": "validation/v0.1.9-original-proof-receipts-74039745",
+    "run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/44002947263",
+    "run_attempt": 1,
+    "node_id": "CR_kwDOT3b1Oc8AAAAfJWMuNQ",
+    "head_sha": "9bffbffebd3ec1ce90d50e09a0796f5119f966a4",
+    "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/133771243061",
+    "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/44002947263/job/133771243061",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-11-17T02:26:05Z",
+    "started_at": "2026-11-17T02:26:07Z",
+    "completed_at": "2026-11-17T02:26:53Z",
+    "name": "collect",
+    "steps": [
+      {
+        "name": "Set up job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 1,
+        "started_at": "2026-11-17T02:26:08Z",
+        "completed_at": "2026-11-17T02:26:08Z"
+      },
+      {
+        "name": "Materialize exact reviewed collector (no checkout or application execution)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 2,
+        "started_at": "2026-11-17T02:26:08Z",
+        "completed_at": "2026-11-17T02:26:09Z"
+      },
+      {
+        "name": "Read API, original logs and small proof ZIPs; replay strict consumers",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 3,
+        "started_at": "2026-11-17T02:26:09Z",
+        "completed_at": "2026-11-17T02:26:50Z"
+      },
+      {
+        "name": "Preserve receipts and failures for review (not approval)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 4,
+        "started_at": "2026-11-17T02:26:50Z",
+        "completed_at": "2026-11-17T02:26:52Z"
+      },
+      {
+        "name": "Complete job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 5,
+        "started_at": "2026-11-17T02:26:52Z",
+        "completed_at": "2026-11-17T02:26:52Z"
+      }
+    ],
+    "check_run_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/133771243061",
+    "labels": [
+      "ubuntu-24.04"
+    ],
+    "runner_id": 1000010143,
+    "runner_name": "GitHub Actions 1000010143",
+    "runner_group_id": 0,
+    "runner_group_name": "GitHub Actions"
+  },
+  "artifact_api": {
+    "id": 14293750072,
+    "node_id": "MDg6QXJ0aWZhY3QxNDI5Mzc1MDA3Mg==",
+    "name": "original-proof-receipts-740-44002947263",
+    "size_in_bytes": 15427835,
+    "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/artifacts/14293750072",
+    "archive_download_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/artifacts/14293750072/zip",
+    "expired": false,
+    "digest": "sha256:7aeeb79fd9efd61a143f8aaae5e84078ce8b40d60ce7632427b6d0cd6e78e0bf",
+    "created_at": "2026-11-17T02:26:52Z",
+    "updated_at": "2026-11-17T02:26:52Z",
+    "expires_at": "2026-12-01T02:26:51Z",
+    "workflow_run": {
+      "id": 44002947263,
+      "repository_id": 1333196089,
+      "head_repository_id": 1333196089,
+      "head_branch": "validation/v0.1.9-original-proof-receipts-74039745",
+      "head_sha": "9bffbffebd3ec1ce90d50e09a0796f5119f966a4"
+    }
+  },
+  "run_api": {
+    "id": 44002947263,
+    "name": "Read-only original proof receipts 740",
+    "node_id": "WFR_kwLOT3b1Oc8AAAAKPsewvw",
+    "head_branch": "validation/v0.1.9-original-proof-receipts-74039745",
+    "head_sha": "9bffbffebd3ec1ce90d50e09a0796f5119f966a4",
+    "path": ".github/workflows/original-proof-receipts-740.yml",
+    "display_title": "ci: collect exact original-source proof receipts without signing or p\u2026",
+    "run_number": 1,
+    "event": "push",
+    "status": "completed",
+    "conclusion": "success",
+    "workflow_id": 420828030,
+    "check_suite_id": 119119913056,
+    "check_suite_node_id": "CS_kwDOT3b1Oc8AAAAbvBmgYA",
+    "url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/44002947263",
+    "html_url": "https://github.com/ZhiweiXiao98/t3code/actions/runs/44002947263",
+    "pull_requests": [],
+    "created_at": "2026-11-17T02:26:05Z",
+    "updated_at": "2026-11-17T02:26:54Z",
+    "actor": {
+      "login": "ZhiweiXiao98",
+      "id": 99611261,
+      "node_id": "U_kgDOBe_yfQ",
+      "avatar_url": "https://avatars.githubusercontent.com/u/99611261?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/ZhiweiXiao98",
+      "html_url": "https://github.com/ZhiweiXiao98",
+      "followers_url": "https://api.github.com/users/ZhiweiXiao98/followers",
+      "following_url": "https://api.github.com/users/ZhiweiXiao98/following{/other_user}",
+      "gists_url": "https://api.github.com/users/ZhiweiXiao98/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/ZhiweiXiao98/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/ZhiweiXiao98/subscriptions",
+      "organizations_url": "https://api.github.com/users/ZhiweiXiao98/orgs",
+      "repos_url": "https://api.github.com/users/ZhiweiXiao98/repos",
+      "events_url": "https://api.github.com/users/ZhiweiXiao98/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/ZhiweiXiao98/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "run_attempt": 1,
+    "referenced_workflows": [],
+    "run_started_at": "2026-11-17T02:26:05Z",
+    "triggering_actor": {
+      "login": "ZhiweiXiao98",
+      "id": 99611261,
+      "node_id": "U_kgDOBe_yfQ",
+      "avatar_url": "https://avatars.githubusercontent.com/u/99611261?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/ZhiweiXiao98",
+      "html_url": "https://github.com/ZhiweiXiao98",
+      "followers_url": "https://api.github.com/users/ZhiweiXiao98/followers",
+      "following_url": "https://api.github.com/users/ZhiweiXiao98/following{/other_user}",
+      "gists_url": "https://api.github.com/users/ZhiweiXiao98/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/ZhiweiXiao98/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/ZhiweiXiao98/subscriptions",
+      "organizations_url": "https://api.github.com/users/ZhiweiXiao98/orgs",
+      "repos_url": "https://api.github.com/users/ZhiweiXiao98/repos",
+      "events_url": "https://api.github.com/users/ZhiweiXiao98/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/ZhiweiXiao98/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "jobs_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/44002947263/jobs",
+    "logs_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/44002947263/logs",
+    "check_suite_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/check-suites/119119913056",
+    "artifacts_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/44002947263/artifacts",
+    "cancel_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/44002947263/cancel",
+    "rerun_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/44002947263/rerun",
+    "previous_attempt_url": null,
+    "workflow_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/actions/workflows/420828030",
+    "head_commit": {
+      "id": "9bffbffebd3ec1ce90d50e09a0796f5119f966a4",
+      "tree_id": "6252d2a95bf58d691d1f89842db2ecf821c129a5",
+      "message": "ci: collect exact original-source proof receipts without signing or publishing",
+      "timestamp": "2026-11-17T02:25:57Z",
+      "author": {
+        "name": "ZhiweiXiao98",
+        "email": "99611261+ZhiweiXiao98@users.noreply.github.com"
+      },
+      "committer": {
+        "name": "ZhiweiXiao98",
+        "email": "99611261+ZhiweiXiao98@users.noreply.github.com"
+      }
+    },
+    "repository": {
+      "id": 1333196089,
+      "node_id": "R_kgDOT3b1OQ",
+      "name": "t3code",
+      "full_name": "ZhiweiXiao98/t3code",
+      "private": false,
+      "owner": {
+        "login": "ZhiweiXiao98",
+        "id": 99611261,
+        "node_id": "U_kgDOBe_yfQ",
+        "avatar_url": "https://avatars.githubusercontent.com/u/99611261?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/ZhiweiXiao98",
+        "html_url": "https://github.com/ZhiweiXiao98",
+        "followers_url": "https://api.github.com/users/ZhiweiXiao98/followers",
+        "following_url": "https://api.github.com/users/ZhiweiXiao98/following{/other_user}",
+        "gists_url": "https://api.github.com/users/ZhiweiXiao98/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/ZhiweiXiao98/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/ZhiweiXiao98/subscriptions",
+        "organizations_url": "https://api.github.com/users/ZhiweiXiao98/orgs",
+        "repos_url": "https://api.github.com/users/ZhiweiXiao98/repos",
+        "events_url": "https://api.github.com/users/ZhiweiXiao98/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/ZhiweiXiao98/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "html_url": "https://github.com/ZhiweiXiao98/t3code",
+      "description": "T3 Code \u7b80\u4f53\u4e2d\u6587\u793e\u533a\u7248\uff0c\u6301\u7eed\u540c\u6b65\u5b98\u65b9\u66f4\u65b0\uff0c\u63d0\u4f9b \u591a\u7aef \u5b89\u88c5\u5305\u3002",
+      "fork": true,
+      "url": "https://api.github.com/repos/ZhiweiXiao98/t3code",
+      "forks_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/forks",
+      "keys_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/keys{/key_id}",
+      "collaborators_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/collaborators{/collaborator}",
+      "teams_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/teams",
+      "hooks_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/hooks",
+      "issue_events_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/issues/events{/number}",
+      "events_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/events",
+      "assignees_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/assignees{/user}",
+      "branches_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/branches{/branch}",
+      "tags_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/tags",
+      "blobs_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/git/blobs{/sha}",
+      "git_tags_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/git/tags{/sha}",
+      "git_refs_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/git/refs{/sha}",
+      "trees_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/git/trees{/sha}",
+      "statuses_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/statuses/{sha}",
+      "languages_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/languages",
+      "stargazers_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/stargazers",
+      "contributors_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/contributors",
+      "subscribers_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/subscribers",
+      "subscription_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/subscription",
+      "commits_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/commits{/sha}",
+      "git_commits_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/git/commits{/sha}",
+      "comments_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/comments{/number}",
+      "issue_comment_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/issues/comments{/number}",
+      "contents_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/contents/{+path}",
+      "compare_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/compare/{base}...{head}",
+      "merges_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/merges",
+      "archive_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/{archive_format}{/ref}",
+      "downloads_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/downloads",
+      "issues_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/issues{/number}",
+      "pulls_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/pulls{/number}",
+      "milestones_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/milestones{/number}",
+      "notifications_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/notifications{?since,all,participating}",
+      "labels_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/labels{/name}",
+      "releases_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/releases{/id}",
+      "deployments_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/deployments"
+    },
+    "head_repository": {
+      "id": 1333196089,
+      "node_id": "R_kgDOT3b1OQ",
+      "name": "t3code",
+      "full_name": "ZhiweiXiao98/t3code",
+      "private": false,
+      "owner": {
+        "login": "ZhiweiXiao98",
+        "id": 99611261,
+        "node_id": "U_kgDOBe_yfQ",
+        "avatar_url": "https://avatars.githubusercontent.com/u/99611261?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/ZhiweiXiao98",
+        "html_url": "https://github.com/ZhiweiXiao98",
+        "followers_url": "https://api.github.com/users/ZhiweiXiao98/followers",
+        "following_url": "https://api.github.com/users/ZhiweiXiao98/following{/other_user}",
+        "gists_url": "https://api.github.com/users/ZhiweiXiao98/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/ZhiweiXiao98/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/ZhiweiXiao98/subscriptions",
+        "organizations_url": "https://api.github.com/users/ZhiweiXiao98/orgs",
+        "repos_url": "https://api.github.com/users/ZhiweiXiao98/repos",
+        "events_url": "https://api.github.com/users/ZhiweiXiao98/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/ZhiweiXiao98/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "html_url": "https://github.com/ZhiweiXiao98/t3code",
+      "description": "T3 Code \u7b80\u4f53\u4e2d\u6587\u793e\u533a\u7248\uff0c\u6301\u7eed\u540c\u6b65\u5b98\u65b9\u66f4\u65b0\uff0c\u63d0\u4f9b \u591a\u7aef \u5b89\u88c5\u5305\u3002",
+      "fork": true,
+      "url": "https://api.github.com/repos/ZhiweiXiao98/t3code",
+      "forks_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/forks",
+      "keys_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/keys{/key_id}",
+      "collaborators_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/collaborators{/collaborator}",
+      "teams_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/teams",
+      "hooks_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/hooks",
+      "issue_events_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/issues/events{/number}",
+      "events_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/events",
+      "assignees_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/assignees{/user}",
+      "branches_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/branches{/branch}",
+      "tags_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/tags",
+      "blobs_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/git/blobs{/sha}",
+      "git_tags_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/git/tags{/sha}",
+      "git_refs_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/git/refs{/sha}",
+      "trees_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/git/trees{/sha}",
+      "statuses_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/statuses/{sha}",
+      "languages_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/languages",
+      "stargazers_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/stargazers",
+      "contributors_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/contributors",
+      "subscribers_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/subscribers",
+      "subscription_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/subscription",
+      "commits_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/commits{/sha}",
+      "git_commits_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/git/commits{/sha}",
+      "comments_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/comments{/number}",
+      "issue_comment_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/issues/comments{/number}",
+      "contents_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/contents/{+path}",
+      "compare_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/compare/{base}...{head}",
+      "merges_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/merges",
+      "archive_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/{archive_format}{/ref}",
+      "downloads_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/downloads",
+      "issues_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/issues{/number}",
+      "pulls_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/pulls{/number}",
+      "milestones_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/milestones{/number}",
+      "notifications_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/notifications{?since,all,participating}",
+      "labels_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/labels{/name}",
+      "releases_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/releases{/id}",
+      "deployments_url": "https://api.github.com/repos/ZhiweiXiao98/t3code/deployments"
+    }
+  },
+  "plan_sha256": "d090e1e2d01dfb4d7d3cd83f98624fb43bb15eeb907b7a4fa0c3d00ad97a9467",
+  "scope": "Actual observed collector pins; signing remains separately disabled. Independent review pending."
+}

@@ -4,7 +4,7 @@ from pathlib import Path
 from validate_coverage_manifest import validate_manifest
 class V019CoverageTests(unittest.TestCase):
  def fixture(self):
-  root=Path(__file__).parent;m=json.loads((root/'synthetic-coverage-NOT-EVIDENCE.json').read_text());p=json.loads((root/'supplemental-pin.json').read_text());p['source'].update(m['source']);p['workflow']=m['workflow'];return m,p
+  root=Path(__file__).parent;m=json.loads((root/'test-fixtures/coverage740.json').read_text());p=json.loads((root/'supplemental-pin.json').read_text());p['source'].update(m['source']);p['workflow']=m['workflow'];return m,p
  def test_current_five_lanes(self):
   m,p=self.fixture();validate_manifest(m,p)
  def test_bash_skip_and_prerequisites_are_not_optional(self):
@@ -17,3 +17,4 @@ class V019CoverageTests(unittest.TestCase):
  def test_actual_browser_revision_required(self):
   m,p=self.fixture();next(x for x in m['lanes'] if x['lane']=='linux-node26')['runtime']['browser']['revision']='1223'
   with self.assertRaises(ValueError):validate_manifest(m,p)
+

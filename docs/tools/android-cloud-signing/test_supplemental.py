@@ -10,7 +10,7 @@ import verify_supplemental as verifier
 
 
 def fixture(transform=None, member="coverage-manifest.json"):
-    manifest = json.loads(Path(__file__).with_name('synthetic-coverage-NOT-EVIDENCE.json').read_text())
+    manifest = json.loads((Path(__file__).parent/'test-fixtures/coverage740.json').read_text())
     if transform: transform(manifest)
     report = json.dumps(manifest).encode()
     out = io.BytesIO()
@@ -102,8 +102,8 @@ class CoverageTransportTests(unittest.TestCase):
             with self.subTest(member=member), self.assertRaises(ValueError):verifier.verify(pins,api=api)
         changes=[lambda m:m['lanes'][0]['files'][0]['assertions'].pop(),
                  lambda m:m['lanes'][0]['files'][0]['assertions'][0].update(status='skipped'),
-                 lambda m:m['lanes'][2]['runtime'].update(platform='linux'),
-                 lambda m:m['lanes'][1]['runtime'].update(has_socket_set_type_of_service=False),
+                 lambda m:next(l for l in m['lanes'] if l['lane']=='windows-uninstall')['runtime'].update(platform='linux'),
+                 lambda m:next(l for l in m['lanes'] if l['lane']=='linux-node24')['runtime'].update(has_socket_set_type_of_service=False),
                  lambda m:m['lanes'][0]['files'][0].update(sha256='c'*64)]
         for change in changes:
             pins,data,api=fixture(transform=change)
@@ -133,3 +133,4 @@ class CoverageTransportTests(unittest.TestCase):
 
 
 if __name__=='__main__':unittest.main()
+
