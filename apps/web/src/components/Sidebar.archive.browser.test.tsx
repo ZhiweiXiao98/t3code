@@ -122,6 +122,8 @@ it("uses settlement locale for sidebar archive failures", async () => {
   diagnostic("filter-open:end"); // archive-diagnostic
   diagnostic("filter-all:begin"); // archive-diagnostic
   await page.getByRole("option", { name: "All projects", exact: true }).click();
+  // The following gesture targets the thread, not the closing project popup.
+  await expect.element(page.getByRole("listbox")).not.toBeInTheDocument();
   diagnostic("filter-all:end"); // archive-diagnostic
   const row = page.getByRole("button", { name: /^Literal \$& \{sidebar\} title(?:,|$)/ });
   diagnostic("row-visible:begin"); // archive-diagnostic
@@ -152,6 +154,38 @@ it("uses settlement locale for sidebar archive failures", async () => {
     { cause: new Error(""), description: "", interrupted: false },
     { cause: null, description: "", interrupted: true },
   ];
+  // Keep the real right-click flow. Record only structural state, not page text,
+  // so a missing menu can be distinguished from a disabled item or focus dismissal.
+  let menuFlowComplete = false;
+  const menuTrace: object[] = [];
+  const recordMenu = (event: Event) => {
+    if (menuTrace.length === 64) menuTrace.shift();
+    const target = event.target instanceof Element ? event.target : null;
+    menuTrace.push({
+      type: event.type,
+      targetRole: target?.getAttribute("role"),
+      onRow: Boolean(target?.closest("[data-sidebar-row]")),
+      inMenu: Boolean(target?.closest('[role="menu"]')),
+      prevented: event.defaultPrevented,
+      focused: document.hasFocus(),
+      menuCount: document.querySelectorAll('[role="menu"]').length,
+      items: [...document.querySelectorAll('[role="menuitem"]')].map((item) => ({
+        disabled: item.getAttribute("aria-disabled"),
+        archive: item.textContent === "Archive thread",
+      })),
+    });
+  };
+  const eventTypes = ["pointerdown", "pointerup", "contextmenu", "focusin", "blur"];
+  for (const type of eventTypes) window.addEventListener(type, recordMenu);
+  using _menuTrace = {
+    [Symbol.dispose]() {
+      if (!menuFlowComplete) {
+        recordMenu(new Event("test-dispose"));
+        console.info("[archive-menu-failure]", menuTrace);
+      }
+      for (const type of eventTypes) window.removeEventListener(type, recordMenu);
+    },
+  };
   commands.archive.mockReset();
   commands.confirm.mockReset().mockResolvedValue(true);
   let notices = 0;
@@ -240,5 +274,6 @@ it("uses settlement locale for sidebar archive failures", async () => {
   expect(plain).not.toHaveBeenCalled();
   expect(router.history.location.pathname).toBe(`/${ENVIRONMENT_ID}/${thread.id}`);
   expect(dispatchedCommands()).toEqual(commandsBefore);
+  menuFlowComplete = true;
   diagnostic("assertions:complete"); // archive-diagnostic
 });
