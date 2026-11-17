@@ -24,7 +24,7 @@ on:
 permissions: {}
 
 concurrency:
-  group: publish-community-client-v0.1.9-zh.1
+  group: publish-community-client-v0.1.10-zh.1
   cancel-in-progress: false
 
 jobs:
@@ -55,11 +55,11 @@ jobs:
           import datetime, hashlib, json, os, pathlib, re, shutil, stat, subprocess, zipfile
 
           repo = 'ZhiweiXiao98/t3code'
-          branch = 'maintenance/v0.1.9-zh-cloud'
+          branch = 'review/v0.1.10-zh'
           run_id = os.environ['CANDIDATE_RUN_ID']
           sha = os.environ['EXPECTED_SHA']
           attempt = os.environ['EXPECTED_ATTEMPT']
-          assert re.fullmatch(r'[1-9][0-9]{0,8}', attempt), 'Invalid reviewed attempt'
+          assert attempt == '1', 'Only a fresh complete first attempt is publishable'
           assert re.fullmatch(r'[1-9][0-9]{0,17}', run_id), 'Invalid run ID'
           assert re.fullmatch(r'[0-9a-f]{40}', sha), 'Expected full lowercase SHA'
           assert os.environ['REVIEWED_ARTIFACTS'] == 'true', 'Review the actual candidate artifacts before dispatch'
@@ -71,6 +71,17 @@ jobs:
           def api(path):
               return json.loads(subprocess.check_output(['gh', 'api', base + path]))
           assert api('')['private'] is False, 'Public repository required'
+          def review_snapshot():
+              pr = api('/pulls/2')
+              assert pr['number'] == 2 and pr['state'] == 'open' and pr['merged'] is False
+              assert pr['head']['repo']['full_name'] == repo and pr['head']['ref'] == branch and pr['head']['sha'] == sha
+              assert pr['base']['repo']['full_name'] == repo
+              assert pr['base']['ref'] == 'maintenance/v0.1.9-zh-cloud'
+              assert pr['base']['sha'] == '74039745b1b44834c30dd9cb275f1c224072dd96', 'Reviewed PR base changed'
+              assert api('/git/ref/heads/' + branch)['object']['sha'] == sha, 'Review branch moved'
+              return {'number': 2, 'head_sha': sha, 'head_ref': branch,
+                      'base_ref': pr['base']['ref'], 'base_sha': pr['base']['sha']}
+          review = review_snapshot()
           run_path = '/actions/runs/' + run_id
           def run_snapshot():
               r = api(run_path)
@@ -91,7 +102,10 @@ jobs:
           required_jobs = {
               'Validate exact source', 'Lint and typecheck', 'Mobile native static analysis', 'Rust native formatting and tests', 'Build validated desktop bundle',
               'Linux x64 and embedded Windows WSL runtime',
-              'Tests (clients)', 'Tests (web)', 'Tests (server-1)', 'Tests (server-2)', 'Tests (server-3)',
+              'Tests (clients)', 'Tests (server-1)', 'Tests (server-2)', 'Tests (server-3)',
+              'Web full coverage shard 1/4', 'Web full coverage shard 2/4',
+              'Web full coverage shard 3/4', 'Web full coverage shard 4/4',
+              'Require complete Web assertion coverage', 'Build and boot validated Web client',
               'Desktop win x64 (integrity checked)', 'Desktop mac arm64 (integrity checked)', 'Desktop mac x64 (integrity checked)',
               'Clean macOS arm64 dmg+zip first start',
               'Clean macOS x64 dmg first start', 'Clean macOS x64 zip first start',
@@ -104,8 +118,8 @@ jobs:
               assert len(matches) == 1 and matches[0]['conclusion'] == 'success' and matches[0]['status'] == 'completed', name
               assert matches[0]['head_sha'] == sha and matches[0]['run_id'] == int(run_id)
           assert api('/commits/' + sha)['sha'] == sha
-          assert api('/git/ref/heads/' + branch)['object']['sha'] == sha, 'Maintenance branch moved; review again'
-          prefix = 'T3-Code-0.1.9-zh.1-'
+          assert api('/git/ref/heads/' + branch)['object']['sha'] == sha, 'Review branch moved; review again'
+          prefix = 'T3-Code-0.1.10-zh.1-'
           specifications = {
               'client-linux-x64': ({prefix + 'amd64.deb'}, set()),
               'client-win-x64': ({prefix + 'x64.exe'}, set()),
@@ -217,11 +231,12 @@ jobs:
               archive.unlink()
           assert run_snapshot() == run, 'Candidate was rerun or changed during verification'
           assert artifacts_snapshot() == artifacts, 'Candidate artifacts changed during verification'
+          assert review_snapshot() == review, 'PR review identity changed during verification'
           asset_records.sort(key=lambda a: a['name'])
-          manifest = {'repository': repo, 'version': '0.1.9-zh.1', 'source_sha': sha,
+          manifest = {'repository': repo, 'version': '0.1.10-zh.1', 'source_sha': sha,
                       'run_url': f'https://github.com/{repo}/actions/runs/{run_id}/attempts/{run["run_attempt"]}',
                       'run': run, 'artifacts': artifacts, 'assets': asset_records,
-                      'arm_clean_installs': clean_install_records}
+                      'arm_clean_installs': clean_install_records, 'review': review}
           manifest_path = output / 'BUILD-PROVENANCE.json'
           manifest_path.write_text(json.dumps(manifest, indent=2) + '\n')
           manifest_digest = hashlib.file_digest(manifest_path.open('rb'), 'sha256').hexdigest()
@@ -269,8 +284,8 @@ jobs:
             const assert = require('node:assert/strict');
             const hash = data => crypto.createHash('sha256').update(data).digest('hex');
             const repo = {owner: 'ZhiweiXiao98', repo: 't3code'};
-            const branch = 'maintenance/v0.1.9-zh-cloud';
-            const tag = 'v0.1.9-zh.1';
+            const branch = 'review/v0.1.10-zh';
+            const tag = 'v0.1.10-zh.1';
             assert.equal(context.repo.owner, repo.owner);
             assert.equal(context.repo.repo, repo.repo);
             assert.equal(context.ref, `refs/heads/${branch}`);
@@ -280,14 +295,17 @@ jobs:
             assert.equal(hash(manifestBytes), process.env.MANIFEST_SHA256);
             const m = JSON.parse(manifestBytes);
             assert.equal(m.repository, 'ZhiweiXiao98/t3code');
-            assert.equal(m.version, '0.1.9-zh.1');
+            assert.equal(m.version, '0.1.10-zh.1');
             assert.equal(m.source_sha, process.env.EXPECTED_SHA);
             assert.equal(String(m.run.id), process.env.CANDIDATE_RUN_ID);
-            assert.equal(m.run.run_attempt, Number(process.env.EXPECTED_ATTEMPT));
+            assert.equal(process.env.EXPECTED_ATTEMPT, '1');
+            assert.equal(m.run.run_attempt, 1);
+            assert.deepEqual(m.review, {number: 2, head_sha: m.source_sha, head_ref: branch,
+              base_ref: 'maintenance/v0.1.9-zh-cloud', base_sha: '74039745b1b44834c30dd9cb275f1c224072dd96'});
             assert.match(m.source_sha, /^[0-9a-f]{40}$/);
-            const mandatory = ['T3-Code-0.1.9-zh.1-amd64.deb',
-              'T3-Code-0.1.9-zh.1-x64.exe', 'T3-Code-0.1.9-zh.1-arm64.dmg', 'T3-Code-0.1.9-zh.1-x64.dmg',
-              'T3-Code-0.1.9-zh.1-arm64.zip', 'T3-Code-0.1.9-zh.1-x64.zip',
+            const mandatory = ['T3-Code-0.1.10-zh.1-amd64.deb',
+              'T3-Code-0.1.10-zh.1-x64.exe', 'T3-Code-0.1.10-zh.1-arm64.dmg', 'T3-Code-0.1.10-zh.1-x64.dmg',
+              'T3-Code-0.1.10-zh.1-arm64.zip', 'T3-Code-0.1.10-zh.1-x64.zip',
               'MACOS-TRUST-arm64.txt', 'MACOS-TRUST-x64.txt'];
             const allowed = new Set(mandatory);
             const names = m.assets.map(a => a.name);
@@ -314,6 +332,16 @@ jobs:
             }
             async function recheck() {
               assert.equal((await publicAPI('')).private, false);
+              const pr = await publicAPI('/pulls/2');
+              assert.equal(pr.number, 2);
+              assert.equal(pr.state, 'open');
+              assert.equal(pr.merged, false);
+              assert.equal(pr.head.repo.full_name, m.repository);
+              assert.equal(pr.head.ref, m.review.head_ref);
+              assert.equal(pr.head.sha, m.review.head_sha);
+              assert.equal(pr.base.repo.full_name, m.repository);
+              assert.equal(pr.base.ref, m.review.base_ref);
+              assert.equal(pr.base.sha, m.review.base_sha);
               const run = await publicAPI(`/actions/runs/${m.run.id}`);
               for (const [key, value] of Object.entries(m.run)) assert.equal(run[key], value);
               assert.equal(run.repository.full_name, m.repository);
@@ -341,14 +369,14 @@ jobs:
             assert(!releases.some(r => r.tag_name === tag), 'Existing draft/release; refusing replacement');
             // Atomic ref creation prevents accidentally publishing on a raced existing tag.
             await github.rest.git.createRef({...repo, ref: `refs/tags/${tag}`, sha: m.source_sha});
-            const body = `基于上游稳定版 v0.1.9 的简体中文社区桌面正式发布：${m.version}。\n\n` +
-              `精确源码：${m.source_sha}\n构建记录：${m.run_url}\n上游版本：https://github.com/pingdotgg/t3code/releases/tag/v0.1.9\n\n` +
-              '本版基于上游稳定版 v0.1.9，补全任务右键菜单、设置分类及新任务默认值说明的简体中文显示。\n\n' +
-              'v0.1.9 包含消息搜索索引迁移（081）。升级前请备份数据；如需回退，请使用升级前的备份，不要假定旧版本可以安全打开已升级的数据库。\n\n' +
+            const body = `基于上游稳定版 v0.1.10 的简体中文社区桌面正式发布：${m.version}。\n\n` +
+              `精确源码：${m.source_sha}\n构建记录：${m.run_url}\n上游版本：https://github.com/pingdotgg/t3code/releases/tag/v0.1.10\n\n` +
+              '本版基于上游稳定版 v0.1.10，补全任务右键菜单、设置分类及新任务默认值说明的简体中文显示。\n\n' +
+              '本版本包含数据库迁移。升级前请备份数据；如需回退，请使用升级前的备份，不要假定旧版本可以安全打开已升级的数据库。\n\n' +
               '从 V1 升级必读：V2 首次启动会复制并导入 V1 数据，两个版本此后的数据不会互相同步。请先备份数据并更新所有连接的服务器和客户端；V1 客户端无法连接 V2 服务器。OpenCode 2 会迁移其共享数据库，不要与 OpenCode 1 并行运行。详细迁移说明：https://github.com/pingdotgg/t3code/issues/14871 。\n\n' +
               '提供 Windows x64、macOS Apple Silicon / Intel、Linux x64 共六个安装包。Windows 未做 Authenticode 签名；macOS 已做 ad-hoc 完整性签名并通过严格校验，但没有 Developer ID 商业签名或 Apple 公证。Gatekeeper 仍可能因未公证而阻止打开，这与安装包损坏是不同的检查结果；随附 MACOS-TRUST-*.txt 记录实际信任检查。升级前建议备份现有数据。\n\n' +
               'Android 新版本独立验证和发布，必须沿用已备份并通过恢复验证的固定签名身份；本桌面发布不包含未签名候选 APK。\n\n' +
-              '该精确提交的 21 项门禁全部通过，覆盖 lint、类型检查、完整测试、原生静态与回归检查、桌面打包、Android 未签名候选构建及六个桌面安装包的云端干净安装和首次启动验收（空白用户数据、正常沙箱）。AppImage 固定禁用发布，不属于发布门禁；Linux DEB 在原生 Ubuntu 24.04 验收。没有关闭沙箱或降低宿主系统安全设置。这不是人工 Finder 操作验收，也不代表未经公证的 macOS 软件已获得系统信任。桌面产物校验后原样发布，没有重新构建。SHA256SUMS.txt 和 BUILD-PROVENANCE.json 记录完整性与来源，不代表商业签名。请手动下载，本版不提供自动更新源。\n';
+              '该精确提交的 25 项门禁全部通过，覆盖 lint、类型检查、完整测试、原生静态与回归检查、桌面打包、Android 未签名候选构建及六个桌面安装包的云端干净安装和首次启动验收（空白用户数据、正常沙箱）。AppImage 固定禁用发布，不属于发布门禁；Linux DEB 在原生 Ubuntu 24.04 验收。没有关闭沙箱或降低宿主系统安全设置。这不是人工 Finder 操作验收，也不代表未经公证的 macOS 软件已获得系统信任。桌面产物校验后原样发布，没有重新构建。SHA256SUMS.txt 和 BUILD-PROVENANCE.json 记录完整性与来源，不代表商业签名。请手动下载，本版不提供自动更新源。\n';
             const {data: release} = await github.rest.repos.createRelease({...repo, tag_name: tag,
               target_commitish: m.source_sha, name: `T3 Code 中文版 ${m.version} (community desktop clients)`,
               body, draft: true, prerelease: false, make_latest: 'false'});
