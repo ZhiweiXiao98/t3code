@@ -64,9 +64,16 @@ describe("searchSettings", () => {
     expect(searchSettings("sharing", ITEMS).map((item) => item.id)).toEqual(["network-access"]);
     expect(searchSettings("claude", ITEMS).map((item) => item.id)).toEqual(["providers"]);
     expect(searchSettings("long lines", ITEMS).map((item) => item.id)).toEqual(["word-wrap"]);
-    for (const query of ["Language", "语言", "中文", "简体中文", "locale"]) {
+    // Exact new label ranks first; legacy localized aliases retain their stable search order.
+    for (const [query, id] of [
+      ["Language", "language"],
+      ["语言", "app-language"],
+      ["中文", "app-language"],
+      ["简体中文", "app-language"],
+      ["locale", "app-language"],
+    ] as const) {
       expect(searchSettings(query)[0]).toMatchObject({
-        id: "language",
+        id,
         to: "/settings/general",
       });
     }

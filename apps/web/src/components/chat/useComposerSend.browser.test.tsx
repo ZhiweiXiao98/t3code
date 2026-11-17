@@ -57,6 +57,7 @@ const fixture = await vi.hoisted(async () => {
     respond: vi.fn(),
     upload: vi.fn(),
     waitUploads: vi.fn(),
+    refreshUploads: vi.fn(),
     lookup: vi.fn(),
     lookupDefault: undefined as
       | typeof import("../../lib/attachmentUploadQueue").getUploadedAttachments
@@ -97,6 +98,7 @@ vi.mock("../../lib/attachmentUploadQueue", async (original) => {
     startAttachmentUpload: fixture.upload,
     retryAttachmentUpload: fixture.upload,
     awaitAttachmentUploads: fixture.waitUploads,
+    refreshExpiredAttachmentUploads: fixture.refreshUploads,
     getUploadedAttachments: fixture.lookup,
   };
 });
@@ -498,7 +500,7 @@ for (const guard of ["server", "branch", "feedback"] as const)
         else expect(screen.container.querySelector('[data-variant="error"]')).toBeNull();
       }
       expect(fixture.context).toHaveBeenCalledTimes(
-        kind === "owned" ? (guard === "feedback" ? 2 : 1) : 0,
+        kind === "owned" && guard === "feedback" ? 2 : 1,
       );
       expect(useComposerDraftStore.getState().getComposerDraft(target)).toBe(draft);
       expect(state.sendInFlight.current).toBe(false);
@@ -698,7 +700,7 @@ it.each(["owned", "capability-priority"] as const)(
       fixture.decline,
       fixture.respond,
       fixture.upload,
-      fixture.waitUploads,
+      fixture.refreshUploads,
       fixture.transition,
       fixture.capture,
       fixture.dock,
@@ -746,7 +748,8 @@ it.each(["owned", "capability-priority"] as const)(
     const pending = new Promise<void>((resolve) => {
       finish = resolve;
     });
-    fixture.waitUploads.mockReturnValue(pending);
+    fixture.waitUploads.mockReset();
+    fixture.refreshUploads.mockReturnValue(pending);
     const props = { guard: "uploads" as const, routeKey, draftId, blocked: false };
     await using screen = await render(surface("en", props));
     await using _settle = {
@@ -759,11 +762,16 @@ it.each(["owned", "capability-priority"] as const)(
       },
     };
     await screen.getByRole("button", { name: "Send", exact: true }).click();
-    await expect.poll(() => fixture.waitUploads.mock.calls.length).toBe(1);
+    await expect.poll(() => fixture.refreshUploads.mock.calls.length).toBe(1);
     await expect.element(screen.getByRole("button", { name: "Send", exact: true })).toBeDisabled();
     expect(state.sendInFlight.current).toBe(true);
     expect(fixture.lookup).not.toHaveBeenCalled();
-    expect(fixture.waitUploads).toHaveBeenCalledWith([file.id]);
+    expect(fixture.refreshUploads).toHaveBeenCalledExactlyOnceWith({
+      environmentId: ref.environmentId,
+      images: [file],
+      draftTarget: ref,
+    });
+    expect(fixture.refreshUploads.mock.calls[0]?.[0].images[0]).toBe(file);
     expect(fixture.upload).toHaveBeenCalledExactlyOnceWith({
       environmentId: ref.environmentId,
       image: file,
@@ -800,7 +808,12 @@ it.each(["owned", "capability-priority"] as const)(
     expect(screen.container.querySelector('[data-testid="dock"]')?.textContent).toBe("undocked");
     expect(state.sendInFlight.current).toBe(false);
     expect(useComposerDraftStore.getState().getComposerDraft(ref)).toBe(draft);
-    expect(fixture.waitUploads).toHaveBeenCalledTimes(1);
+    expect(fixture.refreshUploads).toHaveBeenCalledExactlyOnceWith({
+      environmentId: ref.environmentId,
+      images: [file],
+      draftTarget: ref,
+    });
+    expect(fixture.waitUploads).not.toHaveBeenCalled();
     expect(fixture.upload).toHaveBeenCalledTimes(1);
     for (const mock of [
       fixture.start,

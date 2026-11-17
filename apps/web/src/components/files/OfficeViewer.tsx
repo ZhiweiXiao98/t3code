@@ -1,3 +1,4 @@
+import { englishFilePreviewCount } from "./filePreviewCount";
 import { officeChapterTitle } from "./officeChapterTitle";
 import { createFilePreviewError } from "@t3tools/shared/filePreview";
 import { filePreviewFailureMessage, filePreviewWorkerError } from "./filePreviewErrorMessages";
@@ -303,12 +304,14 @@ function ExtendedOfficeViewer(props: {
           className="flex min-h-10 shrink-0 flex-wrap items-center gap-x-1 border-b border-border/60 px-3 py-2 text-xs text-muted-foreground tabular-nums"
           role="status"
         >
-          {t("files.residual.sheetDimensions", {
-            page: page + 1,
-            count,
-            rows: sheet.rowCount.toLocaleString(),
-            columns: sheet.columns.toLocaleString(),
-          })}
+          {previewLocale === "en"
+            ? `Sheet ${page + 1} of ${count} · ${englishFilePreviewCount(sheet.rowCount, "row")} · ${englishFilePreviewCount(sheet.columns, "column")}`
+            : t("files.residual.sheetDimensions", {
+                page: page + 1,
+                count,
+                rows: sheet.rowCount.toLocaleString(),
+                columns: sheet.columns.toLocaleString(),
+              })}
           {fileSize !== undefined
             ? ` · ${fileSize === 0 ? translateWebSource(previewLocale, "0 bytes") : formatAttachmentSize(fileSize)}`
             : ""}
