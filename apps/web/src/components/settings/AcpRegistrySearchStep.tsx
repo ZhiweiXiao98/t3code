@@ -1,7 +1,11 @@
 import { useI18n } from "../../i18n/WebI18nContext";
 import { translateWebSource } from "../../i18n/messages";
 import { pipe } from "effect/Function";
-import { ACP_REGISTRY_MAX_AGENTS, AuthProvidersManageScope } from "@t3tools/contracts";
+import {
+  ACP_REGISTRY_MAX_AGENTS,
+  ACP_REGISTRY_SEARCH_QUERY_MAX_LENGTH,
+  AuthProvidersManageScope,
+} from "@t3tools/contracts";
 import { readEnvironmentScope, useEnvironmentScope } from "../../state/session";
 import {
   isAtomCommandInterrupted,
@@ -22,7 +26,11 @@ import { useEnvironmentQuery } from "../../state/query";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { Alert, AlertDescription } from "../ui/alert";
 import { Button } from "../ui/button";
-import { InputGroup, InputGroupAddon, InputGroupInput } from "../ui/input-group";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "../ui/input-group";
 import { ScrollArea } from "../ui/scroll-area";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { isConfiguredAcpRegistryAgent } from "./AddProviderInstanceDialog.logic";
@@ -38,7 +46,9 @@ function errorMessage(error: unknown): string {
 
 const ACP_REGISTRY_SEARCH_DEBOUNCE_MS = 300;
 const FIRST_CLASS_REGISTRY_AGENT_IDS = new Set(
-  providerClients.definitions.flatMap((definition) => definition.acpRegistryAgentIds ?? []),
+  providerClients.definitions.flatMap(
+    (definition) => definition.acpRegistryAgentIds ?? [],
+  ),
 );
 
 function applyAcpRegistryPrepareResult(
@@ -59,14 +69,19 @@ function applyAcpRegistryPrepareResult(
  * AcpRegistrySearchStep. Pass `enabled: false` while the step is hidden so the
  * search is not kept subscribed.
  */
-export function useAcpRegistrySearch(environmentId: EnvironmentId, enabled: boolean) {
+export function useAcpRegistrySearch(
+  environmentId: EnvironmentId,
+  enabled: boolean,
+) {
   const [input, setInput] = useState<{
     readonly text: string;
     readonly submitted: string;
     readonly typedAt: number | null;
   }>({ text: "", submitted: "", typedAt: null });
   const typingSettled = useDeadlinePassed(
-    input.typedAt === null ? null : input.typedAt + ACP_REGISTRY_SEARCH_DEBOUNCE_MS,
+    input.typedAt === null
+      ? null
+      : input.typedAt + ACP_REGISTRY_SEARCH_DEBOUNCE_MS,
   );
   const submittedQuery = typingSettled ? input.text.trim() : input.submitted;
   const [preparingId, setPreparingId] = useState<string | null>(null);
@@ -81,9 +96,12 @@ export function useAcpRegistrySearch(environmentId: EnvironmentId, enabled: bool
         })
       : null,
   );
-  const prepareAgent = useAtomCommand(serverEnvironment.prepareAcpRegistryAgent, {
-    reportFailure: false,
-  });
+  const prepareAgent = useAtomCommand(
+    serverEnvironment.prepareAcpRegistryAgent,
+    {
+      reportFailure: false,
+    },
+  );
 
   return {
     query: input.text,
@@ -92,7 +110,11 @@ export function useAcpRegistrySearch(environmentId: EnvironmentId, enabled: bool
     prepareError,
     type: (text: string) => {
       setPrepareError(null);
-      setInput({ text, submitted: submittedQuery, typedAt: Date.now() });
+      setInput({
+        text: text.slice(0, ACP_REGISTRY_SEARCH_QUERY_MAX_LENGTH),
+        submitted: submittedQuery,
+        typedAt: Date.now(),
+      });
     },
     submit: () => {
       const trimmed = input.text.trim();
@@ -104,10 +126,14 @@ export function useAcpRegistrySearch(environmentId: EnvironmentId, enabled: bool
       agent: AcpRegistrySearchAgent,
       onPrepared: (agent: AcpRegistrySearchAgent) => void,
     ) => {
-      if (!readEnvironmentScope(environmentId, AuthProvidersManageScope)) return;
+      if (!readEnvironmentScope(environmentId, AuthProvidersManageScope))
+        return;
       setPrepareError(null);
       setPreparingId(agent.id);
-      const result = await prepareAgent({ environmentId, input: { agentId: agent.id } });
+      const result = await prepareAgent({
+        environmentId,
+        input: { agentId: agent.id },
+      });
       setPreparingId(null);
       if (result._tag === "Success") {
         onPrepared(applyAcpRegistryPrepareResult(agent, result.value));
@@ -140,7 +166,10 @@ export function AcpRegistrySearchStep({
   onLocalConfiguration,
 }: AcpRegistrySearchStepProps) {
   const { locale: sourceLocale, t } = useI18n();
-  const canManageProviders = useEnvironmentScope(environmentId, AuthProvidersManageScope);
+  const canManageProviders = useEnvironmentScope(
+    environmentId,
+    AuthProvidersManageScope,
+  );
   const { query, search, preparingId, prepareError } = registry;
 
   const handleSearch = (event: FormEvent<HTMLFormElement>) => {
@@ -153,24 +182,33 @@ export function AcpRegistrySearchStep({
   };
 
   const results =
-    search.data?.agents.filter((agent) => !FIRST_CLASS_REGISTRY_AGENT_IDS.has(agent.id)) ?? null;
+    search.data?.agents.filter(
+      (agent) => !FIRST_CLASS_REGISTRY_AGENT_IDS.has(agent.id),
+    ) ?? null;
   const isInitialSearch = search.isPending && results === null;
   const isRefreshing = search.isPending && results !== null;
   const resultCount = results?.length ?? 0;
 
   return (
-    <section className="grid gap-3" aria-labelledby="acp-registry-search-heading">
+    <section
+      className="grid gap-3"
+      aria-labelledby="acp-registry-search-heading"
+    >
       <h3 className="sr-only" id="acp-registry-search-heading">
         {translateWebSource(sourceLocale, "Choose an agent")}
       </h3>
 
-      <form className="flex flex-wrap items-center gap-2" onSubmit={handleSearch}>
+      <form
+        className="flex flex-wrap items-center gap-2"
+        onSubmit={handleSearch}
+      >
         <InputGroup className="min-w-40 flex-1">
           <InputGroupAddon>
             <SearchIcon />
           </InputGroupAddon>
           <InputGroupInput
             aria-label={translateWebSource(sourceLocale, "Search ACP Registry")}
+            maxLength={ACP_REGISTRY_SEARCH_QUERY_MAX_LENGTH}
             disabled={preparingId !== null}
             onChange={(event) => registry.type(event.currentTarget.value)}
             placeholder={translateWebSource(sourceLocale, "Search agents…")}
@@ -205,7 +243,10 @@ export function AcpRegistrySearchStep({
         {isInitialSearch
           ? translateWebSource(sourceLocale, "Searching the ACP Registry.")
           : isRefreshing
-            ? translateWebSource(sourceLocale, "Refreshing ACP Registry results.")
+            ? translateWebSource(
+                sourceLocale,
+                "Refreshing ACP Registry results.",
+              )
             : results
               ? t(
                   resultCount === 1
@@ -244,7 +285,10 @@ export function AcpRegistrySearchStep({
               {results.map((agent) => (
                 <AcpRegistryAgentRow
                   agent={agent}
-                  alreadyAdded={isConfiguredAcpRegistryAgent(providerInstances, agent.id)}
+                  alreadyAdded={isConfiguredAcpRegistryAgent(
+                    providerInstances,
+                    agent.id,
+                  )}
                   canAdd={canManageProviders && preparingId === null}
                   isPreparing={preparingId === agent.id}
                   key={agent.id}
@@ -273,7 +317,8 @@ function AcpRegistryAgentRow({
   readonly onAdd: (agent: AcpRegistrySearchAgent) => void;
 }) {
   const { locale: sourceLocale, t } = useI18n();
-  const progressLabel = agent.distribution === "binary" ? "Downloading" : "Preparing";
+  const progressLabel =
+    agent.distribution === "binary" ? "Downloading" : "Preparing";
   const aboutUrl = agent.website || agent.repository;
   return (
     <article className="min-w-0 py-2.5">
@@ -288,10 +333,14 @@ function AcpRegistryAgentRow({
           />
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-baseline gap-2">
-              <h4 className="min-w-0 truncate text-sm font-medium text-foreground">{agent.name}</h4>
+              <h4 className="min-w-0 truncate text-sm font-medium text-foreground">
+                {agent.name}
+              </h4>
             </div>
             {agent.description ? (
-              <p className="mt-0.5 truncate text-xs text-muted-foreground">{agent.description}</p>
+              <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                {agent.description}
+              </p>
             ) : null}
           </div>
         </div>
@@ -304,7 +353,9 @@ function AcpRegistryAgentRow({
                     size="icon-xs"
                     variant="ghost-muted"
                     aria-label={t("audit6.aboutAgent", { name: agent.name })}
-                    render={<a href={aboutUrl} target="_blank" rel="noreferrer" />}
+                    render={
+                      <a href={aboutUrl} target="_blank" rel="noreferrer" />
+                    }
                   >
                     <ExternalLinkIcon />
                   </Button>
@@ -319,7 +370,11 @@ function AcpRegistryAgentRow({
             aria-label={t("audit6.agentAction", {
               action: translateWebSource(
                 sourceLocale,
-                alreadyAdded ? "Already added" : isPreparing ? progressLabel : "Add",
+                alreadyAdded
+                  ? "Already added"
+                  : isPreparing
+                    ? progressLabel
+                    : "Add",
               ),
               name: agent.name,
             })}

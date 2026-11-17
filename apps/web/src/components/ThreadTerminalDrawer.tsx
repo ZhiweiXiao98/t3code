@@ -52,23 +52,20 @@ import { Popover, PopoverPopup, PopoverTrigger } from "~/components/ui/popover";
 import { Button } from "~/components/ui/button";
 import { PanelTabCloseButton } from "~/components/ui/panel-tab-close-button";
 import { stackedThreadToast, toastManager } from "~/components/ui/toast";
-import { readTextFromClipboard, writeTextToClipboard } from "~/hooks/useCopyToClipboard";
+import {
+  readTextFromClipboard,
+  writeTextToClipboard,
+} from "~/hooks/useCopyToClipboard";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { cn } from "~/lib/utils";
 import { type TerminalContextSelection } from "~/lib/terminalContext";
-import {
-  observeSelectionActions,
-  resolveSelectionActionPosition,
-  type SelectionActionPoint,
-} from "~/lib/selectionActions";
 import {
   GhosttyTerminalSurface,
   type GhosttyTerminalSurfaceOptions,
 } from "~/terminal/ghostty/surface";
 import { type GhosttyColor, type GhosttyTheme } from "~/terminal/ghostty/core";
 import { useOpenInPreferredEditor } from "../editorPreferences";
-import { resolvePathLinkTarget } from "@t3tools/shared/fileLinks";
-import { isTerminalUrl } from "../terminal-links";
+import { isTerminalUrl, resolveTerminalLinkTarget } from "../terminal-links";
 import {
   isDiffToggleShortcut,
   isTerminalClearShortcut,
@@ -76,6 +73,7 @@ import {
   isTerminalSplitShortcut,
   isTerminalSplitVerticalShortcut,
   isTerminalToggleShortcut,
+  isThreadNavigationShortcut,
   terminalDeleteShortcutData,
   terminalNavigationShortcutData,
 } from "../keybindings";
@@ -98,9 +96,11 @@ import { readEnvironmentScope } from "../state/session";
 import { terminalEnvironment } from "../state/terminal";
 import { useEnvironmentScope } from "../state/session";
 import { openTerminalLinkInPreview } from "./preview/openTerminalLinkInPreview";
+import { terminalInputWriter } from "./terminal/terminalInputWriter";
 import { useAtomCommand } from "../state/use-atom-command";
 import { preventTerminalCloseShortcut } from "../lib/terminalCloseShortcut";
 import { observeResize } from "../lib/observeResize";
+import { threadShortcutContext } from "./Sidebar.logic";
 import {
   consumePendingTerminalFocus,
   focusTerminal,
@@ -133,28 +133,42 @@ function resolveTerminalDrawerMaxHeight(input: DrawerLayout): number {
   // height; without this cap a tall drawer pushes it into the header.
   return Math.min(
     windowCap,
-    Math.max(0, input.chatColumnHeight - (input.headerHeight ?? 0) - (input.composerHeight ?? 0)),
+    Math.max(
+      0,
+      input.chatColumnHeight -
+        (input.headerHeight ?? 0) -
+        (input.composerHeight ?? 0),
+    ),
   );
 }
 
 const DRAG_HEIGHT_PROPERTY = "--terminal-drawer-drag-height";
 
 function clampDrawerHeight(height: number, maxHeight: number): number {
-  const safeHeight = Number.isFinite(height) ? height : DEFAULT_THREAD_TERMINAL_HEIGHT;
-  return Math.min(Math.max(Math.round(safeHeight), MIN_DRAWER_HEIGHT), maxHeight);
+  const safeHeight = Number.isFinite(height)
+    ? height
+    : DEFAULT_THREAD_TERMINAL_HEIGHT;
+  return Math.min(
+    Math.max(Math.round(safeHeight), MIN_DRAWER_HEIGHT),
+    maxHeight,
+  );
 }
 
 function chatColumnOf(drawer: HTMLElement | null): HTMLElement | null {
   return drawer?.closest<HTMLElement>("[data-chat-column]") ?? null;
 }
 
-function readDrawerLayout(column: HTMLElement | null): Omit<DrawerLayout, "composerHeight"> {
+function readDrawerLayout(
+  column: HTMLElement | null,
+): Omit<DrawerLayout, "composerHeight"> {
   const viewportHeight = typeof window === "undefined" ? 0 : window.innerHeight;
   if (!column) return { viewportHeight };
   return {
     viewportHeight,
     chatColumnHeight: column.clientHeight,
-    headerHeight: column.querySelector<HTMLElement>("[data-chat-header]")?.offsetHeight ?? 0,
+    headerHeight:
+      column.querySelector<HTMLElement>("[data-chat-header]")?.offsetHeight ??
+      0,
   };
 }
 
@@ -182,7 +196,11 @@ const MAX_COMPARED_SELECTION_CELLS = 3_000;
 export function synchronizeTerminalOutput(
   terminal: Pick<
     GhosttyTerminalSurface,
-    "resetAndWrite" | "write" | "getSelection" | "getSelectionCellCount" | "clearSelection"
+    | "resetAndWrite"
+    | "write"
+    | "getSelection"
+    | "getSelectionCellCount"
+    | "clearSelection"
   >,
   session: Pick<TerminalSessionState, "output" | "version">,
   cursor: TerminalOutputCursor,
@@ -200,7 +218,7 @@ export function synchronizeTerminalOutput(
   return update.cursor;
 }
 
-/** Writes what changed between two session notifications: new output, then a new error. */
+/** Writes what changed between two session notifications: new output, then the error, again after a reset. */
 export function synchronizeTerminalSession(
   terminal: Parameters<typeof synchronizeTerminalOutput>[0],
   previous: Pick<TerminalSessionState, "output" | "version" | "error">,
@@ -212,13 +230,21 @@ export function synchronizeTerminalSession(
       ? cursor
       : synchronizeTerminalOutput(terminal, session, cursor);
   // An attach failure can change only the error, keeping the last buffer.
-  if (session.error !== null && session.error !== previous.error) {
+  if (
+    session.error !== null &&
+    (session.error !== previous.error ||
+      nextCursor.generation !== cursor.generation ||
+      nextCursor.resetVersion !== cursor.resetVersion)
+  ) {
     writeSystemMessage(terminal, session.error);
   }
   return nextCursor;
 }
 
-function parseTerminalColor(value: string, fallback: GhosttyColor): GhosttyColor {
+function parseTerminalColor(
+  value: string,
+  fallback: GhosttyColor,
+): GhosttyColor {
   if (typeof document === "undefined") return fallback;
 
   const canvas = document.createElement("canvas");
@@ -297,7 +323,9 @@ function withLiveVisibility(
   };
 }
 
-function runtimeEnvSignature(runtimeEnv: Record<string, string> | undefined): string {
+function runtimeEnvSignature(
+  runtimeEnv: Record<string, string> | undefined,
+): string {
   if (!runtimeEnv) return "";
   return JSON.stringify(
     Object.entries(runtimeEnv)
@@ -306,7 +334,10 @@ function runtimeEnvSignature(runtimeEnv: Record<string, string> | undefined): st
   );
 }
 
-function normalizeComputedColor(value: string | null | undefined, fallback: string): string {
+function normalizeComputedColor(
+  value: string | null | undefined,
+  fallback: string,
+): string {
   const normalizedValue = value?.trim().toLowerCase();
   if (
     !normalizedValue ||
@@ -319,22 +350,33 @@ function normalizeComputedColor(value: string | null | undefined, fallback: stri
   return value ?? fallback;
 }
 
-function readThemeColor(styles: CSSStyleDeclaration, variable: string, fallback: string): string {
+function readThemeColor(
+  styles: CSSStyleDeclaration,
+  variable: string,
+  fallback: string,
+): string {
   return normalizeComputedColor(styles.getPropertyValue(variable), fallback);
 }
 
-function terminalFontOptions(family: string, size: number): { family?: string; size: number } {
+function terminalFontOptions(
+  family: string,
+  size: number,
+): { family?: string; size: number } {
   const trimmed = family.trim();
   return trimmed.length > 0 ? { family: trimmed, size } : { size };
 }
 
-export function terminalThemeFromApp(mountElement?: HTMLElement | null): GhosttyTheme {
+export function terminalThemeFromApp(
+  mountElement?: HTMLElement | null,
+): GhosttyTheme {
   const drawerSurface =
     mountElement?.closest("[data-thread-terminal-drawer]") ??
     document.querySelector("[data-thread-terminal-drawer]") ??
     document.body;
   const drawerStyles = getComputedStyle(drawerSurface);
-  const themeStyles = mountElement ? getComputedStyle(mountElement) : drawerStyles;
+  const themeStyles = mountElement
+    ? getComputedStyle(mountElement)
+    : drawerStyles;
   const colorScheme = themeStyles.colorScheme;
   const isDark =
     colorScheme === "dark"
@@ -392,7 +434,10 @@ export function terminalThemeFromApp(mountElement?: HTMLElement | null): Ghostty
   };
 }
 
-function terminalSelectionLineRange(position: { start: { y: number }; end: { y: number } }): {
+function terminalSelectionLineRange(position: {
+  start: { y: number };
+  end: { y: number };
+}): {
   lineStart: number;
   lineEnd: number;
 } {
@@ -416,7 +461,9 @@ function terminalSelectionMenuItems(options?: {
   return [
     ...(options?.canAddToChat === false
       ? []
-      : ([{ id: "add-to-chat", label: "Add to chat" }] satisfies ContextMenuItem<"add-to-chat">[])),
+      : ([
+          { id: "add-to-chat", label: "Add to chat" },
+        ] satisfies ContextMenuItem<"add-to-chat">[])),
     { id: "copy", label: "Copy" },
   ];
 }
@@ -432,19 +479,14 @@ function terminalContextMenuItems(options: {
       ...item,
       disabled: !hasSelection,
     })),
-    { id: "paste", label: "Paste", ...(options.readOnly ? { disabled: true } : {}) },
+    {
+      id: "paste",
+      label: "Paste",
+      ...(options.readOnly ? { disabled: true } : {}),
+    },
     { id: "select-all", label: "Select all" },
     { id: "scroll-to-bottom", label: "Jump to latest" },
   ];
-}
-
-/** A superseded popup's unsettled promise must not cancel the newer right-click flow. */
-export function shouldClearTerminalSelectionAction(options: {
-  actionPending: boolean;
-  openMenuRequestId: number | null;
-  currentRequestId: number;
-}): boolean {
-  return options.actionPending || options.openMenuRequestId === options.currentRequestId;
 }
 
 /**
@@ -532,28 +574,46 @@ function TerminalSessionViewport({
   const terminalRef = useRef<GhosttyTerminalSurface | null>(null);
   const visibleRef = useRef(visible);
   const environmentId = threadRef.environmentId;
-  const canOperateTerminal = useEnvironmentScope(environmentId, AuthTerminalOperateScope);
+  const canOperateTerminal = useEnvironmentScope(
+    environmentId,
+    AuthTerminalOperateScope,
+  );
   const hasTerminalWriteAccess = useEffectEvent(() =>
     readEnvironmentScope(environmentId, AuthTerminalOperateScope),
   );
-  const canOpenHostEditor = useEnvironmentScope(environmentId, AuthOrchestrationOperateScope);
-  const canReadFilesystem = useEnvironmentScope(environmentId, AuthFilesystemReadScope);
+  const canOpenHostEditor = useEnvironmentScope(
+    environmentId,
+    AuthOrchestrationOperateScope,
+  );
+  const canReadFilesystem = useEnvironmentScope(
+    environmentId,
+    AuthFilesystemReadScope,
+  );
   const [linkPath, setLinkPath] = useState<string | null>(null);
   const metadataThreadRef = useContext(FileMetadataThreadContext);
+  const serverConfig = useAtomValue(
+    serverEnvironment.configValueAtom(environmentId),
+  );
+  const hostname = serverConfig?.hostname;
+  const readHostname = useEffectEvent(() => hostname);
   const linkMetadataQuery =
     linkPath !== null && canOpenHostEditor && canReadFilesystem
       ? getFileMetadataQueryAtom(
           environmentId,
-          resolvePathLinkTarget(linkPath, cwd),
+          resolveTerminalLinkTarget(linkPath, cwd, hostname),
           cwd,
           metadataThreadRef,
         )
       : null;
   const canActivateTerminalLink = useEffectEvent((text: string) => {
     if (isTerminalUrl(text)) return true;
-    if (!readEnvironmentScope(environmentId, AuthOrchestrationOperateScope)) return false;
+    if (!readEnvironmentScope(environmentId, AuthOrchestrationOperateScope))
+      return false;
     if (text !== linkPath || !linkMetadataQuery) return false;
-    const metadata = AsyncResult.getOrElse(appAtomRegistry.get(linkMetadataQuery), () => null);
+    const metadata = AsyncResult.getOrElse(
+      appAtomRegistry.get(linkMetadataQuery),
+      () => null,
+    );
     return metadata?.kind === "file" || metadata?.kind === "directory";
   });
   const validateTerminalLink = useEffectEvent(async (text: string) => {
@@ -565,43 +625,55 @@ function TerminalSessionViewport({
       return false;
     const query = getFileMetadataQueryAtom(
       environmentId,
-      resolvePathLinkTarget(text, cwd),
+      resolveTerminalLinkTarget(text, cwd, hostname),
       cwd,
       metadataThreadRef,
     );
     if (!query) return false;
-    const result = await executeAtomQuery(appAtomRegistry, query, { reportFailure: false });
+    const result = await executeAtomQuery(appAtomRegistry, query, {
+      reportFailure: false,
+    });
     return (
       result._tag === "Success" &&
       (result.value?.kind === "file" || result.value?.kind === "directory")
     );
   });
-  const serverConfig = useAtomValue(serverEnvironment.configValueAtom(environmentId));
   const openInPreferredEditor = useOpenInPreferredEditor(
     environmentId,
     serverConfig?.availableEditors ?? [],
+    worktreePath ?? cwd,
   );
-  const openTerminalPath = useEffectEvent((target: string) => openInPreferredEditor(target));
+  const openTerminalPath = useEffectEvent((target: string) =>
+    openInPreferredEditor(target),
+  );
   const openPreview = useAtomCommand(previewEnvironment.open, {
     reportFailure: false,
   });
   const runTerminalWrite = useAtomCommand(terminalEnvironment.write, {
     reportFailure: false,
   });
+  // Recovery keeps the original registry-bound command after this viewport unmounts.
+  const retainedTerminalWrite = useRef(runTerminalWrite);
   const runTerminalResize = useAtomCommand(terminalEnvironment.resize, {
     reportFailure: false,
   });
   const hasHandledExitRef = useRef(false);
   const selectionActionRequestIdRef = useRef(0);
-  const openSelectionMenuRequestIdRef = useRef<number | null>(null);
   const readKeybindings = useEffectEvent(() => keybindings);
+  const readThreadShortcutContext = useEffectEvent(() =>
+    threadShortcutContext(threadRef),
+  );
   const handleSessionExited = useEffectEvent(() => {
     if (hasTerminalWriteAccess()) onSessionExited();
   });
-  const handleAddTerminalContext = useEffectEvent((selection: TerminalContextSelection) => {
-    onAddTerminalContext?.(selection);
-  });
-  const canAddSelectionToChat = useEffectEvent(() => onAddTerminalContext !== undefined);
+  const handleAddTerminalContext = useEffectEvent(
+    (selection: TerminalContextSelection) => {
+      onAddTerminalContext?.(selection);
+    },
+  );
+  const canAddSelectionToChat = useEffectEvent(
+    () => onAddTerminalContext !== undefined,
+  );
   const readTerminalLabel = useEffectEvent(() => terminalLabel);
   const terminalFontFamily = useClientSettings((settings) =>
     resolveTerminalFontPreference({
@@ -617,7 +689,10 @@ function TerminalSessionViewport({
       terminal: settings.fontSizeTerminal,
     }),
   );
-  const terminalFontRef = useRef({ family: terminalFontFamily, size: terminalFontSize });
+  const terminalFontRef = useRef({
+    family: terminalFontFamily,
+    size: terminalFontSize,
+  });
   // Keyed by the launch (see TerminalViewport), so the atom is fixed for this surface.
   const terminalSessionAtom = attachedTerminalSessionAtom(environmentId, {
     threadId,
@@ -630,35 +705,59 @@ function TerminalSessionViewport({
   // Attaching starts with the viewport, while the WASM surface is still loading;
   // the surface reads the session itself, so output chunks never re-render here.
   useAtomMount(terminalSessionAtom);
-  const readTerminalSession = useEffectEvent(() => appAtomRegistry.get(terminalSessionAtom));
+  const readTerminalSession = useEffectEvent(() =>
+    appAtomRegistry.get(terminalSessionAtom),
+  );
   const subscribeTerminalSession = useEffectEvent(
     (listener: (session: TerminalSessionState) => void) =>
       appAtomRegistry.subscribe(terminalSessionAtom, listener),
   );
-  const writeTerminal = useEffectEvent((data: string) =>
-    runTerminalWrite({
-      environmentId,
-      input: { threadId, terminalId, data },
-    }),
-  );
-  const resizeTerminal = useEffectEvent((cols: number, rows: number) => {
-    if (writableSessionGeneration(readTerminalSession(), hasTerminalWriteAccess()) === null) {
-      return;
-    }
-    return runTerminalResize({
+  // The surface reports a resent grid like any other, so the next report is the retry.
+  const resizeRetryGenerationRef = useRef<number | null>(null);
+  const resizeTerminal = useEffectEvent(async (cols: number, rows: number) => {
+    const generation = writableSessionGeneration(
+      readTerminalSession(),
+      hasTerminalWriteAccess(),
+    );
+    const retry =
+      generation !== null && generation === resizeRetryGenerationRef.current;
+    resizeRetryGenerationRef.current = null;
+    if (generation === null) return;
+    const result = await runTerminalResize({
       environmentId,
       input: { threadId, terminalId, cols, rows },
     });
+    // Resend the current grid, not this one: a newer resize may already be queued behind it.
+    if (
+      !retry &&
+      result._tag === "Failure" &&
+      !isAtomCommandInterrupted(result)
+    ) {
+      resizeRetryGenerationRef.current = generation;
+      terminalRef.current?.resendSize();
+    }
   });
-  const outputCursorRef = useRef<TerminalOutputCursor>(INITIAL_TERMINAL_OUTPUT_CURSOR);
-  const synchronizedStatusRef = useRef<TerminalSessionState["status"]>("closed");
+  const outputCursorRef = useRef<TerminalOutputCursor>(
+    INITIAL_TERMINAL_OUTPUT_CURSOR,
+  );
+  const synchronizedStatusRef =
+    useRef<TerminalSessionState["status"]>("closed");
   const synchronizeTerminalStatus = useEffectEvent(
-    (terminal: GhosttyTerminalSurface, status: TerminalSessionState["status"], version: number) => {
+    (
+      terminal: GhosttyTerminalSurface,
+      status: TerminalSessionState["status"],
+      version: number,
+    ) => {
       const synchronized = synchronizedStatusRef.current;
       if (version > 0 && status === "running") {
         hasHandledExitRef.current = false;
       } else if (
-        shouldHandleTerminalExit(status, synchronized, hasHandledExitRef.current, version)
+        shouldHandleTerminalExit(
+          status,
+          synchronized,
+          hasHandledExitRef.current,
+          version,
+        )
       ) {
         hasHandledExitRef.current = true;
         writeSystemMessage(
@@ -678,12 +777,19 @@ function TerminalSessionViewport({
   );
   const openLinkInPreview = useEffectEvent(
     (url: string, forceBrowser: boolean, fallbackToBrowser: () => void) =>
-      openTerminalLinkInPreview({ url, threadRef, openPreview, fallbackToBrowser, forceBrowser }),
+      openTerminalLinkInPreview({
+        url,
+        threadRef,
+        openPreview,
+        fallbackToBrowser,
+        forceBrowser,
+      }),
   );
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- sets the terminal input's readOnly from the operate grant and consumes a pending focus request
   useLayoutEffect(() => {
-    if (terminalRef.current) terminalRef.current.input.readOnly = !canOperateTerminal;
+    if (terminalRef.current)
+      terminalRef.current.input.readOnly = !canOperateTerminal;
     if (canOperateTerminal && visibleRef.current)
       consumePendingTerminalFocus(threadRef, terminalId);
   }, [canOperateTerminal, terminalId, threadRef]);
@@ -712,9 +818,18 @@ function TerminalSessionViewport({
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- applies font family and size changes to the live Ghostty terminal surface
   useEffect(() => {
     const current = terminalFontRef.current;
-    if (current.family === terminalFontFamily && current.size === terminalFontSize) return;
-    terminalFontRef.current = { family: terminalFontFamily, size: terminalFontSize };
-    void terminalRef.current?.setFont(terminalFontOptions(terminalFontFamily, terminalFontSize));
+    if (
+      current.family === terminalFontFamily &&
+      current.size === terminalFontSize
+    )
+      return;
+    terminalFontRef.current = {
+      family: terminalFontFamily,
+      size: terminalFontSize,
+    };
+    void terminalRef.current?.setFont(
+      terminalFontOptions(terminalFontFamily, terminalFontSize),
+    );
   }, [terminalFontFamily, terminalFontSize]);
 
   const localizeTerminalSource = useEffectEvent((source: string) =>
@@ -735,7 +850,6 @@ function TerminalSessionViewport({
     let teardown: (() => void) | null = null;
     let setupTerminal: GhosttyTerminalSurface | null = null;
     let setupCleanups: Array<() => void> = [];
-    let selectionActions: ReturnType<typeof observeSelectionActions> | null = null;
 
     const setup = async (): Promise<(() => void) | null> => {
       const setupFont = terminalFontRef.current;
@@ -743,19 +857,27 @@ function TerminalSessionViewport({
         theme: terminalThemeFromApp(mount),
         font: terminalFontOptions(setupFont.family, setupFont.size),
         onData: (data) => handleData(data),
+        onBinary: (data) =>
+          void sendTerminalInput(data, "Terminal write failed", "binary"),
+        onReply: (data) =>
+          void sendTerminalInput(data, "Terminal write failed", "reply"),
         onResize: (cols, rows) => void resizeTerminal(cols, rows),
-        onSelectionChange: () => handleSelectionChange(),
+        onSelectionChange: () => {},
         beforeKey: (event) => handleBeforeKey(event),
         onLinkActivate: (text, event) => handleLinkActivate(text, event),
         canActivateLink: (text) => canActivateTerminalLink(text),
         validateLink: (text) => validateTerminalLink(text),
-        onLinkHover: (text) => setLinkPath(text !== null && !isTerminalUrl(text) ? text : null),
+        onLinkHover: (text) =>
+          setLinkPath(text !== null && !isTerminalUrl(text) ? text : null),
         // Surface listeners start before WASM loading finishes and the terminal handler exists.
         onContextMenu: (event) => {
           if (terminalRef.current) void showTerminalContextMenu(event);
         },
       });
-      const terminal = await GhosttyTerminalSurface.create(mount, terminalOptions);
+      const terminal = await GhosttyTerminalSurface.create(
+        mount,
+        terminalOptions,
+      );
       if (cancelled) {
         terminal.dispose();
         return null;
@@ -769,8 +891,13 @@ function TerminalSessionViewport({
       terminal.input.readOnly = !hasTerminalWriteAccess();
       // Reapply font settings hydrated during loading, when terminalRef was null.
       const currentFont = terminalFontRef.current;
-      if (currentFont.family !== setupFont.family || currentFont.size !== setupFont.size) {
-        void terminal.setFont(terminalFontOptions(currentFont.family, currentFont.size));
+      if (
+        currentFont.family !== setupFont.family ||
+        currentFont.size !== setupFont.size
+      ) {
+        void terminal.setFont(
+          terminalFontOptions(currentFont.family, currentFont.size),
+        );
       }
       const latestSession = readTerminalSession();
       terminal.setSharedGrid(latestSession.grid);
@@ -782,15 +909,26 @@ function TerminalSessionViewport({
         writeTerminalOutputUpdate(terminal, initialOutput);
       }
       outputCursorRef.current = initialOutput.cursor;
-      if (latestSession.error !== null) writeSystemMessage(terminal, latestSession.error);
+      if (latestSession.error !== null)
+        writeSystemMessage(terminal, latestSession.error);
       synchronizedStatusRef.current = "closed";
-      synchronizeTerminalStatus(terminal, latestSession.status, latestSession.version);
+      synchronizeTerminalStatus(
+        terminal,
+        latestSession.status,
+        latestSession.version,
+      );
       // Read and subscribe in one synchronous step so no output lands between them.
       let previousSession = latestSession;
-      let resizeGeneration = writableSessionGeneration(latestSession, hasTerminalWriteAccess());
+      let resizeGeneration = writableSessionGeneration(
+        latestSession,
+        hasTerminalWriteAccess(),
+      );
       setupCleanups.push(
         subscribeTerminalSession((session) => {
-          const nextResizeGeneration = writableSessionGeneration(session, hasTerminalWriteAccess());
+          const nextResizeGeneration = writableSessionGeneration(
+            session,
+            hasTerminalWriteAccess(),
+          );
           if (nextResizeGeneration !== resizeGeneration) {
             resizeGeneration = nextResizeGeneration;
             // The first fit can precede authorization/attach; replay the grid for each writable session, including
@@ -817,46 +955,30 @@ function TerminalSessionViewport({
         terminal.focus();
       }
 
-      const dismissSelectionAction = (supersede = false) => {
-        const ownsMenu =
-          openSelectionMenuRequestIdRef.current === selectionActionRequestIdRef.current;
-        if (supersede || ownsMenu) selectionActionRequestIdRef.current += 1;
-        if (ownsMenu) void localApi?.contextMenu.close();
-      };
       const clearSelectionAction = () => {
-        selectionActions?.cancel();
-        dismissSelectionAction(true);
+        selectionActionRequestIdRef.current += 1;
       };
       setupCleanups.push(clearSelectionAction);
 
-      const readSelectionAction = (
-        pointer: SelectionActionPoint | null = null,
-      ): {
-        position: { x: number; y: number };
+      const readSelectionAction = (): {
         clipboardText: string;
         selection: TerminalContextSelection;
       } | null => {
         const activeTerminal = terminalRef.current;
-        const mountElement = containerRef.current;
-        if (!activeTerminal || !mountElement || !activeTerminal.hasSelection()) {
+        if (!activeTerminal || !activeTerminal.hasSelection()) {
           return null;
         }
         const selectionText = activeTerminal.getSelection();
         const selectionPosition = activeTerminal.getSelectionPosition();
-        const normalizedText = selectionText.replace(/\r\n/g, "\n").replace(/^\n+|\n+$/g, "");
+        const normalizedText = selectionText
+          .replace(/\r\n/g, "\n")
+          .replace(/^\n+|\n+$/g, "");
         if (!selectionPosition || normalizedText.length === 0) {
           return null;
         }
-        const { lineStart, lineEnd } = terminalSelectionLineRange(selectionPosition);
-        const bounds = mountElement.getBoundingClientRect();
-        const position = resolveSelectionActionPosition({
-          bounds,
-          selectionRect: activeTerminal.getSelectionEndClientRect(),
-          pointer,
-          viewport: { width: window.innerWidth, height: window.innerHeight },
-        });
+        const { lineStart, lineEnd } =
+          terminalSelectionLineRange(selectionPosition);
         return {
-          position,
           clipboardText: selectionText,
           selection: {
             terminalId,
@@ -878,7 +1000,11 @@ function TerminalSessionViewport({
         terminalRef.current?.focus();
       };
 
-      const reportIfCurrent = (requestId: number, error: unknown, fallback: string) => {
+      const reportIfCurrent = (
+        requestId: number,
+        error: unknown,
+        fallback: string,
+      ) => {
         if (requestId !== selectionActionRequestIdRef.current) return;
         const activeTerminal = terminalRef.current;
         if (activeTerminal) {
@@ -899,7 +1025,11 @@ function TerminalSessionViewport({
         try {
           await writeTextToClipboard(text, "terminal selection");
         } catch (error) {
-          reportIfCurrent(requestId, error, "Unable to copy terminal selection");
+          reportIfCurrent(
+            requestId,
+            error,
+            "Unable to copy terminal selection",
+          );
         }
         focusIfCurrent(requestId);
       };
@@ -935,15 +1065,25 @@ function TerminalSessionViewport({
               hasSelection: selectionAction !== null,
               canAddToChat: canAddSelectionToChat(),
               readOnly: !hasTerminalWriteAccess(),
-            }).map((item) => ({ ...item, label: localizeTerminalSource(item.label) })),
+            }).map((item) => ({
+              ...item,
+              label: localizeTerminalSource(item.label),
+            })),
             { x: event.clientX, y: event.clientY },
           );
         } catch (error) {
-          reportIfCurrent(requestId, error, "Unable to open the terminal context menu");
+          reportIfCurrent(
+            requestId,
+            error,
+            "Unable to open the terminal context menu",
+          );
           focusIfCurrent(requestId);
           return;
         }
-        if (requestId !== selectionActionRequestIdRef.current || clicked === null) {
+        if (
+          requestId !== selectionActionRequestIdRef.current ||
+          clicked === null
+        ) {
           return;
         }
         switch (clicked) {
@@ -953,7 +1093,8 @@ function TerminalSessionViewport({
             }
             return;
           case "copy":
-            if (selectionAction) await copySelection(selectionAction.clipboardText, requestId);
+            if (selectionAction)
+              await copySelection(selectionAction.clipboardText, requestId);
             return;
           case "paste":
             await pasteFromClipboard(requestId);
@@ -969,64 +1110,102 @@ function TerminalSessionViewport({
         }
       };
 
-      const showSelectionAction = async (pointer: SelectionActionPoint | null) => {
-        if (!localApi) {
-          clearSelectionAction();
-          return;
-        }
-        if (openSelectionMenuRequestIdRef.current === selectionActionRequestIdRef.current) {
-          return;
-        }
-        const nextAction = readSelectionAction(pointer);
-        if (!nextAction) {
-          clearSelectionAction();
-          return;
-        }
-        const requestId = ++selectionActionRequestIdRef.current;
-        openSelectionMenuRequestIdRef.current = requestId;
-        const clicked = await localApi.contextMenu
-          .show(
-            terminalSelectionMenuItems({ canAddToChat: canAddSelectionToChat() }).map((item) => ({
-              ...item,
-              label: localizeTerminalSource(item.label),
-            })),
-            nextAction.position,
-          )
-          .finally(() => {
-            if (openSelectionMenuRequestIdRef.current === requestId) {
-              openSelectionMenuRequestIdRef.current = null;
+      const readInputSession = () => appAtomRegistry.get(terminalSessionAtom);
+      const canWriteInput = () =>
+        readEnvironmentScope(environmentId, AuthTerminalOperateScope);
+      const writeInputChunk = (data: string, kind?: "binary" | "reply") =>
+        retainedTerminalWrite.current({
+          environmentId,
+          input: kind
+            ? { threadId, terminalId, data, [kind]: true }
+            : { threadId, terminalId, data },
+        });
+      const sendTerminalInput = (
+        data: string,
+        fallbackError: string,
+        kind?: "binary" | "reply",
+      ) => {
+        // The server rejects input until the shell runs, and each rejection would print an error.
+        // Input belongs to the shell and surface it was typed into; a restart the client has seen drops what is left.
+        const session = readTerminalSession();
+        const generation = writableSessionGeneration(
+          session,
+          hasTerminalWriteAccess(),
+        );
+        const lifecycleVersion = session.lifecycleVersion;
+        if (generation === null) return;
+        const writeInput = terminalInputWriter(
+          JSON.stringify([environmentId, threadId, terminalId]),
+          () => appAtomRegistry.mount(terminalSessionAtom),
+        );
+        let reported = false;
+        const report = (message: string) => {
+          if (reported || terminalRef.current !== terminal) return;
+          reported = true;
+          writeSystemMessage(terminal, message);
+        };
+        return writeInput(
+          data,
+          async (chunk) => {
+            const currentSession = readInputSession();
+            if (
+              terminalRef.current !== terminal ||
+              currentSession.lifecycleVersion !== lifecycleVersion ||
+              writableSessionGeneration(currentSession, canWriteInput()) !==
+                generation
+            ) {
+              return "not-dispatched";
             }
-          });
-        if (requestId !== selectionActionRequestIdRef.current || clicked === null) {
-          return;
-        }
-        switch (clicked) {
-          case "add-to-chat":
-            if (canAddSelectionToChat()) addSelectionToChat(nextAction.clipboardText);
-            return;
-          case "copy":
-            await copySelection(nextAction.clipboardText, requestId);
-            return;
-        }
-      };
-
-      const sendTerminalInput = async (data: string, fallbackError: string) => {
-        if (!hasTerminalWriteAccess()) return;
-        const activeTerminal = terminalRef.current;
-        if (!activeTerminal) return;
-        const result = await writeTerminal(data);
-        if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
-          const error = squashAtomCommandFailure(result);
-          writeSystemMessage(
-            activeTerminal,
-            error instanceof Error ? error.message : fallbackError,
-          );
-        }
+            const result = await writeInputChunk(chunk, kind);
+            if (result._tag === "Success") return true;
+            if (
+              terminalRef.current === terminal &&
+              !isAtomCommandInterrupted(result)
+            ) {
+              const error = squashAtomCommandFailure(result);
+              report(
+                error instanceof Error
+                  ? error.message
+                  : localizeTerminalSource(fallbackError),
+              );
+            }
+            return false;
+          },
+          // Close the bracket only for the process that saw it open; wait while its pid is unknown.
+          async () => {
+            const pid = session.summary?.pid ?? null;
+            const current = readInputSession();
+            const currentPid = current.summary?.pid ?? null;
+            if (currentPid === null) return false;
+            if (pid !== null && currentPid !== pid) return true;
+            if (writableSessionGeneration(current, canWriteInput()) === null)
+              return false;
+            const result = await writeInputChunk("\x1b[201~");
+            if (result._tag === "Success") return true;
+            if (!isAtomCommandInterrupted(result)) {
+              const error = squashAtomCommandFailure(result);
+              report(
+                error instanceof Error
+                  ? error.message
+                  : localizeTerminalSource("Failed to close interrupted paste"),
+              );
+            }
+            return false;
+          },
+          () =>
+            report(
+              localizeTerminalSource(
+                "Terminal paste interrupted. Paste again when the terminal is ready.",
+              ),
+            ),
+        );
       };
 
       function handleBeforeKey(event: KeyboardEvent): boolean {
         const currentKeybindings = readKeybindings();
-        const options = { context: { terminalFocus: true, terminalOpen: true } };
+        const options = {
+          context: { terminalFocus: true, terminalOpen: true },
+        };
         if (preventTerminalCloseShortcut(event, currentKeybindings)) {
           return false;
         }
@@ -1035,7 +1214,11 @@ function TerminalSessionViewport({
           isTerminalSplitShortcut(event, currentKeybindings, options) ||
           isTerminalSplitVerticalShortcut(event, currentKeybindings, options) ||
           isTerminalNewShortcut(event, currentKeybindings, options) ||
-          isDiffToggleShortcut(event, currentKeybindings, options)
+          isDiffToggleShortcut(event, currentKeybindings, options) ||
+          // Match Sidebar's context, or a key it will reject skips the shell.
+          isThreadNavigationShortcut(event, currentKeybindings, {
+            context: { ...readThreadShortcutContext(), terminalFocus: true },
+          })
         ) {
           return false;
         }
@@ -1073,7 +1256,10 @@ function TerminalSessionViewport({
         if (!latestTerminal) return;
         if (isTerminalUrl(text)) {
           if (!localApi) {
-            writeSystemMessage(latestTerminal, "Opening links is unavailable in this browser.");
+            writeSystemMessage(
+              latestTerminal,
+              "Opening links is unavailable in this browser.",
+            );
             return;
           }
           const fallbackToBrowser = () => {
@@ -1090,20 +1276,25 @@ function TerminalSessionViewport({
             fallbackToBrowser();
             return;
           }
-          void openLinkInPreview(text, event.metaKey || event.ctrlKey, fallbackToBrowser).catch(
-            (error: unknown) => {
-              toastManager.add(
-                stackedThreadToast({
-                  type: "error",
-                  title: localizeTerminalSource("Unable to open link"),
-                  description: error instanceof Error ? error.message : terminalT("common.error"),
-                }),
-              );
-            },
-          );
+          void openLinkInPreview(
+            text,
+            event.metaKey || event.ctrlKey,
+            fallbackToBrowser,
+          ).catch((error: unknown) => {
+            toastManager.add(
+              stackedThreadToast({
+                type: "error",
+                title: localizeTerminalSource("Unable to open link"),
+                description:
+                  error instanceof Error
+                    ? error.message
+                    : terminalT("common.error"),
+              }),
+            );
+          });
           return;
         }
-        const target = resolvePathLinkTarget(text, cwd);
+        const target = resolveTerminalLinkTarget(text, cwd, readHostname());
         void (async () => {
           const result = await openTerminalPath(target);
           if (result._tag === "Success" || isAtomCommandInterrupted(result)) {
@@ -1119,41 +1310,11 @@ function TerminalSessionViewport({
       }
 
       function handleData(data: string): void {
-        if (!hasTerminalWriteAccess()) return;
-        void (async () => {
-          const result = await writeTerminal(data);
-          if (result._tag === "Success" || isAtomCommandInterrupted(result)) return;
-          const error = squashAtomCommandFailure(result);
-          writeSystemMessage(
-            terminal,
-            error instanceof Error
-              ? error.message
-              : localizeTerminalSource("Terminal write failed"),
-          );
-        })();
+        void sendTerminalInput(
+          data,
+          localizeTerminalSource("Terminal write failed"),
+        );
       }
-
-      function handleSelectionChange(): void {
-        if (terminalRef.current?.hasSelection()) {
-          return;
-        }
-        const shouldClear = shouldClearTerminalSelectionAction({
-          actionPending: selectionActions?.pending ?? false,
-          openMenuRequestId: openSelectionMenuRequestIdRef.current,
-          currentRequestId: selectionActionRequestIdRef.current,
-        });
-        if (!shouldClear) return;
-        clearSelectionAction();
-      }
-
-      selectionActions = observeSelectionActions({
-        element: mount,
-        onSelection: (pointer) => {
-          void showSelectionAction(pointer);
-        },
-        onDismiss: (reason) => dismissSelectionAction(reason === "interaction"),
-      });
-      setupCleanups.push(() => selectionActions?.dispose());
 
       const themeObserver = new MutationObserver(() => {
         const activeTerminal = terminalRef.current;
@@ -1217,7 +1378,7 @@ function TerminalSessionViewport({
         mount.focus({ preventScroll: true });
       }
     };
-  }, [cwd, environmentId, terminalId]);
+  }, [cwd, environmentId, terminalId, terminalSessionAtom, threadId]);
 
   const attachContainer = (mount: HTMLDivElement) => {
     containerRef.current = mount;
@@ -1225,7 +1386,10 @@ function TerminalSessionViewport({
       focusTerminalViewport({
         mount,
         surface: terminalRef.current,
-        canOperate: readEnvironmentScope(environmentId, AuthTerminalOperateScope),
+        canOperate: readEnvironmentScope(
+          environmentId,
+          AuthTerminalOperateScope,
+        ),
         visible: visibleRef.current,
       });
     // Once per viewport: a re-attached ref (a fresh callback identity) must not
@@ -1238,6 +1402,7 @@ function TerminalSessionViewport({
     const unregister = registerTerminalFocusTarget({
       threadRef,
       terminalId,
+      element: mount,
       focus,
     });
     return () => {
@@ -1307,7 +1472,10 @@ function TerminalActionButton({
         render={
           <button
             type="button"
-            className={cn(className, disabled && "opacity-64 cursor-not-allowed")}
+            className={cn(
+              className,
+              disabled && "opacity-64 cursor-not-allowed",
+            )}
             onClick={disabled ? undefined : onClick}
             aria-label={label}
             aria-disabled={disabled}
@@ -1394,7 +1562,10 @@ function TerminalSplitPanes({
                 threadRef={threadRef}
                 threadId={threadId}
                 terminalId={terminalId}
-                terminalLabel={terminalLabelById.get(terminalId) ?? t("terminal.defaultLabel")}
+                terminalLabel={
+                  terminalLabelById.get(terminalId) ??
+                  t("terminal.defaultLabel")
+                }
                 cwd={terminalLaunchLocation.cwd}
                 {...(terminalLaunchLocation.worktreePath !== undefined
                   ? { worktreePath: terminalLaunchLocation.worktreePath }
@@ -1465,15 +1636,20 @@ function TerminalSidebarGroup({
           onClick={() => onActiveTerminalChange(groupActiveTerminalId)}
         >
           <GroupIcon className="size-3 shrink-0" />
-          <span className="min-w-0 flex-1 truncate text-left">{groupLabel}</span>
-          <span className="text-muted-foreground/70 text-3xs tabular-nums">{terminalCount}</span>
+          <span className="min-w-0 flex-1 truncate text-left">
+            {groupLabel}
+          </span>
+          <span className="text-muted-foreground/70 text-3xs tabular-nums">
+            {terminalCount}
+          </span>
         </button>
       )}
 
       <div className="flex flex-col gap-0.5">
         {terminalGroup.terminalIds.map((terminalId) => {
           const isActive = terminalId === activeTerminalId;
-          const terminalLabel = terminalLabelById.get(terminalId) ?? t("terminal.defaultLabel");
+          const terminalLabel =
+            terminalLabelById.get(terminalId) ?? t("terminal.defaultLabel");
           const closeTerminalLabel = `${t("terminal.closeNamed", { name: terminalLabel })}${
             isActive && closeShortcutLabel ? ` (${closeShortcutLabel})` : ""
           }`;
@@ -1543,7 +1719,10 @@ export default function ThreadTerminalDrawer({
   terminalLaunchLocationsById,
 }: ThreadTerminalDrawerProps) {
   const { t } = useI18n();
-  const canOperateTerminal = useEnvironmentScope(threadRef.environmentId, AuthTerminalOperateScope);
+  const canOperateTerminal = useEnvironmentScope(
+    threadRef.environmentId,
+    AuthTerminalOperateScope,
+  );
   const terminalArea = workspaceAreaProps("terminal", 5, "Terminal");
   const isPanel = mode === "panel";
   const [advancedTypography] = useLocalStorage(
@@ -1552,8 +1731,13 @@ export default function ThreadTerminalDrawer({
     Schema.Boolean,
   );
   const drawerRef = useRef<HTMLElement | null>(null);
-  const [drawerLayout, setDrawerLayout] = useState(() => readDrawerLayout(null));
-  const maxDrawerHeight = resolveTerminalDrawerMaxHeight({ ...drawerLayout, composerHeight });
+  const [drawerLayout, setDrawerLayout] = useState(() =>
+    readDrawerLayout(null),
+  );
+  const maxDrawerHeight = resolveTerminalDrawerMaxHeight({
+    ...drawerLayout,
+    composerHeight,
+  });
   const drawerHeight = clampDrawerHeight(height, maxDrawerHeight);
   // A drag only writes the drawer's style; the store hears the height once, at
   // pointerup. The custom property outranks the rendered height while it is set.
@@ -1643,7 +1827,11 @@ export default function ThreadTerminalDrawer({
     );
     nextGroups.sort((left, right) => {
       const rank = (ids: readonly string[]) =>
-        Math.min(...ids.map((id) => terminalOrderIndex.get(id) ?? Number.POSITIVE_INFINITY));
+        Math.min(
+          ...ids.map(
+            (id) => terminalOrderIndex.get(id) ?? Number.POSITIVE_INFINITY,
+          ),
+        );
       return rank(left.terminalIds) - rank(right.terminalIds);
     });
 
@@ -1652,14 +1840,18 @@ export default function ThreadTerminalDrawer({
   const groupIndexByTerminalId = (() => {
     const next = new Map<string, number>();
     for (const [index, terminalGroup] of resolvedTerminalGroups.entries()) {
-      for (const terminalId of terminalGroup.terminalIds) next.set(terminalId, index);
+      for (const terminalId of terminalGroup.terminalIds)
+        next.set(terminalId, index);
     }
     return next;
   })();
   const terminalLabelById = (() => {
     const next = new Map<string, string>();
     for (const terminalId of normalizedTerminalIds) {
-      next.set(terminalId, terminalLabelsById?.get(terminalId) ?? getTerminalLabel(terminalId));
+      next.set(
+        terminalId,
+        terminalLabelsById?.get(terminalId) ?? getTerminalLabel(terminalId),
+      );
     }
     return next;
   })();
@@ -1683,13 +1875,19 @@ export default function ThreadTerminalDrawer({
     resolvedTerminalGroups[resolvedActiveGroupIndex]?.terminalIds ??
     (normalizedTerminalIds.length > 0 ? [resolvedActiveTerminalId] : []);
   const splitDirection =
-    resolvedTerminalGroups[resolvedActiveGroupIndex]?.splitDirection ?? "horizontal";
+    resolvedTerminalGroups[resolvedActiveGroupIndex]?.splitDirection ??
+    "horizontal";
   const hasTerminalSidebar = normalizedTerminalIds.length > 1;
   const showGroupHeaders =
     resolvedTerminalGroups.length > 1 ||
-    resolvedTerminalGroups.some((terminalGroup) => terminalGroup.terminalIds.length > 1);
-  const hasReachedSplitLimit = visibleTerminalIds.length >= MAX_TERMINALS_PER_GROUP;
-  const resolveTerminalLaunchLocation = (terminalId: string): TerminalLaunchLocation =>
+    resolvedTerminalGroups.some(
+      (terminalGroup) => terminalGroup.terminalIds.length > 1,
+    );
+  const hasReachedSplitLimit =
+    visibleTerminalIds.length >= MAX_TERMINALS_PER_GROUP;
+  const resolveTerminalLaunchLocation = (
+    terminalId: string,
+  ): TerminalLaunchLocation =>
     terminalLaunchLocationsById?.get(terminalId) ?? {
       cwd,
       ...(worktreePath !== undefined ? { worktreePath } : {}),
@@ -1725,15 +1923,21 @@ export default function ThreadTerminalDrawer({
   };
   const confirmCloseTerminal = (terminalId: string) => {
     if (!canOperateTerminal) return;
-    const label = terminalLabelById.get(terminalId) ?? getTerminalLabel(terminalId);
+    const label =
+      terminalLabelById.get(terminalId) ?? getTerminalLabel(terminalId);
     void confirmTerminalClose([label]).then((confirmed) => {
-      if (confirmed && readEnvironmentScope(threadRef.environmentId, AuthTerminalOperateScope)) {
+      if (
+        confirmed &&
+        readEnvironmentScope(threadRef.environmentId, AuthTerminalOperateScope)
+      ) {
         onCloseTerminal(terminalId, threadRef);
       }
     });
   };
 
-  const handleResizePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+  const handleResizePointerDown = (
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) => {
     if (event.button !== 0) return;
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -1746,7 +1950,9 @@ export default function ThreadTerminalDrawer({
     };
   };
 
-  const handleResizePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+  const handleResizePointerMove = (
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) => {
     const resizeState = resizeStateRef.current;
     if (!resizeState || resizeState.pointerId !== event.pointerId) return;
     event.preventDefault();
@@ -1758,7 +1964,10 @@ export default function ThreadTerminalDrawer({
       return;
     }
     resizeState.height = clampedHeight;
-    resizeState.drawer?.style.setProperty(DRAG_HEIGHT_PROPERTY, `${clampedHeight}px`);
+    resizeState.drawer?.style.setProperty(
+      DRAG_HEIGHT_PROPERTY,
+      `${clampedHeight}px`,
+    );
   };
 
   const handleResizePointerEnd = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -1771,7 +1980,11 @@ export default function ThreadTerminalDrawer({
     resizeState.drawer?.style.removeProperty(DRAG_HEIGHT_PROPERTY);
     // A drag that ends where it started keeps the stored preference, which may
     // be taller than the capped height the drag started from.
-    if (resizeState.height === resizeState.startHeight || resizeState.height === height) return;
+    if (
+      resizeState.height === resizeState.startHeight ||
+      resizeState.height === height
+    )
+      return;
     onHeightChange(resizeState.height);
   };
 
@@ -1796,7 +2009,10 @@ export default function ThreadTerminalDrawer({
         );
         if (liveHeight !== resizeState.height) {
           resizeState.height = liveHeight;
-          resizeState.drawer?.style.setProperty(DRAG_HEIGHT_PROPERTY, `${liveHeight}px`);
+          resizeState.drawer?.style.setProperty(
+            DRAG_HEIGHT_PROPERTY,
+            `${liveHeight}px`,
+          );
         }
       }
       if (heightBudgetChanged) setDrawerLayout(layout);
@@ -1847,7 +2063,11 @@ export default function ThreadTerminalDrawer({
           "relative flex min-w-0 flex-col overflow-hidden bg-background",
           isPanel ? "h-full flex-1" : "z-45 shrink-0 border-t border-border/80",
         )}
-        style={isPanel ? undefined : { height: `var(${DRAG_HEIGHT_PROPERTY}, ${drawerHeight}px)` }}
+        style={
+          isPanel
+            ? undefined
+            : { height: `var(${DRAG_HEIGHT_PROPERTY}, ${drawerHeight}px)` }
+        }
       >
         {resizeHandle}
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-4 py-6 text-center text-sm text-muted-foreground">
@@ -1875,7 +2095,11 @@ export default function ThreadTerminalDrawer({
         "relative flex min-w-0 flex-col overflow-hidden bg-background",
         isPanel ? "h-full flex-1" : "z-45 shrink-0 border-t border-border/80",
       )}
-      style={isPanel ? undefined : { height: `var(${DRAG_HEIGHT_PROPERTY}, ${drawerHeight}px)` }}
+      style={
+        isPanel
+          ? undefined
+          : { height: `var(${DRAG_HEIGHT_PROPERTY}, ${drawerHeight}px)` }
+      }
     >
       {resizeHandle}
 
@@ -1994,7 +2218,9 @@ export default function ThreadTerminalDrawer({
                   <TerminalActionButton
                     disabled={!canOperateTerminal}
                     className="inline-flex h-full items-center border-l border-border/70 px-1 text-foreground/90 transition-colors hover:bg-accent/70"
-                    onClick={() => confirmCloseTerminal(resolvedActiveTerminalId)}
+                    onClick={() =>
+                      confirmCloseTerminal(resolvedActiveTerminalId)
+                    }
                     label={closeTerminalActionLabel}
                   >
                     <Trash2 className="size-3.25" />

@@ -13,20 +13,15 @@ export async function copyThreadReference(
   target: ThreadReferenceCopyTarget,
   locale: ResolvedAppLocale | (() => ResolvedAppLocale) = "en",
 ): Promise<void> {
-  const fragment = target.fragment ? encodeComposerContextFragment(target.fragment) : null;
+  const fragment = target.fragment
+    ? encodeComposerContextFragment(target.fragment)
+    : null;
   try {
-    const didCopy = await writeTextToClipboard(
+    await writeTextToClipboard(
       target.value,
       target.clipboardTarget,
       fragment ? { [COMPOSER_CONTEXT_CLIPBOARD_MIME]: fragment } : undefined,
     );
-    if (!didCopy) return;
-    const settledLocale = typeof locale === "function" ? locale() : locale;
-    toastManager.add({
-      type: "success",
-      title: translateWebSource(settledLocale, target.successTitle),
-      description: target.description,
-    });
   } catch (error) {
     console.error(error);
     const settledLocale = typeof locale === "function" ? locale() : locale;

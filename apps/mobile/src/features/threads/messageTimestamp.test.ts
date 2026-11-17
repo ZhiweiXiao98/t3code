@@ -2,7 +2,7 @@ import { mobileDateFormatOptions } from "../../i18n/mobileDateDisplay";
 import { describe, expect, it } from "vite-plus/test";
 
 import { MOBILE_LOCALE } from "../../i18n/mobileStrings";
-import { formatMessageTimestamp } from "./messageTimestamp";
+import { createMessageTimeFormatter, formatMessageTimestamp } from "./messageTimestamp";
 
 describe("formatMessageTimestamp", () => {
   const now = new Date(2026, 10, 8, 20, 0).getTime();
@@ -50,4 +50,28 @@ it("uses app locale rather than device locale and keeps same-day/year boundaries
     }
     expect(formatMessageTimestamp("invalid", now, locale)).toBe("");
   }
+});
+
+describe("createMessageTimeFormatter", () => {
+  const now = new Date(2026, 0, 1, 20, 0).getTime();
+
+  it("follows the system clock preference over the locale's hour cycle", () => {
+    const format24 = createMessageTimeFormatter(true, "en-US");
+    expect(format24(new Date(2026, 0, 1, 15, 7).toISOString(), now)).toBe("15:07");
+    expect(format24(new Date(2026, 0, 1, 0, 7).toISOString(), now)).toBe("00:07");
+    const format12 = createMessageTimeFormatter(false, "en-GB");
+    expect(format12(new Date(2026, 0, 1, 15, 7).toISOString(), now)).toMatch(/^3:07\spm$/i);
+  });
+});
+
+it("combines the selected Chinese date locale with an explicit system 24-hour clock", () => {
+  const now = new Date(2026, 10, 8, 20).getTime();
+  const date = new Date(2026, 10, 7, 15, 7);
+  const expectedDate = new Intl.DateTimeFormat("zh-CN", {
+    month: "numeric",
+    day: "numeric",
+  }).format(date);
+  expect(createMessageTimeFormatter(true, "zh-CN")(date.toISOString(), now)).toBe(
+    `${expectedDate} 15:07`,
+  );
 });

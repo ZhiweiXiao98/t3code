@@ -1,3 +1,4 @@
+import { translateChatSource } from "~/i18n/chatSourceMessages";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
 import { pipe } from "effect/Function";
@@ -30,19 +31,34 @@ import * as Result from "effect/Result";
 import { CheckIcon, LinkIcon, MinusIcon, XIcon } from "lucide-react";
 import { useId, useRef, useState } from "react";
 
-import { useEnvironmentScope, usePreparedConnection } from "../../state/session";
+import {
+  useEnvironmentScope,
+  usePreparedConnection,
+} from "../../state/session";
 import { mintPairingCodeOn } from "../../state/peerPairingCode";
-import { peerLinkEnvironment, useLinkableMachines } from "../../state/peerLinks";
+import {
+  peerLinkEnvironment,
+  useLinkableMachines,
+} from "../../state/peerLinks";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { accessConfig } from "../auth/ConnectAgentSurface";
 import { EnvironmentMachineIcon } from "../EnvironmentMachineIcon";
 import { LinkAccessPicker } from "../settings/LinkAccessPicker";
-import { LinkAddressWarning, LinkMachineBadge } from "../settings/LinkMachineSelect";
+import {
+  LinkAddressWarning,
+  LinkMachineBadge,
+} from "../settings/LinkMachineSelect";
 import { Button } from "../ui/button";
 import { Dialog } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Radio, RadioGroup } from "../ui/radio-group";
-import { WizardFooter, WizardHeader, WizardPanel, WizardPopup, WizardSteps } from "../ui/wizard";
+import {
+  WizardFooter,
+  WizardHeader,
+  WizardPanel,
+  WizardPopup,
+  WizardSteps,
+} from "../ui/wizard";
 import { WorkLogRow } from "./WorkLog";
 
 const accessLabel = (access: AuthMcpClientAccess) => accessConfig[access].label;
@@ -107,11 +123,16 @@ function PendingLinkRequest(props: {
     if (input === null) return;
     setDeclining(true);
     setError(null);
-    const result = await answer({ environmentId: props.environmentId, input }).finally(() =>
-      setDeclining(false),
-    );
+    const result = await answer({
+      environmentId: props.environmentId,
+      input,
+    }).finally(() => setDeclining(false));
     if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
-      pipe(squashAtomCommandFailure(result), linkRequestFailureMessage, setError);
+      pipe(
+        squashAtomCommandFailure(result),
+        linkRequestFailureMessage,
+        setError,
+      );
     }
   };
 
@@ -126,7 +147,9 @@ function PendingLinkRequest(props: {
             ? t("audit12.link.machine")
             : t("audit12.link.target", { name: target })}
         </p>
-        {item.reason.trim() ? <p className="text-sm text-muted-foreground">{item.reason}</p> : null}
+        {item.reason.trim() ? (
+          <p className="text-sm text-muted-foreground">{item.reason}</p>
+        ) : null}
       </div>
       {error !== null ? (
         <p role="alert" className="text-xs text-destructive">
@@ -144,7 +167,12 @@ function PendingLinkRequest(props: {
           >
             {translateWebSource(copyLocale, "Decline")}
           </Button>
-          <Button type="button" size="xs" disabled={declining} onClick={() => setOpen(true)}>
+          <Button
+            type="button"
+            size="xs"
+            disabled={declining}
+            onClick={() => setOpen(true)}
+          >
             {picksMachine(item)
               ? translateWebSource(copyLocale, "Choose machine…")
               : translateWebSource(copyLocale, "Review link…")}
@@ -186,13 +214,17 @@ function LinkRequestDialog(props: {
   // Null until the user picks; until then the hint's best match is picked.
   const [choice, setChoice] = useState<string | null>(null);
   const [address, setAddress] = useState(item.url ?? "");
-  const [access, setAccess] = useState<AuthMcpClientAccess>(() => linkRequestDefaultAccess(item));
+  const [access, setAccess] = useState<AuthMcpClientAccess>(() =>
+    linkRequestDefaultAccess(item),
+  );
   const [pairingCode, setPairingCode] = useState("");
   const [step, setStep] = useState<LinkStep>("machine");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Machines whose minting already failed, so the dialog asks for a code instead.
-  const [mintFailed, setMintFailed] = useState<ReadonlySet<EnvironmentId>>(new Set());
+  const [mintFailed, setMintFailed] = useState<ReadonlySet<EnvironmentId>>(
+    new Set(),
+  );
   // Enter then a click can both run before a re-render; this guard is synchronous.
   const inFlight = useRef(false);
   const answer = useAtomCommand(peerLinkEnvironment.answerRequest, {
@@ -203,12 +235,14 @@ function LinkRequestDialog(props: {
   });
   const selected = choice ?? linkRequestInitialMachine(item, machines);
   const target = linkRequestTarget(item, machines, selected);
-  const targetName = target.kind === "machine" ? target.label : linkRequestTargetName(item);
+  const targetName =
+    target.kind === "machine" ? target.label : linkRequestTargetName(item);
   const targetId = target.kind === "machine" ? target.environmentId : null;
   const connected = usePreparedConnection(targetId);
   const mayMint = useEnvironmentScope(targetId, AuthAccessWriteScope);
   const needsAddress =
-    target.kind === "address" || (target.kind === "machine" && target.urls.length === 0);
+    target.kind === "address" ||
+    (target.kind === "machine" && target.urls.length === 0);
   // This client mints a code there when it is connected with a session that may
   // create pairing links, and only for its own addresses: anything can answer
   // as that machine at one typed in, so that one gets a code the user fetched.
@@ -226,8 +260,10 @@ function LinkRequestDialog(props: {
     pickMachine || asksAddress ? ["machine", "access"] : ["access"];
   const current: LinkStep = steps.includes(step) ? step : "access";
   const machineReady =
-    target.kind !== "none" && (useExisting || !needsAddress || address.trim().length > 0);
-  const ready = machineReady && (useExisting || canMint || pairingCode.trim().length > 0);
+    target.kind !== "none" &&
+    (useExisting || !needsAddress || address.trim().length > 0);
+  const ready =
+    machineReady && (useExisting || canMint || pairingCode.trim().length > 0);
 
   const reset = () => {
     setChoice(null);
@@ -265,7 +301,10 @@ function LinkRequestDialog(props: {
     }
     return linkRequestAnswerInput(item, {
       type: "link",
-      target: target.kind === "machine" && target.urls.length > 0 ? target : { url: address },
+      target:
+        target.kind === "machine" && target.urls.length > 0
+          ? target
+          : { url: address },
       access,
       pairingCode: code,
     });
@@ -278,7 +317,9 @@ function LinkRequestDialog(props: {
     setError(null);
     const input = await prepareAnswer();
     const result =
-      input === null ? null : await answer({ environmentId: props.environmentId, input });
+      input === null
+        ? null
+        : await answer({ environmentId: props.environmentId, input });
     inFlight.current = false;
     setBusy(false);
     if (result === null) return;
@@ -286,7 +327,11 @@ function LinkRequestDialog(props: {
       // The card switches to its answered row once the item updates.
       close();
     } else if (!isAtomCommandInterrupted(result)) {
-      pipe(squashAtomCommandFailure(result), linkRequestFailureMessage, setError);
+      pipe(
+        squashAtomCommandFailure(result),
+        linkRequestFailureMessage,
+        setError,
+      );
     }
   };
 
@@ -306,13 +351,21 @@ function LinkRequestDialog(props: {
       <WizardPopup>
         <WizardHeader
           title={
-            pickMachine ? t("audit12.link.pick") : t("audit12.link.title", { name: targetName })
+            pickMachine
+              ? t("audit12.link.pick")
+              : t("audit12.link.title", { name: targetName })
           }
-          description={t("audit12.link.description")}
+          description={translateChatSource(
+            copyLocale,
+            "Agents here can then launch, message and wait on threads there. Revoke it in that machine’s Sharing & access.",
+          )}
         >
           {steps.length > 1 && !useExisting ? (
             <WizardSteps
-              steps={[translateWebSource(copyLocale, "Machine"), t("audit12.link.access")]}
+              steps={[
+                translateWebSource(copyLocale, "Machine"),
+                t("audit12.link.access"),
+              ]}
               currentStep={steps.indexOf(current)}
               summaries={[target.kind === "none" ? null : targetName, null]}
               showSummaries
@@ -363,7 +416,10 @@ function LinkRequestDialog(props: {
                     />
                     {target.kind === "machine" ? (
                       <span className="block text-xs text-muted-foreground">
-                        {translateWebSource(copyLocale, "This app has no address for")}
+                        {translateWebSource(
+                          copyLocale,
+                          "This app has no address for",
+                        )}
                         {target.label}{" "}
                         {translateWebSource(
                           copyLocale,
@@ -377,11 +433,15 @@ function LinkRequestDialog(props: {
             ) : (
               <>
                 {item.url !== undefined && target.kind === "machine" ? (
-                  <p className="truncate text-xs text-muted-foreground">{item.url}</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {item.url}
+                  </p>
                 ) : null}
                 {useExisting ? null : (
                   <>
-                    {needsAddress ? <LinkAddressWarning address={address} /> : null}
+                    {needsAddress ? (
+                      <LinkAddressWarning address={address} />
+                    ) : null}
                     {canMint ? null : (
                       <label className="block space-y-1.5">
                         <span className="block text-xs font-medium text-foreground">
@@ -389,8 +449,13 @@ function LinkRequestDialog(props: {
                         </span>
                         <Input
                           value={pairingCode}
-                          onChange={(event) => setPairingCode(event.target.value)}
-                          placeholder={translateWebSource(copyLocale, "Paste the code")}
+                          onChange={(event) =>
+                            setPairingCode(event.target.value)
+                          }
+                          placeholder={translateWebSource(
+                            copyLocale,
+                            "Paste the code",
+                          )}
                           disabled={busy}
                           autoComplete="one-time-code"
                           nativeInput
@@ -399,25 +464,32 @@ function LinkRequestDialog(props: {
                         <span className="block text-xs text-muted-foreground">
                           {translateWebSource(copyLocale, "Create a link on")}
                           {targetName}
-                          {translateWebSource(
+                          {translateChatSource(
                             copyLocale,
-                            ": Settings → Connections → Create link, then paste its code here.",
+                            ": Settings → Sharing & access → Authorized clients → Create link, then paste its code here.",
                           )}
                         </span>
                       </label>
                     )}
-                    <LinkAccessPicker value={access} onChange={setAccess} disabled={busy} />
+                    <LinkAccessPicker
+                      value={access}
+                      onChange={setAccess}
+                      disabled={busy}
+                    />
                   </>
                 )}
               </>
             )}
             {useExisting ? (
               <p className="text-xs text-muted-foreground">
-                {translateWebSource(copyLocale, "This environment is already linked to")}
-                {targetName}
                 {translateWebSource(
                   copyLocale,
-                  ". The agent can use that link as it is; change its access in Settings → Connections.",
+                  "This environment is already linked to",
+                )}
+                {targetName}
+                {translateChatSource(
+                  copyLocale,
+                  ". The agent can use that link as it is; change its access in Settings → Environments.",
                 )}
               </p>
             ) : null}
@@ -442,7 +514,12 @@ function LinkRequestDialog(props: {
               {translateWebSource(copyLocale, "Back")}
             </Button>
           ) : (
-            <Button variant="outline" type="button" disabled={busy} onClick={close}>
+            <Button
+              variant="outline"
+              type="button"
+              disabled={busy}
+              onClick={close}
+            >
               {translateWebSource(copyLocale, "Cancel")}
             </Button>
           )}
@@ -495,7 +572,9 @@ function MachinePicker(props: {
               kind={machine.machine}
               className="size-4 shrink-0 text-muted-foreground"
             />
-            <span className="min-w-0 flex-1 truncate font-medium">{machine.label}</span>
+            <span className="min-w-0 flex-1 truncate font-medium">
+              {machine.label}
+            </span>
             <LinkMachineBadge machine={machine} />
           </label>
         ))}

@@ -1,7 +1,11 @@
 import { browserCloseMessage } from "../i18n/confirmationMessages";
 import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 import { translateWebMessage, translateWebSource } from "../i18n/messages";
-import { type OrchestrationV2ProviderTurn, type RunAttemptId } from "@t3tools/contracts";
+import { toServerClock } from "@t3tools/client-runtime/clock";
+import {
+  type OrchestrationV2ProviderTurn,
+  type RunAttemptId,
+} from "@t3tools/contracts";
 import {
   deriveLatestThreadRun,
   deriveThreadRuntime,
@@ -15,10 +19,16 @@ import {
 } from "@t3tools/shared/orchestrationV2ThreadError";
 import * as Option from "effect/Option";
 import type { SetStateAction } from "react";
-import { applyClaudePromptEffortPrefix, resolvePromptInjectedEffort } from "@t3tools/shared/model";
+import {
+  applyClaudePromptEffortPrefix,
+  resolvePromptInjectedEffort,
+} from "@t3tools/shared/model";
 import { getProviderModelCapabilities } from "../providerModels";
 import { sanitizeThreadErrorMessage } from "@t3tools/client-runtime/errors";
-import type { EnvironmentThread, ThreadStructure } from "@t3tools/client-runtime/state/shell";
+import type {
+  EnvironmentThread,
+  ThreadStructure,
+} from "@t3tools/client-runtime/state/shell";
 import {
   ANTIGRAVITY_DEFAULT_MODEL,
   PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
@@ -35,11 +45,13 @@ import {
   type PreviewAnnotationPayload,
   ProviderDriverKind,
   type ProviderInstanceId,
+  type ProviderThreadId,
   type ServerProvider,
   type ScopedProjectRef,
   type ScopedThreadRef,
   type ThreadContextRecord,
   type EnvironmentContextRecord,
+  type ResponseContextRecord,
   type ThreadId,
   type ThreadLinkedPullRequest,
   type RunId,
@@ -52,6 +64,7 @@ import {
   squashAtomCommandFailure,
   type AtomCommandResult,
 } from "@t3tools/client-runtime/state/runtime";
+import { readComposerImageBytes } from "./chat/composerAttachmentFiles";
 import { videoMimeType } from "@t3tools/shared/video";
 import {
   appendCodexArtifactTemplateUsePrompt,
@@ -73,6 +86,7 @@ import {
   type DraftThreadState,
 } from "../composerDraftStore";
 import * as Schema from "effect/Schema";
+import { threadHasStarted } from "../lib/chatThreadActions";
 import { appAtomRegistry } from "../rpc/atomRegistry";
 import { environmentThreadDetails } from "../state/threads";
 import {
@@ -106,14 +120,17 @@ import {
 type ThreadProjection = EnvironmentThread["projection"];
 type ThreadStructureRow = ThreadStructure["visibleTurnItems"][number];
 
-export const LAST_INVOKED_SCRIPT_BY_PROJECT_KEY = "t3code:last-invoked-script-by-project";
+export const LAST_INVOKED_SCRIPT_BY_PROJECT_KEY =
+  "t3code:last-invoked-script-by-project";
 export const MAX_HIDDEN_MOUNTED_TERMINAL_THREADS = 10;
 
 export const ENVIRONMENT_RECONNECT_WARNING_GRACE_MS = 2_000;
 
 export function agentControlledBrowserCloseConfirmation(
   surfaces: readonly RightPanelSurface[],
-  desktopByTabId: Readonly<Record<string, Pick<DesktopPreviewOverlay, "controller"> | undefined>>,
+  desktopByTabId: Readonly<
+    Record<string, Pick<DesktopPreviewOverlay, "controller"> | undefined>
+  >,
   locale: ResolvedAppLocale = "en",
 ): string | null {
   const activeBrowserCount = surfaces.filter(
@@ -161,18 +178,27 @@ interface ProactivePanelObservation {
 
 export function observeProactivePanelUserChoice(
   previous: ProactivePanelObservation | null,
-  input: { threadKey: string; runningTurnId: RunId | null; userActionRevision: number },
+  input: {
+    threadKey: string;
+    runningTurnId: RunId | null;
+    userActionRevision: number;
+  },
 ): ProactivePanelObservation {
   const sameThread = previous?.threadKey === input.threadKey;
   const newTurn =
-    sameThread && input.runningTurnId !== null && input.runningTurnId !== previous.userActionTurnId;
+    sameThread &&
+    input.runningTurnId !== null &&
+    input.runningTurnId !== previous.userActionTurnId;
   return {
     threadKey: input.threadKey,
     runningTurnId: sameThread ? previous.runningTurnId : undefined,
     targetKey: sameThread ? previous.targetKey : undefined,
-    userActionTurnId: input.runningTurnId ?? (sameThread ? previous.userActionTurnId : null),
+    userActionTurnId:
+      input.runningTurnId ?? (sameThread ? previous.userActionTurnId : null),
     userActionRevision:
-      !sameThread || newTurn ? input.userActionRevision : previous.userActionRevision,
+      !sameThread || newTurn
+        ? input.userActionRevision
+        : previous.userActionRevision,
   };
 }
 
@@ -181,7 +207,8 @@ export function shouldRetargetThreadPullRequestPanel(
   current: ThreadLinkedPullRequest | null,
   surface: RightPanelSurface | null,
 ): boolean {
-  if (previous === null || current === null || surface?.kind !== "pull-request") return false;
+  if (previous === null || current === null || surface?.kind !== "pull-request")
+    return false;
   const previousRepository = previous.repository.toLowerCase();
   return (
     (previous.projectId !== current.projectId ||
@@ -209,10 +236,13 @@ export function shouldOpenProactiveTurnDiff(input: {
 }
 
 export function resolveProactiveTurnDiffAction(input: {
-  checkpoint: Pick<TurnDiffSummary, "status" | "files" | "filesTotal"> | undefined;
+  checkpoint:
+    | Pick<TurnDiffSummary, "status" | "files" | "filesTotal">
+    | undefined;
   isGitRepo: boolean | undefined;
 }): "defer" | "ignore" | "open" {
-  if (input.checkpoint === undefined || input.checkpoint.status === "missing") return "defer";
+  if (input.checkpoint === undefined || input.checkpoint.status === "missing")
+    return "defer";
   if (input.isGitRepo === undefined) return "defer";
   if (
     !input.isGitRepo ||
@@ -222,29 +252,25 @@ export function resolveProactiveTurnDiffAction(input: {
     return "ignore";
   }
   const totals = checkpointFileTotals(input.checkpoint);
-  return totals.count >= 3 || totals.additions + totals.deletions >= 50 ? "open" : "ignore";
-}
-
-/** Mark reactivated Diff tabs to preserve review scope. Already-active tabs must not leave a marker for
- * the next open. */
-export function resolveExplicitDiffOpenOnActivate(input: {
-  readonly surfaceKind: RightPanelSurface["kind"];
-  readonly diffOpen: boolean;
-  readonly activeThreadRef: ScopedThreadRef;
-}): ScopedThreadRef | null {
-  return input.surfaceKind === "diff" && !input.diffOpen ? input.activeThreadRef : null;
+  return totals.count >= 3 || totals.additions + totals.deletions >= 50
+    ? "open"
+    : "ignore";
 }
 
 export function codexArtifactTemplatePromptToAppend(
   currentDraft: string,
   template: CodexArtifactTemplate,
 ): string | null {
-  return appendCodexArtifactTemplateUsePrompt(currentDraft, template) === currentDraft
+  return appendCodexArtifactTemplateUsePrompt(currentDraft, template) ===
+    currentDraft
     ? null
     : codexArtifactTemplateUsePrompt(template);
 }
 
-export const LastInvokedScriptByProjectSchema = Schema.Record(ProjectId, Schema.String);
+export const LastInvokedScriptByProjectSchema = Schema.Record(
+  ProjectId,
+  Schema.String,
+);
 
 export function shouldDockDraftHeroForSubmission(input: {
   isDraftHeroState: boolean;
@@ -264,12 +290,19 @@ export function shouldReleaseTimelineAnchorForToolActivity(input: {
   runningTurnId: RunId | null;
   timelineEntries: ReadonlyArray<TimelineEntry>;
 }): boolean {
-  if (input.anchorMessageId === null || !input.liveFollowEnabled || input.runningTurnId === null) {
+  if (
+    input.anchorMessageId === null ||
+    !input.liveFollowEnabled ||
+    input.runningTurnId === null
+  ) {
     return false;
   }
 
   return input.timelineEntries.some((timelineEntry) => {
-    if (timelineEntry.kind !== "work" || timelineEntry.entry.runId !== input.runningTurnId) {
+    if (
+      timelineEntry.kind !== "work" ||
+      timelineEntry.entry.runId !== input.runningTurnId
+    ) {
       return false;
     }
 
@@ -292,9 +325,11 @@ export function resolveWorktreeSetupProgress(input: {
   latest: WorktreeSetupSnapshot | null | undefined;
   held: WorktreeSetupSnapshot | null;
 }) {
-  const latest = input.latest?.threadId === input.threadId ? input.latest : null;
+  const latest =
+    input.latest?.threadId === input.threadId ? input.latest : null;
   const held = input.held?.threadId === input.threadId ? input.held : null;
-  const snapshot = latest && (!held || latest.sequence >= held.sequence) ? latest : held;
+  const snapshot =
+    latest && (!held || latest.sequence >= held.sequence) ? latest : held;
   return {
     snapshot,
     isPreparingWorktree:
@@ -334,10 +369,15 @@ export type HeldThreadTimeline<T extends readonly unknown[]> = {
 
 const MAX_REMEMBERED_THREAD_TIMELINES = 16;
 
-let rememberedThreadTimelines = new Map<string, HeldThreadTimeline<readonly unknown[]>>();
+let rememberedThreadTimelines = new Map<
+  string,
+  HeldThreadTimeline<readonly unknown[]>
+>();
 let rememberedThreadTimelineOrder: string[] = [];
 
-function rememberThreadTimelineEntries(held: HeldThreadTimeline<readonly unknown[]>): void {
+function rememberThreadTimelineEntries(
+  held: HeldThreadTimeline<readonly unknown[]>,
+): void {
   if (held.threadKey === null) {
     return;
   }
@@ -346,7 +386,9 @@ function rememberThreadTimelineEntries(held: HeldThreadTimeline<readonly unknown
     ...rememberedThreadTimelineOrder.filter((key) => key !== held.threadKey),
     held.threadKey,
   ];
-  while (rememberedThreadTimelineOrder.length > MAX_REMEMBERED_THREAD_TIMELINES) {
+  while (
+    rememberedThreadTimelineOrder.length > MAX_REMEMBERED_THREAD_TIMELINES
+  ) {
     const evicted = rememberedThreadTimelineOrder.shift();
     if (evicted !== undefined) {
       rememberedThreadTimelines.delete(evicted);
@@ -369,7 +411,9 @@ export function peekRememberedThreadTimeline<T extends readonly unknown[]>(
   if (threadKey === null) {
     return null;
   }
-  return (rememberedThreadTimelines.get(threadKey)?.entries as T | undefined) ?? null;
+  return (
+    (rememberedThreadTimelines.get(threadKey)?.entries as T | undefined) ?? null
+  );
 }
 
 export function resetHeldThreadTimeline(): void {
@@ -377,7 +421,9 @@ export function resetHeldThreadTimeline(): void {
   rememberedThreadTimelineOrder = [];
 }
 
-export function resolveThreadSwitchTimeline<T extends readonly unknown[]>(input: {
+export function resolveThreadSwitchTimeline<
+  T extends readonly unknown[],
+>(input: {
   loading: boolean;
   activeThreadKey: string | null;
   nextEntries: T;
@@ -388,8 +434,13 @@ export function resolveThreadSwitchTimeline<T extends readonly unknown[]>(input:
   }
 
   const rememberedForActive =
-    input.rememberedForActive ?? peekRememberedThreadTimeline<T>(input.activeThreadKey);
-  if (input.loading && rememberedForActive !== null && rememberedForActive.length > 0) {
+    input.rememberedForActive ??
+    peekRememberedThreadTimeline<T>(input.activeThreadKey);
+  if (
+    input.loading &&
+    rememberedForActive !== null &&
+    rememberedForActive.length > 0
+  ) {
     return rememberedForActive;
   }
 
@@ -420,10 +471,12 @@ export function resolveThreadMetadataUpdateForNextTurn(input: {
   const modelSelectionChanged =
     nextModelSelection !== undefined &&
     (nextModelSelection.model !== input.currentModelSelection.model ||
-      nextModelSelection.instanceId !== input.currentModelSelection.instanceId ||
+      nextModelSelection.instanceId !==
+        input.currentModelSelection.instanceId ||
       JSON.stringify(nextModelSelection.options ?? null) !==
         JSON.stringify(input.currentModelSelection.options ?? null));
-  const branchChanged = input.nextBranch !== undefined && input.nextBranch !== input.currentBranch;
+  const branchChanged =
+    input.nextBranch !== undefined && input.nextBranch !== input.currentBranch;
   if (!modelSelectionChanged && !branchChanged) {
     return null;
   }
@@ -450,7 +503,11 @@ export function buildLocalDraftThread(
     branch: draftThread.branch,
     worktreePath: draftThread.worktreePath,
     activeProviderThreadId: null,
-    lineage: { rootThreadId: threadId, parentThreadId: null, relationshipToParent: null },
+    lineage: {
+      rootThreadId: threadId,
+      parentThreadId: null,
+      relationshipToParent: null,
+    },
     forkedFrom: null,
     createdBy: "user",
     creationSource: "web",
@@ -479,16 +536,19 @@ export function resolveComposerProviderSelection(input: {
   lockedInstanceId: ProviderInstanceId | null | undefined;
 }) {
   const requestedInstanceId = input.candidateInstanceIds.find(
-    (candidate) => candidate != null && candidate !== NO_PROVIDER_MODEL_SELECTION.instanceId,
+    (candidate) =>
+      candidate != null && candidate !== NO_PROVIDER_MODEL_SELECTION.instanceId,
   );
   const requestedDriverKind =
     input.lockedProvider ??
-    input.entries.find((entry) => entry.instanceId === requestedInstanceId)?.driverKind ??
+    input.entries.find((entry) => entry.instanceId === requestedInstanceId)
+      ?.driverKind ??
     input.entries[0]?.driverKind ??
     ProviderDriverKind.make("unconfigured");
   const lockedContinuationGroupKey = input.lockedProvider
-    ? (input.entries.find((entry) => entry.instanceId === input.lockedInstanceId)
-        ?.continuationGroupKey ?? null)
+    ? (input.entries.find(
+        (entry) => entry.instanceId === input.lockedInstanceId,
+      )?.continuationGroupKey ?? null)
     : null;
   // Missing metadata must not move Antigravity history into another Google profile.
   const requiresExactInstance =
@@ -498,19 +558,25 @@ export function resolveComposerProviderSelection(input: {
   const compatibleEntries = input.entries.filter(
     (entry) =>
       (!input.lockedProvider || entry.driverKind === input.lockedProvider) &&
-      (!lockedContinuationGroupKey || entry.continuationGroupKey === lockedContinuationGroupKey) &&
+      (!lockedContinuationGroupKey ||
+        entry.continuationGroupKey === lockedContinuationGroupKey) &&
       (!requiresExactInstance || entry.instanceId === input.lockedInstanceId),
   );
   const selectedProviderEntry =
     input.candidateInstanceIds
       .map((candidate) =>
         compatibleEntries.find(
-          (entry) => entry.instanceId === candidate && entry.enabled && entry.isAvailable,
+          (entry) =>
+            entry.instanceId === candidate &&
+            entry.enabled &&
+            entry.isAvailable,
         ),
       )
       .find((entry) => entry !== undefined) ??
     resolveSelectableProviderInstanceEntry(
-      compatibleEntries.filter((entry) => entry.driverKind === requestedDriverKind),
+      compatibleEntries.filter(
+        (entry) => entry.driverKind === requestedDriverKind,
+      ),
       undefined,
     ) ??
     resolveSelectableProviderInstanceEntry(compatibleEntries, undefined);
@@ -530,7 +596,10 @@ export function resolveComposerProviderSelection(input: {
 
 export function getAntigravitySendBlockReason(
   provider:
-    | Pick<ServerProvider, "driver" | "installed" | "auth" | "models" | "status">
+    | Pick<
+        ServerProvider,
+        "driver" | "installed" | "auth" | "models" | "status"
+      >
     | null
     | undefined,
   model: string,
@@ -551,7 +620,9 @@ export function getAntigravitySendBlockReason(
   if (
     provider.status === "ready" &&
     slug !== ANTIGRAVITY_DEFAULT_MODEL &&
-    !provider.models.some((entry) => entry.slug === slug || entry.aliases?.includes(slug))
+    !provider.models.some(
+      (entry) => entry.slug === slug || entry.aliases?.includes(slug),
+    )
   ) {
     return "That Antigravity model is no longer available. Choose another model.";
   }
@@ -567,7 +638,8 @@ export function reconcileMountedTerminalThreadIds(input: {
 }): string[] {
   const openThreadIdSet = new Set(input.openThreadIds);
   const hiddenThreadIds = input.currentThreadIds.filter(
-    (threadId) => threadId !== input.activeThreadId && openThreadIdSet.has(threadId),
+    (threadId) =>
+      threadId !== input.activeThreadId && openThreadIdSet.has(threadId),
   );
   const maxHiddenThreadCount = Math.max(
     0,
@@ -639,7 +711,9 @@ export async function prepareRevertedMessageAttachments(input: {
   message: ChatMessage;
   environmentId: EnvironmentId;
   httpBaseUrl: string;
-  createAssetUrl: Parameters<typeof resolveFileAttachmentUrl>[0]["createAssetUrl"];
+  createAssetUrl: Parameters<
+    typeof resolveFileAttachmentUrl
+  >[0]["createAssetUrl"];
 }): Promise<File[]> {
   return Promise.all(
     (input.message.attachments ?? []).map(async (attachment) => {
@@ -682,12 +756,18 @@ export async function prepareRevertedMessageAttachments(input: {
         });
         throw error;
       }
-      const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
+      const response = await fetch(url, {
+        signal: AbortSignal.timeout(30_000),
+      });
       if (!response.ok) {
         const error = new Error(
-          translateWebMessage(input.readLocale?.() ?? "en", "audit15.restoreAttachment", {
-            name: attachment.name,
-          }),
+          translateWebMessage(
+            input.readLocale?.() ?? "en",
+            "audit15.restoreAttachment",
+            {
+              name: attachment.name,
+            },
+          ),
         );
         ownedRewindFailures.set(error, {
           message: error.message,
@@ -696,13 +776,19 @@ export async function prepareRevertedMessageAttachments(input: {
         });
         throw error;
       }
-      return new File([await response.blob()], attachment.name, { type: attachment.mimeType });
+      const file = new File([await response.blob()], attachment.name, {
+        type: attachment.mimeType,
+      });
+      if (attachment.type === "image") await readComposerImageBytes(file);
+      return file;
     }),
   );
 }
 
 export function timelineHasEphemeralPreviewUrls(
-  entries: ReadonlyArray<Pick<TimelineEntry, "kind"> & { message?: ChatMessage }>,
+  entries: ReadonlyArray<
+    Pick<TimelineEntry, "kind"> & { message?: ChatMessage }
+  >,
 ): boolean {
   return entries.some(
     (entry) =>
@@ -712,14 +798,17 @@ export function timelineHasEphemeralPreviewUrls(
   );
 }
 
-export function collectUserMessageBlobPreviewUrls(message: ChatMessage): string[] {
+export function collectUserMessageBlobPreviewUrls(
+  message: ChatMessage,
+): string[] {
   if (message.role !== "user" || !message.attachments) {
     return [];
   }
   const previewUrls: string[] = [];
   for (const attachment of message.attachments) {
     if (!isImageAttachment(attachment)) continue;
-    if (!attachment.previewUrl || !attachment.previewUrl.startsWith("blob:")) continue;
+    if (!attachment.previewUrl || !attachment.previewUrl.startsWith("blob:"))
+      continue;
     previewUrls.push(attachment.previewUrl);
   }
   return previewUrls;
@@ -776,7 +865,9 @@ export function deriveComposerSendState(options: {
   hasSendableContent: boolean;
 } {
   const trimmedPrompt = stripInlineContextReferences(options.prompt).trim();
-  const sendableTerminalContexts = filterTerminalContextsWithText(options.terminalContexts);
+  const sendableTerminalContexts = filterTerminalContextsWithText(
+    options.terminalContexts,
+  );
   const expiredTerminalContextCount =
     options.terminalContexts.length - sendableTerminalContexts.length;
   const elementContextCount = options.elementContextCount ?? 0;
@@ -798,7 +889,8 @@ export function buildExpiredTerminalContextToastCopy(
   variant: "omitted" | "empty",
 ): { title: string; description: string } {
   const count = Math.max(1, Math.floor(expiredTerminalContextCount));
-  const noun = count === 1 ? "Expired terminal context" : "Expired terminal contexts";
+  const noun =
+    count === 1 ? "Expired terminal context" : "Expired terminal contexts";
   const pronoun = count === 1 ? "it" : "them";
   if (variant === "empty") {
     return {
@@ -841,7 +933,9 @@ export function dismissBranchMismatchForSession(key: string): void {
   sessionDismissedBranchMismatchKeys.add(key);
 }
 
-export function isBranchMismatchDismissedForSession(key: string | null): boolean {
+export function isBranchMismatchDismissedForSession(
+  key: string | null,
+): boolean {
   return key !== null && sessionDismissedBranchMismatchKeys.has(key);
 }
 
@@ -869,10 +963,6 @@ export function recallCheckoutIsRepo(
     : sessionCheckoutIsRepo.get(checkoutIsRepoKey(environmentId, cwd));
 }
 
-function threadHasStarted(thread: Thread | null | undefined): boolean {
-  return Boolean(thread && (thread.latestRun !== null || thread.itemCount > 0 || thread.runtime));
-}
-
 // Imported history lacks a session until its first prompt; resolve its instance before locking the driver.
 export function deriveLockedProvider(input: {
   thread: Thread | null | undefined;
@@ -889,15 +979,21 @@ export function deriveLockedProvider(input: {
   }
   // Missing catalog entries must not switch a started thread's driver.
   const threadProvider =
-    input.providers.find((provider) => provider.instanceId === input.threadProvider)?.driver ??
-    input.threadProvider;
+    input.providers.find(
+      (provider) => provider.instanceId === input.threadProvider,
+    )?.driver ?? input.threadProvider;
   const selectedProvider =
-    input.providers.find((provider) => provider.instanceId === input.selectedProvider)?.driver ??
-    input.selectedProvider;
+    input.providers.find(
+      (provider) => provider.instanceId === input.selectedProvider,
+    )?.driver ?? input.selectedProvider;
   const narrowedThreadProvider =
-    threadProvider && isProviderDriverKind(threadProvider) ? threadProvider : null;
+    threadProvider && isProviderDriverKind(threadProvider)
+      ? threadProvider
+      : null;
   const narrowedSelectedProvider =
-    selectedProvider && isProviderDriverKind(selectedProvider) ? selectedProvider : null;
+    selectedProvider && isProviderDriverKind(selectedProvider)
+      ? selectedProvider
+      : null;
   return narrowedThreadProvider ?? narrowedSelectedProvider ?? null;
 }
 
@@ -914,7 +1010,8 @@ export function getStartedThreadModelChangeBlockReason(input: {
   }
   const currentModelSelection = {
     ...input.currentModelSelection,
-    instanceId: input.currentProviderInstanceId ?? input.currentModelSelection.instanceId,
+    instanceId:
+      input.currentProviderInstanceId ?? input.currentModelSelection.instanceId,
   };
   if (
     currentModelSelection.instanceId === input.nextModelSelection.instanceId ||
@@ -923,7 +1020,10 @@ export function getStartedThreadModelChangeBlockReason(input: {
     return null;
   }
   return {
-    title: translateWebSource(input.locale ?? "en", "Start a new chat to switch providers"),
+    title: translateWebSource(
+      input.locale ?? "en",
+      "Start a new chat to switch providers",
+    ),
     description: translateWebSource(
       input.locale ?? "en",
       "This thread does not support switching providers after it has started.",
@@ -954,7 +1054,9 @@ export function readOwnedRewindFailure(error: unknown) {
   if (owned === undefined || error.message !== owned.message) return undefined;
   if (owned.code === "rewindRestoreAttachment") {
     return {
-      error: translateWebMessage("en", "audit15.restoreAttachment", { name: owned.name }),
+      error: translateWebMessage("en", "audit15.restoreAttachment", {
+        name: owned.name,
+      }),
       ownedCode: owned.code,
       ownedName: owned.name,
     };
@@ -971,15 +1073,20 @@ export async function waitForRevertedMessage(
   readLocale?: () => ResolvedAppLocale,
 ): Promise<void> {
   const threadAtom = environmentThreadDetails.stateAtom(threadRef);
-  const readProjection = () => Option.getOrNull(appAtomRegistry.get(threadAtom).data);
+  const readProjection = () =>
+    Option.getOrNull(appAtomRegistry.get(threadAtom).data);
   const initial = readProjection();
   const providerThreadId = initial?.thread.activeProviderThreadId;
   const initialProviderThread = initial?.providerThreads.find(
     (providerThread) => providerThread.id === providerThreadId,
   );
-  const initialProviderThreadIds = new Set(initial?.providerThreads.map((thread) => thread.id));
+  const initialProviderThreadIds = new Set(
+    initial?.providerThreads.map((thread) => thread.id),
+  );
   // Paging can omit the source run. Rollback commits the entire settled suffix atomically.
-  const witness = initial?.runs.reduce<(typeof initial.runs)[number] | undefined>((latest, run) => {
+  const witness = initial?.runs.reduce<
+    (typeof initial.runs)[number] | undefined
+  >((latest, run) => {
     if (
       run.ordinal <= turnCount ||
       (run.status !== "completed" &&
@@ -997,7 +1104,10 @@ export async function waitForRevertedMessage(
         "The thread has changed. Select a message to rewind again.",
       ),
     );
-    ownedRewindFailures.set(error, { message: error.message, code: "rewindChanged" });
+    ownedRewindFailures.set(error, {
+      message: error.message,
+      code: "rewindChanged",
+    });
     throw error;
   }
   return new Promise<void>((resolve, reject) => {
@@ -1030,20 +1140,30 @@ export async function waitForRevertedMessage(
               (turnCount === 0 &&
                 providerThread.ownerNodeId === null &&
                 providerThread.appThreadId === initial?.thread.id &&
-                providerThread.providerInstanceId === initialProviderThread?.providerInstanceId &&
+                providerThread.providerInstanceId ===
+                  initialProviderThread?.providerInstanceId &&
                 !initialProviderThreadIds.has(providerThread.id))) &&
-            providerThread.lastRunOrdinal === (turnCount === 0 ? null : turnCount),
+            providerThread.lastRunOrdinal ===
+              (turnCount === 0 ? null : turnCount),
         ) &&
-        thread.runs.some((run) => run.id === witness.id && run.status === "rolled_back")
+        thread.runs.some(
+          (run) => run.id === witness.id && run.status === "rolled_back",
+        )
       )
         finish();
     };
     unsubscribe = appAtomRegistry.subscribe(threadAtom, inspect);
     timeout = globalThis.setTimeout(() => {
       const error = new Error(
-        translateWebSource(readLocale?.() ?? "en", "Timed out waiting for the thread to rewind."),
+        translateWebSource(
+          readLocale?.() ?? "en",
+          "Timed out waiting for the thread to rewind.",
+        ),
       );
-      ownedRewindFailures.set(error, { message: error.message, code: "rewindTimeout" });
+      ownedRewindFailures.set(error, {
+        message: error.message,
+        code: "rewindTimeout",
+      });
       finish(error);
     }, timeoutMs);
     Promise.resolve()
@@ -1071,15 +1191,21 @@ export interface LocalDispatchSnapshot {
 export function createLocalDispatchSnapshot(
   activeThread: Thread | undefined,
   options?: {
+    environmentId?: EnvironmentId;
     preparingWorktree?: boolean;
     latestUserMessageId?: ChatMessage["id"] | null;
     submissionIntent?: ComposerSubmissionIntent;
   },
 ): LocalDispatchSnapshot {
+  const environmentId = options?.environmentId ?? activeThread?.environmentId;
   const latestRun = activeThread?.latestRun ?? null;
   const runtime = activeThread?.runtime ?? null;
   return {
-    startedAt: new Date().toISOString(),
+    startedAt: new Date(
+      environmentId === undefined
+        ? Date.now()
+        : toServerClock(environmentId, Date.now()),
+    ).toISOString(),
     preparingWorktree: Boolean(options?.preparingWorktree),
     submissionIntent: options?.submissionIntent ?? "foreground",
     latestUserMessageId: options?.latestUserMessageId ?? null,
@@ -1104,6 +1230,26 @@ export function deriveCommittedServerUserMessageIds(
   );
 }
 
+/**
+ * The server checks the full history, but the first page of an
+ * agent-started thread or a long turn can hold no user message.
+ */
+export function hasCompactableConversation(input: {
+  readonly visibleTurnItems: ReadonlyArray<ThreadStructureRow>;
+  readonly hasMoreHistory: boolean;
+  readonly latestUserMessageAt: string | null;
+}): boolean {
+  return (
+    input.visibleTurnItems.some(
+      ({ item }) =>
+        item.type === "user_message" &&
+        (item.text.trim().toLowerCase() !== "/compact" ||
+          item.attachments.length > 0),
+    ) ||
+    (input.hasMoreHistory && input.latestUserMessageAt !== null)
+  );
+}
+
 export function hasServerAcknowledgedLocalDispatch(input: {
   localDispatch: LocalDispatchSnapshot | null;
   phase: SessionPhase;
@@ -1117,12 +1263,20 @@ export function hasServerAcknowledgedLocalDispatch(input: {
   if (!input.localDispatch) {
     return false;
   }
-  if (input.hasPendingApproval || input.hasPendingUserInput || Boolean(input.threadError)) {
+  if (
+    input.hasPendingApproval ||
+    input.hasPendingUserInput ||
+    Boolean(input.threadError)
+  ) {
     return true;
   }
   const latestUserMessageChanged =
-    input.localDispatch.latestUserMessageId !== (input.latestUserMessageId ?? null);
-  if (input.phase === "connecting" || derivePhase(input.runtime ?? null) === "connecting") {
+    input.localDispatch.latestUserMessageId !==
+    (input.latestUserMessageId ?? null);
+  if (
+    input.phase === "connecting" ||
+    derivePhase(input.runtime ?? null) === "connecting"
+  ) {
     // A message queued behind other work, such as an idle compaction the shell hides, has landed.
     return input.runtime?.status === "queued" && latestUserMessageChanged;
   }
@@ -1131,9 +1285,11 @@ export function hasServerAcknowledgedLocalDispatch(input: {
   const runtime = input.runtime ?? null;
   const latestRunChanged =
     input.localDispatch.latestRunId !== (latestRun?.runId ?? null) ||
-    input.localDispatch.latestRunRequestedAt !== (latestRun?.requestedAt ?? null) ||
+    input.localDispatch.latestRunRequestedAt !==
+      (latestRun?.requestedAt ?? null) ||
     input.localDispatch.latestRunStartedAt !== (latestRun?.startedAt ?? null) ||
-    input.localDispatch.latestRunCompletedAt !== (latestRun?.completedAt ?? null);
+    input.localDispatch.latestRunCompletedAt !==
+      (latestRun?.completedAt ?? null);
 
   if (input.phase === "running") {
     if (latestUserMessageChanged) {
@@ -1162,13 +1318,15 @@ export function hasServerAcknowledgedLocalDispatch(input: {
   );
 }
 
-// Returning to the window should land the caret in the composer, so the reader can type right
-// away. The exceptions are places where focus is deliberate: another text field, a terminal in
-// the drawer or the right panel, an open dialog, menu, or popup, or a region or sidebar row
-// reached from the keyboard. A plain focused button or a clicked row yields to the composer.
+// Window return puts the caret in the composer unless focus is deliberate: another text field,
+// a terminal, an open dialog, menu, or popup, a region, timeline, or sidebar row reached from the
+// keyboard, or a region with its own keys (aria-keyshortcuts). A plain focused button or a clicked
+// row yields to the composer.
 export function shouldRefocusComposerOnWindowFocus(
   activeElement:
-    | (Pick<Element, "tagName" | "closest" | "getAttribute"> & { isContentEditable?: boolean })
+    | (Pick<Element, "tagName" | "closest" | "getAttribute"> & {
+        isContentEditable?: boolean;
+      })
     | null,
 ): boolean {
   if (activeElement === null || activeElement.tagName === "BODY") return true;
@@ -1185,7 +1343,7 @@ export function shouldRefocusComposerOnWindowFocus(
   }
   return (
     activeElement.closest(
-      '[data-workspace-keyboard-focus], [data-sidebar-row]:focus-visible, [role="dialog"], [role="alertdialog"], [role="application"], [role="menu"], [role="listbox"], [data-slot$="-popup"], [data-terminal-owner]',
+      '[data-workspace-keyboard-focus], [data-sidebar-row]:focus-visible, [role="dialog"], [role="alertdialog"], [role="application"], [role="menu"], [role="listbox"], [data-slot$="-popup"], [data-terminal-owner], [aria-keyshortcuts]',
     ) === null
   );
 }
@@ -1206,14 +1364,22 @@ export function mergeDirectPreviewAnnotation(input: {
   readonly previewAnnotations: ReadonlyArray<PreviewAnnotationPayload>;
 } {
   const { direct } = input;
-  if (!direct) return { images: input.images, previewAnnotations: input.previewAnnotations };
+  if (!direct)
+    return {
+      images: input.images,
+      previewAnnotations: input.previewAnnotations,
+    };
   const imageAlreadyAttached =
-    direct.image !== null && input.images.some((image) => image.id === direct.image?.id);
+    direct.image !== null &&
+    input.images.some((image) => image.id === direct.image?.id);
   const imageAppended =
     direct.image !== null &&
     !imageAlreadyAttached &&
     input.images.length + input.fileCount < PROVIDER_SEND_TURN_MAX_ATTACHMENTS;
-  const images = direct.image && imageAppended ? [...input.images, direct.image] : input.images;
+  const images =
+    direct.image && imageAppended
+      ? [...input.images, direct.image]
+      : input.images;
   const previewAnnotations = input.previewAnnotations.some(
     (annotation) => annotation.id === direct.annotation.id,
   )
@@ -1223,7 +1389,8 @@ export function mergeDirectPreviewAnnotation(input: {
         {
           ...direct.annotation,
           screenshot:
-            direct.annotation.screenshot && (imageAppended || imageAlreadyAttached)
+            direct.annotation.screenshot &&
+            (imageAppended || imageAlreadyAttached)
               ? { ...direct.annotation.screenshot, dataUrl: "" }
               : null,
         },
@@ -1240,14 +1407,22 @@ export function formatOutgoingPrompt(params: {
   effort: string | null;
   text: string;
 }): string {
-  const caps = getProviderModelCapabilities(params.models, params.model, params.provider);
+  const caps = getProviderModelCapabilities(
+    params.models,
+    params.model,
+    params.provider,
+  );
   const promptEffort = resolvePromptInjectedEffort(caps, params.effort);
   return applyClaudePromptEffortPrefix(params.text, promptEffort);
 }
 
 export function isCompactCommandMessage(message: ChatMessage): boolean {
   const text = message.text.trim().toLowerCase();
-  return message.role === "user" && text === "/compact" && !message.attachments?.length;
+  return (
+    message.role === "user" &&
+    text === "/compact" &&
+    !message.attachments?.length
+  );
 }
 
 // Errors surface through two maps (draft-keyed and thread-keyed) whose entries
@@ -1257,27 +1432,39 @@ const OWNED_THREAD_ERRORS = {
   sendFailed: "Failed to send message.",
   sendUploadsFailed: "Retry or remove failed uploads before sending.",
   sendPermissionDenied: "This connection cannot change threads.",
-  approvalFeedbackContext: "Send approval feedback without attachments or added context.",
-  multipleModelsServerOutdated: "Update this server before starting multiple models.",
-  worktreeBaseBranchMissing: "Select a base branch before sending in New worktree mode.",
+  approvalFeedbackContext:
+    "Send approval feedback without attachments or added context.",
+  multipleModelsServerOutdated:
+    "Update this server before starting multiple models.",
+  worktreeBaseBranchMissing:
+    "Select a base branch before sending in New worktree mode.",
   multipleModelsFailed: "Failed to send messages.",
-  sideChatMissingShell: "The side chat was created, but it did not reach this client.",
+  sideChatMissingShell:
+    "The side chat was created, but it did not reach this client.",
   sideChatUnavailable: "The side chat is no longer available.",
   sideChatModeFailed: "Could not set the side chat's permission mode.",
   sideChatSendFailed: "Could not send the side chat message.",
   sideChatForkFailed: "Could not start a side chat.",
   queuedEditUploadFailed: "Retry or remove failed uploads before saving.",
-  queuedEditAttachmentLimit: translateWebMessage("en", "chat.queuedEdit.tooManyAttachments", {
-    count: PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
-  }),
+  queuedEditAttachmentLimit: translateWebMessage(
+    "en",
+    "chat.queuedEdit.tooManyAttachments",
+    {
+      count: PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
+    },
+  ),
   queuedEditSaveFailed: "Could not save the edited queued message.",
-  rewindInvalidAttachmentUrl: "The environment returned an invalid attachment URL.",
-  rewindUnsupportedAttachment: "This message has an attachment that cannot be restored.",
+  rewindInvalidAttachmentUrl:
+    "The environment returned an invalid attachment URL.",
+  rewindUnsupportedAttachment:
+    "This message has an attachment that cannot be restored.",
   rewindTimeout: "Timed out waiting for the thread to rewind.",
   rewindChanged: "The thread has changed. Select a message to rewind again.",
-  rewindCapacity: "Make room for this message's attachments in the composer before rewinding.",
+  rewindCapacity:
+    "Make room for this message's attachments in the composer before rewinding.",
   rewindFailed: "Failed to revert thread state.",
-  rewindAttachmentsPending: "Wait for attachments to finish preparing before rewinding.",
+  rewindAttachmentsPending:
+    "Wait for attachments to finish preparing before rewinding.",
   rewindUnsupported:
     "This provider does not support reverting conversation history. Start a new thread instead.",
   rewindBusy: "Interrupt the current turn before reverting checkpoints.",
@@ -1291,7 +1478,8 @@ const OWNED_THREAD_ERRORS = {
   approvalFailed: "Failed to submit approval decision.",
   inputFailed: "Failed to submit user input.",
   dismissFailed: "Failed to dismiss the question.",
-  uploadsPending: "Wait for attachments to finish uploading, or remove failed uploads.",
+  uploadsPending:
+    "Wait for attachments to finish uploading, or remove failed uploads.",
 } as const;
 
 export type LocalThreadErrorEntry = {
@@ -1305,7 +1493,10 @@ export type LocalThreadErrorEntry = {
   readonly at: number;
 };
 
-function ownedThreadErrorSource(code: LocalThreadErrorEntry["ownedCode"], name?: string) {
+function ownedThreadErrorSource(
+  code: LocalThreadErrorEntry["ownedCode"],
+  name?: string,
+) {
   if (code === "rewindRestoreAttachment") {
     return typeof name === "string"
       ? translateWebMessage("en", "audit15.restoreAttachment", { name })
@@ -1318,10 +1509,14 @@ function ownedThreadErrorSource(code: LocalThreadErrorEntry["ownedCode"], name?:
   }
   if (code === "rewindReconnect") {
     return typeof name === "string"
-      ? translateWebMessage("en", "audit15.reconnectRewind", { environment: name })
+      ? translateWebMessage("en", "audit15.reconnectRewind", {
+          environment: name,
+        })
       : undefined;
   }
-  return code === undefined || name !== undefined ? undefined : OWNED_THREAD_ERRORS[code];
+  return code === undefined || name !== undefined
+    ? undefined
+    : OWNED_THREAD_ERRORS[code];
 }
 
 export function formatLocalThreadError(
@@ -1330,29 +1525,44 @@ export function formatLocalThreadError(
   locale: ResolvedAppLocale,
 ): string | null {
   const source = ownedThreadErrorSource(entry?.ownedCode, entry?.ownedName);
-  if (source === undefined || entry?.message !== message || message !== source) return message;
+  if (source === undefined || entry?.message !== message || message !== source)
+    return message;
   if (locale === "zh-CN" && entry.ownedCode === "approvalFeedbackContext")
     return "发送审批反馈时，请勿附带附件或额外上下文。";
   if (locale === "zh-CN" && entry.ownedCode === "multipleModelsServerOutdated")
     return "启动多个模型前，请更新此服务器。";
   if (locale === "zh-CN" && entry.ownedCode === "worktreeBaseBranchMissing")
     return "请先选择基础分支，再以新工作树模式发送。";
-  if (locale === "zh-CN" && entry.ownedCode === "sideChatUnavailable") return "旁支对话已不可用。";
+  if (locale === "zh-CN" && entry.ownedCode === "sideChatUnavailable")
+    return "旁支对话已不可用。";
   if (locale === "zh-CN" && entry.ownedCode === "sideChatModeFailed")
     return "无法设置旁支对话的权限模式。";
-  if (entry.ownedCode === "scriptFailed" && typeof entry.ownedName === "string") {
-    return translateWebMessage(locale, "audit15.scriptFailed", { name: entry.ownedName });
+  if (
+    entry.ownedCode === "scriptFailed" &&
+    typeof entry.ownedName === "string"
+  ) {
+    return translateWebMessage(locale, "audit15.scriptFailed", {
+      name: entry.ownedName,
+    });
   }
-  if (entry.ownedCode === "rewindReconnect" && typeof entry.ownedName === "string") {
-    return translateWebMessage(locale, "audit15.reconnectRewind", { environment: entry.ownedName });
+  if (
+    entry.ownedCode === "rewindReconnect" &&
+    typeof entry.ownedName === "string"
+  ) {
+    return translateWebMessage(locale, "audit15.reconnectRewind", {
+      environment: entry.ownedName,
+    });
   }
   if (entry.ownedCode === "queuedEditAttachmentLimit") {
     return translateWebMessage(locale, "chat.queuedEdit.tooManyAttachments", {
       count: PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
     });
   }
-  return entry.ownedCode === "rewindRestoreAttachment" && typeof entry.ownedName === "string"
-    ? translateWebMessage(locale, "audit15.restoreAttachment", { name: entry.ownedName })
+  return entry.ownedCode === "rewindRestoreAttachment" &&
+    typeof entry.ownedName === "string"
+    ? translateWebMessage(locale, "audit15.restoreAttachment", {
+        name: entry.ownedName,
+      })
     : translateWebSource(locale, source);
 }
 
@@ -1372,7 +1582,8 @@ export function shouldPromoteLocalThreadError(
   promoted: LocalThreadErrorEntry,
 ): boolean {
   return (
-    current === undefined || (current.at <= promoted.at && !sameLocalThreadError(current, promoted))
+    current === undefined ||
+    (current.at <= promoted.at && !sameLocalThreadError(current, promoted))
   );
 }
 
@@ -1380,9 +1591,9 @@ export function chatActionErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "An error occurred.";
 }
 
-export function releaseChatTimelineAnchor<T extends { readonly messageId: MessageId | null }>(
-  current: T,
-): T {
+export function releaseChatTimelineAnchor<
+  T extends { readonly messageId: MessageId | null },
+>(current: T): T {
   return current.messageId === null ? current : { ...current, messageId: null };
 }
 
@@ -1479,6 +1690,8 @@ export interface ComposerSendContents {
   readonly reviewComments: ReadonlyArray<ReviewCommentContext>;
   readonly threadContexts: ReadonlyArray<ThreadContextRecord>;
   readonly environmentContexts: ReadonlyArray<EnvironmentContextRecord>;
+  /** The response the message replies to. `prompt` already leads with its reference. */
+  readonly replyTo: ResponseContextRecord | null;
 }
 
 /**
@@ -1490,6 +1703,17 @@ export function snapshotComposerSend(contents: ComposerSendContents) {
   const images = [...contents.images];
   const files = [...contents.files];
   const terminalContexts = [...contents.sendableTerminalContexts];
+  const messageText = contents.terminalContexts
+    .filter((context) => !terminalContexts.includes(context))
+    .reduce(
+      (text, context) =>
+        removeInlineContextReference(
+          text,
+          terminalContextReference(context).contextId,
+        ).prompt,
+      contents.prompt,
+    )
+    .trim();
   return {
     images,
     files,
@@ -1499,18 +1723,35 @@ export function snapshotComposerSend(contents: ComposerSendContents) {
     reviewComments: [...contents.reviewComments],
     threadContexts: [...contents.threadContexts],
     environmentContexts: [...contents.environmentContexts],
-    messageText: contents.terminalContexts
-      .filter((context) => !terminalContexts.includes(context))
-      .reduce(
-        (text, context) =>
-          removeInlineContextReference(text, terminalContextReference(context).contextId).prompt,
-        contents.prompt,
-      )
-      .trim(),
+    replyTo: contents.replyTo,
+    messageText,
+    /** What a failed send puts back in the composer: the reply returns above it, not in the text. */
+    draftText: contents.replyTo
+      ? removeInlineContextReference(
+          messageText,
+          contents.replyTo.contextId,
+        ).prompt.trimStart()
+      : messageText,
   };
 }
 
 export type ComposerSendSnapshot = ReturnType<typeof snapshotComposerSend>;
+
+/** Derived from the persisted run phase, so a starting run still reads as work after a reload. */
+export function deriveTimelineWorking(input: {
+  readonly phase: SessionPhase;
+  readonly isSendBusy: boolean;
+  readonly isCompacting: boolean;
+  readonly runlessWorkStartedAt: string | null;
+}): boolean {
+  return (
+    input.phase === "connecting" ||
+    input.phase === "running" ||
+    input.isSendBusy ||
+    input.isCompacting ||
+    input.runlessWorkStartedAt !== null
+  );
+}
 
 /** How a composer send dispatches: where it runs and whether it waits behind other work. */
 export function planComposerTurn(input: {
@@ -1521,6 +1762,8 @@ export function planComposerTurn(input: {
   readonly sendEnvMode: DraftThreadEnvMode;
   readonly worktreePath: string | null;
   readonly activeThreadBranch: string | null;
+  /** The server launches a No project worktree request at its root, so it needs no base. */
+  readonly isScratchProject: boolean;
   readonly resumeCompactionTokens: number | null;
   readonly keepFullHistory: boolean;
   readonly phase: SessionPhase;
@@ -1529,7 +1772,8 @@ export function planComposerTurn(input: {
   readonly freshContext: boolean;
 }) {
   const isFirstMessage =
-    !input.sendQueuesBehindSetup && (!input.isServerThread || input.activeMessageCount === 0);
+    !input.sendQueuesBehindSetup &&
+    (!input.isServerThread || input.activeMessageCount === 0);
   const shouldCreateWorktree =
     isFirstMessage && input.sendEnvMode === "worktree" && !input.worktreePath;
   // A stale Claude session compacts before this message so the turn does not re-read the
@@ -1541,17 +1785,26 @@ export function planComposerTurn(input: {
     !input.keepFullHistory &&
     !COMPACT_COMMAND_PATTERN.test(input.messageText);
   const dispatchMode =
-    input.freshContext && (input.dispatchMode === "steer" || input.dispatchMode === "restart")
+    input.freshContext &&
+    (input.dispatchMode === "steer" || input.dispatchMode === "restart")
       ? "queue"
       : input.dispatchMode;
   return {
     // In worktree mode, require an explicit base branch so we don't silently
     // fall back to local execution when branch selection is missing.
-    missingWorktreeBaseBranch: shouldCreateWorktree && !input.activeThreadBranch,
-    baseBranchForWorktree: shouldCreateWorktree ? input.activeThreadBranch : null,
+    missingWorktreeBaseBranch:
+      shouldCreateWorktree &&
+      !input.activeThreadBranch &&
+      !input.isScratchProject,
+    baseBranchForWorktree: shouldCreateWorktree
+      ? input.activeThreadBranch
+      : null,
     compactBeforeSend,
     turnDispatchMode:
-      compactBeforeSend || input.sendQueuesBehindSetup ? ("queue" as const) : dispatchMode,
+      compactBeforeSend ||
+      (input.sendQueuesBehindSetup && dispatchMode !== "steer")
+        ? ("queue" as const)
+        : dispatchMode,
     shouldQueueBehindActiveRun:
       compactBeforeSend ||
       input.sendQueuesBehindSetup ||
@@ -1568,7 +1821,9 @@ export function boundAttachmentIds(
   attachments: ReadonlyArray<{ readonly id: string }>,
 ): string[] {
   return turnAttachments.map((attachment, index) =>
-    "id" in attachment && attachment.id !== undefined ? attachment.id : attachments[index]!.id,
+    "id" in attachment && attachment.id !== undefined
+      ? attachment.id
+      : attachments[index]!.id,
   );
 }
 
@@ -1615,8 +1870,12 @@ export function sendTitleFallbackLabels(snapshot: ComposerSendSnapshot) {
   const previewAnnotation = snapshot.previewAnnotations[0];
   return [
     terminalContext ? formatTerminalContextLabel(terminalContext) : undefined,
-    reviewComment ? `Review: ${reviewCommentContextLabel(reviewComment)}` : undefined,
-    previewAnnotation ? previewAnnotationContextLabel(previewAnnotation) : undefined,
+    reviewComment
+      ? `Review: ${reviewCommentContextLabel(reviewComment)}`
+      : undefined,
+    previewAnnotation
+      ? previewAnnotationContextLabel(previewAnnotation)
+      : undefined,
   ];
 }
 
@@ -1637,7 +1896,9 @@ export function presentThreadShellFromProjection(
   const latestRun = deriveLatestThreadRun(projection);
   const runtime = deriveThreadRuntime({ ...projection, updatedAt });
   const pendingRuntimeRequest =
-    projection.runtimeRequests.findLast((request) => request.status === "pending") ?? null;
+    projection.runtimeRequests.findLast(
+      (request) => request.status === "pending",
+    ) ?? null;
   // Direct links can hydrate detail before the thread enters the shell index.
   return {
     ...presentThreadShell(environmentId, {
@@ -1649,14 +1910,18 @@ export function presentThreadShellFromProjection(
       pendingRuntimeRequest,
       latestVisibleMessage: null,
       latestUserMessageAt:
-        projection.messages.findLast((message) => message.role === "user")?.updatedAt ?? null,
+        projection.messages.findLast((message) => message.role === "user")
+          ?.updatedAt ?? null,
       hasActionableProposedPlan: projection.plans.some(
         (plan) => plan.kind === "proposed_plan" && plan.status === "active",
       ),
       providerInstanceHistory: [
         ...new Set(
           projection.providerThreads
-            .filter((thread) => thread.appThreadId === threadId && thread.ownerNodeId === null)
+            .filter(
+              (thread) =>
+                thread.appThreadId === threadId && thread.ownerNodeId === null,
+            )
             .map((thread) => thread.providerInstanceId),
         ),
       ],
@@ -1673,22 +1938,61 @@ export function presentThreadShellFromProjection(
   };
 }
 
-/** Background work the provider still runs after the latest run ended. */
-export function deriveThreadPendingBackgroundTasks(projection: ThreadStructure | null) {
+// Excludes `waiting`: that is post-terminal checkpoint drain, so its agent turn is over.
+const LIVE_RUN_STATUSES = new Set([
+  "queued",
+  "preparing",
+  "starting",
+  "running",
+]);
+
+/**
+ * Background work the provider still runs after an earlier run ended. It
+ * stays listed while a later run is live; that live run's own items are its
+ * foreground work, so they never count as background. The provider roster is
+ * not run-tied, so it drops entries naming a live run's item by native id.
+ */
+export function deriveThreadPendingBackgroundTasks(
+  projection: ThreadStructure | null,
+) {
   if (projection === null) return [];
   const sessionError =
     projection.providerSessions.findLast(
-      (session) => session.providerInstanceId === projection.thread.providerInstanceId,
+      (session) =>
+        session.providerInstanceId === projection.thread.providerInstanceId,
     )?.lastError ?? null;
+  const liveRunIds = new Set(
+    projection.runs
+      .filter((run) => LIVE_RUN_STATUSES.has(run.status))
+      .map((run) => run.id),
+  );
+  const foregroundTaskIds = new Set<string>();
+  for (const item of projection.turnItems) {
+    if (item.runId === null || !liveRunIds.has(item.runId)) continue;
+    if (item.nativeItemRef?.nativeId)
+      foregroundTaskIds.add(item.nativeItemRef.nativeId);
+  }
   const latestRun =
-    usageLimitRunPresentedAsLatest(projection.runs, projection.turnItems, sessionError) ??
-    latestUnheldRun(projection.runs);
+    usageLimitRunPresentedAsLatest(
+      projection.runs,
+      projection.turnItems,
+      sessionError,
+    ) ??
+    latestUnheldRun(projection.runs.filter((run) => !liveRunIds.has(run.id)));
   return [
     ...derivePendingBackgroundWork({
       latestRun,
-      providerThreads: projection.providerThreads,
-      turnItems: projection.turnItems,
+      providerThreads: projection.providerThreads.map((thread) => ({
+        ...thread,
+        pendingBackgroundTasks: thread.pendingBackgroundTasks?.filter(
+          (task) => !foregroundTaskIds.has(task.taskId),
+        ),
+      })),
+      turnItems: projection.turnItems.filter(
+        (item) => item.runId === null || !liveRunIds.has(item.runId),
+      ),
       activeProviderThreadId: projection.thread.activeProviderThreadId,
+      hasActiveRun: false,
       runs: projection.runs,
       pullRequests: projection.thread.pullRequests,
     }),
@@ -1700,23 +2004,31 @@ export function deriveThreadPendingBackgroundTasks(projection: ThreadStructure |
  * active provider thread, plus 0 for the thread start. Empty without a live provider session
  * on the thread's selected instance.
  */
-export function deriveAvailableRevertTurnCounts(projection: ThreadStructure | null) {
+export function deriveAvailableRevertTurnCounts(
+  projection: ThreadStructure | null,
+) {
   const available = new Set<number>();
   const providerThread = projection?.providerThreads.find(
     (candidate) => candidate.id === projection.thread.activeProviderThreadId,
   );
   if (
     !providerThread?.providerSessionId ||
-    providerThread.providerInstanceId !== projection?.thread.modelSelection.instanceId
+    providerThread.providerInstanceId !==
+      projection?.thread.modelSelection.instanceId
   )
     return available;
   available.add(0);
-  const attemptsById = new Map(projection.attempts.map((attempt) => [attempt.id, attempt]));
+  const attemptsById = new Map(
+    projection.attempts.map((attempt) => [attempt.id, attempt]),
+  );
   const providerTurnsById = new Map<
     OrchestrationV2ProviderTurn["id"],
     OrchestrationV2ProviderTurn
   >();
-  const latestTurnByAttempt = new Map<RunAttemptId, OrchestrationV2ProviderTurn>();
+  const latestTurnByAttempt = new Map<
+    RunAttemptId,
+    OrchestrationV2ProviderTurn
+  >();
   for (const turn of projection.providerTurns) {
     providerTurnsById.set(turn.id, turn);
     if (turn.runAttemptId === null) continue;
@@ -1730,9 +2042,12 @@ export function deriveAvailableRevertTurnCounts(projection: ThreadStructure | nu
     const attempt = attemptsById.get(run.activeAttemptId);
     const providerTurn =
       latestTurnByAttempt.get(run.activeAttemptId) ??
-      (attempt?.providerTurnId == null ? undefined : providerTurnsById.get(attempt.providerTurnId));
+      (attempt?.providerTurnId == null
+        ? undefined
+        : providerTurnsById.get(attempt.providerTurnId));
     // A ready file checkpoint alone cannot restore the provider conversation.
-    if (providerTurn?.providerThreadId === providerThread.id) available.add(run.ordinal);
+    if (providerTurn?.providerThreadId === providerThread.id)
+      available.add(run.ordinal);
   }
   return available;
 }
@@ -1744,4 +2059,17 @@ export function threadHeaderTitle(
   locale: ResolvedAppLocale,
 ): string {
   return isServerThread ? title : translateWebSource(locale, "New thread");
+}
+
+/** An imported native session is bound before it has messages or runs, and its cwd is fixed. */
+export function isThreadEnvironmentLocked(input: {
+  readonly messageCount: number;
+  readonly hasRuntime: boolean;
+  readonly activeProviderThreadId: ProviderThreadId | null;
+}): boolean {
+  return (
+    input.messageCount > 0 ||
+    input.hasRuntime ||
+    input.activeProviderThreadId !== null
+  );
 }

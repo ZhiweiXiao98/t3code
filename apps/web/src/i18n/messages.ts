@@ -1,6 +1,16 @@
 import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 
 const EN_MESSAGES = {
+  "gitActions.featureBranchNoCommit": "This action doesn't commit your changes, so a feature branch can't be named. Create a branch yourself or continue on {branch}.",
+  "audit20.cleanup.no-thread-scratch": "No thread uses this folder",
+  "audit20.cleanup.inspection-incomplete": "worktree could not be fully inspected",
+  "audit20.cleanup.nested-repository": "contains a nested Git repository",
+  "audit20.cleanup.hidden-files-limit": "hidden tracked files exceed the inspection limit",
+  "audit20.cleanup.folder-symlink": "folder is a symbolic link",
+  "audit20.cleanup.scheduled-task": "thread has a scheduled task",
+  "audit20.cleanup.thread-no-branch": "thread has no branch",
+  "audit20.cleanup.hidden-tracked-changes": "has uncommitted changes hidden from git status ({file})",
+  "audit20.cleanup.local-files": "has local files ({file})",
   "deviceAvailability.iosRequiresMac": "iOS Simulators need macOS with Xcode.",
   "deviceAvailability.xcodeToolsMissing": "Xcode command line tools were not found.",
   "deviceAvailability.androidSdkMissing":
@@ -712,9 +722,9 @@ const EN_MESSAGES = {
   "diff.latestCommits": "Showing latest {count} commits",
   "sidebar.newThreadInProject": "New thread in {project}",
   "connect.removeDeviceTitle": "Remove {name} from this device?",
-  "device.cloudIosAvailability": "{host} starts iOS Simulators in the cloud with EAS Simulator.",
+  "device.cloudIosAvailability": "{host} starts iOS Simulators in the cloud with Expo Simulators.",
   "device.cloudAndroidAvailability":
-    "{host} starts Android emulators in the cloud with EAS Simulator.",
+    "{host} starts Android emulators in the cloud with Expo Simulators.",
   "usage.prices.mappedModel":
     '{environment} maps this model. Remove it from "Apply to" or clear its mapping first.',
   "usage.prices.mappingCycle": "Model mappings cannot form a cycle on {environment}.",
@@ -4881,6 +4891,18 @@ export type WebMessages = Readonly<Record<WebMessageKey, string>>;
 export type WebMessageValues = Readonly<Record<string, string | number>>;
 
 const ZH_CN_MESSAGES = {
+  "gitActions.featureBranchNoCommit": "此操作不会提交更改，因此无法命名功能分支。请自行创建分支，或继续使用 {branch}。",
+
+  "audit20.cleanup.no-thread-scratch": "没有线程使用此文件夹",
+  "audit20.cleanup.inspection-incomplete": "无法完整检查工作树",
+  "audit20.cleanup.nested-repository": "包含嵌套的 Git 仓库",
+  "audit20.cleanup.hidden-files-limit": "隐藏的已跟踪文件超出检查上限",
+  "audit20.cleanup.folder-symlink": "文件夹是符号链接",
+  "audit20.cleanup.scheduled-task": "线程有计划任务",
+  "audit20.cleanup.thread-no-branch": "线程没有分支",
+  "audit20.cleanup.hidden-tracked-changes": "存在 Git 状态未显示的未提交更改（{file}）",
+  "audit20.cleanup.local-files": "包含本地文件（{file}）",
+
   "deviceAvailability.iosRequiresMac": "iOS 模拟器需要安装了 Xcode 的 macOS。",
   "deviceAvailability.xcodeToolsMissing": "未找到 Xcode 命令行工具。",
   "deviceAvailability.androidSdkMissing":
@@ -5549,8 +5571,8 @@ const ZH_CN_MESSAGES = {
   "diff.latestCommits": "显示最近 {count} 个提交",
   "sidebar.newThreadInProject": "在 {project} 中新建对话",
   "connect.removeDeviceTitle": "从此设备移除 {name}？",
-  "device.cloudIosAvailability": "{host} 通过 EAS Simulator 在云端启动 iOS 模拟器。",
-  "device.cloudAndroidAvailability": "{host} 通过 EAS Simulator 在云端启动 Android 模拟器。",
+  "device.cloudIosAvailability": "{host} 通过 Expo 模拟器在云端启动 iOS 模拟器。",
+  "device.cloudAndroidAvailability": "{host} 通过 Expo 模拟器在云端启动 Android 模拟器。",
   "usage.prices.mappedModel":
     "{environment} 已为此模型设置映射。请先将其从“应用到”中移除，或清除映射。",
   "usage.prices.mappingCycle": "{environment} 中的模型映射不能形成循环。",
@@ -9552,6 +9574,31 @@ for (const [key, source] of Object.entries(EN_MESSAGES) as ReadonlyArray<
 // New upstream settings copy can be localized here before it receives a stable
 // message key. Settings containers and search both consume this same table.
 const ZH_CN_SOURCE_MESSAGES: Readonly<Record<string, string>> = {
+  "Sampling on demand": "按需采样",
+  "Get {app}": "获取 {app}",
+  "Retry sign-in": "重试登录",
+  "From Sharing & access there, or t3 pair": "从该环境的“共享与访问”获取，或运行 t3 pair",
+  "Agents here can then launch, message and wait on threads there. It appears under Authorized clients in that environment's Sharing & access, where it can be revoked.": "此处的代理随后可以在该环境中启动任务、发送消息及等待任务。此关联会出现在该环境“共享与访问”的“已授权客户端”中，可在那里撤销。",
+  "Failed to close interrupted paste": "无法结束已中断的粘贴",
+  "Terminal paste interrupted. Paste again when the terminal is ready.": "终端粘贴已中断。请在终端就绪后重新粘贴。",
+  "Searching project models...": "正在搜索项目模型…",
+  "This document contains invalid repeated content.": "此文档包含无效的重复内容。",
+  "Expo Simulators": "Expo 模拟器",
+  "Expo project": "Expo 项目",
+  "Add Expo host": "添加 Expo 主机",
+  "Edit Expo host": "编辑 Expo 主机",
+  "Expo host not removed everywhere": "未能从所有位置移除 Expo 主机",
+  "Expo host not saved everywhere": "未能在所有位置保存 Expo 主机",
+  "Expo Simulators needs a paid Expo account. A session runs for up to 115 minutes and stops early when it is idle for the idle minutes, so idle minutes must be less than session minutes.": "Expo 模拟器需要付费 Expo 账户。会话最长运行 115 分钟，达到空闲时限后会提前结束，因此空闲时限必须短于会话时限。",
+  "Saving restarts this host and stops its running sessions.": "保存会重启此主机，并停止其正在运行的会话。",
+  "Saved on this device. Select All projects to change it.": "保存在此设备上。请选择“所有项目”进行更改。",
+  "No ignored files match.": "没有匹配的已忽略文件。",
+  "Search to find the rest.": "搜索以查找其余文件。",
+  "Offer when adding or publishing a project": "添加或发布项目时提供此选项",
+  "Cursor signed you in but could not create an API key. Your team's settings may restrict API keys: ask a team admin, or add CURSOR_API_KEY in provider settings.": "Cursor 已完成登录，但无法创建 API 密钥。团队设置可能限制了 API 密钥：请联系团队管理员，或在提供商设置中添加 CURSOR_API_KEY。",
+  "Cursor sign-in failed or timed out. Check that this machine can reach Cursor, then start sign-in again.": "Cursor 登录失败或超时。请确认此机器可以连接 Cursor，然后重新登录。",
+  "Antigravity has not started after 90 seconds. Its runtime may be stuck starting on this machine.": "Antigravity 在 90 秒后仍未启动，其运行时可能在此机器上卡住了。",
+  "Antigravity did not respond. Its runtime may not run on this machine.": "Antigravity 未响应，其运行时可能无法在此机器上运行。",
   "Copy Link": "复制链接",
   "Enter Git clone URL": "输入 Git 克隆 URL",
   "Enter {provider} repository ({pathHint})": "输入 {provider} 仓库（{pathHint}）",

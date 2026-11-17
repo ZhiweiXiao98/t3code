@@ -6,7 +6,6 @@ import { useRef } from "react";
 
 import { APP_VERSION } from "../../branding";
 import { useCopyToClipboard } from "../../hooks/useCopyToClipboard";
-import { showAnchoredCopySuccessToast } from "../ui/anchoredCopyToast";
 import { InlineButton } from "../ui/button";
 import { stackedThreadToast, toastManager } from "../ui/toast";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
@@ -16,10 +15,8 @@ export function AboutVersionTitle() {
   const tx = (source: string) => translateWebSource(locale, source);
 
   const copyTarget = tx("version");
-  const copyButtonRef = useRef<HTMLButtonElement>(null);
   const { copyToClipboard } = useCopyToClipboard<void>({
     target: copyTarget,
-    onCopy: () => showAnchoredCopySuccessToast(copyButtonRef),
     onError: (error) => {
       const { locale } = readWebI18n();
       toastManager.add(
@@ -44,10 +41,11 @@ export function AboutVersionTitle() {
           <TooltipTrigger
             render={
               <InlineButton
-                ref={copyButtonRef}
                 tone="muted"
                 aria-label={
-                  locale === "zh-CN" ? `复制版本号 ${APP_VERSION}` : `Copy version ${APP_VERSION}`
+                  locale === "zh-CN"
+                    ? `复制版本号 ${APP_VERSION}`
+                    : `Copy version ${APP_VERSION}`
                 }
                 onClick={() => copyToClipboard(APP_VERSION, undefined)}
               >

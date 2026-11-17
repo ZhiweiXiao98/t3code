@@ -11,6 +11,9 @@ import {
   ClientSettingsSchema,
   ClientSettingsPatch,
   DEFAULT_APP_LOCALE_PREFERENCE,
+  resolveClientLanguage,
+  resolveClientAppLocale,
+  ClientServerSettingsPatch,
   ClaudeSettings,
   DEFAULT_SERVER_SETTINGS,
   globalIdleCompaction,
@@ -40,6 +43,7 @@ const decodeStringOnlyEnvironment = Schema.decodeUnknownSync(
   ),
 );
 const decodeServerSettingsPatch = Schema.decodeUnknownSync(ServerSettingsPatch);
+const decodeClientServerSettingsPatch = Schema.decodeUnknownSync(ClientServerSettingsPatch);
 const encodeServerSettings = Schema.encodeSync(ServerSettings);
 const encodeServerSettingsPatch = Schema.encodeSync(ServerSettingsPatch);
 const decodeClaudeSettings = Schema.decodeUnknownSync(ClaudeSettings);
@@ -89,6 +93,18 @@ describe("ServerSettings response streaming", () => {
       expect(() => decodeServerSettingsPatch(input)).toThrow();
     }
   });
+});
+
+it("drops theme defaults from a client's settings patch", () => {
+  expect(
+    decodeClientServerSettingsPatch({
+      newWorktreesStartFromOrigin: false,
+      defaultTheme: "grove",
+      defaultThemeSetAt: "2026-11-13T00:00:00.000Z",
+      defaultAppearance: "dark",
+      defaultAppearanceSetAt: "2026-11-13T00:00:00.000Z",
+    }),
+  ).toEqual({ newWorktreesStartFromOrigin: false });
 });
 
 describe("storage cleanup settings", () => {
@@ -454,17 +470,17 @@ describe("ServerSettings environment icon", () => {
 
 const decodeDeviceHostSettings = Schema.decodeSync(ServerSettings);
 
-// `deviceHosts` as it was decoded before EAS hosts existed: an SSH host needs a target.
+// `deviceHosts` as it was decoded before Expo hosts existed: an SSH host needs a target.
 const decodeOlderDeviceHostSettings = Schema.decodeUnknownSync(
   Schema.Struct({
     deviceHosts: Schema.Array(Schema.Struct({ id: Schema.String, target: Schema.String })),
   }),
 );
 
-it("keeps EAS hosts out of the SSH host list servers and clients before EAS hosts decode", () => {
+it("keeps Expo hosts out of the SSH host list servers and clients before Expo hosts decode", () => {
   const settings = decodeDeviceHostSettings({
     deviceHosts: [{ id: "mini", label: "Mac mini", target: "user@mini" }],
-    easDeviceHosts: [{ kind: "eas", id: "eas", label: "EAS Simulator" }],
+    easDeviceHosts: [{ kind: "eas", id: "eas", label: "Expo Simulators" }],
   });
   const wire = encodeServerSettings(settings);
   expect(decodeOlderDeviceHostSettings(wire).deviceHosts).toEqual([
@@ -475,7 +491,7 @@ it("keeps EAS hosts out of the SSH host list servers and clients before EAS host
 
 it("validates remote device hosts and rejects ambiguous host ids", () => {
   const host = { id: "mini", label: "Mac mini", target: "user@mini", port: 2222 };
-  // Hosts saved before EAS hosts existed have no `kind`; they are SSH hosts.
+  // Hosts saved before Expo hosts existed have no `kind`; they are SSH hosts.
   expect(decodeDeviceHostSettings({ deviceHosts: [host] }).deviceHosts).toEqual([
     { kind: "ssh", ...host },
   ]);
@@ -552,6 +568,11 @@ describe("voice settings", () => {
       speechPostProcessingEnabled: true,
     };
     expect(decodeClientSettings({}).speechSilenceFiltering).toBe(true);
+    expect(decodeClientSettings({}).speechStreaming).toBe(true);
+    expect(decodeClientSettings({ speechStreaming: false }).speechStreaming).toBe(false);
+    expect(decodeClientSettingsPatch({ speechStreaming: false })).toEqual({
+      speechStreaming: false,
+    });
     expect(decodeClientSettingsPatch({ speechSilenceFiltering: false })).toEqual({
       speechSilenceFiltering: false,
     });
@@ -566,14 +587,6 @@ describe("voice settings", () => {
     expect(() => decodeClientSettingsPatch({ speechCorrectionWord: "x".repeat(51) })).toThrow();
     expect(DEFAULT_SERVER_SETTINGS.speechProjectCustomWords).toEqual([]);
     expect(PROJECT_SCOPED_SERVER_SETTING_KEYS).toContain("speechProjectCustomWords");
-  });
-
-  it("stores the transcription model and resources on the environment", () => {
-    expect(DEFAULT_SERVER_SETTINGS).toMatchObject({
-      speechModelId: "handy-computer/parakeet-unified-en-0.6b-gguf",
-      speechAcceleration: "auto",
-      speechModelUnloadTimeout: "min_15",
-    });
   });
 });
 
@@ -668,4 +681,37 @@ describe("storage cleanup report messages", () => {
       expect(JSON.parse(JSON.stringify(encode(decoded)))).toEqual(report);
     },
   );
+});
+
+it("preserves legacy language intent while preferring an explicit new language", () => {
+  for (const [appLocale, expected] of [
+    ["zh-CN", "zh"],
+    ["en", "en"],
+    ["system", "system"],
+  ] as const) {
+    const old = decodeClientSettings({ appLocale });
+    expect(old.language).toBeUndefined();
+    expect(resolveClientLanguage(old)).toBe(expected);
+    expect(resolveClientLanguage(decodeClientSettings({ appLocale, language: "ja" }))).toBe("ja");
+  }
+  expect(resolveClientLanguage(decodeClientSettings({}))).toBe("system");
+  expect(resolveClientLanguage(decodeClientSettings({ language: "zh" }))).toBe("zh");
+});
+
+it("projects the authoritative language into native menu locale without losing the new language", () => {
+  const saved = decodeClientSettings({ language: "zh", appLocale: "en" });
+  expect(resolveClientAppLocale(saved)).toBe("zh-CN");
+  expect(resolveClientAppLocale({ language: "system", appLocale: "zh-CN" })).toBe("system");
+  expect(resolveClientAppLocale({ appLocale: "zh-CN" })).toBe("zh-CN");
+  const foreign = decodeClientSettings({ language: "ja", appLocale: "zh-CN" });
+  expect(resolveClientAppLocale(foreign)).toBe("en");
+  expect(foreign.language).toBe("ja");
+});
+
+it("stores the transcription model and resources on the environment", () => {
+  expect(DEFAULT_SERVER_SETTINGS).toMatchObject({
+    speechModelId: "handy-computer/parakeet-unified-en-0.6b-gguf",
+    speechAcceleration: "auto",
+    speechModelUnloadTimeout: "min_15",
+  });
 });

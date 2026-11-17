@@ -41,6 +41,14 @@ export const WINDOWS_MODIFIER_PAIR_VIRTUAL_KEYS: Record<
 };
 
 const SNAP_SHOT_SHORTCUT_MESSAGES: Readonly<Record<string, string>> = {
+  "The desktop shortcut service restarted.": "桌面快捷键服务已重启。",
+  "The desktop shortcut service restarted. Reconnecting\u2026":
+    "桌面快捷键服务已重启。正在重新连接…",
+  "Change the capture binding in your Hyprland config, then save it.":
+    "请在 Hyprland 配置中修改截取快捷键绑定，然后保存。",
+  "Open your desktop's shortcut settings and allow T3 Code's capture shortcut.":
+    "请打开桌面系统的快捷键设置，允许 T3 Code 使用截取快捷键。",
+
   "Capture shortcut registration closed.": "截取快捷键注册已关闭。",
   "Shortcut permission request timed out. Try again.": "快捷键权限请求超时。请重试。",
   "Missing shortcut portal reply.": "未收到快捷键门户回复。",

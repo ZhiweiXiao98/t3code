@@ -1,4 +1,7 @@
-import { SourceControlProviderKind, type VcsStatusResult } from "@t3tools/contracts";
+import {
+  SourceControlProviderKind,
+  type VcsStatusResult,
+} from "@t3tools/contracts";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
 import { resolveAutoFeatureBranchName } from "@t3tools/shared/git";
 import { assert, describe, it } from "vite-plus/test";
@@ -7,12 +10,14 @@ import {
   formatGitActionElapsed,
   resolveGitActionProgressPresentation,
   resolveFeatureBranchUnavailableReason,
+  type DefaultBranchConfirmableAction,
   hasUsableGitMenuContent,
   requiresDefaultBranchConfirmation,
   resolveChangesTotals,
   resolveDefaultBranchActionDialogCopy,
   resolveLiveThreadBranchUpdate,
   resolveQuickAction,
+  getMenuActionDisabledReason,
 } from "./GitActionsControl.logic";
 
 function status(overrides: Partial<VcsStatusResult> = {}): VcsStatusResult {
@@ -35,6 +40,19 @@ function status(overrides: Partial<VcsStatusResult> = {}): VcsStatusResult {
   };
 }
 
+function pushDisabledReason(gitStatus: VcsStatusResult): string | null {
+  const item = buildMenuItems(gitStatus, false).find(
+    (menuItem) => menuItem.id === "push",
+  );
+  assert.isDefined(item);
+  return getMenuActionDisabledReason({
+    item,
+    gitStatus,
+    isBusy: false,
+    hasPrimaryRemote: true,
+  });
+}
+
 describe("when: ref is clean, ahead, and has an open PR", () => {
   it("resolveQuickAction prefers push", () => {
     const quick = resolveQuickAction(
@@ -51,7 +69,11 @@ describe("when: ref is clean, ahead, and has an open PR", () => {
       }),
       false,
     );
-    assert.deepInclude(quick, { kind: "run_action", action: "push", label: "Push" });
+    assert.deepInclude(quick, {
+      kind: "run_action",
+      action: "push",
+      label: "Push",
+    });
   });
 });
 
@@ -77,9 +99,11 @@ describe("when: ref is clean, up to date, and has no open PR", () => {
 
     const dirtyFeature = { ...syncedFeature, hasWorkingTreeChanges: true };
     assert.equal(
-      buildMenuItems(dirtyFeature, false).find((item) => item.id === "pr")?.disabled,
+      buildMenuItems(dirtyFeature, false).find((item) => item.id === "pr")
+        ?.disabled,
       false,
     );
+    assert.equal(pushDisabledReason(dirtyFeature), "No local commits to push.");
   });
 
   it("offers the actions menu only when something in it is usable", () => {
@@ -101,7 +125,11 @@ describe("when: ref is clean, up to date, and has no open PR", () => {
     assert.isTrue(hasContent(dirty));
     assert.isTrue(hasContent(status({ aheadCount: 1 })));
     assert.isFalse(hasContent(dirty, { canWriteSourceControl: false }));
-    assert.isTrue(hasContent(status({ hasPrimaryRemote: false }), { canPublishRepository: true }));
+    assert.isTrue(
+      hasContent(status({ hasPrimaryRemote: false }), {
+        canPublishRepository: true,
+      }),
+    );
     assert.isTrue(hasContent(clean, { hasNotice: true }));
   });
 });
@@ -120,6 +148,23 @@ describe("when: on default ref without open PR", () => {
       disabled: false,
     });
   });
+
+  it("offers a feature branch only to actions that commit the changes", () => {
+    const reason = (
+      action: DefaultBranchConfirmableAction,
+      hasWorkingTreeChanges: boolean,
+    ) =>
+      resolveFeatureBranchUnavailableReason({
+        action,
+        branchName: "main",
+        hasWorkingTreeChanges,
+      });
+    assert.isNull(reason("commit_push", true));
+    assert.isNull(reason("commit_push_pr", true));
+    assert.isNotNull(reason("commit_push", false));
+    assert.isNotNull(reason("push", true));
+    assert.isNotNull(reason("create_pr", true));
+  });
 });
 
 describe("when: local changes are behind upstream", () => {
@@ -132,6 +177,10 @@ describe("when: local changes are behind upstream", () => {
       action: "commit",
     } as const;
     assert.deepEqual(resolveQuickAction(behind, false), commit);
+    assert.equal(
+      pushDisabledReason({ ...behind, aheadCount: 1 }),
+      "Branch is behind upstream. Pull/rebase before pushing.",
+    );
     assert.deepEqual(
       resolveQuickAction(
         {
@@ -202,10 +251,16 @@ describe("when: the ref is on GitLab", () => {
     const ahead = status({ ...gitLab, hasUpstream: false, aheadCount: 2 });
     assert.equal(resolveQuickAction(ahead, false).label, "Push & create MR");
     assert.equal(
-      resolveQuickAction(status({ ...gitLab, hasWorkingTreeChanges: true }), false).label,
+      resolveQuickAction(
+        status({ ...gitLab, hasWorkingTreeChanges: true }),
+        false,
+      ).label,
       "Commit, push & MR",
     );
-    assert.equal(buildMenuItems(ahead, false).find((item) => item.id === "pr")?.label, "Create MR");
+    assert.equal(
+      buildMenuItems(ahead, false).find((item) => item.id === "pr")?.label,
+      "Create MR",
+    );
 
     const copy = resolveDefaultBranchActionDialogCopy({
       action: "create_pr",
@@ -216,9 +271,14 @@ describe("when: the ref is on GitLab", () => {
     assert.equal(copy.title, "Push & create MR from default ref?");
     assert.include(copy.description, "create a merge request on");
 
-    assert.equal(resolveQuickAction(ahead, false, false, true, "zh-CN").label, "推送并创建 MR");
     assert.equal(
-      buildMenuItems(ahead, false, true, "zh-CN").find((item) => item.id === "pr")?.label,
+      resolveQuickAction(ahead, false, false, true, "zh-CN").label,
+      "推送并创建 MR",
+    );
+    assert.equal(
+      buildMenuItems(ahead, false, true, "zh-CN").find(
+        (item) => item.id === "pr",
+      )?.label,
       "创建 MR",
     );
     const translated = resolveDefaultBranchActionDialogCopy({
@@ -288,7 +348,10 @@ describe("resolveAutoFeatureBranchName", () => {
   });
 
   it("treats existing ref names as case-insensitive for collision checks", () => {
-    const ref = resolveAutoFeatureBranchName(["Feature/Ticket-1"], "feature/ticket-1");
+    const ref = resolveAutoFeatureBranchName(
+      ["Feature/Ticket-1"],
+      "feature/ticket-1",
+    );
     assert.equal(ref, "feature/ticket-1-2");
   });
 });
@@ -304,7 +367,10 @@ describe("localized Git action progress", () => {
       phaseStartedAtMs: 0,
       hookStartedAtMs: 1,
     };
-    assert.equal(resolveGitActionProgressPresentation(progress)?.status, "Running pre-commit...");
+    assert.equal(
+      resolveGitActionProgressPresentation(progress)?.status,
+      "Running pre-commit...",
+    );
     assert.deepEqual(resolveGitActionProgressPresentation(progress, "zh-CN"), {
       status: "正在运行 pre-commit…",
       output: "test --run path/file.ts",
@@ -345,7 +411,11 @@ describe("resolveChangesTotals", () => {
     assert.deepEqual(
       resolveChangesTotals(
         status({
-          branchChanges: { baseRef: "origin/master", insertions: 20, deletions: 3 },
+          branchChanges: {
+            baseRef: "origin/master",
+            insertions: 20,
+            deletions: 3,
+          },
           workingTree: {
             files: [{ path: "a.ts", insertions: 1, deletions: 0 }],
             insertions: 1,
@@ -355,6 +425,37 @@ describe("resolveChangesTotals", () => {
       ),
       { insertions: 20, deletions: 3, baseRef: "origin/master" },
     );
+  });
+
+  it("uses the panel's branch comparison when it has file stats", () => {
+    const dirty = status({
+      branchChanges: { baseRef: "main", insertions: 20, deletions: 3 },
+    });
+    const source = {
+      id: "branch-range",
+      kind: "branch-range",
+      title: "Changes vs release",
+      baseRef: "release",
+      headRef: "feature/test",
+      diff: "",
+      diffHash: "hash",
+      truncated: false,
+    } as const;
+    assert.deepEqual(
+      resolveChangesTotals(dirty, {
+        ...source,
+        files: [
+          { path: "a.ts", previousPath: null, additions: 4, deletions: 1 },
+          { path: "b.ts", previousPath: null, additions: 2, deletions: 0 },
+        ],
+      }),
+      { insertions: 6, deletions: 1, baseRef: "release" },
+    );
+    assert.deepEqual(resolveChangesTotals(dirty, source), {
+      insertions: 20,
+      deletions: 3,
+      baseRef: "main",
+    });
   });
 
   it("falls back to the working tree when branchChanges is omitted", () => {

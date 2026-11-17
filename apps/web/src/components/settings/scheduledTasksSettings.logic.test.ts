@@ -14,7 +14,10 @@ import type {
   SidebarProjectGroupMember,
   SidebarProjectSnapshot,
 } from "../../sidebarProjectGrouping";
-import { resolveSettingsScope, type SettingsScopeSearch } from "./settingsScope";
+import {
+  resolveSettingsScope,
+  type SettingsScopeSearch,
+} from "./settingsScope";
 
 import { deriveProviderInstanceEntries } from "../../providerInstances";
 import {
@@ -23,6 +26,7 @@ import {
   matchesScheduledTaskScope,
   scheduleFromDraft,
   scheduleDraftErrors,
+  scheduleLabel,
   taskToDraft,
   unbindDraftFromThread,
 } from "./scheduledTasksSettings.logic";
@@ -34,7 +38,10 @@ const environments = [
   { environmentId: serverId, label: "Server" },
 ];
 
-function member(id: string, environmentId: EnvironmentId): SidebarProjectGroupMember {
+function member(
+  id: string,
+  environmentId: EnvironmentId,
+): SidebarProjectGroupMember {
   return {
     id: ProjectId.make(id),
     environmentId,
@@ -42,8 +49,9 @@ function member(id: string, environmentId: EnvironmentId): SidebarProjectGroupMe
     workspaceRoot: `/repos/${id}`,
     physicalProjectKey: `${environmentId}:/repos/${id}`,
     environmentLabel:
-      environments.find((environment) => environment.environmentId === environmentId)?.label ??
-      null,
+      environments.find(
+        (environment) => environment.environmentId === environmentId,
+      )?.label ?? null,
     defaultModelSelection: null,
     scripts: [],
     createdAt: "2026-09-07T00:00:00.000Z",
@@ -80,20 +88,31 @@ function group(
 }
 
 const sameIdElsewhere = member("first", serverId);
-const groups = [group("t3code", [first, second, third]), group("other", [other, sameIdElsewhere])];
-const tasks = [first, second, third, other, sameIdElsewhere].map((project, index) => ({
-  id: `task-${index}`,
-  environmentId: project.environmentId,
-  projectId: project.id,
-}));
+const groups = [
+  group("t3code", [first, second, third]),
+  group("other", [other, sameIdElsewhere]),
+];
+const tasks = [first, second, third, other, sameIdElsewhere].map(
+  (project, index) => ({
+    id: `task-${index}`,
+    environmentId: project.environmentId,
+    projectId: project.id,
+  }),
+);
 
 describe("scheduled task settings scope", () => {
   it.each<{ search: SettingsScopeSearch; expected: string[] }>([
-    { search: {}, expected: ["task-0", "task-1", "task-2", "task-3", "task-4"] },
+    {
+      search: {},
+      expected: ["task-0", "task-1", "task-2", "task-3", "task-4"],
+    },
     { search: { machine: laptopId }, expected: ["task-0", "task-1"] },
     { search: { project: "t3code" }, expected: ["task-0", "task-1", "task-2"] },
     { search: { project: "t3code", machine: serverId }, expected: ["task-2"] },
-    { search: { project: "t3code", checkout: second.physicalProjectKey }, expected: ["task-1"] },
+    {
+      search: { project: "t3code", checkout: second.physicalProjectKey },
+      expected: ["task-1"],
+    },
     { search: { project: "missing" }, expected: [] },
     { search: { machine: "removed" }, expected: [] },
     { search: { project: "t3code", checkout: "removed" }, expected: [] },
@@ -102,25 +121,42 @@ describe("scheduled task settings scope", () => {
     const scope = resolveSettingsScope(search, groups, environments);
     expect(
       tasks
-        .filter((task) => matchesScheduledTaskScope(scope, task.environmentId, task.projectId))
+        .filter((task) =>
+          matchesScheduledTaskScope(scope, task.environmentId, task.projectId),
+        )
         .map((task) => task.id),
     ).toEqual(expected);
   });
 
   it("defaults a new task to a pinned open project, and to an archived one only when scoped to it", () => {
     const at = "2026-01-01T00:00:00.000Z";
-    const project = (id: string, pinnedAt: string | null, archivedAt: string | null) => ({
+    const project = (
+      id: string,
+      pinnedAt: string | null,
+      archivedAt: string | null,
+    ) => ({
       id: ProjectId.make(id),
       pinnedAt,
       archivedAt,
     });
     const all = resolveSettingsScope({}, groups, environments);
-    const scoped = resolveSettingsScope({ project: "t3code" }, groups, environments);
+    const scoped = resolveSettingsScope(
+      { project: "t3code" },
+      groups,
+      environments,
+    );
     expect(
-      defaultScheduledTaskProjectId([project("a", null, null), project("b", at, null)], all),
+      defaultScheduledTaskProjectId(
+        [project("a", null, null), project("b", at, null)],
+        all,
+      ),
     ).toBe("b");
-    expect(defaultScheduledTaskProjectId([project("x", null, at)], all)).toBe("");
-    expect(defaultScheduledTaskProjectId([project("x", null, at)], scoped)).toBe("x");
+    expect(defaultScheduledTaskProjectId([project("x", null, at)], all)).toBe(
+      "",
+    );
+    expect(
+      defaultScheduledTaskProjectId([project("x", null, at)], scoped),
+    ).toBe("x");
   });
 
   it("keeps tasks with removed projects manageable at environment scope", () => {
@@ -151,7 +187,10 @@ const legacyTask: ScheduledTask = {
   projectId: ProjectId.make("project"),
   threadId: null,
   workspaceStrategy: { type: "worktree", baseRef: "release" },
-  modelSelection: { instanceId: ProviderInstanceId.make("codex"), model: "gpt-5.4" },
+  modelSelection: {
+    instanceId: ProviderInstanceId.make("codex"),
+    model: "gpt-5.4",
+  },
   runtimeMode: "full-access",
   interactionMode: "default",
   createdBy: "user",
@@ -181,6 +220,19 @@ describe("fixed-time scheduled tasks", () => {
     });
     expect(draft.timeOfDay).toBe("09:05");
   });
+
+  it("keeps a fixed run time and rejects a cleared one", () => {
+    const draft = taskToDraft({
+      ...legacyTask,
+      schedule: { type: "fixed_time", timeOfDay: "14:30" },
+    });
+    expect(scheduleFromDraft(draft)).toEqual({
+      type: "fixed_time",
+      timeOfDay: "14:30",
+    });
+    // A native time input reports "" when it is cleared or only partly filled.
+    expect(scheduleFromDraft({ ...draft, timeOfDay: "" })).toBeNull();
+  });
 });
 
 describe("scheduled task destination", () => {
@@ -203,11 +255,17 @@ describe("one-time scheduled tasks", () => {
 
   it("round-trips the run time through the local date-time input", () => {
     const runAt = "2026-11-03T17:00:42.000Z";
-    const draft = taskToDraft({ ...legacyTask, schedule: { type: "once", runAt } });
+    const draft = taskToDraft({
+      ...legacyTask,
+      schedule: { type: "once", runAt },
+    });
     expect(draft.scheduleMode).toBe("once");
     expect(scheduleFromDraft(draft)).toEqual({ type: "once", runAt });
     const moved = scheduleFromDraft({ ...draft, runAt: "2026-11-04T09:30" });
-    expect(moved).toEqual({ type: "once", runAt: new Date("2026-11-04T09:30").toISOString() });
+    expect(moved).toEqual({
+      type: "once",
+      runAt: new Date("2026-11-04T09:30").toISOString(),
+    });
     expect(scheduleFromDraft({ ...draft, runAt: "" })).toBeNull();
   });
 
@@ -217,7 +275,9 @@ describe("one-time scheduled tasks", () => {
       ...legacyTask,
       schedule: { type: "once", runAt: "2027-03-14T18:00:00.000Z" },
     });
-    expect(scheduleFromDraft({ ...draft, runAt: "2027-03-14T02:30" })).toBeNull();
+    expect(
+      scheduleFromDraft({ ...draft, runAt: "2027-03-14T02:30" }),
+    ).toBeNull();
   });
 
   it("keeps the saved offset when an edit stays in an hour that repeats", () => {
@@ -235,11 +295,19 @@ describe("one-time scheduled tasks", () => {
 });
 
 describe("webhook scheduled tasks", () => {
-  const signature = { header: "x-signature", encoding: "base64", prefix: "" } as const;
+  const signature = {
+    header: "x-signature",
+    encoding: "base64",
+    prefix: "",
+  } as const;
   const webhookTask: ScheduledTask = {
     ...legacyTask,
     schedule: { type: "webhook", signature },
-    webhook: { path: "/api/hooks/legacy-task/token", url: null, hasSecret: true },
+    webhook: {
+      path: "/api/hooks/legacy-task/token",
+      url: null,
+      hasSecret: true,
+    },
   };
 
   it("round-trips dedupe settings, clears them, and rejects invalid windows", () => {
@@ -269,9 +337,16 @@ describe("webhook scheduled tasks", () => {
       }),
     ).toMatchObject({ dedupe });
     expect(
-      scheduleFromDraft({ ...draft, replayKey: "", coalesceKey: "", coalesceWindowSeconds: "" }),
+      scheduleFromDraft({
+        ...draft,
+        replayKey: "",
+        coalesceKey: "",
+        coalesceWindowSeconds: "",
+      }),
     ).toMatchObject({ dedupe: {} });
-    expect(scheduleFromDraft({ ...draft, coalesceWindowSeconds: "" })).toMatchObject({
+    expect(
+      scheduleFromDraft({ ...draft, coalesceWindowSeconds: "" }),
+    ).toMatchObject({
       dedupe: { replayKey: dedupe.replayKey, coalesceKey: dedupe.coalesceKey },
     });
     for (const coalesceWindowSeconds of ["9", "3601", "1.5", "abc"]) {
@@ -303,15 +378,21 @@ describe("webhook scheduled tasks", () => {
       schedule: { type: "webhook", signature: null, maxDeliveryAgeMinutes: 90 },
     });
     expect(draft.maxDeliveryAgeMinutes).toBe("90");
-    expect(scheduleFromDraft(draft)).toMatchObject({ maxDeliveryAgeMinutes: 90 });
+    expect(scheduleFromDraft(draft)).toMatchObject({
+      maxDeliveryAgeMinutes: 90,
+    });
     for (const blank of ["", "  "]) {
-      expect(scheduleFromDraft({ ...draft, maxDeliveryAgeMinutes: blank })).toMatchObject({
+      expect(
+        scheduleFromDraft({ ...draft, maxDeliveryAgeMinutes: blank }),
+      ).toMatchObject({
         maxDeliveryAgeMinutes: null,
         dedupe: {},
       });
     }
     for (const invalid of ["0", "-5", "1.5", "abc", "1441"]) {
-      expect(scheduleFromDraft({ ...draft, maxDeliveryAgeMinutes: invalid })).toBeNull();
+      expect(
+        scheduleFromDraft({ ...draft, maxDeliveryAgeMinutes: invalid }),
+      ).toBeNull();
     }
   });
 
@@ -326,12 +407,18 @@ describe("webhook scheduled tasks", () => {
     });
     expect(draft.filters.map((filter) => filter.op)).toEqual(["equals", "in"]);
     // A title-only save leaves the key out, so the server keeps whatever is stored now.
-    expect(scheduleFromDraft({ ...draft, title: "Renamed" })).not.toHaveProperty("filters");
-    expect(scheduleFromDraft({ ...draft, filters: draft.filters.slice(0, 1) })).toMatchObject({
+    expect(
+      scheduleFromDraft({ ...draft, title: "Renamed" }),
+    ).not.toHaveProperty("filters");
+    expect(
+      scheduleFromDraft({ ...draft, filters: draft.filters.slice(0, 1) }),
+    ).toMatchObject({
       filters: filters.slice(0, 1),
     });
     // Removing every row is a change, so it clears the stored filters.
-    expect(scheduleFromDraft({ ...draft, filters: [] })).toMatchObject({ filters: [] });
+    expect(scheduleFromDraft({ ...draft, filters: [] })).toMatchObject({
+      filters: [],
+    });
     expect(
       scheduleFromDraft({
         ...draft,
@@ -351,7 +438,10 @@ describe("scheduled task model defaults", () => {
   };
   const projectSelection = { instanceId, model: "project-model" };
   const config = {
-    settings: { ...DEFAULT_SERVER_SETTINGS, defaultModelSelection: environmentSelection },
+    settings: {
+      ...DEFAULT_SERVER_SETTINGS,
+      defaultModelSelection: environmentSelection,
+    },
     providers: [
       {
         instanceId,
@@ -362,7 +452,12 @@ describe("scheduled task model defaults", () => {
         status: "ready",
         auth: { status: "authenticated" },
         models: [
-          { slug: "first-model", name: "First", isCustom: false, capabilities: null },
+          {
+            slug: "first-model",
+            name: "First",
+            isCustom: false,
+            capabilities: null,
+          },
           {
             slug: "catalog-default",
             name: "Default",
@@ -370,15 +465,28 @@ describe("scheduled task model defaults", () => {
             isCustom: false,
             capabilities: null,
           },
-          { slug: "environment-model", name: "Environment", isCustom: false, capabilities: null },
-          { slug: "project-model", name: "Project", isCustom: false, capabilities: null },
+          {
+            slug: "environment-model",
+            name: "Environment",
+            isCustom: false,
+            capabilities: null,
+          },
+          {
+            slug: "project-model",
+            name: "Project",
+            isCustom: false,
+            capabilities: null,
+          },
         ],
       },
     ],
   } as unknown as ServerConfig;
   const resolve = (
     value: ServerConfig,
-    project: { id: typeof projectId; defaultModelSelection?: typeof projectSelection } | null,
+    project: {
+      id: typeof projectId;
+      defaultModelSelection?: typeof projectSelection;
+    } | null,
   ) =>
     scheduledTaskDefaultModel(
       value.settings,
@@ -387,7 +495,13 @@ describe("scheduled task model defaults", () => {
     );
   it("uses the advertised default instead of catalog order when no default is configured", () => {
     expect(
-      resolve({ ...config, settings: { ...config.settings, defaultModelSelection: null } }, null),
+      resolve(
+        {
+          ...config,
+          settings: { ...config.settings, defaultModelSelection: null },
+        },
+        null,
+      ),
     ).toEqual({ instanceId, model: "catalog-default" });
   });
   it("falls back to the environment default when the project provider is unavailable", () => {
@@ -404,24 +518,49 @@ describe("scheduled task model defaults", () => {
 });
 
 it("rejects dedupe templates without a request placeholder", () => {
-  const draft = taskToDraft({ ...legacyTask, schedule: { type: "webhook", signature: null } });
+  const draft = taskToDraft({
+    ...legacyTask,
+    schedule: { type: "webhook", signature: null },
+  });
   expect(scheduleFromDraft({ ...draft, replayKey: "literal" })).toBeNull();
   expect(scheduleFromDraft({ ...draft, coalesceKey: "{{body.bad" })).toBeNull();
 });
 
 it("localizes owned webhook validation without accepting invalid schedules or rewriting request templates", () => {
-  const draft = taskToDraft({ ...legacyTask, schedule: { type: "webhook", signature: null } });
+  const draft = taskToDraft({
+    ...legacyTask,
+    schedule: { type: "webhook", signature: null },
+  });
   const invalidAge = { ...draft, maxDeliveryAgeMinutes: "0" };
   expect(scheduleFromDraft(invalidAge)).toBeNull();
   expect(scheduleDraftErrors(invalidAge, "en")[0]?.description).toContain(
     "Enter whole minutes from 1",
   );
-  expect(scheduleDraftErrors(invalidAge, "zh-CN")[0]?.description).toContain("请输入 1 至");
+  expect(scheduleDraftErrors(invalidAge, "zh-CN")[0]?.description).toContain(
+    "请输入 1 至",
+  );
   const invalidKey = { ...draft, replayKey: "literal/{body}/$&" };
   expect(scheduleFromDraft(invalidKey)).toBeNull();
   expect(scheduleDraftErrors(invalidKey, "zh-CN")[0]?.description).toContain(
     "必须包含有效的请求占位符",
   );
   expect(invalidKey.replayKey).toBe("literal/{body}/$&");
-  expect(scheduleDraftErrors(invalidAge)).toEqual(scheduleDraftErrors(invalidAge, "en"));
+  expect(scheduleDraftErrors(invalidAge)).toEqual(
+    scheduleDraftErrors(invalidAge, "en"),
+  );
+});
+
+it("appends the server zone only to fixed-time schedule labels", () => {
+  expect(
+    scheduleLabel({ type: "fixed_time", timeOfDay: "16:31" }, "Etc/UTC"),
+  ).toBe("Daily at 16:31 UTC");
+  expect(scheduleLabel({ type: "fixed_time", timeOfDay: "09:00" })).toBe(
+    "Daily at 09:00",
+  );
+  expect(scheduleLabel({ type: "interval", everyMs: 60_000 }, "Etc/UTC")).toBe(
+    "Every 1 min",
+  );
+  expect(scheduleLabel({ type: "webhook", signature: null }, "Etc/UTC")).toBe(
+    "On webhook",
+  );
 });

@@ -2,8 +2,14 @@ import type { WebTranslate } from "../../i18n/WebI18nContext";
 import { translateWebMessage } from "../../i18n/messages";
 import * as DateTime from "effect/DateTime";
 
-import { resolveDesktopPairingUrl, resolveHostedPairingUrl } from "./pairingUrls";
-import { getPairingTokenFromUrl, setPairingTokenOnUrl } from "@t3tools/shared/remote";
+import {
+  resolveDesktopPairingUrl,
+  resolveHostedPairingUrl,
+} from "./pairingUrls";
+import {
+  getPairingTokenFromUrl,
+  setPairingTokenOnUrl,
+} from "@t3tools/shared/remote";
 import { readHostedPairingRequest } from "../../hostedPairing";
 import {
   type ServerClientSessionRecord,
@@ -11,6 +17,7 @@ import {
 } from "~/environments/primary";
 import {
   type AdvertisedEndpoint,
+  type AuthClientMetadata,
   type AuthClientSession,
   type AuthGrantScope,
   type AuthPairingLink,
@@ -22,6 +29,8 @@ import {
   type DesktopUpdateState,
   type DesktopWslState,
   type EnvironmentId,
+  type ServerAuthPolicy,
+  type ServerDirectEndpoint,
 } from "@t3tools/contracts";
 import {
   getDesktopUpdateDownloadedVersion,
@@ -38,11 +47,14 @@ export function togglePairingScopeSelection(
     scopes.filter((currentScope) => currentScope !== scope);
   if (!checked) {
     return scope === AuthTerminalReadScope
-      ? without(current).filter((currentScope) => currentScope !== AuthTerminalOperateScope)
+      ? without(current).filter(
+          (currentScope) => currentScope !== AuthTerminalOperateScope,
+        )
       : without(current);
   }
   const next = [...without(current), scope];
-  return scope === AuthTerminalOperateScope && !next.includes(AuthTerminalReadScope)
+  return scope === AuthTerminalOperateScope &&
+    !next.includes(AuthTerminalReadScope)
     ? [...next, AuthTerminalReadScope]
     : next;
 }
@@ -50,22 +62,35 @@ export function togglePairingScopeSelection(
 export function canRevokeOtherClients(
   clientSessions: ReadonlyArray<{ readonly current: boolean }> | null,
 ): boolean {
-  return clientSessions === null || clientSessions.some((session) => !session.current);
+  return (
+    clientSessions === null ||
+    clientSessions.some((session) => !session.current)
+  );
 }
 
-type WslEnableBridge = Pick<DesktopBridge, "setWslBackendEnabled" | "setWslDistro" | "setWslOnly">;
+type WslEnableBridge = Pick<
+  DesktopBridge,
+  "setWslBackendEnabled" | "setWslDistro" | "setWslOnly"
+>;
 
 /** Never offer loopback URLs as QR targets; scanning devices would connect to themselves. */
 export function isQrShareableEndpoint(endpoint: AdvertisedEndpoint): boolean {
-  return endpoint.status !== "unavailable" && endpoint.reachability !== "loopback";
+  return (
+    endpoint.status !== "unavailable" && endpoint.reachability !== "loopback"
+  );
 }
 
 /** Desktop skips Tailscale probing until network/Serve is enabled to avoid macOS prompts; absence then
  * means unchecked. */
 export function missingTailscaleEndpointDescription(
-  state: Pick<DesktopServerExposureState, "mode" | "tailscaleServeEnabled"> | null,
+  state: Pick<
+    DesktopServerExposureState,
+    "mode" | "tailscaleServeEnabled"
+  > | null,
 ): string {
-  return state && state.mode !== "network-accessible" && !state.tailscaleServeEnabled
+  return state &&
+    state.mode !== "network-accessible" &&
+    !state.tailscaleServeEnabled
     ? "Turn on Network access to detect Tailscale."
     : "Start Tailscale to set up HTTPS access through MagicDNS.";
 }
@@ -91,7 +116,9 @@ export function isWslSettingsRowVisible(input: {
   readonly error: string | null;
 }): boolean {
   const { state, error } = input;
-  return state ? state.available || state.enabled || state.wslOnly : error !== null;
+  return state
+    ? state.available || state.enabled || state.wslOnly
+    : error !== null;
 }
 
 /**
@@ -105,7 +132,9 @@ export function resolveLocalVersionStatusLabel(
   if (!state) return t("connections.version.current");
   if (state.status === "downloading") {
     return state.availableVersion
-      ? t("connections.version.downloadingNamed", { version: state.availableVersion })
+      ? t("connections.version.downloadingNamed", {
+          version: state.availableVersion,
+        })
       : t("connections.version.downloading");
   }
   const action = resolveDesktopUpdateButtonAction(state);
@@ -121,7 +150,9 @@ export function resolveLocalVersionStatusLabel(
   }
   if (action === "download") {
     return state.availableVersion
-      ? t("connections.version.availableNamed", { version: state.availableVersion })
+      ? t("connections.version.availableNamed", {
+          version: state.availableVersion,
+        })
       : t("connections.version.available");
   }
   return t("connections.version.current");
@@ -140,7 +171,9 @@ export function selectQrEndpointOption<T extends QrEndpointOption>(
   defaultPreferenceKey: string | null,
 ): T | null {
   return (
-    (selectedId !== null ? options.find((option) => option.id === selectedId) : undefined) ??
+    (selectedId !== null
+      ? options.find((option) => option.id === selectedId)
+      : undefined) ??
     (defaultPreferenceKey !== null
       ? options.find((option) => option.preferenceKey === defaultPreferenceKey)
       : undefined) ??
@@ -185,14 +218,19 @@ const ACCESS_MUTATION_ERRORS = {
   others: ["Failed to revoke other clients.", "撤销其他客户端失败。"],
 } as const;
 type AccessMutationErrorCode = keyof typeof ACCESS_MUTATION_ERRORS;
-export type AccessMutationError = string | { readonly code: AccessMutationErrorCode };
+export type AccessMutationError =
+  | string
+  | { readonly code: AccessMutationErrorCode };
 export function accessMutationFailure(
   error: unknown,
   fallback: AccessMutationErrorCode,
 ): AccessMutationError {
   return error instanceof Error ? error.message : { code: fallback };
 }
-export function formatAccessMutationError(locale: string, error: AccessMutationError): string {
+export function formatAccessMutationError(
+  locale: string,
+  error: AccessMutationError,
+): string {
   return typeof error === "string"
     ? error
     : ACCESS_MUTATION_ERRORS[error.code][locale === "zh-CN" ? 1 : 0];
@@ -200,11 +238,19 @@ export function formatAccessMutationError(locale: string, error: AccessMutationE
 
 const NETWORK_MUTATION_ERRORS = {
   exposure: ["Failed to update network exposure.", "更新网络访问设置失败。"],
-  tailscaleEnable: ["Failed to configure Tailscale HTTPS.", "配置 Tailscale HTTPS 失败。"],
-  tailscaleDisable: ["Failed to disable Tailscale HTTPS.", "停用 Tailscale HTTPS 失败。"],
+  tailscaleEnable: [
+    "Failed to configure Tailscale HTTPS.",
+    "配置 Tailscale HTTPS 失败。",
+  ],
+  tailscaleDisable: [
+    "Failed to disable Tailscale HTTPS.",
+    "停用 Tailscale HTTPS 失败。",
+  ],
 } as const;
 type NetworkMutationErrorCode = keyof typeof NETWORK_MUTATION_ERRORS;
-export type NetworkMutationError = string | { readonly code: NetworkMutationErrorCode };
+export type NetworkMutationError =
+  | string
+  | { readonly code: NetworkMutationErrorCode };
 
 export function networkMutationFailure(
   error: unknown,
@@ -213,7 +259,10 @@ export function networkMutationFailure(
   return error instanceof Error ? error.message : { code: fallback };
 }
 
-export function formatNetworkMutationError(locale: string, error: NetworkMutationError): string {
+export function formatNetworkMutationError(
+  locale: string,
+  error: NetworkMutationError,
+): string {
   return typeof error === "string"
     ? error
     : NETWORK_MUTATION_ERRORS[error.code][locale === "zh-CN" ? 1 : 0];
@@ -227,14 +276,22 @@ const SAVED_BACKEND_ERRORS = {
   route: ["Could not add the route.", "无法添加路由。"],
   ssh: ["Failed to connect SSH host.", "连接 SSH 主机失败。"],
   sshHost: ["SSH host or alias is required.", "请输入 SSH 主机或别名。"],
-  sshPort: ["SSH port must be between 1 and 65535.", "SSH 端口必须介于 1 和 65535 之间。"],
+  sshPort: [
+    "SSH port must be between 1 and 65535.",
+    "SSH 端口必须介于 1 和 65535 之间。",
+  ],
   host: ["Enter a backend host.", "请输入后端主机。"],
   pairingCode: ["Enter a pairing code.", "请输入配对码。"],
 } as const;
 
 type SavedBackendErrorCode = keyof typeof SAVED_BACKEND_ERRORS;
-export type SavedBackendError = string | { readonly code: SavedBackendErrorCode };
-const savedBackendValidationErrors = new WeakMap<Error, SavedBackendErrorCode>();
+export type SavedBackendError =
+  | string
+  | { readonly code: SavedBackendErrorCode };
+const savedBackendValidationErrors = new WeakMap<
+  Error,
+  SavedBackendErrorCode
+>();
 
 function savedBackendValidationError(code: SavedBackendErrorCode): Error {
   const error = new Error(SAVED_BACKEND_ERRORS[code][0]);
@@ -251,7 +308,10 @@ export function savedBackendFailure(
   return code === undefined ? error.message : { code };
 }
 
-export function formatSavedBackendError(locale: string, error: SavedBackendError): string {
+export function formatSavedBackendError(
+  locale: string,
+  error: SavedBackendError,
+): string {
   return typeof error === "string"
     ? error
     : SAVED_BACKEND_ERRORS[error.code][locale === "zh-CN" ? 1 : 0];
@@ -296,14 +356,17 @@ export function parseManualDesktopSshTarget(input: {
 
   const rawPort = input.port.trim();
   if (rawPort.length > 0) {
-    port = Number.parseInt(rawPort, 10);
+    port = /^\d+$/u.test(rawPort) ? Number.parseInt(rawPort, 10) : Number.NaN;
   }
 
   if (hostname.length === 0) {
     throw savedBackendValidationError("sshHost");
   }
 
-  if (port !== null && (!Number.isInteger(port) || port <= 0 || port > 65_535)) {
+  if (
+    port !== null &&
+    (!Number.isInteger(port) || port <= 0 || port > 65_535)
+  ) {
     throw savedBackendValidationError("sshPort");
   }
 
@@ -367,7 +430,9 @@ export function parseRemotePairingFields(input: {
   return { host, pairingCode };
 }
 
-export function formatDesktopSshConnectionError(error: unknown): SavedBackendError {
+export function formatDesktopSshConnectionError(
+  error: unknown,
+): SavedBackendError {
   const value = savedBackendFailure(error, "ssh");
   if (typeof value !== "string") return value;
   const rawMessage = value;
@@ -375,13 +440,19 @@ export function formatDesktopSshConnectionError(error: unknown): SavedBackendErr
     /^Error invoking remote method 'desktop:ensure-ssh-environment':\s*/u,
     "",
   );
-  const withoutTaggedErrorPrefix = withoutIpcPrefix.replace(/^Ssh[A-Za-z]+Error:\s*/u, "");
+  const withoutTaggedErrorPrefix = withoutIpcPrefix.replace(
+    /^Ssh[A-Za-z]+Error:\s*/u,
+    "",
+  );
   return withoutTaggedErrorPrefix.trim() || { code: "ssh" };
 }
 
-export function sortDesktopPairingLinks(links: ReadonlyArray<ServerPairingLinkRecord>) {
+export function sortDesktopPairingLinks(
+  links: ReadonlyArray<ServerPairingLinkRecord>,
+) {
   return [...links].toSorted(
-    (left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
+    (left, right) =>
+      new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
   );
 }
 
@@ -398,7 +469,9 @@ export function summarizeAuthorizedClients(
   return parts.filter((part): part is string => part !== null).join(" · ");
 }
 
-export function sortDesktopClientSessions(sessions: ReadonlyArray<ServerClientSessionRecord>) {
+export function sortDesktopClientSessions(
+  sessions: ReadonlyArray<ServerClientSessionRecord>,
+) {
   return [...sessions].toSorted((left, right) => {
     if (left.current !== right.current) {
       return left.current ? -1 : 1;
@@ -406,11 +479,15 @@ export function sortDesktopClientSessions(sessions: ReadonlyArray<ServerClientSe
     if (left.connected !== right.connected) {
       return left.connected ? -1 : 1;
     }
-    return new Date(right.issuedAt).getTime() - new Date(left.issuedAt).getTime();
+    return (
+      new Date(right.issuedAt).getTime() - new Date(left.issuedAt).getTime()
+    );
   });
 }
 
-export function toDesktopPairingLinkRecord(pairingLink: AuthPairingLink): ServerPairingLinkRecord {
+export function toDesktopPairingLinkRecord(
+  pairingLink: AuthPairingLink,
+): ServerPairingLinkRecord {
   return {
     ...pairingLink,
     scopes: pairingLink.permissions ?? pairingLink.scopes,
@@ -438,10 +515,13 @@ export function selectPairingEndpoint(
   endpoints: ReadonlyArray<AdvertisedEndpoint>,
   defaultEndpointKey?: string | null,
 ): AdvertisedEndpoint | null {
-  const availableEndpoints = endpoints.filter((endpoint) => endpoint.status !== "unavailable");
+  const availableEndpoints = endpoints.filter(
+    (endpoint) => endpoint.status !== "unavailable",
+  );
   if (defaultEndpointKey) {
     const selectedEndpoint = availableEndpoints.find(
-      (endpoint) => endpointDefaultPreferenceKey(endpoint) === defaultEndpointKey,
+      (endpoint) =>
+        endpointDefaultPreferenceKey(endpoint) === defaultEndpointKey,
     );
     if (selectedEndpoint) {
       return selectedEndpoint;
@@ -449,17 +529,37 @@ export function selectPairingEndpoint(
   }
   return (
     availableEndpoints.find((endpoint) => endpoint.isDefault) ??
-    availableEndpoints.find((endpoint) => endpoint.reachability !== "loopback") ??
-    availableEndpoints.find((endpoint) => endpoint.compatibility.hostedHttpsApp === "compatible") ??
+    availableEndpoints.find(
+      (endpoint) => endpoint.reachability !== "loopback",
+    ) ??
+    availableEndpoints.find(
+      (endpoint) => endpoint.compatibility.hostedHttpsApp === "compatible",
+    ) ??
     null
   );
 }
 
-export function isTailscaleHttpsEndpoint(endpoint: AdvertisedEndpoint): boolean {
+/** A loopback server advertises a direct endpoint only once its Tailscale Serve URL answers. */
+export function isServerNetworkAccessible(input: {
+  readonly authPolicy: ServerAuthPolicy | null;
+  readonly directEndpoints: ReadonlyArray<ServerDirectEndpoint> | undefined;
+}): boolean {
+  if (input.authPolicy === "remote-reachable") return true;
+  return (
+    input.authPolicy === "loopback-browser" &&
+    (input.directEndpoints?.length ?? 0) > 0
+  );
+}
+
+export function isTailscaleHttpsEndpoint(
+  endpoint: AdvertisedEndpoint,
+): boolean {
   return endpoint.id.startsWith("tailscale-magicdns:");
 }
 
-export function endpointDefaultPreferenceKey(endpoint: AdvertisedEndpoint): string {
+export function endpointDefaultPreferenceKey(
+  endpoint: AdvertisedEndpoint,
+): string {
   if (endpoint.id.startsWith("desktop-loopback:")) {
     return "desktop-core:loopback:http";
   }
@@ -508,7 +608,10 @@ export function isHostedAppPairingUrl(value: string): boolean {
   }
 }
 
-export function endpointShareHint(endpoint: AdvertisedEndpoint, url: string): string {
+export function endpointShareHint(
+  endpoint: AdvertisedEndpoint,
+  url: string,
+): string {
   if (isHostedAppPairingUrl(url)) {
     return "Opens the hosted app, no install needed";
   }
@@ -534,12 +637,16 @@ export function resolveAccessEnvironmentId(input: {
   readonly selected: EnvironmentId | null;
 }): EnvironmentId | null {
   const isListed = (environmentId: EnvironmentId | null) =>
-    input.environments.some((environment) => environment.environmentId === environmentId);
+    input.environments.some(
+      (environment) => environment.environmentId === environmentId,
+    );
   if (isListed(input.selected)) return input.selected;
   if (isListed(input.primaryEnvironmentId)) return input.primaryEnvironmentId;
   return (
-    (input.environments.find((environment) => environment.connected) ?? input.environments[0])
-      ?.environmentId ?? null
+    (
+      input.environments.find((environment) => environment.connected) ??
+      input.environments[0]
+    )?.environmentId ?? null
   );
 }
 
@@ -549,10 +656,39 @@ export function wslMutationFailure(error: unknown): WslMutationError {
   return error instanceof Error ? error.message : { code: "update" };
 }
 
-export function formatWslMutationError(locale: string, error: WslMutationError): string {
+export function formatWslMutationError(
+  locale: string,
+  error: WslMutationError,
+): string {
   return typeof error === "string"
     ? error
     : locale === "zh-CN"
       ? "更新 WSL 后端失败。"
       : "Failed to update WSL backend.";
+}
+
+/** A short name for a T3 Connect device: its label, or what it runs on. */
+export function connectDeviceName({
+  client,
+}: {
+  readonly client?: AuthClientMetadata | undefined;
+}): string {
+  return client?.label ?? client?.os ?? client?.browser ?? "this device";
+}
+
+/** How a T3 Connect device describes itself. It can say anything, so the code is what to trust. */
+export function describeConnectDeviceClient({
+  client,
+}: {
+  readonly client?: AuthClientMetadata | undefined;
+}): string {
+  const bits = [
+    client?.label,
+    client?.os,
+    client?.browser,
+    client?.ipAddress,
+  ].filter(
+    (value): value is string => typeof value === "string" && value.length > 0,
+  );
+  return bits.length > 0 ? [...new Set(bits)].join(" · ") : "Unknown device";
 }

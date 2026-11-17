@@ -1,6 +1,9 @@
 import { officeChapterTitle } from "./officeChapterTitle";
 import { createFilePreviewError } from "@t3tools/shared/filePreview";
-import { filePreviewFailureMessage, filePreviewWorkerError } from "./filePreviewErrorMessages";
+import {
+  filePreviewFailureMessage,
+  filePreviewWorkerError,
+} from "./filePreviewErrorMessages";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
 /* oxlint-disable react/no-array-index-key -- Spreadsheet rows and columns retain their source positions. */
@@ -19,8 +22,15 @@ import {
   SelectValue,
 } from "~/components/ui/select";
 
-import { FileSurfaceAction, FileSurfaceLoading, FileSurfaceNotice } from "./fileSurfaceChrome";
-import { OFFICE_PREVIEW_MAX_BYTES, type OfficeWorkerResult } from "./officePreviewProtocol";
+import {
+  FileSurfaceAction,
+  FileSurfaceLoading,
+  FileSurfaceNotice,
+} from "./fileSurfaceChrome";
+import {
+  OFFICE_PREVIEW_MAX_BYTES,
+  type OfficeWorkerResult,
+} from "./officePreviewProtocol";
 
 const DocumentPages = lazy(() => import("./DocumentPages"));
 const NotebookPreview = lazy(() => import("./NotebookPreview"));
@@ -32,7 +42,9 @@ const OpenXmlOfficeViewer = lazy(() => import("./OpenXmlOfficeViewer"));
 async function readOfficeFile(src: string, signal: AbortSignal) {
   const response = await fetch(src, { signal });
   if (!response.ok)
-    throw createFilePreviewError("The file could not be loaded. Close it and try again.");
+    throw createFilePreviewError(
+      "The file could not be loaded. Close it and try again.",
+    );
   if (Number(response.headers.get("content-length")) > OFFICE_PREVIEW_MAX_BYTES)
     throw createFilePreviewError("Preview limited to files under 50 MB.");
   const reader = response.body?.getReader();
@@ -101,9 +113,12 @@ function ExtendedOfficeViewer(props: {
       setError(createFilePreviewError("Preview limited to files under 50 MB."));
       return;
     }
-    const worker = new Worker(new URL("./officePreview.worker.ts", import.meta.url), {
-      type: "module",
-    });
+    const worker = new Worker(
+      new URL("./officePreview.worker.ts", import.meta.url),
+      {
+        type: "module",
+      },
+    );
     workerRef.current = worker;
     const fail = (failure: Error) => {
       if (!controller.signal.aborted) setError(failure);
@@ -114,50 +129,63 @@ function ExtendedOfficeViewer(props: {
     timerRef.current = setTimeout(
       () =>
         fail(
-          createFilePreviewError("This document took too long to preview. Open it in another app."),
+          createFilePreviewError(
+            "This document took too long to preview. Open it in another app.",
+          ),
         ),
       30_000,
     );
     worker.addEventListener("error", () =>
       fail(
-        createFilePreviewError("Could not load the Office viewer. Close the file and try again."),
+        createFilePreviewError(
+          "Could not load the Office viewer. Close the file and try again.",
+        ),
       ),
     );
-    worker.addEventListener("message", (event: MessageEvent<OfficeWorkerResult>) => {
-      if (controller.signal.aborted) return;
-      const result = event.data;
-      if (result.type === "error") fail(filePreviewWorkerError(result));
-      else if (result.type === "document") {
-        if (timerRef.current) clearTimeout(timerRef.current);
-        setDocument(result);
-        setCount(result.pages.length > 1 ? result.pages.length : 0);
-      } else if (result.type === "notebook") {
-        if (timerRef.current) clearTimeout(timerRef.current);
-        setNotebook(result);
-      } else if (result.type === "ods") {
-        if (timerRef.current) clearTimeout(timerRef.current);
-        setWorkbook(result);
-        setCount(result.sheets.length);
-      } else if (result.type === "sheet-page") {
-        const key = `${result.sheet}:${result.index}`;
-        pendingPages.current.delete(key);
-        setSheetPages((old) => {
-          const next = new Map(old);
-          next.set(key, result.rows);
-          if (next.size > 12) next.delete(next.keys().next().value!);
-          return next;
-        });
-      }
-    });
+    worker.addEventListener(
+      "message",
+      (event: MessageEvent<OfficeWorkerResult>) => {
+        if (controller.signal.aborted) return;
+        const result = event.data;
+        if (result.type === "error") fail(filePreviewWorkerError(result));
+        else if (result.type === "document") {
+          if (timerRef.current) clearTimeout(timerRef.current);
+          setDocument(result);
+          setCount(result.pages.length > 1 ? result.pages.length : 0);
+        } else if (result.type === "notebook") {
+          if (timerRef.current) clearTimeout(timerRef.current);
+          setNotebook(result);
+        } else if (result.type === "ods") {
+          if (timerRef.current) clearTimeout(timerRef.current);
+          setWorkbook(result);
+          setCount(result.sheets.length);
+        } else if (result.type === "sheet-page") {
+          const key = `${result.sheet}:${result.index}`;
+          pendingPages.current.delete(key);
+          setSheetPages((old) => {
+            const next = new Map(old);
+            next.set(key, result.rows);
+            if (next.size > 12) next.delete(next.keys().next().value!);
+            return next;
+          });
+        }
+      },
+    );
     void readOfficeFile(props.src, controller.signal)
       .then((bytes) => {
         if (!controller.signal.aborted) {
           setFileSize(bytes.byteLength);
-          worker.postMessage({ type: "open", kind: props.kind, bytes }, [bytes]);
+          worker.postMessage({ type: "open", kind: props.kind, bytes }, [
+            bytes,
+          ]);
         }
       })
       .catch((cause: unknown) =>
-        fail(cause instanceof Error ? cause : createFilePreviewError("Could not read this file.")),
+        fail(
+          cause instanceof Error
+            ? cause
+            : createFilePreviewError("Could not read this file."),
+        ),
       );
     return () => {
       controller.abort();
@@ -178,7 +206,10 @@ function ExtendedOfficeViewer(props: {
         </p>
         <p className="max-w-sm text-xs leading-relaxed text-muted-foreground">
           {filePreviewFailureMessage(previewLocale, error)}{" "}
-          {translateWebSource(previewLocale, "Save it or open it in another app.")}
+          {translateWebSource(
+            previewLocale,
+            "Save it or open it in another app.",
+          )}
         </p>
       </div>
     );
@@ -190,11 +221,16 @@ function ExtendedOfficeViewer(props: {
     );
   const sheet = workbook?.sheets[page];
   const documentPage = previewDocument?.pages[page];
-  const navigation = workbook ? "sheet" : (previewDocument?.navigation ?? "slide");
+  const navigation = workbook
+    ? "sheet"
+    : (previewDocument?.navigation ?? "slide");
   const documentCount = previewDocument?.pages.length ?? 0;
   const documentDetails =
     navigation === "chapter"
-      ? t("files.residual.chapterPosition", { page: page + 1, count: documentCount })
+      ? t("files.residual.chapterPosition", {
+          page: page + 1,
+          count: documentCount,
+        })
       : t(
           navigation === "slide"
             ? documentCount === 1
@@ -233,7 +269,10 @@ function ExtendedOfficeViewer(props: {
                   if (value !== null) selectPage(value);
                 }}
               >
-                <SelectTrigger aria-label={translateWebSource(previewLocale, "Sheet")} size="xs">
+                <SelectTrigger
+                  aria-label={translateWebSource(previewLocale, "Sheet")}
+                  size="xs"
+                >
                   <SelectValue>{sheet?.name}</SelectValue>
                 </SelectTrigger>
                 <SelectPopup>
@@ -253,9 +292,14 @@ function ExtendedOfficeViewer(props: {
                   if (value !== null) selectPage(value);
                 }}
               >
-                <SelectTrigger aria-label={translateWebSource(previewLocale, "Chapter")} size="xs">
+                <SelectTrigger
+                  aria-label={translateWebSource(previewLocale, "Chapter")}
+                  size="xs"
+                >
                   <SelectValue>
-                    {documentPage ? officeChapterTitle(documentPage, previewLocale) : undefined}
+                    {documentPage
+                      ? officeChapterTitle(documentPage, previewLocale)
+                      : undefined}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectPopup>
@@ -268,7 +312,10 @@ function ExtendedOfficeViewer(props: {
               </Select>
             </div>
           ) : (
-            <span className="flex-1 text-center tabular-nums" aria-live="polite">
+            <span
+              className="flex-1 text-center tabular-nums"
+              aria-live="polite"
+            >
               {t(
                 navigation === "slide"
                   ? "files.residual.slidePosition"
@@ -338,7 +385,10 @@ function ExtendedOfficeViewer(props: {
             )}
             {sheet.truncated
               ? props.kind === "ods"
-                ? translateWebSource(previewLocale, " Limited to 500 rows and 50 columns.")
+                ? translateWebSource(
+                    previewLocale,
+                    " Limited to 500 rows and 50 columns.",
+                  )
                 : translateWebSource(
                     previewLocale,
                     " Preview limited to 250,000 rows, 1,024 columns, and bounded cell text.",
@@ -355,12 +405,18 @@ function ExtendedOfficeViewer(props: {
               name={`${props.name}: ${sheet.name}`}
               count={sheet.rowCount}
               columns={sheet.columns}
-              getRows={(index) => (index === 0 ? sheet.rows : sheetPages.get(`${page}:${index}`))}
+              getRows={(index) =>
+                index === 0 ? sheet.rows : sheetPages.get(`${page}:${index}`)
+              }
               loadPage={(index) => {
                 const key = `${page}:${index}`;
                 if (pendingPages.current.has(key)) return;
                 pendingPages.current.add(key);
-                workerRef.current?.postMessage({ type: "sheet-page", sheet: page, index });
+                workerRef.current?.postMessage({
+                  type: "sheet-page",
+                  sheet: page,
+                  index,
+                });
               }}
             />
           )}

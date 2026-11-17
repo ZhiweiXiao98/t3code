@@ -1,4 +1,4 @@
-import { render } from "../../../test/render";
+import { fakeTimers, render } from "../../../test/render";
 import { expect, it, vi } from "vite-plus/test";
 import { userEvent } from "vite-plus/test/browser";
 
@@ -24,6 +24,8 @@ function pressEscape(): KeyboardEvent {
 it("confirms on the second click and disarms on Escape", async () => {
   const onConfirm = vi.fn();
   await using screen = await render(<MergeButton scopeKey="a" onConfirm={onConfirm} />);
+  // An armed action disarms after 3s, and a slow runner can take longer between two clicks.
+  using _timers = fakeTimers();
   const button = screen.getByRole("button");
 
   await userEvent.click(button);
@@ -110,6 +112,7 @@ it.each(["merge", "enable-auto-merge"] as const)(
       </WebI18nContext>
     );
     await using screen = await render(control("Checking stack membership…"));
+    using _timers = fakeTimers();
     const button = screen.getByRole("button");
     await userEvent.tab();
     await expect.element(button).toHaveFocus();

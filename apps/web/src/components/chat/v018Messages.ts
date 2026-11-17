@@ -2,8 +2,38 @@ import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 import { useI18n } from "~/i18n/WebI18nContext";
 
 const messages: Readonly<Record<string, string>> = {
+  "Voice input is ready": "语音输入已就绪",
+  "Pick a microphone, then start talking.": "选择麦克风，然后开始说话。",
+  "Other models": "其他模型",
+  "Needs an admin to download": "需要管理员下载",
+  "That microphone is unplugged. Pick another one.":
+    "该麦克风已断开连接，请选择其他麦克风。",
+  "Searching project models...": "正在搜索项目模型…",
+  "Go to quoted response: {text}": "转到引用的回复：{text}",
+  "Go to the response this replies to: {text}":
+    "转到本条回复所回应的内容：{text}",
+  "Agents here can then launch, message and wait on threads there. Revoke it in that machine’s Sharing & access.":
+    "此处的智能体即可在那台机器上启动对话、发送消息及等待对话完成。可在那台机器的“共享与访问”中撤销权限。",
+  ": Settings → Sharing & access → Authorized clients → Create link, then paste its code here.":
+    "：设置 → 共享与访问 → 已授权客户端 → 创建链接，然后将配对码粘贴到此处。",
+  ". The agent can use that link as it is; change its access in Settings → Environments.":
+    "。智能体可直接使用该链接；如需更改访问权限，请前往设置 → 环境。",
+  "Choose editor": "选择编辑器",
+  "Draft changed while preparing this message. Review it and save again.":
+    "准备此消息时草稿已更改。请检查后重新保存。",
+  "The earlier edit was saved. Review your newer changes and save again.":
+    "先前的编辑已保存。请检查较新的更改后重新保存。",
+  "Added to the composer": "已添加到输入框",
+  "The task is in the composer. Read it over, then send.":
+    "任务已放入输入框。请检查后发送。",
+  "Resolve the conflicts in this thread": "在此对话中解决冲突",
+  "Fix the failing checks in this thread": "在此对话中修复失败的检查",
+  "Retry transcription": "重试转写",
+  "Open voice settings": "打开语音设置",
+  "Record again": "重新录音",
   "Your next message starts a fresh session": "下一条消息将开始新会话",
-  "The agent won't see earlier messages in this thread.": "智能体将无法看到此对话之前的消息。",
+  "The agent won't see earlier messages in this thread.":
+    "智能体将无法看到此对话之前的消息。",
   "Keep the current session": "保留当前会话",
   "Microphone access needed": "需要麦克风访问权限",
   "Draft unavailable": "草稿不可用",
@@ -72,7 +102,8 @@ const messages: Readonly<Record<string, string>> = {
     "你在其他应用中使用 ChatGPT 套餐的额度已达到工作区上限。",
   "Copy request for admin": "复制给管理员的申请",
   "Could not snooze thread": "无法暂缓对话",
-  "The reset time has passed. Retry the thread manually.": "重置时间已过，请手动重试此对话。",
+  "The reset time has passed. Retry the thread manually.":
+    "重置时间已过，请手动重试此对话。",
   "Could not change auto-resume": "无法更改自动恢复设置",
   "An error occurred.": "发生错误。",
   "Saving...": "正在保存…",
@@ -82,7 +113,10 @@ const messages: Readonly<Record<string, string>> = {
   "Snooze until reset": "暂缓至重置",
 };
 
-export function translateChatUpdate(locale: ResolvedAppLocale, source: string): string {
+export function translateChatUpdate(
+  locale: ResolvedAppLocale,
+  source: string,
+): string {
   if (locale !== "zh-CN") return source;
   const progress = /^Downloading speech model (\d+)%$/.exec(source);
   if (progress) return `正在下载语音模型 ${progress[1]}%`;

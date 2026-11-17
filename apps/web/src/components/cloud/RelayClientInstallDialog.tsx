@@ -12,6 +12,7 @@ import { Button } from "../ui/button";
 import {
   Dialog,
   DialogDescription,
+  DialogAction,
   DialogFooter,
   DialogHeader,
   DialogPanel,
@@ -65,10 +66,17 @@ export function RelayClientInstallDialog() {
       <DialogPopup className="max-w-md" showCloseButton={isConfirming}>
         <DialogHeader>
           <div className="flex size-9 items-center justify-center rounded-lg border border-border/70 bg-muted/60">
-            <DownloadIcon aria-hidden className="size-4.5 text-muted-foreground" />
+            <DownloadIcon
+              aria-hidden
+              className="size-4.5 text-muted-foreground"
+            />
           </div>
           <DialogTitle>
-            {t(isInstalling ? "relayInstall.title.installing" : "relayInstall.title.confirm")}
+            {t(
+              isInstalling
+                ? "relayInstall.title.installing"
+                : "relayInstall.title.confirm",
+            )}
           </DialogTitle>
           <DialogDescription>
             {t(
@@ -123,9 +131,11 @@ export function RelayClientInstallDialog() {
             >
               {t("common.cancel")}
             </Button>
-            <Button onClick={() => respondToRelayClientInstallConfirmation(true)}>
+            <DialogAction
+              onClick={() => respondToRelayClientInstallConfirmation(true)}
+            >
               {t("relayInstall.downloadAndInstall")}
-            </Button>
+            </DialogAction>
           </DialogFooter>
         ) : null}
       </DialogPopup>

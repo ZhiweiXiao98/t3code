@@ -4,15 +4,25 @@ import { translateWebSource } from "../../i18n/messages";
 
 import { useI18n } from "../../i18n/WebI18nContext";
 
-import { ArrowDownIcon, ArrowUpIcon, PencilIcon, PlusIcon, StarIcon, XIcon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  PencilIcon,
+  PlusIcon,
+  StarIcon,
+  XIcon,
+} from "lucide-react";
+import { memo, useEffect, useRef, useState } from "react";
 import {
   ProviderDriverKind,
   type ProviderInstanceId,
   type ServerProviderModel,
 } from "@t3tools/contracts";
 import { isReasoningControl } from "@t3tools/client-runtime/model-traits";
-import { type CustomModelDefinition, normalizeCustomModelSlug } from "@t3tools/shared/model";
+import {
+  type CustomModelDefinition,
+  normalizeCustomModelSlug,
+} from "@t3tools/shared/model";
 
 import { useStableCallback } from "../../hooks/useStableCallback";
 import { cn } from "../../lib/utils";
@@ -24,7 +34,9 @@ import { Switch } from "../ui/switch";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { CustomModelEditor } from "./CustomModelEditor";
 
-const CUSTOM_MODEL_PLACEHOLDER_BY_KIND: Partial<Record<ProviderDriverKind, string>> = {
+const CUSTOM_MODEL_PLACEHOLDER_BY_KIND: Partial<
+  Record<ProviderDriverKind, string>
+> = {
   [ProviderDriverKind.make("codex")]: "gpt-6.7-codex-ultra-preview",
   [ProviderDriverKind.make("claudeAgent")]: "claude-sonnet-5",
   [ProviderDriverKind.make("cursor")]: "claude-sonnet-4-6",
@@ -54,7 +66,9 @@ function describeModelCapabilities(
       descriptor.id === "fastMode" ||
       (descriptor.id === "serviceTier" &&
         descriptor.type === "select" &&
-        descriptor.options.some((option) => option.id === "fast" || option.label === "Fast")),
+        descriptor.options.some(
+          (option) => option.id === "fast" || option.label === "Fast",
+        )),
   );
   if (hasFastMode) labels.push("Fast mode");
   if (
@@ -69,7 +83,9 @@ function describeModelCapabilities(
   return labels;
 }
 
-function groupModelsForDisplay<T extends { readonly slug: string; readonly isCustom: boolean }>(
+function groupModelsForDisplay<
+  T extends { readonly slug: string; readonly isCustom: boolean },
+>(
   models: ReadonlyArray<T>,
   options: {
     readonly favoriteModels: ReadonlySet<string>;
@@ -82,11 +98,16 @@ function groupModelsForDisplay<T extends { readonly slug: string; readonly isCus
     groupFavorites: true,
     modelOrder: options.modelOrder,
   });
-  const isHidden = (model: T) => !model.isCustom && options.hiddenModels.has(model.slug);
+  const isHidden = (model: T) =>
+    !model.isCustom && options.hiddenModels.has(model.slug);
   return [
     ...ordered.filter((model) => options.favoriteModels.has(model.slug)),
-    ...ordered.filter((model) => !options.favoriteModels.has(model.slug) && !isHidden(model)),
-    ...ordered.filter((model) => !options.favoriteModels.has(model.slug) && isHidden(model)),
+    ...ordered.filter(
+      (model) => !options.favoriteModels.has(model.slug) && !isHidden(model),
+    ),
+    ...ordered.filter(
+      (model) => !options.favoriteModels.has(model.slug) && isHidden(model),
+    ),
   ];
 }
 
@@ -94,9 +115,13 @@ function nextHiddenModelsForBulkToggle(
   models: ReadonlyArray<Pick<ServerProviderModel, "slug" | "isCustom">>,
   hiddenModels: ReadonlyArray<string>,
 ): string[] {
-  const builtInSlugs = models.filter((model) => !model.isCustom).map((model) => model.slug);
+  const builtInSlugs = models
+    .filter((model) => !model.isCustom)
+    .map((model) => model.slug);
   const builtInSlugSet = new Set(builtInSlugs);
-  const allBuiltInModelsHidden = builtInSlugs.every((slug) => hiddenModels.includes(slug));
+  const allBuiltInModelsHidden = builtInSlugs.every((slug) =>
+    hiddenModels.includes(slug),
+  );
 
   if (allBuiltInModelsHidden) {
     return hiddenModels.filter((slug) => !builtInSlugSet.has(slug));
@@ -115,7 +140,10 @@ interface ProviderModelsSectionProps {
   readonly hiddenModels: ReadonlyArray<string>;
   readonly favoriteModels: ReadonlyArray<string>;
   readonly modelOrder: ReadonlyArray<string>;
-  readonly onChange: (next: ReadonlyArray<CustomModelDefinition>) => void;
+  /** Resolves true once the custom models are saved. */
+  readonly onChange: (
+    next: ReadonlyArray<CustomModelDefinition>,
+  ) => Promise<boolean>;
   readonly onHiddenModelsChange: (
     next: ReadonlyArray<string>,
     affectedModels: ReadonlyArray<string>,
@@ -144,19 +172,38 @@ export function ProviderModelsSection({
   const { locale, t } = useI18n();
   const [input, setInput] = useState("");
   const [isAdding, setIsAdding] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const addAttemptRef = useRef(0);
   const [filter, setFilter] = useState("");
-  const [error, setError] = useState<"required" | "builtIn" | "tooLong" | "duplicate" | null>(null);
+  const [error, setError] = useState<
+    "required" | "builtIn" | "tooLong" | "duplicate" | null
+  >(null);
   const [editingSlug, setEditingSlug] = useState<string | null>(null);
+  const editAttemptRef = useRef(0);
   const listRef = useRef<HTMLDivElement>(null);
   const scrollToSlugRef = useRef<string | null>(null);
   const hiddenModelSet = new Set(hiddenModels);
   const favoriteModelSet = new Set(favoriteModels);
-  const displayModels = groupModelsForDisplay(models, {
-    favoriteModels: favoriteModelSet,
-    hiddenModels: hiddenModelSet,
-    modelOrder,
-  });
-  const favoriteCount = displayModels.filter((model) => favoriteModelSet.has(model.slug)).length;
+  const reportedSlugs = new Set(models.map((model) => model.slug));
+  // A favorite the provider no longer reports (disabled, signed out, model removed)
+  // still needs a row, or its star could never be cleared.
+  const unreportedFavoriteModels = favoriteModels.flatMap(
+    (slug): ServerProviderModel[] =>
+      reportedSlugs.has(slug)
+        ? []
+        : [{ slug, name: slug, isCustom: false, capabilities: null }],
+  );
+  const displayModels = groupModelsForDisplay(
+    [...models, ...unreportedFavoriteModels],
+    {
+      favoriteModels: favoriteModelSet,
+      hiddenModels: hiddenModelSet,
+      modelOrder,
+    },
+  );
+  const favoriteCount = displayModels.filter((model) =>
+    favoriteModelSet.has(model.slug),
+  ).length;
   const hiddenCount = displayModels.filter(
     (model) => !model.isCustom && hiddenModelSet.has(model.slug),
   ).length;
@@ -188,10 +235,12 @@ export function ProviderModelsSection({
   // Derive after the effect and use hiddenModels directly to preserve the editor's option-array cache.
   const builtInModels = models.filter((model) => !model.isCustom);
   const allBuiltInModelsHidden =
-    builtInModels.length > 0 && builtInModels.every((model) => hiddenModels.includes(model.slug));
+    builtInModels.length > 0 &&
+    builtInModels.every((model) => hiddenModels.includes(model.slug));
 
-  const handleAdd = () => {
-    if (!canManageCustomModels || driverKind === "antigravity") return;
+  const handleAdd = async () => {
+    if (!canManageCustomModels || driverKind === "antigravity" || isSaving)
+      return;
     const normalized = normalizeCustomModelSlug(input);
     if (!normalized) {
       setError("required");
@@ -210,15 +259,25 @@ export function ProviderModelsSection({
       return;
     }
 
+    addAttemptRef.current += 1;
+    const attempt = addAttemptRef.current;
+    setIsSaving(true);
+    const saved = await onChange([
+      ...customModels,
+      { slug: normalized, name: normalized, capabilities: null },
+    ]);
+    setIsSaving(false);
+    // Cancel bumps the attempt, so a late save cannot close the draft opened after it.
+    if (!saved || attempt !== addAttemptRef.current) return;
     scrollToSlugRef.current = normalized;
     setFilter("");
-    onChange([...customModels, { slug: normalized, name: normalized, capabilities: null }]);
     setInput("");
     setError(null);
     setIsAdding(false);
   };
 
   const cancelAdd = () => {
+    addAttemptRef.current += 1;
     setInput("");
     setError(null);
     setIsAdding(false);
@@ -226,23 +285,31 @@ export function ProviderModelsSection({
 
   const handleRemove = (slug: string) => {
     if (!canManageCustomModels) return;
-    if (editingSlug === slug) setEditingSlug(null);
-    onChange(customModels.filter((entry) => entry.slug !== slug));
+    if (editingSlug === slug) {
+      editAttemptRef.current += 1;
+      setEditingSlug(null);
+    }
+    void onChange(customModels.filter((entry) => entry.slug !== slug));
     onModelOrderChange(modelOrder.filter((model) => model !== slug));
     onFavoriteModelsChange(favoriteModels.filter((model) => model !== slug));
     setError(null);
   };
 
-  const handleSaveEdit = (next: CustomModelDefinition) => {
+  const handleSaveEdit = async (next: CustomModelDefinition) => {
     if (!canManageCustomModels) return;
-    onChange(customModels.map((entry) => (entry.slug === next.slug ? next : entry)));
-    setEditingSlug(null);
+    const attempt = ++editAttemptRef.current;
+    const saved = await onChange(
+      customModels.map((entry) => (entry.slug === next.slug ? next : entry)),
+    );
+    if (saved && attempt === editAttemptRef.current) setEditingSlug(null);
   };
 
   const setHidden = (slug: string, hidden: boolean) => {
     if (!canWritePreferences || hidden === hiddenModelSet.has(slug)) return;
     onHiddenModelsChange(
-      hidden ? [...hiddenModels, slug] : hiddenModels.filter((model) => model !== slug),
+      hidden
+        ? [...hiddenModels, slug]
+        : hiddenModels.filter((model) => model !== slug),
       [slug],
     );
   };
@@ -263,7 +330,8 @@ export function ProviderModelsSection({
     const index = displayModels.findIndex((model) => model.slug === slug);
     const nextIndex = index + direction;
     if (index < 0 || nextIndex < 0 || nextIndex >= displayModels.length) return;
-    if (groupOf(displayModels[index]!) !== groupOf(displayModels[nextIndex]!)) return;
+    if (groupOf(displayModels[index]!) !== groupOf(displayModels[nextIndex]!))
+      return;
     const next = displayModels.map((model) => model.slug);
     [next[index], next[nextIndex]] = [next[nextIndex]!, next[index]!];
     onModelOrderChange(next);
@@ -271,6 +339,7 @@ export function ProviderModelsSection({
 
   const handleToggleEdit = useStableCallback((slug: string) => {
     if (!canManageCustomModels) return;
+    editAttemptRef.current += 1;
     setEditingSlug((current) => (current === slug ? null : slug));
   });
   const rowHandlers = {
@@ -292,8 +361,16 @@ export function ProviderModelsSection({
         model={model}
         isHidden={!model.isCustom && hiddenModelSet.has(model.slug)}
         isFavorite={group === "favorite"}
-        canMoveUp={!isFiltering && previousModel !== undefined && groupOf(previousModel) === group}
-        canMoveDown={!isFiltering && nextModel !== undefined && groupOf(nextModel) === group}
+        canMoveUp={
+          !isFiltering &&
+          previousModel !== undefined &&
+          groupOf(previousModel) === group
+        }
+        canMoveDown={
+          !isFiltering &&
+          nextModel !== undefined &&
+          groupOf(nextModel) === group
+        }
         isFiltering={isFiltering}
         flagMissingReasoning={flagMissingReasoning}
         canWritePreferences={canWritePreferences}
@@ -304,7 +381,12 @@ export function ProviderModelsSection({
   };
 
   const groupLabel = (label: string, isFirst: boolean) => (
-    <div className={cn("px-2 pb-1.5 text-2xs text-muted-foreground", isFirst ? "pt-1" : "pt-5")}>
+    <div
+      className={cn(
+        "px-2 pb-1.5 text-2xs text-muted-foreground",
+        isFirst ? "pt-1" : "pt-5",
+      )}
+    >
       {label}
     </div>
   );
@@ -342,9 +424,14 @@ export function ProviderModelsSection({
             </Button>
           ) : null}
           <span className="text-xs text-muted-foreground">
-            {t(models.length === 1 ? "settingsControls.oneModel" : "settingsControls.manyModels", {
-              count: models.length,
-            })}
+            {t(
+              models.length === 1
+                ? "settingsControls.oneModel"
+                : "settingsControls.manyModels",
+              {
+                count: models.length,
+              },
+            )}
             {favoriteCount > 0
               ? t(
                   favoriteCount === 1
@@ -353,7 +440,9 @@ export function ProviderModelsSection({
                   { count: favoriteCount },
                 )
               : ""}
-            {hiddenCount > 0 ? t("settingsControls.hiddenCount", { count: hiddenCount }) : ""}
+            {hiddenCount > 0
+              ? t("settingsControls.hiddenCount", { count: hiddenCount })
+              : ""}
           </span>
         </div>
         {driverKind !== "antigravity" && !isAdding ? (
@@ -376,15 +465,20 @@ export function ProviderModelsSection({
       >
         {visibleModels.length === 0 ? (
           <p className="px-2 py-2 text-xs text-muted-foreground">
-            {isFiltering ? t("providers.models.noMatch") : t("providers.models.notReported")}
+            {isFiltering
+              ? t("providers.models.noMatch")
+              : t("providers.models.notReported")}
           </p>
         ) : null}
         {visibleModels.map((model, index) => {
           const group = groupOf(model);
           const previous = visibleModels[index - 1];
-          const startsGroup = previous === undefined || groupOf(previous) !== group;
+          const startsGroup =
+            previous === undefined || groupOf(previous) !== group;
           const editingEntry =
-            canManageCustomModels && model.isCustom && editingSlug === model.slug
+            canManageCustomModels &&
+            model.isCustom &&
+            editingSlug === model.slug
               ? customModels.find((entry) => entry.slug === model.slug)
               : undefined;
           return (
@@ -396,7 +490,10 @@ export function ProviderModelsSection({
                 ? groupLabel(t("providers.models.group.all"), index === 0)
                 : null}
               {startsGroup && group === "hidden"
-                ? groupLabel(t("providers.models.hiddenFromPicker"), index === 0)
+                ? groupLabel(
+                    t("providers.models.hiddenFromPicker"),
+                    index === 0,
+                  )
                 : null}
               {renderRow(model)}
               {editingEntry ? (
@@ -406,8 +503,14 @@ export function ProviderModelsSection({
                   driverKind={driverKind}
                   entry={editingEntry}
                   builtInModels={builtInModels}
-                  onSave={handleSaveEdit}
-                  onCancel={() => setEditingSlug(null)}
+                  onSave={(next) => void handleSaveEdit(next)}
+                  onDraftChange={() => {
+                    editAttemptRef.current += 1;
+                  }}
+                  onCancel={() => {
+                    editAttemptRef.current += 1;
+                    setEditingSlug(null);
+                  }}
                 />
               ) : null}
             </div>
@@ -415,12 +518,14 @@ export function ProviderModelsSection({
         })}
       </div>
 
-      {driverKind === "antigravity" || !canManageCustomModels ? null : isAdding ? (
+      {driverKind === "antigravity" ||
+      !canManageCustomModels ? null : isAdding ? (
         <div className="mt-3 flex flex-col gap-2 sm:flex-row">
           <Input
             id={`provider-instance-${instanceId}-custom-model`}
             size="sm"
             autoFocus
+            readOnly={isSaving}
             value={input}
             onChange={(event) => {
               setInput(event.target.value);
@@ -434,13 +539,22 @@ export function ProviderModelsSection({
               }
               if (event.key !== "Enter") return;
               event.preventDefault();
-              handleAdd();
+              void handleAdd();
             }}
-            placeholder={driverKind ? CUSTOM_MODEL_PLACEHOLDER_BY_KIND[driverKind] : "model-slug"}
+            placeholder={
+              driverKind
+                ? CUSTOM_MODEL_PLACEHOLDER_BY_KIND[driverKind]
+                : "model-slug"
+            }
             spellCheck={false}
           />
           <div className="flex shrink-0 gap-2">
-            <Button size="sm" variant="outline" onClick={handleAdd}>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={isSaving}
+              onClick={handleAdd}
+            >
               {translateWebSource(locale, "Add")}
             </Button>
             <Button size="sm" variant="ghost" onClick={cancelAdd}>
@@ -452,14 +566,16 @@ export function ProviderModelsSection({
 
       {driverKind !== "antigravity" && error ? (
         <p className="mt-2 text-xs text-destructive">
-          {t(`providers.models.validation.${error}`, { count: MAX_CUSTOM_MODEL_LENGTH })}
+          {t(`providers.models.validation.${error}`, {
+            count: MAX_CUSTOM_MODEL_LENGTH,
+          })}
         </p>
       ) : null}
     </div>
   );
 }
 
-function ProviderModelRow({
+const ProviderModelRow = memo(function ProviderModelRow({
   model,
   isHidden,
   isFavorite,
@@ -491,10 +607,13 @@ function ProviderModelRow({
   readonly onRemove: (slug: string) => void;
 }) {
   const { locale, t } = useI18n();
-  const capLabels = describeModelCapabilities(model, flagMissingReasoning).map((label) =>
-    translateWebSource(locale, label),
+  const capLabels = describeModelCapabilities(model, flagMissingReasoning).map(
+    (label) => translateWebSource(locale, label),
   );
-  const nameClassName = cn("text-xs", isHidden ? "text-muted-foreground" : "text-foreground/90");
+  const nameClassName = cn(
+    "text-xs",
+    isHidden ? "text-muted-foreground" : "text-foreground/90",
+  );
   const pickerTooltip = model.isCustom
     ? t("providers.models.customAlwaysShown")
     : isHidden
@@ -526,20 +645,31 @@ function ProviderModelRow({
             />
           }
         >
-          <StarIcon className={cn("size-3", isFavorite && "fill-current text-warning")} />
+          <StarIcon
+            className={cn("size-3", isFavorite && "fill-current text-warning")}
+          />
         </TooltipTrigger>
         <TooltipPopup side="top">
-          {t(isFavorite ? "providers.models.removeFavorite" : "providers.models.addFavorite")}
+          {t(
+            isFavorite
+              ? "providers.models.removeFavorite"
+              : "providers.models.addFavorite",
+          )}
         </TooltipPopup>
       </Tooltip>
       <span className="flex min-w-0 items-baseline gap-2">
         <Tooltip>
           <TooltipTrigger
             render={
-              <span tabIndex={0} className="flex min-w-0 items-baseline gap-2 overflow-hidden" />
+              <span
+                tabIndex={0}
+                className="flex min-w-0 items-baseline gap-2 overflow-hidden"
+              />
             }
           >
-            <span className={cn(nameClassName, "max-w-full shrink-0 truncate")}>{model.name}</span>
+            <span className={cn(nameClassName, "max-w-full shrink-0 truncate")}>
+              {model.name}
+            </span>
             {model.name !== model.slug ? (
               <code className="truncate font-mono text-2xs text-muted-foreground/70">
                 {model.slug}
@@ -549,7 +679,9 @@ function ProviderModelRow({
           <TooltipPopup side="top" align="start">
             <div>{model.name}</div>
             {model.name !== model.slug ? (
-              <code className="font-mono text-2xs text-muted-foreground">{model.slug}</code>
+              <code className="font-mono text-2xs text-muted-foreground">
+                {model.slug}
+              </code>
             ) : null}
           </TooltipPopup>
         </Tooltip>
@@ -562,7 +694,9 @@ function ProviderModelRow({
       <span className="text-2xs text-muted-foreground/70">
         {capLabels.length > 0 ? (
           <span className="hidden sm:inline">
-            {capLabels.map((label) => translateWebSource(locale, label)).join(" · ")}
+            {capLabels
+              .map((label) => translateWebSource(locale, label))
+              .join(" · ")}
           </span>
         ) : null}
       </span>
@@ -577,13 +711,17 @@ function ProviderModelRow({
                     variant="ghost-muted"
                     disabled={!canWritePreferences || !canMoveUp}
                     onClick={() => onMove(model.slug, -1)}
-                    aria-label={t("providers.models.moveUpNamed", { model: model.name })}
+                    aria-label={t("providers.models.moveUpNamed", {
+                      model: model.name,
+                    })}
                   />
                 }
               >
                 <ArrowUpIcon className="size-3" />
               </TooltipTrigger>
-              <TooltipPopup side="top">{t("providers.models.moveUp")}</TooltipPopup>
+              <TooltipPopup side="top">
+                {t("providers.models.moveUp")}
+              </TooltipPopup>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger
@@ -593,13 +731,17 @@ function ProviderModelRow({
                     variant="ghost-muted"
                     disabled={!canWritePreferences || !canMoveDown}
                     onClick={() => onMove(model.slug, 1)}
-                    aria-label={t("providers.models.moveDownNamed", { model: model.name })}
+                    aria-label={t("providers.models.moveDownNamed", {
+                      model: model.name,
+                    })}
                   />
                 }
               >
                 <ArrowDownIcon className="size-3" />
               </TooltipTrigger>
-              <TooltipPopup side="top">{t("providers.models.moveDown")}</TooltipPopup>
+              <TooltipPopup side="top">
+                {t("providers.models.moveDown")}
+              </TooltipPopup>
             </Tooltip>
           </>
         ) : null}
@@ -612,7 +754,9 @@ function ProviderModelRow({
                     size="icon-micro"
                     variant="ghost-muted"
                     disabled={!canManageCustomModels}
-                    aria-label={t("settingsControls.editModel", { model: model.slug })}
+                    aria-label={t("settingsControls.editModel", {
+                      model: model.slug,
+                    })}
                     onClick={() => onToggleEdit(model.slug)}
                   />
                 }
@@ -630,7 +774,9 @@ function ProviderModelRow({
                     size="icon-micro"
                     variant="ghost-muted"
                     disabled={!canManageCustomModels}
-                    aria-label={t("settingsControls.removeModel", { model: model.slug })}
+                    aria-label={t("settingsControls.removeModel", {
+                      model: model.slug,
+                    })}
                     onClick={() => onRemove(model.slug)}
                   />
                 }
@@ -646,7 +792,9 @@ function ProviderModelRow({
       </span>
       {/* Disabled switches receive no pointer events; wrap the tooltip trigger. */}
       <Tooltip>
-        <TooltipTrigger render={<span className="flex shrink-0 items-center" />}>
+        <TooltipTrigger
+          render={<span className="flex shrink-0 items-center" />}
+        >
           <Switch
             size="sm"
             checked={!isHidden}
@@ -659,4 +807,4 @@ function ProviderModelRow({
       </Tooltip>
     </div>
   );
-}
+});

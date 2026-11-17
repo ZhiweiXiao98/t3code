@@ -44,3 +44,15 @@ it("localizes connection copy while preserving opaque names, errors and unknown 
     }
   }
 });
+
+it("preserves approval-wait names and server details without applying retry copy", () => {
+  const literal = "Settings {0} $&";
+  expect(noticeTitle("connecting", literal, "zh-CN", true)).toBe(
+    `正在等待 ${literal} 批准此设备`,
+  );
+  expect(noticeTitle("connecting", literal, "en", true)).toBe(
+    `Waiting for ${literal} to approve this device`,
+  );
+  expect(noticeDetail("reconnecting", "preview", literal, "zh-CN", true)).toBe(literal);
+  expect(noticeDetail("reconnecting", "preview", literal, "en", true)).toBe(literal);
+});

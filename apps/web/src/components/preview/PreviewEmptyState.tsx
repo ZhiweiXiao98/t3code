@@ -1,6 +1,7 @@
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
 import type { EnvironmentId, ScopedThreadRef } from "@t3tools/contracts";
+import { parseUrl } from "@t3tools/shared/url";
 import { Globe, History, RadioTower } from "lucide-react";
 
 import type { BrowserHistoryEntry } from "~/browserHistoryStore";
@@ -33,7 +34,7 @@ export function PreviewEmptyState({
     environmentId,
     configuredUrls,
   });
-  const recents = recentEntries.filter((entry) => URL.canParse(entry.url)).slice(0, 8);
+  const recents = recentEntries.filter((entry) => parseUrl(entry.url) !== null).slice(0, 8);
 
   if (servers.length === 0 && recents.length === 0) {
     return (

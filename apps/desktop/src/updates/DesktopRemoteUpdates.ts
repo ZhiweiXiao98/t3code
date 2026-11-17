@@ -33,6 +33,8 @@ const PREPARED_UPDATE_TTL = Duration.minutes(5);
 
 interface PreparedUpdate {
   readonly requestId: string;
+  readonly channel: DesktopTelemetryRequestDesktopUpdate["channel"];
+  readonly targetVersion: DesktopTelemetryRequestDesktopUpdate["targetVersion"];
   readonly downloadedVersion: string;
   readonly status: "prepared" | "committing" | "failed";
   readonly failureReason?: string;
@@ -73,6 +75,7 @@ export const listen: Effect.Effect<
       readonly outcome: DesktopUpdateRemoteOutcome;
       readonly reason?: string;
       readonly reasonMessage?: UpdateFailureReasonMessage;
+      readonly preparedRequestId?: string;
     },
     explicitRequestId?: string,
   ): Effect.Effect<void> => {
@@ -96,6 +99,9 @@ export const listen: Effect.Effect<
                   : { reasonMessage: terminal.reasonMessage }),
               }
             : {}),
+          ...(terminal?.preparedRequestId === undefined
+            ? {}
+            : { preparedRequestId: terminal.preparedRequestId }),
           state,
         }),
       ),
@@ -199,8 +205,22 @@ export const listen: Effect.Effect<
             : ([current, current] as const),
         );
         if (Option.isSome(prepared) && prepared.value.status !== "failed") {
+          const state = yield* updates.getState;
+          if (
+            prepared.value.status === "prepared" &&
+            prepared.value.channel === request.channel &&
+            prepared.value.targetVersion === request.targetVersion &&
+            state.downloadedVersion === prepared.value.downloadedVersion
+          ) {
+            yield* publishReport(
+              state,
+              { outcome: "ready-to-install", preparedRequestId: prepared.value.requestId },
+              request.requestId,
+            );
+            return;
+          }
           yield* publishReport(
-            yield* updates.getState,
+            state,
             {
               outcome: "failed",
               reason: "A prepared desktop update is already in progress.",
@@ -341,6 +361,8 @@ export const listen: Effect.Effect<
                 preparedUpdateRef,
                 Option.some({
                   requestId: request.requestId,
+                  channel: request.channel,
+                  targetVersion: request.targetVersion,
                   downloadedVersion: state.downloadedVersion,
                   status: "prepared",
                   expiresAt:

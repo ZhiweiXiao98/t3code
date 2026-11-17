@@ -187,16 +187,18 @@ vi.mock("./settings-environment-filter", () => ({
 }));
 vi.mock("./scheduled-task-editor", () => ({
   useScheduledTaskDestinationLabel: () => "Open",
+  useScheduledTaskThread: () => ({ modelSelection: state.fixture!.task.modelSelection }),
   useScheduledTaskEditor: () => ({
     editor: state.editor,
     voiceOwnerKey: "scheduled-task:test",
     readEditor: () => state.editor,
-    setEditor: (editor: ScheduledTaskEditor) => {
-      state.editor = editor;
+    setEditor: (update: ScheduledTaskEditor | null | ((current: ScheduledTaskEditor | null) => ScheduledTaskEditor | null)) => {
+      state.editor = typeof update === "function" ? update(state.editor) : update;
     },
     hasChanges: false,
     startEditor: state.startEditor,
     resetEditor: vi.fn(),
+    draftForEnvironment: () => state.editor!.draft,
   }),
 }));
 vi.mock("./scheduled-task-editor-state", () => ({

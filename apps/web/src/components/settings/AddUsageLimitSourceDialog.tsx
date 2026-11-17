@@ -1,5 +1,9 @@
-import type { EnvironmentId, SecretReference, UnifiedSettings } from "@t3tools/contracts";
-import { useState } from "react";
+import type {
+  EnvironmentId,
+  SecretReference,
+  UnifiedSettings,
+} from "@t3tools/contracts";
+import { useId, useState } from "react";
 
 import { useUpdateEnvironmentSettings } from "../../hooks/useSettings";
 import { useI18n } from "../../i18n/WebI18nContext";
@@ -33,13 +37,15 @@ export function AddUsageLimitSourceDialog({
   readonly sources: UnifiedSettings["usageLimitSources"];
 }) {
   const { t } = useI18n();
+  const formId = useId();
   const updateSettings = useUpdateEnvironmentSettings(environmentId);
   const [label, setLabel] = useState("");
   const [url, setUrl] = useState("");
   const secretSources = useSecretSources(environmentId);
   const [keyDraft, setKeyDraft] = useState<string | SecretReference>("");
   const [keyValid, setKeyValid] = useState(true);
-  const managementKey = typeof keyDraft === "string" ? keyDraft.trim() : keyDraft;
+  const managementKey =
+    typeof keyDraft === "string" ? keyDraft.trim() : keyDraft;
   const trimmedUrl = url.trim();
   const canSave = keyValid && trimmedUrl.length > 0 && managementKey !== "";
 
@@ -80,11 +86,14 @@ export function AddUsageLimitSourceDialog({
         <DialogHeader>
           <DialogTitle>{t("usageSource.add.title")}</DialogTitle>
           <DialogDescription>
-            {t("usageSource.add.description", { environment: environmentLabel })}
+            {t("usageSource.add.description", {
+              environment: environmentLabel,
+            })}
           </DialogDescription>
         </DialogHeader>
         <DialogPanel>
           <form
+            id={formId}
             className="grid gap-4"
             onSubmit={(event) => {
               event.preventDefault();
@@ -92,7 +101,9 @@ export function AddUsageLimitSourceDialog({
             }}
           >
             <div className="grid gap-1.5">
-              <Label htmlFor="usage-source-url">{t("usageSource.add.url")}</Label>
+              <Label htmlFor="usage-source-url">
+                {t("usageSource.add.url")}
+              </Label>
               <Input
                 id="usage-source-url"
                 placeholder="https://hub.example.ts.net:8318"
@@ -102,19 +113,24 @@ export function AddUsageLimitSourceDialog({
               />
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="usage-source-key">{t("usageSource.add.managementKey")}</Label>
+              <Label htmlFor="usage-source-key">
+                {t("usageSource.add.managementKey")}
+              </Label>
               <SecretSourceInput
                 id="usage-source-key"
                 aria-label={t("usageSource.add.managementKey")}
                 value={keyDraft}
                 sources={secretSources}
+                environmentId={environmentId}
                 onChange={(event) => setKeyDraft(event.target.value)}
                 onSecretChange={(secret) => setKeyDraft(secret ?? "")}
                 onValidityChange={setKeyValid}
               />
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="usage-source-label">{t("usageSource.add.label")}</Label>
+              <Label htmlFor="usage-source-label">
+                {t("usageSource.add.label")}
+              </Label>
               <Input
                 id="usage-source-label"
                 placeholder={t("usageSource.add.labelPlaceholder")}
@@ -134,7 +150,7 @@ export function AddUsageLimitSourceDialog({
           >
             {t("common.cancel")}
           </Button>
-          <Button onClick={save} disabled={!canSave}>
+          <Button type="submit" form={formId} disabled={!canSave}>
             {t("usageSource.add.action")}
           </Button>
         </DialogFooter>

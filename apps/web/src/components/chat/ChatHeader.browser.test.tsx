@@ -9,14 +9,17 @@ vi.mock(import("../../state/session"), async (importOriginal) => ({
   useEnvironmentScope: () => true,
   readEnvironmentScope: () => true,
 }));
-vi.mock(import("../../state/use-orchestration-command"), async (importOriginal) => ({
-  ...(await importOriginal()),
-  useOrchestrationCommand: (() =>
-    async ({ input }: { input: { title: string } }) => {
-      persisted.title = input.title;
-      return { _tag: "Success" };
-    }) as never,
-}));
+vi.mock(
+  import("../../state/use-orchestration-command"),
+  async (importOriginal) => ({
+    ...(await importOriginal()),
+    useOrchestrationCommand: (() =>
+      async ({ input }: { input: { title: string } }) => {
+        persisted.title = input.title;
+        return { _tag: "Success" };
+      }) as never,
+  }),
+);
 vi.mock(import("~/hooks/useThreadActionMenu"), () => ({
   useThreadActionMenu: () => ({ openMenu, closeMenu: () => {} }),
 }));
@@ -50,7 +53,9 @@ it.each(["blur", "Enter"] as const)(
   async (finish) => {
     persisted.title = "New thread";
     await using screen = await render(header(persisted.title));
-    await screen.getByRole("button", { name: "Thread actions for New thread" }).dblClick();
+    await screen
+      .getByRole("button", { name: "Thread actions for New thread" })
+      .dblClick();
     const input = screen.getByRole("textbox", { name: "Thread title" });
     await expect.element(input).toHaveValue("New thread");
 
@@ -63,8 +68,12 @@ it.each(["blur", "Enter"] as const)(
     expect(persisted.title).toBe("Fix login redirect");
 
     await screen.rerender(header(persisted.title));
-    await screen.getByRole("button", { name: "Thread actions for Fix login redirect" }).dblClick();
-    await screen.getByRole("textbox", { name: "Thread title" }).fill("My edited title");
+    await screen
+      .getByRole("button", { name: "Thread actions for Fix login redirect" })
+      .dblClick();
+    await screen
+      .getByRole("textbox", { name: "Thread title" })
+      .fill("My edited title");
     persisted.title = "Another concurrent title";
     await screen.rerender(header(persisted.title));
     await userEvent.keyboard("{Enter}");
@@ -79,7 +88,9 @@ it("opens the thread menu on a desktop title click without waiting", async () =>
   openMenu.mockClear();
   using _bridge = stubGlobal("desktopBridge", {});
   await using screen = await render(header("New thread"));
-  await screen.getByRole("button", { name: "Thread actions for New thread" }).click();
+  await screen
+    .getByRole("button", { name: "Thread actions for New thread" })
+    .click();
   expect(openMenu).toHaveBeenCalledOnce();
 });
 
@@ -110,15 +121,52 @@ it("opens the draft project menu in the current language and retains the setting
     </WebI18nContext>
   );
   await using screen = await render(draft("zh-CN"));
-  await userEvent.click(screen.getByRole("heading", { name: "Project settings", exact: true }), {
-    button: "right",
-  });
+  await userEvent.click(
+    screen.getByRole("heading", { name: "Project settings", exact: true }),
+    {
+      button: "right",
+    },
+  );
   await page.getByRole("menuitem", { name: "项目设置", exact: true }).click();
-  await vi.waitFor(() => expect(onOpenProjectSettings).toHaveBeenCalledTimes(1));
+  await vi.waitFor(() =>
+    expect(onOpenProjectSettings).toHaveBeenCalledTimes(1),
+  );
   await screen.rerender(draft("en"));
-  await userEvent.click(screen.getByRole("heading", { name: "Project settings", exact: true }), {
-    button: "right",
-  });
-  await page.getByRole("menuitem", { name: "Project settings", exact: true }).click();
-  await vi.waitFor(() => expect(onOpenProjectSettings).toHaveBeenCalledTimes(2));
+  await userEvent.click(
+    screen.getByRole("heading", { name: "Project settings", exact: true }),
+    {
+      button: "right",
+    },
+  );
+  await page
+    .getByRole("menuitem", { name: "Project settings", exact: true })
+    .click();
+  await vi.waitFor(() =>
+    expect(onOpenProjectSettings).toHaveBeenCalledTimes(2),
+  );
+});
+
+it("keeps the Escape that cancels a rename from also reaching window shortcuts", async () => {
+  persisted.title = "New thread";
+  await using screen = await render(header(persisted.title));
+  await screen
+    .getByRole("button", { name: "Thread actions for New thread" })
+    .dblClick();
+  const input = screen.getByRole("textbox", { name: "Thread title" });
+  await input.fill("Unsaved title");
+
+  // The thread find bar closes from a window keydown listener that skips handled events.
+  const windowEscapes: boolean[] = [];
+  const recordEscape = (event: KeyboardEvent) => {
+    if (event.key === "Escape") windowEscapes.push(event.defaultPrevented);
+  };
+  window.addEventListener("keydown", recordEscape);
+  using _listener = {
+    [Symbol.dispose]: () => window.removeEventListener("keydown", recordEscape),
+  };
+  await userEvent.keyboard("{Escape}");
+
+  await expect.element(input).not.toBeInTheDocument();
+  expect(persisted.title).toBe("New thread");
+  expect(windowEscapes).toEqual([true]);
 });

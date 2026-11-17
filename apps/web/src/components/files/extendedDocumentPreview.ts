@@ -5,16 +5,31 @@ import {
   readImageDimensions,
 } from "@t3tools/shared/imageDimensions";
 import { XMLParser, XMLValidator } from "fast-xml-parser";
-import { decodeHTMLAttribute, decodeHTMLStrict as decodeEntities } from "entities";
+import {
+  decodeHTMLAttribute,
+  decodeHTMLStrict as decodeEntities,
+} from "entities";
 import type JSZip from "jszip";
+import { terminalOutputPlainText } from "@t3tools/shared/terminalOutput";
 
-import { type OfficeWorkerResult, type NotebookCell } from "./officePreviewProtocol";
+import {
+  type OfficeWorkerResult,
+  type NotebookCell,
+} from "./officePreviewProtocol";
 
-const ODS_PREVIEW_MAX_ROWS = 500;
-const ODS_PREVIEW_MAX_COLUMNS = 50;
+const TABLE_PREVIEW_MAX_ROWS = 500;
+const TABLE_PREVIEW_MAX_COLUMNS = 50;
 
-type XmlNode = { name: string; attrs: Record<string, string>; children: XmlNode[]; text: string };
-type OrderedXml = { [key: string]: OrderedXml[] | Record<string, string> | string };
+// `text` and `attrs` hold decoded values: escaped text is decoded once, CDATA stays literal.
+type XmlNode = {
+  name: string;
+  attrs: Record<string, string>;
+  children: XmlNode[];
+  text: string;
+};
+type OrderedXml = {
+  [key: string]: OrderedXml[] | Record<string, string> | string;
+};
 const escape = (value: string) =>
   value
     .replaceAll("&", "&amp;")
@@ -27,6 +42,7 @@ const namespacePrefixes: Record<string, string> = {
   "urn:oasis:names:tc:opendocument:xmlns:table:1.0": "table",
   "urn:oasis:names:tc:opendocument:xmlns:text:1.0": "text",
   "urn:oasis:names:tc:opendocument:xmlns:drawing:1.0": "draw",
+  "urn:oasis:names:tc:opendocument:xmlns:presentation:1.0": "presentation",
   "http://www.w3.org/1999/xlink": "xlink",
   "http://www.w3.org/1999/xhtml": "",
   "http://www.idpf.org/2007/opf": "",
@@ -40,7 +56,9 @@ function parseXml(source: string): XmlNode {
     /<!\s*(DOCTYPE|ENTITY)/i.test(source) ||
     XMLValidator.validate(source) !== true
   )
-    throw createFilePreviewError("This document contains invalid or unsupported XML.");
+    throw createFilePreviewError(
+      "This document contains invalid or unsupported XML.",
+    );
   const parser = new XMLParser({
     preserveOrder: true,
     ignoreAttributes: false,
@@ -48,6 +66,7 @@ function parseXml(source: string): XmlNode {
     processEntities: false,
     trimValues: false,
     parseTagValue: false,
+    cdataPropName: "#cdata",
   });
   const ordered = parser.parse(source) as OrderedXml[];
   let count = 0;
@@ -56,17 +75,27 @@ function parseXml(source: string): XmlNode {
     depth: number,
     inherited: Record<string, string>,
   ): XmlNode[] {
-    if (depth > 100) throw createFilePreviewError("This document is nested too deeply to preview.");
+    if (depth > 100)
+      throw createFilePreviewError(
+        "This document is nested too deeply to preview.",
+      );
     return items.map((item) => {
       if (++count > 100_000)
-        throw createFilePreviewError("This document has too much content to preview.");
+        throw createFilePreviewError(
+          "This document has too much content to preview.",
+        );
       const name = Object.keys(item).find((key) => key !== ":@") ?? "#text";
       const value = item[name];
+      if (name === "#cdata") {
+        const literal = Array.isArray(value)
+          ? value.map((part) => part["#text"] ?? "").join("")
+          : "";
+        return { name: "#text", attrs: {}, children: [], text: literal };
+      }
       const attrs = Object.fromEntries(
-        Object.entries((item[":@"] ?? {}) as Record<string, string>).map(([key, value]) => [
-          key,
-          decodeEntities(value),
-        ]),
+        Object.entries((item[":@"] ?? {}) as Record<string, string>).map(
+          ([key, value]) => [key, decodeEntities(value)],
+        ),
       );
       const namespaces = Object.create(inherited) as Record<string, string>;
       for (const [key, value] of Object.entries(attrs)) {
@@ -79,7 +108,9 @@ function parseXml(source: string): XmlNode {
         if (colon < 0 && attribute) return name;
         const uri = namespaces[colon < 0 ? "" : name.slice(0, colon)];
         if (!uri) return name;
-        const prefix = Object.hasOwn(namespacePrefixes, uri) ? namespacePrefixes[uri] : undefined;
+        const prefix = Object.hasOwn(namespacePrefixes, uri)
+          ? namespacePrefixes[uri]
+          : undefined;
         const local = name.slice(colon + 1);
         return prefix === undefined
           ? "{" + uri + "}" + local
@@ -90,17 +121,26 @@ function parseXml(source: string): XmlNode {
       return {
         name: expanded(name),
         attrs: Object.fromEntries(
-          Object.entries(attrs).map(([key, value]) => [expanded(key, true), value]),
+          Object.entries(attrs).map(([key, value]) => [
+            expanded(key, true),
+            value,
+          ]),
         ),
-        children: Array.isArray(value) ? convert(value, depth + 1, namespaces) : [],
-        text: typeof value === "string" ? value : "",
+        children: Array.isArray(value)
+          ? convert(value, depth + 1, namespaces)
+          : [],
+        text: typeof value === "string" ? decodeEntities(value) : "",
       };
     });
   }
   return {
     name: "root",
     attrs: {},
-    children: convert(ordered, 0, Object.create(null) as Record<string, string>),
+    children: convert(
+      ordered,
+      0,
+      Object.create(null) as Record<string, string>,
+    ),
     text: "",
   };
 }
@@ -108,17 +148,19 @@ function find(node: XmlNode, name: string, skip?: string): XmlNode[] {
   return node.children.flatMap((child) =>
     child.name === skip
       ? []
-      : child.name === name || (!name.includes(":") && child.name.endsWith(`:${name}`))
+      : child.name === name ||
+          (!name.includes(":") && child.name.endsWith(`:${name}`))
         ? [child]
         : find(child, name, skip),
   );
 }
 function text(node: XmlNode): string {
   if (node.name === "office:annotation") return "";
-  if (node.name === "text:s") return " ".repeat(repeat(node.attrs["text:c"], 100));
+  if (node.name === "text:s")
+    return " ".repeat(repeat(node.attrs["text:c"], 100));
   if (node.name === "text:tab") return "\t";
   if (node.name === "text:line-break") return "\n";
-  return node.name === "#text" ? decodeEntities(node.text) : node.children.map(text).join("");
+  return node.name === "#text" ? node.text : node.children.map(text).join("");
 }
 function archivePath(base: string, href: string): string | null {
   if (/^(?:[a-z][a-z\d+.-]*:|\/|\\)/i.test(href)) return null;
@@ -138,7 +180,9 @@ function archivePath(base: string, href: string): string | null {
   return parts.join("/");
 }
 function imageFits(bytes: Uint8Array) {
-  const size = readImageDimensions(bytes.subarray(0, IMAGE_DIMENSIONS_HEADER_BYTES));
+  const size = readImageDimensions(
+    bytes.subarray(0, IMAGE_DIMENSIONS_HEADER_BYTES),
+  );
   return size !== null && size.width <= 16_777_216 / size.height;
 }
 function base64ImageFits(base64: string) {
@@ -165,7 +209,13 @@ function htmlImagesFit(html: string) {
 async function imageData(archive: JSZip, path: string | null): Promise<string> {
   if (!path) return "";
   const mime = (
-    { png: "png", jpg: "jpeg", jpeg: "jpeg", gif: "gif", webp: "webp" } as Record<string, string>
+    {
+      png: "png",
+      jpg: "jpeg",
+      jpeg: "jpeg",
+      gif: "gif",
+      webp: "webp",
+    } as Record<string, string>
   )[path.split(".").at(-1)?.toLowerCase() ?? ""];
   const entry = archive.file(path);
   if (!mime || !entry) return "";
@@ -178,7 +228,9 @@ let markupBytes = 0;
 function reserveMarkup(size: number) {
   markupBytes += size;
   if (markupBytes > 16 * 1024 * 1024)
-    throw createFilePreviewError("The rendered document is too large to preview.");
+    throw createFilePreviewError(
+      "The rendered document is too large to preview.",
+    );
 }
 function boundedMarkup(value: string): string {
   reserveMarkup(value.length);
@@ -223,28 +275,52 @@ const HTML_TAGS = new Set([
   "dt",
   "dd",
 ]);
-async function epubHtml(node: XmlNode, archive: JSZip, base: string): Promise<string> {
+async function epubHtml(
+  node: XmlNode,
+  archive: JSZip,
+  base: string,
+): Promise<string> {
   if (node.name === "#text") return pipe(text(node), escape, boundedMarkup);
   const tag =
     node.name
       .replace(/^\{[^}]*\}/, "")
       .split(":")
       .at(-1) ?? "";
-  if (["head", "script", "style", "iframe", "object", "embed", "svg", "math", "form"].includes(tag))
+  if (
+    [
+      "head",
+      "script",
+      "style",
+      "iframe",
+      "object",
+      "embed",
+      "svg",
+      "math",
+      "form",
+    ].includes(tag)
+  )
     return "";
   if (tag === "br" || tag === "hr") return boundedMarkup(`<${tag}>`);
   if (tag === "img") {
-    const src = await imageData(archive, archivePath(base, node.attrs.src ?? ""));
-    return src ? `<img src="${src}" alt="${boundedMarkup(escape(node.attrs.alt ?? ""))}">` : "";
+    const src = await imageData(
+      archive,
+      archivePath(base, node.attrs.src ?? ""),
+    );
+    return src
+      ? `<img src="${src}" alt="${boundedMarkup(escape(node.attrs.alt ?? ""))}">`
+      : "";
   }
   let children = "";
-  for (const child of node.children) children += await epubHtml(child, archive, base);
+  for (const child of node.children)
+    children += await epubHtml(child, archive, base);
   if (!HTML_TAGS.has(tag)) return children;
   const spans =
     tag === "td" || tag === "th"
       ? ["colspan", "rowspan"]
           .map((name) =>
-            /^\d{1,4}$/.test(node.attrs[name] ?? "") ? ` ${name}="${node.attrs[name]}"` : "",
+            /^\d{1,4}$/.test(node.attrs[name] ?? "")
+              ? ` ${name}="${node.attrs[name]}"`
+              : "",
           )
           .join("")
       : "";
@@ -268,6 +344,7 @@ async function odfHtml(node: XmlNode, archive: JSZip): Promise<string> {
   if (
     [
       "office:annotation",
+      "presentation:notes",
       "text:tracked-changes",
       "office:scripts",
       "draw:object",
@@ -289,13 +366,25 @@ async function odfHtml(node: XmlNode, archive: JSZip): Promise<string> {
   };
   const tag = tags[node.name];
   if (!tag) return children;
-  reserveMarkup(tag.length * 2 + 5);
-  return `<${tag}>${children}</${tag}>`;
+  const count =
+    tag === "tr"
+      ? repeat(node.attrs["table:number-rows-repeated"], TABLE_PREVIEW_MAX_ROWS)
+      : tag === "td"
+        ? repeat(
+            node.attrs["table:number-columns-repeated"],
+            TABLE_PREVIEW_MAX_COLUMNS,
+          )
+        : 1;
+  const markup = `<${tag}>${children}</${tag}>`;
+  reserveMarkup(count * markup.length - children.length);
+  return markup.repeat(count);
 }
 function repeat(value: string | undefined, max: number) {
   const count = Number(value ?? 1);
   if (!Number.isSafeInteger(count) || count < 1)
-    throw createFilePreviewError("This spreadsheet contains invalid repeated cells.");
+    throw createFilePreviewError(
+      "This document contains invalid repeated content.",
+    );
   return Math.min(count, max);
 }
 export async function openDocument(
@@ -304,12 +393,17 @@ export async function openDocument(
 ): Promise<OfficeWorkerResult> {
   markupBytes = 0;
   const source = await archive.file("content.xml")?.async("string");
-  if (!source) throw createFilePreviewError("This OpenDocument file has no readable content.");
+  if (!source)
+    throw createFilePreviewError(
+      "This OpenDocument file has no readable content.",
+    );
   const root = parseXml(source);
   if (kind === "ods") {
     const tables = find(root, "table:table");
     if (!tables.length || tables.length > 100)
-      throw createFilePreviewError("This workbook has no sheets or too many sheets to preview.");
+      throw createFilePreviewError(
+        "This workbook has no sheets or too many sheets to preview.",
+      );
     let cellBytes = 0;
     return {
       type: "ods",
@@ -320,43 +414,65 @@ export async function openDocument(
         for (const row of find(table, "table:table-row")) {
           const cells: string[] = [];
           for (const cell of row.children.filter((child) =>
-            ["table:table-cell", "table:covered-table-cell"].includes(child.name),
+            ["table:table-cell", "table:covered-table-cell"].includes(
+              child.name,
+            ),
           )) {
             const value =
               find(cell, "text:p", "office:annotation").map(text).join("\n") ||
               cell.attrs["office:value"] ||
               cell.attrs["office:date-value"] ||
+              cell.attrs["office:time-value"] ||
               cell.attrs["office:boolean-value"] ||
               cell.attrs["office:string-value"] ||
               "";
             const count = repeat(
               cell.attrs["table:number-columns-repeated"],
-              ODS_PREVIEW_MAX_COLUMNS + 1,
+              TABLE_PREVIEW_MAX_COLUMNS + 1,
             );
-            if (value && cells.length + count > ODS_PREVIEW_MAX_COLUMNS) truncated = true;
-            for (let i = 0; i < count && cells.length < ODS_PREVIEW_MAX_COLUMNS; i++) {
+            if (value && cells.length + count > TABLE_PREVIEW_MAX_COLUMNS)
+              truncated = true;
+            for (
+              let i = 0;
+              i < count && cells.length < TABLE_PREVIEW_MAX_COLUMNS;
+              i++
+            ) {
               if (value.length > 10_000)
-                throw createFilePreviewError("A spreadsheet cell is too large to preview.");
+                throw createFilePreviewError(
+                  "A spreadsheet cell is too large to preview.",
+                );
               cells.push(value);
             }
           }
           while (cells.at(-1) === "") cells.pop();
-          const count = repeat(row.attrs["table:number-rows-repeated"], ODS_PREVIEW_MAX_ROWS + 1);
+          const count = repeat(
+            row.attrs["table:number-rows-repeated"],
+            TABLE_PREVIEW_MAX_ROWS + 1,
+          );
           if (!cells.length) {
-            pendingEmptyRows = Math.min(ODS_PREVIEW_MAX_ROWS + 1, pendingEmptyRows + count);
+            pendingEmptyRows = Math.min(
+              TABLE_PREVIEW_MAX_ROWS + 1,
+              pendingEmptyRows + count,
+            );
             continue;
           }
-          while (pendingEmptyRows > 0 && rows.length < ODS_PREVIEW_MAX_ROWS) {
+          while (pendingEmptyRows > 0 && rows.length < TABLE_PREVIEW_MAX_ROWS) {
             rows.push([]);
             pendingEmptyRows--;
           }
           pendingEmptyRows = 0;
-          if (rows.length + count > ODS_PREVIEW_MAX_ROWS) truncated = true;
-          if (rows.length >= ODS_PREVIEW_MAX_ROWS) break;
-          for (let i = 0; i < count && rows.length < ODS_PREVIEW_MAX_ROWS; i++) {
+          if (rows.length + count > TABLE_PREVIEW_MAX_ROWS) truncated = true;
+          if (rows.length >= TABLE_PREVIEW_MAX_ROWS) break;
+          for (
+            let i = 0;
+            i < count && rows.length < TABLE_PREVIEW_MAX_ROWS;
+            i++
+          ) {
             cellBytes += cells.reduce((size, cell) => size + cell.length, 0);
             if (cellBytes > 8 * 1024 * 1024)
-              throw createFilePreviewError("This spreadsheet has too much text to preview.");
+              throw createFilePreviewError(
+                "This spreadsheet has too much text to preview.",
+              );
             rows.push(cells);
           }
         }
@@ -364,15 +480,21 @@ export async function openDocument(
           name: table.attrs["table:name"] || `Sheet ${index + 1}`,
           rows,
           rowCount: rows.length,
-          columns: rows.reduce((columns, row) => Math.max(columns, row.length), 1),
+          columns: rows.reduce(
+            (columns, row) => Math.max(columns, row.length),
+            1,
+          ),
           truncated,
         };
       }),
     };
   }
-  const pages = kind === "odp" ? find(root, "draw:page") : find(root, "office:text");
+  const pages =
+    kind === "odp" ? find(root, "draw:page") : find(root, "office:text");
   if (!pages.length || pages.length > 500)
-    throw createFilePreviewError("This document has no pages or too many pages to preview.");
+    throw createFilePreviewError(
+      "This document has no pages or too many pages to preview.",
+    );
   const rendered = [];
   for (const [index, page] of pages.entries()) {
     rendered.push({
@@ -380,19 +502,29 @@ export async function openDocument(
       html: await odfHtml(page, archive),
     });
   }
-  return { type: "document", navigation: kind === "odp" ? "slide" : "page", pages: rendered };
+  return {
+    type: "document",
+    navigation: kind === "odp" ? "slide" : "page",
+    pages: rendered,
+  };
 }
 export async function openEpub(archive: JSZip): Promise<OfficeWorkerResult> {
   markupBytes = 0;
-  const container = parseXml((await archive.file("META-INF/container.xml")?.async("string")) ?? "");
+  const container = parseXml(
+    (await archive.file("META-INF/container.xml")?.async("string")) ?? "",
+  );
   const rootfile = find(container, "rootfile")[0]?.attrs["full-path"];
   if (!rootfile || !archive.file(rootfile))
     throw createFilePreviewError("This EPUB has no readable package.");
   const packageRoot = parseXml(await archive.file(rootfile)!.async("string"));
-  const manifest = new Map(find(packageRoot, "item").map((item) => [item.attrs.id, item]));
+  const manifest = new Map(
+    find(packageRoot, "item").map((item) => [item.attrs.id, item]),
+  );
   const spine = find(packageRoot, "itemref");
   if (!spine.length || spine.length > 500)
-    throw createFilePreviewError("This EPUB has no chapters or too many chapters to preview.");
+    throw createFilePreviewError(
+      "This EPUB has no chapters or too many chapters to preview.",
+    );
   const pages = [];
   for (const itemref of spine) {
     const item = manifest.get(itemref.attrs.idref);
@@ -407,11 +539,14 @@ export async function openEpub(archive: JSZip): Promise<OfficeWorkerResult> {
     const index: number = pages.length + 1;
     pages.push({
       title: authoredTitle || `Chapter ${index}`,
-      ...(!authoredTitle ? { generatedTitle: { kind: "chapter" as const, index } } : {}),
+      ...(!authoredTitle
+        ? { generatedTitle: { kind: "chapter" as const, index } }
+        : {}),
       html: await epubHtml(chapter, archive, path),
     });
   }
-  if (!pages.length) throw createFilePreviewError("This EPUB has no readable XHTML chapters.");
+  if (!pages.length)
+    throw createFilePreviewError("This EPUB has no readable XHTML chapters.");
   return { type: "document", navigation: "chapter", pages };
 }
 function record(value: unknown): Record<string, unknown> {
@@ -430,39 +565,84 @@ function notebookText(value: unknown, limit = 256_000): string {
     throw createFilePreviewError("A notebook cell is too large to preview.");
   return result;
 }
+// IPython traceback frames carry ANSI SGR colors and may omit a final newline.
+function tracebackLines(value: unknown): unknown {
+  if (!Array.isArray(value)) return value;
+  const frames = value
+    .filter((frame): frame is string => typeof frame === "string")
+    .map(terminalOutputPlainText);
+  return frames.map((frame, index) =>
+    index && !frames[index - 1]!.endsWith("\n") ? `\n${frame}` : frame,
+  );
+}
 export function openNotebook(bytes: ArrayBuffer): OfficeWorkerResult {
   if (bytes.byteLength > 8 * 1024 * 1024)
-    throw createFilePreviewError("Notebook preview limited to files under 8 MB.");
-  const notebook = record(JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)));
-  if (notebook.nbformat !== 4 || !Array.isArray(notebook.cells) || notebook.cells.length > 500)
-    throw createFilePreviewError("Preview supports version 4 notebooks with up to 500 cells.");
-  const language = String(record(record(notebook.metadata).language_info).name ?? "text")
+    throw createFilePreviewError(
+      "Notebook preview limited to files under 8 MB.",
+    );
+  const notebook = record(
+    JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)),
+  );
+  if (
+    notebook.nbformat !== 4 ||
+    !Array.isArray(notebook.cells) ||
+    notebook.cells.length > 500
+  )
+    throw createFilePreviewError(
+      "Preview supports version 4 notebooks with up to 500 cells.",
+    );
+  const language = String(
+    record(record(notebook.metadata).language_info).name ?? "text",
+  )
     .replaceAll(/[^a-z\d+#-]/gi, "")
     .slice(0, 40);
   const cells: NotebookCell[] = notebook.cells.map((value) => {
     const cell = record(value);
     const outputs = Array.isArray(cell.outputs) ? cell.outputs : [];
     if (outputs.length > 100)
-      throw createFilePreviewError("A notebook cell has too many outputs to preview.");
+      throw createFilePreviewError(
+        "A notebook cell has too many outputs to preview.",
+      );
     return {
-      kind: cell.cell_type === "markdown" ? "markdown" : cell.cell_type === "code" ? "code" : "raw",
+      kind:
+        cell.cell_type === "markdown"
+          ? "markdown"
+          : cell.cell_type === "code"
+            ? "code"
+            : "raw",
       source: notebookText(cell.source),
       outputs: outputs
         .map((value) => {
           const output = record(value);
           const data = record(output.data);
-          for (const mime of ["image/png", "image/jpeg", "image/gif", "image/webp"]) {
+          for (const mime of [
+            "image/png",
+            "image/jpeg",
+            "image/gif",
+            "image/webp",
+          ]) {
             if (data[mime]) {
-              const base64 = notebookText(data[mime], 4 * 1024 * 1024).replaceAll(/\s/g, "");
+              const base64 = notebookText(
+                data[mime],
+                4 * 1024 * 1024,
+              ).replaceAll(/\s/g, "");
               if (base64ImageFits(base64))
-                return { kind: "image" as const, text: `data:${mime};base64,${base64}` };
+                return {
+                  kind: "image" as const,
+                  text: `data:${mime};base64,${base64}`,
+                };
             }
           }
           const html = notebookText(data["text/html"]);
-          if (html.trim() && htmlImagesFit(html)) return { kind: "html" as const, text: html };
+          if (html.trim() && htmlImagesFit(html))
+            return { kind: "html" as const, text: html };
           return {
             kind: "text" as const,
-            text: notebookText(output.text ?? data["text/plain"] ?? output.traceback),
+            text: notebookText(
+              output.text ??
+                data["text/plain"] ??
+                tracebackLines(output.traceback),
+            ),
           };
         })
         .filter((output) => output.text.trim().length > 0),
@@ -471,9 +651,36 @@ export function openNotebook(bytes: ArrayBuffer): OfficeWorkerResult {
   return { type: "notebook", language, cells };
 }
 
+// Characters RTF writes as control symbols (`\~`) and control words (`\emspace`).
+const RTF_CHARACTERS = new Map([
+  ["~", "\u00a0"],
+  ["_", "\u2011"],
+  ["-", "\u00ad"],
+  ["tab", "\t"],
+  ["cell", "\t"],
+  ["endash", "–"],
+  // oxlint-disable-next-line t3code/no-em-dash-copy -- Preserve the RTF document's punctuation.
+  ["emdash", "—"],
+  ["bullet", "•"],
+  ["lquote", "‘"],
+  ["rquote", "’"],
+  ["ldblquote", "“"],
+  ["rdblquote", "”"],
+  ["enspace", "\u2002"],
+  ["emspace", "\u2003"],
+  ["qmspace", "\u2005"],
+  ["zwbo", "\u200b"],
+  ["zwnj", "\u200c"],
+  ["zwj", "\u200d"],
+  ["ltrmark", "\u200e"],
+  ["rtlmark", "\u200f"],
+]);
+
 export function openRtf(bytes: ArrayBuffer): OfficeWorkerResult {
   if (bytes.byteLength > 8 * 1024 * 1024)
-    throw createFilePreviewError("Rich text preview limited to files under 8 MB.");
+    throw createFilePreviewError(
+      "Rich text preview limited to files under 8 MB.",
+    );
   // Keep byte offsets intact for binary destinations and multibyte code pages.
   const input = new Uint8Array(bytes);
   let source = "";
@@ -511,12 +718,16 @@ export function openRtf(bytes: ArrayBuffer): OfficeWorkerResult {
   const flush = () => {
     if (encodedLength) {
       run += escape(
-        (fonts.get(state.font) ?? state.decoder).decode(encoded.subarray(0, encodedLength)),
+        (fonts.get(state.font) ?? state.decoder).decode(
+          encoded.subarray(0, encodedLength),
+        ),
       );
       encodedLength = 0;
     }
     if (completedLength + html.length + run.length > 8 * 1024 * 1024)
-      throw createFilePreviewError("This rich text document has too much content to preview.");
+      throw createFilePreviewError(
+        "This rich text document has too much content to preview.",
+      );
     if (!run) return;
     let span = run;
     if (state.bold) span = `<strong>${span}</strong>`;
@@ -533,25 +744,30 @@ export function openRtf(bytes: ArrayBuffer): OfficeWorkerResult {
     if (state.skip) return;
     run += escape(value);
     if (completedLength + html.length + run.length > 8 * 1024 * 1024)
-      throw createFilePreviewError("This rich text document has too much content to preview.");
+      throw createFilePreviewError(
+        "This rich text document has too much content to preview.",
+      );
   };
   const emitByte = (value: number) => {
     if (fallback > 0) fallback--;
     else if (!state.skip) encoded[encodedLength++] = value;
   };
-  for (let i = 0; i < source.length;) {
+  for (let i = 0; i < source.length; ) {
     const char = source[i++];
     if (char === "{") {
       flush();
       fallback = 0;
       if (stack.length > 100)
-        throw createFilePreviewError("This rich text document is nested too deeply.");
+        throw createFilePreviewError(
+          "This rich text document is nested too deeply.",
+        );
       stack.push({ ...state });
     } else if (char === "}") {
       flush();
       fallback = 0;
       const parent = stack.pop();
-      if (!parent) throw createFilePreviewError("This rich text document is damaged.");
+      if (!parent)
+        throw createFilePreviewError("This rich text document is damaged.");
       state = parent;
     } else if (char === "\\") {
       const next = source[i];
@@ -576,9 +792,11 @@ export function openRtf(bytes: ArrayBuffer): OfficeWorkerResult {
       }
       const match = /^([a-z]+)(-?\d+)? ?/i.exec(source.slice(i));
       if (!match) {
-        if (next === "~") emit("\u00a0");
+        const character = RTF_CHARACTERS.get(next!);
+        if (character) emit(character);
         // A backslash before a line break is \par; TextEdit ends paragraphs this way.
-        else if ((next === "\n" || next === "\r") && !state.skip) html += "<br>";
+        else if ((next === "\n" || next === "\r") && !state.skip)
+          html += "<br>";
         i++;
         continue;
       }
@@ -654,33 +872,42 @@ export function openRtf(bytes: ArrayBuffer): OfficeWorkerResult {
         try {
           state.decoder = new TextDecoder(label);
         } catch {
-          throw createFilePreviewError("This rich text code page is not supported.");
+          throw createFilePreviewError(
+            "This rich text code page is not supported.",
+          );
         }
       } else if (word === "b") state.bold = arg !== 0;
       else if (word === "i") state.italic = arg !== 0;
       else if (word === "ul") state.underline = arg !== 0;
       else if (word === "ulnone") state.underline = false;
       else if (word === "plain")
-        state = { ...state, bold: false, italic: false, underline: false, font: defaultFont };
+        state = {
+          ...state,
+          bold: false,
+          italic: false,
+          underline: false,
+          font: defaultFont,
+        };
       else if (word === "uc") state.uc = Math.max(0, Math.min(10, arg));
       else if (word === "u") {
         fallback = 0;
         emit(String.fromCharCode(arg < 0 ? arg + 65536 : arg));
         fallback = state.uc;
       } else if (!state.skip && word === "page") finishPage();
-      else if (!state.skip && (word === "par" || word === "line" || word === "row")) html += "<br>";
-      else if (word === "tab" || word === "cell") emit("\t");
-      else if (word === "endash") emit("–");
-      // oxlint-disable-next-line t3code/no-em-dash-copy -- Preserve the RTF document's punctuation.
-      else if (word === "emdash") emit("—");
-      else if (word === "bullet") emit("•");
-      else if (word === "lquote") emit("‘");
-      else if (word === "rquote") emit("’");
-      else if (word === "ldblquote") emit("“");
-      else if (word === "rdblquote") emit("”");
-    } else if (char !== "\r" && char !== "\n" && char) emitByte(char.charCodeAt(0));
+      else if (
+        !state.skip &&
+        (word === "par" || word === "line" || word === "row")
+      )
+        html += "<br>";
+      else {
+        const character = RTF_CHARACTERS.get(word!);
+        if (character) emit(character);
+      }
+    } else if (char !== "\r" && char !== "\n" && char)
+      emitByte(char.charCodeAt(0));
   }
-  if (stack.length) throw createFilePreviewError("This rich text document is damaged.");
+  if (stack.length)
+    throw createFilePreviewError("This rich text document is damaged.");
   flush();
   if (html || !pages.length) finishPage();
   return { type: "document", navigation: "page", pages };

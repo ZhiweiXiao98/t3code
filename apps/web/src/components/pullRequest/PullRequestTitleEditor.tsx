@@ -2,7 +2,11 @@ import { readWebI18n } from "~/i18n/readWebI18n";
 import { useI18n } from "~/i18n/WebI18nContext";
 
 import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
-import type { EnvironmentId, PullRequestDetail, PullRequestRef } from "@t3tools/contracts";
+import type {
+  EnvironmentId,
+  PullRequestDetail,
+  PullRequestRef,
+} from "@t3tools/contracts";
 import { useState } from "react";
 import {
   capitalizeTerm,
@@ -27,23 +31,24 @@ export function PullRequestTitleEditor({
   pullRequestKey,
   detail,
   canWriteSourceControl,
-  onSaved,
 }: {
   environmentId: EnvironmentId;
   reference: PullRequestRef;
   pullRequestKey: string;
   detail: PullRequestDetail;
   canWriteSourceControl: boolean;
-  onSaved: () => void;
 }) {
   const { t, locale } = useI18n();
 
-  const update = useAtomCommand(pullRequestEnvironment.update, { reportFailure: false });
+  const update = useAtomCommand(pullRequestEnvironment.update, {
+    reportFailure: false,
+  });
   const [titleScope, setTitleScope] = useState<{
     readonly pullRequestKey: string;
     readonly text: string;
   } | null>(null);
-  const titleDraft = titleScope?.pullRequestKey === pullRequestKey ? titleScope.text : null;
+  const titleDraft =
+    titleScope?.pullRequestKey === pullRequestKey ? titleScope.text : null;
   const [titleSaving, setTitleSaving] = useState(false);
 
   const saveTitle = async (next: string) => {
@@ -54,10 +59,16 @@ export function PullRequestTitleEditor({
       return;
     }
     setTitleSaving(true);
-    const result = await update({ environmentId, input: { ...reference, title } });
+    // The new title shows while the host takes it, so the editor closes at once.
+    setTitleScope(null);
+    const result = await update({
+      environmentId,
+      input: { ...reference, title },
+    });
     setTitleSaving(false);
     if (result._tag === "Failure") {
       const { t } = readWebI18n();
+      setTitleScope({ pullRequestKey, text: title });
       toastManager.add({
         type: "error",
         title: t("pullRequests.detail.titleSaveFailed"),
@@ -66,10 +77,7 @@ export function PullRequestTitleEditor({
           t("pullRequests.detail.titleRefused"),
         ),
       });
-      return;
     }
-    setTitleScope(null);
-    onSaved();
   };
 
   if (titleDraft === null) {
@@ -88,7 +96,9 @@ export function PullRequestTitleEditor({
         {canEditPullRequestChangeRequest(detail) ? (
           <PullRequestEditButton
             aria-label={t("pullRequests.detail.editTitle")}
-            onClick={() => setTitleScope({ pullRequestKey, text: detail.title })}
+            onClick={() =>
+              setTitleScope({ pullRequestKey, text: detail.title })
+            }
           />
         ) : null}
       </PullRequestDetailTitleRow>
@@ -106,7 +116,9 @@ export function PullRequestTitleEditor({
             ? "变更请求标题"
             : `${capitalizeTerm(sourceControlClients.get(detail.provider).changeRequest.singular)} title`
         }
-        onChange={(event) => setTitleScope({ pullRequestKey, text: event.target.value })}
+        onChange={(event) =>
+          setTitleScope({ pullRequestKey, text: event.target.value })
+        }
         onKeyDown={(event) => {
           if (event.nativeEvent.isComposing || event.keyCode === 229) return;
           if (event.key === "Enter") {
@@ -130,7 +142,11 @@ export function PullRequestTitleEditor({
         <Button
           size="xs"
           variant="outline"
-          disabled={!canWriteSourceControl || titleSaving || titleDraft.trim().length === 0}
+          disabled={
+            !canWriteSourceControl ||
+            titleSaving ||
+            titleDraft.trim().length === 0
+          }
           onClick={() => void saveTitle(titleDraft)}
         >
           {titleSaving ? t("common.saving") : t("common.save")}

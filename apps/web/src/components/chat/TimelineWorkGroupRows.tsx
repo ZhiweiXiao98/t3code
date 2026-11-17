@@ -3,15 +3,28 @@ import { TimelinePendingApprovalRow } from "./TimelinePendingApprovalRow";
 import { WorkLogButton, WorkLogList, WorkLogRow } from "./WorkLog";
 import type { WorktreeSetupSnapshot } from "@t3tools/contracts";
 import { type ToolActivityIcon } from "@t3tools/contracts";
-import { liveThoughtLine } from "@t3tools/client-runtime/work-log/presentation";
+import {
+  liveThoughtLine,
+  resolveViewedImageAsset,
+  workEntriesViewedImagePaths,
+} from "@t3tools/client-runtime/work-log/presentation";
 import { resolveWorkGroupScrollAnchor } from "@t3tools/client-runtime/work-log/scroll-anchor";
+import { useAssetUrls } from "~/assets/assetUrls";
 import { observeResize } from "~/lib/observeResize";
 import { tickTextContent } from "~/lib/tickTextContent";
 import { observeVisibleAnimation } from "../../lib/visibleAnimation";
-import { memo, use, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import {
+  memo,
+  use,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { LegendList, type LegendListRef } from "@legendapp/list/react";
 import { workEntryDisplayIndicatesToolFailure } from "../../session-logic";
 import ChatMarkdown from "../ChatMarkdown";
+import { assetMediaActionsSource } from "./ChatMarkdownMedia";
 import { Minimize2Icon, XIcon } from "lucide-react";
 import { Button } from "../ui/button";
 import { getVirtualizedScrollFadeClassName } from "../ui/scroll-area";
@@ -31,10 +44,14 @@ import {
   TimelineRowCtx,
   TimelineRowActivityCtx,
   WorkGroupViewCtx,
+  type WorkGroupViewedImage,
   type TimelineWorkEntry,
   type TimelineRow,
 } from "./timelineRowContext";
-import { TimelineRowTimestamp, ActivityShimmerOverlay } from "./TimelineRowParts";
+import {
+  TimelineRowTimestamp,
+  ActivityShimmerOverlay,
+} from "./TimelineRowParts";
 import {
   failedToolIconClassName,
   toolIconAcceptsTint,
@@ -51,6 +68,7 @@ import {
 import {
   THINKING_PREVIEW_PLUGINS,
   THOUGHT_PREVIEW_PLUGINS,
+  THOUGHT_PREVIEW_SOURCE_MAX_LENGTH,
   toolGroupSummaryIconName,
   workEntryIconName,
 } from "./TimelineWorkEntryRow.logic";
@@ -65,25 +83,35 @@ export const WorkGroupSection = memo(function WorkGroupSection({
 }: {
   anchorKey: string;
   disclosureAnchorKey?: string;
-  groupedEntries: Extract<MessagesTimelineRow, { kind: "work" }>["groupedEntries"];
+  groupedEntries: Extract<
+    MessagesTimelineRow,
+    { kind: "work" }
+  >["groupedEntries"];
   isExpandedToolGroup: boolean;
   displayLabel?: string | undefined;
 }) {
   const { t: residualT } = useI18n();
-  const { workspaceRoot, routeThreadKey, onToggleWorkEntry, pendingApprovals } =
-    use(TimelineRowCtx);
-  const onToggleStandaloneEntry = (collapsed: boolean) =>
-    onToggleWorkEntry(disclosureAnchorKey, collapsed);
+  const {
+    workspaceRoot,
+    routeThreadKey,
+    onToggleWorkEntry,
+    onWorkEntryContentReady,
+    pendingApprovals,
+  } = use(TimelineRowCtx);
   const nonEmptyEntries = groupedEntries.filter((entry) => {
     const item = entry.projectedItem?.item;
     return (
-      (item?.type === "approval_request" && pendingApprovals.has(item.requestId)) ||
+      (item?.type === "approval_request" &&
+        pendingApprovals.has(item.requestId)) ||
       workEntryIsVisibleInGroup(entry, isExpandedToolGroup)
     );
   });
 
   if (nonEmptyEntries.length === 0) return null;
-  if (isExpandedToolGroup && nonEmptyEntries.every((entry) => entry.itemType === "reasoning")) {
+  if (
+    isExpandedToolGroup &&
+    nonEmptyEntries.every((entry) => entry.itemType === "reasoning")
+  ) {
     return <ReasoningTraceContent entries={nonEmptyEntries} />;
   }
   if (isExpandedToolGroup) {
@@ -93,6 +121,7 @@ export const WorkGroupSection = memo(function WorkGroupSection({
         anchorKey={anchorKey}
         disclosureAnchorKey={disclosureAnchorKey}
         entries={nonEmptyEntries}
+        groupedEntries={groupedEntries}
         workspaceRoot={workspaceRoot}
       />
     );
@@ -106,7 +135,12 @@ export const WorkGroupSection = memo(function WorkGroupSection({
           workEntry={workEntry}
           workspaceRoot={workspaceRoot}
           displayLabel={displayLabel}
-          onToggleEntry={onToggleStandaloneEntry}
+          onToggleEntry={(collapsed) =>
+            onToggleWorkEntry(disclosureAnchorKey, collapsed, workEntry.id)
+          }
+          onContentReady={() =>
+            onWorkEntryContentReady?.(disclosureAnchorKey, workEntry.id)
+          }
         />
       ))}
     </section>
@@ -114,9 +148,13 @@ export const WorkGroupSection = memo(function WorkGroupSection({
 });
 
 function WorkingTimer({ createdAt }: { createdAt: string }) {
+  const { activeThreadEnvironmentId } = use(TimelineRowCtx);
   return (
     <span
-      ref={tickTextContent(() => formatWorkingTimerNow(createdAt), true)}
+      ref={tickTextContent(
+        () => formatWorkingTimerNow(createdAt, activeThreadEnvironmentId),
+        true,
+      )}
       className="tabular-nums"
     />
   );
@@ -124,26 +162,85 @@ function WorkingTimer({ createdAt }: { createdAt: string }) {
 
 const compactWorkEntryHeight = 24;
 
+// The thumbnail strip below the group is its own virtualized row, so the gallery an expanded
+// entry opens is built from the same entries rather than from the strip's mounted images.
+function useWorkGroupViewedImages(
+  groupedEntries: ReadonlyArray<TimelineWorkEntry>,
+): ReadonlyArray<WorkGroupViewedImage> {
+  const { threadRef, workspaceRoot, activeThreadEnvironmentId } =
+    use(TimelineRowCtx);
+  const viewed = threadRef
+    ? workEntriesViewedImagePaths(groupedEntries).flatMap((path) => {
+        const asset = resolveViewedImageAsset(path, {
+          threadId: threadRef.threadId,
+          workspaceRoot,
+        });
+        return asset ? [{ path, asset }] : [];
+      })
+    : [];
+  const environmentId = threadRef?.environmentId ?? activeThreadEnvironmentId;
+  const urls = useAssetUrls(
+    environmentId,
+    viewed.map(({ asset }) => asset.resource),
+  );
+  return viewed.map(({ path, asset }, index) => {
+    const url = urls[index];
+    if (!url) return { path, item: null };
+    const src = url + asset.srcFragment;
+    const name = asset.alt.trim() || "image";
+    return {
+      path,
+      item: {
+        src,
+        name,
+        actionsSource: assetMediaActionsSource({
+          environmentId,
+          resource: asset.resource,
+          kind: "image",
+          name: asset.alt || "image",
+          src,
+          workspaceRoot,
+        }),
+      },
+    };
+  });
+}
+
 function ExpandedWorkGroupEntries({
   anchorKey,
   disclosureAnchorKey,
   entries,
+  groupedEntries,
   workspaceRoot,
 }: {
   anchorKey: string;
   disclosureAnchorKey: string;
   entries: TimelineWorkEntry[];
+  groupedEntries: ReadonlyArray<TimelineWorkEntry>;
   workspaceRoot: string | undefined;
 }) {
   const { t: residualT } = useI18n();
-  const { workGroupViewState: viewState, onToggleWorkEntry } = use(TimelineRowCtx);
+  const {
+    workGroupViewState: viewState,
+    onToggleWorkEntry,
+    onWorkEntryContentReady,
+  } = use(TimelineRowCtx);
   const [initialScrollIndex] = useState(() =>
-    resolveWorkGroupScrollIndex(entries, viewState.scrollPositions.get(anchorKey)),
+    resolveWorkGroupScrollIndex(
+      entries,
+      viewState.scrollPositions.get(anchorKey),
+    ),
   );
-  const [restoringPosition, setRestoringPosition] = useState(initialScrollIndex !== undefined);
+  const [restoringPosition, setRestoringPosition] = useState(
+    initialScrollIndex !== undefined,
+  );
   const listRef = useRef<LegendListRef>(null);
   const [expandedContentHeight, setExpandedContentHeight] = useState(0);
-  const [fades, setFades] = useState({ top: false, bottom: false, viewportHeight: 0 });
+  const [fades, setFades] = useState({
+    top: false,
+    bottom: false,
+    viewportHeight: 0,
+  });
   const [appendState, setAppendState] = useState({ entries, follow: false });
   // Capture the pre-change edge once per incoming array, before new layout
   // metrics arrive. Edge/viewport changes never turn a status update into a follow.
@@ -152,18 +249,28 @@ function ExpandedWorkGroupEntries({
       entries,
       follow:
         fades.viewportHeight > 0 &&
-        shouldFollowWorkGroupAppend(appendState.entries, entries, fades.bottom ? Infinity : 0),
+        shouldFollowWorkGroupAppend(
+          appendState.entries,
+          entries,
+          fades.bottom ? Infinity : 0,
+        ),
     });
   }
 
+  const viewedImages = useWorkGroupViewedImages(groupedEntries);
   const groupView = {
     state: viewState,
-    onToggleEntry: (collapsed: boolean) => onToggleWorkEntry(disclosureAnchorKey, collapsed),
+    viewedImages,
+    onToggleEntry: (collapsed: boolean, entryId: string) =>
+      onToggleWorkEntry(disclosureAnchorKey, collapsed, entryId),
+    onContentReady: (entryId: string) =>
+      onWorkEntryContentReady?.(disclosureAnchorKey, entryId),
   };
   const updateScrollFades = () => {
     const element = listRef.current?.getScrollableNode();
     if (!element) return;
-    const distanceFromEnd = element.scrollHeight - element.clientHeight - element.scrollTop;
+    const distanceFromEnd =
+      element.scrollHeight - element.clientHeight - element.scrollTop;
     const viewportHeight = element.clientHeight;
     const top = element.scrollTop > 1;
     const bottom = distanceFromEnd > 1;
@@ -196,7 +303,10 @@ function ExpandedWorkGroupEntries({
       // Reconcile once at load, before releasing the measured anchor row.
       const offset = Math.max(
         0,
-        Math.min(list.getState().scroll, element.scrollHeight - element.clientHeight),
+        Math.min(
+          list.getState().scroll,
+          element.scrollHeight - element.clientHeight,
+        ),
       );
       if (Math.abs(element.scrollTop - offset) > 1) {
         void list.scrollToOffset({ offset, animated: false });
@@ -211,11 +321,18 @@ function ExpandedWorkGroupEntries({
     if (!element) return;
     updateScrollFades();
     const content = element.firstElementChild;
-    return observeResize(content ? [element, content] : element, updateScrollFades);
+    return observeResize(
+      content ? [element, content] : element,
+      updateScrollFades,
+    );
   }, [updateScrollFades]);
 
   const renderEntry = ({ item }: { item: TimelineWorkEntry }) => (
-    <SimpleWorkEntryRow key={item.id} workEntry={item} workspaceRoot={workspaceRoot} />
+    <SimpleWorkEntryRow
+      key={item.id}
+      workEntry={item}
+      workspaceRoot={workspaceRoot}
+    />
   );
 
   const updateExpandedContentHeight = () => {
@@ -225,14 +342,18 @@ function ExpandedWorkGroupEntries({
       if (state?.indexByKey(entryId) === undefined) continue;
       height += Math.max(
         0,
-        (state.sizes.get(entryId) ?? compactWorkEntryHeight) - compactWorkEntryHeight,
+        (state.sizes.get(entryId) ?? compactWorkEntryHeight) -
+          compactWorkEntryHeight,
       );
     }
     setExpandedContentHeight(height);
   };
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- reads expanded row sizes from LegendList's measured state after layout
-  useLayoutEffect(updateExpandedContentHeight, [entries, updateExpandedContentHeight]);
+  useLayoutEffect(updateExpandedContentHeight, [
+    entries,
+    updateExpandedContentHeight,
+  ]);
 
   return (
     <WorkGroupViewCtx value={groupView}>
@@ -248,7 +369,9 @@ function ExpandedWorkGroupEntries({
           recycleItems
           {...(initialScrollIndex ? { initialScrollIndex } : {})}
           maintainScrollAtEnd={
-            appendState.follow ? { animated: false, on: { dataChange: true } } : false
+            appendState.follow
+              ? { animated: false, on: { dataChange: true } }
+              : false
           }
           maintainScrollAtEndThreshold={1 / Math.max(1, fades.viewportHeight)}
           // Measure the restored row even when an intra-row offset puts its
@@ -265,7 +388,9 @@ function ExpandedWorkGroupEntries({
           role="region"
           aria-label={residualT("chatResidual.copy63")}
           data-tool-group-scroll
-          style={{ maxHeight: `calc(min(18rem, 50dvh) + ${expandedContentHeight}px)` }}
+          style={{
+            maxHeight: `calc(min(18rem, 50dvh) + ${expandedContentHeight}px)`,
+          }}
           className={cn(
             "scrollbar-gutter-stable scroll-py-6 overflow-x-hidden rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70",
             getVirtualizedScrollFadeClassName(fades),
@@ -278,10 +403,15 @@ function ExpandedWorkGroupEntries({
 
 const workEntryKey = (entry: TimelineWorkEntry) => entry.id;
 
-export function WorkingTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "working" }> }) {
+export function WorkingTimelineRow({
+  row,
+}: {
+  row: Extract<TimelineRow, { kind: "working" }>;
+}) {
   const { t: residualT } = useI18n();
-  const { isCompacting, isPreparingWorktree, backgroundWorktreeSetup } =
-    use(TimelineRowActivityCtx);
+  const { isCompacting, isPreparingWorktree, backgroundWorktreeSetup } = use(
+    TimelineRowActivityCtx,
+  );
   const compacting = row.compacting === true || isCompacting;
   const shimmer = isPreparingWorktree || compacting;
   const label = isPreparingWorktree ? (
@@ -305,7 +435,9 @@ export function WorkingTimelineRow({ row }: { row: Extract<TimelineRow, { kind: 
           className="relative shrink-0 overflow-hidden whitespace-nowrap"
         >
           {label}
-          {shimmer ? <ActivityShimmerOverlay>{label}</ActivityShimmerOverlay> : null}
+          {shimmer ? (
+            <ActivityShimmerOverlay>{label}</ActivityShimmerOverlay>
+          ) : null}
         </span>
         {backgroundWorktreeSetup ? (
           <BackgroundWorktreeSetupChip snapshot={backgroundWorktreeSetup} />
@@ -315,12 +447,17 @@ export function WorkingTimelineRow({ row }: { row: Extract<TimelineRow, { kind: 
   );
 }
 
-function BackgroundWorktreeSetupChip({ snapshot }: { snapshot: WorktreeSetupSnapshot }) {
+function BackgroundWorktreeSetupChip({
+  snapshot,
+}: {
+  snapshot: WorktreeSetupSnapshot;
+}) {
   const { t: residualT } = useI18n();
   const ctx = use(TimelineRowCtx);
   const terminalId = snapshot.setupScript?.terminalId ?? null;
   const openTerminal = ctx.onOpenWorktreeSetupTerminal;
-  const onOpenTerminal = openTerminal && terminalId ? () => openTerminal(terminalId) : null;
+  const onOpenTerminal =
+    openTerminal && terminalId ? () => openTerminal(terminalId) : null;
   const scriptName = snapshot.setupScript?.name ?? "Setup script";
   return (
     <Popover>
@@ -330,7 +467,9 @@ function BackgroundWorktreeSetupChip({ snapshot }: { snapshot: WorktreeSetupSnap
             variant="ghost-muted"
             size="micro"
             className="ml-auto min-w-0 shrink-0"
-            aria-label={residualT("chatResidual.backgroundRunning", { name: scriptName })}
+            aria-label={residualT("chatResidual.backgroundRunning", {
+              name: scriptName,
+            })}
           />
         }
       >
@@ -357,9 +496,21 @@ function CompactingLabel({ createdAt }: { createdAt: string | null }) {
       <Minimize2Icon aria-hidden="true" className="size-3" />
       {createdAt ? (
         <span>
-          {splitWebTranslation(residualT, "chatResidual.compactingFor", "duration")[0]}
+          {
+            splitWebTranslation(
+              residualT,
+              "chatResidual.compactingFor",
+              "duration",
+            )[0]
+          }
           <WorkingTimer createdAt={createdAt} />
-          {splitWebTranslation(residualT, "chatResidual.compactingFor", "duration")[1]}
+          {
+            splitWebTranslation(
+              residualT,
+              "chatResidual.compactingFor",
+              "duration",
+            )[1]
+          }
         </span>
       ) : (
         residualT("chatResidual.compacting")
@@ -368,16 +519,30 @@ function CompactingLabel({ createdAt }: { createdAt: string | null }) {
   );
 }
 
-export function ThinkingTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "thinking" }> }) {
+export function ThinkingTimelineRow({
+  row,
+}: {
+  row: Extract<TimelineRow, { kind: "thinking" }>;
+}) {
   const { t: residualT } = useI18n();
   const ctx = use(TimelineRowCtx);
-  const { isCompacting, isPreparingWorktree, liveAnswerPreview } = use(TimelineRowActivityCtx);
+  const {
+    isCompacting,
+    isPreparingWorktree,
+    liveAnswerPreview,
+    providerStartingLabel,
+  } = use(TimelineRowActivityCtx);
   if (isPreparingWorktree || isCompacting) return <WorkLogRow label="" />;
   // A failed group keeps this disclosure while an approval waits, but nothing is thinking then.
   const live = ctx.pendingApprovals.size === 0;
   const activity = (
     <LiveActivityRow
-      label={liveAnswerPreview ?? residualT("chatResidual.copy56")}
+      label={
+        providerStartingLabel ??
+        row.label ??
+        liveAnswerPreview ??
+        residualT("chatResidual.copy56")
+      }
       iconName="brain"
       active={live}
       shimmer={live}
@@ -429,7 +594,12 @@ function LiveActivityRow({
       />
       {showShimmer ? (
         <ActivityShimmerOverlay>
-          <LiveActivityContent label={label} iconName={iconName} toolIcon={toolIcon} highlighted />
+          <LiveActivityContent
+            label={label}
+            iconName={iconName}
+            toolIcon={toolIcon}
+            highlighted
+          />
         </ActivityShimmerOverlay>
       ) : null}
     </div>
@@ -471,7 +641,9 @@ function LiveActivityContent({
                   : "text-icon-muted",
             )}
             role={announceFailure ? "img" : undefined}
-            aria-label={announceFailure ? residualT("chatResidual.copy58") : undefined}
+            aria-label={
+              announceFailure ? residualT("chatResidual.copy58") : undefined
+            }
           >
             <ToolActivityIconView
               icon={toolIcon}
@@ -495,7 +667,10 @@ function LiveActivityContent({
       }
       trailing={
         showTrailingFailureMark ? (
-          <XIcon aria-hidden className={cn("size-3 shrink-0", failedToolIconClassName)} />
+          <XIcon
+            aria-hidden
+            className={cn("size-3 shrink-0", failedToolIconClassName)}
+          />
         ) : null
       }
     />
@@ -509,17 +684,36 @@ export function LiveWorkEntryTimelineRow({
 }) {
   const { t: residualT, locale } = useI18n();
   const ctx = use(TimelineRowCtx);
-  const threadTarget = useThreadReadTarget(row.entry, ctx.activeThreadEnvironmentId);
-  const label = liveWorkEntryLabel(row.entry, ctx.workspaceRoot, row.active, locale);
+  const threadTarget = useThreadReadTarget(
+    row.entry,
+    ctx.activeThreadEnvironmentId,
+  );
+  const label = liveWorkEntryLabel(
+    row.entry,
+    ctx.workspaceRoot,
+    row.active,
+    locale,
+  );
   const threadLabel = threadReadLabel(label, threadTarget);
 
   const item = row.entry.projectedItem?.item;
   const pendingApproval =
-    item?.type === "approval_request" ? ctx.pendingApprovals.get(item.requestId) : undefined;
-  if (pendingApproval) return <TimelinePendingApprovalRow approval={pendingApproval} />;
+    item?.type === "approval_request"
+      ? ctx.pendingApprovals.get(item.requestId)
+      : undefined;
+  if (pendingApproval)
+    return <TimelinePendingApprovalRow approval={pendingApproval} />;
 
   const failed = workEntryDisplayIndicatesToolFailure(row.entry);
-  const thoughtLine = row.thought && !row.expanded ? liveThoughtLine(row.thought.detail ?? "") : "";
+  const thoughtLine =
+    row.thought && !row.expanded
+      ? liveThoughtLine(
+          (row.thought.detail ?? "").slice(
+            0,
+            THOUGHT_PREVIEW_SOURCE_MAX_LENGTH,
+          ),
+        )
+      : "";
   const thoughtIsStatus = thoughtLine !== "" && row.entry === row.thought;
 
   return (
@@ -576,10 +770,15 @@ export function LiveWorkEntryTimelineRow({
           ) : row.entry.itemType === "reasoning" ? (
             <ChatMarkdown
               inline
-              text={row.entry.detail ?? label}
+              text={(row.entry.detail ?? label).slice(
+                0,
+                THOUGHT_PREVIEW_SOURCE_MAX_LENGTH,
+              )}
               cwd={ctx.markdownCwd}
               parseRawHtml={false}
-              extraRemarkPlugins={row.active ? THINKING_PREVIEW_PLUGINS : THOUGHT_PREVIEW_PLUGINS}
+              extraRemarkPlugins={
+                row.active ? THINKING_PREVIEW_PLUGINS : THOUGHT_PREVIEW_PLUGINS
+              }
             />
           ) : threadLabel ? (
             <ThreadReadLabel
@@ -634,7 +833,9 @@ function WorkGroupHeader(props: {
   return (
     <WorkLogButton
       aria-label={
-        props.failed ? residualT("chatResidual.toolFailed", { label: props.label }) : props.label
+        props.failed
+          ? residualT("chatResidual.toolFailed", { label: props.label })
+          : props.label
       }
       aria-expanded={props.expanded}
       onClick={props.onToggle}
@@ -648,7 +849,10 @@ function WorkGroupHeader(props: {
       }
       label={<span className="block truncate">{props.label}</span>}
       trailing={
-        <TimelineRowTimestamp createdAt={props.createdAt} timestampFormat={props.timestampFormat} />
+        <TimelineRowTimestamp
+          createdAt={props.createdAt}
+          timestampFormat={props.timestampFormat}
+        />
       }
     />
   );

@@ -12,12 +12,8 @@ import {
 } from "../fileSurfaceChrome";
 import { OfficePages, type PaintPage } from "./OfficePages";
 import { createWorkerClient } from "./worker-rpc";
-import {
-  maxImageSide,
-  type SlideMethods,
-  type SlideSummary,
-  type VectorRequest,
-} from "./slide-protocol";
+import type { SlideMethods, SlideSummary } from "./slide-protocol";
+import { rasterize } from "./vector-pictures";
 
 type Opened = { slides: readonly SlideSummary[]; paint: PaintPage };
 export default function Presentation(props: {
@@ -37,9 +33,12 @@ export default function Presentation(props: {
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Open and paint slides through a worker whose requests and lifetime belong to this presentation.
   useEffect(() => {
     const controller = new AbortController();
-    const worker = new Worker(new URL("./presentation.worker.ts", import.meta.url), {
-      type: "module",
-    });
+    const worker = new Worker(
+      new URL("./presentation.worker.ts", import.meta.url),
+      {
+        type: "module",
+      },
+    );
     const engine = createWorkerClient<SlideMethods>(worker);
     const fail = (cause: unknown) => {
       if (!controller.signal.aborted) onError(cause);
@@ -62,7 +61,10 @@ export default function Presentation(props: {
         if (result.kind === "painted") result.bitmap.close();
         return;
       }
-      setFailed((previous) => ({ ...previous, [index]: result.kind === "failed" }));
+      setFailed((previous) => ({
+        ...previous,
+        [index]: result.kind === "failed",
+      }));
       if (result.kind === "failed") return;
       const context = canvas.getContext("bitmaprenderer");
       if (!context) {
@@ -79,7 +81,9 @@ export default function Presentation(props: {
         return;
       }
       await engine.call("vectors", bitmaps, {
-        transfer: bitmaps.flatMap((value) => (value.bitmap ? [value.bitmap] : [])),
+        transfer: bitmaps.flatMap((value) =>
+          value.bitmap ? [value.bitmap] : [],
+        ),
         signal,
       });
       if (!signal.aborted) await paint(index, canvas, scale, signal, true);
@@ -89,7 +93,9 @@ export default function Presentation(props: {
       .call("open", { bytes }, { transfer: [bytes], signal: controller.signal })
       .then((slides) => {
         if (slides.length === 0 || slides.length > 500)
-          throw createFilePreviewError("Preview limited to presentations with 1 to 500 slides.");
+          throw createFilePreviewError(
+            "Preview limited to presentations with 1 to 500 slides.",
+          );
         setOpened({ slides, paint });
         onDetails(translateCount(slides.length));
       })
@@ -99,7 +105,9 @@ export default function Presentation(props: {
       engine.close();
     };
   }, [source, onDetails, onError, translateCount]);
-  const details = opened ? t("files.residual.slides", { count: opened.slides.length }) : null;
+  const details = opened
+    ? t("files.residual.slides", { count: opened.slides.length })
+    : null;
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Refresh the parent caption when its localized text changes without restarting the document worker.
   useEffect(() => {
     if (details !== null) onDetails(details);
@@ -119,8 +127,14 @@ export default function Presentation(props: {
         >
           <ChevronLeftIcon className="size-3.5" />
         </FileSurfaceAction>
-        <span className="flex-1 text-center text-xs tabular-nums" aria-live="polite">
-          {t("files.residual.slidePosition", { page: page + 1, count: opened.slides.length })}
+        <span
+          className="flex-1 text-center text-xs tabular-nums"
+          aria-live="polite"
+        >
+          {t("files.residual.slidePosition", {
+            page: page + 1,
+            count: opened.slides.length,
+          })}
         </span>
         <FileSurfaceAction
           label={translateWebSource(locale, "Next slide")}
@@ -156,7 +170,9 @@ export default function Presentation(props: {
           const slide = opened.slides[index];
           return slide?.notes || slide?.hidden ? (
             <div className="space-y-1 text-xs text-muted-foreground">
-              {slide.hidden ? <p>{translateWebSource(locale, "Hidden slide")}</p> : null}
+              {slide.hidden ? (
+                <p>{translateWebSource(locale, "Hidden slide")}</p>
+              ) : null}
               {slide.notes ? (
                 <p
                   role="note"
@@ -172,29 +188,4 @@ export default function Presentation(props: {
       />
     </div>
   );
-}
-async function rasterize(request: VectorRequest) {
-  const url = URL.createObjectURL(request.blob);
-  const image = new Image();
-  image.src = url;
-  try {
-    await image.decode();
-    const shrink = Math.min(1, maxImageSide / Math.max(image.naturalWidth, image.naturalHeight));
-    const size = request.size ?? {
-      width: Math.max(1, Math.round(image.naturalWidth * shrink)),
-      height: Math.max(1, Math.round(image.naturalHeight * shrink)),
-    };
-    return {
-      asset: request.asset,
-      bitmap: await createImageBitmap(image, {
-        resizeWidth: size.width,
-        resizeHeight: size.height,
-        resizeQuality: "high",
-      }),
-    };
-  } catch {
-    return { asset: request.asset, bitmap: undefined };
-  } finally {
-    URL.revokeObjectURL(url);
-  }
 }

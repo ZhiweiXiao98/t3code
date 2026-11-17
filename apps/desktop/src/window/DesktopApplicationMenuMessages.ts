@@ -2,6 +2,18 @@ import type { AppLocalePreference } from "@t3tools/contracts";
 import { resolveAppLocale, type ResolvedAppLocale } from "@t3tools/shared/appLocale";
 
 export interface DesktopApplicationMenuMessages {
+  readonly updateAvailableTitle: string;
+  readonly updateDownloadingTitle: string;
+  readonly updateReadyTitle: string;
+  readonly download: string;
+  readonly later: string;
+  readonly restart: string;
+  readonly updateRestartWarning: string;
+  readonly updateAvailableMessage: (version: string | null) => string;
+  readonly updateDownloadingMessage: (version: string | null) => string;
+  readonly updateReadyMessage: (version: string | null) => string;
+  readonly runningVersion: (version: string | null) => string;
+
   readonly file: string;
   readonly edit: string;
   readonly view: string;
@@ -58,6 +70,22 @@ export interface DesktopApplicationMenuMessages {
 
 const messages = {
   en: {
+    updateAvailableTitle: "Update available",
+    updateDownloadingTitle: "Update downloading",
+    updateReadyTitle: "Update ready",
+    download: "Download",
+    later: "Later",
+    restart: "Restart",
+    updateRestartWarning:
+      "T3 Code will restart to install it. Any running tasks will be interrupted.",
+    updateAvailableMessage: (version) =>
+      `${version === null ? "A new version of T3 Code" : `T3 Code ${version}`} is available.`,
+    updateDownloadingMessage: (version) =>
+      `${version === null ? "A new version of T3 Code" : `T3 Code ${version}`} is already downloading.`,
+    updateReadyMessage: (version) =>
+      `${version === null ? "A new version of T3 Code" : `T3 Code ${version}`} is ready to install.`,
+    runningVersion: (version) => `You're running T3 Code ${version}.`,
+
     file: "File",
     edit: "Edit",
     view: "View",
@@ -112,6 +140,21 @@ const messages = {
     updateDisabledDetail: (detail) => detail,
   },
   "zh-CN": {
+    updateAvailableTitle: "有可用更新",
+    updateDownloadingTitle: "正在下载更新",
+    updateReadyTitle: "更新已准备就绪",
+    download: "下载",
+    later: "稍后",
+    restart: "重启",
+    updateRestartWarning: "T3 Code 将重启以安装更新。正在运行的任务将被中断。",
+    updateAvailableMessage: (version) =>
+      `${version === null ? "T3 Code 新版本" : `T3 Code ${version}`} 已可下载。`,
+    updateDownloadingMessage: (version) =>
+      `${version === null ? "T3 Code 新版本" : `T3 Code ${version}`} 已在下载中。`,
+    updateReadyMessage: (version) =>
+      `${version === null ? "T3 Code 新版本" : `T3 Code ${version}`} 已准备好安装。`,
+    runningVersion: (version) => `当前运行的是 T3 Code ${version}。`,
+
     file: "文件",
     edit: "编辑",
     view: "视图",

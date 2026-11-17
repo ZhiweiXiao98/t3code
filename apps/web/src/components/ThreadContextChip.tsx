@@ -30,8 +30,11 @@ export function ThreadContextChip(props: {
   );
   const metadata = lookup.data?.[threadId];
   const projectId = shell?.projectId ?? props.projectId ?? metadata?.projectId;
-  const project = useProject(projectId ? scopeProjectRef(environmentId, projectId) : null);
-  const title = shell?.title?.trim() || metadata?.title.trim() || props.record.title;
+  const project = useProject(
+    projectId ? scopeProjectRef(environmentId, projectId) : null,
+  );
+  const title =
+    shell?.title?.trim() || metadata?.title.trim() || props.record.title;
   return (
     <Tooltip>
       <TooltipTrigger
@@ -39,13 +42,22 @@ export function ThreadContextChip(props: {
           <ContextChip
             kind="thread"
             {...(props.unreadable ? { state: "invalid" as const } : {})}
-            render={<Link to="/$environmentId/$threadId" params={{ environmentId, threadId }} />}
+            render={
+              <Link
+                to="/$environmentId/$threadId"
+                params={{ environmentId, threadId }}
+                draggable={false}
+              />
+            }
             aria-label={t("audit4.thread", { title })}
             data-markdown-copy={props.copyMarkdown}
             className="no-underline"
           >
             {project ? (
-              <ProjectFavicon project={project} className="size-[1em] self-center" />
+              <ProjectFavicon
+                project={project}
+                className="size-[1em] self-center"
+              />
             ) : (
               <MessagesSquareIcon />
             )}
@@ -54,7 +66,9 @@ export function ThreadContextChip(props: {
         }
       />
       <TooltipPopup side="top">
-        {props.unreadable ? t("audit4.threadElsewhere") : t("audit4.openThread")}
+        {props.unreadable
+          ? t("audit4.threadElsewhere")
+          : t("audit4.openThread")}
       </TooltipPopup>
     </Tooltip>
   );

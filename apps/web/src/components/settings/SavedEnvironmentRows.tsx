@@ -40,12 +40,24 @@ import {
 } from "./ConnectionDiagnosisDetails";
 import { usePreparedConnection } from "~/state/session";
 import { EnvironmentRow, environmentTransportLabel } from "./EnvironmentRow";
-import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "../ui/menu";
+import {
+  Menu,
+  MenuItem,
+  MenuPopup,
+  MenuSeparator,
+  MenuTrigger,
+} from "../ui/menu";
 import { Switch } from "../ui/switch";
 import { stackedThreadToast, toastManager } from "../ui/toast";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { Button, InlineButton } from "../ui/button";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "../ui/empty";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "../ui/empty";
 import {
   resolveServerConfigVersionMismatch,
   resolveServerSelfUpdateCapability,
@@ -60,10 +72,14 @@ import { useT3ConnectAccountPage } from "../clerk/T3ConnectAccountPages";
 import { TunnelLimitAlert, TunnelUsageMeter } from "../cloud/TunnelUsage";
 import { environmentCatalog } from "~/connection/catalog";
 import { readEnvironmentScope } from "~/state/session";
-import { type EnvironmentPresentation, useRelayEnvironmentDiscovery } from "~/state/environments";
+import {
+  type EnvironmentPresentation,
+  useRelayEnvironmentDiscovery,
+} from "~/state/environments";
 import { APP_VERSION } from "~/branding";
 import { useManagedPolicy } from "~/state/managedPolicy";
 import { useAtomCommand } from "../../state/use-atom-command";
+import { useUpdateEnvironmentSettings } from "~/hooks/useSettings";
 import { serverEnvironment } from "~/state/server";
 import {
   OutdatedServerUpdateAction,
@@ -88,7 +104,10 @@ function savedBackendStatus(
   readonly text: string;
   readonly tone: "muted" | "error";
 } {
-  if (!environment.entry.enabled && environment.connection.phase !== "unsupported")
+  if (
+    !environment.entry.enabled &&
+    environment.connection.phase !== "unsupported"
+  )
     return { text: translateWebSource(locale, "Off"), tone: "muted" };
   const { connection } = environment;
   switch (connection.phase) {
@@ -97,6 +116,12 @@ function savedBackendStatus(
     case "connecting":
       return { text: translateWebSource(locale, "Connecting"), tone: "muted" };
     case "reconnecting":
+      if (connection.awaitingApproval) {
+        return {
+          text: connection.error ?? "Waiting for approval",
+          tone: "muted",
+        };
+      }
       return {
         text: connection.error
           ? translateWebMessage(locale, "settingsControls.reconnectingError", {
@@ -106,7 +131,10 @@ function savedBackendStatus(
         tone: "error",
       };
     case "unsupported":
-      return { text: translateWebSource(locale, "Client not supported"), tone: "muted" };
+      return {
+        text: translateWebSource(locale, "Client not supported"),
+        tone: "muted",
+      };
     case "error":
       return {
         text: connection.error
@@ -119,7 +147,10 @@ function savedBackendStatus(
     case "offline":
       return { text: translateWebSource(locale, "Offline"), tone: "muted" };
     case "available":
-      return { text: translateWebSource(locale, "Not connected"), tone: "muted" };
+      return {
+        text: translateWebSource(locale, "Not connected"),
+        tone: "muted",
+      };
   }
 }
 
@@ -132,7 +163,9 @@ export function SavedBackendListRow({
 }: SavedBackendListRowProps) {
   const { locale, t } = useI18n();
   const translateAsync = useStableCallback(t);
-  const translateNotice = useStableCallback((source: string) => translateWebSource(locale, source));
+  const translateNotice = useStableCallback((source: string) =>
+    translateWebSource(locale, source),
+  );
   const [routesOpen, setRoutesOpen] = useState(false);
   const [permissionsOpen, setPermissionsOpen] = useState(false);
   const [diagnosisOpen, setDiagnosisOpen] = useState(false);
@@ -143,15 +176,10 @@ export function SavedBackendListRow({
   const isConnected = environment.connection.phase === "connected";
   const isRemoving = removingEnvironmentId === environmentId;
   const errorTraceId = environment.connection.traceId;
-  const { copyToClipboard: copyTraceIdToClipboard } = useCopyToClipboard<{ traceId: string }>({
+  const { copyToClipboard: copyTraceIdToClipboard } = useCopyToClipboard<{
+    traceId: string;
+  }>({
     target: "trace ID",
-    onCopy: ({ traceId }) => {
-      toastManager.add({
-        type: "success",
-        title: translateNotice("Trace ID copied"),
-        description: traceId,
-      });
-    },
     onError: (error) => {
       toastManager.add(
         stackedThreadToast({
@@ -184,12 +212,18 @@ export function SavedBackendListRow({
       );
     },
   });
-  const versionMismatch = resolveServerConfigVersionMismatch(environment.serverConfig);
-  const serverUpdateState = useAtomValue(serverEnvironment.updateStateAtom(environmentId));
+  const versionMismatch = resolveServerConfigVersionMismatch(
+    environment.serverConfig,
+  );
+  const serverUpdateState = useAtomValue(
+    serverEnvironment.updateStateAtom(environmentId),
+  );
   const resumingServerUpdate =
-    serverUpdateState.status === "running" && serverUpdateState.stage === "resuming";
+    serverUpdateState.status === "running" &&
+    serverUpdateState.stage === "resuming";
   const status = savedBackendStatus(environment, locale);
-  const serverVersion = environment.serverConfig?.environment.serverVersion ?? null;
+  const serverVersion =
+    environment.serverConfig?.environment.serverVersion ?? null;
   // Discovery empties its map on every refresh, so hold the last descriptor
   // seen or the glyph would blink back to the generic one each time.
   const relayDiscovery = useRelayEnvironmentDiscovery();
@@ -197,12 +231,18 @@ export function SavedBackendListRow({
     relayDiscovery.environments.get(environmentId)?.status ?? Option.none(),
   )?.descriptor;
   const [lastDescriptor, setLastDescriptor] = useState(discoveredDescriptor);
-  if (discoveredDescriptor !== undefined && discoveredDescriptor !== lastDescriptor) {
+  if (
+    discoveredDescriptor !== undefined &&
+    discoveredDescriptor !== lastDescriptor
+  ) {
     setLastDescriptor(discoveredDescriptor);
   }
   const discoveredRelayHttpBaseUrl =
-    relayDiscovery.environments.get(environmentId)?.environment.endpoint.httpBaseUrl;
-  const [lastRelayHttpBaseUrl, setLastRelayHttpBaseUrl] = useState(discoveredRelayHttpBaseUrl);
+    relayDiscovery.environments.get(environmentId)?.environment.endpoint
+      .httpBaseUrl;
+  const [lastRelayHttpBaseUrl, setLastRelayHttpBaseUrl] = useState(
+    discoveredRelayHttpBaseUrl,
+  );
   if (
     discoveredRelayHttpBaseUrl !== undefined &&
     discoveredRelayHttpBaseUrl !== lastRelayHttpBaseUrl
@@ -217,7 +257,8 @@ export function SavedBackendListRow({
   } = useConnectionDiagnosis(environment);
   const diagnosis = resumingServerUpdate ? null : currentDiagnosis;
   const prepared = usePreparedConnection(environmentId);
-  const connectedTarget = isConnected && prepared._tag === "Some" ? prepared.value.target : null;
+  const connectedTarget =
+    isConnected && prepared._tag === "Some" ? prepared.value.target : null;
   const mcpUrl = environmentMcpUrl({
     entry: environment.entry,
     relayHttpBaseUrl: discoveredRelayHttpBaseUrl ?? lastRelayHttpBaseUrl,
@@ -245,14 +286,19 @@ export function SavedBackendListRow({
     enabled &&
     isConnected &&
     versionMismatch !== null &&
-    (serverUpdateState.status === "idle" || serverUpdateState.status === "failed");
+    (serverUpdateState.status === "idle" ||
+      serverUpdateState.status === "failed");
 
   const localConnectionStatus = () => {
     const connection = environment.connection;
     if (connection.phase === "reconnecting" && connection.error)
-      return t("settingsControls.reconnectingReason", { error: connection.error });
+      return t("settingsControls.reconnectingReason", {
+        error: connection.error,
+      });
     if (connection.phase === "error" && connection.error)
-      return t("settingsControls.connectionReason", { error: connection.error });
+      return t("settingsControls.connectionReason", {
+        error: connection.error,
+      });
     return translateWebSource(locale, connectionStatusText(connection));
   };
   const statusTooltip = `${
@@ -347,7 +393,11 @@ export function SavedBackendListRow({
           {diagnosis ? (
             <ConnectionDiagnosisSummary
               diagnosis={diagnosis}
-              retryAt={connectionState.phase === "backoff" ? connectionState.retryAt : null}
+              retryAt={
+                connectionState.phase === "backoff"
+                  ? connectionState.retryAt
+                  : null
+              }
               attempt={connectionState.attempt}
               expanded={diagnosisOpen}
               onToggle={() => setDiagnosisOpen((open) => !open)}
@@ -396,7 +446,9 @@ export function SavedBackendListRow({
       serverUpdateState.status !== "running" ? (
         <OutdatedServerUpdateAction
           environmentId={environmentId}
-          serverLabel={t("settingsControls.environmentServer", { name: environment.label })}
+          serverLabel={t("settingsControls.environmentServer", {
+            name: environment.label,
+          })}
           fromVersion={lastDescriptor?.serverVersion}
           targetVersion={APP_VERSION}
           label={
@@ -409,9 +461,16 @@ export function SavedBackendListRow({
       {showUpdateAction ? (
         <ServerUpdateAction
           environmentId={environmentId}
-          serverLabel={t("settingsControls.environmentServer", { name: environment.label })}
-          selfUpdate={resolveServerSelfUpdateCapability(environment.serverConfig)}
-          installation={environment.serverConfig?.environment.capabilities.serverInstallation}
+          serverLabel={t("settingsControls.environmentServer", {
+            name: environment.label,
+          })}
+          selfUpdate={resolveServerSelfUpdateCapability(
+            environment.serverConfig,
+          )}
+          installation={
+            environment.serverConfig?.environment.capabilities
+              .serverInstallation
+          }
           desktopAppUpdate={supportsDesktopAppUpdate(environment.serverConfig)}
           targetVersion={versionMismatch.clientVersion}
           label={
@@ -435,7 +494,9 @@ export function SavedBackendListRow({
                   : "settingsControls.switchOnEnvironment",
                 { name: environment.label },
               )}
-              onCheckedChange={(checked) => onSetEnabled(environmentId, checked)}
+              onCheckedChange={(checked) =>
+                onSetEnabled(environmentId, checked)
+              }
             />
           }
         />
@@ -455,7 +516,9 @@ export function SavedBackendListRow({
               variant="ghost-muted"
               size="icon-xs"
               disabled={isRemoving}
-              aria-label={t("settingsControls.moreEnvironmentActions", { name: environment.label })}
+              aria-label={t("settingsControls.moreEnvironmentActions", {
+                name: environment.label,
+              })}
             />
           }
         >
@@ -522,7 +585,9 @@ function CloudLinkSwitch({
   const control = (
     <Switch
       aria-label={
-        ariaLabel === undefined ? translateCloudLinkSource(locale, "Enable T3 Connect") : ariaLabel
+        ariaLabel === undefined
+          ? translateCloudLinkSource(locale, "Enable T3 Connect")
+          : ariaLabel
       }
       checked={checked}
       disabled={disabled}
@@ -540,7 +605,11 @@ function CloudLinkSwitch({
 }
 
 /** Tunnel meter, plus the upgrade prompt after the relay refuses a tunnel at the cap. */
-function T3ConnectTunnelUsage({ tunnelLimit }: { readonly tunnelLimit: number | null }) {
+function T3ConnectTunnelUsage({
+  tunnelLimit,
+}: {
+  readonly tunnelLimit: number | null;
+}) {
   const { locale } = useI18n();
   const usage = useManagedTunnelUsage();
   const accountPage = useT3ConnectAccountPage();
@@ -555,7 +624,11 @@ function T3ConnectTunnelUsage({ tunnelLimit }: { readonly tunnelLimit: number | 
   }
   const showLimitAlert =
     tunnelLimit !== null &&
-    !(usedAtRefusal !== null && usage.used !== null && usage.used < usedAtRefusal) &&
+    !(
+      usedAtRefusal !== null &&
+      usage.used !== null &&
+      usage.used < usedAtRefusal
+    ) &&
     !(usage.limit !== null && usage.limit > tunnelLimit);
   const meter =
     usage.used !== null && usage.limit !== null ? (
@@ -584,8 +657,12 @@ function T3ConnectTunnelUsage({ tunnelLimit }: { readonly tunnelLimit: number | 
           {showLimitAlert ? (
             <TunnelLimitAlert
               upgrade={usage.upgrade}
-              onLinkT3Chat={openAccountPage ? () => openAccountPage("t3-chat") : null}
-              onManageTunnels={openAccountPage ? () => openAccountPage("t3-connect") : null}
+              onLinkT3Chat={
+                openAccountPage ? () => openAccountPage("t3-chat") : null
+              }
+              onManageTunnels={
+                openAccountPage ? () => openAccountPage("t3-connect") : null
+              }
             />
           ) : null}
         </div>
@@ -599,12 +676,17 @@ function T3ConnectTunnelUsage({ tunnelLimit }: { readonly tunnelLimit: number | 
 function ConfiguredCloudLinkRow({
   environmentId,
   canManageRelay,
+  connectDeviceApproval,
 }: {
   readonly environmentId: EnvironmentId;
   readonly canManageRelay: boolean;
+  readonly connectDeviceApproval: ConnectDeviceApprovalControl | null;
 }) {
   const { locale, t } = useI18n();
-  const translateNotice = useStableCallback((source: string) => translateWebSource(locale, source));
+  const translateNotice = useStableCallback((source: string) =>
+    translateWebSource(locale, source),
+  );
+  const updateEnvironmentSettings = useUpdateEnvironmentSettings(environmentId);
   const {
     isSignedIn,
     linkState: cloudLinkState,
@@ -619,14 +701,21 @@ function ConfiguredCloudLinkRow({
   } = useCloudLinkController(environmentId);
   const { openAuthPrompt } = useT3ConnectAuthPrompt();
   // The server unlinks and refuses relay changes under such a policy; unlinking stays possible.
-  const connectDenial = managedCapabilityDenial(useManagedPolicy(environmentId), "connect", t);
+  const connectDenial = managedCapabilityDenial(
+    useManagedPolicy(environmentId),
+    "connect",
+    t,
+  );
   const turnOn = useT3ConnectTurnOn(environmentId);
   // Turning on links from this desktop's own backend only; turning off works from anywhere.
-  const showSwitch = isElectron && (turnOn.kind !== "on-host" || managedTunnelActive);
+  const showSwitch =
+    isElectron && (turnOn.kind !== "on-host" || managedTunnelActive);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isUpdatingPreference, setIsUpdatingPreference] = useState(false);
 
-  const disabledReason = canManageRelay ? null : t("connections.cloudLink.permissionRequired");
+  const disabledReason = canManageRelay
+    ? null
+    : t("connections.cloudLink.permissionRequired");
   const isBusy = isUpdating || isUpdatingPreference;
   const switchDisabled =
     !canManageRelay ||
@@ -651,7 +740,9 @@ function ConfiguredCloudLinkRow({
     const interval = window.setInterval(() => refreshLinkState(), 30_000);
     return () => window.clearInterval(interval);
   }, []);
-  const reachability = managedTunnelActive ? cloudLinkState.data?.reachability : undefined;
+  const reachability = managedTunnelActive
+    ? cloudLinkState.data?.reachability
+    : undefined;
   const rawCloudLinkError = operationError ?? cloudLinkState.error;
   const reachabilityStatus =
     reachability?.status === "reachable" ? (
@@ -679,7 +770,10 @@ function ConfiguredCloudLinkRow({
   const updateManagedTunnel = async (enabled: boolean) => {
     if (!readEnvironmentScope(environmentId, AuthRelayWriteScope)) return;
     setIsUpdating(true);
-    const ok = await reconcileCloudState({ managedTunnel: enabled, publish: publishAgentActivity });
+    const ok = await reconcileCloudState({
+      managedTunnel: enabled,
+      publish: publishAgentActivity,
+    });
     if (ok) {
       toastManager.add({
         type: "success",
@@ -701,7 +795,10 @@ function ConfiguredCloudLinkRow({
   const updatePublishAgentActivity = async (enabled: boolean) => {
     if (!readEnvironmentScope(environmentId, AuthRelayWriteScope)) return;
     setIsUpdatingPreference(true);
-    const ok = await reconcileCloudState({ managedTunnel: managedTunnelActive, publish: enabled });
+    const ok = await reconcileCloudState({
+      managedTunnel: managedTunnelActive,
+      publish: enabled,
+    });
     if (ok) {
       toastManager.add({
         type: "success",
@@ -840,7 +937,9 @@ function ConfiguredCloudLinkRow({
                 checked={publishAgentActivity}
                 disabled={switchDisabled}
                 disabledReason={disabledReason}
-                onCheckedChange={(enabled) => void updatePublishAgentActivity(enabled)}
+                onCheckedChange={(enabled) =>
+                  void updatePublishAgentActivity(enabled)
+                }
               />
             )
           }
@@ -868,18 +967,50 @@ function ConfiguredCloudLinkRow({
           }
         />
       ) : null}
+      {managedTunnelActive && connectDeviceApproval ? (
+        <SettingsRow
+          title={searchableSetting("connect-device-approval").title}
+          description="Devices that sign in to your T3 Connect account wait until someone already connected here approves them."
+          managed={connectDenial}
+          control={
+            <CloudLinkSwitch
+              ariaLabel="Require approval for new T3 Connect devices"
+              checked={connectDeviceApproval.required}
+              disabled={!connectDeviceApproval.canManage}
+              disabledReason={
+                connectDeviceApproval.canManage
+                  ? null
+                  : "Your session does not have permission to manage access."
+              }
+              onCheckedChange={(enabled) =>
+                updateEnvironmentSettings({
+                  requireConnectDeviceApproval: enabled,
+                })
+              }
+            />
+          }
+        />
+      ) : null}
     </>
   );
+}
+
+/** Older servers have no device approval, so callers pass null and the row stays hidden. */
+export interface ConnectDeviceApprovalControl {
+  readonly required: boolean;
+  readonly canManage: boolean;
 }
 
 export function CloudLinkRow({
   environmentId,
   canReadRelay,
   canManageRelay,
+  connectDeviceApproval,
 }: {
   readonly environmentId: EnvironmentId;
   readonly canReadRelay: boolean;
   readonly canManageRelay: boolean;
+  readonly connectDeviceApproval: ConnectDeviceApprovalControl | null;
 }) {
   const { locale } = useI18n();
   if (!hasCloudPublicConfig()) return null;
@@ -894,10 +1025,20 @@ export function CloudLinkRow({
       />
     );
   }
-  return <ConfiguredCloudLinkRow environmentId={environmentId} canManageRelay={canManageRelay} />;
+  return (
+    <ConfiguredCloudLinkRow
+      environmentId={environmentId}
+      canManageRelay={canManageRelay}
+      connectDeviceApproval={connectDeviceApproval}
+    />
+  );
 }
 
-function EmptyRemoteEnvironments({ cloudEnabled = true }: { readonly cloudEnabled?: boolean }) {
+function EmptyRemoteEnvironments({
+  cloudEnabled = true,
+}: {
+  readonly cloudEnabled?: boolean;
+}) {
   const { t } = useI18n();
 
   return (
@@ -908,7 +1049,9 @@ function EmptyRemoteEnvironments({ cloudEnabled = true }: { readonly cloudEnable
       <EmptyHeader>
         <EmptyTitle>{t("connections.empty.title")}</EmptyTitle>
         <EmptyDescription>
-          {cloudEnabled ? t("connections.empty.withCloud") : t("connections.empty.withoutCloud")}
+          {cloudEnabled
+            ? t("connections.empty.withCloud")
+            : t("connections.empty.withoutCloud")}
         </EmptyDescription>
       </EmptyHeader>
     </Empty>

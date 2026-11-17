@@ -27,7 +27,13 @@ import { serverEnvironment } from "../../state/server";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
-import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
+import {
+  Select,
+  SelectItem,
+  SelectPopup,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
 import { toastManager } from "../ui/toast";
 import { SettingsRow } from "./settingsLayout";
 
@@ -37,7 +43,16 @@ interface AcpSessionProject {
   readonly workspaceRoot: string;
 }
 
-function reportFailure(title: string, result: AtomCommandResult<unknown, unknown>) {
+function needsImport(session: AcpRegistrySession) {
+  return (
+    session.importedThreadId === null || session.nativeHistoryPending === true
+  );
+}
+
+function reportFailure(
+  title: string,
+  result: AtomCommandResult<unknown, unknown>,
+) {
   if (result._tag !== "Failure" || isAtomCommandInterrupted(result)) return;
   const error = squashAtomCommandFailure(result);
   const { locale } = readWebI18n();
@@ -55,7 +70,11 @@ function parseProviderHeaders(
   text: string,
 ):
   | { readonly ok: true; readonly headers: Record<string, string> | undefined }
-  | { readonly ok: false; readonly error: string; readonly sourceMessage?: true } {
+  | {
+      readonly ok: false;
+      readonly error: string;
+      readonly sourceMessage?: true;
+    } {
   if (text.trim().length === 0) return { ok: true, headers: undefined };
   let parsed: unknown;
   try {
@@ -63,7 +82,8 @@ function parseProviderHeaders(
   } catch (error) {
     return {
       ok: false,
-      error: error instanceof Error ? error.message : "Headers must be valid JSON.",
+      error:
+        error instanceof Error ? error.message : "Headers must be valid JSON.",
       ...(error instanceof Error ? {} : { sourceMessage: true as const }),
     };
   }
@@ -91,7 +111,9 @@ interface AcpSessionManagementProps {
 }
 
 export function AcpSessionManagementSection(props: AcpSessionManagementProps) {
-  const [selectedProjectId, setSelectedProjectId] = useState<ProjectId | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<ProjectId | null>(
+    null,
+  );
   const projectId =
     props.projects.find((project) => project.id === selectedProjectId)?.id ??
     props.projects[0]?.id ??
@@ -115,8 +137,14 @@ function InstanceSessionManagement(
   },
 ) {
   const { locale: sourceLocale, t } = useI18n();
-  const canOperate = useEnvironmentScope(props.environmentId, AuthOrchestrationOperateScope);
-  const canRead = useEnvironmentScope(props.environmentId, AuthOrchestrationReadScope);
+  const canOperate = useEnvironmentScope(
+    props.environmentId,
+    AuthOrchestrationOperateScope,
+  );
+  const canRead = useEnvironmentScope(
+    props.environmentId,
+    AuthOrchestrationReadScope,
+  );
   const { projectId } = props;
   const projectGeneration = useRef(0);
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Late continuations must not act on a replaced project scope.
@@ -126,17 +154,27 @@ function InstanceSessionManagement(
     };
     // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Retiring a project invalidates its pending operations even when the instance stays mounted.
   }, [projectId]);
-  const [sessions, setSessions] = useState<ReadonlyArray<AcpRegistrySession>>([]);
+  const [sessions, setSessions] = useState<ReadonlyArray<AcpRegistrySession>>(
+    [],
+  );
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [importingSessionId, setImportingSessionId] = useState<string | null>(null);
-  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
+  const [importingSessionId, setImportingSessionId] = useState<string | null>(
+    null,
+  );
+  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(
+    null,
+  );
   const [loggingOut, setLoggingOut] = useState(false);
-  const [providers, setProviders] = useState<ReadonlyArray<AcpRegistryConfigurableProvider>>([]);
+  const [providers, setProviders] = useState<
+    ReadonlyArray<AcpRegistryConfigurableProvider>
+  >([]);
   const [loadingProviders, setLoadingProviders] = useState(false);
   const [savingProviderId, setSavingProviderId] = useState<string | null>(null);
   const [providerDrafts, setProviderDrafts] = useState<
-    Readonly<Record<string, { apiType: string; baseUrl: string; headers: string }>>
+    Readonly<
+      Record<string, { apiType: string; baseUrl: string; headers: string }>
+    >
   >({});
   const [previousProjectId, setPreviousProjectId] = useState(projectId);
   if (previousProjectId !== projectId) {
@@ -151,31 +189,49 @@ function InstanceSessionManagement(
     setSavingProviderId(null);
     setProviderDrafts({});
   }
-  const listSessions = useAtomCommand(serverEnvironment.listAcpRegistrySessions, {
-    reportFailure: false,
-  });
-  const importSession = useAtomCommand(serverEnvironment.importAcpRegistrySession, {
-    reportFailure: false,
-  });
-  const deleteSession = useAtomCommand(serverEnvironment.deleteAcpRegistrySession, {
-    reportFailure: false,
-  });
-  const listProviders = useAtomCommand(serverEnvironment.listAcpRegistryProviders, {
-    reportFailure: false,
-  });
+  const listSessions = useAtomCommand(
+    serverEnvironment.listAcpRegistrySessions,
+    {
+      reportFailure: false,
+    },
+  );
+  const importSession = useAtomCommand(
+    serverEnvironment.importAcpRegistrySession,
+    {
+      reportFailure: false,
+    },
+  );
+  const deleteSession = useAtomCommand(
+    serverEnvironment.deleteAcpRegistrySession,
+    {
+      reportFailure: false,
+    },
+  );
+  const listProviders = useAtomCommand(
+    serverEnvironment.listAcpRegistryProviders,
+    {
+      reportFailure: false,
+    },
+  );
   const setProvider = useAtomCommand(serverEnvironment.setAcpRegistryProvider, {
     reportFailure: false,
   });
-  const disableProvider = useAtomCommand(serverEnvironment.disableAcpRegistryProvider, {
+  const disableProvider = useAtomCommand(
+    serverEnvironment.disableAcpRegistryProvider,
+    {
+      reportFailure: false,
+    },
+  );
+  const logout = useAtomCommand(serverEnvironment.logoutAcpRegistry, {
     reportFailure: false,
   });
-  const logout = useAtomCommand(serverEnvironment.logoutAcpRegistry, { reportFailure: false });
   const canList = props.provider.nativeSessions?.canList === true;
   const canImport =
     props.provider.nativeSessions?.canLoad === true ||
     props.provider.nativeSessions?.canResume === true;
   const canLogout =
-    props.provider.auth.canLogout === true && !props.provider.setup?.canAuthenticate;
+    props.provider.auth.canLogout === true &&
+    !props.provider.setup?.canAuthenticate;
   const canDelete = props.provider.nativeSessions?.canDelete === true;
   const canConfigureProviders = props.provider.configurableProviders === true;
   const projectOperationPending =
@@ -203,7 +259,9 @@ function InstanceSessionManagement(
     setLoading(false);
     if (result._tag === "Success") {
       setSessions((current) =>
-        cursor === undefined ? result.value.sessions : [...current, ...result.value.sessions],
+        cursor === undefined
+          ? result.value.sessions
+          : [...current, ...result.value.sessions],
       );
       setNextCursor(result.value.nextCursor);
       return;
@@ -214,7 +272,10 @@ function InstanceSessionManagement(
   const importNativeSession = async (session: AcpRegistrySession) => {
     const generation = projectGeneration.current;
     if (
-      !readEnvironmentScope(props.environmentId, AuthOrchestrationOperateScope) ||
+      !readEnvironmentScope(
+        props.environmentId,
+        AuthOrchestrationOperateScope,
+      ) ||
       projectId === null ||
       importingSessionId !== null
     )
@@ -236,7 +297,11 @@ function InstanceSessionManagement(
       setSessions((current) =>
         current.map((candidate) =>
           candidate.sessionId === session.sessionId
-            ? { ...candidate, importedThreadId: result.value.threadId }
+            ? {
+                ...candidate,
+                importedThreadId: result.value.threadId,
+                nativeHistoryPending: false,
+              }
             : candidate,
         ),
       );
@@ -244,7 +309,9 @@ function InstanceSessionManagement(
         type: "success",
         title: translateWebSource(
           readWebI18n().locale,
-          result.value.imported ? "ACP session imported" : "ACP session already imported",
+          result.value.imported
+            ? "ACP session imported"
+            : "ACP session already imported",
         ),
       });
       return;
@@ -254,10 +321,16 @@ function InstanceSessionManagement(
 
   const deleteNativeSession = async (session: AcpRegistrySession) => {
     const generation = projectGeneration.current;
-    if (projectId === null || deletingSessionId !== null || session.importedThreadId !== null)
+    if (
+      projectId === null ||
+      deletingSessionId !== null ||
+      session.importedThreadId !== null
+    )
       return;
     const confirmed = await ensureLocalApi().dialogs.confirm(
-      readWebI18n().t("audit5.deleteSession", { name: session.title ?? session.sessionId }),
+      readWebI18n().t("audit5.deleteSession", {
+        name: session.title ?? session.sessionId,
+      }),
       { variant: "destructive" },
     );
     if (
@@ -269,18 +342,20 @@ function InstanceSessionManagement(
     setDeletingSessionId(session.sessionId);
     const result = await deleteSession({
       environmentId: props.environmentId,
-      input: { instanceId: props.instanceId, projectId, sessionId: session.sessionId },
+      input: {
+        instanceId: props.instanceId,
+        projectId,
+        sessionId: session.sessionId,
+      },
     });
     if (generation !== projectGeneration.current) return;
     setDeletingSessionId(null);
     if (result._tag === "Success") {
       setSessions((current) =>
-        current.filter((candidate) => candidate.sessionId !== session.sessionId),
+        current.filter(
+          (candidate) => candidate.sessionId !== session.sessionId,
+        ),
       );
-      toastManager.add({
-        type: "success",
-        title: translateWebSource(readWebI18n().locale, "ACP session deleted"),
-      });
       return;
     }
     reportFailure("Could not delete ACP session", result);
@@ -302,7 +377,8 @@ function InstanceSessionManagement(
         Object.fromEntries(
           result.value.providers.map((provider) => [
             provider.providerId,
-            (resetProviderId !== undefined && provider.providerId !== resetProviderId
+            (resetProviderId !== undefined &&
+            provider.providerId !== resetProviderId
               ? current[provider.providerId]
               : undefined) ?? {
               apiType: provider.current?.apiType ?? provider.supported[0] ?? "",
@@ -327,12 +403,20 @@ function InstanceSessionManagement(
     )
       return;
     const draft = providerDrafts[provider.providerId];
-    if (draft === undefined || draft.apiType.length === 0 || draft.baseUrl.length === 0) return;
+    if (
+      draft === undefined ||
+      draft.apiType.length === 0 ||
+      draft.baseUrl.length === 0
+    )
+      return;
     const parsedHeaders = parseProviderHeaders(draft.headers);
     if (!parsedHeaders.ok) {
       toastManager.add({
         type: "error",
-        title: translateWebSource(readWebI18n().locale, "Invalid provider headers"),
+        title: translateWebSource(
+          readWebI18n().locale,
+          "Invalid provider headers",
+        ),
         description: parsedHeaders.sourceMessage
           ? translateWebSource(readWebI18n().locale, parsedHeaders.error)
           : parsedHeaders.error,
@@ -355,19 +439,22 @@ function InstanceSessionManagement(
     if (generation !== projectGeneration.current) return;
     setSavingProviderId(null);
     if (result._tag === "Success") {
-      toastManager.add({
-        type: "success",
-        title: translateWebSource(readWebI18n().locale, "ACP provider configured"),
-      });
       await loadProviders(provider.providerId);
       return;
     }
     reportFailure("Could not configure ACP provider", result);
   };
 
-  const disableConfiguredProvider = async (provider: AcpRegistryConfigurableProvider) => {
+  const disableConfiguredProvider = async (
+    provider: AcpRegistryConfigurableProvider,
+  ) => {
     const generation = projectGeneration.current;
-    if (projectId === null || savingProviderId !== null || loadingProviders || provider.required)
+    if (
+      projectId === null ||
+      savingProviderId !== null ||
+      loadingProviders ||
+      provider.required
+    )
       return;
     const confirmed = await ensureLocalApi().dialogs.confirm(
       readWebI18n().t("audit5.disableProvider", { id: provider.providerId }),
@@ -382,15 +469,15 @@ function InstanceSessionManagement(
     setSavingProviderId(provider.providerId);
     const result = await disableProvider({
       environmentId: props.environmentId,
-      input: { instanceId: props.instanceId, projectId, providerId: provider.providerId },
+      input: {
+        instanceId: props.instanceId,
+        projectId,
+        providerId: provider.providerId,
+      },
     });
     if (generation !== projectGeneration.current) return;
     setSavingProviderId(null);
     if (result._tag === "Success") {
-      toastManager.add({
-        type: "success",
-        title: translateWebSource(readWebI18n().locale, "ACP provider disabled"),
-      });
       await loadProviders(provider.providerId);
       return;
     }
@@ -398,7 +485,11 @@ function InstanceSessionManagement(
   };
 
   const logoutProvider = async () => {
-    if (loggingOut || !readEnvironmentScope(props.environmentId, AuthProvidersManageScope)) return;
+    if (
+      loggingOut ||
+      !readEnvironmentScope(props.environmentId, AuthProvidersManageScope)
+    )
+      return;
     setLoggingOut(true);
     const result = await logout({
       environmentId: props.environmentId,
@@ -408,10 +499,6 @@ function InstanceSessionManagement(
     if (result._tag === "Success") {
       setSessions([]);
       setNextCursor(null);
-      toastManager.add({
-        type: "success",
-        title: translateWebSource(readWebI18n().locale, "Logged out of ACP agent"),
-      });
       return;
     }
     reportFailure("Could not log out of ACP agent", result);
@@ -456,12 +543,19 @@ function InstanceSessionManagement(
                   }}
                 >
                   <SelectTrigger
-                    aria-label={translateWebSource(sourceLocale, "Project for ACP sessions")}
+                    aria-label={translateWebSource(
+                      sourceLocale,
+                      "Project for ACP sessions",
+                    )}
                     className="w-40"
                     size="sm"
                   >
                     <SelectValue>
-                      {props.projects.find((project) => project.id === projectId)?.title}
+                      {
+                        props.projects.find(
+                          (project) => project.id === projectId,
+                        )?.title
+                      }
                     </SelectValue>
                   </SelectTrigger>
                   <SelectPopup>
@@ -515,12 +609,12 @@ function InstanceSessionManagement(
                         disabled={
                           !canOperate ||
                           !canImport ||
-                          session.importedThreadId !== null ||
+                          !needsImport(session) ||
                           importingSessionId !== null
                         }
                         onClick={() => void importNativeSession(session)}
                       >
-                        {session.importedThreadId !== null
+                        {!needsImport(session)
                           ? translateWebSource(sourceLocale, "Imported")
                           : importingSessionId === session.sessionId
                             ? translateWebSource(sourceLocale, "Importing")
@@ -586,7 +680,10 @@ function InstanceSessionManagement(
               size="xs"
               variant="outline"
               disabled={
-                !canRead || loadingProviders || savingProviderId !== null || projectId === null
+                !canRead ||
+                loadingProviders ||
+                savingProviderId !== null ||
+                projectId === null
               }
               onClick={() => void loadProviders()}
             >
@@ -608,12 +705,18 @@ function InstanceSessionManagement(
               }}
             >
               <SelectTrigger
-                aria-label={translateWebSource(sourceLocale, "Project for ACP providers")}
+                aria-label={translateWebSource(
+                  sourceLocale,
+                  "Project for ACP providers",
+                )}
                 className="min-w-48"
                 size="xs"
               >
                 <SelectValue>
-                  {props.projects.find((project) => project.id === projectId)?.title}
+                  {
+                    props.projects.find((project) => project.id === projectId)
+                      ?.title
+                  }
                 </SelectValue>
               </SelectTrigger>
               <SelectPopup>
@@ -630,7 +733,8 @@ function InstanceSessionManagement(
             <div className="divide-y divide-border/60 border-y border-border/60">
               {providers.map((provider) => {
                 const draft = providerDrafts[provider.providerId] ?? {
-                  apiType: provider.current?.apiType ?? provider.supported[0] ?? "",
+                  apiType:
+                    provider.current?.apiType ?? provider.supported[0] ?? "",
                   baseUrl: provider.current?.baseUrl ?? "",
                   headers: "",
                 };
@@ -650,7 +754,9 @@ function InstanceSessionManagement(
                           {provider.current === null
                             ? translateWebSource(sourceLocale, "Disabled")
                             : translateWebSource(sourceLocale, "Configured")}
-                          {provider.required ? translateWebSource(sourceLocale, " · Required") : ""}
+                          {provider.required
+                            ? translateWebSource(sourceLocale, " · Required")
+                            : ""}
                         </p>
                       </div>
                       <div className="flex items-center gap-1">
@@ -677,9 +783,13 @@ function InstanceSessionManagement(
                             size="xs"
                             variant="ghost-muted"
                             disabled={
-                              props.readOnly || savingProviderId !== null || loadingProviders
+                              props.readOnly ||
+                              savingProviderId !== null ||
+                              loadingProviders
                             }
-                            onClick={() => void disableConfiguredProvider(provider)}
+                            onClick={() =>
+                              void disableConfiguredProvider(provider)
+                            }
                           >
                             {translateWebSource(sourceLocale, "Disable")}
                           </Button>
@@ -695,7 +805,9 @@ function InstanceSessionManagement(
                         }}
                       >
                         <SelectTrigger
-                          aria-label={t("audit6.providerProtocol", { id: provider.providerId })}
+                          aria-label={t("audit6.providerProtocol", {
+                            id: provider.providerId,
+                          })}
                           size="sm"
                         >
                           <SelectValue>{draft.apiType}</SelectValue>
@@ -711,17 +823,26 @@ function InstanceSessionManagement(
                       <Input
                         size="sm"
                         type="url"
-                        aria-label={t("audit6.providerUrl", { id: provider.providerId })}
-                        placeholder={translateWebSource(sourceLocale, "https://api.example.com")}
+                        aria-label={t("audit6.providerUrl", {
+                          id: provider.providerId,
+                        })}
+                        placeholder={translateWebSource(
+                          sourceLocale,
+                          "https://api.example.com",
+                        )}
                         value={draft.baseUrl}
                         disabled={props.readOnly || savingProviderId !== null}
-                        onValueChange={(value) => updateDraft({ baseUrl: value })}
+                        onValueChange={(value) =>
+                          updateDraft({ baseUrl: value })
+                        }
                       />
                     </div>
                     <Input
                       size="sm"
                       type="password"
-                      aria-label={t("audit6.providerHeaders", { id: provider.providerId })}
+                      aria-label={t("audit6.providerHeaders", {
+                        id: provider.providerId,
+                      })}
                       placeholder={translateWebSource(
                         sourceLocale,
                         'Write-only headers JSON, e.g. {"Authorization":"Bearer …"}',

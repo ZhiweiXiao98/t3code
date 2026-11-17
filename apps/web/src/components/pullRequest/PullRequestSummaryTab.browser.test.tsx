@@ -2,7 +2,16 @@ import { WebI18nContext } from "~/i18n/WebI18nContext";
 import { translateWebMessage } from "~/i18n/messages";
 import { pullRequestEnvironment } from "~/state/pullRequests";
 import { SourceControlProviderKind } from "@t3tools/contracts";
-import { EnvironmentId, ProjectId, ThreadId, type PullRequestDetailView } from "@t3tools/contracts";
+import {
+  EnvironmentId,
+  ProjectId,
+  ThreadId,
+  type PullRequestDetailView,
+} from "@t3tools/contracts";
+import {
+  DEFAULT_CLIENT_SETTINGS,
+  type ClientSettings,
+} from "@t3tools/contracts";
 import { expect, it, vi } from "vite-plus/test";
 import { userEvent } from "vite-plus/test/browser";
 
@@ -12,6 +21,7 @@ const state = vi.hoisted(() => ({
   update: vi.fn(),
   updateComment: vi.fn(),
   canUpdate: true,
+  timestampFormat: "locale" as "locale" | "12-hour" | "24-hour",
   canWrite: true,
   locale: "en" as "en" | "zh-CN",
   toast: vi.fn(),
@@ -36,12 +46,24 @@ vi.mock("~/i18n/readWebI18n", () => ({
 vi.mock(import("~/state/use-atom-command"), async (original) => ({
   ...(await original()),
   useAtomCommand: ((command: unknown) =>
-    command === pullRequestEnvironment.updateComment ? state.updateComment : state.update) as never,
+    command === pullRequestEnvironment.updateComment
+      ? state.updateComment
+      : state.update) as never,
 }));
 vi.mock(import("~/state/session"), async (original) => ({
   ...(await original()),
   readEnvironmentScope: () => state.canWrite,
   useEnvironmentScope: () => state.canWrite,
+}));
+vi.mock(import("~/hooks/useSettings"), async (original) => ({
+  ...(await original()),
+  useClientSettings: ((select?: (settings: ClientSettings) => unknown) => {
+    const settings = {
+      ...DEFAULT_CLIENT_SETTINGS,
+      timestampFormat: state.timestampFormat,
+    };
+    return select ? select(settings) : settings;
+  }) as never,
 }));
 vi.mock(import("~/state/pullRequests"), async (original) => {
   const actual = await original();
@@ -79,6 +101,7 @@ function setup() {
   state.canWrite = true;
   state.locale = "en";
   state.toast.mockClear();
+  state.timestampFormat = "locale";
 }
 
 import { act, render as renderUi } from "../../../test/render";
@@ -110,7 +133,9 @@ const detail: PullRequestDetailView = {
   closedAt: null,
   reviewers: [],
   labels: [],
-  checks: [{ name: "Unit tests", status: "success", description: null, url: null }],
+  checks: [
+    { name: "Unit tests", status: "success", description: null, url: null },
+  ],
   comments: [],
   commentCount: 0,
   commentsTruncated: false,
@@ -123,7 +148,12 @@ const detail: PullRequestDetailView = {
     search: true,
     actions: [],
     mergeMethods: [],
-    review: { inlineComment: false, reply: false, resolve: false, verdicts: [] },
+    review: {
+      inlineComment: false,
+      reply: false,
+      resolve: false,
+      verdicts: [],
+    },
     reviewers: { request: false, listCandidates: false },
     edit: { changeRequest: true, comment: true },
   },
@@ -170,10 +200,15 @@ async function render(value = detail) {
 
 it("keeps an unsaved description when collapsed and reopened, and after a failed save", async () => {
   setup();
-  state.update.mockResolvedValue({ _tag: "Failure", cause: new Error("offline") });
+  state.update.mockResolvedValue({
+    _tag: "Failure",
+    cause: new Error("offline"),
+  });
   await using screen = await render();
   await act(async () =>
-    screen.container.querySelector<HTMLButtonElement>('[aria-label="Edit description"]')!.click(),
+    screen.container
+      .querySelector<HTMLButtonElement>('[aria-label="Edit description"]')!
+      .click(),
   );
   const textarea = screen.container.querySelector("textarea")!;
   await userEvent.clear(textarea);
@@ -181,22 +216,34 @@ it("keeps an unsaved description when collapsed and reopened, and after a failed
   await screen.click("Description");
   expect(screen.expanded("Description")).toBe("false");
   await screen.click("Description");
-  expect(screen.container.querySelector("textarea")!.value).toBe("Unsaved description");
+  expect(screen.container.querySelector("textarea")!.value).toBe(
+    "Unsaved description",
+  );
 
   await userEvent.click(screen.getByRole("button", { name: "Save" }));
   expect(state.update).toHaveBeenCalledTimes(1);
-  await expect.element(screen.getByRole("button", { name: "Save" })).toBeEnabled();
-  expect(screen.container.querySelector("textarea")!.value).toBe("Unsaved description");
+  await expect
+    .element(screen.getByRole("button", { name: "Save" }))
+    .toBeEnabled();
+  expect(screen.container.querySelector("textarea")!.value).toBe(
+    "Unsaved description",
+  );
 });
 
 it("ticks a description checkbox placed after an attachment and edits from the ticked body", async () => {
   setup();
   let finishSave = (_result: unknown) => {};
-  state.update.mockReturnValueOnce(new Promise((resolve) => (finishSave = resolve)));
-  const body = "Intro\n\nhttps://example.com/shot.png\n\n## Test plan\n- [ ] First\n- [ ] Second";
+  state.update.mockReturnValueOnce(
+    new Promise((resolve) => (finishSave = resolve)),
+  );
+  const body =
+    "Intro\n\nhttps://example.com/shot.png\n\n## Test plan\n- [ ] First\n- [ ] Second";
   const ticked = body.replace("- [ ] Second", "- [x] Second");
   await using screen = await render({ ...detail, body, observedAt: 1 });
-  const boxes = () => screen.container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
+  const boxes = () =>
+    screen.container.querySelectorAll<HTMLInputElement>(
+      'input[type="checkbox"]',
+    );
   expect([...boxes()].map((box) => box.disabled)).toEqual([false, false]);
 
   await userEvent.click(boxes()[1]!);
@@ -209,7 +256,9 @@ it("ticks a description checkbox placed after an attachment and edits from the t
 
   // The host has not been read since the save, so the editor starts from the ticked body.
   await act(async () =>
-    screen.container.querySelector<HTMLButtonElement>('[aria-label="Edit description"]')!.click(),
+    screen.container
+      .querySelector<HTMLButtonElement>('[aria-label="Edit description"]')!
+      .click(),
   );
   expect(screen.container.querySelector("textarea")!.value).toBe(ticked);
 });
@@ -218,16 +267,23 @@ it("leaves description checkboxes read-only without the right to edit it", async
   setup();
   const body = "- [ ] First";
   {
-    await using screen = await render({ ...detail, body, viewer: "someone-else" });
+    await using screen = await render({
+      ...detail,
+      body,
+      viewer: "someone-else",
+    });
     expect(
-      screen.container.querySelector<HTMLInputElement>('input[type="checkbox"]')!.disabled,
+      screen.container.querySelector<HTMLInputElement>(
+        'input[type="checkbox"]',
+      )!.disabled,
     ).toBe(true);
   }
   state.canUpdate = false;
   await using screen = await render({ ...detail, body });
-  expect(screen.container.querySelector<HTMLInputElement>('input[type="checkbox"]')!.disabled).toBe(
-    true,
-  );
+  expect(
+    screen.container.querySelector<HTMLInputElement>('input[type="checkbox"]')!
+      .disabled,
+  ).toBe(true);
 });
 
 it.each(["en", "zh-CN"] as const)(
@@ -259,7 +315,9 @@ it.each(["en", "zh-CN"] as const)(
         />
       </WebI18nContext>,
     );
-    await vi.waitFor(() => expect(onRevealSettled).toHaveBeenCalledWith(revealUrl));
+    await vi.waitFor(() =>
+      expect(onRevealSettled).toHaveBeenCalledWith(revealUrl),
+    );
     await expect
       .element(
         screen.getByRole("region", {
@@ -282,7 +340,11 @@ it.each([
     setup();
     const { AsyncResult } = await import("effect/reactivity");
     const Cause = await import("effect/Cause");
-    type Result = import("@t3tools/client-runtime/state/runtime").AtomCommandResult<void, unknown>;
+    type Result =
+      import("@t3tools/client-runtime/state/runtime").AtomCommandResult<
+        void,
+        unknown
+      >;
     let finish = (_result: Result) => {};
     state.update.mockReturnValueOnce(
       new Promise<Result>((resolve) => {
@@ -323,12 +385,16 @@ it.each([
         });
       },
     };
-    await userEvent.click(screen.getByRole("button", { name: "Edit description", exact: true }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Edit description", exact: true }),
+    );
     const draft = "Literal $& {description}\nKeep this draft";
     const input = screen.container.querySelector("textarea")!;
     await userEvent.clear(input);
     await userEvent.fill(input, draft);
-    await userEvent.click(screen.getByRole("button", { name: "Save", exact: true }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Save", exact: true }),
+    );
     await expect
       .element(screen.getByRole("button", { name: "Saving...", exact: true }))
       .toBeDisabled();
@@ -339,10 +405,19 @@ it.each([
     expect(refresh).not.toHaveBeenCalled();
     await screen.rerender(surface("zh-CN"));
     await act(async () => {
-      finish(AsyncResult.failure(kind === "interrupted" ? Cause.interrupt() : Cause.fail(failure)));
+      finish(
+        AsyncResult.failure(
+          kind === "interrupted" ? Cause.interrupt() : Cause.fail(failure),
+        ),
+      );
     });
-    await expect.element(screen.getByRole("button", { name: "保存", exact: true })).toBeEnabled();
-    expect(state.toast).toHaveBeenCalledExactlyOnceWith({ type: "error", title: "无法保存说明" });
+    await expect
+      .element(screen.getByRole("button", { name: "保存", exact: true }))
+      .toBeEnabled();
+    expect(state.toast).toHaveBeenCalledExactlyOnceWith({
+      type: "error",
+      title: "无法保存说明",
+    });
     expect(screen.container.querySelector("textarea")!.value).toBe(draft);
     expect(refresh).toHaveBeenCalledTimes(1);
     await screen.rerender(surface("en"));
@@ -362,7 +437,11 @@ it.each([
     setup();
     const { AsyncResult } = await import("effect/reactivity");
     const Cause = await import("effect/Cause");
-    type Result = import("@t3tools/client-runtime/state/runtime").AtomCommandResult<void, unknown>;
+    type Result =
+      import("@t3tools/client-runtime/state/runtime").AtomCommandResult<
+        void,
+        unknown
+      >;
     let finish = (_result: Result) => {};
     state.updateComment.mockReturnValueOnce(
       new Promise<Result>((resolve) => {
@@ -419,26 +498,44 @@ it.each([
         });
       },
     };
-    await userEvent.click(screen.getByRole("button", { name: "Edit comment", exact: true }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Edit comment", exact: true }),
+    );
     const draft = "Literal $& {comment}\nKeep this draft";
     const input = screen.container.querySelector("textarea")!;
     await userEvent.clear(input);
     await userEvent.fill(input, draft);
-    await userEvent.click(screen.getByRole("button", { name: "Save", exact: true }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Save", exact: true }),
+    );
     await expect
       .element(screen.getByRole("button", { name: "Saving...", exact: true }))
       .toBeDisabled();
     expect(state.updateComment).toHaveBeenCalledExactlyOnceWith({
       environmentId: EnvironmentId.make("environment"),
-      input: { ...detail, commentId: "comment-literal", kind: "issue-comment", body: draft },
+      input: {
+        ...detail,
+        commentId: "comment-literal",
+        kind: "issue-comment",
+        body: draft,
+      },
     });
     expect(refresh).not.toHaveBeenCalled();
     await screen.rerender(surface("zh-CN"));
     await act(async () => {
-      finish(AsyncResult.failure(kind === "interrupted" ? Cause.interrupt() : Cause.fail(failure)));
+      finish(
+        AsyncResult.failure(
+          kind === "interrupted" ? Cause.interrupt() : Cause.fail(failure),
+        ),
+      );
     });
-    await expect.element(screen.getByRole("button", { name: "保存", exact: true })).toBeEnabled();
-    expect(state.toast).toHaveBeenCalledExactlyOnceWith({ type: "error", title: "无法保存评论" });
+    await expect
+      .element(screen.getByRole("button", { name: "保存", exact: true }))
+      .toBeEnabled();
+    expect(state.toast).toHaveBeenCalledExactlyOnceWith({
+      type: "error",
+      title: "无法保存评论",
+    });
     expect(screen.container.querySelector("textarea")!.value).toBe(draft);
     expect(refresh).not.toHaveBeenCalled();
     await screen.rerender(surface("en"));
@@ -447,13 +544,17 @@ it.each([
     expect(state.update).not.toHaveBeenCalled();
     state.canWrite = false;
     await screen.rerender(surface("en"));
-    await expect.element(screen.getByRole("button", { name: "Save", exact: true })).toBeDisabled();
+    await expect
+      .element(screen.getByRole("button", { name: "Save", exact: true }))
+      .toBeDisabled();
     await userEvent.click(screen.container.querySelector("textarea")!);
     await userEvent.keyboard("{Control>}{Enter}{/Control}");
     expect(state.updateComment).toHaveBeenCalledTimes(1);
     await userEvent.keyboard("{Escape}");
     await expect
-      .element(screen.getByRole("button", { name: "Edit comment", exact: true }))
+      .element(
+        screen.getByRole("button", { name: "Edit comment", exact: true }),
+      )
       .toBeVisible();
     expect(state.updateComment).toHaveBeenCalledTimes(1);
   },
@@ -501,59 +602,156 @@ it.each([
   ["raw", new Error("Unable to open check details")],
   ["empty", new Error("")],
   ["success", undefined],
-] as const)("uses settlement locale for summary check details: %s", async (kind, failure) => {
-  setup();
-  let resolve = () => {};
-  let reject = (_error: unknown) => {};
-  const pending = new Promise<void>((yes, no) => {
-    resolve = yes;
-    reject = no;
-  });
-  state.open.mockReturnValueOnce(pending);
-  using logged = vi.spyOn(console, "error").mockImplementation(() => {});
-  await using screen = await renderUi(checkSurface("en"));
-  await using _settle = {
-    async [Symbol.asyncDispose]() {
-      await act(async () => {
-        resolve();
-        await Promise.resolve();
-      });
-    },
-  };
-  await userEvent.click(screen.getByRole("button", { name: "Checks", exact: true }));
-  await userEvent.click(screen.getByRole("button", { name: /Literal \$& \{check\}/ }));
-  expect(state.open).toHaveBeenCalledExactlyOnceWith(checkUrl);
-  expect(state.refs).toHaveBeenLastCalledWith(checkRef);
-  expect(state.toast).not.toHaveBeenCalled();
-  await screen.rerender(checkSurface("zh-CN"));
-  await act(async () => {
-    if (kind === "success") resolve();
-    else reject(failure);
-    await Promise.resolve();
-  });
-  if (kind === "success") {
-    expect(state.toast).not.toHaveBeenCalled();
-    expect(logged).not.toHaveBeenCalled();
-  } else {
-    expect(state.toast).toHaveBeenCalledExactlyOnceWith({
-      type: "error",
-      title: "无法打开检查详情",
+] as const)(
+  "uses settlement locale for summary check details: %s",
+  async (kind, failure) => {
+    setup();
+    let resolve = () => {};
+    let reject = (_error: unknown) => {};
+    const pending = new Promise<void>((yes, no) => {
+      resolve = yes;
+      reject = no;
     });
-    expect(logged).toHaveBeenCalledExactlyOnceWith(failure);
-  }
-  await screen.rerender(checkSurface("en"));
-  expect(state.open).toHaveBeenCalledTimes(1);
-  expect(state.toast).toHaveBeenCalledTimes(kind === "success" ? 0 : 1);
-});
+    state.open.mockReturnValueOnce(pending);
+    using logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    await using screen = await renderUi(checkSurface("en"));
+    await using _settle = {
+      async [Symbol.asyncDispose]() {
+        await act(async () => {
+          resolve();
+          await Promise.resolve();
+        });
+      },
+    };
+    await userEvent.click(
+      screen.getByRole("button", { name: "Checks", exact: true }),
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: /Literal \$& \{check\}/ }),
+    );
+    expect(state.open).toHaveBeenCalledExactlyOnceWith(checkUrl);
+    expect(state.refs).toHaveBeenLastCalledWith(checkRef);
+    expect(state.toast).not.toHaveBeenCalled();
+    await screen.rerender(checkSurface("zh-CN"));
+    await act(async () => {
+      if (kind === "success") resolve();
+      else reject(failure);
+      await Promise.resolve();
+    });
+    if (kind === "success") {
+      expect(state.toast).not.toHaveBeenCalled();
+      expect(logged).not.toHaveBeenCalled();
+    } else {
+      expect(state.toast).toHaveBeenCalledExactlyOnceWith({
+        type: "error",
+        title: "无法打开检查详情",
+      });
+      expect(logged).toHaveBeenCalledExactlyOnceWith(failure);
+    }
+    await screen.rerender(checkSurface("en"));
+    expect(state.open).toHaveBeenCalledTimes(1);
+    expect(state.toast).toHaveBeenCalledTimes(kind === "success" ? 0 : 1);
+  },
+);
 it("does not open summary check details without a URL", async () => {
   setup();
   await using screen = await renderUi(checkSurface("en", false));
-  await userEvent.click(screen.getByRole("button", { name: "Checks", exact: true }));
+  await userEvent.click(
+    screen.getByRole("button", { name: "Checks", exact: true }),
+  );
   const row = screen.getByRole("button", { name: /Literal \$& \{check\}/ });
   await expect.element(row).toBeDisabled();
   await act(async () => {
-    row.element().dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+    row
+      .element()
+      .dispatchEvent(
+        new MouseEvent("click", { bubbles: true, composed: true }),
+      );
   });
   expect(state.open).not.toHaveBeenCalled();
   expect(state.toast).not.toHaveBeenCalled();
+});
+
+it("fixes an overview thread as its opening remark, since it has no line to attach", async () => {
+  setup();
+  const author = { login: "reviewer", name: null, avatarUrl: null };
+  const note = { author, createdAt: "2026-09-01T00:00:00Z", url: null };
+  const remark = {
+    ...note,
+    id: "10",
+    kind: "review-comment" as const,
+    body: "Mention the flag in the README",
+    path: null,
+    reviewState: null,
+  };
+  const onFixFinding = vi.fn();
+  const value: PullRequestDetailView = {
+    ...detail,
+    comments: [remark],
+    overviewThreads: [
+      {
+        id: "overview",
+        path: null,
+        line: null,
+        side: "right",
+        isResolved: false,
+        isOutdated: false,
+        comments: [{ ...note, id: "10", body: remark.body }],
+      },
+    ],
+  };
+  await using screen = await renderUi(
+    <PullRequestSummaryTab
+      scrollerRef={() => {}}
+      environmentId={EnvironmentId.make("environment")}
+      threadRef={null}
+      reference={value}
+      detail={value}
+      activityPending={false}
+      activityError={null}
+      onRefresh={() => {}}
+      onFixFinding={onFixFinding}
+    />,
+  );
+
+  await userEvent.click(
+    screen.getByRole("button", { name: "Fix in a thread" }),
+  );
+  expect(onFixFinding).toHaveBeenCalledWith({
+    kind: "comment",
+    comment: remark,
+  });
+});
+
+it("shows a comment's exact time in the chosen 24-hour clock", async () => {
+  setup();
+  state.timestampFormat = "24-hour";
+  const createdAt = "2026-09-01T17:30:00Z";
+  const comment = {
+    id: "10",
+    kind: "review-comment" as const,
+    body: "A remark",
+    author: { login: "reviewer", name: null, avatarUrl: null },
+    createdAt,
+    url: null,
+    path: null,
+    reviewState: null,
+  };
+  await using screen = await render({
+    ...detail,
+    comments: [comment],
+    commentCount: 1,
+  });
+
+  await userEvent.hover(
+    screen.container.querySelector(`time[datetime="${createdAt}"]`)!,
+  );
+  const expected = new Date(createdAt).toLocaleString(undefined, {
+    hour12: false,
+  });
+  await vi.waitFor(() =>
+    expect(
+      document.querySelector('[data-slot="tooltip-popup"]')?.textContent,
+    ).toBe(expected),
+  );
 });

@@ -23,22 +23,29 @@ import {
 
 export const NEW_THREAD_DESTINATION_LABEL = "New thread each run";
 
-export function useScheduledTaskDestinationLabel(
+export function useScheduledTaskThread(
   environmentId: EnvironmentId | null,
   threadId: ThreadId | null,
-): string {
+) {
   const ref =
     environmentId === null || threadId === null ? null : scopeThreadRef(environmentId, threadId);
   const shell = useThreadShell(ref);
-  // The shell can omit older settled threads; their family read still carries the title.
+  // The shell can omit older settled threads; their family read still carries the row.
   const family = useEnvironmentQuery(
     ref !== null && shell === null
       ? threadFamilies.familyAtom(ref.environmentId, ref.threadId)
       : null,
   );
-  const thread = shell ?? family.data?.threads.find((row) => row.id === threadId);
-  if (ref === null) return localizeMobileString(NEW_THREAD_DESTINATION_LABEL);
-  return thread?.title.trim() || formatMobileMessage("Thread {0}", [ref.threadId]);
+  return shell ?? family.data?.threads.find((row) => row.id === threadId) ?? null;
+}
+
+export function useScheduledTaskDestinationLabel(
+  environmentId: EnvironmentId | null,
+  threadId: ThreadId | null,
+): string {
+  const thread = useScheduledTaskThread(environmentId, threadId);
+  if (environmentId === null || threadId === null) return localizeMobileString(NEW_THREAD_DESTINATION_LABEL);
+  return thread?.title.trim() || formatMobileMessage("Thread {0}", [threadId]);
 }
 
 /** The form draft lives in an atom, so it survives while its native picker routes are on top. */

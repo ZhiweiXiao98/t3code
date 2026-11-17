@@ -14,9 +14,13 @@ import {
   type PromptLinkRepository,
 } from "@t3tools/shared/promptLinks";
 
-import { type ComposerThreadTarget, useComposerDraftStore } from "~/composerDraftStore";
+import {
+  type ComposerThreadTarget,
+  useComposerDraftStore,
+} from "~/composerDraftStore";
 import { writeTextToClipboard } from "~/hooks/useCopyToClipboard";
 import { configuredHostedAppUrl } from "~/hostedPairing";
+import { draftModelSelectionApplies } from "~/lib/chatThreadActions";
 
 import { stackedThreadToast, toastManager } from "../ui/toast";
 
@@ -30,8 +34,13 @@ export function promptLinkFor(
   },
 ): string | null {
   const trimmed = isAttachmentOnlyBootstrapPrompt(prompt) ? "" : prompt.trim();
-  if (trimmed.length === 0 || trimmed.length > PROMPT_LINK_MAX_PROMPT_LENGTH) return null;
-  return buildNewThreadLink({ prompt: trimmed, ...context, origin: configuredHostedAppUrl() });
+  if (trimmed.length === 0 || trimmed.length > PROMPT_LINK_MAX_PROMPT_LENGTH)
+    return null;
+  return buildNewThreadLink({
+    prompt: trimmed,
+    ...context,
+    origin: configuredHostedAppUrl(),
+  });
 }
 
 export function promptLinkRepositoryOf(
@@ -50,17 +59,21 @@ export function composerPromptLink(input: {
   readonly project: EnvironmentProject | undefined;
   readonly providers: ReadonlyArray<ServerProvider>;
   readonly threadModelSelection: ModelSelection | null;
+  readonly threadStarted: boolean;
   readonly withContext: boolean;
 }): string | null {
   const draft = useComposerDraftStore.getState().getComposerDraft(input.target);
   if (!draft) return null;
   if (!input.withContext) return promptLinkFor(draft.prompt);
   const selection =
-    (draft.activeProvider ? draft.modelSelectionByProvider[draft.activeProvider] : undefined) ??
-    input.threadModelSelection;
+    (draft.activeProvider &&
+    draftModelSelectionApplies(draft, input.threadStarted)
+      ? draft.modelSelectionByProvider[draft.activeProvider]
+      : undefined) ?? input.threadModelSelection;
   const provider = selection
-    ? (input.providers.find((candidate) => candidate.instanceId === selection.instanceId)?.driver ??
-      null)
+    ? (input.providers.find(
+        (candidate) => candidate.instanceId === selection.instanceId,
+      )?.driver ?? null)
     : null;
   return promptLinkFor(draft.prompt, {
     repository: promptLinkRepositoryOf(input.project),
@@ -72,15 +85,16 @@ export function composerPromptLink(input: {
 export async function copyPromptLink(link: string): Promise<void> {
   const { locale } = readWebI18n();
   try {
-    if (!(await writeTextToClipboard(link))) return;
-    toastManager.add({ type: "success", title: translateWebSource(locale, "Prompt link copied") });
+    await writeTextToClipboard(link);
   } catch (error) {
     toastManager.add(
       stackedThreadToast({
         type: "error",
         title: translateWebSource(locale, "Could not copy the prompt link"),
         description:
-          error instanceof Error ? error.message : translateWebSource(locale, "An error occurred."),
+          error instanceof Error
+            ? error.message
+            : translateWebSource(locale, "An error occurred."),
       }),
     );
   }

@@ -1,8 +1,17 @@
-import { splitWebTranslation, useI18n, type WebTranslate } from "~/i18n/WebI18nContext";
+import {
+  splitWebTranslation,
+  useI18n,
+  type WebTranslate,
+} from "~/i18n/WebI18nContext";
 import { useAtomValue } from "@effect/atom-react";
 import { ThreadDetailsControl } from "./ThreadDetailsControl";
 import { useNavigate } from "@tanstack/react-router";
-import { CalendarClockIcon, PencilIcon, PlayIcon, Settings2Icon } from "lucide-react";
+import {
+  CalendarClockIcon,
+  PencilIcon,
+  PlayIcon,
+  Settings2Icon,
+} from "lucide-react";
 import { useState } from "react";
 import {
   AuthOrchestrationOperateScope,
@@ -17,7 +26,8 @@ import {
 
 import { ThreadDetailsSection } from "./ThreadDetailsSection";
 import { cn } from "../../lib/utils";
-import { ScheduledRelativeLabel, scheduleLabel } from "../settings/ScheduledTasksSettings";
+import { ScheduledRelativeLabel } from "../settings/ScheduledTasksSettings";
+import { scheduleLabel } from "../settings/scheduledTasksSettings.logic";
 import { useEnvironmentQuery } from "../../state/query";
 import { serverEnvironment } from "../../state/server";
 import { useAtomCommand } from "../../state/use-atom-command";
@@ -38,10 +48,14 @@ const STATUS_DOT_CLASS: Record<ScheduledTask["lastRunStatus"], string> = {
   failed: "bg-destructive",
 };
 
-function taskScheduleLine(task: ScheduledTask, residualT: WebTranslate) {
+function taskScheduleLine(
+  task: ScheduledTask,
+  residualT: WebTranslate,
+  timeZone: string | undefined,
+) {
   return (
     <>
-      {scheduleLabel(task.schedule)}
+      {scheduleLabel(task.schedule, timeZone, task.nextRunAt)}
       {task.blockedByPolicy !== undefined ? (
         ` · ${task.blockedByPolicy}`
       ) : task.enabled && task.nextRunAt !== null ? (
@@ -68,11 +82,17 @@ export function ThreadAutomationsPanel(props: {
     serverEnvironment.runScheduledTaskNow.permissionAtom(props.environmentId),
   );
   const tasksQuery = useEnvironmentQuery(
-    serverEnvironment.scheduledTasksLive({ environmentId: props.environmentId, input: {} }),
+    serverEnvironment.scheduledTasksLive({
+      environmentId: props.environmentId,
+      input: {},
+    }),
   );
-  const setTaskEnabled = useAtomCommand(serverEnvironment.setScheduledTaskEnabled, {
-    label: "thread automation toggle",
-  });
+  const setTaskEnabled = useAtomCommand(
+    serverEnvironment.setScheduledTaskEnabled,
+    {
+      label: "thread automation toggle",
+    },
+  );
   const runTaskNow = useAtomCommand(serverEnvironment.runScheduledTaskNow, {
     label: "thread automation run now",
   });
@@ -128,7 +148,10 @@ export function ThreadAutomationsPanel(props: {
     });
     setBusyTaskId(null);
     if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
-      reportFailure(residualT("chatResidual.automationRunError"), squashAtomCommandFailure(result));
+      reportFailure(
+        residualT("chatResidual.automationRunError"),
+        squashAtomCommandFailure(result),
+      );
     }
   };
 
@@ -186,12 +209,14 @@ export function ThreadAutomationsPanel(props: {
                   {task.title}
                 </span>
                 <p className="truncate text-2xs text-muted-foreground">
-                  {taskScheduleLine(task, residualT)}
+                  {taskScheduleLine(task, residualT, tasksQuery.data?.timeZone)}
                 </p>
               </TooltipTrigger>
               <TooltipPopup side="left">
                 <p className="font-medium">{task.title}</p>
-                <p className="text-muted-foreground">{taskScheduleLine(task, residualT)}</p>
+                <p className="text-muted-foreground">
+                  {taskScheduleLine(task, residualT, tasksQuery.data?.timeZone)}
+                </p>
               </TooltipPopup>
             </Tooltip>
             <Tooltip>
@@ -201,11 +226,16 @@ export function ThreadAutomationsPanel(props: {
                     size="icon-xs"
                     variant="ghost"
                     part="icon"
-                    aria-label={residualT("chatResidual.editTask", { name: task.title })}
+                    aria-label={residualT("chatResidual.editTask", {
+                      name: task.title,
+                    })}
                     onClick={() =>
                       void navigate({
                         to: "/settings/scheduled-tasks",
-                        search: { environmentId: props.environmentId, taskId: task.id },
+                        search: {
+                          environmentId: props.environmentId,
+                          taskId: task.id,
+                        },
                       })
                     }
                   >
@@ -224,9 +254,13 @@ export function ThreadAutomationsPanel(props: {
                       size="icon-xs"
                       variant="ghost"
                       part="icon"
-                      aria-label={residualT("chatResidual.runTask", { name: task.title })}
+                      aria-label={residualT("chatResidual.runTask", {
+                        name: task.title,
+                      })}
                       disabled={
-                        !canOperate || busyTaskId !== null || task.lastRunStatus === "running"
+                        !canOperate ||
+                        busyTaskId !== null ||
+                        task.lastRunStatus === "running"
                       }
                       onClick={() => void runNow(task)}
                     >

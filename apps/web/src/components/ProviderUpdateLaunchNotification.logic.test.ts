@@ -36,7 +36,9 @@ function provider(input: {
   readonly canUpdate?: boolean;
   readonly updateCommand?: string | null;
   readonly updateState?: ServerProvider["updateState"];
-  readonly advisoryStatus?: NonNullable<ServerProvider["versionAdvisory"]>["status"];
+  readonly advisoryStatus?: NonNullable<
+    ServerProvider["versionAdvisory"]
+  >["status"];
 }): ServerProvider {
   const result: ServerProvider = {
     instanceId: input.instanceId ?? instanceId(String(input.driver)),
@@ -54,7 +56,10 @@ function provider(input: {
       status: input.advisoryStatus ?? "behind_latest",
       currentVersion: input.version ?? "1.0.0",
       latestVersion: "latestVersion" in input ? input.latestVersion : "1.1.0",
-      updateCommand: "updateCommand" in input ? input.updateCommand : "npm install -g provider",
+      updateCommand:
+        "updateCommand" in input
+          ? input.updateCommand
+          : "npm install -g provider",
       canUpdate: input.canUpdate ?? true,
       checkedAt,
       message: "Update available.",
@@ -68,7 +73,9 @@ function provider(input: {
   return result;
 }
 
-function updateCandidate(input: Parameters<typeof provider>[0]): ProviderUpdateCandidate {
+function updateCandidate(
+  input: Parameters<typeof provider>[0],
+): ProviderUpdateCandidate {
   return provider(input) as ProviderUpdateCandidate;
 }
 
@@ -144,8 +151,12 @@ describe("provider update launch notification logic", () => {
       },
     });
 
-    expect(hasOneClickUpdateProviderCandidate(candidate, [candidate])).toBe(true);
-    expect(canOneClickUpdateProviderCandidate(candidate, [candidate])).toBe(false);
+    expect(hasOneClickUpdateProviderCandidate(candidate, [candidate])).toBe(
+      true,
+    );
+    expect(canOneClickUpdateProviderCandidate(candidate, [candidate])).toBe(
+      false,
+    );
   });
 
   it("shows the active sidebar pill for an update on a non-default instance", () => {
@@ -268,7 +279,9 @@ describe("provider update launch notification logic", () => {
 
     const failureView = getProviderUpdateSidebarPillView(providers, {
       visibleAfterIso: sessionStartedAt,
-      dismissedKeys: new Set(["succeeded:codex:2026-04-23T10:01:00.000Z:Provider updated."]),
+      dismissedKeys: new Set([
+        "succeeded:codex:2026-04-23T10:01:00.000Z:Provider updated.",
+      ]),
     });
     expect(failureView).toMatchObject({
       key: "failed:claudeAgent:2026-04-23T10:00:00.000Z:Update command exited with code 1.",
@@ -280,7 +293,12 @@ describe("provider update launch notification logic", () => {
 
 it("does not offer incompatible latest versions and restores suggestions after policy relaxation", () => {
   const installed = provider({ driver: driver("codex") });
-  for (const latestVersionStatus of ["broken", "unsupported", "supported", "unknown"] as const) {
+  for (const latestVersionStatus of [
+    "broken",
+    "unsupported",
+    "supported",
+    "unknown",
+  ] as const) {
     const snapshot: ServerProvider = {
       ...installed,
       compatibilityAdvisory: {
@@ -291,7 +309,8 @@ it("does not offer incompatible latest versions and restores suggestions after p
         recommendedVersion: null,
       },
     };
-    const expected = latestVersionStatus === "supported" || latestVersionStatus === "unknown";
+    const expected =
+      latestVersionStatus === "supported" || latestVersionStatus === "unknown";
     expect(isProviderUpdateCandidate(snapshot)).toBe(expected);
     expect(isProviderSettingsUpdateCandidate(snapshot)).toBe(expected);
   }
@@ -313,7 +332,9 @@ describe("getProviderUpdateRunToastView", () => {
   const run = (
     machineLabel: string,
     providerDriver: string,
-    result: Parameters<typeof getProviderUpdateRunToastView>[0][number]["result"],
+    result: Parameters<
+      typeof getProviderUpdateRunToastView
+    >[0][number]["result"],
   ) => ({
     environmentId: EnvironmentId.make(machineLabel),
     machineLabel,
@@ -324,13 +345,67 @@ describe("getProviderUpdateRunToastView", () => {
 
   it("localizes failed provider updates without translating provider or error text", () => {
     const view = getProviderUpdateRunToastView(
-      [run("Laptop", "codex", AsyncResult.failure(Cause.die(new Error("WebSocket closed"))))],
+      [
+        run(
+          "Laptop",
+          "codex",
+          AsyncResult.failure(Cause.die(new Error("WebSocket closed"))),
+        ),
+      ],
       translateChinese,
     );
     expect(view).toEqual({
       type: "error",
       title: translateWebMessage("zh-CN", "providerUpdate.run.failed"),
       description: "Laptop · Codex: WebSocket closed",
+    });
+  });
+
+  it("preserves the local server restart instruction after a successful update", () => {
+    const message =
+      "OpenCode CLI updated. Restart the configured local OpenCode server to use the new version.";
+    const updated = {
+      ...provider({
+        driver: driver("opencode"),
+        version: "2.1.2",
+        advisoryStatus: "current",
+        updateState: updateState("succeeded", message),
+      }),
+      installedVersion: "2.2.5",
+    };
+    expect(
+      getProviderUpdateRunToastView([
+        run("Linux", "opencode", AsyncResult.success({ providers: [updated] })),
+        run(
+          "Laptop",
+          "opencode",
+          AsyncResult.success({ providers: [updated] }),
+        ),
+      ]),
+    ).toMatchObject({
+      type: "success",
+      description: `Linux · OpenCode: ${message}\nLaptop · OpenCode: ${message}`,
+    });
+    expect(
+      getProviderUpdateSidebarPillView([updated], {
+        visibleAfterIso: sessionStartedAt,
+      }),
+    ).toMatchObject({
+      title: "OpenCode updated: v2.2.5",
+      description: message,
+    });
+
+    const restarted = { ...updated, version: "2.2.5" };
+    expect(
+      getProviderUpdateRunToastView([
+        run(
+          "Linux",
+          "opencode",
+          AsyncResult.success({ providers: [restarted] }),
+        ),
+      ]),
+    ).toMatchObject({
+      description: "New sessions will use the updated provider.",
     });
   });
 
@@ -360,14 +435,19 @@ describe("getProviderUpdateRunToastView", () => {
           ],
         }),
       ),
-      run("Laptop", "codex", AsyncResult.failure(Cause.die(new Error("WebSocket closed")))),
+      run(
+        "Laptop",
+        "codex",
+        AsyncResult.failure(Cause.die(new Error("WebSocket closed"))),
+      ),
       run("Server", "codex", AsyncResult.failure(Cause.interrupt())),
     ]);
 
     expect(view).toEqual({
       type: "error",
       title: "2 of 3 provider updates failed",
-      description: "Mac Studio · Claude: npm exited with code 1.\nLaptop · Codex: WebSocket closed",
+      description:
+        "Mac Studio · Claude: npm exited with code 1.\nLaptop · Codex: WebSocket closed",
     });
   });
 });

@@ -1,6 +1,9 @@
 import type { LocalThreadErrorEntry } from "../ChatView.logic";
 import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
-import { activityTemplate, childInputTitle } from "./activityPresentationMessages";
+import {
+  activityTemplate,
+  childInputTitle,
+} from "./activityPresentationMessages";
 import { readWebI18n } from "~/i18n/readWebI18n";
 import { translateWebSource } from "~/i18n/messages";
 import type {
@@ -10,7 +13,10 @@ import type {
   OrchestrationV2ProviderSession,
   ThreadId,
 } from "@t3tools/contracts";
-import type { EnvironmentThreadShell, ThreadStructure } from "@t3tools/client-runtime/state/shell";
+import type {
+  EnvironmentThreadShell,
+  ThreadStructure,
+} from "@t3tools/client-runtime/state/shell";
 import {
   presentPendingBackgroundWork,
   presentProviderGoal,
@@ -35,6 +41,7 @@ import { tickTextContent } from "~/lib/tickTextContent";
 import { BackgroundWorkDetails } from "./BackgroundWorkDetails";
 import { Button, InlineButton } from "../ui/button";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
+import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
 import type { ComposerBannerStackItem } from "./ComposerBannerStack";
 import type { ThreadNowItem } from "./ThreadNow";
 
@@ -46,7 +53,9 @@ export function extensionStatusBannerItem(
     id: "pi-extension-status",
     variant: "default",
     icon: <span>▸</span>,
-    title: <output>{`Pi · ${statuses.map((status) => status.text).join(" · ")}`}</output>,
+    title: (
+      <output>{`Pi · ${statuses.map((status) => status.text).join(" · ")}`}</output>
+    ),
   };
 }
 
@@ -56,7 +65,10 @@ export function childInputNowItem(input: {
   readonly childThreadInputs: ReadonlyArray<EnvironmentThreadShell>;
   readonly parentAwaitingUser: boolean;
   // A task delegated to a linked environment lives there, not where the parent runs.
-  readonly onOpenThread: (threadId: ThreadId, environmentId: EnvironmentId) => void;
+  readonly onOpenThread: (
+    threadId: ThreadId,
+    environmentId: EnvironmentId,
+  ) => void;
 }): (ThreadNowItem & { readonly waitingLabel: string }) | null {
   const uiLocale = input.locale ?? readWebI18n().locale;
   const { childThreadInputs, onOpenThread } = input;
@@ -70,15 +82,22 @@ export function childInputNowItem(input: {
     ) : (
       <MessageCircleIcon className="text-info-foreground" />
     ),
-    title: childThreadInputsTitle(childThreadInputs, (values) => childInputTitle(uiLocale, values)),
-    waitingLabel: childThreadInputs.every((child) => child.lineage.sideChat === true)
+    title: childThreadInputsTitle(childThreadInputs, (values) =>
+      childInputTitle(uiLocale, values),
+    ),
+    waitingLabel: childThreadInputs.every(
+      (child) => child.lineage.sideChat === true,
+    )
       ? translateWebSource(uiLocale, "Side chat waiting")
       : translateWebSource(uiLocale, "Subagent waiting"),
     description: childThreadInputs.map((child, index) => (
       <Fragment key={child.id}>
         {index > 0 ? " " : null}
         <span className="whitespace-nowrap">
-          <InlineButton tone="muted" onClick={() => onOpenThread(child.id, child.environmentId)}>
+          <InlineButton
+            tone="muted"
+            onClick={() => onOpenThread(child.id, child.environmentId)}
+          >
             {child.title}
           </InlineButton>
           {index < childThreadInputs.length - 1 ? "," : null}
@@ -119,10 +138,24 @@ export function goalNowItem(input: {
   return {
     id: `goal:${input.threadId}`,
     icon: <TargetIcon />,
-    title:
-      presentation.usage === null
-        ? presentation.title
-        : `${presentation.title} · ${presentation.usage}`,
+    title: (
+      <Popover>
+        <PopoverTrigger openOnHover render={<InlineButton />}>
+          {presentation.title}
+          {presentation.usage === null ? null : ` · ${presentation.usage}`}
+        </PopoverTrigger>
+        <PopoverPopup
+          side="top"
+          width="md"
+          padding="compact"
+          aria-label="Goal objective"
+        >
+          <p className="whitespace-pre-wrap wrap-anywhere text-sm">
+            {presentation.objective}
+          </p>
+        </PopoverPopup>
+      </Popover>
+    ),
     description: presentation.objective,
     // Clear stops goal work; Resume would stop unrelated work, so it waits.
     actions: (
@@ -131,7 +164,11 @@ export function goalNowItem(input: {
           <>
             <InlineButton
               onClick={() =>
-                void onSendCommand("/goal resume", "Failed to resume goal.", "goalResumeFailed")
+                void onSendCommand(
+                  "/goal resume",
+                  "Failed to resume goal.",
+                  "goalResumeFailed",
+                )
               }
             >
               {translateWebSource(uiLocale, "Resume")}
@@ -142,7 +179,11 @@ export function goalNowItem(input: {
         <InlineButton
           tone="muted"
           onClick={() =>
-            void onSendCommand("/goal clear", "Failed to clear goal.", "goalClearFailed")
+            void onSendCommand(
+              "/goal clear",
+              "Failed to clear goal.",
+              "goalClearFailed",
+            )
           }
         >
           {residualT("chatResidual.copy28")}
@@ -188,7 +229,10 @@ export function runStopNowItem(input: {
           className="tabular-nums"
         />
         {unresponsive && input.canForceStop ? (
-          <InlineButton disabled={input.forceStopping} onClick={input.onForceStop}>
+          <InlineButton
+            disabled={input.forceStopping}
+            onClick={input.onForceStop}
+          >
             {input.forceStopping
               ? translateWebSource(readWebI18n().locale, "Force stopping...")
               : translateWebSource(readWebI18n().locale, "Force stop")}
@@ -221,35 +265,43 @@ export function backgroundWorkNowItem(input: {
   );
   if (presentation === null) return null;
   const rows = presentation.items.map((task) => {
+    const itemKey =
+      input.tasks.find((pending) => pending.taskId === task.taskId)
+        ?.nativeItemId ?? task.taskId;
     // Same key derivePendingBackgroundWork gives turn-item tasks; subagent items carry progress.
     const item = input.turnItems.findLast(
-      (candidate) => (candidate.nativeItemRef?.nativeId || candidate.id) === task.taskId,
+      (candidate) =>
+        (candidate.nativeItemRef?.nativeId || candidate.id) === itemKey,
     );
     const subagent = item?.type === "subagent" ? item : undefined;
     return {
       task,
       label:
-        item?.type === "command_execution" && commandDisplayText(item.input) === task.label ? (
+        item?.type === "command_execution" &&
+        commandDisplayText(item.input) === task.label ? (
           <span className="font-mono in-data-[slot=popover-popup]:whitespace-pre-wrap">
             {task.label}
           </span>
         ) : task.label.includes("\n") ? (
-          <span className="in-data-[slot=popover-popup]:whitespace-pre-wrap">{task.label}</span>
+          <span className="in-data-[slot=popover-popup]:whitespace-pre-wrap">
+            {task.label}
+          </span>
         ) : (
           task.label
         ),
       activity: subagent?.progress?.replace(/\s+/gu, " ").trim() || null,
-      startedAtMs: item?.startedAt ? DateTime.toEpochMillis(item.startedAt) : null,
+      startedAtMs: item?.startedAt
+        ? DateTime.toEpochMillis(item.startedAt)
+        : null,
       updatedAtMs: subagent ? DateTime.toEpochMillis(subagent.updatedAt) : 0,
-      childThreadId: task.childThreadId ?? subagent?.childThreadId ?? undefined,
     };
   });
   const [only] = rows.length === 1 ? rows : [];
   const newest = rows
     .filter((row) => row.activity)
     .toSorted((left, right) => right.updatedAtMs - left.updatedAtMs)[0];
-  const isCommand = (row: (typeof rows)[number]) => row.task.kind !== "subagent";
-  const onlyThreadId = only?.childThreadId;
+  const isCommand = (row: (typeof rows)[number]) =>
+    row.task.kind !== "subagent";
   const startedAtMs = only?.startedAtMs ?? null;
   return {
     id: `background-work:${input.threadId}`,
@@ -257,12 +309,17 @@ export function backgroundWorkNowItem(input: {
     title:
       only &&
       presentation.title ===
-        activityTemplate(uiLocale, presentation.waiting ? "Waiting · {0}" : "Running · {0}", [
-          only.task.label,
-        ]) ? (
+        activityTemplate(
+          uiLocale,
+          presentation.waiting ? "Waiting · {0}" : "Running · {0}",
+          [only.task.label],
+        ) ? (
         <>
-          {translateWebSource(uiLocale, presentation.waiting ? "Waiting" : "Running")} ·{" "}
-          {only.label}
+          {translateWebSource(
+            uiLocale,
+            presentation.waiting ? "Waiting" : "Running",
+          )}{" "}
+          · {only.label}
         </>
       ) : only ? (
         translateWebSource(uiLocale, presentation.title)
@@ -301,12 +358,10 @@ export function backgroundWorkNowItem(input: {
           turnItems={input.turnItems}
           onOpenThread={onOpenThread}
         />
-        {onlyThreadId === undefined ? null : (
-          <InlineButton tone="muted" onClick={() => onOpenThread(onlyThreadId)}>
-            {translateWebSource(uiLocale, "Open")}
-          </InlineButton>
-        )}
-        <InlineButton disabled={input.stopDisabled} onClick={() => void input.onStop()}>
+        <InlineButton
+          disabled={input.stopDisabled}
+          onClick={() => void input.onStop()}
+        >
           {input.stopping
             ? translateWebSource(uiLocale, "Stopping...")
             : translateWebSource(uiLocale, "Stop")}
@@ -319,7 +374,10 @@ export function backgroundWorkNowItem(input: {
 /** The local checkout moved off the branch this thread last ran on. */
 export function branchMismatchBannerItem(input: {
   readonly mismatchKey: string;
-  readonly mismatch: { readonly threadBranch: string; readonly currentBranch: string };
+  readonly mismatch: {
+    readonly threadBranch: string;
+    readonly currentBranch: string;
+  };
   readonly restoreDisabled: boolean;
   readonly restoring: boolean;
   readonly onRestore: () => void;
@@ -356,8 +414,15 @@ export function branchMismatchBannerItem(input: {
       </span>
     ),
     actions: (
-      <Button size="xs" variant="ghost" disabled={input.restoreDisabled} onClick={input.onRestore}>
-        {input.restoring ? residualT("chatResidual.copy29") : residualT("chatResidual.copy30")}
+      <Button
+        size="xs"
+        variant="ghost"
+        disabled={input.restoreDisabled}
+        onClick={input.onRestore}
+      >
+        {input.restoring
+          ? residualT("chatResidual.copy29")
+          : residualT("chatResidual.copy30")}
       </Button>
     ),
     dismissLabel: residualT("chatResidual.copy31"),

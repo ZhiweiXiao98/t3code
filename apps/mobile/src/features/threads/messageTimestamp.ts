@@ -1,10 +1,10 @@
 import { mobileDateFormatOptions } from "../../i18n/mobileDateDisplay";
-import { MOBILE_LOCALE, type MobileLocale } from "../../i18n/mobileStrings";
+import { MOBILE_LOCALE } from "../../i18n/mobileStrings";
 const formatters = new Map<
-  MobileLocale,
+  string,
   { time: Intl.DateTimeFormat; date: Intl.DateTimeFormat; year: Intl.DateTimeFormat }
 >();
-function dateFormatters(locale: MobileLocale) {
+function dateFormatters(locale: string) {
   let value = formatters.get(locale);
   if (!value) {
     value = {
@@ -24,15 +24,27 @@ function dateFormatters(locale: MobileLocale) {
 export function formatMessageTimestamp(
   input: string,
   nowMs: number = Date.now(),
-  locale: MobileLocale = MOBILE_LOCALE,
+  localeOrFormatter: string | Intl.DateTimeFormat = MOBILE_LOCALE,
 ): string {
   const timestamp = Date.parse(input);
   if (Number.isNaN(timestamp)) return "";
   const date = new Date(timestamp);
   const now = new Date(nowMs);
+  const locale = typeof localeOrFormatter === "string" ? localeOrFormatter : localeOrFormatter.resolvedOptions().locale;
   const formats = dateFormatters(locale);
-  const time = formats.time.format(date);
+  const time = (typeof localeOrFormatter === "string" ? formats.time : localeOrFormatter).format(date);
   if (date.toDateString() === now.toDateString()) return time;
   const sameYear = date.getFullYear() === now.getFullYear();
   return `${(sameYear ? formats.date : formats.year).format(date)} ${time}`;
+}
+
+/** `is24Hour` overrides the locale's hour cycle with the system clock preference when known. */
+export function createMessageTimeFormatter(is24Hour: boolean | undefined, locale: string = MOBILE_LOCALE) {
+  const timeFormatter = new Intl.DateTimeFormat(locale, {
+    hour: "numeric",
+    minute: "2-digit",
+    ...(is24Hour === undefined ? {} : { hourCycle: is24Hour ? "h23" : "h12" }),
+  });
+  return (input: string, nowMs?: number): string =>
+    formatMessageTimestamp(input, nowMs, timeFormatter);
 }

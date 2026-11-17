@@ -42,6 +42,14 @@ export const PROVIDER_AUTH_MESSAGE_SOURCE = {
   "cursor.sdkUnavailable": "Could not load the Cursor SDK. Try signing in again.",
   "cursor.waiting":
     "Open the Cursor sign-in page and finish signing in. This page updates automatically.",
+  "cursor.apiKeyCreationFailed":
+    "Cursor signed you in but could not create an API key. Your team's settings may restrict API keys: ask a team admin, or add CURSOR_API_KEY in provider settings.",
+  "cursor.loginTimedOut":
+    "Cursor sign-in failed or timed out. Check that this machine can reach Cursor, then start sign-in again.",
+  "antigravity.notStarted":
+    "Antigravity has not started after 90 seconds. Its runtime may be stuck starting on this machine.",
+  "antigravity.notResponding":
+    "Antigravity did not respond. Its runtime may not run on this machine.",
   "cursor.failed": "Cursor sign-in failed. Start sign-in again.",
   "cursor.checking": "Checking Cursor sign-in.",
   "cursor.saveFailed": "Could not save the Cursor sign-in. Try again.",
@@ -231,6 +239,10 @@ export const ProviderAuthMessageDescriptor = Schema.Struct({
     "cursor.credentialsRequired",
     "cursor.sdkUnavailable",
     "cursor.waiting",
+    "cursor.apiKeyCreationFailed",
+    "cursor.loginTimedOut",
+    "antigravity.notStarted",
+    "antigravity.notResponding",
     "cursor.failed",
     "cursor.checking",
     "cursor.saveFailed",

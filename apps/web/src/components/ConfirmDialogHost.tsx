@@ -9,6 +9,7 @@ import {
 import {
   AlertDialog,
   AlertDialogClose,
+  AlertDialogAction,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
@@ -34,7 +35,9 @@ export function resolveConfirmDialogCopy(
 ): ConfirmationCopy {
   const normalizedMessage = message.trim();
   const lines = normalizedMessage.split("\n");
-  const questionLineIndex = lines.findIndex((line) => /[?？]$/.test(line.trim()));
+  const questionLineIndex = lines.findIndex((line) =>
+    /[?？]$/.test(line.trim()),
+  );
 
   if (questionLineIndex >= 0) {
     const title = lines[questionLineIndex]!.trim();
@@ -49,7 +52,8 @@ export function resolveConfirmDialogCopy(
   if (questionMarkIndex >= 0) {
     return {
       title: normalizedMessage.slice(0, questionMarkIndex + 1).trim(),
-      description: normalizedMessage.slice(questionMarkIndex + 1).trim() || null,
+      description:
+        normalizedMessage.slice(questionMarkIndex + 1).trim() || null,
     };
   }
 
@@ -67,11 +71,16 @@ export function ConfirmDialogHost() {
     readConfirmDialogState,
   );
 
-  const copy = resolveConfirmDialogCopy(state.status === "idle" ? "" : state.message, {
-    title: t("common.confirmAction"),
-    description: t("common.confirmationRequired"),
-  });
+  const copy = resolveConfirmDialogCopy(
+    state.status === "idle" ? "" : state.message,
+    {
+      title: t("common.confirmAction"),
+      description: t("common.confirmationRequired"),
+    },
+  );
   const confirmVariant = state.status === "idle" ? "default" : state.variant;
+  const focusConfirm =
+    state.status !== "idle" && state.initialFocus === "confirm";
   const onCancel = () => respondToConfirmDialog(false);
   const onConfirm = () => respondToConfirmDialog(true);
 
@@ -98,9 +107,15 @@ export function ConfirmDialogHost() {
           <AlertDialogClose render={<Button variant="outline" />}>
             {t("common.cancel")}
           </AlertDialogClose>
-          <Button variant={confirmVariant} onClick={onConfirm}>
-            {t("common.confirm")}
-          </Button>
+          {focusConfirm && confirmVariant === "default" ? (
+            <AlertDialogAction onClick={onConfirm}>
+              {t("common.confirm")}
+            </AlertDialogAction>
+          ) : (
+            <Button variant={confirmVariant} onClick={onConfirm}>
+              {t("common.confirm")}
+            </Button>
+          )}
         </AlertDialogFooter>
       </AlertDialogPopup>
     </AlertDialog>

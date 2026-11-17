@@ -1,6 +1,7 @@
 import { translateWebSource } from "~/i18n/messages";
 import type {
   EnvironmentId,
+  PullRequestActor,
   PullRequestDiffSide,
   PullRequestRef,
   PullRequestReviewPosition,
@@ -16,15 +17,22 @@ import {
   CircleCheckIcon,
   CircleIcon,
 } from "lucide-react";
-import { useRef, useState } from "react";
-import { settlePromise, squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
+import { type ReactNode, useRef, useState } from "react";
+import {
+  settlePromise,
+  squashAtomCommandFailure,
+} from "@t3tools/client-runtime/state/runtime";
 
 import { RelativeTime } from "~/components/RelativeTime";
 import { cn } from "~/lib/utils";
 import { useI18n } from "../../i18n/WebI18nContext";
-import { SpeechTextField, TextFieldSpeechControls } from "~/speech/useTextFieldSpeech";
+import {
+  SpeechTextField,
+  TextFieldSpeechControls,
+} from "~/speech/useTextFieldSpeech";
 
 import { Button } from "../ui/button";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { PullRequestEditButton } from "./PullRequestEditButton";
 import { isCommentSubmitShortcut } from "../diffs/commentSubmitShortcut";
 import {
@@ -32,7 +40,10 @@ import {
   mergePullRequestThreadComments,
   visibleBody,
 } from "./pullRequestDetail.logic";
-import { PullRequestActorLabel } from "./pullRequestPresentation";
+import {
+  PullRequestActorAvatar,
+  PullRequestActorLabel,
+} from "./pullRequestPresentation";
 import { PullRequestMarkdown } from "./PullRequestMarkdown";
 import { PullRequestMarkdownEditor } from "./PullRequestMarkdownEditor";
 import { PullRequestReactionBar } from "./PullRequestReactions";
@@ -57,7 +68,14 @@ function submitKeys(input: {
       event.preventDefault();
       input.onCancel();
     }
-    if (isCommentSubmitShortcut(event, input.value, input.pending, input.allowEmpty)) {
+    if (
+      isCommentSubmitShortcut(
+        event,
+        input.value,
+        input.pending,
+        input.allowEmpty,
+      )
+    ) {
       event.preventDefault();
       input.onSubmit();
     }
@@ -117,6 +135,74 @@ export function PendingReviewCommentCard({
   );
 }
 
+/** The conversations on one diff line. Resolved ones hide behind their authors' avatars. */
+export function InlineReviewThreads({
+  threads,
+  renderThread,
+}: {
+  threads: ReadonlyArray<PullRequestReviewThread>;
+  renderThread: (thread: PullRequestReviewThread, hidden: boolean) => ReactNode;
+}) {
+  const [shown, setShown] = useState<ReadonlySet<string>>(() => new Set());
+  // A conversation seen open stays shown once resolved, so it does not vanish under the reader.
+  const open = threads.filter((thread) => !thread.isResolved);
+  if (open.some((thread) => !shown.has(thread.id))) {
+    setShown(new Set([...shown, ...open.map((thread) => thread.id)]));
+  }
+  const resolved = threads.filter((thread) => thread.isResolved);
+  const expanded = resolved.every((thread) => shown.has(thread.id));
+  const authors = new Map<string, PullRequestActor | null>();
+  for (const comment of resolved.flatMap((thread) => thread.comments)) {
+    authors.set(comment.author?.login ?? "ghost", comment.author);
+  }
+  if (authors.size === 0) authors.set("ghost", null);
+  const label =
+    resolved.length === 1
+      ? "Resolved conversation"
+      : `${resolved.length} resolved conversations`;
+  return (
+    <>
+      {resolved.length > 0 ? (
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <button
+                type="button"
+                data-resolved-threads
+                aria-label={label}
+                aria-expanded={expanded}
+                // Sits on the commented line, which is the row above this annotation.
+                className="absolute right-3 bottom-full flex h-[var(--diffs-line-height,20px)] cursor-pointer items-center -space-x-1 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                contentEditable={false}
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={() =>
+                  setShown(
+                    new Set(
+                      (expanded ? open : threads).map((thread) => thread.id),
+                    ),
+                  )
+                }
+              />
+            }
+          >
+            {[...authors].slice(0, 3).map(([login, author]) => (
+              <PullRequestActorAvatar
+                key={login}
+                actor={author}
+                className="ring-1 ring-background"
+              />
+            ))}
+          </TooltipTrigger>
+          <TooltipPopup side="left">{label}</TooltipPopup>
+        </Tooltip>
+      ) : null}
+      {threads.map((thread) =>
+        renderThread(thread, thread.isResolved && !shown.has(thread.id)),
+      )}
+    </>
+  );
+}
+
 export function ReviewThreadCard({
   thread,
   workspaceRoot,
@@ -137,6 +223,7 @@ export function ReviewThreadCard({
   onEditComment,
   onToggleResolved,
   onReacted,
+  hidden,
 }: {
   thread: PullRequestReviewThread;
   workspaceRoot: string;
@@ -156,14 +243,20 @@ export function ReviewThreadCard({
    */
   onAddToChat?: (thread: PullRequestReviewThread) => void;
   onReply: (body: string) => Promise<boolean>;
-  onLoadMore: (cursor: string) => Promise<PullRequestThreadCommentsResult | null>;
+  onLoadMore: (
+    cursor: string,
+  ) => Promise<PullRequestThreadCommentsResult | null>;
   canEditComment: (comment: PullRequestThreadComment) => boolean;
   onEditComment: (commentId: string, body: string) => Promise<boolean>;
   onToggleResolved: () => void;
   onReacted: () => void;
+  /** Set on a diff line. Hidden draws nothing but stays mounted, so an unsent reply survives. */
+  hidden?: boolean;
 }) {
   const { locale: uiLocale, t } = useI18n();
-  const [expanded, setExpanded] = useState(!thread.isResolved);
+  const [expanded, setExpanded] = useState(
+    hidden !== undefined || !thread.isResolved,
+  );
   const [replying, setReplying] = useState(false);
   const [reply, setReply] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -175,9 +268,14 @@ export function ReviewThreadCard({
   >(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const currentPage = loadedPage?.threadId === thread.id ? loadedPage : null;
-  const comments = mergePullRequestThreadComments(thread.comments, currentPage?.comments ?? []);
+  const comments = mergePullRequestThreadComments(
+    thread.comments,
+    currentPage?.comments ?? [],
+  );
   const nextCommentsCursor =
-    currentPage === null ? (thread.nextCommentsCursor ?? null) : currentPage.nextCursor;
+    currentPage === null
+      ? (thread.nextCommentsCursor ?? null)
+      : currentPage.nextCursor;
   const commentCount = thread.commentCount ?? comments.length;
 
   const saveEdit = async (commentId: string, body: string) => {
@@ -190,7 +288,11 @@ export function ReviewThreadCard({
         previous?.threadId === thread.id
           ? {
               ...previous,
-              comments: editPullRequestThreadComment(previous.comments, commentId, body),
+              comments: editPullRequestThreadComment(
+                previous.comments,
+                commentId,
+                body,
+              ),
             }
           : previous,
       );
@@ -211,7 +313,8 @@ export function ReviewThreadCard({
       previous?.threadId === thread.id
         ? {
             ...previous,
-            nextCursor: previous.nextCursor ?? thread.nextCommentsCursor ?? null,
+            nextCursor:
+              previous.nextCursor ?? thread.nextCommentsCursor ?? null,
           }
         : previous,
     );
@@ -236,13 +339,15 @@ export function ReviewThreadCard({
     }));
   };
 
+  if (hidden) return null;
+
   return (
     <div
       className={cn(CARD_CLASS, !expanded && "py-1")}
       contentEditable={false}
       onPointerDown={(event) => event.stopPropagation()}
     >
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         {thread.isResolved ? (
           <CircleCheckIcon className="size-3.5 text-success-foreground" />
         ) : (
@@ -254,12 +359,17 @@ export function ReviewThreadCard({
           aria-expanded={expanded}
           onClick={() => setExpanded((current) => !current)}
         >
-          {thread.isResolved ? t("pullRequests.comments.resolved") : t("pullRequests.state.open")} ·{" "}
+          {thread.isResolved
+            ? t("pullRequests.comments.resolved")
+            : t("pullRequests.state.open")}{" "}
+          ·{" "}
           {t("pullRequests.comments.countMany", {
             count: commentCount,
           })}
         </button>
-        {thread.isOutdated ? <span>{translateWebSource(uiLocale, "outdated")}</span> : null}
+        {thread.isOutdated ? (
+          <span>{translateWebSource(uiLocale, "outdated")}</span>
+        ) : null}
         {onFix ? (
           <Button
             size="compact"
@@ -272,7 +382,8 @@ export function ReviewThreadCard({
             {fixPending ? t("pullRequests.actions.preparing") : fixLabel}
           </Button>
         ) : null}
-        {onAddToChat && comments.some((comment) => visibleBody(comment.body) !== null) ? (
+        {onAddToChat &&
+        comments.some((comment) => visibleBody(comment.body) !== null) ? (
           <Button
             size="compact"
             variant="ghost"
@@ -357,7 +468,9 @@ export function ReviewThreadCard({
                 disabled={loadingMore}
                 onClick={() => void loadMore()}
               >
-                {loadingMore ? t("common.loading") : t("pullRequests.comments.loadMore")}
+                {loadingMore
+                  ? t("common.loading")
+                  : t("pullRequests.comments.loadMore")}
               </Button>
             </div>
           ) : null}
@@ -367,7 +480,12 @@ export function ReviewThreadCard({
               <SpeechTextField
                 environmentId={environmentId}
                 projectId={reference.projectId}
-                ownerKey={JSON.stringify(["pr-reply", environmentId, reference, thread.id])}
+                ownerKey={JSON.stringify([
+                  "pr-reply",
+                  environmentId,
+                  reference,
+                  thread.id,
+                ])}
                 text={reply}
                 textareaRef={replyRef}
                 onTextChange={setReply}
@@ -383,20 +501,34 @@ export function ReviewThreadCard({
                       completionScope={completionScope}
                       value={reply}
                       placeholder={t("pullRequests.comments.reply")}
-                      aria-label={t("pullRequests.comments.replyToConversation")}
+                      aria-label={t(
+                        "pullRequests.comments.replyToConversation",
+                      )}
                       onValueChange={setReply}
                       onKeyDown={submitKeys({
                         value: reply,
                         pending,
                         allowEmpty: speech.blocksSubmission,
-                        onSubmit: () => speech.submitAfterDictation((text) => void send(text)),
+                        onSubmit: () =>
+                          speech.submitAfterDictation(
+                            (text) => void send(text),
+                          ),
                         onCancel: () =>
-                          speech.state.phase === "idle" ? setReplying(false) : speech.cancel(),
+                          speech.state.phase === "idle"
+                            ? setReplying(false)
+                            : speech.cancel(),
                       })}
                     />
                     <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
-                      <TextFieldSpeechControls speech={speech} disabled={pending} />
-                      <Button size="xs" variant="ghost" onClick={() => setReplying(false)}>
+                      <TextFieldSpeechControls
+                        speech={speech}
+                        disabled={pending}
+                      />
+                      <Button
+                        size="xs"
+                        variant="ghost"
+                        onClick={() => setReplying(false)}
+                      >
                         {translateWebSource(uiLocale, "Cancel")}
                       </Button>
                       <Button
@@ -404,9 +536,12 @@ export function ReviewThreadCard({
                         disabled={
                           speech.preparing ||
                           pending ||
-                          (!speech.blocksSubmission && reply.trim().length === 0)
+                          (!speech.blocksSubmission &&
+                            reply.trim().length === 0)
                         }
-                        onClick={() => speech.submitAfterDictation((text) => void send(text))}
+                        onClick={() =>
+                          speech.submitAfterDictation((text) => void send(text))
+                        }
                       >
                         {t("pullRequests.comments.reply")}
                       </Button>
@@ -415,7 +550,12 @@ export function ReviewThreadCard({
                 )}
               </SpeechTextField>
             ) : (
-              <Button size="xs" variant="ghost" className="mt-2" onClick={() => setReplying(true)}>
+              <Button
+                size="xs"
+                variant="ghost"
+                className="mt-2"
+                onClick={() => setReplying(true)}
+              >
                 {t("pullRequests.comments.reply")}
               </Button>
             )

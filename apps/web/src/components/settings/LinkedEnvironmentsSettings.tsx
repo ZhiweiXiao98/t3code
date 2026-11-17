@@ -2,7 +2,10 @@ import { readWebI18n } from "../../i18n/readWebI18n";
 import { useI18n } from "../../i18n/WebI18nContext";
 import { translateWebSource } from "../../i18n/messages";
 import { useAtomValue } from "@effect/atom-react";
-import { ANOTHER_ADDRESS, linkRequestFailureMessage } from "@t3tools/client-runtime/link-request";
+import {
+  ANOTHER_ADDRESS,
+  linkRequestFailureMessage,
+} from "@t3tools/client-runtime/link-request";
 import {
   AuthAccessWriteScope,
   type AuthMcpClientAccess,
@@ -46,6 +49,7 @@ import { ITEM_ROW_CLASSNAME, ITEM_ROW_INNER_CLASSNAME } from "./itemRows";
 import { LinkAccessPicker } from "./LinkAccessPicker";
 import { LinkAddressWarning, LinkMachineSelect } from "./LinkMachineSelect";
 import { SettingsRow, SettingsSection } from "./settingsLayout";
+import { useLiveRefresh } from "../../hooks/useLiveRefresh";
 import { useNowMinute } from "../../hooks/useNowMinute";
 import { searchableSetting } from "./settingsSearch";
 
@@ -63,19 +67,43 @@ export function LinkedEnvironmentsSettings({
 }) {
   const { locale } = useI18n();
   const tx = (source: string) => translateWebSource(locale, source);
-  const links = useEnvironmentQuery(peerLinkEnvironment.list({ environmentId, input: {} }));
-  const canLink = useAtomValue(peerLinkEnvironment.link.permissionAtom(environmentId));
+  const links = useEnvironmentQuery(
+    peerLinkEnvironment.list({ environmentId, input: {} }),
+  );
+  // Links made outside this client bump nothing the shared list reads, so showing the panel
+  // asks again. Listing probes every linked environment, too costly for a timer nobody asked for.
+  // A list still loading counts as read now, so the next return to the window asks again.
+  useLiveRefresh(
+    () => {
+      if (!links.isPending) links.refresh();
+    },
+    {
+      key: `linked-environments:${environmentId}`,
+      intervalMs: null,
+      refreshOnShow: true,
+    },
+  );
+  const canLink = useAtomValue(
+    peerLinkEnvironment.link.permissionAtom(environmentId),
+  );
   const search = searchableSetting("linked-environments");
   return (
     <SettingsSection
       {...(isSearchTarget ? { id: search.id } : {})}
       title={
-        environmentLabel === null ? tx(search.title) : `${tx(search.title)} · ${environmentLabel}`
+        environmentLabel === null
+          ? tx(search.title)
+          : `${tx(search.title)} · ${environmentLabel}`
       }
-      headerAction={canLink ? <LinkEnvironmentAction environmentId={environmentId} /> : null}
+      headerAction={
+        canLink ? <LinkEnvironmentAction environmentId={environmentId} /> : null
+      }
     >
       {links.error ? (
-        <SettingsRow title={tx("Could not load linked environments")} description={links.error} />
+        <SettingsRow
+          title={tx("Could not load linked environments")}
+          description={links.error}
+        />
       ) : !links.data ? (
         <SettingsRow title={tx("Loading linked environments…")} role="status" />
       ) : links.data.links.length === 0 ? (
@@ -109,19 +137,26 @@ function LinkedEnvironmentRow({
   const tx = (source: string) => translateWebSource(locale, source);
   const nowMinute = useNowMinute();
   const health = peerLinkHealth(link, DateTime.makeUnsafe(nowMinute));
-  const unlink = useAtomCommand(peerLinkEnvironment.unlink, { label: "unlink environment" });
-  const canUnlink = useAtomValue(peerLinkEnvironment.unlink.permissionAtom(environmentId));
+  const unlink = useAtomCommand(peerLinkEnvironment.unlink, {
+    label: "unlink environment",
+  });
+  const canUnlink = useAtomValue(
+    peerLinkEnvironment.unlink.permissionAtom(environmentId),
+  );
   const [busy, setBusy] = useState(false);
   const forget = async () => {
     const confirmed = await (requestConfirmDialog(
       locale === "zh-CN"
-        ? `移除与 ${link.label} 的关联？此处的代理将停止在该环境中工作。若要同时终止目标环境中的连接，请在 ${link.label} 的“连接”中撤销“T3 Code · …”。`
-        : `Forget ${link.label}? Agents here stop working there. Revoke "T3 Code · …" in ${link.label}'s Connections to end the session there too.`,
+        ? `移除与 ${link.label} 的关联？此处的代理将停止在该环境中工作。若要同时终止目标环境中的连接，请在 ${link.label} 的“共享与访问”中撤销“T3 Code · …”。`
+        : `Forget ${link.label}? Agents here stop working there. Revoke "T3 Code · …" in ${link.label}'s Sharing & access to end the session there too.`,
       { variant: "destructive" },
     ) ?? Promise.resolve(false));
     if (!confirmed) return;
     setBusy(true);
-    const result = await unlink({ environmentId, input: { environmentId: link.environmentId } });
+    const result = await unlink({
+      environmentId,
+      input: { environmentId: link.environmentId },
+    });
     setBusy(false);
     if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
       failureToast(
@@ -160,12 +195,16 @@ function LinkedEnvironmentRow({
               }
               pingClassName={null}
             />
-            <h3 className="text-sm font-medium text-foreground">{link.label}</h3>
+            <h3 className="text-sm font-medium text-foreground">
+              {link.label}
+            </h3>
           </div>
           <p className="text-xs text-muted-foreground">
             {tx(accessConfig[link.access].label)} · {status}
           </p>
-          <p className="truncate text-xs text-muted-foreground/80">{link.urls.join(", ")}</p>
+          <p className="truncate text-xs text-muted-foreground/80">
+            {link.urls.join(", ")}
+          </p>
         </div>
         {canUnlink ? (
           <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto sm:justify-end">
@@ -184,7 +223,11 @@ function LinkedEnvironmentRow({
   );
 }
 
-function LinkEnvironmentAction({ environmentId }: { readonly environmentId: EnvironmentId }) {
+function LinkEnvironmentAction({
+  environmentId,
+}: {
+  readonly environmentId: EnvironmentId;
+}) {
   const { locale } = useI18n();
   const tx = (source: string) => translateWebSource(locale, source);
   const [open, setOpen] = useState(false);
@@ -193,21 +236,28 @@ function LinkEnvironmentAction({ environmentId }: { readonly environmentId: Envi
   const [choice, setChoice] = useState<string | null>(null);
   const [address, setAddress] = useState("");
   const [pairingCode, setPairingCode] = useState("");
-  const [access, setAccess] = useState<AuthMcpClientAccess>("approval-required");
+  const [access, setAccess] =
+    useState<AuthMcpClientAccess>("approval-required");
   const [busy, setBusy] = useState(false);
   // Machines whose minting already failed, so the dialog asks for a code instead.
-  const [mintFailed, setMintFailed] = useState<ReadonlySet<EnvironmentId>>(new Set());
+  const [mintFailed, setMintFailed] = useState<ReadonlySet<EnvironmentId>>(
+    new Set(),
+  );
   // Enter then a click can both run before a re-render; this guard is synchronous.
   const inFlight = useRef(false);
   const formId = useId();
-  const link = useAtomCommand(peerLinkEnvironment.link, { label: "link environment" });
+  const link = useAtomCommand(peerLinkEnvironment.link, {
+    label: "link environment",
+  });
   const selected = choice ?? (machines.length === 0 ? ANOTHER_ADDRESS : null);
-  const machine = machines.find((candidate) => candidate.environmentId === selected) ?? null;
+  const machine =
+    machines.find((candidate) => candidate.environmentId === selected) ?? null;
   const targetId = machine?.environmentId ?? null;
   const connected = usePreparedConnection(targetId);
   const mayMint = useEnvironmentScope(targetId, AuthAccessWriteScope);
   // A picked machine that left the list has no address here either.
-  const needsAddress = selected !== null && (machine === null || machine.urls.length === 0);
+  const needsAddress =
+    selected !== null && (machine === null || machine.urls.length === 0);
   // This client mints a code there when it is connected with a session that may
   // create pairing links, and only for its own addresses: anything can answer
   // as that machine at one typed in, so that one gets a code the user fetched.
@@ -238,7 +288,10 @@ function LinkEnvironmentAction({ environmentId }: { readonly environmentId: Envi
     if (Result.isSuccess(minted)) return minted.success;
     setMintFailed((failed) => new Set(failed).add(targetId));
     failureToast(
-      translateWebSource(readWebI18n().locale, "Could not link the environment"),
+      translateWebSource(
+        readWebI18n().locale,
+        "Could not link the environment",
+      ),
       linkRequestFailureMessage(minted.failure),
     );
     return null;
@@ -261,7 +314,10 @@ function LinkEnvironmentAction({ environmentId }: { readonly environmentId: Envi
               // A typed address links alone: only this app's own addresses name a machine.
               ...(machine === null || needsAddress
                 ? {}
-                : { expectedEnvironmentId: machine.environmentId, expectedLabel: machine.label }),
+                : {
+                    expectedEnvironmentId: machine.environmentId,
+                    expectedLabel: machine.label,
+                  }),
               pairingCode: code,
               access,
             },
@@ -273,12 +329,18 @@ function LinkEnvironmentAction({ environmentId }: { readonly environmentId: Envi
       const { locale } = readWebI18n();
       toastManager.add({
         type: "success",
-        title: locale === "zh-CN" ? `已关联 ${result.value.label}` : `Linked ${result.value.label}`,
+        title:
+          locale === "zh-CN"
+            ? `已关联 ${result.value.label}`
+            : `Linked ${result.value.label}`,
       });
       handleOpenChange(false);
     } else if (!isAtomCommandInterrupted(result)) {
       failureToast(
-        translateWebSource(readWebI18n().locale, "Could not link the environment"),
+        translateWebSource(
+          readWebI18n().locale,
+          "Could not link the environment",
+        ),
         String(squashAtomCommandFailure(result)),
       );
     }
@@ -304,7 +366,7 @@ function LinkEnvironmentAction({ environmentId }: { readonly environmentId: Envi
           <DialogTitle>{tx("Link an environment")}</DialogTitle>
           <DialogDescription>
             {tx(
-              "Agents here can then launch, message and wait on threads there. It appears in that environment's Connections, where it can be revoked.",
+              "Agents here can then launch, message and wait on threads there. It appears under Authorized clients in that environment's Sharing & access, where it can be revoked.",
             )}
           </DialogDescription>
         </DialogHeader>
@@ -328,12 +390,16 @@ function LinkEnvironmentAction({ environmentId }: { readonly environmentId: Envi
             ) : null}
             {machine?.linked ? (
               <p className="text-xs text-muted-foreground">
-                {tx("Already linked. Linking again renews it with the access you pick.")}
+                {tx(
+                  "Already linked. Linking again renews it with the access you pick.",
+                )}
               </p>
             ) : null}
             {needsAddress ? (
               <label className="block space-y-1.5">
-                <span className="block text-xs font-medium text-foreground">{tx("Address")}</span>
+                <span className="block text-xs font-medium text-foreground">
+                  {tx("Address")}
+                </span>
                 <Input
                   value={address}
                   onChange={(event) => {
@@ -356,7 +422,9 @@ function LinkEnvironmentAction({ environmentId }: { readonly environmentId: Envi
                 ) : null}
               </label>
             ) : null}
-            {needsAddress && address.trim() ? <LinkAddressWarning address={address} /> : null}
+            {needsAddress && address.trim() ? (
+              <LinkAddressWarning address={address} />
+            ) : null}
             {selected === null || canMint ? null : (
               <label className="block space-y-1.5">
                 <span className="block text-xs font-medium text-foreground">
@@ -367,7 +435,7 @@ function LinkEnvironmentAction({ environmentId }: { readonly environmentId: Envi
                   onChange={(event) => setPairingCode(event.target.value)}
                   placeholder={
                     machine === null
-                      ? tx("From that environment's Connections, or t3 pair there")
+                      ? tx("From Sharing & access there, or t3 pair")
                       : tx("Paste the code")
                   }
                   disabled={busy}
@@ -378,17 +446,24 @@ function LinkEnvironmentAction({ environmentId }: { readonly environmentId: Envi
                 {machine !== null ? (
                   <span className="block text-xs text-muted-foreground">
                     {locale === "zh-CN"
-                      ? `在 ${machine.label} 上打开“设置 → 连接 → 创建链接”，然后将配对码粘贴到这里。`
-                      : `Create a link on ${machine.label}: Settings → Connections → Create link, then paste its code here.`}
+                      ? `在 ${machine.label} 上打开“设置 → 共享与访问 → 已授权客户端 → 创建链接”，然后将配对码粘贴到这里。`
+                      : `Create a link on ${machine.label}: Settings → Sharing & access → Authorized clients → Create link, then paste its code here.`}
                   </span>
                 ) : null}
               </label>
             )}
-            <LinkAccessPicker value={access} onChange={setAccess} disabled={busy} />
+            <LinkAccessPicker
+              value={access}
+              onChange={setAccess}
+              disabled={busy}
+            />
           </form>
         </DialogPanel>
         <DialogFooter variant="bare">
-          <DialogClose disabled={busy} render={<Button variant="outline" type="button" />}>
+          <DialogClose
+            disabled={busy}
+            render={<Button variant="outline" type="button" />}
+          >
             {tx("Cancel")}
           </DialogClose>
           <Button form={formId} type="submit" disabled={busy || !ready}>

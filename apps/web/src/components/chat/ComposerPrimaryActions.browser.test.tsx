@@ -1,128 +1,262 @@
-import { useState } from "react";
-import { isMacPlatform } from "~/lib/utils";
+import "~/index.css";
+
+import type { ComponentProps } from "react";
 import { expect, it, vi } from "vite-plus/test";
-import { userEvent } from "vite-plus/test/browser";
+import { act, fakeTimers, render } from "../../../test/render";
 
-import { render } from "../../../test/render";
-import { WebI18nContext } from "../../i18n/WebI18nContext";
-import { translateWebMessage } from "../../i18n/messages";
+vi.mock("~/hooks/useSettings", () => ({
+  useEnvironmentIdentificationMode: () => "none",
+  useClientSettings: () => false,
+}));
+vi.mock("../SidebarStageBackdrop", () => ({
+  StageBackdropButtonArt: () => null,
+  useSidebarStageBackdropVariant: () => null,
+}));
 
-vi.mock(
-  import("~/hooks/useSettings"),
-  () => ({ useEnvironmentIdentificationMode: () => "none" }) as never,
-);
-vi.mock(
-  import("../SidebarStageBackdrop"),
-  () =>
-    ({
-      useSidebarStageBackdropVariant: () => null,
-      StageBackdropButtonArt: () => null,
-    }) as never,
-);
-vi.mock(
-  import("../../shortcutModifierState"),
-  () =>
-    ({
-      useShortcutModifierState: () => ({
-        metaKey: false,
-        ctrlKey: false,
-        altKey: false,
-        shiftKey: false,
+import {
+  CollapsedComposerStopAction,
+  ComposerPrimaryActions,
+} from "./ComposerPrimaryActions";
+
+function setup() {
+  return {
+    compact: true,
+    canOperateThread: true,
+    pendingAction: null,
+    isRunning: true,
+    canInterrupt: true,
+    canResume: false,
+    isSendBusy: false,
+    sendDisabledReason: null,
+    isEnvironmentUnavailable: false,
+    isPreparingWorktree: false,
+    hasSendableContent: false,
+    onPreviousPendingQuestion: vi.fn(),
+    onInterrupt: vi.fn(),
+    onResume: vi.fn(),
+    onSubmitMessage: vi.fn(),
+  } satisfies ComponentProps<typeof ComposerPrimaryActions>;
+}
+
+it.each(["resume", "draft", "question"] as const)(
+  "keeps repeat Stop clicks from reaching the action that replaces it (%s)",
+  async (mode) => {
+    const props = setup();
+    const submit = vi.fn();
+    const pendingAction =
+      mode === "question"
+        ? {
+            questionIndex: 0,
+            isLastQuestion: true,
+            canAdvance: true,
+            isResponding: false,
+            isComplete: true,
+          }
+        : null;
+    const view = (
+      overrides: Partial<ComponentProps<typeof ComposerPrimaryActions>> = {},
+    ) => (
+      <form
+        style={{ display: "flex", justifyContent: "flex-end", width: "400px" }}
+        onSubmit={(event) => {
+          event.preventDefault();
+          submit();
+        }}
+      >
+        <ComposerPrimaryActions
+          {...props}
+          pendingAction={pendingAction}
+          {...overrides}
+        />
+      </form>
+    );
+    await using screen = await render(view());
+    using _timers = fakeTimers();
+    const stop = screen
+      .getByRole("button", { name: "Stop generation" })
+      .element() as HTMLButtonElement;
+    const { x, y, width, height } = stop.getBoundingClientRect();
+    const target = () =>
+      document
+        .elementFromPoint(x + width / 2, y + height / 2)
+        ?.closest("button");
+    await act(() => stop.click());
+    await act(() =>
+      (
+        screen
+          .getByRole("button", { name: "Stopping", exact: true })
+          .element() as HTMLButtonElement
+      ).click(),
+    );
+    expect(
+      screen.getByRole("button", { name: "Stopping", exact: true }).element(),
+    ).toBeDisabled();
+    expect(props.onInterrupt).toHaveBeenCalledTimes(1);
+    await screen.rerender(
+      view({
+        isRunning: false,
+        canInterrupt: false,
+        canResume: true,
+        hasSendableContent: mode === "draft",
       }),
-    }) as never,
+    );
+    const action = {
+      resume: "Resume thread",
+      draft: "Submit message",
+      question: "Submit",
+    }[mode];
+    expect(
+      screen.getByRole("button", { name: "Stop generation" }).query(),
+    ).toBeNull();
+    expect(target()).toBe(
+      screen.getByRole("button", { name: action, exact: true }).element(),
+    );
+    await act(() => {
+      for (let i = 0; i < 20; i++) target()?.click();
+    });
+    await act(() => vi.advanceTimersByTime(499));
+    await act(() => target()?.click());
+    expect(props.onResume).not.toHaveBeenCalled();
+    expect(props.onSubmitMessage).not.toHaveBeenCalled();
+    expect(submit).not.toHaveBeenCalled();
+    await act(() => vi.advanceTimersByTime(1));
+    await act(() => target()?.click());
+    expect(
+      {
+        resume: props.onResume,
+        draft: props.onSubmitMessage,
+        question: submit,
+      }[mode],
+    ).toHaveBeenCalledTimes(1);
+    await screen.rerender(view());
+    expect(
+      screen.getByRole("button", { name: "Stop generation" }).element(),
+    ).toBeEnabled();
+  },
 );
 
-import { ComposerPrimaryActions } from "./ComposerPrimaryActions";
-
-function Composer({
-  locale,
-  submit,
-  running = false,
-}: {
-  locale: "en" | "zh-CN";
-  submit: () => void;
-  running?: boolean;
-}) {
-  const [keepFullHistory, setKeepFullHistory] = useState(false);
-  return (
-    <WebI18nContext
-      value={{
-        locale,
-        appLocale: locale,
-        setAppLocale: () => undefined,
-        t: (key, values) => translateWebMessage(locale, key, values),
-      }}
-    >
-      <ComposerPrimaryActions
-        compact={false}
-        canOperateThread
-        pendingAction={null}
-        isRunning={running}
-        canInterrupt={false}
-        isSendBusy={false}
-        sendDisabledReason={null}
-        isEnvironmentUnavailable={false}
-        isPreparingWorktree={false}
-        hasSendableContent
-        followUpBehavior="queue"
-        alternateShortcutLabel="Ctrl+Enter"
-        compactBeforeSendTokens={running ? null : 1200}
-        keepFullHistory={keepFullHistory}
-        onToggleKeepFullHistory={() => setKeepFullHistory((value) => !value)}
-        onSubmitMessage={submit}
-        onPreviousPendingQuestion={() => undefined}
-        onInterrupt={() => undefined}
-      />
-    </WebI18nContext>
+it("allows retry after ten seconds and protects a late stop", async () => {
+  const props = setup();
+  await using screen = await render(<ComposerPrimaryActions {...props} />);
+  using _timers = fakeTimers();
+  await act(() =>
+    (
+      screen
+        .getByRole("button", { name: "Stop generation" })
+        .element() as HTMLButtonElement
+    ).click(),
   );
-}
-
-it("changes compaction copy with locale without losing the selected send behavior", async () => {
-  const submit = vi.fn();
-  await using screen = await render(<Composer locale="en" submit={submit} />);
-  const compact = screen.getByRole("button", {
-    name: "Compact 1.2k tokens of history before sending",
-  });
-  await userEvent.hover(compact);
-  await expectOpenTooltip("Next send compacts 1.2k tokens first.Click to keep full history");
-  await compact.click();
-  await expect.element(compact).toHaveAttribute("aria-pressed", "false");
-  await userEvent.unhover(compact);
-  await userEvent.hover(compact);
-  await expectOpenTooltip("Next send keeps all 1.2k tokens.Click to compact first");
-
-  await screen.rerender(<Composer locale="zh-CN" submit={submit} />);
-  const localizedCompact = screen.getByRole("button", { name: "发送前压缩历史中的 1.2k 个 Token" });
-  await expect.element(localizedCompact).toHaveAttribute("aria-pressed", "false");
-  await expectOpenTooltip("下次发送将保留全部 1.2k 个 token。点击以先压缩历史记录");
-  expect(submit).not.toHaveBeenCalled();
-  await localizedCompact.click();
-  await expect.element(localizedCompact).toHaveAttribute("aria-pressed", "true");
-  await userEvent.unhover(localizedCompact);
-  await userEvent.hover(localizedCompact);
-  await expectOpenTooltip("下次发送将先压缩 1.2k 个 token。点击以保留完整历史记录");
-  await screen.getByRole("button", { name: "压缩上下文并发送" }).click();
-  expect(submit).toHaveBeenCalledTimes(1);
+  await act(() => vi.advanceTimersByTime(9_999));
+  expect(
+    screen.getByRole("button", { name: "Stopping", exact: true }).element(),
+  ).toBeDisabled();
+  await act(() => vi.advanceTimersByTime(1));
+  await act(() =>
+    (
+      screen
+        .getByRole("button", { name: "Stop generation" })
+        .element() as HTMLButtonElement
+    ).click(),
+  );
+  await screen.rerender(
+    <ComposerPrimaryActions
+      {...props}
+      isRunning={false}
+      canInterrupt={false}
+      canResume
+    />,
+  );
+  await act(() =>
+    (
+      screen
+        .getByRole("button", { name: "Resume thread" })
+        .element() as HTMLButtonElement
+    ).click(),
+  );
+  expect(props.onInterrupt).toHaveBeenCalledTimes(2);
+  expect(props.onResume).not.toHaveBeenCalled();
 });
 
-it("keeps dispatch shortcuts opaque when a running composer's locale changes", async () => {
-  const submit = vi.fn();
-  await using screen = await render(<Composer locale="en" submit={submit} running />);
-  await userEvent.hover(screen.getByRole("button", { name: "Queue message" }));
-  const modifier = isMacPlatform(navigator.platform) ? "⌘" : "Ctrl";
-  await expectOpenTooltip(`Click to queue, ${modifier}-click or Ctrl+Enter to steer`);
-  await screen.rerender(<Composer locale="zh-CN" submit={submit} running />);
-  await expectOpenTooltip(`点击以加入队列，按住 ${modifier} 点击或按 Ctrl+Enter以引导当前回合`);
-  expect(submit).not.toHaveBeenCalled();
-  await screen.getByRole("button", { name: "将消息加入队列" }).click();
-  expect(submit).toHaveBeenCalledTimes(1);
-});
-
-async function expectOpenTooltip(text: string) {
+it("keeps Stop pending across a permission failure", async () => {
+  const props = setup();
+  await using screen = await render(<ComposerPrimaryActions {...props} />);
+  await act(() =>
+    (
+      screen
+        .getByRole("button", { name: "Stop generation" })
+        .element() as HTMLButtonElement
+    ).click(),
+  );
+  await screen.rerender(
+    <ComposerPrimaryActions
+      {...props}
+      canOperateThread={false}
+      canInterrupt={false}
+    />,
+  );
+  await screen.rerender(<ComposerPrimaryActions {...props} />);
   await expect
-    .poll(() => document.querySelector('[data-slot="tooltip-popup"][data-open]')?.textContent)
-    .toBe(text);
-  const popup = document.querySelector<HTMLElement>('[data-slot="tooltip-popup"][data-open]');
-  if (!popup) throw new Error("Expected the open tooltip popup");
-  await expect.element(popup).toBeVisible();
-}
+    .element(screen.getByRole("button", { name: "Stopping", exact: true }))
+    .toBeDisabled();
+  expect(props.onInterrupt).toHaveBeenCalledTimes(1);
+});
+
+it("keeps a pending stop when the run id clears and resets it for a different run", async () => {
+  const props = setup();
+  await using screen = await render(
+    <ComposerPrimaryActions {...props} runId="first" />,
+  );
+  await act(() =>
+    (
+      screen
+        .getByRole("button", { name: "Stop generation" })
+        .element() as HTMLButtonElement
+    ).click(),
+  );
+  await screen.rerender(<ComposerPrimaryActions {...props} runId={null} />);
+  expect(
+    screen.getByRole("button", { name: "Stopping", exact: true }).element(),
+  ).toBeDisabled();
+  await screen.rerender(<ComposerPrimaryActions {...props} runId="second" />);
+  expect(
+    screen.getByRole("button", { name: "Stop generation" }).element(),
+  ).toBeEnabled();
+});
+
+it("swaps the collapsed composer's send button for Stop while a turn can be stopped", async () => {
+  const onInterrupt = vi.fn();
+  const collapsed = (
+    overrides: { canInterrupt?: boolean; hasSendableContent?: boolean } = {},
+  ) => (
+    <CollapsedComposerStopAction
+      canOperateThread
+      canInterrupt={overrides.canInterrupt ?? true}
+      runId="run"
+      hasSendableContent={overrides.hasSendableContent ?? false}
+      isEditingQueuedMessage={false}
+      onInterrupt={onInterrupt}
+    >
+      <button type="button">Send message</button>
+    </CollapsedComposerStopAction>
+  );
+  await using screen = await render(collapsed({ hasSendableContent: true }));
+  await expect
+    .element(screen.getByRole("button", { name: "Send message" }))
+    .toBeVisible();
+  await screen.rerender(collapsed());
+  await act(() =>
+    (
+      screen
+        .getByRole("button", { name: "Stop generation" })
+        .element() as HTMLButtonElement
+    ).click(),
+  );
+  expect(onInterrupt).toHaveBeenCalledTimes(1);
+  await expect
+    .element(screen.getByRole("button", { name: "Stopping", exact: true }))
+    .toBeDisabled();
+  await screen.rerender(collapsed({ canInterrupt: false }));
+  await expect
+    .element(screen.getByRole("button", { name: "Send message" }))
+    .toBeVisible();
+});

@@ -25,7 +25,10 @@ import type { ComposerBannerStackItem } from "./ComposerBannerStack";
 import { ENVIRONMENT_RECONNECT_WARNING_GRACE_MS } from "../ChatView.logic";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { Button } from "../ui/button";
-import { ServerUpdateAction, serverUpdateStageLabel } from "../ServerUpdateAction";
+import {
+  ServerUpdateAction,
+  serverUpdateStageLabel,
+} from "../ServerUpdateAction";
 import { useAutoBalanceUpdateBanner } from "./useAutoBalanceUpdateBanner";
 import { ComposerServerUpdateIcon } from "./ComposerServerUpdateStatus";
 import {
@@ -71,11 +74,14 @@ export function useSystemComposerBanners(input: SystemComposerBannersInput) {
     autoUpdateEnvironments,
   } = input;
   const navigate = useNavigate();
-  const retryEnvironment = useAtomCommand(environmentCatalog.retryNow, { reportFailure: false });
+  const retryEnvironment = useAtomCommand(environmentCatalog.retryNow, {
+    reportFailure: false,
+  });
   const setEnvironmentEnabled = useAtomCommand(environmentCatalog.setEnabled, {
     reportFailure: false,
   });
-  const activeEnvironmentConnectionPhase = activeEnvironment?.connection.phase ?? "available";
+  const activeEnvironmentConnectionPhase =
+    activeEnvironment?.connection.phase ?? "available";
   const activeReconnectingEnvironmentId =
     activeEnvironmentConnectionPhase === "connecting" ||
     activeEnvironmentConnectionPhase === "reconnecting"
@@ -87,7 +93,9 @@ export function useSystemComposerBanners(input: SystemComposerBannersInput) {
     activeReconnectingEnvironmentId,
     ENVIRONMENT_RECONNECT_WARNING_GRACE_MS,
   );
-  const handleReconnectActiveEnvironment = async (environmentId: EnvironmentId) => {
+  const handleReconnectActiveEnvironment = async (
+    environmentId: EnvironmentId,
+  ) => {
     // A retry does nothing while the environment is switched off.
     const result =
       activeEnvironment?.entry.enabled === false
@@ -100,7 +108,9 @@ export function useSystemComposerBanners(input: SystemComposerBannersInput) {
           type: "error",
           title: t("chat.reconnectFailed"),
           description:
-            error instanceof Error ? error.message : t("chat.reconnectFailedDescription"),
+            error instanceof Error
+              ? error.message
+              : t("chat.reconnectFailedDescription"),
         }),
       );
     }
@@ -109,17 +119,25 @@ export function useSystemComposerBanners(input: SystemComposerBannersInput) {
     handleReconnectActiveEnvironment,
   );
   const disconnectDelayElapsed = useEnvironmentDisconnectDelay(
-    activeEnvironmentUnavailable && activeEnvironment ? activeEnvironment.environmentId : null,
+    activeEnvironmentUnavailable && activeEnvironment
+      ? activeEnvironment.environmentId
+      : null,
   );
   const canDisconnectActiveEnvironment =
     disconnectDelayElapsed &&
     activeEnvironment !== null &&
     activeEnvironment.entry.target._tag !== "PrimaryConnectionTarget" &&
     !isDesktopLocalConnectionTarget(activeEnvironment.entry.target);
-  const [disconnectingEnvironment, setDisconnectingEnvironment] = useState(false);
-  const handleDisconnectActiveEnvironment = async (environmentId: EnvironmentId) => {
+  const [disconnectingEnvironment, setDisconnectingEnvironment] =
+    useState(false);
+  const handleDisconnectActiveEnvironment = async (
+    environmentId: EnvironmentId,
+  ) => {
     setDisconnectingEnvironment(true);
-    const result = await setEnvironmentEnabled({ environmentId, enabled: false });
+    const result = await setEnvironmentEnabled({
+      environmentId,
+      enabled: false,
+    });
     setDisconnectingEnvironment(false);
     if (result._tag === "Failure") {
       if (!isAtomCommandInterrupted(result)) {
@@ -142,16 +160,21 @@ export function useSystemComposerBanners(input: SystemComposerBannersInput) {
   const handleDisconnectActiveEnvironmentStable = useStableCallback(
     handleDisconnectActiveEnvironment,
   );
-  const autoBalanceUpdateBanner = useAutoBalanceUpdateBanner(autoUpdateEnvironments);
+  const autoBalanceUpdateBanner = useAutoBalanceUpdateBanner(
+    autoUpdateEnvironments,
+  );
   const versionMismatch = resolveServerConfigVersionMismatch(serverConfig);
   const versionMismatchServerLabel =
     hasMultipleRegisteredEnvironments && activeThreadEnvironmentId !== null
       ? `${activeEnvironment?.label ?? serverConfig?.environment.label ?? activeThreadEnvironmentId} server`
       : "server";
   const serverUpdateEnvironmentId = activeThreadEnvironmentId;
-  const versionMismatchSelfUpdate = resolveServerSelfUpdateCapability(serverConfig);
-  const versionMismatchInstallation = serverConfig?.environment.capabilities.serverInstallation;
-  const versionMismatchDesktopAppUpdate = supportsDesktopAppUpdate(serverConfig);
+  const versionMismatchSelfUpdate =
+    resolveServerSelfUpdateCapability(serverConfig);
+  const versionMismatchInstallation =
+    serverConfig?.environment.capabilities.serverInstallation;
+  const versionMismatchDesktopAppUpdate =
+    supportsDesktopAppUpdate(serverConfig);
   const serverUpdateState = useAtomValue(
     serverEnvironment.updateStateAtom(serverUpdateEnvironmentId),
   );
@@ -164,7 +187,8 @@ export function useSystemComposerBanners(input: SystemComposerBannersInput) {
   return (() => {
     const items: ComposerBannerStackItem[] = [];
     const updateRunning = serverUpdateState.status === "running";
-    const unavailableConnection = activeEnvironmentUnavailableState?.connection ?? null;
+    const unavailableConnection =
+      activeEnvironmentUnavailableState?.connection ?? null;
     const disconnectAction =
       canDisconnectActiveEnvironment && activeEnvironmentUnavailableState ? (
         <Button
@@ -188,8 +212,11 @@ export function useSystemComposerBanners(input: SystemComposerBannersInput) {
       unavailableConnection !== null &&
       (unavailableConnection.phase === "connecting" ||
         unavailableConnection.phase === "reconnecting");
+    const awaitingApproval = unavailableConnection?.awaitingApproval === true;
     const suppressUnavailableBanner =
-      environmentReconnecting && (updateRunning || !reconnectWarningGraceElapsed);
+      environmentReconnecting &&
+      !awaitingApproval &&
+      (updateRunning || !reconnectWarningGraceElapsed);
     const showUnavailableBanner =
       activeEnvironmentUnavailableState !== null &&
       unavailableConnection !== null &&
@@ -200,15 +227,22 @@ export function useSystemComposerBanners(input: SystemComposerBannersInput) {
         variant: unavailableConnection.phase === "error" ? "error" : "warning",
         group: "environment",
         icon: <WifiOffIcon />,
-        title: t(environmentReconnecting ? "audit6.reconnecting" : "audit6.offline", {
-          label: activeEnvironmentUnavailableState.label,
-        }),
-        description: activeEnvironment ? (
+        title: awaitingApproval
+          ? `${activeEnvironmentUnavailableState.label} is waiting to approve this device`
+          : t(
+              environmentReconnecting
+                ? "audit6.reconnecting"
+                : "audit6.offline",
+              { label: activeEnvironmentUnavailableState.label },
+            ),
+        description: awaitingApproval ? (
+          (unavailableConnection.error ?? undefined)
+        ) : activeEnvironment ? (
           <ConnectionDiagnosisHeadline environment={activeEnvironment} />
         ) : undefined,
         actions: (
           <>
-            {!environmentReconnecting ? (
+            {unavailableConnection.phase !== "connecting" ? (
               <Button
                 size="xs"
                 variant="ghost"
@@ -218,7 +252,10 @@ export function useSystemComposerBanners(input: SystemComposerBannersInput) {
                   )
                 }
               >
-                {translateWebSource(uiLocale, "Reconnect")}
+                {translateWebSource(
+                  uiLocale,
+                  environmentReconnecting ? "Retry now" : "Reconnect",
+                )}
               </Button>
             ) : null}
             {disconnectAction}

@@ -59,7 +59,11 @@ export function SourceControlTokenSettings({
     .map(([saved]) => saved);
   const sourceKey = JSON.stringify([normalizedHost, savedToken ?? ""]);
   const draft =
-    pending?.key === sourceKey ? pending.draft : isSecretReference(savedToken) ? savedToken : "";
+    pending?.key === sourceKey
+      ? pending.draft
+      : isSecretReference(savedToken)
+        ? savedToken
+        : "";
   const submission = typeof draft === "string" ? draft.trim() : draft;
 
   const save = async (target: string, token: SettingsSecretValue) => {
@@ -69,7 +73,9 @@ export function SourceControlTokenSettings({
       // Send the whole map; other tokens' redaction markers preserve their values.
       input: {
         patch: {
-          sourceControlHosts: { [definition.kind]: { tokens: { ...tokens, [target]: token } } },
+          sourceControlHosts: {
+            [definition.kind]: { tokens: { ...tokens, [target]: token } },
+          },
         },
       },
     });
@@ -85,7 +91,8 @@ export function SourceControlTokenSettings({
       className="grid gap-3"
       onSubmit={(event) => {
         event.preventDefault();
-        if (normalizedHost && submission !== "") void save(normalizedHost, submission);
+        if (normalizedHost && submission !== "")
+          void save(normalizedHost, submission);
       }}
     >
       {/* Locked while saving: a successful save clears the draft, which would drop edits made mid-request. */}
@@ -134,12 +141,19 @@ export function SourceControlTokenSettings({
             <SecretSourceInput
               id={`${definition.kind}-token-${environmentId}`}
               size="sm"
-              aria-label={t("sourceControl.token.ariaLabel", { provider: definition.label })}
+              aria-label={t("sourceControl.token.ariaLabel", {
+                provider: definition.label,
+              })}
+              environmentId={environmentId}
               configured={isSaved && !isSecretReference(savedToken)}
               value={draft}
               sources={secretSources}
-              onChange={(event) => setPending({ key: sourceKey, draft: event.target.value })}
-              onSecretChange={(secret) => setPending({ key: sourceKey, draft: secret ?? "" })}
+              onChange={(event) =>
+                setPending({ key: sourceKey, draft: event.target.value })
+              }
+              onSecretChange={(secret) =>
+                setPending({ key: sourceKey, draft: secret ?? "" })
+              }
             />
           </div>
         </div>
@@ -150,7 +164,9 @@ export function SourceControlTokenSettings({
                   variable: credentials.tokenEnvVar,
                   cli: credentials.cliName,
                 })
-              : t("sourceControl.tokens.savedFor", { hosts: savedHosts.join(", ") })}
+              : t("sourceControl.tokens.savedFor", {
+                  hosts: savedHosts.join(", "),
+                })}
           </p>
           <div className="flex shrink-0 gap-2">
             {isSaved ? (

@@ -11,6 +11,7 @@ import { Platform, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ControlPill } from "../../components/ui/ControlPill";
+import { useContentTopInset } from "../../components/ui/useBarInset";
 import { useAppForeground } from "../../lib/appState";
 
 import { useThreadServerBrowserTabs } from "../../state/preview";
@@ -35,13 +36,30 @@ type BrowserPreviewRouteScreenProps = StaticScreenProps<{
 export function BrowserPreviewRouteScreen({ route }: BrowserPreviewRouteScreenProps) {
   const navigation = useNavigation();
   const onClose = () => navigation.goBack();
+  const { environmentId, threadId } = route.params;
+  if (!environmentId?.trim() || !threadId?.trim()) {
+    return <BrowserUnavailableScreen onClose={onClose} />;
+  }
   return (
     <BrowserPreviewScreen
-      environmentId={EnvironmentId.make(route.params.environmentId)}
-      threadId={ThreadId.make(route.params.threadId)}
+      environmentId={EnvironmentId.make(environmentId)}
+      threadId={ThreadId.make(threadId)}
       initialTabId={route.params.tabId ?? null}
       onClose={onClose}
     />
+  );
+}
+
+function BrowserUnavailableScreen({ onClose }: { readonly onClose: () => void }) {
+  const insets = useSafeAreaInsets();
+  const contentTopInset = useContentTopInset();
+  return (
+    <View
+      className="flex-1 bg-sheet"
+      style={{ paddingTop: contentTopInset, paddingBottom: insets.bottom }}
+    >
+      <SheetHeader title="Browser" onClose={onClose} accessibilityLabel="Close browser" />
+    </View>
   );
 }
 
@@ -57,6 +75,7 @@ function BrowserPreviewScreen({
   readonly onClose: () => void;
 }) {
   const insets = useSafeAreaInsets();
+  const contentTopInset = useContentTopInset();
   const { themeVariables } = useAppearancePreferences();
   const prepared = usePreparedConnection(environmentId);
   const httpBaseUrl = Option.isSome(prepared) ? prepared.value.httpBaseUrl : null;
@@ -91,7 +110,10 @@ function BrowserPreviewScreen({
   const live = (focused && foreground) || pictureInPicture.active;
 
   return (
-    <View className="flex-1 bg-sheet" style={{ paddingBottom: insets.bottom }}>
+    <View
+      className="flex-1 bg-sheet"
+      style={{ paddingTop: contentTopInset, paddingBottom: insets.bottom }}
+    >
       <SheetHeader
         localizeTitle={!tab}
         title={tab ? browserTabTitle(tab) : "Browser"}

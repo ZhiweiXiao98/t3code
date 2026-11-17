@@ -2,26 +2,43 @@ import { useI18n } from "../../i18n/WebI18nContext";
 import { readWebI18n } from "../../i18n/readWebI18n";
 import { translateWebSource } from "../../i18n/messages";
 import { useAtomValue } from "@effect/atom-react";
-import { settlePromise, squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
+import {
+  settlePromise,
+  squashAtomCommandFailure,
+} from "@t3tools/client-runtime/state/runtime";
 import type { DesktopUpdateChannel } from "@t3tools/contracts";
-import { acceptsTrackSwitchRelease, desktopUpdateChannelOf } from "@t3tools/shared/cliRelease";
+import {
+  acceptsTrackSwitchRelease,
+  desktopUpdateChannelOf,
+} from "@t3tools/shared/cliRelease";
 import { isMacPlatform } from "@t3tools/shared/keybindings";
 import { useState } from "react";
 import { AsyncResult } from "effect/reactivity";
 
 import { APP_VERSION } from "~/branding";
+import { isLocalEnvironmentDisabled } from "~/localEnvironment";
 import { useDesktopUpdateState } from "~/state/desktopUpdate";
 import { useEnvironments } from "~/state/environments";
 import { npmReleaseAtom, npmReleaseFailureMessage } from "~/state/npmRelease";
-import { downloadLocalUpdate, installLocalUpdate } from "../sidebar/SidebarUpdatePill";
+import {
+  downloadLocalUpdate,
+  installLocalUpdate,
+} from "../sidebar/SidebarUpdatePill";
 import { UpdateEverythingDialog } from "../sidebar/UpdateEverythingDialog";
 import {
   channelSwitchLabel,
   localSwitchBlockReason,
   type ChannelSwitchRelease,
 } from "../sidebar/updateEverything.logic";
-import { isHostedByThisApp, useUpdateEverything } from "../sidebar/useUpdateEverything";
-import { localUpdaterStaysPut, prepareLocalTrackSwitch } from "./updateTrackSwitch.logic";
+import {
+  isHostedByThisApp,
+  useUpdateEverything,
+} from "../sidebar/useUpdateEverything";
+import {
+  localUpdaterStaysPut,
+  nothingToMove,
+  prepareLocalTrackSwitch,
+} from "./updateTrackSwitch.logic";
 import {
   AlertDialog,
   AlertDialogClose,
@@ -47,7 +64,9 @@ export function UpdateTrackSwitchDialog({
   // npm dist-tags match the desktop channel names.
   const release = useAtomValue(npmReleaseAtom(channel));
   if (AsyncResult.isSuccess(release) && release.value !== null) {
-    return <SwitchPlan release={{ channel, ...release.value }} onClose={onClose} />;
+    return (
+      <SwitchPlan release={{ channel, ...release.value }} onClose={onClose} />
+    );
   }
   const label = tx(channelSwitchLabel(channel));
   return (
@@ -68,7 +87,9 @@ export function UpdateTrackSwitchDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogClose render={<Button variant="outline" />}>{tx("Cancel")}</AlertDialogClose>
+          <AlertDialogClose render={<Button variant="outline" />}>
+            {tx("Cancel")}
+          </AlertDialogClose>
         </AlertDialogFooter>
       </AlertDialogPopup>
     </AlertDialog>
@@ -91,17 +112,31 @@ function SwitchPlan({
   // After a partial switch this app may already be on the track; then only remotes move.
   const switchesLocal = crossesLocal && !updatesOff;
   const [checking, setChecking] = useState(false);
-  const everything = useUpdateEverything(switchesLocal ? release.version : null, release);
+  const everything = useUpdateEverything(
+    switchesLocal ? release.version : null,
+    release,
+  );
   const label = tx(channelSwitchLabel(release.channel));
+  const idle = nothingToMove({
+    label,
+    channel: release.channel,
+    savedChannel: updateState?.channel ?? null,
+    switchesLocal,
+    crossesLocal,
+    rows: everything.rows,
+    hasTargets: everything.hasUpdates,
+  });
   // This app's reinstall restarts every server it hosts, so each of their databases must allow it.
   const localBlocked = localSwitchBlockReason(
     APP_VERSION,
     release,
     environments.filter(isHostedByThisApp).map((environment) => ({
       connected: environment.connection.phase === "connected",
-      databaseMigration: environment.serverConfig?.environment.databaseMigration,
+      databaseMigration:
+        environment.serverConfig?.environment.databaseMigration,
     })),
     window.desktopBridge?.getLocalEnvironmentBootstraps().length ?? 0,
+    !isLocalEnvironmentDisabled(),
     t,
   );
 
@@ -134,7 +169,9 @@ function SwitchPlan({
         /^This app found (.+), which is older than (.+)\. Try again in a few minutes\.$/.exec(
           prepared.message,
         );
-      const missing = /^This app found no build of (.+) to install\.$/.exec(prepared.message);
+      const missing = /^This app found no build of (.+) to install\.$/.exec(
+        prepared.message,
+      );
       fail(
         locale !== "zh-CN"
           ? prepared.message
@@ -156,7 +193,10 @@ function SwitchPlan({
               ...(local.status === "available"
                 ? {
                     downloadLocal: (reportError) =>
-                      downloadLocalUpdate(bridge, { notifyDownloaded: false, reportError }),
+                      downloadLocalUpdate(bridge, {
+                        notifyDownloaded: false,
+                        reportError,
+                      }),
                   }
                 : {}),
               // Install only a build the database check covers, pinned so nothing replaces it.
@@ -164,7 +204,11 @@ function SwitchPlan({
                 const { downloadedVersion } = await bridge.getUpdateState();
                 if (
                   downloadedVersion === null ||
-                  !acceptsTrackSwitchRelease(downloadedVersion, release.channel, release.version)
+                  !acceptsTrackSwitchRelease(
+                    downloadedVersion,
+                    release.channel,
+                    release.version,
+                  )
                 ) {
                   const { locale } = readWebI18n();
                   reportError(
@@ -175,7 +219,11 @@ function SwitchPlan({
                   );
                   return false;
                 }
-                return installLocalUpdate(bridge, reportError, downloadedVersion);
+                return installLocalUpdate(
+                  bridge,
+                  reportError,
+                  downloadedVersion,
+                );
               },
             },
       ),
@@ -201,15 +249,13 @@ function SwitchPlan({
       providerCount={0}
       rows={everything.rows}
       notes={[
-        ...(everything.rows.length === 0 && !crossesLocal
-          ? [
-              locale === "zh-CN"
-                ? `所有已连接机器均已使用${label}。此操作仅保存更新通道。`
-                : `Every connected machine is already on ${label}. This only saves the track.`,
-            ]
-          : []),
+        ...(idle.note === null ? [] : [tx(idle.note)]),
         ...(crossesLocal && updatesOff
-          ? [tx("This app's updates are off here, so reinstall it yourself to switch.")]
+          ? [
+              tx(
+                "This app's updates are off here, so reinstall it yourself to switch.",
+              ),
+            ]
           : []),
         ...(switchesLocal && isMacPlatform(navigator.platform)
           ? [tx("If T3 Code does not reopen after it restarts, open it again.")]
@@ -217,12 +263,18 @@ function SwitchPlan({
       ]}
       restarts={everything.restarts}
       confirmLabel={
-        checking ? tx("Checking…") : locale === "zh-CN" ? `切换到${label}` : `Switch to ${label}`
+        checking
+          ? tx("Checking…")
+          : locale === "zh-CN"
+            ? `切换到${label}`
+            : `Switch to ${label}`
       }
       busy={checking}
       disabledReason={
         !switchesLocal || localBlocked === null
-          ? null
+          ? idle.disabledReason === null
+            ? null
+            : tx(idle.disabledReason)
           : locale === "zh-CN"
             ? `此应用无法切换：${tx(localBlocked)}。`
             : `This app cannot switch: ${localBlocked}.`

@@ -2,7 +2,10 @@ import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 import { translateWebSource } from "~/i18n/messages";
 import { appAtomRegistry, subscribeAtomChanges } from "../rpc/atomRegistry";
 import { primaryEnvironmentIdAtom } from "../state/primaryEnvironment";
-import { primaryServerConfigAtom, primaryServerConfigEventAtom } from "../state/server";
+import {
+  primaryServerConfigAtom,
+  primaryServerConfigEventAtom,
+} from "../state/server";
 import { KeybindingsConfigWarning } from "./KeybindingsConfigWarning";
 import { createKeybindingsUpdateToastController } from "./KeybindingsUpdateToast.logic";
 import { stackedThreadToast, toastManager } from "./ui/toast";
@@ -17,14 +20,7 @@ export function startKeybindingsUpdateToasts(
     if (!decision) return;
     const locale = readLocale();
 
-    if (decision._tag === "Success") {
-      toastManager.add({
-        type: "success",
-        title: translateWebSource(locale, "Keybindings updated"),
-        description: translateWebSource(locale, "Keybindings configuration reloaded successfully."),
-      });
-      return;
-    }
+    if (decision._tag === "Success") return;
 
     const serverConfig = appAtomRegistry.get(primaryServerConfigAtom);
     toastManager.add(

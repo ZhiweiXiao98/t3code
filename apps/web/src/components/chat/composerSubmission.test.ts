@@ -13,6 +13,7 @@ import { describe, expect, it, vi } from "vite-plus/test";
 
 import {
   submitComposerDraft,
+  isComposerSubmissionBlocked,
   getComposerPromptLengthViolation,
   formatComposerPromptLengthViolation,
 } from "./composerSubmission";
@@ -92,7 +93,10 @@ describe("submitComposerDraft", () => {
       onSend,
     });
 
-    expect(correctedResult).toEqual({ validationMessage: null, didDispatch: true });
+    expect(correctedResult).toEqual({
+      validationMessage: null,
+      didDispatch: true,
+    });
     expect(onSend).toHaveBeenCalledOnce();
   });
 
@@ -123,7 +127,9 @@ describe("submitComposerDraft", () => {
       const onSend = vi.fn();
       const preventDefault = vi.fn();
 
-      expect(providerInput.length).toBeLessThan(PROVIDER_SEND_TURN_MAX_INPUT_CHARS);
+      expect(providerInput.length).toBeLessThan(
+        PROVIDER_SEND_TURN_MAX_INPUT_CHARS,
+      );
       const result = submitComposerDraft({
         prompt: source === "draft" ? providerInput : "Explain the quote",
         ...(source === "composed provider input" ? { providerInput } : {}),
@@ -174,7 +180,8 @@ describe("submitComposerDraft", () => {
   it("sends canonical citations when expanded input fits exactly after trimming", () => {
     const citation = serializeAssistantCitation(assistantCitation);
     const draft = ` ${"x".repeat(
-      PROVIDER_SEND_TURN_MAX_INPUT_CHARS - expandAssistantCitationsForProvider(citation).length,
+      PROVIDER_SEND_TURN_MAX_INPUT_CHARS -
+        expandAssistantCitationsForProvider(citation).length,
     )}${citation} \n`;
     const dispatchedDrafts: string[] = [];
 
@@ -243,6 +250,49 @@ it("rerenders the same cached length violation without retaining an English pres
   expect(excess).toBe(1);
   if (excess === null) return;
   const english = formatComposerPromptLengthViolation(excess, "en");
-  expect(formatComposerPromptLengthViolation(excess, "zh-CN")).toContain("多出 1 个字符");
+  expect(formatComposerPromptLengthViolation(excess, "zh-CN")).toContain(
+    "多出 1 个字符",
+  );
   expect(formatComposerPromptLengthViolation(excess, "en")).toBe(english);
+});
+
+describe("isComposerSubmissionBlocked", () => {
+  const sendBlocked = {
+    noProviderAvailable: true,
+    sendDisabledReason: "Messages loading",
+    attachmentBlockReason: null,
+    environmentUnavailable: false,
+  };
+
+  // regression: #9318
+  it("lets a pending answer through while provider-turn sends are blocked", () => {
+    expect(
+      isComposerSubmissionBlocked({
+        ...sendBlocked,
+        submissionTarget: "pending-user-input",
+      }),
+    ).toBe(false);
+    expect(
+      isComposerSubmissionBlocked({
+        ...sendBlocked,
+        submissionTarget: "provider-turn",
+      }),
+    ).toBe(true);
+  });
+
+  it("still blocks a pending answer on its attachments or a lost connection", () => {
+    const answer = {
+      ...sendBlocked,
+      submissionTarget: "pending-user-input" as const,
+    };
+    expect(
+      isComposerSubmissionBlocked({
+        ...answer,
+        attachmentBlockReason: "Attach the file again",
+      }),
+    ).toBe(true);
+    expect(
+      isComposerSubmissionBlocked({ ...answer, environmentUnavailable: true }),
+    ).toBe(true);
+  });
 });

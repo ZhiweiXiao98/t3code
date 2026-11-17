@@ -25,13 +25,17 @@ import {
   UserRoundIcon,
   type LucideIcon,
 } from "lucide-react";
-import { memo, useLayoutEffect, useRef } from "react";
+import { memo, useLayoutEffect, useRef, useState } from "react";
 
-import { type ComposerSlashCommand, type ComposerTriggerKind } from "../../composer-logic";
+import {
+  type ComposerSlashCommand,
+  type ComposerTriggerKind,
+} from "../../composer-logic";
 import { useI18n } from "../../i18n/WebI18nContext";
 import { cn } from "~/lib/utils";
 import { Badge } from "../ui/badge";
 import { Command, CommandGroup, CommandItem, CommandList } from "../ui/command";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { EnvironmentMachineIcon } from "../EnvironmentMachineIcon";
 import { PierreEntryIcon } from "./PierreEntryIcon";
 import { ProviderInstanceIcon } from "./ProviderInstanceIcon";
@@ -149,7 +153,9 @@ export const ComposerCommandMenu = memo(function ComposerCommandMenu(props: {
           <CommandList
             id={props.listId}
             aria-label={
-              props.triggerKind ? t(LISTBOX_LABEL_BY_TRIGGER[props.triggerKind]) : undefined
+              props.triggerKind
+                ? t(LISTBOX_LABEL_BY_TRIGGER[props.triggerKind])
+                : undefined
             }
             className="max-h-72 min-h-0 scroll-pb-6"
           >
@@ -172,7 +178,8 @@ export const ComposerCommandMenu = memo(function ComposerCommandMenu(props: {
           <div className="px-5 pt-3.5 pb-7">
             <p className="text-secondary-label text-xs">
               {props.isLoading
-                ? props.triggerKind === "skill" || props.triggerKind === "slash-command"
+                ? props.triggerKind === "skill" ||
+                  props.triggerKind === "slash-command"
                   ? t("composer.menu.searchingSkills")
                   : props.triggerKind === "pull-request"
                     ? translateWebSource(uiLocale, "Finding pull request...")
@@ -202,13 +209,28 @@ const ComposerCommandMenuItem = memo(function ComposerCommandMenuItem(props: {
 }) {
   const { t } = useI18n();
   const skillSourceKind =
-    props.item.type === "skill" ? resolveProviderSkillSourceKind(props.item.skill) : null;
+    props.item.type === "skill"
+      ? resolveProviderSkillSourceKind(props.item.skill)
+      : null;
   const isSlashSkill =
-    props.triggerKind === "slash-command" && props.item.type === "skill" ? props.item.skill : null;
+    props.triggerKind === "slash-command" && props.item.type === "skill"
+      ? props.item.skill
+      : null;
   const pullRequestPresentation =
     props.item.type === "pull-request"
       ? resolvePullRequestState({ ...props.item.pullRequest, t })
       : null;
+  const descriptionRef = useRef<HTMLSpanElement>(null);
+  const [descriptionTruncated, setDescriptionTruncated] = useState(false);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- measures the rendered description so only cut-off text gets a tooltip
+  useLayoutEffect(() => {
+    const description = descriptionRef.current;
+    setDescriptionTruncated(
+      props.isActive &&
+        !!description &&
+        description.scrollWidth > description.clientWidth,
+    );
+  }, [props.isActive]);
 
   return (
     <CommandItem
@@ -235,7 +257,10 @@ const ComposerCommandMenuItem = memo(function ComposerCommandMenuItem(props: {
         />
       ) : null}
       {props.item.type === "thread" ? (
-        <MessagesSquareIcon aria-hidden="true" className="size-4 shrink-0 text-secondary-label" />
+        <MessagesSquareIcon
+          aria-hidden="true"
+          className="size-4 shrink-0 text-secondary-label"
+        />
       ) : null}
       {props.item.type === "environment" ? (
         <EnvironmentMachineIcon
@@ -258,7 +283,10 @@ const ComposerCommandMenuItem = memo(function ComposerCommandMenuItem(props: {
         <pullRequestPresentation.Icon
           role="img"
           aria-label={pullRequestPresentation.label}
-          className={cn("size-4 shrink-0", pullRequestPresentation.toneClassName)}
+          className={cn(
+            "size-4 shrink-0",
+            pullRequestPresentation.toneClassName,
+          )}
         />
       ) : null}
       <span className="flex min-w-0 flex-1 items-center gap-2">
@@ -272,9 +300,20 @@ const ComposerCommandMenuItem = memo(function ComposerCommandMenuItem(props: {
             props.item.label
           )}
         </span>
-        <span className="min-w-0 flex-1 truncate text-left text-secondary-label text-xs">
-          {props.item.description}
-        </span>
+        <Tooltip open={descriptionTruncated}>
+          <TooltipTrigger
+            tabIndex={-1}
+            render={
+              <span
+                ref={descriptionRef}
+                className="min-w-0 flex-1 truncate text-left text-secondary-label text-xs"
+              />
+            }
+          >
+            {props.item.description}
+          </TooltipTrigger>
+          <TooltipPopup>{props.item.description}</TooltipPopup>
+        </Tooltip>
         {skillSourceKind ? (
           <SkillSourceBadge
             kind={skillSourceKind}
@@ -286,7 +325,10 @@ const ComposerCommandMenuItem = memo(function ComposerCommandMenuItem(props: {
   );
 });
 
-export function composerSuggestionOptionId(listId: string, itemId: string): string {
+export function composerSuggestionOptionId(
+  listId: string,
+  itemId: string,
+): string {
   // JSON escapes lone UTF-16 surrogates before URI encoding without losing identity.
   return `${listId}-${encodeURIComponent(JSON.stringify(itemId))}`;
 }
@@ -307,7 +349,10 @@ const SKILL_SOURCE_ICON_BY_KIND: Record<ProviderSkillSourceKind, LucideIcon> = {
   other: PackageIcon,
 };
 
-function SkillSourceBadge(props: { kind: ProviderSkillSourceKind; showSkillSuffix: boolean }) {
+function SkillSourceBadge(props: {
+  kind: ProviderSkillSourceKind;
+  showSkillSuffix: boolean;
+}) {
   const { t } = useI18n();
   const Icon = SKILL_SOURCE_ICON_BY_KIND[props.kind];
   const label =

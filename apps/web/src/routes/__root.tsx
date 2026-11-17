@@ -1,7 +1,10 @@
 import { useI18n } from "../i18n/WebI18nContext";
 import { translateWebSource } from "../i18n/messages";
 import { type ServerLifecycleWelcomePayload } from "@t3tools/contracts";
-import { scopedProjectKey, scopeProjectRef } from "@t3tools/client-runtime/environment";
+import {
+  scopedProjectKey,
+  scopeProjectRef,
+} from "@t3tools/client-runtime/environment";
 import {
   Outlet,
   Link,
@@ -34,11 +37,15 @@ import { DesktopWebLinkCoordinator } from "../components/desktop/DesktopWebLinkC
 import { RunningThreadKeepAlive } from "../components/desktop/RunningThreadKeepAlive";
 import { ReopenClosedViewShortcut } from "../components/ReopenClosedViewShortcut";
 import { ProjectCloneToastCoordinator } from "../components/ProjectCloneToastCoordinator";
+import { ConnectDeviceApprovalCoordinator } from "../components/ConnectDeviceApprovalCoordinator";
 import { ChatGptWelcomeCoordinator } from "../components/settings/ChatGptWelcomeCoordinator";
 import { ThemeEditorHost } from "../components/settings/ThemeEditorHost";
 import { useCopyToClipboard } from "../hooks/useCopyToClipboard";
 import { Button } from "../components/ui/button";
-import { StandalonePage, StandalonePageHeader } from "../components/ui/standalone-page";
+import {
+  StandalonePage,
+  StandalonePageHeader,
+} from "../components/ui/standalone-page";
 import { AnchoredToastProvider, ToastProvider } from "../components/ui/toast";
 import { isElectron } from "../env";
 import { useClientSettings } from "../hooks/useSettings";
@@ -55,10 +62,14 @@ import { hasHostedPairingRequest, isHostedStaticApp } from "../hostedPairing";
 import { useHostedPromptLinkLanding } from "../components/promptLinks/HostedPromptLinkLanding";
 import { isLocalEnvironmentDisabled } from "../localEnvironment";
 import { useAtomValue } from "@effect/atom-react";
-import { primaryServerConfigAtom, primaryServerWelcomeAtom } from "../state/server";
+import {
+  primaryServerConfigAtom,
+  primaryServerWelcomeAtom,
+} from "../state/server";
 import { readProject } from "../state/entities";
 
 import { getDesktopSnapShotBridge } from "../lib/desktopSnapShot";
+import { isChunkLoadError } from "../lib/chunkReloadGuard";
 import { shouldResumeSnapShotSetupOnStartup } from "../lib/snapShotSetupResume";
 
 export const Route = createRootRoute({
@@ -73,7 +84,10 @@ export const Route = createRootRoute({
       };
     }
 
-    if (location.pathname === "/pair" && hasHostedPairingRequest(new URL(window.location.href))) {
+    if (
+      location.pathname === "/pair" &&
+      hasHostedPairingRequest(new URL(window.location.href))
+    ) {
       return {
         authGateState: {
           status: "hosted-pairing",
@@ -81,7 +95,10 @@ export const Route = createRootRoute({
       };
     }
 
-    if (isLocalEnvironmentDisabled() || isHostedStaticApp(new URL(window.location.href))) {
+    if (
+      isLocalEnvironmentDisabled() ||
+      isHostedStaticApp(new URL(window.location.href))
+    ) {
       return {
         authGateState: {
           status: "hosted-static",
@@ -125,7 +142,9 @@ function RootRouteNotFoundView() {
         <p className="text-sm text-muted-foreground">
           {t("root.notFoundDescription", { app: APP_DISPLAY_NAME })}
         </p>
-        <Button render={<Link to="/" replace />}>{translateWebSource(locale, "Go home")}</Button>
+        <Button render={<Link to="/" replace />}>
+          {translateWebSource(locale, "Go home")}
+        </Button>
       </div>
     </main>
   );
@@ -146,12 +165,16 @@ function RootRouteView() {
 function RootRouteBranch() {
   const pathname = useLocation({ select: (location) => location.pathname });
   const { authGateState } = Route.useRouteContext();
-  const primaryEnvironmentAuthenticated = authGateState.status === "authenticated";
+  const primaryEnvironmentAuthenticated =
+    authGateState.status === "authenticated";
   // A sync IPC read; the setting only changes across a relaunch.
   const [localEnvironmentDisabled] = useState(isLocalEnvironmentDisabled);
   // Once true, stays true: a visit to /welcome means the bootstrap already chose a route.
-  const [returningFromWelcome, setReturningFromWelcome] = useState(pathname === "/welcome");
-  if (pathname === "/welcome" && !returningFromWelcome) setReturningFromWelcome(true);
+  const [returningFromWelcome, setReturningFromWelcome] = useState(
+    pathname === "/welcome",
+  );
+  if (pathname === "/welcome" && !returningFromWelcome)
+    setReturningFromWelcome(true);
   const hostedPromptLinkLanding = useHostedPromptLinkLanding(
     authGateState.status === "hosted-static",
   );
@@ -173,7 +196,10 @@ function RootRouteBranch() {
   }
 
   const isWelcome = pathname === "/welcome";
-  if (authGateState.status !== "authenticated" && authGateState.status !== "hosted-static") {
+  if (
+    authGateState.status !== "authenticated" &&
+    authGateState.status !== "hosted-static"
+  ) {
     return <Outlet />;
   }
 
@@ -181,7 +207,9 @@ function RootRouteBranch() {
   // first-run gate and the event router, whose first navigation would leave the page.
   const appHosts = (
     <>
-      {primaryEnvironmentAuthenticated ? <DesktopAppActivationCoordinator /> : null}
+      {primaryEnvironmentAuthenticated ? (
+        <DesktopAppActivationCoordinator />
+      ) : null}
       {primaryEnvironmentAuthenticated || localEnvironmentDisabled ? (
         <DesktopWebLinkCoordinator />
       ) : null}
@@ -195,9 +223,12 @@ function RootRouteBranch() {
       <CustomSnoozeDialogHost />
       <GuestShareDialogHost />
       <ProjectCloneToastCoordinator />
+      <ConnectDeviceApprovalCoordinator />
       <AddProjectToMachineDialogHost />
       <UseInAnotherAppDialogHost />
-      {import.meta.env.DEV && primaryEnvironmentAuthenticated ? <DevReplayHost /> : null}
+      {import.meta.env.DEV && primaryEnvironmentAuthenticated ? (
+        <DevReplayHost />
+      ) : null}
     </>
   );
   const appShell = (
@@ -224,7 +255,9 @@ function RootRouteBranch() {
         >
           {appHosts}
           {primaryEnvironmentAuthenticated ? (
-            <EventRouter skipInitialBootstrapNavigation={returningFromWelcome} />
+            <EventRouter
+              skipInitialBootstrapNavigation={returningFromWelcome}
+            />
           ) : null}
           {appShell}
         </FirstRunGate>
@@ -254,10 +287,21 @@ function RootRouteErrorView({ error }: ErrorComponentProps) {
       />
 
       <div className="mt-5 flex flex-wrap gap-2">
-        <Button size="sm" onClick={() => void router.invalidate()}>
+        <Button
+          size="sm"
+          onClick={() =>
+            isChunkLoadError(error)
+              ? window.location.reload()
+              : void router.invalidate()
+          }
+        >
           {translateWebSource(locale, "Try again")}
         </Button>
-        <Button size="sm" variant="outline" onClick={() => window.location.reload()}>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => window.location.reload()}
+        >
           {translateWebSource(locale, "Reload app")}
         </Button>
         <CopyErrorButton report={report} />
@@ -277,7 +321,9 @@ function RootRouteErrorView({ error }: ErrorComponentProps) {
 
 function CopyErrorButton({ report }: { report: string }) {
   const { locale } = useI18n();
-  const { copyToClipboard, isCopied } = useCopyToClipboard({ target: "error-report" });
+  const { copyToClipboard, isCopied } = useCopyToClipboard({
+    target: "error-report",
+  });
 
   return (
     <Button size="sm" variant="outline" onClick={() => copyToClipboard(report)}>
@@ -287,7 +333,10 @@ function CopyErrorButton({ report }: { report: string }) {
   );
 }
 
-function errorMessage(error: unknown, fallback = "An unexpected router error occurred."): string {
+function errorMessage(
+  error: unknown,
+  fallback = "An unexpected router error occurred.",
+): string {
   if (error instanceof Error && error.message.trim().length > 0) {
     return error.message;
   }
@@ -327,7 +376,11 @@ function errorReport(error: unknown, pathname: string): string {
     errorDetails(error),
   ];
   let cause = error instanceof Error ? error.cause : undefined;
-  for (let depth = 0; cause !== undefined && depth < MAX_ERROR_CAUSE_DEPTH; depth += 1) {
+  for (
+    let depth = 0;
+    cause !== undefined && depth < MAX_ERROR_CAUSE_DEPTH;
+    depth += 1
+  ) {
     lines.push("", "Caused by:", errorDetails(cause));
     cause = cause instanceof Error ? cause.cause : undefined;
   }
@@ -341,57 +394,77 @@ function EventRouter({
 }) {
   const navigate = useNavigate();
   const pathname = useLocation({ select: (loc) => loc.pathname });
-  const projectGroupingSettings = useClientSettings(selectProjectGroupingSettings);
+  const projectGroupingSettings = useClientSettings(
+    selectProjectGroupingSettings,
+  );
   const serverConfig = useAtomValue(primaryServerConfigAtom);
   const serverWelcome = useAtomValue(primaryServerWelcomeAtom);
   const readPathname = useEffectEvent(() => pathname);
   const handledBootstrapThreadIdRef = useRef<string | null>(null);
-  const skipInitialBootstrapNavigationRef = useRef(skipInitialBootstrapNavigation);
+  const skipInitialBootstrapNavigationRef = useRef(
+    skipInitialBootstrapNavigation,
+  );
 
-  const handleWelcome = useEffectEvent((payload: ServerLifecycleWelcomePayload | null) => {
-    if (!payload) return;
+  const handleWelcome = useEffectEvent(
+    (payload: ServerLifecycleWelcomePayload | null) => {
+      if (!payload) return;
 
-    void (async () => {
-      if (!payload.bootstrapProjectId || !payload.bootstrapThreadId) {
-        return;
-      }
-      const bootstrapProject = readProject(
-        scopeProjectRef(payload.environment.environmentId, payload.bootstrapProjectId),
-      );
-      const bootstrapProjectKey =
-        (bootstrapProject
-          ? deriveLogicalProjectKeyFromSettings(bootstrapProject, projectGroupingSettings)
-          : null) ??
-        (serverConfig?.cwd
-          ? derivePhysicalProjectKeyFromPath(payload.environment.environmentId, serverConfig.cwd)
-          : null) ??
-        scopedProjectKey(
-          scopeProjectRef(payload.environment.environmentId, payload.bootstrapProjectId),
+      void (async () => {
+        if (!payload.bootstrapProjectId || !payload.bootstrapThreadId) {
+          return;
+        }
+        const bootstrapProject = readProject(
+          scopeProjectRef(
+            payload.environment.environmentId,
+            payload.bootstrapProjectId,
+          ),
         );
-      useUiStateStore.getState().setProjectExpanded(bootstrapProjectKey, true);
+        const bootstrapProjectKey =
+          (bootstrapProject
+            ? deriveLogicalProjectKeyFromSettings(
+                bootstrapProject,
+                projectGroupingSettings,
+              )
+            : null) ??
+          (serverConfig?.cwd
+            ? derivePhysicalProjectKeyFromPath(
+                payload.environment.environmentId,
+                serverConfig.cwd,
+              )
+            : null) ??
+          scopedProjectKey(
+            scopeProjectRef(
+              payload.environment.environmentId,
+              payload.bootstrapProjectId,
+            ),
+          );
+        useUiStateStore
+          .getState()
+          .setProjectExpanded(bootstrapProjectKey, true);
 
-      if (readPathname() !== "/") {
-        return;
-      }
-      if (skipInitialBootstrapNavigationRef.current) {
-        skipInitialBootstrapNavigationRef.current = false;
+        if (readPathname() !== "/") {
+          return;
+        }
+        if (skipInitialBootstrapNavigationRef.current) {
+          skipInitialBootstrapNavigationRef.current = false;
+          handledBootstrapThreadIdRef.current = payload.bootstrapThreadId;
+          return;
+        }
+        if (handledBootstrapThreadIdRef.current === payload.bootstrapThreadId) {
+          return;
+        }
+        await navigate({
+          to: "/$environmentId/$threadId",
+          params: {
+            environmentId: payload.environment.environmentId,
+            threadId: payload.bootstrapThreadId,
+          },
+          replace: true,
+        });
         handledBootstrapThreadIdRef.current = payload.bootstrapThreadId;
-        return;
-      }
-      if (handledBootstrapThreadIdRef.current === payload.bootstrapThreadId) {
-        return;
-      }
-      await navigate({
-        to: "/$environmentId/$threadId",
-        params: {
-          environmentId: payload.environment.environmentId,
-          threadId: payload.bootstrapThreadId,
-        },
-        replace: true,
-      });
-      handledBootstrapThreadIdRef.current = payload.bootstrapThreadId;
-    })().catch(() => undefined);
-  });
+      })().catch(() => undefined);
+    },
+  );
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- expands the bootstrap project in the UI store and navigates the router on a server welcome
   useEffect(() => {

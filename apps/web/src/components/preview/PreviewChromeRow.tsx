@@ -16,7 +16,11 @@ import {
 } from "react";
 
 import { Button } from "~/components/ui/button";
-import { InputGroup, InputGroupAddon, InputGroupInput } from "~/components/ui/input-group";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "~/components/ui/input-group";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "~/components/ui/tooltip";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { cn } from "~/lib/utils";
@@ -33,6 +37,7 @@ interface Props {
   onBack: () => void;
   onForward: () => void;
   onRefresh: () => void;
+  onStopLoading: () => void;
   onSubmit: (url: string) => void;
   onOpenInBrowser?: (() => void) | undefined;
   onCapture?: ((record: boolean) => void) | undefined;
@@ -62,6 +67,7 @@ export function PreviewChromeRow({
   onBack,
   onForward,
   onRefresh,
+  onStopLoading,
   onSubmit,
   onOpenInBrowser,
   onCapture,
@@ -141,9 +147,15 @@ export function PreviewChromeRow({
                 <Button
                   variant="ghost"
                   size="icon-xs"
-                  onClick={refreshDisabled ? NOOP : onRefresh}
+                  onClick={
+                    refreshDisabled ? NOOP : loading ? onStopLoading : onRefresh
+                  }
                   disabled={refreshDisabled}
-                  aria-label={loading ? t("browserPreview.stop") : t("browserPreview.refresh")}
+                  aria-label={
+                    loading
+                      ? t("browserPreview.stop")
+                      : t("browserPreview.refresh")
+                  }
                   type="button"
                 />
               }
@@ -151,7 +163,7 @@ export function PreviewChromeRow({
               <RefreshIcon refreshing={loading} />
             </TooltipTrigger>
             <TooltipPopup>
-              {loading ? t("browserPreview.loading") : t("browserPreview.refresh")}
+              {loading ? t("browserPreview.stop") : t("browserPreview.refresh")}
             </TooltipPopup>
           </Tooltip>
         </div>
@@ -175,6 +187,14 @@ export function PreviewChromeRow({
                     setInputFocused(false);
                   }}
                   onKeyDown={(event) => {
+                    if (
+                      event.nativeEvent.isComposing ||
+                      event.keyCode === 229
+                    ) {
+                      // A trusted Enter would still submit the form implicitly.
+                      if (event.key === "Enter") event.preventDefault();
+                      return;
+                    }
                     if (event.key === "Enter") submit(event);
                     if (event.key === "Escape") {
                       event.preventDefault();
@@ -211,7 +231,9 @@ export function PreviewChromeRow({
                   >
                     <ExternalLink />
                   </TooltipTrigger>
-                  <TooltipPopup>{t("browserPreview.openSystemBrowser")}</TooltipPopup>
+                  <TooltipPopup>
+                    {t("browserPreview.openSystemBrowser")}
+                  </TooltipPopup>
                 </Tooltip>
               </span>
             </InputGroupAddon>
@@ -228,7 +250,9 @@ export function PreviewChromeRow({
                   onClick={onPickElement}
                   disabled={pickDisabled}
                   aria-label={
-                    pickActive ? t("browserPreview.cancelAnnotation") : t("browserPreview.annotate")
+                    pickActive
+                      ? t("browserPreview.cancelAnnotation")
+                      : t("browserPreview.annotate")
                   }
                   aria-pressed={pickActive ? "true" : "false"}
                   type="button"
@@ -271,7 +295,9 @@ export function PreviewChromeRow({
               ) : null}
             </TooltipTrigger>
             <TooltipPopup>
-              {recording ? t("browserPreview.stopRecording") : t("browserPreview.recordHint")}
+              {recording
+                ? t("browserPreview.stopRecording")
+                : t("browserPreview.recordHint")}
             </TooltipPopup>
           </Tooltip>
         ) : null}
@@ -284,7 +310,9 @@ export function PreviewChromeRow({
                   size="icon-xs"
                   onClick={onPictureInPicture}
                   aria-label={
-                    pictureInPicture ? t("browserPreview.closeFloating") : t("browserPreview.float")
+                    pictureInPicture
+                      ? t("browserPreview.closeFloating")
+                      : t("browserPreview.float")
                   }
                   aria-pressed={pictureInPicture ? "true" : "false"}
                   type="button"
@@ -292,10 +320,14 @@ export function PreviewChromeRow({
                 />
               }
             >
-              <PictureInPicture2 className={cn(pictureInPicture && "text-primary")} />
+              <PictureInPicture2
+                className={cn(pictureInPicture && "text-primary")}
+              />
             </TooltipTrigger>
             <TooltipPopup>
-              {pictureInPicture ? t("browserPreview.closeFloating") : t("browserPreview.float")}
+              {pictureInPicture
+                ? t("browserPreview.closeFloating")
+                : t("browserPreview.float")}
             </TooltipPopup>
           </Tooltip>
         ) : null}

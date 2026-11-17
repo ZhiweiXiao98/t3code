@@ -1,10 +1,25 @@
 import { useI18n } from "~/i18n/WebI18nContext";
-import { memo, useRef, useState, type ReactNode, type KeyboardEvent } from "react";
+import {
+  memo,
+  useRef,
+  useState,
+  type ReactNode,
+  type KeyboardEvent,
+} from "react";
 import { flushSync } from "react-dom";
-import { ChevronLeftIcon, ChevronRightIcon, XIcon, ImageIcon, TextIcon } from "lucide-react";
+import {
+  ArrowLeftIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ImageIcon,
+  TextIcon,
+} from "lucide-react";
 import { Button } from "../ui/button";
 import { Dialog, DialogPopup, DialogTitle } from "../ui/dialog";
-import type { ExpandedImageItem, ExpandedImagePreview } from "./ExpandedImagePreview";
+import type {
+  ExpandedImageItem,
+  ExpandedImagePreview,
+} from "./ExpandedImagePreview";
 import { resolveExternalWebLinkHost } from "./externalLinkContextMenu";
 import { useAssetUrlRefresh, useAssetUrlState } from "../../assets/assetUrls";
 import { OpenMediaLink } from "../media/OpenMediaLink";
@@ -25,7 +40,10 @@ import { appAtomRegistry } from "~/rpc/atomRegistry";
 import { expandedImageKey } from "./ExpandedImagePreview";
 import { registerThreadOverlay } from "./threadOverlayRetention";
 import { mediaReferenceFileName } from "@t3tools/client-runtime/media-reference";
-import { mediaMimeType, mediaMimeTypeFromExtension } from "@t3tools/shared/mediaPreview";
+import {
+  mediaMimeType,
+  mediaMimeTypeFromExtension,
+} from "@t3tools/shared/mediaPreview";
 
 interface ExpandedImageDialogProps {
   preview: ExpandedImagePreview;
@@ -48,15 +66,24 @@ function itemMimeType(item: ExpandedImageItem): string | undefined {
   const reference = item.actionsSource?.reference;
   const fileName = reference && mediaReferenceFileName(reference);
   if (fileName) {
-    return mediaMimeTypeFromExtension(fileName.slice(fileName.lastIndexOf("."))) ?? undefined;
+    return (
+      mediaMimeTypeFromExtension(fileName.slice(fileName.lastIndexOf("."))) ??
+      undefined
+    );
   }
   return mediaMimeType(item.src ?? "") ?? undefined;
 }
 
 function ExpandedVideo({ item }: { readonly item: ExpandedImageItem }) {
   const asset = item.actionsSource?.asset;
-  const assetUrl = useAssetUrlState(asset?.environmentId ?? null, asset?.resource ?? null);
-  const refreshAssetUrl = useAssetUrlRefresh(asset?.environmentId ?? null, asset?.resource ?? null);
+  const assetUrl = useAssetUrlState(
+    asset?.environmentId ?? null,
+    asset?.resource ?? null,
+  );
+  const refreshAssetUrl = useAssetUrlRefresh(
+    asset?.environmentId ?? null,
+    asset?.resource ?? null,
+  );
   const src = asset
     ? assetUrl._tag === "Success"
       ? assetUrl.url + (item.srcFragment ?? "")
@@ -85,10 +112,15 @@ export const ExpandedImageDialog = memo(function ExpandedImageDialog({
   const { t: controlsT } = useI18n();
   const [imageOffset, setImageOffset] = useState(0);
   const [failedImageSrc, setFailedImageSrc] = useState<string | null>(null);
-  const [accessibilityDetailsSrc, setAccessibilityDetailsSrc] = useState<string | null>(null);
+  const [accessibilityDetailsSrc, setAccessibilityDetailsSrc] = useState<
+    string | null
+  >(null);
   const zoomableImageRef = useRef<ZoomableImageHandle>(null);
   const [returnFocus] = useState(() => {
-    const target = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const target =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
     return { target, focusVisible: target?.matches(":focus-visible") ?? false };
   });
   // The host unmounts the dialog outright, so Base UI never runs finalFocus. Without
@@ -97,12 +129,15 @@ export const ExpandedImageDialog = memo(function ExpandedImageDialog({
   const close = () => {
     flushSync(onClose);
     const { target, focusVisible } = returnFocus;
-    if (target?.isConnected) target.focus({ preventScroll: true, focusVisible });
+    if (target?.isConnected)
+      target.focus({ preventScroll: true, focusVisible });
   };
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const imageCount = preview.images.length;
   const index =
-    imageCount > 0 ? (((preview.index + imageOffset) % imageCount) + imageCount) % imageCount : 0;
+    imageCount > 0
+      ? (((preview.index + imageOffset) % imageCount) + imageCount) % imageCount
+      : 0;
   const item = preview.images[index];
   const source: MediaActionSource = item?.actionsSource ?? {
     kind: item?.type === "video" ? "video" : "image",
@@ -125,7 +160,11 @@ export const ExpandedImageDialog = memo(function ExpandedImageDialog({
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.defaultPrevented || isContextMenuOpen() || event.target instanceof HTMLVideoElement)
+    if (
+      event.defaultPrevented ||
+      isContextMenuOpen() ||
+      event.target instanceof HTMLVideoElement
+    )
       return;
     if (zoomableImageRef.current?.pan(event.key)) {
       event.preventDefault();
@@ -147,10 +186,13 @@ export const ExpandedImageDialog = memo(function ExpandedImageDialog({
 
   if (!item) return null;
   const openOriginalLink =
-    item.originalUrl && resolveExternalWebLinkHost(item.originalUrl) !== null ? (
+    item.originalUrl &&
+    resolveExternalWebLinkHost(item.originalUrl) !== null ? (
       <OpenMediaLink originalUrl={item.originalUrl} />
     ) : null;
-  const accessibilityDetails = item.source ? snapShotAccessibilityDetails(item.source) : undefined;
+  const accessibilityDetails = item.source
+    ? snapShotAccessibilityDetails(item.source)
+    : undefined;
   const showingAccessibilityDetails =
     Boolean(accessibilityDetails) && accessibilityDetailsSrc === item.src;
   const contentsLabel = showingAccessibilityDetails
@@ -175,6 +217,7 @@ export const ExpandedImageDialog = memo(function ExpandedImageDialog({
       <DialogPopup
         {...composerFloatingLayerProps}
         variant="media"
+        mediaControlsPlacement="inside"
         showCloseButton={false}
         bottomStickOnMobile={false}
         className="row-start-1 h-full max-h-[92vh] w-[92vw] max-w-[92vw] items-center justify-center overflow-visible [--media-width:92vw] [--media-height:min(calc((100vh-var(--native-titlebar-height,0px))*0.86),calc(100vh-var(--native-titlebar-height,0px)-160px))] sm:[--media-width:calc(92vw-96px)]"
@@ -187,21 +230,26 @@ export const ExpandedImageDialog = memo(function ExpandedImageDialog({
       >
         <DialogTitle className="sr-only">
           {controlsT(
-            item.type === "video" ? "chatControls.expandedVideo" : "chatControls.expandedImage",
+            item.type === "video"
+              ? "chatControls.expandedVideo"
+              : "chatControls.expandedImage",
           )}
         </DialogTitle>
         <Button
           type="button"
           ref={closeButtonRef}
-          size="icon-sm"
+          size="sm"
           variant="media-close"
-          className="absolute right-0 top-0 z-20"
+          className="absolute left-0 top-0 z-20 max-[8rem]:left-1/2 max-[8rem]:-translate-x-1/2"
           onClick={close}
           aria-label={controlsT(
-            item.type === "video" ? "chatControls.closeVideo" : "chatControls.closeImage",
+            item.type === "video"
+              ? "chatControls.closeVideo"
+              : "chatControls.closeImage",
           )}
         >
-          <XIcon />
+          <ArrowLeftIcon aria-hidden="true" />
+          Back
         </Button>
         {preview.images.length > 1 && (
           <Button
@@ -248,7 +296,9 @@ export const ExpandedImageDialog = memo(function ExpandedImageDialog({
             <div className="mt-2 flex max-w-[var(--media-width)] items-center justify-center gap-1.5 text-xs text-white/80 max-sm:px-10">
               <span className="truncate" aria-live="polite" aria-atomic="true">
                 {item.name}
-                {preview.images.length > 1 ? ` (${index + 1}/${preview.images.length})` : ""}
+                {preview.images.length > 1
+                  ? ` (${index + 1}/${preview.images.length})`
+                  : ""}
               </span>
               {accessibilityDetails && item.source ? (
                 <Tooltip>
@@ -258,7 +308,9 @@ export const ExpandedImageDialog = memo(function ExpandedImageDialog({
                         aria-label={contentsLabel}
                         aria-pressed={showingAccessibilityDetails}
                         onClick={() =>
-                          setAccessibilityDetailsSrc(showingAccessibilityDetails ? null : item.src)
+                          setAccessibilityDetailsSrc(
+                            showingAccessibilityDetails ? null : item.src,
+                          )
                         }
                         size="icon-micro"
                         variant="overlay"
@@ -302,10 +354,9 @@ type ExpandedImagePreviewState = {
   readonly preview: ExpandedImagePreview;
 } | null;
 
-const expandedImagePreviewAtom = Atom.make<ExpandedImagePreviewState>(null).pipe(
-  Atom.keepAlive,
-  Atom.withLabel("chat:expanded-image-preview"),
-);
+const expandedImagePreviewAtom = Atom.make<ExpandedImagePreviewState>(
+  null,
+).pipe(Atom.keepAlive, Atom.withLabel("chat:expanded-image-preview"));
 
 function ownedSrc(state: ExpandedImagePreviewState): string | null {
   const item = state?.preview.images[state.preview.index];
@@ -316,10 +367,14 @@ function ownedSrc(state: ExpandedImagePreviewState): string | null {
 function setExpandedImagePreview(next: ExpandedImagePreviewState): void {
   const previous = ownedSrc(appAtomRegistry.get(expandedImagePreviewAtom));
   appAtomRegistry.set(expandedImagePreviewAtom, next);
-  if (previous !== null && previous !== ownedSrc(next)) URL.revokeObjectURL(previous);
+  if (previous !== null && previous !== ownedSrc(next))
+    URL.revokeObjectURL(previous);
 }
 
-export function openExpandedImagePreview(threadKey: string, preview: ExpandedImagePreview): void {
+export function openExpandedImagePreview(
+  threadKey: string,
+  preview: ExpandedImagePreview,
+): void {
   setExpandedImagePreview({ threadKey, preview });
 }
 
@@ -330,10 +385,15 @@ function closeExpandedImagePreview(): void {
 // Leaving the thread's route (or the chat view) drops its preview.
 registerThreadOverlay((threadKey) => {
   const current = appAtomRegistry.get(expandedImagePreviewAtom);
-  if (current !== null && current.threadKey !== threadKey) closeExpandedImagePreview();
+  if (current !== null && current.threadKey !== threadKey)
+    closeExpandedImagePreview();
 });
 
-export function ExpandedImageDialogHost({ threadKey }: { readonly threadKey: string }) {
+export function ExpandedImageDialogHost({
+  threadKey,
+}: {
+  readonly threadKey: string;
+}) {
   const state = useAtomValue(expandedImagePreviewAtom);
   const preview = state?.threadKey === threadKey ? state.preview : null;
   if (preview === null) return null;

@@ -16,8 +16,12 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock("react", () => ({ useCallback: (callback: unknown) => callback }));
-vi.mock("./state/shell", () => ({ shellEnvironment: { openInEditor: "openInEditor" } }));
-vi.mock("./state/use-atom-command", () => ({ useAtomCommand: () => state.run }));
+vi.mock("./state/shell", () => ({
+  shellEnvironment: { openInEditor: "openInEditor" },
+}));
+vi.mock("./state/use-atom-command", () => ({
+  useAtomCommand: () => state.run,
+}));
 vi.mock("./state/session", () => ({
   readEnvironmentScope: (environmentId: string, scope: string) =>
     scope === AuthOrchestrationOperateScope && state.allowed.has(environmentId),
@@ -61,7 +65,10 @@ it("checks revocation and regrant when a retained editor callback is invoked", a
   expect(state.run).not.toHaveBeenCalled();
 
   state.allowed.add(secondary);
-  expect(await open("/work/readme.md:5")).toMatchObject({ _tag: "Success", value: "vscode" });
+  expect(await open("/work/readme.md:5")).toMatchObject({
+    _tag: "Success",
+    value: "vscode",
+  });
   expect(state.run).toHaveBeenCalledExactlyOnceWith({
     environmentId: secondary,
     input: { cwd: "/work/readme.md:5", editor: "vscode" },
@@ -85,16 +92,70 @@ it("retains local precondition identity and parameters while leaving same-text u
     const english = error.message;
     expect(editorFailureMessage(error, "en")).toBe(english);
     expect(editorFailureMessage(error, "zh-CN")).not.toBe(english);
-    if ("targetPath" in error) expect(editorFailureMessage(error, "zh-CN")).toContain(path);
+    if ("targetPath" in error)
+      expect(editorFailureMessage(error, "zh-CN")).toContain(path);
     expect(error.message).toBe(english);
     expect(editorFailureMessage(new Error(english), "zh-CN")).toBe(english);
-    expect(editorFailureMessage({ ...error, message: english }, "zh-CN")).toBeUndefined();
+    expect(
+      editorFailureMessage({ ...error, message: english }, "zh-CN"),
+    ).toBeUndefined();
   }
   expect(state.run).not.toHaveBeenCalled();
-  const raw = new Error("This connection cannot open an editor on this environment.");
+  const raw = new Error(
+    "This connection cannot open an editor on this environment.",
+  );
   state.run.mockResolvedValueOnce(AsyncResult.failure(Cause.fail(raw)));
   const result = await useOpenInPreferredEditor(primary, ["vscode"])(path);
   assert(result._tag === "Failure");
   expect(Cause.squash(result.cause)).toBe(raw);
   expect(editorFailureMessage(raw, "zh-CN")).toBe(raw.message);
 });
+it.each(["read", "write"] as const)(
+  "opens an available editor when its preference %s fails",
+  async (operation) => {
+    state.allowed.add(secondary);
+    const preference =
+      operation === "read" ? state.getPreference : state.setPreference;
+    preference.mockImplementationOnce(() => {
+      throw new Error("Preference storage unavailable");
+    });
+    using _warnings = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    const open = useOpenInPreferredEditor(secondary, ["vscode"]);
+    await expect(open("/work/readme.md:5")).resolves.toMatchObject({
+      _tag: "Success",
+      value: "vscode",
+    });
+    expect(state.run).toHaveBeenCalledExactlyOnceWith({
+      environmentId: secondary,
+      input: { cwd: "/work/readme.md:5", editor: "vscode" },
+    });
+  },
+);
+
+it.each([
+  ["file:///work/read%20me.md", "/work/read me.md", {}],
+  [
+    "file://foreign/share/read%20me.md:12#L5",
+    String.raw`\\foreign\share\read me.md:12`,
+    { line: 5 },
+  ],
+  ["file:///work/report.txt:12", "/work/report.txt:12", {}],
+  [
+    "file:///work/report.txt:12#L5C3",
+    "/work/report.txt:12",
+    { line: 5, column: 3 },
+  ],
+])(
+  "sends a plain exact path for %s to compatible and older servers",
+  async (uri, cwd, position) => {
+    state.allowed.add(secondary);
+    const open = useOpenInPreferredEditor(secondary, ["vscode"]);
+    await open(uri);
+    expect(state.run).toHaveBeenCalledExactlyOnceWith({
+      environmentId: secondary,
+      input: { cwd, position, editor: "vscode" },
+    });
+  },
+);

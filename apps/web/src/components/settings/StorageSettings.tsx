@@ -23,7 +23,10 @@ import {
   squashAtomCommandFailure,
 } from "@t3tools/client-runtime/state/runtime";
 import { formatBytes } from "../../lib/formatBytes";
-import { environmentAtomList, environmentIdsKey } from "../../state/environmentAtomList";
+import {
+  environmentAtomList,
+  environmentIdsKey,
+} from "../../state/environmentAtomList";
 import { serverEnvironment } from "../../state/server";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { useNowMinute } from "../../hooks/useNowMinute";
@@ -33,7 +36,13 @@ import { Button } from "../ui/button";
 import { toastManager } from "../ui/toast";
 
 import { Input } from "../ui/input";
-import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
+import {
+  Select,
+  SelectItem,
+  SelectPopup,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
 import { Switch } from "../ui/switch";
 import {
   NumberField,
@@ -42,7 +51,11 @@ import {
   NumberFieldIncrement,
   NumberFieldInput,
 } from "../ui/number-field";
-import { SettingResetButton, SettingsRow, SettingsSection } from "./settingsLayout";
+import {
+  SettingResetButton,
+  SettingsRow,
+  SettingsSection,
+} from "./settingsLayout";
 import { DatabaseStorageNotice } from "./DatabaseStorageNotice";
 import { AdvancedSettings } from "./AdvancedSettings";
 import { FoldedSettingsSection } from "./FoldedSettingsSection";
@@ -70,7 +83,8 @@ export function WorktreesDirectoryRow() {
   if (
     connectedEnvironments.some(
       (environment) =>
-        environment.serverConfig?.environment.capabilities.worktreesDirectory !== true,
+        environment.serverConfig?.environment.capabilities
+          .worktreesDirectory !== true,
     )
   )
     return null;
@@ -95,22 +109,34 @@ export function WorktreesDirectoryRow() {
       control={
         <Input
           key={`${scopeKey}:${mixed}:${settings.worktreesDirectory}`}
-          aria-label={translateWebSource(translationLocale, "Worktree location")}
+          aria-label={translateWebSource(
+            translationLocale,
+            "Worktree location",
+          )}
           autoCapitalize="none"
           spellCheck={false}
-          placeholder={translateWebSource(translationLocale, mixed ? "Mixed" : "Default")}
+          placeholder={translateWebSource(
+            translationLocale,
+            mixed ? "Mixed" : "Default",
+          )}
           defaultValue={mixed ? "" : settings.worktreesDirectory}
           onFocus={(event) => {
             draft.current = event.target.value;
           }}
           onChange={(event) => {
             edited.current = true;
-            draft.current = resolvePastedPath(draft.current, event.target.value);
+            draft.current = resolvePastedPath(
+              draft.current,
+              event.target.value,
+            );
             event.target.value = draft.current;
           }}
           onBlur={(event) => {
             const value = event.target.value.trim();
-            if (edited.current && (mixed || value !== settings.worktreesDirectory))
+            if (
+              edited.current &&
+              (mixed || value !== settings.worktreesDirectory)
+            )
               updateSettings({ worktreesDirectory: value });
             edited.current = false;
           }}
@@ -120,6 +146,8 @@ export function WorktreesDirectoryRow() {
   );
 }
 
+type SaveOptions = Parameters<ReturnType<typeof useUpdateScopedSettings>>[1];
+
 function RetentionControl({
   label,
   value,
@@ -128,21 +156,74 @@ function RetentionControl({
 }: {
   label: string;
   value: number | null;
-  onChange: (value: number | null) => void;
+  onChange: (value: number | null, onFailed: () => void) => void;
   minimum?: number;
 }) {
   const { locale } = useI18n();
   const localizedLabel = translateWebSource(locale, label);
   const [draft, setDraft] = useState(value);
   const [savedValue, setSavedValue] = useState(value);
+  // Saving an age can start a cleanup sweep, so turning a rule on only opens a draft.
+  // While its first save is in flight this holds that submission.
+  const [enabling, setEnabling] = useState<
+    "draft" | "edited" | { days: number } | null
+  >(null);
+  // Holds an age until Enter or focus leaves the row: one edited before focus moved to the
+  // switch, so switching off never saves it first, or one stepped toward a rule's first age,
+  // so raising it from 8 never saves a shorter age on the way.
+  const [held, setHeld] = useState(false);
+  // Hides a saved rule's age once it is switched off, so no blur can save it after null.
+  const [switchedOff, setSwitchedOff] = useState(false);
   if (savedValue !== value) {
     setSavedValue(value);
     setDraft(value);
+    setEnabling(null);
+    setHeld(false);
+    setSwitchedOff(false);
   }
+  const pending = typeof enabling === "object" ? enabling : null;
+  const on = (value !== null && !switchedOff) || enabling !== null;
+  const row = useRef<HTMLDivElement>(null);
+
+  const commit = (next: number) => {
+    const days = Math.min(3650, Math.max(minimum, Math.round(next)));
+    setDraft(days);
+    setHeld(false);
+    if (days === pending?.days) return;
+    if (value !== null) {
+      onChange(days, () => {});
+      return;
+    }
+    const submission = { days };
+    setEnabling(submission);
+    onChange(days, () =>
+      setEnabling((current) => (current === submission ? null : current)),
+    );
+  };
+
+  const switchOff = () => {
+    setDraft(value);
+    setHeld(false);
+    setEnabling(null);
+    if (value === null && pending === null) return;
+    setSwitchedOff(true);
+    onChange(null, () => setSwitchedOff(false));
+  };
 
   return (
-    <div className="flex items-center gap-3">
-      {value !== null ? (
+    <div
+      ref={row}
+      className="flex items-center gap-3"
+      onBlur={(event) => {
+        if (event.currentTarget.contains(event.relatedTarget)) return;
+        if (held && draft !== null) commit(draft);
+        else
+          setEnabling((current) =>
+            typeof current === "string" ? null : current,
+          );
+      }}
+    >
+      {on ? (
         <NumberField
           value={draft}
           min={minimum}
@@ -150,30 +231,83 @@ function RetentionControl({
           step={1}
           size="sm"
           className="w-auto"
-          onValueChange={setDraft}
-          onValueCommitted={(next) => {
+          onValueChange={(next) => {
+            setDraft(next);
+            setEnabling((current) =>
+              current === "draft" ? "edited" : current,
+            );
+          }}
+          onValueCommitted={(next, { reason, event }) => {
             if (next === null) setDraft(value);
-            else {
-              const days = Math.min(3650, Math.max(minimum, Math.round(next)));
-              setDraft(days);
-              onChange(days);
-            }
+            else if (
+              reason === "input-blur"
+                ? event instanceof FocusEvent &&
+                  event.relatedTarget instanceof Node &&
+                  row.current?.contains(event.relatedTarget)
+                : value === null
+            ) {
+              setDraft(next);
+              setHeld(true);
+            } else commit(next);
           }}
         >
           <NumberFieldGroup>
             <NumberFieldDecrement
-              aria-label={locale === "zh-CN" ? `减少${localizedLabel}` : `Decrease ${label}`}
+              aria-label={
+                locale === "zh-CN"
+                  ? `减少${localizedLabel}`
+                  : `Decrease ${label}`
+              }
             />
             <NumberFieldInput
-              aria-label={locale === "zh-CN" ? `${localizedLabel}（天）` : `${label} in days`}
+              aria-label={
+                locale === "zh-CN"
+                  ? `${localizedLabel}（天）`
+                  : `${label} in days`
+              }
+              autoFocus={value === null}
               size={5}
               className="w-auto grow-0 text-right"
+              // Any typed or pasted edit replaces a held age: NumberField commits it on blur itself,
+              // and text it cannot parse yet must not leave the held age to be saved.
+              onChange={() => setHeld(false)}
+              onPaste={() => setHeld(false)}
+              onKeyDown={(event) => {
+                if (event.nativeEvent.isComposing || event.keyCode === 229)
+                  return;
+                if (event.key === "Enter") {
+                  // Blurring lets NumberField parse the visible text and commit it once. It
+                  // skips an unedited value, so an untouched draft is committed here.
+                  const input = event.currentTarget;
+                  const shown =
+                    draft !== null &&
+                    input.value === new Intl.NumberFormat().format(draft);
+                  if (enabling === "draft" && shown) commit(draft);
+                  input.blur();
+                } else if (
+                  event.key === "Escape" &&
+                  (held || typeof enabling === "string")
+                ) {
+                  // An unhandled Escape closes the settings page.
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setDraft(pending?.days ?? value);
+                  setHeld(false);
+                  setEnabling((current) =>
+                    typeof current === "string" ? null : current,
+                  );
+                }
+              }}
             />
             <span aria-hidden="true" className="self-center pr-2 text-xs">
               {locale === "zh-CN" ? "天" : translateWebSource(locale, "days")}
             </span>
             <NumberFieldIncrement
-              aria-label={locale === "zh-CN" ? `增加${localizedLabel}` : `Increase ${label}`}
+              aria-label={
+                locale === "zh-CN"
+                  ? `增加${localizedLabel}`
+                  : `Increase ${label}`
+              }
             />
           </NumberFieldGroup>
         </NumberField>
@@ -184,8 +318,15 @@ function RetentionControl({
       )}
       <Switch
         aria-label={localizedLabel}
-        checked={value !== null}
-        onCheckedChange={(enabled) => onChange(enabled ? 8 : null)}
+        checked={on}
+        // Keeps focus in the age field, so switching off never commits an edited age first.
+        onMouseDown={(event) => event.preventDefault()}
+        onCheckedChange={(enabled) => {
+          if (enabled) {
+            setDraft(8);
+            setEnabling("draft");
+          } else switchOff();
+        }}
       />
     </div>
   );
@@ -197,7 +338,10 @@ const KEEP_WHEN_LABELS = {
   "tracked-changes": "Edited tracked files",
 } as const;
 
-function cleanupReasonMessage(t: WebTranslate, message: StorageCleanupReasonMessage): string {
+function cleanupReasonMessage(
+  t: WebTranslate,
+  message: StorageCleanupReasonMessage,
+): string {
   switch (message.code) {
     case "uncommitted-changes":
       return t(
@@ -206,6 +350,9 @@ function cleanupReasonMessage(t: WebTranslate, message: StorageCleanupReasonMess
           : "audit20.cleanup.uncommitted-changes-many",
         { count: message.count },
       );
+    case "hidden-tracked-changes":
+    case "local-files":
+      return t(`audit20.cleanup.${message.code}`, { file: message.file });
     case "ignored-files":
       return t("audit20.cleanup.ignored-files", { file: message.file });
     case "submodule-local-changes":
@@ -269,7 +416,9 @@ function CleanupResults({
             title={<span className="wrap-anywhere select-text">{name}</span>}
             description={
               <span className="block space-y-2 wrap-anywhere select-text">
-                <span className={`block ${entry.outcome === "failed" ? "text-destructive" : ""}`}>
+                <span
+                  className={`block ${entry.outcome === "failed" ? "text-destructive" : ""}`}
+                >
                   {cleanupReason(entry, sourceLocale, t)}
                 </span>
                 <span className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 border-l border-border/60 pl-3">
@@ -278,7 +427,9 @@ function CleanupResults({
                   {entry.projectPath && (
                     <>
                       <span>{translateWebSource(sourceLocale, "Project")}</span>
-                      <code className="text-foreground/80">{entry.projectPath}</code>
+                      <code className="text-foreground/80">
+                        {entry.projectPath}
+                      </code>
                     </>
                   )}
                   {entry.path && (
@@ -339,7 +490,8 @@ function CleanupResults({
 
 const storageCleanupReportsAtom = environmentAtomList(
   "web-storage-cleanup-reports",
-  (environmentId) => serverEnvironment.storageCleanupReport({ environmentId, input: {} }),
+  (environmentId) =>
+    serverEnvironment.storageCleanupReport({ environmentId, input: {} }),
 );
 const storageCleanupPermissionsAtom = environmentAtomList(
   "web-storage-cleanup-permissions",
@@ -354,11 +506,17 @@ function CleanupSection() {
   const [pending, setPending] = useState(false);
   const run = useAtomCommand(serverEnvironment.runStorageCleanup);
   const supported = connectedEnvironments.filter(
-    (environment) => environment.serverConfig?.environment.capabilities.storageCleanupRun === true,
+    (environment) =>
+      environment.serverConfig?.environment.capabilities.storageCleanupRun ===
+      true,
   );
   const supportedIds = supported.map(({ environmentId }) => environmentId);
-  const reports = useAtomValue(storageCleanupReportsAtom(environmentIdsKey(supportedIds)));
-  const permissions = useAtomValue(storageCleanupPermissionsAtom(environmentIdsKey(supportedIds)));
+  const reports = useAtomValue(
+    storageCleanupReportsAtom(environmentIdsKey(supportedIds)),
+  );
+  const permissions = useAtomValue(
+    storageCleanupPermissionsAtom(environmentIdsKey(supportedIds)),
+  );
   const state = supportedIds.map((environmentId, index) => {
     const query = reports[index]!;
     return {
@@ -384,19 +542,24 @@ function CleanupSection() {
       enabled(resolveWorktreeCleanup(settings, null)) ||
       Object.values(settings.projectSettingsOverrides).some(
         (override) =>
-          override.worktreeCleanup?.mode === "custom" && enabled(override.worktreeCleanup.rules),
+          override.worktreeCleanup?.mode === "custom" &&
+          enabled(override.worktreeCleanup.rules),
       )
     );
   });
   if (supported.length === 0) return null;
   const summaries = supported.map((environment) => {
-    const query = state.find((entry) => entry.environmentId === environment.environmentId);
+    const query = state.find(
+      (entry) => entry.environmentId === environment.environmentId,
+    );
     const report = query?.report ?? null;
     return {
       environment,
       report,
       label: settingsScopeEnvironmentLabel(environment, connectedEnvironments),
-      counts: report ? cleanupRunPresentation(translationLocale, report, nowMs).counts : "",
+      counts: report
+        ? cleanupRunPresentation(translationLocale, report, nowMs).counts
+        : "",
       description: report
         ? cleanupRunPresentation(translationLocale, report, nowMs).description
         : cleanupPendingDescription(translationLocale, query),
@@ -408,12 +571,21 @@ function CleanupSection() {
     await Promise.all(
       supported
         .filter((environment) =>
-          state.some((entry) => entry.environmentId === environment.environmentId && entry.allowed),
+          state.some(
+            (entry) =>
+              entry.environmentId === environment.environmentId &&
+              entry.allowed,
+          ),
         )
         .map(async (environment) => {
-          const result = await run({ environmentId: environment.environmentId, input: {} });
+          const result = await run({
+            environmentId: environment.environmentId,
+            input: {},
+          });
           if (result._tag === "Success") {
-            const failures = result.value.entries.filter((entry) => entry.outcome === "failed");
+            const failures = result.value.entries.filter(
+              (entry) => entry.outcome === "failed",
+            );
             if (failures.length > 0) {
               const { locale, t } = readWebI18n();
               toastManager.add({
@@ -425,7 +597,9 @@ function CleanupSection() {
           } else if (!isAtomCommandInterrupted(result)) {
             toastManager.add({
               type: "error",
-              title: readWebI18n().t("audit6.cleanupRunFailed", { label: environment.label }),
+              title: readWebI18n().t("audit6.cleanupRunFailed", {
+                label: environment.label,
+              }),
               description: String(squashAtomCommandFailure(result)),
             });
           }
@@ -440,7 +614,10 @@ function CleanupSection() {
           description={
             <span>
               {!hasRules
-                ? translateWebSource(translationLocale, "Turn on a cleanup rule to use this.")
+                ? translateWebSource(
+                    translationLocale,
+                    "Turn on a cleanup rule to use this.",
+                  )
                 : summaries.map(({ environment, label, description }) => (
                     <span key={environment.environmentId} className="block">
                       {supported.length > 1 ? `${label}: ` : ""}
@@ -453,7 +630,9 @@ function CleanupSection() {
             <Button
               variant="outline"
               size="sm"
-              disabled={pending || !hasRules || !state.some((entry) => entry.allowed)}
+              disabled={
+                pending || !hasRules || !state.some((entry) => entry.allowed)
+              }
               onClick={() => void deleteNow()}
             >
               {pending
@@ -493,12 +672,16 @@ function CleanupSection() {
 function supportsStorageCleanup(
   environments: ReadonlyArray<{
     readonly serverConfig: {
-      readonly environment: { readonly capabilities: { readonly storageCleanup?: boolean } };
+      readonly environment: {
+        readonly capabilities: { readonly storageCleanup?: boolean };
+      };
     } | null;
   }>,
 ) {
   return environments.every(
-    (environment) => environment.serverConfig?.environment.capabilities.storageCleanup === true,
+    (environment) =>
+      environment.serverConfig?.environment.capabilities.storageCleanup ===
+      true,
   );
 }
 
@@ -513,7 +696,8 @@ function StorageCleanupScopeNotice() {
       eligibleEnvironmentIds={connectedEnvironments
         .filter(
           (environment) =>
-            environment.serverConfig?.environment.capabilities.storageCleanup === true,
+            environment.serverConfig?.environment.capabilities
+              .storageCleanup === true,
         )
         .map((environment) => environment.environmentId)}
     >
@@ -527,7 +711,8 @@ function StorageCleanupScopeNotice() {
 
 export function WorktreeCleanupSection() {
   const { locale: translationLocale } = useI18n();
-  const { scope, environments, connectedEnvironments, targets, target } = useSettingsScope();
+  const { scope, environments, connectedEnvironments, targets, target } =
+    useSettingsScope();
   const scopedSettings = useScopedSettings();
   const isProjectScope = scope.kind === "project" || scope.kind === "checkout";
   const settings = {
@@ -545,27 +730,39 @@ export function WorktreeCleanupSection() {
   const ruleStatus = (key: keyof StorageCleanupSettings) =>
     targets.some(
       (target) =>
-        ({ ...target.settings.storageCleanup, ...resolveWorktreeCleanup(target.settings, null) })[
-          key
-        ] !== settings[key],
+        ({
+          ...target.settings.storageCleanup,
+          ...resolveWorktreeCleanup(target.settings, null),
+        })[key] !== settings[key],
     )
       ? "Mixed across selected machines"
       : undefined;
   // A policy locks these through worktreeCleanup, which also reaches each project's own rules.
   const lockablePath = (key: keyof WorktreeCleanupRules) =>
-    isProjectScope ? ["worktreeCleanup"] : ["worktreeCleanup", `storageCleanup.${key}`];
-  const update = (patch: Partial<StorageCleanupSettings>) =>
-    updateSettings({ storageCleanup: patch });
-  const updateWorktree = (patch: Partial<WorktreeCleanupRules>) =>
     isProjectScope
-      ? updateSettings({ worktreeCleanup: { mode: "custom", rules: patch } })
-      : update(patch);
+      ? ["worktreeCleanup"]
+      : ["worktreeCleanup", `storageCleanup.${key}`];
+  const update = (
+    patch: Partial<StorageCleanupSettings>,
+    options?: SaveOptions,
+  ) => updateSettings({ storageCleanup: patch }, options);
+  const updateWorktree = (
+    patch: Partial<WorktreeCleanupRules>,
+    options?: SaveOptions,
+  ) =>
+    isProjectScope
+      ? updateSettings(
+          { worktreeCleanup: { mode: "custom", rules: patch } },
+          options,
+        )
+      : update(patch, options);
 
   if (
     isProjectScope &&
     connectedEnvironments.some(
       (environment) =>
-        environment.serverConfig?.environment.capabilities.projectWorktreeCleanup !== true,
+        environment.serverConfig?.environment.capabilities
+          .projectWorktreeCleanup !== true,
     )
   ) {
     return (
@@ -608,14 +805,20 @@ export function WorktreeCleanupSection() {
                 value={mixedModes ? null : mode}
                 onValueChange={(next) => {
                   if (next === "inherit") clearSettings(["worktreeCleanup"]);
-                  else if (next === "off") updateSettings({ worktreeCleanup: { mode: "off" } });
+                  else if (next === "off")
+                    updateSettings({ worktreeCleanup: { mode: "off" } });
                   else if (next === "custom")
-                    updateSettings({ worktreeCleanup: { mode: "custom", rules: {} } });
+                    updateSettings({
+                      worktreeCleanup: { mode: "custom", rules: {} },
+                    });
                 }}
               >
                 <SelectTrigger
                   size="sm"
-                  aria-label={translateWebSource(translationLocale, "Automatic worktree cleanup")}
+                  aria-label={translateWebSource(
+                    translationLocale,
+                    "Automatic worktree cleanup",
+                  )}
                 >
                   <SelectValue>
                     {mixedModes
@@ -657,7 +860,9 @@ export function WorktreeCleanupSection() {
                     "Delete worktrees with deleted threads",
                   )}
                   checked={settings.worktreeOnDelete}
-                  onCheckedChange={(worktreeOnDelete) => updateWorktree({ worktreeOnDelete })}
+                  onCheckedChange={(worktreeOnDelete) =>
+                    updateWorktree({ worktreeOnDelete })
+                  }
                 />
               }
             />
@@ -669,9 +874,14 @@ export function WorktreeCleanupSection() {
               serverScoped={!isProjectScope}
               control={
                 <Switch
-                  aria-label={translateWebSource(translationLocale, "Delete merged worktrees")}
+                  aria-label={translateWebSource(
+                    translationLocale,
+                    "Delete merged worktrees",
+                  )}
                   checked={settings.worktreeOnMerge}
-                  onCheckedChange={(worktreeOnMerge) => updateWorktree({ worktreeOnMerge })}
+                  onCheckedChange={(worktreeOnMerge) =>
+                    updateWorktree({ worktreeOnMerge })
+                  }
                 />
               }
             />
@@ -685,19 +895,24 @@ export function WorktreeCleanupSection() {
                 <RetentionControl
                   label="Delete inactive worktrees"
                   value={settings.worktreeAfterDays}
-                  onChange={(worktreeAfterDays) => updateWorktree({ worktreeAfterDays })}
+                  onChange={(worktreeAfterDays, onFailed) =>
+                    updateWorktree({ worktreeAfterDays }, { onFailed })
+                  }
                 />
               }
             />
             <AdvancedSettings
               // The keep-when search result lands on this section, not its row.
-              targetIds={["storage-worktrees", searchableSetting("storage-worktree-keep-when").id]}
+              targetIds={[
+                "storage-worktrees",
+                searchableSetting("storage-worktree-keep-when").id,
+              ]}
             >
               {connectedEnvironments.length > 0 &&
                 connectedEnvironments.every(
                   (environment) =>
-                    environment.serverConfig?.environment.capabilities.settledWorktreeCleanup ===
-                    true,
+                    environment.serverConfig?.environment.capabilities
+                      .settledWorktreeCleanup === true,
                 ) && (
                   <SettingsRow
                     title="Delete settled worktrees"
@@ -717,8 +932,11 @@ export function WorktreeCleanupSection() {
                         label="Delete settled worktrees"
                         value={settings.worktreeSettledAfterDays}
                         minimum={0}
-                        onChange={(worktreeSettledAfterDays) =>
-                          updateWorktree({ worktreeSettledAfterDays })
+                        onChange={(worktreeSettledAfterDays, onFailed) =>
+                          updateWorktree(
+                            { worktreeSettledAfterDays },
+                            { onFailed },
+                          )
                         }
                       />
                     }
@@ -732,15 +950,21 @@ export function WorktreeCleanupSection() {
                 serverScoped={!isProjectScope}
                 control={
                   <Switch
-                    aria-label={translateWebSource(translationLocale, "Delete unchanged worktrees")}
+                    aria-label={translateWebSource(
+                      translationLocale,
+                      "Delete unchanged worktrees",
+                    )}
                     checked={settings.worktreeUnchanged}
-                    onCheckedChange={(worktreeUnchanged) => updateWorktree({ worktreeUnchanged })}
+                    onCheckedChange={(worktreeUnchanged) =>
+                      updateWorktree({ worktreeUnchanged })
+                    }
                   />
                 }
               />
               {connectedEnvironments.every(
                 (environment) =>
-                  environment.serverConfig?.environment.capabilities.storageCleanupRun === true,
+                  environment.serverConfig?.environment.capabilities
+                    .storageCleanupRun === true,
               ) && (
                 <SettingsRow
                   {...searchableSetting("storage-worktree-keep-when")}
@@ -756,7 +980,11 @@ export function WorktreeCleanupSection() {
                   serverScoped={!isProjectScope}
                   control={
                     <Select
-                      value={ruleStatus("worktreeKeepWhen") ? null : settings.worktreeKeepWhen}
+                      value={
+                        ruleStatus("worktreeKeepWhen")
+                          ? null
+                          : settings.worktreeKeepWhen
+                      }
                       onValueChange={(next) => {
                         if (
                           next === "any-local-files" ||
@@ -784,13 +1012,22 @@ export function WorktreeCleanupSection() {
                       </SelectTrigger>
                       <SelectPopup align="end" alignItemWithTrigger={false}>
                         <SelectItem value="any-local-files">
-                          {translateWebSource(translationLocale, "Any local files")}
+                          {translateWebSource(
+                            translationLocale,
+                            "Any local files",
+                          )}
                         </SelectItem>
                         <SelectItem value="uncommitted-changes">
-                          {translateWebSource(translationLocale, "Uncommitted changes")}
+                          {translateWebSource(
+                            translationLocale,
+                            "Uncommitted changes",
+                          )}
                         </SelectItem>
                         <SelectItem value="tracked-changes">
-                          {translateWebSource(translationLocale, "Edited tracked files")}
+                          {translateWebSource(
+                            translationLocale,
+                            "Edited tracked files",
+                          )}
                         </SelectItem>
                       </SelectPopup>
                     </Select>
@@ -811,7 +1048,9 @@ export function StorageCleanupSections() {
   const scopedSettings = useScopedSettings();
   const updateSettings = useUpdateScopedSettings();
   const settings = scopedSettings.storageCleanup;
-  const targetIdsKey = environmentIdsKey(targets.map((target) => target.environmentId).sort());
+  const targetIdsKey = environmentIdsKey(
+    targets.map((target) => target.environmentId).sort(),
+  );
   const artifactsMixed =
     targets.length > 1 &&
     targets.some(
@@ -822,10 +1061,17 @@ export function StorageCleanupSections() {
   const logsMixed =
     targets.length > 1 &&
     targets.some(
-      (target) => target.settings.storageCleanup.logsAfterDays !== settings.logsAfterDays,
+      (target) =>
+        target.settings.storageCleanup.logsAfterDays !== settings.logsAfterDays,
     );
-  const settledArtifactsStatus = useDebouncedValue(`${targetIdsKey}:${artifactsMixed}`, 300);
-  const settledLogsStatus = useDebouncedValue(`${targetIdsKey}:${logsMixed}`, 300);
+  const settledArtifactsStatus = useDebouncedValue(
+    `${targetIdsKey}:${artifactsMixed}`,
+    300,
+  );
+  const settledLogsStatus = useDebouncedValue(
+    `${targetIdsKey}:${logsMixed}`,
+    300,
+  );
   const artifactsStatus =
     targets.length > 1 && settledArtifactsStatus === `${targetIdsKey}:true`
       ? "Mixed across selected machines"
@@ -835,13 +1081,16 @@ export function StorageCleanupSections() {
       ? "Mixed across selected machines"
       : undefined;
   if (scope.kind === "project" || scope.kind === "checkout") return null;
-  const update = (patch: Partial<StorageCleanupSettings>) =>
-    updateSettings({ storageCleanup: patch });
+  const update = (
+    patch: Partial<StorageCleanupSettings>,
+    options: SaveOptions,
+  ) => updateSettings({ storageCleanup: patch }, options);
   const databaseStorageNotice = (
     <DatabaseStorageNotice
       environments={connectedEnvironments.filter(
         (environment) =>
-          environment.serverConfig?.environment.capabilities.databaseStorage === true,
+          environment.serverConfig?.environment.capabilities.databaseStorage ===
+          true,
       )}
     />
   );
@@ -849,7 +1098,11 @@ export function StorageCleanupSections() {
     return (
       <>
         {databaseStorageNotice}
-        <SettingsSection id="storage-artifacts" title="Artifacts and logs" variant="plain">
+        <SettingsSection
+          id="storage-artifacts"
+          title="Artifacts and logs"
+          variant="plain"
+        >
           <StorageCleanupScopeNotice />
         </SettingsSection>
       </>
@@ -871,7 +1124,9 @@ export function StorageCleanupSections() {
               <RetentionControl
                 label="Delete old browser artifacts"
                 value={settings.browserArtifactsAfterDays}
-                onChange={(browserArtifactsAfterDays) => update({ browserArtifactsAfterDays })}
+                onChange={(browserArtifactsAfterDays, onFailed) =>
+                  update({ browserArtifactsAfterDays }, { onFailed })
+                }
               />
             }
           />
@@ -887,7 +1142,9 @@ export function StorageCleanupSections() {
               <RetentionControl
                 label="Delete old rotated logs"
                 value={settings.logsAfterDays}
-                onChange={(logsAfterDays) => update({ logsAfterDays })}
+                onChange={(logsAfterDays, onFailed) =>
+                  update({ logsAfterDays }, { onFailed })
+                }
               />
             }
           />

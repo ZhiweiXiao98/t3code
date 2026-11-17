@@ -4,7 +4,10 @@ import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 
 import { translateWebMessage, translateWebSource } from "../i18n/messages";
 import type { SidebarThreadSummary } from "../types";
-import { runOutcomeText, THREAD_STATUS_TEXT } from "./chat/threadActivityAnnouncement";
+import {
+  runOutcomeText,
+  THREAD_STATUS_TEXT,
+} from "@t3tools/client-runtime/state/thread-activity-announcement";
 
 export interface BackgroundThreadSnapshot {
   readonly key: string;

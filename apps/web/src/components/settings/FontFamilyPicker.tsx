@@ -2,7 +2,11 @@ import { useLegendListRef } from "~/hooks/useLegendListRef";
 import { LegendList, type LegendListRef } from "@legendapp/list/react";
 import { CheckIcon } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { isMonospaceFamily, queryInstalledFontFamilies } from "../../appearanceFonts";
+import {
+  displayFontFamily,
+  isMonospaceFamily,
+  queryInstalledFontFamilies,
+} from "../../appearanceFonts";
 import { useI18n } from "../../i18n/WebI18nContext";
 import {
   Combobox,
@@ -21,7 +25,8 @@ const DEFAULT_FONT_VALUE = "__default__";
 function supportsFontEnumeration(): boolean {
   return (
     typeof window !== "undefined" &&
-    typeof (window as { queryLocalFonts?: unknown }).queryLocalFonts === "function"
+    typeof (window as { queryLocalFonts?: unknown }).queryLocalFonts ===
+      "function"
   );
 }
 
@@ -66,7 +71,8 @@ let grantedProbeStarted = false;
 function probeAlreadyGrantedPermission(): void {
   if (grantedProbeStarted || enumerationState.status !== "unknown") return;
   grantedProbeStarted = true;
-  const permissions = typeof navigator !== "undefined" ? navigator.permissions : undefined;
+  const permissions =
+    typeof navigator !== "undefined" ? navigator.permissions : undefined;
   if (typeof permissions?.query !== "function") return;
   permissions.query({ name: "local-fonts" as PermissionName }).then(
     (status) => {
@@ -128,17 +134,24 @@ export function FontFamilyPicker({
     if (trimmedQuery.length === 0) result.push(DEFAULT_FONT_VALUE);
     result.push(
       ...families.filter(
-        (family) => trimmedQuery.length === 0 || family.toLowerCase().includes(trimmedQuery),
+        (family) =>
+          trimmedQuery.length === 0 ||
+          family.toLowerCase().includes(trimmedQuery),
       ),
     );
     return result;
   })();
 
-  const selectedValue = selectedFamily.length === 0 ? DEFAULT_FONT_VALUE : selectedFamily;
+  const selectedValue =
+    selectedFamily.length === 0 ? DEFAULT_FONT_VALUE : selectedFamily;
 
   const handlePick = (value: string) => {
     setOpen(false);
-    if (value !== DEFAULT_FONT_VALUE && requireMonospace && !isMonospaceFamily(value)) {
+    if (
+      value !== DEFAULT_FONT_VALUE &&
+      requireMonospace &&
+      !isMonospaceFamily(value)
+    ) {
       toastManager.add(
         stackedThreadToast({
           type: "error",
@@ -157,7 +170,10 @@ export function FontFamilyPicker({
     return (
       <ComboboxItem hideIndicator index={index} key={item} value={item}>
         <div className="flex w-full min-w-0 items-center justify-between gap-2">
-          <span className="min-w-0 truncate" style={{ fontFamily: family }}>
+          <span
+            className="min-w-0 truncate"
+            style={{ fontFamily: displayFontFamily(family) }}
+          >
             {family}
           </span>
           <span className="flex shrink-0 items-center gap-1.5">
@@ -190,11 +206,22 @@ export function FontFamilyPicker({
         if (typeof next === "string") handlePick(next);
       }}
       onItemHighlighted={(_value, eventDetails) => {
-        if (!open || eventDetails.index < 0 || eventDetails.reason !== "keyboard") return;
-        void listRef.current?.scrollIndexIntoView?.({ index: eventDetails.index, animated: false });
+        if (
+          !open ||
+          eventDetails.index < 0 ||
+          eventDetails.reason !== "keyboard"
+        )
+          return;
+        void listRef.current?.scrollIndexIntoView?.({
+          index: eventDetails.index,
+          animated: false,
+        });
       }}
     >
-      <ComboboxTrigger aria-label={ariaLabel} render={<SelectButton size="sm" />}>
+      <ComboboxTrigger
+        aria-label={ariaLabel}
+        render={<SelectButton size="sm" />}
+      >
         {selectedFamily.length === 0 ? defaultFamily : selectedFamily}
       </ComboboxTrigger>
       <ComboboxPopup align="end" className="flex w-72 flex-col">
@@ -205,8 +232,9 @@ export function FontFamilyPicker({
         />
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <ComboboxEmpty>{t("appearance.fontPicker.empty")}</ComboboxEmpty>
-          <div className="relative min-h-0 max-h-72 w-full flex-1 overflow-hidden">
-            <ComboboxListVirtualized>
+          {/* Short windows cap the popup; every level down to the list must shrink or rows are clipped unreachably. */}
+          <div className="relative flex min-h-0 max-h-72 w-full flex-1 flex-col overflow-hidden">
+            <ComboboxListVirtualized className="flex min-h-0 flex-col">
               <LegendList<string>
                 ref={scrollRef}
                 data={items}
@@ -222,6 +250,7 @@ export function FontFamilyPicker({
                 onScroll={handleMetricsChange}
                 onLayout={handleMetricsChange}
                 onReady={handleMetricsChange}
+                className="min-h-0"
                 style={{ height: listHeight }}
               />
             </ComboboxListVirtualized>

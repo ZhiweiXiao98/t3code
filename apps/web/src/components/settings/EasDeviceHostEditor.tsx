@@ -26,18 +26,25 @@ import {
   DialogTitle,
 } from "../ui/dialog";
 import { Input } from "../ui/input";
-import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
+import {
+  Select,
+  SelectItem,
+  SelectPopup,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
 import { Spinner } from "../ui/spinner";
 import { parseEasDeviceHostDraft } from "./easDeviceHostsSettings.logic";
 import { SecretSourceInput, useSecretSources } from "./SecretSourceInput";
 
 const FROM_THREAD_PROJECT = "thread-project";
 
-const CREDENTIAL_SOURCES: Record<DeviceEasAccount["credentialSource"], string> = {
-  settings: "the access token saved here",
-  env: "EXPO_TOKEN on the server",
-  "eas-login": "the server's eas login",
-};
+const CREDENTIAL_SOURCES: Record<DeviceEasAccount["credentialSource"], string> =
+  {
+    settings: "the access token saved here",
+    env: "EXPO_TOKEN on the server",
+    "eas-login": "the server's eas login",
+  };
 
 const failureMessage = (cause: Cause.Cause<unknown>) => {
   const error = Cause.squash(cause);
@@ -59,7 +66,9 @@ export function EasDeviceHostEditor(props: {
   onClose: () => void;
 }) {
   const { locale: sourceLocale } = useI18n();
-  const check = useAtomCommand(deviceEnvironment.easAccount, { reportFailure: false });
+  const check = useAtomCommand(deviceEnvironment.easAccount, {
+    reportFailure: false,
+  });
   const [draft, setDraft] = useState(props.host);
   const tokenId = useId();
   const secretSources = useSecretSources(props.environmentId);
@@ -67,7 +76,9 @@ export function EasDeviceHostEditor(props: {
   const [tokenInputKey, setTokenInputKey] = useState(0);
   // A saved token arrives redacted; only a replacement or a clear changes it.
   const [token, setToken] = useState<
-    { kind: "saved" } | { kind: "new"; value: SettingsSecretValue } | { kind: "cleared" }
+    | { kind: "saved" }
+    | { kind: "new"; value: SettingsSecretValue }
+    | { kind: "cleared" }
   >(props.host.accessToken ? { kind: "saved" } : { kind: "cleared" });
   // Checking on open names the saved project and shows a rejected credential
   // before anything is changed. A manual check or a token edit replaces it.
@@ -93,7 +104,11 @@ export function EasDeviceHostEditor(props: {
     ...draft,
     label: draft.label.trim(),
     accessToken:
-      token.kind === "saved" ? props.host.accessToken : token.kind === "new" ? token.value : "",
+      token.kind === "saved"
+        ? props.host.accessToken
+        : token.kind === "new"
+          ? token.value
+          : "",
   };
   const valid = tokenValid && Option.isSome(parseEasDeviceHostDraft(next));
   // Why Save is off, for the limits the fields' ranges do not show.
@@ -101,8 +116,12 @@ export function EasDeviceHostEditor(props: {
     ? null
     : !tokenValid
       ? translateWebSource(sourceLocale, "Enter a valid secret reference.")
-      : draft.maxSessionMinutes > 0 && draft.idleMinutes >= draft.maxSessionMinutes
-        ? translateWebSource(sourceLocale, "Idle minutes must be smaller than session minutes.")
+      : draft.maxSessionMinutes > 0 &&
+          draft.idleMinutes >= draft.maxSessionMinutes
+        ? translateWebSource(
+            sourceLocale,
+            "Idle minutes must be smaller than session minutes.",
+          )
         : translateWebSource(
             sourceLocale,
             "Give the host a label and limits within the ranges shown.",
@@ -121,7 +140,9 @@ export function EasDeviceHostEditor(props: {
     const result = await check({
       environmentId: props.environmentId,
       input: {
-        ...(token.kind === "saved" && !props.isNew ? { hostId: props.host.id } : {}),
+        ...(token.kind === "saved" && !props.isNew
+          ? { hostId: props.host.id }
+          : {}),
         // A cleared token is sent as empty, so the check does not fall back to
         // the saved one that Save is about to drop.
         ...(token.kind === "new"
@@ -181,7 +202,10 @@ export function EasDeviceHostEditor(props: {
         >
           <DialogHeader>
             <DialogTitle>
-              {translateWebSource(sourceLocale, props.isNew ? "Add EAS host" : "Edit EAS host")}
+              {translateWebSource(
+                sourceLocale,
+                props.isNew ? "Add Expo host" : "Edit Expo host",
+              )}
             </DialogTitle>
             <DialogDescription>
               {translateWebSource(
@@ -212,23 +236,35 @@ export function EasDeviceHostEditor(props: {
                 <SecretSourceInput
                   key={tokenInputKey}
                   id={tokenId}
-                  aria-label={translateWebSource(sourceLocale, "Expo access token")}
+                  aria-label={translateWebSource(
+                    sourceLocale,
+                    "Expo access token",
+                  )}
                   className="min-w-0 flex-1"
-                  configured={token.kind === "saved" && typeof props.host.accessToken === "string"}
+                  configured={
+                    token.kind === "saved" &&
+                    typeof props.host.accessToken === "string"
+                  }
                   value={
                     token.kind === "new"
                       ? token.value
-                      : token.kind === "saved" && isSecretReference(props.host.accessToken)
+                      : token.kind === "saved" &&
+                          isSecretReference(props.host.accessToken)
                         ? props.host.accessToken
                         : ""
                   }
                   sources={secretSources}
+                  environmentId={props.environmentId}
                   onValidityChange={(valid) => {
                     setTokenValid(valid);
                     resetAccount();
                   }}
                   onSecretChange={(secret) => {
-                    setToken(secret ? { kind: "new", value: secret } : { kind: "cleared" });
+                    setToken(
+                      secret
+                        ? { kind: "new", value: secret }
+                        : { kind: "cleared" },
+                    );
                     resetAccount();
                   }}
                   disabled={props.busy}
@@ -252,7 +288,10 @@ export function EasDeviceHostEditor(props: {
                     type="button"
                     size="icon-sm"
                     variant="ghost-destructive"
-                    aria-label={translateWebSource(sourceLocale, "Clear access token")}
+                    aria-label={translateWebSource(
+                      sourceLocale,
+                      "Clear access token",
+                    )}
                     onClick={() => {
                       setToken({ kind: "cleared" });
                       setTokenValid(true);
@@ -266,7 +305,10 @@ export function EasDeviceHostEditor(props: {
               </div>
             </div>
             <div className="flex items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-2.5">
-              <p role="status" className="min-w-0 text-xs text-muted-foreground">
+              <p
+                role="status"
+                className="min-w-0 text-xs text-muted-foreground"
+              >
                 {account.status === "signed-in"
                   ? sourceLocale === "zh-CN"
                     ? `已使用${translateWebSource(sourceLocale, CREDENTIAL_SOURCES[account.account.credentialSource])}登录为 ${account.account.signedInAs}。`
@@ -274,7 +316,10 @@ export function EasDeviceHostEditor(props: {
                   : account.status === "failed"
                     ? account.error
                     : account.status === "checking"
-                      ? translateWebSource(sourceLocale, "Checking the Expo account…")
+                      ? translateWebSource(
+                          sourceLocale,
+                          "Checking the Expo account…",
+                        )
                       : translateWebSource(
                           sourceLocale,
                           "Check the Expo account before choosing a project.",
@@ -284,7 +329,9 @@ export function EasDeviceHostEditor(props: {
                 type="button"
                 size="sm"
                 variant="outline"
-                disabled={props.busy || !tokenValid || account.status === "checking"}
+                disabled={
+                  props.busy || !tokenValid || account.status === "checking"
+                }
                 onClick={() => void checkAccount()}
               >
                 {account.status === "checking" ? <Spinner size="xs" /> : null}{" "}
@@ -292,7 +339,7 @@ export function EasDeviceHostEditor(props: {
               </Button>
             </div>
             <div className="space-y-1.5 text-sm">
-              <span>{translateWebSource(sourceLocale, "EAS project")}</span>
+              <span>{translateWebSource(sourceLocale, "Expo project")}</span>
               <Select
                 value={draft.appId ?? FROM_THREAD_PROJECT}
                 disabled={props.busy}
@@ -300,27 +347,37 @@ export function EasDeviceHostEditor(props: {
                   if (typeof value !== "string") return;
                   setDraft((current) => {
                     const { appId: _, ...rest } = current;
-                    return value === FROM_THREAD_PROJECT ? rest : { ...rest, appId: value };
+                    return value === FROM_THREAD_PROJECT
+                      ? rest
+                      : { ...rest, appId: value };
                   });
                 }}
               >
                 <SelectTrigger
                   size="sm"
-                  aria-label={translateWebSource(sourceLocale, "EAS project")}
+                  aria-label={translateWebSource(sourceLocale, "Expo project")}
                 >
                   <SelectValue>
                     {(value: string) =>
                       value === FROM_THREAD_PROJECT
-                        ? translateWebSource(sourceLocale, "From the thread's project")
-                        : (apps.find((app) => app.id === value)?.fullName ?? value)
+                        ? translateWebSource(
+                            sourceLocale,
+                            "From the thread's project",
+                          )
+                        : (apps.find((app) => app.id === value)?.fullName ??
+                          value)
                     }
                   </SelectValue>
                 </SelectTrigger>
                 <SelectPopup>
                   <SelectItem value={FROM_THREAD_PROJECT}>
-                    {translateWebSource(sourceLocale, "From the thread's project")}
+                    {translateWebSource(
+                      sourceLocale,
+                      "From the thread's project",
+                    )}
                   </SelectItem>
-                  {draft.appId && !apps.some((app) => app.id === draft.appId) ? (
+                  {draft.appId &&
+                  !apps.some((app) => app.id === draft.appId) ? (
                     <SelectItem value={draft.appId}>{draft.appId}</SelectItem>
                   ) : null}
                   {apps.map((app) => (
@@ -345,17 +402,15 @@ export function EasDeviceHostEditor(props: {
             <p className="text-xs text-muted-foreground">
               {translateWebSource(
                 sourceLocale,
-                "Expo allows sessions of up to 40 minutes on free accounts and 115 on paid ones, and ends one after the idle minutes without activity, so idle minutes must be smaller than session minutes.",
+                "Expo Simulators needs a paid Expo account. A session runs for up to 115 minutes and stops early when it is idle for the idle minutes, so idle minutes must be less than session minutes.",
               )}
-              {props.isNew ? null : (
-                <>
-                  {" "}
-                  {translateWebSource(
+              {props.isNew
+                ? null
+                : " " +
+                  translateWebSource(
                     sourceLocale,
-                    "Saving restarts this host, which stops its running sessions.",
+                    "Saving restarts this host and stops its running sessions.",
                   )}
-                </>
-              )}
             </p>
             {problem === null ? null : (
               <p className="text-xs text-destructive" role="alert">
@@ -364,7 +419,12 @@ export function EasDeviceHostEditor(props: {
             )}
           </DialogPanel>
           <DialogFooter>
-            <Button type="button" variant="ghost" disabled={props.busy} onClick={props.onClose}>
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={props.busy}
+              onClick={props.onClose}
+            >
               {translateWebSource(sourceLocale, "Cancel")}
             </Button>
             <Button type="submit" disabled={props.busy || !valid}>

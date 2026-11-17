@@ -5,7 +5,7 @@ import { toHtml } from "hast-util-to-html";
 import React, { use, useEffect, useState, type ReactNode } from "react";
 
 import { useCopyToClipboard } from "../../hooks/useCopyToClipboard";
-import { getClientSettings } from "../../hooks/useSettings";
+import { useClientSettings } from "../../hooks/useSettings";
 import type { DiffThemeName } from "../../lib/diffRendering";
 import {
   createIncrementalHighlightedDocument,
@@ -105,7 +105,12 @@ function MarkdownCodeBlockTitleContent({
   if (fenceTitle) {
     return (
       <>
-        <PierreEntryIcon pathValue={fenceTitle} kind="file" theme={theme} className="size-3.5" />
+        <PierreEntryIcon
+          pathValue={fenceTitle}
+          kind="file"
+          theme={theme}
+          className="size-3.5"
+        />
         <span className="truncate">{fenceTitle}</span>
       </>
     );
@@ -125,7 +130,12 @@ function MarkdownCodeBlockTitleContent({
           />
         }
       >
-        <PierreEntryIcon pathValue={fileName} kind="file" theme={theme} className="size-3.5" />
+        <PierreEntryIcon
+          pathValue={fileName}
+          kind="file"
+          theme={theme}
+          className="size-3.5"
+        />
       </TooltipTrigger>
       <TooltipPopup side="top">{language}</TooltipPopup>
     </Tooltip>
@@ -168,7 +178,9 @@ export function MarkdownCodeBlock({
         cause,
       ),
   });
-  const [wrapped, setWrapped] = useState(() => getClientSettings().wordWrap);
+  const defaultWrapped = useClientSettings((settings) => settings.wordWrap);
+  const [wrapOverride, setWrapOverride] = useState<boolean | null>(null);
+  const wrapped = wrapOverride ?? defaultWrapped;
   const wrapLabel = wrapped
     ? translateWebSource(uiLocale, "Disable line wrap")
     : translateWebSource(uiLocale, "Wrap lines");
@@ -187,7 +199,8 @@ export function MarkdownCodeBlock({
     // make the rendered command differ from what the terminal would receive.
     !/[\p{Cc}\p{Cf}]/u.test(code.slice(0, -1));
 
-  const handleCopy = () => copyToClipboard(code);
+  const handleCopy = () =>
+    copyToClipboard(code.endsWith("\n") ? code.slice(0, -1) : code);
 
   const copyButton = (
     <Tooltip>
@@ -202,7 +215,11 @@ export function MarkdownCodeBlock({
           />
         }
       >
-        {copied ? <CheckIcon className="size-3" /> : <CopyIcon className="size-3" />}
+        {copied ? (
+          <CheckIcon className="size-3" />
+        ) : (
+          <CopyIcon className="size-3" />
+        )}
       </TooltipTrigger>
       <TooltipPopup side="top">{copyLabel}</TooltipPopup>
     </Tooltip>
@@ -210,7 +227,10 @@ export function MarkdownCodeBlock({
 
   if (diagram) {
     return (
-      <div className="my-[0.65rem] border border-transparent" data-language={language}>
+      <div
+        className="my-[0.65rem] border border-transparent"
+        data-language={language}
+      >
         <div className="flex items-center justify-end gap-0.5 pt-1.5 pr-1.5 select-none">
           {viewToggle}
           {copyButton}
@@ -242,7 +262,7 @@ export function MarkdownCodeBlock({
                     variant={wrapped ? "secondary" : "ghost-muted"}
                     size="icon-xs"
                     aria-pressed={wrapped}
-                    onClick={() => setWrapped((value) => !value)}
+                    onClick={() => setWrapOverride(!wrapped)}
                     aria-label={wrapLabel}
                   />
                 }
@@ -347,7 +367,10 @@ function UncachedShikiCodeBlock({
     ? createIncrementalHighlightedDocument(highlighter, language, themeName)
     : null;
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- disposes the incremental Shiki highlighter when it is replaced or the block unmounts
-  useEffect(() => () => incrementalHighlight?.dispose(), [incrementalHighlight]);
+  useEffect(
+    () => () => incrementalHighlight?.dispose(),
+    [incrementalHighlight],
+  );
   const highlighted = (() => {
     const result = (() => {
       try {
@@ -367,18 +390,22 @@ function UncachedShikiCodeBlock({
     })();
     // A finished block is cached for the next mount; a streaming one is still changing.
     if (!isStreaming) {
-      const highlightedHtml = typeof result === "string" ? result : toHtml(result);
+      const highlightedHtml =
+        typeof result === "string" ? result : toHtml(result);
       highlightedCodeCache.set(
         cacheKey,
         highlightedHtml,
-        estimateHighlightedSize(highlightedHtml, code),
+        estimateHighlightedSize(highlightedHtml, cacheKey),
       );
     }
     return result;
   })();
 
   return typeof highlighted === "string" ? (
-    <div className="chat-markdown-shiki" dangerouslySetInnerHTML={{ __html: highlighted }} />
+    <div
+      className="chat-markdown-shiki"
+      dangerouslySetInnerHTML={{ __html: highlighted }}
+    />
   ) : (
     <div className="chat-markdown-shiki">
       <HighlightedCodeLines root={highlighted} />

@@ -1,4 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vite-plus/test";
 
 import * as webI18n from "./i18n/readWebI18n";
 import { translateWebMessage } from "./i18n/messages";
@@ -226,12 +233,17 @@ afterEach(() => {
 describe("showContextMenuFallback", () => {
   it("ignores a click from the gesture that opened the menu", async () => {
     let enablePointerSelection: ((time: number) => void) | undefined;
-    vi.stubGlobal("requestAnimationFrame", (callback: (time: number) => void) => {
-      enablePointerSelection = callback;
-      return 0;
-    });
+    vi.stubGlobal(
+      "requestAnimationFrame",
+      (callback: (time: number) => void) => {
+        enablePointerSelection = callback;
+        return 0;
+      },
+    );
 
-    const selectionPromise = showContextMenuFallback([{ id: "rename", label: "Rename" }]);
+    const selectionPromise = showContextMenuFallback([
+      { id: "rename", label: "Rename" },
+    ]);
     const renameButton = findButton("Rename");
 
     renameButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -240,6 +252,35 @@ describe("showContextMenuFallback", () => {
 
     await expect(selectionPromise).resolves.toBe("rename");
   });
+
+  it.each([
+    // Flips left of the parent menu instead of being clamped over it.
+    { innerWidth: 400, triggerLeft: 200, submenuLeft: 16 },
+    // Neither side fits; the right has more room, so it stays there, clamped.
+    { innerWidth: 300, triggerLeft: 4, submenuLeft: 116 },
+  ])(
+    "places an overflowing submenu on the side with more room ($innerWidth)",
+    ({ innerWidth, triggerLeft, submenuLeft }) => {
+      vi.stubGlobal("window", { ...window, innerWidth });
+
+      void showContextMenuFallback(
+        [
+          {
+            id: "group",
+            label: "Group with",
+            children: [{ id: "terminal-1", label: "Terminal 1" }],
+          },
+        ],
+        { x: triggerLeft, y: 0 },
+      );
+      const trigger = findButton("Group with")!;
+      trigger.style.left = `${triggerLeft}px`;
+      trigger.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+      const submenu = findButton("Terminal 1")!.parent!.parent!;
+      expect(submenu.getBoundingClientRect().left).toBe(submenuLeft);
+    },
+  );
 
   it.each([
     ["zh-CN", "上下文菜单"],
@@ -252,7 +293,9 @@ describe("showContextMenuFallback", () => {
         locale,
         t: (key, values) => translateWebMessage(locale, key, values),
       });
-      void showContextMenuFallback([{ id: "snooze:hour", label: "In 1 hour", detail: "3:00 PM" }]);
+      void showContextMenuFallback([
+        { id: "snooze:hour", label: "In 1 hour", detail: "3:00 PM" },
+      ]);
       const button = findButton("In 1 hour");
 
       const menu = (document as unknown as FakeDocument)

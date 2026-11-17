@@ -1,4 +1,8 @@
-import { ClientSettingsSchema, DEFAULT_CLIENT_SETTINGS } from "@t3tools/contracts";
+import {
+  ClientSettingsSchema,
+  DEFAULT_CLIENT_SETTINGS,
+  resolveClientAppLocale,
+} from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
@@ -29,10 +33,10 @@ export const setClientSettings = DesktopIpc.makeIpcMethod({
     const previousSettings = yield* clientSettings.get;
     yield* clientSettings.set(settings);
     const previousAppLocale = Option.match(previousSettings, {
-      onNone: () => DEFAULT_CLIENT_SETTINGS.appLocale,
-      onSome: (value) => value.appLocale,
+      onNone: () => resolveClientAppLocale(DEFAULT_CLIENT_SETTINGS),
+      onSome: resolveClientAppLocale,
     });
-    if (previousAppLocale !== settings.appLocale) {
+    if (previousAppLocale !== resolveClientAppLocale(settings)) {
       const applicationMenu = yield* DesktopApplicationMenu.DesktopApplicationMenu;
       yield* applicationMenu.configure;
       yield* (yield* DesktopTray.DesktopTray).refresh;

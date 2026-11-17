@@ -5,6 +5,7 @@ import type {
   DeviceServiceState,
   EnvironmentId,
   MessageId,
+  OrchestrationV2ThreadProjection,
   ScopedThreadRef,
   ThreadId,
 } from "@t3tools/contracts";
@@ -27,6 +28,7 @@ import {
 import { Button } from "../ui/button";
 import { Dialog } from "../ui/dialog";
 import { WizardPopup } from "../ui/wizard";
+import { findRevertCheckpoint } from "../../session-logic";
 import { registerThreadOverlay } from "./threadOverlayRetention";
 
 /**
@@ -35,16 +37,20 @@ import { registerThreadOverlay } from "./threadOverlayRetention";
  * whole chat chrome. Each entry carries the thread it was opened for; a host
  * shows only its own thread's entry, and leaving that thread's route drops it.
  */
-type ThreadOverlayAtom<T> = Atom.Writable<{ readonly threadKey: string; readonly value: T } | null>;
+type ThreadOverlayAtom<T> = Atom.Writable<{
+  readonly threadKey: string;
+  readonly value: T;
+} | null>;
 
 function makeThreadOverlayAtom<T>(label: string): ThreadOverlayAtom<T> {
-  const atom = Atom.make<{ readonly threadKey: string; readonly value: T } | null>(null).pipe(
-    Atom.keepAlive,
-    Atom.withLabel(`chat:${label}`),
-  );
+  const atom = Atom.make<{
+    readonly threadKey: string;
+    readonly value: T;
+  } | null>(null).pipe(Atom.keepAlive, Atom.withLabel(`chat:${label}`));
   registerThreadOverlay((threadKey) => {
     const entry = appAtomRegistry.get(atom);
-    if (entry !== null && entry.threadKey !== threadKey) closeThreadOverlay(atom);
+    if (entry !== null && entry.threadKey !== threadKey)
+      closeThreadOverlay(atom);
   });
   return atom;
 }
@@ -53,9 +59,14 @@ function closeThreadOverlay<T>(atom: ThreadOverlayAtom<T>): void {
   appAtomRegistry.set(atom, null);
 }
 
-function useThreadOverlay<T>(atom: ThreadOverlayAtom<T>, threadKey: string | null): T | null {
+function useThreadOverlay<T>(
+  atom: ThreadOverlayAtom<T>,
+  threadKey: string | null,
+): T | null {
   const entry = useAtomValue(atom);
-  return threadKey !== null && entry?.threadKey === threadKey ? entry.value : null;
+  return threadKey !== null && entry?.threadKey === threadKey
+    ? entry.value
+    : null;
 }
 
 const pullRequestThreadDialogAtom = makeThreadOverlayAtom<{
@@ -63,7 +74,10 @@ const pullRequestThreadDialogAtom = makeThreadOverlayAtom<{
   readonly key: number;
 }>("pull-request-thread-dialog");
 
-export function openPullRequestThreadDialog(threadKey: string, reference?: string): void {
+export function openPullRequestThreadDialog(
+  threadKey: string,
+  reference?: string,
+): void {
   appAtomRegistry.set(pullRequestThreadDialogAtom, {
     threadKey,
     value: { initialReference: reference ?? null, key: Date.now() },
@@ -78,6 +92,7 @@ export function PullRequestThreadDialogHost(props: {
   readonly onPrepared: (input: {
     branch: string;
     worktreePath: string | null;
+    pullRequestUrl: string;
   }) => Promise<void> | void;
 }) {
   const state = useThreadOverlay(pullRequestThreadDialogAtom, props.threadKey);
@@ -98,7 +113,9 @@ export function PullRequestThreadDialogHost(props: {
   );
 }
 
-const deviceSetupDialogAtom = makeThreadOverlayAtom<true>("device-setup-dialog");
+const deviceSetupDialogAtom = makeThreadOverlayAtom<true>(
+  "device-setup-dialog",
+);
 
 export function openDeviceSetupDialog(threadKey: string): void {
   appAtomRegistry.set(deviceSetupDialogAtom, { threadKey, value: true });
@@ -109,7 +126,8 @@ export function DeviceSetupDialogHost(props: {
   readonly threadRef: ScopedThreadRef | null;
   readonly state: DeviceServiceState;
 }) {
-  const open = useThreadOverlay(deviceSetupDialogAtom, props.threadKey) !== null;
+  const open =
+    useThreadOverlay(deviceSetupDialogAtom, props.threadKey) !== null;
   const { threadRef } = props;
   return (
     <Dialog
@@ -134,7 +152,9 @@ export function DeviceSetupDialogHost(props: {
   );
 }
 
-const branchRestoreConfirmAtom = makeThreadOverlayAtom<true>("branch-restore-confirm");
+const branchRestoreConfirmAtom = makeThreadOverlayAtom<true>(
+  "branch-restore-confirm",
+);
 
 export function openBranchRestoreConfirm(threadKey: string): void {
   appAtomRegistry.set(branchRestoreConfirmAtom, { threadKey, value: true });
@@ -147,8 +167,13 @@ export function BranchRestoreConfirmHost(props: {
   readonly onConfirm: () => void;
 }) {
   const { t } = useI18n();
-  const [beforeBranch, afterBranch] = splitWebTranslation(t, "chat.branchSwitch.title", "branch");
-  const open = useThreadOverlay(branchRestoreConfirmAtom, props.threadKey) !== null;
+  const [beforeBranch, afterBranch] = splitWebTranslation(
+    t,
+    "chat.branchSwitch.title",
+    "branch",
+  );
+  const open =
+    useThreadOverlay(branchRestoreConfirmAtom, props.threadKey) !== null;
   return (
     <AlertDialog
       open={open}
@@ -163,7 +188,9 @@ export function BranchRestoreConfirmHost(props: {
             <code className="font-medium">{props.threadBranch}</code>
             {afterBranch}
           </AlertDialogTitle>
-          <AlertDialogDescription>{t("chat.branchSwitch.description")}</AlertDialogDescription>
+          <AlertDialogDescription>
+            {t("chat.branchSwitch.description")}
+          </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogClose render={<Button variant="outline" />}>
@@ -190,20 +217,38 @@ interface PendingRevert {
   readonly messageId: MessageId;
 }
 
-const revertConfirmAtom = makeThreadOverlayAtom<PendingRevert>("revert-confirm");
+const revertConfirmAtom =
+  makeThreadOverlayAtom<PendingRevert>("revert-confirm");
 
-export function openRevertConfirm(threadKey: string, pending: PendingRevert): void {
+export function openRevertConfirm(
+  threadKey: string,
+  pending: PendingRevert,
+): void {
   appAtomRegistry.set(revertConfirmAtom, { threadKey, value: pending });
 }
 
 export function RevertConfirmHost(props: {
   readonly threadKey: string;
-  readonly onConfirm: (turnCount: number, messageId: MessageId, restoreFiles: boolean) => void;
+  readonly checkpoints:
+    | OrchestrationV2ThreadProjection["checkpoints"]
+    | undefined;
+  readonly worktreePath: string | null;
+  readonly onConfirm: (
+    turnCount: number,
+    messageId: MessageId,
+    restoreFiles: boolean,
+  ) => void;
 }) {
   const { t, locale } = useI18n();
   const pending = useThreadOverlay(revertConfirmAtom, props.threadKey);
+  // The server refuses file restore outside an isolated worktree.
+  const canRestoreFiles =
+    pending !== null &&
+    props.worktreePath !== null &&
+    findRevertCheckpoint(props.checkpoints ?? [], pending.turnCount)?.status ===
+      "ready";
   const confirm = (restoreFiles: boolean) => {
-    if (pending === null) return;
+    if (pending === null || (restoreFiles && !canRestoreFiles)) return;
     closeThreadOverlay(revertConfirmAtom);
     props.onConfirm(pending.turnCount, pending.messageId, restoreFiles);
   };
@@ -216,7 +261,9 @@ export function RevertConfirmHost(props: {
     >
       <AlertDialogPopup>
         <AlertDialogHeader>
-          <AlertDialogTitle>{translateWebSource(locale, "Edit from here?")}</AlertDialogTitle>
+          <AlertDialogTitle>
+            {translateWebSource(locale, "Edit from here?")}
+          </AlertDialogTitle>
           <AlertDialogDescription>
             {translateWebSource(
               locale,
@@ -228,7 +275,11 @@ export function RevertConfirmHost(props: {
           <AlertDialogClose render={<Button variant="outline" />}>
             {t("common.cancel")}
           </AlertDialogClose>
-          <Button variant="destructive-outline" onClick={() => confirm(true)}>
+          <Button
+            variant="destructive-outline"
+            disabled={!canRestoreFiles}
+            onClick={() => confirm(true)}
+          >
             {translateWebSource(locale, "Revert files too")}
           </Button>
           <Button onClick={() => confirm(false)}>
