@@ -3,7 +3,7 @@ import base64, hashlib, io, json, os, pathlib, re, signal, subprocess, tarfile, 
 CLEAN_SHA='6a8e96df7a6533355af7616345ba47a4ded70d9a957585bd03568395c1d61d3c'
 IMAGE_URL='https://cloud.debian.org/cdimage/cloud/trixie/20261001-2618/debian-13-genericcloud-amd64-20261001-2618.qcow2'
 IMAGE_SHA='f46f0671a6e5bdec5291ab8972bae2f10e5408c2f64a74078f11efc2f06a436a9d0313ed50e0472542eeabf780e9f7c792ac0a314c6c20507fcd9fd81b468c3d'
-CJK_SHA='0f9d958719f8032a7af10d703abf3a3c177953e8b468257e4157011367911e64'
+CJK_SHA='1a9d82ea595438fcef35c870970687e34791f4f8e7757ba26a4ba09de21d036d'
 PRIVACY_CLAUSES={'See the': '请参阅', 'To opt out, see the': '如需退出，请参阅'}
 THREAD_SETTINGS={
     'zh-CN':{

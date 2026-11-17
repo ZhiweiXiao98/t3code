@@ -538,7 +538,7 @@ async function assertThreadsSettings(locale) {
   }
   const navigation = chinese ? ["语音"] : ["Voice"];
   for (const name of navigation)
-    await page.getByRole("treeitem", { name, exact: true }).waitFor({ state: "visible" });
+    await page.getByRole("button", { name, exact: true }).waitFor({ state: "visible" });
   const groups = chinese ? ["智能体", "代码", "连接"] : ["Agents", "Code", "Connections"];
   for (const name of groups)
     await page.getByRole("group", { name, exact: true }).waitFor({ state: "visible" });
@@ -578,7 +578,7 @@ async function auditSettingsOverviews() {
       timeout: 30000,
     });
     await page
-      .locator(`[data-settings-section="${route}"][aria-selected="true"]`)
+      .locator(`[data-settings-section="${route}"][aria-current="page"]`)
       .waitFor({ state: "visible", timeout: 30000 });
     const content = page.locator('[data-workspace-area="settings"]');
     const ready = content.locator(`#${marker}`);
@@ -669,7 +669,7 @@ async function auditSupplementalSettings(page, navigate, capture) {
       timeout: 30000,
     });
     NodeAssert.equal(new URL(page.url()).hash, `#${route}`);
-    await visible(page.locator(`[data-settings-section="${route}"][aria-selected="true"]`));
+    await visible(page.locator(`[data-settings-section="${route}"][aria-current="page"]`));
     return route;
   };
   const shot = async (name) => {

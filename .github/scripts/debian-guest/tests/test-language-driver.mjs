@@ -76,3 +76,20 @@ assert.match(
 assert.ok(driver.includes('document.documentElement.lang === "zh-CN"'));
 assert.ok(!driver.includes('name: "App language"') && !driver.includes('name: "应用语言"'));
 console.log("Actual language driver helper and source bindings passed; not packaged UI execution");
+
+// Navigation semantics must follow the actual accessible sidebar, not old tree roles.
+const nav = fs.readFileSync(
+  new URL("../../../../apps/web/src/components/settings/SettingsSidebarNav.tsx", import.meta.url),
+  "utf8",
+);
+assert.ok(nav.includes('aria-current={isActive ? "page" : undefined}'));
+assert.ok(nav.includes("data-settings-section={to}"));
+assert.ok(driver.includes('getByRole("button", { name, exact: true })'));
+assert.equal((driver.match(/\[aria-current="page"\]/g) ?? []).length, 2);
+assert.ok(!driver.includes('getByRole("treeitem"') && !driver.includes('aria-selected="true"'));
+assert.equal(en["2632f324dc2d9c48"], "Agents");
+assert.equal(zh["2632f324dc2d9c48"], "智能体");
+assert.ok(driver.includes('["智能体", "代码", "连接"]'));
+console.log(
+  "Current button/active-page navigation and preserved Agents translation bindings passed",
+);
