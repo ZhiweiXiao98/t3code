@@ -701,23 +701,24 @@ jobs:
       - web-coverage
       - web-built-boot
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 20
+    # ARM retains the original 20-minute budget for each of its two formats.
+    timeout-minutes: ${{ matrix.timeout }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - runner: macos-26
             arch: arm64
-            format: dmg
-          - runner: macos-26
-            arch: arm64
-            format: zip
+            format: dmg+zip
+            timeout: 40
           - runner: macos-15-intel
             arch: x64
             format: dmg
+            timeout: 20
           - runner: macos-15-intel
             arch: x64
             format: zip
+            timeout: 20
     steps:
       - name: Checkout exact source without credentials
         shell: bash
@@ -748,31 +749,52 @@ jobs:
           name: client-mac-${{ matrix.arch }}
           path: candidate
       - name: Install pinned acceptance driver
+        id: prepare
         run: npm install --prefix "$RUNNER_TEMP/acceptance-tools" --no-save --ignore-scripts playwright-core@1.60.0
-      - name: Copy candidate and verify complete bundle
+      - name: Install and verify DMG with empty data and normal sandbox
+        id: dmg
+        timeout-minutes: 20
+        if: ${{ contains(matrix.format, 'dmg') }}
         shell: bash
         env:
           ARCH: ${{ matrix.arch }}
-          FORMAT: ${{ matrix.format }}
-        run:
-          "set -euo pipefail\ninstall_root=$(mktemp -d \"$RUNNER_TEMP/t3-clean-install.XXXXXX\")\nasset=\"$GITHUB_WORKSPACE/candidate/T3-Code-$CLIENT_VERSION-$ARCH.$FORMAT\"\
-          \nmkdir -p \"$RUNNER_TEMP/acceptance-artifacts\"\nshasum -a 256 \"$asset\" | tee \"$RUNNER_TEMP/acceptance-artifacts/asset-sha256.txt\"\
-          \nif [[ \"$FORMAT\" == dmg ]]; then\n  mount=\"$RUNNER_TEMP/t3-candidate-mount\"\n  hdiutil attach -nobrowse -readonly\
-          \ -mountpoint \"$mount\" \"$asset\"\n  trap 'hdiutil detach \"$mount\" >/dev/null || true' EXIT\n  ditto \"$mount/T3\
-          \ Code (Beta).app\" \"$install_root/T3 Code (Beta).app\"\nelse\n  ditto -x -k \"$asset\" \"$install_root\"\nfi\napp=\"\
-          $install_root/T3 Code (Beta).app\"\nbash .github/scripts/verify-macos-distribution.sh \"$app\" --signature-only 2>&1\
-          \ | tee \"$RUNNER_TEMP/acceptance-artifacts/signature.txt\"\nexecutable=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable'\
-          \ \"$app/Contents/Info.plist\")\necho \"T3_CANDIDATE_EXECUTABLE=$app/Contents/MacOS/$executable\" >> \"$GITHUB_ENV\"\
-          \n"
-      - name: Launch with empty data and normal sandbox
-        run:
-          node .github/scripts/check-clean-desktop-first-start.mjs --executable "$T3_CANDIDATE_EXECUTABLE" --platform macOS
-          --playwright-module "$RUNNER_TEMP/acceptance-tools/node_modules/playwright-core/index.mjs" --artifacts-dir "$RUNNER_TEMP/acceptance-artifacts"
-      - uses: actions/upload-artifact@v7
+          FORMAT: dmg
+          SOURCE_SHA: ${{ needs.source.outputs.sha }}
+        run: bash .github/scripts/check-macos-package-first-start.sh
+      - name: Install and verify ZIP with empty data and normal sandbox
+        id: zip
+        timeout-minutes: 20
+        if: ${{ !cancelled() && steps.prepare.outcome == 'success' && contains(matrix.format, 'zip') }}
+        shell: bash
+        env:
+          REQUIRE_DMG_CLEANUP: ${{ matrix.format == 'dmg+zip' }}
+          ARCH: ${{ matrix.arch }}
+          FORMAT: zip
+          SOURCE_SHA: ${{ needs.source.outputs.sha }}
+        run: bash .github/scripts/check-macos-package-first-start.sh
+      - name: Summarize per-format acceptance
         if: always()
+        shell: bash
+        env:
+          FORMATS: ${{ matrix.format }}
+          DMG_RESULT: ${{ steps.dmg.outcome }}
+          ZIP_RESULT: ${{ steps.zip.outcome }}
+        run: |
+          printf 'DMG: %s\nZIP: %s\n' "$DMG_RESULT" "$ZIP_RESULT" | tee -a "$GITHUB_STEP_SUMMARY"
+          if [[ "$FORMATS" == *dmg* ]]; then test "$DMG_RESULT" = success; fi
+          if [[ "$FORMATS" == *zip* ]]; then test "$ZIP_RESULT" = success; fi
+      - uses: actions/upload-artifact@v7
+        if: ${{ always() && contains(matrix.format, 'dmg') }}
         with:
-          name: clean-install-mac-${{ matrix.arch }}-${{ matrix.format }}
-          path: ${{ runner.temp }}/acceptance-artifacts
+          name: clean-install-mac-${{ matrix.arch }}-dmg
+          path: ${{ runner.temp }}/acceptance-artifacts-dmg
+          if-no-files-found: warn
+          retention-days: 14
+      - uses: actions/upload-artifact@v7
+        if: ${{ always() && contains(matrix.format, 'zip') }}
+        with:
+          name: clean-install-mac-${{ matrix.arch }}-zip
+          path: ${{ runner.temp }}/acceptance-artifacts-zip
           if-no-files-found: warn
           retention-days: 14
   # Linux acceptance needs only its own producer; publication still requires every gate.

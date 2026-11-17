@@ -93,7 +93,7 @@ jobs:
               'Linux x64 and embedded Windows WSL runtime',
               'Tests (clients)', 'Tests (web)', 'Tests (server-1)', 'Tests (server-2)', 'Tests (server-3)',
               'Desktop win x64 (integrity checked)', 'Desktop mac arm64 (integrity checked)', 'Desktop mac x64 (integrity checked)',
-              'Clean macOS arm64 dmg first start', 'Clean macOS arm64 zip first start',
+              'Clean macOS arm64 dmg+zip first start',
               'Clean macOS x64 dmg first start', 'Clean macOS x64 zip first start',
               'Clean desktop deb first start', 'Clean desktop nsis first start',
               'Android arm64 unsigned candidate (NOT installable)',
@@ -112,13 +112,15 @@ jobs:
               'client-mac-arm64': ({prefix + 'arm64.dmg', prefix + 'arm64.zip', 'MACOS-TRUST-arm64.txt'}, set()),
               'client-mac-x64': ({prefix + 'x64.dmg', prefix + 'x64.zip', 'MACOS-TRUST-x64.txt'}, set()),
           }
+          # Both independently installed ARM formats remain mandatory after job consolidation.
+          evidence_formats = {'clean-install-mac-arm64-dmg': 'dmg', 'clean-install-mac-arm64-zip': 'zip'}
           def artifacts_snapshot():
               result = api(run_path + '/artifacts?per_page=100')
               assert result['total_count'] <= 100, 'Unexpected artifact count'
               result = result['artifacts']
               assert {a['name'] for a in result if a['name'].startswith('client-')} == set(specifications)
               selected = []
-              for name in specifications:
+              for name in [*specifications, *evidence_formats]:
                   matches = [a for a in result if a['name'] == name]
                   assert len(matches) == 1, 'Missing or duplicate artifact: ' + name
                   a = matches[0]
@@ -131,18 +133,68 @@ jobs:
                   # Reject retained artifacts from an earlier failed attempt.
                   assert a['created_at'] >= run['run_started_at'], 'Artifact predates current run attempt'
                   selected.append({k: a[k] for k in ('id', 'name', 'size_in_bytes', 'digest', 'created_at', 'updated_at', 'expires_at')})
-              assert len({a['id'] for a in selected}) == 4
+              assert len({a['id'] for a in selected}) == 6
               return selected
           artifacts = artifacts_snapshot()
           output = pathlib.Path('verified-assets')
           output.mkdir()
           asset_records = []
+          clean_install_records = []
+          acceptance_homes = set()
+          acceptance_executables = set()
           for a in artifacts:
               archive = pathlib.Path(os.environ['RUNNER_TEMP']) / (str(a['id']) + '.zip')
               with archive.open('xb') as f:
                   subprocess.run(['gh', 'api', base + '/actions/artifacts/' + str(a['id']) + '/zip'], stdout=f, check=True)
               assert archive.stat().st_size <= 2 * 1024**3
               assert 'sha256:' + hashlib.file_digest(archive.open('rb'), 'sha256').hexdigest() == a['digest'], 'Archive digest mismatch'
+              if a['name'] in evidence_formats:
+                  fmt = evidence_formats[a['name']]
+                  with zipfile.ZipFile(archive) as z:
+                      entries = z.infolist()
+                      names = [e.filename for e in entries]
+                      assert len(names) == len(set(names)), 'Duplicate evidence ZIP entries'
+                      required = {'acceptance-manifest.json', 'clean-first-start.json', 'asset-sha256.txt', 'signature.txt', 'clean-first-start.png'}
+                      assert required <= set(names), 'Missing ARM format acceptance evidence'
+                      assert sum(e.file_size for e in entries) <= 256 * 1024**2, 'Oversized evidence'
+                      for entry in entries:
+                          path = pathlib.PurePosixPath(entry.filename)
+                          assert not path.is_absolute() and '..' not in path.parts and '\\' not in entry.filename
+                          assert stat.S_IFMT(entry.external_attr >> 16) in (0, stat.S_IFREG, stat.S_IFDIR)
+                          assert not entry.flag_bits & 1, 'Encrypted evidence'
+                      for name in required:
+                          entry = z.getinfo(name)
+                          assert not entry.is_dir() and 0 < entry.file_size <= 16 * 1024**2
+                      evidence = json.loads(z.read('acceptance-manifest.json'))
+                      expected_asset = prefix + 'arm64.' + fmt
+                      asset = next(r for r in asset_records if r['name'] == expected_asset)
+                      expected = {'schemaVersion': 1, 'sourceSha': sha, 'runId': run_id,
+                                  'runAttempt': attempt, 'arch': 'arm64', 'format': fmt,
+                                  'assetName': expected_asset, 'assetSha256': asset['sha256'], 'result': 'passed'}
+                      assert evidence == expected and all(type(evidence[k]) is type(v) for k, v in expected.items()), 'ARM acceptance identity or package digest mismatch'
+                      report = json.loads(z.read('clean-first-start.json'))
+                      assert report['schemaVersion'] == 2 and report['result'] == 'passed'
+                      assert report['fixtureData'] is False and report['requestedChromiumSandbox'] is True
+                      assert report['processExited'] is True and report['profileCleanup'] in ('isolated', 'absent')
+                      assert 'cleanupError' not in report and 'error' not in report
+                      for key, seen in [('testHome', acceptance_homes), ('executable', acceptance_executables)]:
+                          assert isinstance(report[key], str) and report[key] and report[key] not in seen, 'ARM formats reused installation or data directory'
+                          seen.add(report[key])
+                      assert report['backendSignalExits'] == []
+                      assert report['cliSandboxOverride'] is False and report['packaged']['isPackaged'] is True
+                      sandbox = report['effectiveSandbox']
+                      switches = {'noSandbox', 'disableSetuidSandbox', 'disableSeccompFilterSandbox', 'disableGpuSandbox'}
+                      assert set(sandbox['switches']) == switches and all(sandbox['switches'][k] is False for k in switches)
+                      assert sandbox['preferences']['sandbox'] is True and sandbox['preferences']['contextIsolation'] is True
+                      assert sandbox['preferences']['nodeIntegration'] is False
+                      assert sandbox['renderer']['processType'] == 'renderer'
+                      assert sandbox['renderer']['sandboxed'] is True and sandbox['renderer']['contextIsolated'] is True
+                      hash_line = z.read('asset-sha256.txt').decode().strip().split(maxsplit=1)
+                      assert len(hash_line) == 2 and hash_line[0] == asset['sha256']
+                      assert pathlib.PurePosixPath(hash_line[1]).name == expected_asset
+                      clean_install_records.append({'artifact_id': a['id'], **evidence})
+                  archive.unlink()
+                  continue
               required, optional = specifications[a['name']]
               with zipfile.ZipFile(archive) as z:
                   entries = z.infolist()
@@ -168,7 +220,8 @@ jobs:
           asset_records.sort(key=lambda a: a['name'])
           manifest = {'repository': repo, 'version': '0.1.9-zh.1', 'source_sha': sha,
                       'run_url': f'https://github.com/{repo}/actions/runs/{run_id}/attempts/{run["run_attempt"]}',
-                      'run': run, 'artifacts': artifacts, 'assets': asset_records}
+                      'run': run, 'artifacts': artifacts, 'assets': asset_records,
+                      'arm_clean_installs': clean_install_records}
           manifest_path = output / 'BUILD-PROVENANCE.json'
           manifest_path.write_text(json.dumps(manifest, indent=2) + '\n')
           manifest_digest = hashlib.file_digest(manifest_path.open('rb'), 'sha256').hexdigest()
