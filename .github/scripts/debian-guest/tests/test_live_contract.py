@@ -57,6 +57,25 @@ class Tests(unittest.TestCase):
     c,s,p,l=fixture();record=s[target]['workflow_run'] if target in ('installer','proof') else s[target]
     record['head_branch']='maintenance/v0.1.9-zh-cloud'
     with self.assertRaises(ValueError):validate_snapshot(c,s,p,l)
+ def test_review_branch_exact_head_events(self):
+  for event in ('push','workflow_dispatch'):
+   c,s,p,l=fixture();s['run']['event']=event
+   for target in ('run','producer','consumer','installer','proof'):
+    record=s[target]['workflow_run'] if target in ('installer','proof') else s[target]
+    record['head_branch']='review/v0.1.10-zh'
+   validate_pair(c,s,copy.deepcopy(s),p,l,l)
+   bad=copy.deepcopy(s);bad['run']['event']='pull_request'
+   with self.assertRaises(ValueError):validate_snapshot(c,bad,p,l)
+ def test_allowed_branches_cannot_be_mixed(self):
+  for review in (False,True):
+   c,s,p,l=fixture();branch='review/v0.1.10-zh' if review else 'maintenance/v0.1.10-zh-cloud';other='maintenance/v0.1.10-zh-cloud' if review else 'review/v0.1.10-zh';s['run']['event']='push'
+   for target in ('run','producer','consumer','installer','proof'):
+    record=s[target]['workflow_run'] if target in ('installer','proof') else s[target]
+    record['head_branch']=branch
+   for target in ('run','producer','consumer','installer','proof'):
+    with self.subTest(review=review,target=target):
+     bad=copy.deepcopy(s);record=bad[target]['workflow_run'] if target in ('installer','proof') else bad[target];record['head_branch']=other
+     with self.assertRaises(ValueError):validate_snapshot(c,bad,p,l)
  def test_typed_mode(self):
   c,s,p,l=fixture()
   with self.assertRaises(ValueError):validate_snapshot(c.__dict__,s,p,l)

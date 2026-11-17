@@ -1,12 +1,7 @@
+# Standalone diagnostic history retained; automatic Web execution is now part of client-release.yml full PR-head validation.
 name: Community PR Web complete partitions (free runners)
 "on":
-  pull_request:
-    branches:
-      - maintenance/v0.1.9-zh-cloud
-    types:
-      - opened
-      - synchronize
-      - reopened
+  workflow_dispatch: {}
 permissions:
   contents: read
 concurrency:
