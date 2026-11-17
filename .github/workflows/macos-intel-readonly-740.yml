@@ -1,0 +1,90 @@
+name: Existing macOS Intel Android capability (read only)
+on:
+  push:
+    branches: [validation/v0.1.9-macos-intel-readonly-74039745]
+permissions:
+  contents: read
+concurrency:
+  group: macos-intel-readonly-74039745
+  cancel-in-progress: false
+jobs:
+  inspect:
+    runs-on: macos-15-intel
+    timeout-minutes: 3
+    steps:
+      - name: Check direct frozen-source single-file operation
+        env:
+          GH_READ_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PYGUARD'
+          import os,json,urllib.request,pathlib
+          out=pathlib.Path('diagnostics'); out.mkdir(exist_ok=True)
+          assert os.environ['GITHUB_REPOSITORY']=='ZhiweiXiao98/t3code'
+          assert os.environ['GITHUB_EVENT_NAME']=='push'
+          assert os.environ['GITHUB_REF']=='refs/heads/validation/v0.1.9-macos-intel-readonly-74039745'
+          assert os.environ['GITHUB_RUN_ATTEMPT']=='1'
+          sha=os.environ['GITHUB_SHA']
+          assert len(sha)==40 and all(c in '0123456789abcdef' for c in sha)
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+           def redirect_request(self,*a,**k): return None
+          opener=urllib.request.build_opener(NoRedirect)
+          def get(p):
+           req=urllib.request.Request('https://api.github.com/repos/ZhiweiXiao98/t3code/'+p,headers={'Authorization':'Bearer '+os.environ['GH_READ_TOKEN'],'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'})
+           with opener.open(req,timeout=15) as r:
+            raw=r.read(1048577); assert len(raw)<=1048576; return json.loads(raw)
+          c=get('commits/'+sha)
+          assert c['sha']==sha
+          assert [x['sha'] for x in c['parents']]==['74039745b1b44834c30dd9cb275f1c224072dd96']
+          assert len(c['files'])==1
+          f=c['files'][0]
+          assert f['filename']=='.github/workflows/macos-intel-readonly-740.yml' and f['status']=='added'
+          ref=get('git/ref/heads/validation/v0.1.9-macos-intel-readonly-74039745'); assert ref['object']['sha']==sha
+          (out/'guard.json').write_text(json.dumps({'source':'74039745b1b44834c30dd9cb275f1c224072dd96','operation':sha,'branch':'validation/v0.1.9-macos-intel-readonly-74039745','attempt':1,'single_added_workflow':'.github/workflows/macos-intel-readonly-740.yml'},indent=2))
+          PYGUARD
+      - name: Inspect existing SDK and hypervisor without credentials
+        run: |
+          python3 - <<'PYPROBE'
+          import os,pathlib,subprocess,json,hashlib,time
+          D=pathlib.Path('diagnostics'); D.mkdir(exist_ok=True)
+          assert (D/'guard.json').is_file()
+          # An explicit minimal child environment: no GitHub tokens or inherited secret variables.
+          env={k:os.environ[k] for k in ['PATH','HOME','TMPDIR','ANDROID_HOME','ANDROID_SDK_ROOT','JAVA_HOME'] if k in os.environ}
+          report={'scope':'existing installation only; no installation, AVD, APK or license acceptance','commands':[],'sdk_roots':[]}
+          def run(args):
+           item={'argv':[str(a) for a in args]}
+           try:
+            p=subprocess.run(args,stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,env=env,timeout=15)
+            item.update(returncode=p.returncode,output=p.stdout[:32768].decode(errors='replace'),truncated=len(p.stdout)>32768)
+           except subprocess.TimeoutExpired as e: item.update(timeout=True,output=(e.stdout or b'')[:32768].decode(errors='replace'))
+           except OSError as e: item.update(error=type(e).__name__)
+           report['commands'].append(item)
+           (D/'inventory.json').write_text(json.dumps(report,indent=2))
+          run(['/usr/bin/uname','-a']); run(['/usr/bin/sw_vers'])
+          roots=[]
+          for value in [os.environ.get('ANDROID_HOME'),os.environ.get('ANDROID_SDK_ROOT'),str(pathlib.Path.home()/'Library/Android/sdk'),'/usr/local/share/android-sdk']:
+           if value and pathlib.Path(value).is_dir():
+            p=pathlib.Path(value).resolve()
+            if p not in roots: roots.append(p)
+          for root in roots[:4]:
+           entry={'path':str(root),'properties':[],'licenses':[],'sdkmanager_paths':[]}
+           report['sdk_roots'].append(entry)
+           for pattern in ['emulator/source.properties','system-images/*/*/*/source.properties']:
+            for p in sorted(root.glob(pattern))[:64]:
+             if p.is_file() and p.stat().st_size<=16384: entry['properties'].append({'path':str(p.relative_to(root)),'text':p.read_text(errors='replace')})
+           for p in sorted((root/'licenses').glob('*'))[:32]:
+            if p.is_file() and p.stat().st_size<=16384:
+             b=p.read_bytes(); entry['licenses'].append({'name':p.name,'size':len(b),'sha256':hashlib.sha256(b).hexdigest(),'accepted_hash_lines':b.decode(errors='replace').splitlines()})
+           entry['sdkmanager_paths']=[str(p) for p in root.glob('cmdline-tools/*/bin/sdkmanager')][:16]
+           emulator=root/'emulator/emulator'
+           if emulator.is_file(): run([str(emulator),'-version']); run([str(emulator),'-accel-check'])
+          (D/'inventory.json').write_text(json.dumps(report,indent=2))
+          assert sum(p.stat().st_size for p in D.iterdir() if p.is_file())<1048576
+          PYPROBE
+      - name: Preserve small diagnostics even on failure
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: macos-intel-readonly-${{ github.run_id }}
+          path: diagnostics/
+          if-no-files-found: warn
+          retention-days: 7
