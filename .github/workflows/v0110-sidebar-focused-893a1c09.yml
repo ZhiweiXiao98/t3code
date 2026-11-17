@@ -1,0 +1,219 @@
+# Diagnostic only; never substitutes full coverage, ARM15 or release gates.
+name: v0.1.10 focused sidebar diagnostic (not release acceptance)
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+concurrency:
+  group: community-sidebar-focused-893a1c09
+  cancel-in-progress: false
+env:
+  CLIENT_VERSION: 0.1.10-zh.1
+  CI: 'true'
+  CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+  T3CODE_DESKTOP_SIGNED: 'false'
+  ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
+  ELECTRON_BUILDER_BINARIES_MIRROR: https://github.com/electron-userland/electron-builder-binaries/releases/download/
+'on':
+  push:
+    branches:
+    - validation/v0110-sidebar-focused-893a1c09
+jobs:
+  source:
+    name: Validate reviewed focused diagnostic source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      sha: ${{ steps.source.outputs.sha }}
+    steps:
+    - uses: actions/github-script@v8
+      id: source
+      with:
+        script: |
+          const source = '893a1c09c1e0ab2501beaff59138ff84c4dbac0e';
+          const sourceTree = '5ae3f8126c89a7bd6f210e6a85d079b526abca06';
+          const branch = 'validation/v0110-sidebar-focused-893a1c09';
+          const workflowPath = '.github/workflows/v0110-sidebar-focused-893a1c09.yml';
+          const {owner, repo} = context.repo;
+          function require(condition, message) { if (!condition) throw new Error(message); }
+          require(owner === 'ZhiweiXiao98' && repo === 't3code', 'Unexpected repository');
+          require(context.payload.repository.private === false, 'Public repository required');
+          require(context.eventName === 'push' && context.ref === 'refs/heads/' + branch, 'Unexpected trigger');
+          require(process.env.GITHUB_RUN_ATTEMPT === '1', 'Single activation only');
+          const getCommit = async commit_sha => (await github.rest.git.getCommit({owner, repo, commit_sha})).data;
+          const op = await getCommit(context.sha);
+          require(op.parents.length === 1 && op.message.split('\n')[0] === 'ci: activate reviewed 893a1c09 focused sidebar diagnostic once', 'Unexpected operation commit');
+          const reviewed = await getCommit(op.parents[0].sha);
+          require(reviewed.parents.length === 1 && reviewed.parents[0].sha === source, 'Reviewed commit must directly follow source');
+          require(reviewed.message.split('\n')[0] === 'ci: prepare 893a1c09 focused sidebar diagnostic [skip ci]', 'Unexpected reviewed commit');
+          require(op.tree.sha === reviewed.tree.sha, 'Activation must not change reviewed tree');
+          const baseline = await getCommit(source);
+          require(baseline.tree.sha === sourceTree, 'Unexpected source tree');
+          const comparison = (await github.rest.repos.compareCommitsWithBasehead({owner, repo, basehead: source + '...' + reviewed.sha})).data;
+          require(comparison.status === 'ahead' && comparison.ahead_by === 1 && comparison.behind_by === 0 && comparison.total_commits === 1, 'Unexpected reviewed history');
+          require(comparison.files?.length === 1 && comparison.files[0].filename === workflowPath && comparison.files[0].status === 'added', 'Only the supplemental workflow may differ');
+          const changed = comparison.files[0];
+          require(changed.sha && changed.changes > 0 && changed.deletions === 0, 'Invalid added workflow');
+          const prs = (await github.rest.pulls.list({owner, repo, state: 'open', head: owner + ':' + branch, base: 'review/v0.1.10-zh', per_page: 100})).data;
+          require(prs.length === 1 && prs[0].draft === true && prs[0].head.sha === context.sha && prs[0].base.sha === source, 'Exact reviewed draft PR required');
+          core.info(JSON.stringify({source, sourceTree, operation: op.sha, operationTree: op.tree.sha, reviewed: reviewed.sha, workflowBlob: changed.sha, pr: prs[0].number, run: context.runId, attempt: process.env.GITHUB_RUN_ATTEMPT, supplementalOnly: true}));
+          core.setOutput('sha', source);
+  sidebar-focused:
+    name: Sidebar original-cases diagnostic (single execution)
+    needs:
+    - source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+    - name: Checkout exact source without credentials
+      shell: bash
+      env:
+        SOURCE_SHA: ${{ needs.source.outputs.sha }}
+        GIT_TERMINAL_PROMPT: '0'
+      run: |
+        set -euo pipefail
+        git init .
+        git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+        git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
+        git sparse-checkout set --no-cone '/*' '!/.repos/'
+        git checkout --detach FETCH_HEAD
+        test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+    - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
+      with:
+        node-version-file: package.json
+        cache: true
+        run-install: false
+    - name: Install locked dependencies
+      id: dependencies
+      run: vp install --frozen-lockfile
+    - name: Install Linux native build libraries
+      run: python3 .github/scripts/ci-ubuntu-packages.py packages libsecret-1-dev pkg-config build-essential imagemagick
+    - name: Install Chromium for web and server browser tests
+      shell: bash
+      env:
+        SUITE: web
+      run: |
+        set -euo pipefail
+        browser_cli=apps/server/node_modules/playwright-core/cli.js
+        if [[ "$SUITE" == web ]]; then
+          browser_cli=apps/web/node_modules/playwright/cli.js
+        fi
+        python3 .github/scripts/ci-ubuntu-packages.py playwright "$browser_cli"
+        node "$browser_cli" install --only-shell chromium
+        if [[ "$SUITE" == server-* ]]; then
+          test "$(node -p "require('./apps/server/node_modules/playwright-core/package.json').version")" = "$(node -p "require('./apps/server/package.json').dependencies['playwright-core']")"
+          browser_revision=$(node -p "require('./apps/server/node_modules/playwright-core/browsers.json').browsers.find(browser => browser.name === 'chromium-headless-shell').revision")
+          browser_root="$HOME/.cache/ms-playwright/chromium_headless_shell-$browser_revision"
+          mapfile -t browsers < <(find "$browser_root" -type f -name chrome-headless-shell)
+          test "${#browsers[@]}" -eq 1
+          browser="${browsers[0]}"
+          test -x "$browser"
+          test "${T3CODE_SERVER_BROWSER_SANDBOX:-1}" != 0
+          echo "T3CODE_TEST_HEADLESS_SHELL=$browser" >> "$GITHUB_ENV"
+          node -p "JSON.stringify({node: process.version, undici: process.versions.undici, playwright: require('./apps/server/node_modules/playwright-core/package.json').version})"
+          "$browser" --version
+          sha256sum "$browser"
+        fi
+    - name: Run original 19 Sidebar files once with bounded observer
+      shell: bash
+      env:
+        SOURCE_SHA: ${{ needs.source.outputs.sha }}
+        VITE_T3_MENU_TRACE: '1'
+      run: |
+        set -euo pipefail
+        python3 - <<'PY_FOCUSED'
+        import json, os, subprocess, sys
+        from pathlib import Path
+        source = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+        assert source == os.environ['SOURCE_SHA']
+        expected = {'src/components/Sidebar.archive.browser.test.tsx': ['uses settlement locale for sidebar archive failures'], 'src/components/Sidebar.browser.test.tsx': ['sidebar header new thread normal sidebar, 2 projects, shift=false: picker=true', 'sidebar header new thread boring sidebar, 2 projects, shift=false: picker=true', 'sidebar header new thread boring sidebar, 2 projects, shift=true: picker=false', 'sidebar header new thread boring sidebar, 1 projects, shift=false: picker=false', 'sidebar render isolation does not re-render thread rows when a quick Mod shortcut opens and focuses the terminal', 'sidebar thread rename ending an untouched rename with {Enter} keeps a title that arrived while it was open', 'sidebar thread rename ending an untouched rename with {Tab} keeps a title that arrived while it was open', 'sidebar thread menu tells the menu whether the keyboard opened it', 'sidebar settled pagination keeps the viewport in place when showing more settled threads'], 'src/components/Sidebar.bulkDelete.browser.test.tsx': ['uses settlement locale for sidebar bulk delete failures'], 'src/components/Sidebar.bulkRegenerateTitle.browser.test.tsx': ['uses settlement locale for sidebar bulk regenerate title failures'], 'src/components/Sidebar.bulkSnooze.browser.test.tsx': ['uses settlement locale for sidebar bulk snooze failures: unknown', 'uses settlement locale for sidebar bulk snooze failures: unsupported', 'uses settlement locale for sidebar bulk snooze failures: raw', 'uses settlement locale for sidebar bulk snooze failures: empty', 'uses settlement locale for sidebar bulk snooze failures: interrupted'], 'src/components/Sidebar.clipboard.browser.test.tsx': ['uses settlement locale for sidebar plain clipboard success titles'], 'src/components/Sidebar.clipboardFailure.browser.test.tsx': ['uses settlement locale for sidebar clipboard failure titles'], 'src/components/Sidebar.copyReference.browser.test.tsx': ['uses settlement locale for sidebar rich thread reference copy'], 'src/components/Sidebar.delete.browser.test.tsx': ['uses settlement locale for sidebar delete failures'], 'src/components/Sidebar.drag.browser.test.tsx': ['shows the titled preview inside and outside search results from a collapsed folder', 'keeps focus in the search box when a click picks a search result'], 'src/components/Sidebar.locale.browser.test.tsx': ['uses the current language each time a sidebar context menu opens'], 'src/components/Sidebar.logic.browser.test.tsx': ['useSnoozeWakeClock settles in one step when many distinct wakes passed during a sleep', 'useThreadJumpHintsVisible waits for the delay again on a second hold', "useThreadJumpHintsVisible follows terminal focus and the route thread's terminal while the modifier is held", 'useThreadJumpHintsVisible returns when the model picker closes while the modifier is still held', 'useThreadJumpHintsVisible shows after the delay for a jump binding without a modifier'], 'src/components/Sidebar.newThread.browser.test.tsx': ['uses settlement locale for sidebar new thread failures'], 'src/components/Sidebar.pin.browser.test.tsx': ['uses settlement locale for sidebar pin failures'], 'src/components/Sidebar.pointer.browser.test.tsx': ['sidebar pointer lifecycle drops context when a zero-button move precedes pointerup', 'sidebar pointer lifecycle keeps the click when a zero-button move precedes pointerup before activation', 'sidebar pointer lifecycle cancels a missed sidebar release without committing a reorder'], 'src/components/Sidebar.regenerateTitle.browser.test.tsx': ['uses settlement locale for sidebar regenerate title failures'], 'src/components/Sidebar.settle.browser.test.tsx': ['uses settlement locale for sidebar settle failures'], 'src/components/Sidebar.shortcuts.browser.test.tsx': ['leaves thread shortcuts and their hints to the preview when their rules exclude it'], 'src/components/Sidebar.snooze.browser.test.tsx': ['uses settlement locale for sidebar snooze failures']}
+        test_files = sorted(expected)
+        assert len(test_files) == 19 and sum(map(len, expected.values())) == 38
+        assert sorted(str(p.relative_to(Path('apps/web'))) for p in Path('apps/web/src/components').glob('Sidebar*.browser.test.tsx')) == test_files
+        assert all(Path('apps/web', p).is_file() for p in test_files)
+        out = Path(os.environ['RUNNER_TEMP']) / 'web-browser-diagnostics'
+        out.mkdir(parents=True, exist_ok=True)
+        result = out / 'focused-results.json'
+        command = ['vp', 'run', '--filter', '@t3tools/web', 'test', *test_files, '--reporter=default', '--reporter=json', '--outputFile.json=' + str(result)]
+        observer = Path('.github/scripts/observe-web-tests.py').read_text()
+        old = 'COMMAND = ["vp", "run", "--filter", "@t3tools/web", "test"]'
+        assert observer.count(old) == 1
+        script = Path(os.environ['RUNNER_TEMP']) / 'observe-sidebar-focused.py'
+        script.write_text(observer.replace(old, 'COMMAND = ' + repr(command)))
+        (out / 'experiment.json').write_text(json.dumps({'source':source,'workflow_sha':os.environ['GITHUB_SHA'],'run':os.environ['GITHUB_RUN_ID'],'attempt':os.environ['GITHUB_RUN_ATTEMPT'],'scope':'19 original Sidebar files, 38 named cases, unchanged default concurrency; not full coverage or release acceptance','command':command},indent=2))
+        code = subprocess.run([sys.executable, str(script)]).returncode
+        # Reject an empty/misdirected successful selection; preserve original failure status.
+        if code == 0:
+            data = json.loads(result.read_text())
+            from collections import Counter
+            assert data['numTotalTests'] == 38 and data['numPassedTests'] == 38 and data['numFailedTests'] == 0
+            suites = data['testResults']
+            assert len(suites) == len(expected)
+            seen = set()
+            for suite in suites:
+                name = suite['name'].replace('\\', '/')
+                matches = [p for p in expected if name == p or name.endswith('/' + p)]
+                assert len(matches) == 1 and matches[0] not in seen
+                path = matches[0]
+                seen.add(path)
+                assertions = suite['assertionResults']
+                assert all(a['status'] == 'passed' for a in assertions)
+                assert Counter(a['fullName'] for a in assertions) == Counter(expected[path])
+            assert seen == set(expected)
+        sys.exit(code)
+        PY_FOCUSED
+    - name: Preserve focused diagnostics
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: sidebar-focused-${{ github.run_id }}-${{ github.run_attempt }}
+        path: ${{ runner.temp }}/web-browser-diagnostics/
+        if-no-files-found: error
+        retention-days: 14
+  web-typecheck:
+    name: Web package typecheck only (not full quality acceptance)
+    needs:
+    - source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+    - name: Checkout exact source without credentials
+      shell: bash
+      env:
+        SOURCE_SHA: ${{ needs.source.outputs.sha }}
+        GIT_TERMINAL_PROMPT: '0'
+      run: |
+        set -euo pipefail
+        git init .
+        git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+        git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
+        git sparse-checkout set --no-cone '/*' '!/.repos/'
+        git checkout --detach FETCH_HEAD
+        test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+    - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
+      with:
+        node-version-file: package.json
+        cache: true
+        run-install: false
+    - name: Install locked dependencies
+      id: dependencies
+      run: vp install --frozen-lockfile
+    - name: Install Linux native build libraries
+      run: python3 .github/scripts/ci-ubuntu-packages.py packages libsecret-1-dev pkg-config build-essential imagemagick
+    - name: Ensure Electron types
+      run: vp run --filter @t3tools/desktop ensure:electron
+    - name: Typecheck Web package
+      shell: bash
+      run: |
+        set -euo pipefail
+        mkdir -p "$RUNNER_TEMP/web-typecheck-diagnostics"
+        printf 'source=%s\noperation=%s\nrun=%s\nattempt=%s\nscope=web-package-typecheck-only\n' "$(git rev-parse HEAD)" "$GITHUB_SHA" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" > "$RUNNER_TEMP/web-typecheck-diagnostics/identity.txt"
+        vp run --filter @t3tools/web typecheck 2>&1 | tee "$RUNNER_TEMP/web-typecheck-diagnostics/typecheck.log"
+    - name: Preserve Web typecheck diagnostics
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: web-typecheck-${{ github.run_id }}-${{ github.run_attempt }}
+        path: ${{ runner.temp }}/web-typecheck-diagnostics/
+        if-no-files-found: error
+        retention-days: 14
