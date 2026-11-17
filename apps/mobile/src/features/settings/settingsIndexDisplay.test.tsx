@@ -7,6 +7,8 @@ import type { MobileLocale } from "../../i18n/mobileStrings";
 
 const state = vi.hoisted(() => ({
   locale: "en" as MobileLocale,
+  preferencesAtom: {},
+  nativeLocaleStore: new Map<string, string>(),
   query: "",
   email: "Settings" as string | undefined,
   accountLoaded: true,
@@ -18,6 +20,16 @@ const state = vi.hoisted(() => ({
 
 vi.mock("react-native", () => ({
   Platform: { OS: "ios" },
+  ActivityIndicator: () => null,
+  StyleSheet: { create: <T,>(styles: T) => styles },
+  TurboModuleRegistry: {
+    get: () => ({ getNativeLocales: () => ["en", "en-US"] }),
+    getEnforcing: () => ({
+      getNativeLocales: () => ["en", "en-US"],
+      nativeStoreGet: (key: string) => state.nativeLocaleStore.get(key) ?? null,
+      nativeStoreSet: (key: string, value: string) => state.nativeLocaleStore.set(key, value),
+    }),
+  },
   View: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
   Text: ({ children }: { children?: ReactNode }) => <span>{children}</span>,
   TextInput: () => null,
@@ -70,7 +82,12 @@ vi.mock("@clerk/expo", () => ({
   useUser: () => ({ user: { primaryEmailAddress: { emailAddress: state.email } } }),
 }));
 vi.mock("@effect/atom-react", () => ({
-  useAtomValue: () => AsyncResult.success({ models: [] }),
+  useAtomValue: (atom: unknown) =>
+    AsyncResult.success(
+      atom === state.preferencesAtom
+        ? { language: state.locale === "zh-CN" ? "zh" : "en" }
+        : { models: [] },
+    ),
   useAtomSet: () => vi.fn(),
 }));
 vi.mock("uniwind", () => ({ useResolveClassNames: () => ({}) }));
@@ -156,7 +173,7 @@ vi.mock("./settings-environment-filter", () => ({
   }),
 }));
 vi.mock("../../state/preferences", () => ({
-  mobilePreferencesAtom: {},
+  mobilePreferencesAtom: state.preferencesAtom,
   updateMobilePreferencesAtom: {},
 }));
 vi.mock("../../state/server", () => ({ serverEnvironment: { updateSettings: {} } }));
@@ -216,6 +233,7 @@ import { SettingsLabsRouteScreen } from "./ThreadSettingsSections";
 
 function mount(locale: MobileLocale) {
   state.locale = locale;
+  state.nativeLocaleStore.clear();
   state.query = "";
   state.email = "Settings";
   state.accountLoaded = true;
@@ -227,8 +245,8 @@ function mount(locale: MobileLocale) {
   const root = createRoot(container);
   return {
     container,
-    render(node: ReactNode) {
-      act(() => root.render(node));
+    async render(node: ReactNode) {
+      await act(async () => root.render(node));
     },
     [Symbol.dispose]() {
       act(() => root.unmount());
@@ -239,9 +257,9 @@ function mount(locale: MobileLocale) {
 
 it.each(["en", "zh-CN"] as const)(
   "keeps account, project and search values literal in %s without changing account navigation",
-  (locale) => {
+  async (locale) => {
     using screen = mount(locale);
-    screen.render(<SettingsListScreen sidebar={false} selected={null} />);
+    await screen.render(<SettingsListScreen sidebar={false} selected={null} />);
     const account = screen.container.querySelector("button")!;
     expect(account.textContent).toBe(locale === "en" ? "T3 AccountSettings" : "T3 账户Settings");
     expect(
@@ -252,7 +270,7 @@ it.each(["en", "zh-CN"] as const)(
     act(() => account.click());
     expect(state.navigate).toHaveBeenCalledExactlyOnceWith("SettingsAuth");
     state.query = "  nonexistent-Settings {0} $&  ";
-    screen.render(<SettingsListScreen key="search" sidebar={false} selected={null} />);
+    await screen.render(<SettingsListScreen key="search" sidebar={false} selected={null} />);
     expect(screen.container.textContent).toContain(
       locale === "en"
         ? "No settings match “nonexistent-Settings {0} $&”."
@@ -260,7 +278,7 @@ it.each(["en", "zh-CN"] as const)(
     );
     state.query = "";
     state.email = undefined;
-    screen.render(<SettingsListScreen key="fallback" sidebar={false} selected={null} />);
+    await screen.render(<SettingsListScreen key="fallback" sidebar={false} selected={null} />);
     expect(screen.container.querySelector("button")?.textContent).toBe(
       locale === "en" ? "T3 AccountSigned in" : "T3 账户已登录",
     );
@@ -269,9 +287,9 @@ it.each(["en", "zh-CN"] as const)(
 
 it.each(["en", "zh-CN"] as const)(
   "retains the environment name in %s and switches the model empty state with search",
-  (locale) => {
+  async (locale) => {
     using screen = mount(locale);
-    screen.render(
+    await screen.render(
       <SettingsVoiceModelsRouteScreen
         route={{ params: { environmentId: EnvironmentId.make("normal") } }}
       />,
@@ -291,9 +309,9 @@ it.each(["en", "zh-CN"] as const)(
 
 it.each(["en", "zh-CN"] as const)(
   "localizes both Beta titles in %s while preserving machine names, managed policy and setting updates",
-  (locale) => {
+  async (locale) => {
     using screen = mount(locale);
-    screen.render(<SettingsLabsRouteScreen />);
+    await screen.render(<SettingsLabsRouteScreen />);
     expect(screen.container.textContent).toContain(
       locale === "en" ? "Beta: Linked environments" : "测试版：关联环境",
     );
