@@ -1,0 +1,1186 @@
+name: Desktop same-release replacement verified bytes
+'on':
+  push:
+    branches:
+    - validation/v0.1.9-desktop-replacement-74039745
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: desktop-release-442744057
+  cancel-in-progress: false
+jobs:
+  replace:
+    if: github.repository == 'ZhiweiXiao98/t3code' && github.event.repository.private == false
+    permissions:
+      contents: write
+      actions: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+    - name: Verify exact bytes and perform fixed release replacement
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+        APPROVED_DESKTOP_REPLACEMENT: '442744057'
+        EXPECTED_PAYLOAD_SHA256: 327e70f0a3f5d3c0162aa4fa20ad79ad3d979d612161e8aa2e59d7ae3857dd40
+      run: "set -euo pipefail\nmkdir -p \"$RUNNER_TEMP/replacement-tools\" \"$RUNNER_TEMP/replacement-journal\"\n\
+        cd \"$RUNNER_TEMP/replacement-tools\"\ncat > collect_verified.py <<'REVIEWED_EOF'\n\"\"\"Read-only local\
+        \ collection core. No GitHub mutation or signing capability.\nPinned specification must be independently\
+        \ reviewed; passing this module alone is\nNOT source/CI/acceptance verification and never enables publication.\n\
+        \"\"\"\nimport hashlib,json,pathlib,re,shutil,stat,tempfile,zipfile\nSOURCE='74039745b1b44834c30dd9cb275f1c224072dd96'\n\
+        TREE='2849e01639a6ec5242b4041b65762ef78ac08a51'\nINSTALLERS={f'T3-Code-0.1.9-zh.1-{x}' for x in ('amd64.deb','x64.exe','arm64.dmg','arm64.zip','x64.dmg','x64.zip')}\n\
+        ALLOWED=INSTALLERS|{'MACOS-TRUST-arm64.txt','MACOS-TRUST-x64.txt'}\nMAX=2*1024**3\nclass Invalid(ValueError):pass\n\
+        def need(b,msg):\n if not b:raise Invalid(msg)\ndef digest(p):\n with pathlib.Path(p).open('rb') as f:return\
+        \ hashlib.file_digest(f,'sha256').hexdigest()\ndef check_file(p,size,sha):\n p=pathlib.Path(p);need(p.is_file()\
+        \ and not p.is_symlink(),'not regular file')\n need(type(size) is int and 0<size<=MAX,'invalid size')\n\
+        \ need(re.fullmatch('[0-9a-f]{64}',sha) is not None,'invalid hash')\n need(p.stat().st_size==size,'size\
+        \ mismatch');need(digest(p)==sha,'hash mismatch')\ndef verify_spec(spec):\n need(spec['enabled'] is False,'collector\
+        \ must remain disabled for publication')\n need(spec['source_sha']==SOURCE and spec['source_tree']==TREE,'wrong\
+        \ source')\n need(spec['release_id']==442744057 and spec['tag']=='v0.1.9-zh.1','wrong destination')\n need(set(spec['assets'])==ALLOWED,'incomplete/extra\
+        \ desktop set')\n for n,a in spec['assets'].items():\n  need(type(a['artifact_id']) is int and a['artifact_id']>0,'invalid\
+        \ artifact')\n  need(type(a['size']) is int and 0<a['size']<=MAX,'invalid size')\n  need(re.fullmatch('[0-9a-f]{64}',a['sha256'])\
+        \ is not None,'invalid hash')\ndef extract_archive(archive,pin,expected,out):\n \"\"\"Exact ZIP bytes plus\
+        \ exact member bytes, no untrusted extract().\"\"\"\n check_file(archive,pin['size'],pin['sha256'])\n need(set(expected)<=ALLOWED\
+        \ and expected,'invalid members')\n out=pathlib.Path(out);need(not out.exists(),'output already exists')\n\
+        \ out.parent.mkdir(parents=True,exist_ok=True)\n with tempfile.TemporaryDirectory(dir=out.parent,prefix='.collect-')\
+        \ as td:\n  tmp=pathlib.Path(td)\n  with zipfile.ZipFile(archive) as z:\n   entries=z.infolist();names=[e.filename\
+        \ for e in entries]\n   need(len(names)==len(set(names)) and set(names)==set(expected),'ZIP members differ')\n\
+        \   need(sum(e.file_size for e in entries)<=MAX,'oversized expansion')\n   for e in entries:\n    need(not\
+        \ e.is_dir() and stat.S_IFMT(e.external_attr>>16) in (0,stat.S_IFREG) and not e.flag_bits&1,'unsafe ZIP\
+        \ entry')\n    a=expected[e.filename];need(e.file_size==a['size'],'member size mismatch')\n    with z.open(e)\
+        \ as src,(tmp/e.filename).open('xb') as dst:shutil.copyfileobj(src,dst,1024*1024)\n    check_file(tmp/e.filename,a['size'],a['sha256'])\n\
+        \  # Move only a completely verified directory, never a partial output.\n  tmp.rename(out)\n return {n:{'size':a['size'],'sha256':a['sha256']}\
+        \ for n,a in expected.items()}\ndef backup_existing(snapshot,files,out):\n \"\"\"Create verified equivalent\
+        \ copy of exact existing release assets.\n Caller must subsequently persist and roundtrip this directory\
+        \ before mutation.\n \"\"\"\n need(snapshot['id']==442744057 and snapshot['tag_name']=='v0.1.9-zh.1','wrong\
+        \ old release')\n need(snapshot['draft'] is False and snapshot['prerelease'] is False,'unexpected state')\n\
+        \ assets=snapshot['assets'];names=[a['name'] for a in assets];ids=[a['id'] for a in assets]\n need(len(names)==len(set(names))\
+        \ and len(ids)==len(set(ids)),'duplicate snapshot')\n need(set(names)==ALLOWED|{'BUILD-PROVENANCE.json','SHA256SUMS.txt'},'unexpected\
+        \ old inventory')\n need(set(files)==set(names),'missing backup input')\n out=pathlib.Path(out);need(not\
+        \ out.exists(),'backup already exists');out.parent.mkdir(parents=True,exist_ok=True)\n with tempfile.TemporaryDirectory(dir=out.parent,prefix='.backup-')\
+        \ as td:\n  tmp=pathlib.Path(td)\n  for a in assets:\n   need(type(a['id']) is int and a['id']>0,'invalid\
+        \ old id')\n   need(a['state']=='uploaded' and re.fullmatch('sha256:[0-9a-f]{64}',a['digest']) is not None,'bad\
+        \ old metadata')\n   sha=a['digest'][7:];check_file(files[a['name']],a['size'],sha)\n   shutil.copyfile(files[a['name']],tmp/a['name']);check_file(tmp/a['name'],a['size'],sha)\n\
+        \  (tmp/'release-snapshot.json').write_text(json.dumps(snapshot,sort_keys=True,indent=2)+'\\n')\n  tmp.rename(out)\n\
+        \ return {'snapshot_sha256':digest(out/'release-snapshot.json'),'assets':len(assets),'durable_roundtrip_verified':False,'publication_enabled':False}\n\
+        REVIEWED_EOF\ncat > collect_public.py <<'REVIEWED_EOF'\n\"\"\"Exact desktop byte collection only. No GitHub\
+        \ write API; no source execution.\"\"\"\nimport json,os,re,urllib.request,urllib.error,urllib.parse,zipfile,hashlib\n\
+        from datetime import datetime,timezone\nfrom pathlib import Path\nimport collect_verified as C\nREPO='ZhiweiXiao98/t3code';BRANCH='validation/v0.1.9-desktop-byte-collection-74039745-accept-fix';WORKFLOW='.github/workflows/desktop-byte-collection.yml'\n\
+        class NoRedirect(urllib.request.HTTPRedirectHandler):\n def redirect_request(self,*a,**kw):return None\n\
+        class Api:\n def request(self,path,accept='application/vnd.github+json'):\n  C.need(path.startswith('/')\
+        \ or path=='','bad API suffix')\n  return urllib.request.Request('https://api.github.com/repos/'+REPO+path,headers={'Authorization':'Bearer\
+        \ '+os.environ['GITHUB_TOKEN'],'Accept':accept})\n def json(self,path):\n  with urllib.request.build_opener(NoRedirect()).open(self.request(path),timeout=60)\
+        \ as r:return json.load(r)\n def download(self,path,dest,size):\n  C.need(type(size)is int and 0<size<=C.MAX,'download\
+        \ bound invalid')\n  if re.fullmatch(r'/actions/artifacts/[1-9][0-9]*/zip',path):accept='application/vnd.github+json'\n\
+        \  elif re.fullmatch(r'/releases/assets/[1-9][0-9]*',path):accept='application/octet-stream'\n  else:raise\
+        \ C.Invalid('unsupported download endpoint')\n  try: urllib.request.build_opener(NoRedirect()).open(self.request(path,accept),timeout=60)\n\
+        \  except urllib.error.HTTPError as e:\n   C.need(e.code==302,'download must redirect');url=e.headers.get('Location','')\n\
+        \  else: raise C.Invalid('unexpected download response')\n  u=urllib.parse.urlparse(url);C.need(u.scheme=='https'\
+        \ and u.hostname and not u.username and not u.password and (u.hostname.endswith('.blob.core.windows.net')\
+        \ or u.hostname.endswith('.githubusercontent.com') or u.hostname.endswith('.actions.githubusercontent.com')),'unapproved\
+        \ storage origin')\n  # No Authorization header reaches object storage; redirects from storage fail closed.\n\
+        \  with urllib.request.build_opener(NoRedirect()).open(url,timeout=180) as src,Path(dest).open('xb') as\
+        \ dst:\n   total=0\n   while True:\n    b=src.read(min(1024*1024,size-total+1))\n    if not b:break\n  \
+        \  total+=len(b);C.need(total<=size,'download too large');dst.write(b)\n   C.need(total==size,'short download')\n\
+        def t(s):return datetime.fromisoformat(s.replace('Z','+00:00'))\ndef release_view(r,expected):\n return\
+        \ {k:([{key:a[key] for key in expected['assets'][0]} for a in r['assets']] if k=='assets' else r[k]) for\
+        \ k in expected}\ndef check_record(api,p):\n r=api.json('/actions/runs/'+str(p['run']['id']));C.need({k:r[k]\
+        \ for k in p['run']}==p['run'],'run changed');C.need(r['repository']['full_name']==r['head_repository']['full_name']==REPO,'wrong\
+        \ repository')\n js=api.json('/actions/runs/'+str(r['id'])+'/attempts/1/jobs?per_page=100');C.need(js['total_count']==len(js['jobs'])<=100,'incomplete\
+        \ jobs')\n matches=[j for j in js['jobs'] if j['id']==p['job']['id']];C.need(matches==[p['job']],'original\
+        \ producer changed');j=matches[0]\n C.need(j['run_id']==r['id'] and j['run_attempt']==1 and j['head_sha']==r['head_sha']\
+        \ and j['head_branch']==r['head_branch'] and j['status']=='completed' and j['conclusion']=='success','producer\
+        \ invalid')\n a=api.json('/actions/artifacts/'+str(p['artifact']['id']));C.need(a==p['artifact'],'artifact\
+        \ changed');C.need(not a['expired'] and t(a['expires_at'])>datetime.now(timezone.utc),'expired')\n C.need(a['workflow_run']['id']==r['id']\
+        \ and a['workflow_run']['head_sha']==r['head_sha'] and a['workflow_run']['head_branch']==r['head_branch'],'artifact\
+        \ source invalid')\n C.need(t(j['started_at'])<=t(a['created_at'])<=t(a['updated_at'])<=t(j['completed_at']),'outside\
+        \ producer interval')\n upload=[s for s in j['steps'] if s['number']==p['upload_step'] and 'upload' in s['name'].lower()\
+        \ and s['conclusion']=='success' and s['status']=='completed' and t(s['started_at'])<=t(a['created_at'])<=t(a['updated_at'])<=t(s['completed_at'])]\n\
+        \ C.need(len(upload)==1,'not uniquely within upload interval')\ndef snapshot(api,pins):\n C.need(pins['enabled']\
+        \ is False and pins['source']==C.SOURCE and pins['tree']==C.TREE,'publication/source guard')\n C.need(os.environ['GITHUB_REPOSITORY']==REPO\
+        \ and os.environ['GITHUB_REF']=='refs/heads/'+BRANCH and os.environ['GITHUB_EVENT_NAME']=='push','wrong\
+        \ operation')\n C.need(api.json('')['private'] is False,'standard public repository required')\n C.need(api.json('/git/ref/heads/maintenance/v0.1.9-zh-cloud')['object']['sha']==C.SOURCE,'source\
+        \ moved')\n C.need(api.json('/git/commits/'+C.SOURCE)['tree']['sha']==C.TREE,'source tree mismatch')\n op=os.environ['GITHUB_SHA'];commit=api.json('/git/commits/'+op);C.need([v['sha']\
+        \ for v in commit['parents']]==[C.SOURCE],'operation not exact source child')\n diff=api.json('/compare/'+C.SOURCE+'...'+op);C.need(diff['ahead_by']==1\
+        \ and diff['behind_by']==0 and [(f['filename'],f['status']) for f in diff['files']]==[(WORKFLOW,'added')],'operation\
+        \ altered source')\n arm=pins['records'][3]['run']['head_sha'];a=api.json('/git/commits/'+arm);C.need([v['sha']\
+        \ for v in a['parents']]==[C.SOURCE],'ARM operation not source child')\n d=api.json('/compare/'+C.SOURCE+'...'+arm);C.need(d['ahead_by']==1\
+        \ and d['behind_by']==0 and [(f['filename'],f['status']) for f in d['files']]==[(pins['arm_workflow_path'],'added')],'ARM\
+        \ operation changed source')\n for record in pins['records']:check_record(api,record)\n r=api.json('/releases/442744057');C.need(release_view(r,pins['old_release'])==pins['old_release'],'release\
+        \ inventory/body changed');C.need(r.get('immutable',False) is False,'release immutable')\n return pins['old_release']\n\
+        def collect(api,pins,root):\n snapshot(api,pins);root=Path(root);root.mkdir(exist_ok=False);raw=root/'raw';raw.mkdir();new=root/'new';new.mkdir();records=[]\n\
+        \ for p in pins['records']:\n  a=p['artifact'];zpath=raw/(str(a['id'])+'.zip');api.download('/actions/artifacts/'+str(a['id'])+'/zip',zpath,a['size_in_bytes']);C.check_file(zpath,a['size_in_bytes'],a['digest'][7:])\n\
+        \  names=set(p['installers']);trust={'client-mac-arm64':'MACOS-TRUST-arm64.txt','client-mac-x64':'MACOS-TRUST-x64.txt'}.get(a['name']);names\
+        \ |= {trust} if trust else set()\n  with zipfile.ZipFile(zpath) as z:\n   C.need(set(z.namelist())==names\
+        \ and len(z.namelist())==len(names),'unexpected archive files')\n   expected={i.filename:{'size':i.file_size,'sha256':p['installers'].get(i.filename)}\
+        \ for i in z.infolist()}\n   if trust:\n    C.need(expected[trust]['size']<=1024*1024,'trust report oversized');expected[trust]['sha256']=hashlib.sha256(z.read(trust)).hexdigest()\n\
+        \  extracted=raw/(str(a['id'])+'-extracted');C.extract_archive(zpath,{'size':a['size_in_bytes'],'sha256':a['digest'][7:]},expected,extracted)\n\
+        \  for n,e in expected.items():\n   C.need(not (new/n).exists(),'duplicate output');(extracted/n).rename(new/n);records.append({'name':n,**e,'artifact_id':a['id'],'producer_run':p['run']['id'],'producer_job':p['job']['id']})\n\
+        \ oldraw=raw/'old';oldraw.mkdir();files={}\n for a in pins['old_release']['assets']:\n  path=oldraw/a['name'];api.download('/releases/assets/'+str(a['id']),path,a['size']);C.check_file(path,a['size'],a['digest'][7:]);files[a['name']]=str(path)\n\
+        \ backup=C.backup_existing(pins['old_release'],files,root/'old-backup')\n snapshot(api,pins)\n receipt={'schema':1,'source':C.SOURCE,'tree':C.TREE,'publication_enabled':False,'publication_status':pins['publication'],'scope':'byte\
+        \ collection and backup only; NOT full acceptance/publication','operation_sha':os.environ['GITHUB_SHA'],'run_id':int(os.environ['GITHUB_RUN_ID']),'attempt':int(os.environ['GITHUB_RUN_ATTEMPT']),'new_assets':records,'backup':backup,'backup_retention_days':14,'backup_restore_status':'NOT_VERIFIED\
+        \ until uploaded artifact is downloaded and rehashed; no deletion allowed','pins_sha256':C.digest(Path(__file__).with_name('collection-pins.json'))}\n\
+        \ receipts=root/'receipts';receipts.mkdir();(receipts/'collection-receipt.json').write_text(json.dumps(receipt,ensure_ascii=False,indent=2)+'\\\
+        n');(receipts/'pins.json').write_text(json.dumps(pins,ensure_ascii=False,indent=2)+'\\n')\n return receipt\n\
+        if __name__=='__main__':collect(Api(),json.loads(Path(__file__).with_name('collection-pins.json').read_text()),Path(os.environ['RUNNER_TEMP'])/'desktop-collection')\n\
+        REVIEWED_EOF\ncat > verify_roundtrip.py <<'REVIEWED_EOF'\n\"\"\"Read-only artifact roundtrip. Blocked until\
+        \ exact successful collection pins reviewed.\"\"\"\nimport hashlib,json,os,stat,zipfile\nfrom pathlib import\
+        \ Path\nimport collect_verified as C\nimport collect_public as P\nCOLLECTOR_OP='75bae1f4c7ceace61211be7d9d5e203014abf474'\n\
+        COLLECTOR_RUN=43995592784\nBRANCH='validation/v0.1.9-desktop-roundtrip-74039745-metadata-fix'\nWORKFLOW='.github/workflows/desktop-roundtrip.yml'\n\
+        def checked_members(path,expected):\n \"\"\"Rehash every entry without extracting executable bytes.\"\"\"\
+        \n with zipfile.ZipFile(path) as z:\n  entries=z.infolist();names=[e.filename for e in entries]\n  C.need(len(names)==len(set(names))\
+        \ and set(names)==set(expected),'ZIP exact inventory mismatch')\n  C.need(sum(e.file_size for e in entries)<=C.MAX,'expansion\
+        \ too large')\n  result={}\n  for e in entries:\n   C.need(not e.is_dir() and stat.S_IFMT(e.external_attr>>16)\
+        \ in (0,stat.S_IFREG) and not e.flag_bits&1,'unsafe entry')\n   pin=expected[e.filename];C.need(e.file_size==pin['size'],'entry\
+        \ size mismatch')\n   h=hashlib.sha256()\n   with z.open(e) as f:\n    for block in iter(lambda:f.read(1024*1024),b''):h.update(block)\n\
+        \   C.need(h.hexdigest()==pin['sha256'],'entry digest mismatch');result[e.filename]=pin\n  return result\n\
+        def read_json(path,name):\n with zipfile.ZipFile(path) as z:\n  e=z.getinfo(name);C.need(e.file_size<=2*1024*1024,'JSON\
+        \ oversized');return json.loads(z.read(e))\ndef identity(api):\n C.need(os.environ['GITHUB_REPOSITORY']==P.REPO\
+        \ and os.environ['GITHUB_REF']=='refs/heads/'+BRANCH and os.environ['GITHUB_EVENT_NAME']=='push','wrong\
+        \ roundtrip operation')\n C.need(api.json('')['private'] is False,'public standard runner repository required')\n\
+        \ C.need(api.json('/git/ref/heads/maintenance/v0.1.9-zh-cloud')['object']['sha']==C.SOURCE,'source moved')\n\
+        \ C.need(api.json('/git/commits/'+C.SOURCE)['tree']['sha']==C.TREE,'source tree mismatch')\n for op,path\
+        \ in [(os.environ['GITHUB_SHA'],WORKFLOW),(COLLECTOR_OP,P.WORKFLOW)]:\n  commit=api.json('/git/commits/'+op);C.need([v['sha']\
+        \ for v in commit['parents']]==[C.SOURCE],'not exact source child')\n  d=api.json('/compare/'+C.SOURCE+'...'+op);C.need(d['ahead_by']==1\
+        \ and d['behind_by']==0 and [(f['filename'],f['status']) for f in d['files']]==[(path,'added')],'operation\
+        \ changed source')\ndef check_release(api,old):\n C.need(P.release_view(api.json('/releases/442744057'),old)==old,'release\
+        \ changed')\ndef check_entry_producer(entry,producer):\n C.need(entry['producer_run']==producer['run']['id']\
+        \ and entry['producer_job']==producer['job']['id'],'asset producer mismatch')\n if entry['name'] in C.INSTALLERS:\n\
+        \  C.need(entry['name'] in producer['installers'],'installer not owned by claimed producer')\n  C.need(entry['sha256']==producer['installers'][entry['name']],'installer\
+        \ producer acceptance mismatch')\n else:C.need(entry['name']=={'client-mac-arm64':'MACOS-TRUST-arm64.txt','client-mac-x64':'MACOS-TRUST-x64.txt'}.get(producer['artifact']['name']),'trust\
+        \ report producer mismatch')\ndef main():\n pins=json.loads(Path('roundtrip-pins.json').read_text());C.need(pins['enabled']\
+        \ is True,'BLOCKED: reviewed artifact pins required')\n C.need(pins['collector_operation']==COLLECTOR_OP\
+        \ and pins['collector_run']==COLLECTOR_RUN,'wrong collector operation');C.need(pins['collector_run'] and\
+        \ pins['collector_job'] and pins['artifact_records'] and pins['receipt_sha256'],'incomplete pins')\n source=json.loads(Path('collection-pins.json').read_text());api=P.Api();identity(api)\n\
+        \ check_release(api,source['old_release'])\n records=pins['artifact_records'];C.need(set(records)=={'old','new','receipt'},'wrong\
+        \ roles')\n role_names={'old':'old-desktop-release-backup','new':'new-desktop-verified-bytes','receipt':'desktop-byte-collection-receipt'}\n\
+        \ for role,r in records.items():\n  C.need(r['artifact']['name']==role_names[role]+'-'+str(COLLECTOR_RUN)+'-1','artifact\
+        \ role mismatch')\n  C.need(r['run']['id']==pins['collector_run'] and r['run']['head_sha']==COLLECTOR_OP\
+        \ and r['run']['status']=='completed' and r['run']['conclusion']=='success' and r['run']['run_attempt']==1,'collector\
+        \ not exact successful run')\n  C.need(r['job']['id']==pins['collector_job'],'wrong original collector job');P.check_record(api,r)\n\
+        \ root=Path(os.environ['RUNNER_TEMP'])/'desktop-roundtrip';root.mkdir(exist_ok=False);paths={}\n for role,r\
+        \ in records.items():\n  a=r['artifact'];path=root/(role+'.zip');api.download('/actions/artifacts/'+str(a['id'])+'/zip',path,a['size_in_bytes']);C.check_file(path,a['size_in_bytes'],a['digest'][7:]);paths[role]=path\n\
+        \ with zipfile.ZipFile(paths['receipt']) as z:\n  C.need(set(z.namelist())=={'collection-receipt.json','pins.json'}\
+        \ and len(z.namelist())==2,'receipt inventory')\n  C.need(all(e.file_size<=2*1024*1024 and stat.S_IFMT(e.external_attr>>16)\
+        \ in (0,stat.S_IFREG) and not e.flag_bits&1 for e in z.infolist()),'unsafe receipt member');b=z.read('collection-receipt.json');C.need(hashlib.sha256(b).hexdigest()==pins['receipt_sha256'],'reviewed\
+        \ receipt mismatch');r=json.loads(b)\n  C.need(json.loads(z.read('pins.json'))==source,'collection pins\
+        \ changed')\n C.need(r['source']==C.SOURCE and r['tree']==C.TREE and r['operation_sha']==COLLECTOR_OP and\
+        \ r['run_id']==pins['collector_run'] and r['attempt']==1 and r['publication_enabled'] is False,'receipt\
+        \ identity invalid')\n C.need(r['pins_sha256']==C.digest('collection-pins.json'),'pins byte hash mismatch')\n\
+        \ old=source['old_release'];snapshot_bytes=(json.dumps(old,sort_keys=True,indent=2)+'\\n').encode()\n old_entries={a['name']:{'size':a['size'],'sha256':a['digest'][7:]}\
+        \ for a in old['assets']};old_entries['release-snapshot.json']={'size':len(snapshot_bytes),'sha256':hashlib.sha256(snapshot_bytes).hexdigest()}\n\
+        \ checked_members(paths['old'],old_entries)\n C.need(r['backup']['snapshot_sha256']==old_entries['release-snapshot.json']['sha256'],'backup\
+        \ snapshot link mismatch')\n for entry in r['new_assets']:\n  producer=[v for v in source['records'] if\
+        \ v['artifact']['id']==entry['artifact_id']];C.need(len(producer)==1,'unknown source artifact');producer=producer[0]\n\
+        \  check_entry_producer(entry,producer)\n expected_hashes={n:h for v in source['records'] for n,h in v['installers'].items()};new_entries={a['name']:{'size':a['size'],'sha256':a['sha256']}\
+        \ for a in r['new_assets']}\n C.need(len(new_entries)==len(r['new_assets']) and set(new_entries)==C.ALLOWED,'new\
+        \ inventory')\n for n,h in expected_hashes.items():C.need(new_entries[n]['sha256']==h,'installer acceptance\
+        \ mismatch')\n checked_members(paths['new'],new_entries)\n for role,v in records.items():P.check_record(api,v)\n\
+        \ identity(api)\n check_release(api,old)\n out=root/'receipt';out.mkdir();(out/'roundtrip-receipt.json').write_text(json.dumps({'source':C.SOURCE,'collector_run':pins['collector_run'],'roundtrip_run':int(os.environ['GITHUB_RUN_ID']),'backup_bytes_verified':True,'new_bytes_verified':True,'publication_enabled':False,'publication_status':'BLOCKED\
+        \ until independent release approval and all gate evidence complete','artifacts':{k:v['artifact'] for k,v\
+        \ in records.items()},'old_entries':old_entries,'new_entries':new_entries},sort_keys=True,indent=2)+'\\\
+        n')\nif __name__=='__main__':main()\nREVIEWED_EOF\ncat > replace_assets.py <<'REVIEWED_EOF'\n\"\"\"Fixed\
+        \ desktop replacement engine. Disabled by default; adapter is separately reviewed.\nOnly an independently\
+        \ reviewed adapter may supply the API methods. No keys/signing.\n\"\"\"\nimport hashlib,json,re\nfrom datetime\
+        \ import datetime,timezone\nimport collect_verified as C\nRELEASE=442744057;TAG='v0.1.9-zh.1';NAMES=C.ALLOWED|{'BUILD-PROVENANCE.json','SHA256SUMS.txt'}\n\
+        class ReplacementError(RuntimeError):\n def __init__(self,message,journal,rollback_errors=()):\n  super().__init__(message);self.journal=journal;self.rollback_errors=list(rollback_errors)\n\
+        def sha(b):return hashlib.sha256(b).hexdigest()\ndef ensure(b,msg):\n if not b:raise ValueError(msg)\ndef\
+        \ inventory(api):\n r=api.release(RELEASE);ensure(r['id']==RELEASE and r['tag_name']==TAG and not r['draft']\
+        \ and not r['prerelease'],'wrong release')\n assets=api.assets(RELEASE);ensure(len({a['id'] for a in assets})==len(assets)\
+        \ and len({a['name'] for a in assets})==len(assets),'duplicate inventory');return {a['id']:a for a in assets}\n\
+        def verify_bytes(a,expected):\n ensure(a['state']=='uploaded' and a['size']==expected['size'] and a['digest']=='sha256:'+expected['sha256'],'asset\
+        \ bytes mismatch')\ndef verify_inputs(pins,new,old,backup_receipt):\n ensure(pins.get('enabled') is True,'BLOCKED:\
+        \ replacement disabled')\n ensure(pins['source']==C.SOURCE and pins['release_id']==RELEASE and pins['tag']==TAG,'wrong\
+        \ target/source')\n ensure(set(new)==set(old)==set(pins['new'])==set(pins['old'])==NAMES,'wrong ten-asset\
+        \ inventory')\n ensure(len({v['id'] for v in pins['old'].values()})==10,'old IDs must be unique')\n for\
+        \ name in NAMES:\n  ensure(len(new[name])==pins['new'][name]['size'] and sha(new[name])==pins['new'][name]['sha256'],'new\
+        \ bytes invalid')\n  ensure(len(old[name])==pins['old'][name]['size'] and sha(old[name])==pins['old'][name]['sha256'],'verified\
+        \ backup bytes missing/corrupt')\n ensure(sha(backup_receipt)==pins['backup_receipt_sha256'],'backup receipt\
+        \ not reviewed')\n br=json.loads(backup_receipt);ensure(br['source']==C.SOURCE and br['backup_bytes_verified']\
+        \ is True and br['new_bytes_verified'] is True and br['publication_enabled'] is False,'backup roundtrip\
+        \ not verified')\n ensure(br['roundtrip_run']==pins['backup_roundtrip_run'],'wrong backup verification run')\n\
+        \ ensure(pins['roundtrip_run_snapshot']['id']==pins['backup_roundtrip_run'],'roundtrip snapshot run mismatch')\n\
+        \ ensure(pins['backup_artifact_snapshot']==br['artifacts']['old'],'backup artifact receipt mismatch')\n\
+        \ ensure(pins['backup_expires_at']==br['artifacts']['old']['expires_at'],'backup expiry receipt mismatch')\n\
+        \ ensure(set(br['new_entries'])==C.ALLOWED,'receipt new coverage mismatch')\n for name in C.ALLOWED:\n \
+        \ ensure(br['new_entries'][name]=={k:pins['new'][name][k] for k in ['size','sha256']},'receipt new identity\
+        \ mismatch')\n ensure(set(br['old_entries'])==NAMES|{'release-snapshot.json'},'receipt old coverage mismatch')\n\
+        \ ensure(br['old_entries']['release-snapshot.json']==pins['backup_release_snapshot'],'backup release snapshot\
+        \ mismatch')\n for name in NAMES:\n  ensure(br['old_entries'][name]=={k:pins['old'][name][k] for k in ['size','sha256']},'backup\
+        \ identity mismatch')\n ensure(datetime.fromisoformat(pins['backup_expires_at'].replace('Z','+00:00'))>datetime.now(timezone.utc),'backup\
+        \ expired')\n manifest=json.loads(new['BUILD-PROVENANCE.json']);ensure(manifest['source_sha']==C.SOURCE\
+        \ and manifest['version']=='0.1.9-zh.1','wrong new provenance')\n ensure({a['name'] for a in manifest['assets']}==C.ALLOWED\
+        \ and len(manifest['assets'])==8,'provenance asset coverage mismatch')\n for a in manifest['assets']:ensure(a['size']==len(new[a['name']])\
+        \ and a['sha256']==sha(new[a['name']]),'provenance byte mismatch')\n sums={}\n for line in new['SHA256SUMS.txt'].decode('utf-8').splitlines():\n\
+        \  match=re.fullmatch(r'([0-9a-f]{64})  (.+)',line);ensure(match is not None,'malformed checksums');h,n=match.groups();ensure(n\
+        \ not in sums,'duplicate checksum');sums[n]=h\n ensure(set(sums)==NAMES-{'SHA256SUMS.txt'} and all(sums[n]==sha(new[n])\
+        \ for n in sums),'checksum/provenance mismatch')\n return br\nclass Replace:\n def __init__(self,api,pins,new_bytes,old_backup_bytes,backup_receipt):\n\
+        \  self.api=api;self.p=pins;self.new=new_bytes;self.old=old_backup_bytes;self.receipt=backup_receipt;self.journal=[];self.staged={};self.committed=False\n\
+        \ def log(self,event,**fields):\n  entry={'event':event,**fields};self.api.record(entry);self.journal.append(entry)\n\
+        \ def freshness(self):\n  ensure(self.api.source()==C.SOURCE,'maintenance source moved')\n  actual=self.api.release(RELEASE);ensure(all(actual[k]==v\
+        \ for k,v in self.p['release_metadata'].items()),'release metadata changed')\n  # Adapter must check exact\
+        \ current backup artifact metadata and reviewed roundtrip\n  # success/provenance. Local flags alone never\
+        \ authorize destructive cleanup.\n  ensure(self.api.backup_available(self.p) is True,'verified equivalent\
+        \ backup unavailable')\n def find(self,id):\n  inv=inventory(self.api);ensure(id in inv,'asset ID missing');return\
+        \ inv[id]\n def rename(self,id,old_name,new_name):\n  inv=inventory(self.api);ensure(id in inv and inv[id]['name']==old_name,'rename\
+        \ source mismatch');ensure(not any(a['name']==new_name for a in inv.values()),'rename destination occupied')\n\
+        \  self.log('rename-intent',id=id,old=old_name,new=new_name)\n  error=None\n  try:self.api.rename(RELEASE,id,new_name)\n\
+        \  except Exception as e:error=e\n  # Always reconcile by GET after write, including uncertain response.\
+        \ Never retry.\n  actual=self.find(id)\n  if actual['name']==new_name:self.log('rename-confirmed',id=id,old=old_name,new=new_name);return\n\
+        \  ensure(actual['name']==old_name,'unexpected rename state')\n  if error:raise error\n  raise ValueError('rename\
+        \ not applied')\n def stage(self,name):\n  staged=name+'.candidate-74039745';inv=inventory(self.api);hits=[a\
+        \ for a in inv.values() if a['name']==staged]\n  if not hits:\n   self.log('upload-intent',name=staged,sha256=self.p['new'][name]['sha256'])\n\
+        \   error=None\n   try:self.api.upload(RELEASE,staged,self.new[name])\n   except Exception as e:error=e\n\
+        \   hits=[a for a in inventory(self.api).values() if a['name']==staged]\n   if not hits:\n    if error:raise\
+        \ error\n    raise ValueError('upload not found')\n  ensure(len(hits)==1,'ambiguous staged asset');a=hits[0];verify_bytes(a,self.p['new'][name]);ensure(sha(self.api.download(a['id']))==self.p['new'][name]['sha256'],'staged\
+        \ download mismatch')\n  self.staged[name]=a['id'];self.log('stage-confirmed',id=a['id'],name=staged)\n\
+        \ def adopt_staged(self):\n  # Resume only pre-commit staging; partial canonical switches require explicit\
+        \ recover().\n  for a in inventory(self.api).values():\n   if a['name'].endswith('.candidate-74039745'):\n\
+        \    name=a['name'][:-len('.candidate-74039745')];ensure(name in NAMES,'unrelated candidate asset');verify_bytes(a,self.p['new'][name]);ensure(sha(self.api.download(a['id']))==sha(self.new[name]),'preexisting\
+        \ staged bytes mismatch');self.staged[name]=a['id']\n def old_inventory(self):\n  inv=inventory(self.api)\n\
+        \  for name,expected in self.p['old'].items():\n   ensure(expected['id'] in inv and inv[expected['id']]['name']==name,'old\
+        \ asset moved');verify_bytes(inv[expected['id']],expected)\n  allowed={v['id'] for v in self.p['old'].values()}|set(self.staged.values());ensure(set(inv)==allowed,'unrelated\
+        \ asset mutation')\n def rollback(self):\n  errors=[]\n  for name in reversed(sorted(NAMES)):\n   try:\n\
+        \    oid=self.p['old'][name]['id'];inv=inventory(self.api);ensure(oid in inv,'old asset unavailable for\
+        \ rollback');old=inv[oid];verify_bytes(old,self.p['old'][name]);nid=self.staged.get(name)\n    if nid in\
+        \ inv and inv[nid]['name']==name:self.rename(nid,name,name+'.candidate-74039745')\n    old=self.find(oid)\n\
+        \    if old['name']==name+'.rollback-74039745':self.rename(oid,old['name'],name)\n    else:ensure(old['name']==name,'old\
+        \ name unexpectedly changed')\n   except Exception as e:errors.append({'name':name,'error':str(e)});self.log('rollback-failed',name=name,error=str(e))\n\
+        \  return errors\n def recover(self):\n  # Explicit recovery only, never an implicit second attempt at publication.\n\
+        \  verify_inputs(self.p,self.new,self.old,self.receipt);self.freshness();inv=inventory(self.api)\n  allowed={v['id']\
+        \ for v in self.p['old'].values()}\n  for name in sorted(NAMES):\n   oid=self.p['old'][name]['id'];ensure(oid\
+        \ in inv,'old ID missing; use verified backup handoff, not automatic rollback')\n   ensure(inv[oid]['name']\
+        \ in (name,name+'.rollback-74039745'),'old name outside transaction');verify_bytes(inv[oid],self.p['old'][name])\n\
+        \   hits=[a for a in inv.values() if a['id']!=oid and a['name'] in (name,name+'.candidate-74039745')]\n\
+        \   ensure(len(hits)<=1,'ambiguous recovery asset')\n   if hits:\n    a=hits[0];verify_bytes(a,self.p['new'][name]);ensure(sha(self.api.download(a['id']))==sha(self.new[name]),'recovery\
+        \ staged bytes mismatch');self.staged[name]=a['id'];allowed.add(a['id'])\n  ensure(set(inv)==allowed,'unrelated\
+        \ asset during recovery');errors=self.rollback()\n  return {'restored_old_canonical':not errors,'rollback_errors':errors,'journal':self.journal}\n\
+        \ def run(self):\n  verify_inputs(self.p,self.new,self.old,self.receipt);self.freshness();self.adopt_staged();self.old_inventory()\n\
+        \  try:\n   for name in sorted(NAMES):self.stage(name)\n   self.freshness();self.old_inventory()\n   for\
+        \ name in sorted(NAMES):\n    self.rename(self.p['old'][name]['id'],name,name+'.rollback-74039745')\n  \
+        \  self.rename(self.staged[name],name+'.candidate-74039745',name)\n   # Commit barrier: all canonical bytes\
+        \ independently downloaded/checked before cleanup.\n   inv=inventory(self.api)\n   ensure(set(inv)==set(self.staged.values())|{v['id']\
+        \ for v in self.p['old'].values()},'unexpected inventory at commit')\n   for name,id in self.staged.items():\n\
+        \    ensure(inv[id]['name']==name,'new canonical name missing');verify_bytes(inv[id],self.p['new'][name]);ensure(sha(self.api.download(id))==sha(self.new[name]),'new\
+        \ canonical readback mismatch')\n   self.freshness();self.committed=True;self.log('canonical-set-verified')\n\
+        \  except Exception as e:\n   errors=self.rollback() if self.staged else []\n   raise ReplacementError(str(e),self.journal,errors)\
+        \ from e\n  # Past commit barrier canonical new assets stay in place even if cleanup fails.\n  # Never roll\
+        \ back using partially deleted old IDs. Preserve exact backup separately.\n  cleanup=[]\n  for name,old\
+        \ in sorted(self.p['old'].items()):\n   try:\n    self.freshness()\n    inv=inventory(self.api)\n    for\
+        \ n,nid in self.staged.items():\n     ensure(nid in inv and inv[nid]['name']==n,'canonical set changed during\
+        \ cleanup');verify_bytes(inv[nid],self.p['new'][n])\n    a=self.find(old['id']);ensure(a['name']==name+'.rollback-74039745','wrong\
+        \ cleanup target');verify_bytes(a,old)\n    self.log('delete-intent',id=old['id'])\n    error=None\n   \
+        \ try:self.api.delete(RELEASE,old['id'])\n    except Exception as e:error=e\n    if old['id'] not in inventory(self.api):self.log('delete-confirmed',id=old['id']);continue\n\
+        \    if error:raise error\n    raise ValueError('delete not applied')\n   except Exception as e:cleanup.append({'id':old['id'],'error':str(e)});self.log('cleanup-stopped',id=old['id'],error=str(e));break\n\
+        \  return {'canonical_new_verified':True,'cleanup_complete':not cleanup,'cleanup_errors':cleanup,'journal':self.journal,'release':RELEASE,'source':C.SOURCE}\n\
+        REVIEWED_EOF\ncat > replacement_api.py <<'REVIEWED_EOF'\n\"\"\"Fixed-origin GitHub adapter. Writes disabled\
+        \ unless explicitly armed by reviewed workflow.\nNot imported or executed by any active workflow. No generic\
+        \ URL/method passthrough.\n\"\"\"\nimport json,os,re,urllib.request,urllib.error,urllib.parse\nfrom pathlib\
+        \ import Path\nfrom datetime import datetime,timezone\nimport replace_assets as R\nimport collect_verified\
+        \ as C\nclass NoRedirect(urllib.request.HTTPRedirectHandler):\n def redirect_request(self,*a,**kw):return\
+        \ None\nclass GitHub:\n def __init__(self,pins,journal_path,allow_mutation=False,opener=None):\n  self.p=pins;self.allow=allow_mutation;self.opener=opener\
+        \ or urllib.request.build_opener(NoRedirect());self.journal=Path(journal_path)\n  self.token=os.environ.get('GITHUB_TOKEN','');R.ensure(bool(self.token),'Actions\
+        \ token required')\n def req(self,method,path,data=None,upload=False,accept='application/vnd.github+json'):\n\
+        \  # Only the exact reviewed repository and route patterns below are ever usable.\n  reads=[r'/releases/442744057',r'/releases/442744057/assets\\\
+        ?per_page=100',r'/releases/assets/[1-9][0-9]*',r'/git/ref/heads/maintenance/v0\\.1\\.9-zh-cloud',r'/actions/runs/[1-9][0-9]*',r'/actions/artifacts/[1-9][0-9]*']\n\
+        \  if method=='GET':R.ensure(not upload and any(re.fullmatch(x,path) for x in reads),'unlisted read route')\n\
+        \  else:\n   R.ensure(self.allow is True and self.p.get('enabled') is True,'write adapter disabled')\n \
+        \  R.ensure(self.p.get('operation_sha') and os.environ.get('GITHUB_SHA')==self.p['operation_sha'] and os.environ.get('APPROVED_DESKTOP_REPLACEMENT')=='442744057','reviewed\
+        \ operation interlock')\n   R.ensure(os.environ.get('GITHUB_REPOSITORY')=='ZhiweiXiao98/t3code','wrong repository')\n\
+        \   R.ensure((method=='POST' and upload and re.fullmatch(r'/releases/442744057/assets\\?name=[A-Za-z0-9._%-]+',path))\
+        \ or (method in ('PATCH','DELETE') and not upload and re.fullmatch(r'/releases/assets/[1-9][0-9]*',path)),'unlisted\
+        \ mutation')\n  host='uploads.github.com' if upload else 'api.github.com';body=data if isinstance(data,bytes)\
+        \ else (json.dumps(data).encode() if data is not None else None)\n  headers={'Authorization':'Bearer '+self.token,'Accept':accept,'X-GitHub-Api-Version':'2022-11-28'}\n\
+        \  if body is not None:headers.update({'Content-Type':'application/octet-stream' if upload else 'application/json','Content-Length':str(len(body))})\n\
+        \  request=urllib.request.Request('https://'+host+'/repos/ZhiweiXiao98/t3code'+path,data=body,headers=headers,method=method)\n\
+        \  # No retry. Mutation errors must be reconciled through engine GET state.\n  with self.opener.open(request,timeout=180)\
+        \ as response:\n   raw=response.read();return json.loads(raw) if raw else None\n def release(self,id):R.ensure(id==R.RELEASE,'wrong\
+        \ release');return self.req('GET','/releases/442744057')\n def assets(self,id):\n  R.ensure(id==R.RELEASE,'wrong\
+        \ release');a=self.req('GET','/releases/442744057/assets?per_page=100');R.ensure(len(a)<100,'asset pagination\
+        \ unexpected');return a\n def source(self):return self.req('GET','/git/ref/heads/maintenance/v0.1.9-zh-cloud')['object']['sha']\n\
+        \ def backup_available(self,pins):\n  # Exact reviewed successful roundtrip and original backup archive\
+        \ identity required.\n  expected=pins.get('roundtrip_run_snapshot');backup=pins.get('backup_artifact_snapshot')\n\
+        \  R.ensure(expected and backup,'missing reviewed live backup proof')\n  R.ensure(expected['id']==pins['backup_roundtrip_run'],'roundtrip\
+        \ snapshot run mismatch')\n  r=self.req('GET','/actions/runs/'+str(expected['id']));R.ensure({k:r[k] for\
+        \ k in expected}==expected and r['status']=='completed' and r['conclusion']=='success','roundtrip changed/not\
+        \ successful')\n  a=self.req('GET','/actions/artifacts/'+str(backup['id']));R.ensure(a==backup and a['expired']\
+        \ is False,'backup artifact changed')\n  R.ensure(datetime.fromisoformat(a['expires_at'].replace('Z','+00:00'))>datetime.now(timezone.utc),'backup\
+        \ expired');return True\n def record(self,entry):\n  # Append+fsync before each write. Workflow must preserve\
+        \ journal even on failure.\n  self.journal.parent.mkdir(parents=True,exist_ok=True)\n  with self.journal.open('a',encoding='utf-8')\
+        \ as f:f.write(json.dumps(entry,sort_keys=True)+'\\n');f.flush();os.fsync(f.fileno())\n def upload(self,release,name,data):\n\
+        \  R.ensure(release==R.RELEASE and name.endswith('.candidate-74039745') and name[:-len('.candidate-74039745')]\
+        \ in R.NAMES,'upload outside staged allowlist')\n  return self.req('POST','/releases/442744057/assets?name='+urllib.parse.quote(name,safe=''),data,upload=True)\n\
+        \ def rename(self,release,id,name):\n  R.ensure(release==R.RELEASE and any(name==n or name in (n+'.candidate-74039745',n+'.rollback-74039745')\
+        \ for n in R.NAMES),'rename outside allowlist')\n  matches=[a for a in self.assets(release) if a['id']==id]\n\
+        \  R.ensure(len(matches)==1,'rename ID outside fixed release')\n  return self.req('PATCH','/releases/assets/'+str(id),{'name':name})\n\
+        \ def delete(self,release,id):\n  R.ensure(release==R.RELEASE and id in {a['id'] for a in self.p['old'].values()},'delete\
+        \ outside pinned old IDs')\n  return self.req('DELETE','/releases/assets/'+str(id))\n def download(self,id):\n\
+        \  a=self.req('GET','/releases/assets/'+str(id));size=a['size'];R.ensure(type(size)is int and 0<size<=C.MAX,'invalid\
+        \ asset size')\n  # Fixed API binary redirect, then anonymous signed object storage only.\n  request=urllib.request.Request('https://api.github.com/repos/ZhiweiXiao98/t3code/releases/assets/'+str(id),headers={'Authorization':'Bearer\
+        \ '+self.token,'Accept':'application/octet-stream'})\n  try:self.opener.open(request,timeout=60)\n  except\
+        \ urllib.error.HTTPError as e:\n   R.ensure(e.code==302,'binary download redirect missing');location=e.headers.get('Location','')\n\
+        \  else:raise ValueError('unexpected binary response')\n  u=urllib.parse.urlparse(location);R.ensure(u.scheme=='https'\
+        \ and u.hostname and not u.username and not u.password and (u.hostname.endswith('.githubusercontent.com')\
+        \ or u.hostname.endswith('.blob.core.windows.net')),'unapproved binary host')\n  with self.opener.open(location,timeout=180)\
+        \ as f:\n   b=f.read(size+1);R.ensure(len(b)==size and 'sha256:'+R.sha(b)==a['digest'],'download bytes mismatch');return\
+        \ b\nREVIEWED_EOF\ncat > publish_fixed.py <<'REVIEWED_EOF'\n\"\"\"Fixed ten-asset candidate runner. All\
+        \ activation gates default closed.\"\"\"\nimport json,os,zipfile,re\nfrom pathlib import Path\nimport collect_verified\
+        \ as C\nimport collect_public as P\nimport verify_roundtrip as V\nimport replace_assets as R\nimport replacement_api\
+        \ as A\nBRANCH='validation/v0.1.9-desktop-replacement-74039745'\nWORKFLOW='.github/workflows/desktop-replacement.yml'\n\
+        def main():\n pins=json.loads(Path('replacement-pins.json').read_text())\n C.need(pins['enabled'] is True\
+        \ and pins['semantic_review_approved'] is True,'BLOCKED: final review not approved')\n expected=os.environ['GITHUB_SHA'];payload=os.environ.get('EXPECTED_PAYLOAD_SHA256','')\n\
+        \ C.need(re.fullmatch('[0-9a-f]{40}',expected) and re.fullmatch('[0-9a-f]{64}',payload),'invalid operation/payload')\n\
+        \ C.need(pins['operation_sha'] is None,'unexpected embedded self-reference')\n raw=Path('payload-manifest.json').read_bytes();C.need(R.sha(raw)==payload,'payload\
+        \ manifest not reviewed')\n for name,h in json.loads(raw).items():\n  C.need('/' not in name and name not\
+        \ in ('.','..') and R.sha(Path(name).read_bytes())==h,'embedded payload changed')\n C.need(os.environ['GITHUB_REF']=='refs/heads/'+BRANCH\
+        \ and os.environ['GITHUB_EVENT_NAME']=='push' and os.environ['GITHUB_REPOSITORY']==P.REPO,'wrong operation')\n\
+        \ C.need(int(os.environ['GITHUB_RUN_ATTEMPT'])==1,'no implicit rerun; inspect actual state and journal first')\n\
+        \ review=Path('semantic-review.json').read_bytes();C.need(R.sha(review)==pins['semantic_review_receipt_sha256'],'review\
+        \ receipt changed');rv=json.loads(review)\n C.need(rv['success'] is True and rv['source']==C.SOURCE and\
+        \ rv['run']==44002947263 and rv['logical_gates']==26 and rv['zip_artifacts']==26 and rv['verified_inner_members']==333\
+        \ and rv['original_raw_logs']==7,'review scope mismatch')\n manifest=Path('BUILD-PROVENANCE.json').read_bytes();m=json.loads(manifest)\n\
+        \ C.need(m['validation']['semantic_review']['approved'] is True and m['validation']['semantic_review']['receipt_sha256']==R.sha(review),'provenance\
+        \ not approved')\n C.need(m['validation']['semantic_review']['strict_semantics']==rv['strict_semantics']\
+        \ and m['validation']['semantic_review']['source_pin_corroboration']==rv['source_pin_corroboration'],'semantic\
+        \ provenance mismatch')\n C.need(rv['source_pin_corroboration']['independent_source']==C.SOURCE and len(rv['source_pin_corroboration']['files'])==5,'source\
+        \ corroboration incomplete')\n gates=m['validation']['logical_gates'];C.need(set(gates)=={'android','arm-build','arm-dmg','arm-zip','bundle','desktop-intel','desktop-win','intel-dmg','intel-zip','linux','linux-clean','mobile','quality','rust','source','tests-clients','tests-server-1','tests-server-2','tests-server-3','web-1','web-2','web-3','web-4','web-boot','web-coverage','windows-clean'},'exact\
+        \ gate matrix incomplete')\n api=P.Api();C.need(api.json('')['private'] is False,'public repository required')\n\
+        \ C.need(api.json('/git/ref/heads/maintenance/v0.1.9-zh-cloud')['object']['sha']==C.SOURCE,'source moved')\n\
+        \ C.need(api.json('/git/commits/'+C.SOURCE)['tree']['sha']==C.TREE,'source tree changed')\n op=api.json('/git/commits/'+expected);C.need([p['sha']\
+        \ for p in op['parents']]==[C.SOURCE],'operation not direct source child')\n diff=api.json('/compare/'+C.SOURCE+'...'+expected);C.need(diff['ahead_by']==1\
+        \ and diff['behind_by']==0 and [(f['filename'],f['status']) for f in diff['files']]==[(WORKFLOW,'added')],'operation\
+        \ changes product')\n C.need(api.json('/git/ref/heads/'+BRANCH)['object']['sha']==expected,'operation branch\
+        \ changed')\n pins['operation_sha']=expected\n receipt=Path('roundtrip-receipt.json').read_bytes();C.need(R.sha(receipt)==pins['backup_receipt_sha256'],'roundtrip\
+        \ receipt changed');br=json.loads(receipt)\n rp=json.loads(Path('roundtrip-pins.json').read_text());source=json.loads(Path('collection-pins.json').read_text());V.check_release(api,source['old_release'])\n\
+        \ root=Path(os.environ['RUNNER_TEMP'])/'replacement-bytes';root.mkdir(exist_ok=False);data={}\n for role,expected\
+        \ in [('old',br['old_entries']),('new',br['new_entries'])]:\n  record=rp['artifact_records'][role];C.need(record['artifact']==br['artifacts'][role],'archive\
+        \ receipt mismatch');P.check_record(api,record)\n  a=record['artifact'];zpath=root/(role+'.zip');api.download('/actions/artifacts/'+str(a['id'])+'/zip',zpath,a['size_in_bytes']);C.check_file(zpath,a['size_in_bytes'],a['digest'][7:]);V.checked_members(zpath,expected)\n\
+        \  with zipfile.ZipFile(zpath) as z:data[role]={n:z.read(n) for n in expected if n!='release-snapshot.json'}\n\
+        \  P.check_record(api,record)\n data['new'].update({'BUILD-PROVENANCE.json':manifest,'SHA256SUMS.txt':Path('SHA256SUMS.txt').read_bytes()})\n\
+        \ R.verify_inputs(pins,data['new'],data['old'],receipt)\n # API writes remain behind two independent explicit\
+        \ runtime interlocks.\n adapter=A.GitHub(pins,str(Path(os.environ['RUNNER_TEMP'])/'replacement-journal/events.jsonl'),allow_mutation=True)\n\
+        \ result=R.Replace(adapter,pins,data['new'],data['old'],receipt).run()\n out=Path(os.environ['RUNNER_TEMP'])/'replacement-journal/result.json';out.write_text(json.dumps(result,sort_keys=True,indent=2)+'\\\
+        n')\n C.need(result['cleanup_complete'],'cleanup incomplete; canonical set retained, inspect journal')\n\
+        if __name__=='__main__':main()\nREVIEWED_EOF\ncat > collection-pins.json <<'REVIEWED_EOF'\n{\n  \"enabled\"\
+        : false,\n  \"source\": \"74039745b1b44834c30dd9cb275f1c224072dd96\",\n  \"tree\": \"2849e01639a6ec5242b4041b65762ef78ac08a51\"\
+        ,\n  \"arm_workflow_path\": \".github/workflows/arm15-validation.yml\",\n  \"records\": [\n    {\n     \
+        \ \"upload_step\": 15,\n      \"run\": {\n        \"id\": 43901004126,\n        \"head_sha\": \"74039745b1b44834c30dd9cb275f1c224072dd96\"\
+        ,\n        \"head_branch\": \"maintenance/v0.1.9-zh-cloud\",\n        \"path\": \".github/workflows/client-release.yml\"\
+        ,\n        \"run_attempt\": 1,\n        \"status\": \"completed\",\n        \"conclusion\": \"failure\"\
+        ,\n        \"updated_at\": \"2026-11-16T16:20:17Z\"\n      },\n      \"job\": {\n        \"id\": 133419166277,\n\
+        \        \"run_id\": 43901004126,\n        \"workflow_name\": \"简体中文客户端验证与构建\",\n        \"head_branch\"\
+        : \"maintenance/v0.1.9-zh-cloud\",\n        \"run_url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/43901004126\"\
+        ,\n        \"run_attempt\": 1,\n        \"node_id\": \"CR_kwDOT3b1Oc8AAAAfEGbqRQ\",\n        \"head_sha\"\
+        : \"74039745b1b44834c30dd9cb275f1c224072dd96\",\n        \"url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/133419166277\"\
+        ,\n        \"html_url\": \"https://github.com/ZhiweiXiao98/t3code/actions/runs/43901004126/job/133419166277\"\
+        ,\n        \"status\": \"completed\",\n        \"conclusion\": \"success\",\n        \"created_at\": \"\
+        2026-11-16T15:54:31Z\",\n        \"started_at\": \"2026-11-16T15:54:33Z\",\n        \"completed_at\": \"\
+        2026-11-16T16:00:27Z\",\n        \"name\": \"Linux x64 and embedded Windows WSL runtime\",\n        \"steps\"\
+        : [\n          {\n            \"name\": \"Set up job\",\n            \"status\": \"completed\",\n      \
+        \      \"conclusion\": \"success\",\n            \"number\": 1,\n            \"started_at\": \"2026-11-16T15:54:33Z\"\
+        ,\n            \"completed_at\": \"2026-11-16T15:54:36Z\"\n          },\n          {\n            \"name\"\
+        : \"Checkout exact source without credentials\",\n            \"status\": \"completed\",\n            \"\
+        conclusion\": \"success\",\n            \"number\": 2,\n            \"started_at\": \"2026-11-16T15:54:36Z\"\
+        ,\n            \"completed_at\": \"2026-11-16T15:54:51Z\"\n          },\n          {\n            \"name\"\
+        : \"Run voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb\",\n            \"status\": \"completed\"\
+        ,\n            \"conclusion\": \"success\",\n            \"number\": 3,\n            \"started_at\": \"\
+        2026-11-16T15:54:51Z\",\n            \"completed_at\": \"2026-11-16T15:55:44Z\"\n          },\n        \
+        \  {\n            \"name\": \"Install locked dependencies\",\n            \"status\": \"completed\",\n \
+        \           \"conclusion\": \"success\",\n            \"number\": 4,\n            \"started_at\": \"2026-11-16T15:55:44Z\"\
+        ,\n            \"completed_at\": \"2026-11-16T15:56:06Z\"\n          },\n          {\n            \"name\"\
+        : \"Install Linux native build libraries\",\n            \"status\": \"completed\",\n            \"conclusion\"\
+        : \"success\",\n            \"number\": 5,\n            \"started_at\": \"2026-11-16T15:56:06Z\",\n    \
+        \        \"completed_at\": \"2026-11-16T15:56:47Z\"\n          },\n          {\n            \"name\": \"\
+        Run dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87\",\n            \"status\": \"completed\"\
+        ,\n            \"conclusion\": \"success\",\n            \"number\": 6,\n            \"started_at\": \"\
+        2026-11-16T15:56:47Z\",\n            \"completed_at\": \"2026-11-16T15:56:59Z\"\n          },\n        \
+        \  {\n            \"name\": \"Run node scripts/update-release-package-versions.ts \\\"$CLIENT_VERSION\\\"\
+        \",\n            \"status\": \"completed\",\n            \"conclusion\": \"success\",\n            \"number\"\
+        : 7,\n            \"started_at\": \"2026-11-16T15:56:59Z\",\n            \"completed_at\": \"2026-11-16T15:56:59Z\"\
+        \n          },\n          {\n            \"name\": \"Run actions/download-artifact@v8\",\n            \"\
+        status\": \"completed\",\n            \"conclusion\": \"success\",\n            \"number\": 8,\n       \
+        \     \"started_at\": \"2026-11-16T15:56:59Z\",\n            \"completed_at\": \"2026-11-16T15:57:01Z\"\n\
+        \          },\n          {\n            \"name\": \"Package Linux client\",\n            \"status\": \"\
+        completed\",\n            \"conclusion\": \"success\",\n            \"number\": 9,\n            \"started_at\"\
+        : \"2026-11-16T15:57:01Z\",\n            \"completed_at\": \"2026-11-16T15:59:25Z\"\n          },\n    \
+        \      {\n            \"name\": \"Launch packaged Linux client\",\n            \"status\": \"completed\"\
+        ,\n            \"conclusion\": \"success\",\n            \"number\": 10,\n            \"started_at\": \"\
+        2026-11-16T15:59:25Z\",\n            \"completed_at\": \"2026-11-16T15:59:44Z\"\n          },\n        \
+        \  {\n            \"name\": \"Run actions/upload-artifact@v7\",\n            \"status\": \"completed\",\n\
+        \            \"conclusion\": \"skipped\",\n            \"number\": 11,\n            \"started_at\": \"2026-11-16T15:59:44Z\"\
+        ,\n            \"completed_at\": \"2026-11-16T15:59:44Z\"\n          },\n          {\n            \"name\"\
+        : \"Build embedded WSL executable\",\n            \"status\": \"completed\",\n            \"conclusion\"\
+        : \"success\",\n            \"number\": 12,\n            \"started_at\": \"2026-11-16T15:59:44Z\",\n   \
+        \         \"completed_at\": \"2026-11-16T15:59:52Z\"\n          },\n          {\n            \"name\": \"\
+        Package and smoke-test embedded WSL runtime\",\n            \"status\": \"completed\",\n            \"conclusion\"\
+        : \"success\",\n            \"number\": 13,\n            \"started_at\": \"2026-11-16T15:59:52Z\",\n   \
+        \         \"completed_at\": \"2026-11-16T16:00:14Z\"\n          },\n          {\n            \"name\": \"\
+        Run actions/upload-artifact@v7\",\n            \"status\": \"completed\",\n            \"conclusion\": \"\
+        success\",\n            \"number\": 14,\n            \"started_at\": \"2026-11-16T16:00:14Z\",\n       \
+        \     \"completed_at\": \"2026-11-16T16:00:19Z\"\n          },\n          {\n            \"name\": \"Upload\
+        \ Linux installers (upload-artifact)\",\n            \"status\": \"completed\",\n            \"conclusion\"\
+        : \"success\",\n            \"number\": 15,\n            \"started_at\": \"2026-11-16T16:00:19Z\",\n   \
+        \         \"completed_at\": \"2026-11-16T16:00:25Z\"\n          },\n          {\n            \"name\": \"\
+        Record exact Linux build proof\",\n            \"status\": \"completed\",\n            \"conclusion\": \"\
+        success\",\n            \"number\": 16,\n            \"started_at\": \"2026-11-16T16:00:25Z\",\n       \
+        \     \"completed_at\": \"2026-11-16T16:00:25Z\"\n          },\n          {\n            \"name\": \"Upload\
+        \ Linux build proof (upload-artifact)\",\n            \"status\": \"completed\",\n            \"conclusion\"\
+        : \"success\",\n            \"number\": 17,\n            \"started_at\": \"2026-11-16T16:00:25Z\",\n   \
+        \         \"completed_at\": \"2026-11-16T16:00:26Z\"\n          },\n          {\n            \"name\": \"\
+        Post Run voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb\",\n            \"status\": \"completed\"\
+        ,\n            \"conclusion\": \"success\",\n            \"number\": 34,\n            \"started_at\": \"\
+        2026-11-16T16:00:26Z\",\n            \"completed_at\": \"2026-11-16T16:00:26Z\"\n          },\n        \
+        \  {\n            \"name\": \"Complete job\",\n            \"status\": \"completed\",\n            \"conclusion\"\
+        : \"success\",\n            \"number\": 35,\n            \"started_at\": \"2026-11-16T16:00:26Z\",\n   \
+        \         \"completed_at\": \"2026-11-16T16:00:26Z\"\n          }\n        ],\n        \"check_run_url\"\
+        : \"https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/133419166277\",\n        \"labels\": [\n\
+        \          \"ubuntu-24.04\"\n        ],\n        \"runner_id\": 1000010060,\n        \"runner_name\": \"\
+        GitHub Actions 1000010060\",\n        \"runner_group_id\": 0,\n        \"runner_group_name\": \"GitHub Actions\"\
+        \n      },\n      \"artifact\": {\n        \"id\": 14241987575,\n        \"node_id\": \"MDg6QXJ0aWZhY3QxNDI0MTk4NzU3NQ==\"\
+        ,\n        \"name\": \"client-linux-x64\",\n        \"size_in_bytes\": 176277479,\n        \"url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/artifacts/14241987575\"\
+        ,\n        \"archive_download_url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/artifacts/14241987575/zip\"\
+        ,\n        \"expired\": false,\n        \"digest\": \"sha256:fe372b8d68253cc3aac2b93f4135c3b9e21a5e4b601a7196af75bf94fd8e0c70\"\
+        ,\n        \"created_at\": \"2026-11-16T16:00:25Z\",\n        \"updated_at\": \"2026-11-16T16:00:25Z\",\n\
+        \        \"expires_at\": \"2026-11-30T16:00:20Z\",\n        \"workflow_run\": {\n          \"id\": 43901004126,\n\
+        \          \"repository_id\": 1333196089,\n          \"head_repository_id\": 1333196089,\n          \"head_branch\"\
+        : \"maintenance/v0.1.9-zh-cloud\",\n          \"head_sha\": \"74039745b1b44834c30dd9cb275f1c224072dd96\"\
+        \n        }\n      },\n      \"installers\": {\n        \"T3-Code-0.1.9-zh.1-amd64.deb\": \"4920196d9e1c373e53400f0de98e338bd3e4d24b507068413c384d923882b2da\"\
+        \n      }\n    },\n    {\n      \"upload_step\": 14,\n      \"run\": {\n        \"id\": 43901004126,\n \
+        \       \"head_sha\": \"74039745b1b44834c30dd9cb275f1c224072dd96\",\n        \"head_branch\": \"maintenance/v0.1.9-zh-cloud\"\
+        ,\n        \"path\": \".github/workflows/client-release.yml\",\n        \"run_attempt\": 1,\n        \"\
+        status\": \"completed\",\n        \"conclusion\": \"failure\",\n        \"updated_at\": \"2026-11-16T16:20:17Z\"\
+        \n      },\n      \"job\": {\n        \"id\": 133423106015,\n        \"run_id\": 43901004126,\n        \"\
+        workflow_name\": \"简体中文客户端验证与构建\",\n        \"head_branch\": \"maintenance/v0.1.9-zh-cloud\",\n        \"\
+        run_url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/43901004126\",\n        \"run_attempt\"\
+        : 1,\n        \"node_id\": \"CR_kwDOT3b1Oc8AAAAfEKMH3w\",\n        \"head_sha\": \"74039745b1b44834c30dd9cb275f1c224072dd96\"\
+        ,\n        \"url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/133423106015\",\n  \
+        \      \"html_url\": \"https://github.com/ZhiweiXiao98/t3code/actions/runs/43901004126/job/133423106015\"\
+        ,\n        \"status\": \"completed\",\n        \"conclusion\": \"success\",\n        \"created_at\": \"\
+        2026-11-16T16:00:28Z\",\n        \"started_at\": \"2026-11-16T16:00:31Z\",\n        \"completed_at\": \"\
+        2026-11-16T16:09:55Z\",\n        \"name\": \"Desktop win x64 (integrity checked)\",\n        \"steps\":\
+        \ [\n          {\n            \"name\": \"Set up job\",\n            \"status\": \"completed\",\n      \
+        \      \"conclusion\": \"success\",\n            \"number\": 1,\n            \"started_at\": \"2026-11-16T16:00:32Z\"\
+        ,\n            \"completed_at\": \"2026-11-16T16:00:34Z\"\n          },\n          {\n            \"name\"\
+        : \"Checkout exact source without credentials\",\n            \"status\": \"completed\",\n            \"\
+        conclusion\": \"success\",\n            \"number\": 2,\n            \"started_at\": \"2026-11-16T16:00:34Z\"\
+        ,\n            \"completed_at\": \"2026-11-16T16:00:53Z\"\n          },\n          {\n            \"name\"\
+        : \"Run voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb\",\n            \"status\": \"completed\"\
+        ,\n            \"conclusion\": \"success\",\n            \"number\": 3,\n            \"started_at\": \"\
+        2026-11-16T16:00:53Z\",\n            \"completed_at\": \"2026-11-16T16:02:16Z\"\n          },\n        \
+        \  {\n            \"name\": \"Install locked dependencies\",\n            \"status\": \"completed\",\n \
+        \           \"conclusion\": \"success\",\n            \"number\": 4,\n            \"started_at\": \"2026-11-16T16:02:16Z\"\
+        ,\n            \"completed_at\": \"2026-11-16T16:02:54Z\"\n          },\n          {\n            \"name\"\
+        : \"Run dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87\",\n            \"status\": \"completed\"\
+        ,\n            \"conclusion\": \"success\",\n            \"number\": 5,\n            \"started_at\": \"\
+        2026-11-16T16:02:54Z\",\n            \"completed_at\": \"2026-11-16T16:03:13Z\"\n          },\n        \
+        \  {\n            \"name\": \"Install Windows Spectre-mitigated runtime\",\n            \"status\": \"completed\"\
+        ,\n            \"conclusion\": \"success\",\n            \"number\": 6,\n            \"started_at\": \"\
+        2026-11-16T16:03:13Z\",\n            \"completed_at\": \"2026-11-16T16:06:41Z\"\n          },\n        \
+        \  {\n            \"name\": \"Run node scripts/update-release-package-versions.ts \\\"$CLIENT_VERSION\\\"\
+        \",\n            \"status\": \"completed\",\n            \"conclusion\": \"success\",\n            \"number\"\
+        : 7,\n            \"started_at\": \"2026-11-16T16:06:41Z\",\n            \"completed_at\": \"2026-11-16T16:06:42Z\"\
+        \n          },\n          {\n            \"name\": \"Run actions/download-artifact@v8\",\n            \"\
+        status\": \"completed\",\n            \"conclusion\": \"success\",\n            \"number\": 8,\n       \
+        \     \"started_at\": \"2026-11-16T16:06:42Z\",\n            \"completed_at\": \"2026-11-16T16:06:47Z\"\n\
+        \          },\n          {\n            \"name\": \"Run actions/download-artifact@v8\",\n            \"\
+        status\": \"completed\",\n            \"conclusion\": \"success\",\n            \"number\": 9,\n       \
+        \     \"started_at\": \"2026-11-16T16:06:47Z\",\n            \"completed_at\": \"2026-11-16T16:06:50Z\"\n\
+        \          },\n          {\n            \"name\": \"Package community client\",\n            \"status\"\
+        : \"completed\",\n            \"conclusion\": \"success\",\n            \"number\": 10,\n            \"\
+        started_at\": \"2026-11-16T16:06:50Z\",\n            \"completed_at\": \"2026-11-16T16:09:09Z\"\n      \
+        \    },\n          {\n            \"name\": \"Verify macOS integrity and report quarantined Gatekeeper trust\"\
+        ,\n            \"status\": \"completed\",\n            \"conclusion\": \"skipped\",\n            \"number\"\
+        : 11,\n            \"started_at\": \"2026-11-16T16:09:09Z\",\n            \"completed_at\": \"2026-11-16T16:09:09Z\"\
+        \n          },\n          {\n            \"name\": \"Launch installed Windows client\",\n            \"\
+        status\": \"completed\",\n            \"conclusion\": \"success\",\n            \"number\": 12,\n      \
+        \      \"started_at\": \"2026-11-16T16:09:09Z\",\n            \"completed_at\": \"2026-11-16T16:09:45Z\"\
+        \n          },\n          {\n            \"name\": \"Run actions/upload-artifact@v7\",\n            \"status\"\
+        : \"completed\",\n            \"conclusion\": \"skipped\",\n            \"number\": 13,\n            \"\
+        started_at\": \"2026-11-16T16:09:45Z\",\n            \"completed_at\": \"2026-11-16T16:09:45Z\"\n      \
+        \    },\n          {\n            \"name\": \"Run actions/upload-artifact@v7\",\n            \"status\"\
+        : \"completed\",\n            \"conclusion\": \"success\",\n            \"number\": 14,\n            \"\
+        started_at\": \"2026-11-16T16:09:45Z\",\n            \"completed_at\": \"2026-11-16T16:09:53Z\"\n      \
+        \    },\n          {\n            \"name\": \"Post Run voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb\"\
+        ,\n            \"status\": \"completed\",\n            \"conclusion\": \"success\",\n            \"number\"\
+        : 28,\n            \"started_at\": \"2026-11-16T16:09:53Z\",\n            \"completed_at\": \"2026-11-16T16:09:53Z\"\
+        \n          },\n          {\n            \"name\": \"Complete job\",\n            \"status\": \"completed\"\
+        ,\n            \"conclusion\": \"success\",\n            \"number\": 29,\n            \"started_at\": \"\
+        2026-11-16T16:09:53Z\",\n            \"completed_at\": \"2026-11-16T16:09:53Z\"\n          }\n        ],\n\
+        \        \"check_run_url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/133423106015\"\
+        ,\n        \"labels\": [\n          \"windows-2022\"\n        ],\n        \"runner_id\": 1000010062,\n \
+        \       \"runner_name\": \"GitHub Actions 1000010062\",\n        \"runner_group_id\": 0,\n        \"runner_group_name\"\
+        : \"GitHub Actions\"\n      },\n      \"artifact\": {\n        \"id\": 14244416842,\n        \"node_id\"\
+        : \"MDg6QXJ0aWZhY3QxNDI0NDQxNjg0Mg==\",\n        \"name\": \"client-win-x64\",\n        \"size_in_bytes\"\
+        : 328433126,\n        \"url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/artifacts/14244416842\"\
+        ,\n        \"archive_download_url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/artifacts/14244416842/zip\"\
+        ,\n        \"expired\": false,\n        \"digest\": \"sha256:2a58a31533bb6639f10f2955aacc8bb7bda6af12170de88ccb280b077c6af022\"\
+        ,\n        \"created_at\": \"2026-11-16T16:09:52Z\",\n        \"updated_at\": \"2026-11-16T16:09:52Z\",\n\
+        \        \"expires_at\": \"2026-11-30T16:09:45Z\",\n        \"workflow_run\": {\n          \"id\": 43901004126,\n\
+        \          \"repository_id\": 1333196089,\n          \"head_repository_id\": 1333196089,\n          \"head_branch\"\
+        : \"maintenance/v0.1.9-zh-cloud\",\n          \"head_sha\": \"74039745b1b44834c30dd9cb275f1c224072dd96\"\
+        \n        }\n      },\n      \"installers\": {\n        \"T3-Code-0.1.9-zh.1-x64.exe\": \"434c53ea52ffb4339c27d5ec7a4617aa240f744b4f48161e332ea18f0075ed8c\"\
+        \n      }\n    },\n    {\n      \"upload_step\": 14,\n      \"run\": {\n        \"id\": 43901004126,\n \
+        \       \"head_sha\": \"74039745b1b44834c30dd9cb275f1c224072dd96\",\n        \"head_branch\": \"maintenance/v0.1.9-zh-cloud\"\
+        ,\n        \"path\": \".github/workflows/client-release.yml\",\n        \"run_attempt\": 1,\n        \"\
+        status\": \"completed\",\n        \"conclusion\": \"failure\",\n        \"updated_at\": \"2026-11-16T16:20:17Z\"\
+        \n      },\n      \"job\": {\n        \"id\": 133423109560,\n        \"run_id\": 43901004126,\n        \"\
+        workflow_name\": \"简体中文客户端验证与构建\",\n        \"head_branch\": \"maintenance/v0.1.9-zh-cloud\",\n        \"\
+        run_url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/43901004126\",\n        \"run_attempt\"\
+        : 1,\n        \"node_id\": \"CR_kwDOT3b1Oc8AAAAfEKMVuA\",\n        \"head_sha\": \"74039745b1b44834c30dd9cb275f1c224072dd96\"\
+        ,\n        \"url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/133423109560\",\n  \
+        \      \"html_url\": \"https://github.com/ZhiweiXiao98/t3code/actions/runs/43901004126/job/133423109560\"\
+        ,\n        \"status\": \"completed\",\n        \"conclusion\": \"success\",\n        \"created_at\": \"\
+        2026-11-16T16:00:28Z\",\n        \"started_at\": \"2026-11-16T16:01:00Z\",\n        \"completed_at\": \"\
+        2026-11-16T16:16:40Z\",\n        \"name\": \"Desktop mac x64 (integrity checked)\",\n        \"steps\":\
+        \ [\n          {\n            \"name\": \"Set up job\",\n            \"status\": \"completed\",\n      \
+        \      \"conclusion\": \"success\",\n            \"number\": 1,\n            \"started_at\": \"2026-11-16T16:01:01Z\"\
+        ,\n            \"completed_at\": \"2026-11-16T16:01:05Z\"\n          },\n          {\n            \"name\"\
+        : \"Checkout exact source without credentials\",\n            \"status\": \"completed\",\n            \"\
+        conclusion\": \"success\",\n            \"number\": 2,\n            \"started_at\": \"2026-11-16T16:01:05Z\"\
+        ,\n            \"completed_at\": \"2026-11-16T16:01:29Z\"\n          },\n          {\n            \"name\"\
+        : \"Run voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb\",\n            \"status\": \"completed\"\
+        ,\n            \"conclusion\": \"success\",\n            \"number\": 3,\n            \"started_at\": \"\
+        2026-11-16T16:01:29Z\",\n            \"completed_at\": \"2026-11-16T16:07:27Z\"\n          },\n        \
+        \  {\n            \"name\": \"Install locked dependencies\",\n            \"status\": \"completed\",\n \
+        \           \"conclusion\": \"success\",\n            \"number\": 4,\n            \"started_at\": \"2026-11-16T16:07:27Z\"\
+        ,\n            \"completed_at\": \"2026-11-16T16:08:19Z\"\n          },\n          {\n            \"name\"\
+        : \"Run dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87\",\n            \"status\": \"completed\"\
+        ,\n            \"conclusion\": \"success\",\n            \"number\": 5,\n            \"started_at\": \"\
+        2026-11-16T16:08:19Z\",\n            \"completed_at\": \"2026-11-16T16:08:43Z\"\n          },\n        \
+        \  {\n            \"name\": \"Install Windows Spectre-mitigated runtime\",\n            \"status\": \"completed\"\
+        ,\n            \"conclusion\": \"skipped\",\n            \"number\": 6,\n            \"started_at\": \"\
+        2026-11-16T16:08:43Z\",\n            \"completed_at\": \"2026-11-16T16:08:43Z\"\n          },\n        \
+        \  {\n            \"name\": \"Run node scripts/update-release-package-versions.ts \\\"$CLIENT_VERSION\\\"\
+        \",\n            \"status\": \"completed\",\n            \"conclusion\": \"success\",\n            \"number\"\
+        : 7,\n            \"started_at\": \"2026-11-16T16:08:43Z\",\n            \"completed_at\": \"2026-11-16T16:08:43Z\"\
+        \n          },\n          {\n            \"name\": \"Run actions/download-artifact@v8\",\n            \"\
+        status\": \"completed\",\n            \"conclusion\": \"success\",\n            \"number\": 8,\n       \
+        \     \"started_at\": \"2026-11-16T16:08:43Z\",\n            \"completed_at\": \"2026-11-16T16:09:03Z\"\n\
+        \          },\n          {\n            \"name\": \"Run actions/download-artifact@v8\",\n            \"\
+        status\": \"completed\",\n            \"conclusion\": \"skipped\",\n            \"number\": 9,\n       \
+        \     \"started_at\": \"2026-11-16T16:09:03Z\",\n            \"completed_at\": \"2026-11-16T16:09:03Z\"\n\
+        \          },\n          {\n            \"name\": \"Package community client\",\n            \"status\"\
+        : \"completed\",\n            \"conclusion\": \"success\",\n            \"number\": 10,\n            \"\
+        started_at\": \"2026-11-16T16:09:03Z\",\n            \"completed_at\": \"2026-11-16T16:14:50Z\"\n      \
+        \    },\n          {\n            \"name\": \"Verify macOS integrity and report quarantined Gatekeeper trust\"\
+        ,\n            \"status\": \"completed\",\n            \"conclusion\": \"success\",\n            \"number\"\
+        : 11,\n            \"started_at\": \"2026-11-16T16:14:50Z\",\n            \"completed_at\": \"2026-11-16T16:16:04Z\"\
+        \n          },\n          {\n            \"name\": \"Launch installed Windows client\",\n            \"\
+        status\": \"completed\",\n            \"conclusion\": \"skipped\",\n            \"number\": 12,\n      \
+        \      \"started_at\": \"2026-11-16T16:16:05Z\",\n            \"completed_at\": \"2026-11-16T16:16:05Z\"\
+        \n          },\n          {\n            \"name\": \"Run actions/upload-artifact@v7\",\n            \"status\"\
+        : \"completed\",\n            \"conclusion\": \"skipped\",\n            \"number\": 13,\n            \"\
+        started_at\": \"2026-11-16T16:16:05Z\",\n            \"completed_at\": \"2026-11-16T16:16:05Z\"\n      \
+        \    },\n          {\n            \"name\": \"Run actions/upload-artifact@v7\",\n            \"status\"\
+        : \"completed\",\n            \"conclusion\": \"success\",\n            \"number\": 14,\n            \"\
+        started_at\": \"2026-11-16T16:16:05Z\",\n            \"completed_at\": \"2026-11-16T16:16:35Z\"\n      \
+        \    },\n          {\n            \"name\": \"Post Run voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb\"\
+        ,\n            \"status\": \"completed\",\n            \"conclusion\": \"success\",\n            \"number\"\
+        : 28,\n            \"started_at\": \"2026-11-16T16:16:35Z\",\n            \"completed_at\": \"2026-11-16T16:16:35Z\"\
+        \n          },\n          {\n            \"name\": \"Complete job\",\n            \"status\": \"completed\"\
+        ,\n            \"conclusion\": \"success\",\n            \"number\": 29,\n            \"started_at\": \"\
+        2026-11-16T16:16:35Z\",\n            \"completed_at\": \"2026-11-16T16:16:37Z\"\n          }\n        ],\n\
+        \        \"check_run_url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/133423109560\"\
+        ,\n        \"labels\": [\n          \"macos-15-intel\"\n        ],\n        \"runner_id\": 1000010064,\n\
+        \        \"runner_name\": \"GitHub Actions 1000010064\",\n        \"runner_group_id\": 0,\n        \"runner_group_name\"\
+        : \"GitHub Actions\"\n      },\n      \"artifact\": {\n        \"id\": 14244078742,\n        \"node_id\"\
+        : \"MDg6QXJ0aWZhY3QxNDI0NDA3ODc0Mg==\",\n        \"name\": \"client-mac-x64\",\n        \"size_in_bytes\"\
+        : 398406330,\n        \"url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/artifacts/14244078742\"\
+        ,\n        \"archive_download_url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/artifacts/14244078742/zip\"\
+        ,\n        \"expired\": false,\n        \"digest\": \"sha256:e1d976cfb7fe6a4458f7e94ac7cc78cc8a17c3d54e1080335a11796f41beb5a3\"\
+        ,\n        \"created_at\": \"2026-11-16T16:16:35Z\",\n        \"updated_at\": \"2026-11-16T16:16:35Z\",\n\
+        \        \"expires_at\": \"2026-11-30T16:16:06Z\",\n        \"workflow_run\": {\n          \"id\": 43901004126,\n\
+        \          \"repository_id\": 1333196089,\n          \"head_repository_id\": 1333196089,\n          \"head_branch\"\
+        : \"maintenance/v0.1.9-zh-cloud\",\n          \"head_sha\": \"74039745b1b44834c30dd9cb275f1c224072dd96\"\
+        \n        }\n      },\n      \"installers\": {\n        \"T3-Code-0.1.9-zh.1-x64.dmg\": \"b316cf2d6d45acb20ef24d4805aa53ad096cba77c8c4ade51899621d5b28d183\"\
+        ,\n        \"T3-Code-0.1.9-zh.1-x64.zip\": \"4d911a1b705eb1dcf9595ccf73197ea5003bb5c7377253bccc51060771500276\"\
+        \n      }\n    },\n    {\n      \"upload_step\": 14,\n      \"run\": {\n        \"id\": 43989055996,\n \
+        \       \"head_sha\": \"911c7bdd594d9269eb685ffc2f6abe8990041371\",\n        \"head_branch\": \"validation/v0.1.9-arm15-74039745\"\
+        ,\n        \"path\": \".github/workflows/arm15-validation.yml\",\n        \"run_attempt\": 1,\n        \"\
+        status\": \"completed\",\n        \"conclusion\": \"success\",\n        \"updated_at\": \"2026-11-17T00:46:32Z\"\
+        \n      },\n      \"job\": {\n        \"id\": 133725664245,\n        \"run_id\": 43989055996,\n        \"\
+        workflow_name\": \"Exact final ARM64 macOS 15 supplemental validation\",\n        \"head_branch\": \"validation/v0.1.9-arm15-74039745\"\
+        ,\n        \"run_url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/43989055996\",\n\
+        \        \"run_attempt\": 1,\n        \"node_id\": \"CR_kwDOT3b1Oc8AAAAfIquz9Q\",\n        \"head_sha\"\
+        : \"911c7bdd594d9269eb685ffc2f6abe8990041371\",\n        \"url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/133725664245\"\
+        ,\n        \"html_url\": \"https://github.com/ZhiweiXiao98/t3code/actions/runs/43989055996/job/133725664245\"\
+        ,\n        \"status\": \"completed\",\n        \"conclusion\": \"success\",\n        \"created_at\": \"\
+        2026-11-17T00:39:16Z\",\n        \"started_at\": \"2026-11-17T00:39:18Z\",\n        \"completed_at\": \"\
+        2026-11-17T00:44:44Z\",\n        \"name\": \"Desktop mac arm64 (integrity checked)\",\n        \"steps\"\
+        : [\n          {\n            \"name\": \"Set up job\",\n            \"status\": \"completed\",\n      \
+        \      \"conclusion\": \"success\",\n            \"number\": 1,\n            \"started_at\": \"2026-11-17T00:39:18Z\"\
+        ,\n            \"completed_at\": \"2026-11-17T00:39:21Z\"\n          },\n          {\n            \"name\"\
+        : \"Checkout exact source without credentials\",\n            \"status\": \"completed\",\n            \"\
+        conclusion\": \"success\",\n            \"number\": 2,\n            \"started_at\": \"2026-11-17T00:39:21Z\"\
+        ,\n            \"completed_at\": \"2026-11-17T00:39:37Z\"\n          },\n          {\n            \"name\"\
+        : \"Run voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb\",\n            \"status\": \"completed\"\
+        ,\n            \"conclusion\": \"success\",\n            \"number\": 3,\n            \"started_at\": \"\
+        2026-11-17T00:39:37Z\",\n            \"completed_at\": \"2026-11-17T00:41:14Z\"\n          },\n        \
+        \  {\n            \"name\": \"Install locked dependencies\",\n            \"status\": \"completed\",\n \
+        \           \"conclusion\": \"success\",\n            \"number\": 4,\n            \"started_at\": \"2026-11-17T00:41:14Z\"\
+        ,\n            \"completed_at\": \"2026-11-17T00:41:39Z\"\n          },\n          {\n            \"name\"\
+        : \"Run dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87\",\n            \"status\": \"completed\"\
+        ,\n            \"conclusion\": \"success\",\n            \"number\": 5,\n            \"started_at\": \"\
+        2026-11-17T00:41:39Z\",\n            \"completed_at\": \"2026-11-17T00:41:48Z\"\n          },\n        \
+        \  {\n            \"name\": \"Install Windows Spectre-mitigated runtime\",\n            \"status\": \"completed\"\
+        ,\n            \"conclusion\": \"skipped\",\n            \"number\": 6,\n            \"started_at\": \"\
+        2026-11-17T00:41:48Z\",\n            \"completed_at\": \"2026-11-17T00:41:48Z\"\n          },\n        \
+        \  {\n            \"name\": \"Run node scripts/update-release-package-versions.ts \\\"$CLIENT_VERSION\\\"\
+        \",\n            \"status\": \"completed\",\n            \"conclusion\": \"success\",\n            \"number\"\
+        : 7,\n            \"started_at\": \"2026-11-17T00:41:48Z\",\n            \"completed_at\": \"2026-11-17T00:41:48Z\"\
+        \n          },\n          {\n            \"name\": \"Run actions/download-artifact@v8\",\n            \"\
+        status\": \"completed\",\n            \"conclusion\": \"success\",\n            \"number\": 8,\n       \
+        \     \"started_at\": \"2026-11-17T00:41:48Z\",\n            \"completed_at\": \"2026-11-17T00:41:52Z\"\n\
+        \          },\n          {\n            \"name\": \"Run actions/download-artifact@v8\",\n            \"\
+        status\": \"completed\",\n            \"conclusion\": \"skipped\",\n            \"number\": 9,\n       \
+        \     \"started_at\": \"2026-11-17T00:41:52Z\",\n            \"completed_at\": \"2026-11-17T00:41:52Z\"\n\
+        \          },\n          {\n            \"name\": \"Package community client\",\n            \"status\"\
+        : \"completed\",\n            \"conclusion\": \"success\",\n            \"number\": 10,\n            \"\
+        started_at\": \"2026-11-17T00:41:52Z\",\n            \"completed_at\": \"2026-11-17T00:44:06Z\"\n      \
+        \    },\n          {\n            \"name\": \"Verify macOS integrity and report quarantined Gatekeeper trust\"\
+        ,\n            \"status\": \"completed\",\n            \"conclusion\": \"success\",\n            \"number\"\
+        : 11,\n            \"started_at\": \"2026-11-17T00:44:06Z\",\n            \"completed_at\": \"2026-11-17T00:44:29Z\"\
+        \n          },\n          {\n            \"name\": \"Launch installed Windows client\",\n            \"\
+        status\": \"completed\",\n            \"conclusion\": \"skipped\",\n            \"number\": 12,\n      \
+        \      \"started_at\": \"2026-11-17T00:44:29Z\",\n            \"completed_at\": \"2026-11-17T00:44:29Z\"\
+        \n          },\n          {\n            \"name\": \"Run actions/upload-artifact@v7\",\n            \"status\"\
+        : \"completed\",\n            \"conclusion\": \"skipped\",\n            \"number\": 13,\n            \"\
+        started_at\": \"2026-11-17T00:44:29Z\",\n            \"completed_at\": \"2026-11-17T00:44:29Z\"\n      \
+        \    },\n          {\n            \"name\": \"Run actions/upload-artifact@v7\",\n            \"status\"\
+        : \"completed\",\n            \"conclusion\": \"success\",\n            \"number\": 14,\n            \"\
+        started_at\": \"2026-11-17T00:44:29Z\",\n            \"completed_at\": \"2026-11-17T00:44:41Z\"\n      \
+        \    },\n          {\n            \"name\": \"Post Run voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb\"\
+        ,\n            \"status\": \"completed\",\n            \"conclusion\": \"success\",\n            \"number\"\
+        : 28,\n            \"started_at\": \"2026-11-17T00:44:41Z\",\n            \"completed_at\": \"2026-11-17T00:44:41Z\"\
+        \n          },\n          {\n            \"name\": \"Complete job\",\n            \"status\": \"completed\"\
+        ,\n            \"conclusion\": \"success\",\n            \"number\": 29,\n            \"started_at\": \"\
+        2026-11-17T00:44:41Z\",\n            \"completed_at\": \"2026-11-17T00:44:42Z\"\n          }\n        ],\n\
+        \        \"check_run_url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/133725664245\"\
+        ,\n        \"labels\": [\n          \"macos-15\"\n        ],\n        \"runner_id\": 1000010127,\n     \
+        \   \"runner_name\": \"GitHub Actions 1000010127\",\n        \"runner_group_id\": 0,\n        \"runner_group_name\"\
+        : \"GitHub Actions\"\n      },\n      \"artifact\": {\n        \"id\": 14287955485,\n        \"node_id\"\
+        : \"MDg6QXJ0aWZhY3QxNDI4Nzk1NTQ4NQ==\",\n        \"name\": \"client-mac-arm64\",\n        \"size_in_bytes\"\
+        : 384533700,\n        \"url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/artifacts/14287955485\"\
+        ,\n        \"archive_download_url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/artifacts/14287955485/zip\"\
+        ,\n        \"expired\": false,\n        \"digest\": \"sha256:f4a63991176fc737329acb27d5d2dadb514c34578c073e072fcf4f304c2e8660\"\
+        ,\n        \"created_at\": \"2026-11-17T00:44:41Z\",\n        \"updated_at\": \"2026-11-17T00:44:41Z\",\n\
+        \        \"expires_at\": \"2026-12-01T00:44:30Z\",\n        \"workflow_run\": {\n          \"id\": 43989055996,\n\
+        \          \"repository_id\": 1333196089,\n          \"head_repository_id\": 1333196089,\n          \"head_branch\"\
+        : \"validation/v0.1.9-arm15-74039745\",\n          \"head_sha\": \"911c7bdd594d9269eb685ffc2f6abe8990041371\"\
+        \n        }\n      },\n      \"installers\": {\n        \"T3-Code-0.1.9-zh.1-arm64.dmg\": \"41f33856a4d27b8fcd313e8df8fc7df43ee2d798582819b297a10f43a966afb8\"\
+        ,\n        \"T3-Code-0.1.9-zh.1-arm64.zip\": \"58a1d590305e7f9201e6a575f5f9c5c61cb2702d602efdf77a71e46e9fc1759e\"\
+        \n      }\n    }\n  ],\n  \"old_release\": {\n    \"id\": 442744057,\n    \"tag_name\": \"v0.1.9-zh.1\"\
+        ,\n    \"target_commitish\": \"042eacb54f19c3bbc452e4ae271794f4c5fc524e\",\n    \"name\": \"T3 Code 中文版\
+        \ 0.1.9-zh.1 (community desktop clients)\",\n    \"body\": \"## v0.1.9-zh.1\\r\\n\\r\\n基于 T3 Code v0.1.9\
+        \ 的简体中文社区版。\\r\\n\\r\\n\U0001F41E 汉化修复\\r\\n\\r\\n- 补全任务右键菜单、设置分类及新任务默认值说明。\\r\\n\\r\\n## 下载地址\\r\\n\\r\\\
+        n### Windows\\r\\n\\r\\n- [64 位（x64）](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.9-zh.1/T3-Code-0.1.9-zh.1-x64.exe)\\\
+        r\\n\\r\\n### macOS\\r\\n\\r\\n- [Apple M 芯片](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.9-zh.1/T3-Code-0.1.9-zh.1-arm64.dmg)\
+        \ | [Intel 芯片](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.9-zh.1/T3-Code-0.1.9-zh.1-x64.dmg)\\\
+        r\\n\\r\\n### Linux\\r\\n\\r\\n#### DEB 包（Debian / Ubuntu）\\r\\n\\r\\n- [64 位（x64）](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.9-zh.1/T3-Code-0.1.9-zh.1-amd64.deb)\\\
+        r\\n\\r\\n### Android\\r\\n\\r\\n- [ARM64 APK](https://github.com/ZhiweiXiao98/t3code/releases/download/android-v0.1.9-zh.1/T3-Code-zh-CN-Android-0.1.9-zh.1-arm64-v8a.apk)\\\
+        r\\n\\r\\n### 注意事项\\r\\n\\r\\n- 升级前请备份数据；回退需使用升级前的备份。从 V1 升级请先阅读[迁移说明](https://github.com/pingdotgg/t3code/issues/14871)。\\\
+        r\\n- Windows 未签名；macOS 未做商业签名及公证，首次打开可能出现系统拦截。\\r\\n- Android 沿用 `android-v0.1.3-zh.1` 的签名；更早的其他签名版本不能直接覆盖安装。\\\
+        r\\n\",\n    \"draft\": false,\n    \"prerelease\": false,\n    \"published_at\": \"2026-11-12T09:44:05Z\"\
+        ,\n    \"updated_at\": \"2026-11-16T03:32:55Z\",\n    \"assets\": [\n      {\n        \"id\": 738905429,\n\
+        \        \"name\": \"BUILD-PROVENANCE.json\",\n        \"state\": \"uploaded\",\n        \"size\": 32980,\n\
+        \        \"digest\": \"sha256:25960e41aa5a677c6cc4d628dc17993154f60c90f6c8338f8b8fcbca36bd9c04\",\n    \
+        \    \"created_at\": \"2026-11-12T09:43:10Z\",\n        \"updated_at\": \"2026-11-12T09:43:10Z\"\n     \
+        \ },\n      {\n        \"id\": 738905473,\n        \"name\": \"MACOS-TRUST-arm64.txt\",\n        \"state\"\
+        : \"uploaded\",\n        \"size\": 3461,\n        \"digest\": \"sha256:067a769805c17f5cadf9809170e0c3fa2a13717ec897b4a2c6b7473d903e37df\"\
+        ,\n        \"created_at\": \"2026-11-12T09:43:11Z\",\n        \"updated_at\": \"2026-11-12T09:43:11Z\"\n\
+        \      },\n      {\n        \"id\": 738905504,\n        \"name\": \"MACOS-TRUST-x64.txt\",\n        \"state\"\
+        : \"uploaded\",\n        \"size\": 3461,\n        \"digest\": \"sha256:403929cacb6ae126ec319d3d894026b582d5eac8c7c91fb2c7c2c412292b57c4\"\
+        ,\n        \"created_at\": \"2026-11-12T09:43:11Z\",\n        \"updated_at\": \"2026-11-12T09:43:12Z\"\n\
+        \      },\n      {\n        \"id\": 738905538,\n        \"name\": \"SHA256SUMS.txt\",\n        \"state\"\
+        : \"uploaded\",\n        \"size\": 826,\n        \"digest\": \"sha256:cc21b415388c7c65d0ae5dd62e819485407ea68b0d5855568a301343ac7b0c3a\"\
+        ,\n        \"created_at\": \"2026-11-12T09:43:12Z\",\n        \"updated_at\": \"2026-11-12T09:43:12Z\"\n\
+        \      },\n      {\n        \"id\": 738905574,\n        \"name\": \"T3-Code-0.1.9-zh.1-amd64.deb\",\n  \
+        \      \"state\": \"uploaded\",\n        \"size\": 174936172,\n        \"digest\": \"sha256:10e714dd14970b2438a95d72a99a6f0a900ab545aadc327e575422e665139d49\"\
+        ,\n        \"created_at\": \"2026-11-12T09:43:13Z\",\n        \"updated_at\": \"2026-11-12T09:43:22Z\"\n\
+        \      },\n      {\n        \"id\": 738906010,\n        \"name\": \"T3-Code-0.1.9-zh.1-arm64.dmg\",\n  \
+        \      \"state\": \"uploaded\",\n        \"size\": 196326798,\n        \"digest\": \"sha256:4a43fec6cbe25a132522f5995ebdcb73b65675ec3ed6d395d86a5cb5a3b8818c\"\
+        ,\n        \"created_at\": \"2026-11-12T09:43:22Z\",\n        \"updated_at\": \"2026-11-12T09:43:28Z\"\n\
+        \      },\n      {\n        \"id\": 738906342,\n        \"name\": \"T3-Code-0.1.9-zh.1-arm64.zip\",\n  \
+        \      \"state\": \"uploaded\",\n        \"size\": 188973555,\n        \"digest\": \"sha256:af30a4149bab09799d209ad4c2ab4d65a89d7372ef9ff9870f4668c567718ac2\"\
+        ,\n        \"created_at\": \"2026-11-12T09:43:29Z\",\n        \"updated_at\": \"2026-11-12T09:43:37Z\"\n\
+        \      },\n      {\n        \"id\": 738906789,\n        \"name\": \"T3-Code-0.1.9-zh.1-x64.dmg\",\n    \
+        \    \"state\": \"uploaded\",\n        \"size\": 203267393,\n        \"digest\": \"sha256:db6a1407393a08bdbafe45dcde368cfed578351d72c18074d57ab58fdd995a2f\"\
+        ,\n        \"created_at\": \"2026-11-12T09:43:38Z\",\n        \"updated_at\": \"2026-11-12T09:43:44Z\"\n\
+        \      },\n      {\n        \"id\": 738907121,\n        \"name\": \"T3-Code-0.1.9-zh.1-x64.exe\",\n    \
+        \    \"state\": \"uploaded\",\n        \"size\": 328160626,\n        \"digest\": \"sha256:e7e08595e627716912e11851c318fa572d66e46acefca1d8d571fe995a83b52b\"\
+        ,\n        \"created_at\": \"2026-11-12T09:43:45Z\",\n        \"updated_at\": \"2026-11-12T09:43:53Z\"\n\
+        \      },\n      {\n        \"id\": 738907616,\n        \"name\": \"T3-Code-0.1.9-zh.1-x64.zip\",\n    \
+        \    \"state\": \"uploaded\",\n        \"size\": 195922210,\n        \"digest\": \"sha256:c550f5166f6e47f2fa5904495da0c88e42aaf3e17220357d9e8b15336c55e0ab\"\
+        ,\n        \"created_at\": \"2026-11-12T09:43:54Z\",\n        \"updated_at\": \"2026-11-12T09:44:00Z\"\n\
+        \      }\n    ]\n  },\n  \"publication\": \"BLOCKED: final UI/platform/signing evidence not approved; byte\
+        \ collection only\"\n}\nREVIEWED_EOF\ncat > semantic-review.json <<'REVIEWED_EOF'\n{\n  \"success\": true,\n\
+        \  \"source\": \"74039745b1b44834c30dd9cb275f1c224072dd96\",\n  \"run\": 44002947263,\n  \"original_raw_logs\"\
+        : 7,\n  \"logical_gates\": 26,\n  \"jobs\": 34,\n  \"source_runs\": 6,\n  \"zip_artifacts\": 26,\n  \"verified_inner_members\"\
+        : 333,\n  \"strict_semantics\": {\n    \"supplemental\": \"original strict manifest + five named raw reports\
+        \ + six original upload logs\",\n    \"ui\": {\n      \"schema\": \"v019-ui-partition-semantic-result-1\"\
+        ,\n      \"source\": \"74039745b1b44834c30dd9cb275f1c224072dd96\",\n      \"run\": 43992265580,\n      \"\
+        partitions\": 4,\n      \"files\": 330,\n      \"passed_tests\": 3045,\n      \"scenario_steps\": 61,\n\
+        \      \"screenshots\": 5,\n      \"dual_toast_cases\": 2,\n      \"observers\": 4,\n      \"installed_app_acceptance\"\
+        : false\n    },\n    \"newly_observed_transport_pins\": [\n      {\n        \"id\": 14287750719,\n     \
+        \   \"name\": \"supplemental-coverage-proof\",\n        \"size\": 4806,\n        \"sha256\": \"78674d18d0632b95767bd088d44acb44cc2c973f11317691779f93b0dc6e079d\"\
+        ,\n        \"producer_job_id\": 133727490903,\n        \"upload_step_name\": \"Upload supplemental coverage\
+        \ proof\",\n        \"producer_log_sha256\": \"b9e70f0559119e09e2fd5224f68429a3292d95caeb7d0a6996c3bc76641557ff\"\
+        \n      },\n      {\n        \"id\": 14287605318,\n        \"name\": \"supplemental-report-linux-node24\"\
+        ,\n        \"size\": 780,\n        \"sha256\": \"6619853915321d581a755de702c957b5188157e03b7ef557fb3a80b446c22a0f\"\
+        ,\n        \"producer_job_id\": 133725696061,\n        \"upload_step_name\": \"Preserve raw test report\"\
+        ,\n        \"producer_log_sha256\": \"3fb16ead187e5197d26c55285bb2e539675b8eeae358456fc9af57b9e7163c8d\"\
+        \n      },\n      {\n        \"id\": 14286787745,\n        \"name\": \"supplemental-report-linux-node26\"\
+        ,\n        \"size\": 1626,\n        \"sha256\": \"a44ad7c19f800ec354a858a6945154a1662240e45235a6e2b08b24e11e73b462\"\
+        ,\n        \"producer_job_id\": 133725696177,\n        \"upload_step_name\": \"Preserve raw test report\"\
+        ,\n        \"producer_log_sha256\": \"3a0a804c6998d740328ab85799320eddb1e577b079e9e9d00110e3459e24c3b7\"\
+        \n      },\n      {\n        \"id\": 14286737715,\n        \"name\": \"supplemental-report-linux-nushell\"\
+        ,\n        \"size\": 3781,\n        \"sha256\": \"fa77fae3f143c796adffb08892e68ed25dff87d9a72404f36b2bc1339f754bbf\"\
+        ,\n        \"producer_job_id\": 133725695991,\n        \"upload_step_name\": \"Preserve raw test report\"\
+        ,\n        \"producer_log_sha256\": \"5a8f368fc5c9d710eede08effff8196ae9ca5a3437624635c72356efc943bf30\"\
+        \n      },\n      {\n        \"id\": 14286503377,\n        \"name\": \"supplemental-report-windows-uninstall\"\
+        ,\n        \"size\": 674,\n        \"sha256\": \"ebc9c8b38d1b66d546965364dc2da17b7e44ef28c03bd3f476a4d02ac61f6eb3\"\
+        ,\n        \"producer_job_id\": 133725696208,\n        \"upload_step_name\": \"Preserve raw test report\"\
+        ,\n        \"producer_log_sha256\": \"ce0613f32a1c46a19faea7010a827cb0151c4698fb04a29468dfd4662c506ac8\"\
+        \n      },\n      {\n        \"id\": 14286393306,\n        \"name\": \"supplemental-report-windows-shared\"\
+        ,\n        \"size\": 3954,\n        \"sha256\": \"ea0b0b5f5f52df1523ef9ed93823a97e36173f1eaa9a14f746611f2a49dc842b\"\
+        ,\n        \"producer_job_id\": 133725695689,\n        \"upload_step_name\": \"Preserve raw test report\"\
+        ,\n        \"producer_log_sha256\": \"7c29743816dceeffdb027e84910704966f2086d44f15fbeb6d9324050fdcfe15\"\
+        \n      },\n      {\n        \"id\": 14288732401,\n        \"name\": \"v019-zh-ui-43992265580-1\",\n   \
+        \     \"size\": 1526957,\n        \"sha256\": \"0b6138fa068b408c114655c55ab14e3ff22c7eff6d3259684e1ab916f5729da9\"\
+        ,\n        \"producer_job_id\": 133735578007,\n        \"upload_step_name\": \"Upload only sanitized reports\
+        \ and reviewed viewport PNGs\",\n        \"producer_log_sha256\": \"3b20b69bec820d616374a99235dd45d196a7ff3e3fb7e37be6c7203ccd460cf4\"\
+        \n      }\n    ],\n    \"pin_status\": \"OBSERVED_NOT_PREAPPROVED\",\n    \"signing_approval\": false,\n\
+        \    \"scope\": \"26 API gate receipts; original supplemental/UI semantics. Other small ZIPs retained, not\
+        \ newly asserted as semantic validation. Android/desktop large bytes remain separate verified receipts.\"\
+        \n  },\n  \"source_pin_corroboration\": {\n    \"independent_source\": \"74039745b1b44834c30dd9cb275f1c224072dd96\"\
+        ,\n    \"files\": {\n      \"apps/mobile/src/components/ui/Toast.test.tsx\": \"8aeffb091d1e91e646b956227b0f5c28ce8d18f33e4a6d6bca8bbbe57211c89b\"\
+        ,\n      \"apps/mobile/src/components/ui/Toast.tsx\": \"efcb241f4c43e9492f5e4f7cb352992b2a399520e512f66abef21dab5e36dff6\"\
+        ,\n      \"apps/mobile/vite.config.ts\": \"d6d91515f783c3e401af442a8f6bf40ca9ad9245188fd657f1a425b17dd545e3\"\
+        ,\n      \"apps/mobile/babel.config.js\": \"1c090a8fd60688b7a02127d485b9775e7ee1d06ac4d63d827fd0999ee13098f7\"\
+        ,\n      \"pnpm-lock.yaml\": \"08498310a8df8b2344116621bce79c4c0d10a0c31ed1b3550ad800cd293f6aa4\"\n    },\n\
+        \    \"result\": \"all five exact-source bytes independently match\"\n  },\n  \"signing_approval\": false\n\
+        }\nREVIEWED_EOF\ncat > replacement-pins.json <<'REVIEWED_EOF'\n{\n  \"backup_artifact_snapshot\": {\n  \
+        \  \"archive_download_url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/artifacts/14288874660/zip\"\
+        ,\n    \"created_at\": \"2026-11-17T01:29:02Z\",\n    \"digest\": \"sha256:7d59a5703de0040287917c887fb1eab53f8c2f6bea39a4876e9c3a6b6f936c13\"\
+        ,\n    \"expired\": false,\n    \"expires_at\": \"2026-12-01T01:28:48Z\",\n    \"id\": 14288874660,\n  \
+        \  \"name\": \"old-desktop-release-backup-43995592784-1\",\n    \"node_id\": \"MDg6QXJ0aWZhY3QxNDI4ODg3NDY2MA==\"\
+        ,\n    \"size_in_bytes\": 1287634226,\n    \"updated_at\": \"2026-11-17T01:29:02Z\",\n    \"url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/artifacts/14288874660\"\
+        ,\n    \"workflow_run\": {\n      \"head_branch\": \"validation/v0.1.9-desktop-byte-collection-74039745-accept-fix\"\
+        ,\n      \"head_repository_id\": 1333196089,\n      \"head_sha\": \"75bae1f4c7ceace61211be7d9d5e203014abf474\"\
+        ,\n      \"id\": 43995592784,\n      \"repository_id\": 1333196089\n    }\n  },\n  \"backup_expires_at\"\
+        : \"2026-12-01T01:28:48Z\",\n  \"backup_receipt_sha256\": \"2fe6ddb27dd9359fd0a8b094458f320792450ba5681b1cf3f43a89434bc69662\"\
+        ,\n  \"backup_release_snapshot\": {\n    \"sha256\": \"b10a2435c7ad1e861c2227ec6b680fa56f086c4f91ae73ab9bc9c9331389810e\"\
+        ,\n    \"size\": 5194\n  },\n  \"backup_roundtrip_run\": 44000018282,\n  \"blocked_reason\": \"Semantic\
+        \ proof verified. Publication disabled pending exact operation binding and independent publisher review.\"\
+        ,\n  \"enabled\": true,\n  \"new\": {\n    \"BUILD-PROVENANCE.json\": {\n      \"sha256\": \"ccf80f1e3fb1ef1d60c62650697b9a038d273182852371e733bec92ef286b4c5\"\
+        ,\n      \"size\": 16424\n    },\n    \"MACOS-TRUST-arm64.txt\": {\n      \"sha256\": \"2093d565a86a41bf355c3019ed61f7b2c6b447c4123fb3d82f4e95f242bfb29b\"\
+        ,\n      \"size\": 3461\n    },\n    \"MACOS-TRUST-x64.txt\": {\n      \"sha256\": \"405564ccd82de8437de491a9386cb62985252b823715ea0dfa2b6f20f46ca221\"\
+        ,\n      \"size\": 3461\n    },\n    \"SHA256SUMS.txt\": {\n      \"sha256\": \"2b507741c30fa8419d6a7d76d90eea6563c472dc2d4ecd38567f432300a8e027\"\
+        ,\n      \"size\": 826\n    },\n    \"T3-Code-0.1.9-zh.1-amd64.deb\": {\n      \"sha256\": \"4920196d9e1c373e53400f0de98e338bd3e4d24b507068413c384d923882b2da\"\
+        ,\n      \"size\": 176236752\n    },\n    \"T3-Code-0.1.9-zh.1-arm64.dmg\": {\n      \"sha256\": \"41f33856a4d27b8fcd313e8df8fc7df43ee2d798582819b297a10f43a966afb8\"\
+        ,\n      \"size\": 196422842\n    },\n    \"T3-Code-0.1.9-zh.1-arm64.zip\": {\n      \"sha256\": \"58a1d590305e7f9201e6a575f5f9c5c61cb2702d602efdf77a71e46e9fc1759e\"\
+        ,\n      \"size\": 189081294\n    },\n    \"T3-Code-0.1.9-zh.1-x64.dmg\": {\n      \"sha256\": \"b316cf2d6d45acb20ef24d4805aa53ad096cba77c8c4ade51899621d5b28d183\"\
+        ,\n      \"size\": 203357683\n    },\n    \"T3-Code-0.1.9-zh.1-x64.exe\": {\n      \"sha256\": \"434c53ea52ffb4339c27d5ec7a4617aa240f744b4f48161e332ea18f0075ed8c\"\
+        ,\n      \"size\": 328398795\n    },\n    \"T3-Code-0.1.9-zh.1-x64.zip\": {\n      \"sha256\": \"4d911a1b705eb1dcf9595ccf73197ea5003bb5c7377253bccc51060771500276\"\
+        ,\n      \"size\": 196029723\n    }\n  },\n  \"old\": {\n    \"BUILD-PROVENANCE.json\": {\n      \"id\"\
+        : 738905429,\n      \"sha256\": \"25960e41aa5a677c6cc4d628dc17993154f60c90f6c8338f8b8fcbca36bd9c04\",\n\
+        \      \"size\": 32980\n    },\n    \"MACOS-TRUST-arm64.txt\": {\n      \"id\": 738905473,\n      \"sha256\"\
+        : \"067a769805c17f5cadf9809170e0c3fa2a13717ec897b4a2c6b7473d903e37df\",\n      \"size\": 3461\n    },\n\
+        \    \"MACOS-TRUST-x64.txt\": {\n      \"id\": 738905504,\n      \"sha256\": \"403929cacb6ae126ec319d3d894026b582d5eac8c7c91fb2c7c2c412292b57c4\"\
+        ,\n      \"size\": 3461\n    },\n    \"SHA256SUMS.txt\": {\n      \"id\": 738905538,\n      \"sha256\":\
+        \ \"cc21b415388c7c65d0ae5dd62e819485407ea68b0d5855568a301343ac7b0c3a\",\n      \"size\": 826\n    },\n \
+        \   \"T3-Code-0.1.9-zh.1-amd64.deb\": {\n      \"id\": 738905574,\n      \"sha256\": \"10e714dd14970b2438a95d72a99a6f0a900ab545aadc327e575422e665139d49\"\
+        ,\n      \"size\": 174936172\n    },\n    \"T3-Code-0.1.9-zh.1-arm64.dmg\": {\n      \"id\": 738906010,\n\
+        \      \"sha256\": \"4a43fec6cbe25a132522f5995ebdcb73b65675ec3ed6d395d86a5cb5a3b8818c\",\n      \"size\"\
+        : 196326798\n    },\n    \"T3-Code-0.1.9-zh.1-arm64.zip\": {\n      \"id\": 738906342,\n      \"sha256\"\
+        : \"af30a4149bab09799d209ad4c2ab4d65a89d7372ef9ff9870f4668c567718ac2\",\n      \"size\": 188973555\n   \
+        \ },\n    \"T3-Code-0.1.9-zh.1-x64.dmg\": {\n      \"id\": 738906789,\n      \"sha256\": \"db6a1407393a08bdbafe45dcde368cfed578351d72c18074d57ab58fdd995a2f\"\
+        ,\n      \"size\": 203267393\n    },\n    \"T3-Code-0.1.9-zh.1-x64.exe\": {\n      \"id\": 738907121,\n\
+        \      \"sha256\": \"e7e08595e627716912e11851c318fa572d66e46acefca1d8d571fe995a83b52b\",\n      \"size\"\
+        : 328160626\n    },\n    \"T3-Code-0.1.9-zh.1-x64.zip\": {\n      \"id\": 738907616,\n      \"sha256\":\
+        \ \"c550f5166f6e47f2fa5904495da0c88e42aaf3e17220357d9e8b15336c55e0ab\",\n      \"size\": 195922210\n   \
+        \ }\n  },\n  \"operation_sha\": null,\n  \"release_id\": 442744057,\n  \"release_metadata\": {\n    \"body\"\
+        : \"## v0.1.9-zh.1\\r\\n\\r\\n基于 T3 Code v0.1.9 的简体中文社区版。\\r\\n\\r\\n\U0001F41E 汉化修复\\r\\n\\r\\n- 补全任务右键菜单、设置分类及新任务默认值说明。\\\
+        r\\n\\r\\n## 下载地址\\r\\n\\r\\n### Windows\\r\\n\\r\\n- [64 位（x64）](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.9-zh.1/T3-Code-0.1.9-zh.1-x64.exe)\\\
+        r\\n\\r\\n### macOS\\r\\n\\r\\n- [Apple M 芯片](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.9-zh.1/T3-Code-0.1.9-zh.1-arm64.dmg)\
+        \ | [Intel 芯片](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.9-zh.1/T3-Code-0.1.9-zh.1-x64.dmg)\\\
+        r\\n\\r\\n### Linux\\r\\n\\r\\n#### DEB 包（Debian / Ubuntu）\\r\\n\\r\\n- [64 位（x64）](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.9-zh.1/T3-Code-0.1.9-zh.1-amd64.deb)\\\
+        r\\n\\r\\n### Android\\r\\n\\r\\n- [ARM64 APK](https://github.com/ZhiweiXiao98/t3code/releases/download/android-v0.1.9-zh.1/T3-Code-zh-CN-Android-0.1.9-zh.1-arm64-v8a.apk)\\\
+        r\\n\\r\\n### 注意事项\\r\\n\\r\\n- 升级前请备份数据；回退需使用升级前的备份。从 V1 升级请先阅读[迁移说明](https://github.com/pingdotgg/t3code/issues/14871)。\\\
+        r\\n- Windows 未签名；macOS 未做商业签名及公证，首次打开可能出现系统拦截。\\r\\n- Android 沿用 `android-v0.1.3-zh.1` 的签名；更早的其他签名版本不能直接覆盖安装。\\\
+        r\\n\",\n    \"draft\": false,\n    \"id\": 442744057,\n    \"name\": \"T3 Code 中文版 0.1.9-zh.1 (community\
+        \ desktop clients)\",\n    \"prerelease\": false,\n    \"published_at\": \"2026-11-12T09:44:05Z\",\n   \
+        \ \"tag_name\": \"v0.1.9-zh.1\",\n    \"target_commitish\": \"042eacb54f19c3bbc452e4ae271794f4c5fc524e\"\
+        \n  },\n  \"roundtrip_run_snapshot\": {\n    \"conclusion\": \"success\",\n    \"head_branch\": \"validation/v0.1.9-desktop-roundtrip-74039745-metadata-fix\"\
+        ,\n    \"head_sha\": \"3b28e3195e0331ddeac7651c60c0659988231383\",\n    \"id\": 44000018282,\n    \"path\"\
+        : \".github/workflows/desktop-roundtrip.yml\",\n    \"run_attempt\": 1,\n    \"status\": \"completed\",\n\
+        \    \"updated_at\": \"2026-11-17T02:03:17Z\"\n  },\n  \"semantic_review_approved\": true,\n  \"semantic_review_receipt_sha256\"\
+        : \"ddf0e510c23e21d41c4b063079fd0f18f770aa87e8c471c243bde288f773d6ba\",\n  \"source\": \"74039745b1b44834c30dd9cb275f1c224072dd96\"\
+        ,\n  \"tag\": \"v0.1.9-zh.1\"\n}\nREVIEWED_EOF\ncat > roundtrip-pins.json <<'REVIEWED_EOF'\n{\n  \"enabled\"\
+        : true,\n  \"scope\": \"Read-only roundtrip only; publication remains disabled\",\n  \"collector_operation\"\
+        : \"75bae1f4c7ceace61211be7d9d5e203014abf474\",\n  \"collector_run\": 43995592784,\n  \"collector_job\"\
+        : 133746717495,\n  \"artifact_records\": {\n    \"old\": {\n      \"run\": {\n        \"id\": 43995592784,\n\
+        \        \"head_sha\": \"75bae1f4c7ceace61211be7d9d5e203014abf474\",\n        \"head_branch\": \"validation/v0.1.9-desktop-byte-collection-74039745-accept-fix\"\
+        ,\n        \"path\": \".github/workflows/desktop-byte-collection.yml\",\n        \"run_attempt\": 1,\n \
+        \       \"status\": \"completed\",\n        \"conclusion\": \"success\",\n        \"updated_at\": \"2026-11-17T01:29:21Z\"\
+        \n      },\n      \"job\": {\n        \"id\": 133746717495,\n        \"run_id\": 43995592784,\n        \"\
+        workflow_name\": \"Exact desktop bytes and recoverable old-release backup (read-only)\",\n        \"head_branch\"\
+        : \"validation/v0.1.9-desktop-byte-collection-74039745-accept-fix\",\n        \"run_url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/43995592784\"\
+        ,\n        \"run_attempt\": 1,\n        \"node_id\": \"CR_kwDOT3b1Oc8AAAAfI-zzNw\",\n        \"head_sha\"\
+        : \"75bae1f4c7ceace61211be7d9d5e203014abf474\",\n        \"url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/133746717495\"\
+        ,\n        \"html_url\": \"https://github.com/ZhiweiXiao98/t3code/actions/runs/43995592784/job/133746717495\"\
+        ,\n        \"status\": \"completed\",\n        \"conclusion\": \"success\",\n        \"created_at\": \"\
+        2026-11-17T01:26:26Z\",\n        \"started_at\": \"2026-11-17T01:26:28Z\",\n        \"completed_at\": \"\
+        2026-11-17T01:29:21Z\",\n        \"name\": \"collect\",\n        \"steps\": [\n          {\n           \
+        \ \"name\": \"Set up job\",\n            \"status\": \"completed\",\n            \"conclusion\": \"success\"\
+        ,\n            \"number\": 1,\n            \"started_at\": \"2026-11-17T01:26:29Z\",\n            \"completed_at\"\
+        : \"2026-11-17T01:26:31Z\"\n          },\n          {\n            \"name\": \"Read-only exact desktop bytes\
+        \ and old release backup\",\n            \"status\": \"completed\",\n            \"conclusion\": \"success\"\
+        ,\n            \"number\": 2,\n            \"started_at\": \"2026-11-17T01:26:31Z\",\n            \"completed_at\"\
+        : \"2026-11-17T01:28:47Z\"\n          },\n          {\n            \"name\": \"Upload old-desktop-release-backup\"\
+        ,\n            \"status\": \"completed\",\n            \"conclusion\": \"success\",\n            \"number\"\
+        : 3,\n            \"started_at\": \"2026-11-17T01:28:47Z\",\n            \"completed_at\": \"2026-11-17T01:29:03Z\"\
+        \n          },\n          {\n            \"name\": \"Upload new-desktop-verified-bytes\",\n            \"\
+        status\": \"completed\",\n            \"conclusion\": \"success\",\n            \"number\": 4,\n       \
+        \     \"started_at\": \"2026-11-17T01:29:03Z\",\n            \"completed_at\": \"2026-11-17T01:29:17Z\"\n\
+        \          },\n          {\n            \"name\": \"Upload desktop-byte-collection-receipt\",\n        \
+        \    \"status\": \"completed\",\n            \"conclusion\": \"success\",\n            \"number\": 5,\n\
+        \            \"started_at\": \"2026-11-17T01:29:17Z\",\n            \"completed_at\": \"2026-11-17T01:29:19Z\"\
+        \n          },\n          {\n            \"name\": \"Complete job\",\n            \"status\": \"completed\"\
+        ,\n            \"conclusion\": \"success\",\n            \"number\": 6,\n            \"started_at\": \"\
+        2026-11-17T01:29:19Z\",\n            \"completed_at\": \"2026-11-17T01:29:19Z\"\n          }\n        ],\n\
+        \        \"check_run_url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/133746717495\"\
+        ,\n        \"labels\": [\n          \"ubuntu-24.04\"\n        ],\n        \"runner_id\": 1000010140,\n \
+        \       \"runner_name\": \"GitHub Actions 1000010140\",\n        \"runner_group_id\": 0,\n        \"runner_group_name\"\
+        : \"GitHub Actions\"\n      },\n      \"artifact\": {\n        \"id\": 14288874660,\n        \"node_id\"\
+        : \"MDg6QXJ0aWZhY3QxNDI4ODg3NDY2MA==\",\n        \"name\": \"old-desktop-release-backup-43995592784-1\"\
+        ,\n        \"size_in_bytes\": 1287634226,\n        \"url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/artifacts/14288874660\"\
+        ,\n        \"archive_download_url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/artifacts/14288874660/zip\"\
+        ,\n        \"expired\": false,\n        \"digest\": \"sha256:7d59a5703de0040287917c887fb1eab53f8c2f6bea39a4876e9c3a6b6f936c13\"\
+        ,\n        \"created_at\": \"2026-11-17T01:29:02Z\",\n        \"updated_at\": \"2026-11-17T01:29:02Z\",\n\
+        \        \"expires_at\": \"2026-12-01T01:28:48Z\",\n        \"workflow_run\": {\n          \"id\": 43995592784,\n\
+        \          \"repository_id\": 1333196089,\n          \"head_repository_id\": 1333196089,\n          \"head_branch\"\
+        : \"validation/v0.1.9-desktop-byte-collection-74039745-accept-fix\",\n          \"head_sha\": \"75bae1f4c7ceace61211be7d9d5e203014abf474\"\
+        \n        }\n      },\n      \"upload_step\": 3\n    },\n    \"new\": {\n      \"run\": {\n        \"id\"\
+        : 43995592784,\n        \"head_sha\": \"75bae1f4c7ceace61211be7d9d5e203014abf474\",\n        \"head_branch\"\
+        : \"validation/v0.1.9-desktop-byte-collection-74039745-accept-fix\",\n        \"path\": \".github/workflows/desktop-byte-collection.yml\"\
+        ,\n        \"run_attempt\": 1,\n        \"status\": \"completed\",\n        \"conclusion\": \"success\"\
+        ,\n        \"updated_at\": \"2026-11-17T01:29:21Z\"\n      },\n      \"job\": {\n        \"id\": 133746717495,\n\
+        \        \"run_id\": 43995592784,\n        \"workflow_name\": \"Exact desktop bytes and recoverable old-release\
+        \ backup (read-only)\",\n        \"head_branch\": \"validation/v0.1.9-desktop-byte-collection-74039745-accept-fix\"\
+        ,\n        \"run_url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/43995592784\",\n\
+        \        \"run_attempt\": 1,\n        \"node_id\": \"CR_kwDOT3b1Oc8AAAAfI-zzNw\",\n        \"head_sha\"\
+        : \"75bae1f4c7ceace61211be7d9d5e203014abf474\",\n        \"url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/133746717495\"\
+        ,\n        \"html_url\": \"https://github.com/ZhiweiXiao98/t3code/actions/runs/43995592784/job/133746717495\"\
+        ,\n        \"status\": \"completed\",\n        \"conclusion\": \"success\",\n        \"created_at\": \"\
+        2026-11-17T01:26:26Z\",\n        \"started_at\": \"2026-11-17T01:26:28Z\",\n        \"completed_at\": \"\
+        2026-11-17T01:29:21Z\",\n        \"name\": \"collect\",\n        \"steps\": [\n          {\n           \
+        \ \"name\": \"Set up job\",\n            \"status\": \"completed\",\n            \"conclusion\": \"success\"\
+        ,\n            \"number\": 1,\n            \"started_at\": \"2026-11-17T01:26:29Z\",\n            \"completed_at\"\
+        : \"2026-11-17T01:26:31Z\"\n          },\n          {\n            \"name\": \"Read-only exact desktop bytes\
+        \ and old release backup\",\n            \"status\": \"completed\",\n            \"conclusion\": \"success\"\
+        ,\n            \"number\": 2,\n            \"started_at\": \"2026-11-17T01:26:31Z\",\n            \"completed_at\"\
+        : \"2026-11-17T01:28:47Z\"\n          },\n          {\n            \"name\": \"Upload old-desktop-release-backup\"\
+        ,\n            \"status\": \"completed\",\n            \"conclusion\": \"success\",\n            \"number\"\
+        : 3,\n            \"started_at\": \"2026-11-17T01:28:47Z\",\n            \"completed_at\": \"2026-11-17T01:29:03Z\"\
+        \n          },\n          {\n            \"name\": \"Upload new-desktop-verified-bytes\",\n            \"\
+        status\": \"completed\",\n            \"conclusion\": \"success\",\n            \"number\": 4,\n       \
+        \     \"started_at\": \"2026-11-17T01:29:03Z\",\n            \"completed_at\": \"2026-11-17T01:29:17Z\"\n\
+        \          },\n          {\n            \"name\": \"Upload desktop-byte-collection-receipt\",\n        \
+        \    \"status\": \"completed\",\n            \"conclusion\": \"success\",\n            \"number\": 5,\n\
+        \            \"started_at\": \"2026-11-17T01:29:17Z\",\n            \"completed_at\": \"2026-11-17T01:29:19Z\"\
+        \n          },\n          {\n            \"name\": \"Complete job\",\n            \"status\": \"completed\"\
+        ,\n            \"conclusion\": \"success\",\n            \"number\": 6,\n            \"started_at\": \"\
+        2026-11-17T01:29:19Z\",\n            \"completed_at\": \"2026-11-17T01:29:19Z\"\n          }\n        ],\n\
+        \        \"check_run_url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/133746717495\"\
+        ,\n        \"labels\": [\n          \"ubuntu-24.04\"\n        ],\n        \"runner_id\": 1000010140,\n \
+        \       \"runner_name\": \"GitHub Actions 1000010140\",\n        \"runner_group_id\": 0,\n        \"runner_group_name\"\
+        : \"GitHub Actions\"\n      },\n      \"artifact\": {\n        \"id\": 14289173222,\n        \"node_id\"\
+        : \"MDg6QXJ0aWZhY3QxNDI4OTE3MzIyMg==\",\n        \"name\": \"new-desktop-verified-bytes-43995592784-1\"\
+        ,\n        \"size_in_bytes\": 1289535173,\n        \"url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/artifacts/14289173222\"\
+        ,\n        \"archive_download_url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/artifacts/14289173222/zip\"\
+        ,\n        \"expired\": false,\n        \"digest\": \"sha256:2decac776cd628da249d8eaf9662229976761baf0f331e2c41f82417a9d5bc46\"\
+        ,\n        \"created_at\": \"2026-11-17T01:29:17Z\",\n        \"updated_at\": \"2026-11-17T01:29:17Z\",\n\
+        \        \"expires_at\": \"2026-12-01T01:29:03Z\",\n        \"workflow_run\": {\n          \"id\": 43995592784,\n\
+        \          \"repository_id\": 1333196089,\n          \"head_repository_id\": 1333196089,\n          \"head_branch\"\
+        : \"validation/v0.1.9-desktop-byte-collection-74039745-accept-fix\",\n          \"head_sha\": \"75bae1f4c7ceace61211be7d9d5e203014abf474\"\
+        \n        }\n      },\n      \"upload_step\": 4\n    },\n    \"receipt\": {\n      \"run\": {\n        \"\
+        id\": 43995592784,\n        \"head_sha\": \"75bae1f4c7ceace61211be7d9d5e203014abf474\",\n        \"head_branch\"\
+        : \"validation/v0.1.9-desktop-byte-collection-74039745-accept-fix\",\n        \"path\": \".github/workflows/desktop-byte-collection.yml\"\
+        ,\n        \"run_attempt\": 1,\n        \"status\": \"completed\",\n        \"conclusion\": \"success\"\
+        ,\n        \"updated_at\": \"2026-11-17T01:29:21Z\"\n      },\n      \"job\": {\n        \"id\": 133746717495,\n\
+        \        \"run_id\": 43995592784,\n        \"workflow_name\": \"Exact desktop bytes and recoverable old-release\
+        \ backup (read-only)\",\n        \"head_branch\": \"validation/v0.1.9-desktop-byte-collection-74039745-accept-fix\"\
+        ,\n        \"run_url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/runs/43995592784\",\n\
+        \        \"run_attempt\": 1,\n        \"node_id\": \"CR_kwDOT3b1Oc8AAAAfI-zzNw\",\n        \"head_sha\"\
+        : \"75bae1f4c7ceace61211be7d9d5e203014abf474\",\n        \"url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/jobs/133746717495\"\
+        ,\n        \"html_url\": \"https://github.com/ZhiweiXiao98/t3code/actions/runs/43995592784/job/133746717495\"\
+        ,\n        \"status\": \"completed\",\n        \"conclusion\": \"success\",\n        \"created_at\": \"\
+        2026-11-17T01:26:26Z\",\n        \"started_at\": \"2026-11-17T01:26:28Z\",\n        \"completed_at\": \"\
+        2026-11-17T01:29:21Z\",\n        \"name\": \"collect\",\n        \"steps\": [\n          {\n           \
+        \ \"name\": \"Set up job\",\n            \"status\": \"completed\",\n            \"conclusion\": \"success\"\
+        ,\n            \"number\": 1,\n            \"started_at\": \"2026-11-17T01:26:29Z\",\n            \"completed_at\"\
+        : \"2026-11-17T01:26:31Z\"\n          },\n          {\n            \"name\": \"Read-only exact desktop bytes\
+        \ and old release backup\",\n            \"status\": \"completed\",\n            \"conclusion\": \"success\"\
+        ,\n            \"number\": 2,\n            \"started_at\": \"2026-11-17T01:26:31Z\",\n            \"completed_at\"\
+        : \"2026-11-17T01:28:47Z\"\n          },\n          {\n            \"name\": \"Upload old-desktop-release-backup\"\
+        ,\n            \"status\": \"completed\",\n            \"conclusion\": \"success\",\n            \"number\"\
+        : 3,\n            \"started_at\": \"2026-11-17T01:28:47Z\",\n            \"completed_at\": \"2026-11-17T01:29:03Z\"\
+        \n          },\n          {\n            \"name\": \"Upload new-desktop-verified-bytes\",\n            \"\
+        status\": \"completed\",\n            \"conclusion\": \"success\",\n            \"number\": 4,\n       \
+        \     \"started_at\": \"2026-11-17T01:29:03Z\",\n            \"completed_at\": \"2026-11-17T01:29:17Z\"\n\
+        \          },\n          {\n            \"name\": \"Upload desktop-byte-collection-receipt\",\n        \
+        \    \"status\": \"completed\",\n            \"conclusion\": \"success\",\n            \"number\": 5,\n\
+        \            \"started_at\": \"2026-11-17T01:29:17Z\",\n            \"completed_at\": \"2026-11-17T01:29:19Z\"\
+        \n          },\n          {\n            \"name\": \"Complete job\",\n            \"status\": \"completed\"\
+        ,\n            \"conclusion\": \"success\",\n            \"number\": 6,\n            \"started_at\": \"\
+        2026-11-17T01:29:19Z\",\n            \"completed_at\": \"2026-11-17T01:29:19Z\"\n          }\n        ],\n\
+        \        \"check_run_url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/check-runs/133746717495\"\
+        ,\n        \"labels\": [\n          \"ubuntu-24.04\"\n        ],\n        \"runner_id\": 1000010140,\n \
+        \       \"runner_name\": \"GitHub Actions 1000010140\",\n        \"runner_group_id\": 0,\n        \"runner_group_name\"\
+        : \"GitHub Actions\"\n      },\n      \"artifact\": {\n        \"id\": 14288999175,\n        \"node_id\"\
+        : \"MDg6QXJ0aWZhY3QxNDI4ODk5OTE3NQ==\",\n        \"name\": \"desktop-byte-collection-receipt-43995592784-1\"\
+        ,\n        \"size_in_bytes\": 38887,\n        \"url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/artifacts/14288999175\"\
+        ,\n        \"archive_download_url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/artifacts/14288999175/zip\"\
+        ,\n        \"expired\": false,\n        \"digest\": \"sha256:c0d6506516d018158b027376295e8ffb79448f5a7a71cd39e2ded78f96768dc7\"\
+        ,\n        \"created_at\": \"2026-11-17T01:29:18Z\",\n        \"updated_at\": \"2026-11-17T01:29:18Z\",\n\
+        \        \"expires_at\": \"2026-12-01T01:29:17Z\",\n        \"workflow_run\": {\n          \"id\": 43995592784,\n\
+        \          \"repository_id\": 1333196089,\n          \"head_repository_id\": 1333196089,\n          \"head_branch\"\
+        : \"validation/v0.1.9-desktop-byte-collection-74039745-accept-fix\",\n          \"head_sha\": \"75bae1f4c7ceace61211be7d9d5e203014abf474\"\
+        \n        }\n      },\n      \"upload_step\": 5\n    }\n  },\n  \"receipt_sha256\": \"61b19ef8a29086da662cfe7489f9ff4fd12f41ef10d11ecc532dbb2527502187\"\
+        \n}\nREVIEWED_EOF\ncat > BUILD-PROVENANCE.json <<'REVIEWED_EOF'\n{\n  \"assets\": [\n    {\n      \"artifact_id\"\
+        : 14287955485,\n      \"name\": \"MACOS-TRUST-arm64.txt\",\n      \"producer_job\": 133725664245,\n    \
+        \  \"producer_run\": 43989055996,\n      \"sha256\": \"2093d565a86a41bf355c3019ed61f7b2c6b447c4123fb3d82f4e95f242bfb29b\"\
+        ,\n      \"size\": 3461\n    },\n    {\n      \"artifact_id\": 14244078742,\n      \"name\": \"MACOS-TRUST-x64.txt\"\
+        ,\n      \"producer_job\": 133423109560,\n      \"producer_run\": 43901004126,\n      \"sha256\": \"405564ccd82de8437de491a9386cb62985252b823715ea0dfa2b6f20f46ca221\"\
+        ,\n      \"size\": 3461\n    },\n    {\n      \"artifact_id\": 14241987575,\n      \"name\": \"T3-Code-0.1.9-zh.1-amd64.deb\"\
+        ,\n      \"producer_job\": 133419166277,\n      \"producer_run\": 43901004126,\n      \"sha256\": \"4920196d9e1c373e53400f0de98e338bd3e4d24b507068413c384d923882b2da\"\
+        ,\n      \"size\": 176236752\n    },\n    {\n      \"artifact_id\": 14287955485,\n      \"name\": \"T3-Code-0.1.9-zh.1-arm64.dmg\"\
+        ,\n      \"producer_job\": 133725664245,\n      \"producer_run\": 43989055996,\n      \"sha256\": \"41f33856a4d27b8fcd313e8df8fc7df43ee2d798582819b297a10f43a966afb8\"\
+        ,\n      \"size\": 196422842\n    },\n    {\n      \"artifact_id\": 14287955485,\n      \"name\": \"T3-Code-0.1.9-zh.1-arm64.zip\"\
+        ,\n      \"producer_job\": 133725664245,\n      \"producer_run\": 43989055996,\n      \"sha256\": \"58a1d590305e7f9201e6a575f5f9c5c61cb2702d602efdf77a71e46e9fc1759e\"\
+        ,\n      \"size\": 189081294\n    },\n    {\n      \"artifact_id\": 14244078742,\n      \"name\": \"T3-Code-0.1.9-zh.1-x64.dmg\"\
+        ,\n      \"producer_job\": 133423109560,\n      \"producer_run\": 43901004126,\n      \"sha256\": \"b316cf2d6d45acb20ef24d4805aa53ad096cba77c8c4ade51899621d5b28d183\"\
+        ,\n      \"size\": 203357683\n    },\n    {\n      \"artifact_id\": 14244416842,\n      \"name\": \"T3-Code-0.1.9-zh.1-x64.exe\"\
+        ,\n      \"producer_job\": 133423106015,\n      \"producer_run\": 43901004126,\n      \"sha256\": \"434c53ea52ffb4339c27d5ec7a4617aa240f744b4f48161e332ea18f0075ed8c\"\
+        ,\n      \"size\": 328398795\n    },\n    {\n      \"artifact_id\": 14244078742,\n      \"name\": \"T3-Code-0.1.9-zh.1-x64.zip\"\
+        ,\n      \"producer_job\": 133423109560,\n      \"producer_run\": 43901004126,\n      \"sha256\": \"4d911a1b705eb1dcf9595ccf73197ea5003bb5c7377253bccc51060771500276\"\
+        ,\n      \"size\": 196029723\n    }\n  ],\n  \"backup\": {\n    \"artifact\": {\n      \"archive_download_url\"\
+        : \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/artifacts/14288874660/zip\",\n      \"created_at\"\
+        : \"2026-11-17T01:29:02Z\",\n      \"digest\": \"sha256:7d59a5703de0040287917c887fb1eab53f8c2f6bea39a4876e9c3a6b6f936c13\"\
+        ,\n      \"expired\": false,\n      \"expires_at\": \"2026-12-01T01:28:48Z\",\n      \"id\": 14288874660,\n\
+        \      \"name\": \"old-desktop-release-backup-43995592784-1\",\n      \"node_id\": \"MDg6QXJ0aWZhY3QxNDI4ODg3NDY2MA==\"\
+        ,\n      \"size_in_bytes\": 1287634226,\n      \"updated_at\": \"2026-11-17T01:29:02Z\",\n      \"url\"\
+        : \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/artifacts/14288874660\",\n      \"workflow_run\"\
+        : {\n        \"head_branch\": \"validation/v0.1.9-desktop-byte-collection-74039745-accept-fix\",\n     \
+        \   \"head_repository_id\": 1333196089,\n        \"head_sha\": \"75bae1f4c7ceace61211be7d9d5e203014abf474\"\
+        ,\n        \"id\": 43995592784,\n        \"repository_id\": 1333196089\n      }\n    },\n    \"receipt_sha256\"\
+        : \"2fe6ddb27dd9359fd0a8b094458f320792450ba5681b1cf3f43a89434bc69662\",\n    \"release_snapshot\": {\n \
+        \     \"sha256\": \"b10a2435c7ad1e861c2227ec6b680fa56f086c4f91ae73ab9bc9c9331389810e\",\n      \"size\"\
+        : 5194\n    },\n    \"roundtrip_run\": 44000018282\n  },\n  \"limits\": {\n    \"android_published_by_this_operation\"\
+        : false,\n    \"appimage_included\": false,\n    \"arm15_evidence_run\": 43989055996,\n    \"macos_gatekeeper_acceptance_claimed\"\
+        : false,\n    \"macos_notarized\": false,\n    \"windows_authenticode_signed\": false\n  },\n  \"release_id\"\
+        : 442744057,\n  \"schema\": 1,\n  \"source_sha\": \"74039745b1b44834c30dd9cb275f1c224072dd96\",\n  \"source_tree\"\
+        : \"2849e01639a6ec5242b4041b65762ef78ac08a51\",\n  \"validation\": {\n    \"logical_gates\": {\n      \"\
+        android\": {\n        \"job_id\": 133419166178,\n        \"name\": \"Android arm64 unsigned candidate (NOT\
+        \ installable)\",\n        \"producer_attempt\": 1,\n        \"run_id\": 43901004126\n      },\n      \"\
+        arm-build\": {\n        \"job_id\": 133725664245,\n        \"name\": \"Desktop mac arm64 (integrity checked)\"\
+        ,\n        \"producer_attempt\": 1,\n        \"run_id\": 43989055996\n      },\n      \"arm-dmg\": {\n \
+        \       \"job_id\": 133728157419,\n        \"name\": \"Clean macOS arm64 dmg first start\",\n        \"\
+        producer_attempt\": 1,\n        \"run_id\": 43989055996\n      },\n      \"arm-zip\": {\n        \"job_id\"\
+        : 133728157328,\n        \"name\": \"Clean macOS arm64 zip first start\",\n        \"producer_attempt\"\
+        : 1,\n        \"run_id\": 43989055996\n      },\n      \"bundle\": {\n        \"job_id\": 133417375043,\n\
+        \        \"name\": \"Build validated desktop bundle\",\n        \"producer_attempt\": 1,\n        \"run_id\"\
+        : 43901004126\n      },\n      \"desktop-intel\": {\n        \"job_id\": 133423109560,\n        \"name\"\
+        : \"Desktop mac x64 (integrity checked)\",\n        \"producer_attempt\": 1,\n        \"run_id\": 43901004126\n\
+        \      },\n      \"desktop-win\": {\n        \"job_id\": 133423106015,\n        \"name\": \"Desktop win\
+        \ x64 (integrity checked)\",\n        \"producer_attempt\": 1,\n        \"run_id\": 43901004126\n      },\n\
+        \      \"intel-dmg\": {\n        \"job_id\": 133710481504,\n        \"name\": \"Chinese UI and restart Clean\
+        \ macOS x64 dmg first start\",\n        \"producer_attempt\": 2,\n        \"run_id\": 43910485616\n    \
+        \  },\n      \"intel-zip\": {\n        \"job_id\": 133710481888,\n        \"name\": \"Chinese UI and restart\
+        \ Clean macOS x64 zip first start\",\n        \"producer_attempt\": 2,\n        \"run_id\": 43910485616\n\
+        \      },\n      \"linux\": {\n        \"job_id\": 133419166277,\n        \"name\": \"Linux x64 and embedded\
+        \ Windows WSL runtime\",\n        \"producer_attempt\": 1,\n        \"run_id\": 43901004126\n      },\n\
+        \      \"linux-clean\": {\n        \"job_id\": 133423105207,\n        \"name\": \"Clean desktop deb first\
+        \ start\",\n        \"producer_attempt\": 1,\n        \"run_id\": 43901004126\n      },\n      \"mobile\"\
+        : {\n        \"job_id\": 133435653311,\n        \"name\": \"Mobile native static analysis\",\n        \"\
+        producer_attempt\": 1,\n        \"run_id\": 43906200557\n      },\n      \"quality\": {\n        \"job_id\"\
+        : 133444752535,\n        \"name\": \"Lint and typecheck\",\n        \"producer_attempt\": 1,\n        \"\
+        run_id\": 43906200557\n      },\n      \"rust\": {\n        \"job_id\": 133435653269,\n        \"name\"\
+        : \"Rust native formatting and tests\",\n        \"producer_attempt\": 1,\n        \"run_id\": 43906200557\n\
+        \      },\n      \"source\": {\n        \"job_id\": 133417263498,\n        \"name\": \"Validate exact source\"\
+        ,\n        \"producer_attempt\": 1,\n        \"run_id\": 43901004126\n      },\n      \"tests-clients\"\
+        : {\n        \"job_id\": 133435653280,\n        \"name\": \"Tests (clients)\",\n        \"producer_attempt\"\
+        : 1,\n        \"run_id\": 43906200557\n      },\n      \"tests-server-1\": {\n        \"job_id\": 133435653276,\n\
+        \        \"name\": \"Tests (server-1)\",\n        \"producer_attempt\": 1,\n        \"run_id\": 43906200557\n\
+        \      },\n      \"tests-server-2\": {\n        \"job_id\": 133435653245,\n        \"name\": \"Tests (server-2)\"\
+        ,\n        \"producer_attempt\": 1,\n        \"run_id\": 43906200557\n      },\n      \"tests-server-3\"\
+        : {\n        \"job_id\": 133435653261,\n        \"name\": \"Tests (server-3)\",\n        \"producer_attempt\"\
+        : 1,\n        \"run_id\": 43906200557\n      },\n      \"web-1\": {\n        \"job_id\": 133435653459,\n\
+        \        \"name\": \"Web full coverage shard 1/4\",\n        \"producer_attempt\": 1,\n        \"run_id\"\
+        : 43906200557\n      },\n      \"web-2\": {\n        \"job_id\": 133435653170,\n        \"name\": \"Web\
+        \ full coverage shard 2/4\",\n        \"producer_attempt\": 1,\n        \"run_id\": 43906200557\n      },\n\
+        \      \"web-3\": {\n        \"job_id\": 133435653238,\n        \"name\": \"Web full coverage shard 3/4\"\
+        ,\n        \"producer_attempt\": 1,\n        \"run_id\": 43906200557\n      },\n      \"web-4\": {\n   \
+        \     \"job_id\": 133435653231,\n        \"name\": \"Web full coverage shard 4/4\",\n        \"producer_attempt\"\
+        : 1,\n        \"run_id\": 43906200557\n      },\n      \"web-boot\": {\n        \"job_id\": 133442991392,\n\
+        \        \"name\": \"Build and boot validated Web client\",\n        \"producer_attempt\": 1,\n        \"\
+        run_id\": 43906200557\n      },\n      \"web-coverage\": {\n        \"job_id\": 133442664330,\n        \"\
+        name\": \"Require complete Web assertion coverage\",\n        \"producer_attempt\": 1,\n        \"run_id\"\
+        : 43906200557\n      },\n      \"windows-clean\": {\n        \"job_id\": 133452308296,\n        \"name\"\
+        : \"Chinese UI and restart Clean desktop nsis first start\",\n        \"producer_attempt\": 1,\n       \
+        \ \"run_id\": 43910485616\n      }\n    },\n    \"mode\": \"distributed exact-source evidence; not a single\
+        \ green full run\",\n    \"original_full_conclusion\": \"failure\",\n    \"original_full_run\": 43901004126,\n\
+        \    \"proof_collection\": {\n      \"byte_receipts_sha256\": \"d156dd18297c40a3d37fe3663e13f6ccd23101969ef872342247a2d0ad70ec70\"\
+        ,\n      \"operation\": {\n        \"branch\": \"validation/v0.1.9-original-proof-receipts-74039745\",\n\
+        \        \"operation_sha\": \"9bffbffebd3ec1ce90d50e09a0796f5119f966a4\",\n        \"run_id\": 44002947263,\n\
+        \        \"source\": \"74039745b1b44834c30dd9cb275f1c224072dd96\",\n        \"workflow\": \".github/workflows/original-proof-receipts-740.yml\"\
+        ,\n        \"workflow_blob\": \"ac3857586b3f3a72ac3be9b1461f513dfa055926\"\n      },\n      \"receipt_sha256\"\
+        : \"c8b168b998ef3b4f5185264c8fc8f5dc48af931bb9e82d58c75635608f0314a8\"\n    },\n    \"runs\": [\n      {\n\
+        \        \"conclusion\": \"failure\",\n        \"event\": \"push\",\n        \"head_branch\": \"maintenance/v0.1.9-zh-cloud\"\
+        ,\n        \"head_sha\": \"74039745b1b44834c30dd9cb275f1c224072dd96\",\n        \"id\": 43901004126,\n \
+        \       \"path\": \".github/workflows/client-release.yml\",\n        \"run_attempt\": 1,\n        \"status\"\
+        : \"completed\"\n      },\n      {\n        \"conclusion\": \"success\",\n        \"event\": \"push\",\n\
+        \        \"head_branch\": \"validation/v0.1.9-final-code-gates-74039745\",\n        \"head_sha\": \"16eac5de44135169fc0c7f973347a0678238ed5e\"\
+        ,\n        \"id\": 43906200557,\n        \"path\": \".github/workflows/final-code-gates.yml\",\n       \
+        \ \"run_attempt\": 1,\n        \"status\": \"completed\"\n      },\n      {\n        \"conclusion\": \"\
+        success\",\n        \"event\": \"push\",\n        \"head_branch\": \"validation/v0.1.9-final-locale-74039745\"\
+        ,\n        \"head_sha\": \"cde5af23ff822df43a41c1044dee00d1b0da286e\",\n        \"id\": 43910485616,\n \
+        \       \"path\": \".github/workflows/final-locale-validation.yml\",\n        \"run_attempt\": 2,\n    \
+        \    \"status\": \"completed\"\n      },\n      {\n        \"conclusion\": \"success\",\n        \"event\"\
+        : \"push\",\n        \"head_branch\": \"validation/v0.1.9-arm15-74039745\",\n        \"head_sha\": \"911c7bdd594d9269eb685ffc2f6abe8990041371\"\
+        ,\n        \"id\": 43989055996,\n        \"path\": \".github/workflows/arm15-validation.yml\",\n       \
+        \ \"run_attempt\": 1,\n        \"status\": \"completed\"\n      },\n      {\n        \"conclusion\": \"\
+        success\",\n        \"event\": \"push\",\n        \"head_branch\": \"validation/v0.1.9-coverage-74039745b1b4\"\
+        ,\n        \"head_sha\": \"b5a670cd7a87d4c2618307579af2c7d3cdf7bbe5\",\n        \"id\": 43989361423,\n \
+        \       \"path\": \".github/workflows/client-coverage.yml\",\n        \"run_attempt\": 1,\n        \"status\"\
+        : \"completed\"\n      },\n      {\n        \"conclusion\": \"success\",\n        \"event\": \"push\",\n\
+        \        \"head_branch\": \"validation/v0.1.9-zh.2-ui-74039745b1b4-partitions\",\n        \"head_sha\":\
+        \ \"3f95c4aa754b862cefc19d168248d1030dc10e79\",\n        \"id\": 43992265580,\n        \"path\": \".github/workflows/validate-v019-zh-ui.yml\"\
+        ,\n        \"run_attempt\": 1,\n        \"status\": \"completed\"\n      }\n    ],\n    \"semantic_review\"\
+        : {\n      \"approved\": true,\n      \"receipt_sha256\": \"ddf0e510c23e21d41c4b063079fd0f18f770aa87e8c471c243bde288f773d6ba\"\
+        ,\n      \"source_pin_corroboration\": {\n        \"files\": {\n          \"apps/mobile/babel.config.js\"\
+        : \"1c090a8fd60688b7a02127d485b9775e7ee1d06ac4d63d827fd0999ee13098f7\",\n          \"apps/mobile/src/components/ui/Toast.test.tsx\"\
+        : \"8aeffb091d1e91e646b956227b0f5c28ce8d18f33e4a6d6bca8bbbe57211c89b\",\n          \"apps/mobile/src/components/ui/Toast.tsx\"\
+        : \"efcb241f4c43e9492f5e4f7cb352992b2a399520e512f66abef21dab5e36dff6\",\n          \"apps/mobile/vite.config.ts\"\
+        : \"d6d91515f783c3e401af442a8f6bf40ca9ad9245188fd657f1a425b17dd545e3\",\n          \"pnpm-lock.yaml\": \"\
+        08498310a8df8b2344116621bce79c4c0d10a0c31ed1b3550ad800cd293f6aa4\"\n        },\n        \"independent_source\"\
+        : \"74039745b1b44834c30dd9cb275f1c224072dd96\",\n        \"result\": \"all five exact-source bytes independently\
+        \ match\"\n      },\n      \"status\": \"VERIFIED\",\n      \"strict_semantics\": {\n        \"newly_observed_transport_pins\"\
+        : [\n          {\n            \"id\": 14287750719,\n            \"name\": \"supplemental-coverage-proof\"\
+        ,\n            \"producer_job_id\": 133727490903,\n            \"producer_log_sha256\": \"b9e70f0559119e09e2fd5224f68429a3292d95caeb7d0a6996c3bc76641557ff\"\
+        ,\n            \"sha256\": \"78674d18d0632b95767bd088d44acb44cc2c973f11317691779f93b0dc6e079d\",\n     \
+        \       \"size\": 4806,\n            \"upload_step_name\": \"Upload supplemental coverage proof\"\n    \
+        \      },\n          {\n            \"id\": 14287605318,\n            \"name\": \"supplemental-report-linux-node24\"\
+        ,\n            \"producer_job_id\": 133725696061,\n            \"producer_log_sha256\": \"3fb16ead187e5197d26c55285bb2e539675b8eeae358456fc9af57b9e7163c8d\"\
+        ,\n            \"sha256\": \"6619853915321d581a755de702c957b5188157e03b7ef557fb3a80b446c22a0f\",\n     \
+        \       \"size\": 780,\n            \"upload_step_name\": \"Preserve raw test report\"\n          },\n \
+        \         {\n            \"id\": 14286787745,\n            \"name\": \"supplemental-report-linux-node26\"\
+        ,\n            \"producer_job_id\": 133725696177,\n            \"producer_log_sha256\": \"3a0a804c6998d740328ab85799320eddb1e577b079e9e9d00110e3459e24c3b7\"\
+        ,\n            \"sha256\": \"a44ad7c19f800ec354a858a6945154a1662240e45235a6e2b08b24e11e73b462\",\n     \
+        \       \"size\": 1626,\n            \"upload_step_name\": \"Preserve raw test report\"\n          },\n\
+        \          {\n            \"id\": 14286737715,\n            \"name\": \"supplemental-report-linux-nushell\"\
+        ,\n            \"producer_job_id\": 133725695991,\n            \"producer_log_sha256\": \"5a8f368fc5c9d710eede08effff8196ae9ca5a3437624635c72356efc943bf30\"\
+        ,\n            \"sha256\": \"fa77fae3f143c796adffb08892e68ed25dff87d9a72404f36b2bc1339f754bbf\",\n     \
+        \       \"size\": 3781,\n            \"upload_step_name\": \"Preserve raw test report\"\n          },\n\
+        \          {\n            \"id\": 14286503377,\n            \"name\": \"supplemental-report-windows-uninstall\"\
+        ,\n            \"producer_job_id\": 133725696208,\n            \"producer_log_sha256\": \"ce0613f32a1c46a19faea7010a827cb0151c4698fb04a29468dfd4662c506ac8\"\
+        ,\n            \"sha256\": \"ebc9c8b38d1b66d546965364dc2da17b7e44ef28c03bd3f476a4d02ac61f6eb3\",\n     \
+        \       \"size\": 674,\n            \"upload_step_name\": \"Preserve raw test report\"\n          },\n \
+        \         {\n            \"id\": 14286393306,\n            \"name\": \"supplemental-report-windows-shared\"\
+        ,\n            \"producer_job_id\": 133725695689,\n            \"producer_log_sha256\": \"7c29743816dceeffdb027e84910704966f2086d44f15fbeb6d9324050fdcfe15\"\
+        ,\n            \"sha256\": \"ea0b0b5f5f52df1523ef9ed93823a97e36173f1eaa9a14f746611f2a49dc842b\",\n     \
+        \       \"size\": 3954,\n            \"upload_step_name\": \"Preserve raw test report\"\n          },\n\
+        \          {\n            \"id\": 14288732401,\n            \"name\": \"v019-zh-ui-43992265580-1\",\n  \
+        \          \"producer_job_id\": 133735578007,\n            \"producer_log_sha256\": \"3b20b69bec820d616374a99235dd45d196a7ff3e3fb7e37be6c7203ccd460cf4\"\
+        ,\n            \"sha256\": \"0b6138fa068b408c114655c55ab14e3ff22c7eff6d3259684e1ab916f5729da9\",\n     \
+        \       \"size\": 1526957,\n            \"upload_step_name\": \"Upload only sanitized reports and reviewed\
+        \ viewport PNGs\"\n          }\n        ],\n        \"pin_status\": \"OBSERVED_NOT_PREAPPROVED\",\n    \
+        \    \"scope\": \"26 API gate receipts; original supplemental/UI semantics. Other small ZIPs retained, not\
+        \ newly asserted as semantic validation. Android/desktop large bytes remain separate verified receipts.\"\
+        ,\n        \"signing_approval\": false,\n        \"supplemental\": \"original strict manifest + five named\
+        \ raw reports + six original upload logs\",\n        \"ui\": {\n          \"dual_toast_cases\": 2,\n   \
+        \       \"files\": 330,\n          \"installed_app_acceptance\": false,\n          \"observers\": 4,\n \
+        \         \"partitions\": 4,\n          \"passed_tests\": 3045,\n          \"run\": 43992265580,\n     \
+        \     \"scenario_steps\": 61,\n          \"schema\": \"v019-ui-partition-semantic-result-1\",\n        \
+        \  \"screenshots\": 5,\n          \"source\": \"74039745b1b44834c30dd9cb275f1c224072dd96\"\n        }\n\
+        \      }\n    },\n    \"web_required\": {\n      \"assertions\": 7536,\n      \"boot_required\": true,\n\
+        \      \"files\": 690,\n      \"partition_summary_required\": true,\n      \"shards\": 4\n    }\n  },\n\
+        \  \"version\": \"0.1.9-zh.1\"\n}\nREVIEWED_EOF\ncat > SHA256SUMS.txt <<'REVIEWED_EOF'\nccf80f1e3fb1ef1d60c62650697b9a038d273182852371e733bec92ef286b4c5\
+        \  BUILD-PROVENANCE.json\n2093d565a86a41bf355c3019ed61f7b2c6b447c4123fb3d82f4e95f242bfb29b  MACOS-TRUST-arm64.txt\n\
+        405564ccd82de8437de491a9386cb62985252b823715ea0dfa2b6f20f46ca221  MACOS-TRUST-x64.txt\n4920196d9e1c373e53400f0de98e338bd3e4d24b507068413c384d923882b2da\
+        \  T3-Code-0.1.9-zh.1-amd64.deb\n41f33856a4d27b8fcd313e8df8fc7df43ee2d798582819b297a10f43a966afb8  T3-Code-0.1.9-zh.1-arm64.dmg\n\
+        58a1d590305e7f9201e6a575f5f9c5c61cb2702d602efdf77a71e46e9fc1759e  T3-Code-0.1.9-zh.1-arm64.zip\nb316cf2d6d45acb20ef24d4805aa53ad096cba77c8c4ade51899621d5b28d183\
+        \  T3-Code-0.1.9-zh.1-x64.dmg\n434c53ea52ffb4339c27d5ec7a4617aa240f744b4f48161e332ea18f0075ed8c  T3-Code-0.1.9-zh.1-x64.exe\n\
+        4d911a1b705eb1dcf9595ccf73197ea5003bb5c7377253bccc51060771500276  T3-Code-0.1.9-zh.1-x64.zip\nREVIEWED_EOF\n\
+        cat > roundtrip-receipt.json <<'REVIEWED_EOF'\n{\n  \"artifacts\": {\n    \"new\": {\n      \"archive_download_url\"\
+        : \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/artifacts/14289173222/zip\",\n      \"created_at\"\
+        : \"2026-11-17T01:29:17Z\",\n      \"digest\": \"sha256:2decac776cd628da249d8eaf9662229976761baf0f331e2c41f82417a9d5bc46\"\
+        ,\n      \"expired\": false,\n      \"expires_at\": \"2026-12-01T01:29:03Z\",\n      \"id\": 14289173222,\n\
+        \      \"name\": \"new-desktop-verified-bytes-43995592784-1\",\n      \"node_id\": \"MDg6QXJ0aWZhY3QxNDI4OTE3MzIyMg==\"\
+        ,\n      \"size_in_bytes\": 1289535173,\n      \"updated_at\": \"2026-11-17T01:29:17Z\",\n      \"url\"\
+        : \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/artifacts/14289173222\",\n      \"workflow_run\"\
+        : {\n        \"head_branch\": \"validation/v0.1.9-desktop-byte-collection-74039745-accept-fix\",\n     \
+        \   \"head_repository_id\": 1333196089,\n        \"head_sha\": \"75bae1f4c7ceace61211be7d9d5e203014abf474\"\
+        ,\n        \"id\": 43995592784,\n        \"repository_id\": 1333196089\n      }\n    },\n    \"old\": {\n\
+        \      \"archive_download_url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/artifacts/14288874660/zip\"\
+        ,\n      \"created_at\": \"2026-11-17T01:29:02Z\",\n      \"digest\": \"sha256:7d59a5703de0040287917c887fb1eab53f8c2f6bea39a4876e9c3a6b6f936c13\"\
+        ,\n      \"expired\": false,\n      \"expires_at\": \"2026-12-01T01:28:48Z\",\n      \"id\": 14288874660,\n\
+        \      \"name\": \"old-desktop-release-backup-43995592784-1\",\n      \"node_id\": \"MDg6QXJ0aWZhY3QxNDI4ODg3NDY2MA==\"\
+        ,\n      \"size_in_bytes\": 1287634226,\n      \"updated_at\": \"2026-11-17T01:29:02Z\",\n      \"url\"\
+        : \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/artifacts/14288874660\",\n      \"workflow_run\"\
+        : {\n        \"head_branch\": \"validation/v0.1.9-desktop-byte-collection-74039745-accept-fix\",\n     \
+        \   \"head_repository_id\": 1333196089,\n        \"head_sha\": \"75bae1f4c7ceace61211be7d9d5e203014abf474\"\
+        ,\n        \"id\": 43995592784,\n        \"repository_id\": 1333196089\n      }\n    },\n    \"receipt\"\
+        : {\n      \"archive_download_url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/artifacts/14288999175/zip\"\
+        ,\n      \"created_at\": \"2026-11-17T01:29:18Z\",\n      \"digest\": \"sha256:c0d6506516d018158b027376295e8ffb79448f5a7a71cd39e2ded78f96768dc7\"\
+        ,\n      \"expired\": false,\n      \"expires_at\": \"2026-12-01T01:29:17Z\",\n      \"id\": 14288999175,\n\
+        \      \"name\": \"desktop-byte-collection-receipt-43995592784-1\",\n      \"node_id\": \"MDg6QXJ0aWZhY3QxNDI4ODk5OTE3NQ==\"\
+        ,\n      \"size_in_bytes\": 38887,\n      \"updated_at\": \"2026-11-17T01:29:18Z\",\n      \"url\": \"https://api.github.com/repos/ZhiweiXiao98/t3code/actions/artifacts/14288999175\"\
+        ,\n      \"workflow_run\": {\n        \"head_branch\": \"validation/v0.1.9-desktop-byte-collection-74039745-accept-fix\"\
+        ,\n        \"head_repository_id\": 1333196089,\n        \"head_sha\": \"75bae1f4c7ceace61211be7d9d5e203014abf474\"\
+        ,\n        \"id\": 43995592784,\n        \"repository_id\": 1333196089\n      }\n    }\n  },\n  \"backup_bytes_verified\"\
+        : true,\n  \"collector_run\": 43995592784,\n  \"new_bytes_verified\": true,\n  \"new_entries\": {\n    \"\
+        MACOS-TRUST-arm64.txt\": {\n      \"sha256\": \"2093d565a86a41bf355c3019ed61f7b2c6b447c4123fb3d82f4e95f242bfb29b\"\
+        ,\n      \"size\": 3461\n    },\n    \"MACOS-TRUST-x64.txt\": {\n      \"sha256\": \"405564ccd82de8437de491a9386cb62985252b823715ea0dfa2b6f20f46ca221\"\
+        ,\n      \"size\": 3461\n    },\n    \"T3-Code-0.1.9-zh.1-amd64.deb\": {\n      \"sha256\": \"4920196d9e1c373e53400f0de98e338bd3e4d24b507068413c384d923882b2da\"\
+        ,\n      \"size\": 176236752\n    },\n    \"T3-Code-0.1.9-zh.1-arm64.dmg\": {\n      \"sha256\": \"41f33856a4d27b8fcd313e8df8fc7df43ee2d798582819b297a10f43a966afb8\"\
+        ,\n      \"size\": 196422842\n    },\n    \"T3-Code-0.1.9-zh.1-arm64.zip\": {\n      \"sha256\": \"58a1d590305e7f9201e6a575f5f9c5c61cb2702d602efdf77a71e46e9fc1759e\"\
+        ,\n      \"size\": 189081294\n    },\n    \"T3-Code-0.1.9-zh.1-x64.dmg\": {\n      \"sha256\": \"b316cf2d6d45acb20ef24d4805aa53ad096cba77c8c4ade51899621d5b28d183\"\
+        ,\n      \"size\": 203357683\n    },\n    \"T3-Code-0.1.9-zh.1-x64.exe\": {\n      \"sha256\": \"434c53ea52ffb4339c27d5ec7a4617aa240f744b4f48161e332ea18f0075ed8c\"\
+        ,\n      \"size\": 328398795\n    },\n    \"T3-Code-0.1.9-zh.1-x64.zip\": {\n      \"sha256\": \"4d911a1b705eb1dcf9595ccf73197ea5003bb5c7377253bccc51060771500276\"\
+        ,\n      \"size\": 196029723\n    }\n  },\n  \"old_entries\": {\n    \"BUILD-PROVENANCE.json\": {\n    \
+        \  \"sha256\": \"25960e41aa5a677c6cc4d628dc17993154f60c90f6c8338f8b8fcbca36bd9c04\",\n      \"size\": 32980\n\
+        \    },\n    \"MACOS-TRUST-arm64.txt\": {\n      \"sha256\": \"067a769805c17f5cadf9809170e0c3fa2a13717ec897b4a2c6b7473d903e37df\"\
+        ,\n      \"size\": 3461\n    },\n    \"MACOS-TRUST-x64.txt\": {\n      \"sha256\": \"403929cacb6ae126ec319d3d894026b582d5eac8c7c91fb2c7c2c412292b57c4\"\
+        ,\n      \"size\": 3461\n    },\n    \"SHA256SUMS.txt\": {\n      \"sha256\": \"cc21b415388c7c65d0ae5dd62e819485407ea68b0d5855568a301343ac7b0c3a\"\
+        ,\n      \"size\": 826\n    },\n    \"T3-Code-0.1.9-zh.1-amd64.deb\": {\n      \"sha256\": \"10e714dd14970b2438a95d72a99a6f0a900ab545aadc327e575422e665139d49\"\
+        ,\n      \"size\": 174936172\n    },\n    \"T3-Code-0.1.9-zh.1-arm64.dmg\": {\n      \"sha256\": \"4a43fec6cbe25a132522f5995ebdcb73b65675ec3ed6d395d86a5cb5a3b8818c\"\
+        ,\n      \"size\": 196326798\n    },\n    \"T3-Code-0.1.9-zh.1-arm64.zip\": {\n      \"sha256\": \"af30a4149bab09799d209ad4c2ab4d65a89d7372ef9ff9870f4668c567718ac2\"\
+        ,\n      \"size\": 188973555\n    },\n    \"T3-Code-0.1.9-zh.1-x64.dmg\": {\n      \"sha256\": \"db6a1407393a08bdbafe45dcde368cfed578351d72c18074d57ab58fdd995a2f\"\
+        ,\n      \"size\": 203267393\n    },\n    \"T3-Code-0.1.9-zh.1-x64.exe\": {\n      \"sha256\": \"e7e08595e627716912e11851c318fa572d66e46acefca1d8d571fe995a83b52b\"\
+        ,\n      \"size\": 328160626\n    },\n    \"T3-Code-0.1.9-zh.1-x64.zip\": {\n      \"sha256\": \"c550f5166f6e47f2fa5904495da0c88e42aaf3e17220357d9e8b15336c55e0ab\"\
+        ,\n      \"size\": 195922210\n    },\n    \"release-snapshot.json\": {\n      \"sha256\": \"b10a2435c7ad1e861c2227ec6b680fa56f086c4f91ae73ab9bc9c9331389810e\"\
+        ,\n      \"size\": 5194\n    }\n  },\n  \"publication_enabled\": false,\n  \"publication_status\": \"BLOCKED\
+        \ until independent release approval and all gate evidence complete\",\n  \"roundtrip_run\": 44000018282,\n\
+        \  \"source\": \"74039745b1b44834c30dd9cb275f1c224072dd96\"\n}\nREVIEWED_EOF\ncat > payload-manifest.json\
+        \ <<'REVIEWED_EOF'\n{\n  \"BUILD-PROVENANCE.json\": \"ccf80f1e3fb1ef1d60c62650697b9a038d273182852371e733bec92ef286b4c5\"\
+        ,\n  \"SHA256SUMS.txt\": \"2b507741c30fa8419d6a7d76d90eea6563c472dc2d4ecd38567f432300a8e027\",\n  \"collect_public.py\"\
+        : \"08109b2fe2851c98ee085680c30dbaf8d7037a3124bc656b92e55aebfd94c15f\",\n  \"collect_verified.py\": \"934ed3d4d417ddf5d859775428c0bb1b360fb8f5f31a76299704f98434c2b408\"\
+        ,\n  \"collection-pins.json\": \"22bad246205b74ec50aea7f4ae1aed1301edb94ae4fa6ba72ea996acc81f71d6\",\n \
+        \ \"publish_fixed.py\": \"07abc9f9434c42b3215b3651c6eac91bdc3f2ace49331eb238c972b063fddafe\",\n  \"replace_assets.py\"\
+        : \"0fe22bd80a2dcda5fee38fda6e608a57e505bffabee1905336028668bf416e59\",\n  \"replacement-pins.json\": \"\
+        00ecf09867e287c2ef8bf371bc618f6db5a25daf54b6f9f657b21988109b887a\",\n  \"replacement_api.py\": \"a31385eee285f829e7d9d3316f49a441e84d967f22bd5455725380ed85814b06\"\
+        ,\n  \"roundtrip-pins.json\": \"63f37e8d90980b4466570897e1f0a12185704452676f0df6c1f06fb32aa06a9c\",\n  \"\
+        roundtrip-receipt.json\": \"2fe6ddb27dd9359fd0a8b094458f320792450ba5681b1cf3f43a89434bc69662\",\n  \"semantic-review.json\"\
+        : \"ddf0e510c23e21d41c4b063079fd0f18f770aa87e8c471c243bde288f773d6ba\",\n  \"verify_roundtrip.py\": \"dedd25ab0868b46e178279ec08f059eaeecf4617f903bdf5855ad272c06f0c65\"\
+        \n}\nREVIEWED_EOF\npython3 publish_fixed.py\n"
+    - name: Preserve transaction journal even on failure
+      if: ${{ always() }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: desktop-replacement-journal-${{ github.run_id }}-${{ github.run_attempt }}
+        path: ${{ runner.temp }}/replacement-journal/
+        if-no-files-found: warn
+        retention-days: 30
