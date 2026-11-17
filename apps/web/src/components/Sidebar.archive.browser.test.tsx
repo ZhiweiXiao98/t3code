@@ -71,6 +71,15 @@ vi.mock(import("~/state/server"), async (original) => {
 });
 
 it("uses settlement locale for sidebar archive failures", async () => {
+  let diagnosticSequence = 0; // archive-diagnostic
+  const diagnostic = (stage: string, caseIndex = -1) =>
+    // archive-diagnostic
+    console.info("[archive-settlement-phase]", {
+      stage,
+      caseIndex,
+      sequence: diagnosticSequence++,
+    }); // archive-diagnostic
+  diagnostic("setup:begin"); // archive-diagnostic
   const thread = {
     ...threadWithHistory("sidebar-archive-locale", 1),
     title: "Literal $& {sidebar} title",
@@ -88,24 +97,36 @@ it("uses settlement locale for sidebar archive failures", async () => {
     appLocale: "en",
     confirmThreadArchive: true,
   });
+  diagnostic("viewport:begin"); // archive-diagnostic
   await page.viewport(1400, 900);
+  diagnostic("viewport:end"); // archive-diagnostic
   const router = getRouter(
     createMemoryHistory({ initialEntries: [`/${ENVIRONMENT_ID}/${thread.id}`] }),
   );
+  diagnostic("router-load:begin"); // archive-diagnostic
   await router.load();
+  diagnostic("router-load:end"); // archive-diagnostic
   using rich = vi.spyOn(navigator.clipboard, "write").mockResolvedValue(undefined);
   using plain = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue(undefined);
   using toast = vi.spyOn(toastManager, "add").mockImplementation(() => "sidebar-copy-toast");
+  diagnostic("render:begin"); // archive-diagnostic
   await using _app = await render(<AppRoot router={router} />, { router: false });
+  diagnostic("render:end"); // archive-diagnostic
   await expect
     .element(page.getByRole("combobox", { name: "Filter threads by project", exact: true }), {
       timeout: 5000,
     })
     .toBeVisible();
+  diagnostic("filter-open:begin"); // archive-diagnostic
   await page.getByRole("combobox", { name: "Filter threads by project", exact: true }).click();
+  diagnostic("filter-open:end"); // archive-diagnostic
+  diagnostic("filter-all:begin"); // archive-diagnostic
   await page.getByRole("option", { name: "All projects", exact: true }).click();
+  diagnostic("filter-all:end"); // archive-diagnostic
   const row = page.getByRole("button", { name: /^Literal \$& \{sidebar\} title(?:,|$)/ });
+  diagnostic("row-visible:begin"); // archive-diagnostic
   await expect.element(row, { timeout: 5000 }).toBeVisible();
+  diagnostic("row-visible:end"); // archive-diagnostic
   await expect
     .element(row)
     .toHaveAttribute(
@@ -135,6 +156,7 @@ it("uses settlement locale for sidebar archive failures", async () => {
   commands.confirm.mockReset().mockResolvedValue(true);
   let notices = 0;
   for (const [index, entry] of cases.entries()) {
+    diagnostic("case:begin", index); // archive-diagnostic
     let finish!: (result: AtomCommandResult<unknown, unknown>) => void;
     const pending = new Promise<AtomCommandResult<unknown, unknown>>((resolve) => {
       finish = resolve;
@@ -142,17 +164,27 @@ it("uses settlement locale for sidebar archive failures", async () => {
     commands.archive.mockReturnValueOnce(pending);
     await using _settle = {
       async [Symbol.asyncDispose]() {
+        diagnostic("pending-dispose:begin", index); // archive-diagnostic
         await act(async () => {
           finish(AsyncResult.failure(Cause.interrupt()));
           await Promise.resolve();
         });
+        diagnostic("pending-dispose:end", index); // archive-diagnostic
       },
     };
+    diagnostic("context-menu:begin", index); // archive-diagnostic
     await userEvent.click(row, { button: "right" });
+    diagnostic("context-menu:end", index); // archive-diagnostic
     const settle = page.getByRole("menuitem", { name: "Archive thread", exact: true });
+    diagnostic("archive-enabled:begin", index); // archive-diagnostic
     await expect.element(settle).toBeEnabled();
+    diagnostic("archive-enabled:end", index); // archive-diagnostic
+    diagnostic("archive-click:begin", index); // archive-diagnostic
     await settle.click();
+    diagnostic("archive-click:end", index); // archive-diagnostic
+    diagnostic("mutation-called:begin", index); // archive-diagnostic
     await expect.poll(() => commands.archive.mock.calls.length, { timeout: 5000 }).toBe(index + 1);
+    diagnostic("mutation-called:end", index); // archive-diagnostic
     expect(commands.confirm).toHaveBeenNthCalledWith(
       index + 1,
       `Archive thread “${thread.title}”?`,
@@ -166,10 +198,14 @@ it("uses settlement locale for sidebar archive failures", async () => {
       input: { threadId: thread.id },
     });
     expect(toast).toHaveBeenCalledTimes(notices);
+    diagnostic("locale-zh:begin", index); // archive-diagnostic
     await act(() => updateClientSettings({ appLocale: "zh-CN" }));
+    diagnostic("locale-zh:end", index); // archive-diagnostic
+    diagnostic("settlement:begin", index); // archive-diagnostic
     await act(async () => {
       finish(AsyncResult.failure(entry.interrupted ? Cause.interrupt() : Cause.fail(entry.cause)));
     });
+    diagnostic("settlement:end", index); // archive-diagnostic
     if (!entry.interrupted) {
       expect(toast.mock.calls[notices]?.[0]).toMatchObject({
         type: "error",
@@ -178,14 +214,23 @@ it("uses settlement locale for sidebar archive failures", async () => {
       });
       notices++;
     }
+    diagnostic("locale-en:begin", index); // archive-diagnostic
     await act(() => updateClientSettings({ appLocale: "en" }));
+    diagnostic("locale-en:end", index); // archive-diagnostic
     expect(toast).toHaveBeenCalledTimes(notices);
     expect(commands.archive).toHaveBeenCalledTimes(index + 1);
   }
+  diagnostic("cancel:begin"); // archive-diagnostic
   commands.confirm.mockResolvedValueOnce(false);
+  diagnostic("cancel-context:begin"); // archive-diagnostic
   await userEvent.click(row, { button: "right" });
+  diagnostic("cancel-context:end"); // archive-diagnostic
+  diagnostic("cancel-click:begin"); // archive-diagnostic
   await page.getByRole("menuitem", { name: "Archive thread", exact: true }).click();
+  diagnostic("cancel-click:end"); // archive-diagnostic
+  diagnostic("cancel-confirm:begin"); // archive-diagnostic
   await expect.poll(() => commands.confirm.mock.calls.length).toBe(cases.length + 1);
+  diagnostic("cancel-confirm:end"); // archive-diagnostic
   await act(async () => {
     await Promise.resolve();
   });
@@ -195,4 +240,5 @@ it("uses settlement locale for sidebar archive failures", async () => {
   expect(plain).not.toHaveBeenCalled();
   expect(router.history.location.pathname).toBe(`/${ENVIRONMENT_ID}/${thread.id}`);
   expect(dispatchedCommands()).toEqual(commandsBefore);
+  diagnostic("assertions:complete"); // archive-diagnostic
 });
