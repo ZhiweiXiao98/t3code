@@ -1532,6 +1532,7 @@ function ScreenReaderAnnouncementsRow() {
 }
 
 function ScreenReaderWindowTitleRow() {
+  const { locale } = useI18n();
   const settings = useScopedSettings();
   const updateSettings = useUpdateScopedSettings();
   return (
@@ -1554,7 +1555,7 @@ function ScreenReaderWindowTitleRow() {
         <Switch
           checked={settings.screenReaderWindowTitle}
           onCheckedChange={(checked) => updateSettings({ screenReaderWindowTitle: checked })}
-          aria-label="Screen reader window title"
+          aria-label={translateWebSource(locale, "Screen reader window title")}
         />
       }
     />
@@ -2457,7 +2458,7 @@ export function MaintenanceSettingsPanel() {
               onCheckedChange={(checked) =>
                 updateSettings({ keepAwakeWhileAgentsWork: Boolean(checked) })
               }
-              aria-label="Keep awake while agents work"
+              aria-label={translateWebSource(translationLocale, "Keep awake while agents work")}
             />
           }
         />

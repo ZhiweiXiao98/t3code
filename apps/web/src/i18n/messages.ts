@@ -9595,6 +9595,16 @@ for (const [key, source] of Object.entries(EN_MESSAGES) as ReadonlyArray<
 // New upstream settings copy can be localized here before it receives a stable
 // message key. Settings containers and search both consume this same table.
 const ZH_CN_SOURCE_MESSAGES: Readonly<Record<string, string>> = {
+  Preferences: "偏好设置",
+  "Screen reader": "屏幕阅读器",
+  "Screen reader window title": "屏幕阅读器窗口标题",
+  "screen reader window title": "屏幕阅读器窗口标题",
+  "Start the window title with the thread's status, like Needs approval, and its name, so screen readers read them first when you switch apps. Taskbars, shared screens, and time trackers see it too.":
+    "在窗口标题开头显示任务状态（例如“需要批准”）和名称，便于切换应用时由屏幕阅读器优先读出。任务栏、屏幕共享和时间跟踪工具也会显示这些内容。",
+  "Keep awake while agents work": "智能体工作时保持唤醒",
+  "keep awake while agents work": "智能体工作时保持唤醒",
+  "Stop the computer from going to sleep while agents are working, and let it sleep once they finish. Closing a laptop lid still puts it to sleep.":
+    "智能体工作时阻止电脑进入睡眠，完成后恢复正常睡眠。合上笔记本电脑盖仍会使其进入睡眠。",
   "Sampling on demand": "按需采样",
   "Get {app}": "获取 {app}",
   "From Sharing & access there, or t3 pair": "从该环境的“共享与访问”获取，或运行 t3 pair",
