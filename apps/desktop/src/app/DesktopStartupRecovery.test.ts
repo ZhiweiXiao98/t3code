@@ -300,6 +300,7 @@ it.effect("installs the build the update action downloaded, not the one it offer
               path: { join: (...parts: string[]) => parts.join("/") },
             } as unknown as DesktopEnvironment.DesktopEnvironment["Service"]),
             Layer.succeed(ElectronApp.ElectronApp, {
+              systemLocale: Effect.succeed("en-US"),
               on: () => Effect.void,
             } as unknown as ElectronApp.ElectronApp["Service"]),
             Layer.succeed(
