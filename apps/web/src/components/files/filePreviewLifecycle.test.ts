@@ -56,7 +56,7 @@ const resourceDeps: Record<string, string[][]> = {
     ["engine", "index", "page"],
   ],
   "office/Spreadsheet": [
-    ["source", "onDetails", "onError"],
+    ["source", "view", "onDetails", "onError"],
     ["onNavigate"],
     ["engine", "layout", "initialCell"],
   ],

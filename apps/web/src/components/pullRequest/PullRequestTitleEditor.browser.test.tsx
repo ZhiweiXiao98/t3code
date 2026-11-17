@@ -35,7 +35,10 @@ vi.mock("~/state/use-atom-command", async (original) => {
 });
 vi.mock("../ui/toast", async (original) => {
   const actual = await original<typeof import("../ui/toast")>();
-  return { ...actual, toastManager: { ...actual.toastManager, add: fixture.toast } };
+  return {
+    ...actual,
+    toastManager: { ...actual.toastManager, add: fixture.toast },
+  };
 });
 vi.mock("~/i18n/readWebI18n", async (original) => ({
   ...(await original<typeof import("../../i18n/readWebI18n")>()),
@@ -89,7 +92,12 @@ const detail: PullRequestDetailView = {
     search: true,
     actions: [],
     mergeMethods: [],
-    review: { inlineComment: false, reply: false, resolve: false, verdicts: [] },
+    review: {
+      inlineComment: false,
+      reply: false,
+      resolve: false,
+      verdicts: [],
+    },
     reviewers: { request: false, listCandidates: false },
     edit: { changeRequest: true, comment: false },
   },
@@ -144,9 +152,21 @@ it.each([
     cause: new Error("The host refused the new title."),
     description: "The host refused the new title.",
   },
-  { name: "raw string", cause: "Literal $& {host}", description: "Literal $& {host}" },
-  { name: "empty", cause: new Error(""), description: "托管服务拒绝了新标题。" },
-  { name: "whitespace", cause: new Error("  "), description: "托管服务拒绝了新标题。" },
+  {
+    name: "raw string",
+    cause: "Literal $& {host}",
+    description: "Literal $& {host}",
+  },
+  {
+    name: "empty",
+    cause: new Error(""),
+    description: "托管服务拒绝了新标题。",
+  },
+  {
+    name: "whitespace",
+    cause: new Error("  "),
+    description: "托管服务拒绝了新标题。",
+  },
   {
     name: "interrupted still reported",
     cause: null,
@@ -173,10 +193,16 @@ it.each([
     },
   };
   await screen.getByRole("button", { name: "Edit title", exact: true }).click();
-  const input = screen.getByRole("textbox", { name: "Pull request title", exact: true });
+  const input = screen.getByRole("textbox", {
+    name: "Pull request title",
+    exact: true,
+  });
   await input.fill("  Literal $& {new title}  ");
   await screen.getByRole("button", { name: "Save", exact: true }).click();
-  await expect.element(input).toBeDisabled();
+  await expect.element(input).not.toBeInTheDocument();
+  await expect
+    .element(screen.getByRole("button", { name: "Edit title", exact: true }))
+    .toBeVisible();
   expect(fixture.update).toHaveBeenCalledExactlyOnceWith({
     environmentId,
     input: { ...reference, title: "Literal $& {new title}" },
@@ -188,9 +214,12 @@ it.each([
       "interrupted" in entry ? interruptedResult : AsyncResult.failure(Cause.fail(entry.cause)),
     );
   });
-  const retained = screen.getByRole("textbox", { name: "变更请求标题", exact: true });
+  const retained = screen.getByRole("textbox", {
+    name: "变更请求标题",
+    exact: true,
+  });
   await expect.element(retained).toBeEnabled();
-  await expect.element(retained).toHaveValue("  Literal $& {new title}  ");
+  await expect.element(retained).toHaveValue("Literal $& {new title}");
   expect(fixture.toast).toHaveBeenCalledExactlyOnceWith({
     type: "error",
     title: "无法保存标题",
@@ -206,7 +235,10 @@ it("preserves title permission, unchanged and Escape guards", async () => {
   setup();
   await using screen = await render(view(false));
   await screen.getByRole("button", { name: "Edit title", exact: true }).click();
-  const input = screen.getByRole("textbox", { name: "Pull request title", exact: true });
+  const input = screen.getByRole("textbox", {
+    name: "Pull request title",
+    exact: true,
+  });
   await input.fill("Denied change");
   await expect.element(screen.getByRole("button", { name: "Save", exact: true })).toBeDisabled();
   await input.click();

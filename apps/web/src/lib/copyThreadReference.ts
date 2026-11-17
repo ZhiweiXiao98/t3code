@@ -15,11 +15,18 @@ export async function copyThreadReference(
 ): Promise<void> {
   const fragment = target.fragment ? encodeComposerContextFragment(target.fragment) : null;
   try {
-    await writeTextToClipboard(
+    const didCopy = await writeTextToClipboard(
       target.value,
       target.clipboardTarget,
       fragment ? { [COMPOSER_CONTEXT_CLIPBOARD_MIME]: fragment } : undefined,
     );
+    if (!didCopy) return;
+    const settledLocale = typeof locale === "function" ? locale() : locale;
+    toastManager.add({
+      type: "success",
+      title: translateWebSource(settledLocale, target.successTitle),
+      description: target.description,
+    });
   } catch (error) {
     console.error(error);
     const settledLocale = typeof locale === "function" ? locale() : locale;

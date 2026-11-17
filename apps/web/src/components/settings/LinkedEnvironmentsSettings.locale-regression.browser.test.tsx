@@ -157,7 +157,7 @@ it.each(["owned", "raw", "empty", "interrupted", "cancel", "denied"] as const)(
     }
     await screen.getByRole("button", { name: "Forget", exact: true }).click();
     expect(fixture.confirm).toHaveBeenCalledExactlyOnceWith(
-      `Forget ${link.label}? Agents here stop working there. Revoke "T3 Code · …" in ${link.label}'s Connections to end the session there too.`,
+      `Forget ${link.label}? Agents here stop working there. Revoke "T3 Code · …" in ${link.label}'s Sharing & access to end the session there too.`,
       { variant: "destructive" },
     );
     if (kind === "cancel") {
@@ -376,7 +376,7 @@ const prepared: PreparedConnection = {
     wsBaseUrl: "wss://mint-target.invalid",
   }),
 };
-const mintCodeLabel = `Pairing code Create a link on ${mintMachine.label}: Settings → Connections → Create link, then paste its code here.`;
+const mintCodeLabel = `Pairing code Create a link on ${mintMachine.label}: Settings → Sharing & access → Create link, then paste its code here.`;
 const mintPrepared = Atom.make(Option.some(prepared));
 const mintSession = Atom.make(
   AsyncResult.success(

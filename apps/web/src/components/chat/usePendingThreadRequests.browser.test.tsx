@@ -32,6 +32,7 @@ const fixture = vi.hoisted(() => ({
 vi.mock("../../lib/attachmentUploadQueue", async (original) => ({
   ...(await original<typeof import("../../lib/attachmentUploadQueue")>()),
   getUploadedAttachments: fixture.uploaded,
+  refreshExpiredAttachmentUploads: async () => undefined,
 }));
 vi.mock("./ProviderStatusBanner", async (original) => ({
   ...(await original<typeof import("./ProviderStatusBanner")>()),

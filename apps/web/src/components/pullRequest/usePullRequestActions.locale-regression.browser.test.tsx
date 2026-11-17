@@ -383,7 +383,10 @@ it.each([
       });
     },
   };
-  const button = screen.getByRole("button", { name: "Close batch", exact: true });
+  const button = screen.getByRole("button", {
+    name: "Close batch",
+    exact: true,
+  });
   await button.click();
   await expect
     .element(screen.getByRole("status", { name: "Pending closes" }))
@@ -495,7 +498,10 @@ it.each(["one", "two", "mixed"] as const)(
         });
       },
     };
-    const button = screen.getByRole("button", { name: "Close batch", exact: true });
+    const button = screen.getByRole("button", {
+      name: "Close batch",
+      exact: true,
+    });
     await button.click();
     await expect
       .element(screen.getByRole("status", { name: "Pending closes" }))
@@ -675,7 +681,10 @@ it.each([
         });
       },
     };
-    const button = screen.getByRole("button", { name: "Start handoff", exact: true });
+    const button = screen.getByRole("button", {
+      name: "Start handoff",
+      exact: true,
+    });
     await button.click();
     await expect
       .element(screen.getByRole("status", { name: "Handoff state" }))
@@ -688,6 +697,7 @@ it.each([
     expect(state.toast).toHaveBeenCalledExactlyOnceWith({
       type: "loading",
       title: "Preparing the pull request checkout...",
+      data: { onClose: expect.any(Function) },
     });
     expect(state.updateToast).not.toHaveBeenCalled();
     await screen.rerender(handoffSurface("zh-CN"));
@@ -764,7 +774,10 @@ it.each([
       });
     },
   };
-  const button = screen.getByRole("button", { name: "Start handoff", exact: true });
+  const button = screen.getByRole("button", {
+    name: "Start handoff",
+    exact: true,
+  });
   await button.click();
   await expect.poll(() => state.prepare.mock.calls.length).toBe(1);
   expect(state.newThread).toHaveBeenCalledExactlyOnceWith({
@@ -785,6 +798,7 @@ it.each([
   expect(state.toast).toHaveBeenCalledExactlyOnceWith({
     type: "loading",
     title: "Preparing the pull request checkout...",
+    data: { onClose: expect.any(Function) },
   });
   expect(state.updateToast).not.toHaveBeenCalled();
   await screen.rerender(handoffSurface("zh-CN"));
@@ -874,7 +888,10 @@ it.each([
         });
       },
     };
-    const button = screen.getByRole("button", { name: "Start handoff", exact: true });
+    const button = screen.getByRole("button", {
+      name: "Start handoff",
+      exact: true,
+    });
     await button.click();
     await expect.poll(() => state.newThread.mock.calls.length).toBe(2);
     const projectRef = {
@@ -900,6 +917,7 @@ it.each([
     expect(state.toast).toHaveBeenCalledExactlyOnceWith({
       type: "loading",
       title: "Preparing the pull request checkout...",
+      data: { onClose: expect.any(Function) },
     });
     expect(state.updateToast).not.toHaveBeenCalled();
     await screen.rerender(handoffSurface("zh-CN"));
@@ -977,7 +995,10 @@ it.each([
         });
       },
     };
-    const button = screen.getByRole("button", { name: "Start handoff", exact: true });
+    const button = screen.getByRole("button", {
+      name: "Start handoff",
+      exact: true,
+    });
     await button.click();
     await expect.poll(() => state.newThread.mock.calls.length).toBe(2);
     const projectRef = {
@@ -1003,6 +1024,7 @@ it.each([
     expect(state.toast).toHaveBeenCalledExactlyOnceWith({
       type: "loading",
       title: "Preparing the pull request checkout...",
+      data: { onClose: expect.any(Function) },
     });
     expect(state.updateToast).not.toHaveBeenCalled();
     await screen.rerender(handoffSurface("zh-CN", true, mode));
@@ -1040,3 +1062,44 @@ it.each([
     expect(state.updateToast).toHaveBeenCalledTimes(1);
   },
 );
+
+it("cancels checkout handoff when its loading toast closes before thread opening settles", async () => {
+  const before = useComposerDraftStore.getState();
+  using _restore = {
+    [Symbol.dispose]() {
+      useComposerDraftStore.setState(before, true);
+      state.locale = "en";
+      state.newThread.mockReset();
+      state.toast.mockReset();
+    },
+  };
+  let finish!: (value: null) => void;
+  const pending = new Promise<null>((resolve) => {
+    finish = resolve;
+  });
+  state.newThread.mockReset().mockReturnValueOnce(pending);
+  state.prepare.mockClear();
+  state.runAction.mockClear();
+  state.toast.mockReset().mockReturnValue("cancelled-handoff-toast");
+  state.updateToast.mockClear();
+  await using screen = await render(handoffSurface("en"));
+  await screen.getByRole("button", { name: "Start handoff", exact: true }).click();
+  expect(state.toast).toHaveBeenCalledExactlyOnceWith({
+    type: "loading",
+    title: "Preparing the pull request checkout...",
+    data: { onClose: expect.any(Function) },
+  });
+  const { onClose } = state.toast.mock.calls[0]![0].data;
+  await act(async () => {
+    onClose();
+    finish(null);
+    await pending;
+  });
+  await expect
+    .element(screen.getByRole("status", { name: "Handoff state" }))
+    .toHaveTextContent("idle");
+  expect(state.prepare).not.toHaveBeenCalled();
+  expect(state.runAction).not.toHaveBeenCalled();
+  expect(state.updateToast).not.toHaveBeenCalled();
+  expect(useComposerDraftStore.getState()).toBe(before);
+});

@@ -1,3 +1,4 @@
+import { englishFilePreviewCount } from "./filePreviewCount";
 import { createFilePreviewError } from "@t3tools/shared/filePreview";
 import { filePreviewFailureMessage, filePreviewWorkerError } from "./filePreviewErrorMessages";
 import { useI18n } from "~/i18n/WebI18nContext";
@@ -261,9 +262,11 @@ export default function BinaryViewer(props: {
                 >
                   <SelectValue>
                     {table.name} (
-                    {t("files.residual.rows", {
-                      count: table.count.toLocaleString(),
-                    })}
+                    {previewLocale === "en"
+                      ? englishFilePreviewCount(table.count, "row")
+                      : t("files.residual.rows", {
+                          count: table.count.toLocaleString(),
+                        })}
                     )
                   </SelectValue>
                 </SelectTrigger>
@@ -271,9 +274,11 @@ export default function BinaryViewer(props: {
                   {database.tables.map((item) => (
                     <SelectItem key={item.name} value={item.name}>
                       {item.name} (
-                      {t("files.residual.rows", {
-                        count: item.count.toLocaleString(),
-                      })}
+                      {previewLocale === "en"
+                        ? englishFilePreviewCount(item.count, "row")
+                        : t("files.residual.rows", {
+                            count: item.count.toLocaleString(),
+                          })}
                       )
                     </SelectItem>
                   ))}
@@ -308,10 +313,12 @@ export default function BinaryViewer(props: {
             className="border-b border-border/60 px-3 py-2 text-xs text-muted-foreground tabular-nums"
             role="status"
           >
-            {t("files.residual.dimensions", {
-              rows: table.count.toLocaleString(),
-              columns: rows?.columns.length ?? "…",
-            })}
+            {previewLocale === "en"
+              ? `${englishFilePreviewCount(table.count, "row")} · ${englishFilePreviewCount(rows?.columns.length ?? "…", "column")}`
+              : t("files.residual.dimensions", {
+                  rows: table.count.toLocaleString(),
+                  columns: rows?.columns.length ?? "…",
+                })}
             {sizeBytes !== null ? ` · ${formatAttachmentSize(sizeBytes)}` : ""}
           </div>
           <FileSurfaceNotice>

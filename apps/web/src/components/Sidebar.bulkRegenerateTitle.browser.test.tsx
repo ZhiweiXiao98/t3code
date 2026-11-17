@@ -35,7 +35,7 @@ vi.mock("../state/use-atom-command", async (original) => {
   return {
     ...actual,
     useAtomCommand: (...args: Parameters<typeof actual.useAtomCommand>) =>
-      args[0] === threadEnvironment.updateMetadata
+      args[0] === threadEnvironment.regenerateTitle
         ? commands.update
         : actual.useAtomCommand(...args),
   };
@@ -125,9 +125,6 @@ it("uses settlement locale for sidebar bulk regenerate title failures", async ()
     scopedThreadKey(scopeThreadRef(ENVIRONMENT_ID, entry.id)),
   );
   const commandsBefore = dispatchedCommands().slice();
-  await userEvent.click(row, { modifiers: ["Control"] });
-  await userEvent.click(secondRow, { modifiers: ["Control"] });
-  expect([...useThreadSelectionStore.getState().selectedThreadKeys]).toEqual(selectedKeys);
   const cases = [
     { cause: null, description: "发生错误。", interrupted: false },
     {
@@ -141,11 +138,15 @@ it("uses settlement locale for sidebar bulk regenerate title failures", async ()
   commands.update.mockReset();
   let notices = 0;
   for (const [index, entry] of cases.entries()) {
+    // The batch action now clears selection when dispatched; reselect for each case.
+    await userEvent.click(row, { modifiers: ["Control"] });
+    await userEvent.click(secondRow, { modifiers: ["Control"] });
+    expect([...useThreadSelectionStore.getState().selectedThreadKeys]).toEqual(selectedKeys);
     let finish!: (result: AtomCommandResult<unknown, unknown>) => void;
     const pending = new Promise<AtomCommandResult<unknown, unknown>>((resolve) => {
       finish = resolve;
     });
-    commands.update.mockReturnValueOnce(pending);
+    commands.update.mockReturnValueOnce(pending).mockReturnValueOnce(pending);
     await using _settle = {
       async [Symbol.asyncDispose]() {
         await act(async () => {
@@ -158,10 +159,16 @@ it("uses settlement locale for sidebar bulk regenerate title failures", async ()
     const regenerate = page.getByRole("menuitem", { name: "Regenerate titles (2)", exact: true });
     await expect.element(regenerate).toBeEnabled();
     await regenerate.click();
-    await expect.poll(() => commands.update.mock.calls.length, { timeout: 5000 }).toBe(index + 1);
-    expect(commands.update).toHaveBeenNthCalledWith(index + 1, {
+    await expect
+      .poll(() => commands.update.mock.calls.length, { timeout: 5000 })
+      .toBe((index + 1) * 2);
+    expect(commands.update).toHaveBeenNthCalledWith(index * 2 + 1, {
       environmentId: ENVIRONMENT_ID,
-      input: { threadId: thread.id, regenerateTitle: true },
+      input: { threadId: thread.id },
+    });
+    expect(commands.update).toHaveBeenNthCalledWith(index * 2 + 2, {
+      environmentId: ENVIRONMENT_ID,
+      input: { threadId: second.id },
     });
     expect(toast).toHaveBeenCalledTimes(notices);
     await act(() => updateClientSettings({ appLocale: "zh-CN" }));
@@ -171,15 +178,15 @@ it("uses settlement locale for sidebar bulk regenerate title failures", async ()
     if (!entry.interrupted) {
       expect(toast.mock.calls[notices]?.[0]).toMatchObject({
         type: "error",
-        title: "重新生成多个任务标题失败",
+        title: "2 个任务中有 2 个标题重新生成失败",
         description: entry.description,
       });
       notices++;
     }
     await act(() => updateClientSettings({ appLocale: "en" }));
     expect(toast).toHaveBeenCalledTimes(notices);
-    expect(commands.update).toHaveBeenCalledTimes(index + 1);
-    expect([...useThreadSelectionStore.getState().selectedThreadKeys]).toEqual(selectedKeys);
+    expect(commands.update).toHaveBeenCalledTimes((index + 1) * 2);
+    expect([...useThreadSelectionStore.getState().selectedThreadKeys]).toEqual([]);
   }
   expect(rich).not.toHaveBeenCalled();
   expect(plain).not.toHaveBeenCalled();

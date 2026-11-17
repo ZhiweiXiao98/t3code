@@ -337,6 +337,7 @@ function Probe({
     needsLoadBalancing: false,
     loadBalancing: { pending: false, failed: false, environmentId: null, refresh: () => undefined },
     readPendingEnvironmentChange: fixture.pendingChange,
+    refreshBeforeSend: () => null,
     pendingApprovals:
       guard === "uploads"
         ? [{ ...approval, supportsFeedback: false }]

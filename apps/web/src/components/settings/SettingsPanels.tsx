@@ -218,7 +218,7 @@ function AboutVersionSection() {
     const action = updateState ? resolveDesktopUpdateButtonAction(updateState) : "none";
 
     if (action === "download") {
-      void downloadLocalUpdate(bridge, { notifyDownloaded: false });
+      void downloadLocalUpdate(bridge, { notifyDownloaded: false, failureContext: "about" });
       return;
     }
 

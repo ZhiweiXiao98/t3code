@@ -1,3 +1,4 @@
+import { formatBytes } from "../../lib/formatBytes";
 import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 import { translateWebSource } from "../../i18n/messages";
 import { DownloadIcon, PlusIcon } from "lucide-react";
@@ -37,12 +38,6 @@ const MAX_THEME_FILE_BYTES = 256 * 1024;
 /** Highlighting rebuilds markup per keystroke; fall back to plain text for oversized pastes. */
 const MAX_HIGHLIGHTED_JSON_LENGTH = 20_000;
 
-function formatByteSize(bytes: number): string {
-  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${bytes} bytes`;
-}
-
 type ThemeImportError =
   | string
   | { readonly code: "oversized"; readonly bytes: number }
@@ -78,8 +73,8 @@ function formatThemeImportError(
     return error.parts.map((part) => formatThemeImportError(part, locale, t)).join("; ");
   if (error.code === "oversized")
     return t("settingsControls.themeTooLarge", {
-      size: formatByteSize(error.bytes),
-      limit: formatByteSize(MAX_THEME_FILE_BYTES),
+      size: formatBytes(error.bytes),
+      limit: formatBytes(MAX_THEME_FILE_BYTES),
     });
   return error.code === "copies"
     ? t("settingsControls.tooManyThemeCopies", { name: error.name })

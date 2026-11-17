@@ -121,17 +121,41 @@ export function useThreadActionMenu(input: {
   const { copyToClipboard: copyPathToClipboard } = useCopyToClipboard<{
     path: string;
   }>({
+    onCopy: ({ path }) => {
+      toastManager.add({
+        type: "success",
+        title: readWebI18n().t("sidebar.pathCopied"),
+        description: path,
+      });
+    },
+
     onError: (error) => failureToast("Failed to copy path", error),
   });
   const { copyToClipboard: copyBranchToClipboard } = useCopyToClipboard<{
     branch: string;
   }>({
+    onCopy: ({ branch }) => {
+      toastManager.add({
+        type: "success",
+        title: readWebI18n().t("sidebar.branchCopied"),
+        description: branch,
+      });
+    },
+
     target: "branch name",
     onError: (error) => failureToast("Failed to copy branch", error),
   });
   const { copyToClipboard: copyThreadIdToClipboard } = useCopyToClipboard<{
     threadId: ThreadId;
   }>({
+    onCopy: ({ threadId }) => {
+      toastManager.add({
+        type: "success",
+        title: readWebI18n().t("sidebar.threadIdCopied"),
+        description: threadId,
+      });
+    },
+
     onError: (error) => failureToast("Failed to copy thread ID", error),
   });
 

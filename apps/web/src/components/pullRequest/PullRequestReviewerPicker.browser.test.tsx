@@ -24,7 +24,11 @@ const fixture = vi.hoisted(() => ({
 }));
 const label = "Literal $& {reviewer}";
 const environmentId = EnvironmentId.make("reviewer-picker");
-const reference = { projectId: ProjectId.make("project"), repository: "owner/repo", number: 1 };
+const reference = {
+  projectId: ProjectId.make("project"),
+  repository: "owner/repo",
+  number: 1,
+};
 vi.mock("~/state/use-atom-command", async (original) => {
   const actual = await original<typeof import("../../state/use-atom-command")>();
   const { pullRequestEnvironment } = await import("../../state/pullRequests");
@@ -80,7 +84,10 @@ vi.mock("~/state/pullRequests", async (original) => {
 });
 vi.mock("../ui/toast", async (original) => {
   const actual = await original<typeof import("../ui/toast")>();
-  return { ...actual, toastManager: { ...actual.toastManager, add: fixture.toast } };
+  return {
+    ...actual,
+    toastManager: { ...actual.toastManager, add: fixture.toast },
+  };
 });
 vi.mock("~/i18n/readWebI18n", () => ({
   readWebI18n: () => {
@@ -162,7 +169,10 @@ for (const applied of [false, true]) {
       );
       const option = page.getByRole("option").filter({ hasText: label });
       await userEvent.click(option);
-      await expect.element(option).toHaveAttribute("aria-disabled", "true");
+      expect(fixture.requestReviewers).not.toHaveBeenCalled();
+      await userEvent.keyboard("{Escape}");
+      await expect.element(page.getByRole("listbox")).not.toBeInTheDocument();
+      await expect.poll(() => fixture.requestReviewers.mock.calls.length).toBe(1);
       expect(fixture.requestReviewers).toHaveBeenCalledExactlyOnceWith({
         environmentId,
         input: {
@@ -171,7 +181,10 @@ for (const applied of [false, true]) {
           requested: !applied,
         },
       });
-      expect(fixture.query).toHaveBeenCalledWith({ environmentId, input: reference });
+      expect(fixture.query).toHaveBeenCalledWith({
+        environmentId,
+        input: reference,
+      });
       await screen.rerender(surface("zh-CN"));
       const result: Result = AsyncResult.failure(
         kind === "interrupted" ? Cause.interrupt() : Cause.fail(failure),
@@ -179,7 +192,7 @@ for (const applied of [false, true]) {
       await act(async () => {
         finish(result);
       });
-      await expect.element(option).not.toHaveAttribute("aria-disabled", "true");
+      await expect.element(page.getByRole("listbox")).not.toBeInTheDocument();
       expect(fixture.toast).toHaveBeenCalledExactlyOnceWith({
         type: "error",
         title: applied ? `无法撤回向 ${label} 发出的评审请求` : `无法请求 ${label} 进行评审`,
@@ -202,7 +215,10 @@ for (const applied of [false, true]) {
 it("does not open reviewers when denied or mutate after Escape", async () => {
   setup();
   await using screen = await render(surface("en", false));
-  const trigger = screen.getByRole("button", { name: "Request a review", exact: true });
+  const trigger = screen.getByRole("button", {
+    name: "Request a review",
+    exact: true,
+  });
   await expect.element(trigger).toHaveAttribute("aria-disabled", "true");
   await act(async () => {
     trigger.element().dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
@@ -242,7 +258,10 @@ it.each([
   await userEvent.click(screen.getByRole("combobox", { name: "Request a review", exact: true }));
   const option = page.getByRole("option").filter({ hasText: label });
   await userEvent.click(option);
-  await expect.element(option).toHaveAttribute("aria-disabled", "true");
+  expect(fixture.requestReviewers).not.toHaveBeenCalled();
+  await userEvent.keyboard("{Escape}");
+  await expect.element(page.getByRole("listbox")).not.toBeInTheDocument();
+  await expect.poll(() => fixture.requestReviewers.mock.calls.length).toBe(1);
   expect(fixture.requestReviewers).toHaveBeenCalledExactlyOnceWith({
     environmentId,
     input: {
@@ -256,7 +275,7 @@ it.each([
   await act(async () => {
     finish(AsyncResult.success(undefined));
   });
-  await expect.element(option).not.toHaveAttribute("aria-disabled", "true");
+  await expect.element(page.getByRole("listbox")).not.toBeInTheDocument();
   expect(fixture.toast).toHaveBeenCalledExactlyOnceWith({
     type: "success",
     title: requested ? `已撤回向 ${label} 发出的评审请求` : `已请求 ${label} 进行评审`,
@@ -311,7 +330,10 @@ it.each([
   await userEvent.click(screen.getByRole("combobox", { name: "Request a review", exact: true }));
   if (scenario.search) {
     await userEvent.fill(
-      page.getByRole("combobox", { name: "Search people with access", exact: true }),
+      page.getByRole("combobox", {
+        name: "Search people with access",
+        exact: true,
+      }),
       "Literal",
     );
     await vi.waitFor(() =>

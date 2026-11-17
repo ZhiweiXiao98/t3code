@@ -1,3 +1,4 @@
+import { translateVoiceSettingsMessage } from "../../i18n/voiceSettingsMessages";
 import { RegistryContext } from "@effect/atom-react";
 import { AsyncResult, AtomRegistry } from "effect/reactivity";
 import type { EnvironmentCatalogState } from "@t3tools/client-runtime/state/connections";
@@ -949,4 +950,18 @@ it("records from the first connected microphone in the saved order", async () =>
   await expect
     .element(screen.getByRole("button", { name: "Forget System default" }))
     .not.toBeInTheDocument();
+});
+
+it("translates every shortcut mode label and hint without missing catalog keys", () => {
+  for (const [source, chinese] of [
+    ["Auto", "自动"],
+    ["Hold", "按住"],
+    ["Toggle", "切换"],
+    ["Tap to toggle, hold to talk", "轻按切换，按住说话"],
+    ["Record while held", "按住期间录音"],
+    ["Tap to start, tap to stop", "轻按开始，再次轻按停止"],
+  ] as const) {
+    expect(translateVoiceSettingsMessage("en", source)).toBe(source);
+    expect(translateVoiceSettingsMessage("zh-CN", source)).toBe(chinese);
+  }
 });

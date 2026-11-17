@@ -275,6 +275,34 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
     value: string;
     kind: "code" | "hosted-link" | "link";
   }>({
+    onCopy: ({ kind }) => {
+      const { locale: translationLocale } = readWebI18n();
+      toastManager.add({
+        type: "success",
+        title:
+          kind === "hosted-link"
+            ? translateAuthorizedClientsSource(translationLocale, "Hosted app link copied")
+            : kind === "link"
+              ? translateAuthorizedClientsSource(translationLocale, "Pairing URL copied")
+              : translateAuthorizedClientsSource(translationLocale, "Pairing code copied"),
+        description:
+          kind === "hosted-link"
+            ? translateAuthorizedClientsSource(
+                translationLocale,
+                "Open it in the browser on the device you want to connect.",
+              )
+            : kind === "link"
+              ? translateAuthorizedClientsSource(
+                  translationLocale,
+                  "Open it in the client you want to pair to this environment.",
+                )
+              : translateAuthorizedClientsSource(
+                  translationLocale,
+                  "Paste it into another client to finish pairing.",
+                ),
+      });
+    },
+
     onError: (error, { value, kind }) => {
       const { locale: translationLocale } = readWebI18n();
       // Captured per attempt so concurrent copies cannot make the dialog

@@ -180,6 +180,14 @@ export function ConnectionDiagnosisPanel({
   const { locale: sourceLocale } = useI18n();
   const copyTarget = translateWebSource(sourceLocale, "connection diagnostics");
   const { copyToClipboard } = useCopyToClipboard({
+    onCopy: () => {
+      const { locale } = readWebI18n();
+      toastManager.add({
+        type: "success",
+        title: translateWebSource(locale, "Diagnostics copied"),
+      });
+    },
+
     target: copyTarget,
     onError: (error) => {
       const { locale } = readWebI18n();

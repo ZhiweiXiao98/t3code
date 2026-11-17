@@ -112,6 +112,7 @@ const STATIC_COMMAND_MESSAGE_KEYS = {
   "diff.toggle": "keybindings.command.diffToggle",
   "preview.toggle": "keybindings.command.previewToggle",
   "preview.refresh": "keybindings.command.previewRefresh",
+  "preview.find": "keybindings.command.previewFind",
   "preview.focusUrl": "keybindings.command.previewFocusUrl",
   "preview.zoomIn": "keybindings.command.previewZoomIn",
   "preview.zoomOut": "keybindings.command.previewZoomOut",

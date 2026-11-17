@@ -103,9 +103,17 @@ export function PullRequestReviewerPicker({
         requested,
       },
     });
-    if (result._tag === "Success") return;
     const { t } = readWebI18n();
     const logins = people.map((person) => person.login).join(", ");
+    if (result._tag === "Success") {
+      toastManager.add({
+        type: "success",
+        title: requested
+          ? t("pullRequests.reviewers.requested", { reviewer: logins })
+          : t("pullRequests.reviewers.withdrawn", { reviewer: logins }),
+      });
+      return;
+    }
     toastManager.add({
       type: "error",
       title: requested

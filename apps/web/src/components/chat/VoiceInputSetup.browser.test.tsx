@@ -11,6 +11,7 @@ vi.mock("../../state/session", () => ({ useEnvironmentScope: () => true }));
 vi.mock("../../hooks/useSettings", () => ({
   useClientSettings: (select: (settings: typeof DEFAULT_CLIENT_SETTINGS) => unknown) =>
     select(DEFAULT_CLIENT_SETTINGS),
+  getClientSettings: () => DEFAULT_CLIENT_SETTINGS,
   updateClientSettings: vi.fn(),
 }));
 

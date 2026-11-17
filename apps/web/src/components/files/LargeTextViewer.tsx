@@ -1,3 +1,4 @@
+import { englishFilePreviewCount } from "./filePreviewCount";
 import { createFilePreviewError } from "@t3tools/shared/filePreview";
 import { filePreviewFailureMessage, filePreviewWorkerError } from "./filePreviewErrorMessages";
 import { useI18n } from "~/i18n/WebI18nContext";
@@ -226,13 +227,23 @@ export default function LargeTextViewer(props: {
         className="flex min-h-10 shrink-0 flex-wrap items-center gap-x-1 border-b border-border/60 px-3 py-2 text-xs text-muted-foreground tabular-nums"
         role="status"
       >
-        {t(props.delimiter ? "files.residual.rows" : "files.residual.lines", {
-          count: Math.max(0, meta.count - (props.delimiter && meta.count ? 1 : 0)).toLocaleString(),
-        })}
+        {previewLocale === "en"
+          ? englishFilePreviewCount(
+              Math.max(0, meta.count - (props.delimiter && meta.count ? 1 : 0)),
+              props.delimiter ? "row" : "line",
+            )
+          : t(props.delimiter ? "files.residual.rows" : "files.residual.lines", {
+              count: Math.max(
+                0,
+                meta.count - (props.delimiter && meta.count ? 1 : 0),
+              ).toLocaleString(),
+            })}
         {props.delimiter
-          ? t("files.residual.columnsSuffix", {
-              count: meta.count ? meta.columns.toLocaleString() : 0,
-            })
+          ? previewLocale === "en"
+            ? ` · ${englishFilePreviewCount(meta.count ? meta.columns : 0, "column")}`
+            : t("files.residual.columnsSuffix", {
+                count: meta.count ? meta.columns.toLocaleString() : 0,
+              })
           : ""}
         {meta.complete && meta.sizeBytes !== undefined
           ? ` · ${meta.sizeBytes === 0 ? translateWebSource(previewLocale, "0 bytes") : formatAttachmentSize(meta.sizeBytes)}`

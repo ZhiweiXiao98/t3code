@@ -968,6 +968,14 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
   const { copyToClipboard: copyPathToClipboard } = useCopyToClipboard<{
     path: string;
   }>({
+    onCopy: ({ path }) => {
+      toastManager.add({
+        type: "success",
+        title: readWebI18n().t("sidebar.pathCopied"),
+        description: path,
+      });
+    },
+
     onError: (error) => {
       const { t } = readWebI18n();
       toastManager.add(
@@ -982,6 +990,14 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
   const { copyToClipboard: copyBranchToClipboard } = useCopyToClipboard<{
     branch: string;
   }>({
+    onCopy: ({ branch }) => {
+      toastManager.add({
+        type: "success",
+        title: readWebI18n().t("sidebar.branchCopied"),
+        description: branch,
+      });
+    },
+
     target: "branch name",
     onError: (error) => {
       const { t } = readWebI18n();
@@ -997,6 +1013,14 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
   const { copyToClipboard: copyThreadIdToClipboard } = useCopyToClipboard<{
     threadId: ThreadId;
   }>({
+    onCopy: ({ threadId }) => {
+      toastManager.add({
+        type: "success",
+        title: readWebI18n().t("sidebar.threadIdCopied"),
+        description: threadId,
+      });
+    },
+
     onError: (error) => {
       const { t } = readWebI18n();
       toastManager.add(

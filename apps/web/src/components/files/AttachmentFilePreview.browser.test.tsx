@@ -225,6 +225,7 @@ describe("bounded binary previews", () => {
       expect(await request({ type: "entry", path: "replaced.txt" })).toEqual({
         type: "error",
         message: "This archive entry is unavailable.",
+        source: "This archive entry is unavailable.",
       });
     } finally {
       worker.terminate();

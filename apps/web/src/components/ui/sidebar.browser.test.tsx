@@ -155,7 +155,7 @@ it("keeps closed mobile sheet contents mounted and reports the sheet only while 
   expect(document.querySelector('[data-mobile="true"]')?.textContent).toContain("Sheet contents");
   await expect.element(sheetMounted).toHaveTextContent("false");
 
-  await userEvent.click(screen.getByRole("button", { name: "Toggle Sidebar" }));
+  await userEvent.click(screen.getByRole("button", { name: "Toggle main sidebar" }));
   await expect.element(sheetMounted).toHaveTextContent("true");
 
   await userEvent.keyboard("{Escape}");
@@ -176,7 +176,7 @@ it("opens the mobile sheet without a transition while panel animations are off",
     </div>,
     { router: false /* no routes involved */ },
   );
-  await userEvent.click(screen.getByRole("button", { name: "Toggle Sidebar" }));
+  await userEvent.click(screen.getByRole("button", { name: "Toggle main sidebar" }));
   const popup = document.querySelector<HTMLElement>('[data-mobile="true"][data-sidebar="sidebar"]');
   expect(popup).not.toBeNull();
   expect(getComputedStyle(popup!).transitionDuration).toBe("0s");

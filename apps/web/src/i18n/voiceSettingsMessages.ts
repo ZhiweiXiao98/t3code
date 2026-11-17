@@ -1,6 +1,11 @@
 import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 
 const VOICE_SETTINGS_MESSAGES = {
+  Hold: "按住",
+  Toggle: "切换",
+  "Tap to toggle, hold to talk": "轻按切换，按住说话",
+  "Record while held": "按住期间录音",
+  "Tap to start, tap to stop": "轻按开始，再次轻按停止",
   "Most accurate in {language}": "{language} 最准确",
   "{model} download progress": "{model} 下载进度",
   "Cancel {model} download": "取消下载 {model}",

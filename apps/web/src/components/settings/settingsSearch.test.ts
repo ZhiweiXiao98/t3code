@@ -66,7 +66,7 @@ describe("searchSettings", () => {
     expect(searchSettings("long lines", ITEMS).map((item) => item.id)).toEqual(["word-wrap"]);
     for (const query of ["Language", "语言", "中文", "简体中文", "locale"]) {
       expect(searchSettings(query)[0]).toMatchObject({
-        id: "app-language",
+        id: "language",
         to: "/settings/general",
       });
     }

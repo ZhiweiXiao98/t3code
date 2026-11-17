@@ -95,6 +95,7 @@ function setup() {
   state.getUpdateState.mockReset();
   vi.stubGlobal("desktopBridge", {
     setUpdateChannel: state.channel,
+    getLocalEnvironmentEnabled: () => true,
     getLocalEnvironmentBootstraps: () => (state.installMode ? [{}] : []),
     getUpdateState: state.getUpdateState,
     downloadUpdate: state.download,
