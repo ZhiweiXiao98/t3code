@@ -937,6 +937,46 @@ it.each(["capability", "permission", "threadAllowed"] as const)(
   },
 );
 
+function traceReviewEditFillFailure(container: HTMLElement) {
+  if (import.meta.env.VITE_T3_MENU_TRACE !== "1") return;
+  try {
+    const count = (selector: string) => Math.min(container.querySelectorAll(selector).length, 100);
+    const active = container.ownerDocument.activeElement;
+    console.error(
+      JSON.stringify({
+        marker: "t3-review-edit-fill-diagnostic",
+        schemaVersion: 1,
+        phase: "fill-edit-comment",
+        rootConnected: container.isConnected,
+        rootMatches: Math.min(
+          container.ownerDocument.querySelectorAll('[data-testid="review-thread-edit-raw"]').length,
+          100,
+        ),
+        textboxCount: count('textarea, input:not([type]), input[type="text"], [role="textbox"]'),
+        englishEditTextboxCount: count(
+          'textarea[aria-label="Edit comment"], [role="textbox"][aria-label="Edit comment"]',
+        ),
+        chineseEditTextboxCount: count(
+          'textarea[aria-label="编辑评论"], [role="textbox"][aria-label="编辑评论"]',
+        ),
+        disabledTextareaCount: count("textarea:disabled"),
+        editButtonCount: count('button[aria-label="Edit comment"], button[aria-label="编辑评论"]'),
+        editorModeGroupCount: count(
+          '[data-slot="toggle-group"][aria-label="Markdown editor mode"], [data-slot="toggle-group"][aria-label="Markdown 编辑器模式"]',
+        ),
+        pressedToggleCount: count('[data-slot="toggle"][data-pressed]'),
+        expandedCount: count('[aria-expanded="true"]'),
+        focusInsideRoot: active !== null && container.contains(active),
+        focusIsTextarea: active?.tagName === "TEXTAREA",
+        focusIsButton: active?.tagName === "BUTTON",
+        focusIsBody: active === container.ownerDocument.body,
+      }),
+    );
+  } catch {
+    // Diagnostics must not replace the original browser assertion failure.
+  }
+}
+
 function actionSurface(
   locale: "en" | "zh-CN",
   refresh: () => void,
@@ -1015,7 +1055,10 @@ for (const action of ["reply", "edit"] as const) {
         name: action === "reply" ? "Reply to this conversation" : "Edit comment",
         exact: true,
       });
-      await userEvent.fill(input, draft);
+      await userEvent.fill(input, draft).catch((error: unknown) => {
+        if (action === "edit" && kind === "raw") traceReviewEditFillFailure(container);
+        throw error;
+      });
       await root
         .getByRole("button", {
           name: action === "reply" ? "Reply" : "Save",

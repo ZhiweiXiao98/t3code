@@ -42,18 +42,72 @@ function duringPress(act: () => void) {
 
 describe("sidebar shift guard", () => {
   it("drops a press on a row that slid up on its own, then accepts it after the delay", async () => {
-    await using screen = await render(null);
-    using list = mountList(screen.container, ["A", "B", "C"]);
-    using _clock = fakeTimers();
+    for (const { enabled, brokenSink } of [
+      { enabled: "0", brokenSink: false },
+      { enabled: "1", brokenSink: false },
+      { enabled: "1", brokenSink: true },
+    ]) {
+      await using screen = await render(null);
+      const previous = import.meta.env.VITE_T3_MENU_TRACE;
+      vi.stubEnv("VITE_T3_MENU_TRACE", enabled);
+      using _environment = { [Symbol.dispose]: () => vi.stubEnv("VITE_T3_MENU_TRACE", previous) };
+      using output = vi.spyOn(console, "info").mockImplementation(() => {
+        if (brokenSink) throw new Error("diagnostic sink unavailable");
+      });
+      using list = mountList(screen.container, ["A", "B", "C"]);
+      using _clock = fakeTimers();
 
-    list.remove("A");
-    list.guard.update();
-    await userEvent.click(list.button("B"));
-    expect(list.pressed).toEqual([]);
+      list.remove("A");
+      list.guard.update();
+      await userEvent.click(list.button("B"));
+      expect(list.pressed).toEqual([]);
+      for (let index = 0; index < 40; index++) {
+        expect(
+          list.button("B").dispatchEvent(
+            new MouseEvent("contextmenu", {
+              bubbles: true,
+              cancelable: true,
+            }),
+          ),
+        ).toBe(false);
+      }
+      const messages = output.mock.calls.map(([message]) => JSON.parse(String(message)));
+      if (enabled === "1") {
+        expect(messages).toHaveLength(32);
+        expect(messages.at(-1)?.remaining).toBe(0);
+        expect(messages[0]).toMatchObject({
+          event: "sidebar-shift-guard-suppressed",
+          reason: "recent-row-move",
+          type: "pointerdown",
+          defaultPrevented: true,
+          propagationStopped: true,
+          remaining: 31,
+        });
+        expect(
+          messages.every((message) =>
+            Object.keys(message).every((key) =>
+              [
+                "event",
+                "reason",
+                "type",
+                "movedAgeMs",
+                "heldCount",
+                "releasedDrop",
+                "pressDropped",
+                "defaultPrevented",
+                "propagationStopped",
+                "remaining",
+              ].includes(key),
+            ),
+          ),
+        ).toBe(true);
+      } else expect(messages).toEqual([]);
 
-    vi.advanceTimersByTime(500);
-    await userEvent.click(list.button("B"));
-    expect(list.pressed).toEqual(["B"]);
+      vi.advanceTimersByTime(500);
+      await userEvent.click(list.button("B"));
+      expect(list.pressed).toEqual(["B"]);
+      expect(output.mock.calls).toHaveLength(messages.length);
+    }
   });
 
   it("keeps rows that did not move, or barely moved, clickable", async () => {
