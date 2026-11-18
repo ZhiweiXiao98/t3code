@@ -64,12 +64,21 @@ describe("searchSettings", () => {
     expect(searchSettings("sharing", ITEMS).map((item) => item.id)).toEqual(["network-access"]);
     expect(searchSettings("claude", ITEMS).map((item) => item.id)).toEqual(["providers"]);
     expect(searchSettings("long lines", ITEMS).map((item) => item.id)).toEqual(["word-wrap"]);
-    for (const query of ["Language", "语言", "中文", "简体中文", "locale"]) {
+    // Exact new label ranks first; legacy localized aliases retain their stable search order.
+    for (const [query, id] of [
+      ["Language", "language"],
+      ["语言", "app-language"],
+      ["中文", "app-language"],
+      ["简体中文", "app-language"],
+      ["locale", "app-language"],
+    ] as const) {
       expect(searchSettings(query)[0]).toMatchObject({
-        id: "app-language",
+        id,
         to: "/settings/general",
       });
     }
+    const spanish = (message: string) => (message === "Word wrap" ? "Ajuste de línea" : message);
+    expect(searchSettings("ajuste", ITEMS, spanish).map((item) => item.id)).toEqual(["word-wrap"]);
     for (const query of ["fallback", "fallback agent", "fallback model"]) {
       expect(searchSettings(query)[0]).toMatchObject({
         id: "fallback-model",
@@ -82,6 +91,13 @@ describe("searchSettings", () => {
   it("hides the Secrets page from nav and search while the secrets feature is disabled", () => {
     expect(SETTINGS_NAV_GROUPS.flatMap((group) => group.paths)).not.toContain("/settings/secrets");
     expect(searchSettings("1password").map((item) => item.to)).not.toContain("/settings/secrets");
+  });
+
+  it("finds the Scheduled tasks page", () => {
+    expect(searchSettings("scheduled tasks")[0]).toMatchObject({
+      id: "scheduled-tasks",
+      to: "/settings/scheduled-tasks",
+    });
   });
 
   it("matches normalized title substrings", () => {
@@ -164,7 +180,10 @@ describe("searchSettings", () => {
     const results = (hasPeerLinkHost: boolean) =>
       searchSettings(
         "linked environments",
-        filterAvailableSettingsSearchItems({ ...availability, hasPeerLinkHost }),
+        filterAvailableSettingsSearchItems({
+          ...availability,
+          hasPeerLinkHost,
+        }),
       );
     expect(results(false).map((item) => item.id)).not.toContain("linked-environments");
     expect(results(true)).toContainEqual(
@@ -188,7 +207,10 @@ describe("searchSettings", () => {
     const ids = (hasPrimaryEnvironment: boolean) =>
       searchSettings(
         "welcome page",
-        filterAvailableSettingsSearchItems({ ...availability, hasPrimaryEnvironment }),
+        filterAvailableSettingsSearchItems({
+          ...availability,
+          hasPrimaryEnvironment,
+        }),
       ).map((item) => item.id);
     // Hosted web reaches remote computers but has no primary one to set up.
     expect(ids(false)).not.toContain("welcome-page");
@@ -280,7 +302,9 @@ describe("auto-settlement search availability", () => {
   function environment(id: string, { connected = true, loaded = true } = {}) {
     return {
       environmentId: EnvironmentId.make(id),
-      connection: { phase: connected ? ("connected" as const) : ("offline" as const) },
+      connection: {
+        phase: connected ? ("connected" as const) : ("offline" as const),
+      },
       serverConfig: loaded ? { environment: { capabilities: {} } } : null,
     };
   }
@@ -317,7 +341,10 @@ describe("auto-settlement search availability", () => {
           kind: "environment",
           environmentIds: [selected.environmentId],
         }),
-      ).toEqual({ eligibleEnvironmentIds: [capable.environmentId], isTargetAvailable: false });
+      ).toEqual({
+        eligibleEnvironmentIds: [capable.environmentId],
+        isTargetAvailable: false,
+      });
     },
   );
 

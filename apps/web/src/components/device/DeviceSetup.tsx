@@ -200,11 +200,18 @@ export function DeviceSetup(props: {
 
   const update = async (
     kind: NonNullable<typeof pending>,
-    input: { enabled?: boolean; agentAccessEnabled?: boolean; onboardingCompleted?: boolean },
+    input: {
+      enabled?: boolean;
+      agentAccessEnabled?: boolean;
+      onboardingCompleted?: boolean;
+    },
   ) => {
     if (!readEnvironmentScope(props.environmentId, AuthSettingsWriteScope)) return;
     setPending(kind);
-    const result = await configure({ environmentId: props.environmentId, input });
+    const result = await configure({
+      environmentId: props.environmentId,
+      input,
+    });
     setPending(null);
     if (kind === "complete" && result._tag === "Success") props.onComplete?.();
   };
@@ -271,9 +278,10 @@ export function DeviceSetup(props: {
               disabled={!enabled || busy || pending !== null}
               onCheck={() => {
                 setPending("check");
-                void list({ environmentId: props.environmentId, input: {} }).finally(() =>
-                  setPending(null),
-                );
+                void list({
+                  environmentId: props.environmentId,
+                  input: {},
+                }).finally(() => setPending(null));
               }}
             />
           </section>

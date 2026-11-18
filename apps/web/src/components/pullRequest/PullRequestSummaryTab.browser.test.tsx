@@ -3,6 +3,7 @@ import { translateWebMessage } from "~/i18n/messages";
 import { pullRequestEnvironment } from "~/state/pullRequests";
 import { SourceControlProviderKind } from "@t3tools/contracts";
 import { EnvironmentId, ProjectId, ThreadId, type PullRequestDetailView } from "@t3tools/contracts";
+import { DEFAULT_CLIENT_SETTINGS, type ClientSettings } from "@t3tools/contracts";
 import { expect, it, vi } from "vite-plus/test";
 import { userEvent } from "vite-plus/test/browser";
 
@@ -12,6 +13,7 @@ const state = vi.hoisted(() => ({
   update: vi.fn(),
   updateComment: vi.fn(),
   canUpdate: true,
+  timestampFormat: "locale" as "locale" | "12-hour" | "24-hour",
   canWrite: true,
   locale: "en" as "en" | "zh-CN",
   toast: vi.fn(),
@@ -42,6 +44,16 @@ vi.mock(import("~/state/session"), async (original) => ({
   ...(await original()),
   readEnvironmentScope: () => state.canWrite,
   useEnvironmentScope: () => state.canWrite,
+}));
+vi.mock(import("~/hooks/useSettings"), async (original) => ({
+  ...(await original()),
+  useClientSettings: ((select?: (settings: ClientSettings) => unknown) => {
+    const settings = {
+      ...DEFAULT_CLIENT_SETTINGS,
+      timestampFormat: state.timestampFormat,
+    };
+    return select ? select(settings) : settings;
+  }) as never,
 }));
 vi.mock(import("~/state/pullRequests"), async (original) => {
   const actual = await original();
@@ -79,6 +91,7 @@ function setup() {
   state.canWrite = true;
   state.locale = "en";
   state.toast.mockClear();
+  state.timestampFormat = "locale";
 }
 
 import { act, render as renderUi } from "../../../test/render";
@@ -123,7 +136,12 @@ const detail: PullRequestDetailView = {
     search: true,
     actions: [],
     mergeMethods: [],
-    review: { inlineComment: false, reply: false, resolve: false, verdicts: [] },
+    review: {
+      inlineComment: false,
+      reply: false,
+      resolve: false,
+      verdicts: [],
+    },
     reviewers: { request: false, listCandidates: false },
     edit: { changeRequest: true, comment: true },
   },
@@ -170,7 +188,10 @@ async function render(value = detail) {
 
 it("keeps an unsaved description when collapsed and reopened, and after a failed save", async () => {
   setup();
-  state.update.mockResolvedValue({ _tag: "Failure", cause: new Error("offline") });
+  state.update.mockResolvedValue({
+    _tag: "Failure",
+    cause: new Error("offline"),
+  });
   await using screen = await render();
   await act(async () =>
     screen.container.querySelector<HTMLButtonElement>('[aria-label="Edit description"]')!.click(),
@@ -218,7 +239,11 @@ it("leaves description checkboxes read-only without the right to edit it", async
   setup();
   const body = "- [ ] First";
   {
-    await using screen = await render({ ...detail, body, viewer: "someone-else" });
+    await using screen = await render({
+      ...detail,
+      body,
+      viewer: "someone-else",
+    });
     expect(
       screen.container.querySelector<HTMLInputElement>('input[type="checkbox"]')!.disabled,
     ).toBe(true);
@@ -342,7 +367,10 @@ it.each([
       finish(AsyncResult.failure(kind === "interrupted" ? Cause.interrupt() : Cause.fail(failure)));
     });
     await expect.element(screen.getByRole("button", { name: "保存", exact: true })).toBeEnabled();
-    expect(state.toast).toHaveBeenCalledExactlyOnceWith({ type: "error", title: "无法保存说明" });
+    expect(state.toast).toHaveBeenCalledExactlyOnceWith({
+      type: "error",
+      title: "无法保存说明",
+    });
     expect(screen.container.querySelector("textarea")!.value).toBe(draft);
     expect(refresh).toHaveBeenCalledTimes(1);
     await screen.rerender(surface("en"));
@@ -430,7 +458,12 @@ it.each([
       .toBeDisabled();
     expect(state.updateComment).toHaveBeenCalledExactlyOnceWith({
       environmentId: EnvironmentId.make("environment"),
-      input: { ...detail, commentId: "comment-literal", kind: "issue-comment", body: draft },
+      input: {
+        ...detail,
+        commentId: "comment-literal",
+        kind: "issue-comment",
+        body: draft,
+      },
     });
     expect(refresh).not.toHaveBeenCalled();
     await screen.rerender(surface("zh-CN"));
@@ -438,7 +471,10 @@ it.each([
       finish(AsyncResult.failure(kind === "interrupted" ? Cause.interrupt() : Cause.fail(failure)));
     });
     await expect.element(screen.getByRole("button", { name: "保存", exact: true })).toBeEnabled();
-    expect(state.toast).toHaveBeenCalledExactlyOnceWith({ type: "error", title: "无法保存评论" });
+    expect(state.toast).toHaveBeenCalledExactlyOnceWith({
+      type: "error",
+      title: "无法保存评论",
+    });
     expect(screen.container.querySelector("textarea")!.value).toBe(draft);
     expect(refresh).not.toHaveBeenCalled();
     await screen.rerender(surface("en"));
@@ -556,4 +592,82 @@ it("does not open summary check details without a URL", async () => {
   });
   expect(state.open).not.toHaveBeenCalled();
   expect(state.toast).not.toHaveBeenCalled();
+});
+
+it("fixes an overview thread as its opening remark, since it has no line to attach", async () => {
+  setup();
+  const author = { login: "reviewer", name: null, avatarUrl: null };
+  const note = { author, createdAt: "2026-09-01T00:00:00Z", url: null };
+  const remark = {
+    ...note,
+    id: "10",
+    kind: "review-comment" as const,
+    body: "Mention the flag in the README",
+    path: null,
+    reviewState: null,
+  };
+  const onFixFinding = vi.fn();
+  const value: PullRequestDetailView = {
+    ...detail,
+    comments: [remark],
+    overviewThreads: [
+      {
+        id: "overview",
+        path: null,
+        line: null,
+        side: "right",
+        isResolved: false,
+        isOutdated: false,
+        comments: [{ ...note, id: "10", body: remark.body }],
+      },
+    ],
+  };
+  await using screen = await renderUi(
+    <PullRequestSummaryTab
+      scrollerRef={() => {}}
+      environmentId={EnvironmentId.make("environment")}
+      threadRef={null}
+      reference={value}
+      detail={value}
+      activityPending={false}
+      activityError={null}
+      onRefresh={() => {}}
+      onFixFinding={onFixFinding}
+    />,
+  );
+
+  await userEvent.click(screen.getByRole("button", { name: "Fix in a thread" }));
+  expect(onFixFinding).toHaveBeenCalledWith({
+    kind: "comment",
+    comment: remark,
+  });
+});
+
+it("shows a comment's exact time in the chosen 24-hour clock", async () => {
+  setup();
+  state.timestampFormat = "24-hour";
+  const createdAt = "2026-09-01T17:30:00Z";
+  const comment = {
+    id: "10",
+    kind: "review-comment" as const,
+    body: "A remark",
+    author: { login: "reviewer", name: null, avatarUrl: null },
+    createdAt,
+    url: null,
+    path: null,
+    reviewState: null,
+  };
+  await using screen = await render({
+    ...detail,
+    comments: [comment],
+    commentCount: 1,
+  });
+
+  await userEvent.hover(screen.container.querySelector(`time[datetime="${createdAt}"]`)!);
+  const expected = new Date(createdAt).toLocaleString(undefined, {
+    hour12: false,
+  });
+  await vi.waitFor(() =>
+    expect(document.querySelector('[data-slot="tooltip-popup"]')?.textContent).toBe(expected),
+  );
 });

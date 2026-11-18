@@ -64,6 +64,7 @@ import { type EnvironmentPresentation, useRelayEnvironmentDiscovery } from "~/st
 import { APP_VERSION } from "~/branding";
 import { useManagedPolicy } from "~/state/managedPolicy";
 import { useAtomCommand } from "../../state/use-atom-command";
+import { useUpdateEnvironmentSettings } from "~/hooks/useSettings";
 import { serverEnvironment } from "~/state/server";
 import {
   OutdatedServerUpdateAction,
@@ -97,6 +98,12 @@ function savedBackendStatus(
     case "connecting":
       return { text: translateWebSource(locale, "Connecting"), tone: "muted" };
     case "reconnecting":
+      if (connection.awaitingApproval) {
+        return {
+          text: connection.error ?? "Waiting for approval",
+          tone: "muted",
+        };
+      }
       return {
         text: connection.error
           ? translateWebMessage(locale, "settingsControls.reconnectingError", {
@@ -106,7 +113,10 @@ function savedBackendStatus(
         tone: "error",
       };
     case "unsupported":
-      return { text: translateWebSource(locale, "Client not supported"), tone: "muted" };
+      return {
+        text: translateWebSource(locale, "Client not supported"),
+        tone: "muted",
+      };
     case "error":
       return {
         text: connection.error
@@ -119,7 +129,10 @@ function savedBackendStatus(
     case "offline":
       return { text: translateWebSource(locale, "Offline"), tone: "muted" };
     case "available":
-      return { text: translateWebSource(locale, "Not connected"), tone: "muted" };
+      return {
+        text: translateWebSource(locale, "Not connected"),
+        tone: "muted",
+      };
   }
 }
 
@@ -143,15 +156,10 @@ export function SavedBackendListRow({
   const isConnected = environment.connection.phase === "connected";
   const isRemoving = removingEnvironmentId === environmentId;
   const errorTraceId = environment.connection.traceId;
-  const { copyToClipboard: copyTraceIdToClipboard } = useCopyToClipboard<{ traceId: string }>({
+  const { copyToClipboard: copyTraceIdToClipboard } = useCopyToClipboard<{
+    traceId: string;
+  }>({
     target: "trace ID",
-    onCopy: ({ traceId }) => {
-      toastManager.add({
-        type: "success",
-        title: translateNotice("Trace ID copied"),
-        description: traceId,
-      });
-    },
     onError: (error) => {
       toastManager.add(
         stackedThreadToast({
@@ -250,9 +258,13 @@ export function SavedBackendListRow({
   const localConnectionStatus = () => {
     const connection = environment.connection;
     if (connection.phase === "reconnecting" && connection.error)
-      return t("settingsControls.reconnectingReason", { error: connection.error });
+      return t("settingsControls.reconnectingReason", {
+        error: connection.error,
+      });
     if (connection.phase === "error" && connection.error)
-      return t("settingsControls.connectionReason", { error: connection.error });
+      return t("settingsControls.connectionReason", {
+        error: connection.error,
+      });
     return translateWebSource(locale, connectionStatusText(connection));
   };
   const statusTooltip = `${
@@ -396,7 +408,9 @@ export function SavedBackendListRow({
       serverUpdateState.status !== "running" ? (
         <OutdatedServerUpdateAction
           environmentId={environmentId}
-          serverLabel={t("settingsControls.environmentServer", { name: environment.label })}
+          serverLabel={t("settingsControls.environmentServer", {
+            name: environment.label,
+          })}
           fromVersion={lastDescriptor?.serverVersion}
           targetVersion={APP_VERSION}
           label={
@@ -409,7 +423,9 @@ export function SavedBackendListRow({
       {showUpdateAction ? (
         <ServerUpdateAction
           environmentId={environmentId}
-          serverLabel={t("settingsControls.environmentServer", { name: environment.label })}
+          serverLabel={t("settingsControls.environmentServer", {
+            name: environment.label,
+          })}
           selfUpdate={resolveServerSelfUpdateCapability(environment.serverConfig)}
           installation={environment.serverConfig?.environment.capabilities.serverInstallation}
           desktopAppUpdate={supportsDesktopAppUpdate(environment.serverConfig)}
@@ -455,7 +471,9 @@ export function SavedBackendListRow({
               variant="ghost-muted"
               size="icon-xs"
               disabled={isRemoving}
-              aria-label={t("settingsControls.moreEnvironmentActions", { name: environment.label })}
+              aria-label={t("settingsControls.moreEnvironmentActions", {
+                name: environment.label,
+              })}
             />
           }
         >
@@ -599,12 +617,15 @@ function T3ConnectTunnelUsage({ tunnelLimit }: { readonly tunnelLimit: number | 
 function ConfiguredCloudLinkRow({
   environmentId,
   canManageRelay,
+  connectDeviceApproval,
 }: {
   readonly environmentId: EnvironmentId;
   readonly canManageRelay: boolean;
+  readonly connectDeviceApproval: ConnectDeviceApprovalControl | null;
 }) {
   const { locale, t } = useI18n();
   const translateNotice = useStableCallback((source: string) => translateWebSource(locale, source));
+  const updateEnvironmentSettings = useUpdateEnvironmentSettings(environmentId);
   const {
     isSignedIn,
     linkState: cloudLinkState,
@@ -679,7 +700,10 @@ function ConfiguredCloudLinkRow({
   const updateManagedTunnel = async (enabled: boolean) => {
     if (!readEnvironmentScope(environmentId, AuthRelayWriteScope)) return;
     setIsUpdating(true);
-    const ok = await reconcileCloudState({ managedTunnel: enabled, publish: publishAgentActivity });
+    const ok = await reconcileCloudState({
+      managedTunnel: enabled,
+      publish: publishAgentActivity,
+    });
     if (ok) {
       toastManager.add({
         type: "success",
@@ -701,7 +725,10 @@ function ConfiguredCloudLinkRow({
   const updatePublishAgentActivity = async (enabled: boolean) => {
     if (!readEnvironmentScope(environmentId, AuthRelayWriteScope)) return;
     setIsUpdatingPreference(true);
-    const ok = await reconcileCloudState({ managedTunnel: managedTunnelActive, publish: enabled });
+    const ok = await reconcileCloudState({
+      managedTunnel: managedTunnelActive,
+      publish: enabled,
+    });
     if (ok) {
       toastManager.add({
         type: "success",
@@ -868,18 +895,50 @@ function ConfiguredCloudLinkRow({
           }
         />
       ) : null}
+      {managedTunnelActive && connectDeviceApproval ? (
+        <SettingsRow
+          title={searchableSetting("connect-device-approval").title}
+          description="Devices that sign in to your T3 Connect account wait until someone already connected here approves them."
+          managed={connectDenial}
+          control={
+            <CloudLinkSwitch
+              ariaLabel="Require approval for new T3 Connect devices"
+              checked={connectDeviceApproval.required}
+              disabled={!connectDeviceApproval.canManage}
+              disabledReason={
+                connectDeviceApproval.canManage
+                  ? null
+                  : "Your session does not have permission to manage access."
+              }
+              onCheckedChange={(enabled) =>
+                updateEnvironmentSettings({
+                  requireConnectDeviceApproval: enabled,
+                })
+              }
+            />
+          }
+        />
+      ) : null}
     </>
   );
+}
+
+/** Older servers have no device approval, so callers pass null and the row stays hidden. */
+export interface ConnectDeviceApprovalControl {
+  readonly required: boolean;
+  readonly canManage: boolean;
 }
 
 export function CloudLinkRow({
   environmentId,
   canReadRelay,
   canManageRelay,
+  connectDeviceApproval,
 }: {
   readonly environmentId: EnvironmentId;
   readonly canReadRelay: boolean;
   readonly canManageRelay: boolean;
+  readonly connectDeviceApproval: ConnectDeviceApprovalControl | null;
 }) {
   const { locale } = useI18n();
   if (!hasCloudPublicConfig()) return null;
@@ -894,7 +953,13 @@ export function CloudLinkRow({
       />
     );
   }
-  return <ConfiguredCloudLinkRow environmentId={environmentId} canManageRelay={canManageRelay} />;
+  return (
+    <ConfiguredCloudLinkRow
+      environmentId={environmentId}
+      canManageRelay={canManageRelay}
+      connectDeviceApproval={connectDeviceApproval}
+    />
+  );
 }
 
 function EmptyRemoteEnvironments({ cloudEnabled = true }: { readonly cloudEnabled?: boolean }) {

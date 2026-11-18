@@ -101,8 +101,10 @@ export default function NotebookPreview(props: {
         className="border-b border-border/60 px-3 py-2 text-xs text-muted-foreground tabular-nums"
         role="status"
       >
-        {t("files.residual.cells", { count: props.notebook.cells.length.toLocaleString() })} ·{" "}
-        {props.notebook.language}
+        {t("files.residual.cells", {
+          count: props.notebook.cells.length.toLocaleString(),
+        })}{" "}
+        · {props.notebook.language}
         {props.sizeBytes !== undefined
           ? ` · ${props.sizeBytes === 0 ? translateWebSource(previewLocale, "0 bytes") : formatAttachmentSize(props.sizeBytes)}`
           : ""}
@@ -153,7 +155,9 @@ export default function NotebookPreview(props: {
                     !outputView.mounted.has(`${index}-${outputIndex}`) ? null : (
                       <DocumentPages
                         html={output.text}
-                        name={t("files.residual.cellHtml", { index: index + 1 })}
+                        name={t("files.residual.cellHtml", {
+                          index: index + 1,
+                        })}
                         output
                       />
                     )
@@ -180,7 +184,9 @@ export default function NotebookPreview(props: {
           ) : null}
           {visible < props.notebook.cells.length ? (
             <Button variant="outline" size="sm" onClick={() => setVisible((count) => count + 20)}>
-              {t("files.residual.moreCells", { count: props.notebook.cells.length - visible })}
+              {t("files.residual.moreCells", {
+                count: props.notebook.cells.length - visible,
+              })}
             </Button>
           ) : null}
         </div>

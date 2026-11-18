@@ -72,9 +72,14 @@ function AccountChip({ email }: { readonly email: string }) {
   return (
     <span
       role="img"
-      aria-label={t("usage.limits.account", { account: accountInitials(email) })}
+      aria-label={t("usage.limits.account", {
+        account: accountInitials(email),
+      })}
       className="inline-flex size-4 shrink-0 items-center justify-center rounded-full text-3xs leading-none font-semibold"
-      style={{ backgroundColor: `oklch(0.85 0.08 ${hue})`, color: `oklch(0.35 0.1 ${hue})` }}
+      style={{
+        backgroundColor: `oklch(0.85 0.08 ${hue})`,
+        color: `oklch(0.35 0.1 ${hue})`,
+      }}
     >
       {accountInitials(email)}
     </span>
@@ -556,7 +561,9 @@ function PoolBar({
     <div className="@container/pool min-w-0">
       <div
         className="grid gap-x-1 gap-y-1"
-        style={{ gridTemplateColumns: `repeat(${pool.columns.length}, minmax(0, 1fr))` }}
+        style={{
+          gridTemplateColumns: `repeat(${pool.columns.length}, minmax(0, 1fr))`,
+        }}
       >
         {pool.columns.map((member, position) =>
           member.window ? (
@@ -571,6 +578,18 @@ function PoolBar({
               index={position + 1}
               showAccountName={pool.columns.length > 1}
             />
+          ) : pool.kind === "monthly" && member.account.limits.zeroSpendCap ? (
+            <div
+              key={member.account.key}
+              style={{ gridColumn: position + 1, gridRow: 1 }}
+              className="flex h-5 min-w-0 items-center justify-center gap-1.5 overflow-hidden rounded-md border border-dashed border-border text-3xs whitespace-nowrap text-muted-foreground @2xl/pool:h-8 @2xl/pool:justify-start @2xl/pool:px-2 @2xl/pool:text-xs"
+            >
+              <AccountName
+                account={member.account}
+                className="hidden min-w-0 truncate @2xl/pool:inline-flex"
+              />
+              $0 cap
+            </div>
           ) : null,
         )}
       </div>
@@ -588,7 +607,7 @@ function PoolWindowCard({
   readonly pool: LimitPoolWindow;
   readonly color: string;
   readonly now: number;
-  readonly label?: string | undefined;
+  readonly label?: string | null | undefined;
   readonly description?: string | undefined;
 }) {
   const { locale: uiLocale } = useI18n();
@@ -596,9 +615,11 @@ function PoolWindowCard({
   return (
     <div className="grid items-center gap-x-6 gap-y-3 rounded-lg border border-border/60 p-4 md:grid-cols-[11rem_minmax(0,1fr)]">
       <div className="flex flex-col gap-1">
-        <span className="text-sm font-medium text-foreground">
-          {label ?? formatUsageWindowLabel(pool, uiLocale)}
-        </span>
+        {label !== null ? (
+          <span className="text-sm font-medium text-foreground">
+            {label ?? formatUsageWindowLabel(pool, uiLocale)}
+          </span>
+        ) : null}
         <span className="flex items-baseline gap-2">
           <span className="text-3xl font-semibold text-foreground tabular-nums">
             {pool.remainingPercent}%
@@ -640,15 +661,22 @@ function PoolSection({ pool, now }: { readonly pool: LimitPool; readonly now: nu
         {label}
       </h2>
       {windows.map((window) => {
-        const details = pool.driver === "cursor" ? cursorUsageWindowDetails(window.id) : undefined;
+        const details =
+          pool.driver === "cursor" ? cursorUsageWindowDetails(window.id, pool) : undefined;
         return (
           <PoolWindowCard
             key={`${window.kind}:${window.id}`}
             pool={window}
             color={color}
             now={now}
-            label={details ? translateWebSource(locale, details.label) : undefined}
-            description={details ? translateWebSource(locale, details.description) : undefined}
+            label={
+              details?.label == null ? details?.label : translateWebSource(locale, details.label)
+            }
+            description={
+              details?.description === undefined
+                ? undefined
+                : translateWebSource(locale, details.description)
+            }
           />
         );
       })}

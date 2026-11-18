@@ -69,20 +69,30 @@ const nodeProbe =
   "nodePath:/home/Test User's/node\nnodeVersion:24.0.0\nresolvedPath:/home/Test User's/bin:/usr/bin\n";
 
 describe("WSL preflight display provenance", () => {
-  it.effect("preserves runtime executable paths and raw stderr in both languages", () =>
+  it.effect("preserves runtime installation paths and raw stderr in both languages", () =>
     Effect.gen(function* () {
       const wsl = yield* DesktopWslEnvironment.DesktopWslEnvironment;
-      const root = "/home/Test User's/运行时";
-      const result = yield* wsl.probeRuntime("Custom Distro", root);
+      const result = yield* wsl.prepareRuntime("Custom Distro", {
+        windowsPath: "C:\\Test User's\\运行时.tar.gz",
+        runtimeId: "sha256-test",
+        sha256: "a".repeat(64),
+      });
       assert.isFalse(result.ok);
       if (result.ok) return;
-      assert.equal(result.reason, `${root}/t3 --version failed (exit 127): ${externalDetail}`);
+      assert.equal(result.reason, `WSL runtime installation failed (exit 127): ${externalDetail}`);
       assert.equal(localizeWslFailureReason(result, "en"), result.reason);
       assert.equal(
         localizeWslFailureReason(result, "zh-CN"),
-        `${root}/t3 --version 失败（退出码 127）：${externalDetail}`,
+        `WSL 运行时安装失败（退出码 127）：${externalDetail}`,
       );
-    }).pipe(Effect.provide(layerWsl([{ stdout: "", stderr: externalDetail, exitCode: 127 }]))),
+    }).pipe(
+      Effect.provide(
+        layerWsl([
+          { stdout: "/mnt/c/Test User's/运行时.tar.gz\n", exitCode: 0 },
+          { stdout: "", stderr: externalDetail, exitCode: 127 },
+        ]),
+      ),
+    ),
   );
 
   it.effect.each([

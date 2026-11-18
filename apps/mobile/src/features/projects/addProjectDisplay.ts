@@ -4,6 +4,7 @@ import {
   buildAddProjectRemoteSourceReadiness,
   sortAddProjectProviderSources,
   type AddProjectRemoteSource,
+  type OfferedSourceControlProviders,
 } from "@t3tools/client-runtime/operations/projects";
 import type { SourceControlDiscoveryResult } from "@t3tools/contracts";
 import * as Option from "effect/Option";
@@ -14,6 +15,7 @@ export function addProjectSourceRows(
   discovery: SourceControlDiscoveryResult | null,
   canCloneProject: boolean,
   locale: MobileLocale = MOBILE_LOCALE,
+  offeredSourceControlProviders?: OfferedSourceControlProviders,
 ) {
   const readiness = buildAddProjectRemoteSourceReadiness(discovery);
   const providerByKind = new Map(
@@ -21,7 +23,7 @@ export function addProjectSourceRows(
   );
   const sources: ReadonlyArray<AddProjectRemoteSource> = [
     "url",
-    ...sortAddProjectProviderSources(readiness),
+    ...sortAddProjectProviderSources(readiness, offeredSourceControlProviders),
   ];
   return sources.map((source) => {
     const state = readiness(source);

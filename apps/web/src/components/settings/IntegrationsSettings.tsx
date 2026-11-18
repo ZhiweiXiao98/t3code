@@ -213,7 +213,10 @@ async function importBrowserCookiesIntoTarget(
   bridge: NonNullable<typeof previewBridge>,
   source: BrowserImportSource,
   environmentId: EnvironmentId,
-  input: { readonly sourceProfileDirectory: string; readonly target: WizardTarget },
+  input: {
+    readonly sourceProfileDirectory: string;
+    readonly target: WizardTarget;
+  },
 ): Promise<ImportOutcome> {
   try {
     const result = await bridge.importBrowserCookies({
@@ -252,7 +255,11 @@ async function importBrowserCookiesIntoTarget(
               ...current,
               browserProfiles: [
                 ...current.browserProfiles,
-                { id: input.target.profileId, name, kind: "persistent" as const },
+                {
+                  id: input.target.profileId,
+                  name,
+                  kind: "persistent" as const,
+                },
               ],
             };
           });
@@ -326,7 +333,7 @@ const rotateViewport = (
 function BrowserViewportSetting({ disabled }: { readonly disabled: boolean }) {
   const { locale, t } = useI18n();
   const viewport = useClientSettings((settings) => settings.browserDefaultViewport);
-  const updateSettings = useUpdatePrimarySettings();
+  const updateSettings = useUpdateScopedSettings();
 
   const sized = viewport._tag === "fill" ? null : viewport;
   const presentedSize = {
@@ -373,6 +380,7 @@ function BrowserViewportSetting({ disabled }: { readonly disabled: boolean }) {
   return (
     <SettingsRow
       {...searchableSetting("browser-default-viewport")}
+      devicePreference
       description={translateWebSource(
         locale,
         "Tab size for you and agents. Fill fits the panel; other sizes show the device toolbar.",
@@ -381,7 +389,11 @@ function BrowserViewportSetting({ disabled }: { readonly disabled: boolean }) {
         !disabled && viewport._tag !== DEFAULT_BROWSER_VIEWPORT._tag ? (
           <SettingResetButton
             label={translateWebSource(locale, "default browser viewport")}
-            onClick={() => updateSettings({ browserDefaultViewport: DEFAULT_BROWSER_VIEWPORT })}
+            onClick={() =>
+              updateSettings({
+                browserDefaultViewport: DEFAULT_BROWSER_VIEWPORT,
+              })
+            }
           />
         ) : null
       }
@@ -474,7 +486,9 @@ function BrowserViewportSetting({ disabled }: { readonly disabled: boolean }) {
                         ),
                       })}
                       onClick={() =>
-                        updateSettings({ browserDefaultViewport: rotateViewport(sized) })
+                        updateSettings({
+                          browserDefaultViewport: rotateViewport(sized),
+                        })
                       }
                     >
                       <ScreenRotationIcon />
@@ -496,18 +510,21 @@ function BrowserViewportSetting({ disabled }: { readonly disabled: boolean }) {
 function BrowserZoomSetting({ disabled }: { readonly disabled: boolean }) {
   const { locale, t } = useI18n();
   const zoomFactor = useClientSettings((settings) => settings.browserDefaultZoomFactor);
-  const updateSettings = useUpdatePrimarySettings();
+  const updateSettings = useUpdateScopedSettings();
 
   return (
     <SettingsRow
       {...searchableSetting("browser-default-zoom")}
+      devicePreference
       description={translateWebSource(locale, "Page zoom applied to new browser tabs.")}
       resetAction={
         !disabled && zoomFactor !== DEFAULT_PREVIEW_ZOOM_FACTOR ? (
           <SettingResetButton
             label={translateWebSource(locale, "default browser zoom")}
             onClick={() =>
-              updateSettings({ browserDefaultZoomFactor: DEFAULT_PREVIEW_ZOOM_FACTOR })
+              updateSettings({
+                browserDefaultZoomFactor: DEFAULT_PREVIEW_ZOOM_FACTOR,
+              })
             }
           />
         ) : null
@@ -544,11 +561,12 @@ function BrowserZoomSetting({ disabled }: { readonly disabled: boolean }) {
 function BrowserAppearanceSetting({ disabled }: { readonly disabled: boolean }) {
   const { locale, t } = useI18n();
   const appearance = useClientSettings((settings) => settings.browserDefaultAppearance);
-  const updateSettings = useUpdatePrimarySettings();
+  const updateSettings = useUpdateScopedSettings();
 
   return (
     <SettingsRow
       {...searchableSetting("browser-default-appearance")}
+      devicePreference
       description={translateWebSource(
         locale,
         "The color scheme pages are told to prefer. System follows your OS setting.",
@@ -557,7 +575,11 @@ function BrowserAppearanceSetting({ disabled }: { readonly disabled: boolean }) 
         !disabled && appearance !== DEFAULT_PREVIEW_APPEARANCE ? (
           <SettingResetButton
             label={translateWebSource(locale, "default browser appearance")}
-            onClick={() => updateSettings({ browserDefaultAppearance: DEFAULT_PREVIEW_APPEARANCE })}
+            onClick={() =>
+              updateSettings({
+                browserDefaultAppearance: DEFAULT_PREVIEW_APPEARANCE,
+              })
+            }
           />
         ) : null
       }
@@ -595,11 +617,12 @@ function BrowserRecordingInputSettings({ disabled }: { readonly disabled: boolea
   const { locale } = useI18n();
   const showKeys = useClientSettings((settings) => settings.browserRecordingShowKeyPresses);
   const showMouse = useClientSettings((settings) => settings.browserRecordingShowMousePresses);
-  const updateSettings = useUpdatePrimarySettings();
+  const updateSettings = useUpdateScopedSettings();
   return (
     <>
       <SettingsRow
         {...searchableSetting("browser-recording-key-presses")}
+        devicePreference
         description={translateWebSource(
           locale,
           "Show pressed keys and shortcuts in new recordings. Password fields are excluded.",
@@ -610,13 +633,16 @@ function BrowserRecordingInputSettings({ disabled }: { readonly disabled: boolea
             checked={showKeys}
             aria-label={translateWebSource(locale, "Show key presses in recordings")}
             onCheckedChange={(checked) =>
-              updateSettings({ browserRecordingShowKeyPresses: Boolean(checked) })
+              updateSettings({
+                browserRecordingShowKeyPresses: Boolean(checked),
+              })
             }
           />
         }
       />
       <SettingsRow
         {...searchableSetting("browser-recording-mouse-presses")}
+        devicePreference
         description={translateWebSource(
           locale,
           "Highlight mouse presses and held buttons in new recordings.",
@@ -627,7 +653,9 @@ function BrowserRecordingInputSettings({ disabled }: { readonly disabled: boolea
             checked={showMouse}
             aria-label={translateWebSource(locale, "Show mouse presses in recordings")}
             onCheckedChange={(checked) =>
-              updateSettings({ browserRecordingShowMousePresses: Boolean(checked) })
+              updateSettings({
+                browserRecordingShowMousePresses: Boolean(checked),
+              })
             }
           />
         }
@@ -639,11 +667,12 @@ function BrowserRecordingInputSettings({ disabled }: { readonly disabled: boolea
 function BrowserRecordingFrameRateSetting({ disabled }: { readonly disabled: boolean }) {
   const { locale } = useI18n();
   const frameRate = useClientSettings((settings) => settings.browserRecordingFrameRate);
-  const updateSettings = useUpdatePrimarySettings();
+  const updateSettings = useUpdateScopedSettings();
 
   return (
     <SettingsRow
       {...searchableSetting("browser-recording-frame-rate")}
+      devicePreference
       description={translateWebSource(
         locale,
         "Maximum recording rate. 30 fps saves CPU and storage; 60 fps is smoother.",
@@ -653,7 +682,9 @@ function BrowserRecordingFrameRateSetting({ disabled }: { readonly disabled: boo
           <SettingResetButton
             label={translateWebSource(locale, "browser recording frame rate")}
             onClick={() =>
-              updateSettings({ browserRecordingFrameRate: DEFAULT_BROWSER_RECORDING_FRAME_RATE })
+              updateSettings({
+                browserRecordingFrameRate: DEFAULT_BROWSER_RECORDING_FRAME_RATE,
+              })
             }
           />
         ) : null
@@ -697,11 +728,12 @@ const LINK_TARGET_LABELS: Readonly<Record<BrowserLinkTarget, string>> = {
 function BrowserLinkTargetSetting({ disabled }: { readonly disabled: boolean }) {
   const { locale } = useI18n();
   const linkTarget = useClientSettings((settings) => settings.browserLinkTarget);
-  const updateSettings = useUpdatePrimarySettings();
+  const updateSettings = useUpdateScopedSettings();
 
   return (
     <SettingsRow
       {...searchableSetting("browser-link-target")}
+      devicePreference
       description={translateWebSource(
         locale,
         "Where links in the chat and terminal open. Hold ⌘ or Ctrl while clicking a link to open it in your default browser either way.",
@@ -758,12 +790,13 @@ function BrowserSearchEngineSetting() {
   const { locale: sourceLocale } = useI18n();
   const engine = useClientSettings((settings) => settings.browserSearchEngine);
   const customUrl = useClientSettings((settings) => settings.browserCustomSearchUrl);
-  const updateSettings = useUpdatePrimarySettings();
+  const updateSettings = useUpdateScopedSettings();
 
   return (
     <>
       <SettingsRow
         {...searchableSetting("browser-search-engine")}
+        devicePreference
         description={translateWebSource(
           sourceLocale,
           "What the address bar searches when you type something that isn't a URL.",
@@ -812,6 +845,7 @@ function BrowserSearchEngineSetting() {
       />
       {engine === "custom" ? (
         <SettingsRow
+          devicePreference
           title={translateWebSource(sourceLocale, "Custom search URL")}
           description={translateWebSource(sourceLocale, "Use %s where the search terms go.")}
           status={
@@ -917,7 +951,9 @@ function DeviceIntegrationControls({
   const anyHubEnabled = connectedEnvironments.some(
     (environment) => environment.serverConfig?.settings.enableDeviceSupport,
   );
-  const configure = useAtomCommand(deviceEnvironment.configure, { reportFailure: false });
+  const configure = useAtomCommand(deviceEnvironment.configure, {
+    reportFailure: false,
+  });
   const list = useAtomCommand(deviceEnvironment.list, { reportFailure: false });
   const [pending, setPending] = useState<
     "hub" | "check" | "agent" | "update-hub" | "update-agent" | null
@@ -942,7 +978,10 @@ function DeviceIntegrationControls({
         }
         return configure({
           environmentId: environment.environmentId,
-          input: { ...input, ...(input.enabled ? { onboardingCompleted: true } : {}) },
+          input: {
+            ...input,
+            ...(input.enabled ? { onboardingCompleted: true } : {}),
+          },
         });
       }),
     );
@@ -963,9 +1002,10 @@ function DeviceIntegrationControls({
     }
   };
 
-  const [updateError, setUpdateError] = useState<{ tool: "hub" | "agent"; message: string } | null>(
-    null,
-  );
+  const [updateError, setUpdateError] = useState<{
+    tool: "hub" | "agent";
+    message: string;
+  } | null>(null);
   const localTools = state.hosts.find((host) => host.kind === "local")?.tools;
   const versionActions = (tool: "hub" | "agent") => {
     const version = localTools?.[tool];
@@ -984,7 +1024,10 @@ function DeviceIntegrationControls({
                 void list({ environmentId, input: { updateTool: tool } })
                   .then((result) => {
                     if (result._tag === "Failure")
-                      setUpdateError({ tool, message: formatEnvironmentQueryError(result.cause) });
+                      setUpdateError({
+                        tool,
+                        message: formatEnvironmentQueryError(result.cause),
+                      });
                   })
                   .finally(() => setPending(null));
               }}
@@ -1002,9 +1045,10 @@ function DeviceIntegrationControls({
               onClick={() => {
                 if (!environmentId) return;
                 setPending("check");
-                void list({ environmentId, input: { inspectOnly: true } }).finally(() =>
-                  setPending(null),
-                );
+                void list({
+                  environmentId,
+                  input: { inspectOnly: true },
+                }).finally(() => setPending(null));
               }}
             >
               {pending === "check"
@@ -1095,8 +1139,12 @@ function DeviceIntegrationControls({
               aria-label={translateWebSource(locale, "Agent device access")}
               onCheckedChange={(checked) =>
                 projectScope
-                  ? updateSettings({ enableAgentDeviceAccess: Boolean(checked) })
-                  : void update("agent", { agentAccessEnabled: Boolean(checked) })
+                  ? updateSettings({
+                      enableAgentDeviceAccess: Boolean(checked),
+                    })
+                  : void update("agent", {
+                      agentAccessEnabled: Boolean(checked),
+                    })
               }
             />
           </>
@@ -1104,7 +1152,10 @@ function DeviceIntegrationControls({
       />
       {environmentId ? (
         <DeviceHostUpdates
-          state={{ ...state, hosts: state.hosts.filter((host) => host.kind === "local") }}
+          state={{
+            ...state,
+            hosts: state.hosts.filter((host) => host.kind === "local"),
+          }}
           environmentId={environmentId}
         />
       ) : null}
@@ -1162,11 +1213,12 @@ function AgentBrowserAccessSetting() {
 function BrowserAutoShowFloatingPreviewSetting({ disabled }: { readonly disabled: boolean }) {
   const { locale, t } = useI18n();
   const autoShow = useClientSettings((settings) => settings.browserAutoShowFloatingPreview);
-  const updateSettings = useUpdatePrimarySettings();
+  const updateSettings = useUpdateScopedSettings();
 
   return (
     <SettingsRow
       {...searchableSetting("browser-auto-show-floating-preview")}
+      devicePreference
       description={translateWebSource(
         locale,
         "Show the floating preview when an agent opens a browser or device unless the agent says otherwise.",
@@ -1202,7 +1254,12 @@ function BrowserProfilesSetting({ disabled }: { readonly disabled: boolean }) {
   const userProfiles = useClientSettings((settings) => settings.browserProfiles);
   const defaultProfileId = useClientSettings((settings) => settings.browserDefaultProfileId);
   const settingsHydrated = useClientSettingsHydrated();
+  // Profile edits pair with profile data on disk, so they save for this device in every scope.
   const updateSettings = useUpdatePrimarySettings();
+  const updateDefaultProfile = useUpdateScopedSettings();
+  const { scope } = useSettingsScope();
+  // The default profile is a device preference, which a project cannot override.
+  const defaultProfileReadOnly = scope.kind === "project" || scope.kind === "checkout";
   const { environments, isReady: environmentsReady } = useEnvironments();
   const primaryEnvironment = usePrimaryEnvironment();
   // Cookie import runs on this desktop, whose policy the primary environment reports.
@@ -1237,7 +1294,10 @@ function BrowserProfilesSetting({ disabled }: { readonly disabled: boolean }) {
           serverConfigs.get(environmentId)?.environment.capabilities.serverBrowser === true,
       ),
     clear: async (environmentId, profileId) => {
-      const result = await runClearServerProfile({ environmentId, input: { profileId } });
+      const result = await runClearServerProfile({
+        environmentId,
+        input: { profileId },
+      });
       if (result._tag === "Failure") throw squashAtomCommandFailure(result);
     },
   };
@@ -1265,7 +1325,11 @@ function BrowserProfilesSetting({ disabled }: { readonly disabled: boolean }) {
     const taken = new Set(resolvedProfiles.map((profile) => profile.name));
     let name = baseName;
     for (let index = 2; taken.has(name); index += 1) name = `${baseName} ${index}`;
-    const profile = { id: `profile-${randomUUID()}`, name, kind: "persistent" as const };
+    const profile = {
+      id: `profile-${randomUUID()}`,
+      name,
+      kind: "persistent" as const,
+    };
     updateSettings({ browserProfiles: [...currentProfiles, profile] });
     return profile;
   };
@@ -1287,7 +1351,9 @@ function BrowserProfilesSetting({ disabled }: { readonly disabled: boolean }) {
     if (!removalAvailable) {
       toastManager.add({
         type: "error",
-        title: t("settings.integrations.profiles.clearFailed", { profile: name }),
+        title: t("settings.integrations.profiles.clearFailed", {
+          profile: name,
+        }),
         description: t("settings.integrations.profiles.connectFirst"),
       });
       return;
@@ -1302,14 +1368,18 @@ function BrowserProfilesSetting({ disabled }: { readonly disabled: boolean }) {
         const { t } = readWebI18n();
         toastManager.add({
           type: "success",
-          title: t("settings.integrations.profiles.clearSuccess", { profile: name }),
+          title: t("settings.integrations.profiles.clearSuccess", {
+            profile: name,
+          }),
         });
       })
       .catch(() => {
         const { t } = readWebI18n();
         toastManager.add({
           type: "error",
-          title: t("settings.integrations.profiles.clearFailed", { profile: name }),
+          title: t("settings.integrations.profiles.clearFailed", {
+            profile: name,
+          }),
         });
       });
   };
@@ -1361,7 +1431,10 @@ function BrowserProfilesSetting({ disabled }: { readonly disabled: boolean }) {
   const runWizardImport = async (
     source: BrowserImportSource,
     environmentId: EnvironmentId,
-    input: { readonly sourceProfileDirectory: string; readonly target: WizardTarget },
+    input: {
+      readonly sourceProfileDirectory: string;
+      readonly target: WizardTarget;
+    },
   ): Promise<ImportOutcome> => {
     if (!previewBridge) return { kind: "blocked", reason: "sessionUnavailable" };
     if (!settingsHydrated) return { kind: "blocked", reason: "sessionUnavailable" };
@@ -1532,10 +1605,12 @@ function BrowserProfilesSetting({ disabled }: { readonly disabled: boolean }) {
                 </MenuTrigger>
                 <MenuPopup align="end">
                   <MenuItem
-                    disabled={!settingsHydrated || isDefault}
+                    disabled={!settingsHydrated || isDefault || defaultProfileReadOnly}
                     onClick={() => {
                       if (settingsHydrated) {
-                        updateSettings({ browserDefaultProfileId: profile.id });
+                        updateDefaultProfile({
+                          browserDefaultProfileId: profile.id,
+                        });
                       }
                     }}
                   >
@@ -1643,7 +1718,9 @@ function BrowserProfilesSetting({ disabled }: { readonly disabled: boolean }) {
         <AlertDialogPopup>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {t("settingsResidual.clearProfile", { name: profilePendingClear?.name ?? "" })}
+              {t("settingsResidual.clearProfile", {
+                name: profilePendingClear?.name ?? "",
+              })}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {translateWebSource(
@@ -1673,7 +1750,10 @@ function BrowserProfilesSetting({ disabled }: { readonly disabled: boolean }) {
         <BrowserImportWizard
           source={importSession.source}
           destinationEnvironmentName={importSession.environmentName}
-          targetProfiles={listedProfiles.map((profile) => ({ id: profile.id, name: profile.name }))}
+          targetProfiles={listedProfiles.map((profile) => ({
+            id: profile.id,
+            name: profile.name,
+          }))}
           canCreateProfile={settingsHydrated && !atProfileLimit}
           onImport={(input) =>
             runWizardImport(importSession.source, importSession.environmentId, input)

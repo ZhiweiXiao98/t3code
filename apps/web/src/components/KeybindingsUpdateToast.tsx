@@ -17,14 +17,7 @@ export function startKeybindingsUpdateToasts(
     if (!decision) return;
     const locale = readLocale();
 
-    if (decision._tag === "Success") {
-      toastManager.add({
-        type: "success",
-        title: translateWebSource(locale, "Keybindings updated"),
-        description: translateWebSource(locale, "Keybindings configuration reloaded successfully."),
-      });
-      return;
-    }
+    if (decision._tag === "Success") return;
 
     const serverConfig = appAtomRegistry.get(primaryServerConfigAtom);
     toastManager.add(

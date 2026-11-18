@@ -138,12 +138,20 @@ function scrollAndFocusSettingsTarget(target: HTMLElement, highlight = true): vo
           waitForHeight();
         }
       });
-      observer.observe(panel, { attributes: true, attributeFilter: ["data-starting-style"] });
-      signal.addEventListener("abort", () => observer.disconnect(), { once: true });
+      observer.observe(panel, {
+        attributes: true,
+        attributeFilter: ["data-starting-style"],
+      });
+      signal.addEventListener("abort", () => observer.disconnect(), {
+        once: true,
+      });
     } else {
       waitForHeight();
     }
-    target.addEventListener("blur", () => controller.abort(), { once: true, signal });
+    target.addEventListener("blur", () => controller.abort(), {
+      once: true,
+      signal,
+    });
   }
   target.focus({ preventScroll: true });
   target.classList.remove("settings-search-target-pulse");
@@ -245,7 +253,7 @@ export function SettingsSection({
       ) : (
         <div
           data-settings-scroll-target
-          className="flex min-h-7 items-start justify-between gap-4 px-3 sm:px-4"
+          className="flex min-h-7 flex-wrap items-start justify-between gap-x-4 gap-y-1 px-3 sm:px-4"
         >
           <div className="flex min-w-0 items-center gap-1">
             <h2 className="flex min-h-7 items-center gap-2 text-base font-semibold text-foreground">
@@ -254,7 +262,9 @@ export function SettingsSection({
             </h2>
             {titleAction}
           </div>
-          <div className="flex min-h-7 min-w-7 items-center justify-end">{headerAction}</div>
+          {headerAction ? (
+            <div className="flex min-h-7 min-w-7 items-center justify-end">{headerAction}</div>
+          ) : null}
         </div>
       )}
       <SettingsGroup data-settings-scroll-target={hideTitle ? "" : undefined} variant={variant}>
@@ -318,6 +328,7 @@ export function SettingsRow({
   onResetOverride,
   control,
   serverScoped = false,
+  devicePreference = false,
   settingKeys = EMPTY_SETTING_KEYS,
   managedPaths = EMPTY_MANAGED_PATHS,
   mixed: mixedOverride,
@@ -333,6 +344,8 @@ export function SettingsRow({
   onResetOverride?: () => void;
   control?: ReactNode;
   serverScoped?: boolean;
+  /** Saved on this device, so a project cannot override it and the row is read-only there. */
+  devicePreference?: boolean;
   settingKeys?: readonly (keyof ServerSettings)[];
   /** Dot paths inside a setting, such as `storageCleanup.logsAfterDays`, an administrator can lock. */
   managedPaths?: readonly string[];
@@ -378,6 +391,7 @@ export function SettingsRow({
     context !== null && (context.scope.kind === "project" || context.scope.kind === "checkout");
   const scopedKeys = settingKeys.filter(isProjectScopedSettingKey);
   const environmentWide = isProjectScope && serverScoped && scopedKeys.length === 0;
+  const deviceReadOnly = isProjectScope && devicePreference;
   const mixed =
     mixedOverride ?? (context !== null && scopedSettingsAreMixed(context.targets, settingKeys));
   const source =
@@ -401,8 +415,10 @@ export function SettingsRow({
   );
   const overridingProjects = isProjectScope ? [] : projectOverrides(context, scopedKeys);
   const renderedReset =
-    unavailable || managedBy !== undefined || managed !== undefined ? null : isProjectScope &&
-      scopedKeys.length > 0 ? (
+    unavailable ||
+    deviceReadOnly ||
+    managedBy !== undefined ||
+    managed !== undefined ? null : isProjectScope && scopedKeys.length > 0 ? (
       source === "project" || source === "mixed" ? (
         <SettingResetButton
           label={typeof title === "string" ? title : "override"}
@@ -464,7 +480,14 @@ export function SettingsRow({
                   "Environment-wide setting. Select an environment to change it.",
                 ),
               )
-            : control;
+            : deviceReadOnly && control
+              ? inertControl(
+                  translateWebSource(
+                    locale,
+                    "Saved on this device. Select All projects to change it.",
+                  ),
+                )
+              : control;
   const customized =
     context !== null &&
     settingKeys.some((key) =>
@@ -481,7 +504,10 @@ export function SettingsRow({
     : source === "project"
       ? { state: "overridden", summary: "Overridden for this project" }
       : source === "t3.json"
-        ? { state: "inherited", summary: "Inherited from the repository's t3.json" }
+        ? {
+            state: "inherited",
+            summary: "Inherited from the repository's t3.json",
+          }
         : source === "environment" && scopedKeys.length > 0
           ? {
               state: "inherited",

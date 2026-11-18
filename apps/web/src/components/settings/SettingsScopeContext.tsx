@@ -9,7 +9,12 @@ import { createContext, type ReactNode, useContext } from "react";
 import { useEnvironments, usePrimaryEnvironmentId } from "../../state/environments";
 import { getProjectFileQueryAtom, optimisticFileAtom } from "../files/projectFilesQueryState";
 import { useSettingsProjectGroups } from "./useSettingsProjectGroups";
-import { resolveScopedSettingsTargets, selectScopedSettingsEnvironments } from "./scopedSettings";
+import {
+  applyPendingScopedWrites,
+  pendingScopedWritesAtom,
+  resolveScopedSettingsTargets,
+  selectScopedSettingsEnvironments,
+} from "./scopedSettings";
 import { resolveSettingsScope, type SettingsScopeSearch } from "./settingsScope";
 import { selectSingleEnvironmentScope } from "./settingsScopeAxis";
 
@@ -74,12 +79,17 @@ function useResolvedSettingsScope(rawSearch: SettingsScopeSearch, singleEnvironm
     translateWebSource(locale, source),
   );
   const projectFiles = useMemberProjectFiles(scope);
+  const pendingWrites = useAtomValue(pendingScopedWritesAtom);
   const selected = selectScopedSettingsEnvironments(
     scope,
     availableEnvironments,
     primaryEnvironmentId,
   );
-  const targets = resolveScopedSettingsTargets(scope, selected.connectedEnvironments, projectFiles);
+  const targets = resolveScopedSettingsTargets(
+    scope,
+    applyPendingScopedWrites(selected.connectedEnvironments, pendingWrites),
+    projectFiles,
+  );
   const target =
     targets.find((candidate) => candidate.environmentId === selected.environment?.environmentId) ??
     targets[0] ??
@@ -90,6 +100,7 @@ function useResolvedSettingsScope(rawSearch: SettingsScopeSearch, singleEnvironm
 const SettingsScopeContext = createContext<
   | (ReturnType<typeof useResolvedSettingsScope> & {
       singleEnvironment: boolean;
+      deviceOnly: boolean;
       search: SettingsScopeSearch;
       selectScope: (next: SettingsScopeSearch) => void;
     })
@@ -101,14 +112,17 @@ export function SettingsScopeProvider({
   onChange,
   children,
   singleEnvironment = false,
+  deviceOnly = false,
 }: {
   singleEnvironment?: boolean;
+  /** The page hides the scope picker, so its client settings save for this device. */
+  deviceOnly?: boolean;
   search: SettingsScopeSearch;
   onChange: (next: SettingsScopeSearch) => void;
   children: ReactNode;
 }) {
   const resolved = useResolvedSettingsScope(search, singleEnvironment);
-  const value = { ...resolved, singleEnvironment, selectScope: onChange };
+  const value = { ...resolved, singleEnvironment, deviceOnly, selectScope: onChange };
   return <SettingsScopeContext value={value}>{children}</SettingsScopeContext>;
 }
 

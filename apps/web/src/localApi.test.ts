@@ -95,7 +95,7 @@ describe("lazy browser context menus", () => {
     const items = [{ id: "rename", label: "Rename" }];
     await expect(api.contextMenu.show(items, { x: 10, y: 20 })).resolves.toBe("rename");
     await api.contextMenu.close();
-    expect(show).toHaveBeenCalledWith(items, { x: 10, y: 20 });
+    expect(show).toHaveBeenCalledWith(items, { x: 10, y: 20 }, undefined);
     expect(initialized).not.toHaveBeenCalled();
   });
 

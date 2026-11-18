@@ -38,11 +38,11 @@ import {
 import type { ProviderAuthController } from "./ProviderAuthService.ts";
 
 const AUTH_TIMEOUT_MS = 300_000;
-// Once initialized, a healthy agent shows the Google link or finishes within seconds. Its bundled
-// Python has no IPv4 fallback race, so a host with broken IPv6 waits about two minutes per Google
-// request. The hint is timed from initialize, not spawn: the one-file runtime unpacks itself on
-// every launch, which can take about a minute on Windows before it answers at all.
+// Once initialized, a healthy agent shows the Google link within seconds; its bundled Python has no
+// IPv4 fallback, so broken IPv6 stalls each Google request. Startup is timed separately: the
+// one-file runtime unpacks on every launch (about a minute on Windows) before it answers initialize.
 const NO_RESPONSE_HINT_MS = 30_000;
+const STARTUP_HINT_MS = 90_000;
 const isSetupError = Schema.is(ProviderSetupError);
 const isAcpRequestError = Schema.is(AcpErrors.AcpRequestError);
 
@@ -57,6 +57,7 @@ interface AuthFlow {
   readonly expiresAtMillis: number;
   state: ProviderAuthState;
   pending: AntigravityAuthorizationUrl | undefined;
+  initialized: boolean;
   callbackSent: boolean;
   fiber: Fiber.Fiber<void> | undefined;
   forwarding: Fiber.Fiber<void, ProviderSetupError> | undefined;
@@ -270,28 +271,35 @@ export const makeAntigravityAuth = Effect.fn("makeAntigravityAuth")(function* <
       ),
     );
 
+  const publishStartingHint = (flow: AuthFlow, delayMs: number, code: ProviderAuthMessageCode) =>
+    Effect.sleep(delayMs).pipe(
+      Effect.andThen(
+        lock.withPermits(1)(
+          Effect.gen(function* () {
+            if (activeFlow !== flow || flow.state.phase !== "starting") return;
+            yield* publishFlow(flow, { ...flow.state, ...providerAuthMessage(code) });
+          }),
+        ),
+      ),
+      Effect.forkScoped,
+    );
+
   const runSignIn = Effect.fn("AntigravityAuth.runSignIn")(
     function* (flow: AuthFlow, stopSessions: Effect.Effect<void, ProviderSetupError>) {
       yield* stopSessions.pipe(Effect.ensuring(stopOwnedProcesses));
       const runtime = yield* options.makeRuntime({
         onAuthorizationUrl: (url) => receiveAuthorizationUrl(flow, url),
       });
+      const startupHint = yield* publishStartingHint(
+        flow,
+        STARTUP_HINT_MS,
+        "antigravity.notStarted",
+      );
       // `start` reuses this memoized handshake.
       yield* runtime.initialize();
-      yield* Effect.sleep(NO_RESPONSE_HINT_MS).pipe(
-        Effect.andThen(
-          lock.withPermits(1)(
-            Effect.gen(function* () {
-              if (activeFlow !== flow || flow.state.phase !== "starting") return;
-              yield* publishFlow(flow, {
-                ...flow.state,
-                ...providerAuthMessage("antigravity.noResponse"),
-              });
-            }),
-          ),
-        ),
-        Effect.forkScoped,
-      );
+      flow.initialized = true;
+      yield* Fiber.interrupt(startupHint);
+      yield* publishStartingHint(flow, NO_RESPONSE_HINT_MS, "antigravity.noResponse");
       const started = yield* runtime.start();
       yield* lock.withPermits(1)(
         Effect.gen(function* () {
@@ -317,7 +325,11 @@ export const makeAntigravityAuth = Effect.fn("makeAntigravityAuth")(function* <
             Effect.fail(
               setupError(
                 "start",
-                flow.state.phase === "starting" ? "antigravity.unreachable" : "antigravity.expired",
+                flow.state.phase !== "starting"
+                  ? "antigravity.expired"
+                  : flow.initialized
+                    ? "antigravity.unreachable"
+                    : "antigravity.notResponding",
               ),
             ),
         }),
@@ -402,6 +414,7 @@ export const makeAntigravityAuth = Effect.fn("makeAntigravityAuth")(function* <
               expiresAtMillis,
               state,
               pending: undefined,
+              initialized: false,
               callbackSent: false,
               fiber: undefined,
               forwarding: undefined,

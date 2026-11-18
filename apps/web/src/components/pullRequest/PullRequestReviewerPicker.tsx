@@ -10,6 +10,13 @@ import {
   reviewerCandidateView,
   type ReviewerTruncation,
 } from "@t3tools/client-runtime/pull-request-reviewers";
+import {
+  emptySelection,
+  isSelected,
+  changeBatches,
+  selectionChanges,
+  toggleSelection,
+} from "@t3tools/client-runtime/pull-request-selection";
 import { CheckIcon, UserPlusIcon } from "lucide-react";
 import { useState } from "react";
 
@@ -45,14 +52,24 @@ export function PullRequestReviewerPicker({
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [pending, setPending] = useState<string | null>(null);
+  const [draft, setDraft] = useState(emptySelection<PullRequestReviewerCandidate>);
 
   const candidatesQuery = useEnvironmentQuery(
-    open ? pullRequestEnvironment.reviewerCandidates({ environmentId, input: reference }) : null,
+    open
+      ? pullRequestEnvironment.reviewerCandidates({
+          environmentId,
+          input: reference,
+        })
+      : null,
   );
   // Past the first page the host is asked, since what was loaded cannot answer for the rest.
   const debouncedQuery = useDebouncedValue(query.trim(), 250);
-  const searchInput = { loaded: candidatesQuery.data, searchable, query, debouncedQuery };
+  const searchInput = {
+    loaded: candidatesQuery.data,
+    searchable,
+    query,
+    debouncedQuery,
+  };
   const hostQuery = hostReviewerQuery(searchInput);
   const searchResult = useEnvironmentQuery(
     open && hostQuery !== null
@@ -71,42 +88,66 @@ export function PullRequestReviewerPicker({
     search: searchResult,
   });
 
-  const toggle = async (candidate: PullRequestReviewerCandidate) => {
-    if (pending !== null) return;
-    setPending(candidate.id);
+  const send = async (people: ReadonlyArray<PullRequestReviewerCandidate>, requested: boolean) => {
+    for (const batch of changeBatches(people)) await sendBatch(batch, requested);
+  };
+  const sendBatch = async (
+    people: ReadonlyArray<PullRequestReviewerCandidate>,
+    requested: boolean,
+  ) => {
     const result = await requestReviewers({
       environmentId,
       input: {
         ...reference,
-        reviewers: [{ id: candidate.id, kind: candidate.kind }],
-        requested: !candidate.isRequested,
+        reviewers: people.map(({ id, kind }) => ({ id, kind })),
+        requested,
       },
     });
-    setPending(null);
-    if (result._tag === "Failure") {
-      const { t } = readWebI18n();
+    const { t } = readWebI18n();
+    const logins = people.map((person) => person.login).join(", ");
+    if (result._tag === "Success") {
       toastManager.add({
-        type: "error",
-        title: candidate.isRequested
-          ? t("pullRequests.reviewers.withdrawFailed", { reviewer: candidate.login })
-          : t("pullRequests.reviewers.requestFailed", { reviewer: candidate.login }),
-        description: readableFailure(
-          squashAtomCommandFailure(result),
-          t("pullRequests.reviewers.permissionFailure"),
-        ),
+        type: "success",
+        title: requested
+          ? t("pullRequests.reviewers.requested", { reviewer: logins })
+          : t("pullRequests.reviewers.withdrawn", { reviewer: logins }),
       });
       return;
     }
-    // The command reads the loaded list again only for somebody it lacked, and a search result
-    // is keyed by what was typed, so the one on screen is read here or it keeps the old request.
-    if (hostQuery !== null) searchResult.refresh();
-    const { t } = readWebI18n();
     toastManager.add({
-      type: "success",
-      title: candidate.isRequested
-        ? t("pullRequests.reviewers.withdrawn", { reviewer: candidate.login })
-        : t("pullRequests.reviewers.requested", { reviewer: candidate.login }),
+      type: "error",
+      title: requested
+        ? t("pullRequests.reviewers.requestFailed", { reviewer: logins })
+        : t("pullRequests.reviewers.withdrawFailed", { reviewer: logins }),
+      description: readableFailure(
+        squashAtomCommandFailure(result),
+        t("pullRequests.reviewers.permissionFailure"),
+      ),
     });
+  };
+
+  const onOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+    if (nextOpen) return;
+    // Loaded rows first: they carry the request state mutations update.
+    const latest = [
+      ...(candidatesQuery.data?.candidates ?? []),
+      ...(searchResult.data?.candidates ?? []),
+    ];
+    const { add, remove } = selectionChanges(
+      draft,
+      (key, person) =>
+        latest.find((entry) => `${entry.kind}:${entry.id}` === key)?.isRequested ??
+        person.isRequested,
+    );
+    setDraft(emptySelection());
+    // A search result is keyed by what was typed, so the writes do not reach it on their own.
+    const refreshSearch =
+      hostQuery !== null && add.length + remove.length > 0 ? searchResult.refresh : null;
+    // Removing first lets a host that keeps one reviewer take the new one.
+    void send(remove, false)
+      .then(() => send(add, true))
+      .then(() => refreshSearch?.());
   };
 
   return (
@@ -116,7 +157,7 @@ export function PullRequestReviewerPicker({
       allowed={allowed}
       disabledReason={t("pullRequests.reviewers.needsWrite")}
       open={open}
-      onOpenChange={setOpen}
+      onOpenChange={onOpenChange}
       query={query}
       onQueryChange={setQuery}
       searchLabel={t("pullRequests.reviewers.search")}
@@ -137,8 +178,16 @@ export function PullRequestReviewerPicker({
         truncation === null ? "" : t(TRUNCATED_LABELS[truncation], { error: searchError ?? "" })
       }
       candidateKey={(candidate) => `${candidate.kind}:${candidate.id}`}
-      disabled={pending !== null}
-      onSelect={(candidate) => void toggle(candidate)}
+      onSelect={(candidate) =>
+        setDraft((current) =>
+          toggleSelection(
+            current,
+            `${candidate.kind}:${candidate.id}`,
+            candidate,
+            candidate.isRequested,
+          ),
+        )
+      }
     >
       {(candidate) => (
         <>
@@ -148,7 +197,7 @@ export function PullRequestReviewerPicker({
               {t("pullRequests.reviewers.team")}
             </span>
           ) : null}
-          {candidate.isRequested ? (
+          {isSelected(draft, `${candidate.kind}:${candidate.id}`, candidate.isRequested) ? (
             <CheckIcon
               aria-label={t("pullRequests.reviewers.alreadyAsked")}
               className="size-3.5 shrink-0"

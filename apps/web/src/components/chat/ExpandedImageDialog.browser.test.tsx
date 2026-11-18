@@ -114,7 +114,7 @@ describe("ExpandedImageDialog", () => {
     expect(onClose).not.toHaveBeenCalled();
 
     // Focus returns to the popup's trigger and opens its tooltip; leave it for a plain control.
-    (screen.getByRole("button", { name: "Close image preview" }).element() as HTMLElement).focus();
+    (page.getByRole("button", { name: "Close image preview" }).element() as HTMLElement).focus();
     await userEvent.keyboard("{Escape}");
     await vi.waitFor(() => expect(onClose).toHaveBeenCalledOnce());
   });

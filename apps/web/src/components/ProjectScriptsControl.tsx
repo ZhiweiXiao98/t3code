@@ -269,7 +269,11 @@ export default function ProjectScriptsControl({
             <MenuSub
               open={actionsMenuOpen.scripts}
               onOpenChange={(open) =>
-                setActionsMenuOpen({ presentation, scripts: open, imports: false })
+                setActionsMenuOpen({
+                  presentation,
+                  scripts: open,
+                  imports: false,
+                })
               }
             >
               <MenuSubTrigger density="touch">
@@ -293,7 +297,10 @@ export default function ProjectScriptsControl({
           role="group"
           aria-label={translateWebSource(uiLocale, "Project scripts")}
           {...(isPanel
-            ? { className: THREAD_DETAILS_PANEL_SPLIT_GROUP_CLASS, ref: panelAnchorRef }
+            ? {
+                className: THREAD_DETAILS_PANEL_SPLIT_GROUP_CLASS,
+                ref: panelAnchorRef,
+              }
             : {})}
         >
           <Tooltip>
@@ -343,24 +350,36 @@ export default function ProjectScriptsControl({
           <Menu
             open={actionsMenuOpen.scripts}
             onOpenChange={(open) =>
-              setActionsMenuOpen({ presentation, scripts: open, imports: false })
+              setActionsMenuOpen({
+                presentation,
+                scripts: open,
+                imports: false,
+              })
             }
           >
-            <MenuTrigger
-              render={
-                <ThreadDetailsControl
-                  size={isPanel ? "sm" : "icon-xs"}
-                  variant={isPanel ? "ghost" : "outline"}
-                  part="secondary"
-                  panel={isPanel}
-                  aria-label={translateWebSource(uiLocale, "Script actions")}
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <MenuTrigger
+                    render={
+                      <ThreadDetailsControl
+                        size={isPanel ? "sm" : "icon-xs"}
+                        variant={isPanel ? "ghost" : "outline"}
+                        part="secondary"
+                        panel={isPanel}
+                        aria-label={translateWebSource(uiLocale, "Script actions")}
+                        data-toolbar-control=""
+                      />
+                    }
+                  />
+                }
+              >
+                <ChevronDownIcon
+                  className={isPanel ? THREAD_DETAILS_PANEL_CHEVRON_CLASS : "size-4"}
                 />
-              }
-            >
-              <ChevronDownIcon
-                className={isPanel ? THREAD_DETAILS_PANEL_CHEVRON_CLASS : "size-4"}
-              />
-            </MenuTrigger>
+              </TooltipTrigger>
+              <TooltipPopup side="top">Script actions</TooltipPopup>
+            </Tooltip>
             <MenuPopup
               align="end"
               {...(isPanel ? { anchor: panelAnchorRef } : {})}
@@ -383,7 +402,13 @@ export default function ProjectScriptsControl({
               variant="ghost"
               part="primary"
               aria-label={translateWebSource(uiLocale, "Project actions")}
-              onClick={() => setActionsMenuOpen({ presentation, scripts: false, imports: true })}
+              onClick={() =>
+                setActionsMenuOpen({
+                  presentation,
+                  scripts: false,
+                  imports: true,
+                })
+              }
             >
               <WrenchIcon className={THREAD_DETAILS_PANEL_ICON_CLASS} />
               <span className={cn("min-w-0 truncate", THREAD_DETAILS_PANEL_LABEL_CLASS)}>
@@ -395,7 +420,11 @@ export default function ProjectScriptsControl({
               highlightItemOnHover={false}
               open={actionsMenuOpen.imports}
               onOpenChange={(open) =>
-                setActionsMenuOpen({ presentation, scripts: false, imports: open })
+                setActionsMenuOpen({
+                  presentation,
+                  scripts: false,
+                  imports: open,
+                })
               }
             >
               <MenuTrigger
@@ -420,7 +449,11 @@ export default function ProjectScriptsControl({
             highlightItemOnHover={false}
             open={actionsMenuOpen.imports}
             onOpenChange={(open) =>
-              setActionsMenuOpen({ presentation, scripts: false, imports: open })
+              setActionsMenuOpen({
+                presentation,
+                scripts: false,
+                imports: open,
+              })
             }
           >
             <MenuTrigger

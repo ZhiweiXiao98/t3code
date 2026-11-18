@@ -20,8 +20,7 @@ jobs:
   deploy_preview:
     name: Deploy relay preview
     if: >-
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      contains(github.event.pull_request.labels.*.name, 'relay:preview')
+      github.repository == 'pingdotgg/t3code' && (github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'relay:preview'))
     runs-on: blacksmith-8vcpu-ubuntu-2404
     timeout-minutes: 20
     environment:
@@ -53,7 +52,7 @@ jobs:
           fi
 
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           sparse-checkout: |
@@ -62,7 +61,7 @@ jobs:
           sparse-checkout-cone-mode: false
 
       - name: Setup Vite+
-        uses: voidzero-dev/setup-vp@v1
+        uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1.15.0
         with:
           node-version-file: package.json
           cache: true

@@ -15,6 +15,7 @@ import {
   parseManualDesktopSshTarget,
   parseRemotePairingFields,
   applyWslEnableSelection,
+  isServerNetworkAccessible,
   resolveAccessEnvironmentId,
   resolveTailscaleServeBaseUrl,
   selectQrEndpointOption,
@@ -53,6 +54,14 @@ describe("togglePairingScopeSelection", () => {
     },
   ] as const)("$label", ({ current, scope, checked, expected }) => {
     expect(togglePairingScopeSelection(current, scope, checked)).toEqual(expected);
+  });
+});
+
+describe("parseManualDesktopSshTarget", () => {
+  it.each(["22.5", "1e3", "2222garbage"])("rejects explicit port %j", (port) => {
+    expect(() => parseManualDesktopSshTarget({ host: "devbox", username: "", port })).toThrow(
+      "SSH port must be between 1 and 65535.",
+    );
   });
 });
 
@@ -118,7 +127,11 @@ describe("applyWslEnableSelection", () => {
     });
 
     expect(calls).toEqual(["setWslOnly:false", "setWslDistro:Debian", "setWslBackendEnabled:true"]);
-    expect(state).toMatchObject({ enabled: true, distro: "Debian", wslOnly: false });
+    expect(state).toMatchObject({
+      enabled: true,
+      distro: "Debian",
+      wslOnly: false,
+    });
   });
 });
 
@@ -180,13 +193,21 @@ describe("localized local version status", () => {
   };
   it.each([
     { patch: null, english: "Up to date", chinese: "已是最新版本" },
-    { patch: { status: "downloading" }, english: "Downloading update", chinese: "正在下载更新" },
+    {
+      patch: { status: "downloading" },
+      english: "Downloading update",
+      chinese: "正在下载更新",
+    },
     {
       patch: { status: "downloading", availableVersion: "v1.2.3-test" },
       english: "Downloading update v1.2.3-test",
       chinese: "正在下载更新 v1.2.3-test",
     },
-    { patch: { status: "downloaded" }, english: "Update downloaded", chinese: "更新已下载" },
+    {
+      patch: { status: "downloaded" },
+      english: "Update downloaded",
+      chinese: "更新已下载",
+    },
     {
       patch: { status: "checking", downloadedVersion: "1.2.3" },
       english: "Update 1.2.3 downloaded",
@@ -268,9 +289,13 @@ describe("resolveAccessEnvironmentId", () => {
       expected: null,
     },
   ])("$label", ({ primaryEnvironmentId, environments, selected, expected }) => {
-    expect(resolveAccessEnvironmentId({ primaryEnvironmentId, environments, selected })).toBe(
-      expected,
-    );
+    expect(
+      resolveAccessEnvironmentId({
+        primaryEnvironmentId,
+        environments,
+        selected,
+      }),
+    ).toBe(expected);
   });
 });
 
@@ -303,7 +328,11 @@ describe("saved backend owned errors", () => {
       ],
       [
         () =>
-          parseManualDesktopSshTarget({ host: "opaque/$&/{host}", username: "", port: "65536" }),
+          parseManualDesktopSshTarget({
+            host: "opaque/$&/{host}",
+            username: "",
+            port: "65536",
+          }),
         "SSH port must be between 1 and 65535.",
         "SSH 端口必须介于 1 和 65535 之间。",
       ],
@@ -313,7 +342,11 @@ describe("saved backend owned errors", () => {
         "请输入后端主机。",
       ],
       [
-        () => parseRemotePairingFields({ host: "opaque/$&/{host}", pairingCode: "" }),
+        () =>
+          parseRemotePairingFields({
+            host: "opaque/$&/{host}",
+            pairingCode: "",
+          }),
         "Enter a pairing code.",
         "请输入配对码。",
       ],
@@ -347,15 +380,29 @@ describe("saved backend owned errors", () => {
     expect(formatSavedBackendError("zh-CN", formatDesktopSshConnectionError(emptyHost))).toBe(
       "请输入 SSH 主机或别名。",
     );
-    const forged = Object.assign(new Error("SSH host or alias is required."), { code: "sshHost" });
+    const forged = Object.assign(new Error("SSH host or alias is required."), {
+      code: "sshHost",
+    });
     expect(formatSavedBackendError("zh-CN", savedBackendFailure(forged, "add"))).toBe(
       forged.message,
     );
     expect(
-      parseManualDesktopSshTarget({ host: "devbox", username: "person", port: "2222" }),
-    ).toEqual({ alias: "devbox", hostname: "devbox", username: "person", port: 2222 });
+      parseManualDesktopSshTarget({
+        host: "devbox",
+        username: "person",
+        port: "2222",
+      }),
+    ).toEqual({
+      alias: "devbox",
+      hostname: "devbox",
+      username: "person",
+      port: 2222,
+    });
     expect(
-      parseRemotePairingFields({ host: " opaque/$&/{host} ", pairingCode: " literal/$&/{token} " }),
+      parseRemotePairingFields({
+        host: " opaque/$&/{host} ",
+        pairingCode: " literal/$&/{token} ",
+      }),
     ).toEqual({ host: "opaque/$&/{host}", pairingCode: "literal/$&/{token}" });
   });
   it("preserves existing SSH cleanup and owns only generated fallbacks", () => {
@@ -425,4 +472,24 @@ it("keeps only generated WSL failures owned across locale changes", () => {
     for (const raw of ["Failed to update WSL backend.", "", "literal/$&/{distro}"])
       expect(formatWslMutationError(locale, wslMutationFailure(new Error(raw)))).toBe(raw);
   }
+});
+describe("isServerNetworkAccessible", () => {
+  const served = [{ kind: "tailnet", httpBaseUrl: "https://host.example.ts.net:8443/" }] as const;
+  it.each([
+    {
+      authPolicy: "remote-reachable",
+      directEndpoints: undefined,
+      expected: true,
+    },
+    {
+      authPolicy: "loopback-browser",
+      directEndpoints: undefined,
+      expected: false,
+    },
+    { authPolicy: "loopback-browser", directEndpoints: [], expected: false },
+    { authPolicy: "loopback-browser", directEndpoints: served, expected: true },
+    { authPolicy: null, directEndpoints: served, expected: false },
+  ] as const)("$authPolicy with $directEndpoints.length endpoints", (row) => {
+    expect(isServerNetworkAccessible(row)).toBe(row.expected);
+  });
 });

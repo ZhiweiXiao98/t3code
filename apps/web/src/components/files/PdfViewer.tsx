@@ -171,7 +171,11 @@ export default function PdfViewer(props: {
   const [match, setMatch] = useState(0);
   const scroll = useRef<HTMLDivElement>(null);
   const find = useRef<HTMLInputElement>(null);
-  const zoomAnchor = useRef<{ page: number; offset: number; width: number } | null>(null);
+  const zoomAnchor = useRef<{
+    page: number;
+    offset: number;
+    width: number;
+  } | null>(null);
   const initialPage = initialView.page;
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Own the PDF fetch, load timeout, and pdf.js document task across source changes, retries, and unmounts.
   useEffect(() => {
@@ -202,7 +206,9 @@ export default function PdfViewer(props: {
         const first = (await document.getPage(1)).getViewport({ scale: 1 });
         const sizes = await Promise.all(
           Array.from({ length: Math.min(initialPage + 1, document.numPages) }, async (_, index) => {
-            const size = (await document.getPage(index + 1)).getViewport({ scale: 1 });
+            const size = (await document.getPage(index + 1)).getViewport({
+              scale: 1,
+            });
             return size.height / size.width;
           }),
         );
@@ -309,10 +315,11 @@ export default function PdfViewer(props: {
     }
     saveView(node, anchor !== null);
   });
+  const firstMatch = matches[0];
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Scroll to the first asynchronous search result after its measured page offsets have committed.
   useLayoutEffect(() => {
-    if (matches.length) jumpToPage(matches[0]!);
-  }, [matches]);
+    if (firstMatch !== undefined) jumpToPage(firstMatch);
+  }, [firstMatch]);
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Debounce pdf.js text extraction and cancel obsolete searches when the query or document changes.
   useEffect(() => {
     if (!pdf || !query.trim()) {
@@ -331,11 +338,11 @@ export default function PdfViewer(props: {
         const sizes: number[] = [];
         let size = 0;
         for (let index = 0; index < pdf.numPages; index++) {
-          if (cancelled) return;
           const page = await pdf.getPage(index + 1);
           const pageSize = page.getViewport({ scale: 1 });
           sizes.push(pageSize.height / pageSize.width);
           const content = await page.getTextContent();
+          if (cancelled) return;
           const text = pdfPageText(content.items);
           size += text.length;
           if (size > MAX_FIND_TEXT)
@@ -344,7 +351,12 @@ export default function PdfViewer(props: {
                 "This PDF has too much text to search. Save it to search in another app.",
               ),
             );
-          if (pdfFindIncludes(text, query)) found.push(index);
+          if (!pdfFindIncludes(text, query)) continue;
+          found.push(index);
+          if (found.length > 1) continue;
+          // Pages up to the first hit are measured, so its jump lands before the scan finishes.
+          setRatios((old) => [...sizes, ...old.slice(sizes.length)]);
+          setMatches([index]);
         }
         if (cancelled) return;
         setRatios(sizes);
@@ -371,7 +383,12 @@ export default function PdfViewer(props: {
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <div className="flex min-h-10 shrink-0 flex-wrap items-center gap-1 border-b border-border/60 px-2 py-1 text-xs">
         <span className="mr-auto px-1 tabular-nums" aria-live="polite">
-          {pdf ? t("webExtra.pdf.pageCount", { page: current + 1, count: pdf.numPages }) : "PDF"}
+          {pdf
+            ? t("webExtra.pdf.pageCount", {
+                page: current + 1,
+                count: pdf.numPages,
+              })
+            : "PDF"}
         </span>
         <FileSurfaceAction
           label={translateWebSource(previewLocale, "Previous page")}

@@ -1,0 +1,234 @@
+import { describe, expect, it, vi } from "vite-plus/test";
+import { userEvent } from "vite-plus/test/browser";
+import { fakeTimers, render } from "../../test/render";
+import { createSidebarShiftGuard } from "./Sidebar.shiftGuard";
+
+function mountList(container: HTMLElement, names: readonly string[]) {
+  const list = document.createElement("ul");
+  list.style.cssText = "position: relative; margin: 0; padding: 0; width: 200px; list-style: none";
+  const pressed: string[] = [];
+  const rows = new Map<string, HTMLLIElement>();
+  const add = (name: string) => {
+    const row = document.createElement("li");
+    row.style.height = "40px";
+    const button = document.createElement("button");
+    button.textContent = name;
+    button.addEventListener("click", () => pressed.push(name));
+    row.append(button);
+    list.append(row);
+    rows.set(name, row);
+  };
+  for (const name of names) add(name);
+  container.append(list);
+  const guard = createSidebarShiftGuard(list);
+  return {
+    pressed,
+    guard,
+    button: (name: string) => rows.get(name)!.querySelector("button")!,
+    add,
+    remove: (name: string) => rows.get(name)!.remove(),
+    [Symbol.dispose]: () => guard.dispose(),
+  };
+}
+
+// userEvent cannot hold the mouse, so `act` runs inside the real press, after the guard saw it.
+function duringPress(act: () => void) {
+  const listener = () => act();
+  window.addEventListener("pointerdown", listener, { capture: true, once: true });
+  return {
+    [Symbol.dispose]: () => window.removeEventListener("pointerdown", listener, { capture: true }),
+  };
+}
+
+describe("sidebar shift guard", () => {
+  it("drops a press on a row that slid up on its own, then accepts it after the delay", async () => {
+    for (const { enabled, brokenSink } of [
+      { enabled: "0", brokenSink: false },
+      { enabled: "1", brokenSink: false },
+      { enabled: "1", brokenSink: true },
+    ]) {
+      await using screen = await render(null);
+      const previous = import.meta.env.VITE_T3_MENU_TRACE;
+      vi.stubEnv("VITE_T3_MENU_TRACE", enabled);
+      using _environment = { [Symbol.dispose]: () => vi.stubEnv("VITE_T3_MENU_TRACE", previous) };
+      using output = vi.spyOn(console, "info").mockImplementation(() => {
+        if (brokenSink) throw new Error("diagnostic sink unavailable");
+      });
+      using list = mountList(screen.container, ["A", "B", "C"]);
+      using _clock = fakeTimers();
+
+      list.remove("A");
+      list.guard.update();
+      await userEvent.click(list.button("B"));
+      expect(list.pressed).toEqual([]);
+      for (let index = 0; index < 40; index++) {
+        expect(
+          list.button("B").dispatchEvent(
+            new MouseEvent("contextmenu", {
+              bubbles: true,
+              cancelable: true,
+            }),
+          ),
+        ).toBe(false);
+      }
+      const messages = output.mock.calls.map(([message]) => JSON.parse(String(message)));
+      if (enabled === "1") {
+        expect(messages).toHaveLength(32);
+        expect(messages.at(-1)?.remaining).toBe(0);
+        expect(messages[0]).toMatchObject({
+          event: "sidebar-shift-guard-suppressed",
+          reason: "recent-row-move",
+          type: "pointerdown",
+          defaultPrevented: true,
+          propagationStopped: true,
+          remaining: 31,
+        });
+        expect(
+          messages.every((message) =>
+            Object.keys(message).every((key) =>
+              [
+                "event",
+                "reason",
+                "type",
+                "movedAgeMs",
+                "heldCount",
+                "releasedDrop",
+                "pressDropped",
+                "defaultPrevented",
+                "propagationStopped",
+                "remaining",
+              ].includes(key),
+            ),
+          ),
+        ).toBe(true);
+      } else expect(messages).toEqual([]);
+
+      vi.advanceTimersByTime(500);
+      await userEvent.click(list.button("B"));
+      expect(list.pressed).toEqual(["B"]);
+      expect(output.mock.calls).toHaveLength(messages.length);
+    }
+  });
+
+  it("keeps rows that did not move, or barely moved, clickable", async () => {
+    await using screen = await render(null);
+    using list = mountList(screen.container, ["A", "B", "C"]);
+    using _clock = fakeTimers();
+
+    list.remove("C");
+    list.button("A").closest("ul")!.style.paddingTop = "2px";
+    list.guard.update();
+    await userEvent.click(list.button("A"));
+    await userEvent.click(list.button("B"));
+    expect(list.pressed).toEqual(["A", "B"]);
+  });
+
+  it("keeps rows clickable when an empty list first fills", async () => {
+    await using screen = await render(null);
+    using list = mountList(screen.container, []);
+    using _clock = fakeTimers();
+
+    list.add("A");
+    list.add("B");
+    list.guard.update();
+    await userEvent.click(list.button("B"));
+    expect(list.pressed).toEqual(["B"]);
+  });
+
+  it("lets the user act on the row their own press moved", async () => {
+    await using screen = await render(null);
+    using list = mountList(screen.container, ["A", "B", "C"]);
+    using _clock = fakeTimers();
+    list.button("A").addEventListener("click", () => {
+      list.remove("A");
+      list.guard.update();
+    });
+
+    await userEvent.click(list.button("A"));
+    await userEvent.click(list.button("B"));
+    expect(list.pressed).toEqual(["A", "B"]);
+  });
+
+  it("clears an earlier mark when the user's own input moves the row again", async () => {
+    await using screen = await render(null);
+    using list = mountList(screen.container, ["A", "B", "C", "D"]);
+    using _clock = fakeTimers();
+
+    list.remove("A");
+    list.guard.update();
+    await userEvent.keyboard("{Escape}");
+    list.remove("B");
+    list.guard.update();
+    await userEvent.click(list.button("C"));
+    expect(list.pressed).toEqual(["C"]);
+  });
+
+  it("still guards a move that lands while the user types into a field", async () => {
+    await using screen = await render(null);
+    const field = document.createElement("input");
+    screen.container.append(field);
+    using list = mountList(screen.container, ["A", "B", "C"]);
+    using _clock = fakeTimers();
+
+    field.focus();
+    await userEvent.keyboard("x");
+    list.remove("A");
+    list.guard.update();
+    await userEvent.click(list.button("B"));
+    expect(list.pressed).toEqual([]);
+  });
+
+  it("keeps a held press dropped until its release, whatever happens before", async () => {
+    await using screen = await render(null);
+    using list = mountList(screen.container, ["A", "B", "C"]);
+    using _clock = fakeTimers();
+
+    list.remove("A");
+    list.guard.update();
+    using _hold = duringPress(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Shift" }));
+      const other = { bubbles: true, pointerId: 9 };
+      screen.container.dispatchEvent(new PointerEvent("pointerdown", other));
+      screen.container.dispatchEvent(new PointerEvent("pointerup", other));
+      vi.advanceTimersByTime(1_000);
+    });
+    await userEvent.click(list.button("B"));
+    expect(list.pressed).toEqual([]);
+  });
+
+  it("lets keyboard activation through while a dropped press is held", async () => {
+    await using screen = await render(null);
+    using list = mountList(screen.container, ["A", "B", "C"]);
+    using _clock = fakeTimers();
+
+    list.remove("A");
+    list.guard.update();
+    list
+      .button("B")
+      .dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerId: 9 }));
+    list.button("C").focus();
+    await userEvent.keyboard("{Enter}");
+    expect(list.pressed).toEqual(["C"]);
+    await userEvent.keyboard("{Shift>}{F10}{/Shift}");
+    expect(
+      list
+        .button("C")
+        .dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true })),
+    ).toBe(true);
+  });
+
+  it("ends a dropped press the browser cancels", async () => {
+    await using screen = await render(null);
+    using list = mountList(screen.container, ["A", "B", "C"]);
+    using _clock = fakeTimers();
+
+    list.remove("A");
+    list.guard.update();
+    const touch = { bubbles: true, pointerId: 9, pointerType: "touch" };
+    list.button("B").dispatchEvent(new PointerEvent("pointerdown", touch));
+    list.button("B").dispatchEvent(new PointerEvent("pointercancel", touch));
+    vi.advanceTimersByTime(500);
+    await userEvent.click(list.button("B"));
+    expect(list.pressed).toEqual(["B"]);
+  });
+});

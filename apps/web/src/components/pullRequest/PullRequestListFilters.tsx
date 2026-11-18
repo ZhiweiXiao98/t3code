@@ -86,7 +86,10 @@ export interface PullRequestExpectedHost {
 }
 
 export function pullRequestHostLabel(
-  entries: ReadonlyArray<{ readonly host: string; readonly kind: SourceControlProviderKind }>,
+  entries: ReadonlyArray<{
+    readonly host: string;
+    readonly kind: SourceControlProviderKind;
+  }>,
   entry: { readonly host: string; readonly kind: SourceControlProviderKind },
 ): string {
   const sharing = entries.filter((candidate) => candidate.kind === entry.kind);
@@ -157,7 +160,11 @@ const REVIEW_OPTIONS = [
   { value: UNFILTERED_VALUE, label: "All", Icon: LayersIcon },
   { value: "approved", label: "Approved", Icon: CircleCheckIcon },
   { value: "changes-requested", label: "Changes requested", Icon: CircleXIcon },
-  { value: "review-required", label: "Review required", Icon: CircleDashedIcon },
+  {
+    value: "review-required",
+    label: "Review required",
+    Icon: CircleDashedIcon,
+  },
   { value: "none", label: "No reviews", Icon: CircleSlashIcon },
 ] as const satisfies ReadonlyArray<PullRequestFilterOption<string>>;
 
@@ -323,7 +330,9 @@ function PullRequestAuthorChoices({
               <span className="min-w-0 flex-1 truncate">{option.actor.login}</span>
               {option.mergedCount > 0 ? (
                 <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                  {t("pullRequests.filters.mergedLoaded", { count: option.mergedCount })}
+                  {t("pullRequests.filters.mergedLoaded", {
+                    count: option.mergedCount,
+                  })}
                 </span>
               ) : null}
             </span>
@@ -559,9 +568,16 @@ export function PullRequestFiltersMenu({
   const projectValue =
     projectId === undefined || projectEnvironmentId === undefined
       ? ALL_PROJECTS_VALUE
-      : pullRequestProjectKey({ id: projectId, environmentId: projectEnvironmentId });
+      : pullRequestProjectKey({
+          id: projectId,
+          environmentId: projectEnvironmentId,
+        });
   const projectOptions: ReadonlyArray<PullRequestFilterOption<string>> = [
-    { value: ALL_PROJECTS_VALUE, label: t("pullRequests.filter.allProjects"), Icon: LayersIcon },
+    {
+      value: ALL_PROJECTS_VALUE,
+      label: t("pullRequests.filter.allProjects"),
+      Icon: LayersIcon,
+    },
     ...projects
       .toSorted(
         (left, right) =>

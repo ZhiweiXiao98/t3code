@@ -69,7 +69,9 @@ export function SourceControlTokenSettings({
       // Send the whole map; other tokens' redaction markers preserve their values.
       input: {
         patch: {
-          sourceControlHosts: { [definition.kind]: { tokens: { ...tokens, [target]: token } } },
+          sourceControlHosts: {
+            [definition.kind]: { tokens: { ...tokens, [target]: token } },
+          },
         },
       },
     });
@@ -134,7 +136,10 @@ export function SourceControlTokenSettings({
             <SecretSourceInput
               id={`${definition.kind}-token-${environmentId}`}
               size="sm"
-              aria-label={t("sourceControl.token.ariaLabel", { provider: definition.label })}
+              aria-label={t("sourceControl.token.ariaLabel", {
+                provider: definition.label,
+              })}
+              environmentId={environmentId}
               configured={isSaved && !isSecretReference(savedToken)}
               value={draft}
               sources={secretSources}
@@ -150,7 +155,9 @@ export function SourceControlTokenSettings({
                   variable: credentials.tokenEnvVar,
                   cli: credentials.cliName,
                 })
-              : t("sourceControl.tokens.savedFor", { hosts: savedHosts.join(", ") })}
+              : t("sourceControl.tokens.savedFor", {
+                  hosts: savedHosts.join(", "),
+                })}
           </p>
           <div className="flex shrink-0 gap-2">
             {isSaved ? (

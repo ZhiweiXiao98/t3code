@@ -125,7 +125,9 @@ export function useServerUpdate() {
   );
   const actionT = useStableCallback(t);
 
-  const updateServer = useAtomCommand(serverEnvironment.updateServer, { reportFailure: false });
+  const updateServer = useAtomCommand(serverEnvironment.updateServer, {
+    reportFailure: false,
+  });
   return async (
     target: ServerUpdateTarget,
     { quiet = false }: { readonly quiet?: boolean } = {},
@@ -177,8 +179,12 @@ export function useServerUpdate() {
         title: actionT("coreResidual.updated", { server: serverLabel }),
         description:
           selfUpdate === "desktop-managed"
-            ? actionT("coreResidual.relaunched", { version: result.value.targetVersion })
-            : actionT("coreResidual.reconnected", { version: result.value.targetVersion }),
+            ? actionT("coreResidual.relaunched", {
+                version: result.value.targetVersion,
+              })
+            : actionT("coreResidual.reconnected", {
+                version: result.value.targetVersion,
+              }),
       });
     }
     return { status: "updated" };
@@ -225,6 +231,7 @@ export function ServerUpdatesAction({
             actionT("coreResidual.confirmAll", {
               servers: desktopTargets.map((target) => target.serverLabel).join(", "),
             }),
+            { initialFocus: "confirm" },
           )) ?? true;
         if (!confirmed) return;
       }
@@ -305,22 +312,22 @@ export function ServerUpdateAction({
   const translateAction = useStableCallback(translate);
   const actionT = useStableCallback(t);
   const update = useServerUpdate();
+  const updatesInstall =
+    installation?.kind === "npm-global" || installation?.kind === "t3-launcher";
   const { copyToClipboard } = useCopyToClipboard<{ command: string }>({
-    target:
-      installation?.kind === "npm-global"
-        ? translate("update command")
-        : translate("relaunch command"),
+    target: updatesInstall ? translate("update command") : translate("relaunch command"),
     onCopy: ({ command }) => {
       toastManager.add({
         type: "success",
-        title:
-          installation?.kind === "npm-global"
-            ? translateAction("Update command copied")
-            : translateAction("Relaunch command copied"),
-        description:
-          installation?.kind === "npm-global"
-            ? actionT("coreResidual.runUpdate", { command, server: serverLabel })
-            : actionT("coreResidual.runRelaunch", { command, server: serverLabel }),
+        title: updatesInstall
+          ? translateAction("Update command copied")
+          : translateAction("Relaunch command copied"),
+        description: updatesInstall
+          ? actionT("coreResidual.runUpdate", { command, server: serverLabel })
+          : actionT("coreResidual.runRelaunch", {
+              command,
+              server: serverLabel,
+            }),
       });
     },
     onError: (error) => {
@@ -343,6 +350,7 @@ export function ServerUpdateAction({
       const confirmed =
         (await requestConfirmDialog(
           actionT("coreResidual.confirmUpdate", { server: serverLabel }),
+          { initialFocus: "confirm" },
         )) ?? true;
       if (!confirmed) {
         return;
@@ -386,7 +394,7 @@ export function ServerUpdateAction({
     selfUpdate === null ? manualServerUpdateCommand(targetVersion, installation) : null;
   const actionLabel =
     manualCommand !== null
-      ? installation?.kind === "npm-global"
+      ? updatesInstall
         ? translate("Copy update command")
         : translate("Copy relaunch command")
       : (label ?? translate("Update"));
@@ -404,7 +412,10 @@ export function ServerUpdateAction({
               size="icon-xs"
               variant="ghost-muted"
               className={className}
-              aria-label={t("coreResidual.actionFor", { action: actionLabel, server: serverLabel })}
+              aria-label={t("coreResidual.actionFor", {
+                action: actionLabel,
+                server: serverLabel,
+              })}
               disabled={manualCommand === null && !canUpdate}
               onClick={onClick}
             />
@@ -472,7 +483,9 @@ export function OutdatedServerUpdateAction({
     toastManager.add({
       type: "success",
       title: actionT("coreResidual.updated", { server: serverLabel }),
-      description: actionT("coreResidual.reconnected", { version: result.value.targetVersion }),
+      description: actionT("coreResidual.reconnected", {
+        version: result.value.targetVersion,
+      }),
     });
   };
   if (fromVersion !== undefined && crossesReleaseTrack(fromVersion, targetVersion)) {

@@ -1,271 +1,382 @@
-import { useRef, useState } from "react";
-import { EnvironmentId, ProjectId, ProviderDriverKind, ServerConfig } from "@t3tools/contracts";
-import { DEFAULT_CLIENT_SETTINGS } from "@t3tools/contracts/settings";
-import { scopeProjectRef } from "@t3tools/client-runtime/environment";
-import { selectProjectGroupingSettings } from "@t3tools/client-runtime/state/project-grouping";
-import type { AtomCommandResult } from "@t3tools/client-runtime/state/runtime";
-import * as Schema from "effect/Schema";
-import * as Cause from "effect/Cause";
-import { AsyncResult } from "effect/reactivity";
+import { useAtomValue } from "@effect/atom-react";
+import type { EnvironmentProject } from "@t3tools/client-runtime/state/shell";
+import { PrimaryConnectionTarget } from "@t3tools/client-runtime/connection";
+import * as Option from "effect/Option";
+import type { EnvironmentPresentation } from "../../state/environments";
+import type { ServerProvider } from "@t3tools/contracts";
+import {
+  scopedThreadKey,
+  scopeProjectRef,
+  scopeThreadRef,
+} from "@t3tools/client-runtime/environment";
+import { createModelSelection } from "@t3tools/shared/model";
+import { DEFAULT_UNIFIED_SETTINGS } from "@t3tools/contracts/settings";
+import {
+  EnvironmentId,
+  ProjectId,
+  ProviderDriverKind,
+  ProviderInstanceId,
+} from "@t3tools/contracts";
 import { expect, it, vi } from "vite-plus/test";
+
 import { act, render } from "../../../test/render";
-import { WebI18nContext } from "../../i18n/WebI18nContext";
-import { translateWebMessage } from "../../i18n/messages";
 import { DraftId, useComposerDraftStore } from "../../composerDraftStore";
-import { appAtomRegistry } from "../../rpc/atomRegistry";
-import { projectEnvironment } from "../../state/projects";
 import { useDraftEnvironmentRouting } from "./useDraftEnvironmentRouting";
-const fixture = vi.hoisted(() => ({
-  locale: "en" as "en" | "zh-CN",
-  run: vi.fn(),
-  toast: vi.fn(),
-  thread: vi.fn(async () => null),
-  refresh: vi.fn(),
-  command: undefined as unknown,
+import { appAtomRegistry, AppAtomRegistryProvider } from "../../rpc/atomRegistry";
+import { draftFanoutSelectionsAtom } from "./chatViewSend";
+
+const resources = vi.hoisted(() => ({
+  projects: [] as EnvironmentProject[],
+  pickedEnvironmentId: null as EnvironmentId | null,
+  refreshSelection: vi.fn<(ids: readonly EnvironmentId[]) => Promise<EnvironmentId | null>>(),
 }));
-const target = EnvironmentId.make("target");
-const origin = EnvironmentId.make("origin");
-const projectId = ProjectId.make("scratch-project");
-const draftId = DraftId.make("routing-draft");
-const config = Schema.decodeSync(ServerConfig)({
-  environment: {
-    environmentId: target,
-    label: "Literal $& {machine}",
-    platform: { os: "linux", arch: "x64" },
-    serverVersion: "0.0.0",
-    capabilities: { repositoryIdentity: true },
-  },
-  auth: {
-    policy: "loopback-browser",
-    bootstrapMethods: [],
-    sessionMethods: [],
-    sessionCookieName: "test",
-  },
-  cwd: "/test",
-  keybindingsConfigPath: "/test/keybindings.json",
-  keybindings: [],
-  issues: [],
-  providers: [],
-  availableEditors: [],
-  observability: {
-    logsDirectoryPath: "/test/logs",
-    localTracingEnabled: false,
-    otlpTracesEnabled: false,
-    otlpMetricsEnabled: false,
-  },
-  settings: {},
-  scratchWorkspaceRoot: "/target/scratch",
-});
-vi.mock("../../hooks/useScratchProject", async (original) => {
-  const actual = await original<typeof import("../../hooks/useScratchProject")>();
-  const { projectEnvironment } = await import("../../state/projects");
-  fixture.command = projectEnvironment.openScratch;
-  return {
-    ...actual,
-    useScratchProject: () =>
-      actual.createScratchProjectActions({
-        environments: () => [
-          {
-            environmentId: target,
-            connection: { phase: "connected", error: null, traceId: null },
-            serverConfig: config,
-          },
-        ],
-        primaryEnvironmentId: () => target,
-        registry: appAtomRegistry,
-        handleNewThread: fixture.thread,
-      }),
-  };
-});
-vi.mock("@t3tools/client-runtime/state/runtime", async (original) => {
-  const actual = await original<typeof import("@t3tools/client-runtime/state/runtime")>();
-  return {
-    ...actual,
-    runAtomCommand: (...args: Parameters<typeof actual.runAtomCommand>) =>
-      args[1] === fixture.command ? fixture.run(...args) : actual.runAtomCommand(...args),
-  };
-});
-vi.mock("../../hooks/useLoadBalancedEnvironment", async (original) => ({
-  ...(await original<typeof import("../../hooks/useLoadBalancedEnvironment")>()),
+vi.mock("../../hooks/useLoadBalancedEnvironment", () => ({
   useLoadBalancedEnvironment: () => ({
-    environmentId: null,
     pending: false,
     failed: false,
-    refresh: fixture.refresh,
+    environmentId: resources.pickedEnvironmentId,
+    refresh: () => {},
+    refreshSelection: resources.refreshSelection,
   }),
 }));
-vi.mock("../../state/entities", async (original) => ({
-  ...(await original<typeof import("../../state/entities")>()),
-  useProjects: () => [],
+vi.mock("../../state/entities", () => ({
+  useProjects: () => resources.projects,
+  readProject: (ref: { environmentId: EnvironmentId; projectId: ProjectId }) =>
+    resources.projects.find(
+      (project) => project.environmentId === ref.environmentId && project.id === ref.projectId,
+    ) ?? null,
 }));
-vi.mock("../../i18n/readWebI18n", async (original) => ({
-  ...(await original<typeof import("../../i18n/readWebI18n")>()),
-  readWebI18n: () => ({
-    locale: fixture.locale,
-    t: (
-      key: Parameters<typeof translateWebMessage>[1],
-      values?: Parameters<typeof translateWebMessage>[2],
-    ) => translateWebMessage(fixture.locale, key, values),
-  }),
+vi.mock("../../hooks/useScratchProject", () => ({
+  useScratchProject: () => ({}),
 }));
-vi.mock("../ui/toast", async (original) => {
-  const actual = await original<typeof import("../ui/toast")>();
-  return { ...actual, toastManager: { ...actual.toastManager, add: fixture.toast } };
-});
-function Probe({ locked = false, sending = false }: { locked?: boolean; sending?: boolean }) {
-  const [request, setRequest] = useState("unchecked");
-  const draft = useComposerDraftStore((store) => store.getDraftSession(draftId));
-  const sendingRef = useRef(sending);
-  const routing = useDraftEnvironmentRouting({
+
+function setup() {
+  resources.refreshSelection.mockReset();
+  resources.projects = [];
+  resources.pickedEnvironmentId = null;
+  const a = EnvironmentId.make("machine-a");
+  const b = EnvironmentId.make("machine-b");
+  const draftId = DraftId.make("fresh-routing-draft");
+  const projectId = ProjectId.make("project");
+  const store = useComposerDraftStore.getState();
+  store.clearDraftThread(draftId);
+  store.setProjectDraftThreadId(scopeProjectRef(a, projectId), draftId, {
+    environmentSelection: "auto",
+    loadBalancedEnvironmentId: a,
+  });
+  store.setPrompt(draftId, "Keep this prompt");
+  const provider: ServerProvider = {
+    instanceId: ProviderInstanceId.make("codex"),
+    driver: ProviderDriverKind.make("codex"),
+    enabled: true,
+    installed: true,
+    status: "ready",
+    auth: { status: "authenticated" },
+    availability: "available",
+    version: null,
+    checkedAt: "2026-11-10T01:00:00.000Z",
+    models: [],
+    slashCommands: [],
+    skills: [],
+  };
+  const input: Parameters<typeof useDraftEnvironmentRouting>[0] = {
     draftId,
-    draftThread: draft,
-    envLocked: locked,
-    automaticEnvironment: false,
-    logicalProjectEnvironments: [
-      {
-        environmentId: target,
-        projectId: null,
-        label: "Literal $& {machine}",
-        isPrimary: false,
-        machine: "server",
-      },
-    ],
-    environmentById: new Map(),
-    providersByEnvironment: new Map(),
+    draftThread: store.getDraftSession(draftId),
+    envLocked: false,
+    automaticEnvironment: true,
+    logicalProjectEnvironments: [a, b].map((environmentId) => ({
+      environmentId,
+      projectId,
+      label: environmentId,
+      isPrimary: environmentId === a,
+      machine: "desktop",
+    })),
+    environmentById: new Map(
+      [a, b].map((id): [EnvironmentId, EnvironmentPresentation] => [
+        id,
+        {
+          environmentId: id,
+          label: id,
+          displayUrl: null,
+          relayManaged: false,
+          entry: {
+            target: new PrimaryConnectionTarget({
+              environmentId: id,
+              label: id,
+              httpBaseUrl: "http://localhost:3000",
+              wsBaseUrl: "ws://localhost:3000",
+            }),
+            profile: Option.none(),
+            enabled: true,
+          },
+          connection: { phase: "connected", error: null, traceId: null },
+          serverConfig: null,
+        },
+      ]),
+    ),
+    providersByEnvironment: new Map([a, b].map((id) => [id, [provider]])),
     loadBalancingSettings: { loadBalancingWeights: {} },
     referencedThreadContexts: [],
-    activeProviderInstanceId: null,
-    selectedProvider: ProviderDriverKind.make("codex"),
+    activeProviderInstanceId: provider.instanceId,
+    selectedProvider: provider.driver,
     composerHasAttachments: false,
-    activeProjectKey: "scratch",
-    activeProjectIsScratch: true,
-    projectGroupingSettings: selectProjectGroupingSettings(DEFAULT_CLIENT_SETTINGS),
-    sendInFlightRef: sendingRef,
-  });
+    activeProjectKey: "project",
+    activeProjectIsScratch: false,
+    projectGroupingSettings: DEFAULT_UNIFIED_SETTINGS,
+    sendInFlightRef: { current: false },
+  };
+  resources.refreshSelection.mockImplementation(async (ids) => (ids.includes(b) ? b : null));
+  return { a, b, draftId, input, store };
+}
+
+interface HarnessProps {
+  input: Parameters<typeof useDraftEnvironmentRouting>[0];
+  onPrepared?: (ready: boolean | null) => void;
+}
+
+function Harness(props: HarnessProps) {
+  return (
+    <AppAtomRegistryProvider>
+      <RoutingProbe {...props} />
+    </AppAtomRegistryProvider>
+  );
+}
+
+function RoutingProbe({ input, onPrepared }: HarnessProps) {
+  const routing = useDraftEnvironmentRouting(input);
+  const draft = useComposerDraftStore((state) => state.getDraftSession(input.draftId!));
+  const selections = useAtomValue(
+    draftFanoutSelectionsAtom(
+      scopedThreadKey(scopeThreadRef(draft!.environmentId, draft!.threadId)),
+    ),
+  );
   return (
     <>
+      <output>
+        {selections?.map((selection) => selection.model).join(", ") ?? "single model"}
+      </output>
+      {input.logicalProjectEnvironments.map(({ environmentId }) => (
+        <button
+          key={environmentId}
+          onClick={() => routing.onEnvironmentChangeStable(environmentId)}
+        >
+          Switch to {environmentId}
+        </button>
+      ))}
+      <span>{draft?.environmentId}</span>
       <button
-        type="button"
-        onClick={() =>
-          setRequest(routing.readPendingEnvironmentChange() === null ? "cleared" : "present")
-        }
+        onClick={async () => {
+          const ready = await routing.refreshBeforeSend();
+          onPrepared?.(ready);
+        }}
       >
-        Check pending
+        Send
       </button>
-      <output data-testid="request">{request}</output>
-      <button
-        type="button"
-        disabled={routing.isEnvironmentChanging}
-        onClick={() => routing.onEnvironmentChangeStable(target)}
-      >
-        Switch machine
-      </button>
-      <output>{routing.isEnvironmentChanging ? "pending" : "idle"}</output>
     </>
   );
 }
-function surface(locale: "en" | "zh-CN", locked = false, sending = false) {
-  fixture.locale = locale;
-  return (
-    <WebI18nContext
-      value={{
-        locale,
-        appLocale: locale,
-        setAppLocale: () => undefined,
-        t: (key, values) => translateWebMessage(locale, key, values),
-      }}
-    >
-      <Probe locked={locked} sending={sending} />
-    </WebI18nContext>
+
+it("refreshes a stored automatic choice before sending an unsent draft", async () => {
+  const { a, b, draftId, input, store } = setup();
+  const selections = ["model-a", "model-b"].map((model) =>
+    createModelSelection(ProviderInstanceId.make("codex"), model),
   );
-}
-function setup() {
-  for (const mock of [fixture.run, fixture.toast, fixture.thread, fixture.refresh])
-    mock.mockReset();
-  fixture.thread.mockResolvedValue(null);
-  useComposerDraftStore
-    .getState()
-    .setProjectDraftThreadId(scopeProjectRef(origin, projectId), draftId, {
-      environmentSelection: "manual",
-    });
-  useComposerDraftStore.getState().setPrompt(draftId, "literal $& {draft}");
-}
-it.each(["owned", "raw", "empty", "interrupted"] as const)(
-  "localizes routing scratch %s failure without transferring draft",
+  const threadId = input.draftThread!.threadId;
+  const destinationSelections = draftFanoutSelectionsAtom(
+    scopedThreadKey(scopeThreadRef(b, threadId)),
+  );
+  appAtomRegistry.set(destinationSelections, null);
+  appAtomRegistry.set(
+    draftFanoutSelectionsAtom(scopedThreadKey(scopeThreadRef(a, threadId))),
+    selections,
+  );
+  store.setDraftThreadContext(draftId, {
+    branch: "main",
+    envMode: "worktree",
+    environmentSelection: "auto",
+  });
+  await using screen = await render(
+    <Harness input={{ ...input, draftThread: store.getDraftSession(draftId) }} />,
+  );
+  await expect.element(screen.getByText(a)).toBeInTheDocument();
+  await screen.getByRole("button", { name: "Send" }).click();
+  await expect.element(screen.getByText(b)).toBeInTheDocument();
+  expect(resources.refreshSelection).toHaveBeenCalledWith([a, b]);
+  expect(store.getDraftSession(draftId)).toMatchObject({
+    loadBalancedEnvironmentId: b,
+    branch: "main",
+    envMode: "worktree",
+  });
+  expect(store.getComposerDraft(draftId)?.prompt).toBe("Keep this prompt");
+  expect(appAtomRegistry.get(destinationSelections)).toEqual(selections);
+});
+
+it.each(["manual", "attachments", "promoted"] as const)(
+  "keeps the machine for %s drafts",
   async (kind) => {
-    const initial = useComposerDraftStore.getState();
-    using _store = { [Symbol.dispose]: () => useComposerDraftStore.setState(initial, true) };
-    setup();
-    const draft = useComposerDraftStore.getState().getDraftSession(draftId);
-    const content = useComposerDraftStore.getState().getComposerDraft(draftId);
-    let finish!: (result: AtomCommandResult<void, unknown>) => void;
-    const pending = new Promise<AtomCommandResult<void, unknown>>((resolve) => {
-      finish = resolve;
-    });
-    fixture.run.mockReturnValue(pending);
-    await using screen = await render(surface("en"));
-    await using _settle = {
-      [Symbol.asyncDispose]: async () => {
-        await act(async () => {
-          finish(AsyncResult.failure(Cause.interrupt()));
-          await Promise.resolve();
-        });
-      },
+    const { a, draftId, input, store } = setup();
+    if (kind === "manual") store.setDraftThreadContext(draftId, { environmentSelection: "manual" });
+    const guardedInput = {
+      ...input,
+      automaticEnvironment: kind !== "manual",
+      composerHasAttachments: kind === "attachments",
+      draftThread:
+        kind === "promoted"
+          ? {
+              ...input.draftThread!,
+              promotedTo: {
+                environmentId: a,
+                threadId: input.draftThread!.threadId,
+              },
+            }
+          : input.draftThread,
     };
-    await screen.getByRole("button", { name: "Switch machine", exact: true }).click();
-    await expect
-      .element(screen.getByRole("button", { name: "Switch machine", exact: true }))
-      .toBeDisabled();
-    expect(fixture.run).toHaveBeenCalledExactlyOnceWith(
-      appAtomRegistry,
-      projectEnvironment.openScratch,
-      { environmentId: target, input: {} },
-      { label: projectEnvironment.openScratch.label, reportFailure: false, reportDefect: true },
-    );
-    await screen.rerender(surface("zh-CN"));
-    await act(async () =>
-      finish(
-        AsyncResult.failure(
-          kind === "interrupted"
-            ? Cause.interrupt()
-            : Cause.fail(
-                kind === "owned"
-                  ? null
-                  : new Error(kind === "empty" ? "" : "Could not switch machine"),
-              ),
-        ),
-      ),
-    );
-    await expect
-      .element(screen.getByRole("button", { name: "Switch machine", exact: true }))
-      .toBeEnabled();
-    if (kind === "interrupted") expect(fixture.toast).not.toHaveBeenCalled();
-    else
-      expect(fixture.toast).toHaveBeenCalledExactlyOnceWith(
-        expect.objectContaining({
-          type: "error",
-          title: "无法切换机器",
-          description:
-            kind === "owned" ? "发生错误。" : kind === "empty" ? "" : "Could not switch machine",
-        }),
-      );
-    await screen.getByRole("button", { name: "Check pending", exact: true }).click();
-    expect(screen.container.querySelector('[data-testid="request"]')?.textContent).toBe("cleared");
-    await screen.rerender(surface("en"));
-    expect(fixture.run).toHaveBeenCalledTimes(1);
-    expect(useComposerDraftStore.getState().getDraftSession(draftId)).toBe(draft);
-    expect(useComposerDraftStore.getState().getComposerDraft(draftId)).toBe(content);
-    expect(fixture.thread).not.toHaveBeenCalled();
-    expect(fixture.refresh).not.toHaveBeenCalled();
+    await using screen = await render(<Harness input={guardedInput} />);
+    await screen.getByRole("button", { name: "Send" }).click();
+    expect(resources.refreshSelection).not.toHaveBeenCalled();
+    expect(store.getDraftSession(draftId)?.environmentId).toBe(a);
   },
 );
-it.each(["locked", "sending"] as const)("does not switch a %s draft", async (kind) => {
-  const initial = useComposerDraftStore.getState();
-  using _store = { [Symbol.dispose]: () => useComposerDraftStore.setState(initial, true) };
-  setup();
-  await using screen = await render(surface("en", kind === "locked", kind === "sending"));
-  await screen.getByRole("button", { name: "Switch machine", exact: true }).click();
-  expect(fixture.run).not.toHaveBeenCalled();
-  expect(fixture.toast).not.toHaveBeenCalled();
-  expect(fixture.thread).not.toHaveBeenCalled();
+
+it("does not reuse a stored choice when refreshed resources have no winner", async () => {
+  const { a, input } = setup();
+  resources.refreshSelection.mockResolvedValue(null);
+  const onPrepared = vi.fn();
+  await using screen = await render(<Harness input={input} onPrepared={onPrepared} />);
+  await screen.getByRole("button", { name: "Send" }).click();
+  await expect.element(screen.getByText(a)).toBeInTheDocument();
+  await vi.waitFor(() => expect(onPrepared).toHaveBeenCalledWith(false));
+});
+
+it("abandons a refresh when the draft changes while resources are in flight", async () => {
+  const { a, b, draftId, input, store } = setup();
+  let resolve!: (environmentId: EnvironmentId) => void;
+  resources.refreshSelection.mockReturnValue(
+    new Promise<EnvironmentId>((done) => {
+      resolve = done;
+    }),
+  );
+  await using screen = await render(<Harness input={input} />);
+  await screen.getByRole("button", { name: "Send" }).click();
+  await act(async () => {
+    store.setPrompt(draftId, "Edited while checking");
+    resolve(b);
+  });
+  await expect.element(screen.getByText(a)).toBeInTheDocument();
+  expect(store.getComposerDraft(draftId)?.prompt).toBe("Edited while checking");
+});
+
+function fanoutSetup() {
+  const routing = setup();
+  const { a, b, draftId, input, store } = routing;
+  resources.projects = [a, b].map((environmentId) => ({
+    environmentId,
+    id: input.draftThread!.projectId,
+    title: "Project",
+    workspaceRoot: "/workspace/project",
+    defaultModelSelection: null,
+    scripts: [],
+    createdAt: "2026-11-10T01:00:00.000Z",
+    updatedAt: "2026-11-10T01:00:00.000Z",
+  }));
+  const threadId = input.draftThread!.threadId;
+  const selectionsOn = (environmentId: EnvironmentId) =>
+    draftFanoutSelectionsAtom(scopedThreadKey(scopeThreadRef(environmentId, threadId)));
+  const models = (...names: string[]) =>
+    names.map((model) => createModelSelection(ProviderInstanceId.make("codex"), model));
+  appAtomRegistry.set(selectionsOn(b), null);
+  appAtomRegistry.set(selectionsOn(a), models("gpt-6.1-sol", "gpt-6.1-luna"));
+  store.setDraftThreadContext(draftId, {
+    environmentSelection: "manual",
+    loadBalancedEnvironmentId: null,
+    branch: "main",
+    envMode: "worktree",
+  });
+  return { ...routing, selectionsOn, models };
+}
+
+it("keeps the selected models when the draft switches machine by hand", async () => {
+  const { a, b, draftId, input, store, selectionsOn, models } = fanoutSetup();
+  await using screen = await render(
+    <Harness
+      input={{
+        ...input,
+        automaticEnvironment: false,
+        draftThread: store.getDraftSession(draftId),
+      }}
+    />,
+  );
+  await expect.element(screen.getByText("gpt-6.1-sol, gpt-6.1-luna")).toBeInTheDocument();
+  await screen.getByRole("button", { name: `Switch to ${b}` }).click();
+  await expect.element(screen.getByText(b)).toBeInTheDocument();
+  await expect.element(screen.getByText("gpt-6.1-sol, gpt-6.1-luna")).toBeInTheDocument();
+  expect(store.getComposerDraft(draftId)?.prompt).toBe("Keep this prompt");
+
+  // Changes made on the new machine come back with the draft.
+  await act(async () => appAtomRegistry.set(selectionsOn(b), models("gpt-6.1-sol")));
+  await screen.getByRole("button", { name: `Switch to ${a}` }).click();
+  await expect.element(screen.getByText(a)).toBeInTheDocument();
+  await expect.element(screen.getByText("gpt-6.1-sol", { exact: true })).toBeInTheDocument();
+});
+
+it("keeps the selected models when automatic routing picks another machine", async () => {
+  const { b, draftId, input, store } = fanoutSetup();
+  store.setDraftThreadContext(draftId, { environmentSelection: "auto" });
+  resources.pickedEnvironmentId = b;
+  await using screen = await render(
+    <Harness input={{ ...input, draftThread: store.getDraftSession(draftId) }} />,
+  );
+  await expect.element(screen.getByText(b)).toBeInTheDocument();
+  await expect.element(screen.getByText("gpt-6.1-sol, gpt-6.1-luna")).toBeInTheDocument();
+});
+
+it.each([
+  {
+    name: "takes the destination default",
+    explicit: false,
+    remoteDefault: true,
+    model: "luna",
+  },
+  {
+    name: "keeps a model the user picked",
+    explicit: true,
+    remoteDefault: true,
+    model: "sol",
+  },
+  {
+    name: "keeps the last-used model without a default",
+    explicit: false,
+    remoteDefault: false,
+    model: "sol",
+  },
+])("$name when the draft switches machine by hand", async ({ explicit, remoteDefault, model }) => {
+  const { b, draftId, input, store } = fanoutSetup();
+  const codex = ProviderInstanceId.make("codex");
+  resources.projects = resources.projects.map((project) =>
+    project.environmentId === b && remoteDefault
+      ? {
+          ...project,
+          defaultModelSelection: createModelSelection(codex, "luna"),
+        }
+      : project,
+  );
+  store.setStickyModelSelection(createModelSelection(codex, "sol"));
+  store.setModelSelection(draftId, createModelSelection(codex, "sol"), {
+    explicit,
+  });
+  await using screen = await render(
+    <Harness
+      input={{
+        ...input,
+        automaticEnvironment: false,
+        draftThread: store.getDraftSession(draftId),
+      }}
+    />,
+  );
+  await screen.getByRole("button", { name: `Switch to ${b}` }).click();
+  await expect.element(screen.getByText(b)).toBeInTheDocument();
+  const draft = store.getComposerDraft(draftId);
+  expect(draft?.activeProvider).toBe(codex);
+  expect(draft?.modelSelectionByProvider[codex]?.model).toBe(model);
+  expect(draft?.modelSelectionExplicit === true).toBe(explicit);
 });

@@ -41,7 +41,10 @@ export interface MediaActionSource {
   readonly name: string;
   readonly src: string | null;
   readonly reference?: MediaReference;
-  readonly asset?: { readonly environmentId: EnvironmentId; readonly resource: AssetResource };
+  readonly asset?: {
+    readonly environmentId: EnvironmentId;
+    readonly resource: AssetResource;
+  };
   readonly onOpenFile?: () => void;
 }
 
@@ -75,7 +78,9 @@ export function useMediaActions(source: MediaActionSource) {
     (fileSession.error === null && fileSession.data !== null && allowsHostMedia(fileSession.data));
   const assertCanReadMedia = () => {
     if (!canReadHostMedia(hostEnvironmentId)) {
-      throw new MediaActionError({ source: "This connection cannot read host files." });
+      throw new MediaActionError({
+        source: "This connection cannot read host files.",
+      });
     }
   };
   const createAssetUrl = useAtomQueryRunner(assetEnvironment.createUrl, {
@@ -94,13 +99,17 @@ export function useMediaActions(source: MediaActionSource) {
     const { environmentId, resource } = source.asset;
     const connection = readPreparedConnection(environmentId);
     if (!connection)
-      throw new MediaActionError({ source: "Reconnect to this environment and try again." });
+      throw new MediaActionError({
+        source: "Reconnect to this environment and try again.",
+      });
     const result = await createAssetUrl({ environmentId, input: { resource } });
     if (result._tag === "Failure") throw squashAtomCommandFailure(result);
     assertCanReadMedia();
     const url = resolveAssetUrl(connection.httpBaseUrl, result.value.relativeUrl);
     if (!url)
-      throw new MediaActionError({ source: "The environment returned an invalid media URL." });
+      throw new MediaActionError({
+        source: "The environment returned an invalid media URL.",
+      });
     return url;
   };
   const save = async () => {
@@ -152,9 +161,15 @@ export function MediaActions({
         typeof ClipboardItem !== "undefined";
       const items: ContextMenuItem<MediaActionId>[] = [];
       if (reference?.kind === "file") {
-        items.push({ id: "copy-full-path", label: t("markdownFile.copyFullPath") });
+        items.push({
+          id: "copy-full-path",
+          label: t("markdownFile.copyFullPath"),
+        });
         if (reference.relativePath)
-          items.push({ id: "copy-relative-path", label: t("markdownFile.copyRelativePath") });
+          items.push({
+            id: "copy-relative-path",
+            label: t("markdownFile.copyRelativePath"),
+          });
       } else if (reference?.kind === "url") {
         items.push({ id: "copy-url", label: t("audit12.media.copyUrl") });
       }

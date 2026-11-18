@@ -59,10 +59,9 @@ import { WizardFooter, WizardHeader, WizardPanel, WizardPopup, WizardSteps } fro
 import { afterFailedCheck, resolveMcpGate } from "./mcpGate";
 import { MCP_APPS, type McpApp, mcpHandoffAction, OTHER_MCP_APP_STEPS } from "./mcpApps";
 
-const requestAtom = Atom.make<{ readonly environmentId: EnvironmentId | null } | null>(null).pipe(
-  Atom.keepAlive,
-  Atom.withLabel("mcp:use-in-another-app"),
-);
+const requestAtom = Atom.make<{
+  readonly environmentId: EnvironmentId | null;
+} | null>(null).pipe(Atom.keepAlive, Atom.withLabel("mcp:use-in-another-app"));
 
 /** Opens the wizard for `environmentId`, or for the one Sharing & access picks when null. */
 export function openUseInAnotherApp(environmentId: EnvironmentId | null): void {
@@ -82,7 +81,9 @@ function UseInAnotherAppDialog({ requested }: { readonly requested: EnvironmentI
   const tx = (source: string, values?: WebMessageValues) =>
     translateConnectAgentSource(locale, source, values);
   const { environment, label } = useAccessEnvironment(requested);
-  const title = tx("Use T3 Code in another app (MCP) · {name}", { name: label ?? "T3 Code" });
+  const title = tx("Use T3 Code in another app (MCP) · {name}", {
+    name: label ?? "T3 Code",
+  });
   return (
     <Dialog open onOpenChange={(open) => (open ? undefined : close())}>
       <WizardPopup>
@@ -234,7 +235,9 @@ function useGrantableLevels(environment: EnvironmentPresentation) {
             })
           : session === null ||
               !mcpClientScopes(level).every((scope) => sessionGrantsScope(session, scope))
-            ? tx("This device cannot grant this on {name}.", { name: environment.label })
+            ? tx("This device cannot grant this on {name}.", {
+                name: environment.label,
+              })
             : level === "read-only"
               ? undefined
               : managedRuntimeModeDenial(policy, level, t));
@@ -262,7 +265,10 @@ function useGate(environment: EnvironmentPresentation) {
   const [check, setCheck] = useState<
     | "idle"
     | "running"
-    | { readonly result: EnvironmentConnectReachability | null; readonly since: string | null }
+    | {
+        readonly result: EnvironmentConnectReachability | null;
+        readonly since: string | null;
+      }
   >("idle");
   const [connecting, setConnecting] = useState(false);
   const linkState = controller.linkState.data;
@@ -438,7 +444,11 @@ function GateScreen({
       return (
         <GateMessage
           title={tx("Can't check T3 Connect on {name}", { name })}
-          lines={[tx("This device needs the View relay permission on {name}.", { name })]}
+          lines={[
+            tx("This device needs the View relay permission on {name}.", {
+              name,
+            }),
+          ]}
         />
       );
     case "error":
@@ -473,7 +483,9 @@ function GateScreen({
         <GateMessage
           title={tx("Turn on T3 Connect for {name}", { name })}
           lines={[
-            tx("{name} gets a public https address, with no router setup.", { name }),
+            tx("{name} gets a public https address, with no router setup.", {
+              name,
+            }),
             tx("Only apps you approve can use it. You can turn it off in Settings."),
           ]}
         >
@@ -736,7 +748,7 @@ function PrimaryAction({ app, mcpUrl }: { readonly app: McpApp; readonly mcpUrl:
           ? {}
           : {
               actionProps: {
-                children: tx(appLink === null ? "Open {app}" : "Open {app} on the web", {
+                children: tx(appLink === null ? "Open {app}" : "Get {app}", {
                   app: app.name,
                 }),
                 onClick: () => openLink(link, locale),
@@ -798,9 +810,9 @@ function ApprovalCode({
       setError(tx("Could not get a code from {name}. Try again.", { name }));
     }
   };
-  const [beforeAccess, afterAccess] = tx("Code to approve {access}", { access: "\u0000" }).split(
-    "\u0000",
-  );
+  const [beforeAccess, afterAccess] = tx("Code to approve {access}", {
+    access: "\u0000",
+  }).split("\u0000");
   const left = code === null ? 0 : Math.max(0, Math.floor((code.expiresAt - now) / 1000));
   return (
     <div className="space-y-1.5">
@@ -839,7 +851,10 @@ function CopyRow({ label, value }: { readonly label: string; readonly value: str
   const { locale } = useI18n();
   const tx = (source: string, values?: WebMessageValues) =>
     translateConnectAgentSource(locale, source, values);
-  const { copyToClipboard, isCopied } = useCopyToClipboard({ timeout: 1500, target: tx(label) });
+  const { copyToClipboard, isCopied } = useCopyToClipboard({
+    timeout: 1500,
+    target: tx(label),
+  });
   return (
     <div className="flex min-w-0 items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2">
       <span className="shrink-0 text-xs text-muted-foreground">{tx(label)}</span>
@@ -873,7 +888,10 @@ function LinkedLine({
   const offered = offersLinkedEnvironments(environment.serverConfig);
   const links = useEnvironmentQuery(
     offered
-      ? peerLinkEnvironment.list({ environmentId: environment.environmentId, input: {} })
+      ? peerLinkEnvironment.list({
+          environmentId: environment.environmentId,
+          input: {},
+        })
       : null,
   ).data?.links;
   const identities = useEnvironmentIdentities();
@@ -911,7 +929,10 @@ function ManageAccessButton({
       variant="ghost"
       onClick={() => {
         close();
-        void navigate({ to: "/settings/access", search: { machine: environment.environmentId } });
+        void navigate({
+          to: "/settings/access",
+          search: { machine: environment.environmentId },
+        });
       }}
     >
       {tx(label)}

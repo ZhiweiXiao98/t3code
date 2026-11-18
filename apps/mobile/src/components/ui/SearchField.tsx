@@ -6,6 +6,7 @@ import { SymbolView } from "./AppSymbol";
 import { useAndroidControlSizing } from "./useAndroidControlSizing";
 
 export interface SearchFieldProps {
+  readonly localize?: boolean;
   readonly autoFocus?: boolean;
   readonly inputRef: RefObject<TextInputInstance | null>;
   readonly accessibilityLabel: string;
@@ -17,6 +18,7 @@ export interface SearchFieldProps {
 
 export function SearchField({
   inputRef,
+  localize = true,
   autoFocus = true,
   accessibilityLabel,
   clearAccessibilityLabel,
@@ -41,12 +43,14 @@ export function SearchField({
       />
       <TextInput
         ref={inputRef}
-        accessibilityLabel={localizeMobileString(accessibilityLabel)}
+        accessibilityLabel={
+          localize ? localizeMobileString(accessibilityLabel) : accessibilityLabel
+        }
         autoFocus={autoFocus}
         autoCapitalize="none"
         autoCorrect={false}
         returnKeyType="search"
-        placeholder={localizeMobileString(placeholder)}
+        placeholder={localize ? localizeMobileString(placeholder) : placeholder}
         placeholderTextColorClassName="accent-placeholder"
         selectionColorClassName="accent-focus/32"
         cursorColorClassName="accent-focus"
@@ -58,7 +62,9 @@ export function SearchField({
       />
       {value.length > 0 ? (
         <Pressable
-          accessibilityLabel={localizeMobileString(clearAccessibilityLabel)}
+          accessibilityLabel={
+            localize ? localizeMobileString(clearAccessibilityLabel) : clearAccessibilityLabel
+          }
           accessibilityRole="button"
           hitSlop={10}
           onPress={() => {

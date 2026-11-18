@@ -7,6 +7,7 @@ import {
   type ProjectId,
   ScheduledTaskId,
   type ScheduledTask,
+  type ScheduledTaskSchedule,
   type ScheduledTaskThreadMode,
   type ScheduledTaskUpsertSchedule,
   scheduledTaskThreadMode,
@@ -24,6 +25,7 @@ import {
   webhookFilterDraftsChanged,
   type WebhookFilterDraft,
 } from "@t3tools/client-runtime/scheduled-task-webhook";
+import { scheduleTimeZoneLabel } from "@t3tools/client-runtime/scheduled-task-time-zone";
 
 import {
   resolveProjectSettings,
@@ -32,6 +34,64 @@ import {
 import type { ProviderInstanceEntry } from "../../providerInstances";
 
 import type { ResolvedSettingsScope } from "./settingsScope";
+
+export const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+
+const ONCE_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
+const WEEKDAY_ZH = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"] as const;
+const ONCE_FORMATTER_ZH_CN = new Intl.DateTimeFormat("zh-CN", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
+export function scheduleLabel(
+  schedule: ScheduledTaskSchedule,
+  timeZoneOrChinese?: string | boolean,
+  runAt?: string | null,
+  locale: "en" | "zh-CN" = "en",
+): string {
+  const chinese = typeof timeZoneOrChinese === "boolean" ? timeZoneOrChinese : locale === "zh-CN";
+  const timeZone = typeof timeZoneOrChinese === "string" ? timeZoneOrChinese : undefined;
+  if (schedule.type === "webhook") return chinese ? "收到 Webhook 时" : "On webhook";
+  if (schedule.type === "once") {
+    const date = new Date(schedule.runAt);
+    return chinese
+      ? `单次，${ONCE_FORMATTER_ZH_CN.format(date)}`
+      : `Once, ${ONCE_FORMATTER.format(date)}`;
+  }
+  if (schedule.type === "interval") {
+    const minutes = schedule.everyMs / 60_000;
+    return Number.isInteger(minutes)
+      ? chinese
+        ? `每 ${minutes} 分钟`
+        : `Every ${minutes} min`
+      : chinese
+        ? `每 ${Math.round(schedule.everyMs / 1000)} 秒`
+        : `Every ${Math.round(schedule.everyMs / 1000)} sec`;
+  }
+  const weekdays = schedule.weekdays ?? [];
+  const days =
+    weekdays.length === 0
+      ? chinese
+        ? "每天"
+        : "Daily"
+      : weekdays.length === 5 && weekdays.every((day) => day >= 1 && day <= 5)
+        ? chinese
+          ? "工作日"
+          : "Weekdays"
+        : weekdays
+            .map((day) => (chinese ? WEEKDAY_ZH[day] : WEEKDAY_LABELS[day]))
+            .join(chinese ? "、" : ", ");
+  const zone = scheduleTimeZoneLabel(timeZone, runAt);
+  return (
+    (chinese ? `${days} ${schedule.timeOfDay}` : `${days} at ${schedule.timeOfDay}`) +
+    (zone === undefined ? "" : ` ${zone}`)
+  );
+}
 
 export function matchesScheduledTaskScope(
   scope: ResolvedSettingsScope,
@@ -125,6 +185,8 @@ export function scheduleDraftErrors(draft: DraftState, locale: ResolvedAppLocale
       ];
     return [];
   }
+  if (draft.scheduleMode === "fixed" && !draft.timeOfDay)
+    return [{ title: "Invalid run time", description: "Pick a time." }];
   if (draft.scheduleMode !== "webhook") return [];
   if (parseMaxDeliveryAge(draft.maxDeliveryAgeMinutes) === undefined)
     return [
@@ -244,7 +306,7 @@ export function scheduleFromDraft(draft: DraftState): ScheduledTaskUpsertSchedul
   const selectedEveryDay = draft.weekdays.size === 0 || draft.weekdays.size === 7;
   return {
     type: "fixed_time",
-    timeOfDay: draft.timeOfDay || "09:00",
+    timeOfDay: draft.timeOfDay,
     ...(selectedEveryDay ? {} : { weekdays: [...draft.weekdays].toSorted() }),
   };
 }

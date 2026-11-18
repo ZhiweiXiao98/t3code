@@ -79,6 +79,7 @@ function fixture(options: { frame?: "empty" | "error" | "superseded"; cells?: nu
     }
   }
   const bytes = new ArrayBuffer(1);
+  const view = { hiddenGridlines: [], themeFonts: { major: "", minor: "" } };
   const onDetails = vi.fn();
   const onError = vi.fn();
   const surface = (locale: "en" | "zh-CN") => (
@@ -91,7 +92,7 @@ function fixture(options: { frame?: "empty" | "error" | "superseded"; cells?: nu
       }}
     >
       <div style={{ display: "flex", width: 600, height: 400 }}>
-        <Spreadsheet bytes={bytes} onDetails={onDetails} onError={onError} />
+        <Spreadsheet bytes={bytes} view={view} onDetails={onDetails} onError={onError} />
       </div>
     </WebI18nContext>
   );

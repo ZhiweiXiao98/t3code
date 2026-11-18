@@ -1,5 +1,5 @@
 import type { EnvironmentId, SecretReference, UnifiedSettings } from "@t3tools/contracts";
-import { useState } from "react";
+import { useId, useState } from "react";
 
 import { useUpdateEnvironmentSettings } from "../../hooks/useSettings";
 import { useI18n } from "../../i18n/WebI18nContext";
@@ -33,6 +33,7 @@ export function AddUsageLimitSourceDialog({
   readonly sources: UnifiedSettings["usageLimitSources"];
 }) {
   const { t } = useI18n();
+  const formId = useId();
   const updateSettings = useUpdateEnvironmentSettings(environmentId);
   const [label, setLabel] = useState("");
   const [url, setUrl] = useState("");
@@ -80,11 +81,14 @@ export function AddUsageLimitSourceDialog({
         <DialogHeader>
           <DialogTitle>{t("usageSource.add.title")}</DialogTitle>
           <DialogDescription>
-            {t("usageSource.add.description", { environment: environmentLabel })}
+            {t("usageSource.add.description", {
+              environment: environmentLabel,
+            })}
           </DialogDescription>
         </DialogHeader>
         <DialogPanel>
           <form
+            id={formId}
             className="grid gap-4"
             onSubmit={(event) => {
               event.preventDefault();
@@ -108,6 +112,7 @@ export function AddUsageLimitSourceDialog({
                 aria-label={t("usageSource.add.managementKey")}
                 value={keyDraft}
                 sources={secretSources}
+                environmentId={environmentId}
                 onChange={(event) => setKeyDraft(event.target.value)}
                 onSecretChange={(secret) => setKeyDraft(secret ?? "")}
                 onValidityChange={setKeyValid}
@@ -134,7 +139,7 @@ export function AddUsageLimitSourceDialog({
           >
             {t("common.cancel")}
           </Button>
-          <Button onClick={save} disabled={!canSave}>
+          <Button type="submit" form={formId} disabled={!canSave}>
             {t("usageSource.add.action")}
           </Button>
         </DialogFooter>

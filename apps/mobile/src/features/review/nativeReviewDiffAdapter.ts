@@ -1,5 +1,6 @@
 import { localizeMobileString, MOBILE_LOCALE, type MobileLocale } from "../../i18n/mobileStrings";
 
+import { cutLineNoteStart } from "@t3tools/shared/diffCutLines";
 import type { NativeReviewDiffRow, NativeReviewDiffTheme } from "../diffs/nativeReviewDiffSurface";
 import type { NativeReviewDiffFile } from "../diffs/nativeReviewDiffTypes";
 import * as Arr from "effect/Array";
@@ -56,6 +57,32 @@ export function buildNativeReviewSnippetRows(
     oldLineNumber: null,
     newLineNumber: null,
   }));
+}
+
+export function reviewCommentDiffText(diff: string): string {
+  return diff.trimStart().replace(/\n+$/, "");
+}
+
+export function buildReviewCommentPatch(comment: ReviewInlineComment): string {
+  if ((comment.fenceLanguage ?? "diff") !== "diff") {
+    return "";
+  }
+  if (!comment.diff.trim()) {
+    return "";
+  }
+  const diff = reviewCommentDiffText(comment.diff);
+
+  if (diff.startsWith("diff --git ")) {
+    return diff;
+  }
+
+  const normalizedPath = comment.filePath.replaceAll("\\", "/");
+  return [
+    `diff --git a/${normalizedPath} b/${normalizedPath}`,
+    `--- a/${normalizedPath}`,
+    `+++ b/${normalizedPath}`,
+    diff,
+  ].join("\n");
 }
 
 function opaqueNativeHexColor(color: string, background: string): string {
@@ -221,6 +248,8 @@ export function createNativeReviewDiffTheme(
       deleteBar: terminalRed ?? "#ff2e3f",
       addText: "#5ECC71",
       deleteText: "#FF6762",
+      warningText: nativeColor(appTheme["--color-warning-foreground"]),
+      warningBackground: nativeColor(appTheme["--color-warning"]),
     };
   }
 
@@ -238,6 +267,8 @@ export function createNativeReviewDiffTheme(
     deleteBar: terminalRed ?? "#ff2e3f",
     addText: "#199F43",
     deleteText: "#D52C36",
+    warningText: nativeColor(appTheme["--color-warning-foreground"]),
+    warningBackground: nativeColor(appTheme["--color-warning"]),
   };
 }
 
@@ -273,7 +304,15 @@ function noticeRowsForFile(
   file: ReviewRenderableFile,
   locale: MobileLocale,
 ): ReadonlyArray<NativeReviewDiffRow> {
-  if (file.notice) return [createNoticeRow(file.id, "loading", file.notice, locale)];
+  if (file.notice) {
+    return [
+      {
+        ...createNoticeRow(file.id, "loading", file.notice, locale),
+        ...(file.noticeTone === undefined ? {} : { tone: file.noticeTone }),
+        ...(file.noticeActionable ? { actionable: true } : {}),
+      },
+    ];
+  }
   if (file.rows.length > 0) {
     return [];
   }
@@ -398,6 +437,7 @@ function mapLineRow(
   row: ReviewRenderableLineRow,
   rowIndex: number,
 ): NativeReviewDiffRow {
+  const noteStart = cutLineNoteStart(row.content);
   return {
     kind: "line",
     id: `${file.id}:line:${rowIndex}:${row.id}`,
@@ -406,6 +446,7 @@ function mapLineRow(
     change: row.change,
     oldLineNumber: row.oldLineNumber,
     newLineNumber: row.newLineNumber,
+    ...(noteStart === null ? {} : { noteStart }),
   };
 }
 

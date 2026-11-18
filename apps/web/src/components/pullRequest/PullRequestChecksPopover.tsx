@@ -174,7 +174,9 @@ export function PullRequestChecksPopover({
         nativeButton={variant === "count"}
         aria-label={
           variant === "count"
-            ? t("pullRequests.checks.openAria", { status: summary ?? presentation.label })
+            ? t("pullRequests.checks.openAria", {
+                status: summary ?? presentation.label,
+              })
             : t("pullRequests.checks.aria", { status: presentation.label })
         }
         render={
@@ -184,7 +186,9 @@ export function PullRequestChecksPopover({
             <span
               role="button"
               tabIndex={0}
-              aria-label={t("pullRequests.checks.aria", { status: presentation.label })}
+              aria-label={t("pullRequests.checks.aria", {
+                status: presentation.label,
+              })}
               className={cn("inline-flex shrink-0 cursor-pointer items-center", className)}
             />
           )
@@ -195,14 +199,14 @@ export function PullRequestChecksPopover({
         {variant === "count" ? (
           <>
             {checks !== undefined && incompleteCount > 0 ? (
-              <span className="tabular-nums">
+              <span className="min-w-0 truncate tabular-nums">
                 {t("pullRequests.checks.completeRatio", {
                   complete: checks.length - incompleteCount,
                   total: checks.length,
                 })}
               </span>
             ) : failedCount > 0 ? (
-              <span className="tabular-nums">
+              <span className="min-w-0 truncate tabular-nums">
                 {t("pullRequests.checks.failedCount", { count: failedCount })}
               </span>
             ) : null}

@@ -407,7 +407,10 @@ export function PullRequestDetailPanel({
         reference.host.toLowerCase() === linkedReference.host.toLowerCase())
       ? pullRequestEnvironment.linkedThreads({
           environmentId,
-          input: { ...reference, ...normalizeThreadPullRequestKey(linkedReference) },
+          input: {
+            ...reference,
+            ...normalizeThreadPullRequestKey(linkedReference),
+          },
         })
       : null,
   );
@@ -466,15 +469,19 @@ export function PullRequestDetailPanel({
   } | null>(null);
   const openFileInCode = (path: string) => {
     selectCodeCommit(null);
-    setCodeRevealRequest((previous) => ({ path, nonce: (previous?.nonce ?? 0) + 1 }));
+    setCodeRevealRequest((previous) => ({
+      path,
+      nonce: (previous?.nonce ?? 0) + 1,
+    }));
     void loadCodeTab();
     selectTab("code");
   };
   // Cached activity can predate a linked comment, so a miss waits for one host read. `after` is
   // when that read's invalidation finished; null while it runs.
-  const revealHostRead = useRef<{ readonly url: string; readonly after: number | null } | null>(
-    null,
-  );
+  const revealHostRead = useRef<{
+    readonly url: string;
+    readonly after: number | null;
+  } | null>(null);
   const settleReveal = (url: string) => {
     revealHostRead.current = null;
     onRevealSettled?.(url);
@@ -508,7 +515,10 @@ export function PullRequestDetailPanel({
   if (tabMountState.key !== tabScopeKey) {
     setTabMountState({ key: tabScopeKey, tabs: new Set([tab]) });
   } else if (!tabMountState.tabs.has(tab)) {
-    setTabMountState({ key: tabScopeKey, tabs: new Set(tabMountState.tabs).add(tab) });
+    setTabMountState({
+      key: tabScopeKey,
+      tabs: new Set(tabMountState.tabs).add(tab),
+    });
   }
   // Each tab restores the condensed state its own scrolling left behind.
   const [condensedByTab, setCondensedByTab] = useState<
@@ -577,7 +587,9 @@ export function PullRequestDetailPanel({
       const { locale, t } = readWebI18n();
       toastManager.add({
         type: "success",
-        title: t("pullRequests.detail.copied", { label: translateWebSource(locale, label) }),
+        title: t("pullRequests.detail.copied", {
+          label: translateWebSource(locale, label),
+        }),
       });
     },
     onError: (error, label) => {
@@ -586,7 +598,9 @@ export function PullRequestDetailPanel({
       const displayTarget = OWNED_REFERENCE_TARGETS[target];
       toastManager.add({
         type: "error",
-        title: t("pullRequests.detail.copyFailed", { label: translateWebSource(locale, label) }),
+        title: t("pullRequests.detail.copyFailed", {
+          label: translateWebSource(locale, label),
+        }),
         description:
           clipboardErrorMessage(
             error,
@@ -711,14 +725,19 @@ export function PullRequestDetailPanel({
     },
     { key: `pull-request:${environmentId}:${pullRequestKey}` },
   );
-  const invalidate = useAtomCommand(pullRequestEnvironment.invalidate, { reportFailure: false });
+  const invalidate = useAtomCommand(pullRequestEnvironment.invalidate, {
+    reportFailure: false,
+  });
   const [isInvalidating, setIsInvalidating] = useState(false);
   const refreshing = isInvalidating || detailQuery.isPending;
   /** Resolves whether the host cache was invalidated before the refetch. */
   const refetchFromHost = async () => {
     setIsInvalidating(true);
     // Atom commands settle without throwing, so reset always runs.
-    const invalidated = await invalidate({ environmentId, input: { reference } });
+    const invalidated = await invalidate({
+      environmentId,
+      input: { reference },
+    });
     refreshDetail();
     setRefreshToken((token) => token + 1);
     setIsInvalidating(false);
@@ -871,7 +890,10 @@ export function PullRequestDetailPanel({
     }
     if (action === "delete-branch") {
       const { locale: uiLocale } = readWebI18n();
-      toastManager.add({ type: "success", title: translateWebSource(uiLocale, "Branch deleted") });
+      toastManager.add({
+        type: "success",
+        title: translateWebSource(uiLocale, "Branch deleted"),
+      });
     }
     if (pullRequestActionNeedsHostRefresh(action)) {
       void refreshFromHost();
@@ -904,7 +926,10 @@ export function PullRequestDetailPanel({
     if (commentResult._tag === "Failure") {
       const { t } = readWebI18n();
       setPendingAction(null);
-      toastManager.add({ type: "error", title: t("pullRequests.comments.postFailed") });
+      toastManager.add({
+        type: "error",
+        title: t("pullRequests.comments.postFailed"),
+      });
       return { commentPosted: false };
     }
     const actionSucceeded = await finishAction(action);
@@ -1014,7 +1039,10 @@ export function PullRequestDetailPanel({
 
   const startHandoff = async (
     kind: string,
-    task: { prompt: string; reviewComments?: ReadonlyArray<ReviewCommentContext> } | null,
+    task: {
+      prompt: string;
+      reviewComments?: ReadonlyArray<ReviewCommentContext>;
+    } | null,
     mode: "worktree" | "local" = "worktree",
   ) => {
     if (!handoffSummary || handoff !== null) return;
@@ -1094,10 +1122,10 @@ export function PullRequestDetailPanel({
       worktreePath: prepared.value.worktreePath,
       envMode: prepared.value.worktreePath === null ? "local" : "worktree",
     }).then(
-      (session) => session !== null,
-      () => false,
+      (session) => session,
+      () => null,
     );
-    if (!pointed) {
+    if (pointed === null) {
       const { t } = readWebI18n();
       setHandoff(null);
       // Sending after failed rebinding would use the previous checkout.
@@ -1110,6 +1138,13 @@ export function PullRequestDetailPanel({
       });
       return;
     }
+    // The draft carries the pull request until its first send makes it a thread, which links it.
+    useComposerDraftStore.getState().setDraftThreadContext(pointed.draftId, {
+      checkoutPullRequest: {
+        url: prepared.value.pullRequest.url,
+        branch: prepared.value.branch,
+      },
+    });
     setHandoff(null);
     if (task === null) {
       const { t, locale: uiLocale } = readWebI18n();
@@ -1135,7 +1170,9 @@ export function PullRequestDetailPanel({
       );
       return;
     }
-    await openThreadWithTask(projectRef, task, opened);
+    // The task goes on the checkout draft: if the user typed into `opened` while the
+    // checkout ran, that is no longer the draft the user is looking at.
+    await openThreadWithTask(projectRef, task, pointed);
     toastManager.update(
       toastId,
       prepared.value.isOnPullRequestHead
@@ -1259,7 +1296,10 @@ export function PullRequestDetailPanel({
     // The active editor may be answering a provider question rather than editing this draft.
     if (!hasReference) store.addReviewComment(attachTarget, reference, { insertAtCaret: false });
     store.addReviewComment(attachTarget, comment, { insertAtCaret: false });
-    toastManager.add({ type: "success", title: readWebI18n().t("audit3.composerAdded") });
+    toastManager.add({
+      type: "success",
+      title: readWebI18n().t("audit3.composerAdded"),
+    });
   };
 
   const startCheckout = (mode: "worktree" | "local") => {
@@ -1280,6 +1320,7 @@ export function PullRequestDetailPanel({
         state: detail.state,
         isDraft: detail.isDraft,
         finding,
+        inThisThread: attachTarget !== null,
       }),
     );
   };
@@ -1300,6 +1341,7 @@ export function PullRequestDetailPanel({
         comments: detail.comments,
         checks: checksStale ? [] : detail.checks,
         commentsTruncated: detail.commentsTruncated,
+        inThisThread: attachTarget !== null,
       }),
     );
   };
@@ -1312,6 +1354,7 @@ export function PullRequestDetailPanel({
         url: handoffSummary.url,
         headBranch: handoffSummary.headBranch,
         baseBranch: handoffSummary.baseBranch,
+        inThisThread: attachTarget !== null,
       }),
     });
   };
@@ -1402,7 +1445,11 @@ export function PullRequestDetailPanel({
     !conflicting &&
     allowedMergeMethods.length > 1;
   const statePresentation = detail
-    ? resolvePullRequestState({ state: detail.state, isDraft: detail.isDraft, t })
+    ? resolvePullRequestState({
+        state: detail.state,
+        isDraft: detail.isDraft,
+        t,
+      })
     : null;
   const showsDeleteBranch = detail !== null && canDeletePullRequestBranch(detail);
   const environmentConnected = environments.some(
@@ -1742,7 +1789,6 @@ export function PullRequestDetailPanel({
                     pullRequestKey={pullRequestKey}
                     detail={detail}
                     canWriteSourceControl={canWriteSourceControl}
-                    onSaved={refreshDetail}
                   />
                 }
                 author={
@@ -1898,7 +1944,9 @@ export function PullRequestDetailPanel({
                       <PullRequestReviewOutcomeIcon outcome="approved" className="size-3" />
                       {approvalCount.toLocaleString()}
                       <span className="sr-only">
-                        {t("pullRequests.review.approvalCount", { count: approvalCount })}
+                        {t("pullRequests.review.approvalCount", {
+                          count: approvalCount,
+                        })}
                       </span>
                     </span>
                   ) : null}
@@ -1946,7 +1994,11 @@ export function PullRequestDetailPanel({
             if (top < 4 && foldHeight > 0) next = false;
           } else if (foldHeight > 0 && top > foldHeight + 32) {
             const chromeDelta = foldHeight - (condensedRowRef.current?.scrollHeight ?? 0);
-            compensationRef.current = { tab, scroller, target: top - chromeDelta };
+            compensationRef.current = {
+              tab,
+              scroller,
+              target: top - chromeDelta,
+            };
             next = true;
           }
           if (next !== previous) setCondensedByTab({ ...condensedByTab, [tab]: next });

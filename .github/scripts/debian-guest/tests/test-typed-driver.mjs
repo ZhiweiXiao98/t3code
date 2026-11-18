@@ -128,7 +128,8 @@ async function settingsFixture(locale, data) {
       getByRole: (role, { name, exact }) => ({
         waitFor: async () => {
           NodeAssert.equal(exact, true);
-          NodeAssert.ok((role === "treeitem" ? data.navigation : data.groups).includes(name));
+          NodeAssert.ok(["button", "group"].includes(role));
+          NodeAssert.ok((role === "button" ? data.navigation : data.groups).includes(name));
         },
       }),
       url: () => `t3code://app/#${path}`,
@@ -222,7 +223,7 @@ async function auditFixture(fault) {
                 NodeAssert.notEqual(fault, "selected");
                 NodeAssert.equal(
                   selector,
-                  `[data-settings-section="${route}"][aria-selected="true"]`,
+                  `[data-settings-section="${route}"][aria-current="page"]`,
                 );
               },
               getAttribute: async () => "zh-CN",

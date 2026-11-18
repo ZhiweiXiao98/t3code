@@ -139,6 +139,17 @@ export function formatChatTimestampTooltip(
   return `${time}, ${day}${ordinalSuffix(day)} ${month} ${year}`;
 }
 
+export function formatFullTimestamp(
+  isoDate: string,
+  timestampFormat: TimestampFormat,
+  locale?: string,
+): string {
+  return new Date(isoDate).toLocaleString(
+    locale,
+    timestampFormat === "locale" ? undefined : { hour12: timestampFormat === "12-hour" },
+  );
+}
+
 export function formatShortTimestamp(
   isoDate: string,
   timestampFormat: TimestampFormat,
@@ -149,7 +160,10 @@ export function formatShortTimestamp(
   return getTimestampFormatter(timestampFormat, false, undefined, locale).format(date);
 }
 
-const numericDateOptions: Intl.DateTimeFormatOptions = { month: "numeric", day: "numeric" };
+const numericDateOptions: Intl.DateTimeFormatOptions = {
+  month: "numeric",
+  day: "numeric",
+};
 const numericDateWithYearOptions: Intl.DateTimeFormatOptions = {
   ...numericDateOptions,
   year: "numeric",
@@ -169,7 +183,10 @@ interface CalendarDay {
 function calendarDay(date: Date, timeZone: string | undefined): CalendarDay {
   if (!timeZone) {
     const year = date.getFullYear();
-    return { year, index: Date.UTC(year, date.getMonth(), date.getDate()) / 86_400_000 };
+    return {
+      year,
+      index: Date.UTC(year, date.getMonth(), date.getDate()) / 86_400_000,
+    };
   }
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone,
@@ -180,7 +197,10 @@ function calendarDay(date: Date, timeZone: string | undefined): CalendarDay {
   const part = (type: Intl.DateTimeFormatPartTypes) =>
     Number(parts.find((entry) => entry.type === type)?.value);
   const year = part("year");
-  return { year, index: Date.UTC(year, part("month") - 1, part("day")) / 86_400_000 };
+  return {
+    year,
+    index: Date.UTC(year, part("month") - 1, part("day")) / 86_400_000,
+  };
 }
 
 const numericDateFormatterCache = new Map<string, Intl.DateTimeFormat>();

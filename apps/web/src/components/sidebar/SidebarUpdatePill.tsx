@@ -144,10 +144,14 @@ export async function downloadLocalUpdate(
   bridge: DesktopBridge,
   {
     notifyDownloaded,
+    failureContext,
     reportError = toastUpdateError,
-  }: { readonly notifyDownloaded: boolean; readonly reportError?: ReportLocalUpdateError },
+  }: {
+    readonly notifyDownloaded: boolean;
+    readonly failureContext?: "about";
+    readonly reportError?: ReportLocalUpdateError;
+  },
 ): Promise<boolean> {
-  const { t } = readWebI18n();
   try {
     const result = await bridge.downloadUpdate();
     if (result.completed && notifyDownloaded) {
@@ -156,12 +160,32 @@ export async function downloadLocalUpdate(
     const actionError = shouldToastDesktopUpdateActionResult(result)
       ? getDesktopUpdateActionError(result)
       : null;
-    if (actionError) reportError(t("desktopUpdate.downloadError"), actionError);
+    const { t } = readWebI18n();
+    if (actionError)
+      reportError(
+        t(
+          failureContext === "about"
+            ? "settings.about.error.downloadTitle"
+            : "desktopUpdate.downloadError",
+        ),
+        actionError,
+      );
     return result.completed;
   } catch (error) {
+    const { t } = readWebI18n();
     reportError(
-      t("desktopUpdate.startDownloadError"),
-      error instanceof Error ? error.message : t("desktopUpdate.unexpectedError"),
+      t(
+        failureContext === "about"
+          ? "settings.about.error.downloadTitle"
+          : "desktopUpdate.startDownloadError",
+      ),
+      error instanceof Error
+        ? error.message
+        : t(
+            failureContext === "about"
+              ? "settings.about.error.downloadDescription"
+              : "desktopUpdate.unexpectedError",
+          ),
     );
     return false;
   }
@@ -218,7 +242,10 @@ function SidebarUpdateControl() {
   const [isCheckAnimationLatched, setIsCheckAnimationLatched] = useState(
     () => !prefersReducedMotion && updateStatus === "checking",
   );
-  const [latchInputs, setLatchInputs] = useState({ prefersReducedMotion, updateStatus });
+  const [latchInputs, setLatchInputs] = useState({
+    prefersReducedMotion,
+    updateStatus,
+  });
   if (
     latchInputs.prefersReducedMotion !== prefersReducedMotion ||
     latchInputs.updateStatus !== updateStatus
@@ -313,6 +340,7 @@ function SidebarUpdateControl() {
       try {
         confirmed = await ensureLocalApi().dialogs.confirm(
           getDesktopUpdateInstallConfirmationMessage(state, t),
+          { initialFocus: "confirm" },
         );
       } catch (error) {
         setIsActionPending(false);
@@ -373,11 +401,16 @@ function SidebarUpdateControl() {
         ...(bridge && action === "download"
           ? {
               downloadLocal: (reportError) =>
-                downloadLocalUpdate(bridge, { notifyDownloaded: false, reportError }),
+                downloadLocalUpdate(bridge, {
+                  notifyDownloaded: false,
+                  reportError,
+                }),
             }
           : {}),
         ...(bridge && action !== "none"
-          ? { installLocal: (reportError) => installLocalUpdate(bridge, reportError) }
+          ? {
+              installLocal: (reportError) => installLocalUpdate(bridge, reportError),
+            }
           : {}),
       }),
     );

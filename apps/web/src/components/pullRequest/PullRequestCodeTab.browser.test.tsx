@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { userEvent } from "vite-plus/test/browser";
 import { WebI18nContext } from "~/i18n/WebI18nContext";
 import { translateWebMessage } from "~/i18n/messages";
 import { pullRequestEnvironment } from "~/state/pullRequests";
@@ -15,6 +14,7 @@ import {
   type PullRequestReviewThread,
 } from "@t3tools/contracts";
 import { expect, it, vi } from "vite-plus/test";
+import { page, userEvent } from "vite-plus/test/browser";
 
 import "~/index.css";
 import { getClientSettings, __setClientSettingsForTests } from "../../hooks/useSettings";
@@ -51,7 +51,11 @@ const { diffAtom, pagedDiffAtom } = await vi.hoisted(async () => {
       truncated: true,
       nextCursor: "page-2",
     },
-    "page-2": { patch: filePatch("late.test.ts"), truncated: false, nextCursor: null },
+    "page-2": {
+      patch: filePatch("late.test.ts"),
+      truncated: false,
+      nextCursor: null,
+    },
   };
   return {
     // An environment query whose refetch returns equal content hands back the previous value
@@ -140,7 +144,12 @@ vi.mock(import("./usePullRequestFilesViewed"), async () => {
         enabled: viewedPaths !== null,
         isViewed: (path: string) => viewedPaths?.has(path) === true,
         isStale: () => false,
-        setViewed: () => {},
+        setViewed: (path: string, viewed: boolean) => {
+          const next = new Set(mocks.viewedPaths);
+          if (viewed) next.add(path);
+          else next.delete(path);
+          deliverViewedPaths(next);
+        },
         truncated: false,
         error: null,
         refresh: () => {},
@@ -204,7 +213,12 @@ const detail: PullRequestDetailView = {
     search: true,
     actions: [],
     mergeMethods: [],
-    review: { inlineComment: false, reply: false, resolve: false, verdicts: [] },
+    review: {
+      inlineComment: false,
+      reply: false,
+      resolve: false,
+      verdicts: [],
+    },
     reviewers: { request: false, listCandidates: false },
     edit: { changeRequest: false, comment: false },
   },
@@ -228,7 +242,10 @@ function setup({ paged }: { paged: boolean }) {
 
 const tab = (
   refreshToken: number,
-  revealRequest: { readonly path: string; readonly nonce: number } | null = null,
+  revealRequest: {
+    readonly path: string;
+    readonly nonce: number;
+  } | null = null,
   revealUrl?: string,
   onRevealSettled?: (url: string) => void,
 ) => (
@@ -262,10 +279,62 @@ it("keeps the diff after a refresh that brings back the same page", async () => 
   await expect.element(screen.getByText("1 file", { exact: true })).toBeVisible();
 });
 
+it("restores saved Viewed folds, follows cleared marks, and allows explicit expansion", async () => {
+  setup({ paged: false });
+  __setClientSettingsForTests({
+    ...DEFAULT_CLIENT_SETTINGS,
+    diffFilesCollapsed: false,
+  });
+  using _preferences = {
+    [Symbol.dispose]() {
+      __setClientSettingsForTests(DEFAULT_CLIENT_SETTINGS);
+    },
+  };
+  mocks.viewedPaths = new Set(["a.ts"]);
+  const container = document.createElement("div");
+  container.className = "flex h-[700px] w-[900px]";
+  await using screen = await render(tab(0), { container });
+  await expect.element(screen.getByRole("checkbox", { name: "Viewed" })).toBeChecked();
+  await expect
+    .element(screen.getByRole("button", { name: "Expand diff", exact: true }))
+    .toHaveAttribute("aria-expanded", "false");
+
+  await screen.getByRole("button", { name: "Expand diff", exact: true }).click();
+  await expect.element(screen.getByText("three()", { exact: true })).toBeVisible();
+  screen.getByRole("checkbox", { name: "Viewed" }).element().focus();
+  await userEvent.keyboard(" ");
+  await expect.element(screen.getByRole("checkbox", { name: "Viewed" })).not.toBeChecked();
+  await expect.element(screen.getByText("three()", { exact: true })).toBeVisible();
+  screen.getByRole("checkbox", { name: "Viewed" }).element().focus();
+  await userEvent.keyboard(" ");
+  await expect
+    .element(screen.getByRole("button", { name: "Expand diff", exact: true }))
+    .toHaveAttribute("aria-expanded", "false");
+
+  deliverViewedPaths(new Set());
+  await expect.element(screen.getByRole("checkbox", { name: "Viewed" })).not.toBeChecked();
+  await expect.element(screen.getByText("three()", { exact: true })).toBeVisible();
+  deliverViewedPaths(new Set(["a.ts"]));
+  await expect
+    .element(screen.getByRole("button", { name: "Expand diff", exact: true }))
+    .toHaveAttribute("aria-expanded", "false");
+  await screen.getByRole("button", { name: "Expand all files", exact: true }).click();
+  await expect.element(screen.getByText("three()", { exact: true })).toBeVisible();
+
+  await screen.rerender(<div />);
+  await screen.rerender(tab(1));
+  await expect
+    .element(screen.getByRole("button", { name: "Expand diff", exact: true }))
+    .toHaveAttribute("aria-expanded", "false");
+});
+
 // regression: #13279 a Viewed answer that lands after a link reveals a file must not fold it
 it("keeps a revealed file open when its Viewed mark loads afterwards", async () => {
   setup({ paged: false });
-  __setClientSettingsForTests({ ...DEFAULT_CLIENT_SETTINGS, diffFilesCollapsed: false });
+  __setClientSettingsForTests({
+    ...DEFAULT_CLIENT_SETTINGS,
+    diffFilesCollapsed: false,
+  });
   using _preferences = {
     [Symbol.dispose]() {
       __setClientSettingsForTests(DEFAULT_CLIENT_SETTINGS);
@@ -274,7 +343,9 @@ it("keeps a revealed file open when its Viewed mark loads afterwards", async () 
   mocks.viewedPaths = new Set();
   const container = document.createElement("div");
   container.className = "flex h-[700px] w-[900px]";
-  await using screen = await render(tab(0, { path: "a.ts", nonce: 1 }), { container });
+  await using screen = await render(tab(0, { path: "a.ts", nonce: 1 }), {
+    container,
+  });
   await expect.element(screen.getByText("three()", { exact: true })).toBeVisible();
 
   deliverViewedPaths(new Set(["a.ts"]));
@@ -310,14 +381,19 @@ async function expectFileHeaderShown(
 it("scrolls to a file asked for as the tab opens", async () => {
   setup({ paged: true });
   const container = pagedContainer();
-  await using screen = await render(tab(0, { path: "early-39.ts", nonce: 1 }), { container });
+  await using screen = await render(tab(0, { path: "early-39.ts", nonce: 1 }), {
+    container,
+  });
 
   await expectFileHeaderShown(screen, container, "early-39.ts");
 });
 
 it("pages forward to a file asked for that is not loaded yet, then scrolls to it", async () => {
   setup({ paged: true });
-  __setClientSettingsForTests({ ...DEFAULT_CLIENT_SETTINGS, diffFilesCollapsed: true });
+  __setClientSettingsForTests({
+    ...DEFAULT_CLIENT_SETTINGS,
+    diffFilesCollapsed: true,
+  });
   using _preferences = {
     [Symbol.dispose]() {
       window.localStorage.removeItem("t3code.diffHideTestFiles");
@@ -384,7 +460,13 @@ it("answers a commit's diff link only once that commit's diff is shown", async (
   const oid = "c".repeat(40);
   const withCommit = {
     ...detail,
-    commits: [{ oid, messageHeadline: "Linked commit", committedDate: "2026-09-01T00:00:00Z" }],
+    commits: [
+      {
+        oid,
+        messageHeadline: "Linked commit",
+        committedDate: "2026-09-01T00:00:00Z",
+      },
+    ],
   };
   const url = `${detail.url}/commits/${oid}#diff-${bytesToHex(sha256(new TextEncoder().encode("a.ts")))}R2`;
   const settled = vi.fn();
@@ -484,16 +566,25 @@ function commentsSurface(
             ? {
                 capabilities: {
                   ...detail.capabilities,
-                  review: { ...detail.capabilities.review, resolve: resolution.capability },
+                  review: {
+                    ...detail.capabilities.review,
+                    resolve: resolution.capability,
+                  },
                 },
-                viewerPermissions: { ...detail.viewerPermissions, resolve: resolution.permission },
+                viewerPermissions: {
+                  ...detail.viewerPermissions,
+                  resolve: resolution.permission,
+                },
               }
             : {}),
           ...(actions
             ? {
                 capabilities: {
                   ...detail.capabilities,
-                  review: { ...detail.capabilities.review, reply: actions.reply },
+                  review: {
+                    ...detail.capabilities.review,
+                    reply: actions.reply,
+                  },
                   edit: {
                     changeRequest: false,
                     ...detail.capabilities.edit,
@@ -510,7 +601,10 @@ function commentsSurface(
             {
               ...(hasCursor ? orphan : withoutCursor),
               ...(resolution
-                ? { isResolved: resolution.resolved, canResolve: resolution.threadAllowed }
+                ? {
+                    isResolved: resolution.resolved,
+                    canResolve: resolution.threadAllowed,
+                  }
                 : {}),
             },
           ],
@@ -570,9 +664,16 @@ it.each([
     await screen.getByRole("button", { name: "Load more comments", exact: true }).click();
     expect(mocks.loadComments).toHaveBeenCalledExactlyOnceWith({
       environmentId: EnvironmentId.make("environment"),
-      input: { ...commentsReference, threadId: orphan.id, cursor: orphan.nextCommentsCursor },
+      input: {
+        ...commentsReference,
+        threadId: orphan.id,
+        cursor: orphan.nextCommentsCursor,
+      },
     });
-    const loading = screen.getByRole("button", { name: "Loading…", exact: true });
+    const loading = screen.getByRole("button", {
+      name: "Loading…",
+      exact: true,
+    });
     await expect.element(loading).toBeDisabled();
     await act(async () => {
       loading.element().dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
@@ -655,9 +756,16 @@ it.each([
       }),
     );
     const refresh = vi.fn();
-    const options = { resolved, capability: true, permission: true, threadAllowed: true };
+    const options = {
+      resolved,
+      capability: true,
+      permission: true,
+      threadAllowed: true,
+    };
     const surface = (locale: "en" | "zh-CN") => commentsSurface(locale, refresh, false, options);
-    await using screen = await render(surface("en"), { container: pagedContainer() });
+    await using screen = await render(surface("en"), {
+      container: pagedContainer(),
+    });
     await using _settle = {
       async [Symbol.asyncDispose]() {
         await act(async () => {
@@ -764,7 +872,10 @@ it.each([
       finish(AsyncResult.failure(kind === "interrupted" ? Cause.interrupt() : Cause.fail(failure)));
       await Promise.resolve();
     });
-    expect(mocks.toast).toHaveBeenCalledExactlyOnceWith({ type: "error", title: "无法更新对话" });
+    expect(mocks.toast).toHaveBeenCalledExactlyOnceWith({
+      type: "error",
+      title: "无法更新对话",
+    });
     await expect
       .element(
         screen.getByRole("button", {
@@ -780,7 +891,10 @@ it.each([
     await screen.rerender(surface("en"));
     await expect
       .element(
-        screen.getByRole("button", { name: resolved ? "Unresolve" : "Resolve", exact: true }),
+        screen.getByRole("button", {
+          name: resolved ? "Unresolve" : "Resolve",
+          exact: true,
+        }),
       )
       .toBeEnabled();
     expect(mocks.toast).toHaveBeenCalledTimes(1);
@@ -822,6 +936,46 @@ it.each(["capability", "permission", "threadAllowed"] as const)(
     expect(refresh).not.toHaveBeenCalled();
   },
 );
+
+function traceReviewEditFillFailure(container: HTMLElement) {
+  if (import.meta.env.VITE_T3_MENU_TRACE !== "1") return;
+  try {
+    const count = (selector: string) => Math.min(container.querySelectorAll(selector).length, 100);
+    const active = container.ownerDocument.activeElement;
+    console.error(
+      JSON.stringify({
+        marker: "t3-review-edit-fill-diagnostic",
+        schemaVersion: 1,
+        phase: "fill-edit-comment",
+        rootConnected: container.isConnected,
+        rootMatches: Math.min(
+          container.ownerDocument.querySelectorAll('[data-testid="review-thread-edit-raw"]').length,
+          100,
+        ),
+        textboxCount: count('textarea, input:not([type]), input[type="text"], [role="textbox"]'),
+        englishEditTextboxCount: count(
+          'textarea[aria-label="Edit comment"], [role="textbox"][aria-label="Edit comment"]',
+        ),
+        chineseEditTextboxCount: count(
+          'textarea[aria-label="编辑评论"], [role="textbox"][aria-label="编辑评论"]',
+        ),
+        disabledTextareaCount: count("textarea:disabled"),
+        editButtonCount: count('button[aria-label="Edit comment"], button[aria-label="编辑评论"]'),
+        editorModeGroupCount: count(
+          '[data-slot="toggle-group"][aria-label="Markdown editor mode"], [data-slot="toggle-group"][aria-label="Markdown 编辑器模式"]',
+        ),
+        pressedToggleCount: count('[data-slot="toggle"][data-pressed]'),
+        expandedCount: count('[aria-expanded="true"]'),
+        focusInsideRoot: active !== null && container.contains(active),
+        focusIsTextarea: active?.tagName === "TEXTAREA",
+        focusIsButton: active?.tagName === "BUTTON",
+        focusIsBody: active === container.ownerDocument.body,
+      }),
+    );
+  } catch {
+    // Diagnostics must not replace the original browser assertion failure.
+  }
+}
 
 function actionSurface(
   locale: "en" | "zh-CN",
@@ -873,9 +1027,13 @@ for (const action of ["reply", "edit"] as const) {
         }),
       );
       const refresh = vi.fn();
+      const container = pagedContainer();
+      // Keep scoped locators anchored when transient portal nodes change the surrounding DOM.
+      container.dataset.testid = `review-thread-${action}-${kind}`;
       await using screen = await render(actionSurface("en", refresh), {
-        container: pagedContainer(),
+        container,
       });
+      const root = page.getByTestId(container.dataset.testid);
       await using _settle = {
         async [Symbol.asyncDispose]() {
           await act(async () => {
@@ -884,21 +1042,28 @@ for (const action of ["reply", "edit"] as const) {
           });
         },
       };
-      await screen.getByRole("button", { name: /^Conversations not on the current diff/ }).click();
-      await expect
-        .element(screen.getByText(orphan.comments[0]!.body, { exact: true }))
-        .toBeVisible();
-      await screen
-        .getByRole("button", { name: action === "reply" ? "Reply" : "Edit comment", exact: true })
+      await root.getByRole("button", { name: /^Conversations not on the current diff/ }).click();
+      await expect.element(root.getByText(orphan.comments[0]!.body, { exact: true })).toBeVisible();
+      await root
+        .getByRole("button", {
+          name: action === "reply" ? "Reply" : "Edit comment",
+          exact: true,
+        })
         .click();
       const draft = "  Literal $& {draft}\nsecond line  ";
-      const input = screen.getByRole("textbox", {
+      const input = root.getByRole("textbox", {
         name: action === "reply" ? "Reply to this conversation" : "Edit comment",
         exact: true,
       });
-      await userEvent.fill(input, draft);
-      await screen
-        .getByRole("button", { name: action === "reply" ? "Reply" : "Save", exact: true })
+      await userEvent.fill(input, draft).catch((error: unknown) => {
+        if (action === "edit" && kind === "raw") traceReviewEditFillFailure(container);
+        throw error;
+      });
+      await root
+        .getByRole("button", {
+          name: action === "reply" ? "Reply" : "Save",
+          exact: true,
+        })
         .click();
       if (action === "reply") {
         expect(command).not.toHaveBeenCalled();
@@ -920,7 +1085,7 @@ for (const action of ["reply", "edit"] as const) {
                 body: draft,
               },
       });
-      const pending = screen.getByRole("button", {
+      const pending = root.getByRole("button", {
         name: action === "reply" ? "Reply" : "Saving...",
         exact: true,
       });
@@ -944,7 +1109,7 @@ for (const action of ["reply", "edit"] as const) {
       });
       await expect
         .element(
-          screen.getByRole("textbox", {
+          root.getByRole("textbox", {
             name: action === "reply" ? "回复此对话" : "编辑评论",
             exact: true,
           }),
@@ -952,12 +1117,15 @@ for (const action of ["reply", "edit"] as const) {
         .toHaveValue(draft);
       await expect
         .element(
-          screen.getByRole("button", { name: action === "reply" ? "回复" : "保存", exact: true }),
+          root.getByRole("button", {
+            name: action === "reply" ? "回复" : "保存",
+            exact: true,
+          }),
         )
         .toBeEnabled();
       if (action === "reply")
         await expect
-          .element(screen.getByText(orphan.comments[0]!.body, { exact: true }))
+          .element(root.getByText(orphan.comments[0]!.body, { exact: true }))
           .toBeVisible();
       expect(refresh).not.toHaveBeenCalled();
       expect(mocks.otherCommand).not.toHaveBeenCalled();
@@ -967,10 +1135,8 @@ for (const action of ["reply", "edit"] as const) {
       await screen.rerender(actionSurface("en", refresh));
       expect(mocks.toast).toHaveBeenCalledTimes(1);
       expect(command).toHaveBeenCalledTimes(1);
-      await screen.getByRole("button", { name: "Cancel", exact: true }).click();
-      await expect
-        .element(screen.getByText(orphan.comments[0]!.body, { exact: true }))
-        .toBeVisible();
+      await root.getByRole("button", { name: "Cancel", exact: true }).click();
+      await expect.element(root.getByText(orphan.comments[0]!.body, { exact: true })).toBeVisible();
     },
   );
 }
@@ -983,7 +1149,9 @@ it("preserves review-thread reply blank and cancellation guards", async () => {
   };
   resetCommentActions();
   const refresh = vi.fn();
-  await using screen = await render(actionSurface("en", refresh), { container: pagedContainer() });
+  await using screen = await render(actionSurface("en", refresh), {
+    container: pagedContainer(),
+  });
   await screen.getByRole("button", { name: /^Conversations not on the current diff/ }).click();
   await screen.getByRole("button", { name: "Reply", exact: true }).click();
   await screen.getByRole("button", { name: "Reply", exact: true }).click();
@@ -994,7 +1162,12 @@ it("preserves review-thread reply blank and cancellation guards", async () => {
   expect(mocks.reply).not.toHaveBeenCalled();
   await screen.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect
-    .element(screen.getByRole("textbox", { name: "Reply to this conversation", exact: true }))
+    .element(
+      screen.getByRole("textbox", {
+        name: "Reply to this conversation",
+        exact: true,
+      }),
+    )
     .not.toBeInTheDocument();
   expect(mocks.toast).not.toHaveBeenCalled();
   expect(refresh).not.toHaveBeenCalled();
@@ -1009,10 +1182,15 @@ it("preserves review-thread edit write-scope and Escape guards", async () => {
   };
   resetCommentActions();
   const refresh = vi.fn();
-  await using screen = await render(actionSurface("en", refresh), { container: pagedContainer() });
+  await using screen = await render(actionSurface("en", refresh), {
+    container: pagedContainer(),
+  });
   await screen.getByRole("button", { name: /^Conversations not on the current diff/ }).click();
   await screen.getByRole("button", { name: "Edit comment", exact: true }).click();
-  const input = screen.getByRole("textbox", { name: "Edit comment", exact: true });
+  const input = screen.getByRole("textbox", {
+    name: "Edit comment",
+    exact: true,
+  });
   await userEvent.fill(input, "Unsent literal {edit}");
   const save = screen.getByRole("button", { name: "Save", exact: true });
   await expect.element(save).toBeEnabled();
@@ -1023,9 +1201,13 @@ it("preserves review-thread edit write-scope and Escape guards", async () => {
   await expect.element(save).toBeDisabled();
   await act(async () => {
     save.element().dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
-    input
-      .element()
-      .dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", ctrlKey: true, bubbles: true }));
+    input.element().dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Enter",
+        ctrlKey: true,
+        bubbles: true,
+      }),
+    );
   });
   expect(mocks.edit).not.toHaveBeenCalled();
   await input.click();
@@ -1073,3 +1255,100 @@ it.each(["reply", "commentPermission", "edit"] as const)(
     expect(refresh).not.toHaveBeenCalled();
   },
 );
+it("hides a resolved conversation behind avatars on its line until they are clicked", async () => {
+  setup({ paged: false });
+  __setClientSettingsForTests({
+    ...DEFAULT_CLIENT_SETTINGS,
+    diffFilesCollapsed: false,
+  });
+  using _preferences = {
+    [Symbol.dispose]() {
+      __setClientSettingsForTests(DEFAULT_CLIENT_SETTINGS);
+    },
+  };
+  const container = document.createElement("div");
+  container.className = "flex h-[700px] w-[900px]";
+  const comment = {
+    author: { login: "reviewer", name: null, avatarUrl: null },
+    body: "Rename this.",
+    createdAt: "2026-09-01T00:00:00Z",
+    url: null,
+  };
+  const withThread = (isResolved: boolean, oldSideToo = false) => (
+    <PullRequestCodeTab
+      scrollerRef={() => {}}
+      environmentId={EnvironmentId.make("environment")}
+      reference={detail}
+      detail={{
+        ...detail,
+        capabilities: {
+          ...detail.capabilities,
+          review: { ...detail.capabilities.review, reply: true },
+        },
+        viewerPermissions: { ...detail.viewerPermissions, comment: true },
+        reviewThreads: [
+          {
+            id: "thread",
+            path: "a.ts",
+            line: 3,
+            side: "right",
+            isResolved,
+            isOutdated: false,
+            comments: [{ id: "comment", ...comment }],
+          },
+          ...(oldSideToo
+            ? [
+                {
+                  id: "old-side",
+                  path: "a.ts",
+                  line: 3,
+                  side: "left" as const,
+                  isResolved: true,
+                  isOutdated: false,
+                  comments: [{ id: "old-side-comment", ...comment }],
+                },
+              ]
+            : []),
+        ],
+      }}
+      selectedCommitOid={null}
+      onSelectedCommitChange={() => {}}
+      onRefresh={() => {}}
+    />
+  );
+  await using screen = await render(withThread(true), { container });
+  const marker = screen.getByRole("button", {
+    name: "Resolved conversation",
+    exact: true,
+  });
+  const card = (state: string) => screen.getByRole("button", { name: `${state} · 1 comment` });
+  const reply = () => screen.getByRole("textbox", { name: "Reply to this conversation" });
+
+  await expect.element(marker).toHaveAttribute("aria-expanded", "false");
+  await expect.element(card("Resolved")).not.toBeInTheDocument();
+
+  await marker.click();
+  await expect.element(marker).toHaveAttribute("aria-expanded", "true");
+  await expect.element(card("Resolved")).toHaveAttribute("aria-expanded", "true");
+  await screen.getByRole("button", { name: "Reply", exact: true }).click();
+  await reply().fill("Unsent");
+
+  // Hidden conversations stay mounted, so the unsent reply is still there.
+  await marker.click();
+  await expect.element(card("Resolved")).not.toBeInTheDocument();
+  await marker.click();
+  await expect.element(reply()).toHaveValue("Unsent");
+  await marker.click();
+
+  // Seen open and then resolved, it stays until the avatars are clicked.
+  await screen.rerender(withThread(false));
+  await expect.element(card("Open")).toBeVisible();
+  await screen.rerender(withThread(true));
+  await expect.element(card("Resolved")).toBeVisible();
+
+  // Stacked view draws a context row once, so both sides' conversations share the avatars.
+  await screen.rerender(withThread(true, true));
+  await expect
+    .element(screen.getByRole("button", { name: "2 resolved conversations" }))
+    .toBeVisible();
+});

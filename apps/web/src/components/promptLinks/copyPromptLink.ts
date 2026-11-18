@@ -17,6 +17,7 @@ import {
 import { type ComposerThreadTarget, useComposerDraftStore } from "~/composerDraftStore";
 import { writeTextToClipboard } from "~/hooks/useCopyToClipboard";
 import { configuredHostedAppUrl } from "~/hostedPairing";
+import { draftModelSelectionApplies } from "~/lib/chatThreadActions";
 
 import { stackedThreadToast, toastManager } from "../ui/toast";
 
@@ -31,7 +32,11 @@ export function promptLinkFor(
 ): string | null {
   const trimmed = isAttachmentOnlyBootstrapPrompt(prompt) ? "" : prompt.trim();
   if (trimmed.length === 0 || trimmed.length > PROMPT_LINK_MAX_PROMPT_LENGTH) return null;
-  return buildNewThreadLink({ prompt: trimmed, ...context, origin: configuredHostedAppUrl() });
+  return buildNewThreadLink({
+    prompt: trimmed,
+    ...context,
+    origin: configuredHostedAppUrl(),
+  });
 }
 
 export function promptLinkRepositoryOf(
@@ -50,14 +55,16 @@ export function composerPromptLink(input: {
   readonly project: EnvironmentProject | undefined;
   readonly providers: ReadonlyArray<ServerProvider>;
   readonly threadModelSelection: ModelSelection | null;
+  readonly threadStarted: boolean;
   readonly withContext: boolean;
 }): string | null {
   const draft = useComposerDraftStore.getState().getComposerDraft(input.target);
   if (!draft) return null;
   if (!input.withContext) return promptLinkFor(draft.prompt);
   const selection =
-    (draft.activeProvider ? draft.modelSelectionByProvider[draft.activeProvider] : undefined) ??
-    input.threadModelSelection;
+    (draft.activeProvider && draftModelSelectionApplies(draft, input.threadStarted)
+      ? draft.modelSelectionByProvider[draft.activeProvider]
+      : undefined) ?? input.threadModelSelection;
   const provider = selection
     ? (input.providers.find((candidate) => candidate.instanceId === selection.instanceId)?.driver ??
       null)
@@ -72,8 +79,7 @@ export function composerPromptLink(input: {
 export async function copyPromptLink(link: string): Promise<void> {
   const { locale } = readWebI18n();
   try {
-    if (!(await writeTextToClipboard(link))) return;
-    toastManager.add({ type: "success", title: translateWebSource(locale, "Prompt link copied") });
+    await writeTextToClipboard(link);
   } catch (error) {
     toastManager.add(
       stackedThreadToast({

@@ -105,6 +105,13 @@ export function getDesktopUpdateButtonTooltip(
   ) {
     return t("desktopUpdate.notApplied", { version: state.notAppliedVersion });
   }
+  if (
+    (state.status === "available" || state.status === "error") &&
+    state.errorContext === "download" &&
+    state.availableVersion
+  ) {
+    return t("desktopUpdate.downloadFailed", { version: state.availableVersion });
+  }
   if (state.status === "available") {
     return t("desktopUpdate.readyDownload", {
       version: state.availableVersion ?? t("desktopUpdate.available"),
@@ -122,13 +129,19 @@ export function getDesktopUpdateButtonTooltip(
   }
   if (state.status === "error") {
     if (state.errorContext === "download" && state.availableVersion) {
-      return t("desktopUpdate.downloadFailed", { version: state.availableVersion });
+      return t("desktopUpdate.downloadFailed", {
+        version: state.availableVersion,
+      });
     }
     if (state.errorContext === "install" && state.downloadedVersion) {
-      return t("desktopUpdate.installFailed", { version: state.downloadedVersion });
+      return t("desktopUpdate.installFailed", {
+        version: state.downloadedVersion,
+      });
     }
     if (state.downloadedVersion) {
-      return t("desktopUpdate.downloaded", { version: state.downloadedVersion });
+      return t("desktopUpdate.downloaded", {
+        version: state.downloadedVersion,
+      });
     }
     return state.message ?? t("desktopUpdate.failed");
   }
@@ -140,7 +153,9 @@ export function getDesktopUpdateInstallConfirmationMessage(
   t: WebTranslate = translateEnglish,
 ): string {
   const version = state.downloadedVersion ?? state.availableVersion;
-  return t("desktopUpdate.confirmInstall", { version: version ? ` ${version}` : "" });
+  return t("desktopUpdate.confirmInstall", {
+    version: version ? ` ${version}` : "",
+  });
 }
 
 export function getDesktopUpdateActionError(result: DesktopUpdateActionResult): string | null {

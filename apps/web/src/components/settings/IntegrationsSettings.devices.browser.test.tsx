@@ -70,8 +70,8 @@ vi.mock("./SettingsScopeContext", async (original) => {
   const actual = await original<typeof import("./SettingsScopeContext")>();
   return {
     ...actual,
-    useSettingsScope: (() => scope) as typeof actual.useSettingsScope,
-    useOptionalSettingsScope: (() => scope) as typeof actual.useOptionalSettingsScope,
+    useSettingsScope: (() => scope) satisfies typeof actual.useSettingsScope,
+    useOptionalSettingsScope: (() => scope) satisfies typeof actual.useOptionalSettingsScope,
   };
 });
 vi.mock("./useScopedSettings", async (original) => {
@@ -179,6 +179,7 @@ const scope = {
   search: {},
   groups: [],
   singleEnvironment: false,
+  deviceOnly: false,
   selectScope: () => {},
   environment,
   environments: [environment],

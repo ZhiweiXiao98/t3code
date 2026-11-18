@@ -124,7 +124,9 @@ export function UsagePriceOverrides({
   const [attempt, setAttempt] = useState<SaveAttempt | null>(null);
   const focusRowRef = useRef<string | null>(null);
   const nextRowId = useRef(0);
-  const updateSettings = useAtomCommand(serverEnvironment.updateSettings, { reportFailure: false });
+  const updateSettings = useAtomCommand(serverEnvironment.updateSettings, {
+    reportFailure: false,
+  });
   const customModels = [
     ...new Set(
       selected.flatMap((environment) => [
@@ -162,6 +164,8 @@ export function UsagePriceOverrides({
   ];
   const stagedDrafts = drafts.filter((draft) => !isEmptyUsagePriceDraft(draft));
   const errors = usagePriceTableErrors(selected, stagedDrafts, locale);
+  // New rows still block Save, but show a price error only once a price or mapping is typed.
+  const awaitingPrice = new Set<string>();
   for (const draft of stagedDrafts) {
     if (!draft.isNew) continue;
     if (draft.model.trim() === "") errors.set(draft.id, translate("Enter a model ID."));
@@ -171,6 +175,11 @@ export function UsagePriceOverrides({
         drafts.some((other) => other.id !== draft.id && other.model.trim() === draft.model.trim()))
     )
       errors.set(draft.id, translate("This model already has a row. Edit its prices there."));
+    else if (
+      (draft.alias ?? "").trim() === "" &&
+      Object.values(draft.values).every((value) => value.trim() === "")
+    )
+      awaitingPrice.add(draft.id);
   }
   const failedDestinations =
     attempt?.destinations.filter(
@@ -235,7 +244,12 @@ export function UsagePriceOverrides({
       (destination) =>
         environments.find(
           (environment) => environment.environmentId === destination.environmentId,
-        ) ?? { ...destination, prices: null, aliases: null, unavailable: "Environment removed" },
+        ) ?? {
+          ...destination,
+          prices: null,
+          aliases: null,
+          unavailable: "Environment removed",
+        },
     );
     const changes = new Map(
       targets.map((target) => [
@@ -269,7 +283,10 @@ export function UsagePriceOverrides({
         setAttempt((previous) =>
           previous === null
             ? null
-            : { ...previous, results: new Map(previous.results).set(environmentId, result) },
+            : {
+                ...previous,
+                results: new Map(previous.results).set(environmentId, result),
+              },
         );
       },
     });
@@ -385,7 +402,12 @@ export function UsagePriceOverrides({
                           onClick={() => {
                             const id = `new:${nextRowId.current++}`;
                             focusRowRef.current = id;
-                            updateDraft({ id, model: "", isNew: true, values: {} });
+                            updateDraft({
+                              id,
+                              model: "",
+                              isNew: true,
+                              values: {},
+                            });
                           }}
                         >
                           <PlusIcon aria-hidden />
@@ -408,6 +430,7 @@ export function UsagePriceOverrides({
                       rows.map((row) => {
                         const aliasCell = usageAliasCell(selected, row.model);
                         const alias = (row.alias ?? aliasCell.value).trim();
+                        const error = awaitingPrice.has(row.id) ? undefined : errors.get(row.id);
                         return (
                           <TableRow key={row.id} data-row-id={row.id}>
                             <TableCell className="whitespace-normal">
@@ -423,7 +446,7 @@ export function UsagePriceOverrides({
                                   }}
                                   aria-label={translate("New model ID")}
                                   aria-invalid={
-                                    (row.model.trim() !== "" && errors.has(row.id)) || undefined
+                                    (row.model.trim() !== "" && error !== undefined) || undefined
                                   }
                                   list="usage-price-models"
                                   placeholder={translate("Model ID")}
@@ -431,7 +454,10 @@ export function UsagePriceOverrides({
                                   spellCheck={false}
                                   disabled={locked}
                                   onChange={(event) =>
-                                    updateDraft({ ...row, model: event.target.value })
+                                    updateDraft({
+                                      ...row,
+                                      model: event.target.value,
+                                    })
                                   }
                                 />
                               ) : (
@@ -444,11 +470,11 @@ export function UsagePriceOverrides({
                                   {row.model}
                                 </span>
                               )}
-                              {errors.has(row.id) &&
+                              {error !== undefined &&
                               (row.model.trim() !== "" ||
                                 Object.values(row.values).some((value) => value !== "")) ? (
                                 <p role="alert" className="mt-1 text-xs text-destructive">
-                                  {translate(errors.get(row.id) ?? "")}
+                                  {translate(error)}
                                 </p>
                               ) : null}
                             </TableCell>
@@ -526,10 +552,14 @@ export function UsagePriceOverrides({
                                   disabled={locked}
                                   aria-label={
                                     row.removed
-                                      ? t("audit.price.undo", { model: row.model })
+                                      ? t("audit.price.undo", {
+                                          model: row.model,
+                                        })
                                       : row.isNew
                                         ? translate("Remove new model")
-                                        : t("audit.price.reset", { model: row.model })
+                                        : t("audit.price.reset", {
+                                            model: row.model,
+                                          })
                                   }
                                   onClick={() => {
                                     if (row.isNew)
@@ -537,7 +567,10 @@ export function UsagePriceOverrides({
                                         previous.filter((entry) => entry.id !== row.id),
                                       );
                                     else if (row.removed)
-                                      updateOrDropDraft({ ...row, removed: false });
+                                      updateOrDropDraft({
+                                        ...row,
+                                        removed: false,
+                                      });
                                     else updateDraft({ ...row, removed: true });
                                   }}
                                 >

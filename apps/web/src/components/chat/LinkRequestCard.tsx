@@ -1,3 +1,4 @@
+import { translateChatSource } from "~/i18n/chatSourceMessages";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
 import { pipe } from "effect/Function";
@@ -107,9 +108,10 @@ function PendingLinkRequest(props: {
     if (input === null) return;
     setDeclining(true);
     setError(null);
-    const result = await answer({ environmentId: props.environmentId, input }).finally(() =>
-      setDeclining(false),
-    );
+    const result = await answer({
+      environmentId: props.environmentId,
+      input,
+    }).finally(() => setDeclining(false));
     if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
       pipe(squashAtomCommandFailure(result), linkRequestFailureMessage, setError);
     }
@@ -308,7 +310,10 @@ function LinkRequestDialog(props: {
           title={
             pickMachine ? t("audit12.link.pick") : t("audit12.link.title", { name: targetName })
           }
-          description={t("audit12.link.description")}
+          description={translateChatSource(
+            copyLocale,
+            "Agents here can then launch, message and wait on threads there. Revoke it in that machine’s Sharing & access.",
+          )}
         >
           {steps.length > 1 && !useExisting ? (
             <WizardSteps
@@ -399,9 +404,9 @@ function LinkRequestDialog(props: {
                         <span className="block text-xs text-muted-foreground">
                           {translateWebSource(copyLocale, "Create a link on")}
                           {targetName}
-                          {translateWebSource(
+                          {translateChatSource(
                             copyLocale,
-                            ": Settings → Connections → Create link, then paste its code here.",
+                            ": Settings → Sharing & access → Authorized clients → Create link, then paste its code here.",
                           )}
                         </span>
                       </label>
@@ -415,9 +420,9 @@ function LinkRequestDialog(props: {
               <p className="text-xs text-muted-foreground">
                 {translateWebSource(copyLocale, "This environment is already linked to")}
                 {targetName}
-                {translateWebSource(
+                {translateChatSource(
                   copyLocale,
-                  ". The agent can use that link as it is; change its access in Settings → Connections.",
+                  ". The agent can use that link as it is; change its access in Settings → Environments.",
                 )}
               </p>
             ) : null}

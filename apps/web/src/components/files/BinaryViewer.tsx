@@ -1,3 +1,4 @@
+import { englishFilePreviewCount } from "./filePreviewCount";
 import { createFilePreviewError } from "@t3tools/shared/filePreview";
 import { filePreviewFailureMessage, filePreviewWorkerError } from "./filePreviewErrorMessages";
 import { useI18n } from "~/i18n/WebI18nContext";
@@ -204,7 +205,13 @@ export default function BinaryViewer(props: {
     const key = `${path}${directory ? "/" : ""}`;
     const previous = children.get(key);
     if (previous) previous.size += item.size;
-    else children.set(key, { path, directory, size: item.size, modified: item.modified });
+    else
+      children.set(key, {
+        path,
+        directory,
+        size: item.size,
+        modified: item.modified,
+      });
   }
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -230,7 +237,9 @@ export default function BinaryViewer(props: {
             {selectedPath ?? (folder || translateWebSource(previewLocale, "Archive contents"))}
           </span>
           <span className="shrink-0 text-muted-foreground">
-            {t("files.residual.entries", { count: archive.entries.length.toLocaleString() })}
+            {t("files.residual.entries", {
+              count: archive.entries.length.toLocaleString(),
+            })}
             {sizeBytes !== null ? ` · ${formatAttachmentSize(sizeBytes)}` : ""}
           </span>
         </div>
@@ -253,14 +262,24 @@ export default function BinaryViewer(props: {
                 >
                   <SelectValue>
                     {table.name} (
-                    {t("files.residual.rows", { count: table.count.toLocaleString() })})
+                    {previewLocale === "en"
+                      ? englishFilePreviewCount(table.count, "row")
+                      : t("files.residual.rows", {
+                          count: table.count.toLocaleString(),
+                        })}
+                    )
                   </SelectValue>
                 </SelectTrigger>
                 <SelectPopup>
                   {database.tables.map((item) => (
                     <SelectItem key={item.name} value={item.name}>
                       {item.name} (
-                      {t("files.residual.rows", { count: item.count.toLocaleString() })})
+                      {previewLocale === "en"
+                        ? englishFilePreviewCount(item.count, "row")
+                        : t("files.residual.rows", {
+                            count: item.count.toLocaleString(),
+                          })}
+                      )
                     </SelectItem>
                   ))}
                 </SelectPopup>
@@ -294,10 +313,12 @@ export default function BinaryViewer(props: {
             className="border-b border-border/60 px-3 py-2 text-xs text-muted-foreground tabular-nums"
             role="status"
           >
-            {t("files.residual.dimensions", {
-              rows: table.count.toLocaleString(),
-              columns: rows?.columns.length ?? "…",
-            })}
+            {previewLocale === "en"
+              ? `${englishFilePreviewCount(table.count, "row")} · ${englishFilePreviewCount(rows?.columns.length ?? "…", "column")}`
+              : t("files.residual.dimensions", {
+                  rows: table.count.toLocaleString(),
+                  columns: rows?.columns.length ?? "…",
+                })}
             {sizeBytes !== null ? ` · ${formatAttachmentSize(sizeBytes)}` : ""}
           </div>
           <FileSurfaceNotice>

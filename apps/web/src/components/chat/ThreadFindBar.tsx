@@ -1,10 +1,14 @@
 import { useI18n } from "~/i18n/WebI18nContext";
-import { useEffect, useRef, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { ChevronDownIcon, ChevronUpIcon, XIcon } from "lucide-react";
 import { Button } from "../ui/button";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "../ui/input-group";
 import { cn } from "~/lib/utils";
-import { formatThreadFindCount } from "./threadFind";
+import {
+  formatThreadFindCount,
+  nextThreadFindAnnouncement,
+  type ThreadFindAnnouncement,
+} from "./threadFind";
 import { THREAD_DETAILS_CARD_GAP } from "./threadDetailsCardLayout";
 
 interface ThreadFindBarProps {
@@ -15,6 +19,10 @@ interface ThreadFindBarProps {
   readonly status: "loading" | "error" | null;
   readonly onRetry: () => void;
   readonly activeIndex: number;
+  /** Bumped by each user search or step; background refreshes keep it. */
+  readonly navigationId: number;
+  /** Whether the label shows the outcome of `navigationId`: a count or a failure. */
+  readonly settled: boolean;
   readonly focusRequestId: number;
   readonly onQueryChange: (query: string) => void;
   readonly onNext: () => void;
@@ -39,8 +47,6 @@ export function ThreadFindBar(props: ThreadFindBarProps) {
     props.open,
   ]);
 
-  if (!props.open) return null;
-
   const hasQuery = props.query.trim().length > 0;
   const noResults = hasQuery && !props.status && props.matchCount === 0;
   let label = "";
@@ -49,6 +55,17 @@ export function ThreadFindBar(props: ThreadFindBarProps) {
   }
   if (props.status === "loading") label = controlsT("chatControls.searching");
   if (props.status === "error") label = controlsT("chatControls.searchFailed");
+  const [storedAnnouncement, setAnnouncement] = useState<ThreadFindAnnouncement | null>(null);
+  const announcement = nextThreadFindAnnouncement(storedAnnouncement, {
+    navigationId: props.navigationId,
+    text: label,
+    settled: props.settled || props.status === "loading",
+    provisional: props.status !== null,
+  });
+  if (announcement !== storedAnnouncement) setAnnouncement(announcement);
+
+  if (!props.open) return null;
+
   const navigationDisabled =
     props.matchCount === 0 || props.status === "loading" || props.counting === true;
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -89,8 +106,11 @@ export function ThreadFindBar(props: ThreadFindBarProps) {
           onKeyDown={handleKeyDown}
         />
         <InputGroupAddon align="inline-end" inset="pill">
+          <span aria-live="polite" className="sr-only">
+            {announcement.text}
+          </span>
           <span
-            aria-live="polite"
+            aria-hidden
             className={cn(
               "min-w-10 text-center text-xs tabular-nums",
               noResults ? "text-destructive" : "text-muted-foreground",

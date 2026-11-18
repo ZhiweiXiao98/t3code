@@ -62,7 +62,10 @@ export function useConnectionDiagnosis(environment: EnvironmentPresentation) {
       : {
           ...diagnosis,
           headline: localize(diagnosis.headline),
-          hops: diagnosis.hops.map((hop) => ({ ...hop, label: localize(hop.label) })),
+          hops: diagnosis.hops.map((hop) => ({
+            ...hop,
+            label: localize(hop.label),
+          })),
           steps: diagnosis.steps.map(localize),
           facts: diagnosis.facts.map(([label, value]) => [localize(label), value] as const),
         };
@@ -79,7 +82,11 @@ export function ConnectionDiagnosisHeadline({
 }
 
 const HOP_MARK = { ok: "✓", failed: "✕", unchecked: "–" } as const;
-const HOP_NOTE = { ok: "", failed: "Failed", unchecked: "Not checked" } as const;
+const HOP_NOTE = {
+  ok: "",
+  failed: "Failed",
+  unchecked: "Not checked",
+} as const;
 
 /** Ticks once per second, and only while a retry is scheduled, so the list around it does not re-render. */
 function RetryCountdown({ retryAt }: { readonly retryAt: number }) {
@@ -173,7 +180,6 @@ export function ConnectionDiagnosisPanel({
   const { locale: sourceLocale } = useI18n();
   const copyTarget = translateWebSource(sourceLocale, "connection diagnostics");
   const { copyToClipboard } = useCopyToClipboard({
-    target: copyTarget,
     onCopy: () => {
       const { locale } = readWebI18n();
       toastManager.add({
@@ -181,6 +187,8 @@ export function ConnectionDiagnosisPanel({
         title: translateWebSource(locale, "Diagnostics copied"),
       });
     },
+
+    target: copyTarget,
     onError: (error) => {
       const { locale } = readWebI18n();
       toastManager.add(

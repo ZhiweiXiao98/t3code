@@ -302,6 +302,7 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
                 ),
       });
     },
+
     onError: (error, { value, kind }) => {
       const { locale: translationLocale } = readWebI18n();
       // Captured per attempt so concurrent copies cannot make the dialog
@@ -736,7 +737,10 @@ export const AuthorizedClientsHeaderAction = memo(function AuthorizedClientsHead
     const trimmedLabel = pairingLabel.trim();
     const result = await createPairingCredential({
       environmentId,
-      input: { ...(trimmedLabel ? { label: trimmedLabel } : {}), scopes: selectedScopes },
+      input: {
+        ...(trimmedLabel ? { label: trimmedLabel } : {}),
+        scopes: selectedScopes,
+      },
     });
     if (result._tag === "Success") {
       onPairingLinkCreated(result.value);

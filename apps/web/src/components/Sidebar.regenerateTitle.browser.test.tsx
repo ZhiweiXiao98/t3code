@@ -34,7 +34,7 @@ vi.mock("../state/use-atom-command", async (original) => {
   return {
     ...actual,
     useAtomCommand: (...args: Parameters<typeof actual.useAtomCommand>) =>
-      args[0] === threadEnvironment.updateMetadata
+      args[0] === threadEnvironment.regenerateTitle
         ? commands.update
         : actual.useAtomCommand(...args),
   };
@@ -141,7 +141,7 @@ it("uses settlement locale for sidebar regenerate title failures", async () => {
     await expect.poll(() => commands.update.mock.calls.length, { timeout: 5000 }).toBe(index + 1);
     expect(commands.update).toHaveBeenNthCalledWith(index + 1, {
       environmentId: ENVIRONMENT_ID,
-      input: { threadId: thread.id, regenerateTitle: true },
+      input: { threadId: thread.id },
     });
     expect(toast).toHaveBeenCalledTimes(notices);
     await act(() => updateClientSettings({ appLocale: "zh-CN" }));

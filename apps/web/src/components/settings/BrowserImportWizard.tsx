@@ -12,6 +12,7 @@ import {
   Dialog,
   DialogClose,
   DialogDescription,
+  DialogAction,
   DialogFooter,
   DialogHeader,
   DialogPanel,
@@ -205,7 +206,7 @@ function QuitStep({
         <Button variant="outline" onClick={onCancel}>
           {t("common.cancel")}
         </Button>
-        <Button onClick={onRechecked}>{t("browserImport.quit.confirm")}</Button>
+        <DialogAction onClick={onRechecked}>{t("browserImport.quit.confirm")}</DialogAction>
       </DialogFooter>
     </>
   );
@@ -279,7 +280,9 @@ function FullDiskAccessStep({
           {t("settingsResidual.readCookiesTitle", { browser: source.name })}
         </DialogTitle>
         <DialogDescription>
-          {t("settingsResidual.readCookiesDescription", { browser: source.name })}
+          {t("settingsResidual.readCookiesDescription", {
+            browser: source.name,
+          })}
         </DialogDescription>
       </DialogHeader>
       <DialogPanel>
@@ -295,7 +298,9 @@ function FullDiskAccessStep({
                 />
               ),
               title: translateWebSource(locale, "Full Disk Access"),
-              description: t("settingsResidual.readCookies", { browser: source.name }),
+              description: t("settingsResidual.readCookies", {
+                browser: source.name,
+              }),
               granted: permission.status.fullDiskAccess,
               onAllow: () => void allow(),
             },
@@ -365,7 +370,9 @@ function ConfigureStep({
       <DialogHeader>
         <DialogTitle>{t("browserImport.configure.title", { browser: source.name })}</DialogTitle>
         <DialogDescription>
-          {t("browserImport.configure.description", { environment: destinationEnvironmentName })}
+          {t("browserImport.configure.description", {
+            environment: destinationEnvironmentName,
+          })}
         </DialogDescription>
       </DialogHeader>
       <DialogPanel>
@@ -561,11 +568,19 @@ function DoneStep({
                 profile: targetName,
                 environment: destinationEnvironmentName,
                 skipped:
-                  skipped > 0 ? t("browserImport.done.skippedSuffix", { count: skippedLabel }) : "",
+                  skipped > 0
+                    ? t("browserImport.done.skippedSuffix", {
+                        count: skippedLabel,
+                      })
+                    : "",
               })
             : skipped > 0
-              ? t("browserImport.done.noneImported", { environment: destinationEnvironmentName })
-              : t("browserImport.done.noCookies", { environment: destinationEnvironmentName })}
+              ? t("browserImport.done.noneImported", {
+                  environment: destinationEnvironmentName,
+                })
+              : t("browserImport.done.noCookies", {
+                  environment: destinationEnvironmentName,
+                })}
         </DialogDescription>
       </DialogHeader>
       {skippedDomains.length > 0 ? (
@@ -611,7 +626,7 @@ function BlockedStep({
         <Button variant="outline" onClick={onClose}>
           {t("common.close")}
         </Button>
-        {onRetry ? <Button onClick={onRetry}>{t("common.retry")}</Button> : null}
+        {onRetry ? <DialogAction onClick={onRetry}>{t("common.retry")}</DialogAction> : null}
       </DialogFooter>
     </>
   );

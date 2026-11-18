@@ -1,5 +1,5 @@
 import { createFilePreviewError, filePreviewErrorFields } from "@t3tools/shared/filePreview";
-import { parseDelimitedPreview } from "@t3tools/shared/delimitedPreview";
+import { csvPreviewDelimiter, parseDelimitedPreview } from "@t3tools/shared/delimitedPreview";
 import {
   LARGE_TEXT_MAX_BYTES,
   LARGE_TEXT_MAX_ROWS,
@@ -13,7 +13,7 @@ const chunks: { start: number; blob: Blob }[] = [];
 const offsets: Uint32Array[] = [new Uint32Array(65536)];
 let entries = 1;
 let size = 0;
-let delimiter: "," | "\t" | null = null;
+let delimiter: "," | ";" | "\t" | null = null;
 let complete = false;
 let columns = 1;
 function reply(value: TextPreviewResult) {
@@ -52,6 +52,7 @@ async function page(index: number) {
         maxRows: PREVIEW_PAGE_ROWS,
         maxColumns: LARGE_TEXT_MAX_COLUMNS,
         maxCellLength: 1024 * 1024,
+        detectCsv: false,
       }).rows
     : text
         .replace(/\r?\n$|\r$/, "")
@@ -90,8 +91,30 @@ async function open(input: Extract<TextPreviewRequest, { type: "open" }>) {
   let rowColumns = 1;
   let first = false;
   try {
+    let prefix: Uint8Array<ArrayBuffer> | undefined;
+    if (delimiter === ",") {
+      const parts: Uint8Array<ArrayBuffer>[] = [];
+      let length = 0;
+      let quoted = false;
+      let breaks = 0;
+      let previous = 0;
+      while (length <= 1024 * 1024 && breaks < 2) {
+        const next = await reader.read();
+        if (next.done) break;
+        parts.push(next.value);
+        length += next.value.length;
+        for (const byte of next.value) {
+          if (byte === 34) quoted = !quoted;
+          else if (!quoted && (byte === 13 || (byte === 10 && previous !== 13))) breaks++;
+          previous = byte;
+        }
+      }
+      prefix = new Uint8Array(await new Blob(parts).arrayBuffer());
+      delimiter = csvPreviewDelimiter(new TextDecoder().decode(prefix));
+    }
     while (true) {
-      const { value, done } = await reader.read();
+      const { value, done } = prefix ? { value: prefix, done: false } : await reader.read();
+      prefix = undefined;
       if (done) break;
       if (size + value.length > LARGE_TEXT_MAX_BYTES)
         throw createFilePreviewError("Text previews support files up to 256 MB.");
@@ -150,7 +173,13 @@ async function open(input: Extract<TextPreviewRequest, { type: "open" }>) {
       }
       size += value.length;
       if (!first && entries > 1) {
-        reply({ type: "meta", count: entries - 1, columns, complete: false, sizeBytes: size });
+        reply({
+          type: "meta",
+          count: entries - 1,
+          columns,
+          complete: false,
+          sizeBytes: size,
+        });
         await page(0);
         first = true;
       }
@@ -164,7 +193,13 @@ async function open(input: Extract<TextPreviewRequest, { type: "open" }>) {
       columns = Math.min(LARGE_TEXT_MAX_COLUMNS, Math.max(columns, rowColumns));
     }
     complete = true;
-    reply({ type: "meta", count: entries - 1, columns, complete, sizeBytes: size });
+    reply({
+      type: "meta",
+      count: entries - 1,
+      columns,
+      complete,
+      sizeBytes: size,
+    });
     await page(0);
   } finally {
     await reader.cancel();

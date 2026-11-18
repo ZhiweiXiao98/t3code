@@ -6,7 +6,14 @@ export function noticeTitle(
   phase: EnvironmentConnectionPhase,
   environmentLabel: string,
   locale: MobileLocale = MOBILE_LOCALE,
+  awaitingApproval = false,
 ): string {
+  if (awaitingApproval)
+    return formatMobileMessage(
+      "Waiting for {0} to approve this device",
+      [environmentLabel],
+      locale,
+    );
   switch (phase) {
     case "offline":
       return localizeMobileString("You are offline", locale);
@@ -30,12 +37,14 @@ export function noticeDetail(
   resourceName: string,
   error: string | null,
   locale: MobileLocale = MOBILE_LOCALE,
+  awaitingApproval = false,
 ): string {
   const resources: Record<string, string> = { preview: "预览", review: "审查", terminal: "终端" };
   const resourceLabel =
     locale === "zh-CN" && Object.hasOwn(resources, resourceName)
       ? resources[resourceName]!
       : resourceName;
+  if (error && awaitingApproval) return error;
   if (error) {
     return phase === "reconnecting"
       ? formatMobileMessage("The app will keep retrying automatically. {0}", [error], locale)

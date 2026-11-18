@@ -81,11 +81,24 @@ function dedupeProvidersByDriver<T extends ServerProvider>(providers: ReadonlyAr
   return [...latestProviderByDriver.values()];
 }
 
-function getProviderUpdatedTitle(provider: Pick<ServerProvider, "driver" | "version">): string {
+function getProviderUpdatedTitle(
+  provider: Pick<ServerProvider, "driver" | "version" | "installedVersion">,
+): string {
   const providerName = PROVIDER_DISPLAY_NAMES[provider.driver] ?? provider.driver;
-  return provider.version
-    ? `${providerName} updated: ${formatVersion(provider.version)}`
-    : `${providerName} updated`;
+  const version = provider.installedVersion ?? provider.version;
+  return version ? `${providerName} updated: ${formatVersion(version)}` : `${providerName} updated`;
+}
+
+// Only OpenCode reports an installed CLI apart from a running external server.
+export function getProviderRestartNotice(
+  provider: Pick<ServerProvider, "version" | "installedVersion" | "updateState">,
+): string | null {
+  return provider.updateState?.status === "succeeded" &&
+    provider.installedVersion != null &&
+    provider.version != null &&
+    provider.installedVersion !== provider.version
+    ? provider.updateState.message
+    : null;
 }
 
 function getProviderUpdatedDescription(providerCount: number): string {
@@ -227,7 +240,8 @@ export function getProviderUpdateRunOutcome(
   run: ProviderUpdateRun,
   translate: ProviderUpdateRunTranslate = translateProviderUpdateRunEnglish,
 ):
-  | { readonly status: "interrupted" | "updated" }
+  | { readonly status: "interrupted" }
+  | { readonly status: "updated"; readonly message: string | null }
   | { readonly status: "failed"; readonly line: string } {
   if (isAtomCommandInterrupted(run.result)) return { status: "interrupted" };
   const label = `${run.machineLabel} · ${PROVIDER_DISPLAY_NAMES[run.driver] ?? run.driver}`;
@@ -238,11 +252,16 @@ export function getProviderUpdateRunOutcome(
       line: `${label}: ${error instanceof Error ? error.message : translate("providerUpdate.run.failedFallback")}`,
     };
   }
-  const updateState = run.result.value.providers.find(
-    (provider) => provider.instanceId === run.instanceId,
-  )?.updateState;
+  const provider = run.result.value.providers.find(
+    (candidate) => candidate.instanceId === run.instanceId,
+  );
+  const updateState = provider?.updateState;
+  const restartNotice = provider ? getProviderRestartNotice(provider) : null;
   return updateState?.status === "succeeded"
-    ? { status: "updated" }
+    ? {
+        status: "updated",
+        message: restartNotice ? `${label}: ${restartNotice}` : null,
+      }
     : {
         status: "failed",
         line: `${label}: ${updateState?.message ?? translate("providerUpdate.run.unfinished")}`,
@@ -266,18 +285,29 @@ export function getProviderUpdateRunToastView(
   const failureLines = settled.flatMap((outcome) =>
     outcome.status === "failed" ? [outcome.line] : [],
   );
+  const successMessages = [
+    ...new Set(
+      settled.flatMap((outcome) =>
+        outcome.status === "updated" && outcome.message ? [outcome.message] : [],
+      ),
+    ),
+  ];
   if (failureLines.length === 0) {
     return {
       type: "success",
       title:
         settled.length === 1
           ? translate("providerUpdate.run.updated")
-          : translate("providerUpdate.run.updatedMany", { count: settled.length }),
-      description: translate(
-        settled.length === 1
-          ? "providerUpdate.run.descriptionSingle"
-          : "providerUpdate.run.descriptionMany",
-      ),
+          : translate("providerUpdate.run.updatedMany", {
+              count: settled.length,
+            }),
+      description:
+        successMessages.join("\n") ||
+        translate(
+          settled.length === 1
+            ? "providerUpdate.run.descriptionSingle"
+            : "providerUpdate.run.descriptionMany",
+        ),
     };
   }
   return {
@@ -291,7 +321,7 @@ export function getProviderUpdateRunToastView(
         : settled.length === 1
           ? translate("providerUpdate.run.failed")
           : translate("providerUpdate.run.failedMany"),
-    description: failureLines.join("\n"),
+    description: [...failureLines, ...successMessages].join("\n"),
   };
 }
 
@@ -454,6 +484,7 @@ export function getProviderUpdateSidebarPillView(
   );
   if (succeededProviders.length > 0) {
     const succeededProvider = succeededProviders[0]!;
+    const succeededVersion = succeededProvider.installedVersion ?? succeededProvider.version;
     terminalCandidates.push({
       key: `succeeded:${succeededProviders
         .map(
@@ -469,24 +500,23 @@ export function getProviderUpdateSidebarPillView(
             ? getProviderUpdatedTitle(succeededProvider)
             : translateWebMessage(
                 locale,
-                succeededProvider.version
+                succeededVersion
                   ? "providerUpdate.pill.updatedVersion"
                   : "providerUpdate.pill.updatedOne",
                 {
                   provider:
                     PROVIDER_DISPLAY_NAMES[succeededProvider.driver] ?? succeededProvider.driver,
-                  version: succeededProvider.version
-                    ? formatVersion(succeededProvider.version)
-                    : "",
+                  version: succeededVersion ? formatVersion(succeededVersion) : "",
                 },
               )
           : translateWebMessage(locale, "providerUpdate.pill.updatedMany", {
               count: succeededProviders.length,
             }),
       description:
-        locale === "en"
+        [...new Set(succeededProviders.map(getProviderRestartNotice).filter(Boolean))].join("\n") ||
+        (locale === "en"
           ? getProviderUpdatedDescription(succeededProviders.length)
-          : translateWebMessage(locale, "providerUpdate.pill.updatedDetail"),
+          : translateWebMessage(locale, "providerUpdate.pill.updatedDetail")),
       dismissAfterVisibleMs: PROVIDER_UPDATE_SUCCESS_VISIBLE_MS,
     });
   }

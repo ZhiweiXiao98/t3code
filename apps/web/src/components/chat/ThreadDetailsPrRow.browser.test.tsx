@@ -1,7 +1,11 @@
-import { page, userEvent } from "vite-plus/test/browser";
-import { WebI18nContext } from "~/i18n/WebI18nContext";
-import { translateWebMessage } from "~/i18n/messages";
-import { EnvironmentId, ProjectId, ThreadId, type PullRequestCheck } from "@t3tools/contracts";
+import {
+  EnvironmentId,
+  ProjectId,
+  SourceControlProviderKind,
+  ThreadId,
+  type PullRequestCheck,
+  type ScopedThreadRef,
+} from "@t3tools/contracts";
 import { DraftId } from "~/composerDraftStore";
 import { AsyncResult } from "effect/reactivity";
 import { expect, it, vi } from "vite-plus/test";
@@ -16,6 +20,9 @@ const state = vi.hoisted(() => ({
   checkoutError: null as Error | null,
   addToast: vi.fn(),
   updateToast: vi.fn(),
+  projects: [] as unknown[],
+  pullRequests: [] as unknown[],
+  projectMergeMethods: {} as Record<string, "merge" | "squash" | "rebase">,
 }));
 
 vi.mock(import("~/state/entities"), async (importOriginal) => ({
@@ -28,6 +35,9 @@ vi.mock(import("~/state/entities"), async (importOriginal) => ({
         { environment: { capabilities: { pullRequests: true } } },
       ],
     ])) as never,
+  useProjects: (() => state.projects) as never,
+  useQuietThreadShell: ((ref: unknown) =>
+    ref === null ? null : { branch: null, pullRequests: state.pullRequests }) as never,
 }));
 const queryData = () => ({
   projectId: ProjectId.make("project"),
@@ -62,7 +72,10 @@ vi.mock(import("~/state/query"), async (importOriginal) => ({
   useEnvironmentQuerySelector: ((_atom: unknown, select: (result: unknown) => unknown) =>
     select(AsyncResult.success(queryData()))) as never,
   useEnvironmentQueryIsNewer: () => true,
-  useEnvironmentQueryRefresh: () => ({ refresh: vi.fn(), isPending: () => false }),
+  useEnvironmentQueryRefresh: () => ({
+    refresh: vi.fn(),
+    isPending: () => false,
+  }),
   useEnvironmentQuery: (() => ({
     data: {
       code: { additions: 1, deletions: 0 },
@@ -76,7 +89,12 @@ vi.mock(import("~/state/query"), async (importOriginal) => ({
 }));
 vi.mock(import("../pullRequest/usePullRequestActions"), async (importOriginal) => ({
   ...(await importOriginal()),
-  usePullRequestActionRunner: () => ({ actionPending: false, perform: state.perform }),
+  usePullRequestActionRunner: () => ({
+    actionPending: false,
+    perform: state.perform,
+  }),
+  usePullRequestDefaultMergeMethodResolver: ((_environmentId: unknown, projectId: unknown) => () =>
+    state.projectMergeMethods[String(projectId)]) as never,
 }));
 
 vi.mock(import("~/hooks/useHandleNewThread"), async (original) => ({
@@ -104,8 +122,48 @@ vi.mock(import("../ui/toast"), async (original) => {
 });
 
 import { act, render as renderUi } from "../../../test/render";
+import { useComposerDraftStore } from "~/composerDraftStore";
 import { useUiStateStore } from "~/uiStateStore";
 import { ThreadDetailsPrRow } from "./ThreadDetailsPrRow";
+import { ThreadDetailsThreadPrRows } from "./ThreadDetailsPrRows";
+
+const threadRef: ScopedThreadRef = {
+  environmentId: EnvironmentId.make("environment"),
+  threadId: ThreadId.make("thread"),
+};
+const scratchProject = {
+  id: ProjectId.make("scratch"),
+  environmentId: EnvironmentId.make("environment"),
+  title: "No project",
+  workspaceRoot: "/home/user/.t3/scratch",
+  scripts: [],
+};
+const repositoryProject = {
+  id: ProjectId.make("repository"),
+  environmentId: EnvironmentId.make("environment"),
+  title: "repo",
+  workspaceRoot: "/work/repo",
+  scripts: [],
+  repositoryIdentity: {
+    canonicalKey: "github.com/owner/repo",
+    locator: {
+      source: "git-remote",
+      remoteName: "origin",
+      remoteUrl: "https://github.com/owner/repo.git",
+    },
+    provider: SourceControlProviderKind.make("github"),
+    owner: "owner",
+    name: "repo",
+    displayName: "owner/repo",
+  },
+};
+
+const clickButton = async (scope: ParentNode, label: string) =>
+  await act(async () => {
+    [...scope.querySelectorAll("button")]
+      .find((button) => button.textContent?.trim() === label)!
+      .click();
+  });
 
 it("merges with the last selected merge method", async () => {
   await using screen = await setup();
@@ -194,22 +252,19 @@ async function setup() {
   state.status = "success";
   state.extraStatus = null;
   state.mergeMethods = ["merge"];
+  state.projects = [];
+  state.pullRequests = [];
+  state.projectMergeMethods = {};
+  useComposerDraftStore.getState().clearComposerContent(threadRef);
   useUiStateStore.getState().setPullRequestMergeMethod("merge");
   return renderUi(null);
 }
 
-it("relabels the cached PR tooltip state without invoking its actions", async () => {
+it("adds the failing checks to a given composer instead of opening a new thread", async () => {
   await using screen = await setup();
-  const onOpen = vi.fn();
-  const surface = (locale: "en" | "zh-CN") => (
-    <WebI18nContext
-      value={{
-        locale,
-        appLocale: locale,
-        setAppLocale: () => {},
-        t: (key, values) => translateWebMessage(locale, key, values),
-      }}
-    >
+  state.status = "failure";
+  await act(async () => {
+    await screen.rerender(
       <ThreadDetailsPrRow
         environmentId={EnvironmentId.make("environment")}
         pr={null}
@@ -218,81 +273,73 @@ it("relabels the cached PR tooltip state without invoking its actions", async ()
         project={null}
         label="Test PR"
         openAriaLabel="Open PR"
-        onOpen={onOpen}
-      />
-    </WebI18nContext>
+        onOpen={vi.fn()}
+        composerTarget={threadRef}
+      />,
+    );
+  });
+  await clickButton(screen.container, "Fix");
+  expect(state.newThread).not.toHaveBeenCalled();
+  expect(state.prepareThread).not.toHaveBeenCalled();
+  expect(useComposerDraftStore.getState().getComposerDraft(threadRef)?.prompt).toContain(
+    "https://github.com/owner/repo/pull/1",
   );
-  await screen.rerender(surface("en"));
-  await userEvent.hover(screen.getByRole("button", { name: "Open PR", exact: true }));
-  await expect.element(page.getByText("Open", { exact: true })).toBeVisible();
-  await screen.rerender(surface("zh-CN"));
-  await expect.element(page.getByText("开放", { exact: true })).toBeVisible();
-  await expect.element(page.getByText("Test PR", { exact: true }).last()).toBeVisible();
-  expect(state.perform).not.toHaveBeenCalled();
-  expect(onOpen).not.toHaveBeenCalled();
 });
 
-it("localizes merge terminology while preserving the confirmed method and PR number", async () => {
+const repositoryClone = {
+  ...repositoryProject,
+  id: ProjectId.make("clone"),
+  workspaceRoot: "/work/clone",
+};
+
+it.each([
+  {
+    name: "the project holding its repository, not the No project thread's",
+    thread: scratchProject,
+    repository: "owner/repo",
+    expected: "rebase",
+  },
+  {
+    name: "the thread's own project when it holds the repository too",
+    thread: repositoryClone,
+    repository: "owner/repo",
+    expected: "merge",
+  },
+  {
+    name: "the thread's project when no project holds the repository",
+    thread: scratchProject,
+    repository: "owner/other",
+    expected: "squash",
+  },
+])("merges a linked pull request with $name", async ({ thread, repository, expected }) => {
   await using screen = await setup();
-  state.mergeMethods = ["squash"];
-  const surface = (locale: "en" | "zh-CN") => (
-    <WebI18nContext
-      value={{
-        locale,
-        appLocale: locale,
-        setAppLocale: () => {},
-        t: (key, values) => translateWebMessage(locale, key, values),
-      }}
-    >
-      <ThreadDetailsPrRow
-        environmentId={EnvironmentId.make("environment")}
-        pr={null}
-        number={1}
-        status={null}
-        project={null}
-        label="Test PR"
-        openAriaLabel="Open PR"
-        onOpen={() => {}}
-      />
-    </WebI18nContext>
+  state.mergeMethods = ["merge", "squash", "rebase"];
+  state.projects = [scratchProject, repositoryProject, repositoryClone];
+  state.projectMergeMethods = {
+    scratch: "squash",
+    repository: "rebase",
+    clone: "merge",
+  };
+  useUiStateStore.getState().setPullRequestMergeMethod("squash");
+  state.pullRequests = [
+    {
+      host: "github.com",
+      repository,
+      number: 1,
+      url: `https://github.com/${repository}/pull/1`,
+      source: "manual",
+      linkedAt: "2026-10-30T00:00:00.000Z",
+      snapshot: null,
+      stack: null,
+    },
+  ];
+  await act(async () => {
+    await screen.rerender(
+      <ThreadDetailsThreadPrRows threadRef={threadRef} project={thread as never} />,
+    );
+  });
+  await clickButton(screen.container, "Merge");
+  expect(document.querySelector('[role="alertdialog"]')!.textContent).toContain(
+    `using ${expected}`,
   );
-  await screen.rerender(surface("en"));
-  await act(async () => {
-    const button = [...screen.container.querySelectorAll("button")].find(
-      (item) => item.textContent?.trim() === "Merge",
-    );
-    if (!button) throw new Error("Expected merge action");
-    button.click();
-  });
-  await expect
-    .element(
-      page
-        .getByRole("alertdialog")
-        .getByRole("heading", { name: "Merge pull request?", exact: true }),
-    )
-    .toBeInTheDocument();
-  await expect
-    .element(
-      page.getByRole("alertdialog").getByText("This merges #1 using squash.", { exact: true }),
-    )
-    .toBeInTheDocument();
-  await screen.rerender(surface("zh-CN"));
-  await expect
-    .element(
-      page.getByRole("alertdialog").getByRole("heading", { name: "合并拉取请求？", exact: true }),
-    )
-    .toBeInTheDocument();
-  await expect
-    .element(page.getByRole("alertdialog").getByText("将使用 压缩合并 合并 #1。", { exact: true }))
-    .toBeInTheDocument();
-  expect(state.perform).not.toHaveBeenCalled();
-  await act(async () => {
-    const dialog = document.querySelector('[role="alertdialog"]');
-    const button = [...(dialog?.querySelectorAll("button") ?? [])].find(
-      (item) => item.textContent?.trim() === "合并",
-    );
-    if (!button) throw new Error("Expected merge confirmation");
-    button.click();
-  });
-  expect(state.perform).toHaveBeenCalledWith("merge", "squash");
 });

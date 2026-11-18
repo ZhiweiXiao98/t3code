@@ -1,9 +1,11 @@
+import { formatBytes } from "../../lib/formatBytes";
 import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 import { translateWebSource } from "../../i18n/messages";
 import { DownloadIcon, PlusIcon } from "lucide-react";
 import type { ChangeEvent, DragEvent, UIEvent } from "react";
 import { settlePromise } from "@t3tools/client-runtime/state/runtime";
 import { useRef, useState } from "react";
+
 import { cn } from "../../lib/utils";
 import { useI18n, type WebTranslate } from "../../i18n/WebI18nContext";
 import {
@@ -35,12 +37,6 @@ const MAX_THEME_FILE_BYTES = 256 * 1024;
 
 /** Highlighting rebuilds markup per keystroke; fall back to plain text for oversized pastes. */
 const MAX_HIGHLIGHTED_JSON_LENGTH = 20_000;
-
-function formatByteSize(bytes: number): string {
-  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${bytes} bytes`;
-}
 
 type ThemeImportError =
   | string
@@ -77,8 +73,8 @@ function formatThemeImportError(
     return error.parts.map((part) => formatThemeImportError(part, locale, t)).join("; ");
   if (error.code === "oversized")
     return t("settingsControls.themeTooLarge", {
-      size: formatByteSize(error.bytes),
-      limit: formatByteSize(MAX_THEME_FILE_BYTES),
+      size: formatBytes(error.bytes),
+      limit: formatBytes(MAX_THEME_FILE_BYTES),
     });
   return error.code === "copies"
     ? t("settingsControls.tooManyThemeCopies", { name: error.name })
@@ -87,6 +83,10 @@ function formatThemeImportError(
 
 function describeOversizedThemeFile(bytes: number): ThemeImportError | null {
   return bytes > MAX_THEME_FILE_BYTES ? { code: "oversized", bytes } : null;
+}
+
+function isThemeIdTaken(themeId: string): boolean {
+  return getCustomThemes().some((existing) => existing.id === themeId);
 }
 
 function escapeJsonHtml(value: string): string {
@@ -180,7 +180,11 @@ function ThemeJsonEditor({
   );
 }
 
-type ImportableThemeFile = { name: string; size: number; text: () => Promise<string> };
+type ImportableThemeFile = {
+  name: string;
+  size: number;
+  text: () => Promise<string>;
+};
 
 interface ThemeImportCallbacks {
   onImported: (theme: ThemeDefinition) => boolean;
@@ -274,7 +278,9 @@ function ThemeImportBody({
     if (!isCurrentRequest(requestId)) return;
     setIsReading(false);
     if (fileText._tag === "Failure") {
-      setError({ source: "Could not read that file. Paste the JSON below instead." });
+      setError({
+        source: "Could not read that file. Paste the JSON below instead.",
+      });
       return;
     }
     setJson(fileText.value);
@@ -318,7 +324,7 @@ function ThemeImportBody({
     const installed: ThemeDefinition[] = [];
     const conflicting: ThemeDefinition[] = [];
     for (const theme of pairVsCodeThemes(resolveThemeLabelCollisions(parsed))) {
-      if (getCustomThemes().some((existing) => existing.id === theme.id)) {
+      if (isThemeIdTaken(theme.id)) {
         conflicting.push(theme);
         continue;
       }
@@ -380,28 +386,24 @@ function ThemeImportBody({
     theme: ThemeDefinition,
     preferredName?: string | null,
   ): ThemeDefinition => {
-    if (preferredName && preferredName.toLowerCase() !== theme.label.toLowerCase()) {
-      const candidate = parseThemeFile({
+    // The collection stays behind: updating a collection replaces every theme in it.
+    const copyNamed = (name: string) =>
+      parseThemeFile({
         version: THEME_FILE_VERSION,
-        name: preferredName.slice(0, 48),
+        name,
         appearance: theme.appearance,
         colors: theme.colors,
         ...(theme.variants ? { variants: theme.variants } : {}),
         ...(theme.managed ? { managed: true } : {}),
+        ...(theme.css ? { css: theme.css } : {}),
       });
-      if (!getCustomThemes().some((existing) => existing.id === candidate.id)) return candidate;
+    if (preferredName && preferredName.toLowerCase() !== theme.label.toLowerCase()) {
+      const candidate = copyNamed(preferredName.slice(0, 48));
+      if (!isThemeIdTaken(candidate.id)) return candidate;
     }
     for (let copy = 1; copy < 100; copy += 1) {
-      const candidate = parseThemeFile({
-        version: THEME_FILE_VERSION,
-        name: `${theme.label.slice(0, 48 - ` (${copy})`.length)} (${copy})`,
-        appearance: theme.appearance,
-        colors: theme.colors,
-        ...(theme.variants ? { variants: theme.variants } : {}),
-        ...(theme.managed ? { managed: true } : {}),
-      });
-      if (getCustomThemes().some((existing) => existing.id === candidate.id)) continue;
-      return candidate;
+      const candidate = copyNamed(`${theme.label.slice(0, 48 - ` (${copy})`.length)} (${copy})`);
+      if (!isThemeIdTaken(candidate.id)) return candidate;
     }
     throw copyLimitError(theme.label);
   };
@@ -452,7 +454,7 @@ function ThemeImportBody({
     }
     try {
       const theme = parseThemeImport(json);
-      if (getCustomThemes().some((existing) => existing.id === theme.id)) {
+      if (isThemeIdTaken(theme.id)) {
         setError(null);
         setConflicts([theme]);
         return;
@@ -462,7 +464,9 @@ function ThemeImportBody({
         try {
           removeCustomTheme(installedTheme.id);
         } catch {}
-        setError({ source: "Theme added, but it could not be selected. Try again." });
+        setError({
+          source: "Theme added, but it could not be selected. Try again.",
+        });
         return;
       }
       onClose();

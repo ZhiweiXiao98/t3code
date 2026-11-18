@@ -12,12 +12,8 @@ import {
 } from "../fileSurfaceChrome";
 import { OfficePages, type PaintPage } from "./OfficePages";
 import { createWorkerClient } from "./worker-rpc";
-import {
-  maxImageSide,
-  type SlideMethods,
-  type SlideSummary,
-  type VectorRequest,
-} from "./slide-protocol";
+import type { SlideMethods, SlideSummary } from "./slide-protocol";
+import { rasterize } from "./vector-pictures";
 
 type Opened = { slides: readonly SlideSummary[]; paint: PaintPage };
 export default function Presentation(props: {
@@ -62,7 +58,10 @@ export default function Presentation(props: {
         if (result.kind === "painted") result.bitmap.close();
         return;
       }
-      setFailed((previous) => ({ ...previous, [index]: result.kind === "failed" }));
+      setFailed((previous) => ({
+        ...previous,
+        [index]: result.kind === "failed",
+      }));
       if (result.kind === "failed") return;
       const context = canvas.getContext("bitmaprenderer");
       if (!context) {
@@ -120,7 +119,10 @@ export default function Presentation(props: {
           <ChevronLeftIcon className="size-3.5" />
         </FileSurfaceAction>
         <span className="flex-1 text-center text-xs tabular-nums" aria-live="polite">
-          {t("files.residual.slidePosition", { page: page + 1, count: opened.slides.length })}
+          {t("files.residual.slidePosition", {
+            page: page + 1,
+            count: opened.slides.length,
+          })}
         </span>
         <FileSurfaceAction
           label={translateWebSource(locale, "Next slide")}
@@ -172,29 +174,4 @@ export default function Presentation(props: {
       />
     </div>
   );
-}
-async function rasterize(request: VectorRequest) {
-  const url = URL.createObjectURL(request.blob);
-  const image = new Image();
-  image.src = url;
-  try {
-    await image.decode();
-    const shrink = Math.min(1, maxImageSide / Math.max(image.naturalWidth, image.naturalHeight));
-    const size = request.size ?? {
-      width: Math.max(1, Math.round(image.naturalWidth * shrink)),
-      height: Math.max(1, Math.round(image.naturalHeight * shrink)),
-    };
-    return {
-      asset: request.asset,
-      bitmap: await createImageBitmap(image, {
-        resizeWidth: size.width,
-        resizeHeight: size.height,
-        resizeQuality: "high",
-      }),
-    };
-  } catch {
-    return { asset: request.asset, bitmap: undefined };
-  } finally {
-    URL.revokeObjectURL(url);
-  }
 }

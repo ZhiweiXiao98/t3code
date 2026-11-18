@@ -88,7 +88,7 @@ interface SourceRow {
   readonly description: ReactNode;
   readonly environments: ReadonlyArray<SourceEnvironment>;
   /**
-   * One machine or account every environment reaches the same way (an SSH host, EAS, a Simlock
+   * One machine or account every environment reaches the same way (an SSH host, Expo, a Simlock
    * pool), so its platforms are the same for all of them. Local simulators differ per machine.
    */
   readonly shared: boolean;
@@ -110,7 +110,11 @@ type Editing =
       /** Where the editor checks the Expo account: an environment that holds the host. */
       readonly environmentId: EnvironmentId;
     }
-  | { readonly kind: "simlock"; readonly host: SimlockDeviceHostConfig; readonly isNew: boolean };
+  | {
+      readonly kind: "simlock";
+      readonly host: SimlockDeviceHostConfig;
+      readonly isNew: boolean;
+    };
 
 /** What a configured host is doing on one environment, when it is not simply working. */
 function hostStatus(
@@ -124,7 +128,11 @@ function hostStatus(
       const incomplete = incompleteListings(status);
       if (incomplete.length === 0) return undefined;
       const list = incomplete.length > 1 ? "Device" : incomplete[0] === "ios" ? "iOS" : "Android";
-      return { tone: "warning", label: `${list} list may be incomplete`, detail: status.detail };
+      return {
+        tone: "warning",
+        label: `${list} list may be incomplete`,
+        detail: status.detail,
+      };
     }
     case "installing":
     case "starting":
@@ -151,7 +159,9 @@ export function DeviceSourcesSettings(props: {
   const tx = (source: string) => translateWebSource(locale, source);
   const { scope, environments, connectedEnvironments, environment: primary } = useSettingsScope();
   const projectScope = scope.kind === "project" || scope.kind === "checkout";
-  const update = useAtomCommand(serverEnvironment.updateSettings, { reportFailure: false });
+  const update = useAtomCommand(serverEnvironment.updateSettings, {
+    reportFailure: false,
+  });
   const list = useAtomCommand(deviceEnvironment.list, { reportFailure: false });
   const [editing, setEditing] = useState<Editing | null>(null);
   const [busy, setBusy] = useState(false);
@@ -182,7 +192,10 @@ export function DeviceSourcesSettings(props: {
 
   /** Writes one settings patch per environment; reports the environments it could not change. */
   const write = async (
-    patches: ReadonlyArray<{ environmentId: EnvironmentId; patch: ServerSettingsPatch }>,
+    patches: ReadonlyArray<{
+      environmentId: EnvironmentId;
+      patch: ServerSettingsPatch;
+    }>,
     failedTitle: string | (() => string),
   ) => {
     if (projectScope) return false;
@@ -204,7 +217,10 @@ export function DeviceSourcesSettings(props: {
     setBusy(true);
     const outcomes = await Promise.all(
       patches.map((patch) =>
-        update({ environmentId: patch.environmentId, input: { patch: patch.patch } }),
+        update({
+          environmentId: patch.environmentId,
+          input: { patch: patch.patch },
+        }),
       ),
     );
     setBusy(false);
@@ -281,7 +297,7 @@ export function DeviceSourcesSettings(props: {
       () =>
         translateWebSource(
           readWebI18n().locale,
-          remove ? "EAS host not removed everywhere" : "EAS host not saved everywhere",
+          remove ? "Expo host not removed everywhere" : "Expo host not saved everywhere",
         ),
     );
     if (saved) setEditing(null);
@@ -313,7 +329,9 @@ export function DeviceSourcesSettings(props: {
         .filter((environment) => environment.hosts.some((candidate) => candidate.id === host.id))
         .map((environment) => ({
           environmentId: environment.environmentId,
-          patch: { simlockDeviceHosts: updateSimlockDeviceHosts(environment.hosts, host, true) },
+          patch: {
+            simlockDeviceHosts: updateSimlockDeviceHosts(environment.hosts, host, true),
+          },
         })),
       () => translateWebSource(readWebI18n().locale, "Simlock host not removed everywhere"),
     );
@@ -410,7 +428,11 @@ export function DeviceSourcesSettings(props: {
                 ...status,
                 action: {
                   label: tx("Refresh"),
-                  run: () => void list({ environmentId: member.environmentId, input: {} }),
+                  run: () =>
+                    void list({
+                      environmentId: member.environmentId,
+                      input: {},
+                    }),
                 },
               }
             : status,
@@ -448,7 +470,11 @@ export function DeviceSourcesSettings(props: {
           (candidate) => candidate.environmentId === member.environmentId,
         );
         if (!held)
-          return { environmentId: member.environmentId, label: member.label, added: false };
+          return {
+            environmentId: member.environmentId,
+            label: member.label,
+            added: false,
+          };
         const status = testing.has(host.id)
           ? ({ tone: "pending", label: tx("Testing connection") } as const)
           : hostStatus(member.state, held.host.id);
@@ -472,7 +498,12 @@ export function DeviceSourcesSettings(props: {
       }),
       actions: rowActions(
         () =>
-          setEditing({ kind: "ssh", host, original: host, ...(grouped ? {} : { only: holders }) }),
+          setEditing({
+            kind: "ssh",
+            host,
+            original: host,
+            ...(grouped ? {} : { only: holders }),
+          }),
         () => void saveSsh(host, true, host, holders),
         <MenuItem onClick={() => void testSsh(host)}>{tx("Test connection")}</MenuItem>,
       ),
@@ -497,7 +528,7 @@ export function DeviceSourcesSettings(props: {
         key: `eas:${host.id}`,
         shared: true,
         title: host.label,
-        kind: "EAS",
+        kind: "Expo",
         description: easSessionLimits(host, locale),
         environments: active.map((member) => {
           const added = (member.settings?.easDeviceHosts ?? []).some(
@@ -516,7 +547,13 @@ export function DeviceSourcesSettings(props: {
           };
         }),
         actions: rowActions(
-          () => setEditing({ kind: "eas", host, isNew: false, environmentId: checkOn }),
+          () =>
+            setEditing({
+              kind: "eas",
+              host,
+              isNew: false,
+              environmentId: checkOn,
+            }),
           () => void saveEas(host, true),
         ),
       });
@@ -541,7 +578,11 @@ export function DeviceSourcesSettings(props: {
             (candidate) => candidate.id === host.id,
           );
           if (!held)
-            return { environmentId: member.environmentId, label: member.label, added: false };
+            return {
+              environmentId: member.environmentId,
+              label: member.label,
+              added: false,
+            };
           return {
             environmentId: member.environmentId,
             label: member.label,
@@ -589,13 +630,17 @@ export function DeviceSourcesSettings(props: {
               })
             }
           >
-            {tx("EAS Simulator")}
+            {tx("Expo Simulators")}
           </MenuItem>
         ) : null}
         {props.supportsSimlock && simlockEnabled ? (
           <MenuItem
             onClick={() =>
-              setEditing({ kind: "simlock", host: newSimlockDeviceHost(randomUUID()), isNew: true })
+              setEditing({
+                kind: "simlock",
+                host: newSimlockDeviceHost(randomUUID()),
+                isNew: true,
+              })
             }
           >
             {tx("Simlock pool (alpha)")}
@@ -648,7 +693,11 @@ export function DeviceSourcesSettings(props: {
 const PLATFORMS = [
   { platform: "ios", label: "iOS", Icon: AppleIcon },
   { platform: "android", label: "Android", Icon: AndroidIcon },
-] as const satisfies ReadonlyArray<{ platform: DevicePlatform; label: string; Icon: unknown }>;
+] as const satisfies ReadonlyArray<{
+  platform: DevicePlatform;
+  label: string;
+  Icon: unknown;
+}>;
 
 /** The platforms a source offers: one icon each, solid where available, muted where not. */
 export function SourcePlatforms(props: { row: SourceRow }) {

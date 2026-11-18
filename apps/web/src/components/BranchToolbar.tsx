@@ -125,15 +125,7 @@ function showWorkspaceContextMenu(
       if (action !== "copy-path") return;
       const clipboardPath = formatFilePathForClipboard(workspacePath);
       void writeTextToClipboard(clipboardPath, "workspace path").then(
-        (didCopy) => {
-          if (didCopy) {
-            toastManager.add({
-              type: "success",
-              title: tx("Path copied"),
-              description: clipboardPath,
-            });
-          }
-        },
+        undefined,
         (error: unknown) => {
           toastManager.add(
             stackedThreadToast({
@@ -477,7 +469,10 @@ function animateLabelWidths(
 
     const animation = label.animate(
       [
-        { width: `${previousRect.width}px`, maxWidth: `${previousRect.width}px` },
+        {
+          width: `${previousRect.width}px`,
+          maxWidth: `${previousRect.width}px`,
+        },
         { width: `${nextWidth}px`, maxWidth: `${nextWidth}px` },
       ],
       {
@@ -593,7 +588,11 @@ function useLabelsOverflow(): readonly [
       if (elementsChanged) observeSizes();
       else measure();
     });
-    mutations.observe(current, { childList: true, characterData: true, subtree: true });
+    mutations.observe(current, {
+      childList: true,
+      characterData: true,
+      subtree: true,
+    });
     document.fonts.addEventListener("loadingdone", measure);
     return () => {
       stopResize();
@@ -657,7 +656,9 @@ export const BranchToolbar = memo(function BranchToolbar({
     : null;
   const previousWorktreeLabel = previousWorktreeSeed
     ? previousWorktreeSeed.branch
-      ? t("branchToolbar.previousWorktreeBranch", { branch: previousWorktreeSeed.branch })
+      ? t("branchToolbar.previousWorktreeBranch", {
+          branch: previousWorktreeSeed.branch,
+        })
       : tx("Previous worktree")
     : null;
   const onUsePreviousWorktree = () => {
@@ -691,7 +692,10 @@ export const BranchToolbar = memo(function BranchToolbar({
 
   const addTargets = useAddProjectTargets(activeProject, availableEnvironments);
   const onAddToMachine = (targetEnvironmentId: EnvironmentId | null) =>
-    openAddProjectToMachine({ projectRef: activeProjectRef, targetEnvironmentId });
+    openAddProjectToMachine({
+      projectRef: activeProjectRef,
+      targetEnvironmentId,
+    });
   // A project on one machine still gets the picker when it can be added to another.
   const hasMultipleEnvironments = (availableEnvironments?.length ?? 0) > 1 || addTargets.length > 0;
   const showEnvironmentPicker = hasMultipleEnvironments && onEnvironmentChange !== undefined;

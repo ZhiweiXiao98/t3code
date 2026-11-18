@@ -242,6 +242,35 @@ describe("showContextMenuFallback", () => {
   });
 
   it.each([
+    // Flips left of the parent menu instead of being clamped over it.
+    { innerWidth: 400, triggerLeft: 200, submenuLeft: 16 },
+    // Neither side fits; the right has more room, so it stays there, clamped.
+    { innerWidth: 300, triggerLeft: 4, submenuLeft: 116 },
+  ])(
+    "places an overflowing submenu on the side with more room ($innerWidth)",
+    ({ innerWidth, triggerLeft, submenuLeft }) => {
+      vi.stubGlobal("window", { ...window, innerWidth });
+
+      void showContextMenuFallback(
+        [
+          {
+            id: "group",
+            label: "Group with",
+            children: [{ id: "terminal-1", label: "Terminal 1" }],
+          },
+        ],
+        { x: triggerLeft, y: 0 },
+      );
+      const trigger = findButton("Group with")!;
+      trigger.style.left = `${triggerLeft}px`;
+      trigger.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+      const submenu = findButton("Terminal 1")!.parent!.parent!;
+      expect(submenu.getBoundingClientRect().left).toBe(submenuLeft);
+    },
+  );
+
+  it.each([
     ["zh-CN", "上下文菜单"],
     ["en", "Context menu"],
     ["zh-CN", "上下文菜单"],

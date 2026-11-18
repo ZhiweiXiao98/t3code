@@ -176,7 +176,7 @@ function PoolWindowCard({
   readonly color: string;
   readonly now: number;
   readonly environmentIds: readonly string[] | null;
-  readonly label?: string;
+  readonly label?: string | null;
   readonly description?: string;
   readonly wide: boolean;
 }) {
@@ -200,11 +200,13 @@ function PoolWindowCard({
     <>
       <View className={wide ? "gap-1" : "flex-row items-start justify-between gap-3"}>
         <View className="gap-1">
-          <Text localize={false} className="text-sm font-t3-medium text-foreground">
-            {label !== undefined
-              ? localizeMobileString(label)
-              : formatUsageWindowLabel(pool, MOBILE_LOCALE)}
-          </Text>
+          {label !== null ? (
+            <Text localize={false} className="text-sm font-t3-medium text-foreground">
+              {label !== undefined
+                ? localizeMobileString(label)
+                : formatUsageWindowLabel(pool, MOBILE_LOCALE)}
+            </Text>
+          ) : null}
           <View className="flex-row items-baseline gap-1.5">
             <Text className="text-3xl font-t3-bold tabular-nums text-foreground">
               {pool.remainingPercent}%
@@ -468,7 +470,7 @@ export function UsageLimitsSection({
               </View>
               {windows.map((window) => {
                 const details =
-                  pool.driver === "cursor" ? cursorUsageWindowDetails(window.id) : undefined;
+                  pool.driver === "cursor" ? cursorUsageWindowDetails(window.id, pool) : undefined;
                 return (
                   <PoolWindowCard
                     key={`${window.kind}:${window.id}`}

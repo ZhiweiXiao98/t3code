@@ -13,6 +13,7 @@ import { describe, expect, it, vi } from "vite-plus/test";
 
 import {
   submitComposerDraft,
+  isComposerSubmissionBlocked,
   getComposerPromptLengthViolation,
   formatComposerPromptLengthViolation,
 } from "./composerSubmission";
@@ -92,7 +93,10 @@ describe("submitComposerDraft", () => {
       onSend,
     });
 
-    expect(correctedResult).toEqual({ validationMessage: null, didDispatch: true });
+    expect(correctedResult).toEqual({
+      validationMessage: null,
+      didDispatch: true,
+    });
     expect(onSend).toHaveBeenCalledOnce();
   });
 
@@ -245,4 +249,43 @@ it("rerenders the same cached length violation without retaining an English pres
   const english = formatComposerPromptLengthViolation(excess, "en");
   expect(formatComposerPromptLengthViolation(excess, "zh-CN")).toContain("多出 1 个字符");
   expect(formatComposerPromptLengthViolation(excess, "en")).toBe(english);
+});
+
+describe("isComposerSubmissionBlocked", () => {
+  const sendBlocked = {
+    noProviderAvailable: true,
+    sendDisabledReason: "Messages loading",
+    attachmentBlockReason: null,
+    environmentUnavailable: false,
+  };
+
+  // regression: #9318
+  it("lets a pending answer through while provider-turn sends are blocked", () => {
+    expect(
+      isComposerSubmissionBlocked({
+        ...sendBlocked,
+        submissionTarget: "pending-user-input",
+      }),
+    ).toBe(false);
+    expect(
+      isComposerSubmissionBlocked({
+        ...sendBlocked,
+        submissionTarget: "provider-turn",
+      }),
+    ).toBe(true);
+  });
+
+  it("still blocks a pending answer on its attachments or a lost connection", () => {
+    const answer = {
+      ...sendBlocked,
+      submissionTarget: "pending-user-input" as const,
+    };
+    expect(
+      isComposerSubmissionBlocked({
+        ...answer,
+        attachmentBlockReason: "Attach the file again",
+      }),
+    ).toBe(true);
+    expect(isComposerSubmissionBlocked({ ...answer, environmentUnavailable: true })).toBe(true);
+  });
 });

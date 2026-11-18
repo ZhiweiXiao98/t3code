@@ -3,6 +3,7 @@ import { type RefObject, use, useRef, useState } from "react";
 import { Keyboard, type TextInputInstance, View } from "react-native";
 import { useHardwareBack } from "../../lib/backHandler";
 import { useToolbarLayout } from "./useToolbarLayout";
+import { BottomSheetContext } from "./BottomSheetContext";
 import { RoutedFormSheetContext } from "./RoutedFormSheetContext";
 import { NativeStackScreenOptions } from "../../native/StackHeader";
 import { useSidebarToggle } from "../../features/layout/useSidebarToggle";
@@ -83,12 +84,14 @@ function AppBarView(props: AppBarProps & { readonly searchState?: SearchState })
   const inWorkspace = useHasWorkspaceAppBar();
   const sidebarToggle = useSidebarToggle();
   const closeInspector = use(InspectorCloseContext);
+  // A bottom sheet owns the pull at its top, so refresh needs a button there.
+  const inBottomSheet = use(BottomSheetContext);
   const inline = search?.mode === "inline";
   const searching = searchState?.searching === true;
   const actions = props.refresh
     ? [
         ...(props.actions ?? []),
-        { ...props.refresh, icon: "arrow.clockwise" as const, overflowOnly: true },
+        { ...props.refresh, icon: "arrow.clockwise" as const, overflowOnly: !inBottomSheet },
       ]
     : props.actions;
   const openSearch = () => searchState?.open();
@@ -98,6 +101,7 @@ function AppBarView(props: AppBarProps & { readonly searchState?: SearchState })
   const searchField =
     search && searchState ? (
       <SearchField
+        localize={search.localizePlaceholder}
         inputRef={searchState.inputRef}
         accessibilityLabel={searchLabel}
         clearAccessibilityLabel={search.clearAccessibilityLabel ?? "Clear search"}

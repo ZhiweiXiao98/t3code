@@ -58,3 +58,11 @@ it("keeps weekday preset selection independent of translated display labels", ()
     expect(scheduledWeekdayLabel(0, locale)).toBe(locale === "zh-CN" ? "周日" : "Sun");
   }
 });
+
+it("rounds the localized next-run unit at the same minute boundary as upstream", () => {
+  const now = new Date(2026, 10, 3, 10).getTime();
+  const at = (minutes: number) => new Date(now + minutes * 60_000).toISOString();
+  expect(formatNextScheduledTaskRun(at(59), now, "zh-CN")).toBe("下次运行在 59 分钟后");
+  expect(formatNextScheduledTaskRun(at(59.5), now, "zh-CN")).toBe("下次运行在 1 小时后");
+  expect(formatNextScheduledTaskRun(at(150), now, "zh-CN")).toBe("下次运行在 3 小时后");
+});

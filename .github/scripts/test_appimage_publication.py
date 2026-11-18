@@ -34,7 +34,22 @@ class AppImagePublication(unittest.TestCase):
         specs = scope['specifications']
         self.assertEqual(set(specs), {'client-linux-x64', 'client-win-x64', 'client-mac-arm64', 'client-mac-x64'})
         self.assertEqual(specs['client-linux-x64'], ({scope['prefix'] + 'amd64.deb'}, set()))
-        self.assertEqual(len(scope['required_jobs']), 21)
+        expected_jobs = {
+            'Validate exact source', 'Lint and typecheck',
+            'Mobile native static analysis', 'Rust native formatting and tests',
+            'Build validated desktop bundle', 'Linux x64 and embedded Windows WSL runtime',
+            'Tests (clients)', 'Tests (server-1)', 'Tests (server-2)', 'Tests (server-3)',
+            'Web full coverage shard 1/4', 'Web full coverage shard 2/4',
+            'Web full coverage shard 3/4', 'Web full coverage shard 4/4',
+            'Require complete Web assertion coverage', 'Build and boot validated Web client',
+            'Desktop win x64 (integrity checked)', 'Desktop mac arm64 (integrity checked)',
+            'Desktop mac x64 (integrity checked)', 'Clean macOS arm64 dmg+zip first start',
+            'Clean macOS x64 dmg first start', 'Clean macOS x64 zip first start',
+            'Clean desktop deb first start', 'Clean desktop nsis first start',
+            'Android arm64 unsigned candidate (NOT installable)',
+        }
+        self.assertEqual(len(expected_jobs), 25)
+        self.assertEqual(scope['required_jobs'], expected_jobs)
         self.assertIn('Clean desktop deb first start', scope['required_jobs'])
         self.assertFalse(any('appimage' in name.lower() for name in scope['required_jobs']))
         mandatory = re.search(r'const mandatory = (\[.*?\]);', workflow, re.S).group(1)

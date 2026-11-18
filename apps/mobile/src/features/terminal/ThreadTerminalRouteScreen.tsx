@@ -4,6 +4,7 @@ import * as Dialog from "../../components/ui/Dialog";
 import {
   AuthTerminalReadScope,
   AuthTerminalOperateScope,
+  chunkTerminalWrite,
   DEFAULT_TERMINAL_ID,
   EnvironmentId,
   ThreadId,
@@ -42,7 +43,6 @@ import { LoadingScreen } from "../../components/LoadingScreen";
 import { ScreenContent } from "../../components/ui/ScreenContent";
 import { Button } from "../../components/ui/Button";
 import { IconButton } from "../../components/ui/IconButton";
-import { environmentCatalog } from "../../connection/catalog";
 import { useEnvironmentPresentation } from "../../state/presentation";
 import { terminalEnvironment } from "../../state/terminal";
 import { environmentSession, readEnvironmentScope } from "../../state/session";
@@ -66,6 +66,7 @@ import {
 import { useThreadSelection } from "../../state/use-thread-selection";
 import { useSelectedThreadProjection } from "../../state/use-thread-detail";
 import { EnvironmentConnectionNotice } from "../connection/EnvironmentConnectionNotice";
+import { useRetryEnvironment } from "../connection/useRetryEnvironment";
 import { TerminalSurface, type TerminalSurfaceHandle } from "./NativeTerminalSurface";
 import { getMobileTerminalTheme } from "./terminalTheme";
 import { useTerminalExitNavigation } from "./useTerminalExitNavigation";
@@ -385,7 +386,7 @@ function ThreadTerminal(props: {
   const navigation = useNavigation();
   const writeTerminal = useAtomCommand(terminalEnvironment.write, "terminal write");
   const clearTerminal = useAtomCommand(terminalEnvironment.clear, "terminal clear");
-  const retryEnvironment = useAtomCommand(environmentCatalog.retryNow, "environment retry");
+  const retryEnvironment = useRetryEnvironment();
   const selectedThreadDetail = useSelectedThreadProjection();
   const selectedThreadDetailWorktreePath =
     selectedThreadDetail?.projection.thread.worktreePath ?? null;
@@ -611,15 +612,21 @@ function ThreadTerminal(props: {
       return false;
     }
 
-    const result = await writeTerminal({
-      environmentId: selectedThread.environmentId,
-      input: {
-        threadId: selectedThread.id,
-        terminalId,
-        data,
-      },
-    });
-    return result._tag === "Success";
+    // Android's IME delivers a system paste as one input, which can exceed one write.
+    const isSameShell = pasteSession.liveness();
+    for (const chunk of chunkTerminalWrite(data)) {
+      if (!isSameShell()) return false;
+      const result = await writeTerminal({
+        environmentId: selectedThread.environmentId,
+        input: {
+          threadId: selectedThread.id,
+          terminalId,
+          data: chunk,
+        },
+      });
+      if (result._tag !== "Success") return false;
+    }
+    return true;
   };
 
   const pasteText = async (readText: () => Promise<string>) => {
@@ -897,7 +904,7 @@ function ThreadTerminal(props: {
               title="No terminal sessions"
               detail="Existing terminals will appear here when another client opens one."
             />
-          ) : !canOperateTerminal && terminal.error !== null ? (
+          ) : terminal.error !== null && (!canOperateTerminal || terminal.status === "error") ? (
             <EmptyState title="Terminal unavailable" detail={terminal.error} />
           ) : (
             <>

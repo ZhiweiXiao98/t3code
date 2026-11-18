@@ -57,12 +57,16 @@ describe("collectServerUpdateTargets", () => {
   it("updates remote servers that can move to the target and names every skipped one", () => {
     const { targets, skipped } = collectServerUpdateTargets(
       [
-        machine("this-app", "0.0.40", "desktop-managed", { hostedByThisApp: true }),
+        machine("this-app", "0.0.40", "desktop-managed", {
+          hostedByThisApp: true,
+        }),
         machine("service", "0.0.40", "boot-service"),
         machine("nightly-service", "0.0.49-nightly.20261001.3", "boot-service"),
         machine("other-desktop", "0.0.49-nightly.20261001.3", "desktop-managed"),
         machine("offline", "0.0.40", "boot-service", { connected: false }),
-        machine("never-connected", "0.0.40", "boot-service", { serverConfig: null }),
+        machine("never-connected", "0.0.40", "boot-service", {
+          serverConfig: null,
+        }),
         machine("no-scope", "0.0.40", "boot-service", { canMaintain: false }),
         machine("busy", "0.0.40", "boot-service", {
           updateState: {
@@ -73,7 +77,9 @@ describe("collectServerUpdateTargets", () => {
           },
         }),
         machine("current", "0.0.50", "boot-service"),
-        machine("current-offline", "0.0.50", "boot-service", { connected: false }),
+        machine("current-offline", "0.0.50", "boot-service", {
+          connected: false,
+        }),
         machine("manual", "0.0.40", undefined),
       ],
       "0.0.50",
@@ -93,6 +99,18 @@ describe("collectServerUpdateTargets", () => {
     ]);
   });
 
+  it("does not offer a Nightly build to a Stable desktop app, whose own feed has nothing newer", () => {
+    const { targets, skipped } = collectServerUpdateTargets(
+      [machine("stable-desktop", "0.1.9", "desktop-managed")],
+      "0.1.10-nightly.20261116.4761",
+    );
+
+    expect(targets.map((target) => target.serverLabel)).toEqual([]);
+    expect(skipped.map((entry) => [entry.label, entry.reason])).toEqual([
+      ["stable-desktop", "on the stable channel"],
+    ]);
+  });
+
   it("skips servers whose policy refuses the update, with the policy's message", () => {
     const managed = (
       id: string,
@@ -104,7 +122,11 @@ describe("collectServerUpdateTargets", () => {
         ...base,
         serverConfig: {
           ...base.serverConfig!,
-          managedPolicy: { organization: "Example Corp", lockedSettings: [], limits: { updates } },
+          managedPolicy: {
+            organization: "Example Corp",
+            lockedSettings: [],
+            limits: { updates },
+          },
         },
       };
     };
@@ -127,7 +149,10 @@ describe("collectServerUpdateTargets", () => {
           ...entry,
           serverConfig: {
             ...entry.serverConfig,
-            environment: { ...entry.serverConfig.environment, serverVersion: "0.0.49-nightly.1" },
+            environment: {
+              ...entry.serverConfig.environment,
+              serverVersion: "0.0.49-nightly.20261027.1",
+            },
           },
         })),
         "0.0.50-nightly.20261028.1",
@@ -158,10 +183,19 @@ describe("collectChannelSwitchTargets", () => {
   });
 
   it("moves nightly hosts to stable only when stable knows their database", () => {
-    const stable = { channel: "latest" as const, version: "0.1.3", databaseMigration: 69 };
+    const stable = {
+      channel: "latest" as const,
+      version: "0.1.3",
+      databaseMigration: 69,
+    };
     const { targets, skipped } = collectChannelSwitchTargets(
       [
-        host(machine("this-app", NIGHTLY, "desktop-managed", { hostedByThisApp: true }), 72),
+        host(
+          machine("this-app", NIGHTLY, "desktop-managed", {
+            hostedByThisApp: true,
+          }),
+          72,
+        ),
         host(machine("old-service", OLD_NIGHTLY, "boot-service"), 69),
         // Service launchers refuse older versions, even when the database allows it.
         host(machine("newer-service", NEWER_NIGHTLY, "boot-service"), 69),
@@ -217,7 +251,11 @@ describe("collectChannelSwitchTargets", () => {
   });
 
   it("moves stable hosts to nightly only when nightly knows their database", () => {
-    const nightly = { channel: "nightly" as const, version: NIGHTLY, databaseMigration: 72 };
+    const nightly = {
+      channel: "nightly" as const,
+      version: NIGHTLY,
+      databaseMigration: 72,
+    };
     const { targets, skipped } = collectChannelSwitchTargets(
       [
         host(machine("service", "0.1.2", "boot-service"), 70),
@@ -228,7 +266,10 @@ describe("collectChannelSwitchTargets", () => {
             ...machine("old-desktop", "0.1.2", "desktop-managed").serverConfig!,
             environment: {
               ...machine("old-desktop", "0.1.2", "desktop-managed").serverConfig!.environment,
-              capabilities: { repositoryIdentity: true, serverSelfUpdate: "desktop-managed" },
+              capabilities: {
+                repositoryIdentity: true,
+                serverSelfUpdate: "desktop-managed",
+              },
             },
           },
         }),
@@ -258,11 +299,15 @@ describe("collectChannelSwitchTargets", () => {
 
 describe("localSwitchBlockReason", () => {
   it("checks every server this app hosts, and only while connected", () => {
-    const stable = { channel: "latest" as const, version: "0.1.3", databaseMigration: 69 };
+    const stable = {
+      channel: "latest" as const,
+      version: "0.1.3",
+      databaseMigration: 69,
+    };
     const nightly = "0.1.4-nightly.20261027.3796";
 
     const windows = { connected: true, databaseMigration: 69 };
-    expect(localSwitchBlockReason(nightly, stable, [windows], 1)).toBeNull();
+    expect(localSwitchBlockReason(nightly, stable, [windows], 1, true)).toBeNull();
     // A WSL server's newer migration blocks the reinstall that would restart it.
     expect(
       localSwitchBlockReason(
@@ -270,15 +315,22 @@ describe("localSwitchBlockReason", () => {
         stable,
         [windows, { connected: true, databaseMigration: 72 }],
         2,
+        true,
       ),
     ).toContain("does not support yet");
     // A WSL backend still starting has no client entry, so its database is unchecked.
-    expect(localSwitchBlockReason(nightly, stable, [windows], 2)).toBe(
+    expect(localSwitchBlockReason(nightly, stable, [windows], 2, true)).toBe(
       "its server is not connected, so its database cannot be checked",
     );
     // A cached head from a disconnected server proves nothing.
     expect(
-      localSwitchBlockReason(nightly, stable, [{ connected: false, databaseMigration: 69 }], 1),
+      localSwitchBlockReason(
+        nightly,
+        stable,
+        [{ connected: false, databaseMigration: 69 }],
+        1,
+        true,
+      ),
     ).toBe("its server is not connected, so its database cannot be checked");
     expect(localSwitchBlockReason("0.1.3", stable, [], 1)).toBeNull();
     expect(localSwitchBlockReason(nightly, stable, [windows], 2, zh)).toBe(
@@ -288,6 +340,12 @@ describe("localSwitchBlockReason", () => {
       localSwitchBlockReason(nightly, stable, [{ connected: true, databaseMigration: 72 }], 1, zh),
     ).toBe("其数据库包含 0.1.3 尚不支持的更改；请继续使用 Nightly，直到 Stable 支持这些更改");
     expect(localSwitchBlockReason("0.1.3", stable, [], 1, zh)).toBeNull();
+    expect(localSwitchBlockReason("0.1.3", stable, [], 1, true)).toBeNull();
+    // A primary backend still starting has no entry or bootstrap yet, unless Local environment is off.
+    expect(localSwitchBlockReason(nightly, stable, [], 0, true)).toBe(
+      "its server is not connected, so its database cannot be checked",
+    );
+    expect(localSwitchBlockReason(nightly, stable, [], 0, false)).toBeNull();
   });
 });
 
@@ -346,6 +404,50 @@ describe("runUpdateEverything", () => {
     expect(calls).toEqual(["providers", "servers"]);
     expect(result.localReady).toBe(false);
   });
+
+  it("stages servers while providers install and updates each once its own stage settles", async () => {
+    const calls: string[] = [];
+    const [slow, fast] = [EnvironmentId.make("slow"), EnvironmentId.make("fast")];
+    let finishProviders = () => {};
+    let failSlowStage = () => {};
+    const providers = new Promise<void>((resolve) => (finishProviders = resolve));
+    const run = runUpdateEverything({
+      updateProviders: () => {
+        calls.push("providers");
+        return providers.then(() => {
+          calls.push("providers done");
+        });
+      },
+      stageServers: () => {
+        calls.push("stage");
+        return new Map([
+          [slow, new Promise((_, reject) => (failSlowStage = () => reject(new Error("failed"))))],
+          [fast, Promise.resolve()],
+        ]);
+      },
+      updateServers: (staged) => {
+        calls.push("servers");
+        return Promise.all(
+          [slow, fast].map(async (id) => {
+            await staged.get(id);
+            calls.push(`server ${id}`);
+            if (id === fast) failSlowStage();
+          }),
+        );
+      },
+    });
+    finishProviders();
+    await run;
+
+    expect(calls).toEqual([
+      "stage",
+      "providers",
+      "providers done",
+      "servers",
+      "server fast",
+      "server slow",
+    ]);
+  });
 });
 
 describe("describeUpdateEverything", () => {
@@ -366,13 +468,25 @@ describe("describeUpdateEverything", () => {
         },
       ],
       providerMachines: [
-        { environmentId: id("npm"), label: "bb-1", providers: ["Codex", "Claude"] },
+        {
+          environmentId: id("npm"),
+          label: "bb-1",
+          providers: ["Codex", "Claude"],
+        },
         { environmentId: id("local"), label: "Mainbook", providers: ["Codex"] },
         { environmentId: id("manual"), label: "alvin", providers: ["Claude"] },
       ],
       skipped: [
-        { environmentId: id("manual"), label: "alvin", reason: "needs a manual update" },
-        { environmentId: id("offline"), label: "TheoRoom", reason: "not connected" },
+        {
+          environmentId: id("manual"),
+          label: "alvin",
+          reason: "needs a manual update",
+        },
+        {
+          environmentId: id("offline"),
+          label: "TheoRoom",
+          reason: "not connected",
+        },
       ],
     });
 
@@ -409,7 +523,12 @@ describe("describeUpdateCapsule", () => {
       },
       status: "failed" as const,
     };
-    const run = { localVersion: null, phase: "servers" as const, restartAt: null, machines: [] };
+    const run = {
+      localVersion: null,
+      phase: "servers" as const,
+      restartAt: null,
+      machines: [],
+    };
 
     expect(describeUpdateCapsule(run, [failed], null, 0).action).toBe("retry");
     expect(describeUpdateCapsule(run, [failed], null, 0, zh)).toMatchObject({
@@ -505,7 +624,12 @@ describe("localized update summaries", () => {
     ).toContain("original server error");
     expect(
       collectUpdateEverythingResult(
-        { localVersion: null, localFailures: ["original error"], servers: [], providers: [] },
+        {
+          localVersion: null,
+          localFailures: ["original error"],
+          servers: [],
+          providers: [],
+        },
         zh,
       ).failures,
     ).toEqual(["此应用：original error"]);
@@ -533,13 +657,24 @@ describe("localized update summaries", () => {
       ...newer,
       serverConfig: {
         ...newer.serverConfig!,
-        environment: { ...newer.serverConfig!.environment, databaseMigration: 69 },
+        environment: {
+          ...newer.serverConfig!.environment,
+          databaseMigration: 69,
+        },
       },
     };
-    const release = { channel: "latest" as const, version: "0.1.3", databaseMigration: 69 };
+    const release = {
+      channel: "latest" as const,
+      version: "0.1.3",
+      databaseMigration: 69,
+    };
     expect(collectChannelSwitchTargets([host], release, zh)).toMatchObject({
       targets: [],
-      skipped: [{ reason: "请在该设备上运行 `t3 update --channel stable --allow-downgrade`" }],
+      skipped: [
+        {
+          reason: "请在该设备上运行 `t3 update --channel stable --allow-downgrade`",
+        },
+      ],
     });
   });
 });

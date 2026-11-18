@@ -1,7 +1,9 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
 import { useI18n, type WebTranslate } from "~/i18n/WebI18nContext";
 import { BookmarkIcon, FileIcon, FileTextIcon } from "lucide-react";
 import { memo, useEffect, useEffectEvent, useRef, useState, type RefObject } from "react";
 import { assistantCitationsToPlainText } from "@t3tools/shared/assistantCitations";
+import { replaceComposerContextReferences } from "@t3tools/shared/composerContextReferences";
 
 import { RelativeTime } from "../RelativeTime";
 import { cn } from "~/lib/utils";
@@ -14,10 +16,21 @@ function missingImageCount(entry: PromptStashEntry): number {
   return entry.droppedImageNames.length + (entry.unreadableImageNames?.length ?? 0);
 }
 
-function stashEntrySnippet(entry: PromptStashEntry, residualT: WebTranslate): string {
-  const trimmed = assistantCitationsToPlainText(entry.prompt).trim().replace(/\s+/g, " ");
+export function stashEntrySnippet(
+  entry: PromptStashEntry,
+  residualT: WebTranslate = readWebI18n().t,
+): string {
+  const trimmed = assistantCitationsToPlainText(
+    replaceComposerContextReferences(entry.prompt, (reference) => reference.label),
+  )
+    .trim()
+    .replace(/\s+/g, " ");
   if (trimmed.length > 0) {
-    return trimmed.length > SNIPPET_MAX_CHARS ? `${trimmed.slice(0, SNIPPET_MAX_CHARS)}…` : trimmed;
+    if (trimmed.length <= SNIPPET_MAX_CHARS) return trimmed;
+    // Never end on a lone high surrogate, the first half of an emoji.
+    const last = trimmed.charCodeAt(SNIPPET_MAX_CHARS - 1);
+    const end = last >= 0xd800 && last <= 0xdbff ? SNIPPET_MAX_CHARS - 1 : SNIPPET_MAX_CHARS;
+    return `${trimmed.slice(0, end)}…`;
   }
   const imageCount = entry.attachments.length + entry.droppedImageNames.length;
   const fileCount = entry.files?.length ?? 0;
@@ -139,7 +152,11 @@ export const ComposerStashMenu = memo(function ComposerStashMenu(props: {
   }, []);
 
   return (
-    <ComposerBanner.Root ref={drawerRef} data-composer-stash-drawer="true">
+    <ComposerBanner.Root
+      ref={drawerRef}
+      className="flex min-h-0 flex-col after:shrink-0"
+      data-composer-stash-drawer="true"
+    >
       <ComposerBanner.Row
         render={<button type="button" />}
         aria-label={residualT("chatResidual.copy7")}
@@ -158,7 +175,7 @@ export const ComposerStashMenu = memo(function ComposerStashMenu(props: {
           <ComposerBanner.ToggleIcon expanded />
         </ComposerBanner.Actions>
       </ComposerBanner.Row>
-      <ComposerBanner.Scroll>
+      <ComposerBanner.Scroll className="flex flex-col">
         <ComposerBanner.Children
           render={<ul role="list" />}
           aria-label={residualT("chatResidual.copy9")}
@@ -169,7 +186,9 @@ export const ComposerStashMenu = memo(function ComposerStashMenu(props: {
               <ComposerBanner.Content className="text-muted-foreground">
                 {residualT("chatResidual.copy10")}
                 {stashShortcutLabel
-                  ? residualT("chatResidual.stashHint", { shortcut: stashShortcutLabel })
+                  ? residualT("chatResidual.stashHint", {
+                      shortcut: stashShortcutLabel,
+                    })
                   : null}
               </ComposerBanner.Content>
             </ComposerBanner.Row>

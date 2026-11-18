@@ -1,5 +1,6 @@
 import type { AppLocalePreference } from "@t3tools/contracts/settings";
-import { resolveAppLocale } from "@t3tools/shared/appLocale";
+import { resolveClientLanguage } from "@t3tools/contracts/settings";
+import { legacyLocaleForLanguage, resolvedWebLanguage } from "./localePreference";
 import { type ReactNode, useEffect, useSyncExternalStore } from "react";
 
 import { useClientSettings, updateClientSettings } from "../hooks/useSettings";
@@ -14,7 +15,7 @@ function subscribeRuntimeLocale(onChange: () => void): () => void {
 }
 
 function readSystemLocale() {
-  return resolveAppLocale("system", readRuntimeLocales());
+  return resolvedWebLanguage({ appLocale: "system" }, readRuntimeLocales());
 }
 
 function readServerLocale() {
@@ -22,20 +23,23 @@ function readServerLocale() {
 }
 
 export function WebI18nProvider({ children }: { readonly children: ReactNode }) {
-  const appLocale = useClientSettings((settings) => settings.appLocale);
+  const language = useClientSettings(resolveClientLanguage);
+  const appLocale: AppLocalePreference =
+    language === "system" ? "system" : legacyLocaleForLanguage(language);
   const runtimeLocale = useSyncExternalStore(
     subscribeRuntimeLocale,
     readSystemLocale,
     readServerLocale,
   );
-  const locale = resolveAppLocale(appLocale, [runtimeLocale]);
+  const activeLanguage = resolvedWebLanguage({ language }, [runtimeLocale]);
+  const locale = legacyLocaleForLanguage(activeLanguage);
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Synchronize the document language used by screen readers and browser translation with the selected UI locale.
   useEffect(() => {
     if (typeof document !== "undefined") {
-      document.documentElement.lang = locale;
+      document.documentElement.lang = activeLanguage === "zh" ? "zh-CN" : activeLanguage;
     }
-  }, [locale]);
+  }, [activeLanguage]);
 
   const setAppLocale = (nextLocale: AppLocalePreference) =>
     updateClientSettings({ appLocale: nextLocale });

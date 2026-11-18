@@ -1,6 +1,10 @@
 import { beforeEach } from "vite-plus/test";
 import { commands } from "vite-plus/test/browser";
 
+import { observeMenuInteractions } from "./menuInteractionTrace";
+
+import { initializeI18n } from "../src/i18n/initializeI18n";
+
 declare module "vite-plus/test/browser" {
   interface BrowserCommands {
     /** Defined in vite.config.ts. Moves Playwright's mouse off the page. */
@@ -12,6 +16,15 @@ declare module "vite-plus/test/browser" {
 // under its last position starts hovered. Registered here rather than in render() so tests
 // that mount without it are covered too. Before each test, not after: a timed-out test keeps
 // running and can move the mouse after its own afterEach.
-beforeEach(async () => {
+beforeEach(async ({ task }) => {
   await commands.resetPointer();
+  if (import.meta.env.VITE_T3_MENU_TRACE !== "1") return;
+  // Match the focused experiment's 19 original Sidebar files, not every browser test.
+  if (!/\/src\/components\/Sidebar[^/]*\.browser\.test\.tsx$/.test(task.file.filepath)) return;
+  // Returned teardown runs even for a timed-out test. Observe only; never alter focus.
+  const menuObservation = observeMenuInteractions();
+  return () => menuObservation.finish(task.result?.state, task.name);
 });
+
+// The app initializes GT at startup; components using its hooks need the same here.
+initializeI18n(() => {});

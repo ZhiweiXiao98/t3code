@@ -30,13 +30,24 @@ export interface TurnDetail {
   readonly tailId: string | null;
 }
 
-export const NO_TURN_DETAIL: TurnDetail = { activity: null, messages: [], tailId: null };
+export const NO_TURN_DETAIL: TurnDetail = {
+  activity: null,
+  messages: [],
+  tailId: null,
+};
 
 const translateEnglish: WebTranslate = (key, values) => translateWebMessage("en", key, values);
 
 const ACTIVITY_MAX_LENGTH = 120;
 // Parsing is synchronous, and nobody listens to a longer message through a live region.
 const MESSAGE_MAX_LENGTH = 2_000;
+
+/** The first `maxLength` code points of `text`, or null when it has no more than that. */
+function cutText(text: string, maxLength: number): string | null {
+  if (text.length <= maxLength) return null;
+  const characters = Array.from(text);
+  return characters.length > maxLength ? characters.slice(0, maxLength).join("") : null;
+}
 
 // On screen these labels are a path or a query beside an icon.
 function withVerb(work: WorkLogEntry, label: string, t: WebTranslate) {
@@ -74,7 +85,8 @@ function stepLabel(
   const label = liveWorkEntryLabel(work, workspaceRoot, true).replace(/\s+/g, " ").trim();
   if (label === "") return null;
   const spoken = withVerb(work, label, t);
-  return spoken.length > ACTIVITY_MAX_LENGTH ? `${spoken.slice(0, ACTIVITY_MAX_LENGTH)}…` : spoken;
+  const cut = cutText(spoken, ACTIVITY_MAX_LENGTH);
+  return cut === null ? spoken : `${cut}…`;
 }
 
 /**
@@ -107,7 +119,7 @@ export function turnDetail(
     if (entry.kind === "work") {
       const work = entry.entry;
       if (work.sourceActivityKind === "context-compaction") {
-        activity ??= null;
+        activity ??= work.toolLifecycleStatus === "inProgress" ? work.label : null;
         continue;
       }
       // Notices, todo lists and checkpoints sit beside the turn's steps without being one.
@@ -199,11 +211,12 @@ export function nextTurnDetailAnnouncement(
           previous.messages.get(message.id) !== true &&
           (message.fresh || previous.messages.has(message.id)),
       )
-      .map((message) =>
-        message.text.length > MESSAGE_MAX_LENGTH
-          ? `${markdownPlainText(message.text.slice(0, MESSAGE_MAX_LENGTH))} ${t("v019.moreInThread")}`
-          : markdownPlainText(message.text),
-      )
+      .map((message) => {
+        const cut = cutText(message.text, MESSAGE_MAX_LENGTH);
+        return cut === null
+          ? markdownPlainText(message.text)
+          : `${markdownPlainText(cut)} ${t("v019.moreInThread")}`;
+      })
       .filter((text) => text !== "")
       .map((text) => `${MESSAGE_AUTHOR}: ${text}`),
     activity:

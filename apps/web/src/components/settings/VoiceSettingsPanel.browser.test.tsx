@@ -1,3 +1,4 @@
+import { translateVoiceSettingsMessage } from "../../i18n/voiceSettingsMessages";
 import { RegistryContext } from "@effect/atom-react";
 import { AsyncResult, AtomRegistry } from "effect/reactivity";
 import type { EnvironmentCatalogState } from "@t3tools/client-runtime/state/connections";
@@ -20,6 +21,8 @@ import { expect, it, vi } from "vite-plus/test";
 import { userEvent } from "vite-plus/test/browser";
 import { act, render } from "../../../test/render";
 import { __setClientSettingsForTests, getClientSettings } from "../../hooks/useSettings";
+import { readBrowserClientSettings } from "../../clientPersistenceStorage";
+import { chooseRecordingMicrophone } from "../../speech/browserMicrophones";
 import {
   useEnvironmentSpeechInput,
   useVoiceTranscriptionDestination,
@@ -132,7 +135,7 @@ it.each([{ cpu: null, accelerated: 2.1 }, { cpu: 5, accelerated: null }, { accel
       modelId: "both",
       model: "Bilingual",
       size: 100,
-      supportsStreaming: false,
+      supportsStreaming: true,
       supportsTranslation: false,
       acceleration: "auto",
       modelUnloadTimeout: "never",
@@ -182,6 +185,10 @@ it.each([{ cpu: null, accelerated: 2.1 }, { cpu: 5, accelerated: null }, { accel
         prepared,
       }),
       async () => {
+        const previous = getClientSettings();
+        using cleanup = new DisposableStack();
+        cleanup.defer(() => __setClientSettingsForTests(previous));
+        __setClientSettingsForTests({ ...previous, speechStreaming: true });
         const panel = () => (
           <SettingsScopeProvider search={{}} onChange={() => {}}>
             <VoiceSettingsPanel />
@@ -189,6 +196,15 @@ it.each([{ cpu: null, accelerated: 2.1 }, { cpu: 5, accelerated: null }, { accel
         );
         await using screen = await render(panel());
         await expect.element(screen.getByText(cpuBenchmark)).toBeVisible();
+        await userEvent.click(screen.getByRole("button", { name: "Advanced", exact: true }));
+        const streaming = screen.getByRole("switch", {
+          name: "Streaming transcription",
+        });
+        await expect.element(streaming).toBeEnabled();
+        await expect.element(streaming).toBeChecked();
+        streaming.element().focus();
+        await userEvent.keyboard(" ");
+        await vi.waitFor(() => expect(readBrowserClientSettings()?.speechStreaming).toBe(false));
         prepared = remote;
         await screen.rerender(panel());
         await remoteRequested.promise;
@@ -196,15 +212,28 @@ it.each([{ cpu: null, accelerated: 2.1 }, { cpu: 5, accelerated: null }, { accel
         remoteStatus.resolve(
           Response.json({
             ...status,
+            supportsStreaming: false,
             benchmarkTier: "accelerated",
             gpuDevices: [{ id: "gpu", name: "Remote GPU" }],
           }),
         );
         await expect.element(screen.getByText(gpuBenchmark)).toBeVisible();
+        await userEvent.click(screen.getByRole("button", { name: "Advanced", exact: true }));
+        await expect.element(streaming).toBeDisabled();
+        await expect.element(streaming).not.toBeChecked();
+        await expect
+          .element(screen.getByText("This model doesn’t support native streaming."))
+          .toBeVisible();
         prepared = local;
         await screen.rerender(panel());
         await expect.element(screen.getByText(cpuBenchmark)).toBeVisible();
+        await userEvent.click(screen.getByRole("button", { name: "Advanced", exact: true }));
         await expect.element(screen.getByText(gpuBenchmark)).not.toBeInTheDocument();
+        await expect.element(streaming).toBeEnabled();
+        await expect.element(streaming).not.toBeChecked();
+        streaming.element().focus();
+        await userEvent.keyboard(" ");
+        await vi.waitFor(() => expect(readBrowserClientSettings()?.speechStreaming).toBe(true));
       },
     );
   },
@@ -217,7 +246,12 @@ it("tests the selected model after download and preserves its transcript across 
     httpBaseUrl: window.location.origin,
     wsBaseUrl: "ws://localhost",
   });
-  const prepared = { ...target, target, socketUrl: target.wsBaseUrl, httpAuthorization: null };
+  const prepared = {
+    ...target,
+    target,
+    socketUrl: target.wsBaseUrl,
+    httpAuthorization: null,
+  };
   const model: EnvironmentSpeechModel = {
     id: "tiny",
     name: "Tiny",
@@ -289,7 +323,12 @@ it("tests the selected model after download and preserves its transcript across 
   const transcript = "Keep this transcript.";
   using _scope = vi.mocked(useEnvironmentScope).mockReturnValue(true);
   await vi.mocked(useVoiceTranscriptionDestination).withImplementation(
-    () => ({ environmentId: target.environmentId, label: target.label, grantId: "test", prepared }),
+    () => ({
+      environmentId: target.environmentId,
+      label: target.label,
+      grantId: "test",
+      prepared,
+    }),
     async () => {
       await vi.mocked(useEnvironmentSpeechInput).withImplementation(
         (input) => ({
@@ -318,7 +357,10 @@ it("tests the selected model after download and preserves its transcript across 
           blocksSubmission: false,
           freezesEditor: false,
           start: async () => {
-            input.commitDraft(transcript, { start: transcript.length, end: transcript.length });
+            input.commitDraft(transcript, {
+              start: transcript.length,
+              end: transcript.length,
+            });
           },
           submitAfterDictation: () => {},
           stop: async () => {},
@@ -331,8 +373,14 @@ it("tests the selected model after download and preserves its transcript across 
               <VoiceSettingsPanel />
             </SettingsScopeProvider>,
           );
-          const testModel = screen.getByRole("button", { name: "Test model", exact: true });
-          const download = screen.getByRole("button", { name: "Download", exact: true });
+          const testModel = screen.getByRole("button", {
+            name: "Test model",
+            exact: true,
+          });
+          const download = screen.getByRole("button", {
+            name: "Download",
+            exact: true,
+          });
           await expect.element(download).toBeVisible();
           expect(testModel.query()).toBeNull();
           expect(screen.getByRole("button", { name: "Set up voice input" }).query()).toBeNull();
@@ -340,20 +388,35 @@ it("tests the selected model after download and preserves its transcript across 
           await expect.element(testModel).toBeVisible();
           expect(screen.getByRole("button", { name: "Set up voice input" }).query()).toBeNull();
           await userEvent.click(testModel);
-          const result = screen.getByRole("status", { name: "Test transcript" });
+          const result = screen.getByRole("status", {
+            name: "Test transcript",
+          });
           await expect.element(result).toHaveTextContent(transcript);
 
-          const search = screen.getByRole("textbox", { name: "Search transcription models" });
+          const search = screen.getByRole("searchbox", {
+            name: "Search transcription models",
+          });
           await userEvent.fill(search, "no matching model");
           await expect.element(screen.getByText("No models match.")).toBeVisible();
           await userEvent.clear(search);
+          const languages = screen.getByRole("button", {
+            name: /^Filter by language/,
+          });
+          await userEvent.click(languages);
           await userEvent.fill(screen.getByRole("textbox", { name: "Search languages" }), "fr");
-          const french = screen.getByRole("button", { name: "French", exact: true });
+          const french = screen.getByRole("menuitemcheckbox", {
+            name: "French",
+            exact: true,
+          });
           await userEvent.click(french);
+          await userEvent.keyboard("{Escape}");
           await expect.element(screen.getByText("Bilingual", { exact: true })).toBeVisible();
           await expect.element(screen.getByText("B+", { exact: true })).toBeVisible();
           expect(screen.container.querySelector("#transcription-test")).toHaveAttribute("hidden");
+          await userEvent.click(languages);
+          await userEvent.fill(screen.getByRole("textbox", { name: "Search languages" }), "fr");
           await userEvent.click(french);
+          await userEvent.keyboard("{Escape}");
           await expect.element(result).toBeVisible();
           await vi.waitFor(() =>
             expect(
@@ -449,7 +512,12 @@ it("recovers from a failed download progress poll without notifying, but reports
     httpBaseUrl: window.location.origin,
     wsBaseUrl: "ws://localhost",
   });
-  const prepared = { ...target, target, socketUrl: target.wsBaseUrl, httpAuthorization: null };
+  const prepared = {
+    ...target,
+    target,
+    socketUrl: target.wsBaseUrl,
+    httpAuthorization: null,
+  };
   const model: EnvironmentSpeechModel = {
     id: "tiny",
     name: "Tiny",
@@ -494,7 +562,12 @@ it("recovers from a failed download progress poll without notifying, but reports
   });
   using notify = vi.spyOn(toastManager, "add").mockReturnValue("test");
   await vi.mocked(useVoiceTranscriptionDestination).withImplementation(
-    () => ({ environmentId: target.environmentId, label: target.label, grantId: "test", prepared }),
+    () => ({
+      environmentId: target.environmentId,
+      label: target.label,
+      grantId: "test",
+      prepared,
+    }),
     async () => {
       const panel = (key: string) => (
         <SettingsScopeProvider search={{}} onChange={() => {}}>
@@ -512,7 +585,9 @@ it("recovers from a failed download progress poll without notifying, but reports
       await screen.rerender(panel("reopened"));
       await vi.waitFor(() =>
         expect(notify).toHaveBeenCalledWith(
-          expect.objectContaining({ title: "Could not load transcription models" }),
+          expect.objectContaining({
+            title: "Could not load transcription models",
+          }),
         ),
       );
     },
@@ -522,6 +597,7 @@ it("recovers from a failed download progress poll without notifying, but reports
 it.each([
   ["speech-models", "voice-transcription-destination"],
   ["speech-hardware", "voice-transcription-destination"],
+  ["speech-streaming", "voice-transcription-destination"],
   ["transcription-test", "voice-transcription-destination"],
   ["speech-correction-word", "speech-post-processing"],
   ["speech-post-processing-model", "speech-post-processing"],
@@ -550,7 +626,10 @@ it("keeps a missing destination selected without claiming it cannot transcribe",
   __setClientSettingsForTests(getClientSettings());
   using cleanup = new DisposableStack();
   cleanup.defer(() => chooseAudioDestination(null));
-  chooseAudioDestination({ kind: "environment", environmentId: EnvironmentId.make("missing") });
+  chooseAudioDestination({
+    kind: "environment",
+    environmentId: EnvironmentId.make("missing"),
+  });
   await using screen = await render(
     <SettingsScopeProvider search={{}} onChange={() => {}}>
       <VoiceSettingsPanel />
@@ -618,7 +697,9 @@ it("keeps punctuation in a saved dictionary term and its alias", async () => {
     </SettingsScopeProvider>,
   );
   await userEvent.type(
-    screen.getByRole("textbox", { name: "Add a word or phrase to the dictionary" }),
+    screen.getByRole("textbox", {
+      name: "Add a word or phrase to the dictionary",
+    }),
     "O'Reilly{Enter}",
   );
   expect(getClientSettings().speechCustomWords[0]?.term).toBe("O'Reilly");
@@ -696,7 +777,10 @@ it.each(["zh-CN", "en", "unmounted"] as const)(
       throw new Error("Unexpected request in isolated voice fixture");
     });
     const mediaDescriptor = Object.getOwnPropertyDescriptor(navigator, "mediaDevices");
-    Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: undefined });
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: undefined,
+    });
     using _media = {
       [Symbol.dispose]() {
         if (mediaDescriptor) Object.defineProperty(navigator, "mediaDevices", mediaDescriptor);
@@ -714,7 +798,10 @@ it.each(["zh-CN", "en", "unmounted"] as const)(
     let currentLocale: "en" | "zh-CN" = "en";
     using _locale = vi.spyOn(webI18n, "readWebI18n").mockImplementation(() => {
       const locale = currentLocale;
-      return { locale, t: (key, values) => translateWebMessage(locale, key, values) };
+      return {
+        locale,
+        t: (key, values) => translateWebMessage(locale, key, values),
+      };
     });
     using run = vi.spyOn(speechRuntime, "runEnvironmentSpeech");
     run.mockClear();
@@ -773,3 +860,108 @@ it.each(["zh-CN", "en", "unmounted"] as const)(
     expect(run).toHaveBeenCalledTimes(2);
   },
 );
+
+it("keeps a dictionary term and alias draft on the Enter that confirms an IME candidate", async () => {
+  const previous = getClientSettings();
+  using cleanup = new DisposableStack();
+  cleanup.defer(() => __setClientSettingsForTests(previous));
+  __setClientSettingsForTests({
+    ...previous,
+    speechCustomWords: [{ term: "日本語", aliases: [] }],
+  });
+  await using screen = await render(
+    <SettingsScopeProvider search={{}} onChange={() => {}}>
+      <VoiceSettingsPanel />
+    </SettingsScopeProvider>,
+  );
+  const composingEnter = () =>
+    new KeyboardEvent("keydown", {
+      key: "Enter",
+      isComposing: true,
+      bubbles: true,
+    });
+  const term = screen.getByRole("textbox", {
+    name: "Add a word or phrase to the dictionary",
+  });
+  await userEvent.fill(term, "にほん");
+  term.element().dispatchEvent(composingEnter());
+  await expect.element(term).toHaveValue("にほん");
+  await userEvent.click(screen.getByRole("button", { name: "Add an alias for 日本語" }));
+  const alias = screen.getByRole("textbox", { name: "Alias for 日本語" });
+  await userEvent.fill(alias, "にほん");
+  alias.element().dispatchEvent(composingEnter());
+  expect(getClientSettings().speechCustomWords).toEqual([{ term: "日本語", aliases: [] }]);
+  await expect.element(alias).toHaveValue("にほん");
+});
+
+it("records from the first connected microphone in the saved order", async () => {
+  const previous = getClientSettings();
+  using cleanup = new DisposableStack();
+  cleanup.defer(() => __setClientSettingsForTests(previous));
+  // A single saved microphone from before the order existed comes first.
+  __setClientSettingsForTests({
+    ...previous,
+    voiceMicrophone: "yeti",
+    voiceMicrophones: [],
+  });
+  const input = (deviceId: string, label: string) =>
+    ({
+      deviceId,
+      label,
+      groupId: deviceId,
+      kind: "audioinput",
+    }) as MediaDeviceInfo;
+  const yeti = input("yeti", "Blue Yeti");
+  const airpods = input("airpods", "AirPods Pro");
+  using devices = vi
+    .spyOn(navigator.mediaDevices, "enumerateDevices")
+    .mockResolvedValue([yeti, airpods]);
+  const saved = () =>
+    getClientSettings().voiceMicrophones.map((entry) =>
+      entry.kind === "default" ? "System default" : entry.label,
+    );
+  await using screen = await render(
+    <SettingsScopeProvider search={{}} onChange={() => {}}>
+      <VoiceSettingsPanel />
+    </SettingsScopeProvider>,
+  );
+  const list = screen.getByRole("list", {
+    name: "Microphones, preferred first",
+  });
+  await expect.poll(saved).toEqual(["Blue Yeti", "System default", "AirPods Pro"]);
+  const row = (index: number) => list.getByRole("listitem").nth(index);
+  await expect.element(row(0)).toHaveTextContent("1Blue YetiIn use");
+  expect(await chooseRecordingMicrophone()).toBe("yeti");
+
+  devices.mockResolvedValue([airpods]);
+  await userEvent.click(screen.getByRole("button", { name: "Refresh microphones" }));
+  await expect.element(row(0)).toHaveTextContent("1Blue YetiNot connected");
+  await expect.element(row(1)).toHaveTextContent("2System defaultIn use");
+  expect(await chooseRecordingMicrophone()).toBe("");
+
+  await userEvent.click(screen.getByRole("button", { name: "Move AirPods Pro up" }));
+  await userEvent.click(screen.getByRole("button", { name: "Move AirPods Pro up" }));
+  expect(saved()).toEqual(["AirPods Pro", "Blue Yeti", "System default"]);
+  await expect.element(screen.getByRole("button", { name: "Move AirPods Pro up" })).toBeDisabled();
+  expect(await chooseRecordingMicrophone()).toBe("airpods");
+
+  await userEvent.click(screen.getByRole("button", { name: "Forget Blue Yeti" }));
+  expect(saved()).toEqual(["AirPods Pro", "System default"]);
+  await expect
+    .element(screen.getByRole("button", { name: "Forget System default" }))
+    .not.toBeInTheDocument();
+});
+
+it("translates every shortcut mode label and hint without missing catalog keys", () => {
+  for (const [source, chinese] of [
+    ["Auto", "自动"],
+    ["Hold", "按住"],
+    ["Toggle", "切换"],
+    ["Tap to toggle, hold to talk", "轻按切换，按住说话"],
+    ["Record while held", "按住期间录音"],
+    ["Tap to start, tap to stop", "轻按开始，再次轻按停止"],
+  ] as const) {
+    expect(translateVoiceSettingsMessage("en", source)).toBe(source);
+    expect(translateVoiceSettingsMessage("zh-CN", source)).toBe(chinese);
+  }
+});

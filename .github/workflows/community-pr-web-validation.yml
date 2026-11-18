@@ -1,0 +1,77 @@
+# Standalone diagnostic history retained; automatic Web execution is now part of client-release.yml full PR-head validation.
+name: Community PR Web complete partitions (free runners)
+"on":
+  workflow_dispatch: {}
+permissions:
+  contents: read
+concurrency:
+  group: community-pr-web-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  web-shards:
+    name: Web full coverage shard ${{ matrix.shard }}/4
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        shard:
+          - 1
+          - 2
+          - 3
+          - 4
+    steps:
+      - name: Checkout exact visible PR head without credentials
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+          GIT_TERMINAL_PROMPT: "0"
+        run: 'set -euo pipefail
+
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+
+          git init .
+
+          git remote add origin "https://github.com/ZhiweiXiao98/t3code.git"
+
+          git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
+
+          git sparse-checkout set --no-cone ''/*'' ''!/.repos/''
+
+          git checkout --detach FETCH_HEAD
+
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+
+          '
+      - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
+        with:
+          node-version-file: package.json
+          cache: true
+          run-install: false
+      - name: Install locked dependencies
+        id: dependencies
+        run: vp install --frozen-lockfile
+      - name: Install Linux native build libraries
+        run: python3 .github/scripts/ci-ubuntu-packages.py packages libsecret-1-dev pkg-config build-essential imagemagick
+      - name: Install Chromium for web and server browser tests
+        shell: bash
+        env:
+          SUITE: web
+        run:
+          "set -euo pipefail\nbrowser_cli=apps/server/node_modules/playwright-core/cli.js\nif [[ \"$SUITE\" == web ]]; then\n  browser_cli=apps/web/node_modules/playwright/cli.js\nfi\npython3 .github/scripts/ci-ubuntu-packages.py playwright \"$browser_cli\"\nnode \"$browser_cli\" install --only-shell chromium\nif [[ \"$SUITE\" == server-* ]]; then\n  test \"$(node -p \"require('./apps/server/node_modules/playwright-core/package.json').version\")\" = \"$(node -p \"require('./apps/server/package.json').dependencies['playwright-core']\")\"\n  browser_revision=$(node -p \"require('./apps/server/node_modules/playwright-core/browsers.json').browsers.find(browser => browser.name === 'chromium-headless-shell').revision\")\n  browser_root=\"$HOME/.cache/ms-playwright/chromium_headless_shell-$browser_revision\"\n  mapfile -t browsers < <(find \"$browser_root\" -type f -name chrome-headless-shell)\n  test \"${#browsers[@]}\" -eq 1\n  browser=\"${browsers[0]}\"\n  test -x \"$browser\"\n  test \"${T3CODE_SERVER_BROWSER_SANDBOX:-1}\"\
+          \ != 0\n  echo \"T3CODE_TEST_HEADLESS_SHELL=$browser\" >> \"$GITHUB_ENV\"\n  node -p \"JSON.stringify({node: process.version, undici: process.versions.undici, playwright: require('./apps/server/node_modules/playwright-core/package.json').version})\"\n  \"$browser\" --version\n  sha256sum \"$browser\"\nfi\n"
+      - name: Run complete Web partition
+        env:
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+          WEB_SHARD: ${{ matrix.shard }}
+        run: python3 .github/scripts/run-web-shard.py
+      - name: Preserve partition evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-validation-shard-${{ matrix.shard }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/web-browser-diagnostics/
+          if-no-files-found: error
+          retention-days: 14
+    if: github.repository == 'ZhiweiXiao98/t3code' && github.event.pull_request.number == 2 && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'review/v0.1.10-zh' && github.base_ref == 'maintenance/v0.1.9-zh-cloud'

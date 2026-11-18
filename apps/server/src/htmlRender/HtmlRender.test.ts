@@ -5,6 +5,7 @@ import { EnvironmentId, ProviderInstanceId, ThreadId } from "@t3tools/contracts"
 import * as McpProviderSessions from "@t3tools/provider-core/server/McpProviderSessions";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import { symlinksSupported } from "@t3tools/shared/testing/symlinks";
+import * as Console from "effect/Console";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
@@ -242,6 +243,11 @@ describe("HtmlRender", () => {
       const reused = yield* htmlRender.publish({ threadId, ...page });
       yield* mcpSessions.set({ ...session, browserToolsAvailable: true });
       expect(yield* mcpSessions.takeHtmlRender(threadId, page)).toEqual(reused);
+      const first = yield* htmlRender.publish({ threadId, ...page });
+      const second = yield* htmlRender.publish({ threadId, ...page });
+      expect(yield* mcpSessions.takeHtmlRender(threadId, page)).toEqual(first);
+      expect(yield* mcpSessions.takeHtmlRender(threadId, page)).toEqual(second);
+      expect(yield* mcpSessions.takeHtmlRender(threadId, page)).toBe(undefined);
 
       yield* htmlRender.publish({ threadId, ...page });
       yield* mcpSessions.set({
@@ -453,6 +459,7 @@ process.on("SIGTERM", () => {});
 const quit = () => { fs.writeFileSync(${JSON.stringify(exitRecord)}, "asked to close"); process.exit(0); };
 const reply = (message) => fs.writeSync(4, JSON.stringify(message) + "\\0");
 const results = {
+  "Target.createBrowserContext": { browserContextId: "context" },
   "Target.createTarget": { targetId: "page" },
   "Target.attachToTarget": { sessionId: "session" },
   "Runtime.evaluate": { result: { value: 100 } },
@@ -574,7 +581,8 @@ fs.createReadStream(null, { fd: 3 }).on("end", quit).on("data", (chunk) => {
 
   it.live("keeps the page off this machine's local network", (ctx) =>
     Effect.gen(function* () {
-      const executable = (yield* HostProcess.Environment)[TEST_BROWSER_ENV];
+      const environment = yield* HostProcess.Environment;
+      const executable = environment[TEST_BROWSER_ENV];
       if (!executable) return ctx.skip(`Set ${TEST_BROWSER_ENV} to run this test.`);
       const requests: Array<string> = [];
       const server = yield* Effect.acquireRelease(
@@ -607,20 +615,35 @@ fs.createReadStream(null, { fd: 3 }).on("end", quit).on("data", (chunk) => {
       const stun = `stun:127.0.0.1:${udp.address().port}`;
       yield* Effect.gen(function* () {
         const htmlRender = yield* HtmlRender.HtmlRender;
-        yield* htmlRender.preview({
-          html: [
-            `<img src="${origin}/x.png"><iframe src="${origin}/"></iframe>`,
-            `<script type="speculationrules">{"prefetch":[{"source":"list","urls":["${origin}/prefetch"]}]}</script>`,
-            `<script>fetch("${origin}/").catch(() => {}); new WebSocket("ws${origin.slice(4)}/socket");`,
-            `try { const peer = new RTCPeerConnection({ iceServers: [{ urls: "${stun}" }] });`,
-            `peer.createDataChannel("x"); peer.createOffer().then((offer) => peer.setLocalDescription(offer));`,
-            `} catch {}`,
-            `window.open("${origin}/popup"); location.href = "${origin}/navigate";</script>`,
-          ].join(""),
-        });
+        yield* htmlRender
+          .preview({
+            html: [
+              `<img src="${origin}/x.png"><iframe src="${origin}/"></iframe>`,
+              `<script type="speculationrules">{"prefetch":[{"source":"list","urls":["${origin}/prefetch"]}]}</script>`,
+              `<script>fetch("${origin}/").catch(() => {}); new WebSocket("ws${origin.slice(4)}/socket");`,
+              `try { const peer = new RTCPeerConnection({ iceServers: [{ urls: "${stun}" }] });`,
+              `peer.createDataChannel("x"); peer.createOffer().then((offer) => peer.setLocalDescription(offer));`,
+              `} catch {}`,
+              `window.open("${origin}/popup"); location.href = "${origin}/navigate";</script>`,
+            ].join(""),
+          })
+          .pipe(
+            Effect.onExit((exit) =>
+              Exit.isFailure(exit) && environment.T3CODE_HTML_RENDER_DIAGNOSTICS === "1"
+                ? Console.info(
+                    JSON.stringify({
+                      event: "t3-html-render-local-network-diagnostic",
+                      schemaVersion: 1,
+                      httpRequestCount: requests.length,
+                      udpDatagramCount: datagrams.length,
+                    }),
+                  ).pipe(Effect.ignoreCause)
+                : Effect.void,
+            ),
+          );
       }).pipe(Effect.provide(layerHtmlRender(executable)));
       expect(requests).toEqual([]);
       expect(datagrams).toEqual([]);
-    }).pipe(Effect.scoped),
+    }),
   );
 });

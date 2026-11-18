@@ -30,7 +30,7 @@ const settings = Schema.decodeSync(ServerSettings)({
     hub: { kind: "cliproxy", url: "https://hub.test", managementKey: personal("op://hub") },
   },
   easDeviceHosts: [
-    { kind: "eas", id: "eas", label: "EAS Simulator", accessToken: personal("op://expo") },
+    { kind: "eas", id: "eas", label: "Expo Simulators", accessToken: personal("op://expo") },
   ],
   simlockDeviceHosts: [
     {
@@ -52,7 +52,7 @@ it.each([
       "Codex · CODEX_TOKEN",
       "GitHub · github.com",
       "https://hub.test · Management Key",
-      "EAS Simulator · Access Token",
+      "Expo Simulators · Access Token",
       "Simlock Pool · Agent Token",
       "Voice · OpenAI",
     ],
@@ -74,7 +74,7 @@ it("formats owned secret-use labels without translating owner, variable, host or
     "Codex · CODEX_TOKEN",
     "GitHub · github.com",
     "https://hub.test · 管理密钥",
-    "EAS Simulator · 访问令牌",
+    "Expo Simulators · 访问令牌",
     "Simlock Pool · 智能体令牌",
     "语音 · OpenAI",
   ]);

@@ -1,5 +1,6 @@
-import { EnvironmentId, ThreadId } from "@t3tools/contracts";
+import { EnvironmentId, MessageId, ThreadId, TurnItemId } from "@t3tools/contracts";
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
+import { threadContextRecord } from "@t3tools/shared/composerContextReferences";
 import { beforeEach, describe, expect, it } from "vite-plus/test";
 import {
   DraftId,
@@ -13,6 +14,8 @@ import {
   prepareQueuedEditAttachments,
   recoverQueuedMessageEdit,
 } from "./queuedMessageEdit";
+import { readAttachmentUpload, useAttachmentUploadStore } from "../../lib/attachmentUploadQueue";
+import { environmentContextRecord, responseContextRecord } from "../../lib/composerContextRecords";
 
 const environmentId = EnvironmentId.make("remote-environment");
 const threadTarget = scopeThreadRef(environmentId, ThreadId.make("thread:edit"));
@@ -44,7 +47,10 @@ const uploadedFile = {
 
 describe("queued message file edits", () => {
   beforeEach(() => {
-    useComposerDraftStore.setState({ draftsByThreadKey: {}, draftThreadsByThreadKey: {} });
+    useComposerDraftStore.setState({
+      draftsByThreadKey: {},
+      draftThreadsByThreadKey: {},
+    });
   });
 
   it.each([
@@ -82,7 +88,9 @@ describe("queued message file edits", () => {
     expect(isOwnedQueuedEditUploadFailure(new Error(error.message))).toBe(false);
     expect(
       isOwnedQueuedEditUploadFailure(
-        Object.assign(new Error(error.message), { ownedCode: "queuedEditUploadFailed" }),
+        Object.assign(new Error(error.message), {
+          ownedCode: "queuedEditUploadFailed",
+        }),
       ),
     ).toBe(false);
     error.message = "changed";
@@ -101,13 +109,70 @@ describe("queued message file edits", () => {
   it("keeps file-only edits when another client starts the queued run", () => {
     const store = useComposerDraftStore.getState();
     store.setPrompt(editTarget, "Original message");
-    store.addFiles(editTarget, [file]);
+    const elsewhere: ComposerFileAttachment = {
+      ...uploadedFile,
+      id: "file:elsewhere",
+      name: "elsewhere.pdf",
+      file: null,
+      uploadedAttachmentId: "upload:elsewhere",
+      uploadEnvironmentId: EnvironmentId.make("other-environment"),
+    };
+    store.addFiles(editTarget, [file, elsewhere]);
     expect(
-      recoverQueuedMessageEdit({ editTarget, threadTarget, originalText: "Original message" }),
+      recoverQueuedMessageEdit({
+        editTarget,
+        threadTarget,
+        originalText: "Original message",
+      }),
     ).toBe("kept");
     expect(store.getComposerDraft(threadTarget)?.prompt).toBe("Original message");
-    expect(store.getComposerDraft(threadTarget)?.files).toEqual([file]);
+    // An upload this environment cannot reach comes back as a file to reattach, not a dropped chip.
+    const { uploadedAttachmentId: _id, uploadEnvironmentId: _env, ...reattach } = elsewhere;
+    expect(store.getComposerDraft(threadTarget)?.files).toEqual([file, reattach]);
     expect(store.getComposerDraft(editTarget)).toBeNull();
+  });
+
+  it("keeps the mentions and reply of a kept edit in the thread draft", () => {
+    const store = useComposerDraftStore.getState();
+    store.setPrompt(editTarget, "Edited message");
+    const thread = threadContextRecord(
+      scopeThreadRef(environmentId, ThreadId.make("thread:other")),
+      "Other",
+    );
+    const machine = environmentContextRecord(EnvironmentId.make("environment-vps"), "vps");
+    const reply = responseContextRecord({
+      citation: {
+        version: 1,
+        environmentId,
+        threadId: ThreadId.make("thread:edit"),
+        messageId: MessageId.make("message:answer"),
+        text: "Done.",
+        start: 0,
+        end: 5,
+        prefix: "",
+        suffix: "",
+      },
+      itemId: TurnItemId.make("item:answer"),
+      subagents: [],
+    });
+    store.addThreadContexts(editTarget, [thread]);
+    store.addEnvironmentContexts(editTarget, [machine]);
+    store.setReplyTo(editTarget, reply);
+    const editedPrompt = store.getComposerDraft(editTarget)!.prompt;
+    expect(
+      recoverQueuedMessageEdit({
+        editTarget,
+        threadTarget,
+        originalText: "Original message",
+      }),
+    ).toBe("kept");
+    expect(store.getComposerDraft(editTarget)).toBeNull();
+    expect(store.getComposerDraft(threadTarget)).toMatchObject({
+      prompt: editedPrompt,
+      threadContexts: [thread],
+      environmentContexts: [machine],
+      replyTo: reply,
+    });
   });
 
   it("reports a removed queued attachment as an edit when the run leaves", () => {
@@ -139,10 +204,20 @@ describe("queued message file edits", () => {
     const store = useComposerDraftStore.getState();
     store.setPrompt(threadTarget, "Separate draft");
     store.addFiles(editTarget, [file]);
+    useAttachmentUploadStore.setState({
+      uploadsByImageId: {
+        [file.id]: {
+          status: "ready",
+          environmentId,
+          attachmentId: uploadedFile.id,
+        },
+      },
+    });
     expect(recoverQueuedMessageEdit({ editTarget, threadTarget, originalText: "" })).toBe(
       "discarded",
     );
     expect(store.getComposerDraft(threadTarget)?.prompt).toBe("Separate draft");
     expect(store.getComposerDraft(editTarget)).toBeNull();
+    expect(readAttachmentUpload(file.id)).toBeUndefined();
   });
 });

@@ -71,7 +71,9 @@ export function useSystemComposerBanners(input: SystemComposerBannersInput) {
     autoUpdateEnvironments,
   } = input;
   const navigate = useNavigate();
-  const retryEnvironment = useAtomCommand(environmentCatalog.retryNow, { reportFailure: false });
+  const retryEnvironment = useAtomCommand(environmentCatalog.retryNow, {
+    reportFailure: false,
+  });
   const setEnvironmentEnabled = useAtomCommand(environmentCatalog.setEnabled, {
     reportFailure: false,
   });
@@ -119,7 +121,10 @@ export function useSystemComposerBanners(input: SystemComposerBannersInput) {
   const [disconnectingEnvironment, setDisconnectingEnvironment] = useState(false);
   const handleDisconnectActiveEnvironment = async (environmentId: EnvironmentId) => {
     setDisconnectingEnvironment(true);
-    const result = await setEnvironmentEnabled({ environmentId, enabled: false });
+    const result = await setEnvironmentEnabled({
+      environmentId,
+      enabled: false,
+    });
     setDisconnectingEnvironment(false);
     if (result._tag === "Failure") {
       if (!isAtomCommandInterrupted(result)) {
@@ -188,8 +193,11 @@ export function useSystemComposerBanners(input: SystemComposerBannersInput) {
       unavailableConnection !== null &&
       (unavailableConnection.phase === "connecting" ||
         unavailableConnection.phase === "reconnecting");
+    const awaitingApproval = unavailableConnection?.awaitingApproval === true;
     const suppressUnavailableBanner =
-      environmentReconnecting && (updateRunning || !reconnectWarningGraceElapsed);
+      environmentReconnecting &&
+      !awaitingApproval &&
+      (updateRunning || !reconnectWarningGraceElapsed);
     const showUnavailableBanner =
       activeEnvironmentUnavailableState !== null &&
       unavailableConnection !== null &&
@@ -200,15 +208,19 @@ export function useSystemComposerBanners(input: SystemComposerBannersInput) {
         variant: unavailableConnection.phase === "error" ? "error" : "warning",
         group: "environment",
         icon: <WifiOffIcon />,
-        title: t(environmentReconnecting ? "audit6.reconnecting" : "audit6.offline", {
-          label: activeEnvironmentUnavailableState.label,
-        }),
-        description: activeEnvironment ? (
+        title: awaitingApproval
+          ? `${activeEnvironmentUnavailableState.label} is waiting to approve this device`
+          : t(environmentReconnecting ? "audit6.reconnecting" : "audit6.offline", {
+              label: activeEnvironmentUnavailableState.label,
+            }),
+        description: awaitingApproval ? (
+          (unavailableConnection.error ?? undefined)
+        ) : activeEnvironment ? (
           <ConnectionDiagnosisHeadline environment={activeEnvironment} />
         ) : undefined,
         actions: (
           <>
-            {!environmentReconnecting ? (
+            {unavailableConnection.phase !== "connecting" ? (
               <Button
                 size="xs"
                 variant="ghost"
@@ -218,7 +230,7 @@ export function useSystemComposerBanners(input: SystemComposerBannersInput) {
                   )
                 }
               >
-                {translateWebSource(uiLocale, "Reconnect")}
+                {translateWebSource(uiLocale, environmentReconnecting ? "Retry now" : "Reconnect")}
               </Button>
             ) : null}
             {disconnectAction}

@@ -32,6 +32,7 @@ const fixture = vi.hoisted(() => ({
 vi.mock("../../lib/attachmentUploadQueue", async (original) => ({
   ...(await original<typeof import("../../lib/attachmentUploadQueue")>()),
   getUploadedAttachments: fixture.uploaded,
+  refreshExpiredAttachmentUploads: async () => undefined,
 }));
 vi.mock("./ProviderStatusBanner", async (original) => ({
   ...(await original<typeof import("./ProviderStatusBanner")>()),
@@ -173,8 +174,7 @@ function Probe({
       <ChatBannerLane
         environmentId={ref.environmentId}
         providerStatus={null}
-        providerStatusBannerKey={null}
-        setDismissedProviderStatusBannerKey={() => undefined}
+        providerStatusDismissalKey={null}
         onOpenProviderSetup={() => undefined}
         threadId={ref.threadId}
         threadError={entries.pending?.message ?? null}

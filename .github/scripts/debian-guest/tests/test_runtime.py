@@ -26,6 +26,18 @@ def envelope(entries=None):
     data=archive_bytes(entries or [('status.json','file',b'{}')])
     return f'T3_RESULT_BEGIN {len(data)} {hashlib.sha256(data).hexdigest()}\n'.encode()+base64.encodebytes(data)+b'\nT3_RESULT_END\n'
 
+class DriverIdentity(unittest.TestCase):
+    def test_clean_driver_pin_matches_repository(self):
+        driver = Path(__file__).resolve().parents[2] / 'check-clean-desktop-first-start.mjs'
+        self.assertEqual(hashlib.sha256(driver.read_bytes()).hexdigest(), common.CLEAN_SHA)
+
+    def test_manifest_rejects_different_clean_driver(self):
+        candidate = manifest()
+        candidate['cleanDriverSha256'] = '0' * 64
+        with self.assertRaisesRegex(ValueError, 'Clean driver changed'):
+            common.validate_manifest(candidate)
+
+
 class Transport(unittest.TestCase):
     def decode(self,data,okay=False):
         with tempfile.TemporaryDirectory() as d:

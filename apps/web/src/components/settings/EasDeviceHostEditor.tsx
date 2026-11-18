@@ -59,7 +59,9 @@ export function EasDeviceHostEditor(props: {
   onClose: () => void;
 }) {
   const { locale: sourceLocale } = useI18n();
-  const check = useAtomCommand(deviceEnvironment.easAccount, { reportFailure: false });
+  const check = useAtomCommand(deviceEnvironment.easAccount, {
+    reportFailure: false,
+  });
   const [draft, setDraft] = useState(props.host);
   const tokenId = useId();
   const secretSources = useSecretSources(props.environmentId);
@@ -181,7 +183,7 @@ export function EasDeviceHostEditor(props: {
         >
           <DialogHeader>
             <DialogTitle>
-              {translateWebSource(sourceLocale, props.isNew ? "Add EAS host" : "Edit EAS host")}
+              {translateWebSource(sourceLocale, props.isNew ? "Add Expo host" : "Edit Expo host")}
             </DialogTitle>
             <DialogDescription>
               {translateWebSource(
@@ -223,6 +225,7 @@ export function EasDeviceHostEditor(props: {
                         : ""
                   }
                   sources={secretSources}
+                  environmentId={props.environmentId}
                   onValidityChange={(valid) => {
                     setTokenValid(valid);
                     resetAccount();
@@ -292,7 +295,7 @@ export function EasDeviceHostEditor(props: {
               </Button>
             </div>
             <div className="space-y-1.5 text-sm">
-              <span>{translateWebSource(sourceLocale, "EAS project")}</span>
+              <span>{translateWebSource(sourceLocale, "Expo project")}</span>
               <Select
                 value={draft.appId ?? FROM_THREAD_PROJECT}
                 disabled={props.busy}
@@ -306,7 +309,7 @@ export function EasDeviceHostEditor(props: {
               >
                 <SelectTrigger
                   size="sm"
-                  aria-label={translateWebSource(sourceLocale, "EAS project")}
+                  aria-label={translateWebSource(sourceLocale, "Expo project")}
                 >
                   <SelectValue>
                     {(value: string) =>
@@ -345,17 +348,15 @@ export function EasDeviceHostEditor(props: {
             <p className="text-xs text-muted-foreground">
               {translateWebSource(
                 sourceLocale,
-                "Expo allows sessions of up to 40 minutes on free accounts and 115 on paid ones, and ends one after the idle minutes without activity, so idle minutes must be smaller than session minutes.",
+                "Expo Simulators needs a paid Expo account. A session runs for up to 115 minutes and stops early when it is idle for the idle minutes, so idle minutes must be less than session minutes.",
               )}
-              {props.isNew ? null : (
-                <>
-                  {" "}
-                  {translateWebSource(
+              {props.isNew
+                ? null
+                : " " +
+                  translateWebSource(
                     sourceLocale,
-                    "Saving restarts this host, which stops its running sessions.",
+                    "Saving restarts this host and stops its running sessions.",
                   )}
-                </>
-              )}
             </p>
             {problem === null ? null : (
               <p className="text-xs text-destructive" role="alert">

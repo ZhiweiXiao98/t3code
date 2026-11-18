@@ -1,4 +1,4 @@
-import { DEFAULT_APP_LOCALE_PREFERENCE } from "@t3tools/contracts";
+import { DEFAULT_APP_LOCALE_PREFERENCE, resolveClientAppLocale } from "@t3tools/contracts";
 import { resolveAppLocale } from "@t3tools/shared/appLocale";
 import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
@@ -18,7 +18,7 @@ export const readDesktopLocale = Effect.fn("desktop.locale.read")(function* (
   );
   const preference = Option.match(settings, {
     onNone: () => DEFAULT_APP_LOCALE_PREFERENCE,
-    onSome: (value) => value.appLocale,
+    onSome: resolveClientAppLocale,
   });
   if (preference !== "system") return resolveAppLocale(preference, []);
   const locale = yield* systemLocale.pipe(

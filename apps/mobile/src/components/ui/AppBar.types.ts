@@ -58,6 +58,7 @@ export interface AppBarConfirm {
 }
 
 export interface AppBarSearch {
+  readonly localizePlaceholder?: boolean;
   readonly value: string;
   readonly onChangeText: (value: string) => void;
   readonly placeholder: string;
@@ -81,7 +82,10 @@ export interface AppBarProps {
   readonly titleContent?: ReactNode;
   readonly subtitle?: string | null;
   readonly actions?: ReadonlyArray<AppBarAction>;
-  /** Pull-to-refresh is the gesture on both platforms; Android also lists this in the overflow menu. */
+  /**
+   * Pull-to-refresh is the gesture on both platforms. Android also lists this in the overflow
+   * menu, or shows it as a button in a bottom sheet, where the sheet owns the pull.
+   */
   readonly refresh?: Pick<AppBarAction, "accessibilityLabel" | "disabled" | "onPress">;
   readonly menus?: ReadonlyArray<AppBarMenu>;
   readonly search?: AppBarSearch;

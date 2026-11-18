@@ -198,7 +198,9 @@ export function usePullRequestActionRunner({
 export function usePullRequestCloseBatch(
   onClosed: (entry: EnvironmentPullRequestEntry, reply: PullRequestSummary | undefined) => void,
 ) {
-  const runAction = useAtomCommand(pullRequestEnvironment.runAction, { reportFailure: false });
+  const runAction = useAtomCommand(pullRequestEnvironment.runAction, {
+    reportFailure: false,
+  });
   const pending = useRef(new Set<string>());
   const [closingKeys, setClosingKeys] = useState<ReadonlySet<string>>(() => new Set());
   const close = async (entries: readonly EnvironmentPullRequestEntry[]) => {
@@ -242,7 +244,10 @@ export function usePullRequestCloseBatch(
       type: failures.length > 0 ? "error" : "success",
       title:
         failures.length > 0
-          ? t("pullRequests.speed.closedPartial", { closed, total: batch.length })
+          ? t("pullRequests.speed.closedPartial", {
+              closed,
+              total: batch.length,
+            })
           : t(closed === 1 ? "pullRequests.speed.closedOne" : "pullRequests.speed.closedMany", {
               count: closed,
             }),
@@ -264,7 +269,10 @@ export function writeHandoffToComposer(
   const store = useComposerDraftStore.getState();
   const draft = store.getComposerDraft(target);
   const next = appendHandoff(
-    { prompt: draft?.prompt ?? "", reviewComments: draft?.reviewComments ?? [] },
+    {
+      prompt: draft?.prompt ?? "",
+      reviewComments: draft?.reviewComments ?? [],
+    },
     task,
   );
   store.setPrompt(target, next.prompt);
@@ -338,7 +346,9 @@ export function usePullRequestHandoffs({
       description:
         task.prompt.length > 0
           ? t("audit4.questionReady")
-          : t("audit4.requestReady", { request: translateWebSource(locale, terminology.singular) }),
+          : t("audit4.requestReady", {
+              request: translateWebSource(locale, terminology.singular),
+            }),
     });
   };
 
@@ -349,12 +359,19 @@ export function usePullRequestHandoffs({
   ) => {
     if (!detail || handoff !== null) return;
     setHandoff(kind);
+    // Dismissing the loading toast cancels the handoff before it touches a draft.
+    let cancelled = false;
     // Explicit timeouts survive toast updates and would pin the result after loading.
     const toastId = toastManager.add({
       type: "loading",
       title: readWebI18n().t("audit3.checkoutPreparing", {
         request: translateWebSource(locale, terminology.singular),
       }),
+      data: {
+        onClose: () => {
+          cancelled = true;
+        },
+      },
     });
     const projectRef = scopeProjectRef(environmentId, detail.projectId);
     // Checkout setup requires the thread to exist first.
@@ -362,6 +379,10 @@ export function usePullRequestHandoffs({
       (session) => session,
       () => null,
     );
+    if (cancelled) {
+      setHandoff(null);
+      return;
+    }
     if (opened === null) {
       const { locale } = readWebI18n();
       setHandoff(null);
@@ -380,6 +401,10 @@ export function usePullRequestHandoffs({
       mode,
       threadId: opened.threadId,
     });
+    if (cancelled) {
+      setHandoff(null);
+      return;
+    }
     if (prepared._tag === "Failure") {
       const { locale, t } = readWebI18n();
       setHandoff(null);
@@ -400,10 +425,14 @@ export function usePullRequestHandoffs({
       worktreePath: prepared.value.worktreePath,
       envMode: prepared.value.worktreePath === null ? "local" : "worktree",
     }).then(
-      (session) => session !== null,
-      () => false,
+      (session) => session,
+      () => null,
     );
-    if (!pointed) {
+    if (cancelled) {
+      setHandoff(null);
+      return;
+    }
+    if (pointed === null) {
       const { locale, t } = readWebI18n();
       setHandoff(null);
       toastManager.update(toastId, {
@@ -415,6 +444,13 @@ export function usePullRequestHandoffs({
       });
       return;
     }
+    // The draft carries the pull request until its first send makes it a thread, which links it.
+    useComposerDraftStore.getState().setDraftThreadContext(pointed.draftId, {
+      checkoutPullRequest: {
+        url: prepared.value.pullRequest.url,
+        branch: prepared.value.branch,
+      },
+    });
     setHandoff(null);
     if (task === null) {
       const { locale, t } = readWebI18n();
@@ -440,7 +476,9 @@ export function usePullRequestHandoffs({
       );
       return;
     }
-    await openThreadWithTask(projectRef, task, opened);
+    // The task goes on the checkout draft: if the user typed into `opened` while the
+    // checkout ran, that is no longer the draft the user is looking at.
+    await openThreadWithTask(projectRef, task, pointed);
     toastManager.update(
       toastId,
       prepared.value.isOnPullRequestHead

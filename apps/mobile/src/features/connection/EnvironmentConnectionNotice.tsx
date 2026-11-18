@@ -32,10 +32,21 @@ export function EnvironmentConnectionNotice(props: {
         )}
 
         <Text localize={false} className="text-center text-lg font-t3-bold text-foreground">
-          {noticeTitle(props.connection.phase, props.environmentLabel)}
+          {noticeTitle(
+            props.connection.phase,
+            props.environmentLabel,
+            undefined,
+            props.connection.awaitingApproval === true,
+          )}
         </Text>
         <Text localize={false} className="text-center text-sm leading-normal text-foreground-muted">
-          {noticeDetail(props.connection.phase, props.resourceName, props.connection.error)}
+          {noticeDetail(
+            props.connection.phase,
+            props.resourceName,
+            props.connection.error,
+            undefined,
+            props.connection.awaitingApproval === true,
+          )}
           {props.connection.traceId ? (
             <ConnectionTraceId traceId={props.connection.traceId} />
           ) : null}

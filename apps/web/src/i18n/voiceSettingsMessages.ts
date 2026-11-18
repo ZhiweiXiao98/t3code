@@ -1,6 +1,58 @@
 import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 
 const VOICE_SETTINGS_MESSAGES = {
+  Hold: "按住",
+  Toggle: "切换",
+  "Tap to toggle, hold to talk": "轻按切换，按住说话",
+  "Record while held": "按住期间录音",
+  "Tap to start, tap to stop": "轻按开始，再次轻按停止",
+  "Most accurate in {language}": "{language} 最准确",
+  "{model} download progress": "{model} 下载进度",
+  "Cancel {model} download": "取消下载 {model}",
+  "Delete {model}": "删除 {model}",
+  "Add words, separated by commas": "添加词语，用逗号分隔",
+  "Used by everyone who dictates in {project}.": "供所有在 {project} 中使用语音输入的人使用。",
+  "Streaming transcription": "流式转写",
+  CPU: "CPU",
+  Models: "模型",
+  "Grades are error rates and speed is seconds per 30 s of audio, from Handy’s benchmark {hardware}.":
+    "评分表示错误率，速度表示转写 30 秒音频所需的秒数，数据来自 Handy 的 {hardware} 基准测试。",
+  "Filter by language: {languages}": "按语言筛选：{languages}",
+  "Say a sentence. Cleanup is skipped, so you see exactly what the model heard.":
+    "说一句话。测试会跳过整理步骤，让你直接查看模型的识别结果。",
+  "Voice input uses the first connected microphone in this list.":
+    "语音输入使用此列表中第一个已连接的麦克风。",
+  "Drop “um” and “uh” from transcripts.": "从转写文本中去掉“嗯”“呃”等语气词。",
+  "Your dictionary": "个人词典",
+  "Names and terms to spell your way, saved on this device.":
+    "按你的习惯拼写姓名和术语，并保存在此设备上。",
+  "Off by default. Sends the transcript and nearby draft text, never audio, to the cleanup model.":
+    "默认关闭。仅将转写文本和附近的草稿文本发送给整理模型，不发送音频。",
+  Instructions: "指令",
+  "The phrase you say to fix a mistake, like “scratch that”.":
+    "用于口头纠正错误的短语，例如“撤回刚才的话”。",
+  sorry: "抱歉",
+  Stop: "停止",
+  Record: "录音",
+  "Record ten seconds and play it back. The audio stays on this device.":
+    "录制十秒音频并回放。音频仅保留在此设备上。",
+  "Discard recording": "丢弃录音",
+  "Used by everyone who dictates on this environment.": "供所有在此环境中使用语音输入的人使用。",
+  "Transcribe while recording. Turn off to transcribe after stopping, which may help when live transcription falls behind.":
+    "边录音边转写。关闭后会在停止录音后转写，可缓解实时转写跟不上的情况。",
+  "This model doesn’t support native streaming.": "此模型不支持原生流式转写。",
+  Smallest: "体积最小",
+  "Most accurate": "最准确",
+  Fastest: "最快",
+  "Where your speech is turned into text.": "将语音转为文字的位置。",
+  "The provider detects your language automatically.": "提供商会自动识别语言。",
+  "This model": "此模型",
+  "OpenAI handles silence itself.": "OpenAI 会自行处理静音。",
+  "Skip silence and background noise before transcribing.": "转写前跳过静音和背景噪声。",
+  "Your own instructions for cleanup.": "用于整理文本的自定义指令。",
+  "Fix punctuation, numbers, lists, and spoken corrections.":
+    "修正标点、数字、列表和口头纠正内容。",
+
   "Use existing": "使用现有模型",
   "Could not use a model from that path": "无法使用该路径中的模型",
   "Using your file at {path}": "正在使用位于 {path} 的本地文件",

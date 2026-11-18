@@ -54,8 +54,9 @@ export function formatNextScheduledTaskRun(
   const days = localCalendarDay(next) - localCalendarDay(current);
   if (days === 0) {
     if (remaining < MINUTE) return localizeMobileString("Next run in less than a minute", locale);
-    const unit = remaining < HOUR ? "minute" : "hour";
-    const count = Math.round(remaining / (remaining < HOUR ? MINUTE : HOUR));
+    const minutes = Math.round(remaining / MINUTE);
+    const unit = minutes < 60 ? "minute" : "hour";
+    const count = minutes < 60 ? minutes : Math.round(remaining / HOUR);
     return locale === "zh-CN"
       ? formatMobileMessage(
           unit === "minute" ? "Next run in {0} minutes" : "Next run in {0} hours",

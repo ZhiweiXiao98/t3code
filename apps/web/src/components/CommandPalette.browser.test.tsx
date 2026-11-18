@@ -1,4 +1,5 @@
 import type { EnvironmentCatalogState } from "@t3tools/client-runtime/state/connections";
+import { threadKey } from "@t3tools/client-runtime/state/entities";
 import { EnvironmentId, ProjectId, ThreadId } from "@t3tools/contracts";
 import { describe, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
@@ -7,6 +8,7 @@ import { act, render } from "../../test/render";
 import { openCommandPalette } from "../commandPaletteBus";
 import { useCommandPaletteStore } from "../commandPaletteStore";
 import { LAST_USED_PROJECT_STORAGE_KEY } from "../hooks/useHandleNewThread";
+
 import { makeThreadFixture } from "../test-fixtures";
 import type { Project, Thread } from "../types";
 import { CommandPalette } from "./CommandPalette";
@@ -16,11 +18,13 @@ import { translateWebMessage } from "~/i18n/messages";
 const entities = vi.hoisted(() => ({
   projects: [] as ReadonlyArray<Project>,
   threads: [] as ReadonlyArray<Thread>,
+  delegatedUnderParent: new Set<string>() as ReadonlySet<string>,
 }));
 vi.mock("../state/entities", async (original) => ({
   ...(await original<typeof import("../state/entities")>()),
   useProjects: () => entities.projects,
   useVisibleThreadShells: () => entities.threads,
+  useDelegatedUnderParent: () => entities.delegatedUnderParent,
 }));
 
 // Keep discovery pending so a remembered project cannot silently enable fallback.
@@ -39,7 +43,7 @@ vi.mock(import("../connection/catalog"), async (original) => {
   };
 });
 
-function setup(state: { projects?: ReadonlyArray<Project>; threads?: ReadonlyArray<Thread> } = {}) {
+function setup(state: Partial<typeof entities> = {}) {
   using stack = new DisposableStack();
   const previousProject = localStorage.getItem(LAST_USED_PROJECT_STORAGE_KEY);
   stack.defer(() => {
@@ -51,6 +55,7 @@ function setup(state: { projects?: ReadonlyArray<Project>; threads?: ReadonlyArr
   useCommandPaletteStore.setState(useCommandPaletteStore.getInitialState(), true);
   entities.projects = state.projects ?? [];
   entities.threads = state.threads ?? [];
+  entities.delegatedUnderParent = state.delegatedUnderParent ?? new Set();
   return stack.move();
 }
 
@@ -59,7 +64,13 @@ describe("CommandPalette open intents", () => {
     const environmentId = EnvironmentId.make("remote");
     const threadId = ThreadId.make("dragged-thread");
     using _fixture = setup({
-      threads: [makeThreadFixture({ environmentId, id: threadId, title: "Drag this thread" })],
+      threads: [
+        makeThreadFixture({
+          environmentId,
+          id: threadId,
+          title: "Drag this thread",
+        }),
+      ],
     });
     const onDrop = vi.fn();
     await using screen = await render(
@@ -101,7 +112,9 @@ describe("CommandPalette open intents", () => {
       document.dispatchEvent(pointer("pointerup", 50, window.innerHeight - 30));
     });
     expect(onDrop).toHaveBeenCalledOnce();
-    expect((onDrop.mock.calls[0]![0] as CustomEvent).detail).toEqual([{ environmentId, threadId }]);
+    expect((onDrop.mock.calls[0]![0] as CustomEvent).detail).toEqual([
+      { environmentId, threadId, title: "Drag this thread" },
+    ]);
     expect(screen.router?.state.location.pathname).toBe(pathname);
   });
 
@@ -170,11 +183,13 @@ describe("CommandPalette open intents", () => {
     await expect.element(input).toHaveValue("acme");
   });
 
-  it("opens a searched project's latest listed thread, not a newer subagent", async () => {
+  it("opens a searched project's latest listed thread, not a newer subagent, delegated task, or parked thread", async () => {
     const environmentId = EnvironmentId.make("local");
     const projectId = ProjectId.make("acme");
     const parentId = ThreadId.make("parent");
+    const delegatedId = ThreadId.make("delegated");
     using _fixture = setup({
+      delegatedUnderParent: new Set([threadKey({ environmentId, threadId: delegatedId })]),
       projects: [
         {
           id: projectId,
@@ -205,6 +220,26 @@ describe("CommandPalette open intents", () => {
             parentThreadId: parentId,
             relationshipToParent: "subagent",
           },
+        }),
+        makeThreadFixture({
+          id: delegatedId,
+          environmentId,
+          projectId,
+          latestUserMessageAt: "2026-03-04T00:00:00.000Z",
+        }),
+        makeThreadFixture({
+          id: ThreadId.make("settled"),
+          environmentId,
+          projectId,
+          latestUserMessageAt: "2026-03-05T00:00:00.000Z",
+          settledOverride: "settled",
+        }),
+        makeThreadFixture({
+          id: ThreadId.make("snoozed"),
+          environmentId,
+          projectId,
+          latestUserMessageAt: "2026-03-06T00:00:00.000Z",
+          snoozedUntil: "2999-01-01T00:00:00.000Z",
         }),
       ],
     });

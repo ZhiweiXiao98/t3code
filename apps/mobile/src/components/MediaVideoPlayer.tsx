@@ -142,6 +142,7 @@ interface MediaVideoPlayerProps {
   readonly thumbnailVisible?: boolean;
   readonly visible?: boolean;
   readonly unavailable?: boolean;
+  readonly unavailableDetail?: string | undefined;
   readonly expanded?: boolean;
   /** Fill the parent and size the frame to the video's shape instead of a fixed 16:9 slot. */
   readonly fitToVideo?: boolean;
@@ -158,6 +159,9 @@ function MediaVideoPlayerContent(props: MediaVideoPlayerProps) {
   const [playbackUri, setPlaybackUri] = useState<string | null>(props.expanded ? props.uri : null);
   // Keep an opened player mounted while signing or reconnecting temporarily has no usable URL.
   if (playbackUri === null && props.expanded && props.uri !== null) setPlaybackUri(props.uri);
+  const unavailableText = props.unavailableDetail
+    ? `Video unavailable. ${props.unavailableDetail}`
+    : "Video unavailable";
   const [videoSize, setVideoSize] = useState<{ width: number; height: number } | null>(null);
   const [bounds, setBounds] = useState<{ width: number; height: number } | null>(null);
   const sizeSource = props.fitToVideo && isFocused && videoSize === null ? props.uri : null;
@@ -205,7 +209,11 @@ function MediaVideoPlayerContent(props: MediaVideoPlayerProps) {
         <MediaActionsMenu media={mediaActions} inModal={props.expanded} style={{ flex: 1 }}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={localizeMobileString(`Play ${props.name}`)}
+            accessibilityLabel={
+              props.unavailable
+                ? `${props.name}. ${unavailableText}`
+                : localizeMobileString(`Play ${props.name}`)
+            }
             accessibilityHint={
               mediaActions.actions.length > 0
                 ? localizeMobileString("Touch and hold for media actions")
@@ -229,7 +237,7 @@ function MediaVideoPlayerContent(props: MediaVideoPlayerProps) {
               />
             ) : null}
             {props.unavailable ? (
-              <AppText className="text-sm text-white/80">Video unavailable</AppText>
+              <AppText className="text-center text-sm text-white/80">{unavailableText}</AppText>
             ) : props.uri === null ? (
               <AppActivityIndicator
                 color="#ffffff"

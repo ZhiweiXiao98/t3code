@@ -18,7 +18,10 @@ import {
   type AtomCommandResult,
 } from "@t3tools/client-runtime/state/runtime";
 import { readLocalApi } from "../../localApi";
-import { awaitAttachmentUploads, getUploadedAttachments } from "../../lib/attachmentUploadQueue";
+import {
+  getUploadedAttachments,
+  refreshExpiredAttachmentUploads,
+} from "../../lib/attachmentUploadQueue";
 import { findRevertCheckpoint } from "../../session-logic";
 import { type ChatMessage } from "../../types";
 import { randomUUID } from "~/lib/utils";
@@ -27,6 +30,7 @@ import { newThreadId } from "~/lib/utils";
 import {
   type ComposerFileAttachment,
   type ComposerImageAttachment,
+  type ComposerThreadTarget,
   useComposerDraftStore,
   DraftId,
 } from "../../composerDraftStore";
@@ -45,7 +49,7 @@ import {
   readOwnedRewindFailure,
 } from "../ChatView.logic";
 import { readPreparedConnection } from "../../state/session";
-import { recallableComposerPrompt } from "./composerPromptHistory";
+import { recallComposerMessage } from "./composerPromptHistory";
 
 // Kept per route so a send in flight, and the multiple-model selections, survive
 // ChatView remounting while the user navigates.
@@ -159,8 +163,8 @@ export async function startFanoutThread(input: {
 }
 
 /**
- * Reverts the thread to before `message` and puts that message's text and
- * attachments back in the composer draft. Returns the restored prompt, or the
+ * Reverts the thread to before `message` and puts that message's text, mentions
+ * and attachments back in the composer draft. Returns the restored prompt, or the
  * error to show; on error the draft is untouched.
  */
 export async function rewindToMessage(input: {
@@ -259,7 +263,7 @@ export async function rewindToMessage(input: {
       () => readWebI18n().locale,
     );
     const currentPrompt = store.getComposerDraft(draftTarget)?.prompt ?? "";
-    const restoredPrompt = recallableComposerPrompt(message.text);
+    const { prompt: restoredPrompt, mentions } = recallComposerMessage(message);
     const nextPrompt =
       restoredPrompt.length === 0
         ? currentPrompt
@@ -267,6 +271,11 @@ export async function rewindToMessage(input: {
           ? `${currentPrompt}\n\n${restoredPrompt}`
           : restoredPrompt;
     store.setPrompt(draftTarget, nextPrompt);
+    // The restored prompt already carries the chips; these add only their records.
+    store.addThreadContexts(draftTarget, mentions.threadContexts, { appendReference: false });
+    store.addEnvironmentContexts(draftTarget, mentions.environmentContexts, {
+      appendReference: false,
+    });
     const images: ComposerImageAttachment[] = [];
     const restoredFiles: ComposerFileAttachment[] = [];
     files.forEach((file, index) => {
@@ -306,7 +315,8 @@ export function restoreComposerDraft(
 ): ComposerImageAttachment[] {
   const store = useComposerDraftStore.getState();
   const images = snapshot.images.map(cloneComposerImageForRetry);
-  store.setPrompt(draftTarget, snapshot.messageText);
+  store.setPrompt(draftTarget, snapshot.draftText);
+  store.setReplyTo(draftTarget, snapshot.replyTo);
   store.addImages(draftTarget, images);
   store.addFiles(draftTarget, snapshot.files);
   store.setTerminalContexts(draftTarget, snapshot.terminalContexts);
@@ -373,12 +383,17 @@ export function prepareTurnAttachments(input: {
   readonly environmentId: EnvironmentId;
   readonly attachments: ReadonlyArray<ComposerImageAttachment | ComposerFileAttachment>;
   readonly usesAttachmentUploads: boolean;
+  readonly draftTarget: ComposerThreadTarget;
 }) {
-  const { environmentId, usesAttachmentUploads } = input;
+  const { environmentId, usesAttachmentUploads, draftTarget } = input;
   return Promise.all(
     input.attachments.map(async (attachment) => {
       if (usesAttachmentUploads) {
-        await awaitAttachmentUploads([attachment.id]);
+        await refreshExpiredAttachmentUploads({
+          environmentId,
+          images: [attachment],
+          draftTarget,
+        });
         const uploaded = getUploadedAttachments({ environmentId, images: [attachment] })?.[0];
         if (!uploaded) {
           throw new Error(

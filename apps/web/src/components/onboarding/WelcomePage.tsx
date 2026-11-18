@@ -51,6 +51,7 @@ import { useCloudLinkState } from "../../cloud/cloudLinkState";
 import { hasCloudPublicConfig } from "../../cloud/publicConfig";
 import { PRIVACY_POLICY_URL } from "../../legalLinks";
 import { workspaceAreaProps } from "../../lib/workspaceFocus";
+import { retryClerkLoad, useClerkLoadFailed } from "../clerk/clerkLoadFailure";
 import { useT3ConnectAuthPrompt } from "../clerk/useT3ConnectAuthPrompt";
 import { completeOnboarding } from "../../onboarding/firstRun";
 import {
@@ -96,6 +97,7 @@ import {
   useEnvironmentsWithScope,
 } from "../../state/session";
 import { terminalEnvironment } from "../../state/terminal";
+import { useThreadRunningTerminalIds } from "../../state/terminalSessions";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { getProviderSummary } from "../settings/providerStatus";
 import { AddProviderInstanceDialog } from "../settings/AddProviderInstanceDialog";
@@ -553,7 +555,10 @@ function AgentsSection({
       }
       return;
     }
-    void refreshProviders({ environmentId, input: { instanceId: provider.instanceId } });
+    void refreshProviders({
+      environmentId,
+      input: { instanceId: provider.instanceId },
+    });
     if (isImportSource(provider.driver)) onImportSourceEnabled();
   };
 
@@ -727,6 +732,12 @@ function AgentsSection({
         <AgentInstallTerminal
           key={`${terminalSession.environmentId}:${terminalSession.providerInstanceId}:${terminalSession.driver}`}
           session={terminalSession}
+          onCommandFinished={() =>
+            void refreshProviders({
+              environmentId,
+              input: { instanceId: terminalSession.providerInstanceId },
+            })
+          }
           onClose={() => {
             setTerminalSession(null);
             void refreshProviders({ environmentId, input: {} });
@@ -786,9 +797,9 @@ function ProjectsSection({
 }) {
   const { locale } = useI18n();
   const tx = (source: string) => translateWebSource(locale, source);
-  const IMPORT_SOURCES_LABEL = new Intl.ListFormat(locale, { type: "conjunction" }).format(
-    AgentSessionSource.literals.map((source) => IMPORT_SOURCE_NAMES[source]),
-  );
+  const IMPORT_SOURCES_LABEL = new Intl.ListFormat(locale, {
+    type: "conjunction",
+  }).format(AgentSessionSource.literals.map((source) => IMPORT_SOURCE_NAMES[source]));
   const [reviewing, setReviewing] = useState(false);
   const {
     canWrite,
@@ -862,7 +873,9 @@ function ProjectsSection({
               indeterminate={canWrite && partial}
               disabled={isImporting || !canWrite}
               onCheckedChange={(checked) =>
-                setSelectedKeys(new Set(checked ? defaultKeys : []), { optedOut: !checked })
+                setSelectedKeys(new Set(checked ? defaultKeys : []), {
+                  optedOut: !checked,
+                })
               }
             />
           </RowIcon>
@@ -1020,7 +1033,10 @@ function PhoneStep({ step, children }: { readonly step: number; readonly childre
 function PhoneConnectLink({ environmentId }: { readonly environmentId: EnvironmentId }) {
   const { locale } = useI18n();
   const tx = (source: string) => translateWebSource(locale, source);
-  const { isLoaded, isSignedIn, userId } = useAuth({ treatPendingAsSignedOut: false });
+  const { isLoaded, isSignedIn, userId } = useAuth({
+    treatPendingAsSignedOut: false,
+  });
+  const loadFailed = useClerkLoadFailed();
   const { openAuthPrompt } = useT3ConnectAuthPrompt();
   const linkState = useCloudLinkState(environmentId);
   const refreshLinkState = useEffectEvent(linkState.refresh);
@@ -1091,9 +1107,15 @@ function PhoneConnectLink({ environmentId }: { readonly environmentId: Environme
           ? "在此登录 T3 Connect，然后在手机应用中登录同一账号。"
           : "Sign in to T3 Connect here, then in the app with the same account."}
       </p>
-      <Button variant="outline" size="xs" disabled={!isLoaded} onClick={openAuthPrompt}>
-        {tx("Sign in to T3 Connect")}
-      </Button>
+      {loadFailed ? (
+        <Button variant="outline" size="xs" onClick={retryClerkLoad}>
+          {tx("Retry sign-in")}
+        </Button>
+      ) : (
+        <Button variant="outline" size="xs" disabled={!isLoaded} onClick={openAuthPrompt}>
+          {tx("Sign in to T3 Connect")}
+        </Button>
+      )}
     </>
   );
 }
@@ -1133,7 +1155,11 @@ function OnboardingCodexSetup({
     void persistProviderInstance({
       operation: "upsert",
       instanceId,
-      instance: { ...instance, enabled: true, config: { ...config, enabled: true, setupMode } },
+      instance: {
+        ...instance,
+        enabled: true,
+        config: { ...config, enabled: true, setupMode },
+      },
     }).then((result) => {
       if (result._tag === "Failure") {
         onUseCliChange(false);
@@ -1261,9 +1287,11 @@ function AgentRow({
 
 function AgentInstallTerminal({
   session,
+  onCommandFinished,
   onClose,
 }: {
   readonly session: AgentTerminalSession;
+  readonly onCommandFinished: () => void;
   readonly onClose: () => void;
 }) {
   const { locale } = useI18n();
@@ -1275,9 +1303,15 @@ function AgentInstallTerminal({
     false,
     Schema.Boolean,
   );
-  const openTerminal = useAtomCommand(terminalEnvironment.open, { reportFailure: false });
-  const writeTerminal = useAtomCommand(terminalEnvironment.write, { reportFailure: false });
-  const closeTerminal = useAtomCommand(terminalEnvironment.close, { reportFailure: false });
+  const openTerminal = useAtomCommand(terminalEnvironment.open, {
+    reportFailure: false,
+  });
+  const writeTerminal = useAtomCommand(terminalEnvironment.write, {
+    reportFailure: false,
+  });
+  const closeTerminal = useAtomCommand(terminalEnvironment.close, {
+    reportFailure: false,
+  });
   const setupQueueRef = useRef(Promise.resolve());
   const setupGenerationRef = useRef(0);
   const activeSetupGenerationRef = useRef<number | null>(null);
@@ -1288,6 +1322,22 @@ function AgentInstallTerminal({
     "preparing" | "ready" | "openFailed" | "writeFailed"
   >("preparing");
   const terminalReady = setupState === "ready" || setupState === "writeFailed";
+  const commandRunning = useThreadRunningTerminalIds({
+    environmentId,
+    threadId: AGENT_ONBOARDING_THREAD_ID,
+  }).includes(terminalId);
+  const commandStartedRef = useRef(false);
+  const handleCommandFinished = useEffectEvent(onCommandFinished);
+
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- the shell stays open after an install or sign-in, so its command exiting is the only signal to check the agent again
+  useEffect(() => {
+    if (commandRunning) {
+      commandStartedRef.current = true;
+    } else if (commandStartedRef.current) {
+      commandStartedRef.current = false;
+      handleCommandFinished();
+    }
+  }, [commandRunning]);
 
   // StrictMode can finish a cancelled open after replacement setup; it must not close or pre-type into that
   // session.
@@ -1327,7 +1377,11 @@ function AgentInstallTerminal({
 
       const wrote = await writeTerminal({
         environmentId,
-        input: { threadId: AGENT_ONBOARDING_THREAD_ID, terminalId, data: command },
+        input: {
+          threadId: AGENT_ONBOARDING_THREAD_ID,
+          terminalId,
+          data: command,
+        },
       });
       if (activeSetupGenerationRef.current !== generation) return;
       setSetupState(wrote._tag === "Success" ? "ready" : "writeFailed");
@@ -1342,7 +1396,11 @@ function AgentInstallTerminal({
         if (!readEnvironmentScope(environmentId, AuthTerminalOperateScope)) return;
         await closeTerminal({
           environmentId,
-          input: { threadId: AGENT_ONBOARDING_THREAD_ID, terminalId, deleteHistory: true },
+          input: {
+            threadId: AGENT_ONBOARDING_THREAD_ID,
+            terminalId,
+            deleteHistory: true,
+          },
         });
       });
     };
@@ -1452,8 +1510,12 @@ function useProjectImport({
   const { locale } = useI18n();
   const tx = (source: string) => translateWebSource(locale, source);
   const writableEnvironments = useEnvironmentsWithScope(scans, AuthOrchestrationOperateScope);
-  const createProject = useAtomCommand(projectEnvironment.create, { reportFailure: false });
-  const importThreads = useAtomCommand(agentSessionImport, { reportFailure: false });
+  const createProject = useAtomCommand(projectEnvironment.create, {
+    reportFailure: false,
+  });
+  const importThreads = useAtomCommand(agentSessionImport, {
+    reportFailure: false,
+  });
   const importWarningRef = useRef("");
   // Per project, so a retry that skips finished projects still counts their threads.
   const importedThreadsRef = useRef(new Map<string, number>());

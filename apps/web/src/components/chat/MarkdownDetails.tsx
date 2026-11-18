@@ -16,9 +16,9 @@ import { findRevealRef, MarkdownFindContext } from "./markdownFindContext";
 export function MarkdownDetails({
   children,
   open = false,
-}: Pick<ComponentProps<"details">, "children" | "open">) {
+  dir,
+}: Pick<ComponentProps<"details">, "children" | "open" | "dir">) {
   const { t: translateRelease } = useI18n();
-
   const [isOpen, setIsOpen] = useState(open);
   const searching = use(MarkdownFindContext);
   const expanded = isOpen;
@@ -38,7 +38,7 @@ export function MarkdownDetails({
   const content = childNodes.filter((_, index) => index !== summaryIndex);
 
   return (
-    <div className="my-2 border-y border-border/60">
+    <div className="my-2 border-y border-border/60" dir={dir}>
       <Collapsible
         open={expanded}
         onOpenChange={setIsOpen}
@@ -46,7 +46,7 @@ export function MarkdownDetails({
         data-markdown-details-open={expanded ? "true" : "false"}
       >
         <CollapsibleTrigger
-          className="flex w-full items-center gap-2 py-2 text-left text-sm font-medium text-foreground data-panel-open:[&_svg]:rotate-90"
+          className="flex w-full items-center gap-2 py-2 text-start text-sm font-medium text-foreground [&:dir(rtl):not([data-panel-open])_svg]:rotate-180 data-panel-open:[&_svg]:rotate-90"
           data-markdown-details-summary=""
         >
           <ChevronRightIcon

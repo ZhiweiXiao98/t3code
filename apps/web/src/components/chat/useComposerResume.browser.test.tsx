@@ -79,6 +79,7 @@ function ResumeButton(props: {
     activeThread: { id: threadA } as never,
     resumableRunId: RunId.make("run:interrupted"),
     hasHeldQueuedRuns: false,
+    canResume: true,
     isSendBusy: false,
     isRevertingCheckpoint: false,
     threadDetailLoading: false,
@@ -100,8 +101,7 @@ function ResumeButton(props: {
         <ChatBannerLane
           environmentId={ref.environmentId}
           providerStatus={null}
-          providerStatusBannerKey={null}
-          setDismissedProviderStatusBannerKey={() => undefined}
+          providerStatusDismissalKey={null}
           onOpenProviderSetup={() => undefined}
           threadId={threadA}
           threadError={entries.resume?.message ?? null}

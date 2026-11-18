@@ -27,18 +27,18 @@ export function PullRequestTitleEditor({
   pullRequestKey,
   detail,
   canWriteSourceControl,
-  onSaved,
 }: {
   environmentId: EnvironmentId;
   reference: PullRequestRef;
   pullRequestKey: string;
   detail: PullRequestDetail;
   canWriteSourceControl: boolean;
-  onSaved: () => void;
 }) {
   const { t, locale } = useI18n();
 
-  const update = useAtomCommand(pullRequestEnvironment.update, { reportFailure: false });
+  const update = useAtomCommand(pullRequestEnvironment.update, {
+    reportFailure: false,
+  });
   const [titleScope, setTitleScope] = useState<{
     readonly pullRequestKey: string;
     readonly text: string;
@@ -54,10 +54,16 @@ export function PullRequestTitleEditor({
       return;
     }
     setTitleSaving(true);
-    const result = await update({ environmentId, input: { ...reference, title } });
+    // The new title shows while the host takes it, so the editor closes at once.
+    setTitleScope(null);
+    const result = await update({
+      environmentId,
+      input: { ...reference, title },
+    });
     setTitleSaving(false);
     if (result._tag === "Failure") {
       const { t } = readWebI18n();
+      setTitleScope({ pullRequestKey, text: title });
       toastManager.add({
         type: "error",
         title: t("pullRequests.detail.titleSaveFailed"),
@@ -66,10 +72,7 @@ export function PullRequestTitleEditor({
           t("pullRequests.detail.titleRefused"),
         ),
       });
-      return;
     }
-    setTitleScope(null);
-    onSaved();
   };
 
   if (titleDraft === null) {

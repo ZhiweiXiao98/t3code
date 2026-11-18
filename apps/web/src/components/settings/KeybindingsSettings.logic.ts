@@ -112,6 +112,7 @@ const STATIC_COMMAND_MESSAGE_KEYS = {
   "diff.toggle": "keybindings.command.diffToggle",
   "preview.toggle": "keybindings.command.previewToggle",
   "preview.refresh": "keybindings.command.previewRefresh",
+  "preview.find": "keybindings.command.previewFind",
   "preview.focusUrl": "keybindings.command.previewFocusUrl",
   "preview.zoomIn": "keybindings.command.previewZoomIn",
   "preview.zoomOut": "keybindings.command.previewZoomOut",
@@ -478,6 +479,7 @@ export function commandLabel(command: KeybindingCommand): string {
   if (usagePeriod) return `Usage: Period: ${usagePeriod.label}`;
   if (command === "view.reopenClosed") return "Reopen Closed Tab";
   if (command === "preview.focusUrl") return "Preview: Focus URL";
+  if (command === "preview.find") return "Preview: Find on Page";
   const raw = String(command);
   if (raw.startsWith("script.") && raw.endsWith(".run")) {
     return `Run Script: ${titleCaseCommandSegment(raw.slice("script.".length, -".run".length))}`;

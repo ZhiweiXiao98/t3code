@@ -399,7 +399,7 @@ function PreviewStreamDocumentView({
                 onPictureInPicture?.(message, message.detail);
                 return;
               case "status":
-                clearBootstrapTimer();
+                if (message.status !== "connecting") clearBootstrapTimer();
                 if (message.status === "error") {
                   fail(message.detail ?? localizeMobileString("Browser stream failed."));
                   return;

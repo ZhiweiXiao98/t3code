@@ -10,7 +10,10 @@ import { APP_VERSION } from "../../branding";
 import { AnchoredToastProvider } from "../ui/toast";
 import { AboutVersionTitle } from "./AboutVersionTitle";
 
-const fixture = vi.hoisted(() => ({ locale: null as "en" | "zh-CN" | null, toast: vi.fn() }));
+const fixture = vi.hoisted(() => ({
+  locale: null as "en" | "zh-CN" | null,
+  toast: vi.fn(),
+}));
 vi.mock("../../i18n/readWebI18n", async (original) => {
   const actual = await original<typeof import("../../i18n/readWebI18n")>();
   return {
@@ -34,7 +37,7 @@ vi.mock("../ui/toast", async (original) => ({
   toastManager: { add: fixture.toast },
 }));
 
-it("shows copy confirmation when the version is clicked without waiting for a hover tooltip", async () => {
+it("copies the version without a notification", async () => {
   await using screen = await render(
     <AnchoredToastProvider>
       <AboutVersionTitle />
@@ -45,7 +48,7 @@ it("shows copy confirmation when the version is clicked without waiting for a ho
   await screen.getByRole("button", { name: `Copy version ${APP_VERSION}` }).click();
 
   expect(write).toHaveBeenCalledWith(APP_VERSION);
-  await expect.element(page.getByText(/^Copied!?$/)).toBeVisible();
+  await expect.element(page.getByText(/^Copied!?$/)).not.toBeInTheDocument();
 });
 
 it.each(["owned", "raw", "empty"] as const)(

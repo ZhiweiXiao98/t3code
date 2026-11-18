@@ -624,7 +624,7 @@ it.each(["owned", "raw", "empty", "interrupted", "denied"] as const)(
       expect(fixture.update).not.toHaveBeenCalled();
       expect(toast).toHaveBeenCalledExactlyOnceWith({
         type: "error",
-        title: "EAS host not removed everywhere",
+        title: "Expo host not removed everywhere",
         description: translateWebMessage("en", "audit6.settingsDenied", {
           labels: "Literal $& {environment}",
         }),
@@ -660,7 +660,7 @@ it.each(["owned", "raw", "empty", "interrupted", "denied"] as const)(
       });
       expect(toast).toHaveBeenCalledExactlyOnceWith({
         type: "error",
-        title: "部分环境中的 EAS 主机未能移除",
+        title: "未能从所有位置移除 Expo 主机",
         description:
           "Literal $& {environment}: " +
           (kind === "owned"
