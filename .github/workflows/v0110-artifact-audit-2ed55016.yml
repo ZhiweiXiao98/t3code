@@ -1,0 +1,189 @@
+name: Read-only exact candidate package audit
+'on':
+  push:
+    branches:
+    - validation/v0110-artifact-audit-2ed55016
+permissions:
+  actions: read
+  contents: read
+  pull-requests: read
+concurrency:
+  group: artifact-audit-44228163780
+  cancel-in-progress: false
+jobs:
+  source:
+    name: Validate reviewed supplemental source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      sha: ${{ steps.source.outputs.sha }}
+    steps:
+    - uses: actions/github-script@v8
+      id: source
+      with:
+        script: 'const source = ''2ed55016b6678ca997f204d9b7af4048ce0307e6'';
+
+          const sourceTree = ''94623d881a1c9939338b8479f07c7d28283203c4'';
+
+          const branch = ''validation/v0110-artifact-audit-2ed55016'';
+
+          const workflowPath = ''.github/workflows/v0110-artifact-audit-2ed55016.yml'';
+
+          const {owner, repo} = context.repo;
+
+          function require(condition, message) { if (!condition) throw new Error(message); }
+
+          require(owner === ''ZhiweiXiao98'' && repo === ''t3code'', ''Unexpected repository'');
+
+          require(context.payload.repository.private === false, ''Public repository required'');
+
+          require(context.eventName === ''push'' && context.ref === ''refs/heads/'' + branch, ''Unexpected trigger'');
+
+          require(process.env.GITHUB_RUN_ATTEMPT === ''1'', ''Single activation only'');
+
+          const getCommit = async commit_sha => (await github.rest.git.getCommit({owner, repo, commit_sha})).data;
+
+          const op = await getCommit(context.sha);
+
+          require(op.parents.length === 1 && op.message.split(''\n'')[0] === ''ci: activate reviewed 2ed55016 artifact
+          audit once'', ''Unexpected operation commit'');
+
+          const reviewed = await getCommit(op.parents[0].sha);
+
+          require(reviewed.parents.length === 1 && reviewed.parents[0].sha === source, ''Reviewed commit must directly
+          follow source'');
+
+          require(reviewed.message.split(''\n'')[0] === ''ci: prepare 2ed55016 artifact audit [skip ci]'', ''Unexpected
+          reviewed commit'');
+
+          require(op.tree.sha === reviewed.tree.sha, ''Activation must not change reviewed tree'');
+
+          const baseline = await getCommit(source);
+
+          require(baseline.tree.sha === sourceTree, ''Unexpected source tree'');
+
+          const comparison = (await github.rest.repos.compareCommitsWithBasehead({owner, repo, basehead: source
+          + ''...'' + reviewed.sha})).data;
+
+          require(comparison.status === ''ahead'' && comparison.ahead_by === 1 && comparison.behind_by === 0 &&
+          comparison.total_commits === 1, ''Unexpected reviewed history'');
+
+          require(comparison.files?.length === 1 && comparison.files[0].filename === workflowPath && comparison.files[0].status
+          === ''added'', ''Only the supplemental workflow may differ'');
+
+          const changed = comparison.files[0];
+
+          require(changed.sha && changed.changes > 0 && changed.deletions === 0, ''Invalid added workflow'');
+
+          const prs = (await github.rest.pulls.list({owner, repo, state: ''open'', head: owner + '':'' + branch,
+          base: ''review/v0.1.10-zh'', per_page: 100})).data;
+
+          require(prs.length === 1 && prs[0].draft === true && prs[0].head.sha === context.sha && prs[0].base.sha
+          === source, ''Exact reviewed draft PR required'');
+
+          core.info(JSON.stringify({source, sourceTree, operation: op.sha, operationTree: op.tree.sha, reviewed:
+          reviewed.sha, workflowBlob: changed.sha, pr: prs[0].number, run: context.runId, attempt: process.env.GITHUB_RUN_ATTEMPT,
+          supplementalOnly: true}));
+
+          core.setOutput(''sha'', source);
+
+          '
+  audit:
+    needs: source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+    - name: Verify immutable package bytes without executing candidate code
+      env:
+        GH_TOKEN: ${{ github.token }}
+      shell: bash
+      run: "set -euo pipefail\npython3 <<'PY'\nEXPECTED_JSON = '{\\n  \"runId\": \"44228163780\",\\n  \"sourceSha\"\
+        : \"2ed55016b6678ca997f204d9b7af4048ce0307e6\",\\n  \"attempt\": \"1\",\\n  \"artifacts\": {\\n    \"client-win-x64\"\
+        : {\\n      \"id\": 14394847137,\\n      \"digest\": \"sha256:629044458c70f0f8dcecd8175d26de61d485b14784bdc465adf6683f45283ae2\"\
+        \\n    },\\n    \"client-mac-x64\": {\\n      \"id\": 14394088610,\\n      \"digest\": \"sha256:2950802640c4a78f63d458758978d06d35361c00b1d4d92a961a067459c94ba4\"\
+        \\n    },\\n    \"client-linux-x64\": {\\n      \"id\": 14394036772,\\n      \"digest\": \"sha256:b919217e5fe785dc934c1011c3a2931c50b2f4d4f2710b95ccc96c7209e94210\"\
+        \\n    },\\n    \"client-mac-arm64\": {\\n      \"id\": 14393718716,\\n      \"digest\": \"sha256:2ac85d3c2f15f44c11dc8e81272f5f9186b8d121d84fc8db611b2435309c43eb\"\
+        \\n    }\\n  },\\n  \"installerSha256\": {\\n    \"T3-Code-0.1.10-zh.1-arm64.dmg\": \"0e1eb58def3d86464c27f6197f90efa775489ce6ce6560607624c1a39f6d19ef\"\
+        ,\\n    \"T3-Code-0.1.10-zh.1-arm64.zip\": \"23a7cfef4143e0d9a3ed3a492052bffa89b99dced3c76b9596496d25b196feaa\"\
+        ,\\n    \"T3-Code-0.1.10-zh.1-x64.dmg\": \"a4688ce994fe77ebab1c4e1d74cbabe0e1669a83c0089a07de1a1365b877f226\"\
+        ,\\n    \"T3-Code-0.1.10-zh.1-x64.zip\": \"d68a6f58d366b74f3bc265c056b7145421acb2e64b1f4eda3baec2588620800b\"\
+        ,\\n    \"T3-Code-0.1.10-zh.1-x64.exe\": \"b5c983066144d37e98b8b10e19139d067496bbbb2ea17467b8548f826dfcf0b7\"\
+        ,\\n    \"T3-Code-0.1.10-zh.1-amd64.deb\": \"e810f87cf87651199a70212d6df4305d48df3b45b14b73da765061b0d6882ac7\"\
+        \\n  }\\n}\\n'\nimport datetime, hashlib, json, os, pathlib, re, shutil, stat, subprocess, zipfile\n\nrepo\
+        \ = 'ZhiweiXiao98/t3code'\nbranch = 'review/v0.1.10-zh'\nrun_id = '44228163780'\nsha = '2ed55016b6678ca997f204d9b7af4048ce0307e6'\n\
+        attempt = '1'\nassert attempt == '1', 'Only a fresh complete first attempt is publishable'\nassert re.fullmatch(r'[1-9][0-9]{0,17}',\
+        \ run_id), 'Invalid run ID'\nassert re.fullmatch(r'[0-9a-f]{40}', sha), 'Expected full lowercase SHA'\n\
+        assert os.environ['GITHUB_REPOSITORY'] == repo\nbase = f'repos/{repo}'\ndef api(path):\n    return json.loads(subprocess.check_output(['gh',\
+        \ 'api', base + path]))\nassert api('')['private'] is False, 'Public repository required'\ndef review_snapshot():\n\
+        \    pr = api('/pulls/2')\n    assert pr['number'] == 2 and pr['state'] == 'open' and pr['merged'] is False\n\
+        \    assert pr['head']['repo']['full_name'] == repo and pr['head']['ref'] == branch and pr['head']['sha']\
+        \ == sha\n    assert pr['base']['repo']['full_name'] == repo\n    assert pr['base']['ref'] == 'maintenance/v0.1.9-zh-cloud'\n\
+        \    assert pr['base']['sha'] == '74039745b1b44834c30dd9cb275f1c224072dd96', 'Reviewed PR base changed'\n\
+        \    assert api('/git/ref/heads/' + branch)['object']['sha'] == sha, 'Review branch moved'\n    return {'number':\
+        \ 2, 'head_sha': sha, 'head_ref': branch,\n            'base_ref': pr['base']['ref'], 'base_sha': pr['base']['sha']}\n\
+        review = review_snapshot()\nrun_path = '/actions/runs/' + run_id\ndef run_snapshot():\n    r = api(run_path)\n\
+        \    assert r['repository']['full_name'] == repo and r['head_repository']['full_name'] == repo\n    workflow_path\
+        \ = '.github/workflows/client-release.yml'\n    assert r['path'] in {workflow_path, workflow_path + '@'\
+        \ + branch,\n                         workflow_path + '@refs/heads/' + branch, workflow_path + '@' + sha}\n\
+        \    assert api('/actions/workflows/' + str(r['workflow_id']))['path'] == workflow_path\n    assert r['head_branch']\
+        \ == branch and r['head_sha'] == sha\n    assert r['event'] in ('push', 'workflow_dispatch')\n    assert\
+        \ r['status'] == 'completed' and r['conclusion'] == 'success'\n    assert isinstance(r['run_attempt'], int)\
+        \ and r['run_attempt'] == int(attempt), 'Run attempt differs from reviewed artifacts'\n    return {k: r[k]\
+        \ for k in ('id', 'workflow_id', 'run_attempt', 'head_sha', 'head_branch', 'path', 'status', 'conclusion',\
+        \ 'updated_at', 'run_started_at')}\nrun = run_snapshot()\n# A green run can contain skipped jobs. Require\
+        \ all actual build/check jobs.\njobs = api(run_path + '/attempts/' + str(run['run_attempt']) + '/jobs?per_page=100')\n\
+        assert jobs['total_count'] <= 100, 'Unexpected job count'\nrequired_jobs = {\n    'Validate exact source',\
+        \ 'Lint and typecheck', 'Mobile native static analysis', 'Rust native formatting and tests', 'Build validated\
+        \ desktop bundle',\n    'Linux x64 and embedded Windows WSL runtime',\n    'Tests (clients)', 'Tests (server-1)',\
+        \ 'Tests (server-2)', 'Tests (server-3)',\n    'Web full coverage shard 1/4', 'Web full coverage shard 2/4',\n\
+        \    'Web full coverage shard 3/4', 'Web full coverage shard 4/4',\n    'Require complete Web assertion\
+        \ coverage', 'Build and boot validated Web client',\n    'Desktop win x64 (integrity checked)', 'Desktop\
+        \ mac arm64 (integrity checked)', 'Desktop mac x64 (integrity checked)',\n    'Clean macOS arm64 dmg+zip\
+        \ first start',\n    'Clean macOS x64 dmg first start', 'Clean macOS x64 zip first start',\n    'Clean desktop\
+        \ deb first start', 'Clean desktop nsis first start',\n    'Android arm64 unsigned candidate (NOT installable)',\n\
+        }\nassert jobs['total_count'] == len(required_jobs) == len(jobs['jobs']), 'Missing or unexpected candidate\
+        \ jobs'\nfor name in required_jobs:\n    matches = [j for j in jobs['jobs'] if j['name'] == name]\n    assert\
+        \ len(matches) == 1 and matches[0]['conclusion'] == 'success' and matches[0]['status'] == 'completed', name\n\
+        \    assert matches[0]['head_sha'] == sha and matches[0]['run_id'] == int(run_id)\nassert api('/commits/'\
+        \ + sha)['sha'] == sha\nassert api('/git/ref/heads/' + branch)['object']['sha'] == sha, 'Review branch moved;\
+        \ review again'\nexpected = json.loads(EXPECTED_JSON)\nassert expected['runId'] == run_id and expected['sourceSha']\
+        \ == sha and expected['attempt'] == attempt\nspecifications = expected['artifacts']\nassert set(specifications)\
+        \ == {'client-linux-x64','client-win-x64','client-mac-arm64','client-mac-x64'}\nprefix = 'T3-Code-0.1.10-zh.1-'\n\
+        allowlists = {'client-linux-x64': {prefix+'amd64.deb'}, 'client-win-x64': {prefix+'x64.exe'},\n 'client-mac-arm64':\
+        \ {prefix+'arm64.dmg',prefix+'arm64.zip','MACOS-TRUST-arm64.txt'},\n 'client-mac-x64': {prefix+'x64.dmg',prefix+'x64.zip','MACOS-TRUST-x64.txt'}}\n\
+        def artifacts_snapshot():\n    result = api(run_path + '/artifacts?per_page=100')\n    assert result['total_count']\
+        \ == len(result['artifacts']) <= 100\n    rows = result['artifacts']\n    assert {a['name'] for a in rows\
+        \ if a['name'].startswith('client-')} == set(specifications)\n    selected = []\n    for name, pinned in\
+        \ specifications.items():\n        matches = [a for a in rows if a['name'] == name]\n        assert len(matches)\
+        \ == 1\n        a = matches[0]\n        assert a['id'] == pinned['id'] and a['digest'] == pinned['digest']\n\
+        \        assert re.fullmatch(r'sha256:[0-9a-f]{64}',a['digest'])\n        assert not a['expired'] and 0\
+        \ < a['size_in_bytes'] <= 2*1024**3\n        assert a['workflow_run']['id'] == int(run_id) and a['workflow_run']['head_sha']\
+        \ == sha\n        assert a['workflow_run']['head_branch'] == branch and a['created_at'] >= run['run_started_at']\n\
+        \        assert datetime.datetime.fromisoformat(a['expires_at'].replace('Z','+00:00')) > datetime.datetime.now(datetime.timezone.utc)\n\
+        \        selected.append({k:a[k] for k in ('id','name','digest','size_in_bytes','created_at','updated_at','expires_at')})\n\
+        \    assert len({a['id'] for a in selected}) == 4\n    return selected\nartifacts = artifacts_snapshot()\n\
+        output = pathlib.Path('audit-output'); output.mkdir()\nrecords = []\nfor a in artifacts:\n    archive =\
+        \ pathlib.Path(os.environ['RUNNER_TEMP']) / (str(a['id'])+'.zip')\n    with archive.open('xb') as dst:\n\
+        \        subprocess.run(['gh','api',base+'/actions/artifacts/'+str(a['id'])+'/zip'],stdout=dst,check=True,timeout=600)\n\
+        \    assert archive.stat().st_size <= 2*1024**3\n    with archive.open('rb') as src:\n        assert 'sha256:'+hashlib.file_digest(src,'sha256').hexdigest()\
+        \ == a['digest']\n    with zipfile.ZipFile(archive) as z:\n        entries=z.infolist(); names=[e.filename\
+        \ for e in entries]\n        assert len(names)==len(set(names)) and set(names)==allowlists[a['name']]\n\
+        \        for e in entries:\n            assert not e.is_dir() and stat.S_IFMT(e.external_attr>>16) in (0,stat.S_IFREG)\n\
+        \            assert not e.flag_bits & 1 and 0<e.file_size<=2*1024**3\n            is_trust=e.filename.startswith('MACOS-TRUST-')\n\
+        \            if is_trust: assert e.file_size<=64*1024\n            h=hashlib.sha256(); size=0; trust=bytearray()\n\
+        \            with z.open(e) as src:\n                while chunk:=src.read(1024*1024):\n               \
+        \     h.update(chunk); size+=len(chunk)\n                    if is_trust: trust.extend(chunk)\n        \
+        \    assert size==e.file_size\n            digest=h.hexdigest()\n            if is_trust:\n            \
+        \    trust.decode('utf-8')\n                (output/e.filename).write_bytes(trust)\n            else:\n\
+        \                assert digest==expected['installerSha256'][e.filename], 'Installed package digest mismatch:\
+        \ '+e.filename\n            records.append({'name':e.filename,'size':size,'sha256':digest,'artifactId':a['id']})\n\
+        \    archive.unlink()\nassert len(records)==8\nassert set(expected['installerSha256'])=={name for names\
+        \ in allowlists.values() for name in names if not name.startswith('MACOS-TRUST-')}\nassert run_snapshot()==run\
+        \ and artifacts_snapshot()==artifacts and review_snapshot()==review\n(output/'audit.json').write_text(json.dumps({'schemaVersion':1,'candidateRunId':run_id,'sourceSha':sha,'attempt':attempt,'result':'passed','review':review,'artifacts':artifacts,'assets':records},indent=2)+'\\\
+        n')\nPY\n"
+    - uses: actions/upload-artifact@v7
+      with:
+        name: candidate-44228163780-byte-audit
+        path: audit-output/
+        if-no-files-found: error
+        retention-days: 7
