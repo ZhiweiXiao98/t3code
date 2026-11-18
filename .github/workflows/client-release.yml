@@ -727,21 +727,36 @@ jobs:
         env:
           SOURCE_SHA: ${{ needs.source.outputs.sha }}
           GIT_TERMINAL_PROMPT: "0"
-        run: 'set -euo pipefail
-
+        # Bound checkout independently; never retry installation or acceptance tests.
+        timeout-minutes: 5
+        run: |
+          set -euo pipefail
           git init .
-
           git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
-
-          git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
-
-          git sparse-checkout set --no-cone ''/*'' ''!/.repos/''
-
+          fetch_log=$(mktemp)
+          trap 'rm -f "$fetch_log"' EXIT
+          for attempt in 1 2; do
+            if LC_ALL=C git -c http.lowSpeedLimit=1024 -c http.lowSpeedTime=60 \
+              fetch --no-tags --depth=1 origin "$SOURCE_SHA" 2>"$fetch_log"; then
+              cat "$fetch_log" >&2
+              break
+            else
+              status=$?
+              cat "$fetch_log" >&2
+              # Only the observed receive timeout/reset or libcurl low-speed abort qualifies.
+              # Require a single diagnostic line; mixed or unrecognized errors fail closed.
+              if [[ "$attempt" == 2 || "$status" != 128 ]] ||
+                [[ "$(wc -l < "$fetch_log" | tr -d '[:space:]')" != 1 ]] ||
+                grep -Evq "^fatal: unable to access '[^']+': (Recv failure: (Operation timed out|Connection reset by peer)|Operation too slow\. Less than [0-9]+ bytes/sec transferred the last [0-9]+ seconds)$" "$fetch_log"; then
+                exit "$status"
+              fi
+              echo "Transient source transfer failure; retrying exact SHA once." >&2
+              sleep 2
+            fi
+          done
+          git sparse-checkout set --no-cone '/*' '!/.repos/'
           git checkout --detach FETCH_HEAD
-
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
-
-          '
       - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
         with:
           node-version-file: package.json
