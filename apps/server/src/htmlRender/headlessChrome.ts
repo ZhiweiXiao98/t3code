@@ -645,9 +645,7 @@ export const captureHtmlScreenshot = Effect.fn("headlessChrome.captureHtmlScreen
       }),
       Effect.onExit((exit) =>
         environment.T3CODE_HTML_RENDER_DIAGNOSTICS === "1" && Exit.isFailure(exit)
-          ? Console.error(JSON.stringify(diagnostics.report())).pipe(
-              Effect.catchCause(() => Effect.void),
-            )
+          ? Console.error(JSON.stringify(diagnostics.report())).pipe(Effect.ignoreCause)
           : Effect.void,
       ),
     );

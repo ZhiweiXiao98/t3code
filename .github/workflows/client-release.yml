@@ -233,6 +233,8 @@ jobs:
         run: bash apps/mobile/modules/t3-review-diff/tests/run-ios.sh
   tests:
     name: Tests (${{ matrix.suite }})
+    env:
+      T3CODE_HTML_RENDER_DIAGNOSTICS: "1"
     needs:
       - source
       - bundle

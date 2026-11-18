@@ -5,6 +5,7 @@ import { EnvironmentId, ProviderInstanceId, ThreadId } from "@t3tools/contracts"
 import * as McpProviderSessions from "@t3tools/provider-core/server/McpProviderSessions";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import { symlinksSupported } from "@t3tools/shared/testing/symlinks";
+import * as Console from "effect/Console";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
@@ -629,20 +630,14 @@ fs.createReadStream(null, { fd: 3 }).on("end", quit).on("data", (chunk) => {
           .pipe(
             Effect.onExit((exit) =>
               Exit.isFailure(exit) && environment.T3CODE_HTML_RENDER_DIAGNOSTICS === "1"
-                ? Effect.sync(() => {
-                    try {
-                      console.info(
-                        JSON.stringify({
-                          event: "t3-html-render-local-network-diagnostic",
-                          schemaVersion: 1,
-                          httpRequestCount: requests.length,
-                          udpDatagramCount: datagrams.length,
-                        }),
-                      );
-                    } catch {
-                      // Observation must not replace or hide the preview failure.
-                    }
-                  })
+                ? Console.info(
+                    JSON.stringify({
+                      event: "t3-html-render-local-network-diagnostic",
+                      schemaVersion: 1,
+                      httpRequestCount: requests.length,
+                      udpDatagramCount: datagrams.length,
+                    }),
+                  ).pipe(Effect.ignoreCause)
                 : Effect.void,
             ),
           );
