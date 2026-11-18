@@ -1,0 +1,244 @@
+# Diagnostic evidence only; never replaces formal release gates.
+name: v0.1.10 HtmlRender exact-source diagnostics
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+concurrency:
+  group: html-diagnostic-8f02efa7
+  cancel-in-progress: false
+env:
+  CLIENT_VERSION: 0.1.10-zh.1
+  CI: 'true'
+  VITE_T3_MENU_TRACE: '1'
+  CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+  T3CODE_DESKTOP_SIGNED: 'false'
+  ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
+  ELECTRON_BUILDER_BINARIES_MIRROR: https://github.com/electron-userland/electron-builder-binaries/releases/download/
+  T3CODE_HTML_RENDER_DIAGNOSTICS: '1'
+'on':
+  push:
+    branches:
+    - validation/v0110-html-diag-8f02efa7
+jobs:
+  source:
+    name: Validate reviewed supplemental source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      sha: ${{ steps.source.outputs.sha }}
+    steps:
+    - uses: actions/github-script@v8
+      id: source
+      with:
+        script: 'const source = ''8f02efa7277df91e089941df4d3329c72bb5b7c7'';
+
+          const sourceTree = ''2230c2fba29068290e3c60072e5c893225d0264b'';
+
+          const branch = ''validation/v0110-html-diag-8f02efa7'';
+
+          const workflowPath = ''.github/workflows/v0110-html-diag-8f02efa7.yml'';
+
+          const {owner, repo} = context.repo;
+
+          function require(condition, message) { if (!condition) throw new Error(message); }
+
+          require(owner === ''ZhiweiXiao98'' && repo === ''t3code'', ''Unexpected repository'');
+
+          require(context.payload.repository.private === false, ''Public repository required'');
+
+          require(context.eventName === ''push'' && context.ref === ''refs/heads/'' + branch, ''Unexpected trigger'');
+
+          require(process.env.GITHUB_RUN_ATTEMPT === ''1'', ''Single activation only'');
+
+          const getCommit = async commit_sha => (await github.rest.git.getCommit({owner, repo, commit_sha})).data;
+
+          const op = await getCommit(context.sha);
+
+          require(op.parents.length === 1 && op.message.split(''\n'')[0] === ''ci: activate reviewed 8f02efa7 HtmlRender
+          diagnostics once'', ''Unexpected operation commit'');
+
+          const reviewed = await getCommit(op.parents[0].sha);
+
+          require(reviewed.parents.length === 1 && reviewed.parents[0].sha === source, ''Reviewed commit must directly
+          follow source'');
+
+          require(reviewed.message.split(''\n'')[0] === ''ci: prepare 8f02efa7 HtmlRender diagnostics [skip ci]'',
+          ''Unexpected reviewed commit'');
+
+          require(op.tree.sha === reviewed.tree.sha, ''Activation must not change reviewed tree'');
+
+          const baseline = await getCommit(source);
+
+          require(baseline.tree.sha === sourceTree, ''Unexpected source tree'');
+
+          const comparison = (await github.rest.repos.compareCommitsWithBasehead({owner, repo, basehead: source
+          + ''...'' + reviewed.sha})).data;
+
+          require(comparison.status === ''ahead'' && comparison.ahead_by === 1 && comparison.behind_by === 0 &&
+          comparison.total_commits === 1, ''Unexpected reviewed history'');
+
+          require(comparison.files?.length === 1 && comparison.files[0].filename === workflowPath && comparison.files[0].status
+          === ''added'', ''Only the supplemental workflow may differ'');
+
+          const changed = comparison.files[0];
+
+          require(changed.sha && changed.changes > 0 && changed.deletions === 0, ''Invalid added workflow'');
+
+          const prs = (await github.rest.pulls.list({owner, repo, state: ''open'', head: owner + '':'' + branch,
+          base: ''review/v0.1.10-zh'', per_page: 100})).data;
+
+          require(prs.length === 1 && prs[0].draft === true && prs[0].head.sha === context.sha && prs[0].base.sha
+          === source, ''Exact reviewed draft PR required'');
+
+          core.info(JSON.stringify({source, sourceTree, operation: op.sha, operationTree: op.tree.sha, reviewed:
+          reviewed.sha, workflowBlob: changed.sha, pr: prs[0].number, run: context.runId, attempt: process.env.GITHUB_RUN_ATTEMPT,
+          supplementalOnly: true}));
+
+          core.setOutput(''sha'', source);
+
+          '
+  tests:
+    name: Tests (${{ matrix.suite }})
+    needs:
+    - source
+    runs-on: ${{ startsWith(matrix.suite, 'server-') && 'ubuntu-22.04' || 'ubuntu-24.04' }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        suite:
+        - server-2
+    steps:
+    - name: Checkout exact source without credentials
+      shell: bash
+      env:
+        SOURCE_SHA: ${{ needs.source.outputs.sha }}
+        GIT_TERMINAL_PROMPT: '0'
+      run: 'set -euo pipefail
+
+        git init .
+
+        git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+
+        git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
+
+        git sparse-checkout set --no-cone ''/*'' ''!/.repos/''
+
+        git checkout --detach FETCH_HEAD
+
+        test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+
+        '
+    - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
+      with:
+        node-version-file: package.json
+        cache: true
+        run-install: false
+    - name: Install locked dependencies
+      id: dependencies
+      run: vp install --frozen-lockfile
+    - name: Install Linux native build libraries
+      run: python3 .github/scripts/ci-ubuntu-packages.py packages libsecret-1-dev pkg-config build-essential imagemagick
+    - run: vp run --filter @t3tools/desktop ensure:electron
+      if: matrix.suite == 'clients'
+    - name: Install Chromium for web and server browser tests
+      if: matrix.suite != 'clients'
+      shell: bash
+      env:
+        SUITE: ${{ matrix.suite }}
+      run: "set -euo pipefail\nbrowser_cli=apps/server/node_modules/playwright-core/cli.js\nif [[ \"$SUITE\" ==\
+        \ web ]]; then\n  browser_cli=apps/web/node_modules/playwright/cli.js\nfi\npython3 .github/scripts/ci-ubuntu-packages.py\
+        \ playwright \"$browser_cli\"\nnode \"$browser_cli\" install --only-shell chromium\nif [[ \"$SUITE\" ==\
+        \ server-* ]]; then\n  test \"$(node -p \"require('./apps/server/node_modules/playwright-core/package.json').version\"\
+        )\" = \"$(node -p \"require('./apps/server/package.json').dependencies['playwright-core']\")\"\n  browser_revision=$(node\
+        \ -p \"require('./apps/server/node_modules/playwright-core/browsers.json').browsers.find(browser => browser.name\
+        \ === 'chromium-headless-shell').revision\")\n  browser_root=\"$HOME/.cache/ms-playwright/chromium_headless_shell-$browser_revision\"\
+        \n  mapfile -t browsers < <(find \"$browser_root\" -type f -name chrome-headless-shell)\n  test \"${#browsers[@]}\"\
+        \ -eq 1\n  browser=\"${browsers[0]}\"\n  test -x \"$browser\"\n  test \"${T3CODE_SERVER_BROWSER_SANDBOX:-1}\"\
+        \ != 0\n  echo \"T3CODE_TEST_HEADLESS_SHELL=$browser\" >> \"$GITHUB_ENV\"\n  node -p \"JSON.stringify({node:\
+        \ process.version, undici: process.versions.undici, playwright: require('./apps/server/node_modules/playwright-core/package.json').version})\"\
+        \n  \"$browser\" --version\n  sha256sum \"$browser\"\nfi\n"
+    - name: Check release and preview orchestration helpers
+      if: matrix.suite == 'clients'
+      run: 'python3 -B .github/scripts/ci-ubuntu-packages.test.py
+
+        python3 -B .github/scripts/stage-preview-bundle.test.py
+
+        node --test .github/scripts/check-nightly-release.test.cjs .github/scripts/vercel-deployment-output.test.cjs
+
+        '
+    - name: Run tests
+      shell: bash
+      env:
+        SUITE: ${{ matrix.suite }}
+        T3CODE_TRANSFER_BUDGET_REPORT_PATH: ${{ runner.temp }}/t3code-transfer-budget.md
+        T3CODE_TRANSFER_BUDGET_RESULT_PATH: ${{ runner.temp }}/thread-transfer-result.json
+      run: "set -euo pipefail\nif [[ \"$SUITE\" == clients ]]; then\n  vp run --parallel --concurrency-limit 2 --filter\
+        \ '!t3' --filter '!@t3tools/monorepo' --filter '!@t3tools/web' test\nelif [[ \"$SUITE\" == web ]]; then\n\
+        \  python3 .github/scripts/observe-web-tests.py\nelse\n  vp run --filter t3 test --shard \"${SUITE#server-}/3\"\
+        \nfi\n"
+    - name: Detect transfer budget report
+      id: transfer_budget
+      if: always() && startsWith(matrix.suite, 'server-')
+      run: "if test -s \"$RUNNER_TEMP/thread-transfer-result.json\"; then\n  echo \"present=true\" >> \"$GITHUB_OUTPUT\"\
+        \n  cat \"$RUNNER_TEMP/t3code-transfer-budget.md\" >> \"$GITHUB_STEP_SUMMARY\"\nfi\n"
+    - uses: actions/upload-artifact@v7
+      if: always() && steps.transfer_budget.outputs.present == 'true'
+      with:
+        name: thread-transfer-results
+        path: ${{ runner.temp }}/thread-transfer-result.json
+        if-no-files-found: error
+        retention-days: 30
+    - name: Boot the built web client
+      if: matrix.suite == 'web'
+      run: 'vp run --filter @t3tools/web build
+
+        node apps/web/scripts/verify-built-boot.ts
+
+        '
+    - name: Preserve Web browser diagnostics
+      if: ${{ always() && matrix.suite == 'web' }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: web-browser-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+        path: ${{ runner.temp }}/web-browser-diagnostics/
+        if-no-files-found: error
+        retention-days: 14
+  typecheck:
+    name: Server diagnostic source typecheck
+    needs:
+    - source
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    steps:
+    - name: Checkout exact source without credentials
+      shell: bash
+      env:
+        SOURCE_SHA: ${{ needs.source.outputs.sha }}
+        GIT_TERMINAL_PROMPT: '0'
+      run: 'set -euo pipefail
+
+        git init .
+
+        git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+
+        git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
+
+        git sparse-checkout set --no-cone ''/*'' ''!/.repos/''
+
+        git checkout --detach FETCH_HEAD
+
+        test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+
+        '
+    - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
+      with:
+        node-version-file: package.json
+        cache: true
+        run-install: false
+    - name: Install locked dependencies
+      id: dependencies
+      run: vp install --frozen-lockfile
+    - name: Typecheck server and dependencies
+      run: vp run --filter t3 typecheck
