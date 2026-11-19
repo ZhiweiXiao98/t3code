@@ -5,6 +5,9 @@ name: Reviewed Android signing dispatch registration only
 on:
   workflow_dispatch:
     inputs:
+      operation_sha:
+        required: true
+        type: string
       candidate_run:
         required: true
         type: string

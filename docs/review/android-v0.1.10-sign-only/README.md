@@ -1,3 +1,12 @@
+## 最新可执行审查件（仍不激活）
+
+新增 signing_orchestrator.py / signer_adapter.py / receiver.py：固定25门禁+原恢复证据、既有容器/证书签名内核、只输出单收件者密文、接收后SDK再校验。新增30项完整本地测试均通过（生产身份/SDK签名调用为模拟；真实原APK的unsigned诊断已复核）。官方SDK精确工具/JAR/动态库、PyPI三轮子hash已核验，隔离venv重跑通过。
+
+bootstrap-stage.patch 是旧bootstrap分支5b48c3ab的完整可应用待审差异，含16工具/配置文件及手动工作流替换；default-marker.patch 为默认分支单文件无操作注册。两patch实际git apply --check及逐字节结果校验通过，仍只作为docs文本，未应用。operation-binding.json默认disabled，真实接收者文件未存在，不能原钥执行。当前需要root先冻结独审差异、确认接收环境/公钥绑定及最终SHA，再决定应用/派发；禁止扩环境白名单。
+
+详见ACTIVATION-REVIEW.md、ENCRYPTED_HANDOFF.md、ANDROID-OVERLAY-CHECKLIST.md。这里只证明合成/mock代码路径，不能当原钥签名、真机覆盖、最终live或发布成功。历史说明保留于下。
+
+---
 # Android v0.1.10 签名预检草案（不可执行、不可发布）
 
 本目录只保存公开元数据与后续审查计划。`enabled: false`；已实现只读验证器和一次性测试身份的签名演示；原社区身份签名器及激活工作流仍未实现。示例不是可激活的 Actions 配方，不得移入 `.github/workflows`。没有签名环境、秘密引用、密钥或凭据附件，不运行、安装 APK，不发布、不合并。

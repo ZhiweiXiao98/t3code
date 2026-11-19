@@ -1,0 +1,29 @@
+--- /dev/null
++++ b/.github/workflows/android-sign-reviewed.yml
+@@ -0,0 +1,26 @@
++# INERT: review file only. Proposed default-branch registration at
++# .github/workflows/android-sign-reviewed.yml AFTER separate approval.
++# No environment, secrets, checkout, upload, or token permissions.
++name: Reviewed Android signing dispatch registration only
++on:
++  workflow_dispatch:
++    inputs:
++      operation_sha:
++        required: true
++        type: string
++      candidate_run:
++        required: true
++        type: string
++      candidate_attempt:
++        required: true
++        type: string
++      artifact_id:
++        required: true
++        type: string
++permissions: {}
++jobs:
++  never-sign-on-default:
++    if: ${{ false }}
++    runs-on: ubuntu-24.04
++    steps:
++      - run: exit 1

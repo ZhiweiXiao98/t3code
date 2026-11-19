@@ -14,7 +14,7 @@
 2. 使用环境已经允许的 signing/android-bootstrap ref，并锁定其唯一审查提交。派发前后验证 ref 仍指向该 SHA；不得使用裸 SHA 冒充 API 文档要求的 branch/tag name。job 验证 event=workflow_dispatch、repository、精确 github.sha 和 ref、run_attempt=1；concurrency 固定且 cancel-in-progress=false。记录唯一 run ID，失败不得自动再派发。暂不填写真实操作 SHA 或接收者身份。
 3. 只读权限沿用 contents:read/actions:read，沿用 android-signing；不创建环境、不扩展可访问 Secrets 的分支、不放宽审批。不得添加任何新 ref；如果既有环境状态改变，停止交 root 决定而不是修改权限。
 4. 无秘密 prepare 先运行本 PR 的 live 双快照 + ZIP 验证器，25项门禁全部成功、attempt1、源2ed55016、run44228163780、artifact14395695421，过期/变动即停。之后用官方已校验 SDK 实测包名 com.zhiweixiao.t3code.zhcn、0.1.10-zh.1、1000418、仅ARM64和未签名。
-5. 移植旧已审 recovery/sign 内核，而非调用旧硬编码 sign_reviewed.py：保留恢复证据、容器哈希、固定证书82f2437cbceb94fe6fe4a60a1c0de99f643124c64a648a27de9ce92bd39ecd88、16KB zipalign、签后包名/版本/ABI/验签复核及 finally 清理。此移植尚未实现；现有 synthetic_sign_test.py 不可使用原钥。
+5. 移植旧已审 recovery/sign 内核，而非调用旧硬编码 sign_reviewed.py：保留恢复证据、容器哈希、固定证书82f2437cbceb94fe6fe4a60a1c0de99f643124c64a648a27de9ce92bd39ecd88、16KB zipalign、签后包名/版本/ABI/验签复核及 finally 清理。此移植现由 signing_orchestrator.py + signer_adapter.py 实现，合成/模拟工具测试通过；现有 synthetic_sign_test.py 仍不可使用原钥。实际原钥执行未发生。
 6. 公钥交接使用经过独立核验并固定的 **单个临时测试环境接收者**。私钥只在获授权测试环境，原签名私钥从不离开 signer。调用 encrypted_handoff.py；公开上传路径只允许一个密文文件及不含身份/秘密的摘要，不允许原APK、keystore、工作目录通配符或失败诊断目录。加密完整性不是发送者身份验证，接收端还须核对固定来源/run/密文摘要与APK签名。
 7. 无论成功失败清理签名临时目录；不使用 cache；不打印工具密钥输出；取消/超时后的 runner 回收也不等于可证明物理擦除。发布另行验收，不加入 Release 权限。
 
@@ -23,8 +23,8 @@
 先确认上述移植已实现且独审通过、接收者与测试环境已授权、操作SHA/工作流路径/环境现状均核实。通过 API 查询该 SHA 的既有 runs，若已启动则仅跟进，不重发。
 
 ```text
-POST /repos/ZhiweiXiao98/t3code/actions/workflows/<reviewed-new-workflow>.yml/dispatches
-{"ref":"signing/android-bootstrap","inputs":{"candidate_run":"44228163780","candidate_attempt":"1","artifact_id":"14395695421"}}
+POST /repos/ZhiweiXiao98/t3code/actions/workflows/android-sign-reviewed.yml/dispatches
+{"ref":"signing/android-bootstrap","inputs":{"operation_sha":"<approved-operation-sha>","candidate_run":"44228163780","candidate_attempt":"1","artifact_id":"14395695421"}}
 ```
 
 工作流必须对所有输入与内嵌常量相等作强校验，不接受用户替换任意URL/ref/hash。依据实际 API 版本核实响应（不能仅硬编码204，也可能返回带run信息的200）；请求接受不代表签名成功；回查 workflow_dispatch + exact SHA +唯一新run ID，再核验 prepare/sign/encrypt步骤与密文产物。当前没有可派发的该工作流，故不能声称已就绪原钥执行。
@@ -35,10 +35,18 @@ POST /repos/ZhiweiXiao98/t3code/actions/workflows/<reviewed-new-workflow>.yml/di
 
 ## 当前交付边界
 
-本文件是差异规格及派发模板，不是可以直接应用的完整 activation.patch；原 signer 25项合同移植、实际操作SHA和一次性接收者绑定尚未实现，因此仍不可派发原钥。encrypted_handoff.py 仅解决传输保密/完整性，不代替身份恢复与Android验收。
+本文件是差异规格及派发模板，具体完整待审差异另见 bootstrap-stage.patch（保持 enabled=false、缺真实收件公钥，应用也不自动签名）；原 signer 25项合同移植及接收端现已实现并在惰性路径测试；实际操作SHA和一次性接收者绑定尚未授权填写，因此仍不可派发原钥。encrypted_handoff.py 仅解决传输保密/完整性，不代替身份恢复与Android验收。
 
 ## 默认分支注册缺口（已只读核实）
 
 默认分支 66dcada844acc43edb4f76e46db258a38579268c 的 .github/workflows 目录没有 android-sign-reviewed.yml，因此该精确路径目前未在默认分支注册 workflow_dispatch。建议独立窄 PR 仅增加同路径的默认 marker，内容见 default-dispatch-marker.yml.example：只声明手动事件和输入、permissions:{}、job if:false，不含 environment/Secrets/checkout/upload。该 marker 本身不能签名，选择默认ref时始终跳过。
 
 另一个经独立冻结审核的安全实现只应用到现有 signing/android-bootstrap（环境唯一白名单），移除push后再以此ref手动派发。同名路径使注册存在，不扩大环境权限。两处写入均未实施，需 root 先审完整实现与精确差异；不建议退回无法中途确认的 push 即签方案。
+
+## 本轮可执行代码与依赖
+
+新增 signer_adapter.py、signing_orchestrator.py、receiver.py 和对应测试。prepare在无Secrets步骤使用现有只读Actions token做固定25项及recovery证据的前后快照；sign步骤不联网、不接收GitHub token，接受绑定同一操作SHA/run/recipient且最多120秒的可信runner本地proof，重复字节及SDK校验。该时间窗口不是“签名那一瞬间重新在线核查”；超时必须停，不得延长并假称已验证。
+
+requirements-signing.lock固定Python3.12/Linux x86_64三枚官方PyPI轮子hash，已下载逐项核验PyPI元数据并在隔离venv安装/测试。workflow先无Secrets安装锁定依赖，再下载官方SDK36 Linux ZIP并校验完整SHA256，签名代码还校验工具/JAR/动态库。JRE来自GitHub可信官方runner的JAVA_HOME_21_X64，不执行候选代码。接收端仅此Linux SDK绑定，Mac需要另核官方平台哈希，不能绕过。
+
+bootstrap-stage.patch 是对旧分支5b48c3ab的完整惰性stage差异：移除原push/原明文上传、增加所有工具及disabled绑定，不含任何真实收件者。默认 marker 单独default-marker.patch。两者均仅在docs作为文本待审，不修改实际workflows。应用后仍须root确认真实测试环境/公钥绑定与最终操作SHA，不能直接原钥派发。

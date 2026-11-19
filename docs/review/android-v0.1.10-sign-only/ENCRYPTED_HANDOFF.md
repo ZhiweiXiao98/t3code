@@ -1,3 +1,7 @@
+## 更新：接收与签名适配已实现
+
+新增 receiver.py（仅固定Linux SDK）、signer_adapter.py 和 signing_orchestrator.py，含合成/mock测试。所有文件仍惰性，operation-binding.json 为 disabled，未原钥执行或安装。下文的“未实现生产解密/接入”描述为上一轮模块边界，现以本段和ACTIVATION-REVIEW为准。
+
 # 单接收者加密传输模块（尚未接入签名或工作流）
 
 `encrypted_handoff.py` 是仅加密的 Python API，不是签名器或发布器。使用现有 `cryptography` 50.0.0，不安装新依赖。原拟用 GPG，但当前隔离环境禁止 gpg-agent 创建 socket，无法完成真实合成往返测试，故改用无 agent 的标准密码原语。

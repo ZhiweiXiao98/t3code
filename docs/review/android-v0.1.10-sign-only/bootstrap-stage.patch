@@ -1,0 +1,1791 @@
+--- a/.github/workflows/android-sign-reviewed.yml
++++ b/.github/workflows/android-sign-reviewed.yml
+@@ -1,96 +1,119 @@
+-name: Stage exact reviewed Android candidate only
++# INERT REVIEW FILE. Replace .github/workflows/android-sign-reviewed.yml only after
++# exact independent review + root activation approval. Never push this as-is.
++name: Sign exact reviewed Android candidate into recipient ciphertext only
++on:
++  workflow_dispatch:
++    inputs:
++      operation_sha:
++        required: true
++        type: string
++      candidate_run:
++        required: true
++        type: string
++      candidate_attempt:
++        required: true
++        type: string
++      artifact_id:
++        required: true
++        type: string
+ permissions:
+   contents: read
+   actions: read
+ concurrency:
+-  group: disabled-android-sign-only-740
++  group: reviewed-android-sign-only-one-shot
+   cancel-in-progress: false
+ jobs:
+   sign:
++    if: >-
++      github.repository == 'ZhiweiXiao98/t3code' &&
++      github.event_name == 'workflow_dispatch' &&
++      github.ref == 'refs/heads/signing/android-bootstrap' &&
++      github.sha == inputs.operation_sha && github.run_attempt == 1 &&
++      inputs.candidate_run == '44228163780' &&
++      inputs.candidate_attempt == '1' && inputs.artifact_id == '14395695421'
+     runs-on: ubuntu-24.04
+     timeout-minutes: 20
+     environment: android-signing
+-    outputs:
+-      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+-      artifact_digest: ${{ steps.upload.outputs.artifact-digest }}
++    env:
++      T3_SIGNING_ENVIRONMENT: android-signing
++      OPERATION_SHA: ${{ inputs.operation_sha }}
++      TOOL_DIR: docs/review/android-v0.1.10-sign-only
+     steps:
+-    - name: Fetch only reviewed signing tools from exact workflow commit
+-      env:
+-        SOURCE_SHA: ${{ github.sha }}
+-        GIT_TERMINAL_PROMPT: '0'
+-      run: 'set -euo pipefail
+-
+-        umask 077
+-
+-        git init .
+-
+-        git remote add origin https://github.com/ZhiweiXiao98/t3code.git
+-
+-        git sparse-checkout init --cone
+-
+-        git sparse-checkout set docs/tools/android-cloud-signing
+-
+-        git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
+-
+-        git checkout --detach FETCH_HEAD
+-
+-        test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+-
+-        test "$(git ls-remote origin refs/heads/signing/android-bootstrap | cut -f1)"
+-        = "$SOURCE_SHA"
+-
+-        # No candidate repository source is checked out or executed.
+-
+-        test -x "$JAVA_HOME_21_X64/bin/java"
+-
+-        test -x "$ANDROID_HOME/build-tools/36.0.0/apksigner"
+-
+-        '
+-    - name: Fetch exact public non-secret regression fixtures
+-      env:
+-        GITHUB_TOKEN: ${{ github.token }}
+-      run: python docs/tools/android-cloud-signing/materialize_public_test_fixtures.py
+-    - name: Run reviewed non-secret signing safety tests (no publisher)
+-      run: 'set -euo pipefail
+-
+-        python -m unittest discover -s docs/tools/android-cloud-signing -p "test_*.py"
+-        -v
+-
+-        '
+-    - name: Verify candidate CI, ZIP and APK without signing Secrets
+-      env:
+-        GITHUB_TOKEN: ${{ github.token }}
+-      run: "set -euo pipefail\npython docs/tools/android-cloud-signing/sign_reviewed.py\
+-        \ prepare \\\n  --input docs/tools/android-cloud-signing/reviewed-signing-input.json\
+-        \ \\\n  --workspace \"$RUNNER_TEMP/reviewed-android\"\n"
+-    - name: Sign only reviewed APK with fixed recovered identity
+-      env:
+-        ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+-        ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+-      run: "set -euo pipefail\numask 077\nexport JAVA_HOME=\"$JAVA_HOME_21_X64\"\n\
+-        export PATH=\"$JAVA_HOME/bin:$PATH\"\npython docs/tools/android-cloud-signing/sign_reviewed.py\
+-        \ sign \\\n  --input docs/tools/android-cloud-signing/reviewed-signing-input.json\
+-        \ \\\n  --workspace \"$RUNNER_TEMP/reviewed-android\" --output \"$RUNNER_TEMP/signed-android\"\
+-        \n"
+-    - name: Upload only signed APK and public provenance
+-      id: upload
+-      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+-      with:
+-        name: android-signed-reviewed-${{ github.run_id }}
+-        path: '${{ runner.temp }}/signed-android/T3-Code-zh-CN-Android-0.1.9-zh.2-arm64-v8a.apk
+-
+-          ${{ runner.temp }}/signed-android/BUILD-PROVENANCE.json
+-
+-          ${{ runner.temp }}/signed-android/SHA256SUMS.txt
+-
+-          '
+-        if-no-files-found: error
+-        retention-days: 14
+-'on':
+-  push:
+-    branches:
+-    - signing/android-bootstrap
+-    paths:
+-    - .github/workflows/android-sign-reviewed.yml
+-    - docs/tools/android-cloud-signing/**
+-
++      - name: Fetch exact reviewed operations only, never candidate source
++        env:
++          GIT_TERMINAL_PROMPT: '0'
++        run: |
++          set -euo pipefail
++          umask 077
++          test "$GITHUB_SHA" = "$OPERATION_SHA"
++          git init .
++          git remote add origin https://github.com/ZhiweiXiao98/t3code.git
++          git sparse-checkout init --cone
++          git sparse-checkout set "$TOOL_DIR"
++          git fetch --no-tags --depth=1 origin "$OPERATION_SHA"
++          git checkout --detach FETCH_HEAD
++          test "$(git rev-parse HEAD)" = "$OPERATION_SHA"
++          test "$(git ls-remote origin refs/heads/signing/android-bootstrap | cut -f1)" = "$OPERATION_SHA"
++      - name: Verify trusted dependency and run synthetic safety tests without Secrets
++        run: |
++          set -euo pipefail
++          python3.12 -m venv "$RUNNER_TEMP/sign-venv"
++          "$RUNNER_TEMP/sign-venv/bin/python" -m pip --isolated install \
++            --index-url https://pypi.org/simple --only-binary=:all: --require-hashes \
++            -r "$TOOL_DIR/requirements-signing.lock"
++          "$RUNNER_TEMP/sign-venv/bin/python" -c 'import cryptography; assert cryptography.__version__ == "50.0.0"'
++          "$RUNNER_TEMP/sign-venv/bin/python" -m unittest discover -s "$TOOL_DIR" -p 'test_*.py' -v
++      - name: Fetch and authenticate exact official Android SDK before Secrets
++        run: |
++          set -euo pipefail
++          umask 077
++          mkdir "$RUNNER_TEMP/sign-sdk"
++          curl --fail --silent --show-error --proto '=https' --tlsv1.2 \
++            https://dl.google.com/android/repository/build-tools_r36_linux.zip \
++            -o "$RUNNER_TEMP/sign-sdk/build-tools.zip"
++          echo '5d9ac77fb6ff43d9da518a337b4fcf8f9097113df531d99ccefe80ef7ce8250b  '"$RUNNER_TEMP/sign-sdk/build-tools.zip" | sha256sum -c -
++          unzip -q "$RUNNER_TEMP/sign-sdk/build-tools.zip" -d "$RUNNER_TEMP/sign-sdk"
++      - name: Prepare exact candidate, live 25 gates and original recovery evidence
++        env:
++          GITHUB_TOKEN: ${{ github.token }}
++        run: |
++          set -euo pipefail
++          umask 077
++          "$RUNNER_TEMP/sign-venv/bin/python" "$TOOL_DIR/signing_orchestrator.py" prepare \
++            --operation "$TOOL_DIR/operation-binding.json" \
++            --recipient "$TOOL_DIR/approved-recipient-public.pem" \
++            --operation-sha "$OPERATION_SHA" --workspace "$RUNNER_TEMP/reviewed-android"
++      - name: Fixed original identity to ciphertext, no raw signed APK output
++        env:
++          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
++          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
++        run: |
++          set -euo pipefail
++          umask 077
++          export JAVA_HOME="$JAVA_HOME_21_X64"
++          export PATH="$JAVA_HOME/bin:$PATH"
++          "$RUNNER_TEMP/sign-venv/bin/python" "$TOOL_DIR/signing_orchestrator.py" sign \
++            --operation "$TOOL_DIR/operation-binding.json" \
++            --recipient "$TOOL_DIR/approved-recipient-public.pem" \
++            --operation-sha "$OPERATION_SHA" --workspace "$RUNNER_TEMP/reviewed-android" \
++            --sdk-tools "$RUNNER_TEMP/sign-sdk/android-16" --output "$RUNNER_TEMP/encrypted-android"
++      - name: Upload explicit ciphertext and public allowlist manifest only
++        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
++        with:
++          name: android-encrypted-reviewed-${{ github.run_id }}
++          path: |
++            ${{ runner.temp }}/encrypted-android/handoff.json
++            ${{ runner.temp }}/encrypted-android/public-manifest.json
++          if-no-files-found: error
++          retention-days: 3
++      - name: Remove only this run's temporary directories
++        if: ${{ always() }}
++        run: |
++          python - <<'PY'
++          import os,pathlib,shutil
++          root=pathlib.Path(os.environ['RUNNER_TEMP']).resolve()
++          for name in ('reviewed-android','encrypted-android','sign-sdk','sign-venv'):
++              target=root/name
++              if target.is_symlink():target.unlink()
++              elif target.exists():shutil.rmtree(target)
++          PY
+--- /dev/null
++++ b/docs/review/android-v0.1.10-sign-only/candidate-pins.json
+@@ -0,0 +1,221 @@
++{
++  "schemaVersion": 1,
++  "enabled": false,
++  "readiness": "DRAFT_NOT_EXECUTABLE_NOT_AUTHORIZED_FOR_SIGNING",
++  "repository": "ZhiweiXiao98/t3code",
++  "candidate": {
++    "sourceSha": "2ed55016b6678ca997f204d9b7af4048ce0307e6",
++    "sourceTree": "94623d881a1c9939338b8479f07c7d28283203c4",
++    "branch": "review/v0.1.10-zh",
++    "runId": 44228163780,
++    "attempt": 1,
++    "workflowId": 371287124,
++    "workflowPath": ".github/workflows/client-release.yml",
++    "workflowBlobSha": "31cc4b10bdc352b521585f62f772876797d7ed2b",
++    "runStartedAt": "2026-11-18T03:07:29Z",
++    "requiredStatus": "completed",
++    "requiredConclusion": "success"
++  },
++  "artifact": {
++    "id": 14395695421,
++    "name": "android-UNSIGNED-NOT-INSTALLABLE",
++    "zipSha256": "a76c289908aef9a7b46a284b73f0cfb284337ec6e874d6d42e679b8ecee98414",
++    "zipBytes": 47480291,
++    "expiresAt": "2026-12-02T03:35:06Z",
++    "producerJobId": 134547189421,
++    "producerAttempt": 1,
++    "producerStartedAt": "2026-11-18T03:09:37Z",
++    "producerCompletedAt": "2026-11-18T03:35:12Z",
++    "members": [
++      {
++        "name": "T3-Code-zh-CN-Android-0.1.10-zh.1-arm64-UNSIGNED-NOT-INSTALLABLE.apk",
++        "bytes": 101730516,
++        "sha256": "478e905f6a8cf5bbc5194d47f678a36d24b93d3e06c0dfe15e88fd007aba8724"
++      },
++      {
++        "name": "SIGNING-BLOCKER.txt",
++        "bytes": 193,
++        "sha256": "3090148d23a8de72201ab044f4c5daa9936d9dbe10dea570ee6484b507d19f06"
++      }
++    ]
++  },
++  "identity": {
++    "packageName": "com.zhiweixiao.t3code.zhcn",
++    "certificateSha256": "82f2437cbceb94fe6fe4a60a1c0de99f643124c64a648a27de9ce92bd39ecd88",
++    "previousPublishedTag": "android-v0.1.9-zh.1",
++    "previousPublishedVersionCode": 1000416,
++    "expectedVersionName": "0.1.10-zh.1",
++    "expectedVersionCode": 1000418,
++    "expectedNativeAbis": [
++      "arm64-v8a"
++    ],
++    "recoveryRunId": 40649758501,
++    "recoveryAttempt": 1,
++    "recoveryArtifactId": 12799615493,
++    "recoveryArtifactZipSha256": "b2c345e3b7566e2c6cd3efa8be8213b464f1c3a04497967c96228d3797769fdd"
++  },
++  "requiredJobs": [
++    {
++      "id": 134546360364,
++      "name": "Validate exact source",
++      "requiredStatus": "completed",
++      "requiredConclusion": "success"
++    },
++    {
++      "id": 134546400891,
++      "name": "Build validated desktop bundle",
++      "requiredStatus": "completed",
++      "requiredConclusion": "success"
++    },
++    {
++      "id": 134547189331,
++      "name": "Linux x64 and embedded Windows WSL runtime",
++      "requiredStatus": "completed",
++      "requiredConclusion": "success"
++    },
++    {
++      "id": 134547189421,
++      "name": "Android arm64 unsigned candidate (NOT installable)",
++      "requiredStatus": "completed",
++      "requiredConclusion": "success"
++    },
++    {
++      "id": 134549518262,
++      "name": "Clean desktop deb first start",
++      "requiredStatus": "completed",
++      "requiredConclusion": "success"
++    },
++    {
++      "id": 134549518269,
++      "name": "Desktop mac x64 (integrity checked)",
++      "requiredStatus": "completed",
++      "requiredConclusion": "success"
++    },
++    {
++      "id": 134549518350,
++      "name": "Desktop mac arm64 (integrity checked)",
++      "requiredStatus": "completed",
++      "requiredConclusion": "success"
++    },
++    {
++      "id": 134549518581,
++      "name": "Desktop win x64 (integrity checked)",
++      "requiredStatus": "completed",
++      "requiredConclusion": "success"
++    },
++    {
++      "id": 134557254973,
++      "name": "Mobile native static analysis",
++      "requiredStatus": "completed",
++      "requiredConclusion": "success"
++    },
++    {
++      "id": 134557255000,
++      "name": "Rust native formatting and tests",
++      "requiredStatus": "completed",
++      "requiredConclusion": "success"
++    },
++    {
++      "id": 134557255006,
++      "name": "Tests (server-2)",
++      "requiredStatus": "completed",
++      "requiredConclusion": "success"
++    },
++    {
++      "id": 134557255008,
++      "name": "Tests (server-3)",
++      "requiredStatus": "completed",
++      "requiredConclusion": "success"
++    },
++    {
++      "id": 134557255040,
++      "name": "Tests (server-1)",
++      "requiredStatus": "completed",
++      "requiredConclusion": "success"
++    },
++    {
++      "id": 134557255044,
++      "name": "Web full coverage shard 3/4",
++      "requiredStatus": "completed",
++      "requiredConclusion": "success"
++    },
++    {
++      "id": 134557255045,
++      "name": "Web full coverage shard 2/4",
++      "requiredStatus": "completed",
++      "requiredConclusion": "success"
++    },
++    {
++      "id": 134557255090,
++      "name": "Tests (clients)",
++      "requiredStatus": "completed",
++      "requiredConclusion": "success"
++    },
++    {
++      "id": 134557255101,
++      "name": "Web full coverage shard 4/4",
++      "requiredStatus": "completed",
++      "requiredConclusion": "success"
++    },
++    {
++      "id": 134557255168,
++      "name": "Web full coverage shard 1/4",
++      "requiredStatus": "completed",
++      "requiredConclusion": "success"
++    },
++    {
++      "id": 134561339367,
++      "name": "Require complete Web assertion coverage",
++      "requiredStatus": "completed",
++      "requiredConclusion": "success"
++    },
++    {
++      "id": 134561541071,
++      "name": "Build and boot validated Web client",
++      "requiredStatus": "completed",
++      "requiredConclusion": "success"
++    },
++    {
++      "id": 134562348728,
++      "name": "Lint and typecheck",
++      "requiredStatus": "completed",
++      "requiredConclusion": "success"
++    },
++    {
++      "id": 134563575845,
++      "name": "Clean macOS x64 dmg first start",
++      "requiredStatus": "completed",
++      "requiredConclusion": "success"
++    },
++    {
++      "id": 134563575887,
++      "name": "Clean macOS arm64 dmg+zip first start",
++      "requiredStatus": "completed",
++      "requiredConclusion": "success"
++    },
++    {
++      "id": 134563575910,
++      "name": "Clean macOS x64 zip first start",
++      "requiredStatus": "completed",
++      "requiredConclusion": "success"
++    },
++    {
++      "id": 134563575940,
++      "name": "Clean desktop nsis first start",
++      "requiredStatus": "completed",
++      "requiredConclusion": "success"
++    }
++  ],
++  "futureSigning": {
++    "reviewedWorkflowCommitSha": null,
++    "reviewedWorkflowBlobSha": null,
++    "publicationAllowed": false,
++    "activationAllowed": false,
++    "realDeviceUploadAllowed": false
++  },
++  "evidenceNotes": {
++    "jobs": "Independently fetched exact attempt-1 jobs through GitHub REST; all 25 completed/success.",
++    "zipAndMemberHashes": "Cloud read-only byte audit on 2026-11-19; recheck before activation",
++    "apkMetadata": "Expected values only until Android tooling verifies manifest, unsigned status and ABI; no readiness claim."
++  }
++}
+--- /dev/null
++++ b/docs/review/android-v0.1.10-sign-only/candidate_verifier.py
+@@ -0,0 +1,157 @@
++"""Offline verifier of reviewed pins and caller-supplied GitHub REST snapshots.
++No network, signing, APK execution, extraction, or authorization to activate.
++A supplied snapshot's origin/freshness must be established by a separate caller.
++"""
++import datetime as dt
++import hashlib
++import json
++import pathlib
++import re
++import stat
++import zipfile
++
++PIN_DIGEST = '9fac2c279637200f6ce8511242ccda4d3513906192b6af8a955a2444ea90afb6'
++MAX_ZIP = 128 * 1024 * 1024
++MAX_MEMBER = 192 * 1024 * 1024
++MAX_TOTAL = 256 * 1024 * 1024
++
++class VerificationError(ValueError):
++    pass
++
++def need(ok, message):
++    if not ok:
++        raise VerificationError(message)
++
++def canonical_digest(value):
++    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
++
++def validate_pins(pins):
++    need(canonical_digest(pins) == PIN_DIGEST, 'Unreviewed pins')
++    need(pins['enabled'] is False, 'No activation allowed')
++    return pins
++
++def timestamp(value):
++    need(isinstance(value, str) and value.endswith('Z'), 'Expected UTC timestamp')
++    try:
++        result = dt.datetime.fromisoformat(value[:-1] + '+00:00')
++    except ValueError as exc:
++        raise VerificationError('Malformed timestamp') from exc
++    return result
++
++def same(actual, expected, message):
++    need(type(actual) is type(expected) and actual == expected, message)
++
++def verify_snapshot(pins, snapshot, *, now):
++    """Snapshot keys: repository, run, workflow, commit, workflowFile, jobs, artifact.
++    Each value is the corresponding full REST response (jobs includes total_count).
++    `now` must be a caller-observed timezone-aware UTC datetime; no cached clock.
++    """
++    validate_pins(pins)
++    need(isinstance(now, dt.datetime) and now.utcoffset() == dt.timedelta(0), 'UTC now required')
++    try:
++        c, a = pins['candidate'], pins['artifact']
++        repo, run = snapshot['repository'], snapshot['run']
++        same(repo['full_name'], pins['repository'], 'Repository')
++        same(repo['private'], False, 'Public repository only')
++        for key in ('repository', 'head_repository'):
++            same(run[key]['full_name'], pins['repository'], 'Run repository')
++        for key, value in {'id':c['runId'], 'head_sha':c['sourceSha'], 'head_branch':c['branch'],
++                           'workflow_id':c['workflowId'], 'run_attempt':c['attempt'],
++                           'status':'completed', 'conclusion':'success', 'run_started_at':c['runStartedAt']}.items():
++            same(run[key], value, 'Run '+key)
++        need(run['event'] in ('push', 'workflow_dispatch'), 'Run event')
++        need(run['path'] in (c['workflowPath'], c['workflowPath']+'@'+c['branch'],
++                            c['workflowPath']+'@refs/heads/'+c['branch'],c['workflowPath']+'@'+c['sourceSha']), 'Run workflow path')
++        same(snapshot['workflow']['id'], c['workflowId'], 'Workflow id')
++        same(snapshot['workflow']['path'], c['workflowPath'], 'Workflow path')
++        same(snapshot['commit']['sha'], c['sourceSha'], 'Commit SHA')
++        same(snapshot['commit']['commit']['tree']['sha'], c['sourceTree'], 'Commit tree')
++        same(snapshot['workflowFile']['path'], c['workflowPath'], 'Workflow file path')
++        same(snapshot['workflowFile']['sha'], c['workflowBlobSha'], 'Workflow blob')
++        same(snapshot['workflowFile']['type'], 'file', 'Workflow file type')
++        jobs = snapshot['jobs']['jobs']
++        same(snapshot['jobs']['total_count'], 25, 'Job count')
++        need(len(jobs) == len(pins['requiredJobs']) == 25, 'Exact 25 jobs')
++        need(len({j['id'] for j in jobs}) == 25, 'Duplicate job id')
++        expected = {j['id']:j for j in pins['requiredJobs']}
++        need(set(expected) == {j['id'] for j in jobs}, 'Job IDs')
++        for j in jobs:
++            p = expected[j['id']]
++            for key, value in {'id':p['id'],'name':p['name'],'run_id':c['runId'],
++                               'head_sha':c['sourceSha'],'run_attempt':c['attempt'],
++                               'status':'completed','conclusion':'success'}.items():
++                same(j[key], value, 'Job '+key)
++            start, end = timestamp(j['started_at']), timestamp(j['completed_at'])
++            need(timestamp(c['runStartedAt']) <= start <= end <= now, 'Job time range')
++        producer = next(j for j in jobs if j['id'] == a['producerJobId'])
++        same(producer['run_attempt'], a['producerAttempt'], 'Producer attempt')
++        same(producer['started_at'], a['producerStartedAt'], 'Producer start')
++        same(producer['completed_at'], a['producerCompletedAt'], 'Producer end')
++        uploads = [step for step in producer['steps'] if step['name'] == 'Run actions/upload-artifact@v7']
++        need(len(uploads) == 1, 'Exact unique artifact upload step')
++        upload = uploads[0]
++        for key, value in {'status':'completed', 'conclusion':'success',
++                           'started_at':'2026-11-18T03:35:06Z',
++                           'completed_at':'2026-11-18T03:35:09Z'}.items():
++            same(upload[key], value, 'Upload '+key)
++        upload_start, upload_end = timestamp(upload['started_at']), timestamp(upload['completed_at'])
++        need(timestamp(a['producerStartedAt']) <= upload_start <= upload_end <= timestamp(a['producerCompletedAt']), 'Upload outside producer')
++        artifact = snapshot['artifact']
++        for key, value in {'id':a['id'],'name':a['name'],'digest':'sha256:'+a['zipSha256'],
++                           'size_in_bytes':a['zipBytes'],'expired':False,'expires_at':a['expiresAt']}.items():
++            same(artifact[key], value, 'Artifact '+key)
++        for key, value in {'id':c['runId'],'head_sha':c['sourceSha'],'head_branch':c['branch']}.items():
++            same(artifact['workflow_run'][key], value, 'Artifact run '+key)
++        created = timestamp(artifact['created_at'])
++        need(timestamp(a['producerStartedAt']) <= created <= timestamp(a['producerCompletedAt']), 'Artifact outside producer')
++        updated = timestamp(artifact['updated_at'])
++        need(upload_start <= created <= updated <= upload_end <= timestamp(a['producerCompletedAt']), 'Artifact outside exact upload interval')
++        need(updated <= now < timestamp(a['expiresAt']), 'Artifact freshness')
++        return {'result':'verified_metadata_only','snapshotSha256':canonical_digest(snapshot),
++                'sourceSha':c['sourceSha'],'runId':c['runId'],'attempt':c['attempt']}
++    except (KeyError, TypeError, StopIteration) as exc:
++        raise VerificationError('Incomplete or malformed snapshot') from exc
++
++def verify_archive(pins, archive_path):
++    """Hash ZIP and exact members without extracting or executing their contents."""
++    validate_pins(pins)
++    a = pins['artifact']
++    path = pathlib.Path(archive_path)
++    need(not path.is_symlink() and path.is_file(), 'Archive must be regular file')
++    with path.open('rb') as f:
++        size = 0
++        h = hashlib.sha256()
++        while chunk := f.read(1024*1024):
++            size += len(chunk)
++            need(size <= min(a['zipBytes'], MAX_ZIP), 'ZIP size bound')
++            h.update(chunk)
++        need(size == a['zipBytes'] and h.hexdigest() == a['zipSha256'], 'ZIP digest/size')
++        f.seek(0)
++        try:
++            with zipfile.ZipFile(f) as z:
++                entries = z.infolist()
++                expected = {m['name']:m for m in a['members']}
++                need(len(entries) == len(expected) == 2, 'Exact two members')
++                names = [e.filename for e in entries]
++                need(len(set(names)) == len(names) and set(names) == set(expected), 'ZIP member allowlist/duplicates')
++                total, records = 0, []
++                for e in entries:
++                    need('/' not in e.filename and '\\' not in e.filename and e.filename not in ('.','..'), 'Unsafe path')
++                    need(not e.is_dir() and stat.S_IFMT(e.external_attr >> 16) in (0, stat.S_IFREG), 'Nonregular member')
++                    need(not e.flag_bits & 1 and e.compress_type in (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED), 'Unsupported/encrypted ZIP')
++                    p = expected[e.filename]
++                    need(0 < e.file_size == p['bytes'] <= MAX_MEMBER, 'Member size')
++                    total += e.file_size
++                    need(total <= MAX_TOTAL, 'Total expansion bound')
++                    mh, count = hashlib.sha256(), 0
++                    with z.open(e) as src:
++                        while chunk := src.read(1024*1024):
++                            count += len(chunk)
++                            need(count <= p['bytes'], 'Member read bound')
++                            mh.update(chunk)
++                    need(count == p['bytes'] and mh.hexdigest() == p['sha256'], 'Member digest/size')
++                    records.append({'name':e.filename,'bytes':count,'sha256':mh.hexdigest()})
++        except (zipfile.BadZipFile, RuntimeError, NotImplementedError, EOFError) as exc:
++            raise VerificationError('Invalid archive') from exc
++    return {'result':'verified_bytes_only','zipSha256':h.hexdigest(),'members':records,
++            'apkMetadataVerified':False,'signatureVerified':False,'signingAuthorized':False}
+--- /dev/null
++++ b/docs/review/android-v0.1.10-sign-only/test_candidate_verifier.py
+@@ -0,0 +1,108 @@
++"""Synthetic offline fixtures only; never evidence of a candidate or signer pass."""
++import copy
++import datetime as dt
++import hashlib
++import io
++import json
++import pathlib
++import stat
++import tempfile
++import unittest
++import warnings
++import zipfile
++from unittest.mock import patch
++import candidate_verifier as v
++
++PINS = json.loads((pathlib.Path(__file__).resolve().parents[1]/'draft/candidate-pins.json').read_text())
++NOW = dt.datetime(2026,11,19,tzinfo=dt.timezone.utc)
++
++def snapshot():
++    c,a=PINS['candidate'],PINS['artifact']
++    jobs=[dict(id=j['id'],name=j['name'],run_id=c['runId'],head_sha=c['sourceSha'],run_attempt=1,status='completed',conclusion='success',started_at=a['producerStartedAt'],completed_at=a['producerCompletedAt']) for j in PINS['requiredJobs']]
++    next(j for j in jobs if j['id']==a['producerJobId'])['steps']=[dict(name='Run actions/upload-artifact@v7',status='completed',conclusion='success',started_at='2026-11-18T03:35:06Z',completed_at='2026-11-18T03:35:09Z')]
++    return dict(repository=dict(full_name=PINS['repository'],private=False),
++        run=dict(id=c['runId'],head_sha=c['sourceSha'],head_branch=c['branch'],workflow_id=c['workflowId'],run_attempt=1,status='completed',conclusion='success',run_started_at=c['runStartedAt'],event='push',path=c['workflowPath'],repository=dict(full_name=PINS['repository']),head_repository=dict(full_name=PINS['repository'])),
++        workflow=dict(id=c['workflowId'],path=c['workflowPath']),commit=dict(sha=c['sourceSha'],commit=dict(tree=dict(sha=c['sourceTree']))),workflowFile=dict(path=c['workflowPath'],sha=c['workflowBlobSha'],type='file'),jobs=dict(total_count=25,jobs=jobs),
++        artifact=dict(id=a['id'],name=a['name'],digest='sha256:'+a['zipSha256'],size_in_bytes=a['zipBytes'],expired=False,expires_at=a['expiresAt'],created_at='2026-11-18T03:35:09Z',updated_at='2026-11-18T03:35:09Z',workflow_run=dict(id=c['runId'],head_sha=c['sourceSha'],head_branch=c['branch'])))
++
++class Metadata(unittest.TestCase):
++    def test_positive(self):
++        self.assertEqual(v.verify_snapshot(PINS,snapshot(),now=NOW)['result'],'verified_metadata_only')
++    def test_tampering(self):
++        cases=[('run','head_sha','0'*40),('run','id',1),('run','run_attempt',2),('run','conclusion','failure'),('run','head_branch','main'),('run','workflow_id',0),('run','run_started_at','2020-01-01T00:00:00Z'),('workflow','path','wrong'),('workflowFile','sha','0'*40),('artifact','id',1),('artifact','expired',True),('artifact','digest','sha256:'+'0'*64),('artifact','size_in_bytes',1),('artifact','created_at','2026-11-18T03:00:00Z'),('artifact','expires_at','2099-01-01T00:00:00Z'),('repository','private',True)]
++        for section,key,value in cases:
++            with self.subTest(section=section,key=key):
++                s=snapshot();s[section][key]=value
++                with self.assertRaises(v.VerificationError):v.verify_snapshot(PINS,s,now=NOW)
++        for key,value in [('id',0),('name','wrong'),('run_attempt',2),('head_sha','0'*40),('run_id',1),('status','queued'),('conclusion','skipped'),('completed_at','2027-01-01T00:00:00Z')]:
++            with self.subTest(job=key):
++                s=snapshot();s['jobs']['jobs'][0][key]=value
++                with self.assertRaises(v.VerificationError):v.verify_snapshot(PINS,s,now=NOW)
++    def test_upload_interval(self):
++        for mode in ['missing','duplicate','name','status','conclusion','start','end','created_before','created_after','updated_after','updated_before','updated_after_producer']:
++            with self.subTest(mode=mode):
++                s=snapshot();j=next(j for j in s['jobs']['jobs'] if j['id']==PINS['artifact']['producerJobId']);u=j['steps'][0]
++                if mode=='missing':j['steps']=[]
++                elif mode=='duplicate':j['steps'].append(copy.deepcopy(u))
++                elif mode=='name':u['name']='Other upload'
++                elif mode=='status':u['status']='in_progress'
++                elif mode=='conclusion':u['conclusion']='skipped'
++                elif mode=='start':u['started_at']='2026-11-18T03:35:05Z'
++                elif mode=='end':u['completed_at']='2026-11-18T03:35:10Z'
++                elif mode=='created_before':s['artifact']['created_at']='2026-11-18T03:35:05Z'
++                elif mode=='created_after':s['artifact']['created_at']='2026-11-18T03:35:10Z'
++                elif mode=='updated_after':s['artifact']['updated_at']='2026-11-18T03:35:10Z'
++                elif mode=='updated_before':s['artifact']['updated_at']='2026-11-18T03:35:08Z'
++                elif mode=='updated_after_producer':s['artifact']['updated_at']='2026-11-18T03:35:13Z'
++                with self.assertRaises(v.VerificationError):v.verify_snapshot(PINS,s,now=NOW)
++
++    def test_structural(self):
++        for mode in ['missing','duplicate','tree','missing_field','artifact_run','naive','expired','pins']:
++            with self.subTest(mode=mode):
++                s=snapshot();p=copy.deepcopy(PINS);now=NOW
++                if mode=='missing':s['jobs']['jobs'].pop()
++                if mode=='duplicate':s['jobs']['jobs'][0]=s['jobs']['jobs'][1]
++                if mode=='tree':s['commit']['commit']['tree']['sha']='0'*40
++                if mode=='missing_field':del s['jobs']['jobs'][0]['run_attempt']
++                if mode=='artifact_run':s['artifact']['workflow_run']['id']=1
++                if mode=='naive':now=NOW.replace(tzinfo=None)
++                if mode=='expired':now=dt.datetime(2027,1,1,tzinfo=dt.timezone.utc)
++                if mode=='pins':p['enabled']=True
++                with self.assertRaises(v.VerificationError):v.verify_snapshot(p,s,now=now)
++
++class Archive(unittest.TestCase):
++    def fixture(self,mode):
++        p=copy.deepcopy(PINS);buf=io.BytesIO();ms=p['artifact']['members']
++        with warnings.catch_warnings():
++            warnings.simplefilter('ignore')
++            with zipfile.ZipFile(buf,'w',zipfile.ZIP_DEFLATED) as z:
++                for index,m in enumerate(ms):
++                    b=('SYNTHETIC NOT APK '+m['name']).encode();m['bytes']=len(b);m['sha256']=hashlib.sha256(b).hexdigest();name=m['name']
++                    if mode=='missing' and index==1:continue
++                    if mode=='traversal' and index==0:name='../'+name
++                    entry=zipfile.ZipInfo(name)
++                    if mode=='symlink' and index==0:entry.external_attr=(stat.S_IFLNK|0o777)<<16
++                    z.writestr(entry,b)
++                if mode=='duplicate':z.writestr(ms[0]['name'],b'duplicate')
++                if mode=='extra':z.writestr('extra',b'extra')
++        raw=buf.getvalue();p['artifact']['zipBytes']=len(raw);p['artifact']['zipSha256']=hashlib.sha256(raw).hexdigest()
++        if mode=='zip_hash':raw=raw[:-1]+bytes([raw[-1]^1])
++        if mode=='member_hash':ms[0]['sha256']='0'*64
++        if mode=='member_size':ms[0]['bytes']+=1
++        if mode=='oversize':ms[0]['bytes']=v.MAX_MEMBER+1
++        return p,raw
++    def test_cases(self):
++        for mode in ['positive','zip_hash','member_hash','member_size','duplicate','missing','extra','traversal','symlink','oversize','archive_symlink','pin_mutation']:
++            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as d:
++                p,raw=self.fixture(mode);file=pathlib.Path(d)/'fixture.zip';file.write_bytes(raw)
++                # Only tests replace the pinned canonical digest, for synthetic bytes.
++                # Production API offers no caller bypass or synthetic mode.
++                with patch.object(v,'PIN_DIGEST',v.canonical_digest(p)):
++                    if mode=='archive_symlink':link=pathlib.Path(d)/'link.zip';link.symlink_to(file);file=link
++                    if mode=='pin_mutation':p['artifact']['zipBytes']+=1
++                    if mode=='positive':
++                        r=v.verify_archive(p,file);self.assertEqual(len(r['members']),2);self.assertFalse(r['signingAuthorized'])
++                    else:
++                        with self.assertRaises(v.VerificationError):v.verify_archive(p,file)
++
++if __name__=='__main__':unittest.main()
+--- /dev/null
++++ b/docs/review/android-v0.1.10-sign-only/synthetic_sign_test.py
+@@ -0,0 +1,58 @@
++"""Offline demo only: ephemeral synthetic identity, never a community signing entry point."""
++import argparse, hashlib, json, os, pathlib, re, secrets, subprocess, tempfile, zipfile
++
++APK_SHA = '478e905f6a8cf5bbc5194d47f678a36d24b93d3e06c0dfe15e88fd007aba8724'
++ZIP_SHA = 'a76c289908aef9a7b46a284b73f0cfb284337ec6e874d6d42e679b8ecee98414'
++MEMBER = 'T3-Code-zh-CN-Android-0.1.10-zh.1-arm64-UNSIGNED-NOT-INSTALLABLE.apk'
++COMMUNITY_CERT = '82f2437cbceb94fe6fe4a60a1c0de99f643124c64a648a27de9ce92bd39ecd88'
++
++def run(args, env=None):
++    p = subprocess.run([str(x) for x in args], capture_output=True, text=True, env=env, timeout=180)
++    if p.returncode: raise RuntimeError('Android tool failed; output withheld')
++    return p.stdout + p.stderr
++
++def badging(text):
++    if "package: name='com.zhiweixiao.t3code.zhcn' versionCode='1000418' versionName='0.1.10-zh.1'" not in text:
++        raise RuntimeError('Wrong package/version')
++    if re.findall(r'^native-code:\s*(.*)$', text, re.M) != ["'arm64-v8a'"]:
++        raise RuntimeError('Wrong ABI')
++
++def demo(archive, sdk):
++    # No caller-supplied identity/key path or community secret is accepted.
++    if os.environ.get('ANDROID_KEYSTORE_BASE64') or os.environ.get('ANDROID_KEYSTORE_PASSWORD'):
++        raise RuntimeError('Refuse real-signing environment')
++    raw = pathlib.Path(archive).read_bytes()
++    if len(raw) != 47480291 or hashlib.sha256(raw).hexdigest() != ZIP_SHA:
++        raise RuntimeError('Wrong original archive')
++    tool = pathlib.Path(sdk).resolve()
++    for name in ('aapt2','apksigner','zipalign'):
++        if not (tool/name).is_file(): raise RuntimeError('Reviewed SDK tools required')
++    with tempfile.TemporaryDirectory(prefix='t3-synthetic-sign-') as tmp:
++        work = pathlib.Path(tmp); os.chmod(work,0o700)
++        with zipfile.ZipFile(archive) as z:
++            if sorted(z.namelist()) != sorted([MEMBER,'SIGNING-BLOCKER.txt']): raise RuntimeError('Wrong members')
++            apk = z.read(MEMBER)
++        if len(apk)!=101730516 or hashlib.sha256(apk).hexdigest()!=APK_SHA: raise RuntimeError('Wrong APK')
++        unsigned=work/'original.apk'; unsigned.write_bytes(apk)
++        badging(run([tool/'aapt2','dump','badging',unsigned]))
++        p=subprocess.run([str(tool/'apksigner'),'verify','--verbose',str(unsigned)],capture_output=True,text=True,timeout=180)
++        if p.returncode!=1 or 'DOES NOT VERIFY' not in p.stdout+p.stderr: raise RuntimeError('Expected unsigned candidate')
++        aligned=work/'aligned.apk'; signed=work/'SYNTHETIC-DO-NOT-DISTRIBUTE.apk'; key=work/'synthetic.p12'
++        # Cryptographically random temporary password stays only in child process environment.
++        env=os.environ.copy(); env['T3_SYNTHETIC_PASSWORD']=secrets.token_urlsafe(48)
++        run(['keytool','-genkeypair','-alias','synthetic-only','-keyalg','RSA','-keysize','2048','-validity','1','-dname','CN=SYNTHETIC TEST ONLY','-storetype','PKCS12','-keystore',key,'-storepass:env','T3_SYNTHETIC_PASSWORD','-keypass:env','T3_SYNTHETIC_PASSWORD'],env)
++        os.chmod(key,0o600)
++        run([tool/'zipalign','-P','16','-f','4',unsigned,aligned])
++        run([tool/'apksigner','sign','--ks',key,'--ks-key-alias','synthetic-only','--ks-pass','env:T3_SYNTHETIC_PASSWORD','--key-pass','env:T3_SYNTHETIC_PASSWORD','--out',signed,aligned],env)
++        verification=run([tool/'apksigner','verify','--verbose','--print-certs',signed])
++        certs=re.findall(r'^Signer #\d+ certificate SHA-256 digest:\s*([a-fA-F0-9]+)\s*$',verification,re.M)
++        if len(certs)!=1 or certs[0].lower()==COMMUNITY_CERT: raise RuntimeError('Must be one non-community synthetic signer')
++        run([tool/'zipalign','-c','-P','16','4',signed]); badging(run([tool/'aapt2','dump','badging',signed]))
++        result={'synthetic_signature_verified':True,'package_version_abi_verified':True,'page_alignment_verified':True,'original_key_used':False,'installed_app_acceptance':False,'publication_performed':False,'signed_output_retained':False,'unsigned_apk_sha256':APK_SHA}
++    # Both key and signed APK are removed before any success result is returned.
++    if work.exists(): raise RuntimeError('Temporary cleanup failed')
++    return result
++
++if __name__=='__main__':
++    p=argparse.ArgumentParser();p.add_argument('--archive',required=True);p.add_argument('--sdk-tools',required=True);a=p.parse_args()
++    print(json.dumps(demo(a.archive,a.sdk_tools),indent=2))
+--- /dev/null
++++ b/docs/review/android-v0.1.10-sign-only/test_synthetic_guards.py
+@@ -0,0 +1,24 @@
++import unittest,urllib.request
++from unittest.mock import patch
++import synthetic_sign_test as s
++import verify_live as v
++class Guards(unittest.TestCase):
++    def test_real_identity_env_rejected_before_file_read(self):
++        for name in ('ANDROID_KEYSTORE_BASE64','ANDROID_KEYSTORE_PASSWORD'):
++            with self.subTest(name=name),patch.dict(s.os.environ,{name:'synthetic-sentinel'}):
++                with self.assertRaisesRegex(RuntimeError,'Refuse real-signing'):s.demo('/not/read','/not/run')
++    def test_redirect_rejected(self):
++        with self.assertRaisesRegex(ValueError,'redirects forbidden'):
++            v.NoRedirect().redirect_request(urllib.request.Request(v.BASE),None,302,'Moved',{},'https://example.com')
++    def test_package_and_abi(self):
++        good="package: name='com.zhiweixiao.t3code.zhcn' versionCode='1000418' versionName='0.1.10-zh.1'\nnative-code: 'arm64-v8a'\n"
++        s.badging(good)
++        for bad in (good.replace('1000418','1000417'),good.replace('arm64-v8a','x86_64'),good.replace('com.zhiweixiao','com.example')):
++            with self.assertRaises(RuntimeError):s.badging(bad)
++    def test_tool_output_not_exposed(self):
++        class Result:
++            returncode=1;stdout='synthetic-sensitive-output';stderr='synthetic-sensitive-output'
++        with patch.object(s.subprocess,'run',return_value=Result()):
++            with self.assertRaisesRegex(RuntimeError,'output withheld') as cm:s.run(['unused'])
++            self.assertNotIn('sensitive-output',str(cm.exception))
++if __name__=='__main__':unittest.main()
+--- /dev/null
++++ b/docs/review/android-v0.1.10-sign-only/verify_live.py
+@@ -0,0 +1,32 @@
++"""Public GET-only preflight. No token, signing, download redirect, or remote mutation."""
++import argparse,datetime,json,pathlib,urllib.request
++from candidate_verifier import validate_pins,verify_snapshot,verify_archive
++BASE='https://api.github.com/repos/ZhiweiXiao98/t3code'
++class NoRedirect(urllib.request.HTTPRedirectHandler):
++    def redirect_request(self, req, fp, code, msg, headers, newurl):
++        raise ValueError('API redirects forbidden')
++OPENER=urllib.request.build_opener(NoRedirect)
++def get(path):
++    req=urllib.request.Request(BASE+path,headers={'User-Agent':'T3-Android-read-only-preflight','Accept':'application/vnd.github+json'})
++    with OPENER.open(req,timeout=30) as r:
++        raw=r.read(4*1024*1024+1)
++    if len(raw)>4*1024*1024:raise ValueError('Response too large')
++    return json.loads(raw)
++def snapshot(p):
++    c=p['candidate'];sha=c['sourceSha'];rid=str(c['runId'])
++    paths={'repository':'','run':'/actions/runs/'+rid,'workflow':'/actions/workflows/'+str(c['workflowId']),'commit':'/commits/'+sha,'workflowFile':'/contents/'+c['workflowPath']+'?ref='+sha,'jobs':'/actions/runs/'+rid+'/attempts/1/jobs?per_page=100'}
++    s={k:get(v) for k,v in paths.items()}
++    artifacts=get('/actions/runs/'+rid+'/artifacts?per_page=100')
++    if artifacts['total_count']!=len(artifacts['artifacts']) or len(artifacts['artifacts'])>=100:raise ValueError('Artifact pagination')
++    matches=[a for a in artifacts['artifacts'] if a['id']==p['artifact']['id']]
++    if len(matches)!=1:raise ValueError('Artifact missing/duplicate')
++    s['artifact']=matches[0];return s
++if __name__=='__main__':
++    ap=argparse.ArgumentParser();ap.add_argument('--archive',required=True);a=ap.parse_args()
++    pins=validate_pins(json.loads(pathlib.Path(__file__).with_name('candidate-pins.json').read_text()))
++    before=snapshot(pins);verify_snapshot(pins,before,now=datetime.datetime.now(datetime.timezone.utc))
++    proof=verify_archive(pins,a.archive)
++    after=snapshot(pins);verify_snapshot(pins,after,now=datetime.datetime.now(datetime.timezone.utc))
++    for key in ('run','jobs','artifact','commit','workflowFile','workflow'):
++        if before[key]!=after[key]:raise ValueError('Candidate changed during inspection: '+key)
++    print(json.dumps({'live_metadata_before_after':'PASS','bytes':proof,'original_key_execution_enabled':False},indent=2))
+--- /dev/null
++++ b/docs/review/android-v0.1.10-sign-only/encrypted_handoff.py
+@@ -0,0 +1,83 @@
++"""Recipient-only encrypted envelope. No signer, decryptor, network or publication.
++Uses installed cryptography: RSA-OAEP/SHA256 wrapping + AES-256-GCM.
++Fingerprint = SHA256 of canonical DER SubjectPublicKeyInfo (NOT OpenPGP).
++Caller must authenticate the sole allowlisted recipient out of band.
++"""
++import base64
++import hashlib
++import json
++import os
++import pathlib
++import re
++import tempfile
++from cryptography.hazmat.primitives import hashes, serialization
++from cryptography.hazmat.primitives.asymmetric import padding, rsa
++from cryptography.hazmat.primitives.ciphers.aead import AESGCM
++
++MAX_PAYLOAD=128*1024*1024
++MAX_PUBLIC_KEY=32*1024
++MAGIC='t3-recipient-envelope-v1'
++ALGORITHM='RSA-OAEP-SHA256+AES-256-GCM'
++
++class HandoffError(ValueError):
++    pass
++
++def need(ok,message):
++    if not ok:raise HandoffError(message)
++
++def canonical(value):
++    return json.dumps(value,sort_keys=True,separators=(',',':')).encode('ascii')
++
++def recipient_key(public_key,fingerprint):
++    need(type(public_key) is bytes and 0<len(public_key)<=MAX_PUBLIC_KEY,'Public key size/type')
++    need(isinstance(fingerprint,str) and re.fullmatch('[a-fA-F0-9]{64}',fingerprint) is not None,'Full SPKI SHA256 required')
++    # Accept exactly ONE canonical SPKI PEM/DER public key; reject concatenated,
++    # private, certificate, PKCS1 or trailing material before use.
++    if public_key.startswith(b'-----'):
++        match=re.fullmatch(rb'-----BEGIN PUBLIC KEY-----\r?\n([A-Za-z0-9+/=\r\n]+)-----END PUBLIC KEY-----\r?\n?',public_key)
++        need(match is not None,'Exactly one SPKI public key required')
++        try:der=base64.b64decode(re.sub(rb'\s',b'',match[1]),validate=True)
++        except ValueError:raise HandoffError('Invalid public key encoding') from None
++    else:der=public_key
++    try:key=serialization.load_der_public_key(der)
++    except (ValueError,TypeError):raise HandoffError('Invalid public key; private material not accepted') from None
++    need(isinstance(key,rsa.RSAPublicKey) and key.key_size>=3072,'RSA >=3072-bit public recipient required')
++    canonical_der=key.public_bytes(serialization.Encoding.DER,serialization.PublicFormat.SubjectPublicKeyInfo)
++    need(der==canonical_der,'Noncanonical or additional key material')
++    actual=hashlib.sha256(canonical_der).hexdigest()
++    need(actual==fingerprint.lower(),'Recipient fingerprint mismatch')
++    return key,actual
++
++def encrypt_handoff(payload,public_key,destination,*,allowed_fingerprints):
++    """Only emits ciphertext; never writes/copies plaintext or private keys.
++    Single reviewed recipient allowlist required; caller-owned bytes/memory cannot
++    be reliably erased by Python. A successful output is NOT sender-authenticated.
++    Caller must use a trusted, private destination directory. Existing destination
++    (including symlinks) is never overwritten; partial temp output is cleaned.
++    """
++    need(type(payload) is bytes and 0<len(payload)<=MAX_PAYLOAD,'Payload size/type')
++    need(isinstance(allowed_fingerprints,(list,tuple)) and len(allowed_fingerprints)==1,'Exactly one approved recipient required')
++    key,fingerprint=recipient_key(public_key,allowed_fingerprints[0])
++    dest=pathlib.Path(destination)
++    need(dest.parent.is_dir() and not dest.exists() and not dest.is_symlink(),'New ciphertext destination required')
++    header={'format':MAGIC,'algorithm':ALGORITHM,'recipientSpkiSha256':fingerprint}
++    aad=canonical(header);content_key=os.urandom(32);nonce=os.urandom(12)
++    wrapped=key.encrypt(content_key,padding.OAEP(mgf=padding.MGF1(hashes.SHA256()),algorithm=hashes.SHA256(),label=aad))
++    cipher=AESGCM(content_key).encrypt(nonce,payload,aad)
++    envelope=canonical(dict(header,wrappedKey=base64.b64encode(wrapped).decode('ascii'),
++                            nonce=base64.b64encode(nonce).decode('ascii'),
++                            ciphertext=base64.b64encode(cipher).decode('ascii')))+b'\n'
++    temporary=None
++    try:
++        fd,temporary=tempfile.mkstemp(prefix='.t3-encrypted-',dir=dest.parent)
++        with os.fdopen(fd,'wb') as stream:
++            os.fchmod(stream.fileno(),0o600);stream.write(envelope);stream.flush();os.fsync(stream.fileno())
++        # Exclusive creation: a racing file/symlink is an error, never overwritten.
++        os.link(temporary,dest)
++    finally:
++        if temporary is not None:pathlib.Path(temporary).unlink(missing_ok=True)
++    return {'encrypted':True,'recipientSpkiSha256':fingerprint,'algorithm':ALGORITHM,
++            'plaintextSha256':hashlib.sha256(payload).hexdigest(),
++            'ciphertextSha256':hashlib.sha256(envelope).hexdigest(),'ciphertextBytes':len(envelope),
++            'integrity':'AES-GCM authentication tag; recipient-bound OAEP label/AAD',
++            'senderAuthenticated':False,'publicationPerformed':False}
+--- /dev/null
++++ b/docs/review/android-v0.1.10-sign-only/test_encrypted_handoff.py
+@@ -0,0 +1,76 @@
++"""Synthetic in-memory recipient keys only; no community identity or APK used."""
++import base64
++import hashlib
++import json
++import pathlib
++import tempfile
++import unittest
++from unittest.mock import patch
++from cryptography.exceptions import InvalidTag
++from cryptography.hazmat.primitives import hashes,serialization
++from cryptography.hazmat.primitives.asymmetric import rsa,padding
++from cryptography.hazmat.primitives.ciphers.aead import AESGCM
++import encrypted_handoff as h
++
++class Handoff(unittest.TestCase):
++    @classmethod
++    def setUpClass(cls):
++        cls.private=[rsa.generate_private_key(public_exponent=65537,key_size=3072) for _ in range(2)]
++        cls.der=[k.public_key().public_bytes(serialization.Encoding.DER,serialization.PublicFormat.SubjectPublicKeyInfo) for k in cls.private]
++        cls.pem=[k.public_key().public_bytes(serialization.Encoding.PEM,serialization.PublicFormat.SubjectPublicKeyInfo) for k in cls.private]
++        cls.fingerprints=[hashlib.sha256(d).hexdigest() for d in cls.der]
++    def decrypt_synthetic(self,data,key):
++        # Test-only consumer: authenticate entirely before returning any plaintext.
++        e=json.loads(data);self.assertEqual(set(e),{'format','algorithm','recipientSpkiSha256','wrappedKey','nonce','ciphertext'})
++        self.assertEqual(e['format'],h.MAGIC);self.assertEqual(e['algorithm'],h.ALGORITHM)
++        aad=h.canonical({k:e[k] for k in ('format','algorithm','recipientSpkiSha256')})
++        content_key=key.decrypt(base64.b64decode(e['wrappedKey'],validate=True),padding.OAEP(mgf=padding.MGF1(hashes.SHA256()),algorithm=hashes.SHA256(),label=aad))
++        return AESGCM(content_key).decrypt(base64.b64decode(e['nonce'],validate=True),base64.b64decode(e['ciphertext'],validate=True),aad)
++    def test_roundtrip_and_integrity(self):
++        payload=b'SYNTHETIC ONLY NOT APK\x00\xff'*100
++        for public in (self.pem[0],self.der[0]):
++            with tempfile.TemporaryDirectory() as d:
++                dest=pathlib.Path(d)/'cipher.json';r=h.encrypt_handoff(payload,public,dest,allowed_fingerprints=[self.fingerprints[0]])
++                raw=dest.read_bytes();self.assertFalse(r['senderAuthenticated']);self.assertNotIn(payload,raw)
++                self.assertEqual(self.decrypt_synthetic(raw,self.private[0]),payload)
++                with self.assertRaises(ValueError):self.decrypt_synthetic(raw,self.private[1])
++                for field in ('ciphertext','nonce','wrappedKey','recipientSpkiSha256'):
++                    e=json.loads(raw)
++                    if field=='recipientSpkiSha256':e[field]=self.fingerprints[1]
++                    else:
++                        b=bytearray(base64.b64decode(e[field]));b[-1]^=1;e[field]=base64.b64encode(b).decode()
++                    with self.assertRaises((ValueError,InvalidTag)):self.decrypt_synthetic(json.dumps(e).encode(),self.private[0])
++                self.assertEqual(dest.stat().st_mode&0o777,0o600)
++                self.assertEqual([p.name for p in pathlib.Path(d).iterdir()],['cipher.json'])
++    def test_rejections(self):
++        for case in ['wrong','multi_allow','multi_pem','multi_der','short','private_pem','private_der','empty','existing','symlink']:
++            with self.subTest(case=case),tempfile.TemporaryDirectory() as d:
++                dest=pathlib.Path(d)/'cipher';key=self.pem[0];allow=[self.fingerprints[0]];payload=b'synthetic'
++                if case=='wrong':allow=[self.fingerprints[1]]
++                elif case=='multi_allow':allow=self.fingerprints
++                elif case=='multi_pem':key=b''.join(self.pem)
++                elif case=='multi_der':key=b''.join(self.der)
++                elif case=='short':allow=[self.fingerprints[0][-16:]]
++                elif case.startswith('private_'):key=self.private[0].private_bytes(serialization.Encoding.PEM if case.endswith('pem') else serialization.Encoding.DER,serialization.PrivateFormat.PKCS8,serialization.NoEncryption())
++                elif case=='empty':payload=b''
++                elif case=='existing':dest.write_bytes(b'preserve')
++                elif case=='symlink':dest.symlink_to(pathlib.Path(d)/'absent')
++                with self.assertRaises(h.HandoffError):h.encrypt_handoff(payload,key,dest,allowed_fingerprints=allow)
++                if case=='existing':self.assertEqual(dest.read_bytes(),b'preserve')
++                elif case=='symlink':self.assertTrue(dest.is_symlink())
++                else:self.assertEqual(list(pathlib.Path(d).iterdir()),[])
++    def test_failure_cleanup_and_race(self):
++        for case in ('encrypt','fsync','link','race'):
++            with self.subTest(case=case),tempfile.TemporaryDirectory() as d:
++                dest=pathlib.Path(d)/'cipher';original=h.os.link
++                def race(src,dst):
++                    pathlib.Path(dst).symlink_to(pathlib.Path(d)/'absent');return original(src,dst)
++                if case=='encrypt':mock=patch.object(h.AESGCM,'encrypt',side_effect=RuntimeError('injected'))
++                elif case=='fsync':mock=patch.object(h.os,'fsync',side_effect=OSError('injected'))
++                else:mock=patch.object(h.os,'link',side_effect=race if case=='race' else OSError('injected'))
++                with mock,self.assertRaises((RuntimeError,OSError)):
++                    h.encrypt_handoff(b'synthetic',self.pem[0],dest,allowed_fingerprints=[self.fingerprints[0]])
++                if case=='race':self.assertTrue(dest.is_symlink());dest.unlink()
++                self.assertEqual(list(pathlib.Path(d).iterdir()),[])
++
++if __name__=='__main__':unittest.main()
+--- /dev/null
++++ b/docs/review/android-v0.1.10-sign-only/signer_adapter.py
+@@ -0,0 +1,160 @@
++"""Inert offline adapter; no CLI, dispatch, recovery, upload or publication.
++Authorization is an orchestration contract, not an authorization service. The caller
++must independently review its operation and recipient before constructing it.
++"""
++import base64
++from dataclasses import dataclass
++import hashlib
++import json
++import os
++from pathlib import Path
++import re
++import shutil
++import subprocess
++import tempfile
++import zipfile
++
++from encrypted_handoff import encrypt_handoff, recipient_key
++
++APK_SHA='478e905f6a8cf5bbc5194d47f678a36d24b93d3e06c0dfe15e88fd007aba8724'
++APK_BYTES=101730516
++KEYSTORE_SHA='7e4922f7de02c1c739e627eb3ef87fa1fb639329ed27613dff8b4f0fdad2d397'
++CERT_SHA='82f2437cbceb94fe6fe4a60a1c0de99f643124c64a648a27de9ce92bd39ecd88'
++SOURCE_SHA='2ed55016b6678ca997f204d9b7af4048ce0307e6'
++RUN_ID=44228163780
++ARTIFACT_ID=14395695421
++SDK_PINS={'aapt2': '1a6a396b9cd071f7040071fdd108718cb98c3c9f4960044f373b288993d19eb7', 'zipalign': 'c5f559e946de5a9e7d58792181db20383b228877812136bc469d97ae00a43b0a', 'apksigner': 'b47549e373b895ce6ca620d0c7887e674d9615ffa837a86ac601dcfd04adb0f0', 'lib/apksigner.jar': '3716d9311e55d2b0918a2fd9d54ba9e406c5f6abeea700b287f11259bc163dec', 'lib64/libLLVM_android.so': 'f35907663f0069916f86aaafceadc55698f02a8f8cfc21bcd91833f849b2dc09', 'lib64/libbcc.so': 'f69fd124a305f6d9774e62759e21f6aeea7f12745189d9d4b4ae99977761d83b', 'lib64/libbcinfo.so': 'ff584620b65dfee59bcb5050c692398cf03fe9326b1e6daf1a92f1f30ac24cc6', 'lib64/libc++.so': '96a19cd2154a4423a61f8444e5d3148a608fa3033bc1a22285d19855a950d05a', 'lib64/libc++.so.1': '7eb2812ec39ab5c31f2fc9f906f412c713e76e0d07d6a6911108c7f886e24945', 'lib64/libclang_android.so': 'f18899cc604a3a1a9b836804cdfeb1ff96b25faff2b75f5ff451037a4308660f'}
++TOOLS=tuple(SDK_PINS)
++
++class SignerError(ValueError): pass
++
++def need(ok,message):
++    if not ok: raise SignerError(message)
++
++@dataclass(frozen=True)
++class ReviewedAuthorization:
++    repository: str
++    source_sha: str
++    candidate_run_id: int
++    artifact_id: int
++    candidate_attempt: int
++    operation_sha: str
++    operation_ref: str
++    environment: str
++    recipient_spki_sha256: str
++    sdk_tool_sha256: dict
++    recovery_verified: bool
++    activation_reviewed: bool
++
++
++def _authorization(context):
++    need(type(context) is ReviewedAuthorization,'Reviewed authorization context required')
++    need(context.repository=='ZhiweiXiao98/t3code' and context.source_sha==SOURCE_SHA and
++         context.candidate_run_id==RUN_ID and context.artifact_id==ARTIFACT_ID and
++         context.candidate_attempt==1,'Wrong candidate context')
++    need(context.operation_ref=='refs/heads/signing/android-bootstrap' and
++         context.environment=='android-signing' and re.fullmatch('[0-9a-f]{40}',context.operation_sha) is not None,
++         'Wrong operation context')
++    need(context.recovery_verified is True and context.activation_reviewed is True,'Review/recovery approval required')
++    need(context.sdk_tool_sha256==SDK_PINS,'Fixed reviewed SDK tool hashes required')
++
++
++def _hash(path):
++    with open(path,'rb') as stream: return hashlib.file_digest(stream,'sha256').hexdigest()
++
++
++def _run(args,environment):
++    try:
++        result=subprocess.run([str(a) for a in args],env=environment,capture_output=True,text=True,timeout=180)
++    except Exception:
++        raise SignerError('Android tool invocation failed; output withheld') from None
++    return result.returncode,result.stdout+result.stderr
++
++
++def _success(args,environment):
++    status,output=_run(args,environment)
++    need(status==0,'Android tool failed; output withheld')
++    return output
++
++
++def _badge(text):
++    packages=re.findall(r"^package: name='([^']*)' versionCode='([^']*)' versionName='([^']*)'",text,re.M)
++    need(packages==[('com.zhiweixiao.t3code.zhcn','1000418','0.1.10-zh.1')],'Package/version mismatch')
++    need(re.findall(r'^native-code:\s*(.*)$',text,re.M)==["'arm64-v8a'"],'ABI mismatch')
++
++
++def _unsigned(path,tools,environment):
++    _badge(_success([tools/'aapt2','dump','badging',path],environment))
++    with zipfile.ZipFile(path) as archive:
++        need(archive.testzip() is None,'APK ZIP integrity failure')
++        need(not any(re.match(r'META-INF/[^/]+\.(RSA|DSA|EC|SF)$',n,re.I) for n in archive.namelist()),'Existing v1 signature')
++    status,output=_run([tools/'apksigner','verify','--verbose',path],environment)
++    need(status==1 and 'DOES NOT VERIFY' in output and 'Missing META-INF/MANIFEST.MF' in output,
++         'Expected reviewed unsigned verification result')
++
++
++def sign_candidate(unsigned_apk,sdk_tools,public_key,output_directory,*,authorization):
++    """Create only a new ciphertext directory and allowlisted public manifest.
++    No real secrets are used by tests. Output parent must be trusted/private.
++    Tools are independently authenticated by the orchestrator before this call.
++    Temporary files are removed, not physically erased; Python and environment
++    secret memory cannot be reliably scrubbed. This is not a readiness assertion.
++    """
++    _authorization(authorization)
++    tools=Path(sdk_tools).resolve();original=Path(unsigned_apk)
++    need(original.is_file() and not original.is_symlink() and original.stat().st_size==APK_BYTES and _hash(original)==APK_SHA,'Unsigned APK pin mismatch')
++    for name in TOOLS:
++        tool=tools/name
++        need(tool.is_file() and not tool.is_symlink() and _hash(tool)==authorization.sdk_tool_sha256[name],'SDK tool pin mismatch')
++    need(not (tools/'apksigner.jar').exists() and not (tools/'apksigner.jar').is_symlink(),'Unexpected alternate signer JAR')
++    recipient_key(public_key,authorization.recipient_spki_sha256)
++    output=Path(output_directory)
++    need(output.parent.is_dir() and not output.exists() and not output.is_symlink(),'New private output directory required')
++    # Allowlist, not a copy of CI environment: no workflow tokens or signing secrets.
++    clean_env={k:os.environ[k] for k in ('PATH','JAVA_HOME','LANG','LC_ALL','TZ') if k in os.environ}
++    clean_env['LC_ALL']='C'
++    made_output=False
++    try:
++        with tempfile.TemporaryDirectory(prefix='t3-reviewed-sign-') as directory:
++            work=Path(directory);os.chmod(work,0o700)
++            clean_env['HOME']=str(work);clean_env['TMPDIR']=str(work)
++            unsigned=work/'unsigned.apk';shutil.copyfile(original,unsigned)
++            need(unsigned.stat().st_size==APK_BYTES and _hash(unsigned)==APK_SHA,'Copied APK pin mismatch')
++            _unsigned(unsigned,tools,clean_env)
++            password=os.environ.get('ANDROID_KEYSTORE_PASSWORD','')
++            encoded=os.environ.get('ANDROID_KEYSTORE_BASE64','')
++            need(32<=len(password)<=256 and not any(c in password for c in '\r\n\x00'),'Invalid password shape')
++            need(0<len(encoded)<=48000,'Invalid keystore size')
++            try: key_bytes=base64.b64decode(encoded,validate=True)
++            except ValueError: raise SignerError('Invalid keystore encoding') from None
++            need(hashlib.sha256(key_bytes).hexdigest()==KEYSTORE_SHA,'Keystore container mismatch')
++            key=work/'identity.p12'
++            with open(key,'xb') as stream:
++                os.fchmod(stream.fileno(),0o600);stream.write(key_bytes)
++            aligned=work/'aligned.apk';signed=work/'signed.apk'
++            _success([tools/'zipalign','-P','16','-f','4',unsigned,aligned],clean_env)
++            sign_env=dict(clean_env,T3_REVIEWED_PASSWORD=password)
++            try:
++                _success([tools/'apksigner','sign','--ks',key,'--ks-key-alias','t3code-release',
++                          '--ks-pass','env:T3_REVIEWED_PASSWORD','--key-pass','env:T3_REVIEWED_PASSWORD',
++                          '--out',signed,aligned],sign_env)
++            finally: sign_env.clear()
++            verification=_success([tools/'apksigner','verify','--verbose','--print-certs',signed],clean_env)
++            certs=re.findall(r'^Signer #\d+ certificate SHA-256 digest:\s*([a-fA-F0-9]+)\s*$',verification,re.M)
++            need([c.lower() for c in certs]==[CERT_SHA],'Signer certificate mismatch')
++            _badge(_success([tools/'aapt2','dump','badging',signed],clean_env))
++            _success([tools/'zipalign','-c','-P','16','-v','4',signed],clean_env)
++            output.mkdir(mode=0o700);made_output=True
++            envelope=encrypt_handoff(signed.read_bytes(),public_key,output/'handoff.json',allowed_fingerprints=[authorization.recipient_spki_sha256])
++            public={'schemaVersion':1,'format':'t3-encrypted-signing-handoff','sourceSha':SOURCE_SHA,
++                    'candidateRunId':RUN_ID,'candidateAttempt':1,'artifactId':ARTIFACT_ID,
++                    'operationSha':authorization.operation_sha,'ciphertextSha256':envelope['ciphertextSha256'],
++                    'ciphertextBytes':envelope['ciphertextBytes'],'algorithm':envelope['algorithm'],
++                    'senderAuthenticated':False,'publicationPerformed':False,'deviceAcceptancePerformed':False}
++            with open(output/'public-manifest.json','x',encoding='utf8') as stream:
++                os.fchmod(stream.fileno(),0o600);json.dump(public,stream,sort_keys=True)
++        need(not work.exists(),'Signing workspace cleanup failed')
++        return public
++    except BaseException:
++        if made_output: shutil.rmtree(output)
++        raise
+--- /dev/null
++++ b/docs/review/android-v0.1.10-sign-only/test_signer_adapter.py
+@@ -0,0 +1,87 @@
++"""Synthetic mocked orchestration tests; never reads inherited signing secrets."""
++import base64
++from dataclasses import replace
++import hashlib
++import json
++import os
++from pathlib import Path
++import tempfile
++import unittest
++import zipfile
++from unittest.mock import patch,Mock
++import signer_adapter as s
++
++BADGE="package: name='com.zhiweixiao.t3code.zhcn' versionCode='1000418' versionName='0.1.10-zh.1'\nnative-code: 'arm64-v8a'\n"
++
++class Signer(unittest.TestCase):
++    def context(self):
++        return s.ReviewedAuthorization('ZhiweiXiao98/t3code',s.SOURCE_SHA,s.RUN_ID,s.ARTIFACT_ID,1,'a'*40,
++            'refs/heads/signing/android-bootstrap','android-signing','b'*64,dict(s.SDK_PINS),True,True)
++    def test_context_and_badging_guards(self):
++        s._authorization(self.context());s._badge(BADGE)
++        for change in ({'source_sha':'0'*40},{'candidate_attempt':2},{'operation_ref':'refs/heads/main'},
++                       {'environment':'other'},{'activation_reviewed':False},{'recovery_verified':False},
++                       {'sdk_tool_sha256':{}},{'artifact_id':1},{'operation_sha':'bad'}):
++            with self.subTest(change=change),self.assertRaises(s.SignerError):s._authorization(replace(self.context(),**change))
++        with self.assertRaises(s.SignerError):s._authorization(None)
++        for text in (BADGE.replace('1000418','1000416'),BADGE.replace('arm64-v8a','x86_64'),BADGE+BADGE):
++            with self.assertRaises(s.SignerError):s._badge(text)
++    def test_unsigned_tool_guards(self):
++        with tempfile.TemporaryDirectory() as d:
++            apk=Path(d)/'candidate.apk'
++            with zipfile.ZipFile(apk,'w') as z:z.writestr('AndroidManifest.xml',b'SYNTHETIC')
++            for status,text,allowed in [(1,'DOES NOT VERIFY\nERROR: Missing META-INF/MANIFEST.MF',True),
++                                        (0,'Verifies',False),(1,'DOES NOT VERIFY: corrupt',False),(2,'Missing META-INF/MANIFEST.MF',False)]:
++                with self.subTest(status=status,text=text),patch.object(s,'_success',return_value=BADGE),patch.object(s,'_run',return_value=(status,text)):
++                    if allowed:s._unsigned(apk,Path(d),{})
++                    else:
++                        with self.assertRaises(s.SignerError):s._unsigned(apk,Path(d),{})
++            with zipfile.ZipFile(apk,'a') as z:z.writestr('META-INF/OLD.RSA',b'SYNTHETIC')
++            with patch.object(s,'_success',return_value=BADGE),self.assertRaises(s.SignerError):s._unsigned(apk,Path(d),{})
++
++    def exercise(self, fault=None):
++        with tempfile.TemporaryDirectory() as d:
++            root=Path(d);original=root/'unsigned.apk'
++            with open(original,'wb') as f:f.truncate(s.APK_BYTES)
++            tools=root/'tools';tools.mkdir()
++            for name in s.TOOLS:
++                (tools/name).parent.mkdir(exist_ok=True);(tools/name).write_text('SYNTHETIC TOOL NOT EXECUTABLE')
++            output=root/'output';calls=[];work_paths=[]
++            def run(args,env):
++                args=[str(x) for x in args];calls.append((args,dict(env)))
++                self.assertNotIn('ANDROID_KEYSTORE_BASE64',env);self.assertNotIn('ANDROID_KEYSTORE_PASSWORD',env)
++                self.assertNotIn('GITHUB_TOKEN',env)
++                if args[1]=='sign':
++                    self.assertEqual(env.get('T3_REVIEWED_PASSWORD'),'p'*48)
++                    self.assertNotIn('p'*48,' '.join(args))
++                    key=Path(args[args.index('--ks')+1]);self.assertEqual(key.read_bytes(),b'SYNTHETIC KEY');self.assertEqual(key.stat().st_mode&0o777,0o600);work_paths.append(key.parent)
++                    if fault=='sign':return 1,'private diagnostic NEVER expose'
++                    Path(args[args.index('--out')+1]).write_bytes(b'SYNTHETIC SIGNED APK')
++                else:self.assertNotIn('T3_REVIEWED_PASSWORD',env)
++                if args[1]=='verify':return 0,'Signer #1 certificate SHA-256 digest: '+('0'*64 if fault=='cert' else s.CERT_SHA)+'\n'
++                if args[1]=='dump':return 0,BADGE
++                return 0,''
++            def encrypt(payload,key,dest,**kw):
++                self.assertEqual(payload,b'SYNTHETIC SIGNED APK')
++                if fault=='encrypt':raise ValueError('injected')
++                Path(dest).write_bytes(b'SYNTHETIC CIPHER')
++                return {'ciphertextSha256':'d'*64,'ciphertextBytes':16,'algorithm':'test','recipientSpkiSha256':'PRIVATE METADATA','plaintextSha256':'PRIVATE HASH'}
++            env={'ANDROID_KEYSTORE_BASE64':base64.b64encode(b'SYNTHETIC KEY').decode(),'ANDROID_KEYSTORE_PASSWORD':'p'*48,'GITHUB_TOKEN':'do-not-inherit','PATH':os.environ.get('PATH','')}
++            if fault=='password':env['ANDROID_KEYSTORE_PASSWORD']='bad\npassword'
++            def pinned_hash(p):return s.APK_SHA if Path(p).suffix=='.apk' else s.SDK_PINS[str(Path(p).relative_to(tools))]
++            with patch.dict(os.environ,env,clear=True),patch.object(s,'_hash',side_effect=pinned_hash),patch.object(s,'recipient_key'),patch.object(s,'_unsigned'),patch.object(s,'_run',side_effect=run),patch.object(s,'encrypt_handoff',side_effect=encrypt),patch.object(s.hashlib,'sha256',return_value=Mock(hexdigest=lambda:s.KEYSTORE_SHA if fault!='keyhash' else '0'*64)):
++                if fault:
++                    with self.assertRaises((s.SignerError,ValueError)):s.sign_candidate(original,tools,b'SYNTHETIC PUBLIC',output,authorization=self.context())
++                    self.assertFalse(output.exists())
++                else:
++                    result=s.sign_candidate(original,tools,b'SYNTHETIC PUBLIC',output,authorization=self.context())
++                    self.assertEqual(sorted(p.name for p in output.iterdir()),['handoff.json','public-manifest.json'])
++                    public=(output/'public-manifest.json').read_text();self.assertNotIn('PRIVATE',public);self.assertNotIn('recipient',public);self.assertNotIn('plaintext',public)
++                    self.assertFalse(result['publicationPerformed']);self.assertFalse(result['deviceAcceptancePerformed'])
++            for work in work_paths:self.assertFalse(work.exists())
++    def test_mocked_success(self):self.exercise()
++    def test_mocked_failure_cleanup(self):
++        for fault in ('sign','cert','encrypt','password','keyhash'):
++            with self.subTest(fault=fault):self.exercise(fault)
++
++if __name__=='__main__':unittest.main()
+--- /dev/null
++++ b/docs/review/android-v0.1.10-sign-only/signing_orchestrator.py
+@@ -0,0 +1,161 @@
++"""Inert reviewed original-identity orchestration. No publisher or key generation.
++Real execution requires an independently reviewed enabled operation binding;
++this PR ships disabled. Never run on candidate repository source.
++"""
++import argparse, datetime, hashlib, json, os, pathlib, re, tempfile, urllib.error, urllib.parse, urllib.request, zipfile
++from candidate_verifier import validate_pins, verify_snapshot, verify_archive
++from encrypted_handoff import recipient_key
++
++REPO='ZhiweiXiao98/t3code'
++REF='refs/heads/signing/android-bootstrap'
++RECOVERY_RUN=40649758501
++RECOVERY_ARTIFACT=12799615493
++RECOVERY_SHA='8fc8b21abd2380926242fc49e7f488cb4b3aa0b8'
++RECOVERY_DIGEST='b2c345e3b7566e2c6cd3efa8be8213b464f1c3a04497967c96228d3797769fdd'
++CERT='82f2437cbceb94fe6fe4a60a1c0de99f643124c64a648a27de9ce92bd39ecd88'
++CONTAINER='7e4922f7de02c1c739e627eb3ef87fa1fb639329ed27613dff8b4f0fdad2d397'
++BASE='https://api.github.com/repos/'+REPO
++
++def need(ok,msg):
++    if not ok:raise ValueError(msg)
++
++def digest(path):
++    h=hashlib.sha256()
++    with open(path,'rb') as f:
++        for b in iter(lambda:f.read(1024*1024),b''):h.update(b)
++    return h.hexdigest()
++
++def operation(config,public,expected_sha,env):
++    need(set(config)=={'enabled','recipientSpkiSha256','recipientPublicKeySha256'},'Operation schema')
++    need(config['enabled'] is True,'Operation disabled; review required')
++    need(re.fullmatch('[a-f0-9]{40}',expected_sha or '') is not None,'Exact approved operation SHA required')
++    for key,value in {'GITHUB_REPOSITORY':REPO,'GITHUB_REF':REF,'GITHUB_SHA':expected_sha,
++                      'GITHUB_EVENT_NAME':'workflow_dispatch','GITHUB_RUN_ATTEMPT':'1',
++                      'T3_SIGNING_ENVIRONMENT':'android-signing'}.items():need(env.get(key)==value,'Operation context mismatch')
++    need(env.get('GITHUB_RUN_ID','').isdigit(),'Operation run ID missing')
++    need(hashlib.sha256(public).hexdigest()==config['recipientPublicKeySha256'],'Recipient file mismatch')
++    recipient_key(public,config['recipientSpkiSha256'])
++    return {'operation_sha':expected_sha,'operation_run':env['GITHUB_RUN_ID'],
++            'recipientSpkiSha256':config['recipientSpkiSha256']}
++
++class RejectRedirect(urllib.request.HTTPRedirectHandler):
++    def redirect_request(self,*args,**kwargs):return None
++
++class Api:
++    def __init__(self,token):
++        need(bool(token),'Read-only Actions token required');self.token=token
++        self.opener=urllib.request.build_opener(RejectRedirect())
++    def request(self,path):
++        need(path.startswith('/') or path=='','Fixed API path required')
++        return urllib.request.Request(BASE+path,headers={'Authorization':'Bearer '+self.token,
++            'Accept':'application/vnd.github+json','User-Agent':'T3-reviewed-android-preflight'})
++    def json(self,path):
++        with self.opener.open(self.request(path),timeout=30) as r:raw=r.read(4*1024*1024+1)
++        need(len(raw)<=4*1024*1024,'API response too large');return json.loads(raw)
++    def download(self,artifact,destination,maximum):
++        try:self.opener.open(self.request('/actions/artifacts/'+str(artifact)+'/zip'),timeout=30)
++        except urllib.error.HTTPError as e:
++            need(e.code==302,'Expected artifact redirect');location=e.headers.get('Location','')
++        else:raise ValueError('Artifact redirect missing')
++        u=urllib.parse.urlsplit(location)
++        need(u.scheme=='https' and u.port in (None,443) and not u.username and not u.password and not u.fragment and u.hostname and
++             any(u.hostname.endswith(s) for s in ('.blob.core.windows.net','.githubusercontent.com','.actions.githubusercontent.com')),
++             'Unapproved storage URL')
++        # The object request has NO GitHub Authorization; reject further redirects.
++        total=0;created=False
++        try:
++            with self.opener.open(urllib.request.Request(location),timeout=120) as r,open(destination,'xb') as f:
++                created=True
++                while True:
++                    b=r.read(min(1024*1024,maximum-total+1))
++                    if not b:break
++                    total+=len(b);need(total<=maximum,'Artifact too large');f.write(b)
++        except Exception:
++            if created:pathlib.Path(destination).unlink(missing_ok=True)
++            raise
++
++def snapshot(api,p):
++    # Reuse the reviewed collector while supplying fixed authenticated GET transport.
++    c=p['candidate'];rid=str(c['runId']);sha=c['sourceSha']
++    paths={'repository':'','run':'/actions/runs/'+rid,'workflow':'/actions/workflows/'+str(c['workflowId']),
++      'commit':'/commits/'+sha,'workflowFile':'/contents/'+c['workflowPath']+'?ref='+sha,
++      'jobs':'/actions/runs/'+rid+'/attempts/1/jobs?per_page=100'}
++    s={k:api.json(v) for k,v in paths.items()}
++    s['artifact']=api.json('/actions/artifacts/'+str(p['artifact']['id']))
++    verify_snapshot(p,s,now=datetime.datetime.now(datetime.timezone.utc));return s
++
++def recovery_metadata(api):
++    run=api.json('/actions/runs/'+str(RECOVERY_RUN));a=api.json('/actions/artifacts/'+str(RECOVERY_ARTIFACT))
++    need(all(run.get(k)==v for k,v in {'id':RECOVERY_RUN,'run_attempt':1,'status':'completed','conclusion':'success',
++        'head_sha':RECOVERY_SHA,'head_branch':'signing/android-bootstrap','path':'.github/workflows/android-signing-recovery.yml'}.items()),'Recovery run changed')
++    need(run.get('repository',{}).get('full_name')==REPO,'Recovery repository')
++    need(all(a.get(k)==v for k,v in {'id':RECOVERY_ARTIFACT,'expired':False,'name':'android-public-recovery-evidence-'+str(RECOVERY_RUN),
++        'digest':'sha256:'+RECOVERY_DIGEST}.items()),'Recovery artifact changed')
++    need(a.get('workflow_run',{}).get('id')==RECOVERY_RUN and a['workflow_run'].get('head_sha')==RECOVERY_SHA,'Recovery artifact source')
++    need(datetime.datetime.fromisoformat(a['expires_at'].replace('Z','+00:00'))>datetime.datetime.now(datetime.timezone.utc),'Recovery expired')
++    return {'run':run,'artifact':a}
++
++def recovery_bytes(path):
++    need(path.stat().st_size<=128*1024 and digest(path)==RECOVERY_DIGEST,'Recovery bytes mismatch')
++    with zipfile.ZipFile(path) as z:
++        items=z.infolist();need(len(items)==1,'Recovery member count')
++        i=items[0];need(i.filename=='recovery-report.json' and i.file_size<=64*1024 and not i.flag_bits&1 and
++             (i.external_attr>>16)&0o170000!=0o120000,'Recovery member invalid')
++        report=json.loads(z.read(i))
++    need(report.get('certificate_sha256')==CERT and report.get('encrypted_container_sha256')==CONTAINER and
++         report.get('imported_backup_private_key_recovery_verified') is True,'Recovery identity mismatch')
++
++def prepare(work,api,pins,binding):
++    work=pathlib.Path(work);work.mkdir(mode=0o700,exist_ok=False)
++    try:
++        before=snapshot(api,pins);rbefore=recovery_metadata(api)
++        api.download(RECOVERY_ARTIFACT,work/'recovery.zip',128*1024);recovery_bytes(work/'recovery.zip')
++        api.download(pins['artifact']['id'],work/'candidate.zip',pins['artifact']['zipBytes'])
++        verify_archive(pins,work/'candidate.zip')
++        after=snapshot(api,pins);rafter=recovery_metadata(api)
++        need(before==after and rbefore==rafter,'Metadata changed during preparation')
++        proof={'binding':binding,'candidate':after,'recovery':rafter,'preparedAt':datetime.datetime.now(datetime.timezone.utc).isoformat()}
++        (work/'prepared.json').write_text(json.dumps(proof))
++    except Exception:
++        import shutil;shutil.rmtree(work);raise
++
++def load_prepared(work,pins,binding):
++    work=pathlib.Path(work);proof=json.loads((work/'prepared.json').read_text())
++    need(proof['binding']==binding,'Prepared operation binding mismatch')
++    age=(datetime.datetime.now(datetime.timezone.utc)-datetime.datetime.fromisoformat(proof['preparedAt'])).total_seconds()
++    need(0<=age<=120,'Prepared proof stale')
++    verify_snapshot(pins,proof['candidate'],now=datetime.datetime.now(datetime.timezone.utc))
++    verify_archive(pins,work/'candidate.zip');recovery_bytes(work/'recovery.zip')
++    return proof
++
++# Sign-stage CLI intentionally imports signer only after operation/proof validation.
++def main():
++    ap=argparse.ArgumentParser();ap.add_argument('stage',choices=['prepare','sign'])
++    for name in ('operation','recipient','operation-sha','workspace'):ap.add_argument('--'+name,required=True)
++    ap.add_argument('--output');ap.add_argument('--sdk-tools');args=ap.parse_args()
++    root=pathlib.Path(__file__).parent
++    pins=validate_pins(json.loads((root/'candidate-pins.json').read_text()))
++    public=pathlib.Path(args.recipient).read_bytes();config=json.loads(pathlib.Path(args.operation).read_text())
++    binding=operation(config,public,args.operation_sha,os.environ)
++    if args.stage=='prepare':
++        need(not any(os.environ.get(k) for k in ('ANDROID_KEYSTORE_BASE64','ANDROID_KEYSTORE_PASSWORD')),'Secrets forbidden in prepare')
++        prepare(args.workspace,Api(os.environ.get('GITHUB_TOKEN','')),pins,binding)
++    else:
++        need(bool(args.output) and bool(args.sdk_tools),'Output and trusted SDK required')
++        load_prepared(args.workspace,pins,binding)
++        # Extract ONLY the already byte-verified fixed APK. All private outputs use a temp directory.
++        with tempfile.TemporaryDirectory(prefix='t3-sign-input-') as td:
++            apk=pathlib.Path(td)/'unsigned.apk'
++            with zipfile.ZipFile(pathlib.Path(args.workspace)/'candidate.zip') as z:
++                apk.write_bytes(z.read(pins['artifact']['members'][0]['name']))
++            from signer_adapter import sign_candidate,ReviewedAuthorization,SDK_PINS
++            auth=ReviewedAuthorization(repository=REPO,source_sha=pins['candidate']['sourceSha'],
++                candidate_run_id=pins['candidate']['runId'],artifact_id=pins['artifact']['id'],candidate_attempt=1,
++                operation_sha=binding['operation_sha'],operation_ref=REF,environment='android-signing',
++                recipient_spki_sha256=config['recipientSpkiSha256'],sdk_tool_sha256=SDK_PINS,
++                recovery_verified=True,activation_reviewed=True)
++            sign_candidate(apk,pathlib.Path(args.sdk_tools),public,pathlib.Path(args.output),authorization=auth)
++
++if __name__=='__main__':
++    try:main()
++    except Exception:raise SystemExit('Reviewed operation failed closed; no secret/tool output exposed') from None
+--- /dev/null
++++ b/docs/review/android-v0.1.10-sign-only/test_signing_orchestrator.py
+@@ -0,0 +1,108 @@
++"""Offline mocks and synthetic public identity only; never executes signing."""
++import base64
++import datetime
++import hashlib
++import io
++import json
++from pathlib import Path
++import tempfile
++import unittest
++import zipfile
++from unittest.mock import patch, Mock
++import urllib.error
++from cryptography.hazmat.primitives import serialization
++from cryptography.hazmat.primitives.asymmetric import rsa
++import signing_orchestrator as s
++
++class OrchestratorTests(unittest.TestCase):
++    @classmethod
++    def setUpClass(cls):
++        key=rsa.generate_private_key(public_exponent=65537,key_size=3072)
++        cls.public=key.public_key().public_bytes(serialization.Encoding.DER,serialization.PublicFormat.SubjectPublicKeyInfo)
++    def setUp(self):
++        self.t=tempfile.TemporaryDirectory();self.addCleanup(self.t.cleanup);self.root=Path(self.t.name)
++        self.sha='a'*40
++        self.config={'enabled':True,'recipientSpkiSha256':hashlib.sha256(self.public).hexdigest(),'recipientPublicKeySha256':hashlib.sha256(self.public).hexdigest()}
++        self.env={'GITHUB_REPOSITORY':s.REPO,'GITHUB_REF':s.REF,'GITHUB_SHA':self.sha,'GITHUB_EVENT_NAME':'workflow_dispatch','GITHUB_RUN_ATTEMPT':'1','T3_SIGNING_ENVIRONMENT':'android-signing','GITHUB_RUN_ID':'123'}
++    def test_operation_binding(self):
++        self.assertEqual(s.operation(self.config,self.public,self.sha,self.env)['operation_sha'],self.sha)
++        for field in self.env:
++            bad=self.env.copy();bad[field]='wrong'
++            with self.subTest(field=field),self.assertRaises(ValueError):s.operation(self.config,self.public,self.sha,bad)
++        for field,value in [('enabled',False),('recipientSpkiSha256','0'*64),('recipientPublicKeySha256','0'*64)]:
++            bad=self.config.copy();bad[field]=value
++            with self.subTest(field=field),self.assertRaises(ValueError):s.operation(bad,self.public,self.sha,self.env)
++        with self.assertRaises(ValueError):s.operation(self.config,self.public,'',self.env)
++    def test_prepare_initial_failure_cleanup(self):
++        # Regression: initial API failure must not leave a preparation directory.
++        work=self.root/'work'
++        with patch.object(s,'snapshot',side_effect=ValueError('offline')):
++            with self.assertRaises(ValueError):s.prepare(work,Mock(),{}, {})
++        self.assertFalse(work.exists())
++    def test_prepare_download_failure_cleanup(self):
++        work=self.root/'work';api=Mock();api.download.side_effect=ValueError('download')
++        with patch.object(s,'snapshot',return_value={}),patch.object(s,'recovery_metadata',return_value={}):
++            with self.assertRaises(ValueError):s.prepare(work,api,{}, {})
++        self.assertFalse(work.exists())
++    def test_prepare_changed_metadata_cleanup(self):
++        work=self.root/'work';api=Mock()
++        with patch.object(s,'snapshot',side_effect=[{'a':1},{'a':2}]),patch.object(s,'recovery_metadata',return_value={}),patch.object(s,'recovery_bytes'),patch.object(s,'verify_archive'):
++            with self.assertRaises(ValueError):s.prepare(work,api,{'artifact':{'id':1,'zipBytes':5}}, {})
++        self.assertFalse(work.exists())
++    def api(self,location='https://example.blob.core.windows.net/object?sig=synthetic'):
++        api=s.Api('SYNTHETIC-NOT-A-SECRET')
++        error=urllib.error.HTTPError(s.BASE,302,'redirect',{'Location':location},None)
++        api.opener=Mock();api.opener.open.side_effect=[error,io.BytesIO(b'cipher')]
++        return api
++    def test_download_no_auth_on_object(self):
++        api=self.api();dest=self.root/'download'
++        api.download(1,dest,10)
++        requests=[c.args[0] for c in api.opener.open.call_args_list]
++        self.assertIn('Authorization',requests[0].headers)
++        self.assertNotIn('Authorization',requests[1].headers)
++        self.assertEqual(dest.read_bytes(),b'cipher')
++        self.assertIsNone(s.RejectRedirect().redirect_request(None,None,302,'',{},'https://evil.invalid'))
++    def test_download_wrong_hosts_and_size(self):
++        for url in ['http://x.blob.core.windows.net/a','https://evil.invalid/a','https://x.blob.core.windows.net.evil.invalid/a','https://user:pw@x.blob.core.windows.net/a','https://x.blob.core.windows.net/a#x']:
++            api=self.api(url)
++            with self.subTest(url=url),self.assertRaises(ValueError):api.download(1,self.root/'d',10)
++            self.assertEqual(api.opener.open.call_count,1)
++        api=self.api()
++        with self.assertRaises(ValueError):api.download(1,self.root/'d',1)
++        self.assertFalse((self.root/'d').exists())
++    def test_existing_download_never_deleted(self):
++        dest=self.root/'existing';dest.write_bytes(b'owned-by-caller')
++        with self.assertRaises(FileExistsError):self.api().download(1,dest,10)
++        self.assertTrue(dest.exists(),'Existing destination must survive')
++        self.assertEqual(dest.read_bytes(),b'owned-by-caller')
++    def test_recovery_report_content(self):
++        report={'certificate_sha256':s.CERT,'encrypted_container_sha256':s.CONTAINER,'imported_backup_private_key_recovery_verified':True}
++        cases=[({},False),({'certificate_sha256':'0'*64},True),({'encrypted_container_sha256':'0'*64},True),({'imported_backup_private_key_recovery_verified':False},True)]
++        for change,reject in cases:
++            path=self.root/'recovery.zip'; obj=dict(report,**change)
++            with zipfile.ZipFile(path,'w') as z:z.writestr('recovery-report.json',json.dumps(obj))
++            with patch.object(s,'RECOVERY_DIGEST',hashlib.sha256(path.read_bytes()).hexdigest()):
++                if reject:
++                    with self.assertRaises(ValueError):s.recovery_bytes(path)
++                else:s.recovery_bytes(path)
++        for name in ('../recovery-report.json','wrong.json'):
++            with zipfile.ZipFile(path,'w') as z:z.writestr(name,json.dumps(report))
++            with patch.object(s,'RECOVERY_DIGEST',hashlib.sha256(path.read_bytes()).hexdigest()):
++                with self.assertRaises(ValueError):s.recovery_bytes(path)
++
++    def test_proof_stale_future_binding_and_bytes(self):
++        work=self.root/'w';work.mkdir();proof={'binding':{},'candidate':{},'preparedAt':datetime.datetime.now(datetime.timezone.utc).isoformat()}
++        def save(): (work/'prepared.json').write_text(json.dumps(proof))
++        save()
++        with patch.object(s,'verify_snapshot'),patch.object(s,'verify_archive'),patch.object(s,'recovery_bytes'):
++            self.assertEqual(s.load_prepared(work,{},{}),proof)
++            for seconds in (-601,60):
++                proof['preparedAt']=(datetime.datetime.now(datetime.timezone.utc)+datetime.timedelta(seconds=seconds)).isoformat();save()
++                with self.assertRaises(ValueError):s.load_prepared(work,{}, {})
++            proof['preparedAt']=datetime.datetime.now(datetime.timezone.utc).isoformat();save()
++            with self.assertRaises(ValueError):s.load_prepared(work,{}, {'changed':True})
++        # No patching bytes check: a stale/wrong recovery ZIP must fail.
++        bad=self.root/'bad.zip';bad.write_bytes(b'wrong')
++        with self.assertRaises(ValueError):s.recovery_bytes(bad)
++
++if __name__=='__main__':unittest.main()
+--- /dev/null
++++ b/docs/review/android-v0.1.10-sign-only/receiver.py
+@@ -0,0 +1,139 @@
++"""Offline recipient API. No install/upload/network or original Android key handling.
++Reviewed envelope digest and recipient fingerprint MUST arrive via a trusted channel.
++SDK directory (including apksigner JAR/JRE) MUST be independently verified and immutable.
++Only synthetic/mock tests have run; this is not real APK/device acceptance.
++"""
++import base64
++import contextlib
++import hashlib
++import json
++import os
++from pathlib import Path
++import re
++import stat
++import sys
++import subprocess
++import tempfile
++from cryptography.hazmat.primitives import hashes, serialization
++from cryptography.hazmat.primitives.asymmetric import padding, rsa
++from cryptography.hazmat.primitives.ciphers.aead import AESGCM
++from encrypted_handoff import ALGORITHM, MAGIC, MAX_PAYLOAD, canonical
++from signer_adapter import SDK_PINS
++
++CERT = '82f2437cbceb94fe6fe4a60a1c0de99f643124c64a648a27de9ce92bd39ecd88'
++MAX_ENVELOPE = (MAX_PAYLOAD + 16) * 4 // 3 + 16384
++
++class ReceiverError(ValueError):
++    pass
++
++def require(ok, message):
++    if not ok:
++        raise ReceiverError(message)
++
++def read_regular(path, limit, private=False):
++    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
++    with os.fdopen(fd, 'rb') as stream:
++        info = os.fstat(stream.fileno())
++        require(stat.S_ISREG(info.st_mode) and 0 < info.st_size <= limit, 'File type/size')
++        if private:
++            require(stat.S_IMODE(info.st_mode) == 0o600 and info.st_uid == os.getuid(), 'Private key must be owned by caller and mode 0600')
++        data = stream.read(limit + 1)
++        require(0 < len(data) <= limit and len(data) == info.st_size, 'File size changed')
++        return data
++
++def unique_object(pairs):
++    result = {}
++    for key, value in pairs:
++        require(key not in result, 'Duplicate envelope field')
++        result[key] = value
++    return result
++
++def decrypt(envelope, key_path, *, reviewed_sha256, recipient_spki_sha256):
++    for digest in (reviewed_sha256, recipient_spki_sha256):
++        require(type(digest) is str and re.fullmatch('[0-9a-f]{64}', digest), 'Full lowercase SHA256 required')
++    require(type(envelope) is bytes and 0 < len(envelope) <= MAX_ENVELOPE, 'Envelope size/type')
++    require(hashlib.sha256(envelope).hexdigest() == reviewed_sha256, 'Reviewed ciphertext digest mismatch')
++    try:
++        obj = json.loads(envelope.decode('ascii'), object_pairs_hook=unique_object)
++    except (ValueError, UnicodeError):
++        raise ReceiverError('Invalid JSON envelope') from None
++    require(type(obj) is dict and set(obj) == {'format','algorithm','recipientSpkiSha256','wrappedKey','nonce','ciphertext'}, 'Exact envelope schema required')
++    require(all(type(v) is str for v in obj.values()), 'String fields required')
++    require(obj['format'] == MAGIC and obj['algorithm'] == ALGORITHM and obj['recipientSpkiSha256'] == recipient_spki_sha256, 'Envelope identity mismatch')
++    decoded = {}
++    for name in ('wrappedKey', 'nonce', 'ciphertext'):
++        try:
++            value = base64.b64decode(obj[name], validate=True)
++        except ValueError:
++            raise ReceiverError('Invalid base64') from None
++        require(base64.b64encode(value).decode('ascii') == obj[name], 'Noncanonical base64')
++        decoded[name] = value
++    require(len(decoded['nonce']) == 12 and 16 < len(decoded['ciphertext']) <= MAX_PAYLOAD + 16, 'Cipher sizes')
++    raw_key = read_regular(key_path, 32768, private=True)
++    try:
++        key = serialization.load_pem_private_key(raw_key, password=None)
++    except (ValueError, TypeError):
++        raise ReceiverError('Expected local unencrypted PKCS8 PEM recipient key') from None
++    require(isinstance(key, rsa.RSAPrivateKey) and key.key_size >= 3072, 'RSA >=3072 required')
++    require(raw_key == key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()), 'Exactly one canonical PKCS8 recipient key required')
++    public = key.public_key().public_bytes(serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo)
++    require(hashlib.sha256(public).hexdigest() == recipient_spki_sha256, 'Wrong recipient key')
++    require(len(decoded['wrappedKey']) == key.key_size // 8, 'Wrapped key size')
++    aad = canonical({k:obj[k] for k in ('format','algorithm','recipientSpkiSha256')})
++    try:
++        content_key = key.decrypt(decoded['wrappedKey'], padding.OAEP(mgf=padding.MGF1(hashes.SHA256()), algorithm=hashes.SHA256(), label=aad))
++        require(len(content_key) == 32, 'Content key size')
++        return AESGCM(content_key).decrypt(decoded['nonce'], decoded['ciphertext'], aad)
++    except Exception:
++        raise ReceiverError('Envelope authentication failed') from None
++
++def run_tool(args):
++    # No shell or inherited credentials. SDK/JRE must be trusted, not candidate code.
++    result = subprocess.run([str(a) for a in args], capture_output=True, text=True,
++                            timeout=180, env={'PATH':'/usr/bin:/bin', 'LANG':'C.UTF-8'})
++    require(result.returncode == 0, 'SDK verification failed; output withheld')
++    return result.stdout + result.stderr
++
++def verify_apk(apk, sdk):
++    require(sys.platform == 'linux', 'Only the reviewed Linux SDK is supported')
++    sdk = Path(sdk).resolve(strict=True)
++    for name, expected in SDK_PINS.items():
++        tool = sdk / name
++        require(not any(p.is_symlink() for p in [tool, *list(tool.parents)[:len(Path(name).parts)-1]]), 'SDK symlink rejected')
++        fd = os.open(tool, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
++        with os.fdopen(fd, 'rb') as stream:
++            require(stat.S_ISREG(os.fstat(stream.fileno()).st_mode), 'SDK regular file required')
++            digest = hashlib.sha256()
++            for chunk in iter(lambda: stream.read(1024 * 1024), b''):
++                digest.update(chunk)
++        require(digest.hexdigest() == expected, 'Fixed Linux SDK hash mismatch')
++    require(not (sdk/'apksigner.jar').exists() and not (sdk/'apksigner.jar').is_symlink(), 'Alternate signer JAR rejected')
++    for name in ('apksigner','aapt2','zipalign'):
++        tool = sdk / name
++        require(tool.is_file() and not tool.is_symlink() and os.access(tool, os.X_OK), 'Trusted SDK executable required')
++    output = run_tool([sdk/'apksigner', 'verify', '--verbose', '--print-certs', apk])
++    certs = re.findall(r'^Signer #\d+ certificate SHA-256 digest:\s*([a-fA-F0-9]{64})\s*$', output, re.M)
++    require([c.lower() for c in certs] == [CERT], 'Expected sole community signing certificate')
++    text = run_tool([sdk/'aapt2', 'dump', 'badging', apk])
++    packages = re.findall(r"^package: name='([^']+)' versionCode='([^']+)' versionName='([^']+)'(?: .*)?$", text, re.M)
++    require(packages == [('com.zhiweixiao.t3code.zhcn','1000418','0.1.10-zh.1')], 'Package/version mismatch')
++    require(re.findall(r'^native-code:\s*(.*)$', text, re.M) == ["'arm64-v8a'"], 'ABI mismatch')
++    run_tool([sdk/'zipalign', '-c', '-P', '16', '4', apk])
++
++@contextlib.contextmanager
++def receive_verified(envelope_path, key_path, *, reviewed_sha256, recipient_spki_sha256, trusted_sdk, private_parent):
++    """Yield verified temporary APK path; remove on exit/error. Never installs.
++    Trusted private parent must be caller-owned 0700, not shared/adversarial.
++    Caller must not retain/upload yielded plaintext. Memory wiping not guaranteed.
++    """
++    parent = Path(private_parent)
++    info = parent.lstat()
++    require(stat.S_ISDIR(info.st_mode) and stat.S_IMODE(info.st_mode) == 0o700 and info.st_uid == os.getuid(), 'Private parent must be owned mode 0700 directory')
++    plaintext = decrypt(read_regular(envelope_path, MAX_ENVELOPE), key_path, reviewed_sha256=reviewed_sha256, recipient_spki_sha256=recipient_spki_sha256)
++    with tempfile.TemporaryDirectory(prefix='.t3-receiver-', dir=parent) as work:
++        apk = Path(work)/'candidate.apk'
++        fd = os.open(apk, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
++        with os.fdopen(fd, 'wb') as stream:
++            stream.write(plaintext)
++        verify_apk(apk, trusted_sdk)
++        yield apk
+--- /dev/null
++++ b/docs/review/android-v0.1.10-sign-only/test_receiver.py
+@@ -0,0 +1,117 @@
++"""Synthetic transport + mocked SDK only; no real APK certificate acceptance."""
++import base64
++import hashlib
++import json
++import os
++from pathlib import Path
++import tempfile
++import unittest
++from unittest.mock import patch
++from cryptography.hazmat.primitives import serialization
++from cryptography.hazmat.primitives.asymmetric import rsa
++import receiver as r
++from encrypted_handoff import encrypt_handoff
++
++class ReceiverTests(unittest.TestCase):
++    @classmethod
++    def setUpClass(cls):
++        cls.key = rsa.generate_private_key(public_exponent=65537,key_size=3072)
++        cls.public = cls.key.public_key().public_bytes(serialization.Encoding.DER,serialization.PublicFormat.SubjectPublicKeyInfo)
++        cls.fp = hashlib.sha256(cls.public).hexdigest()
++
++    def setUp(self):
++        self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
++        self.root = Path(self.tmp.name); self.keypath = self.root/'recipient.pem'
++        self.keypath.write_bytes(self.key.private_bytes(serialization.Encoding.PEM,serialization.PrivateFormat.PKCS8,serialization.NoEncryption())); self.keypath.chmod(0o600)
++        self.env = self.root/'envelope.json'
++        encrypt_handoff(b'synthetic non-APK bytes',self.public,self.env,allowed_fingerprints=[self.fp])
++        self.raw = self.env.read_bytes(); self.sha = hashlib.sha256(self.raw).hexdigest()
++        self.parent = self.root/'private'; self.parent.mkdir(mode=0o700)
++        self.sdk = self.root/'sdk'; self.sdk.mkdir()
++        self.sdk_pins={}
++        for n in r.SDK_PINS:
++            p=self.sdk/n;p.parent.mkdir(parents=True,exist_ok=True);p.write_text('mock only');p.chmod(0o700)
++            self.sdk_pins[n]=hashlib.sha256(p.read_bytes()).hexdigest()
++        patcher=patch.object(r,'SDK_PINS',self.sdk_pins);patcher.start();self.addCleanup(patcher.stop)
++
++    def receive(self):
++        return r.receive_verified(self.env,self.keypath,reviewed_sha256=self.sha,recipient_spki_sha256=self.fp,trusted_sdk=self.sdk,private_parent=self.parent)
++
++    def output(self,args):
++        name=Path(args[0]).name
++        if name=='apksigner':return 'Signer #1 certificate SHA-256 digest: '+r.CERT+'\n'
++        if name=='aapt2':return "package: name='com.zhiweixiao.t3code.zhcn' versionCode='1000418' versionName='0.1.10-zh.1'\nnative-code: 'arm64-v8a'\n"
++        return ''
++
++    def test_roundtrip_and_cleanup(self):
++        with patch.object(r,'run_tool',side_effect=self.output) as run:
++            with self.receive() as apk:
++                self.assertEqual(apk.read_bytes(),b'synthetic non-APK bytes')
++                self.assertEqual(apk.stat().st_mode & 0o777,0o600)
++            self.assertEqual(run.call_count,3)
++        self.assertEqual(list(self.parent.iterdir()),[])
++        with patch.object(r,'run_tool',side_effect=self.output):
++            with self.assertRaises(RuntimeError):
++                with self.receive():raise RuntimeError('consumer failed')
++        self.assertEqual(list(self.parent.iterdir()),[])
++
++    def test_transport_negatives_no_plaintext(self):
++        original=json.loads(self.raw)
++        mutations=[lambda x:x.update(extra='x'),lambda x:x.update(algorithm='other'),lambda x:x.update(format='other'),lambda x:x.update(recipientSpkiSha256='0'*64),lambda x:x.update(nonce='!'),lambda x:x.update(nonce=base64.b64encode(b'x').decode()),lambda x:x.update(wrappedKey=base64.b64encode(b'x'*384).decode()),lambda x:x.update(ciphertext=base64.b64encode(b'x'*40).decode()),lambda x:x.update(ciphertext=[])]
++        raws=[]
++        for mutate in mutations:
++            obj=original.copy();mutate(obj);raws.append(json.dumps(obj).encode())
++        raws.extend([b'{"format":"a","format":"b"}',b'[]',b'notjson'])
++        for raw in raws:
++            with self.subTest(raw=raw[:30]):
++                self.env.write_bytes(raw);self.sha=hashlib.sha256(raw).hexdigest()
++                with patch.object(r,'verify_apk') as sdk:
++                    with self.assertRaises(ValueError):
++                        with self.receive():self.fail('must not yield')
++                    sdk.assert_not_called()
++                self.assertEqual(list(self.parent.iterdir()),[])
++        self.env.write_bytes(self.raw);self.sha='0'*64
++        with self.assertRaises(ValueError):
++            with self.receive():self.fail()
++
++    def test_private_key_permissions_symlink_and_wrong_recipient(self):
++        for mode in (0o644,0o400,0o666):
++            self.keypath.chmod(mode)
++            with self.assertRaises(ValueError):
++                with self.receive():self.fail()
++        self.keypath.chmod(0o600)
++        other=rsa.generate_private_key(public_exponent=65537,key_size=3072)
++        self.keypath.write_bytes(other.private_bytes(serialization.Encoding.PEM,serialization.PrivateFormat.PKCS8,serialization.NoEncryption()))
++        with self.assertRaises(ValueError):
++            with self.receive():self.fail()
++        self.keypath.unlink();self.keypath.symlink_to(self.env)
++        with self.assertRaises(OSError):
++            with self.receive():self.fail()
++        self.assertEqual(list(self.parent.iterdir()),[])
++
++    def test_jar_tamper_rejected_before_execution(self):
++        (self.sdk/'lib/apksigner.jar').write_text('tampered')
++        with patch.object(r,'run_tool') as runner:
++            with self.assertRaises(ValueError):
++                with self.receive():self.fail()
++            runner.assert_not_called()
++        self.assertEqual(list(self.parent.iterdir()),[])
++
++    def test_sdk_failures_remove_plaintext(self):
++        cases=['certificate','package','abi','alignment','duplicate-cert','duplicate-package']
++        for case in cases:
++            def output(args):
++                value=self.output(args);name=Path(args[0]).name
++                if name=='apksigner' and case=='certificate':return value.replace(r.CERT,'0'*64)
++                if name=='apksigner' and case=='duplicate-cert':return value+value
++                if name=='aapt2' and case=='package':return value.replace('1000418','1000417')
++                if name=='aapt2' and case=='abi':return value.replace("'arm64-v8a'","'arm64-v8a' 'x86_64'")
++                if name=='aapt2' and case=='duplicate-package':return value+value
++                if name=='zipalign' and case=='alignment':raise r.ReceiverError('tool failure')
++                return value
++            with self.subTest(case=case),patch.object(r,'run_tool',side_effect=output):
++                with self.assertRaises(ValueError):
++                    with self.receive():self.fail()
++                self.assertEqual(list(self.parent.iterdir()),[])
++
++if __name__=='__main__':unittest.main()
+--- /dev/null
++++ b/docs/review/android-v0.1.10-sign-only/requirements-signing.lock
+@@ -0,0 +1,4 @@
++# Python 3.12 Linux x86_64; exact verified PyPI wheel hashes
++cffi==2.1.1 --hash=sha256:c1453022f490d2459a11819d83ad1d586e9ff65a12ac3e705ffebd46d3685dcf
++cryptography==50.0.0 --hash=sha256:82148ec5bddac30b51a5b3c1945075f896fa022cb93f8e4a01e9f6ee95292c5f
++pycparser==3.12 --hash=sha256:a076f3f489b39b43ed13563a1dafe42447445bec2e294154ec5c57fcdda4c85e
+--- /dev/null
++++ b/docs/review/android-v0.1.10-sign-only/operation-binding.json
+@@ -0,0 +1 @@
++{"enabled":false,"recipientSpkiSha256":"","recipientPublicKeySha256":""}
