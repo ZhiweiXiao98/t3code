@@ -13,7 +13,7 @@ import zipfile
 from unittest.mock import patch
 import candidate_verifier as v
 
-PINS = json.loads((pathlib.Path(__file__).resolve().parents[1]/'draft/candidate-pins.json').read_text())
+PINS = json.loads((pathlib.Path(__file__).resolve().with_name('candidate-pins.json')).read_text())
 NOW = dt.datetime(2026,11,19,tzinfo=dt.timezone.utc)
 
 def snapshot():
