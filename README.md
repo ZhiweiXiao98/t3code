@@ -68,7 +68,7 @@ Android 仍单独发布 `0.1.9-zh.1`，源码为 `042eacb54f19c3bbc452e4ae271794
 
 发现漏译、翻译不自然或界面问题？欢迎[提交 Issue](https://github.com/ZhiweiXiao98/t3code/issues/new)，附上版本号、系统、复现步骤，以及已遮挡敏感信息的截图。请勿上传访问令牌、密钥或私人对话。
 
-维护流程：**变更通过 PR 展示 → 审阅与验收 → 按授权发布**。[PR #2](https://github.com/ZhiweiXiao98/t3code/pull/2) 保留新版迁移及验收历史，仍为草稿且未合并。已发布桌面源码在 `review/v0.1.10-zh` 的 `2ed55016`；默认分支目前仍为 `maintenance/v0.1.9-zh-cloud`，切换须先审查工作流影响。本次仅更新文档，不改发布标签、二进制或默认分支。
+维护流程：**变更通过 PR 展示 → 审阅与验收 → 按授权发布**。[PR #2](https://github.com/ZhiweiXiao98/t3code/pull/2) 保留新版迁移及验收历史，仍为草稿且未合并。已发布桌面源码固定为 `2ed55016b6678ca997f204d9b7af4048ce0307e6`；正式维护分支为 `maintenance/v0.1.10-zh-cloud`。GitHub 当前默认分支以仓库设置为准，切换前须审查工作流影响。文档维护不改发布标签或二进制。
 
 ## 文档与源码
 

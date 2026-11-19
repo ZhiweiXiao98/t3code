@@ -101,7 +101,7 @@ Android 社区安装包固定使用简体中文；桌面版仍可在设置中切
 ## 开发状态
 
 - 最新已验收桌面源码：[`review/v0.1.10-zh`](https://github.com/ZhiweiXiao98/t3code/tree/review/v0.1.10-zh)，已发布提交 `2ed55016`；[PR #2](https://github.com/ZhiweiXiao98/t3code/pull/2) 仍为草稿、未合并。
-- 仓库默认分支目前仍为 `maintenance/v0.1.9-zh-cloud`；本次不切换默认分支。
+- 正式维护分支为 `maintenance/v0.1.10-zh-cloud`；GitHub 当前默认分支以仓库设置为准，切换前须审查工作流影响。
 - 当前已发布桌面版：[`v0.1.10-zh.1`](https://github.com/ZhiweiXiao98/t3code/releases/tag/v0.1.10-zh.1)（社区正式发布）
 - 上游项目：[pingdotgg/t3code](https://github.com/pingdotgg/t3code)
 - 早期国际化实现记录：[Fork PR #1](https://github.com/ZhiweiXiao98/t3code/pull/1)（不是当前发布版本的完整审查记录）
@@ -111,7 +111,7 @@ Android 社区安装包固定使用简体中文；桌面版仍可在设置中切
 
 ## 从源码运行
 
-复现已发布桌面源码请检出精确提交 `2ed55016b6678ca997f204d9b7af4048ce0307e6`；后续开发请明确使用 `review/v0.1.10-zh`，不要误用旧默认分支。请使用该提交锁定的工具链和依赖。环境要求与命令以仓库配置及[源码开发说明](./docs/internals/overview.md)为准。
+复现已发布桌面源码请检出精确提交 `2ed55016b6678ca997f204d9b7af4048ce0307e6`；后续开发请明确使用正式维护分支 `maintenance/v0.1.10-zh-cloud`，历史验收仍保留在 `review/v0.1.10-zh`。请使用该提交锁定的工具链和依赖。环境要求与命令以仓库配置及[源码开发说明](./docs/internals/overview.md)为准。
 
 官方 `t3.codes` 安装脚本、`npx t3@latest`、Homebrew 和 winget 安装的是官方原版，不是本仓库的汉化安装包；普通使用者请直接使用本页下载表。
 
@@ -119,7 +119,7 @@ Android 社区安装包固定使用简体中文；桌面版仍可在设置中切
 
 欢迎[提交汉化或安装问题](https://github.com/ZhiweiXiao98/t3code/issues/new)，注明版本、系统和复现步骤。截图请先遮挡私人对话、令牌和密钥。
 
-维护跟进官方稳定 Release，保留既有翻译并增量完善新增、变动和遗漏的文案。未发布的 main 和 nightly 不直接作为稳定版发布。新版源码与默认分支状态见上方“开发状态”；后续变更通过 PR 展示，历史分支和发布保留。
+维护跟进官方稳定 Release，保留既有翻译并增量完善新增、变动和遗漏的文案。未发布的 main 和 nightly 不直接作为稳定版发布。新版源码与维护分支说明见上方“开发状态”；后续变更通过 PR 展示，历史分支和发布保留。
 
 ## 许可证
 
