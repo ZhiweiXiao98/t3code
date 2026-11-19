@@ -1,0 +1,93 @@
+name: 无候选 Android ABI 桥接环境探针
+on:
+  push:
+    branches: [diagnostic/android-avd-bridge-probe-20261119]
+    paths: [.github/workflows/android-avd-bridge-probe.yml]
+permissions: {}
+concurrency:
+  group: android-avd-bridge-probe-20261119
+  cancel-in-progress: false
+jobs:
+  probe:
+    if: github.repository == 'ZhiweiXiao98/t3code' && github.ref == 'refs/heads/diagnostic/android-avd-bridge-probe-20261119' && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: 单次启动官方镜像，仅输出有限系统诊断
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          work=$(mktemp -d "$RUNNER_TEMP/avd-probe.XXXXXXXX")
+          em_pid=''
+          cleanup() {
+            if [[ -n "$em_pid" ]]; then
+              kill "$em_pid" 2>/dev/null || true
+              for ((n=0; n<10; n++)); do kill -0 "$em_pid" 2>/dev/null || break; sleep 1; done
+              kill -KILL "$em_pid" 2>/dev/null || true
+              wait "$em_pid" 2>/dev/null || true
+            fi
+            if [[ -n "${adb:-}" ]]; then timeout 10 "$adb" -P 5038 kill-server >/dev/null 2>&1 || true; fi
+            rm -rf -- "$work"
+          }
+          trap cleanup EXIT
+          trap 'exit 130' INT TERM
+          export ANDROID_USER_HOME="$work/user" ANDROID_AVD_HOME="$work/avd"
+          export ANDROID_EMULATOR_HOME="$work/emulator-home" ANDROID_ADB_SERVER_PORT=5038
+          export ADB_SERVER_SOCKET=tcp:localhost:5038
+          mkdir -p "$ANDROID_USER_HOME" "$ANDROID_AVD_HOME" "$ANDROID_EMULATOR_HOME"
+          sdk="${ANDROID_HOME:-}"
+          [[ -d "$sdk" && -r /dev/kvm && -w /dev/kvm ]] || { echo 'PROBE_STOP_EXISTING_KVM_OR_SDK'; exit 1; }
+          manager="$sdk/cmdline-tools/latest/bin/sdkmanager"
+          avdmanager="$sdk/cmdline-tools/latest/bin/avdmanager"
+          emulator="$sdk/emulator/emulator"
+          adb="$sdk/platform-tools/adb"
+          for tool in "$manager" "$avdmanager" "$emulator" "$adb"; do
+            [[ -x "$tool" ]] || { echo 'PROBE_STOP_MISSING_EXISTING_TOOL'; exit 1; }
+          done
+          [[ -s "$sdk/licenses/android-sdk-license" ]] || { echo 'PROBE_STOP_NO_EXISTING_LICENSE'; exit 1; }
+          # Record license directory privately; never accept agreements or print records.
+          license_digest() { find "$sdk/licenses" -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -d' ' -f1; }
+          before=$(license_digest)
+          timeout 15 "$emulator" -accel-check >"$work/accel.log" 2>&1 || { echo 'PROBE_STOP_ACCELERATION'; exit 1; }
+          echo 'PROBE_EXISTING_KVM_ACCESS_OK'
+          image='system-images;android-33;google_apis;x86_64'
+          # EOF means no license consent. No --licenses, yes, sudo, chmod, udev, or settings edits.
+          if ! timeout 360 "$manager" --sdk_root="$sdk" "$image" </dev/null >"$work/sdk.log" 2>&1; then
+            echo 'PROBE_STOP_IMAGE_SETUP_NO_CONSENT'; exit 1
+          fi
+          [[ "$before" == "$(license_digest)" ]] || { echo 'PROBE_STOP_LICENSE_RECORD_CHANGED'; exit 1; }
+          props="$sdk/system-images/android-33/google_apis/x86_64/source.properties"
+          [[ -f "$props" ]] || { echo 'PROBE_STOP_IMAGE_UNAVAILABLE'; exit 1; }
+          grep -E '^(AndroidVersion.ApiLevel|Pkg.Revision|SystemImage.Abi|SystemImage.TagId)[[:space:]]*=' "$props"
+          printf 'IMAGE_METADATA_SHA256 '; sha256sum "$props" | cut -d' ' -f1
+          printf 'EMULATOR_BINARY_SHA256 '; sha256sum "$emulator" | cut -d' ' -f1
+          timeout 10 "$emulator" -version >"$work/version.log" 2>/dev/null
+          head -n 1 "$work/version.log"
+          printf 'no\n' | timeout 20 "$avdmanager" create avd --name t3_bridge_probe --package "$image" >"$work/create.log" 2>&1
+          timeout 10 "$adb" -P 5038 start-server >"$work/adb-start.log" 2>&1
+          "$emulator" -avd t3_bridge_probe -port 5554 -no-window -no-audio -no-boot-anim -no-snapshot -wipe-data -gpu swiftshader_indirect -accel on -memory 3072 -cores 2 >"$work/emulator.log" 2>&1 &
+          em_pid=$!
+          ad() { timeout 3 "$adb" -P 5038 -s emulator-5554 "$@" 2>/dev/null; }
+          booted=false
+          deadline=$((SECONDS+540))
+          while ((SECONDS < deadline)); do
+            kill -0 "$em_pid" 2>/dev/null || { echo 'PROBE_STOP_EMULATOR_EXIT'; exit 1; }
+            if [[ "$(ad shell getprop sys.boot_completed || true)" == '1' ]]; then booted=true; break; fi
+            sleep 5
+          done
+          [[ "$booted" == true ]] || { echo 'PROBE_STOP_BOOT_TIMEOUT'; exit 1; }
+          first_pid=$(ad shell pidof system_server | tr -d '\r')
+          [[ "$first_pid" =~ ^[0-9]+$ ]] || { echo 'PROBE_STOP_SYSTEM_SERVER'; exit 1; }
+          sleep 30
+          [[ "$(ad shell pidof system_server | tr -d '\r')" == "$first_pid" ]] || { echo 'PROBE_STOP_SYSTEM_SERVER_RESTART'; exit 1; }
+          for prop in ro.build.version.sdk ro.product.cpu.abilist ro.product.cpu.abilist64 ro.dalvik.vm.native.bridge sys.boot_completed; do
+            value=$(ad shell getprop "$prop" | tr -d '\r')
+            [[ "$value" =~ ^[A-Za-z0-9.,_-]*$ && ${#value} -le 160 ]] || { echo 'PROBE_STOP_UNEXPECTED_PROPERTY'; exit 1; }
+            printf '%s=%s\n' "$prop" "$value"
+          done
+          for service in activity package input; do
+            if ad shell service check "$service" | tr -d '\r' | grep -qx "Service $service: found"; then printf 'SERVICE_%s=found\n' "$service"; else echo 'PROBE_STOP_SERVICE_NOT_READY'; exit 1; fi
+          done
+          if ad shell test -f /system/lib64/libndk_translation.so; then echo 'ARM64_TRANSLATOR_FILE=present'; else echo 'ARM64_TRANSLATOR_FILE=absent'; fi
+          echo 'PROBE_BOOT_STABLE_NO_APK_TESTED'
