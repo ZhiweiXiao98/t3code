@@ -1,0 +1,159 @@
+# Focused diagnostic only; never substitutes full coverage, ARM15 or release gates.
+name: v0.1.10 focused archive diagnostic (not release acceptance)
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+concurrency:
+  group: community-archive-focused-4977f0cf
+  cancel-in-progress: false
+env:
+  CLIENT_VERSION: 0.1.10-zh.1
+  CI: 'true'
+  CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+  T3CODE_DESKTOP_SIGNED: 'false'
+  ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
+  ELECTRON_BUILDER_BINARIES_MIRROR: https://github.com/electron-userland/electron-builder-binaries/releases/download/
+'on':
+  push:
+    branches:
+    - validation/v0110-archive-focused-4977f0cf
+jobs:
+  source:
+    name: Validate reviewed focused diagnostic source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      sha: ${{ steps.source.outputs.sha }}
+    steps:
+    - uses: actions/github-script@v8
+      id: source
+      with:
+        script: |
+          const source = '4977f0cf372d579ff024fc68ad3ff9291ca98d13';
+          const sourceTree = 'fe2e04c6b30289a30014aba17144e6704fcc1ed0';
+          const branch = 'validation/v0110-archive-focused-4977f0cf';
+          const workflowPath = '.github/workflows/v0110-archive-focused-4977f0cf.yml';
+          const {owner, repo} = context.repo;
+          function require(condition, message) { if (!condition) throw new Error(message); }
+          require(owner === 'ZhiweiXiao98' && repo === 't3code', 'Unexpected repository');
+          require(context.payload.repository.private === false, 'Public repository required');
+          require(context.eventName === 'push' && context.ref === 'refs/heads/' + branch, 'Unexpected trigger');
+          require(process.env.GITHUB_RUN_ATTEMPT === '1', 'Single activation only');
+          const getCommit = async commit_sha => (await github.rest.git.getCommit({owner, repo, commit_sha})).data;
+          const op = await getCommit(context.sha);
+          require(op.parents.length === 1 && op.message.split('\n')[0] === 'ci: activate reviewed 4977f0cf focused archive diagnostic once', 'Unexpected operation commit');
+          const reviewed = await getCommit(op.parents[0].sha);
+          require(reviewed.parents.length === 1 && reviewed.parents[0].sha === source, 'Reviewed commit must directly follow source');
+          require(reviewed.message.split('\n')[0] === 'ci: prepare 4977f0cf focused archive diagnostic [skip ci]', 'Unexpected reviewed commit');
+          require(op.tree.sha === reviewed.tree.sha, 'Activation must not change reviewed tree');
+          const baseline = await getCommit(source);
+          require(baseline.tree.sha === sourceTree, 'Unexpected source tree');
+          const comparison = (await github.rest.repos.compareCommitsWithBasehead({owner, repo, basehead: source + '...' + reviewed.sha})).data;
+          require(comparison.status === 'ahead' && comparison.ahead_by === 1 && comparison.behind_by === 0 && comparison.total_commits === 1, 'Unexpected reviewed history');
+          require(comparison.files?.length === 1 && comparison.files[0].filename === workflowPath && comparison.files[0].status === 'added', 'Only the supplemental workflow may differ');
+          const changed = comparison.files[0];
+          require(changed.sha && changed.changes > 0 && changed.deletions === 0, 'Invalid added workflow');
+          const prs = (await github.rest.pulls.list({owner, repo, state: 'open', head: owner + ':' + branch, base: 'review/v0.1.10-zh', per_page: 100})).data;
+          require(prs.length === 1 && prs[0].draft === true && prs[0].head.sha === context.sha && prs[0].base.sha === source, 'Exact reviewed draft PR required');
+          core.info(JSON.stringify({source, sourceTree, operation: op.sha, operationTree: op.tree.sha, reviewed: reviewed.sha, workflowBlob: changed.sha, pr: prs[0].number, run: context.runId, attempt: process.env.GITHUB_RUN_ATTEMPT, supplementalOnly: true}));
+          core.setOutput('sha', source);
+  archive-focused:
+    name: Sidebar archive original-case diagnostic (single execution)
+    needs:
+    - source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+    - name: Checkout exact source without credentials
+      shell: bash
+      env:
+        SOURCE_SHA: ${{ needs.source.outputs.sha }}
+        GIT_TERMINAL_PROMPT: '0'
+      run: |
+        set -euo pipefail
+        git init .
+        git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+        git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
+        git sparse-checkout set --no-cone '/*' '!/.repos/'
+        git checkout --detach FETCH_HEAD
+        test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+    - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
+      with:
+        node-version-file: package.json
+        cache: true
+        run-install: false
+    - name: Install locked dependencies
+      id: dependencies
+      run: vp install --frozen-lockfile
+    - name: Install Linux native build libraries
+      run: python3 .github/scripts/ci-ubuntu-packages.py packages libsecret-1-dev pkg-config build-essential imagemagick
+    - name: Install Chromium for web and server browser tests
+      shell: bash
+      env:
+        SUITE: web
+      run: |
+        set -euo pipefail
+        browser_cli=apps/server/node_modules/playwright-core/cli.js
+        if [[ "$SUITE" == web ]]; then
+          browser_cli=apps/web/node_modules/playwright/cli.js
+        fi
+        python3 .github/scripts/ci-ubuntu-packages.py playwright "$browser_cli"
+        node "$browser_cli" install --only-shell chromium
+        if [[ "$SUITE" == server-* ]]; then
+          test "$(node -p "require('./apps/server/node_modules/playwright-core/package.json').version")" = "$(node -p "require('./apps/server/package.json').dependencies['playwright-core']")"
+          browser_revision=$(node -p "require('./apps/server/node_modules/playwright-core/browsers.json').browsers.find(browser => browser.name === 'chromium-headless-shell').revision")
+          browser_root="$HOME/.cache/ms-playwright/chromium_headless_shell-$browser_revision"
+          mapfile -t browsers < <(find "$browser_root" -type f -name chrome-headless-shell)
+          test "${#browsers[@]}" -eq 1
+          browser="${browsers[0]}"
+          test -x "$browser"
+          test "${T3CODE_SERVER_BROWSER_SANDBOX:-1}" != 0
+          echo "T3CODE_TEST_HEADLESS_SHELL=$browser" >> "$GITHUB_ENV"
+          node -p "JSON.stringify({node: process.version, undici: process.versions.undici, playwright: require('./apps/server/node_modules/playwright-core/package.json').version})"
+          "$browser" --version
+          sha256sum "$browser"
+        fi
+    - name: Run original archive test once with bounded observer
+      shell: bash
+      env:
+        SOURCE_SHA: ${{ needs.source.outputs.sha }}
+      run: |
+        set -euo pipefail
+        python3 - <<'PY_FOCUSED'
+        import json, os, subprocess, sys
+        from pathlib import Path
+        source = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+        assert source == os.environ['SOURCE_SHA']
+        test_file = 'src/components/Sidebar.archive.browser.test.tsx'
+        assert Path('apps/web', test_file).is_file()
+        out = Path(os.environ['RUNNER_TEMP']) / 'web-browser-diagnostics'
+        out.mkdir(parents=True, exist_ok=True)
+        result = out / 'focused-results.json'
+        command = ['vp', 'run', '--filter', '@t3tools/web', 'test', test_file, '--reporter=default', '--reporter=json', '--outputFile.json=' + str(result)]
+        observer = Path('.github/scripts/observe-web-tests.py').read_text()
+        old = 'COMMAND = ["vp", "run", "--filter", "@t3tools/web", "test"]'
+        assert observer.count(old) == 1
+        script = Path(os.environ['RUNNER_TEMP']) / 'observe-archive-focused.py'
+        script.write_text(observer.replace(old, 'COMMAND = ' + repr(command)))
+        (out / 'experiment.json').write_text(json.dumps({'source':source,'workflow_sha':os.environ['GITHUB_SHA'],'run':os.environ['GITHUB_RUN_ID'],'attempt':os.environ['GITHUB_RUN_ATTEMPT'],'scope':'single original archive case; not full coverage or release acceptance','command':command},indent=2))
+        code = subprocess.run([sys.executable, str(script)]).returncode
+        # Reject an empty/misdirected successful selection; preserve original failure status.
+        if code == 0:
+            data = json.loads(result.read_text())
+            assert data['numTotalTests'] == 1 and data['numPassedTests'] == 1 and data['numFailedTests'] == 0
+            suites = data['testResults']
+            assert len(suites) == 1 and suites[0]['name'].replace('\\','/').endswith(test_file)
+            assertions = suites[0]['assertionResults']
+            assert len(assertions) == 1 and assertions[0]['status'] == 'passed'
+            assert assertions[0]['title'] == 'uses settlement locale for sidebar archive failures'
+        sys.exit(code)
+        PY_FOCUSED
+    - name: Preserve focused diagnostics
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: archive-focused-${{ github.run_id }}-${{ github.run_attempt }}
+        path: ${{ runner.temp }}/web-browser-diagnostics/
+        if-no-files-found: error
+        retention-days: 14
