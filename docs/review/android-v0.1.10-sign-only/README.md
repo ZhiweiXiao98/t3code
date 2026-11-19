@@ -1,3 +1,10 @@
+## 最新安全修正与入口状态
+
+默认marker已通过独立窄PR #19合并到0f628f99，workflow399155956已注册，无dispatch；bootstrap仍5b48c3ab未变。新增owner login/id与历史dispatch重放检查，35项完整测试通过；bootstrap-stage.patch现含18文件和工作流，重新apply/check/逐字节验证通过。全部真实签名实现仍惰性disabled，未原钥执行。
+
+重放guard按API可见记录失败关闭，不是原子消耗凭据；concurrency/attempt1不能保证绝对单次。root须冻结操作SHA、唯一owner派发、不重试，并完成/失败后撤回启用绑定。详情见ACTIVATION-REVIEW.md。
+
+---
 ## 最新可执行审查件（仍不激活）
 
 新增 signing_orchestrator.py / signer_adapter.py / receiver.py：固定25门禁+原恢复证据、既有容器/证书签名内核、只输出单收件者密文、接收后SDK再校验。新增30项完整本地测试均通过（生产身份/SDK签名调用为模拟；真实原APK的unsigned诊断已复核）。官方SDK精确工具/JAR/动态库、PyPI三轮子hash已核验，隔离venv重跑通过。

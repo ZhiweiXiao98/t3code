@@ -1,6 +1,6 @@
 --- a/.github/workflows/android-sign-reviewed.yml
 +++ b/.github/workflows/android-sign-reviewed.yml
-@@ -1,96 +1,119 @@
+@@ -1,96 +1,121 @@
 -name: Stage exact reviewed Android candidate only
 +# INERT REVIEW FILE. Replace .github/workflows/android-sign-reviewed.yml only after
 +# exact independent review + root activation approval. Never push this as-is.
@@ -32,6 +32,8 @@
 +    if: >-
 +      github.repository == 'ZhiweiXiao98/t3code' &&
 +      github.event_name == 'workflow_dispatch' &&
++      github.actor == 'ZhiweiXiao98' && github.actor_id == '99611261' &&
++      github.triggering_actor == 'ZhiweiXiao98' &&
 +      github.ref == 'refs/heads/signing/android-bootstrap' &&
 +      github.sha == inputs.operation_sha && github.run_attempt == 1 &&
 +      inputs.candidate_run == '44228163780' &&
@@ -1243,7 +1245,7 @@
 +if __name__=='__main__':unittest.main()
 --- /dev/null
 +++ b/docs/review/android-v0.1.10-sign-only/signing_orchestrator.py
-@@ -0,0 +1,161 @@
+@@ -0,0 +1,167 @@
 +"""Inert reviewed original-identity orchestration. No publisher or key generation.
 +Real execution requires an independently reviewed enabled operation binding;
 +this PR ships disabled. Never run on candidate repository source.
@@ -1251,6 +1253,7 @@
 +import argparse, datetime, hashlib, json, os, pathlib, re, tempfile, urllib.error, urllib.parse, urllib.request, zipfile
 +from candidate_verifier import validate_pins, verify_snapshot, verify_archive
 +from encrypted_handoff import recipient_key
++from replay_guard import guard
 +
 +REPO='ZhiweiXiao98/t3code'
 +REF='refs/heads/signing/android-bootstrap'
@@ -1277,6 +1280,7 @@
 +    need(re.fullmatch('[a-f0-9]{40}',expected_sha or '') is not None,'Exact approved operation SHA required')
 +    for key,value in {'GITHUB_REPOSITORY':REPO,'GITHUB_REF':REF,'GITHUB_SHA':expected_sha,
 +                      'GITHUB_EVENT_NAME':'workflow_dispatch','GITHUB_RUN_ATTEMPT':'1',
++                      'GITHUB_ACTOR':'ZhiweiXiao98','GITHUB_ACTOR_ID':'99611261','GITHUB_TRIGGERING_ACTOR':'ZhiweiXiao98',
 +                      'T3_SIGNING_ENVIRONMENT':'android-signing'}.items():need(env.get(key)==value,'Operation context mismatch')
 +    need(env.get('GITHUB_RUN_ID','').isdigit(),'Operation run ID missing')
 +    need(hashlib.sha256(public).hexdigest()==config['recipientPublicKeySha256'],'Recipient file mismatch')
@@ -1354,13 +1358,15 @@
 +def prepare(work,api,pins,binding):
 +    work=pathlib.Path(work);work.mkdir(mode=0o700,exist_ok=False)
 +    try:
++        guard(api,operation_sha=binding['operation_sha'],env=os.environ)
 +        before=snapshot(api,pins);rbefore=recovery_metadata(api)
 +        api.download(RECOVERY_ARTIFACT,work/'recovery.zip',128*1024);recovery_bytes(work/'recovery.zip')
 +        api.download(pins['artifact']['id'],work/'candidate.zip',pins['artifact']['zipBytes'])
 +        verify_archive(pins,work/'candidate.zip')
 +        after=snapshot(api,pins);rafter=recovery_metadata(api)
 +        need(before==after and rbefore==rafter,'Metadata changed during preparation')
-+        proof={'binding':binding,'candidate':after,'recovery':rafter,'preparedAt':datetime.datetime.now(datetime.timezone.utc).isoformat()}
++        observation=guard(api,operation_sha=binding['operation_sha'],env=os.environ)
++        proof={'binding':binding,'candidate':after,'recovery':rafter,'replayObservation':observation,'preparedAt':datetime.datetime.now(datetime.timezone.utc).isoformat()}
 +        (work/'prepared.json').write_text(json.dumps(proof))
 +    except Exception:
 +        import shutil;shutil.rmtree(work);raise
@@ -1368,6 +1374,8 @@
 +def load_prepared(work,pins,binding):
 +    work=pathlib.Path(work);proof=json.loads((work/'prepared.json').read_text())
 +    need(proof['binding']==binding,'Prepared operation binding mismatch')
++    need(proof.get('replayObservation')=={'observed_single_dispatch':True,'operation_sha':binding['operation_sha'],
++        'operation_run_id':int(binding['operation_run']),'atomic_consumption_guaranteed':False},'Replay observation mismatch')
 +    age=(datetime.datetime.now(datetime.timezone.utc)-datetime.datetime.fromisoformat(proof['preparedAt'])).total_seconds()
 +    need(0<=age<=120,'Prepared proof stale')
 +    verify_snapshot(pins,proof['candidate'],now=datetime.datetime.now(datetime.timezone.utc))
@@ -1407,7 +1415,7 @@
 +    except Exception:raise SystemExit('Reviewed operation failed closed; no secret/tool output exposed') from None
 --- /dev/null
 +++ b/docs/review/android-v0.1.10-sign-only/test_signing_orchestrator.py
-@@ -0,0 +1,108 @@
+@@ -0,0 +1,121 @@
 +"""Offline mocks and synthetic public identity only; never executes signing."""
 +import base64
 +import datetime
@@ -1433,7 +1441,10 @@
 +        self.t=tempfile.TemporaryDirectory();self.addCleanup(self.t.cleanup);self.root=Path(self.t.name)
 +        self.sha='a'*40
 +        self.config={'enabled':True,'recipientSpkiSha256':hashlib.sha256(self.public).hexdigest(),'recipientPublicKeySha256':hashlib.sha256(self.public).hexdigest()}
-+        self.env={'GITHUB_REPOSITORY':s.REPO,'GITHUB_REF':s.REF,'GITHUB_SHA':self.sha,'GITHUB_EVENT_NAME':'workflow_dispatch','GITHUB_RUN_ATTEMPT':'1','T3_SIGNING_ENVIRONMENT':'android-signing','GITHUB_RUN_ID':'123'}
++        self.env={'GITHUB_REPOSITORY':s.REPO,'GITHUB_REF':s.REF,'GITHUB_SHA':self.sha,'GITHUB_EVENT_NAME':'workflow_dispatch','GITHUB_RUN_ATTEMPT':'1','T3_SIGNING_ENVIRONMENT':'android-signing','GITHUB_RUN_ID':'123','GITHUB_ACTOR':'ZhiweiXiao98','GITHUB_ACTOR_ID':'99611261','GITHUB_TRIGGERING_ACTOR':'ZhiweiXiao98'}
++        self.binding={'operation_sha':self.sha,'operation_run':'123'}
++        self.observation={'observed_single_dispatch':True,'operation_sha':self.sha,'operation_run_id':123,'atomic_consumption_guaranteed':False}
++        guardpatch=patch.object(s,'guard',return_value=self.observation);guardpatch.start();self.addCleanup(guardpatch.stop)
 +    def test_operation_binding(self):
 +        self.assertEqual(s.operation(self.config,self.public,self.sha,self.env)['operation_sha'],self.sha)
 +        for field in self.env:
@@ -1447,17 +1458,23 @@
 +        # Regression: initial API failure must not leave a preparation directory.
 +        work=self.root/'work'
 +        with patch.object(s,'snapshot',side_effect=ValueError('offline')):
-+            with self.assertRaises(ValueError):s.prepare(work,Mock(),{}, {})
++            with self.assertRaises(ValueError):s.prepare(work,Mock(),{}, self.binding)
 +        self.assertFalse(work.exists())
++    def test_replay_guard_failure_cleanup(self):
++        work=self.root/'work'
++        with patch.object(s,'guard',side_effect=ValueError('replay rejected')):
++            with self.assertRaises(ValueError):s.prepare(work,Mock(),{},self.binding)
++        self.assertFalse(work.exists())
++
 +    def test_prepare_download_failure_cleanup(self):
 +        work=self.root/'work';api=Mock();api.download.side_effect=ValueError('download')
 +        with patch.object(s,'snapshot',return_value={}),patch.object(s,'recovery_metadata',return_value={}):
-+            with self.assertRaises(ValueError):s.prepare(work,api,{}, {})
++            with self.assertRaises(ValueError):s.prepare(work,api,{}, self.binding)
 +        self.assertFalse(work.exists())
 +    def test_prepare_changed_metadata_cleanup(self):
 +        work=self.root/'work';api=Mock()
 +        with patch.object(s,'snapshot',side_effect=[{'a':1},{'a':2}]),patch.object(s,'recovery_metadata',return_value={}),patch.object(s,'recovery_bytes'),patch.object(s,'verify_archive'):
-+            with self.assertRaises(ValueError):s.prepare(work,api,{'artifact':{'id':1,'zipBytes':5}}, {})
++            with self.assertRaises(ValueError):s.prepare(work,api,{'artifact':{'id':1,'zipBytes':5}}, self.binding)
 +        self.assertFalse(work.exists())
 +    def api(self,location='https://example.blob.core.windows.net/object?sig=synthetic'):
 +        api=s.Api('SYNTHETIC-NOT-A-SECRET')
@@ -1501,14 +1518,18 @@
 +                with self.assertRaises(ValueError):s.recovery_bytes(path)
 +
 +    def test_proof_stale_future_binding_and_bytes(self):
-+        work=self.root/'w';work.mkdir();proof={'binding':{},'candidate':{},'preparedAt':datetime.datetime.now(datetime.timezone.utc).isoformat()}
++        work=self.root/'w';work.mkdir();proof={'binding':self.binding,'replayObservation':self.observation,'candidate':{},'preparedAt':datetime.datetime.now(datetime.timezone.utc).isoformat()}
 +        def save(): (work/'prepared.json').write_text(json.dumps(proof))
 +        save()
 +        with patch.object(s,'verify_snapshot'),patch.object(s,'verify_archive'),patch.object(s,'recovery_bytes'):
-+            self.assertEqual(s.load_prepared(work,{},{}),proof)
++            self.assertEqual(s.load_prepared(work,{},self.binding),proof)
++            for field,value in [('operation_sha','b'*40),('operation_run_id',124),('observed_single_dispatch',False),('atomic_consumption_guaranteed',True)]:
++                proof['replayObservation']=dict(self.observation,**{field:value});save()
++                with self.assertRaises(ValueError):s.load_prepared(work,{},self.binding)
++            proof['replayObservation']=self.observation;save()
 +            for seconds in (-601,60):
 +                proof['preparedAt']=(datetime.datetime.now(datetime.timezone.utc)+datetime.timedelta(seconds=seconds)).isoformat();save()
-+                with self.assertRaises(ValueError):s.load_prepared(work,{}, {})
++                with self.assertRaises(ValueError):s.load_prepared(work,{}, self.binding)
 +            proof['preparedAt']=datetime.datetime.now(datetime.timezone.utc).isoformat();save()
 +            with self.assertRaises(ValueError):s.load_prepared(work,{}, {'changed':True})
 +        # No patching bytes check: a stale/wrong recovery ZIP must fail.
@@ -1776,6 +1797,137 @@
 +                with self.assertRaises(ValueError):
 +                    with self.receive():self.fail()
 +                self.assertEqual(list(self.parent.iterdir()),[])
++
++if __name__=='__main__':unittest.main()
+--- /dev/null
++++ b/docs/review/android-v0.1.10-sign-only/replay_guard.py
+@@ -0,0 +1,70 @@
++"""Read-only observed-run replay guard, NOT an atomic consumed-operation ledger.
++Root must independently freeze/approve operation_sha. Caller-supplied equality is
++not immutable authorization. Caller must hold the workflow concurrency group
++through prepare/sign. API visibility delays and listing/dispatch races remain;
++this guard alone cannot prove global at-most-once signing.
++"""
++import re
++from urllib.parse import urlencode
++
++REPO = 'ZhiweiXiao98/t3code'
++OWNER = 'ZhiweiXiao98'
++OWNER_ID = 99611261
++WORKFLOW_ID = 399155956
++WORKFLOW_PATH = '.github/workflows/android-sign-reviewed.yml'
++BRANCH = 'signing/android-bootstrap'
++REF = 'refs/heads/' + BRANCH
++
++class ReplayError(ValueError):
++    pass
++
++def need(ok, message):
++    if not ok:
++        raise ReplayError(message)
++
++def identity(value):
++    return type(value) is dict and value.get('login') == OWNER and type(value.get('id')) is int and value['id'] == OWNER_ID
++
++def check_current(run, run_id, sha):
++    need(type(run) is dict, 'Run response missing')
++    expected = {'id':run_id, 'workflow_id':WORKFLOW_ID, 'path':WORKFLOW_PATH,
++                'head_sha':sha, 'head_branch':BRANCH, 'event':'workflow_dispatch', 'run_attempt':1}
++    for name,value in expected.items():
++        need(type(run.get(name)) is type(value) and run[name] == value, 'Current run identity mismatch: ' + name)
++    for name in ('repository','head_repository'):
++        repo=run.get(name)
++        need(type(repo) is dict and repo.get('full_name') == REPO and identity(repo.get('owner')), 'Current repository identity mismatch')
++    need(identity(run.get('actor')) and identity(run.get('triggering_actor')), 'Owner actor required')
++    need(run.get('status') == 'in_progress' and run.get('conclusion') is None, 'Current run must be active')
++
++def guard(api, *, operation_sha, env):
++    """api.json receives fixed-repository relative GET paths; errors fail closed.
++    No mutation, signing, secret access, or token handling occurs here.
++    """
++    need(type(operation_sha) is str and re.fullmatch('[0-9a-f]{40}',operation_sha), 'Reviewed exact SHA required')
++    rid=env.get('GITHUB_RUN_ID')
++    need(type(rid) is str and re.fullmatch('[1-9][0-9]*',rid), 'Exact positive run ID required')
++    for key,value in {'GITHUB_REPOSITORY':REPO,'GITHUB_REF':REF,'GITHUB_SHA':operation_sha,
++                      'GITHUB_EVENT_NAME':'workflow_dispatch','GITHUB_RUN_ATTEMPT':'1'}.items():
++        need(env.get(key)==value, 'Operation environment mismatch')
++    run_id=int(rid)
++    try:
++        current=api.json('/actions/runs/'+rid)
++        check_current(current,run_id,operation_sha)
++        query=urlencode({'head_sha':operation_sha,'event':'workflow_dispatch','per_page':100})
++        listing=api.json('/actions/workflows/'+str(WORKFLOW_ID)+'/runs?'+query)
++        need(type(listing) is dict, 'Run listing missing')
++        runs=listing.get('workflow_runs'); count=listing.get('total_count')
++        need(type(runs) is list and type(count) is int and count==len(runs) and 0<count<100, 'Incomplete or ambiguous run listing')
++        # Do NOT filter out bad/failed/cancelled/queued records locally.
++        # Any other ID or inconsistent record returned by this exact query rejects.
++        need(count==1, 'Operation SHA has another dispatch run')
++        check_current(runs[0],run_id,operation_sha)
++        final=api.json('/actions/runs/'+rid)
++        check_current(final,run_id,operation_sha)
++    except ReplayError:
++        raise
++    except Exception:
++        raise ReplayError('Replay observation unavailable or invalid') from None
++    return {'observed_single_dispatch':True,'operation_sha':operation_sha,'operation_run_id':run_id,
++            'atomic_consumption_guaranteed':False}
+--- /dev/null
++++ b/docs/review/android-v0.1.10-sign-only/test_replay_guard.py
+@@ -0,0 +1,55 @@
++"""Synthetic REST snapshots only; no network or signing."""
++import copy
++import unittest
++from unittest.mock import Mock
++from urllib.parse import parse_qs, urlsplit
++import replay_guard as r
++
++class ReplayTests(unittest.TestCase):
++    def setUp(self):
++        self.sha='a'*40;self.rid=123
++        owner={'login':r.OWNER,'id':r.OWNER_ID}
++        repo={'full_name':r.REPO,'owner':owner}
++        self.run={'id':self.rid,'workflow_id':r.WORKFLOW_ID,'path':r.WORKFLOW_PATH,'head_sha':self.sha,'head_branch':r.BRANCH,'event':'workflow_dispatch','run_attempt':1,'repository':repo,'head_repository':repo,'actor':owner,'triggering_actor':owner,'status':'in_progress','conclusion':None}
++        self.env={'GITHUB_RUN_ID':str(self.rid),'GITHUB_REPOSITORY':r.REPO,'GITHUB_REF':r.REF,'GITHUB_SHA':self.sha,'GITHUB_EVENT_NAME':'workflow_dispatch','GITHUB_RUN_ATTEMPT':'1'}
++    def call(self,listing=None,current=None,final=None):
++        api=Mock();api.json.side_effect=[current if current is not None else self.run,listing if listing is not None else {'total_count':1,'workflow_runs':[self.run]}, final if final is not None else self.run]
++        result=r.guard(api,operation_sha=self.sha,env=self.env)
++        return result,api
++    def test_success_exact_query_and_no_mutation(self):
++        result,api=self.call();self.assertTrue(result['observed_single_dispatch']);self.assertFalse(result['atomic_consumption_guaranteed'])
++        query=api.json.call_args_list[1].args[0]
++        self.assertEqual(urlsplit(query).path,'/actions/workflows/399155956/runs')
++        self.assertEqual(parse_qs(urlsplit(query).query),{'head_sha':[self.sha],'event':['workflow_dispatch'],'per_page':['100']})
++        self.assertEqual(api.method_calls,[unittest.mock.call.json('/actions/runs/123'),unittest.mock.call.json(query),unittest.mock.call.json('/actions/runs/123')])
++    def test_every_other_run_blocks_regardless_status(self):
++        for status in ('queued','in_progress','completed','waiting','requested','pending'):
++            for conclusion in (None,'success','failure','cancelled','skipped','timed_out'):
++                other=dict(self.run,id=124,status=status,conclusion=conclusion)
++                with self.subTest(status=status,conclusion=conclusion),self.assertRaises(r.ReplayError):
++                    self.call({'total_count':2,'workflow_runs':[self.run,other]})
++    def test_incomplete_empty_duplicate_and_wrong_listing(self):
++        cases=[{}, {'total_count':0,'workflow_runs':[]},{'total_count':2,'workflow_runs':[self.run]}, {'total_count':True,'workflow_runs':[self.run]}, {'total_count':100,'workflow_runs':[self.run]*100}, {'total_count':1,'workflow_runs':[dict(self.run,id=124)]}, {'total_count':2,'workflow_runs':[self.run,self.run]}, {'total_count':1,'workflow_runs':None}]
++        for case in cases:
++            with self.subTest(case=str(case)[:50]),self.assertRaises(r.ReplayError):self.call(case)
++    def test_current_and_listing_identity_tamper(self):
++        changes={'id':124,'workflow_id':1,'path':'wrong','head_sha':'b'*40,'head_branch':'main','event':'push','run_attempt':2,'status':'completed','conclusion':'success','repository':{},'head_repository':{},'actor':{},'triggering_actor':{}}
++        for key,value in changes.items():
++            bad=dict(self.run,**{key:value})
++            for placement in ('current','listing','final'):
++                with self.subTest(key=key,placement=placement),self.assertRaises(r.ReplayError):
++                    if placement=='listing':self.call({'total_count':1,'workflow_runs':[bad]})
++                    else:self.call(**{placement:bad})
++        for field in ('actor','triggering_actor'):
++            for identity in ({'login':r.OWNER,'id':1},{'login':'other','id':r.OWNER_ID},{'login':r.OWNER,'id':str(r.OWNER_ID)}):
++                with self.subTest(field=field,identity=identity),self.assertRaises(r.ReplayError):self.call(current=dict(self.run,**{field:identity}))
++    def test_env_and_transport_fail_closed(self):
++        for key in self.env:
++            old=self.env[key];self.env[key]='wrong'
++            with self.subTest(key=key),self.assertRaises(r.ReplayError):self.call()
++            self.env[key]=old
++        for failure_at in range(3):
++            api=Mock();seq=[self.run,{'total_count':1,'workflow_runs':[self.run]},self.run];seq[failure_at]=RuntimeError('request failed');api.json.side_effect=seq
++            with self.assertRaises(r.ReplayError):r.guard(api,operation_sha=self.sha,env=self.env)
 +
 +if __name__=='__main__':unittest.main()
 --- /dev/null

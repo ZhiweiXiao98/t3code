@@ -23,7 +23,10 @@ class OrchestratorTests(unittest.TestCase):
         self.t=tempfile.TemporaryDirectory();self.addCleanup(self.t.cleanup);self.root=Path(self.t.name)
         self.sha='a'*40
         self.config={'enabled':True,'recipientSpkiSha256':hashlib.sha256(self.public).hexdigest(),'recipientPublicKeySha256':hashlib.sha256(self.public).hexdigest()}
-        self.env={'GITHUB_REPOSITORY':s.REPO,'GITHUB_REF':s.REF,'GITHUB_SHA':self.sha,'GITHUB_EVENT_NAME':'workflow_dispatch','GITHUB_RUN_ATTEMPT':'1','T3_SIGNING_ENVIRONMENT':'android-signing','GITHUB_RUN_ID':'123'}
+        self.env={'GITHUB_REPOSITORY':s.REPO,'GITHUB_REF':s.REF,'GITHUB_SHA':self.sha,'GITHUB_EVENT_NAME':'workflow_dispatch','GITHUB_RUN_ATTEMPT':'1','T3_SIGNING_ENVIRONMENT':'android-signing','GITHUB_RUN_ID':'123','GITHUB_ACTOR':'ZhiweiXiao98','GITHUB_ACTOR_ID':'99611261','GITHUB_TRIGGERING_ACTOR':'ZhiweiXiao98'}
+        self.binding={'operation_sha':self.sha,'operation_run':'123'}
+        self.observation={'observed_single_dispatch':True,'operation_sha':self.sha,'operation_run_id':123,'atomic_consumption_guaranteed':False}
+        guardpatch=patch.object(s,'guard',return_value=self.observation);guardpatch.start();self.addCleanup(guardpatch.stop)
     def test_operation_binding(self):
         self.assertEqual(s.operation(self.config,self.public,self.sha,self.env)['operation_sha'],self.sha)
         for field in self.env:
@@ -37,17 +40,23 @@ class OrchestratorTests(unittest.TestCase):
         # Regression: initial API failure must not leave a preparation directory.
         work=self.root/'work'
         with patch.object(s,'snapshot',side_effect=ValueError('offline')):
-            with self.assertRaises(ValueError):s.prepare(work,Mock(),{}, {})
+            with self.assertRaises(ValueError):s.prepare(work,Mock(),{}, self.binding)
         self.assertFalse(work.exists())
+    def test_replay_guard_failure_cleanup(self):
+        work=self.root/'work'
+        with patch.object(s,'guard',side_effect=ValueError('replay rejected')):
+            with self.assertRaises(ValueError):s.prepare(work,Mock(),{},self.binding)
+        self.assertFalse(work.exists())
+
     def test_prepare_download_failure_cleanup(self):
         work=self.root/'work';api=Mock();api.download.side_effect=ValueError('download')
         with patch.object(s,'snapshot',return_value={}),patch.object(s,'recovery_metadata',return_value={}):
-            with self.assertRaises(ValueError):s.prepare(work,api,{}, {})
+            with self.assertRaises(ValueError):s.prepare(work,api,{}, self.binding)
         self.assertFalse(work.exists())
     def test_prepare_changed_metadata_cleanup(self):
         work=self.root/'work';api=Mock()
         with patch.object(s,'snapshot',side_effect=[{'a':1},{'a':2}]),patch.object(s,'recovery_metadata',return_value={}),patch.object(s,'recovery_bytes'),patch.object(s,'verify_archive'):
-            with self.assertRaises(ValueError):s.prepare(work,api,{'artifact':{'id':1,'zipBytes':5}}, {})
+            with self.assertRaises(ValueError):s.prepare(work,api,{'artifact':{'id':1,'zipBytes':5}}, self.binding)
         self.assertFalse(work.exists())
     def api(self,location='https://example.blob.core.windows.net/object?sig=synthetic'):
         api=s.Api('SYNTHETIC-NOT-A-SECRET')
@@ -91,14 +100,18 @@ class OrchestratorTests(unittest.TestCase):
                 with self.assertRaises(ValueError):s.recovery_bytes(path)
 
     def test_proof_stale_future_binding_and_bytes(self):
-        work=self.root/'w';work.mkdir();proof={'binding':{},'candidate':{},'preparedAt':datetime.datetime.now(datetime.timezone.utc).isoformat()}
+        work=self.root/'w';work.mkdir();proof={'binding':self.binding,'replayObservation':self.observation,'candidate':{},'preparedAt':datetime.datetime.now(datetime.timezone.utc).isoformat()}
         def save(): (work/'prepared.json').write_text(json.dumps(proof))
         save()
         with patch.object(s,'verify_snapshot'),patch.object(s,'verify_archive'),patch.object(s,'recovery_bytes'):
-            self.assertEqual(s.load_prepared(work,{},{}),proof)
+            self.assertEqual(s.load_prepared(work,{},self.binding),proof)
+            for field,value in [('operation_sha','b'*40),('operation_run_id',124),('observed_single_dispatch',False),('atomic_consumption_guaranteed',True)]:
+                proof['replayObservation']=dict(self.observation,**{field:value});save()
+                with self.assertRaises(ValueError):s.load_prepared(work,{},self.binding)
+            proof['replayObservation']=self.observation;save()
             for seconds in (-601,60):
                 proof['preparedAt']=(datetime.datetime.now(datetime.timezone.utc)+datetime.timedelta(seconds=seconds)).isoformat();save()
-                with self.assertRaises(ValueError):s.load_prepared(work,{}, {})
+                with self.assertRaises(ValueError):s.load_prepared(work,{}, self.binding)
             proof['preparedAt']=datetime.datetime.now(datetime.timezone.utc).isoformat();save()
             with self.assertRaises(ValueError):s.load_prepared(work,{}, {'changed':True})
         # No patching bytes check: a stale/wrong recovery ZIP must fail.

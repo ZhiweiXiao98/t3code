@@ -27,6 +27,8 @@ jobs:
     if: >-
       github.repository == 'ZhiweiXiao98/t3code' &&
       github.event_name == 'workflow_dispatch' &&
+      github.actor == 'ZhiweiXiao98' && github.actor_id == '99611261' &&
+      github.triggering_actor == 'ZhiweiXiao98' &&
       github.ref == 'refs/heads/signing/android-bootstrap' &&
       github.sha == inputs.operation_sha && github.run_attempt == 1 &&
       inputs.candidate_run == '44228163780' &&

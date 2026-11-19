@@ -50,3 +50,11 @@ POST /repos/ZhiweiXiao98/t3code/actions/workflows/android-sign-reviewed.yml/disp
 requirements-signing.lock固定Python3.12/Linux x86_64三枚官方PyPI轮子hash，已下载逐项核验PyPI元数据并在隔离venv安装/测试。workflow先无Secrets安装锁定依赖，再下载官方SDK36 Linux ZIP并校验完整SHA256，签名代码还校验工具/JAR/动态库。JRE来自GitHub可信官方runner的JAVA_HOME_21_X64，不执行候选代码。接收端仅此Linux SDK绑定，Mac需要另核官方平台哈希，不能绕过。
 
 bootstrap-stage.patch 是对旧分支5b48c3ab的完整惰性stage差异：移除原push/原明文上传、增加所有工具及disabled绑定，不含任何真实收件者。默认 marker 单独default-marker.patch。两者均仅在docs作为文本待审，不修改实际workflows。应用后仍须root确认真实测试环境/公钥绑定与最终操作SHA，不能直接原钥派发。
+
+## 重放与操作者修正
+
+run_attempt=1 与 concurrency 不能单独防止同SHA第二次新派发。新增 replay_guard.py：固定workflow399155956、path、ref、操作SHA与current run，检查actor和triggering_actor均为ZhiweiXiao98/id99611261；在同一固定concurrency job内、无Secrets的prepare首尾查询该workflow+SHA全部dispatch，必须只有当前run且分页/总数一致，任何已失败/取消/排队/完成的其它run都拒绝，不确定也拒绝。Secrets步骤只接受绑定该观察且120秒以内的本地proof。连接器机器人不是获准actor，不增白名单适配。
+
+此检查基于API可见状态，不是事务性消耗凭据；并发派发或API可见延迟仍不能数学保证全局只执行一次。故仍要求root只经既有owner会话派发一次、记录run ID，不重试；完成/失败后优先由root经独立窄PR撤回enabled绑定或将bootstrap恢复无操作定义（不改环境与权限），成功前也不再次派发。代码不自行提升contents权限来解除武装。
+
+operation_sha输入相等仅验证运行的是操作方指定的版本，不代表该输入自身不可篡改或已经批准；实际SHA由root在应用后的冻结diff独审与分支核验中批准，派发前后再次核对。

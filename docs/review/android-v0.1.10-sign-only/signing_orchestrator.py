@@ -5,6 +5,7 @@ this PR ships disabled. Never run on candidate repository source.
 import argparse, datetime, hashlib, json, os, pathlib, re, tempfile, urllib.error, urllib.parse, urllib.request, zipfile
 from candidate_verifier import validate_pins, verify_snapshot, verify_archive
 from encrypted_handoff import recipient_key
+from replay_guard import guard
 
 REPO='ZhiweiXiao98/t3code'
 REF='refs/heads/signing/android-bootstrap'
@@ -31,6 +32,7 @@ def operation(config,public,expected_sha,env):
     need(re.fullmatch('[a-f0-9]{40}',expected_sha or '') is not None,'Exact approved operation SHA required')
     for key,value in {'GITHUB_REPOSITORY':REPO,'GITHUB_REF':REF,'GITHUB_SHA':expected_sha,
                       'GITHUB_EVENT_NAME':'workflow_dispatch','GITHUB_RUN_ATTEMPT':'1',
+                      'GITHUB_ACTOR':'ZhiweiXiao98','GITHUB_ACTOR_ID':'99611261','GITHUB_TRIGGERING_ACTOR':'ZhiweiXiao98',
                       'T3_SIGNING_ENVIRONMENT':'android-signing'}.items():need(env.get(key)==value,'Operation context mismatch')
     need(env.get('GITHUB_RUN_ID','').isdigit(),'Operation run ID missing')
     need(hashlib.sha256(public).hexdigest()==config['recipientPublicKeySha256'],'Recipient file mismatch')
@@ -108,13 +110,15 @@ def recovery_bytes(path):
 def prepare(work,api,pins,binding):
     work=pathlib.Path(work);work.mkdir(mode=0o700,exist_ok=False)
     try:
+        guard(api,operation_sha=binding['operation_sha'],env=os.environ)
         before=snapshot(api,pins);rbefore=recovery_metadata(api)
         api.download(RECOVERY_ARTIFACT,work/'recovery.zip',128*1024);recovery_bytes(work/'recovery.zip')
         api.download(pins['artifact']['id'],work/'candidate.zip',pins['artifact']['zipBytes'])
         verify_archive(pins,work/'candidate.zip')
         after=snapshot(api,pins);rafter=recovery_metadata(api)
         need(before==after and rbefore==rafter,'Metadata changed during preparation')
-        proof={'binding':binding,'candidate':after,'recovery':rafter,'preparedAt':datetime.datetime.now(datetime.timezone.utc).isoformat()}
+        observation=guard(api,operation_sha=binding['operation_sha'],env=os.environ)
+        proof={'binding':binding,'candidate':after,'recovery':rafter,'replayObservation':observation,'preparedAt':datetime.datetime.now(datetime.timezone.utc).isoformat()}
         (work/'prepared.json').write_text(json.dumps(proof))
     except Exception:
         import shutil;shutil.rmtree(work);raise
@@ -122,6 +126,8 @@ def prepare(work,api,pins,binding):
 def load_prepared(work,pins,binding):
     work=pathlib.Path(work);proof=json.loads((work/'prepared.json').read_text())
     need(proof['binding']==binding,'Prepared operation binding mismatch')
+    need(proof.get('replayObservation')=={'observed_single_dispatch':True,'operation_sha':binding['operation_sha'],
+        'operation_run_id':int(binding['operation_run']),'atomic_consumption_guaranteed':False},'Replay observation mismatch')
     age=(datetime.datetime.now(datetime.timezone.utc)-datetime.datetime.fromisoformat(proof['preparedAt'])).total_seconds()
     need(0<=age<=120,'Prepared proof stale')
     verify_snapshot(pins,proof['candidate'],now=datetime.datetime.now(datetime.timezone.utc))
