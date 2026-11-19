@@ -7,6 +7,18 @@ from candidate_verifier import validate_pins, verify_snapshot, verify_archive
 from encrypted_handoff import recipient_key
 from replay_guard import guard
 
+
+# Fixed categories only: never interpolate exceptions, tools, paths or identity data.
+STAGE_CODES=frozenset({'preflight','proof','SDK','stored-identity','container','tool','verify','encrypt'})
+class StageFailure(ValueError):
+    def __init__(self,code):
+        self.stage_code=code if type(code) is str and code in STAGE_CODES else 'preflight'
+        super().__init__('T3_SIGN_STAGE_'+self.stage_code)
+
+def failure_code(error, fallback='preflight'):
+    code=getattr(error,'stage_code',fallback)
+    return code if type(code) is str and code in STAGE_CODES else 'preflight'
+
 REPO='ZhiweiXiao98/t3code'
 REF='refs/heads/signing/android-bootstrap'
 RECOVERY_RUN=40649758501
@@ -140,32 +152,39 @@ def load_prepared(work,pins,binding):
 
 # Sign-stage CLI intentionally imports signer only after operation/proof validation.
 def main():
-    ap=argparse.ArgumentParser();ap.add_argument('stage',choices=['prepare','sign'])
-    for name in ('operation','recipient','operation-sha','workspace'):ap.add_argument('--'+name,required=True)
-    ap.add_argument('--output');ap.add_argument('--sdk-tools');args=ap.parse_args()
-    root=pathlib.Path(__file__).parent
-    pins=validate_pins(json.loads((root/'candidate-pins.json').read_text()))
-    public=pathlib.Path(args.recipient).read_bytes();config=json.loads(pathlib.Path(args.operation).read_text())
-    binding=operation(config,public,args.operation_sha,os.environ)
-    if args.stage=='prepare':
-        need(not any(os.environ.get(k) for k in ('ANDROID_KEYSTORE_BASE64','ANDROID_KEYSTORE_PASSWORD')),'Secrets forbidden in prepare')
-        prepare(args.workspace,Api(os.environ.get('GITHUB_TOKEN','')),pins,binding)
-    else:
-        need(bool(args.output) and bool(args.sdk_tools),'Output and trusted SDK required')
-        load_prepared(args.workspace,pins,binding)
-        # Extract ONLY the already byte-verified fixed APK. All private outputs use a temp directory.
-        with tempfile.TemporaryDirectory(prefix='t3-sign-input-') as td:
-            apk=pathlib.Path(td)/'unsigned.apk'
-            with zipfile.ZipFile(pathlib.Path(args.workspace)/'candidate.zip') as z:
-                apk.write_bytes(z.read(pins['artifact']['members'][0]['name']))
-            from signer_adapter import sign_candidate,ReviewedAuthorization,SDK_PINS
-            auth=ReviewedAuthorization(repository=REPO,source_sha=pins['candidate']['sourceSha'],
-                candidate_run_id=pins['candidate']['runId'],artifact_id=pins['artifact']['id'],candidate_attempt=1,
-                operation_sha=binding['operation_sha'],operation_ref=REF,environment='android-signing',
-                recipient_spki_sha256=config['recipientSpkiSha256'],sdk_tool_sha256=SDK_PINS,
-                recovery_verified=True,activation_reviewed=True)
-            sign_candidate(apk,pathlib.Path(args.sdk_tools),public,pathlib.Path(args.output),authorization=auth)
+    stage='preflight'
+    try:
+        ap=argparse.ArgumentParser();ap.add_argument('stage',choices=['prepare','sign'])
+        for name in ('operation','recipient','operation-sha','workspace'):ap.add_argument('--'+name,required=True)
+        ap.add_argument('--output');ap.add_argument('--sdk-tools');args=ap.parse_args()
+        root=pathlib.Path(__file__).parent
+        pins=validate_pins(json.loads((root/'candidate-pins.json').read_text()))
+        public=pathlib.Path(args.recipient).read_bytes();config=json.loads(pathlib.Path(args.operation).read_text())
+        binding=operation(config,public,args.operation_sha,os.environ)
+        if args.stage=='prepare':
+            need(not any(os.environ.get(k) for k in ('ANDROID_KEYSTORE_BASE64','ANDROID_KEYSTORE_PASSWORD')),'Secrets forbidden in prepare')
+            stage='proof'
+            prepare(args.workspace,Api(os.environ.get('GITHUB_TOKEN','')),pins,binding)
+        else:
+            need(bool(args.output) and bool(args.sdk_tools),'Output and trusted SDK required')
+            stage='proof'
+            load_prepared(args.workspace,pins,binding)
+            # Extract ONLY the already byte-verified fixed APK. All private outputs use a temp directory.
+            with tempfile.TemporaryDirectory(prefix='t3-sign-input-') as td:
+                apk=pathlib.Path(td)/'unsigned.apk'
+                with zipfile.ZipFile(pathlib.Path(args.workspace)/'candidate.zip') as z:
+                    apk.write_bytes(z.read(pins['artifact']['members'][0]['name']))
+                from signer_adapter import sign_candidate,ReviewedAuthorization,SDK_PINS
+                auth=ReviewedAuthorization(repository=REPO,source_sha=pins['candidate']['sourceSha'],
+                    candidate_run_id=pins['candidate']['runId'],artifact_id=pins['artifact']['id'],candidate_attempt=1,
+                    operation_sha=binding['operation_sha'],operation_ref=REF,environment='android-signing',
+                    recipient_spki_sha256=config['recipientSpkiSha256'],sdk_tool_sha256=SDK_PINS,
+                    recovery_verified=True,activation_reviewed=True)
+                sign_candidate(apk,pathlib.Path(args.sdk_tools),public,pathlib.Path(args.output),authorization=auth)
+
+    except Exception as error:
+        raise StageFailure(failure_code(error,stage)) from None
 
 if __name__=='__main__':
     try:main()
-    except Exception:raise SystemExit('Reviewed operation failed closed; no secret/tool output exposed') from None
+    except Exception as error:raise SystemExit('T3_SIGN_STAGE_'+failure_code(error)) from None
