@@ -39,7 +39,7 @@ class Signer(unittest.TestCase):
             with zipfile.ZipFile(apk,'a') as z:z.writestr('META-INF/OLD.RSA',b'SYNTHETIC')
             with patch.object(s,'_success',return_value=BADGE),self.assertRaises(s.SignerError):s._unsigned(apk,Path(d),{})
 
-    def exercise(self, fault=None):
+    def exercise(self, fault=None, padded=False):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d);original=root/'unsigned.apk'
             with open(original,'wb') as f:f.truncate(s.APK_BYTES)
@@ -67,11 +67,19 @@ class Signer(unittest.TestCase):
                 Path(dest).write_bytes(b'SYNTHETIC CIPHER')
                 return {'ciphertextSha256':'d'*64,'ciphertextBytes':16,'algorithm':'test','recipientSpkiSha256':'PRIVATE METADATA','plaintextSha256':'PRIVATE HASH'}
             env={'ANDROID_KEYSTORE_BASE64':base64.b64encode(b'SYNTHETIC KEY').decode(),'ANDROID_KEYSTORE_PASSWORD':'p'*48,'GITHUB_TOKEN':'do-not-inherit','PATH':os.environ.get('PATH','')}
+            if padded:env['ANDROID_KEYSTORE_BASE64']=' \r\n'+env['ANDROID_KEYSTORE_BASE64']+'\n\t '
             if fault=='password':env['ANDROID_KEYSTORE_PASSWORD']='bad\npassword'
-            def pinned_hash(p):return s.APK_SHA if Path(p).suffix=='.apk' else s.SDK_PINS[str(Path(p).relative_to(tools))]
+            def pinned_hash(p):
+                if fault=='SDK' and Path(p).suffix!='.apk':return '0'*64
+                if fault=='preflight' and Path(p).suffix=='.apk':return '0'*64
+                return s.APK_SHA if Path(p).suffix=='.apk' else s.SDK_PINS[str(Path(p).relative_to(tools))]
             with patch.dict(os.environ,env,clear=True),patch.object(s,'_hash',side_effect=pinned_hash),patch.object(s,'recipient_key'),patch.object(s,'_unsigned'),patch.object(s,'_run',side_effect=run),patch.object(s,'encrypt_handoff',side_effect=encrypt),patch.object(s.hashlib,'sha256',return_value=Mock(hexdigest=lambda:s.KEYSTORE_SHA if fault!='keyhash' else '0'*64)):
                 if fault:
-                    with self.assertRaises((s.SignerError,ValueError)):s.sign_candidate(original,tools,b'SYNTHETIC PUBLIC',output,authorization=self.context())
+                    with self.assertRaises(s.StageFailure) as caught:s.sign_candidate(original,tools,b'SYNTHETIC PUBLIC',output,authorization=self.context())
+                    expected={'SDK':'SDK','preflight':'preflight','sign':'tool','cert':'verify','encrypt':'encrypt','password':'stored-identity','keyhash':'container'}[fault]
+                    self.assertEqual(str(caught.exception),'T3_SIGN_STAGE_'+expected)
+                    for sensitive in ('private diagnostic','injected','p'*48,'SYNTHETIC',str(root),'PRIVATE HASH'):
+                        self.assertNotIn(sensitive,str(caught.exception))
                     self.assertFalse(output.exists())
                 else:
                     result=s.sign_candidate(original,tools,b'SYNTHETIC PUBLIC',output,authorization=self.context())
@@ -80,8 +88,9 @@ class Signer(unittest.TestCase):
                     self.assertFalse(result['publicationPerformed']);self.assertFalse(result['deviceAcceptancePerformed'])
             for work in work_paths:self.assertFalse(work.exists())
     def test_mocked_success(self):self.exercise()
+    def test_outer_whitespace_base64(self):self.exercise(padded=True)
     def test_mocked_failure_cleanup(self):
-        for fault in ('sign','cert','encrypt','password','keyhash'):
+        for fault in ('preflight','SDK','sign','cert','encrypt','password','keyhash'):
             with self.subTest(fault=fault):self.exercise(fault)
 
 if __name__=='__main__':unittest.main()
