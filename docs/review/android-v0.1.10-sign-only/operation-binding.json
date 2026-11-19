@@ -1,1 +1,1 @@
-{"enabled": true, "recipientSpkiSha256": "2951781128262ba402b08c1f17c55c0745ebf29976d4ce4c614c6157d13c7df5", "recipientPublicKeySha256": "680dc8de30e325ff92aefaa62ebaa7fc9464507f5b3332d9c1c2a6db83cf8a8e", "recipientExpiresAt": "2026-11-21T09:39:57.892899+00:00"}
+{"enabled": false, "recipientSpkiSha256": "2951781128262ba402b08c1f17c55c0745ebf29976d4ce4c614c6157d13c7df5", "recipientPublicKeySha256": "680dc8de30e325ff92aefaa62ebaa7fc9464507f5b3332d9c1c2a6db83cf8a8e", "recipientExpiresAt": "2026-11-21T09:39:57.892899+00:00"}
