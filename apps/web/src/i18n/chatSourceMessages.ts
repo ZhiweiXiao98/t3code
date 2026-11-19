@@ -8,12 +8,10 @@ const CHAT_SOURCE_MESSAGES: Readonly<Record<string, string>> = {
   "Pick a microphone, then start talking.": "选择麦克风，然后开始说话。",
   "Other models": "其他模型",
   "Needs an admin to download": "需要管理员下载",
-  "That microphone is unplugged. Pick another one.":
-    "该麦克风已断开连接，请选择其他麦克风。",
+  "That microphone is unplugged. Pick another one.": "该麦克风已断开连接，请选择其他麦克风。",
   "Searching project models...": "正在搜索项目模型…",
   "Go to quoted response: {text}": "转到引用的回复：{text}",
-  "Go to the response this replies to: {text}":
-    "转到本条回复所回应的内容：{text}",
+  "Go to the response this replies to: {text}": "转到本条回复所回应的内容：{text}",
   "Agents here can then launch, message and wait on threads there. Revoke it in that machine’s Sharing & access.":
     "此处的智能体即可在那台机器上启动对话、发送消息及等待对话完成。可在那台机器的“共享与访问”中撤销权限。",
   ": Settings → Sharing & access → Authorized clients → Create link, then paste its code here.":
@@ -26,8 +24,7 @@ const CHAT_SOURCE_MESSAGES: Readonly<Record<string, string>> = {
   "The earlier edit was saved. Review your newer changes and save again.":
     "先前的编辑已保存。请检查较新的更改后重新保存。",
   "Added to the composer": "已添加到输入框",
-  "The task is in the composer. Read it over, then send.":
-    "任务已放入输入框。请检查后发送。",
+  "The task is in the composer. Read it over, then send.": "任务已放入输入框。请检查后发送。",
   "Resolve the conflicts in this thread": "在此对话中解决冲突",
   "Fix the failing checks in this thread": "在此对话中修复失败的检查",
   "Retry transcription": "重试转写",
@@ -37,8 +34,7 @@ const CHAT_SOURCE_MESSAGES: Readonly<Record<string, string>> = {
   "Provider process is gone. Interrupt or restart the child thread to respond.":
     "提供商进程已退出。请中断或重新启动子会话后再响应。",
   "Subagent work": "子 Agent 工作记录",
-  "Read only. These subagents cannot take messages.":
-    "仅供查看。这些子 Agent 无法接收消息。",
+  "Read only. These subagents cannot take messages.": "仅供查看。这些子 Agent 无法接收消息。",
   "The provider has no record of which subagents this call started.":
     "提供商未记录此次调用启动了哪些子 Agent。",
   Subagent: "子 Agent",
@@ -83,10 +79,7 @@ const CHAT_SOURCE_MESSAGES: Readonly<Record<string, string>> = {
   Pending: "等待中",
 };
 
-export function translateChatSource(
-  locale: ResolvedAppLocale,
-  source: string,
-): string {
+export function translateChatSource(locale: ResolvedAppLocale, source: string): string {
   if (locale === "zh-CN") {
     const translated = CHAT_SOURCE_MESSAGES[source];
     if (translated !== undefined) return translated;

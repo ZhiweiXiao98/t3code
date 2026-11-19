@@ -1,19 +1,9 @@
 import { translateWebSource } from "../../i18n/messages";
 import { useI18n } from "../../i18n/WebI18nContext";
-import {
-  formatPercent,
-  formatTokens,
-  formatUsd,
-} from "@t3tools/shared/usageFormat";
-import {
-  isModelCostUnknown,
-  type ModelTotals,
-} from "@t3tools/shared/usageMerge";
+import { formatPercent, formatTokens, formatUsd } from "@t3tools/shared/usageFormat";
+import { isModelCostUnknown, type ModelTotals } from "@t3tools/shared/usageMerge";
 
-import {
-  mergeAnsweredUsage,
-  type EnvironmentUsageStatus,
-} from "../../state/usage";
+import { mergeAnsweredUsage, type EnvironmentUsageStatus } from "../../state/usage";
 import { ProviderInstanceIcon } from "../chat/ProviderInstanceIcon";
 import { Button } from "../ui/button";
 import {
@@ -25,10 +15,7 @@ import {
   DialogPopup,
   DialogTitle,
 } from "../ui/dialog";
-import {
-  UsageProviderChart,
-  type UsageChartMetric,
-} from "./UsageProviderChart";
+import { UsageProviderChart, type UsageChartMetric } from "./UsageProviderChart";
 import { UsageShareBar } from "./UsageShareBar";
 import {
   cacheHitRate,
@@ -66,8 +53,7 @@ export function UsageModelDialog({
   const { locale: sourceLocale } = useI18n();
   const usage = mergeAnsweredUsage(
     environments,
-    (bucket) =>
-      bucket.provider === model.provider && bucket.model === model.model,
+    (bucket) => bucket.provider === model.provider && bucket.model === model.model,
   );
   const providers = [model.provider];
   const presentation = PROVIDER_PRESENTATION[model.provider];
@@ -77,17 +63,11 @@ export function UsageModelDialog({
   const stats = [
     {
       label: "Cost",
-      value: costUnknown
-        ? translateWebSource(sourceLocale, "Unpriced")
-        : formatUsd(model.costUsd),
+      value: costUnknown ? translateWebSource(sourceLocale, "Unpriced") : formatUsd(model.costUsd),
     },
     { label: "Tokens", value: formatTokens(model.totalTokens) },
-    perMillion === null
-      ? null
-      : { label: "Per 1M tokens", value: formatUsd(perMillion) },
-    hitRate === null
-      ? null
-      : { label: "Cache hit", value: formatPercent(hitRate) },
+    perMillion === null ? null : { label: "Per 1M tokens", value: formatUsd(perMillion) },
+    hitRate === null ? null : { label: "Cache hit", value: formatPercent(hitRate) },
   ].filter((stat) => stat !== null);
 
   return (
@@ -122,9 +102,7 @@ export function UsageModelDialog({
                   <dt className="text-xs text-muted-foreground">
                     {translateWebSource(sourceLocale, stat.label)}
                   </dt>
-                  <dd className="text-2xl font-semibold text-foreground">
-                    {stat.value}
-                  </dd>
+                  <dd className="text-2xl font-semibold text-foreground">{stat.value}</dd>
                 </div>
               ))}
             </dl>
@@ -168,17 +146,12 @@ export function UsageModelDialog({
           </div>
         </DialogPanel>
         {model.unpricedTokens > 0 ? (
-          <DialogFooter
-            variant="bare"
-            className="items-center sm:justify-between"
-          >
+          <DialogFooter variant="bare" className="items-center sm:justify-between">
             <span className="text-xs text-muted-foreground">
               {formatTokens(model.unpricedTokens)}{" "}
               {translateWebSource(sourceLocale, "tokens have no known price")}
             </span>
-            <Button onClick={onSetPrice}>
-              {translateWebSource(sourceLocale, "Set price")}
-            </Button>
+            <Button onClick={onSetPrice}>{translateWebSource(sourceLocale, "Set price")}</Button>
           </DialogFooter>
         ) : null}
       </DialogPopup>
@@ -191,9 +164,7 @@ export function SpeedPremium({ premiumUsd }: { readonly premiumUsd: number }) {
   return (
     <span className="text-xs text-muted-foreground">
       {translateWebSource(sourceLocale, "Premium")}{" "}
-      <span className="text-foreground tabular-nums">
-        {formatUsd(premiumUsd)}
-      </span>
+      <span className="text-foreground tabular-nums">{formatUsd(premiumUsd)}</span>
     </span>
   );
 }

@@ -1,8 +1,5 @@
 import { translateWebExtraSource } from "~/i18n/webExtraMessages";
-import {
-  resolveEnvironmentMachineKind,
-  type EnvironmentId,
-} from "@t3tools/contracts";
+import { resolveEnvironmentMachineKind, type EnvironmentId } from "@t3tools/contracts";
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import { ChevronRightIcon, LayersIcon } from "lucide-react";
 import type { ReactNode } from "react";
@@ -11,10 +8,7 @@ import { cn } from "../../lib/utils";
 import { useI18n } from "../../i18n/WebI18nContext";
 import { translateWebSource } from "../../i18n/messages";
 import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
-import {
-  useEnvironments,
-  type EnvironmentPresentation,
-} from "../../state/environments";
+import { useEnvironments, type EnvironmentPresentation } from "../../state/environments";
 import { EnvironmentMachineIcon } from "../EnvironmentMachineIcon";
 import { ProjectFavicon } from "../ProjectFavicon";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
@@ -67,9 +61,7 @@ export function SettingsScopeNotice({
     ) : null;
   const choiceGroups =
     target === "checkout"
-      ? groups.filter(
-          (group) => !search.project || group.projectKey === search.project,
-        )
+      ? groups.filter((group) => !search.project || group.projectKey === search.project)
       : [null];
   const projectGroups = projectScopeMenuGroups(groups, search);
   const renderChoices = (group: SidebarProjectSnapshot | null) => {
@@ -81,16 +73,12 @@ export function SettingsScopeNotice({
           const { primary, secondary } = environment
             ? settingsScopeEnvironmentLabels(environment, environments)
             : {
-                primary:
-                  member.environmentLabel ??
-                  translateWebSource(locale, "Environment"),
+                primary: member.environmentLabel ?? translateWebSource(locale, "Environment"),
                 secondary: member.environmentId,
               };
           return {
             label: primary,
-            secondary: [secondary, member.workspaceRoot]
-              .filter(Boolean)
-              .join(" · "),
+            secondary: [secondary, member.workspaceRoot].filter(Boolean).join(" · "),
             icon: environmentIcon(environment),
             search: {
               project: group.projectKey,
@@ -103,21 +91,16 @@ export function SettingsScopeNotice({
         ? projectGroups.map((group) => ({
             label: group.displayName,
             secondary: [
-              ...(group.archived
-                ? [translateWebSource(locale, "Archived")]
-                : []),
+              ...(group.archived ? [translateWebSource(locale, "Archived")] : []),
               ...(projectGroups.some(
                 (other) =>
-                  other.projectKey !== group.projectKey &&
-                  other.displayName === group.displayName,
+                  other.projectKey !== group.projectKey && other.displayName === group.displayName,
               )
                 ? settingsScopeProjectMachines(group, environments)
                 : []),
               group.workspaceRoot,
             ].join(" · "),
-            icon: (
-              <ProjectFavicon project={group} className="size-4 shrink-0" />
-            ),
+            icon: <ProjectFavicon project={group} className="size-4 shrink-0" />,
             search: selectProjectAxis(search, group.projectKey),
           }))
         : target === "environment"
@@ -128,14 +111,10 @@ export function SettingsScopeNotice({
                   eligibleEnvironmentIds.includes(entry.environmentId),
               )
               .map((entry) => {
-                const { primary, secondary } = settingsScopeEnvironmentLabels(
-                  entry,
-                  environments,
-                );
+                const { primary, secondary } = settingsScopeEnvironmentLabels(entry, environments);
                 return {
                   label: primary,
-                  secondary:
-                    secondary || settingsScopeEnvironmentAddress(entry),
+                  secondary: secondary || settingsScopeEnvironmentAddress(entry),
                   icon: environmentIcon(entry),
                   search: { machine: entry.environmentId },
                 };
@@ -143,12 +122,7 @@ export function SettingsScopeNotice({
           : [
               {
                 label: translateWebExtraSource(locale, "Open all environments"),
-                icon: (
-                  <LayersIcon
-                    aria-hidden
-                    className="size-4 shrink-0 text-muted-foreground"
-                  />
-                ),
+                icon: <LayersIcon aria-hidden className="size-4 shrink-0 text-muted-foreground" />,
                 search: {},
               },
             ];
@@ -177,15 +151,11 @@ export function SettingsScopeNotice({
       >
         {choice.icon}
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-medium">
-            {choice.label}
-          </span>
+          <span className="block truncate text-sm font-medium">{choice.label}</span>
           {choice.secondary ? (
             <Tooltip>
               <TooltipTrigger
-                render={
-                  <span className="block truncate text-xs text-muted-foreground" />
-                }
+                render={<span className="block truncate text-xs text-muted-foreground" />}
               >
                 {choice.secondary}
               </TooltipTrigger>
@@ -193,10 +163,7 @@ export function SettingsScopeNotice({
             </Tooltip>
           ) : null}
         </span>
-        <ChevronRightIcon
-          aria-hidden
-          className="size-4 shrink-0 text-muted-foreground"
-        />
+        <ChevronRightIcon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
       </button>
     ));
   };
@@ -208,25 +175,15 @@ export function SettingsScopeNotice({
       <div className="space-y-4">
         {choiceGroups.map((group) =>
           group?.displayName ? (
-            <SettingsSection
-              key={group.projectKey}
-              title={group.displayName}
-              localizeTitle={false}
-            >
+            <SettingsSection key={group.projectKey} title={group.displayName} localizeTitle={false}>
               {renderChoices(group)}
             </SettingsSection>
           ) : (
-            <SettingsGroup key={group?.projectKey ?? target}>
-              {renderChoices(group)}
-            </SettingsGroup>
+            <SettingsGroup key={group?.projectKey ?? target}>{renderChoices(group)}</SettingsGroup>
           ),
         )}
       </div>
     </div>
   );
-  return inline ? (
-    notice
-  ) : (
-    <SettingsPageContainer>{notice}</SettingsPageContainer>
-  );
+  return inline ? notice : <SettingsPageContainer>{notice}</SettingsPageContainer>;
 }

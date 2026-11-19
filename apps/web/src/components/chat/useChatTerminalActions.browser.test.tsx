@@ -169,8 +169,7 @@ function Probe({ label, preview = false }: { label: string; preview?: boolean })
       <ChatBannerLane
         environmentId={ref.environmentId}
         providerStatus={null}
-        providerStatusBannerKey={null}
-        setDismissedProviderStatusBannerKey={() => undefined}
+        providerStatusDismissalKey={null}
         onOpenProviderSetup={() => undefined}
         threadId={ref.threadId}
         threadError={entries.script?.message ?? null}

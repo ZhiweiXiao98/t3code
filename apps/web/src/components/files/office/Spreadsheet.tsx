@@ -20,12 +20,7 @@ import {
 import { FileSurfaceLoading, FileSurfaceNotice } from "../fileSurfaceChrome";
 import type { WorkbookView } from "../officePreviewProtocol";
 import { createWorkerClient, SupersededError } from "./worker-rpc";
-import type {
-  SheetLayout,
-  SheetMethods,
-  SheetFrameRequest,
-  SheetTab,
-} from "./sheet-protocol";
+import type { SheetLayout, SheetMethods, SheetFrameRequest, SheetTab } from "./sheet-protocol";
 import {
   coverMerges,
   contains,
@@ -43,11 +38,7 @@ import {
   type Painted,
 } from "./sheet-paint";
 import { externalUrl } from "./links";
-import {
-  bufferedViewport,
-  cachedViewport,
-  retainCachedViewport,
-} from "./sheet-viewport";
+import { bufferedViewport, cachedViewport, retainCachedViewport } from "./sheet-viewport";
 
 const isSupersededError = Schema.is(SupersededError);
 
@@ -75,12 +66,9 @@ export default function Spreadsheet(props: {
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Open the workbook worker and cancel workbook and sheet requests when the source changes or unmounts.
   useEffect(() => {
     const controller = new AbortController();
-    const worker = new Worker(
-      new URL("./spreadsheet.worker.ts", import.meta.url),
-      {
-        type: "module",
-      },
-    );
+    const worker = new Worker(new URL("./spreadsheet.worker.ts", import.meta.url), {
+      type: "module",
+    });
     const engine = createWorkerClient<SheetMethods>(worker);
     const fail = (cause: unknown) => {
       if (!controller.signal.aborted) onError(cause);
@@ -89,14 +77,9 @@ export default function Spreadsheet(props: {
     worker.addEventListener("messageerror", fail);
     const bytes = source.slice(0);
     void engine
-      .call(
-        "open",
-        { bytes, view },
-        { transfer: [bytes], signal: controller.signal },
-      )
+      .call("open", { bytes, view }, { transfer: [bytes], signal: controller.signal })
       .then((value) => {
-        if (!value)
-          throw createFilePreviewError("This workbook has no visible sheets.");
+        if (!value) throw createFilePreviewError("This workbook has no visible sheets.");
         setOpened({ ...value, engine });
         onDetails(translateCount(value.tabs.length));
       })
@@ -107,9 +90,7 @@ export default function Spreadsheet(props: {
       engine.close();
     };
   }, [source, view, onDetails, onError, translateCount]);
-  const details = opened
-    ? t("files.residual.sheets", { count: opened.tabs.length })
-    : null;
+  const details = opened ? t("files.residual.sheets", { count: opened.tabs.length }) : null;
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Refresh the parent caption when its localized text changes without restarting the document worker.
   useEffect(() => {
     if (details !== null) onDetails(details);
@@ -127,27 +108,20 @@ export default function Spreadsheet(props: {
         setOpened({ ...opened, layout, target });
       })
       .catch(() => {
-        if (!controller.signal.aborted)
-          setError("This sheet could not be opened.");
+        if (!controller.signal.aborted) setError("This sheet could not be opened.");
       });
   };
   if (!opened) return <FileSurfaceLoading />;
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {error ? (
-        <FileSurfaceNotice>
-          {translateWebSource(locale, error)}
-        </FileSurfaceNotice>
-      ) : null}
+      {error ? <FileSurfaceNotice>{translateWebSource(locale, error)}</FileSurfaceNotice> : null}
       <SpreadsheetGrid
         key={opened.layout.info.activeSheet}
         engine={opened.engine}
         layout={opened.layout}
         initialCell={opened.target}
         onNavigate={(name, cell) => {
-          const tab = opened.tabs.find(
-            (tab) => tab.name.toLowerCase() === name.toLowerCase(),
-          );
+          const tab = opened.tabs.find((tab) => tab.name.toLowerCase() === name.toLowerCase());
           if (tab) show(tab.index, cell);
         }}
       />
@@ -173,9 +147,7 @@ export default function Spreadsheet(props: {
           event.preventDefault();
           const tab = opened.tabs[next];
           if (tab) show(tab.index);
-          event.currentTarget
-            .querySelectorAll<HTMLButtonElement>('[role="tab"]')
-            [next]?.focus();
+          event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus();
         }}
       >
         {opened.tabs.map((tab) => (
@@ -210,9 +182,7 @@ function SpreadsheetGrid(props: {
   const columnHeaderBand = useRef<HTMLDivElement>(null);
   const rowHeaderBand = useRef<HTMLDivElement>(null);
   const [notice, setNotice] = useState("");
-  const [reader, setReader] = useState<
-    { row: number; col: number; text: string }[]
-  >([]);
+  const [reader, setReader] = useState<{ row: number; col: number; text: string }[]>([]);
   const [active, setActive] = useState({ row: 0, col: 0 });
   const navigate = useRef(onNavigate);
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Keep the installed native pointer listener calling the latest navigation handler without restarting the canvas engine.
@@ -279,21 +249,12 @@ function SpreadsheetGrid(props: {
     const resizeArea = () => {
       const width = Math.min(
         (end?.x ?? Infinity) + (painted?.frame.frozen.width ?? 0),
-        Math.max(
-          info.contentWidth,
-          chartWidth,
-          reachX,
-          left + root.clientWidth,
-        ) + root.clientWidth,
+        Math.max(info.contentWidth, chartWidth, reachX, left + root.clientWidth) + root.clientWidth,
       );
       const height = Math.min(
         (end?.y ?? Infinity) + (painted?.frame.frozen.height ?? 0),
-        Math.max(
-          info.contentHeight,
-          chartHeight,
-          reachY,
-          top + root.clientHeight,
-        ) + root.clientHeight,
+        Math.max(info.contentHeight, chartHeight, reachY, top + root.clientHeight) +
+          root.clientHeight,
       );
       space.style.width = `${headers.width + width}px`;
       space.style.height = `${headers.height + height}px`;
@@ -313,9 +274,7 @@ function SpreadsheetGrid(props: {
       top = root.scrollTop;
       resizeArea();
       const viewport = { x: left, y: top, ...size };
-      drawn = painted
-        ? cachedViewport(painted.frame.viewport, viewport)
-        : viewport;
+      drawn = painted ? cachedViewport(painted.frame.viewport, viewport) : viewport;
       const input: SheetFrameRequest = {
         sheet,
         x: left,
@@ -348,9 +307,7 @@ function SpreadsheetGrid(props: {
             received = order;
             if (!reply) {
               if (requested === key) requested = "";
-              setNotice(
-                "These cells could not be drawn. Try scrolling to another area.",
-              );
+              setNotice("These cells could not be drawn. Try scrolling to another area.");
               return;
             }
             if (
@@ -363,8 +320,7 @@ function SpreadsheetGrid(props: {
               })
             ) {
               reply.bitmap.close();
-              if (requested === key)
-                requested = JSON.stringify(painted.request);
+              if (requested === key) requested = JSON.stringify(painted.request);
               return;
             }
             setNotice("");
@@ -460,11 +416,7 @@ function SpreadsheetGrid(props: {
         right: Math.min(lastCell.col, left + 6),
       };
       void engine
-        .call(
-          "cells",
-          { sheet, range },
-          { key: "reader", signal: readController.signal },
-        )
+        .call("cells", { sheet, range }, { key: "reader", signal: readController.signal })
         .then((rows) => {
           if (!controller.signal.aborted)
             setReader(
@@ -483,25 +435,12 @@ function SpreadsheetGrid(props: {
     const reveal = () => {
       const cell = selection.focus;
       void engine
-        .call(
-          "position",
-          { sheet, cell },
-          { key: "position", signal: controller.signal },
-        )
+        .call("position", { sheet, cell }, { key: "position", signal: controller.signal })
         .then((position) => {
           if (!position || controller.signal.aborted) return;
           const panes = painted?.frame.frozen ?? { width: 0, height: 0 };
-          const place = (
-            start: number,
-            next: number,
-            current: number,
-            visible: number,
-          ) =>
-            start < current
-              ? start
-              : next > current + visible
-                ? next - visible
-                : current;
+          const place = (start: number, next: number, current: number, visible: number) =>
+            start < current ? start : next > current + visible ? next - visible : current;
           const x =
             cell.col < info.frozenCols
               ? left
@@ -536,10 +475,8 @@ function SpreadsheetGrid(props: {
       const frame = painted?.frame;
       if (
         frame &&
-        ((x >= frame.frozen.width &&
-          x < frame.frozen.width + frame.viewport.x - drawn.x) ||
-          (y >= frame.frozen.height &&
-            y < frame.frozen.height + frame.viewport.y - drawn.y))
+        ((x >= frame.frozen.width && x < frame.frozen.width + frame.viewport.x - drawn.x) ||
+          (y >= frame.frozen.height && y < frame.frozen.height + frame.viewport.y - drawn.y))
       )
         return;
       const cell = cellAtPoint(
@@ -592,14 +529,7 @@ function SpreadsheetGrid(props: {
       root.focus({ preventScroll: true });
       root.setPointerCapture(event.pointerId);
       drag = true;
-      header =
-        found.x < 0
-          ? found.y < 0
-            ? "all"
-            : "row"
-          : found.y < 0
-            ? "column"
-            : undefined;
+      header = found.x < 0 ? (found.y < 0 ? "all" : "row") : found.y < 0 ? "column" : undefined;
       pressed = header ? undefined : found.cell;
       if (found.x < 0 && found.y < 0)
         select({
@@ -616,26 +546,18 @@ function SpreadsheetGrid(props: {
           anchor: { row: lastCell.row, col: found.cell.col },
           focus: { row: 0, col: found.cell.col },
         });
-      else
-        select(
-          event.shiftKey ? extendTo(selection, found.cell) : at(found.cell),
-        );
+      else select(event.shiftKey ? extendTo(selection, found.cell) : at(found.cell));
     };
     const pointerMove = (event: PointerEvent) => {
       if (resizing) {
         if (event.pointerId !== resizing.pointerId) return;
-        const point =
-          resizing.axis === "column" ? event.clientX : event.clientY;
+        const point = resizing.axis === "column" ? event.clientX : event.clientY;
         resizing.delta = Math.round(point - resizing.start);
         schedule();
         return;
       }
       const hovered = resizeHit(event);
-      root.style.cursor = hovered
-        ? hovered.axis === "column"
-          ? "col-resize"
-          : "row-resize"
-        : "";
+      root.style.cursor = hovered ? (hovered.axis === "column" ? "col-resize" : "row-resize") : "";
       if (!drag) return;
       const found = hit(event);
       if (found && header !== "all")
@@ -678,8 +600,7 @@ function SpreadsheetGrid(props: {
             schedule();
           })
           .catch(() => {
-            if (!controller.signal.aborted)
-              setNotice("This row or column could not be resized.");
+            if (!controller.signal.aborted) setNotice("This row or column could not be resized.");
           })
           .finally(() => {
             resizingPending = false;
@@ -688,12 +609,7 @@ function SpreadsheetGrid(props: {
       }
       drag = false;
       const found = hit(event);
-      if (
-        !found ||
-        !pressed ||
-        found.cell.row !== pressed.row ||
-        found.cell.col !== pressed.col
-      )
+      if (!found || !pressed || found.cell.row !== pressed.row || found.cell.col !== pressed.col)
         return;
       const cell = at(found.cell).anchor;
       const list = painted?.frame;
@@ -711,13 +627,9 @@ function SpreadsheetGrid(props: {
         return;
       }
       const internal =
-        link.location &&
-        parseHyperlinkLocation(link.location, info.sheetNames[sheet] ?? "");
+        link.location && parseHyperlinkLocation(link.location, info.sheetNames[sheet] ?? "");
       if (!internal) return;
-      if (
-        internal.sheetName.toLowerCase() !==
-        (info.sheetNames[sheet] ?? "").toLowerCase()
-      )
+      if (internal.sheetName.toLowerCase() !== (info.sheetNames[sheet] ?? "").toLowerCase())
         navigate.current(internal.sheetName, {
           row: internal.row,
           col: internal.col,
@@ -732,20 +644,10 @@ function SpreadsheetGrid(props: {
       const selected = range();
       const clipped = {
         ...selected,
-        bottom: Math.min(
-          selected.bottom,
-          Math.max(selected.top, used?.bottom ?? 0),
-        ),
-        right: Math.min(
-          selected.right,
-          Math.max(selected.left, used?.right ?? 0),
-        ),
+        bottom: Math.min(selected.bottom, Math.max(selected.top, used?.bottom ?? 0)),
+        right: Math.min(selected.right, Math.max(selected.left, used?.right ?? 0)),
       };
-      if (
-        (clipped.bottom - clipped.top + 1) *
-          (clipped.right - clipped.left + 1) >
-        200_000
-      ) {
+      if ((clipped.bottom - clipped.top + 1) * (clipped.right - clipped.left + 1) > 200_000) {
         setNotice("Select fewer than 200,000 cells to copy.");
         return;
       }
@@ -756,8 +658,7 @@ function SpreadsheetGrid(props: {
           return navigator.clipboard.writeText(text);
         })
         .catch(() => {
-          if (!controller.signal.aborted)
-            setNotice("The selected cells could not be copied.");
+          if (!controller.signal.aborted) setNotice("The selected cells could not be copied.");
         });
     };
     const key = (event: KeyboardEvent) => {
@@ -778,10 +679,7 @@ function SpreadsheetGrid(props: {
       const action = selectionKeyReducer(selection, event, {
         rows: Math.max((layout.used?.bottom ?? 0) + 1, selection.focus.row + 1),
         cols: Math.max((layout.used?.right ?? 0) + 1, selection.focus.col + 1),
-        rowsPerPage: Math.max(
-          1,
-          Math.floor((root.clientHeight - headerHeight) / 20),
-        ),
+        rowsPerPage: Math.max(1, Math.floor((root.clientHeight - headerHeight) / 20)),
       });
       if (action.type !== "move") return;
       event.preventDefault();
@@ -862,14 +760,8 @@ function SpreadsheetGrid(props: {
         />
         <div aria-hidden="true" className="sticky left-0 top-0 h-0 w-0">
           <canvas ref={canvas} className="absolute left-0 top-0 block" />
-          <div
-            ref={columnHeaderBand}
-            className="absolute left-11 top-0 h-5 touch-none"
-          />
-          <div
-            ref={rowHeaderBand}
-            className="absolute left-0 top-5 w-11 touch-none"
-          />
+          <div ref={columnHeaderBand} className="absolute left-11 top-0 h-5 touch-none" />
+          <div ref={rowHeaderBand} className="absolute left-0 top-5 w-11 touch-none" />
         </div>
         <div className="sr-only">
           {[...new Set(reader.map((cell) => cell.row))].map((row) => (

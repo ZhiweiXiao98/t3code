@@ -25,8 +25,10 @@ function settingsBreadcrumbLabel(pathname: string): string | null {
 export function SettingsBreadcrumb({ pathname }: { pathname: string }) {
   const { locale, t } = useI18n();
   const upstreamMessages = useMessages();
-  const m = (message: Parameters<typeof upstreamMessages>[0]) =>
-    translateWebSource(locale, upstreamMessages(message));
+  const m = (message: Parameters<typeof upstreamMessages>[0]) => {
+    const text = upstreamMessages(message);
+    return text == null ? text : translateWebSource(locale, text);
+  };
   const sectionLabel = settingsBreadcrumbLabel(pathname);
 
   return (

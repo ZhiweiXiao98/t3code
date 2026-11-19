@@ -44,10 +44,7 @@ import {
 import { settleAndAdvance } from "../../settleAndAdvance";
 import type { ChatShortcutCommands } from "./useChatShortcuts";
 import { resolveThreadLastVisitedAt } from "../Sidebar.logic";
-import {
-  scopedThreadKey,
-  scopeThreadRef,
-} from "@t3tools/client-runtime/environment";
+import { scopedThreadKey, scopeThreadRef } from "@t3tools/client-runtime/environment";
 import { type SetStateAction, useRef, useState } from "react";
 import { useNavigate, useRouter } from "@tanstack/react-router";
 import {
@@ -62,18 +59,11 @@ import { stackedThreadToast, toastManager } from "../ui/toast";
 import { titleRegenerationToast } from "../threadTitleRegenerationToast";
 import { newMessageId } from "~/lib/utils";
 import { buildThreadRouteParams } from "../../threadRoutes";
-import {
-  composerDraftHasUserContent,
-  useComposerDraftStore,
-} from "../../composerDraftStore";
+import { composerDraftHasUserContent, useComposerDraftStore } from "../../composerDraftStore";
 import { useEnvironmentScope } from "~/state/session";
 import { threadEnvironment } from "../../state/threads";
 import { vcsEnvironment } from "../../state/vcs";
-import {
-  useChildThreadInputs,
-  readThreadShell,
-  waitForThreadShell,
-} from "../../state/entities";
+import { useChildThreadInputs, readThreadShell, waitForThreadShell } from "../../state/entities";
 import { serverEnvironment } from "../../state/server";
 import { environmentShell } from "../../state/shell";
 import { ThreadStatusLine } from "./ThreadStatusLine";
@@ -125,9 +115,7 @@ interface ThreadLifecycleInput {
   readonly isWorking: boolean;
   /** Also true while the server prepares, starts, or queues a run this client did not send. */
   readonly runIsLive: boolean;
-  readonly pendingBackgroundTasks: Parameters<
-    typeof backgroundWorkNowItem
-  >[0]["tasks"];
+  readonly pendingBackgroundTasks: Parameters<typeof backgroundWorkNowItem>[0]["tasks"];
   readonly turnItems: Parameters<typeof backgroundWorkNowItem>[0]["turnItems"];
   readonly activePendingApproval: PendingThreadRequests["activePendingApproval"];
   readonly activePendingUserInput: PendingThreadRequests["activePendingUserInput"];
@@ -203,38 +191,25 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
   const navigate = useNavigate();
   const router = useRouter();
   const { settleThread, pinThread, confirmAndUnpinThread } = useThreadActions();
-  const canWriteSourceControl = useEnvironmentScope(
-    environmentId,
-    AuthSourceControlWriteScope,
-  );
+  const canWriteSourceControl = useEnvironmentScope(environmentId, AuthSourceControlWriteScope);
   const switchGitRef = useAtomCommand(vcsEnvironment.switchRef, {
     reportFailure: false,
   });
-  const updateThreadMetadata = useOrchestrationCommand(
-    threadEnvironment.updateMetadata,
-    {
-      reportFailure: false,
-    },
-  );
-  const regenerateThreadTitle = useOrchestrationCommand(
-    threadEnvironment.regenerateTitle,
-    {
-      reportFailure: false,
-    },
-  );
+  const updateThreadMetadata = useOrchestrationCommand(threadEnvironment.updateMetadata, {
+    reportFailure: false,
+  });
+  const regenerateThreadTitle = useOrchestrationCommand(threadEnvironment.regenerateTitle, {
+    reportFailure: false,
+  });
   const startThreadTurn = useOrchestrationCommand(threadEnvironment.startTurn, {
     reportFailure: false,
   });
-  const interruptThreadTurn = useOrchestrationCommand(
-    threadEnvironment.interruptTurn,
-    {
-      reportFailure: false,
-    },
-  );
+  const interruptThreadTurn = useOrchestrationCommand(threadEnvironment.interruptTurn, {
+    reportFailure: false,
+  });
 
   const serverConfigLoaded = serverConfig !== null;
-  const activeThreadPinned =
-    serverConfigLoaded && activeThreadShell?.pinnedAt != null;
+  const activeThreadPinned = serverConfigLoaded && activeThreadShell?.pinnedAt != null;
   // A clock read in render would stay frozen in the compiler's cache, so the
   // snooze checks read a snapshot that moves when the wake time changes or passes.
   const snoozeClock = new Date(
@@ -253,13 +228,9 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
     if (activeThreadRef === null || activeThreadWokeAt === null) return;
     acknowledgeThreadWoke(activeThreadRef, activeThreadWokeAt);
   };
-  const acknowledgeActiveThreadWokeStable = useStableCallback(
-    acknowledgeActiveThreadWoke,
-  );
+  const acknowledgeActiveThreadWokeStable = useStableCallback(acknowledgeActiveThreadWoke);
   const activeThreadLocalVisitedAt = useUiStateStore((store) =>
-    activeThreadKey === null
-      ? undefined
-      : store.threadLastVisitedAtById[activeThreadKey],
+    activeThreadKey === null ? undefined : store.threadLastVisitedAtById[activeThreadKey],
   );
   const activeThreadLastVisitedAt = resolveThreadLastVisitedAt(
     activeThreadShell?.lastVisitedAt,
@@ -273,24 +244,15 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
   });
   const activeThreadSettled =
     serverConfigLoaded && activeThreadShell?.settledOverride === "settled";
-  const unsettleThreadMutation = useOrchestrationCommand(
-    threadEnvironment.unsettle,
-    {
-      reportFailure: false,
-    },
-  );
-  const [unsettlingThreadKey, setUnsettlingThreadKey] = useState<string | null>(
-    null,
-  );
-  const isUnsettling =
-    unsettlingThreadKey !== null && unsettlingThreadKey === activeThreadKey;
+  const unsettleThreadMutation = useOrchestrationCommand(threadEnvironment.unsettle, {
+    reportFailure: false,
+  });
+  const [unsettlingThreadKey, setUnsettlingThreadKey] = useState<string | null>(null);
+  const isUnsettling = unsettlingThreadKey !== null && unsettlingThreadKey === activeThreadKey;
   const handleUnsettleActiveThread = async () => {
     if (
       !activeThreadRef ||
-      !readEnvironmentScope(
-        activeThreadRef.environmentId,
-        AuthOrchestrationOperateScope,
-      )
+      !readEnvironmentScope(activeThreadRef.environmentId, AuthOrchestrationOperateScope)
     )
       return;
     const threadKey = scopedThreadKey(activeThreadRef);
@@ -306,36 +268,22 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
         stackedThreadToast({
           type: "error",
           title: t("composer.thread.unsettleFailed"),
-          description:
-            error instanceof Error ? error.message : t("common.error"),
+          description: error instanceof Error ? error.message : t("common.error"),
         }),
       );
     }
-    setUnsettlingThreadKey((current) =>
-      current === threadKey ? null : current,
-    );
+    setUnsettlingThreadKey((current) => (current === threadKey ? null : current));
   };
-  const handleUnsettleActiveThreadStable = useStableCallback(
-    handleUnsettleActiveThread,
-  );
-  const unsnoozeThreadMutation = useOrchestrationCommand(
-    threadEnvironment.unsnooze,
-    {
-      reportFailure: false,
-    },
-  );
-  const [unsnoozingThreadKey, setUnsnoozingThreadKey] = useState<string | null>(
-    null,
-  );
-  const isUnsnoozing =
-    unsnoozingThreadKey !== null && unsnoozingThreadKey === activeThreadKey;
+  const handleUnsettleActiveThreadStable = useStableCallback(handleUnsettleActiveThread);
+  const unsnoozeThreadMutation = useOrchestrationCommand(threadEnvironment.unsnooze, {
+    reportFailure: false,
+  });
+  const [unsnoozingThreadKey, setUnsnoozingThreadKey] = useState<string | null>(null);
+  const isUnsnoozing = unsnoozingThreadKey !== null && unsnoozingThreadKey === activeThreadKey;
   const handleUnsnoozeActiveThread = async () => {
     if (
       !activeThreadRef ||
-      !readEnvironmentScope(
-        activeThreadRef.environmentId,
-        AuthOrchestrationOperateScope,
-      )
+      !readEnvironmentScope(activeThreadRef.environmentId, AuthOrchestrationOperateScope)
     )
       return;
     const threadKey = scopedThreadKey(activeThreadRef);
@@ -346,8 +294,7 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
       recovery?.snooze === true &&
       recovery.runId === activeThreadShell?.latestRun?.runId &&
       activeThreadShell?.snoozedUntil != null &&
-      Date.parse(activeThreadShell.snoozedUntil) ===
-        Date.parse(recovery.resetAt);
+      Date.parse(activeThreadShell.snoozedUntil) === Date.parse(recovery.resetAt);
     const result = recoveryOwnsSnooze
       ? await updateThreadMetadata({
           environmentId: activeThreadRef.environmentId,
@@ -370,26 +317,19 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
         stackedThreadToast({
           type: "error",
           title: t("sidebar.wakeFailed"),
-          description:
-            error instanceof Error ? error.message : t("common.error"),
+          description: error instanceof Error ? error.message : t("common.error"),
         }),
       );
     }
-    setUnsnoozingThreadKey((current) =>
-      current === threadKey ? null : current,
-    );
+    setUnsnoozingThreadKey((current) => (current === threadKey ? null : current));
   };
-  const handleUnsnoozeActiveThreadStable = useStableCallback(
-    handleUnsnoozeActiveThread,
+  const handleUnsnoozeActiveThreadStable = useStableCallback(handleUnsnoozeActiveThread);
+  const [restoringBranchThreadKeys, setRestoringBranchThreadKeys] = useState<ReadonlySet<string>>(
+    () => new Set(),
   );
-  const [restoringBranchThreadKeys, setRestoringBranchThreadKeys] = useState<
-    ReadonlySet<string>
-  >(() => new Set());
   const isRestoringThreadBranch =
     activeThreadKey !== null && restoringBranchThreadKeys.has(activeThreadKey);
-  const [revealedBranchMismatchKey, setRevealedBranchMismatchKey] = useState<
-    string | null
-  >(null);
+  const [revealedBranchMismatchKey, setRevealedBranchMismatchKey] = useState<string | null>(null);
   const [, setBranchMismatchDismissTick] = useState(0);
   const composerHasDraftContent = useComposerDraftStore((store) =>
     composerDraftHasUserContent(store.getComposerDraft(composerDraftTarget)),
@@ -403,8 +343,7 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
     isDismissed: isBranchMismatchDismissedForSession(activeBranchMismatchKey),
     composerHasContent: composerHasDraftContent,
     wasShownForCurrentMismatch:
-      revealedBranchMismatchKey !== null &&
-      revealedBranchMismatchKey === activeBranchMismatchKey,
+      revealedBranchMismatchKey !== null && revealedBranchMismatchKey === activeBranchMismatchKey,
   });
   const nextRevealedBranchMismatchKey = showBranchMismatchBanner
     ? activeBranchMismatchKey
@@ -424,9 +363,7 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
     ) {
       return;
     }
-    const threadKey = scopedThreadKey(
-      scopeThreadRef(environmentId, activeThread.id),
-    );
+    const threadKey = scopedThreadKey(scopeThreadRef(environmentId, activeThread.id));
     const finishRestore = () =>
       setRestoringBranchThreadKeys((current) => {
         const next = new Set(current);
@@ -448,9 +385,7 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
           stackedThreadToast({
             type: "error",
             title: t("chat.checkoutSwitchFailed"),
-            description: chatActionErrorMessage(
-              squashAtomCommandFailure(checkoutResult),
-            ),
+            description: chatActionErrorMessage(squashAtomCommandFailure(checkoutResult)),
           }),
         );
       }
@@ -461,8 +396,7 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
       finishRestore();
       return;
     }
-    const nextBranch =
-      checkoutResult.value.refName ?? localCheckoutBranchMismatch.threadBranch;
+    const nextBranch = checkoutResult.value.refName ?? localCheckoutBranchMismatch.threadBranch;
     if (nextBranch !== activeThread.branch) {
       const updateResult = await updateThreadMetadata({
         environmentId,
@@ -479,9 +413,7 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
             stackedThreadToast({
               type: "error",
               title: t("chat.checkoutThreadUpdateFailed"),
-              description: chatActionErrorMessage(
-                squashAtomCommandFailure(updateResult),
-              ),
+              description: chatActionErrorMessage(squashAtomCommandFailure(updateResult)),
             }),
           );
         }
@@ -493,8 +425,7 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
     finishRestore();
     if (currentRouteThreadKeyRef.current === routeThreadKey) {
       window.requestAnimationFrame(() => {
-        if (currentRouteThreadKeyRef.current === routeThreadKey)
-          composerRef.current?.focusAtEnd();
+        if (currentRouteThreadKeyRef.current === routeThreadKey) composerRef.current?.focusAtEnd();
       });
     }
   };
@@ -505,8 +436,7 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
   const [backgroundWorkStops, setBackgroundWorkStops] = useState<
     Record<string, BackgroundWorkStopRequest | undefined>
   >({});
-  const backgroundWorkStop =
-    backgroundWorkStops[`${environmentId}:${activeThreadId}`] ?? null;
+  const backgroundWorkStop = backgroundWorkStops[`${environmentId}:${activeThreadId}`] ?? null;
   const isStoppingBackgroundWork = isBackgroundWorkStopPending(
     backgroundWorkStop,
     `${environmentId}:${activeThreadId}`,
@@ -552,17 +482,13 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
         const error = squashAtomCommandFailure(result);
         setThreadError(
           activeThread.id,
-          error instanceof Error
-            ? error.message
-            : "Failed to stop background work.",
+          error instanceof Error ? error.message : "Failed to stop background work.",
           error instanceof Error ? undefined : "stopBackgroundFailed",
         );
       }
     }
   };
-  const handleStopBackgroundWorkStable = useStableCallback(
-    handleStopBackgroundWork,
-  );
+  const handleStopBackgroundWorkStable = useStableCallback(handleStopBackgroundWork);
   const openRelatedThreadGenerationRef = useRef(0);
   // A task delegated to a linked environment opens there; the default is this thread's own.
   const onOpenRelatedThread = async (
@@ -572,20 +498,14 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
     const generation = ++openRelatedThreadGenerationRef.current;
     const threadRef = scopeThreadRef(threadEnvironmentId, threadId);
     const isEnvironmentLive = () =>
-      appAtomRegistry.get(environmentShell.stateValueAtom(threadEnvironmentId))
-        .status === "live";
+      appAtomRegistry.get(environmentShell.stateValueAtom(threadEnvironmentId)).status === "live";
     // The shell can leave idle subagent children out, so absence is not deletion there: the
     // route decides from the thread's own detail.
     const shellOmitsChildren =
-      appAtomRegistry.get(
-        serverEnvironment.configValueAtom(threadEnvironmentId),
-      )?.shellThreadFamilies === true;
+      appAtomRegistry.get(serverEnvironment.configValueAtom(threadEnvironmentId))
+        ?.shellThreadFamilies === true;
     // A just-launched child can reach this timeline before its shell syncs.
-    if (
-      !shellOmitsChildren &&
-      isEnvironmentLive() &&
-      readThreadShell(threadRef) === null
-    ) {
+    if (!shellOmitsChildren && isEnvironmentLive() && readThreadShell(threadRef) === null) {
       const location = router.latestLocation;
       await waitForThreadShell(threadRef, RELATED_THREAD_SHELL_WAIT_MS);
       if (
@@ -597,11 +517,7 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
       }
     }
     const shell = readThreadShell(threadRef);
-    if (
-      shell === null
-        ? !shellOmitsChildren && isEnvironmentLive()
-        : shell.deletedAt != null
-    ) {
+    if (shell === null ? !shellOmitsChildren && isEnvironmentLive() : shell.deletedAt != null) {
       toastManager.add({
         type: "info",
         title: readWebI18n().t("audit6.threadGone"),
@@ -621,9 +537,7 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
     locale: uiLocale,
     childThreadInputs,
     parentAwaitingUser: Boolean(
-      activePendingApproval ||
-      activePendingUserInput ||
-      activeThreadShell?.hasPendingUserInput,
+      activePendingApproval || activePendingUserInput || activeThreadShell?.hasPendingUserInput,
     ),
     onOpenThread: onOpenRelatedThreadStable,
   });
@@ -633,8 +547,7 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
     failureMessage: string,
     ownedCode?: Parameters<ReturnType<typeof makeThreadErrorSetter>>[2],
   ) => {
-    if (!activeThread || !clientSettingsHydrated || sendInFlightRef.current)
-      return;
+    if (!activeThread || !clientSettingsHydrated || sendInFlightRef.current) return;
     const context = composerRef.current?.getSendContext();
     if (!context?.providerAvailable) return;
 
@@ -661,9 +574,7 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
     const settingsResult = await persistThreadSettingsForNextTurn({
       threadId,
       createdAt,
-      ...(localCheckoutBranchMismatch
-        ? { branch: localCheckoutBranchMismatch.currentBranch }
-        : {}),
+      ...(localCheckoutBranchMismatch ? { branch: localCheckoutBranchMismatch.currentBranch } : {}),
       runtimeMode,
       interactionMode: DEFAULT_INTERACTION_MODE,
     });
@@ -714,15 +625,10 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
 
   const forceStop = useForceStopThread(environmentId);
   const anyRunStop = useAtomValue(
-    threadDetailRef
-      ? environmentThreadDetails.runStopAtom(threadDetailRef)
-      : NO_RUN_STOP_ATOM,
+    threadDetailRef ? environmentThreadDetails.runStopAtom(threadDetailRef) : NO_RUN_STOP_ATOM,
   );
   // A background Stop matters only while that work is still pending.
-  const runStop =
-    anyRunStop?.background && activeBackgroundTasks.length === 0
-      ? null
-      : anyRunStop;
+  const runStop = anyRunStop?.background && activeBackgroundTasks.length === 0 ? null : anyRunStop;
   const runStopNow =
     activeThread && runStop !== null
       ? runStopNowItem({
@@ -730,8 +636,7 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
           stop: runStop,
           canForceStop: forceStop.canForceStop,
           forceStopping: forceStop.stoppingThreadId === activeThread.id,
-          onForceStop: () =>
-            void forceStop.forceStopThread(activeThread.id, runStop.runId),
+          onForceStop: () => void forceStop.forceStopThread(activeThread.id, runStop.runId),
         })
       : null;
   const backgroundWorkNow = activeThread
@@ -742,8 +647,7 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
         tasks: activeBackgroundTasks,
         turnItems,
         // Interrupt stops the active run first, not this work; the composer owns that Stop.
-        stopDisabled:
-          runIsLive || !canOperateThread || isStoppingBackgroundWork,
+        stopDisabled: runIsLive || !canOperateThread || isStoppingBackgroundWork,
         stopping: isStoppingBackgroundWork,
         onStop: handleStopBackgroundWorkStable,
         onOpenThread: onOpenRelatedThreadStable,
@@ -780,11 +684,7 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
             : t("sidebar.snoozedTitle")
         }
         clockMinute={nowMinute}
-        actionLabel={
-          isUnsnoozing
-            ? t("composer.banner.waking")
-            : t("composer.banner.wakeNow")
-        }
+        actionLabel={isUnsnoozing ? t("composer.banner.waking") : t("composer.banner.wakeNow")}
         actionDisabled={!canOperateThread || isUnsnoozing}
         onAction={() => void handleUnsnoozeActiveThreadStable()}
       />
@@ -798,11 +698,7 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
           : t("sidebar.settledTitle")
       }
       clockMinute={nowMinute}
-      actionLabel={
-        isUnsettling
-          ? t("composer.banner.unsettling")
-          : t("composer.banner.unsettle")
-      }
+      actionLabel={isUnsettling ? t("composer.banner.unsettling") : t("composer.banner.unsettle")}
       actionDisabled={!canOperateThread || isUnsettling}
       onAction={() => void handleUnsettleActiveThreadStable()}
     />
@@ -822,27 +718,20 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
         stackedThreadToast({
           type: "error",
           title,
-          description: formatThreadActionError(
-            error,
-            uiLocale,
-            readWebI18n().t("common.error"),
-          ),
+          description: formatThreadActionError(error, uiLocale, readWebI18n().t("common.error")),
         }),
       );
     };
   const shortcuts = {
     "thread.settle": () => {
-      if (!readEnvironmentScope(environmentId, AuthOrchestrationOperateScope))
-        return false;
+      if (!readEnvironmentScope(environmentId, AuthOrchestrationOperateScope)) return false;
       if (!activeThreadShell || !activeThreadRef || !serverConfigLoaded) return;
       if (activeThreadSettled) {
         void handleUnsettleActiveThread();
         return;
       }
       if (settleAndAdvance(activeThreadRef)) return;
-      void settleThread(activeThreadRef).then(
-        toastThreadActionFailure("Failed to settle thread"),
-      );
+      void settleThread(activeThreadRef).then(toastThreadActionFailure("Failed to settle thread"));
     },
     "thread.pin": ({ event }) => {
       // An open project list pins its highlighted project with this key instead.
@@ -852,24 +741,18 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
       ) {
         return false;
       }
-      if (!readEnvironmentScope(environmentId, AuthOrchestrationOperateScope))
-        return false;
+      if (!readEnvironmentScope(environmentId, AuthOrchestrationOperateScope)) return false;
       if (!activeThreadShell || !activeThreadRef || !serverConfigLoaded) return;
       void (
-        activeThreadPinned
-          ? confirmAndUnpinThread(activeThreadRef)
-          : pinThread(activeThreadRef)
+        activeThreadPinned ? confirmAndUnpinThread(activeThreadRef) : pinThread(activeThreadRef)
       ).then(
         toastThreadActionFailure(
-          activeThreadPinned
-            ? "Failed to unpin thread"
-            : t("sidebar.pinFailed"),
+          activeThreadPinned ? "Failed to unpin thread" : t("sidebar.pinFailed"),
         ),
       );
     },
     "thread.regenerateTitle": () => {
-      if (!readEnvironmentScope(environmentId, AuthOrchestrationOperateScope))
-        return false;
+      if (!readEnvironmentScope(environmentId, AuthOrchestrationOperateScope)) return false;
       if (!activeThreadShell || !activeThreadRef || !serverConfigLoaded) return;
       if (activeThreadShell.titleRegeneration != null) return;
       void regenerateThreadTitle({
@@ -886,8 +769,7 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
     acknowledgeActiveThreadWoke,
     activeBranchMismatchKey,
     // A Stop that went unanswered needs the user; one in progress is the thread's work.
-    attentionNow:
-      runStop?.state === "unresponsive" ? runStopNow : childInputNow,
+    attentionNow: runStop?.state === "unresponsive" ? runStopNow : childInputNow,
     workNow: runStop?.state === "stopping" ? runStopNow : backgroundWorkNow,
     childInputNow,
     goalNow,

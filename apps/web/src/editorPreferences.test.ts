@@ -92,18 +92,13 @@ it("retains local precondition identity and parameters while leaving same-text u
     const english = error.message;
     expect(editorFailureMessage(error, "en")).toBe(english);
     expect(editorFailureMessage(error, "zh-CN")).not.toBe(english);
-    if ("targetPath" in error)
-      expect(editorFailureMessage(error, "zh-CN")).toContain(path);
+    if ("targetPath" in error) expect(editorFailureMessage(error, "zh-CN")).toContain(path);
     expect(error.message).toBe(english);
     expect(editorFailureMessage(new Error(english), "zh-CN")).toBe(english);
-    expect(
-      editorFailureMessage({ ...error, message: english }, "zh-CN"),
-    ).toBeUndefined();
+    expect(editorFailureMessage({ ...error, message: english }, "zh-CN")).toBeUndefined();
   }
   expect(state.run).not.toHaveBeenCalled();
-  const raw = new Error(
-    "This connection cannot open an editor on this environment.",
-  );
+  const raw = new Error("This connection cannot open an editor on this environment.");
   state.run.mockResolvedValueOnce(AsyncResult.failure(Cause.fail(raw)));
   const result = await useOpenInPreferredEditor(primary, ["vscode"])(path);
   assert(result._tag === "Failure");
@@ -114,14 +109,11 @@ it.each(["read", "write"] as const)(
   "opens an available editor when its preference %s fails",
   async (operation) => {
     state.allowed.add(secondary);
-    const preference =
-      operation === "read" ? state.getPreference : state.setPreference;
+    const preference = operation === "read" ? state.getPreference : state.setPreference;
     preference.mockImplementationOnce(() => {
       throw new Error("Preference storage unavailable");
     });
-    using _warnings = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
+    using _warnings = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const open = useOpenInPreferredEditor(secondary, ["vscode"]);
     await expect(open("/work/readme.md:5")).resolves.toMatchObject({
       _tag: "Success",
@@ -142,11 +134,7 @@ it.each([
     { line: 5 },
   ],
   ["file:///work/report.txt:12", "/work/report.txt:12", {}],
-  [
-    "file:///work/report.txt:12#L5C3",
-    "/work/report.txt:12",
-    { line: 5, column: 3 },
-  ],
+  ["file:///work/report.txt:12#L5C3", "/work/report.txt:12", { line: 5, column: 3 }],
 ])(
   "sends a plain exact path for %s to compatible and older servers",
   async (uri, cwd, position) => {

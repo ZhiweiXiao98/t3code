@@ -1,9 +1,4 @@
-import {
-  EnvironmentId,
-  MessageId,
-  ThreadId,
-  TurnItemId,
-} from "@t3tools/contracts";
+import { EnvironmentId, MessageId, ThreadId, TurnItemId } from "@t3tools/contracts";
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import { threadContextRecord } from "@t3tools/shared/composerContextReferences";
 import { beforeEach, describe, expect, it } from "vite-plus/test";
@@ -19,20 +14,11 @@ import {
   prepareQueuedEditAttachments,
   recoverQueuedMessageEdit,
 } from "./queuedMessageEdit";
-import {
-  readAttachmentUpload,
-  useAttachmentUploadStore,
-} from "../../lib/attachmentUploadQueue";
-import {
-  environmentContextRecord,
-  responseContextRecord,
-} from "../../lib/composerContextRecords";
+import { readAttachmentUpload, useAttachmentUploadStore } from "../../lib/attachmentUploadQueue";
+import { environmentContextRecord, responseContextRecord } from "../../lib/composerContextRecords";
 
 const environmentId = EnvironmentId.make("remote-environment");
-const threadTarget = scopeThreadRef(
-  environmentId,
-  ThreadId.make("thread:edit"),
-);
+const threadTarget = scopeThreadRef(environmentId, ThreadId.make("thread:edit"));
 const editTarget = DraftId.make("queued-edit:test");
 const file: ComposerFileAttachment = {
   type: "file",
@@ -99,9 +85,7 @@ describe("queued message file edits", () => {
     if (!(error instanceof Error)) throw new Error("Expected missing upload");
     expect(error.message).toBe("Retry or remove failed uploads before saving.");
     expect(isOwnedQueuedEditUploadFailure(error)).toBe(true);
-    expect(isOwnedQueuedEditUploadFailure(new Error(error.message))).toBe(
-      false,
-    );
+    expect(isOwnedQueuedEditUploadFailure(new Error(error.message))).toBe(false);
     expect(
       isOwnedQueuedEditUploadFailure(
         Object.assign(new Error(error.message), {
@@ -141,19 +125,10 @@ describe("queued message file edits", () => {
         originalText: "Original message",
       }),
     ).toBe("kept");
-    expect(store.getComposerDraft(threadTarget)?.prompt).toBe(
-      "Original message",
-    );
+    expect(store.getComposerDraft(threadTarget)?.prompt).toBe("Original message");
     // An upload this environment cannot reach comes back as a file to reattach, not a dropped chip.
-    const {
-      uploadedAttachmentId: _id,
-      uploadEnvironmentId: _env,
-      ...reattach
-    } = elsewhere;
-    expect(store.getComposerDraft(threadTarget)?.files).toEqual([
-      file,
-      reattach,
-    ]);
+    const { uploadedAttachmentId: _id, uploadEnvironmentId: _env, ...reattach } = elsewhere;
+    expect(store.getComposerDraft(threadTarget)?.files).toEqual([file, reattach]);
     expect(store.getComposerDraft(editTarget)).toBeNull();
   });
 
@@ -164,10 +139,7 @@ describe("queued message file edits", () => {
       scopeThreadRef(environmentId, ThreadId.make("thread:other")),
       "Other",
     );
-    const machine = environmentContextRecord(
-      EnvironmentId.make("environment-vps"),
-      "vps",
-    );
+    const machine = environmentContextRecord(EnvironmentId.make("environment-vps"), "vps");
     const reply = responseContextRecord({
       citation: {
         version: 1,
@@ -214,9 +186,7 @@ describe("queued message file edits", () => {
         removedExistingAttachment: true,
       }),
     ).toBe("kept");
-    expect(store.getComposerDraft(threadTarget)?.prompt).toBe(
-      "Original message",
-    );
+    expect(store.getComposerDraft(threadTarget)?.prompt).toBe("Original message");
     store.clearComposerContent(threadTarget);
     // An attachment-only message leaves nothing to put back in the composer.
     expect(
@@ -243,9 +213,9 @@ describe("queued message file edits", () => {
         },
       },
     });
-    expect(
-      recoverQueuedMessageEdit({ editTarget, threadTarget, originalText: "" }),
-    ).toBe("discarded");
+    expect(recoverQueuedMessageEdit({ editTarget, threadTarget, originalText: "" })).toBe(
+      "discarded",
+    );
     expect(store.getComposerDraft(threadTarget)?.prompt).toBe("Separate draft");
     expect(store.getComposerDraft(editTarget)).toBeNull();
     expect(readAttachmentUpload(file.id)).toBeUndefined();

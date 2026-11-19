@@ -30,11 +30,8 @@ export function ThreadContextChip(props: {
   );
   const metadata = lookup.data?.[threadId];
   const projectId = shell?.projectId ?? props.projectId ?? metadata?.projectId;
-  const project = useProject(
-    projectId ? scopeProjectRef(environmentId, projectId) : null,
-  );
-  const title =
-    shell?.title?.trim() || metadata?.title.trim() || props.record.title;
+  const project = useProject(projectId ? scopeProjectRef(environmentId, projectId) : null);
+  const title = shell?.title?.trim() || metadata?.title.trim() || props.record.title;
   return (
     <Tooltip>
       <TooltipTrigger
@@ -54,10 +51,7 @@ export function ThreadContextChip(props: {
             className="no-underline"
           >
             {project ? (
-              <ProjectFavicon
-                project={project}
-                className="size-[1em] self-center"
-              />
+              <ProjectFavicon project={project} className="size-[1em] self-center" />
             ) : (
               <MessagesSquareIcon />
             )}
@@ -66,9 +60,7 @@ export function ThreadContextChip(props: {
         }
       />
       <TooltipPopup side="top">
-        {props.unreadable
-          ? t("audit4.threadElsewhere")
-          : t("audit4.openThread")}
+        {props.unreadable ? t("audit4.threadElsewhere") : t("audit4.openThread")}
       </TooltipPopup>
     </Tooltip>
   );

@@ -123,12 +123,15 @@ function subscriptionUsageProps(
                 ...(window.labelDescriptor ? { labelDescriptor: window.labelDescriptor } : {}),
                 remaining: Math.round(window.remainingPercent),
                 reset: window.resets[0]
-                  ? `${isUpcoming(window.resets[0]) ? "Next reset" : "Reset"} ${mobileDisplayDate(new Date(window.resets[0].at), {
-                      month: "short",
-                      day: "numeric",
-                      hour: "numeric",
-                      minute: "2-digit",
-                    })}`
+                  ? `${isUpcoming(window.resets[0]) ? "Next reset" : "Reset"} ${mobileDisplayDate(
+                      new Date(window.resets[0].at),
+                      {
+                        month: "short",
+                        day: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      },
+                    )}`
                   : "Reset time unavailable",
               }))
             : [],

@@ -225,6 +225,7 @@ describe("bounded binary previews", () => {
       expect(await request({ type: "entry", path: "replaced.txt" })).toEqual({
         type: "error",
         message: "This archive entry is unavailable.",
+        source: "This archive entry is unavailable.",
       });
     } finally {
       worker.terminate();
@@ -1508,7 +1509,7 @@ it("toggles a Mermaid attachment between diagram and source through the lazy pre
     expect(image?.alt).toBe("Mermaid diagram");
     expect(image?.naturalWidth).toBeGreaterThan(0);
   });
-  await page.getByRole("button", { name: "Back, close image preview" }).click();
+  await page.getByRole("button", { name: "Close image preview" }).click();
   await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).toBeNull());
   await screen.getByRole("button", { name: "Show Mermaid source" }).click();
   await vi.waitFor(() => expect(screen.container.querySelector("pre")?.textContent).toBe(text));

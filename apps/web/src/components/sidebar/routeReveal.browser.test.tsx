@@ -205,7 +205,7 @@ describe("useActiveRowReveal", () => {
       { router: false },
     );
 
-    await userEvent.click(screen.getByRole("button", { name: "Toggle Sidebar" }));
+    await userEvent.click(screen.getByRole("button", { name: "Toggle main sidebar" }));
 
     await expect.element(page.getByText("thread-40", { exact: true })).toBeInViewport();
   });

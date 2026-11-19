@@ -1,14 +1,7 @@
 import { readWebI18n } from "~/i18n/readWebI18n";
 import { useI18n, type WebTranslate } from "~/i18n/WebI18nContext";
 import { BookmarkIcon, FileIcon, FileTextIcon } from "lucide-react";
-import {
-  memo,
-  useEffect,
-  useEffectEvent,
-  useRef,
-  useState,
-  type RefObject,
-} from "react";
+import { memo, useEffect, useEffectEvent, useRef, useState, type RefObject } from "react";
 import { assistantCitationsToPlainText } from "@t3tools/shared/assistantCitations";
 import { replaceComposerContextReferences } from "@t3tools/shared/composerContextReferences";
 
@@ -20,9 +13,7 @@ import { ComposerBanner } from "./ComposerBanner";
 const SNIPPET_MAX_CHARS = 90;
 
 function missingImageCount(entry: PromptStashEntry): number {
-  return (
-    entry.droppedImageNames.length + (entry.unreadableImageNames?.length ?? 0)
-  );
+  return entry.droppedImageNames.length + (entry.unreadableImageNames?.length ?? 0);
 }
 
 export function stashEntrySnippet(
@@ -30,10 +21,7 @@ export function stashEntrySnippet(
   residualT: WebTranslate = readWebI18n().t,
 ): string {
   const trimmed = assistantCitationsToPlainText(
-    replaceComposerContextReferences(
-      entry.prompt,
-      (reference) => reference.label,
-    ),
+    replaceComposerContextReferences(entry.prompt, (reference) => reference.label),
   )
     .trim()
     .replace(/\s+/g, " ");
@@ -41,10 +29,7 @@ export function stashEntrySnippet(
     if (trimmed.length <= SNIPPET_MAX_CHARS) return trimmed;
     // Never end on a lone high surrogate, the first half of an emoji.
     const last = trimmed.charCodeAt(SNIPPET_MAX_CHARS - 1);
-    const end =
-      last >= 0xd800 && last <= 0xdbff
-        ? SNIPPET_MAX_CHARS - 1
-        : SNIPPET_MAX_CHARS;
+    const end = last >= 0xd800 && last <= 0xdbff ? SNIPPET_MAX_CHARS - 1 : SNIPPET_MAX_CHARS;
     return `${trimmed.slice(0, end)}…`;
   }
   const imageCount = entry.attachments.length + entry.droppedImageNames.length;
@@ -53,12 +38,7 @@ export function stashEntrySnippet(
   if (attachmentCount === 0) {
     return residualT("chatResidual.emptyStash");
   }
-  const label =
-    imageCount > 0 && fileCount > 0
-      ? "attachment"
-      : fileCount > 0
-        ? "file"
-        : "image";
+  const label = imageCount > 0 && fileCount > 0 ? "attachment" : fileCount > 0 ? "file" : "image";
   return residualT(
     label === "attachment"
       ? attachmentCount === 1
@@ -85,20 +65,10 @@ export const ComposerStashMenu = memo(function ComposerStashMenu(props: {
   onClose: () => void;
 }) {
   const { t: residualT } = useI18n();
-  const {
-    entries,
-    stashShortcutLabel,
-    composerFormRef,
-    onRestore,
-    onDelete,
-    onClose,
-  } = props;
-  const [highlightedId, setHighlightedId] = useState<string | null>(
-    entries[0]?.id ?? null,
-  );
+  const { entries, stashShortcutLabel, composerFormRef, onRestore, onDelete, onClose } = props;
+  const [highlightedId, setHighlightedId] = useState<string | null>(entries[0]?.id ?? null);
 
-  const highlightedEntry =
-    entries.find((entry) => entry.id === highlightedId) ?? entries[0];
+  const highlightedEntry = entries.find((entry) => entry.id === highlightedId) ?? entries[0];
   const drawerRef = useRef<HTMLDivElement>(null);
 
   // Both listeners read entries, highlight and callbacks at event time, so they subscribe
@@ -107,8 +77,7 @@ export const ComposerStashMenu = memo(function ComposerStashMenu(props: {
     const drawer = drawerRef.current;
     if (
       (drawer && event.composedPath().includes(drawer)) ||
-      (event.target instanceof Element &&
-        event.target.closest('[data-prompt-stash-badge="true"]'))
+      (event.target instanceof Element && event.target.closest('[data-prompt-stash-badge="true"]'))
     ) {
       return;
     }
@@ -122,14 +91,9 @@ export const ComposerStashMenu = memo(function ComposerStashMenu(props: {
     if (
       !(target instanceof Node) ||
       (target !== document.body &&
-        !(
-          target instanceof Element &&
-          target.closest('[data-prompt-stash-badge="true"]')
-        ) &&
+        !(target instanceof Element && target.closest('[data-prompt-stash-badge="true"]')) &&
         !drawer.contains(target) &&
-        !composerFormRef.current
-          ?.querySelector('textarea, [role="textbox"]')
-          ?.contains(target))
+        !composerFormRef.current?.querySelector('textarea, [role="textbox"]')?.contains(target))
     ) {
       return;
     }
@@ -143,18 +107,13 @@ export const ComposerStashMenu = memo(function ComposerStashMenu(props: {
       if (entries.length === 0) return;
       event.preventDefault();
       event.stopPropagation();
-      const currentIndex = entries.findIndex(
-        (entry) => entry.id === highlightedEntry?.id,
-      );
+      const currentIndex = entries.findIndex((entry) => entry.id === highlightedEntry?.id);
       const offset = event.key === "ArrowDown" ? 1 : -1;
-      const normalizedIndex =
-        currentIndex >= 0 ? currentIndex : offset === 1 ? -1 : 0;
-      const nextIndex =
-        (normalizedIndex + offset + entries.length) % entries.length;
+      const normalizedIndex = currentIndex >= 0 ? currentIndex : offset === 1 ? -1 : 0;
+      const nextIndex = (normalizedIndex + offset + entries.length) % entries.length;
       setHighlightedId(entries[nextIndex]?.id ?? null);
-      const nextButton = drawer.querySelectorAll<HTMLButtonElement>(
-        "[data-stash-restore]",
-      )[nextIndex];
+      const nextButton =
+        drawer.querySelectorAll<HTMLButtonElement>("[data-stash-restore]")[nextIndex];
       nextButton?.scrollIntoView({ block: "nearest" });
       if (drawer.contains(document.activeElement)) {
         nextButton?.focus({ preventScroll: true });
@@ -163,10 +122,7 @@ export const ComposerStashMenu = memo(function ComposerStashMenu(props: {
     }
     if (event.key === "Enter") {
       // Let the delete button handle Enter instead of restoring its row.
-      if (
-        event.target instanceof HTMLElement &&
-        event.target.closest("button[aria-label]")
-      ) {
+      if (event.target instanceof HTMLElement && event.target.closest("button[aria-label]")) {
         return;
       }
       if (!highlightedEntry) return;
@@ -242,13 +198,10 @@ export const ComposerStashMenu = memo(function ComposerStashMenu(props: {
                 render={<li />}
                 key={entry.id}
                 data-stash-entry={entry.id}
-                data-highlighted={
-                  highlightedEntry?.id === entry.id || undefined
-                }
+                data-highlighted={highlightedEntry?.id === entry.id || undefined}
                 className={cn(
                   "relative rounded-sm",
-                  highlightedEntry?.id === entry.id &&
-                    "bg-accent text-accent-foreground",
+                  highlightedEntry?.id === entry.id && "bg-accent text-accent-foreground",
                 )}
                 onMouseMove={() => {
                   if (highlightedId !== entry.id) setHighlightedId(entry.id);

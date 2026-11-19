@@ -54,16 +54,9 @@ import { appAtomRegistry } from "../rpc/atomRegistry";
 import { environmentThreadDetails } from "../state/threads";
 
 import type { Thread } from "../types";
-import {
-  DraftId,
-  hydrateImagesFromPersisted,
-  useComposerDraftStore,
-} from "../composerDraftStore";
+import { DraftId, hydrateImagesFromPersisted, useComposerDraftStore } from "../composerDraftStore";
 import { derivePhase } from "../session-logic";
-import {
-  makeThreadFixture,
-  makeThreadProjectionFixture,
-} from "../test-fixtures";
+import { makeThreadFixture, makeThreadProjectionFixture } from "../test-fixtures";
 import {
   getAntigravitySendBlockReason,
   resolveComposerProviderSelection,
@@ -170,9 +163,7 @@ describe("isThreadEnvironmentLocked", () => {
         messageCount: 0,
         hasRuntime: false,
         activeProviderThreadId:
-          providerThread === null
-            ? null
-            : ProviderThreadId.make(providerThread),
+          providerThread === null ? null : ProviderThreadId.make(providerThread),
       }),
     ).toBe(expected);
   });
@@ -252,37 +243,34 @@ describe("hasServerAcknowledgedLocalDispatch", () => {
     ["queued", "message-before-send", false],
     ["preparing", "message-queued", false],
     ["starting", "message-queued", false],
-  ] as const)(
-    "acknowledges %s with latest message %s: %s",
-    (status, messageId, acknowledged) => {
-      const localDispatch = createLocalDispatchSnapshot(
-        makeThread({ latestRun: completedTurn, runtime: readySession }),
-        { latestUserMessageId: MessageId.make("message-before-send") },
-      );
-      // The shell hides the silent compaction run, so its runtime reports the queued message's run.
-      const queuedRun = {
-        ...completedTurn,
-        runId: RunId.make("turn-queued"),
-        status: "queued" as const,
-        requestedAt: "2026-03-29T00:01:00.000Z",
-        startedAt: null,
-        completedAt: null,
-      };
+  ] as const)("acknowledges %s with latest message %s: %s", (status, messageId, acknowledged) => {
+    const localDispatch = createLocalDispatchSnapshot(
+      makeThread({ latestRun: completedTurn, runtime: readySession }),
+      { latestUserMessageId: MessageId.make("message-before-send") },
+    );
+    // The shell hides the silent compaction run, so its runtime reports the queued message's run.
+    const queuedRun = {
+      ...completedTurn,
+      runId: RunId.make("turn-queued"),
+      status: "queued" as const,
+      requestedAt: "2026-03-29T00:01:00.000Z",
+      startedAt: null,
+      completedAt: null,
+    };
 
-      expect(
-        hasServerAcknowledgedLocalDispatch({
-          localDispatch,
-          phase: "running",
-          latestRun: queuedRun,
-          latestUserMessageId: MessageId.make(messageId),
-          runtime: { ...readySession, status },
-          hasPendingApproval: false,
-          hasPendingUserInput: false,
-          threadError: null,
-        }),
-      ).toBe(acknowledged);
-    },
-  );
+    expect(
+      hasServerAcknowledgedLocalDispatch({
+        localDispatch,
+        phase: "running",
+        latestRun: queuedRun,
+        latestUserMessageId: MessageId.make(messageId),
+        runtime: { ...readySession, status },
+        hasPendingApproval: false,
+        hasPendingUserInput: false,
+        threadError: null,
+      }),
+    ).toBe(acknowledged);
+  });
 
   it("waits for the matching running turn before acknowledging", () => {
     const localDispatch = createLocalDispatchSnapshot(
@@ -553,10 +541,7 @@ describe("resolveThreadSwitchTimeline", () => {
       threadKey: "env-1:thread-b",
       entries: ["b1", "b2"],
     });
-    expect(peekRememberedThreadTimeline<string[]>("env-1:thread-a")).toEqual([
-      "a1",
-      "a2",
-    ]);
+    expect(peekRememberedThreadTimeline<string[]>("env-1:thread-a")).toEqual(["a1", "a2"]);
     expect(
       resolveThreadSwitchTimeline({
         loading: true,
@@ -643,11 +628,7 @@ describe("resolveComposerProviderSelection", () => {
     },
   ];
 
-  function entry(
-    driver: string,
-    instanceId = driver,
-    overrides: Partial<ServerProvider> = {},
-  ) {
+  function entry(driver: string, instanceId = driver, overrides: Partial<ServerProvider> = {}) {
     return deriveProviderInstanceEntries([
       {
         driver: ProviderDriverKind.make(driver),
@@ -677,34 +658,28 @@ describe("resolveComposerProviderSelection", () => {
     ["claudeAgent", "claude_work"],
     ["codex", "codex_work"],
     ["ollama", "local_models"],
-  ])(
-    "keeps imported %s history selectable through its custom instance",
-    (driver, instanceId) => {
-      const importedEntry = entry(driver, instanceId);
-      const entries = [
-        entry(driver === "codex" ? "claudeAgent" : "codex"),
-        importedEntry,
-      ];
-      const thread = importedThread(importedEntry.instanceId);
-      const lockedProvider = deriveLockedProvider({
-        thread,
-        selectedProvider: entries[0]!.instanceId,
-        threadProvider: thread.modelSelection.instanceId,
-        providers: entries.map((entry) => entry.snapshot),
-      });
+  ])("keeps imported %s history selectable through its custom instance", (driver, instanceId) => {
+    const importedEntry = entry(driver, instanceId);
+    const entries = [entry(driver === "codex" ? "claudeAgent" : "codex"), importedEntry];
+    const thread = importedThread(importedEntry.instanceId);
+    const lockedProvider = deriveLockedProvider({
+      thread,
+      selectedProvider: entries[0]!.instanceId,
+      threadProvider: thread.modelSelection.instanceId,
+      providers: entries.map((entry) => entry.snapshot),
+    });
 
-      expect(thread.runtime).toBeNull();
-      expect(lockedProvider).toBe(driver);
-      expect(
-        resolveComposerProviderSelection({
-          entries,
-          candidateInstanceIds: [thread.modelSelection.instanceId],
-          lockedProvider,
-          lockedInstanceId: thread.modelSelection.instanceId,
-        }).selectedProviderEntry?.instanceId,
-      ).toBe(importedEntry.instanceId);
-    },
-  );
+    expect(thread.runtime).toBeNull();
+    expect(lockedProvider).toBe(driver);
+    expect(
+      resolveComposerProviderSelection({
+        entries,
+        candidateInstanceIds: [thread.modelSelection.instanceId],
+        lockedProvider,
+        lockedInstanceId: thread.modelSelection.instanceId,
+      }).selectedProviderEntry?.instanceId,
+    ).toBe(importedEntry.instanceId);
+  });
 
   it("keeps the session driver authoritative over instance and draft selections", () => {
     const selected = entry("claudeAgent", "claude_work");
@@ -767,14 +742,9 @@ describe("resolveComposerProviderSelection", () => {
       lockedInstanceId: null,
     });
 
-    expect(selection.selectedProviderEntry?.instanceId).toBe(
-      signedOutEntry.instanceId,
-    );
+    expect(selection.selectedProviderEntry?.instanceId).toBe(signedOutEntry.instanceId);
     expect(
-      getAntigravitySendBlockReason(
-        selection.selectedProviderEntry?.snapshot,
-        "gemini-pro",
-      ),
+      getAntigravitySendBlockReason(selection.selectedProviderEntry?.snapshot, "gemini-pro"),
     ).toBe("Sign in to Antigravity in provider settings before sending.");
   });
 
@@ -784,12 +754,7 @@ describe("resolveComposerProviderSelection", () => {
       models: catalogModels,
     }).snapshot;
 
-    expect(
-      getAntigravitySendBlockReason(
-        provider,
-        "saved-model-not-in-current-catalog",
-      ),
-    ).toBe(
+    expect(getAntigravitySendBlockReason(provider, "saved-model-not-in-current-catalog")).toBe(
       "That Antigravity model is no longer available. Choose another model.",
     );
     expect(getAntigravitySendBlockReason(provider, "gemini-pro")).toBeNull();
@@ -802,10 +767,7 @@ describe("resolveComposerProviderSelection", () => {
     }).snapshot;
 
     expect(
-      getAntigravitySendBlockReason(
-        provider,
-        "saved-model-not-in-current-catalog",
-      ),
+      getAntigravitySendBlockReason(provider, "saved-model-not-in-current-catalog"),
     ).toBeNull();
   });
 
@@ -844,9 +806,7 @@ describe("resolveComposerProviderSelection", () => {
 describe("checkout Git memory", () => {
   it("does not confuse an environment id containing the separator with a path", () => {
     rememberCheckoutIsRepo(EnvironmentId.make("env"), "a:b", false);
-    expect(
-      recallCheckoutIsRepo(EnvironmentId.make("env:a"), "b"),
-    ).toBeUndefined();
+    expect(recallCheckoutIsRepo(EnvironmentId.make("env:a"), "b")).toBeUndefined();
   });
 });
 
@@ -880,19 +840,12 @@ describe("worktree setup visibility", () => {
     ...base,
     phase: "done" as const,
     endedAt: now,
-    stages: [
-      stage("checkout", "done"),
-      stage("setup-script", "done"),
-      stage("agent", "done"),
-    ],
+    stages: [stage("checkout", "done"), stage("setup-script", "done"), stage("agent", "done")],
   };
 
   it("uses streamed setup progress immediately without reverting to an older held snapshot", () => {
     const newest = { ...settledDone, sequence: 9 };
-    const resolve = (
-      latest: WorktreeSetupSnapshot | null,
-      held: WorktreeSetupSnapshot | null,
-    ) =>
+    const resolve = (latest: WorktreeSetupSnapshot | null, held: WorktreeSetupSnapshot | null) =>
       resolveWorktreeSetupProgress({
         threadId,
         localPreparing: false,
@@ -982,9 +935,7 @@ describe("waitForRevertedMessage", () => {
       ],
     } as unknown as ReturnType<typeof makeThreadProjectionFixture>;
     const state = Atom.make({ data: Option.some(projection) });
-    vi.spyOn(environmentThreadDetails, "stateAtom").mockReturnValue(
-      state as never,
-    );
+    vi.spyOn(environmentThreadDetails, "stateAtom").mockReturnValue(state as never);
     return { state, projection };
   }
 
@@ -1019,9 +970,7 @@ describe("waitForRevertedMessage", () => {
         error: english,
         ownedCode: "rewindChanged",
       });
-      expect(
-        readOwnedRewindFailure(new Error(failure.message)),
-      ).toBeUndefined();
+      expect(readOwnedRewindFailure(new Error(failure.message))).toBeUndefined();
       expect(
         readOwnedRewindFailure(
           Object.assign(new Error(failure.message), {
@@ -1040,14 +989,7 @@ describe("waitForRevertedMessage", () => {
     projectionAtom();
     let locale: "en" | "zh-CN" = "en";
     const revert = vi.fn(async () => {});
-    const waiting = waitForRevertedMessage(
-      threadRef,
-      1,
-      requestId,
-      revert,
-      50,
-      () => locale,
-    ).then(
+    const waiting = waitForRevertedMessage(threadRef, 1, requestId, revert, 50, () => locale).then(
       () => "unexpected success",
       (error: unknown) => error,
     );
@@ -1058,17 +1000,14 @@ describe("waitForRevertedMessage", () => {
       await vi.advanceTimersByTimeAsync(50);
       const failure = await waiting;
       expect(failure).toBeInstanceOf(Error);
-      if (!(failure instanceof Error))
-        throw new Error("Expected timeout error");
+      if (!(failure instanceof Error)) throw new Error("Expected timeout error");
       expect(failure.message).toBe("等待会话回退超时。");
       const { readOwnedRewindFailure } = await import("./ChatView.logic");
       expect(readOwnedRewindFailure(failure)).toEqual({
         error: "Timed out waiting for the thread to rewind.",
         ownedCode: "rewindTimeout",
       });
-      expect(
-        readOwnedRewindFailure(new Error(failure.message)),
-      ).toBeUndefined();
+      expect(readOwnedRewindFailure(new Error(failure.message))).toBeUndefined();
       failure.message = "mutated";
       expect(readOwnedRewindFailure(failure)).toBeUndefined();
     } finally {
@@ -1100,8 +1039,7 @@ describe("waitForRevertedMessage", () => {
     });
     const failure = await waiting.catch((error: unknown) => error);
     expect(failure).toBeInstanceOf(Error);
-    if (!(failure instanceof Error))
-      throw new Error("Expected provider failure");
+    if (!(failure instanceof Error)) throw new Error("Expected provider failure");
     expect(failure.message).toBe(message);
     const { readOwnedRewindFailure } = await import("./ChatView.logic");
     expect(readOwnedRewindFailure(failure)).toBeUndefined();
@@ -1123,14 +1061,9 @@ describe("waitForRevertedMessage", () => {
       );
     const drafted = thread("drafted-thread", "Drafted thread");
     const mentioned = thread("referenced-thread", "Other thread");
-    const machine = environmentContextRecord(
-      EnvironmentId.make("env-2"),
-      "Build box",
-    );
+    const machine = environmentContextRecord(EnvironmentId.make("env-2"), "Build box");
     useComposerDraftStore.getState().addThreadContexts(threadRef, [drafted]);
-    const draftPrompt = useComposerDraftStore
-      .getState()
-      .getComposerDraft(threadRef)!.prompt;
+    const draftPrompt = useComposerDraftStore.getState().getComposerDraft(threadRef)!.prompt;
     const sentPrompt = ensureInlineContextReferences("Review", [
       threadContextReference(mentioned),
       environmentContextReference(machine),
@@ -1162,16 +1095,12 @@ describe("waitForRevertedMessage", () => {
         appAtomRegistry.set(state, {
           data: Option.some({
             ...projection,
-            providerThreads: projection.providerThreads.map(
-              (providerThread) => ({
-                ...providerThread,
-                lastRunOrdinal: 1,
-              }),
-            ),
+            providerThreads: projection.providerThreads.map((providerThread) => ({
+              ...providerThread,
+              lastRunOrdinal: 1,
+            })),
             runs: projection.runs.map((run) =>
-              run.ordinal > 1
-                ? { ...run, status: "rolled_back" as const }
-                : run,
+              run.ordinal > 1 ? { ...run, status: "rolled_back" as const } : run,
             ),
           }),
         });
@@ -1181,9 +1110,7 @@ describe("waitForRevertedMessage", () => {
 
     const prompt = `${draftPrompt}\n\n${sentPrompt}`;
     expect(result).toEqual({ error: null, prompt });
-    expect(
-      useComposerDraftStore.getState().getComposerDraft(threadRef),
-    ).toMatchObject({
+    expect(useComposerDraftStore.getState().getComposerDraft(threadRef)).toMatchObject({
       prompt,
       threadContexts: [drafted, mentioned],
       environmentContexts: [machine],
@@ -1192,12 +1119,7 @@ describe("waitForRevertedMessage", () => {
 
   it("rejects with the projected reason when the rollback fails for good", async () => {
     const { state, projection } = projectionAtom();
-    const waiting = waitForRevertedMessage(
-      threadRef,
-      1,
-      requestId,
-      async () => {},
-    );
+    const waiting = waitForRevertedMessage(threadRef, 1, requestId, async () => {});
     await Promise.resolve();
     appAtomRegistry.set(state, {
       data: Option.some({
@@ -1263,12 +1185,7 @@ describe("waitForRevertedMessage", () => {
       };
       appAtomRegistry.set(state, { data: Option.some(bounded) });
       let outcome = "pending";
-      const waiting = waitForRevertedMessage(
-        threadRef,
-        0,
-        requestId,
-        async () => {},
-      ).then(
+      const waiting = waitForRevertedMessage(threadRef, 0, requestId, async () => {}).then(
         () => {
           outcome = "reverted";
         },
@@ -1296,9 +1213,7 @@ describe("waitForRevertedMessage", () => {
                 ? [oldProviderThread, completedProviderThread]
                 : [completedProviderThread],
             runs: bounded.runs.map((run) =>
-              run.id === latestRunId
-                ? { ...run, status: "rolled_back" as const }
-                : run,
+              run.id === latestRunId ? { ...run, status: "rolled_back" as const } : run,
             ),
           }),
         });
@@ -1316,12 +1231,7 @@ describe("waitForRevertedMessage", () => {
     vi.useFakeTimers();
     const { state, projection } = projectionAtom();
     let outcome = "pending";
-    const waiting = waitForRevertedMessage(
-      threadRef,
-      1,
-      requestId,
-      async () => {},
-    ).then(
+    const waiting = waitForRevertedMessage(threadRef, 1, requestId, async () => {}).then(
       () => {
         outcome = "reverted";
       },
@@ -1397,12 +1307,7 @@ describe("waitForRevertedMessage", () => {
     });
     const revert = vi.fn(async () => {});
     let outcome = "pending";
-    const waiting = waitForRevertedMessage(
-      threadRef,
-      1,
-      requestId,
-      revert,
-    ).then(
+    const waiting = waitForRevertedMessage(threadRef, 1, requestId, revert).then(
       () => {
         outcome = "reverted";
       },
@@ -1501,9 +1406,7 @@ describe("snapshotComposerSend", () => {
 
     expect(snapshot.terminalContexts).toEqual([live]);
     expect(snapshot.messageText).toBe(
-      ensureInlineContextReferences("run", [
-        terminalContextReference(live),
-      ]).trim(),
+      ensureInlineContextReferences("run", [terminalContextReference(live)]).trim(),
     );
   });
 
@@ -1537,9 +1440,7 @@ describe("snapshotComposerSend", () => {
       replyTo,
     });
 
-    expect(snapshot.messageText).toContain(
-      `t3-context://v1/response/${replyTo.contextId}`,
-    );
+    expect(snapshot.messageText).toContain(`t3-context://v1/response/${replyTo.contextId}`);
     expect(snapshot.draftText).toBe("why there?");
     expect(snapshot.replyTo).toBe(replyTo);
   });
@@ -1593,9 +1494,7 @@ describe("planComposerTurn", () => {
   });
 
   it("refuses a new worktree without a base branch", () => {
-    expect(
-      planComposerTurn({ ...base, activeThreadBranch: null }),
-    ).toMatchObject({
+    expect(planComposerTurn({ ...base, activeThreadBranch: null })).toMatchObject({
       missingWorktreeBaseBranch: true,
       baseBranchForWorktree: null,
     });
@@ -1620,11 +1519,7 @@ describe("planComposerTurn", () => {
         shouldQueueBehindActiveRun: true,
       });
     }
-    for (const messageText of [
-      "/COMPACT",
-      "/compact keep the API notes",
-      "/compact\n  tests",
-    ]) {
+    for (const messageText of ["/COMPACT", "/compact keep the API notes", "/compact\n  tests"]) {
       expect(planComposerTurn({ ...stale, messageText })).toMatchObject({
         compactBeforeSend: false,
         turnDispatchMode: "auto",
@@ -1640,13 +1535,10 @@ describe("planComposerTurn", () => {
       activeMessageCount: 3,
       phase: "running" as const,
     };
-    expect(
-      planComposerTurn({ ...running, dispatchMode: "queue" })
-        .shouldQueueBehindActiveRun,
-    ).toBe(true);
-    expect(
-      planComposerTurn({ ...running, dispatchMode: "steer" }),
-    ).toMatchObject({
+    expect(planComposerTurn({ ...running, dispatchMode: "queue" }).shouldQueueBehindActiveRun).toBe(
+      true,
+    );
+    expect(planComposerTurn({ ...running, dispatchMode: "steer" })).toMatchObject({
       shouldQueueBehindActiveRun: false,
       baseBranchForWorktree: null,
     });
@@ -1698,10 +1590,7 @@ describe("withMessageContext", () => {
 describe("boundAttachmentIds", () => {
   it("prefers the uploaded id and falls back to the local one", () => {
     expect(
-      boundAttachmentIds(
-        [{ id: "upload-1" }, {}],
-        [{ id: "local-1" }, { id: "local-2" }],
-      ),
+      boundAttachmentIds([{ id: "upload-1" }, {}], [{ id: "local-1" }, { id: "local-2" }]),
     ).toEqual(["upload-1", "local-2"]);
   });
 });
@@ -1710,20 +1599,14 @@ describe("deriveAvailableRevertTurnCounts", () => {
   const providerThreadId = ProviderThreadId.make("provider-thread");
   const otherProviderThreadId = ProviderThreadId.make("other-provider-thread");
 
-  function projection(input: {
-    readonly providerSessionId: ProviderSessionId | null;
-  }) {
+  function projection(input: { readonly providerSessionId: ProviderSessionId | null }) {
     const base = makeThreadProjectionFixture();
     const run = (ordinal: number) => ({
       id: RunId.make(`run-${ordinal}`),
       ordinal,
       activeAttemptId: `attempt-${ordinal}`,
     });
-    const turn = (
-      ordinal: number,
-      attempt: number,
-      threadId: ProviderThreadId,
-    ) => ({
+    const turn = (ordinal: number, attempt: number, threadId: ProviderThreadId) => ({
       id: `turn-${attempt}-${ordinal}`,
       runAttemptId: `attempt-${attempt}`,
       ordinal,
@@ -1763,10 +1646,7 @@ describe("deriveAvailableRevertTurnCounts", () => {
   });
 
   it("offers nothing without a provider session to rewind", () => {
-    expect(
-      deriveAvailableRevertTurnCounts(projection({ providerSessionId: null }))
-        .size,
-    ).toBe(0);
+    expect(deriveAvailableRevertTurnCounts(projection({ providerSessionId: null })).size).toBe(0);
     expect(deriveAvailableRevertTurnCounts(null).size).toBe(0);
   });
 });
@@ -1774,23 +1654,15 @@ describe("deriveAvailableRevertTurnCounts", () => {
 it.each(["server", "draft"] as const)(
   "keeps local resume ownership paired in %s replacement and promotion",
   async (mode) => {
-    const {
-      makeThreadErrorSetter,
-      formatLocalThreadError,
-      shouldPromoteLocalThreadError,
-    } = await import("./ChatView.logic");
+    const { makeThreadErrorSetter, formatLocalThreadError, shouldPromoteLocalThreadError } =
+      await import("./ChatView.logic");
     const ref = {
       environmentId: EnvironmentId.make("owned-env"),
       threadId: ThreadId.make("owned-thread"),
     };
-    let entries: Record<
-      string,
-      import("./ChatView.logic").LocalThreadErrorEntry
-    > = {};
+    let entries: Record<string, import("./ChatView.logic").LocalThreadErrorEntry> = {};
     const key = mode === "server" ? "owned" : ref.threadId;
-    const updateEntries = (
-      update: import("react").SetStateAction<typeof entries>,
-    ) => {
+    const updateEntries = (update: import("react").SetStateAction<typeof entries>) => {
       entries = typeof update === "function" ? update(entries) : update;
     };
     const set = makeThreadErrorSetter({
@@ -1814,28 +1686,16 @@ it.each(["server", "draft"] as const)(
     set(ref.threadId, "Could not resume thread.", "resumeFailed");
     const owned = entries[key]!;
     expect(owned.ownedCode).toBe("resumeFailed");
-    expect(formatLocalThreadError(owned.message, owned, "zh-CN")).toBe(
-      "无法恢复会话。",
-    );
-    expect(formatLocalThreadError(owned.message, owned, "en")).toBe(
-      "Could not resume thread.",
-    );
+    expect(formatLocalThreadError(owned.message, owned, "zh-CN")).toBe("无法恢复会话。");
+    expect(formatLocalThreadError(owned.message, owned, "en")).toBe("Could not resume thread.");
     set(ref.threadId, "Could not resume thread.");
     const raw = entries[key]!;
     expect(raw.ownedCode).toBeUndefined();
     expect(formatLocalThreadError(raw.message, raw, "zh-CN")).toBe(raw.message);
-    expect(shouldPromoteLocalThreadError(raw, { ...owned, at: raw.at })).toBe(
-      true,
-    );
-    expect(
-      shouldPromoteLocalThreadError(raw, { ...owned, at: raw.at - 1 }),
-    ).toBe(false);
-    expect(
-      shouldPromoteLocalThreadError(owned, { ...owned, at: owned.at + 1 }),
-    ).toBe(false);
-    expect(formatLocalThreadError("server raw", owned, "zh-CN")).toBe(
-      "server raw",
-    );
+    expect(shouldPromoteLocalThreadError(raw, { ...owned, at: raw.at })).toBe(true);
+    expect(shouldPromoteLocalThreadError(raw, { ...owned, at: raw.at - 1 })).toBe(false);
+    expect(shouldPromoteLocalThreadError(owned, { ...owned, at: owned.at + 1 })).toBe(false);
+    expect(formatLocalThreadError("server raw", owned, "zh-CN")).toBe("server raw");
     set(ref.threadId, "");
     expect(entries[key]?.message).toBe("");
     set(ref.threadId, " \n ");
@@ -1856,11 +1716,7 @@ it.each(["server", "draft"] as const)(
 );
 
 it.each([
-  [
-    "rewindTimeout",
-    "Timed out waiting for the thread to rewind.",
-    "等待会话回退超时。",
-  ],
+  ["rewindTimeout", "Timed out waiting for the thread to rewind.", "等待会话回退超时。"],
   [
     "rewindChanged",
     "The thread has changed. Select a message to rewind again.",
@@ -1895,16 +1751,8 @@ it.each([
     "The fork was created, but its thread data did not reach this client. Reconnect and try opening it from the sidebar.",
     "分支会话已创建，但其数据未能到达此客户端。请重新连接，然后尝试从侧边栏打开。",
   ],
-  [
-    "stopBackgroundFailed",
-    "Failed to stop background work.",
-    "停止后台任务失败。",
-  ],
-  [
-    "approvalFailed",
-    "Failed to submit approval decision.",
-    "提交审批决定失败。",
-  ],
+  ["stopBackgroundFailed", "Failed to stop background work.", "停止后台任务失败。"],
+  ["approvalFailed", "Failed to submit approval decision.", "提交审批决定失败。"],
   ["inputFailed", "Failed to submit user input.", "提交用户输入失败。"],
   ["dismissFailed", "Failed to dismiss the question.", "忽略问题失败。"],
   [
@@ -1912,48 +1760,37 @@ it.each([
     "Wait for attachments to finish uploading, or remove failed uploads.",
     "请等待附件上传完成，或移除上传失败的附件。",
   ],
-] as const)(
-  "formats only paired owned pending-request %s",
-  async (ownedCode, message, chinese) => {
-    const { formatLocalThreadError, makeThreadErrorSetter } =
-      await import("./ChatView.logic");
-    const ref = {
-      environmentId: EnvironmentId.make("pending-map"),
-      threadId: ThreadId.make("pending-map"),
-    };
-    let entries: Record<
-      string,
-      import("./ChatView.logic").LocalThreadErrorEntry
-    > = {};
-    const set = makeThreadErrorSetter({
-      routeThreadRef: ref,
-      routeThreadKey: "pending",
-      draftId: null,
-      serverThreadRef: ref,
-      setLocalServerErrorsByThreadKey: (update) => {
-        entries = typeof update === "function" ? update(entries) : update;
-      },
-      setLocalDraftErrorsByDraftId: () => undefined,
-    });
-    set(ref.threadId, message, ownedCode);
-    const entry = entries.pending!;
-    expect(entry.ownedCode).toBe(ownedCode);
-    const before = entries;
-    set(ref.threadId, message, ownedCode);
-    expect(entries).toBe(before);
-    set(ref.threadId, message);
-    expect(entries.pending?.ownedCode).toBeUndefined();
-    expect(entries).not.toBe(before);
-    expect(formatLocalThreadError(message, entry, "zh-CN")).toBe(chinese);
-    expect(formatLocalThreadError(message, entry, "en")).toBe(message);
-    expect(formatLocalThreadError(message, { message, at: 1 }, "zh-CN")).toBe(
-      message,
-    );
-    expect(
-      formatLocalThreadError(message, { ...entry, message: "stale" }, "zh-CN"),
-    ).toBe(message);
-  },
-);
+] as const)("formats only paired owned pending-request %s", async (ownedCode, message, chinese) => {
+  const { formatLocalThreadError, makeThreadErrorSetter } = await import("./ChatView.logic");
+  const ref = {
+    environmentId: EnvironmentId.make("pending-map"),
+    threadId: ThreadId.make("pending-map"),
+  };
+  let entries: Record<string, import("./ChatView.logic").LocalThreadErrorEntry> = {};
+  const set = makeThreadErrorSetter({
+    routeThreadRef: ref,
+    routeThreadKey: "pending",
+    draftId: null,
+    serverThreadRef: ref,
+    setLocalServerErrorsByThreadKey: (update) => {
+      entries = typeof update === "function" ? update(entries) : update;
+    },
+    setLocalDraftErrorsByDraftId: () => undefined,
+  });
+  set(ref.threadId, message, ownedCode);
+  const entry = entries.pending!;
+  expect(entry.ownedCode).toBe(ownedCode);
+  const before = entries;
+  set(ref.threadId, message, ownedCode);
+  expect(entries).toBe(before);
+  set(ref.threadId, message);
+  expect(entries.pending?.ownedCode).toBeUndefined();
+  expect(entries).not.toBe(before);
+  expect(formatLocalThreadError(message, entry, "zh-CN")).toBe(chinese);
+  expect(formatLocalThreadError(message, entry, "en")).toBe(message);
+  expect(formatLocalThreadError(message, { message, at: 1 }, "zh-CN")).toBe(message);
+  expect(formatLocalThreadError(message, { ...entry, message: "stale" }, "zh-CN")).toBe(message);
+});
 
 describe("deriveThreadPendingBackgroundTasks", () => {
   const base = makeThreadProjectionFixture();
@@ -1962,12 +1799,7 @@ describe("deriveThreadPendingBackgroundTasks", () => {
     ordinal,
     status,
   });
-  const item = (
-    ordinal: number,
-    type: string,
-    nativeId: string,
-    input: string,
-  ) => ({
+  const item = (ordinal: number, type: string, nativeId: string, input: string) => ({
     id: TurnItemId.make(`item-${nativeId}`),
     type,
     status: "running",
@@ -1977,9 +1809,7 @@ describe("deriveThreadPendingBackgroundTasks", () => {
     input,
   });
   const projection = (overrides: object) =>
-    ({ ...base, ...overrides }) as unknown as ReturnType<
-      typeof makeThreadProjectionFixture
-    >;
+    ({ ...base, ...overrides }) as unknown as ReturnType<typeof makeThreadProjectionFixture>;
 
   it.each(["queued", "preparing", "running"])(
     "keeps an earlier run's background shell while a %s follow-up run has a foreground command",
@@ -1994,9 +1824,7 @@ describe("deriveThreadPendingBackgroundTasks", () => {
             ],
           }),
         ),
-      ).toEqual([
-        { taskId: "shell-1", description: "sleep 600", kind: "command" },
-      ]);
+      ).toEqual([{ taskId: "shell-1", description: "sleep 600", kind: "command" }]);
     },
   );
 
@@ -2047,9 +1875,7 @@ describe("deriveThreadPendingBackgroundTasks", () => {
             {
               id: "provider-thread-1",
               providerInstanceId: base.thread.providerInstanceId,
-              pendingBackgroundTasks: [
-                { taskId: "b1htjkjev", kind: "monitor" },
-              ],
+              pendingBackgroundTasks: [{ taskId: "b1htjkjev", kind: "monitor" }],
             },
           ],
           turnItems: [
@@ -2073,9 +1899,7 @@ describe("deriveThreadPendingBackgroundTasks", () => {
             {
               id: "provider-thread-1",
               providerInstanceId: base.thread.providerInstanceId,
-              pendingBackgroundTasks: [
-                { taskId: "task-1", kind: "background_task" },
-              ],
+              pendingBackgroundTasks: [{ taskId: "task-1", kind: "background_task" }],
             },
           ],
         }),
@@ -2146,8 +1970,6 @@ describe("prepareRevertedMessageAttachments", () => {
       },
     ]);
     expect(store.addImages(target, repeat)).toEqual([]);
-    expect(store.getComposerDraft(target)?.images.map(({ id }) => id)).toEqual([
-      "restored",
-    ]);
+    expect(store.getComposerDraft(target)?.images.map(({ id }) => id)).toEqual(["restored"]);
   });
 });

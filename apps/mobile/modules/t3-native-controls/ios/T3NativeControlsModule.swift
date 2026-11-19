@@ -7,6 +7,12 @@ import UniformTypeIdentifiers
 
 @ExpoModule("T3NativeControls")
 public final class T3NativeControlsModule: Module {
+  private struct ImagePreviewContent {
+    let urls: [URL?]
+    let titles: [String]
+    let displayTitles: [String]?
+  }
+
   private let presentationSources = T3PresentationSources()
   private var videoPresentation: T3NativeVideoPresentation?
   private var filePresentation: T3NativeFilePresentation?
@@ -84,14 +90,14 @@ public final class T3NativeControlsModule: Module {
 
     // A nil URL is still resolving in JS and arrives later through updateFile.
     AsyncFunction("presentFiles") { (urls: [URL?], titles: [String], selectedIndex: Int, sourceIdentifiers: [String], identifier: String, promise: Promise) in
-      try self.presentImages(urls: urls, titles: titles, displayTitles: nil,
+      try self.presentImages(content: ImagePreviewContent(urls: urls, titles: titles, displayTitles: nil),
                              selectedIndex: selectedIndex, sourceIdentifiers: sourceIdentifiers,
                              identifier: identifier, promise: promise)
     }.runOnQueue(.main)
 
     // Additive capability: display labels never change original filenames used for sharing.
     AsyncFunction("presentFilesWithDisplayTitles") { (urls: [URL?], titles: [String], displayTitles: [String], selectedIndex: Int, sourceIdentifiers: [String], identifier: String, promise: Promise) in
-      try self.presentImages(urls: urls, titles: titles, displayTitles: displayTitles,
+      try self.presentImages(content: ImagePreviewContent(urls: urls, titles: titles, displayTitles: displayTitles),
                              selectedIndex: selectedIndex, sourceIdentifiers: sourceIdentifiers,
                              identifier: identifier, promise: promise)
     }.runOnQueue(.main)
@@ -302,9 +308,12 @@ public final class T3NativeControlsModule: Module {
     if videoPresentation?.identifier == identifier { videoPresentation?.dismiss() }
   }
 
-  private func presentImages(urls: [URL?], titles: [String], displayTitles: [String]?,
+  private func presentImages(content: ImagePreviewContent,
                              selectedIndex: Int, sourceIdentifiers: [String], identifier: String,
                              promise: Promise) throws {
+    let urls = content.urls
+    let titles = content.titles
+    let displayTitles = content.displayTitles
     guard !urls.isEmpty, urls.count == titles.count, urls.count == sourceIdentifiers.count,
       displayTitles == nil || displayTitles?.count == urls.count,
       urls.indices.contains(selectedIndex)

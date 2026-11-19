@@ -8,7 +8,12 @@ export function noticeTitle(
   locale: MobileLocale = MOBILE_LOCALE,
   awaitingApproval = false,
 ): string {
-  if (awaitingApproval) return formatMobileMessage("Waiting for {0} to approve this device", [environmentLabel], locale);
+  if (awaitingApproval)
+    return formatMobileMessage(
+      "Waiting for {0} to approve this device",
+      [environmentLabel],
+      locale,
+    );
   switch (phase) {
     case "offline":
       return localizeMobileString("You are offline", locale);

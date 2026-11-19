@@ -1,3 +1,5 @@
+import { readWebI18n } from "~/i18n/readWebI18n";
+
 import type { ThreadTitleRegenerationOutcome } from "@t3tools/contracts";
 import {
   type AtomCommandResult,
@@ -10,13 +12,14 @@ import { stackedThreadToast } from "./ui/toast";
 type TitleRegenerationResult = AtomCommandResult<ThreadTitleRegenerationOutcome | null, unknown>;
 
 function failureMessage(result: TitleRegenerationResult): string | null {
+  const { t } = readWebI18n();
   if (result._tag === "Failure") {
     if (isAtomCommandInterrupted(result)) return null;
     const error = squashAtomCommandFailure(result);
-    return error instanceof Error ? error.message : "An error occurred.";
+    return error instanceof Error ? error.message : t("common.error");
   }
   return result.value?.status === "failed"
-    ? (result.value.message ?? "Title generation failed.")
+    ? (result.value.message ?? t("sidebar.titleGenerationFailed"))
     : null;
 }
 
@@ -25,6 +28,7 @@ function isKept(result: TitleRegenerationResult): boolean {
 }
 
 export function titleRegenerationToast(results: ReadonlyArray<TitleRegenerationResult>) {
+  const { t } = readWebI18n();
   const failures = results.flatMap((result) => {
     const message = failureMessage(result);
     return message === null ? [] : [message];
@@ -34,8 +38,11 @@ export function titleRegenerationToast(results: ReadonlyArray<TitleRegenerationR
       type: "error",
       title:
         results.length === 1
-          ? "Failed to regenerate thread title"
-          : `Failed to regenerate ${failures.length} of ${results.length} thread titles`,
+          ? t("sidebar.regenerateFailed")
+          : t("sidebar.regeneratePartialFailed", {
+              failed: failures.length,
+              total: results.length,
+            }),
       description: failures[0],
     });
   }
@@ -44,16 +51,19 @@ export function titleRegenerationToast(results: ReadonlyArray<TitleRegenerationR
   if (results.length === 1) {
     return stackedThreadToast({
       type: "info",
-      title: "Title kept",
-      description: "The current title already fits this thread.",
+      title: t("sidebar.titleKept"),
+      description: t("sidebar.titleKeptDescription"),
     });
   }
   return stackedThreadToast({
     type: "info",
-    title: kept === results.length ? "Titles kept" : `Kept ${kept} of ${results.length} titles`,
+    title:
+      kept === results.length
+        ? t("sidebar.titlesKept")
+        : t("sidebar.titlesPartialKept", { kept, total: results.length }),
     description:
       kept === results.length
-        ? "The current titles already fit these threads."
-        : "Those titles already fit their threads.",
+        ? t("sidebar.titlesKeptDescription")
+        : t("sidebar.titlesPartialKeptDescription"),
   });
 }

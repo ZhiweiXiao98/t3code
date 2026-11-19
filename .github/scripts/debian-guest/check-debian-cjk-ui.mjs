@@ -405,15 +405,22 @@ async function navigate(path) {
   url.hash = path;
   await page.goto(url.href, { waitUntil: "domcontentloaded", timeout: 60_000 });
 }
+async function languageControl(locale) {
+  const row = page.locator("#language");
+  await row.scrollIntoViewIfNeeded();
+  const control = row.getByRole("combobox", {
+    name: locale === "zh-CN" ? "语言" : "Language",
+    exact: true,
+  });
+  await control.waitFor({ state: "visible" });
+  return control;
+}
 async function assertChinese(session) {
   await page.waitForFunction(() => document.documentElement.lang === "zh-CN", null, {
     timeout: 30000,
   });
-  await page.getByRole("combobox", { name: "应用语言", exact: true }).waitFor({ state: "visible" });
-  NodeAssert.equal(
-    (await page.getByRole("combobox", { name: "应用语言", exact: true }).innerText()).trim(),
-    "简体中文",
-  );
+  const control = await languageControl("zh-CN");
+  NodeAssert.equal((await control.innerText()).trim(), "中文（简体）");
   await navigate("/welcome");
   await page
     .getByRole("heading", { name: "欢迎使用 T3 Code", exact: true })
@@ -531,7 +538,7 @@ async function assertThreadsSettings(locale) {
   }
   const navigation = chinese ? ["语音"] : ["Voice"];
   for (const name of navigation)
-    await page.getByRole("treeitem", { name, exact: true }).waitFor({ state: "visible" });
+    await page.getByRole("button", { name, exact: true }).waitFor({ state: "visible" });
   const groups = chinese ? ["智能体", "代码", "连接"] : ["Agents", "Code", "Connections"];
   for (const name of groups)
     await page.getByRole("group", { name, exact: true }).waitFor({ state: "visible" });
@@ -571,7 +578,7 @@ async function auditSettingsOverviews() {
       timeout: 30000,
     });
     await page
-      .locator(`[data-settings-section="${route}"][aria-selected="true"]`)
+      .locator(`[data-settings-section="${route}"][aria-current="page"]`)
       .waitFor({ state: "visible", timeout: 30000 });
     const content = page.locator('[data-workspace-area="settings"]');
     const ready = content.locator(`#${marker}`);
@@ -662,7 +669,7 @@ async function auditSupplementalSettings(page, navigate, capture) {
       timeout: 30000,
     });
     NodeAssert.equal(new URL(page.url()).hash, `#${route}`);
-    await visible(page.locator(`[data-settings-section="${route}"][aria-selected="true"]`));
+    await visible(page.locator(`[data-settings-section="${route}"][aria-current="page"]`));
     return route;
   };
   const shot = async (name) => {
@@ -816,8 +823,8 @@ try {
   await page.getByRole("button", { name: "Start without an agent", exact: true }).click();
   await page.waitForURL((url) => url.hash !== "#/welcome", { timeout: 60000 });
   await navigate("/settings/general");
-  await page.getByRole("combobox", { name: "App language", exact: true }).click();
-  await page.getByRole("option", { name: "简体中文", exact: true }).click();
+  await (await languageControl("en")).click();
+  await page.getByRole("option", { name: "中文（简体）", exact: true }).click();
   await assertChinese(first);
   await screenshot("02-chinese-selected.png");
   await close();
@@ -829,13 +836,13 @@ try {
   const chineseSettings = await assertThreadsSettings("zh-CN");
   await screenshot("04-chinese-thread-settings.png");
   await navigate("/settings/general");
-  await page.getByRole("combobox", { name: "应用语言", exact: true }).click();
+  await (await languageControl("zh-CN")).click();
   await page.getByRole("option", { name: "English", exact: true }).click();
   const englishSettings = await assertThreadsSettings("en");
   await screenshot("05-english-thread-settings.png");
   await navigate("/settings/general");
-  await page.getByRole("combobox", { name: "App language", exact: true }).click();
-  await page.getByRole("option", { name: "简体中文", exact: true }).click();
+  await (await languageControl("en")).click();
+  await page.getByRole("option", { name: "中文（简体）", exact: true }).click();
   const restoredSettings = await assertThreadsSettings("zh-CN");
   await screenshot("06-chinese-thread-settings-restored.png");
   report.settings_roundtrip = [chineseSettings, englishSettings, restoredSettings];

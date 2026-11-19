@@ -20,7 +20,11 @@ const fixture = vi.hoisted(() => ({
 }));
 const label = "Literal $& {label}";
 const environmentId = EnvironmentId.make("label-picker");
-const reference = { projectId: ProjectId.make("project"), repository: "owner/repo", number: 1 };
+const reference = {
+  projectId: ProjectId.make("project"),
+  repository: "owner/repo",
+  number: 1,
+};
 vi.mock("~/state/use-atom-command", async (original) => {
   const actual = await original<typeof import("../../state/use-atom-command")>();
   const { pullRequestEnvironment } = await import("../../state/pullRequests");
@@ -63,7 +67,10 @@ vi.mock("~/state/pullRequests", async (original) => {
 });
 vi.mock("../ui/toast", async (original) => {
   const actual = await original<typeof import("../ui/toast")>();
-  return { ...actual, toastManager: { ...actual.toastManager, add: fixture.toast } };
+  return {
+    ...actual,
+    toastManager: { ...actual.toastManager, add: fixture.toast },
+  };
 });
 vi.mock("~/i18n/readWebI18n", () => ({
   readWebI18n: () => {
@@ -136,12 +143,18 @@ for (const applied of [false, true]) {
       await userEvent.click(screen.getByRole("combobox", { name: "Change labels", exact: true }));
       const option = page.getByRole("option").filter({ hasText: label });
       await userEvent.click(option);
-      await expect.element(option).toHaveAttribute("aria-disabled", "true");
+      expect(fixture.setLabels).not.toHaveBeenCalled();
+      await userEvent.keyboard("{Escape}");
+      await expect.element(page.getByRole("listbox")).not.toBeInTheDocument();
+      await expect.poll(() => fixture.setLabels.mock.calls.length).toBe(1);
       expect(fixture.setLabels).toHaveBeenCalledExactlyOnceWith({
         environmentId,
         input: { ...reference, labels: [label], applied: !applied },
       });
-      expect(fixture.query).toHaveBeenCalledWith({ environmentId, input: reference });
+      expect(fixture.query).toHaveBeenCalledWith({
+        environmentId,
+        input: reference,
+      });
       await screen.rerender(surface("zh-CN"));
       const result: Result = AsyncResult.failure(
         kind === "interrupted" ? Cause.interrupt() : Cause.fail(failure),
@@ -149,7 +162,7 @@ for (const applied of [false, true]) {
       await act(async () => {
         finish(result);
       });
-      await expect.element(option).not.toHaveAttribute("aria-disabled", "true");
+      await expect.element(page.getByRole("listbox")).not.toBeInTheDocument();
       expect(fixture.toast).toHaveBeenCalledExactlyOnceWith({
         type: "error",
         title: `${applied ? "无法移除标签" : "无法添加标签"} ${label}`,
@@ -171,7 +184,10 @@ for (const applied of [false, true]) {
 it("does not open labels when denied or mutate after Escape", async () => {
   setup();
   await using screen = await render(surface("en", false));
-  const trigger = screen.getByRole("button", { name: "Change labels", exact: true });
+  const trigger = screen.getByRole("button", {
+    name: "Change labels",
+    exact: true,
+  });
   await expect.element(trigger).toHaveAttribute("aria-disabled", "true");
   await act(async () => {
     trigger.element().dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));

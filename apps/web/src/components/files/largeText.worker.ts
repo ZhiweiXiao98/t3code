@@ -1,11 +1,5 @@
-import {
-  createFilePreviewError,
-  filePreviewErrorFields,
-} from "@t3tools/shared/filePreview";
-import {
-  csvPreviewDelimiter,
-  parseDelimitedPreview,
-} from "@t3tools/shared/delimitedPreview";
+import { createFilePreviewError, filePreviewErrorFields } from "@t3tools/shared/filePreview";
+import { csvPreviewDelimiter, parseDelimitedPreview } from "@t3tools/shared/delimitedPreview";
 import {
   LARGE_TEXT_MAX_BYTES,
   LARGE_TEXT_MAX_ROWS,
@@ -44,13 +38,9 @@ async function read(start: number, end: number) {
   for (let i = low; i < chunks.length; i++) {
     const part = chunks[i]!;
     if (part.start >= end) break;
-    parts.push(
-      part.blob.slice(Math.max(0, start - part.start), end - part.start),
-    );
+    parts.push(part.blob.slice(Math.max(0, start - part.start), end - part.start));
   }
-  return new TextDecoder("utf-8", { fatal: true }).decode(
-    await new Blob(parts).arrayBuffer(),
-  );
+  return new TextDecoder("utf-8", { fatal: true }).decode(await new Blob(parts).arrayBuffer());
 }
 async function page(index: number) {
   const start = index * PREVIEW_PAGE_ROWS;
@@ -81,20 +71,14 @@ async function open(input: Extract<TextPreviewRequest, { type: "open" }>) {
             headers: { Range: `bytes=0-${LARGE_TEXT_MAX_BYTES}` },
             cache: "no-store",
           });
-  if (
-    response.status === 416 &&
-    response.headers.get("content-range") === "bytes */0"
-  ) {
+  if (response.status === 416 && response.headers.get("content-range") === "bytes */0") {
     await response.body?.cancel();
     response = new Response(new Blob([]));
   }
   if (!response.ok || !response.body)
-    throw createFilePreviewError(
-      "The file could not be loaded. Close it and try again.",
-    );
+    throw createFilePreviewError("The file could not be loaded. Close it and try again.");
   const total = Number(
-    response.headers.get("content-range")?.split("/")[1] ??
-      response.headers.get("content-length"),
+    response.headers.get("content-range")?.split("/")[1] ?? response.headers.get("content-length"),
   );
   if (total > LARGE_TEXT_MAX_BYTES) {
     await response.body.cancel();
@@ -121,8 +105,7 @@ async function open(input: Extract<TextPreviewRequest, { type: "open" }>) {
         length += next.value.length;
         for (const byte of next.value) {
           if (byte === 34) quoted = !quoted;
-          else if (!quoted && (byte === 13 || (byte === 10 && previous !== 13)))
-            breaks++;
+          else if (!quoted && (byte === 13 || (byte === 10 && previous !== 13))) breaks++;
           previous = byte;
         }
       }
@@ -130,15 +113,11 @@ async function open(input: Extract<TextPreviewRequest, { type: "open" }>) {
       delimiter = csvPreviewDelimiter(new TextDecoder().decode(prefix));
     }
     while (true) {
-      const { value, done } = prefix
-        ? { value: prefix, done: false }
-        : await reader.read();
+      const { value, done } = prefix ? { value: prefix, done: false } : await reader.read();
       prefix = undefined;
       if (done) break;
       if (size + value.length > LARGE_TEXT_MAX_BYTES)
-        throw createFilePreviewError(
-          "Text previews support files up to 256 MB.",
-        );
+        throw createFilePreviewError("Text previews support files up to 256 MB.");
       chunks.push({ start: size, blob: new Blob([value]) });
       for (let i = 0; i < value.length; i++) {
         const byte = value[i]!;
@@ -149,12 +128,9 @@ async function open(input: Extract<TextPreviewRequest, { type: "open" }>) {
           (pos === 2 && byte === 191)
         )
           continue;
-        if (byte === 0)
-          throw createFilePreviewError("This file contains binary data.");
+        if (byte === 0) throw createFilePreviewError("This file contains binary data.");
         if (pos - at(entries - 1) > 1024 * 1024)
-          throw createFilePreviewError(
-            "A line or record exceeds the 1 MB preview limit.",
-          );
+          throw createFilePreviewError("A line or record exceeds the 1 MB preview limit.");
         if (cr) {
           cr = false;
           if (byte === 10) {
@@ -187,14 +163,9 @@ async function open(input: Extract<TextPreviewRequest, { type: "open" }>) {
         }
         if (byte === 10 || byte === 13) {
           if (entries > LARGE_TEXT_MAX_ROWS)
-            throw createFilePreviewError(
-              "Text previews support up to 5 million rows.",
-            );
+            throw createFilePreviewError("Text previews support up to 5 million rows.");
           set(entries++, pos + 1);
-          columns = Math.min(
-            LARGE_TEXT_MAX_COLUMNS,
-            Math.max(columns, rowColumns),
-          );
+          columns = Math.min(LARGE_TEXT_MAX_COLUMNS, Math.max(columns, rowColumns));
           rowColumns = 1;
           fieldStart = true;
           cr = byte === 13;
@@ -214,14 +185,10 @@ async function open(input: Extract<TextPreviewRequest, { type: "open" }>) {
       }
     }
     if (total > 0 && size !== total)
-      throw createFilePreviewError(
-        "The file download was incomplete. Close it and try again.",
-      );
+      throw createFilePreviewError("The file download was incomplete. Close it and try again.");
     if (size > at(entries - 1)) {
       if (entries > LARGE_TEXT_MAX_ROWS)
-        throw createFilePreviewError(
-          "Text previews support up to 5 million rows.",
-        );
+        throw createFilePreviewError("Text previews support up to 5 million rows.");
       set(entries++, size);
       columns = Math.min(LARGE_TEXT_MAX_COLUMNS, Math.max(columns, rowColumns));
     }
@@ -248,20 +215,15 @@ self.addEventListener("message", (event: MessageEvent<TextPreviewRequest>) => {
         : complete
           ? read(0, size).then((text) => reply({ type: "copy", text }))
           : Promise.reject(
-              createFilePreviewError(
-                "Wait for the file to finish loading before copying.",
-              ),
+              createFilePreviewError("Wait for the file to finish loading before copying."),
             )
   ).catch((cause: unknown) =>
     reply({
       type: "error",
       operation: input.type,
-      message:
-        cause instanceof Error ? cause.message : "Could not read this file.",
+      message: cause instanceof Error ? cause.message : "Could not read this file.",
       ...filePreviewErrorFields(
-        cause instanceof Error
-          ? cause
-          : createFilePreviewError("Could not read this file."),
+        cause instanceof Error ? cause : createFilePreviewError("Could not read this file."),
       ),
     }),
   );

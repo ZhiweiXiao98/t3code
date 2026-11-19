@@ -25,8 +25,7 @@ const DEFAULT_FONT_VALUE = "__default__";
 function supportsFontEnumeration(): boolean {
   return (
     typeof window !== "undefined" &&
-    typeof (window as { queryLocalFonts?: unknown }).queryLocalFonts ===
-      "function"
+    typeof (window as { queryLocalFonts?: unknown }).queryLocalFonts === "function"
   );
 }
 
@@ -71,8 +70,7 @@ let grantedProbeStarted = false;
 function probeAlreadyGrantedPermission(): void {
   if (grantedProbeStarted || enumerationState.status !== "unknown") return;
   grantedProbeStarted = true;
-  const permissions =
-    typeof navigator !== "undefined" ? navigator.permissions : undefined;
+  const permissions = typeof navigator !== "undefined" ? navigator.permissions : undefined;
   if (typeof permissions?.query !== "function") return;
   permissions.query({ name: "local-fonts" as PermissionName }).then(
     (status) => {
@@ -134,24 +132,17 @@ export function FontFamilyPicker({
     if (trimmedQuery.length === 0) result.push(DEFAULT_FONT_VALUE);
     result.push(
       ...families.filter(
-        (family) =>
-          trimmedQuery.length === 0 ||
-          family.toLowerCase().includes(trimmedQuery),
+        (family) => trimmedQuery.length === 0 || family.toLowerCase().includes(trimmedQuery),
       ),
     );
     return result;
   })();
 
-  const selectedValue =
-    selectedFamily.length === 0 ? DEFAULT_FONT_VALUE : selectedFamily;
+  const selectedValue = selectedFamily.length === 0 ? DEFAULT_FONT_VALUE : selectedFamily;
 
   const handlePick = (value: string) => {
     setOpen(false);
-    if (
-      value !== DEFAULT_FONT_VALUE &&
-      requireMonospace &&
-      !isMonospaceFamily(value)
-    ) {
+    if (value !== DEFAULT_FONT_VALUE && requireMonospace && !isMonospaceFamily(value)) {
       toastManager.add(
         stackedThreadToast({
           type: "error",
@@ -170,10 +161,7 @@ export function FontFamilyPicker({
     return (
       <ComboboxItem hideIndicator index={index} key={item} value={item}>
         <div className="flex w-full min-w-0 items-center justify-between gap-2">
-          <span
-            className="min-w-0 truncate"
-            style={{ fontFamily: displayFontFamily(family) }}
-          >
+          <span className="min-w-0 truncate" style={{ fontFamily: displayFontFamily(family) }}>
             {family}
           </span>
           <span className="flex shrink-0 items-center gap-1.5">
@@ -206,22 +194,14 @@ export function FontFamilyPicker({
         if (typeof next === "string") handlePick(next);
       }}
       onItemHighlighted={(_value, eventDetails) => {
-        if (
-          !open ||
-          eventDetails.index < 0 ||
-          eventDetails.reason !== "keyboard"
-        )
-          return;
+        if (!open || eventDetails.index < 0 || eventDetails.reason !== "keyboard") return;
         void listRef.current?.scrollIndexIntoView?.({
           index: eventDetails.index,
           animated: false,
         });
       }}
     >
-      <ComboboxTrigger
-        aria-label={ariaLabel}
-        render={<SelectButton size="sm" />}
-      >
+      <ComboboxTrigger aria-label={ariaLabel} render={<SelectButton size="sm" />}>
         {selectedFamily.length === 0 ? defaultFamily : selectedFamily}
       </ComboboxTrigger>
       <ComboboxPopup align="end" className="flex w-72 flex-col">

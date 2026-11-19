@@ -33,50 +33,50 @@ it("renders current-locale own segment labels while keeping values and caller la
     </>
   );
   await using screen = await render(surface("en"));
-  await expect
-    .element(
-      screen.getByRole("img", {
-        name: "Cost/{opaque}/$&: Input 1, Cache read 2, Cache write 3, Output 4, Other 5",
-        exact: true,
-      }),
-    )
-    .toBeVisible();
+  const expectLegend = async (label: string, entries: readonly string[]) => {
+    const legend = screen.getByRole("list", { name: label, exact: true });
+    await expect.element(legend).toBeVisible();
+    const items = legend.element().querySelectorAll("li");
+    expect(items).toHaveLength(entries.length);
+    for (const [index, entry] of entries.entries()) {
+      expect(items[index]?.textContent?.replace(/\s+/g, " ").trim()).toBe(entry);
+    }
+  };
+  await expectLegend("Cost/{opaque}/$&", [
+    "Input 1, 6.7%",
+    "Cache read 2, 13.3%",
+    "Cache write 3, 20.0%",
+    "Output 4, 26.7%",
+    "Other 5, 33.3%",
+  ]);
+  // The new accessible legend owns the labels; the graphical bar remains visible but aria-hidden.
   const costBar = screen
-    .getByRole("img", {
-      name: "Cost/{opaque}/$&: Input 1, Cache read 2, Cache write 3, Output 4, Other 5",
-      exact: true,
-    })
-    .element();
+    .getByRole("list", { name: "Cost/{opaque}/$&", exact: true })
+    .element().previousElementSibling!;
+  expect(costBar.getAttribute("aria-hidden")).toBe("true");
   expect(costBar.children).toHaveLength(5);
   for (const segment of Array.from(costBar.children)) {
     await expect.poll(() => segment.getBoundingClientRect().height).toBeGreaterThan(0);
     await expect.poll(() => segment.getBoundingClientRect().width).toBeGreaterThan(0);
   }
   await screen.rerender(surface("zh-CN"));
-  await expect
-    .element(
-      screen.getByRole("img", {
-        name: "Cost/{opaque}/$&: 输入 1, 缓存读取 2, 缓存写入 3, 输出 4, 其他 5",
-        exact: true,
-      }),
-    )
-    .toBeVisible();
-  await expect
-    .element(
-      screen.getByRole("img", { name: "Speed/{opaque}: 标准 1, 快速 2, 极速 3", exact: true }),
-    )
-    .toBeVisible();
+  await expectLegend("Cost/{opaque}/$&", [
+    "输入 1, 6.7%",
+    "缓存读取 2, 13.3%",
+    "缓存写入 3, 20.0%",
+    "输出 4, 26.7%",
+    "其他 5, 33.3%",
+  ]);
+  await expectLegend("Speed/{opaque}", ["标准 1, 16.7%", "快速 2, 33.3%", "极速 3, 50.0%"]);
   await expect
     .element(screen.getByRole("heading", { name: "Cost/{opaque}/$&", exact: true }))
     .toBeVisible();
   await screen.rerender(surface("en"));
-  await expect
-    .element(
-      screen.getByRole("img", {
-        name: "Tokens/{opaque}: Input 1, Cache read 2, Cache write 3, Output 4",
-        exact: true,
-      }),
-    )
-    .toBeVisible();
+  await expectLegend("Tokens/{opaque}", [
+    "Input 1, 10.0%",
+    "Cache read 2, 20.0%",
+    "Cache write 3, 30.0%",
+    "Output 4, 40.0%",
+  ]);
   expect(cost).toEqual({ input: 1, cacheRead: 2, cacheWrite: 3, output: 4, unsplit: 5 });
 });

@@ -127,9 +127,7 @@ describe("submitComposerDraft", () => {
       const onSend = vi.fn();
       const preventDefault = vi.fn();
 
-      expect(providerInput.length).toBeLessThan(
-        PROVIDER_SEND_TURN_MAX_INPUT_CHARS,
-      );
+      expect(providerInput.length).toBeLessThan(PROVIDER_SEND_TURN_MAX_INPUT_CHARS);
       const result = submitComposerDraft({
         prompt: source === "draft" ? providerInput : "Explain the quote",
         ...(source === "composed provider input" ? { providerInput } : {}),
@@ -180,8 +178,7 @@ describe("submitComposerDraft", () => {
   it("sends canonical citations when expanded input fits exactly after trimming", () => {
     const citation = serializeAssistantCitation(assistantCitation);
     const draft = ` ${"x".repeat(
-      PROVIDER_SEND_TURN_MAX_INPUT_CHARS -
-        expandAssistantCitationsForProvider(citation).length,
+      PROVIDER_SEND_TURN_MAX_INPUT_CHARS - expandAssistantCitationsForProvider(citation).length,
     )}${citation} \n`;
     const dispatchedDrafts: string[] = [];
 
@@ -250,9 +247,7 @@ it("rerenders the same cached length violation without retaining an English pres
   expect(excess).toBe(1);
   if (excess === null) return;
   const english = formatComposerPromptLengthViolation(excess, "en");
-  expect(formatComposerPromptLengthViolation(excess, "zh-CN")).toContain(
-    "多出 1 个字符",
-  );
+  expect(formatComposerPromptLengthViolation(excess, "zh-CN")).toContain("多出 1 个字符");
   expect(formatComposerPromptLengthViolation(excess, "en")).toBe(english);
 });
 
@@ -291,8 +286,6 @@ describe("isComposerSubmissionBlocked", () => {
         attachmentBlockReason: "Attach the file again",
       }),
     ).toBe(true);
-    expect(
-      isComposerSubmissionBlocked({ ...answer, environmentUnavailable: true }),
-    ).toBe(true);
+    expect(isComposerSubmissionBlocked({ ...answer, environmentUnavailable: true })).toBe(true);
   });
 });

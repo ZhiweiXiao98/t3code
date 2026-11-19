@@ -65,8 +65,8 @@ it("keeps the community identity and Chinese defaults separate from official var
   const config = await loadConfig("community");
   expect(config.ios?.bundleIdentifier).toBe("com.zhiweixiao.t3code.zhcn");
   expect(config.android?.package).toBe("com.zhiweixiao.t3code.zhcn");
-  expect(config.version).toBe("0.1.9-zh.1");
-  expect(config.android?.versionCode).toBe(1000416);
+  expect(config.version).toBe("0.1.10-zh.1");
+  expect(config.android?.versionCode).toBe(1000418);
   expect(process.env.EXPO_PUBLIC_APP_LOCALE).toBe("zh-CN");
   expect(config.plugins).toContainEqual(["./plugins/withAppLocale.cjs", { locale: "zh-CN" }]);
   expect(config.ios?.infoPlist).toMatchObject({

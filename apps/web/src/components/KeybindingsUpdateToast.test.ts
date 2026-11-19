@@ -67,17 +67,33 @@ describe("startKeybindingsUpdateToasts", () => {
     let locale: "en" | "zh-CN" = "zh-CN";
     const stop = startKeybindingsUpdateToasts(() => locale);
     try {
-      appAtomRegistry.set(mocks.state, { latestEvent: keybindingsUpdated([]) });
+      appAtomRegistry.set(mocks.state, {
+        latestEvent: keybindingsUpdated([
+          { kind: "keybindings.malformed-config", message: "Literal $& {issue}" },
+        ]),
+      });
       locale = "en";
       now.mockReturnValue(1_000);
-      appAtomRegistry.set(mocks.state, { latestEvent: keybindingsUpdated([]) });
-      expect(mocks.addToast.mock.calls.map(([toast]) => toast.title)).toEqual(["快捷键已更新"]);
+      appAtomRegistry.set(mocks.state, {
+        latestEvent: keybindingsUpdated([
+          { kind: "keybindings.malformed-config", message: "Literal $& {issue}" },
+        ]),
+      });
+      expect(mocks.addToast.mock.calls.map(([toast]) => toast.title)).toEqual(["快捷键配置无效"]);
       now.mockReturnValue(2_000);
-      appAtomRegistry.set(mocks.state, { latestEvent: keybindingsUpdated([]) });
+      appAtomRegistry.set(mocks.state, {
+        latestEvent: keybindingsUpdated([
+          { kind: "keybindings.malformed-config", message: "Literal $& {issue}" },
+        ]),
+      });
       expect(mocks.addToast.mock.calls.map(([toast]) => toast.title)).toEqual([
-        "快捷键已更新",
-        "Keybindings updated",
+        "快捷键配置无效",
+        "Invalid keybindings configuration",
       ]);
+      for (const [toast] of mocks.addToast.mock.calls) {
+        expect(toast).toHaveProperty("type", "warning");
+        expect(toast).toHaveProperty("description.props.message", "Literal $& {issue}");
+      }
     } finally {
       stop();
     }

@@ -48,11 +48,7 @@ import { ensureLocalApi } from "../../localApi";
 import { serverEnvironment } from "../../state/server";
 import { readEnvironmentScope, useEnvironmentScope } from "../../state/session";
 import { useAtomCommand } from "../../state/use-atom-command";
-import {
-  splitWebTranslation,
-  useI18n,
-  type WebTranslate,
-} from "../../i18n/WebI18nContext";
+import { splitWebTranslation, useI18n, type WebTranslate } from "../../i18n/WebI18nContext";
 import { useRelativeTimeState } from "../../hooks/useRelativeTimeState";
 import { Button } from "../ui/button";
 import { ScrollArea } from "../ui/scroll-area";
@@ -61,7 +57,6 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { toastManager } from "../ui/toast";
 import {
   formatCpuTime,
-  formatSamplingStatus,
   processIdentityKey,
   resourceHistoryBarHeight,
   resourceHistoryCpuScaleMax,
@@ -83,8 +78,7 @@ function formatRate(value: number): string {
 
 function formatDurationMicros(value: number): string {
   if (value < 1_000) return `${Math.round(value)} µs`;
-  if (value < 1_000_000)
-    return `${(value / 1_000).toFixed(2).replace(/\.0+$/, "")} ms`;
+  if (value < 1_000_000) return `${(value / 1_000).toFixed(2).replace(/\.0+$/, "")} ms`;
   return `${(value / 1_000_000).toFixed(2).replace(/\.0+$/, "")} s`;
 }
 
@@ -92,21 +86,15 @@ function formatSampleInterval(valueMs: number, t: WebTranslate): string {
   if (valueMs < 1_000) return `${Math.max(0, Math.round(valueMs))} ms`;
   const seconds = valueMs / 1_000;
   return t(
-    seconds === 1
-      ? "diagnostics.resource.secondValue"
-      : "diagnostics.resource.secondsValue",
+    seconds === 1 ? "diagnostics.resource.secondValue" : "diagnostics.resource.secondsValue",
     {
       value: seconds.toLocaleString(undefined, { maximumFractionDigits: 1 }),
     },
   );
 }
 
-export function translateDiagnosticsRuntimeMessage(
-  message: string,
-  t: WebTranslate,
-): string {
-  const binaryMissing =
-    /^Resource monitor binary was not found for (.+)\.$/u.exec(message);
+export function translateDiagnosticsRuntimeMessage(message: string, t: WebTranslate): string {
+  const binaryMissing = /^Resource monitor binary was not found for (.+)\.$/u.exec(message);
   return binaryMissing
     ? t("diagnostics.resource.binaryMissing", {
         platform: binaryMissing[1] ?? "",
@@ -114,22 +102,14 @@ export function translateDiagnosticsRuntimeMessage(
     : message;
 }
 
-function formatProcessName(
-  process: Pick<ResourceTelemetryProcess, "command" | "name">,
-): string {
+function formatProcessName(process: Pick<ResourceTelemetryProcess, "command" | "name">): string {
   if (process.name.trim()) return process.name;
   const firstToken = process.command.trim().split(/\s+/)[0] ?? process.command;
   const normalized = firstToken.replace(/^['"]|['"]$/g, "");
-  return (
-    normalized.split(/[\\/]/).findLast((segment) => segment.length > 0) ??
-    normalized
-  );
+  return normalized.split(/[\\/]/).findLast((segment) => segment.length > 0) ?? normalized;
 }
 
-function categoryLabel(
-  category: ResourceTelemetryProcessCategory,
-  t: WebTranslate,
-): string {
+function categoryLabel(category: ResourceTelemetryProcessCategory, t: WebTranslate): string {
   switch (category) {
     case "server":
       return t("diagnostics.category.server");
@@ -161,10 +141,7 @@ function categoryDotClass(category: ResourceTelemetryProcessCategory): string {
   return "bg-success";
 }
 
-function ioSemanticsLabel(
-  semantics: ResourceTelemetryIoSemantics,
-  t: WebTranslate,
-): string {
+function ioSemanticsLabel(semantics: ResourceTelemetryIoSemantics, t: WebTranslate): string {
   switch (semantics) {
     case "storage":
       return t("diagnostics.io.storage");
@@ -186,9 +163,7 @@ function booleanStateLabel(
   return "Unknown";
 }
 
-function sourceStatusTone(
-  status: ResourceTelemetrySourceStatus,
-): "default" | "warning" | "danger" {
+function sourceStatusTone(status: ResourceTelemetrySourceStatus): "default" | "warning" | "danger" {
   if (status === "healthy") return "default";
   if (status === "starting" || status === "degraded") return "warning";
   return "danger";
@@ -222,14 +197,10 @@ function SourceStatusBadge({
     <span
       className={cn(
         "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-3xs font-semibold uppercase tracking-widest",
-        tone === "neutral" &&
-          "border-border/70 bg-muted/45 text-muted-foreground",
-        tone === "default" &&
-          "border-success/25 bg-success/10 text-success-foreground",
-        tone === "warning" &&
-          "border-warning/30 bg-warning/10 text-warning-foreground",
-        tone === "danger" &&
-          "border-destructive/30 bg-destructive/10 text-destructive",
+        tone === "neutral" && "border-border/70 bg-muted/45 text-muted-foreground",
+        tone === "default" && "border-success/25 bg-success/10 text-success-foreground",
+        tone === "warning" && "border-warning/30 bg-warning/10 text-warning-foreground",
+        tone === "danger" && "border-destructive/30 bg-destructive/10 text-destructive",
       )}
     >
       <span
@@ -241,17 +212,14 @@ function SourceStatusBadge({
           tone === "danger" && "bg-destructive",
         )}
       />
-      {label}{" "}
-      {presentation?.label ?? t(RESOURCE_SOURCE_STATUS_MESSAGE_KEYS[status])}
+      {label} {presentation?.label ?? t(RESOURCE_SOURCE_STATUS_MESSAGE_KEYS[status])}
     </span>
   );
 }
 
 function LastSampleLabel({ sampledAt }: { sampledAt: DateTime.Utc | null }) {
   const { t } = useI18n();
-  const relative = useRelativeTimeState(
-    sampledAt ? DateTime.formatIso(sampledAt) : null,
-  );
+  const relative = useRelativeTimeState(sampledAt ? DateTime.formatIso(sampledAt) : null);
   if (relative.status !== "relative") {
     return (
       <span className="text-2xs text-muted-foreground/55">
@@ -259,11 +227,7 @@ function LastSampleLabel({ sampledAt }: { sampledAt: DateTime.Utc | null }) {
       </span>
     );
   }
-  const [beforeTime, afterTime] = splitWebTranslation(
-    t,
-    "diagnostics.state.updated",
-    "time",
-  );
+  const [beforeTime, afterTime] = splitWebTranslation(t, "diagnostics.state.updated", "time");
   const isJustNow = relative.value === "just now";
   const [beforeRelativeValue, afterRelativeValue] =
     relative.suffix === "ago"
@@ -317,9 +281,7 @@ function IconStat({
         {value}
       </div>
       {detail ? (
-        <div className="mt-1.5 truncate text-3xs text-muted-foreground/60">
-          {detail}
-        </div>
+        <div className="mt-1.5 truncate text-3xs text-muted-foreground/60">{detail}</div>
       ) : null}
     </div>
   );
@@ -337,12 +299,7 @@ function AggregateCard({
   const { t } = useI18n();
   return (
     <div className="relative overflow-hidden border-t border-border/60 px-4 py-4 first:border-t-0 md:border-t-0 md:border-l md:first:border-l-0 sm:px-5">
-      <span
-        className={cn(
-          "absolute inset-x-5 top-0 h-0.5 rounded-full opacity-75",
-          accentClass,
-        )}
-      />
+      <span className={cn("absolute inset-x-5 top-0 h-0.5 rounded-full opacity-75", accentClass)} />
       <div className="flex items-center justify-between gap-3">
         <div className="text-3xs font-semibold uppercase tracking-widest text-muted-foreground/75">
           {label}
@@ -357,10 +314,7 @@ function AggregateCard({
         </div>
       </div>
       <div className="mt-3.5 grid grid-cols-2 gap-x-4 gap-y-2.5">
-        <MetricPair
-          label="CPU"
-          value={`${aggregate.currentCpuPercent.toFixed(1)}%`}
-        />
+        <MetricPair label="CPU" value={`${aggregate.currentCpuPercent.toFixed(1)}%`} />
         <MetricPair
           label={t("diagnostics.metric.memory")}
           value={formatBytes(aggregate.currentRssBytes)}
@@ -391,13 +345,7 @@ function MetricPair({ label, value }: { label: string; value: string }) {
   );
 }
 
-function HealthSource({
-  label,
-  health,
-}: {
-  label: string;
-  health: ResourceTelemetrySourceHealth;
-}) {
+function HealthSource({ label, health }: { label: string; health: ResourceTelemetrySourceHealth }) {
   const { t } = useI18n();
   const expectedInBrowser =
     health.status === "unavailable" &&
@@ -469,9 +417,7 @@ function HistoryWindowSelector({
       variant="segmented"
       value={[String(selectedWindowMs)]}
       onValueChange={(next) => {
-        const selected = HISTORY_WINDOWS.find(
-          (option) => String(option.windowMs) === next[0],
-        );
+        const selected = HISTORY_WINDOWS.find((option) => String(option.windowMs) === next[0]);
         if (selected) onSelect(selected.windowMs);
       }}
     >
@@ -491,10 +437,7 @@ function ResourceHistoryChart({
 }) {
   const { locale, t } = useI18n();
   const maxCpu = resourceHistoryCpuScaleMax(buckets);
-  const maxIo = Math.max(
-    1,
-    ...buckets.map((bucket) => bucket.ioReadBytes + bucket.ioWriteBytes),
-  );
+  const maxIo = Math.max(1, ...buckets.map((bucket) => bucket.ioReadBytes + bucket.ioWriteBytes));
 
   return (
     <div className="border-t border-border/60 px-4 py-4 sm:px-5">
@@ -504,8 +447,7 @@ function ResourceHistoryChart({
           {t("diagnostics.metric.cpuAverage")}
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-1.5 w-3 rounded-full bg-info/70" />{" "}
-          {t("diagnostics.metric.ioReads")}
+          <span className="h-1.5 w-3 rounded-full bg-info/70" /> {t("diagnostics.metric.ioReads")}
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span className="h-1.5 w-3 rounded-full bg-warning/80" />{" "}
@@ -562,12 +504,10 @@ function ResourceHistoryChart({
                     })}
                   </div>
                   <div>
-                    {t("diagnostics.column.read")}{" "}
-                    {formatBytes(bucket.ioReadBytes)}
+                    {t("diagnostics.column.read")} {formatBytes(bucket.ioReadBytes)}
                   </div>
                   <div>
-                    {t("diagnostics.column.write")}{" "}
-                    {formatBytes(bucket.ioWriteBytes)}
+                    {t("diagnostics.column.write")} {formatBytes(bucket.ioWriteBytes)}
                   </div>
                 </div>
               </TooltipPopup>
@@ -602,9 +542,7 @@ function ProcessTreeName({
           variant="ghost-muted"
           onClick={() => onToggle(process)}
           aria-label={t(
-            collapsed
-              ? "diagnostics.process.expandName"
-              : "diagnostics.process.collapseName",
+            collapsed ? "diagnostics.process.expandName" : "diagnostics.process.collapseName",
             { name },
           )}
         >
@@ -617,19 +555,10 @@ function ProcessTreeName({
       ) : (
         <span className="size-5" aria-hidden />
       )}
-      <span
-        className={cn(
-          "size-1.5 rounded-full",
-          categoryDotClass(process.category),
-        )}
-      />
+      <span className={cn("size-1.5 rounded-full", categoryDotClass(process.category))} />
       <Tooltip>
         <TooltipTrigger
-          render={
-            <span className="min-w-0 truncate font-medium text-foreground">
-              {name}
-            </span>
-          }
+          render={<span className="min-w-0 truncate font-medium text-foreground">{name}</span>}
         />
         <TooltipPopup side="top" variant="code">
           {process.command || process.name}
@@ -656,10 +585,7 @@ function ProcessActions({
   process: ResourceTelemetryProcess;
   canMaintainEnvironment: boolean;
   signalingKeys: ReadonlySet<string>;
-  onSignal: (
-    process: ResourceTelemetryProcess,
-    signal: ServerProcessSignal,
-  ) => void;
+  onSignal: (process: ResourceTelemetryProcess, signal: ServerProcessSignal) => void;
 }) {
   if (!canSignalProcess(process)) {
     return <span className="text-3xs text-muted-foreground/35">-</span>;
@@ -682,15 +608,10 @@ function ProcessTable({
   processes: ReadonlyArray<ResourceTelemetryProcess>;
   canMaintainEnvironment: boolean;
   signalingKeys: ReadonlySet<string>;
-  onSignal: (
-    process: ResourceTelemetryProcess,
-    signal: ServerProcessSignal,
-  ) => void;
+  onSignal: (process: ResourceTelemetryProcess, signal: ServerProcessSignal) => void;
 }) {
   const { t } = useI18n();
-  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(
-    () => new Set(),
-  );
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set());
   const visible = visibleResourceTelemetryProcesses(processes, collapsed);
   const toggle = (process: ResourceTelemetryProcess) => {
     const identityKey = processIdentityKey(process);
@@ -729,12 +650,8 @@ function ProcessTable({
           </colgroup>
           <thead className="sticky top-0 z-10 border-b border-border/60 bg-card text-3xs uppercase tracking-widest text-muted-foreground/65">
             <tr>
-              <th className="px-4 py-2 font-semibold sm:pl-5">
-                {t("diagnostics.column.process")}
-              </th>
-              <th className="px-3 py-2 font-semibold">
-                {t("diagnostics.column.category")}
-              </th>
+              <th className="px-4 py-2 font-semibold sm:pl-5">{t("diagnostics.column.process")}</th>
+              <th className="px-3 py-2 font-semibold">{t("diagnostics.column.category")}</th>
               <th className="px-3 py-2 text-right font-semibold">CPU</th>
               <th className="px-3 py-2 text-right font-semibold">
                 {t("diagnostics.column.cpuTime")}
@@ -763,19 +680,13 @@ function ProcessTable({
           <tbody className="divide-y divide-border/50">
             {visible.length === 0 ? (
               <tr>
-                <td
-                  colSpan={11}
-                  className="px-4 py-5 text-xs text-muted-foreground sm:px-5"
-                >
+                <td colSpan={11} className="px-4 py-5 text-xs text-muted-foreground sm:px-5">
                   {t("diagnostics.state.waitingNativeMonitor")}
                 </td>
               </tr>
             ) : null}
             {visible.map((process) => (
-              <tr
-                key={processIdentityKey(process)}
-                className="hover:bg-muted/20"
-              >
+              <tr key={processIdentityKey(process)} className="hover:bg-muted/20">
                 <td className="px-4 py-2 sm:pl-5">
                   <ProcessTreeName
                     process={process}
@@ -806,9 +717,7 @@ function ProcessTable({
                 </td>
                 <td className="px-3 py-2 text-right font-mono tabular-nums text-muted-foreground">
                   <Tooltip>
-                    <TooltipTrigger
-                      render={<span>{formatBytes(process.ioWriteBytes)}</span>}
-                    />
+                    <TooltipTrigger render={<span>{formatBytes(process.ioWriteBytes)}</span>} />
                     <TooltipPopup side="top">
                       {ioSemanticsLabel(process.ioSemantics, t)}
                     </TooltipPopup>
@@ -862,12 +771,8 @@ function HistoryProcessTable({
           </colgroup>
           <thead className="sticky top-0 z-10 border-b border-border/60 bg-card text-3xs uppercase tracking-widest text-muted-foreground/65">
             <tr>
-              <th className="px-4 py-2 font-semibold sm:pl-5">
-                {t("diagnostics.column.process")}
-              </th>
-              <th className="px-3 py-2 font-semibold">
-                {t("diagnostics.column.category")}
-              </th>
+              <th className="px-4 py-2 font-semibold sm:pl-5">{t("diagnostics.column.process")}</th>
+              <th className="px-3 py-2 font-semibold">{t("diagnostics.column.category")}</th>
               <th className="px-3 py-2 text-right font-semibold">
                 {t("diagnostics.column.cpuTime")}
               </th>
@@ -877,36 +782,26 @@ function HistoryProcessTable({
               <th className="px-3 py-2 text-right font-semibold">
                 {t("diagnostics.column.peakMemory")}
               </th>
-              <th className="px-3 py-2 text-right font-semibold">
-                {t("diagnostics.column.read")}
-              </th>
+              <th className="px-3 py-2 text-right font-semibold">{t("diagnostics.column.read")}</th>
               <th className="px-3 py-2 text-right font-semibold">
                 {t("diagnostics.column.write")}
               </th>
               <th className="px-3 py-2 text-right font-semibold">
                 {t("diagnostics.column.samples")}
               </th>
-              <th className="px-3 py-2 text-right font-semibold sm:pr-5">
-                PID
-              </th>
+              <th className="px-3 py-2 text-right font-semibold sm:pr-5">PID</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/50">
             {processes.length === 0 ? (
               <tr>
-                <td
-                  colSpan={9}
-                  className="px-4 py-5 text-xs text-muted-foreground sm:px-5"
-                >
+                <td colSpan={9} className="px-4 py-5 text-xs text-muted-foreground sm:px-5">
                   {t("diagnostics.state.noRetainedSamples")}
                 </td>
               </tr>
             ) : null}
             {processes.map((process) => (
-              <tr
-                key={processIdentityKey(process)}
-                className="hover:bg-muted/20"
-              >
+              <tr key={processIdentityKey(process)} className="hover:bg-muted/20">
                 <td className="px-4 py-2 sm:pl-5">
                   <Tooltip>
                     <TooltipTrigger
@@ -954,11 +849,7 @@ function HistoryProcessTable({
   );
 }
 
-function AttributionTable({
-  entries,
-}: {
-  entries: ReadonlyArray<ResourceAttributionEntry>;
-}) {
+function AttributionTable({ entries }: { entries: ReadonlyArray<ResourceAttributionEntry> }) {
   const { t } = useI18n();
   return (
     <div className="overflow-x-auto border-t border-border/60">
@@ -973,21 +864,15 @@ function AttributionTable({
         </colgroup>
         <thead className="border-b border-border/60 text-3xs uppercase tracking-widest text-muted-foreground/65">
           <tr>
-            <th className="px-4 py-2 font-semibold sm:pl-5">
-              {t("diagnostics.column.component")}
-            </th>
-            <th className="px-3 py-2 font-semibold">
-              {t("diagnostics.column.operation")}
-            </th>
+            <th className="px-4 py-2 font-semibold sm:pl-5">{t("diagnostics.column.component")}</th>
+            <th className="px-3 py-2 font-semibold">{t("diagnostics.column.operation")}</th>
             <th className="px-3 py-2 text-right font-semibold">
               {t("diagnostics.column.logicalRead")}
             </th>
             <th className="px-3 py-2 text-right font-semibold">
               {t("diagnostics.column.logicalWrite")}
             </th>
-            <th className="px-3 py-2 text-right font-semibold">
-              {t("diagnostics.column.count")}
-            </th>
+            <th className="px-3 py-2 text-right font-semibold">{t("diagnostics.column.count")}</th>
             <th className="px-3 py-2 text-right font-semibold sm:pr-5">
               {t("diagnostics.column.time")}
             </th>
@@ -996,34 +881,24 @@ function AttributionTable({
         <tbody className="divide-y divide-border/50">
           {entries.length === 0 ? (
             <tr>
-              <td
-                colSpan={6}
-                className="px-4 py-5 text-xs text-muted-foreground sm:px-5"
-              >
+              <td colSpan={6} className="px-4 py-5 text-xs text-muted-foreground sm:px-5">
                 {t("diagnostics.state.noInstrumentedIo")}
               </td>
             </tr>
           ) : null}
           {entries.map((entry) => (
-            <tr
-              key={`${entry.component}:${entry.operation}`}
-              className="hover:bg-muted/20"
-            >
+            <tr key={`${entry.component}:${entry.operation}`} className="hover:bg-muted/20">
               <td className="truncate px-4 py-2 font-medium text-foreground sm:pl-5">
                 {entry.component}
               </td>
-              <td className="truncate px-3 py-2 text-muted-foreground">
-                {entry.operation}
-              </td>
+              <td className="truncate px-3 py-2 text-muted-foreground">{entry.operation}</td>
               <td className="px-3 py-2 text-right font-mono tabular-nums text-info-foreground">
                 {formatBytes(entry.logicalReadBytes)}
               </td>
               <td className="px-3 py-2 text-right font-mono tabular-nums text-warning-foreground">
                 {formatBytes(entry.logicalWriteBytes)}
               </td>
-              <td className="px-3 py-2 text-right font-mono tabular-nums">
-                {entry.count}
-              </td>
+              <td className="px-3 py-2 text-right font-mono tabular-nums">{entry.count}</td>
               <td className="px-3 py-2 text-right font-mono tabular-nums text-muted-foreground sm:pr-5">
                 {(entry.durationMs / 1_000).toFixed(2).replace(/\.0+$/, "")}s
               </td>
@@ -1042,10 +917,7 @@ export function ResourceTelemetryDiagnostics({
 }) {
   // Pending signals and retries belong to one environment, so a switch starts fresh.
   return (
-    <ResourceTelemetryDiagnosticsBody
-      key={environmentId ?? ""}
-      environmentId={environmentId}
-    />
+    <ResourceTelemetryDiagnosticsBody key={environmentId ?? ""} environmentId={environmentId} />
   );
 }
 
@@ -1063,12 +935,8 @@ function ResourceTelemetryDiagnosticsBody({
   );
   const [windowMs, setWindowMs] = useState(15 * 60_000);
   const selectedWindow =
-    HISTORY_WINDOWS.find((option) => option.windowMs === windowMs) ??
-    HISTORY_WINDOWS[1];
-  const canMaintainEnvironment = useEnvironmentScope(
-    environmentId,
-    AuthEnvironmentMaintainScope,
-  );
+    HISTORY_WINDOWS.find((option) => option.windowMs === windowMs) ?? HISTORY_WINDOWS[1];
+  const canMaintainEnvironment = useEnvironmentScope(environmentId, AuthEnvironmentMaintainScope);
   const telemetry = useResourceTelemetry(environmentId);
   const retryTelemetry = telemetry.retry;
   const history = useResourceTelemetryHistory(
@@ -1081,18 +949,13 @@ function ResourceTelemetryDiagnosticsBody({
   const signalServerProcess = useAtomCommand(serverEnvironment.signalProcess, {
     reportFailure: false,
   });
-  const [signalingKeys, setSignalingKeys] = useState<ReadonlySet<string>>(
-    () => new Set(),
-  );
+  const [signalingKeys, setSignalingKeys] = useState<ReadonlySet<string>>(() => new Set());
   const signalingKeysRef = useRef<ReadonlySet<string>>(new Set());
   const [isRetrying, setIsRetrying] = useState(false);
   const snapshot = telemetry.data;
   const allT3 = snapshot?.groups.allT3;
 
-  const signalProcess = async (
-    process: ResourceTelemetryProcess,
-    signal: ServerProcessSignal,
-  ) => {
+  const signalProcess = async (process: ResourceTelemetryProcess, signal: ServerProcessSignal) => {
     const targetEnvironmentId = environmentId;
     if (
       targetEnvironmentId === null ||
@@ -1101,9 +964,7 @@ function ResourceTelemetryDiagnosticsBody({
       return;
     const identityKey = processIdentityKey(process);
     if (signalingKeysRef.current.has(identityKey)) return;
-    const nextSignalingKeys = new Set(signalingKeysRef.current).add(
-      identityKey,
-    );
+    const nextSignalingKeys = new Set(signalingKeysRef.current).add(identityKey);
     signalingKeysRef.current = nextSignalingKeys;
     setSignalingKeys(nextSignalingKeys);
     const clearSignaling = () => {
@@ -1127,9 +988,7 @@ function ResourceTelemetryDiagnosticsBody({
           type: "error",
           title: t("diagnostics.signal.confirmFailed"),
           description:
-            error instanceof Error
-              ? error.message
-              : t("diagnostics.signal.sendFailed", { signal }),
+            error instanceof Error ? error.message : t("diagnostics.signal.sendFailed", { signal }),
         });
         return;
       }
@@ -1138,9 +997,7 @@ function ResourceTelemetryDiagnosticsBody({
         return;
       }
     }
-    if (
-      !readEnvironmentScope(targetEnvironmentId, AuthEnvironmentMaintainScope)
-    ) {
+    if (!readEnvironmentScope(targetEnvironmentId, AuthEnvironmentMaintainScope)) {
       clearSignaling();
       return;
     }
@@ -1176,9 +1033,7 @@ function ResourceTelemetryDiagnosticsBody({
           type: "error",
           title: t("diagnostics.signal.sendFailedTitle", { signal }),
           description:
-            error instanceof Error
-              ? error.message
-              : t("diagnostics.signal.sendFailed", { signal }),
+            error instanceof Error ? error.message : t("diagnostics.signal.sendFailed", { signal }),
         });
       })
       .finally(() => {
@@ -1210,17 +1065,11 @@ function ResourceTelemetryDiagnosticsBody({
         const { locale } = readWebI18n();
         toastManager.add({
           type: "error",
-          title: translateWebSource(
-            locale,
-            "Could not restart resource monitor",
-          ),
+          title: translateWebSource(locale, "Could not restart resource monitor"),
           description:
             error instanceof Error
               ? error.message
-              : translateWebSource(
-                  locale,
-                  "The resource monitor retry failed.",
-                ),
+              : translateWebSource(locale, "The resource monitor retry failed."),
         });
       })
       .finally(() => {
@@ -1228,9 +1077,7 @@ function ResourceTelemetryDiagnosticsBody({
       });
   };
 
-  const speedLimit = snapshot
-    ? Option.getOrNull(snapshot.speedLimitPercent)
-    : null;
+  const speedLimit = snapshot ? Option.getOrNull(snapshot.speedLimitPercent) : null;
   const collectorNeedsRetry = shouldShowResourceMonitorRetry({
     nativeStatus: snapshot?.health.native.status ?? null,
     error: telemetry.error,
@@ -1271,9 +1118,7 @@ function ResourceTelemetryDiagnosticsBody({
                   </Button>
                 }
               />
-              <TooltipPopup side="top">
-                {t("diagnostics.action.refreshSnapshot")}
-              </TooltipPopup>
+              <TooltipPopup side="top">{t("diagnostics.action.refreshSnapshot")}</TooltipPopup>
             </Tooltip>
           </div>
         }
@@ -1300,9 +1145,7 @@ function ResourceTelemetryDiagnosticsBody({
               {snapshot && snapshot.sampleIntervalMs <= 0
                 ? translateWebSource(locale, "Sampling on demand")
                 : t("diagnostics.resource.samplingEvery", {
-                    interval: snapshot
-                      ? formatSampleInterval(snapshot.sampleIntervalMs, t)
-                      : "...",
+                    interval: snapshot ? formatSampleInterval(snapshot.sampleIntervalMs, t) : "...",
                   })}
             </div>
           </div>
@@ -1390,24 +1233,17 @@ function ResourceTelemetryDiagnosticsBody({
                   ? snapshot.power.thermalState === "unknown"
                     ? t("diagnostics.resource.thermalStateUnknown")
                     : t("diagnostics.resource.thermalState", {
-                        state: translateWebSource(
-                          locale,
-                          snapshot.power.thermalState,
-                        ),
+                        state: translateWebSource(locale, snapshot.power.thermalState),
                       })
                   : undefined
               }
-              tone={
-                speedLimit !== null && speedLimit < 80 ? "warning" : "default"
-              }
+              tone={speedLimit !== null && speedLimit < 80 ? "warning" : "default"}
             />
           </div>
           {telemetry.error ? (
             <div className="flex items-start gap-2 border-t border-destructive/20 bg-destructive/5 px-4 py-3 text-xs text-destructive sm:px-5">
               <AlertTriangleIcon className="size-3.5 h-lh shrink-0" />
-              <span>
-                {translateDiagnosticsRuntimeMessage(telemetry.error, t)}
-              </span>
+              <span>{translateDiagnosticsRuntimeMessage(telemetry.error, t)}</span>
             </div>
           ) : null}
           {snapshot ? (
@@ -1437,12 +1273,7 @@ function ResourceTelemetryDiagnosticsBody({
         icon={<GaugeIcon className="size-4 text-muted-foreground" />}
         headerAction={
           collectorNeedsRetry ? (
-            <Button
-              size="xs"
-              variant="outline"
-              disabled={isRetrying}
-              onClick={retryCollector}
-            >
+            <Button size="xs" variant="outline" disabled={isRetrying} onClick={retryCollector}>
               <RefreshIcon size="xs" refreshing={isRetrying} />
               {translateWebSource(locale, "Retry monitor")}
             </Button>
@@ -1518,10 +1349,7 @@ function ResourceTelemetryDiagnosticsBody({
                 />
                 <DetailRow
                   label={translateWebSource(locale, "Thermal")}
-                  value={translateWebSource(
-                    locale,
-                    snapshot.power.thermalState,
-                  )}
+                  value={translateWebSource(locale, snapshot.power.thermalState)}
                   valueClassName={
                     snapshot.power.thermalState === "serious" ||
                     snapshot.power.thermalState === "critical"
@@ -1563,9 +1391,7 @@ function ResourceTelemetryDiagnosticsBody({
                 />
                 <DetailRow
                   label={t("diagnostics.resource.collectionTime")}
-                  value={formatDurationMicros(
-                    snapshot.health.collectionDurationMicros,
-                  )}
+                  value={formatDurationMicros(snapshot.health.collectionDurationMicros)}
                 />
                 <DetailRow
                   label={t("diagnostics.resource.processScan")}
@@ -1613,10 +1439,7 @@ function ResourceTelemetryDiagnosticsBody({
         icon={<HardDriveIcon className="size-4 text-muted-foreground" />}
         headerAction={
           <div className="flex items-center gap-2">
-            <HistoryWindowSelector
-              selectedWindowMs={windowMs}
-              onSelect={setWindowMs}
-            />
+            <HistoryWindowSelector selectedWindowMs={windowMs} onSelect={setWindowMs} />
             <Button
               size="icon-micro"
               variant="ghost"
@@ -1633,9 +1456,7 @@ function ResourceTelemetryDiagnosticsBody({
           {history.error ? (
             <div className="flex items-start gap-2 border-b border-destructive/20 bg-destructive/5 px-4 py-3 text-xs text-destructive sm:px-5">
               <AlertTriangleIcon className="size-3.5 h-lh shrink-0" />
-              <span>
-                {translateDiagnosticsRuntimeMessage(history.error, t)}
-              </span>
+              <span>{translateDiagnosticsRuntimeMessage(history.error, t)}</span>
             </div>
           ) : null}
           <ResourceHistoryChart buckets={history.data?.buckets ?? []} />
@@ -1650,9 +1471,7 @@ function ResourceTelemetryDiagnosticsBody({
           snapshot ? (
             <span className="text-3xs text-muted-foreground/55">
               {identityBefore}
-              <span className="font-mono">
-                {translateWebSource(locale, "PID + start time")}
-              </span>
+              <span className="font-mono">{translateWebSource(locale, "PID + start time")}</span>
               {identityAfter}
             </span>
           ) : null

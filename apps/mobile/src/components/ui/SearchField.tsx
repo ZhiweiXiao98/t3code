@@ -43,7 +43,9 @@ export function SearchField({
       />
       <TextInput
         ref={inputRef}
-        accessibilityLabel={localize ? localizeMobileString(accessibilityLabel) : accessibilityLabel}
+        accessibilityLabel={
+          localize ? localizeMobileString(accessibilityLabel) : accessibilityLabel
+        }
         autoFocus={autoFocus}
         autoCapitalize="none"
         autoCorrect={false}
@@ -60,7 +62,9 @@ export function SearchField({
       />
       {value.length > 0 ? (
         <Pressable
-          accessibilityLabel={localize ? localizeMobileString(clearAccessibilityLabel) : clearAccessibilityLabel}
+          accessibilityLabel={
+            localize ? localizeMobileString(clearAccessibilityLabel) : clearAccessibilityLabel
+          }
           accessibilityRole="button"
           hitSlop={10}
           onPress={() => {

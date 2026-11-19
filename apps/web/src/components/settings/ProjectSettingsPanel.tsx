@@ -4,19 +4,10 @@ import { useComposerMenuState } from "../chat/useComposerMenuState";
 import { useOrchestrationCommand } from "../../state/use-orchestration-command";
 import { AuthOrchestrationOperateScope } from "@t3tools/contracts";
 import { useEnvironmentsWithScope } from "../../state/session";
-import {
-  mapAtomCommandResult,
-  settlePromise,
-} from "@t3tools/client-runtime/state/runtime";
-import {
-  scopeProjectRef,
-  scopeThreadRef,
-} from "@t3tools/client-runtime/environment";
+import { mapAtomCommandResult, settlePromise } from "@t3tools/client-runtime/state/runtime";
+import { scopeProjectRef, scopeThreadRef } from "@t3tools/client-runtime/environment";
 import { planProjectRemoval } from "@t3tools/client-runtime/state/projects";
-import {
-  type EnvironmentId,
-  type SidebarProjectGroupingMode,
-} from "@t3tools/contracts";
+import { type EnvironmentId, type SidebarProjectGroupingMode } from "@t3tools/contracts";
 import {
   checkProjectAccess,
   reportProjectFailure,
@@ -29,10 +20,7 @@ import { lazy, Suspense, useRef, useState, type ReactNode } from "react";
 
 import { useComposerDraftStore } from "../../composerDraftStore";
 import { releaseProjectDraftUploads } from "../../lib/composerDraftUploads";
-import {
-  persistClientSettingsUpdate,
-  useClientSettings,
-} from "../../hooks/useSettings";
+import { persistClientSettingsUpdate, useClientSettings } from "../../hooks/useSettings";
 import { readLocalApi } from "../../localApi";
 import { derivePhysicalProjectKey } from "@t3tools/client-runtime/state/project-grouping";
 import {
@@ -41,10 +29,7 @@ import {
   type SidebarProjectGroupMember,
   type SidebarProjectSnapshot,
 } from "../../sidebarProjectGrouping";
-import {
-  useEnvironments,
-  usePrimaryEnvironmentId,
-} from "../../state/environments";
+import { useEnvironments, usePrimaryEnvironmentId } from "../../state/environments";
 import { useThreadShells, waitForProjectRemoval } from "../../state/entities";
 import { refreshProjectFaviconUrl } from "../../state/assets";
 import { projectEnvironment } from "../../state/projects";
@@ -52,13 +37,7 @@ import { ProjectFavicon } from "../ProjectFavicon";
 import { Alert, AlertDescription } from "../ui/alert";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
-import {
-  Select,
-  SelectItem,
-  SelectPopup,
-  SelectTrigger,
-  SelectValue,
-} from "../ui/select";
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
 import { Switch } from "../ui/switch";
 import { stackedThreadToast, toastManager } from "../ui/toast";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
@@ -93,9 +72,7 @@ const ProjectIconPickerDialog = lazy(() =>
   })),
 );
 
-function isGroupingSelection(
-  value: unknown,
-): value is SidebarProjectGroupingMode | "inherit" {
+function isGroupingSelection(value: unknown): value is SidebarProjectGroupingMode | "inherit" {
   return (
     value === "inherit" ||
     value === "repository" ||
@@ -105,19 +82,12 @@ function isGroupingSelection(
 }
 
 // Grouping overrides are client settings, so they stay editable without project write access.
-function CheckoutGroupingSelect({
-  member,
-}: {
-  member: SidebarProjectGroupMember;
-}) {
+function CheckoutGroupingSelect({ member }: { member: SidebarProjectGroupMember }) {
   const { locale, t } = useI18n();
   const overrideKey = derivePhysicalProjectKey(member);
-  const globalMode = useClientSettings(
-    (settings) => settings.sidebarProjectGroupingMode,
-  );
+  const globalMode = useClientSettings((settings) => settings.sidebarProjectGroupingMode);
   const selection = useClientSettings(
-    (settings) =>
-      settings.sidebarProjectGroupingOverrides?.[overrideKey] ?? "inherit",
+    (settings) => settings.sidebarProjectGroupingOverrides?.[overrideKey] ?? "inherit",
   );
   return (
     <Select
@@ -159,15 +129,9 @@ function CheckoutGroupingSelect({
         <SelectValue>
           {selection === "inherit"
             ? t("projectSettings.defaultValue", {
-                value: translateWebSource(
-                  locale,
-                  PROJECT_GROUPING_MODE_LABELS[globalMode],
-                ),
+                value: translateWebSource(locale, PROJECT_GROUPING_MODE_LABELS[globalMode]),
               })
-            : translateWebSource(
-                locale,
-                PROJECT_GROUPING_MODE_LABELS[selection],
-              )}
+            : translateWebSource(locale, PROJECT_GROUPING_MODE_LABELS[selection])}
         </SelectValue>
       </SelectTrigger>
       <SelectPopup align="end" alignItemWithTrigger={false}>
@@ -178,10 +142,7 @@ function CheckoutGroupingSelect({
           {translateWebSource(locale, PROJECT_GROUPING_MODE_LABELS.repository)}
         </SelectItem>
         <SelectItem hideIndicator value="repository_path">
-          {translateWebSource(
-            locale,
-            PROJECT_GROUPING_MODE_LABELS.repository_path,
-          )}
+          {translateWebSource(locale, PROJECT_GROUPING_MODE_LABELS.repository_path)}
         </SelectItem>
         <SelectItem hideIndicator value="separate">
           {translateWebSource(locale, PROJECT_GROUPING_MODE_LABELS.separate)}
@@ -200,10 +161,7 @@ interface ProjectSelection {
   readonly memberKeys: ReadonlyArray<string>;
 }
 
-function sameProjectSelection(
-  a: ProjectSelection | null,
-  b: ProjectSelection,
-): boolean {
+function sameProjectSelection(a: ProjectSelection | null, b: ProjectSelection): boolean {
   return (
     a !== null &&
     a.key === b.key &&
@@ -229,8 +187,7 @@ export function ProjectSettingsPanel({
   const groups = useSettingsProjectGroups();
   const pathname = useLocation({ select: (location) => location.pathname });
 
-  const selected =
-    groups.find((group) => group.projectKey === projectKey) ?? null;
+  const selected = groups.find((group) => group.projectKey === projectKey) ?? null;
   const members =
     selected?.memberProjects.filter(
       (member) =>
@@ -239,9 +196,7 @@ export function ProjectSettingsPanel({
     ) ?? [];
 
   // Retain group members so grouping-rule changes can follow the project to its new group.
-  const [lastSelection, setLastSelection] = useState<ProjectSelection | null>(
-    null,
-  );
+  const [lastSelection, setLastSelection] = useState<ProjectSelection | null>(null);
   if (selected && members.length > 0) {
     const current: ProjectSelection = {
       key: selected.projectKey,
@@ -249,8 +204,7 @@ export function ProjectSettingsPanel({
       checkoutKey,
       memberKeys: members.map((member) => member.physicalProjectKey),
     };
-    if (!sameProjectSelection(lastSelection, current))
-      setLastSelection(current);
+    if (!sameProjectSelection(lastSelection, current)) setLastSelection(current);
   }
 
   const successor =
@@ -279,15 +233,12 @@ export function ProjectSettingsPanel({
     );
   }
 
-  if ((!selected || members.length === 0) && unavailable != null)
-    return unavailable;
+  if ((!selected || members.length === 0) && unavailable != null) return unavailable;
 
   if (!selected) {
     return (
       <div className="flex flex-1 items-center justify-center p-8 text-sm text-muted-foreground">
-        {groups.length === 0
-          ? t("projectSettings.empty")
-          : t("projectSettings.removed")}
+        {groups.length === 0 ? t("projectSettings.empty") : t("projectSettings.removed")}
       </div>
     );
   }
@@ -329,17 +280,13 @@ function ProjectDetail({
   const environmentById = new Map(
     environments.map((environment) => [environment.environmentId, environment]),
   );
-  const editableIds = useEnvironmentsWithScope(
-    allMembers,
-    AuthOrchestrationOperateScope,
-  );
+  const editableIds = useEnvironmentsWithScope(allMembers, AuthOrchestrationOperateScope);
   const canEditGroup = group.memberProjects.every((member) =>
     editableIds.has(member.environmentId),
   );
   const filePickerProject =
     group.memberProjects.find(
-      (member) =>
-        environmentById.get(member.environmentId)?.serverConfig != null,
+      (member) => environmentById.get(member.environmentId)?.serverConfig != null,
     ) ?? group.memberProjects[0]!;
   const threads = useThreadShells();
   const deleteProject = useOrchestrationCommand(projectEnvironment.delete, {
@@ -359,12 +306,9 @@ function ProjectDetail({
       ? window.desktopBridge?.pickProjectFavicon
       : undefined;
 
-  const { updateProjectGroup, canOrganizeProjectGroup } =
-    useProjectGroupUpdate();
+  const { updateProjectGroup, canOrganizeProjectGroup } = useProjectGroupUpdate();
   const updateAllMembers = (
-    input:
-      | ProjectGroupUpdate
-      | ((member: SidebarProjectGroupMember) => ProjectGroupUpdate),
+    input: ProjectGroupUpdate | ((member: SidebarProjectGroupMember) => ProjectGroupUpdate),
     failureTitle: string,
   ) => updateProjectGroup(group.memberProjects, input, failureTitle);
   const canOrganize =
@@ -386,20 +330,15 @@ function ProjectDetail({
       });
       return;
     }
-    if (!projectGroupTitleNeedsUpdate(group.memberProjects, title, wasEdited))
-      return;
+    if (!projectGroupTitleNeedsUpdate(group.memberProjects, title, wasEdited)) return;
     await updateAllMembers({ title }, t("projectSettings.renameFailed"));
   };
 
-  const [faviconPickerOpen, setFaviconPickerOpen] =
-    useComposerMenuState(!canEditGroup);
-  const [iconPickerOpen, setIconPickerOpen] =
-    useComposerMenuState(!canEditGroup);
+  const [faviconPickerOpen, setFaviconPickerOpen] = useComposerMenuState(!canEditGroup);
+  const [iconPickerOpen, setIconPickerOpen] = useComposerMenuState(!canEditGroup);
   const [isSavingFavicon, setIsSavingFavicon] = useState(false);
   const savingFaviconRef = useRef(false);
-  const setProjectIcon = async (
-    input: Parameters<typeof updateAllMembers>[0],
-  ) => {
+  const setProjectIcon = async (input: Parameters<typeof updateAllMembers>[0]) => {
     if (savingFaviconRef.current) return;
     savingFaviconRef.current = true;
     setIsSavingFavicon(true);
@@ -420,13 +359,9 @@ function ProjectDetail({
   const hasMultipleCheckouts = group.memberProjects.length > 1;
   const canResetScratchTitle =
     group.memberProjects.every((member) => member.isScratch) &&
-    group.memberProjects.some(
-      (member) => member.title !== SCRATCH_PROJECT_TITLE,
-    );
+    group.memberProjects.some((member) => member.title !== SCRATCH_PROJECT_TITLE);
 
-  const removeMembers = async (
-    members: ReadonlyArray<SidebarProjectGroupMember>,
-  ) => {
+  const removeMembers = async (members: ReadonlyArray<SidebarProjectGroupMember>) => {
     if (checkProjectAccess(members, tx("Failed to remove project"))) return;
     const api = readLocalApi();
     if (!api) return;
@@ -457,16 +392,13 @@ function ProjectDetail({
       (candidate) =>
         !members.some(
           (member) =>
-            member.environmentId === candidate.environmentId &&
-            member.id === candidate.id,
+            member.environmentId === candidate.environmentId && member.id === candidate.id,
         ),
     );
     for (const member of members) {
       if (checkProjectAccess([member], tx("Failed to remove project"))) return;
       const memberThreads = projectThreads.filter(
-        (thread) =>
-          thread.environmentId === member.environmentId &&
-          thread.projectId === member.id,
+        (thread) => thread.environmentId === member.environmentId && thread.projectId === member.id,
       );
       const result = mapAtomCommandResult(
         await deleteProject({
@@ -479,28 +411,19 @@ function ProjectDetail({
         () => undefined,
       );
       if (result._tag === "Failure") {
-        reportProjectFailure(
-          t("projectSettings.removeFailed", { name: member.title }),
-          result,
-        );
+        reportProjectFailure(t("projectSettings.removeFailed", { name: member.title }), result);
         return;
       }
       const projectRef = scopeProjectRef(member.environmentId, member.id);
       await waitForProjectRemoval(projectRef);
       releaseProjectDraftUploads(
         projectRef,
-        memberThreads.map((thread) =>
-          scopeThreadRef(thread.environmentId, thread.id),
-        ),
+        memberThreads.map((thread) => scopeThreadRef(thread.environmentId, thread.id)),
       );
-      const projectDraftThread =
-        draftStore.getDraftThreadByProjectRef(projectRef);
+      const projectDraftThread = draftStore.getDraftThreadByProjectRef(projectRef);
       if (projectDraftThread && remainingMember) {
         draftStore.setDraftThreadContext(projectDraftThread.draftId, {
-          projectRef: scopeProjectRef(
-            remainingMember.environmentId,
-            remainingMember.id,
-          ),
+          projectRef: scopeProjectRef(remainingMember.environmentId, remainingMember.id),
           environmentSelection: "manual",
           loadBalancedEnvironmentId: null,
         });
@@ -523,10 +446,7 @@ function ProjectDetail({
     }
   };
 
-  const checkoutsByEnvironment = new Map<
-    EnvironmentId,
-    SidebarProjectGroupMember[]
-  >();
+  const checkoutsByEnvironment = new Map<EnvironmentId, SidebarProjectGroupMember[]>();
   for (const member of group.memberProjects) {
     const members = checkoutsByEnvironment.get(member.environmentId);
     if (members) members.push(member);
@@ -593,9 +513,7 @@ function ProjectDetail({
                 ) : null}
                 {!hasMultiple ? (
                   <Tooltip>
-                    <TooltipTrigger
-                      render={<span className="block truncate" />}
-                    >
+                    <TooltipTrigger render={<span className="block truncate" />}>
                       {firstMember.workspaceRoot}
                     </TooltipTrigger>
                     <TooltipPopup>{firstMember.workspaceRoot}</TooltipPopup>
@@ -652,9 +570,7 @@ function ProjectDetail({
           {!canEditGroup ? (
             <p className="px-3 py-2 text-sm text-muted-foreground sm:px-4">
               {group.memberProjects.length > 1
-                ? tx(
-                    "Shared settings require permission to change every checkout in this group.",
-                  )
+                ? tx("Shared settings require permission to change every checkout in this group.")
                 : tx("This connection cannot change this project.")}
             </p>
           ) : null}
@@ -692,8 +608,7 @@ function ProjectDetail({
                   void renameGroup(event.currentTarget.value, wasEdited);
                 }}
                 onKeyDown={(event) => {
-                  if (event.nativeEvent.isComposing || event.keyCode === 229)
-                    return;
+                  if (event.nativeEvent.isComposing || event.keyCode === 229) return;
                   if (event.key === "Enter") event.currentTarget.blur();
                 }}
               />
@@ -711,9 +626,7 @@ function ProjectDetail({
                     : (faviconPath ?? t("projectSettings.automatic"))
             }
             resetAction={
-              group.memberProjects.some(
-                (member) => !hasDefaultProjectIcon(member),
-              ) ? (
+              group.memberProjects.some((member) => !hasDefaultProjectIcon(member)) ? (
                 <SettingResetButton
                   label={translateWebSource(locale, "project icon")}
                   disabled={isSavingFavicon || !canEditGroup}
@@ -762,11 +675,7 @@ function ProjectDetail({
                     onCheckedChange={(checked) =>
                       void organize(
                         { pinned: Boolean(checked) },
-                        tx(
-                          checked
-                            ? "Failed to pin project"
-                            : "Failed to unpin project",
-                        ),
+                        tx(checked ? "Failed to pin project" : "Failed to unpin project"),
                       )
                     }
                     aria-label={tx("Pin project")}
@@ -860,13 +769,10 @@ function ProjectDetail({
         onOpenChange={setFaviconPickerOpen}
         {...(pickProjectFavicon
           ? {
-              onPickExternal: () =>
-                pickProjectFavicon(filePickerProject.workspaceRoot),
+              onPickExternal: () => pickProjectFavicon(filePickerProject.workspaceRoot),
             }
           : {})}
-        onSelect={(path) =>
-          void setProjectIcon({ faviconPath: path, projectIcon: null })
-        }
+        onSelect={(path) => void setProjectIcon({ faviconPath: path, projectIcon: null })}
         open={faviconPickerOpen && canEditGroup}
         projectName={group.displayName}
       />
@@ -877,9 +783,7 @@ function ProjectDetail({
             projectName={group.title}
             open
             onOpenChange={setIconPickerOpen}
-            onSelect={(icon) =>
-              void setProjectIcon({ faviconPath: null, projectIcon: icon })
-            }
+            onSelect={(icon) => void setProjectIcon({ faviconPath: null, projectIcon: icon })}
           />
         </Suspense>
       ) : null}

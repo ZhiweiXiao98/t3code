@@ -588,7 +588,12 @@ export function AddProjectSourceScreen(props: { readonly environmentId?: string 
           input: {},
         }),
   );
-  const sourceRows = addProjectSourceRows(discoveryState.data, canCloneProject, undefined, selectedEnvironment?.offeredSourceControlProviders);
+  const sourceRows = addProjectSourceRows(
+    discoveryState.data,
+    canCloneProject,
+    undefined,
+    selectedEnvironment?.offeredSourceControlProviders,
+  );
 
   return (
     <AddProjectShell title="Add project">

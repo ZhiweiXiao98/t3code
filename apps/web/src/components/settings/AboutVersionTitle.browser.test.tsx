@@ -5,10 +5,7 @@ import { page } from "vite-plus/test/browser";
 import { act, render } from "../../../test/render";
 import { WebI18nContext } from "../../i18n/WebI18nContext";
 import { translateWebMessage } from "../../i18n/messages";
-import {
-  ClipboardApiUnavailableError,
-  ClipboardWriteError,
-} from "../../hooks/useCopyToClipboard";
+import { ClipboardApiUnavailableError, ClipboardWriteError } from "../../hooks/useCopyToClipboard";
 import { APP_VERSION } from "../../branding";
 import { AnchoredToastProvider } from "../ui/toast";
 import { AboutVersionTitle } from "./AboutVersionTitle";
@@ -46,13 +43,9 @@ it("copies the version without a notification", async () => {
       <AboutVersionTitle />
     </AnchoredToastProvider>,
   );
-  using write = vi
-    .spyOn(navigator.clipboard, "writeText")
-    .mockResolvedValue(undefined);
+  using write = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue(undefined);
 
-  await screen
-    .getByRole("button", { name: `Copy version ${APP_VERSION}` })
-    .click();
+  await screen.getByRole("button", { name: `Copy version ${APP_VERSION}` }).click();
 
   expect(write).toHaveBeenCalledWith(APP_VERSION);
   await expect.element(page.getByText(/^Copied!?$/)).not.toBeInTheDocument();
@@ -79,8 +72,7 @@ it.each(["owned", "raw", "empty"] as const)(
     });
     using _restore = {
       [Symbol.dispose]() {
-        if (descriptor)
-          Object.defineProperty(navigator, "clipboard", descriptor);
+        if (descriptor) Object.defineProperty(navigator, "clipboard", descriptor);
         else Reflect.deleteProperty(navigator, "clipboard");
         fixture.locale = null;
       },
@@ -106,18 +98,14 @@ it.each(["owned", "raw", "empty"] as const)(
         });
       },
     };
-    await screen
-      .getByRole("button", { name: `Copy version ${APP_VERSION}`, exact: true })
-      .click();
+    await screen.getByRole("button", { name: `Copy version ${APP_VERSION}`, exact: true }).click();
     expect(writeText).toHaveBeenCalledExactlyOnceWith(APP_VERSION);
     expect(write).not.toHaveBeenCalled();
     expect(toast).not.toHaveBeenCalled();
     fixture.locale = "zh-CN";
     await screen.rerender(surface("zh-CN"));
     const cause =
-      kind === "owned"
-        ? null
-        : new Error(kind === "raw" ? "Literal $& {clipboard}" : "");
+      kind === "owned" ? null : new Error(kind === "raw" ? "Literal $& {clipboard}" : "");
     await act(async () => {
       reject(cause);
       await pending.catch(() => undefined);
@@ -160,8 +148,7 @@ it.each(["English", "reverse", "unavailable"] as const)(
     });
     using _restore = {
       [Symbol.dispose]() {
-        if (descriptor)
-          Object.defineProperty(navigator, "clipboard", descriptor);
+        if (descriptor) Object.defineProperty(navigator, "clipboard", descriptor);
         else Reflect.deleteProperty(navigator, "clipboard");
         fixture.locale = null;
       },
@@ -191,10 +178,7 @@ it.each(["English", "reverse", "unavailable"] as const)(
     };
     await screen
       .getByRole("button", {
-        name:
-          initial === "en"
-            ? `Copy version ${APP_VERSION}`
-            : `复制版本号 ${APP_VERSION}`,
+        name: initial === "en" ? `Copy version ${APP_VERSION}` : `复制版本号 ${APP_VERSION}`,
         exact: true,
       })
       .click();
@@ -209,9 +193,7 @@ it.each(["English", "reverse", "unavailable"] as const)(
         description: "复制 版本号 时剪贴板 API 不可用。",
         data: { actionLayout: "stacked-end" },
       });
-      expect(log.mock.calls[0]?.[0]).toBeInstanceOf(
-        ClipboardApiUnavailableError,
-      );
+      expect(log.mock.calls[0]?.[0]).toBeInstanceOf(ClipboardApiUnavailableError);
     } else {
       expect(writeText).toHaveBeenCalledExactlyOnceWith(APP_VERSION);
       expect(write).not.toHaveBeenCalled();

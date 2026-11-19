@@ -7,10 +7,7 @@ import { expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 
 import { render } from "../../../test/render";
-import {
-  ensureClientSettingsHydrated,
-  persistClientSettingsPatch,
-} from "../../hooks/useSettings";
+import { ensureClientSettingsHydrated, persistClientSettingsPatch } from "../../hooks/useSettings";
 import { buildSidebarProjectSnapshots } from "../../sidebarProjectGrouping";
 import type { EnvironmentPresentation } from "../../state/environments";
 import type { Project } from "../../types";
@@ -141,19 +138,13 @@ it.each([
   );
 
   for (const name of ["Search engine", "Open links in"]) {
-    expect(isInert(screen.getByRole("combobox", { name }).element())).toBe(
-      true,
-    );
+    expect(isInert(screen.getByRole("combobox", { name }).element())).toBe(true);
   }
-  expect(
-    isInert(
-      screen.getByRole("switch", { name: "Agent browser access" }).element(),
-    ),
-  ).toBe(false);
+  expect(isInert(screen.getByRole("switch", { name: "Agent browser access" }).element())).toBe(
+    false,
+  );
   // Profiles save for this device in every scope, but the default profile is a device preference.
-  await expect
-    .element(screen.getByRole("button", { name: "Add profile" }))
-    .toBeEnabled();
+  await expect.element(screen.getByRole("button", { name: "Add profile" })).toBeEnabled();
   await userEvent.click(screen.getByRole("button", { name: "Work options" }));
   await expect
     .element(page.getByRole("menuitem", { name: "Set as default" }))

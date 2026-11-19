@@ -22,11 +22,7 @@ import {
   useRemoteOpenState,
 } from "../../remoteOpen";
 import { useEnvironment } from "../../state/environments";
-import {
-  ChevronDownIcon,
-  FolderClosedIcon,
-  SquareArrowOutUpRightIcon,
-} from "lucide-react";
+import { ChevronDownIcon, FolderClosedIcon, SquareArrowOutUpRightIcon } from "lucide-react";
 
 import { Group, GroupSeparator } from "../ui/group";
 import {
@@ -90,10 +86,7 @@ type OpenInOption = {
   kind: "brand" | "generic";
 };
 
-const resolveOpenInOptions = (
-  platform: string,
-  availableEditors: ReadonlyArray<EditorId>,
-) => {
+const resolveOpenInOptions = (platform: string, availableEditors: ReadonlyArray<EditorId>) => {
   const baseOptions: ReadonlyArray<Omit<OpenInOption, "label">> = [
     {
       Icon: CursorIcon,
@@ -202,10 +195,7 @@ const resolveOpenInOptions = (
           ? FileExplorerIcon
           : FolderClosedIcon,
       value: "file-manager",
-      kind:
-        isMacPlatform(platform) || isWindowsPlatform(platform)
-          ? "brand"
-          : "generic",
+      kind: isMacPlatform(platform) || isWindowsPlatform(platform) ? "brand" : "generic",
     },
   ];
   const availableEditorSet = new Set(availableEditors);
@@ -218,9 +208,7 @@ const resolveOpenInOptions = (
 };
 
 function getOpenInIconClass(kind: OpenInOption["kind"]) {
-  return cn(
-    kind === "brand" ? "text-foreground opacity-100" : "text-muted-foreground",
-  );
+  return cn(kind === "brand" ? "text-foreground opacity-100" : "text-muted-foreground");
 }
 
 export const OpenInPicker = memo(function OpenInPicker({
@@ -251,28 +239,18 @@ export const OpenInPicker = memo(function OpenInPicker({
   const isPanel = displayMode === "panel";
   const ActionGroup = isPanel ? "div" : Group;
   const panelAnchorRef = useRef<HTMLDivElement | null>(null);
-  const openInEditorMutation = useAtomCommand(
-    shellEnvironment.openInEditor,
-    "open in editor",
-  );
+  const openInEditorMutation = useAtomCommand(shellEnvironment.openInEditor, "open in editor");
   const remote = useRemoteOpenState(environmentId);
-  const canOperateHost = useEnvironmentScope(
-    environmentId,
-    AuthOrchestrationOperateScope,
-  );
+  const canOperateHost = useEnvironmentScope(environmentId, AuthOrchestrationOperateScope);
   const isHostEditorDenied = remote.mode === "local-exec" && !canOperateHost;
-  const canOpenEditor =
-    remote.mode !== "remote-unavailable" && !isHostEditorDenied;
+  const canOpenEditor = remote.mode !== "remote-unavailable" && !isHostEditorDenied;
   const [menuOpen, setMenuOpen] = useComposerMenuState(isHostEditorDenied);
   const remoteCapableEditors = useRemoteCapableEditors();
   const [remoteHintSeen, markRemoteHintSeen] = useRemoteOpenHint();
-  const environmentLabel =
-    useEnvironment(environmentId)?.label ?? "this machine";
+  const environmentLabel = useEnvironment(environmentId)?.label ?? "this machine";
   // Remote editors run on the viewing machine; only desktop can probe that PATH.
-  const effectiveEditors =
-    remote.mode === "local-exec" ? availableEditors : remoteCapableEditors;
-  const [preferredEditor, setPreferredEditor] =
-    usePreferredEditor(effectiveEditors);
+  const effectiveEditors = remote.mode === "local-exec" ? availableEditors : remoteCapableEditors;
+  const [preferredEditor, setPreferredEditor] = usePreferredEditor(effectiveEditors);
 
   const openInEditor = async (editorId: EditorId | null): Promise<boolean> => {
     if (!openInCwd) return false;
@@ -295,16 +273,13 @@ export const OpenInPicker = memo(function OpenInPicker({
       setPreferredEditor(editor);
       return true;
     }
-    if (!readEnvironmentScope(environmentId, AuthOrchestrationOperateScope))
-      return false;
+    if (!readEnvironmentScope(environmentId, AuthOrchestrationOperateScope)) return false;
     const result = openInEditorMutation({
       environmentId,
       input: {
         cwd: openInCwd,
         editor,
-        ...(revealFileManager && editor === "file-manager"
-          ? { reveal: true }
-          : {}),
+        ...(revealFileManager && editor === "file-manager" ? { reveal: true } : {}),
       },
     });
     setPreferredEditor(editor);
@@ -318,8 +293,7 @@ export const OpenInPicker = memo(function OpenInPicker({
 
   const backgroundThread = use(BackgroundThreadContext);
   const options = resolveOpenInOptions(navigator.platform, effectiveEditors);
-  const primaryOption =
-    options.find(({ value }) => value === preferredEditor) ?? null;
+  const primaryOption = options.find(({ value }) => value === preferredEditor) ?? null;
   const primaryLabel = isPanel
     ? primaryOption
       ? t("markdownFile.openInNamedEditor", { editor: primaryOption.label })
@@ -336,19 +310,13 @@ export const OpenInPicker = memo(function OpenInPicker({
   const editorItems = (
     <>
       {unavailableReason !== null ? (
-        <MenuItem
-          density={presentation === "menu" ? "touch" : "default"}
-          disabled
-        >
+        <MenuItem density={presentation === "menu" ? "touch" : "default"} disabled>
           {unavailableReason}
         </MenuItem>
       ) : (
         <>
           {options.length === 0 && (
-            <MenuItem
-              density={presentation === "menu" ? "touch" : "default"}
-              disabled
-            >
+            <MenuItem density={presentation === "menu" ? "touch" : "default"} disabled>
               {t("headerAction.noEditors")}
             </MenuItem>
           )}
@@ -373,10 +341,7 @@ export const OpenInPicker = memo(function OpenInPicker({
             </MenuItem>
           ))}
           {remote.mode === "remote-links" && !remoteHintSeen && (
-            <MenuItem
-              density={presentation === "menu" ? "touch" : "default"}
-              disabled
-            >
+            <MenuItem density={presentation === "menu" ? "touch" : "default"} disabled>
               {t("headerAction.opensOverSsh", {
                 environment: environmentLabel,
               })}
@@ -395,9 +360,7 @@ export const OpenInPicker = memo(function OpenInPicker({
             disabled={!openInCwd || !canOpenEditor}
             onClick={() => openInEditor(preferredEditor)}
           >
-            <primaryOption.Icon
-              className={cn("size-4", getOpenInIconClass(primaryOption.kind))}
-            />
+            <primaryOption.Icon className={cn("size-4", getOpenInIconClass(primaryOption.kind))} />
             <MenuItemLabel>
               {translateWebSource(uiLocale, "Open in")} {primaryOption.label}
             </MenuItemLabel>
@@ -409,9 +372,7 @@ export const OpenInPicker = memo(function OpenInPicker({
         <MenuSub>
           <MenuSubTrigger density="touch" disabled={isHostEditorDenied}>
             <SquareArrowOutUpRightIcon className="size-4" />
-            <MenuItemLabel>
-              {translateWebSource(uiLocale, "Open in…")}
-            </MenuItemLabel>
+            <MenuItemLabel>{translateWebSource(uiLocale, "Open in…")}</MenuItemLabel>
           </MenuSubTrigger>
           <MenuSubPopup>{editorItems}</MenuSubPopup>
         </MenuSub>
@@ -419,9 +380,7 @@ export const OpenInPicker = memo(function OpenInPicker({
     );
   }
 
-  const primaryControlLabel = compact
-    ? t("headerAction.openPreferredEditor")
-    : primaryLabel;
+  const primaryControlLabel = compact ? t("headerAction.openPreferredEditor") : primaryLabel;
   const primaryControl = (
     <ThreadDetailsControl
       aria-label={primaryControlLabel}
@@ -432,18 +391,12 @@ export const OpenInPicker = memo(function OpenInPicker({
       part="primary"
       panel={isPanel}
       disabled={!preferredEditor || !openInCwd || !canOpenEditor}
-      {...(enableShortcut && !backgroundThread
-        ? { [OPEN_FAVORITE_EDITOR_ATTRIBUTE]: "" }
-        : {})}
+      {...(enableShortcut && !backgroundThread ? { [OPEN_FAVORITE_EDITOR_ATTRIBUTE]: "" } : {})}
       onClick={() => {
         if (!preferredEditor) return;
-        const label = editorLabelForPlatform(
-          preferredEditor,
-          navigator.platform,
-        );
+        const label = editorLabelForPlatform(preferredEditor, navigator.platform);
         void openInEditor(preferredEditor).then((opened) => {
-          if (opened)
-            announce(readWebI18n().t("audit6.openedInEditor", { label }));
+          if (opened) announce(readWebI18n().t("audit6.openedInEditor", { label }));
         });
       }}
     >
@@ -456,21 +409,14 @@ export const OpenInPicker = memo(function OpenInPicker({
           )}
         />
       ) : isPanel ? (
-        <SquareArrowOutUpRightIcon
-          aria-hidden="true"
-          className={THREAD_DETAILS_PANEL_ICON_CLASS}
-        />
+        <SquareArrowOutUpRightIcon aria-hidden="true" className={THREAD_DETAILS_PANEL_ICON_CLASS} />
       ) : null}
       <span
         className={cn(
           compact
             ? "sr-only"
             : "sr-only @3xl/header-actions:not-sr-only @3xl/header-actions:ml-0.5",
-          isPanel &&
-            cn(
-              "not-sr-only ml-0 min-w-0 truncate",
-              THREAD_DETAILS_PANEL_LABEL_CLASS,
-            ),
+          isPanel && cn("not-sr-only ml-0 min-w-0 truncate", THREAD_DETAILS_PANEL_LABEL_CLASS),
         )}
       >
         {primaryLabel}
@@ -494,16 +440,9 @@ export const OpenInPicker = memo(function OpenInPicker({
         <TooltipPopup side="top">{primaryControlLabel}</TooltipPopup>
       </Tooltip>
       {isPanel ? (
-        <span
-          aria-hidden="true"
-          className={THREAD_DETAILS_PANEL_SPLIT_SEPARATOR_CLASS}
-        />
+        <span aria-hidden="true" className={THREAD_DETAILS_PANEL_SPLIT_SEPARATOR_CLASS} />
       ) : (
-        <GroupSeparator
-          {...(!compact
-            ? { className: "hidden @3xl/header-actions:block" }
-            : {})}
-        />
+        <GroupSeparator {...(!compact ? { className: "hidden @3xl/header-actions:block" } : {})} />
       )}
       <Menu open={menuOpen} onOpenChange={setMenuOpen}>
         <Tooltip>
@@ -526,14 +465,10 @@ export const OpenInPicker = memo(function OpenInPicker({
           >
             <ChevronDownIcon
               aria-hidden="true"
-              className={
-                isPanel ? THREAD_DETAILS_PANEL_CHEVRON_CLASS : "size-4"
-              }
+              className={isPanel ? THREAD_DETAILS_PANEL_CHEVRON_CLASS : "size-4"}
             />
           </TooltipTrigger>
-          <TooltipPopup side="top">
-            {translateChatSource(uiLocale, "Choose editor")}
-          </TooltipPopup>
+          <TooltipPopup side="top">{translateChatSource(uiLocale, "Choose editor")}</TooltipPopup>
         </Tooltip>
         <MenuPopup
           align="end"

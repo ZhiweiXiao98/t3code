@@ -9,10 +9,7 @@ import {
   textGeneratorForSelection,
 } from "@t3tools/contracts";
 import { DEFAULT_UNIFIED_SETTINGS } from "@t3tools/contracts/settings";
-import {
-  createModelSelection,
-  pickModelSelection,
-} from "@t3tools/shared/model";
+import { createModelSelection, pickModelSelection } from "@t3tools/shared/model";
 import {
   resolveReviewGuideModelSelection,
   resolveSourceControlWriterModelSelection,
@@ -38,13 +35,7 @@ import { useEnvironmentProviders } from "../../state/environments";
 import { EMPTY_SERVER_PROVIDERS } from "../../state/server";
 import { ProviderModelPicker } from "../chat/ProviderModelPicker";
 import { TraitsPicker } from "../chat/TraitsPicker";
-import {
-  Select,
-  SelectItem,
-  SelectPopup,
-  SelectTrigger,
-  SelectValue,
-} from "../ui/select";
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
 import { Switch } from "../ui/switch";
 import { Textarea } from "../ui/textarea";
 import { toastManager } from "../ui/toast";
@@ -89,17 +80,12 @@ const MODE_OPTION_MESSAGE_KEYS = {
 
 export function SourceControlWritingSettingsSection() {
   const { locale, t } = useI18n();
-  const translateNotice = useStableCallback((source: string) =>
-    translateWebSource(locale, source),
-  );
+  const translateNotice = useStableCallback((source: string) => translateWebSource(locale, source));
   const settings = useScopedSettings();
   const updateSettings = useUpdateScopedSettings();
-  const mixedReviewGuidesEnabled = useScopedSettingsMixed([
-    "reviewGuidesEnabled",
-  ]);
+  const mixedReviewGuidesEnabled = useScopedSettingsMixed(["reviewGuidesEnabled"]);
   const navigate = useNavigate();
-  const { environment, connectedEnvironments, targets, target } =
-    useSettingsScope();
+  const { environment, connectedEnvironments, targets, target } = useSettingsScope();
   const environmentId = environment?.environmentId ?? null;
   const hasServerTargets = connectedEnvironments.length > 0;
   const providersByEnvironment = useEnvironmentProviders();
@@ -107,9 +93,7 @@ export function SourceControlWritingSettingsSection() {
     (environment?.serverConfig
       ? providersByEnvironment.get(environment.environmentId)
       : undefined) ?? EMPTY_SERVER_PROVIDERS;
-  const styleFieldMixed = (
-    field: keyof ServerSettings["sourceControlWritingStyle"],
-  ) => {
+  const styleFieldMixed = (field: keyof ServerSettings["sourceControlWritingStyle"]) => {
     const first = targets[0];
     return (
       first !== undefined &&
@@ -124,19 +108,11 @@ export function SourceControlWritingSettingsSection() {
   const instructionsMixed = styleFieldMixed("customInstructions");
   const templatesMixed = styleFieldMixed("followChangeRequestTemplates");
   const writingStyleMixed = modeMixed || instructionsMixed;
-  const mixedWriterModel = useScopedSettingsMixed([
-    "sourceControlWriterModelSelection",
-  ]);
-  const mixedReviewGuideModel = useScopedSettingsMixed([
-    "reviewGuideModelSelection",
-  ]);
-  const mixedReviewGuideInstructions = useScopedSettingsMixed([
-    "reviewGuideInstructions",
-  ]);
+  const mixedWriterModel = useScopedSettingsMixed(["sourceControlWriterModelSelection"]);
+  const mixedReviewGuideModel = useScopedSettingsMixed(["reviewGuideModelSelection"]);
+  const mixedReviewGuideInstructions = useScopedSettingsMixed(["reviewGuideInstructions"]);
   const reviewGuideInstructionsEdited = useRef(false);
-  const scopeKey = targets
-    .map((target) => `${target.environmentId}:${target.projectId}`)
-    .join(",");
+  const scopeKey = targets.map((target) => `${target.environmentId}:${target.projectId}`).join(",");
   const customInstructionsRef = useRef<HTMLTextAreaElement>(null);
   const [editingAllInstructions, setEditingAllInstructions] = useState(false);
   const [allInstructions, setAllInstructions] = useState<string | null>(null);
@@ -161,10 +137,7 @@ export function SourceControlWritingSettingsSection() {
     settings,
     providers: textGenerationProviders,
     projectId: target?.projectId ?? null,
-    selections: [
-      settings.sourceControlWriterModelSelection,
-      settings.textGenerationModelSelection,
-    ],
+    selections: [settings.sourceControlWriterModelSelection, settings.textGenerationModelSelection],
   });
   const writerEntries = writerTargets.entries;
   const projectEnabledInstanceIds = new Set(
@@ -172,16 +145,14 @@ export function SourceControlWritingSettingsSection() {
       .filter((entry) => entry.enabled && entry.isAvailable)
       .map((entry) => entry.instanceId),
   );
-  const projectEffectiveTextGenerationProviders =
-    writerTargets.providers.filter((provider) =>
-      projectEnabledInstanceIds.has(provider.instanceId),
-    );
+  const projectEffectiveTextGenerationProviders = writerTargets.providers.filter((provider) =>
+    projectEnabledInstanceIds.has(provider.instanceId),
+  );
   const defaultModelSelection = resolveAppModelSelectionState(
     settings,
     projectEffectiveTextGenerationProviders,
   );
-  const usesDedicatedModel =
-    settings.sourceControlWriterModelSelection !== null;
+  const usesDedicatedModel = settings.sourceControlWriterModelSelection !== null;
   const activeSelection = resolveAppModelSelectionState(
     {
       ...settings,
@@ -195,9 +166,7 @@ export function SourceControlWritingSettingsSection() {
   );
   const canEnableDedicatedModel = writerEntries.some(
     (entry) =>
-      entry.instanceId === defaultModelSelection.instanceId &&
-      entry.enabled &&
-      entry.isAvailable,
+      entry.instanceId === defaultModelSelection.instanceId && entry.enabled && entry.isAvailable,
   );
   const modelOptionsByInstance = getTextGenerationModelOptionsByInstance(
     settings,
@@ -205,11 +174,7 @@ export function SourceControlWritingSettingsSection() {
     activeSelection.instanceId,
     activeSelection.model,
   );
-  const writerModelDisabledReason = useScopedModelDisabledReason(
-    settings,
-    writerEntries,
-    true,
-  );
+  const writerModelDisabledReason = useScopedModelDisabledReason(settings, writerEntries, true);
   const writerInstanceEntry = writerEntries.find(
     (entry) => entry.instanceId === activeSelection.instanceId,
   );
@@ -217,10 +182,7 @@ export function SourceControlWritingSettingsSection() {
   // Resolve against agents this project can use, so the fallback never lands on one it turned off.
   const projectAgentProviders = textGenerationProviders.filter((provider) =>
     instanceEntries.some(
-      (entry) =>
-        entry.instanceId === provider.instanceId &&
-        entry.enabled &&
-        entry.isAvailable,
+      (entry) => entry.instanceId === provider.instanceId && entry.enabled && entry.isAvailable,
     ),
   );
   const reviewGuideSelection = resolveAppModelSelectionState(
@@ -234,18 +196,15 @@ export function SourceControlWritingSettingsSection() {
     },
     projectAgentProviders,
   );
-  const reviewGuideModelOptionsByInstance =
-    getTextGenerationModelOptionsByInstance(
-      settings,
-      projectAgentProviders,
-      reviewGuideSelection.instanceId,
-      reviewGuideSelection.model,
-    );
+  const reviewGuideModelOptionsByInstance = getTextGenerationModelOptionsByInstance(
+    settings,
+    projectAgentProviders,
+    reviewGuideSelection.instanceId,
+    reviewGuideSelection.model,
+  );
   const canEnableReviewGuideModel = instanceEntries.some(
     (entry) =>
-      entry.instanceId === reviewGuideSelection.instanceId &&
-      entry.enabled &&
-      entry.isAvailable,
+      entry.instanceId === reviewGuideSelection.instanceId && entry.enabled && entry.isAvailable,
   );
   const reviewGuideInstanceEntry = instanceEntries.find(
     (entry) => entry.instanceId === reviewGuideSelection.instanceId,
@@ -282,14 +241,11 @@ export function SourceControlWritingSettingsSection() {
           <Select
             value={modeMixed ? null : style.mode}
             onValueChange={(value) => {
-              const customInstructions =
-                customInstructionsRef.current?.value.trim();
+              const customInstructions = customInstructionsRef.current?.value.trim();
               updateSettings({
                 sourceControlWritingStyle: {
                   mode: value as SourceControlWritingStyleMode,
-                  ...(customInstructions !== undefined
-                    ? { customInstructions }
-                    : {}),
+                  ...(customInstructions !== undefined ? { customInstructions } : {}),
                 },
               });
             }}
@@ -308,15 +264,13 @@ export function SourceControlWritingSettingsSection() {
               </SelectValue>
             </SelectTrigger>
             <SelectPopup align="end" alignItemWithTrigger={false}>
-              {(
-                Object.keys(
-                  MODE_OPTION_MESSAGE_KEYS,
-                ) as SourceControlWritingStyleMode[]
-              ).map((mode) => (
-                <SelectItem key={mode} hideIndicator value={mode}>
-                  {t(MODE_OPTION_MESSAGE_KEYS[mode].label)}
-                </SelectItem>
-              ))}
+              {(Object.keys(MODE_OPTION_MESSAGE_KEYS) as SourceControlWritingStyleMode[]).map(
+                (mode) => (
+                  <SelectItem key={mode} hideIndicator value={mode}>
+                    {t(MODE_OPTION_MESSAGE_KEYS[mode].label)}
+                  </SelectItem>
+                ),
+              )}
             </SelectPopup>
           </Select>
         }
@@ -365,10 +319,7 @@ export function SourceControlWritingSettingsSection() {
                   setEditingAllInstructions(true);
                 }}
               >
-                {translateWebSource(
-                  locale,
-                  "Write custom instructions for all",
-                )}
+                {translateWebSource(locale, "Write custom instructions for all")}
               </Button>
             )}
           </div>
@@ -388,10 +339,7 @@ export function SourceControlWritingSettingsSection() {
               }}
               rows={4}
               placeholder={t("sourceControl.writingStyle.customPlaceholder")}
-              aria-label={translateWebSource(
-                locale,
-                "Custom commit and pull request instructions",
-              )}
+              aria-label={translateWebSource(locale, "Custom commit and pull request instructions")}
             />
           </div>
         ) : null}
@@ -409,12 +357,8 @@ export function SourceControlWritingSettingsSection() {
         control={
           <Switch
             mixed={mixedReviewGuidesEnabled}
-            checked={
-              mixedReviewGuidesEnabled ? false : settings.reviewGuidesEnabled
-            }
-            onCheckedChange={(checked) =>
-              updateSettings({ reviewGuidesEnabled: Boolean(checked) })
-            }
+            checked={mixedReviewGuidesEnabled ? false : settings.reviewGuidesEnabled}
+            onCheckedChange={(checked) => updateSettings({ reviewGuidesEnabled: Boolean(checked) })}
             aria-label={translateWebSource(locale, "Review guides")}
           />
         }
@@ -437,8 +381,7 @@ export function SourceControlWritingSettingsSection() {
                 </span>
               ) : (
                 <div className="flex flex-wrap items-center justify-end gap-2">
-                  {(usesReviewGuideModel || mixedReviewGuideModel) &&
-                  canEnableReviewGuideModel ? (
+                  {(usesReviewGuideModel || mixedReviewGuideModel) && canEnableReviewGuideModel ? (
                     <ProviderModelPicker
                       environmentId={environmentId}
                       activeInstanceId={reviewGuideSelection.instanceId}
@@ -447,25 +390,17 @@ export function SourceControlWritingSettingsSection() {
                       instanceEntries={instanceEntries}
                       modelOptionsByInstance={reviewGuideModelOptionsByInstance}
                       triggerClassName={SETTINGS_PICKER_TRIGGER_CLASSNAME}
-                      triggerAriaLabel={translateWritingSource(
-                        locale,
-                        "Review guide model",
-                      )}
+                      triggerAriaLabel={translateWritingSource(locale, "Review guide model")}
                       {...(mixedReviewGuideModel
                         ? { triggerLabel: translateWebSource(locale, "Mixed") }
                         : {})}
                       getModelDisabledReason={writerModelDisabledReason}
                       onInstanceModelChange={(instanceId, model) => {
-                        const reason = writerModelDisabledReason(
-                          instanceId,
-                          model,
-                        );
+                        const reason = writerModelDisabledReason(instanceId, model);
                         if (reason) {
                           toastManager.add({
                             type: "error",
-                            title: translateNotice(
-                              "Review guide model not saved",
-                            ),
+                            title: translateNotice("Review guide model not saved"),
                             description: reason,
                           });
                           return;
@@ -490,9 +425,7 @@ export function SourceControlWritingSettingsSection() {
                       model={reviewGuideSelection.model}
                       modelOptions={reviewGuideSelection.options ?? []}
                       allowPromptInjectedEffort={false}
-                      includePlanAgent={selectsPlanAgent(
-                        reviewGuideSelection.options,
-                      )}
+                      includePlanAgent={selectsPlanAgent(reviewGuideSelection.options)}
                       triggerClassName={SETTINGS_PICKER_TRIGGER_CLASSNAME}
                       onModelOptionsChange={(options) =>
                         updateSettings({
@@ -507,33 +440,21 @@ export function SourceControlWritingSettingsSection() {
                   ) : null}
                   <Switch
                     mixed={mixedReviewGuideModel}
-                    checked={
-                      mixedReviewGuideModel ? false : usesReviewGuideModel
-                    }
-                    disabled={
-                      !usesReviewGuideModel && !canEnableReviewGuideModel
-                    }
+                    checked={mixedReviewGuideModel ? false : usesReviewGuideModel}
+                    disabled={!usesReviewGuideModel && !canEnableReviewGuideModel}
                     onCheckedChange={(checked) => {
                       if (!checked) {
                         updateSettings({ reviewGuideModelSelection: null });
                         return;
                       }
-                      const seed = textGeneratorForSelection(
-                        settings,
-                        activeSelection.instanceId,
-                      )
+                      const seed = textGeneratorForSelection(settings, activeSelection.instanceId)
                         ? reviewGuideSelection
                         : activeSelection;
-                      const reason = writerModelDisabledReason(
-                        seed.instanceId,
-                        seed.model,
-                      );
+                      const reason = writerModelDisabledReason(seed.instanceId, seed.model);
                       if (reason) {
                         toastManager.add({
                           type: "error",
-                          title: translateNotice(
-                            "Review guide model not saved",
-                          ),
+                          title: translateNotice("Review guide model not saved"),
                           description: reason,
                         });
                         return;
@@ -546,10 +467,7 @@ export function SourceControlWritingSettingsSection() {
                         ),
                       });
                     }}
-                    aria-label={translateWebSource(
-                      locale,
-                      "Use a separate review guide model",
-                    )}
+                    aria-label={translateWebSource(locale, "Use a separate review guide model")}
                   />
                 </div>
               )
@@ -565,16 +483,10 @@ export function SourceControlWritingSettingsSection() {
               "Your preferences for review guides: what to show first, dwell on, or skip. The guide's format and coverage stay the same.",
             )}
             resetAction={
-              mixedReviewGuideInstructions ||
-              settings.reviewGuideInstructions !== "" ? (
+              mixedReviewGuideInstructions || settings.reviewGuideInstructions !== "" ? (
                 <SettingResetButton
-                  label={translateWebSource(
-                    locale,
-                    "review guide instructions",
-                  )}
-                  onClick={() =>
-                    updateSettings({ reviewGuideInstructions: "" })
-                  }
+                  label={translateWebSource(locale, "review guide instructions")}
+                  onClick={() => updateSettings({ reviewGuideInstructions: "" })}
                 />
               ) : null
             }
@@ -582,19 +494,12 @@ export function SourceControlWritingSettingsSection() {
             <div className="mt-3 max-w-2xl pb-3.5">
               <Textarea
                 key={`${scopeKey}:${mixedReviewGuideInstructions}:${settings.reviewGuideInstructions}`}
-                aria-label={translateWebSource(
-                  locale,
-                  "Review guide instructions",
-                )}
+                aria-label={translateWebSource(locale, "Review guide instructions")}
                 onChange={() => {
                   reviewGuideInstructionsEdited.current = true;
                 }}
                 rows={4}
-                defaultValue={
-                  mixedReviewGuideInstructions
-                    ? ""
-                    : settings.reviewGuideInstructions
-                }
+                defaultValue={mixedReviewGuideInstructions ? "" : settings.reviewGuideInstructions}
                 placeholder={
                   mixedReviewGuideInstructions
                     ? translateWebSource(
@@ -610,8 +515,7 @@ export function SourceControlWritingSettingsSection() {
                   const value = event.target.value.trim();
                   if (
                     reviewGuideInstructionsEdited.current &&
-                    (mixedReviewGuideInstructions ||
-                      value !== settings.reviewGuideInstructions)
+                    (mixedReviewGuideInstructions || value !== settings.reviewGuideInstructions)
                   )
                     updateSettings({ reviewGuideInstructions: value });
                   reviewGuideInstructionsEdited.current = false;
@@ -636,15 +540,13 @@ export function SourceControlWritingSettingsSection() {
           description={t("sourceControl.followTemplates.description")}
           resetAction={
             templatesMixed ||
-            style.followChangeRequestTemplates !==
-              defaults.followChangeRequestTemplates ? (
+            style.followChangeRequestTemplates !== defaults.followChangeRequestTemplates ? (
               <SettingResetButton
                 label={t("sourceControl.followTemplates.title")}
                 onClick={() =>
                   updateSettings({
                     sourceControlWritingStyle: {
-                      followChangeRequestTemplates:
-                        defaults.followChangeRequestTemplates,
+                      followChangeRequestTemplates: defaults.followChangeRequestTemplates,
                     },
                   })
                 }
@@ -654,9 +556,7 @@ export function SourceControlWritingSettingsSection() {
           control={
             <Switch
               mixed={templatesMixed}
-              checked={
-                templatesMixed ? false : style.followChangeRequestTemplates
-              }
+              checked={templatesMixed ? false : style.followChangeRequestTemplates}
               onCheckedChange={(checked) =>
                 updateSettings({
                   sourceControlWritingStyle: {
@@ -707,9 +607,7 @@ export function SourceControlWritingSettingsSection() {
                       : {})}
                     {...(environmentId
                       ? {
-                          onOpenProviderSetup: (
-                            instanceId: ProviderInstanceId,
-                          ) => {
+                          onOpenProviderSetup: (instanceId: ProviderInstanceId) => {
                             void navigate({
                               to: "/settings/providers",
                               search: { environmentId, instanceId },
@@ -719,16 +617,11 @@ export function SourceControlWritingSettingsSection() {
                       : {})}
                     getModelDisabledReason={writerModelDisabledReason}
                     onInstanceModelChange={(instanceId, model) => {
-                      const reason = writerModelDisabledReason(
-                        instanceId,
-                        model,
-                      );
+                      const reason = writerModelDisabledReason(instanceId, model);
                       if (reason) {
                         toastManager.add({
                           type: "error",
-                          title: translateNotice(
-                            "Source control writer model not saved",
-                          ),
+                          title: translateNotice("Source control writer model not saved"),
                           description: reason,
                         });
                         return;

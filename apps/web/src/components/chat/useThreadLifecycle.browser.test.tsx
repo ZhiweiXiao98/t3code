@@ -208,8 +208,7 @@ function RestoreBranchHarness(props: {
         <ChatBannerLane
           environmentId={environmentId}
           providerStatus={null}
-          providerStatusBannerKey={null}
-          setDismissedProviderStatusBannerKey={() => undefined}
+          providerStatusDismissalKey={null}
           onOpenProviderSetup={() => undefined}
           threadId={props.thread.activeThreadId}
           threadError={entry?.message ?? null}

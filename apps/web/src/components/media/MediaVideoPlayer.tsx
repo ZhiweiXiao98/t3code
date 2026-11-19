@@ -61,11 +61,9 @@ export function MediaVideoPlayer({
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [preloadedSrc, setPreloadedSrc] = useState<string | null>(null);
   const src = playbackSource?.src ?? latestSrc;
-  const sourceRevision =
-    playbackSource === null ? revision : playbackSource.revision;
+  const sourceRevision = playbackSource === null ? revision : playbackSource.revision;
   const failed = src !== null ? failedSrc === src : sourceFailed;
-  const preloaded =
-    preloadedSrc === src || typeof IntersectionObserver === "undefined";
+  const preloaded = preloadedSrc === src || typeof IntersectionObserver === "undefined";
 
   // Re-signing must not reload a loaded source. Changed files load once playback pauses.
   if (
@@ -75,9 +73,7 @@ export function MediaVideoPlayer({
     !playing
   ) {
     setPlaybackSource(
-      revision !== null && latestSrc !== null
-        ? { src: latestSrc, revision }
-        : null,
+      revision !== null && latestSrc !== null ? { src: latestSrc, revision } : null,
     );
   }
 
@@ -87,8 +83,7 @@ export function MediaVideoPlayer({
       // Native fullscreen can hide the inline page while this video is still visible.
       const fullscreen =
         document.fullscreenElement?.contains(video) ||
-        ("webkitDisplayingFullscreen" in video &&
-          video.webkitDisplayingFullscreen === true);
+        ("webkitDisplayingFullscreen" in video && video.webkitDisplayingFullscreen === true);
       if (document.hidden && !fullscreen) video.pause();
     };
     document.addEventListener("visibilitychange", pauseWhenHidden);
@@ -147,14 +142,9 @@ export function MediaVideoPlayer({
             stateClassName,
           )}
         >
-          <span
-            data-thread-find-ignore
-            className="inline-flex items-center gap-1.5"
-          >
+          <span data-thread-find-ignore className="inline-flex items-center gap-1.5">
             <TriangleAlertIcon aria-hidden className="size-3.5 shrink-0" />
-            {[t("media.videoUnavailable"), label, unavailableDetail]
-              .filter(Boolean)
-              .join(" · ")}
+            {[t("media.videoUnavailable"), label, unavailableDetail].filter(Boolean).join(" · ")}
           </span>
           <span className="flex flex-wrap items-center justify-center gap-2">
             {latestSrc !== null || onRetry ? (
@@ -168,11 +158,7 @@ export function MediaVideoPlayer({
                 {retrying ? t("media.retrying") : t("media.retryVideo")}
               </Button>
             ) : null}
-            <OpenMediaLink
-              originalUrl={originalUrl}
-              src={latestSrc ?? src}
-              fileName={label}
-            />
+            <OpenMediaLink originalUrl={originalUrl} src={latestSrc ?? src} fileName={label} />
           </span>
         </span>
       ) : src !== null && !failed ? (
@@ -195,8 +181,7 @@ export function MediaVideoPlayer({
           style={style}
           onLoadedMetadata={(event) => {
             prepareVideoFirstFrame(event.currentTarget);
-            if (sourceRevision !== null)
-              setPlaybackSource({ src, revision: sourceRevision });
+            if (sourceRevision !== null) setPlaybackSource({ src, revision: sourceRevision });
           }}
           onPlay={() => {
             setPlaying(true);
@@ -218,21 +203,14 @@ export function MediaVideoPlayer({
               ? translateWebSource(uiLocale, "Video preview unavailable")
               : t("media.loadingVideo")
           }
-          className={cn(
-            "block aspect-video w-full rounded-lg bg-muted/60",
-            stateClassName,
-          )}
+          className={cn("block aspect-video w-full rounded-lg bg-muted/60", stateClassName)}
           style={style}
         />
       )}
       {onOpen ? (
         <button
           type="button"
-          aria-label={
-            label
-              ? t("audit12.media.play", { label })
-              : t("audit12.media.playVideo")
-          }
+          aria-label={label ? t("audit12.media.play", { label }) : t("audit12.media.playVideo")}
           onClick={onOpen}
           className="absolute inset-0 flex cursor-pointer items-center justify-center rounded-lg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
         >
@@ -243,9 +221,5 @@ export function MediaVideoPlayer({
       ) : null}
     </span>
   );
-  return actionsSource ? (
-    <MediaActions source={actionsSource}>{player}</MediaActions>
-  ) : (
-    player
-  );
+  return actionsSource ? <MediaActions source={actionsSource}>{player}</MediaActions> : player;
 }

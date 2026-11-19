@@ -31,6 +31,9 @@ vi.mock("../features/cloud/publicConfig", () => ({ hasCloudPublicConfig: () => s
 vi.mock("../features/connection/useConnectionController", () => ({
   useConnectionController: () => ({ removeEnvironment: state.remove }),
 }));
+vi.mock("../features/connection/useRetryEnvironment", () => ({
+  useRetryEnvironment: () => vi.fn(),
+}));
 vi.mock("./presentation", () => ({
   environmentPresentations: { presentationAtom: "presentation" },
 }));

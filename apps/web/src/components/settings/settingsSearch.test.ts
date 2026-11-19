@@ -59,32 +59,26 @@ const ITEMS: ReadonlyArray<SettingsSearchItem> = [
 
 describe("searchSettings", () => {
   it("matches titles, sections, and remembered setting details", () => {
-    expect(searchSettings("word", ITEMS).map((item) => item.id)).toEqual([
-      "word-wrap",
-    ]);
-    expect(searchSettings("network", ITEMS).map((item) => item.id)).toEqual([
-      "network-access",
-    ]);
-    expect(searchSettings("sharing", ITEMS).map((item) => item.id)).toEqual([
-      "network-access",
-    ]);
-    expect(searchSettings("claude", ITEMS).map((item) => item.id)).toEqual([
-      "providers",
-    ]);
-    expect(searchSettings("long lines", ITEMS).map((item) => item.id)).toEqual([
-      "word-wrap",
-    ]);
-    for (const query of ["Language", "语言", "中文", "简体中文", "locale"]) {
+    expect(searchSettings("word", ITEMS).map((item) => item.id)).toEqual(["word-wrap"]);
+    expect(searchSettings("network", ITEMS).map((item) => item.id)).toEqual(["network-access"]);
+    expect(searchSettings("sharing", ITEMS).map((item) => item.id)).toEqual(["network-access"]);
+    expect(searchSettings("claude", ITEMS).map((item) => item.id)).toEqual(["providers"]);
+    expect(searchSettings("long lines", ITEMS).map((item) => item.id)).toEqual(["word-wrap"]);
+    // Exact new label ranks first; legacy localized aliases retain their stable search order.
+    for (const [query, id] of [
+      ["Language", "language"],
+      ["语言", "app-language"],
+      ["中文", "app-language"],
+      ["简体中文", "app-language"],
+      ["locale", "app-language"],
+    ] as const) {
       expect(searchSettings(query)[0]).toMatchObject({
-        id: "app-language",
+        id,
         to: "/settings/general",
       });
     }
-    const spanish = (message: string) =>
-      message === "Word wrap" ? "Ajuste de línea" : message;
-    expect(
-      searchSettings("ajuste", ITEMS, spanish).map((item) => item.id),
-    ).toEqual(["word-wrap"]);
+    const spanish = (message: string) => (message === "Word wrap" ? "Ajuste de línea" : message);
+    expect(searchSettings("ajuste", ITEMS, spanish).map((item) => item.id)).toEqual(["word-wrap"]);
     for (const query of ["fallback", "fallback agent", "fallback model"]) {
       expect(searchSettings(query)[0]).toMatchObject({
         id: "fallback-model",
@@ -95,12 +89,8 @@ describe("searchSettings", () => {
   });
 
   it("hides the Secrets page from nav and search while the secrets feature is disabled", () => {
-    expect(SETTINGS_NAV_GROUPS.flatMap((group) => group.paths)).not.toContain(
-      "/settings/secrets",
-    );
-    expect(searchSettings("1password").map((item) => item.to)).not.toContain(
-      "/settings/secrets",
-    );
+    expect(SETTINGS_NAV_GROUPS.flatMap((group) => group.paths)).not.toContain("/settings/secrets");
+    expect(searchSettings("1password").map((item) => item.to)).not.toContain("/settings/secrets");
   });
 
   it("finds the Scheduled tasks page", () => {
@@ -111,19 +101,11 @@ describe("searchSettings", () => {
   });
 
   it("matches normalized title substrings", () => {
-    expect(
-      searchSettings("  WORD   WRAP  ", ITEMS).map((item) => item.id),
-    ).toEqual(["word-wrap"]);
-    expect(searchSettings("glass").map((item) => item.id)).toEqual([
-      "setting-glass-opacity",
-    ]);
-    expect(searchSettings("panel animations").map((item) => item.id)).toEqual([
-      "panel-animations",
-    ]);
+    expect(searchSettings("  WORD   WRAP  ", ITEMS).map((item) => item.id)).toEqual(["word-wrap"]);
+    expect(searchSettings("glass").map((item) => item.id)).toEqual(["setting-glass-opacity"]);
+    expect(searchSettings("panel animations").map((item) => item.id)).toEqual(["panel-animations"]);
     expect(searchSettings("thè\u{1ab0}mes")[0]?.id).toBe("theme");
-    const localeLowerCase = vi
-      .spyOn(String.prototype, "toLocaleLowerCase")
-      .mockReturnValue("gıt");
+    const localeLowerCase = vi.spyOn(String.prototype, "toLocaleLowerCase").mockReturnValue("gıt");
     try {
       expect(searchSettings("GIT")[0]?.id).toBe("git-fetch-interval");
       expect(localeLowerCase).not.toHaveBeenCalled();
@@ -134,9 +116,9 @@ describe("searchSettings", () => {
   });
 
   it("matches query words across fields and ranks the strongest result first", () => {
-    expect(
-      searchSettings("pairing remote", ITEMS).map((item) => item.id),
-    ).toEqual(["network-access"]);
+    expect(searchSettings("pairing remote", ITEMS).map((item) => item.id)).toEqual([
+      "network-access",
+    ]);
     expect(
       searchSettings("remote pairing")
         .slice(0, 2)
@@ -145,9 +127,7 @@ describe("searchSettings", () => {
   });
 
   it("hides desktop-only settings from browser search", () => {
-    expect(
-      SETTINGS_SEARCH_ITEMS.some((item) => item.id === "quit-confirmation"),
-    ).toBe(true);
+    expect(SETTINGS_SEARCH_ITEMS.some((item) => item.id === "quit-confirmation")).toBe(true);
     expect(searchSettings("hold to quit")).toEqual([]);
     expect(searchSettings("wsl")).toEqual([]);
     expect(searchSettings("update track")).toEqual([]);
@@ -163,9 +143,7 @@ describe("searchSettings", () => {
       hasThreadAutoSettlement: false,
     });
 
-    expect(searchSettings("语言", available).map((item) => item.id)).toContain(
-      "app-language",
-    );
+    expect(searchSettings("语言", available).map((item) => item.id)).toContain("app-language");
 
     const gatedIds = new Set<string>([
       "follow-change-request-templates",
@@ -186,9 +164,7 @@ describe("searchSettings", () => {
       "days-before-auto-settle",
       "linked-environments",
     ]);
-    expect(
-      available.map((item) => item.id).filter((id) => gatedIds.has(id)),
-    ).toEqual([]);
+    expect(available.map((item) => item.id).filter((id) => gatedIds.has(id))).toEqual([]);
   });
 
   it("finds linked environments on a remote host without local maintenance access", () => {
@@ -209,9 +185,7 @@ describe("searchSettings", () => {
           hasPeerLinkHost,
         }),
       );
-    expect(results(false).map((item) => item.id)).not.toContain(
-      "linked-environments",
-    );
+    expect(results(false).map((item) => item.id)).not.toContain("linked-environments");
     expect(results(true)).toContainEqual(
       expect.objectContaining({
         id: "linked-environments",
@@ -244,12 +218,8 @@ describe("searchSettings", () => {
   });
 
   it("finds keybinding commands by label, command id, and default key", () => {
-    expect(searchSettings("toggle sidebar")[0]?.id).toBe(
-      "keybinding-sidebar.toggle",
-    );
-    expect(searchSettings("sidebar.toggle")[0]?.id).toBe(
-      "keybinding-sidebar.toggle",
-    );
+    expect(searchSettings("toggle sidebar")[0]?.id).toBe("keybinding-sidebar.toggle");
+    expect(searchSettings("sidebar.toggle")[0]?.id).toBe("keybinding-sidebar.toggle");
     expect(searchSettings("mod+b")[0]?.id).toBe("keybinding-sidebar.toggle");
     expect(searchSettings("copy link")[0]).toMatchObject({
       id: "keybinding-thread.copyReference",
@@ -290,13 +260,7 @@ describe("settings search targets", () => {
   it("keeps the client language setting available regardless of retained settings scope", () => {
     const target = getSettingsSearchTargetScope("app-language")!;
     expect(target.scope).toBe("client");
-    for (const scope of [
-      "all",
-      "environment",
-      "project",
-      "checkout",
-      "unavailable",
-    ] as const) {
+    for (const scope of ["all", "environment", "project", "checkout", "unavailable"] as const) {
       expect(isSettingsSearchScopeAvailable(target.scope, scope)).toBe(true);
     }
   });
@@ -308,37 +272,25 @@ describe("settings search targets", () => {
     const target = getSettingsSearchTargetScope(result.targetId ?? result.id)!;
     expect(isSettingsSearchScopeAvailable(target.scope, "all")).toBe(false);
     expect(isSettingsSearchScopeAvailable(target.scope, "project")).toBe(false);
-    expect(isSettingsSearchScopeAvailable(target.scope, "environment")).toBe(
-      true,
-    );
+    expect(isSettingsSearchScopeAvailable(target.scope, "environment")).toBe(true);
   });
 
   it("keeps environment-wide settings out of project scopes", () => {
     const updates = getSettingsSearchTargetScope("provider-update-checks")!;
     expect(updates.scope).toBe("environment-defaults");
-    expect(isSettingsSearchScopeAvailable(updates.scope, "environment")).toBe(
-      true,
-    );
+    expect(isSettingsSearchScopeAvailable(updates.scope, "environment")).toBe(true);
     expect(isSettingsSearchScopeAvailable(updates.scope, "all")).toBe(true);
-    expect(isSettingsSearchScopeAvailable(updates.scope, "project")).toBe(
-      false,
-    );
+    expect(isSettingsSearchScopeAvailable(updates.scope, "project")).toBe(false);
     const fallback = getSettingsSearchTargetScope("fallback-model")!;
     expect(fallback.scope).toBe("environment-defaults");
-    expect(isSettingsSearchScopeAvailable(fallback.scope, "environment")).toBe(
-      true,
-    );
+    expect(isSettingsSearchScopeAvailable(fallback.scope, "environment")).toBe(true);
     expect(isSettingsSearchScopeAvailable(fallback.scope, "all")).toBe(true);
-    expect(isSettingsSearchScopeAvailable(fallback.scope, "project")).toBe(
-      false,
-    );
+    expect(isSettingsSearchScopeAvailable(fallback.scope, "project")).toBe(false);
     for (const id of ["response-streaming", "speech-project-dictionary"]) {
       expect(getSettingsSearchTargetScope(id)?.scope).toBe("project-defaults");
     }
     for (const scope of ["all", "environment", "project"] as const) {
-      expect(isSettingsSearchScopeAvailable("project-defaults", scope)).toBe(
-        true,
-      );
+      expect(isSettingsSearchScopeAvailable("project-defaults", scope)).toBe(true);
     }
     for (const id of ["tool-call-visibility", "boring-sidebar"]) {
       expect(getSettingsSearchTargetScope(id)!.scope).toBeNull();
@@ -363,11 +315,8 @@ describe("auto-settlement search availability", () => {
   const environments = [capable, offline, loading];
 
   it("keeps results discoverable when one connected environment supports them", () => {
-    const availability =
-      getThreadAutoSettlementSearchAvailability(environments);
-    expect(availability.eligibleEnvironmentIds).toEqual([
-      capable.environmentId,
-    ]);
+    const availability = getThreadAutoSettlementSearchAvailability(environments);
+    expect(availability.eligibleEnvironmentIds).toEqual([capable.environmentId]);
     const items = filterAvailableSettingsSearchItems({
       hasCloudPublicConfig: false,
       hasEnvironment: true,
@@ -376,14 +325,12 @@ describe("auto-settlement search availability", () => {
       isWslSettingsRowVisible: false,
       hasThreadAutoSettlement: availability.eligibleEnvironmentIds.length > 0,
     });
-    expect(searchSettings("auto-settle", items).map((item) => item.id)).toEqual(
-      [
-        "auto-settle-inactive-threads",
-        "auto-settle-merged-threads",
-        "days-before-auto-settle",
-        "keep-threads-with-pull-requests",
-      ],
-    );
+    expect(searchSettings("auto-settle", items).map((item) => item.id)).toEqual([
+      "auto-settle-inactive-threads",
+      "auto-settle-merged-threads",
+      "days-before-auto-settle",
+      "keep-threads-with-pull-requests",
+    ]);
   });
 
   it.each([offline, loading])(
@@ -422,14 +369,11 @@ describe("source control host search items", () => {
   };
 
   it("lists a host by its label, its keywords, and its settings fields", () => {
-    const items = sourceControlHostSearchItems([
-      UNKNOWN_SOURCE_CONTROL_CLIENT,
-      definition,
-    ]);
+    const items = sourceControlHostSearchItems([UNKNOWN_SOURCE_CONTROL_CLIENT, definition]);
     expect(items.map((item) => item.title)).toEqual(["Example credentials"]);
-    expect(
-      searchSettings("sample apitoken", items).map((item) => item.id),
-    ).toEqual([sourceControlHostSettingsSearchId("example")]);
+    expect(searchSettings("sample apitoken", items).map((item) => item.id)).toEqual([
+      sourceControlHostSettingsSearchId("example"),
+    ]);
   });
 
   it("lists a host with credentials by its accounts, token and CLI", () => {
@@ -446,16 +390,12 @@ describe("source control host search items", () => {
         },
       },
     ]);
-    expect(items.map((item) => item.title)).toEqual([
-      "Example accounts and token",
-    ]);
+    expect(items.map((item) => item.title)).toEqual(["Example accounts and token"]);
     expect(searchSettings("ex switch accounts", items)).toHaveLength(1);
   });
 
   it("finds the built-in hosts by their own words", () => {
-    expect(searchSettings("codeberg").map((item) => item.id)).toContain(
-      "source-control",
-    );
+    expect(searchSettings("codeberg").map((item) => item.id)).toContain("source-control");
     expect(searchSettings("ghes").map((item) => item.id)).toContain(
       sourceControlHostSettingsSearchId("github"),
     );
@@ -464,41 +404,27 @@ describe("source control host search items", () => {
 
 describe("movedSettingsPath", () => {
   it("sends old links to the page their row moved to", () => {
-    expect(
-      movedSettingsPath("/settings/general", "text-generation-model"),
-    ).toBe("/settings/threads");
-    expect(
-      movedSettingsPath("/settings/connections", "authorized-clients"),
-    ).toBe("/settings/access");
-    expect(
-      movedSettingsPath("/settings/source-control", "worktree-branch-naming"),
-    ).toBe("/settings/worktrees");
-    expect(movedSettingsPath("/settings/appearance", "diff-color-scheme")).toBe(
-      "/settings/diffs",
+    expect(movedSettingsPath("/settings/general", "text-generation-model")).toBe(
+      "/settings/threads",
     );
-    expect(movedSettingsPath("/settings/connections", "network-access")).toBe(
+    expect(movedSettingsPath("/settings/connections", "authorized-clients")).toBe(
       "/settings/access",
     );
-    expect(movedSettingsPath("/settings/storage", "storage-worktrees")).toBe(
+    expect(movedSettingsPath("/settings/source-control", "worktree-branch-naming")).toBe(
       "/settings/worktrees",
     );
-    expect(movedSettingsPath("/settings/storage", "")).toBe(
-      "/settings/maintenance",
-    );
-    expect(movedSettingsPath("/settings/integrations", "devices")).toBe(
-      "/settings/devices",
-    );
+    expect(movedSettingsPath("/settings/appearance", "diff-color-scheme")).toBe("/settings/diffs");
+    expect(movedSettingsPath("/settings/connections", "network-access")).toBe("/settings/access");
+    expect(movedSettingsPath("/settings/storage", "storage-worktrees")).toBe("/settings/worktrees");
+    expect(movedSettingsPath("/settings/storage", "")).toBe("/settings/maintenance");
+    expect(movedSettingsPath("/settings/integrations", "devices")).toBe("/settings/devices");
     expect(movedSettingsPath("/settings/beta", "")).toBe("/settings/labs");
   });
 
   it("leaves current pages alone", () => {
     expect(movedSettingsPath("/settings/general", "time-format")).toBeNull();
-    expect(
-      movedSettingsPath("/settings/projects", "project-defaults"),
-    ).toBeNull();
-    expect(
-      movedSettingsPath("/settings/connections", "remote-environments"),
-    ).toBeNull();
+    expect(movedSettingsPath("/settings/projects", "project-defaults")).toBeNull();
+    expect(movedSettingsPath("/settings/connections", "remote-environments")).toBeNull();
     expect(movedSettingsPath("/settings/appearance", "theme")).toBeNull();
   });
 });

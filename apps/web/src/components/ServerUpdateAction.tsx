@@ -20,10 +20,7 @@ import type {
   ServerInstallation,
   ServerSelfUpdateCapability,
 } from "@t3tools/contracts";
-import type {
-  ServerUpdateStage,
-  ServerUpdateState,
-} from "@t3tools/client-runtime/state/server";
+import type { ServerUpdateStage, ServerUpdateState } from "@t3tools/client-runtime/state/server";
 import {
   isAtomCommandInterrupted,
   settlePromise,
@@ -62,14 +59,10 @@ export function serverUpdateStageLabel(
 }
 
 /** Why the environment's policy refuses server updates, read outside render. */
-function readUpdatesDenial(
-  environmentId: EnvironmentId,
-  t: WebTranslate,
-): string | undefined {
+function readUpdatesDenial(environmentId: EnvironmentId, t: WebTranslate): string | undefined {
   return managedUpdatesDenial(
-    appAtomRegistry
-      .get(environmentPresentations.serverConfigsAtom)
-      .get(environmentId)?.managedPolicy,
+    appAtomRegistry.get(environmentPresentations.serverConfigsAtom).get(environmentId)
+      ?.managedPolicy,
     t,
   );
 }
@@ -97,11 +90,7 @@ function CrossTrackNote() {
   const { locale } = useI18n();
   const translate = (source: string) => translateWebSource(locale, source);
 
-  return (
-    <span className="text-muted-foreground text-xs">
-      {translate(CROSS_TRACK_NOTE)}
-    </span>
-  );
+  return <span className="text-muted-foreground text-xs">{translate(CROSS_TRACK_NOTE)}</span>;
 }
 
 export interface ServerUpdateTarget {
@@ -119,10 +108,7 @@ export interface ServerUpdateTarget {
   readonly trackOnly?: boolean;
 }
 
-type UpdateButtonProps = Pick<
-  ComponentProps<typeof Button>,
-  "variant" | "size" | "className"
-> & {
+type UpdateButtonProps = Pick<ComponentProps<typeof Button>, "variant" | "size" | "className"> & {
   readonly label?: string;
   readonly appearance?: "button" | "icon";
 };
@@ -159,9 +145,7 @@ export function useServerUpdate() {
       return { status: "failed", message: denial };
     }
     if (
-      !canUpdateServer(
-        appAtomRegistry.get(environmentSession.sessionStateAtom(environmentId)),
-      ) ||
+      !canUpdateServer(appAtomRegistry.get(environmentSession.sessionStateAtom(environmentId))) ||
       pendingUpdateEnvironmentIds.has(environmentId)
     )
       return { status: "skipped" };
@@ -228,14 +212,9 @@ export function ServerUpdatesAction({
     (target) =>
       target.selfUpdate !== null &&
       (target.selfUpdate !== "desktop-managed" || target.desktopAppUpdate) &&
-      managedUpdatesDenial(
-        serverConfigs.get(target.environmentId)?.managedPolicy,
-        t,
-      ) === undefined &&
-      !refusedCrossing(
-        target,
-        serverConfigs.get(target.environmentId)?.environment.serverVersion,
-      ),
+      managedUpdatesDenial(serverConfigs.get(target.environmentId)?.managedPolicy, t) ===
+        undefined &&
+      !refusedCrossing(target, serverConfigs.get(target.environmentId)?.environment.serverVersion),
   );
   const handleUpdate = async () => {
     if (pending.current) return;
@@ -245,16 +224,12 @@ export function ServerUpdatesAction({
       const available = eligible.filter(
         (target) => !pendingUpdateEnvironmentIds.has(target.environmentId),
       );
-      const desktopTargets = available.filter(
-        (target) => target.selfUpdate === "desktop-managed",
-      );
+      const desktopTargets = available.filter((target) => target.selfUpdate === "desktop-managed");
       if (desktopTargets.length > 0) {
         const confirmed =
           (await requestConfirmDialog(
             actionT("coreResidual.confirmAll", {
-              servers: desktopTargets
-                .map((target) => target.serverLabel)
-                .join(", "),
+              servers: desktopTargets.map((target) => target.serverLabel).join(", "),
             }),
             { initialFocus: "confirm" },
           )) ?? true;
@@ -295,18 +270,10 @@ export function ServerUpdateProgress({
   if (state.status === "failed") {
     const message = serverUpdateStateFailureMessage(locale, state);
     return (
-      <div
-        className="mt-1 flex min-w-0 items-center gap-2 text-xs text-destructive"
-        role="alert"
-      >
-        <span
-          className="size-1.5 shrink-0 rounded-full bg-destructive"
-          aria-hidden="true"
-        />
+      <div className="mt-1 flex min-w-0 items-center gap-2 text-xs text-destructive" role="alert">
+        <span className="size-1.5 shrink-0 rounded-full bg-destructive" aria-hidden="true" />
         <Tooltip>
-          <TooltipTrigger
-            render={<span className="min-w-0 truncate">{message}</span>}
-          />
+          <TooltipTrigger render={<span className="min-w-0 truncate">{message}</span>} />
           <TooltipPopup side="top">{message}</TooltipPopup>
         </Tooltip>
       </div>
@@ -314,10 +281,7 @@ export function ServerUpdateProgress({
   }
   return (
     <div className="mt-1 flex items-center gap-2 text-xs font-medium text-foreground">
-      <span
-        className="size-1.5 shrink-0 rounded-full bg-foreground"
-        aria-hidden="true"
-      />
+      <span className="size-1.5 shrink-0 rounded-full bg-foreground" aria-hidden="true" />
       <span>{serverUpdateStageLabel(state.stage, translate)}</span>
     </div>
   );
@@ -339,15 +303,11 @@ export function ServerUpdateAction({
   appearance = "button",
 }: ServerUpdateTarget & UpdateButtonProps) {
   const isDesktopAppUpdate = selfUpdate === "desktop-managed";
-  const serverVersion =
-    useServerConfigs().get(environmentId)?.environment.serverVersion;
+  const serverVersion = useServerConfigs().get(environmentId)?.environment.serverVersion;
   const sessionStateAtom = environmentSession.sessionStateAtom(environmentId);
   const canUpdate = useAtomValue(sessionStateAtom, canUpdateServer);
   const { locale, t } = useI18n();
-  const updatesDenial = managedUpdatesDenial(
-    useManagedPolicy(environmentId),
-    t,
-  );
+  const updatesDenial = managedUpdatesDenial(useManagedPolicy(environmentId), t);
   const translate = (source: string) => translateWebSource(locale, source);
   const translateAction = useStableCallback(translate);
   const actionT = useStableCallback(t);
@@ -355,9 +315,7 @@ export function ServerUpdateAction({
   const updatesInstall =
     installation?.kind === "npm-global" || installation?.kind === "t3-launcher";
   const { copyToClipboard } = useCopyToClipboard<{ command: string }>({
-    target: updatesInstall
-      ? translate("update command")
-      : translate("relaunch command"),
+    target: updatesInstall ? translate("update command") : translate("relaunch command"),
     onCopy: ({ command }) => {
       toastManager.add({
         type: "success",
@@ -411,12 +369,7 @@ export function ServerUpdateAction({
   if (updatesDenial !== undefined) {
     return appearance === "icon" ? (
       <ManagedControl reason={updatesDenial}>
-        <Button
-          size="icon-xs"
-          variant="ghost-muted"
-          aria-label={updatesDenial}
-          disabled
-        >
+        <Button size="icon-xs" variant="ghost-muted" aria-label={updatesDenial} disabled>
           <CircleArrowUpIcon className="size-3.5" />
         </Button>
       </ManagedControl>
@@ -428,9 +381,7 @@ export function ServerUpdateAction({
   if (selfUpdate === "desktop-managed" && !desktopAppUpdate) {
     return (
       <span className="text-muted-foreground text-xs">
-        {translate(
-          "Update the desktop app on that machine to update this server.",
-        )}
+        {translate("Update the desktop app on that machine to update this server.")}
       </span>
     );
   }
@@ -440,9 +391,7 @@ export function ServerUpdateAction({
   }
 
   const manualCommand =
-    selfUpdate === null
-      ? manualServerUpdateCommand(targetVersion, installation)
-      : null;
+    selfUpdate === null ? manualServerUpdateCommand(targetVersion, installation) : null;
   const actionLabel =
     manualCommand !== null
       ? updatesInstall
@@ -539,10 +488,7 @@ export function OutdatedServerUpdateAction({
       }),
     });
   };
-  if (
-    fromVersion !== undefined &&
-    crossesReleaseTrack(fromVersion, targetVersion)
-  ) {
+  if (fromVersion !== undefined && crossesReleaseTrack(fromVersion, targetVersion)) {
     return <CrossTrackNote />;
   }
   return (

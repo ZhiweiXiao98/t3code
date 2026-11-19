@@ -91,6 +91,7 @@ it("localizes a cached owned option problem without editing literal IDs or savin
         builtInModels={[]}
         onSave={onSave}
         onCancel={() => {}}
+        onDraftChange={() => {}}
       />,
     );
   await using screen = await render(surface("en"));
@@ -137,6 +138,7 @@ it.each(["id", "choice"] as const)(
           builtInModels={[]}
           onSave={onSave}
           onCancel={() => {}}
+          onDraftChange={() => {}}
         />,
       );
     await using screen = await render(surface("en"));

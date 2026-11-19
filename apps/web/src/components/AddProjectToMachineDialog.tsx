@@ -57,13 +57,7 @@ import {
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { MiddleTruncate } from "./ui/middle-truncate";
-import {
-  Select,
-  SelectItem,
-  SelectPopup,
-  SelectTrigger,
-  SelectValue,
-} from "./ui/select";
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "./ui/select";
 import { Toggle, ToggleGroup } from "./ui/toggle-group";
 
 interface AddProjectToMachineRequest {
@@ -102,16 +96,10 @@ function close() {
 export function AddProjectToMachineDialogHost() {
   const request = useRequest((state) => state.request);
   const session = useRequest((state) => state.session);
-  return request ? (
-    <AddProjectToMachineDialog key={session} request={request} />
-  ) : null;
+  return request ? <AddProjectToMachineDialog key={session} request={request} /> : null;
 }
 
-function AddProjectToMachineDialog({
-  request,
-}: {
-  request: AddProjectToMachineRequest;
-}) {
+function AddProjectToMachineDialog({ request }: { request: AddProjectToMachineRequest }) {
   const { t, locale } = useI18n();
   const tx = (source: string) => translateWebSource(locale, source);
   const id = useId();
@@ -119,36 +107,23 @@ function AddProjectToMachineDialog({
   const handleNewThread = useNewThreadHandler();
   const { draftId: routeDraftId } = useParams({ strict: false });
   const { environments } = useEnvironments();
-  const targets = useAddProjectTargets(
-    project,
-    useLogicalProjectEnvironments(project, false),
-  );
+  const targets = useAddProjectTargets(project, useLogicalProjectEnvironments(project, false));
   const [targetId, setTargetId] = useState(request.targetEnvironmentId);
-  const target =
-    targets.find((t) => t.environmentId === targetId) ?? targets[0] ?? null;
-  const source = environments.find(
-    (env) => env.environmentId === request.projectRef.environmentId,
-  );
+  const target = targets.find((t) => t.environmentId === targetId) ?? targets[0] ?? null;
+  const source = environments.find((env) => env.environmentId === request.projectRef.environmentId);
   const sourceUrl =
     project?.repositoryIdentity?.origin?.remoteUrl ??
     project?.repositoryIdentity?.locator.remoteUrl ??
     "";
-  const [protocol, setProtocol] = useState<CloneProtocol | null>(() =>
-    cloneUrlProtocol(sourceUrl),
-  );
+  const [protocol, setProtocol] = useState<CloneProtocol | null>(() => cloneUrlProtocol(sourceUrl));
   const sshUrl = cloneUrlForProtocol(sourceUrl, "ssh");
   const httpsUrl = cloneUrlForProtocol(sourceUrl, "https");
   const remoteUrl =
-    (protocol === "ssh" ? sshUrl : protocol === "https" ? httpsUrl : null) ??
-    sourceUrl;
+    (protocol === "ssh" ? sshUrl : protocol === "https" ? httpsUrl : null) ?? sourceUrl;
 
-  const targetEnvironment = environments.find(
-    (env) => env.environmentId === target?.environmentId,
-  );
+  const targetEnvironment = environments.find((env) => env.environmentId === target?.environmentId);
   const defaultPath = getCloneDestinationPath(
-    getAddProjectInitialQuery(
-      targetEnvironment?.serverConfig?.settings.addProjectBaseDirectory,
-    ),
+    getAddProjectInitialQuery(targetEnvironment?.serverConfig?.settings.addProjectBaseDirectory),
     getCloneDirectoryPath(
       sourceUrl,
       targetEnvironment?.serverConfig?.settings.ghqCloneLayout === true,
@@ -159,8 +134,7 @@ function AddProjectToMachineDialog({
 
   const capabilities = source?.serverConfig?.environment.capabilities;
   const canListFiles = capabilities?.ignoredFileListing === true;
-  const canSearchFiles =
-    canListFiles && capabilities?.ignoredFileSearch === true;
+  const canSearchFiles = canListFiles && capabilities?.ignoredFileSearch === true;
   const allIgnoredFiles = useEnvironmentQuery(
     project && canListFiles
       ? projectEnvironment.listIgnoredFiles({
@@ -183,18 +157,10 @@ function AddProjectToMachineDialog({
   const ignoredFiles = searching ? searchedFiles : allIgnoredFiles;
   const files = ignoredFiles.data?.files ?? [];
   // Keyed by path with the file kept, so picks made under one search survive the next.
-  const [selected, setSelected] = useState<ReadonlyMap<
-    string,
-    ProjectIgnoredFile
-  > | null>(null);
-  const selectedFiles =
-    selected ?? defaultSelection(allIgnoredFiles.data?.files ?? []);
-  const copyable = files.filter(
-    (file) => file.byteLength <= COPYABLE_FILE_MAX_BYTES,
-  );
-  const allCopyableSelected = copyable.every((file) =>
-    selectedFiles.has(file.path),
-  );
+  const [selected, setSelected] = useState<ReadonlyMap<string, ProjectIgnoredFile> | null>(null);
+  const selectedFiles = selected ?? defaultSelection(allIgnoredFiles.data?.files ?? []);
+  const copyable = files.filter((file) => file.byteLength <= COPYABLE_FILE_MAX_BYTES);
+  const allCopyableSelected = copyable.every((file) => selectedFiles.has(file.path));
   const atSelectionLimit = selectedFiles.size >= COPIED_FILES_MAX_COUNT;
   const selectedBytes = [...selectedFiles.values()].reduce(
     (total, file) => total + file.byteLength,
@@ -209,9 +175,7 @@ function AddProjectToMachineDialog({
   const unavailable =
     project === null ||
     target === null ||
-    (canListFiles &&
-      allIgnoredFiles.data === null &&
-      allIgnoredFiles.error === null);
+    (canListFiles && allIgnoredFiles.data === null && allIgnoredFiles.error === null);
   const toggleFile = (file: ProjectIgnoredFile, checked: boolean) => {
     const next = new Map(selectedFiles);
     if (!checked) next.delete(file.path);
@@ -280,11 +244,7 @@ function AddProjectToMachineDialog({
       close();
       openClonedProject(scopeProjectRef(target.environmentId, projectId));
     } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : tx("Could not start the clone."),
-      );
+      setError(cause instanceof Error ? cause.message : tx("Could not start the clone."));
       setSubmitting(false);
     }
   };
@@ -308,10 +268,7 @@ function AddProjectToMachineDialog({
             <DialogTitle>{tx("Add to another machine")}</DialogTitle>
             <DialogDescription>
               {t("addProjectToMachine.description", {
-                project:
-                  project?.repositoryIdentity?.displayName ??
-                  project?.title ??
-                  "",
+                project: project?.repositoryIdentity?.displayName ?? project?.title ?? "",
               })}
             </DialogDescription>
           </DialogHeader>
@@ -320,14 +277,10 @@ function AddProjectToMachineDialog({
               <div className="flex min-w-0 flex-col gap-1">
                 <span className="flex min-w-0 items-center gap-1.5 font-medium text-sm">
                   <EnvironmentMachineIcon
-                    kind={resolveEnvironmentMachineKind(
-                      source?.serverConfig ?? null,
-                    )}
+                    kind={resolveEnvironmentMachineKind(source?.serverConfig ?? null)}
                     className="size-3.5 shrink-0"
                   />
-                  <span className="truncate">
-                    {source?.label ?? tx("This machine")}
-                  </span>
+                  <span className="truncate">{source?.label ?? tx("This machine")}</span>
                 </span>
                 <span className="flex min-w-0 font-mono text-muted-foreground text-xs">
                   <MiddleTruncate value={project?.workspaceRoot ?? ""} />
@@ -362,29 +315,17 @@ function AddProjectToMachineDialog({
                       label: t.label,
                     }))}
                   >
-                    <SelectTrigger
-                      size="sm"
-                      aria-label={tx("Machine to add the project to")}
-                    >
+                    <SelectTrigger size="sm" aria-label={tx("Machine to add the project to")}>
                       {target ? (
-                        <EnvironmentMachineIcon
-                          kind={target.machine}
-                          className="size-3.5"
-                        />
+                        <EnvironmentMachineIcon kind={target.machine} className="size-3.5" />
                       ) : null}
                       <SelectValue />
                     </SelectTrigger>
                     <SelectPopup>
                       {targets.map((t) => (
-                        <SelectItem
-                          key={t.environmentId}
-                          value={t.environmentId}
-                        >
+                        <SelectItem key={t.environmentId} value={t.environmentId}>
                           <span className="inline-flex items-center gap-1.5">
-                            <EnvironmentMachineIcon
-                              kind={t.machine}
-                              className="size-3"
-                            />
+                            <EnvironmentMachineIcon kind={t.machine} className="size-3" />
                             {t.label}
                           </span>
                         </SelectItem>
@@ -394,14 +335,9 @@ function AddProjectToMachineDialog({
                 ) : (
                   <span className="flex min-w-0 items-center gap-1.5 font-medium text-sm">
                     {target ? (
-                      <EnvironmentMachineIcon
-                        kind={target.machine}
-                        className="size-3.5 shrink-0"
-                      />
+                      <EnvironmentMachineIcon kind={target.machine} className="size-3.5 shrink-0" />
                     ) : null}
-                    <span className="truncate">
-                      {target?.label ?? tx("No machine available")}
-                    </span>
+                    <span className="truncate">{target?.label ?? tx("No machine available")}</span>
                   </span>
                 )}
                 <span className="flex min-w-0 font-mono text-muted-foreground text-xs">
@@ -418,17 +354,14 @@ function AddProjectToMachineDialog({
                   value={protocol ? [protocol] : []}
                   onValueChange={(next) => {
                     const value = next[0];
-                    if (value === "ssh" || value === "https")
-                      setProtocol(value);
+                    if (value === "ssh" || value === "https") setProtocol(value);
                   }}
                 >
                   <Toggle value="ssh">SSH</Toggle>
                   <Toggle value="https">HTTPS</Toggle>
                 </ToggleGroup>
               ) : null}
-              <span className="truncate font-mono text-muted-foreground text-xs">
-                {remoteUrl}
-              </span>
+              <span className="truncate font-mono text-muted-foreground text-xs">{remoteUrl}</span>
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -441,9 +374,7 @@ function AddProjectToMachineDialog({
                 id={`${id}-path`}
                 value={destinationPath}
                 onChange={(event) =>
-                  setPathOverride(
-                    resolvePastedPath(destinationPath, event.target.value),
-                  )
+                  setPathOverride(resolvePastedPath(destinationPath, event.target.value))
                 }
                 spellCheck={false}
                 autoComplete="off"
@@ -461,23 +392,15 @@ function AddProjectToMachineDialog({
                           selected: selectedFiles.size,
                           total: allIgnoredFiles.data?.files.length ?? 0,
                         })}
-                        {selectedBytes > 0
-                          ? ` · ${formatBytes(selectedBytes)}`
-                          : ""}
+                        {selectedBytes > 0 ? ` · ${formatBytes(selectedBytes)}` : ""}
                       </span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="xs"
-                        onClick={toggleShownFiles}
-                      >
+                      <Button type="button" variant="ghost" size="xs" onClick={toggleShownFiles}>
                         {allCopyableSelected ? tx("None") : tx("All")}
                       </Button>
                     </>
                   ) : null}
                 </div>
-                {canSearchFiles &&
-                (allIgnoredFiles.data?.truncated || fileQuery.length > 0) ? (
+                {canSearchFiles && (allIgnoredFiles.data?.truncated || fileQuery.length > 0) ? (
                   <Input
                     size="sm"
                     type="search"
@@ -495,9 +418,7 @@ function AddProjectToMachineDialog({
                   />
                 ) : null}
                 {ignoredFiles.error ? (
-                  <p className="text-destructive-foreground text-xs">
-                    {ignoredFiles.error}
-                  </p>
+                  <p className="text-destructive-foreground text-xs">{ignoredFiles.error}</p>
                 ) : files.length === 0 ? (
                   <p className="text-muted-foreground text-xs">
                     {!ignoredFiles.isSuccess
@@ -513,9 +434,7 @@ function AddProjectToMachineDialog({
                         key={file.path}
                         file={file}
                         checked={selectedFiles.has(file.path)}
-                        disabled={
-                          atSelectionLimit && !selectedFiles.has(file.path)
-                        }
+                        disabled={atSelectionLimit && !selectedFiles.has(file.path)}
                         onCheckedChange={(checked) => toggleFile(file, checked)}
                       />
                     ))}
@@ -537,9 +456,7 @@ function AddProjectToMachineDialog({
               </div>
             ) : null}
 
-            {error ? (
-              <p className="text-destructive-foreground text-sm">{error}</p>
-            ) : null}
+            {error ? <p className="text-destructive-foreground text-sm">{error}</p> : null}
           </DialogPanel>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={close}>
@@ -563,10 +480,7 @@ function AddProjectToMachineDialog({
  * A project can be rooted below its repository's top folder. The clone lands
  * at the top, so copied files keep the same path below it.
  */
-function projectSubdirectory(
-  repositoryRoot: string | undefined,
-  workspaceRoot: string,
-) {
+function projectSubdirectory(repositoryRoot: string | undefined, workspaceRoot: string) {
   if (!repositoryRoot) return "";
   const prefix = repositoryRoot.replace(/[\\/]+$/, "");
   const rest = workspaceRoot.slice(prefix.length);
@@ -581,9 +495,7 @@ function defaultSelection(
   return new Map(
     files
       .filter(
-        (file) =>
-          file.byteLength <= COPYABLE_FILE_MAX_BYTES &&
-          isDefaultCopiedFile(file.path),
+        (file) => file.byteLength <= COPYABLE_FILE_MAX_BYTES && isDefaultCopiedFile(file.path),
       )
       .map((file) => [file.path, file]),
   );
@@ -610,9 +522,7 @@ function IgnoredFileRow({
         disabled={tooLarge || disabled}
         onCheckedChange={onCheckedChange}
       />
-      <span className="min-w-0 flex-1 truncate font-mono text-xs">
-        {file.path}
-      </span>
+      <span className="min-w-0 flex-1 truncate font-mono text-xs">{file.path}</span>
       <span className="shrink-0 text-muted-foreground text-xs tabular-nums">
         {tooLarge ? tx("Over 1 MB") : formatBytes(file.byteLength)}
       </span>

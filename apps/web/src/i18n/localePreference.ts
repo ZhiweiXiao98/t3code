@@ -27,16 +27,11 @@ export function legacyLocaleForLanguage(language: string): "zh-CN" | "en" {
   return language === "zh" || language === "zh-CN" ? "zh-CN" : "en";
 }
 
-export function synchronizedLocalePatch(
-  patch: ClientSettingsPatch,
-): ClientSettingsPatch {
+export function synchronizedLocalePatch(patch: ClientSettingsPatch): ClientSettingsPatch {
   if (patch.language !== undefined) {
     return {
       ...patch,
-      appLocale:
-        patch.language === "system"
-          ? "system"
-          : legacyLocaleForLanguage(patch.language),
+      appLocale: patch.language === "system" ? "system" : legacyLocaleForLanguage(patch.language),
     };
   }
   if (patch.appLocale !== undefined) {

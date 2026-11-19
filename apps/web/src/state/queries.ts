@@ -57,8 +57,7 @@ const EMPTY_REFS: ReadonlyArray<VcsRef> = [];
 const EMPTY_PROJECT_ENTRIES: ReadonlyArray<ProjectEntry> = [];
 const EMPTY_CONTENT_MATCHES: ReadonlyArray<ProjectContentMatch> = [];
 const INITIAL_BRANCH_CURSORS = [undefined] as const;
-const EMPTY_THREAD_SEARCH_MATCHES: ReadonlyArray<EnvironmentThreadSearchMatch> =
-  Object.freeze([]);
+const EMPTY_THREAD_SEARCH_MATCHES: ReadonlyArray<EnvironmentThreadSearchMatch> = Object.freeze([]);
 const EMPTY_THREAD_SEARCH_ATOM = Atom.make<ThreadSearchResultsState>({
   matches: EMPTY_THREAD_SEARCH_MATCHES,
   isLoading: false,
@@ -66,10 +65,9 @@ const EMPTY_THREAD_SEARCH_ATOM = Atom.make<ThreadSearchResultsState>({
 }).pipe(Atom.withLabel("web:thread-search:empty"));
 
 const olderSettledBeforeAtom = Atom.family((environmentId: EnvironmentId) =>
-  Atom.make(
-    (get) =>
-      get(olderSettledThreads.olderSettledAtom(environmentId))?.before ?? null,
-  ).pipe(Atom.withLabel(`web:older-settled-before:${environmentId}`)),
+  Atom.make((get) => get(olderSettledThreads.olderSettledAtom(environmentId))?.before ?? null).pipe(
+    Atom.withLabel(`web:older-settled-before:${environmentId}`),
+  ),
 );
 // Whether any of these environments leaves older settled threads out, so short queries matter.
 const anyOlderSettledAtom = Atom.family((environmentIdsKey: string) =>
@@ -119,35 +117,22 @@ export function useThreadSearch(
   readonly isPending: boolean;
 } {
   // A pasted wall of text searches by its start rather than failing the request.
-  const normalizedQuery = query
-    .trim()
-    .slice(0, THREAD_SEARCH_QUERY_MAX_LENGTH)
-    .trim();
-  const debouncedQuery = useDebouncedValue(
-    normalizedQuery,
-    THREAD_SEARCH_DEBOUNCE_MS,
-  );
-  const anyOlderSettled = useAtomValue(
-    anyOlderSettledAtom(JSON.stringify(environmentIds)),
-  );
+  const normalizedQuery = query.trim().slice(0, THREAD_SEARCH_QUERY_MAX_LENGTH).trim();
+  const debouncedQuery = useDebouncedValue(normalizedQuery, THREAD_SEARCH_DEBOUNCE_MS);
+  const anyOlderSettled = useAtomValue(anyOlderSettledAtom(JSON.stringify(environmentIds)));
   // Messages need a word of three or more letters; older settled titles match from two.
   const canSearch =
     environmentIds.length > 0 &&
-    ((scope.titlesOnly !== true &&
-      messageSearchTokens(normalizedQuery).long.length > 0) ||
+    ((scope.titlesOnly !== true && messageSearchTokens(normalizedQuery).long.length > 0) ||
       (anyOlderSettled && normalizedQuery.length >= 2));
-  const settledQuery =
-    canSearch && normalizedQuery === debouncedQuery ? debouncedQuery : null;
+  const settledQuery = canSearch && normalizedQuery === debouncedQuery ? debouncedQuery : null;
   const searchKeyOf = (searchQuery: string) =>
     makeThreadSearchKey(environmentIds, searchQuery, scope);
   const searchKey = settledQuery === null ? null : searchKeyOf(settledQuery);
   const result = useAtomValue(
-    searchKey === null
-      ? EMPTY_THREAD_SEARCH_ATOM
-      : threadSearch.results(searchKey),
+    searchKey === null ? EMPTY_THREAD_SEARCH_ATOM : threadSearch.results(searchKey),
   );
-  const isPending =
-    canSearch && (normalizedQuery !== debouncedQuery || result.isLoading);
+  const isPending = canSearch && (normalizedQuery !== debouncedQuery || result.isLoading);
   // What fast environments returned shows without waiting for a slow one;
   // callers keep shown rows in place with `nextShownOrder`.
   const ready =
@@ -166,9 +151,7 @@ export function useThreadSearch(
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- mounts the shown search results' rows into the thread family registry until newer results replace them
   useEffect(() => {
     if (shownKey === null) return;
-    const environments = (
-      JSON.parse(shownKey) as [ReadonlyArray<EnvironmentId>]
-    )[0];
+    const environments = (JSON.parse(shownKey) as [ReadonlyArray<EnvironmentId>])[0];
     const releases = environments.map((environmentId) =>
       threadFamilies.mountRows(
         appAtomRegistry,
@@ -189,11 +172,7 @@ export function useThreadSearch(
 }
 
 function vcsRefPageAtom(targetKey: string, cursor: number | undefined) {
-  const [environmentId, cwd, query] = JSON.parse(targetKey) as [
-    EnvironmentId,
-    string,
-    string,
-  ];
+  const [environmentId, cwd, query] = JSON.parse(targetKey) as [EnvironmentId, string, string];
   return vcsEnvironment.listRefs({
     environmentId,
     input: {
@@ -210,13 +189,8 @@ const EMPTY_VCS_REF_PAGES_ATOM = Atom.make<
 >([]).pipe(Atom.withLabel("web:vcs-ref-pages:empty"));
 
 const vcsRefPagesAtom = Atom.family((pagesKey: string) => {
-  const [targetKey, cursors] = JSON.parse(pagesKey) as [
-    string,
-    Array<number | null>,
-  ];
-  const pageAtoms = cursors.map((cursor) =>
-    vcsRefPageAtom(targetKey, cursor ?? undefined),
-  );
+  const [targetKey, cursors] = JSON.parse(pagesKey) as [string, Array<number | null>];
+  const pageAtoms = cursors.map((cursor) => vcsRefPageAtom(targetKey, cursor ?? undefined));
   return Atom.make((get) => pageAtoms.map((atom) => get(atom))).pipe(
     Atom.withLabel(`web:vcs-ref-pages:${pagesKey}`),
   );
@@ -235,15 +209,9 @@ export function usePaginatedBranches(target: VcsRefTarget) {
   const { environmentId, cwd } = target;
   const query = target.query?.trim() ?? "";
   const targetKey =
-    environmentId !== null && cwd !== null
-      ? JSON.stringify([environmentId, cwd, query])
-      : null;
-  const cursors =
-    pagination.targetKey === targetKey
-      ? pagination.cursors
-      : INITIAL_BRANCH_CURSORS;
-  const pagesKey =
-    targetKey === null ? null : JSON.stringify([targetKey, cursors]);
+    environmentId !== null && cwd !== null ? JSON.stringify([environmentId, cwd, query]) : null;
+  const cursors = pagination.targetKey === targetKey ? pagination.cursors : INITIAL_BRANCH_CURSORS;
+  const pagesKey = targetKey === null ? null : JSON.stringify([targetKey, cursors]);
   const results = useAtomValue(
     pagesKey === null ? EMPTY_VCS_REF_PAGES_ATOM : vcsRefPagesAtom(pagesKey),
   );
@@ -293,9 +261,7 @@ export function usePaginatedBranches(target: VcsRefTarget) {
     }
     setPagination((current) => {
       const currentCursors =
-        current.targetKey === targetKey
-          ? current.cursors
-          : INITIAL_BRANCH_CURSORS;
+        current.targetKey === targetKey ? current.cursors : INITIAL_BRANCH_CURSORS;
       return currentCursors.includes(nextCursor)
         ? { targetKey, cursors: currentCursors }
         : { targetKey, cursors: [...currentCursors, nextCursor] };
@@ -345,10 +311,7 @@ export function useProjectPathSearch(
     kind: target.kind,
     imageOnly: target.imageOnly,
   };
-  const debouncedTarget = useDebouncedValue(
-    normalizedTarget,
-    PROJECT_PATH_SEARCH_DEBOUNCE_MS,
-  );
+  const debouncedTarget = useDebouncedValue(normalizedTarget, PROJECT_PATH_SEARCH_DEBOUNCE_MS);
   const fileAccess = useFilesystemReadAccess(debouncedTarget.environmentId);
   const { canReadFiles } = fileAccess;
   const searchTarget =
@@ -360,9 +323,7 @@ export function useProjectPathSearch(
           environmentId: debouncedTarget.environmentId,
           input: {
             cwd: debouncedTarget.cwd,
-            query: debouncedTarget.query
-              .slice(0, 256)
-              .replace(/[\uD800-\uDBFF]$/, ""),
+            query: debouncedTarget.query.slice(0, 256).replace(/[\uD800-\uDBFF]$/, ""),
             limit,
             ...(debouncedTarget.kind ? { kind: debouncedTarget.kind } : {}),
             ...(debouncedTarget.imageOnly ? { imageOnly: true } : {}),
@@ -370,9 +331,7 @@ export function useProjectPathSearch(
         }
       : null;
   const result = useEnvironmentQuery(
-    canReadFiles && searchTarget !== null
-      ? projectEnvironment.searchEntries(searchTarget)
-      : null,
+    canReadFiles && searchTarget !== null ? projectEnvironment.searchEntries(searchTarget) : null,
   );
   const hasTarget = searchTarget !== null;
 
@@ -419,10 +378,7 @@ export function useProjectContentSearch(target: ProjectContentSearchTarget) {
   const query = target.query;
   const hasQuery = query.trim().length > 0;
   const queryTooLong = query.length > PROJECT_SEARCH_CONTENTS_QUERY_MAX_LENGTH;
-  const debouncedQuery = useDebouncedValue(
-    query,
-    PROJECT_CONTENT_SEARCH_DEBOUNCE_MS,
-  );
+  const debouncedQuery = useDebouncedValue(query, PROJECT_CONTENT_SEARCH_DEBOUNCE_MS);
   const result = useEnvironmentQuery(
     canReadFiles &&
       target.environmentId !== null &&
@@ -455,10 +411,7 @@ export function useProjectContentSearch(target: ProjectContentSearchTarget) {
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- retry timer: nothing tells the client when the server's first scan ends
   useEffect(() => {
     if (settledScanTimeout === null) return;
-    const timer = window.setTimeout(
-      refresh,
-      PROJECT_CONTENT_SEARCH_SCAN_RETRY_MS,
-    );
+    const timer = window.setTimeout(refresh, PROJECT_CONTENT_SEARCH_SCAN_RETRY_MS);
     return () => {
       window.clearTimeout(timer);
     };
@@ -478,14 +431,10 @@ export function useProjectContentSearch(target: ProjectContentSearchTarget) {
             : result.error,
     isPending:
       isCheckingAccess ||
-      (canReadFiles &&
-        hasQuery &&
-        !queryTooLong &&
-        (query !== debouncedQuery || result.isPending)),
+      (canReadFiles && hasQuery && !queryTooLong && (query !== debouncedQuery || result.isPending)),
     hasQuery,
     truncated: result.data?.truncated ?? false,
-    invalidRegex:
-      target.useRegex && result.data?.regexFallbackError !== undefined,
+    invalidRegex: target.useRegex && result.data?.regexFallbackError !== undefined,
   };
 }
 
@@ -523,9 +472,7 @@ export function useCheckpointDiff(
         }
       : null;
   const fullThread = useEnvironmentQuery(
-    fullThreadTarget === null
-      ? null
-      : orchestrationEnvironment.fullThreadDiff(fullThreadTarget),
+    fullThreadTarget === null ? null : orchestrationEnvironment.fullThreadDiff(fullThreadTarget),
   );
   const turn = useEnvironmentQuery(
     turnTarget === null ? null : orchestrationEnvironment.turnDiff(turnTarget),
@@ -538,9 +485,7 @@ export type TurnItemDetailSource = (input: {
   readonly threadId: ThreadId;
   readonly itemId: TurnItemId;
   readonly revision: string;
-}) => Atom.Atom<
-  AsyncResult.AsyncResult<OrchestrationV2GetTurnItemResult, unknown>
->;
+}) => Atom.Atom<AsyncResult.AsyncResult<OrchestrationV2GetTurnItemResult, unknown>>;
 
 export function useTurnItemDetail(
   target: {

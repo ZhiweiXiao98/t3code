@@ -6,17 +6,11 @@ import {
 } from "@t3tools/client-runtime/environment";
 import type { ScopedThreadRef } from "@t3tools/contracts";
 import type { ClientSettings } from "@t3tools/contracts/settings";
-import {
-  createBrowserHistory,
-  createHashHistory,
-} from "@tanstack/react-router";
+import { createBrowserHistory, createHashHistory } from "@tanstack/react-router";
 import * as Schema from "effect/Schema";
 
 import { applyAppearanceContrast } from "./appearanceContrast";
-import {
-  applyAppearanceFontVariables,
-  TYPOGRAPHY_ADVANCED_STORAGE_KEY,
-} from "./appearanceFonts";
+import { applyAppearanceFontVariables, TYPOGRAPHY_ADVANCED_STORAGE_KEY } from "./appearanceFonts";
 import { startElectronBrowserHost } from "./browser/ElectronBrowserHost";
 import { startBrowserProfileReporting } from "./browser/BrowserProfileReporter";
 import { startPreviewTitleRecording } from "./browserHistoryStore";
@@ -35,10 +29,7 @@ import { startSlowRpcRequestToasts } from "./components/SlowRpcRequestToastCoord
 import { startThreadNotifications } from "./components/ThreadNotificationCoordinator";
 import { startGuideRunNotifications } from "./components/pullRequest/guide/PullRequestGuideRunCoordinator";
 import { APP_BASE_NAME, APP_DISPLAY_NAME, APP_STAGE_LABEL } from "./branding";
-import {
-  resolveServerBackedAppDisplayName,
-  resolveWindowTitle,
-} from "./branding.logic";
+import { resolveServerBackedAppDisplayName, resolveWindowTitle } from "./branding.logic";
 import { isElectron } from "./env";
 import {
   subscribeComposerDraftModelReconciliation,
@@ -48,10 +39,7 @@ import {
 import { startDefaultThemeAdoption } from "./hooks/useDefaultTheme";
 import { startEnvironmentThemeRepaint } from "./hooks/useEnvironmentTheme";
 import { startThemeBackground } from "./themeBackground";
-import {
-  readLocalStorageValue,
-  subscribeLocalStorageKey,
-} from "./hooks/useLocalStorage";
+import { readLocalStorageValue, subscribeLocalStorageKey } from "./hooks/useLocalStorage";
 import { startHostEnvironmentLookup } from "./state/primaryEnvironment";
 import {
   getClientSettings,
@@ -77,10 +65,7 @@ import { startI18n } from "./i18n/runtime";
 import { installCommandPaletteCommands } from "./shortcuts/commandPaletteCommands";
 import { registerOpenFavoriteEditorCommand } from "./components/chat/OpenInPickerShortcut";
 import { environmentThreadShells, threadEnvironment } from "./state/threads";
-import {
-  resolveActiveThreadRouteRef,
-  resolveThreadRouteTarget,
-} from "./threadRoutes";
+import { resolveActiveThreadRouteRef, resolveThreadRouteTarget } from "./threadRoutes";
 
 /** Writes appearance settings onto the document, touching only the groups that changed. */
 function startClientAppearance(): void {
@@ -143,9 +128,7 @@ function startClientAppearance(): void {
 }
 
 function readOpenThreadRef(router: AppRouter): ScopedThreadRef | null {
-  const target = resolveThreadRouteTarget(
-    router.state.matches.at(-1)?.params ?? {},
-  );
+  const target = resolveThreadRouteTarget(router.state.matches.at(-1)?.params ?? {});
   const draft =
     target?.kind === "draft"
       ? useComposerDraftStore.getState().getDraftSession(target.draftId)
@@ -158,8 +141,7 @@ function readOpenThreadRef(router: AppRouter): ScopedThreadRef | null {
  * Screen readers read it on Alt+Tab, so it can lead with the thread and what it's doing.
  */
 function startDocumentTitle(router: AppRouter): void {
-  const readOnGuestPage = () =>
-    router.state.matches.some((match) => match.routeId === "/guest");
+  const readOnGuestPage = () => router.state.matches.some((match) => match.routeId === "/guest");
   let openThreadRef = readOpenThreadRef(router);
   let onGuestPage = readOnGuestPage();
   const write = () => {
@@ -168,9 +150,7 @@ function startDocumentTitle(router: AppRouter): void {
     const thread =
       openThreadRef === null
         ? null
-        : appAtomRegistry.get(
-            environmentThreadShells.quietThreadShellAtom(openThreadRef),
-          );
+        : appAtomRegistry.get(environmentThreadShells.quietThreadShellAtom(openThreadRef));
     const project =
       thread === null
         ? null
@@ -185,15 +165,13 @@ function startDocumentTitle(router: AppRouter): void {
         fallbackDisplayName: APP_DISPLAY_NAME,
         fallbackStageLabel: APP_STAGE_LABEL,
         primaryServerVersion:
-          appAtomRegistry.get(primaryServerConfigAtom)?.environment
-            .serverVersion ?? null,
+          appAtomRegistry.get(primaryServerConfigAtom)?.environment.serverVersion ?? null,
       }),
       projectTitle: project?.title ?? null,
       threadTitle: thread?.title ?? null,
       ...(getClientSettings().screenReaderWindowTitle && {
         screenReader: {
-          threadStatus:
-            thread === null ? null : resolveWindowTitleThreadStatus(thread),
+          threadStatus: thread === null ? null : resolveWindowTitleThreadStatus(thread),
         },
       }),
       desktop: isElectron,
@@ -219,8 +197,7 @@ function startDocumentTitle(router: AppRouter): void {
     const nextOnGuestPage = readOnGuestPage();
     if (
       nextOnGuestPage === onGuestPage &&
-      (next && scopedThreadKey(next)) ===
-        (openThreadRef && scopedThreadKey(openThreadRef))
+      (next && scopedThreadKey(next)) === (openThreadRef && scopedThreadKey(openThreadRef))
     ) {
       return;
     }
@@ -253,9 +230,7 @@ function startBrowserChromeThemeSync(router: AppRouter): void {
 /** Chat overlays belong to the thread they were opened in, so leaving its route drops them. */
 function startThreadOverlayRetention(router: AppRouter): void {
   router.subscribe("onResolved", () => {
-    const target = resolveThreadRouteTarget(
-      router.state.matches.at(-1)?.params ?? {},
-    );
+    const target = resolveThreadRouteTarget(router.state.matches.at(-1)?.params ?? {});
     const draftSession =
       target?.kind === "draft"
         ? useComposerDraftStore.getState().getDraftSession(target.draftId)
@@ -266,9 +241,7 @@ function startThreadOverlayRetention(router: AppRouter): void {
         : draftSession
           ? scopeThreadRef(draftSession.environmentId, draftSession.threadId)
           : null;
-    retainThreadOverlaysForThread(
-      threadRef ? scopedThreadKey(threadRef) : null,
-    );
+    retainThreadOverlaysForThread(threadRef ? scopedThreadKey(threadRef) : null);
   });
 }
 
@@ -281,9 +254,7 @@ export function startAppServices(): AppRouter {
   startProviderAuthDelivery();
 
   // Electron loads the app from a file-backed shell, so hash history avoids path resolution issues.
-  const router = getRouter(
-    isElectron ? createHashHistory() : createBrowserHistory(),
-  );
+  const router = getRouter(isElectron ? createHashHistory() : createBrowserHistory());
 
   if (isElectron) {
     syncDocumentElectronPlatformClasses(navigator.platform);

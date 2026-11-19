@@ -16,8 +16,7 @@ const opened: {
 
 serveWorker<WordMethods>({
   open: async (input) => {
-    if (opened.value)
-      throw createFilePreviewError("The worker already holds a document");
+    if (opened.value) throw createFilePreviewError("The worker already holds a document");
 
     // SAFETY: a worker's global scope is a FontFaceSource, whose `fonts` is a FontFaceSet (CSS Font Loading, exposed to
     // workers). The window's types declare it on documents only. Without one, the canvas keeps the system's fonts.
@@ -30,12 +29,7 @@ serveWorker<WordMethods>({
   },
   layout: () => required().step(),
   paint: async (input, signal) => {
-    const painted = await required().paint(
-      input.index,
-      input.scale,
-      input.ratio,
-      signal,
-    );
+    const painted = await required().paint(input.index, input.scale, input.ratio, signal);
 
     return painted ? new Transfer(painted, [painted.bitmap]) : undefined;
   },
@@ -54,8 +48,7 @@ serveWorker<WordMethods>({
 });
 
 function required() {
-  if (!opened.value)
-    throw createFilePreviewError("The worker holds no document");
+  if (!opened.value) throw createFilePreviewError("The worker holds no document");
 
   return opened.value;
 }

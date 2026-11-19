@@ -17,10 +17,7 @@ import {
 import { toastManager } from "../ui/toast";
 
 import { act, render } from "../../../test/render";
-import {
-  useComposerDraftStore,
-  useComposerThreadDraft,
-} from "../../composerDraftStore";
+import { useComposerDraftStore, useComposerThreadDraft } from "../../composerDraftStore";
 import {
   makeThreadErrorSetter,
   type LocalThreadErrorEntry,
@@ -34,15 +31,9 @@ import {
   threadContextReference,
 } from "../../lib/composerContextRecords";
 import { ComposerPrimaryActions } from "./ComposerPrimaryActions";
-import {
-  AppAtomRegistryProvider,
-  appAtomRegistry,
-} from "../../rpc/atomRegistry";
+import { AppAtomRegistryProvider, appAtomRegistry } from "../../rpc/atomRegistry";
 import { useQueuedRunEdit } from "./useQueuedRunEdit";
-import {
-  readAttachmentUpload,
-  useAttachmentUploadStore,
-} from "../../lib/attachmentUploadQueue";
+import { readAttachmentUpload, useAttachmentUploadStore } from "../../lib/attachmentUploadQueue";
 
 import { WebI18nContext } from "../../i18n/WebI18nContext";
 import { translateWebMessage } from "../../i18n/messages";
@@ -84,12 +75,8 @@ const mocks = await vi.hoisted(async () => {
         }
       >(),
     ).pipe(Atom.keepAlive),
-    editQueuedRun:
-      vi.fn<
-        (value: unknown) => Promise<{ readonly _tag: "Success" | "Failure" }>
-      >(),
-    promoteQueuedRun:
-      vi.fn<(value: unknown) => Promise<{ readonly _tag: "Success" }>>(),
+    editQueuedRun: vi.fn<(value: unknown) => Promise<{ readonly _tag: "Success" | "Failure" }>>(),
+    promoteQueuedRun: vi.fn<(value: unknown) => Promise<{ readonly _tag: "Success" }>>(),
     promoteCommand: {},
     // The projection's runs per thread, written by each test to stand in for the server.
     threadRuns: Atom.family((_key: string) =>
@@ -104,8 +91,7 @@ vi.mock("./queuedMessageEdit", async (original) => {
   return { ...actual, prepareQueuedEditAttachments: mocks.prepare };
 });
 vi.mock("../../lib/attachmentUploadQueue", async (original) => {
-  const actual =
-    await original<typeof import("../../lib/attachmentUploadQueue")>();
+  const actual = await original<typeof import("../../lib/attachmentUploadQueue")>();
   mocks.uploadDefault = actual.startAttachmentUpload;
   mocks.waitDefault = actual.awaitAttachmentUploads;
   mocks.upload.mockImplementation(actual.startAttachmentUpload);
@@ -127,9 +113,7 @@ vi.mock("../../state/server", async (original) => ({
 vi.mock("../../state/use-atom-command", async (original) => ({
   ...(await original<typeof import("../../state/use-atom-command")>()),
   useAtomCommand: (command: unknown) =>
-    command === mocks.promoteCommand
-      ? mocks.promoteQueuedRun
-      : mocks.editQueuedRun,
+    command === mocks.promoteCommand ? mocks.promoteQueuedRun : mocks.editQueuedRun,
 }));
 
 vi.mock("../../hooks/useSettings", async (original) => ({
@@ -137,8 +121,7 @@ vi.mock("../../hooks/useSettings", async (original) => ({
   useEnvironmentIdentificationMode: () => "none",
 }));
 
-const runsKey = (ref: ScopedThreadRef) =>
-  `${ref.environmentId}:${ref.threadId}`;
+const runsKey = (ref: ScopedThreadRef) => `${ref.environmentId}:${ref.threadId}`;
 
 vi.mock("../../state/threads", async (original) => {
   const actual = await original<typeof import("../../state/threads")>();
@@ -202,10 +185,7 @@ const RUN = RunId.make("run-1");
 
 type HookResult = ReturnType<typeof useQueuedRunEdit>;
 
-function projection(
-  runs: ReadonlyArray<RunStatus>,
-  messages: ReadonlyArray<unknown>,
-) {
+function projection(runs: ReadonlyArray<RunStatus>, messages: ReadonlyArray<unknown>) {
   return { runs, messages } as unknown as ThreadStructure;
 }
 
@@ -221,9 +201,7 @@ function Harness(props: {
 }) {
   const promptRef = useRef("");
   const composerRef = useRef(null);
-  const [entries, setEntries] = useState<Record<string, LocalThreadErrorEntry>>(
-    {},
-  );
+  const [entries, setEntries] = useState<Record<string, LocalThreadErrorEntry>>({});
   const [, setDismiss] = useState(0);
   const setError = makeThreadErrorSetter({
     routeThreadRef: props.threadRef,
@@ -238,10 +216,7 @@ function Harness(props: {
     routeThreadRef: props.threadRef,
     threadDraftTarget: props.threadRef,
     activeThreadId: props.threadRef.threadId,
-    serverProjection: projection(
-      [{ id: RUN, status: props.runStatus }],
-      props.messages,
-    ),
+    serverProjection: projection([{ id: RUN, status: props.runStatus }], props.messages),
     promptRef,
     composerRef,
   });
@@ -285,8 +260,7 @@ function Harness(props: {
       <ChatBannerLane
         environmentId={ENV}
         providerStatus={null}
-        providerStatusBannerKey={null}
-        setDismissedProviderStatusBannerKey={() => undefined}
+        providerStatusDismissalKey={null}
         onOpenProviderSetup={() => undefined}
         threadId={props.threadRef.threadId}
         threadError={entries.edit?.message ?? null}
@@ -309,12 +283,7 @@ function view(
 ) {
   return (
     <AppAtomRegistryProvider>
-      <Harness
-        threadRef={threadRef}
-        runStatus={runStatus}
-        hookRef={hook}
-        messages={messages}
-      />
+      <Harness threadRef={threadRef} runStatus={runStatus} hookRef={hook} messages={messages} />
     </AppAtomRegistryProvider>
   );
 }
@@ -322,8 +291,7 @@ function view(
 function setup() {
   mocks.editQueuedRun.mockReset();
   mocks.prepare.mockClear();
-  if (!mocks.uploadDefault || !mocks.waitDefault)
-    throw new Error("Upload mocks not initialized");
+  if (!mocks.uploadDefault || !mocks.waitDefault) throw new Error("Upload mocks not initialized");
   mocks.upload.mockReset().mockImplementation(mocks.uploadDefault);
   mocks.waitUploads.mockReset().mockImplementation(mocks.waitDefault);
   mocks.lookup.mockClear();
@@ -354,9 +322,7 @@ async function beginChangedEdit(hook: { current: HookResult | null }) {
     }),
   );
   await act(() =>
-    useComposerDraftStore
-      .getState()
-      .setPrompt(requireHook(hook).draftTarget, "changed"),
+    useComposerDraftStore.getState().setPrompt(requireHook(hook).draftTarget, "changed"),
   );
 }
 
@@ -399,15 +365,12 @@ describe("useQueuedRunEdit", () => {
       };
       await act(() => requireHook(hook).beginEdit(request));
       expect(
-        useComposerDraftStore
-          .getState()
-          .getComposerDraft(requireHook(hook).draftTarget)?.prompt ?? "",
+        useComposerDraftStore.getState().getComposerDraft(requireHook(hook).draftTarget)?.prompt ??
+          "",
       ).toBe(prefix.trimEnd());
-      expect(
-        requireHook(hook).editingAttachments?.map(
-          ({ attachment }) => attachment,
-        ),
-      ).toEqual(attachments);
+      expect(requireHook(hook).editingAttachments?.map(({ attachment }) => attachment)).toEqual(
+        attachments,
+      );
       await act(() =>
         useComposerDraftStore
           .getState()
@@ -423,9 +386,7 @@ describe("useQueuedRunEdit", () => {
       });
       await expect.element(update).toBeEnabled();
       await update.click();
-      await vi.waitFor(() =>
-        expect(mocks.editQueuedRun).toHaveBeenCalledOnce(),
-      );
+      await vi.waitFor(() => expect(mocks.editQueuedRun).toHaveBeenCalledOnce());
       expect(mocks.editQueuedRun).toHaveBeenCalledWith(
         expect.objectContaining({
           input: expect.objectContaining({
@@ -457,13 +418,7 @@ describe("useQueuedRunEdit", () => {
       ]);
       await using _screen = await render(view(THREAD_A, "queued", hook));
       await beginChangedEdit(hook);
-      await act(() =>
-        requireHook(hook).saveEdit(
-          savedContent("changed"),
-          () => {},
-          submission,
-        ),
-      );
+      await act(() => requireHook(hook).saveEdit(savedContent("changed"), () => {}, submission));
       expect(mocks.editQueuedRun).toHaveBeenCalledOnce();
       if (!submission.steers) {
         expect(mocks.promoteQueuedRun).not.toHaveBeenCalled();
@@ -530,9 +485,7 @@ describe("useQueuedRunEdit", () => {
         context: { version: 1, records: [thread, machine, unreferenced] },
       },
     ];
-    await using _screen = await render(
-      view(THREAD_A, "queued", hook, messages),
-    );
+    await using _screen = await render(view(THREAD_A, "queued", hook, messages));
 
     await act(() =>
       requireHook(hook).beginEdit({
@@ -543,9 +496,7 @@ describe("useQueuedRunEdit", () => {
       }),
     );
 
-    const draft = useComposerDraftStore
-      .getState()
-      .getComposerDraft(requireHook(hook).draftTarget);
+    const draft = useComposerDraftStore.getState().getComposerDraft(requireHook(hook).draftTarget);
     expect(draft?.prompt).toBe(text);
     expect(draft?.threadContexts).toEqual([thread]);
     expect(draft?.environmentContexts).toEqual([machine]);
@@ -558,9 +509,7 @@ describe("useQueuedRunEdit", () => {
     const removed = threadContextRecord(THREAD_A, "Removed");
     const messageId = MessageId.make("message-1");
     const text = [kept, removed]
-      .map((record) =>
-        formatInlineContextReference(threadContextReference(record)),
-      )
+      .map((record) => formatInlineContextReference(threadContextReference(record)))
       .join(" and ");
     const messages = [
       {
@@ -569,9 +518,7 @@ describe("useQueuedRunEdit", () => {
         context: { version: 1, records: [kept, removed] },
       },
     ];
-    await using _screen = await render(
-      view(THREAD_A, "queued", hook, messages),
-    );
+    await using _screen = await render(view(THREAD_A, "queued", hook, messages));
     await act(() =>
       requireHook(hook).beginEdit({
         runId: RUN,
@@ -581,9 +528,7 @@ describe("useQueuedRunEdit", () => {
       }),
     );
     const target = requireHook(hook).draftTarget;
-    await act(() =>
-      useComposerDraftStore.getState().setThreadContexts(target, [kept]),
-    );
+    await act(() => useComposerDraftStore.getState().setThreadContexts(target, [kept]));
 
     const draft = useComposerDraftStore.getState().getComposerDraft(target);
     await requireHook(hook).saveEdit(
@@ -627,8 +572,7 @@ describe("useQueuedRunEdit", () => {
     );
     expect(inserted).toBe(true);
     expect(
-      useComposerDraftStore.getState().getComposerDraft(target)
-        ?.terminalContexts,
+      useComposerDraftStore.getState().getComposerDraft(target)?.terminalContexts,
     ).toHaveLength(1);
   });
 
@@ -643,9 +587,7 @@ describe("useQueuedRunEdit", () => {
 
     expect(requireHook(hook).editingRunId).toBe(RUN);
     expect(
-      useComposerDraftStore
-        .getState()
-        .getComposerDraft(requireHook(hook).draftTarget)?.prompt,
+      useComposerDraftStore.getState().getComposerDraft(requireHook(hook).draftTarget)?.prompt,
     ).toBe("changed");
   });
 
@@ -694,15 +636,11 @@ describe("useQueuedRunEdit", () => {
     "settles saved attachments after $transition and $result",
     async ({ transition, result }) => {
       const { hook } = setup();
-      let finishSave!: (result: {
-        readonly _tag: "Success" | "Failure";
-      }) => void;
+      let finishSave!: (result: { readonly _tag: "Success" | "Failure" }) => void;
       let started!: () => void;
-      const saving = new Promise<{ readonly _tag: "Success" | "Failure" }>(
-        (resolve) => {
-          finishSave = resolve;
-        },
-      );
+      const saving = new Promise<{ readonly _tag: "Success" | "Failure" }>((resolve) => {
+        finishSave = resolve;
+      });
       const requested = new Promise<void>((resolve) => {
         started = resolve;
       });
@@ -721,13 +659,9 @@ describe("useQueuedRunEdit", () => {
         file: new File(["image"], "image.png", { type: "image/png" }),
         previewUrl: "blob:saved-image",
       };
-      using revoke = vi
-        .spyOn(URL, "revokeObjectURL")
-        .mockImplementation(() => {});
+      using revoke = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
       await act(() =>
-        useComposerDraftStore
-          .getState()
-          .addImage(requireHook(hook).draftTarget, image),
+        useComposerDraftStore.getState().addImage(requireHook(hook).draftTarget, image),
       );
       useAttachmentUploadStore.setState({
         uploadsByImageId: {
@@ -745,16 +679,12 @@ describe("useQueuedRunEdit", () => {
       );
       await act(() => requested);
       expect(requireHook(hook).isSaving).toBe(true);
-      if (transition === "cancel")
-        await act(() => requireHook(hook).cancelEdit());
-      if (transition === "recover")
-        await act(() => setRuns(THREAD_A, "running"));
+      if (transition === "cancel") await act(() => requireHook(hook).cancelEdit());
+      if (transition === "recover") await act(() => setRuns(THREAD_A, "running"));
       if (transition === "replace") {
         await beginChangedEdit(hook);
         await act(() =>
-          useComposerDraftStore
-            .getState()
-            .addImage(requireHook(hook).draftTarget, image),
+          useComposerDraftStore.getState().addImage(requireHook(hook).draftTarget, image),
         );
       }
       expect(readAttachmentUpload(image.id)).toBeDefined();
@@ -764,16 +694,12 @@ describe("useQueuedRunEdit", () => {
       if (transition === "cancel") {
         expect(readAttachmentUpload(image.id)).toBeUndefined();
         expect(revoke).toHaveBeenCalledWith(image.previewUrl);
-        expect(
-          useComposerDraftStore.getState().getComposerDraft(target),
-        ).toBeNull();
+        expect(useComposerDraftStore.getState().getComposerDraft(target)).toBeNull();
       } else {
         expect(readAttachmentUpload(image.id)).toBeDefined();
         expect(revoke).not.toHaveBeenCalled();
         const owner = transition === "recover" ? THREAD_A : target;
-        expect(
-          useComposerDraftStore.getState().getComposerDraft(owner)?.images,
-        ).toEqual([image]);
+        expect(useComposerDraftStore.getState().getComposerDraft(owner)?.images).toEqual([image]);
       }
     },
   );
@@ -793,16 +719,12 @@ describe("useQueuedRunEdit", () => {
     await vi.waitFor(() => expect(mocks.editQueuedRun).toHaveBeenCalledOnce());
 
     // Leaving the thread unmounts the chat view; coming back mounts a new one.
-    await screen.rerender(
-      <AppAtomRegistryProvider>{null}</AppAtomRegistryProvider>,
-    );
+    await screen.rerender(<AppAtomRegistryProvider>{null}</AppAtomRegistryProvider>);
     await screen.rerender(view(THREAD_A, "queued", hook));
     expect(requireHook(hook).isSaving).toBe(true);
     await beginChangedEdit(hook);
     await act(() =>
-      useComposerDraftStore
-        .getState()
-        .setPrompt(requireHook(hook).draftTarget, "newer"),
+      useComposerDraftStore.getState().setPrompt(requireHook(hook).draftTarget, "newer"),
     );
 
     finishSave({ _tag: "Success" });
@@ -811,17 +733,12 @@ describe("useQueuedRunEdit", () => {
     expect(requireHook(hook).editingRunId).toBe(RUN);
     expect(requireHook(hook).isSaving).toBe(false);
     expect(
-      useComposerDraftStore
-        .getState()
-        .getComposerDraft(requireHook(hook).draftTarget)?.prompt,
+      useComposerDraftStore.getState().getComposerDraft(requireHook(hook).draftTarget)?.prompt,
     ).toBe("newer");
   });
 });
 
-function localizedView(
-  locale: "en" | "zh-CN",
-  hook: { current: HookResult | null },
-) {
+function localizedView(locale: "en" | "zh-CN", hook: { current: HookResult | null }) {
   return (
     <WebI18nContext.Provider
       value={{
@@ -841,8 +758,7 @@ it.each(["failure", "interrupted", "non-error", "raw", "empty"] as const)(
   async (kind) => {
     const { hook } = setup();
     const source = "Could not save the edited queued message.";
-    let resolve: (value: { readonly _tag: "Failure" }) => void = () =>
-      undefined;
+    let resolve: (value: { readonly _tag: "Failure" }) => void = () => undefined;
     let reject: (reason: unknown) => void = () => undefined;
     mocks.editQueuedRun.mockReturnValue(
       new Promise((yes, no) => {
@@ -857,14 +773,11 @@ it.each(["failure", "interrupted", "non-error", "raw", "empty"] as const)(
         await act(async () => {
           await Promise.resolve();
         });
-        if (hook.current?.isEditing)
-          await act(() => requireHook(hook).cancelEdit());
+        if (hook.current?.isEditing) await act(() => requireHook(hook).cancelEdit());
       },
     };
     await beginChangedEdit(hook);
-    await screen
-      .getByRole("button", { name: "Update queued message", exact: true })
-      .click();
+    await screen.getByRole("button", { name: "Update queued message", exact: true }).click();
     await expect.poll(() => mocks.editQueuedRun.mock.calls.length).toBe(1);
     expect(requireHook(hook).isSaving).toBe(true);
     await expect
@@ -877,42 +790,28 @@ it.each(["failure", "interrupted", "non-error", "raw", "empty"] as const)(
       .toBeDisabled();
     await screen.rerender(localizedView("zh-CN", hook));
     if (kind === "failure")
-      resolve(
-        AsyncResult.failure(Cause.fail(new Error("private upstream detail"))),
-      );
-    else if (kind === "interrupted")
-      resolve(AsyncResult.failure(Cause.interrupt()));
-    else
-      reject(
-        kind === "non-error" ? null : new Error(kind === "raw" ? source : ""),
-      );
+      resolve(AsyncResult.failure(Cause.fail(new Error("private upstream detail"))));
+    else if (kind === "interrupted") resolve(AsyncResult.failure(Cause.interrupt()));
+    else reject(kind === "non-error" ? null : new Error(kind === "raw" ? source : ""));
     await expect.poll(() => requireHook(hook).isSaving).toBe(false);
     for (const locale of ["zh-CN", "en", "zh-CN", "en"] as const) {
       await screen.rerender(localizedView(locale, hook));
       if (kind === "empty")
-        expect(
-          screen.container.querySelector('[data-variant="error"]'),
-        ).toBeNull();
+        expect(screen.container.querySelector('[data-variant="error"]')).toBeNull();
       else
         await expect
           .poll(() => screen.container.textContent)
           .toContain(
-            (kind === "failure" ||
-              kind === "interrupted" ||
-              kind === "non-error") &&
+            (kind === "failure" || kind === "interrupted" || kind === "non-error") &&
               locale === "zh-CN"
               ? "无法保存编辑后的队列消息。"
               : source,
           );
     }
-    expect(screen.container.textContent).not.toContain(
-      "private upstream detail",
-    );
+    expect(screen.container.textContent).not.toContain("private upstream detail");
     expect(requireHook(hook).isEditing).toBe(true);
     expect(
-      useComposerDraftStore
-        .getState()
-        .getComposerDraft(requireHook(hook).draftTarget)?.prompt,
+      useComposerDraftStore.getState().getComposerDraft(requireHook(hook).draftTarget)?.prompt,
     ).toBe("changed");
     expect(mocks.editQueuedRun).toHaveBeenCalledTimes(1);
     expect(mocks.editQueuedRun.mock.calls[0]?.[0]).toMatchObject({
@@ -937,16 +836,13 @@ it("keeps queued attachment limit current without starting a save", async () => 
       await act(() => hook.current?.cancelEdit());
     },
   };
-  const attachments = Array.from(
-    { length: PROVIDER_SEND_TURN_MAX_ATTACHMENTS },
-    (_, index) => ({
-      type: "file" as const,
-      id: ChatAttachmentId.make(`existing-${index}`),
-      name: `literal-$&-{file}-${index}.txt`,
-      mimeType: "text/plain",
-      sizeBytes: 1,
-    }),
-  );
+  const attachments = Array.from({ length: PROVIDER_SEND_TURN_MAX_ATTACHMENTS }, (_, index) => ({
+    type: "file" as const,
+    id: ChatAttachmentId.make(`existing-${index}`),
+    name: `literal-$&-{file}-${index}.txt`,
+    mimeType: "text/plain",
+    sizeBytes: 1,
+  }));
   await act(() =>
     requireHook(hook).beginEdit({
       runId: RUN,
@@ -955,9 +851,7 @@ it("keeps queued attachment limit current without starting a save", async () => 
       attachments,
     }),
   );
-  expect(requireHook(hook).editingAttachments).toHaveLength(
-    PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
-  );
+  expect(requireHook(hook).editingAttachments).toHaveLength(PROVIDER_SEND_TURN_MAX_ATTACHMENTS);
   const file = {
     type: "file" as const,
     id: ChatAttachmentId.make("new-file"),
@@ -968,18 +862,12 @@ it("keeps queued attachment limit current without starting a save", async () => 
   };
   await act(() => {
     expect(
-      useComposerDraftStore
-        .getState()
-        .addFiles(requireHook(hook).draftTarget, [file]),
+      useComposerDraftStore.getState().addFiles(requireHook(hook).draftTarget, [file]),
     ).toHaveLength(1);
   });
-  const before = useComposerDraftStore
-    .getState()
-    .getComposerDraft(requireHook(hook).draftTarget);
+  const before = useComposerDraftStore.getState().getComposerDraft(requireHook(hook).draftTarget);
   expect(before?.files).toHaveLength(1);
-  await screen
-    .getByRole("button", { name: "Update queued message", exact: true })
-    .click();
+  await screen.getByRole("button", { name: "Update queued message", exact: true }).click();
   await expect.poll(() => screen.container.textContent).toContain(source);
   for (const locale of ["zh-CN", "en", "zh-CN", "en"] as const) {
     await screen.rerender(localizedView(locale, hook));
@@ -992,15 +880,11 @@ it("keeps queued attachment limit current without starting a save", async () => 
       );
     expect(requireHook(hook).isSaving).toBe(false);
     expect(requireHook(hook).isEditing).toBe(true);
-    expect(requireHook(hook).editingAttachments).toHaveLength(
-      PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
-    );
+    expect(requireHook(hook).editingAttachments).toHaveLength(PROVIDER_SEND_TURN_MAX_ATTACHMENTS);
   }
-  expect(
-    useComposerDraftStore
-      .getState()
-      .getComposerDraft(requireHook(hook).draftTarget),
-  ).toBe(before);
+  expect(useComposerDraftStore.getState().getComposerDraft(requireHook(hook).draftTarget)).toBe(
+    before,
+  );
   expect(mocks.editQueuedRun).not.toHaveBeenCalled();
   expect(mocks.prepare).not.toHaveBeenCalled();
   expect(mocks.upload).not.toHaveBeenCalled();
@@ -1040,8 +924,7 @@ it.each(["owned", "raw", "empty"] as const)(
         await act(async () => {
           await Promise.resolve();
         });
-        if (hook.current?.isEditing)
-          await act(() => requireHook(hook).cancelEdit());
+        if (hook.current?.isEditing) await act(() => requireHook(hook).cancelEdit());
         appAtomRegistry.set(mocks.configs, new Map());
       },
     };
@@ -1056,27 +939,21 @@ it.each(["owned", "raw", "empty"] as const)(
     };
     await act(() => {
       expect(
-        useComposerDraftStore
-          .getState()
-          .addFiles(requireHook(hook).draftTarget, [file]),
+        useComposerDraftStore.getState().addFiles(requireHook(hook).draftTarget, [file]),
       ).toHaveLength(1);
     });
-    const before = useComposerDraftStore
-      .getState()
-      .getComposerDraft(requireHook(hook).draftTarget);
+    const before = useComposerDraftStore.getState().getComposerDraft(requireHook(hook).draftTarget);
     expect(
-      appAtomRegistry.get(mocks.configs).get(ENV)?.environment.capabilities
-        .fileAttachments.maxUploadBytes,
+      appAtomRegistry.get(mocks.configs).get(ENV)?.environment.capabilities.fileAttachments
+        .maxUploadBytes,
     ).toBe(1024);
-    await screen
-      .getByRole("button", { name: "Update queued message", exact: true })
-      .click();
+    await screen.getByRole("button", { name: "Update queued message", exact: true }).click();
     await expect.poll(() => mocks.waitUploads.mock.calls.length).toBe(1);
     expect(requireHook(hook).isSaving).toBe(true);
     await screen.rerender(localizedView("zh-CN", hook));
     expect(
-      appAtomRegistry.get(mocks.configs).get(ENV)?.environment.capabilities
-        .fileAttachments.maxUploadBytes,
+      appAtomRegistry.get(mocks.configs).get(ENV)?.environment.capabilities.fileAttachments
+        .maxUploadBytes,
     ).toBe(1024);
     if (kind === "owned") resolve();
     else reject(new Error(kind === "raw" ? source : ""));
@@ -1084,16 +961,12 @@ it.each(["owned", "raw", "empty"] as const)(
     for (const locale of ["zh-CN", "en", "zh-CN", "en"] as const) {
       await screen.rerender(localizedView(locale, hook));
       if (kind === "empty")
-        expect(
-          screen.container.querySelector('[data-variant="error"]'),
-        ).toBeNull();
+        expect(screen.container.querySelector('[data-variant="error"]')).toBeNull();
       else
         await expect
           .poll(() => screen.container.textContent)
           .toContain(
-            kind === "owned" && locale === "zh-CN"
-              ? "保存前请重试或移除上传失败的附件。"
-              : source,
+            kind === "owned" && locale === "zh-CN" ? "保存前请重试或移除上传失败的附件。" : source,
           );
     }
     expect(mocks.prepare).toHaveBeenCalledTimes(1);
@@ -1104,14 +977,11 @@ it.each(["owned", "raw", "empty"] as const)(
     });
     expect(mocks.waitUploads).toHaveBeenCalledExactlyOnceWith([file.id]);
     expect(mocks.lookup).toHaveBeenCalledTimes(kind === "owned" ? 1 : 0);
-    if (kind === "owned")
-      expect(mocks.lookup.mock.results[0]?.value).toBeNull();
+    if (kind === "owned") expect(mocks.lookup.mock.results[0]?.value).toBeNull();
     expect(mocks.editQueuedRun).not.toHaveBeenCalled();
     expect(requireHook(hook).isEditing).toBe(true);
-    expect(
-      useComposerDraftStore
-        .getState()
-        .getComposerDraft(requireHook(hook).draftTarget),
-    ).toBe(before);
+    expect(useComposerDraftStore.getState().getComposerDraft(requireHook(hook).draftTarget)).toBe(
+      before,
+    );
   },
 );

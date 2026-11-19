@@ -20,9 +20,7 @@ function getTimestampFormatOptions(
   };
 }
 
-function resolveTimestampLocale(
-  systemLocale: string | null | undefined,
-): string | undefined {
+function resolveTimestampLocale(systemLocale: string | null | undefined): string | undefined {
   const tag = systemLocale?.trim();
   if (!tag) return undefined;
 
@@ -58,16 +56,13 @@ type LocaleWithWeekInfo = Intl.Locale & {
  * `undefined` when the runtime has no week data, so callers keep their own
  * default.
  */
-function resolveWeekStartsOn(
-  locale: string | undefined,
-): WeekdayIndex | undefined {
+function resolveWeekStartsOn(locale: string | undefined): WeekdayIndex | undefined {
   try {
     const resolved: LocaleWithWeekInfo = new Intl.Locale(
       locale ?? Intl.DateTimeFormat().resolvedOptions().locale,
     );
     // Week info counts Monday as 1 and Sunday as 7.
-    const firstDay =
-      resolved.getWeekInfo?.().firstDay ?? resolved.weekInfo?.firstDay;
+    const firstDay = resolved.getWeekInfo?.().firstDay ?? resolved.weekInfo?.firstDay;
     return firstDay === undefined ? undefined : WEEKDAY_INDEXES[firstDay % 7];
   } catch {
     return undefined;
@@ -99,10 +94,7 @@ function getTimestampFormatter(
 }
 
 export function resolveHour12(timestampFormat: TimestampFormat): boolean {
-  return (
-    getTimestampFormatter(timestampFormat, false).resolvedOptions().hour12 ??
-    false
-  );
+  return getTimestampFormatter(timestampFormat, false).resolvedOptions().hour12 ?? false;
 }
 
 export function parseTimestampDate(isoDate: string): Date | null {
@@ -154,9 +146,7 @@ export function formatFullTimestamp(
 ): string {
   return new Date(isoDate).toLocaleString(
     locale,
-    timestampFormat === "locale"
-      ? undefined
-      : { hour12: timestampFormat === "12-hour" },
+    timestampFormat === "locale" ? undefined : { hour12: timestampFormat === "12-hour" },
   );
 }
 
@@ -167,12 +157,7 @@ export function formatShortTimestamp(
 ): string {
   const date = parseTimestampDate(isoDate);
   if (!date) return "";
-  return getTimestampFormatter(
-    timestampFormat,
-    false,
-    undefined,
-    locale,
-  ).format(date);
+  return getTimestampFormatter(timestampFormat, false, undefined, locale).format(date);
 }
 
 const numericDateOptions: Intl.DateTimeFormatOptions = {
@@ -183,10 +168,7 @@ const numericDateWithYearOptions: Intl.DateTimeFormatOptions = {
   ...numericDateOptions,
   year: "numeric",
 };
-const numericDateFormatter = new Intl.DateTimeFormat(
-  timestampLocale,
-  numericDateOptions,
-);
+const numericDateFormatter = new Intl.DateTimeFormat(timestampLocale, numericDateOptions);
 const numericDateWithYearFormatter = new Intl.DateTimeFormat(
   timestampLocale,
   numericDateWithYearOptions,
@@ -230,9 +212,7 @@ function formatNumericDate(
   locale?: string,
 ): string {
   if (!timeZone && locale === undefined) {
-    return (
-      sameYear ? numericDateFormatter : numericDateWithYearFormatter
-    ).format(date);
+    return (sameYear ? numericDateFormatter : numericDateWithYearFormatter).format(date);
   }
   const key = `${locale ?? timestampLocale ?? ""}:${sameYear}:${timeZone ?? ""}`;
   let formatter = numericDateFormatterCache.get(key);
@@ -255,20 +235,14 @@ export function formatDayAwareTimestamp(
 ): string {
   const date = parseTimestampDate(isoDate);
   if (!date) return "";
-  const time = getTimestampFormatter(
-    timestampFormat,
-    false,
-    timeZone,
-    locale,
-  ).format(date);
+  const time = getTimestampFormatter(timestampFormat, false, timeZone, locale).format(date);
 
   const today = calendarDay(new Date(nowMs), timeZone);
   const messageDay = calendarDay(date, timeZone);
   const dayDiff = today.index - messageDay.index;
 
   if (dayDiff <= 0) return time;
-  if (dayDiff === 1)
-    return locale === "zh-CN" ? `昨天 ${time}` : `yesterday at ${time}`;
+  if (dayDiff === 1) return locale === "zh-CN" ? `昨天 ${time}` : `yesterday at ${time}`;
   return `${formatNumericDate(date, messageDay.year === today.year, timeZone, locale)} ${time}`;
 }
 
@@ -282,28 +256,16 @@ export function formatUpcomingTimestamp(
 ): string {
   const date = parseTimestampDate(isoDate);
   if (!date) return "";
-  const time = getTimestampFormatter(
-    timestampFormat,
-    false,
-    timeZone,
-    locale,
-  ).format(date);
+  const time = getTimestampFormatter(timestampFormat, false, timeZone, locale).format(date);
 
   const today = calendarDay(new Date(nowMs), timeZone);
   const targetDay = calendarDay(date, timeZone);
   const dayDiff = targetDay.index - today.index;
 
   if (dayDiff < 0)
-    return formatDayAwareTimestamp(
-      isoDate,
-      timestampFormat,
-      nowMs,
-      timeZone,
-      locale,
-    );
+    return formatDayAwareTimestamp(isoDate, timestampFormat, nowMs, timeZone, locale);
   if (dayDiff === 0) return time;
-  if (dayDiff === 1)
-    return locale === "zh-CN" ? `明天 ${time}` : `tomorrow at ${time}`;
+  if (dayDiff === 1) return locale === "zh-CN" ? `明天 ${time}` : `tomorrow at ${time}`;
   return `${formatNumericDate(date, targetDay.year === today.year, timeZone, locale)} ${time}`;
 }
 
@@ -324,10 +286,7 @@ function relativeTimeUnitMs(elapsedMs: number): number {
 }
 
 /** Elapsed time floored to formatRelativeTime precision; equal labels yield equal values. */
-export function relativeTimeElapsedMs(
-  isoDate: string,
-  nowMs: number = Date.now(),
-): number | null {
+export function relativeTimeElapsedMs(isoDate: string, nowMs: number = Date.now()): number | null {
   const date = parseTimestampDate(isoDate);
   if (!date) return null;
   const elapsedMs = Math.max(0, nowMs - date.getTime());
@@ -343,8 +302,7 @@ export function msUntilRelativeTimeChange(
   if (!date) return null;
   const elapsedMs = Math.max(0, nowMs - date.getTime());
   const unitMs = relativeTimeUnitMs(elapsedMs);
-  const nextChangeMs =
-    date.getTime() + (Math.floor(elapsedMs / unitMs) + 1) * unitMs;
+  const nextChangeMs = date.getTime() + (Math.floor(elapsedMs / unitMs) + 1) * unitMs;
   // Delays above 2^31-1 fire immediately; cap safely and let callers reschedule.
   return Math.min(nextChangeMs - nowMs, DAY_MS);
 }
@@ -368,15 +326,10 @@ export function formatRelativeTime(
   return elapsedMs === null ? null : formatRelativeElapsed(elapsedMs);
 }
 
-export function formatRelativeTimeLabel(
-  isoDate: string,
-  nowMs: number = Date.now(),
-) {
+export function formatRelativeTimeLabel(isoDate: string, nowMs: number = Date.now()) {
   const relative = formatRelativeTime(isoDate, nowMs);
   if (!relative) return "";
-  return relative.suffix
-    ? `${relative.value} ${relative.suffix}`
-    : relative.value;
+  return relative.suffix ? `${relative.value} ${relative.suffix}` : relative.value;
 }
 
 export interface DurationLabelText {
@@ -432,17 +385,14 @@ export function formatExpiresInLabel(
 
   const totalSeconds = Math.floor(diffMs / 1000);
   if (totalSeconds < 5) return text.expiresInAMoment;
-  if (totalSeconds < 60)
-    return text.expiresIn(text.formatUnit(totalSeconds, "s"));
+  if (totalSeconds < 60) return text.expiresIn(text.formatUnit(totalSeconds, "s"));
 
   if (totalSeconds < 3600) {
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
     return seconds === 0
       ? text.expiresIn(text.formatUnit(minutes, "m"))
-      : text.expiresIn(
-          `${text.formatUnit(minutes, "m")} ${text.formatUnit(seconds, "s")}`,
-        );
+      : text.expiresIn(`${text.formatUnit(minutes, "m")} ${text.formatUnit(seconds, "s")}`);
   }
 
   if (totalSeconds < 86_400) {

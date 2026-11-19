@@ -1,12 +1,7 @@
 import { useChatUpdateTranslation } from "./v018Messages";
 import type { VoiceInputState } from "@t3tools/client-runtime/voice-input";
 import { CheckIcon, MicIcon, XIcon } from "lucide-react";
-import {
-  useEffect,
-  useState,
-  type PointerEvent,
-  type ReactElement,
-} from "react";
+import { useEffect, useState, type PointerEvent, type ReactElement } from "react";
 
 import { VoiceInputErrorPill } from "./VoiceInputErrorPill";
 import { VoiceInputPill, VoiceWaveform } from "./VoiceInputPill";
@@ -49,10 +44,7 @@ function formatElapsed(seconds: number) {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
-function RecordingStatus(props: {
-  level: number;
-  recordingLimitSeconds?: number | undefined;
-}) {
+function RecordingStatus(props: { level: number; recordingLimitSeconds?: number | undefined }) {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- owns the timer displaying the native recording duration
@@ -67,10 +59,7 @@ function RecordingStatus(props: {
 
   return (
     <>
-      <span
-        aria-hidden
-        className="size-2 shrink-0 rounded-full bg-destructive"
-      />
+      <span aria-hidden className="size-2 shrink-0 rounded-full bg-destructive" />
       <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
         {formatElapsed(elapsedSeconds)}
         {props.recordingLimitSeconds !== undefined
@@ -155,9 +144,7 @@ export function ComposerSpeechRecordingPill(props: {
       <VoiceInputErrorPill
         size={props.size}
         error={props.state.error}
-        {...(props.state.errorSource === undefined
-          ? {}
-          : { errorSource: props.state.errorSource })}
+        {...(props.state.errorSource === undefined ? {} : { errorSource: props.state.errorSource })}
         errorAction={props.state.errorAction}
         disabled={props.disabled ?? false}
         cancelShortcutLabel={props.cancelShortcutLabel ?? null}
@@ -173,10 +160,7 @@ export function ComposerSpeechRecordingPill(props: {
 
   return (
     <VoiceInputPill size={props.size}>
-      <ShortcutTooltip
-        label={tx("Cancel voice input")}
-        shortcut={props.cancelShortcutLabel}
-      >
+      <ShortcutTooltip label={tx("Cancel voice input")} shortcut={props.cancelShortcutLabel}>
         <Button
           type="button"
           size={compact ? "icon-xs" : "icon-sm-pill"}
@@ -224,10 +208,7 @@ export function ComposerSpeechRecordingPill(props: {
           {tx("Skip")}
         </Button>
       ) : recording ? (
-        <ShortcutTooltip
-          label={tx("Finish voice input")}
-          shortcut={props.finishShortcutLabel}
-        >
+        <ShortcutTooltip label={tx("Finish voice input")} shortcut={props.finishShortcutLabel}>
           <Button
             type="button"
             size={compact ? "icon-xs" : "icon-sm-pill"}

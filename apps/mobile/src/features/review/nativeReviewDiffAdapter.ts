@@ -300,7 +300,10 @@ function createNoticeRow(
   };
 }
 
-function noticeRowsForFile(file: ReviewRenderableFile, locale: MobileLocale): ReadonlyArray<NativeReviewDiffRow> {
+function noticeRowsForFile(
+  file: ReviewRenderableFile,
+  locale: MobileLocale,
+): ReadonlyArray<NativeReviewDiffRow> {
   if (file.notice) {
     return [
       {

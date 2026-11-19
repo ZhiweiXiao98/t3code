@@ -25,13 +25,7 @@ import type {
 import { useAtomValue } from "@effect/atom-react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { ArrowDownUpIcon, LayersIcon, Plug2Icon } from "lucide-react";
-import {
-  useEffect,
-  useEffectEvent,
-  useRef,
-  useState,
-  type ComponentProps,
-} from "react";
+import { useEffect, useEffectEvent, useRef, useState, type ComponentProps } from "react";
 
 import {
   collectPullRequestListFacets,
@@ -72,11 +66,7 @@ import {
   type PullRequestFilterOption,
 } from "./PullRequestListFilters";
 import { PullRequestCompactFilterMenu } from "./PullRequestCompactFilterMenu";
-import {
-  INVOLVEMENT_TABS,
-  SORT_OPTIONS,
-  STATE_TABS,
-} from "./pullRequestListOptions";
+import { INVOLVEMENT_TABS, SORT_OPTIONS, STATE_TABS } from "./pullRequestListOptions";
 import { PullRequestsColumn } from "./PullRequestsColumn";
 import { PullRequestListGroups } from "./PullRequestListGroups";
 import { pullRequestPanelReference } from "./usePullRequestDetail";
@@ -87,10 +77,7 @@ import {
   usePullRequestScope,
   type PullRequestsSearch,
 } from "./usePullRequestListView";
-import {
-  pullRequestGroups,
-  pullRequestListEntryId,
-} from "./pullRequestListGroups.logic";
+import { pullRequestGroups, pullRequestListEntryId } from "./pullRequestListGroups.logic";
 import { PullRequestListEmptyState } from "./PullRequestListEmptyState";
 import { PullRequestListGhost } from "./PullRequestGhosts";
 import { type PullRequestRowTarget } from "./PullRequestRow";
@@ -100,10 +87,7 @@ import { isElectron } from "~/env";
 import { shortcutLabelForCommand } from "~/keybindings";
 import { registerCommands } from "~/shortcuts/dispatcher";
 import { isTerminalFocused } from "~/lib/terminalFocus";
-import {
-  PanelLayoutControls,
-  RightPanelMaximizeControl,
-} from "../chat/PanelLayoutControls";
+import { PanelLayoutControls, RightPanelMaximizeControl } from "../chat/PanelLayoutControls";
 import { Button } from "../ui/button";
 import { SidebarInset, useMobileSidebarSheetMounted } from "../ui/sidebar";
 import { useLiveRefresh } from "~/hooks/useLiveRefresh";
@@ -163,21 +147,14 @@ const EMPTY_PARTITIONS: PullRequestPartitionsSnapshot = {
   authored: [],
   reviewing: [],
 };
-const NO_LIST_TARGETS: ReadonlyArray<
-  EnvironmentQueryTarget<PullRequestListInput>
-> = [];
+const NO_LIST_TARGETS: ReadonlyArray<EnvironmentQueryTarget<PullRequestListInput>> = [];
 const EMPTY_PREVIEW_SESSIONS = {};
 const EMPTY_PREVIEW_DESKTOP_STATE = {};
 const EMPTY_TERMINAL_LABELS = new Map<string, string>();
 const EMPTY_PENDING_SURFACES = new Set<string>();
 const heldRowReaders = new WeakMap<
   EnvironmentPullRequestEntry,
-  Map<
-    string,
-    ReturnType<
-      typeof heldPullRequestListEntriesAtom<EnvironmentPullRequestEntry>
-    >
-  >
+  Map<string, ReturnType<typeof heldPullRequestListEntriesAtom<EnvironmentPullRequestEntry>>>
 >();
 
 function usePendingListEntries(
@@ -195,9 +172,7 @@ function usePendingListEntries(
         }
         let reader = readers.get(key);
         if (reader === undefined) {
-          reader = heldPullRequestListEntriesAtom(entry.environmentId, input, [
-            entry,
-          ]);
+          reader = heldPullRequestListEntriesAtom(entry.environmentId, input, [entry]);
           readers.set(key, reader);
         }
         return AsyncResult.getOrElse(get(reader), () => []);
@@ -211,14 +186,12 @@ export function PullRequestsPage() {
   const search = useSearch({ from: "/_chat/pull-requests" });
   const sort = search.sort ?? "ready";
   const statsPolicy: PullRequestStatsPolicy =
-    sort === "ready" || sort === "largest" || sort === "smallest"
-      ? "eager"
-      : "visible";
+    sort === "ready" || sort === "largest" || sort === "smallest" ? "eager" : "visible";
   const navigate = useNavigate({ from: "/pull-requests" });
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
-  const [hostReads, setHostReads] = useState<
-    ReadonlyMap<EnvironmentId, PullRequestHostRead>
-  >(() => new Map());
+  const [hostReads, setHostReads] = useState<ReadonlyMap<EnvironmentId, PullRequestHostRead>>(
+    () => new Map(),
+  );
   const {
     capableEnvironments,
     scopedEnvironmentId,
@@ -239,8 +212,7 @@ export function PullRequestsPage() {
     expectedHosts,
     projectsKnown,
   } = usePullRequestScope(search, hostReads);
-  const rightPanelRef =
-    capableEnvironments.length === 0 ? null : PULL_REQUESTS_PANEL_REF;
+  const rightPanelRef = capableEnvironments.length === 0 ? null : PULL_REQUESTS_PANEL_REF;
   const openPanelPullRequestUrl = useOpenPanelPullRequestUrl(rightPanelRef);
   const rightPanelState = useRightPanelStore((state) =>
     selectThreadRightPanelState(state.byThreadKey, rightPanelRef),
@@ -249,16 +221,10 @@ export function PullRequestsPage() {
     selectSelectedRightPanelSurface(state.byThreadKey, rightPanelRef),
   );
   const selectedPullRequestSurface =
-    selectedRightPanelSurface?.kind === "pull-request"
-      ? selectedRightPanelSurface
-      : null;
-  const activePullRequestSurface = rightPanelState.isOpen
-    ? selectedPullRequestSurface
-    : null;
-  const {
-    active: panelAnimationsActive,
-    durationMs: panelAnimationDurationMs,
-  } = usePanelAnimationSettings();
+    selectedRightPanelSurface?.kind === "pull-request" ? selectedRightPanelSurface : null;
+  const activePullRequestSurface = rightPanelState.isOpen ? selectedPullRequestSurface : null;
+  const { active: panelAnimationsActive, durationMs: panelAnimationDurationMs } =
+    usePanelAnimationSettings();
   const rightPanelPresenceValue = {
     activeSurface: selectedPullRequestSurface,
     surfaces: rightPanelState.surfaces,
@@ -271,8 +237,7 @@ export function PullRequestsPage() {
     panelAnimationDurationMs,
   );
   const rightPanelPresent = rightPanelPresence.present;
-  const renderedPullRequestSurface =
-    rightPanelPresence.value?.activeSurface ?? null;
+  const renderedPullRequestSurface = rightPanelPresence.value?.activeSurface ?? null;
   const renderedRightPanelSurfaces = rightPanelPresence.value?.surfaces ?? [];
   const panelEnvironmentId =
     (renderedPullRequestSurface?.environmentId as EnvironmentId | undefined) ??
@@ -303,9 +268,7 @@ export function PullRequestsPage() {
           ...(next.environmentId ? { environmentId: next.environmentId } : {}),
           ...(next.host ? { host: next.host } : {}),
           ...(next.selectedHost ? { selectedHost: next.selectedHost } : {}),
-          ...(next.selectedProjectId
-            ? { selectedProjectId: next.selectedProjectId }
-            : {}),
+          ...(next.selectedProjectId ? { selectedProjectId: next.selectedProjectId } : {}),
           ...(next.selectedEnvironmentId
             ? { selectedEnvironmentId: next.selectedEnvironmentId }
             : {}),
@@ -314,9 +277,7 @@ export function PullRequestsPage() {
           ...(next.review ? { review: next.review } : {}),
           ...(next.checks ? { checks: next.checks } : {}),
           ...(next.author ? { author: next.author } : {}),
-          ...(next.labels && next.labels.length > 0
-            ? { labels: next.labels }
-            : {}),
+          ...(next.labels && next.labels.length > 0 ? { labels: next.labels } : {}),
         };
       },
       replace: true,
@@ -403,11 +364,7 @@ export function PullRequestsPage() {
   const listTargetsFor = (queries: typeof environmentQueries) =>
     queries.flatMap(({ environmentId, projectIds }) => {
       const cursors = sentCursors?.[environmentId];
-      if (
-        sentCursors !== null &&
-        cursors === undefined &&
-        !sentRegrown.includes(environmentId)
-      ) {
+      if (sentCursors !== null && cursors === undefined && !sentRegrown.includes(environmentId)) {
         return [];
       }
       return [
@@ -475,18 +432,15 @@ export function PullRequestsPage() {
     }));
   })();
   const facetQuery = usePullRequestHostList(facetTargets);
-  const filterOptionScope = environmentQueries.map(
-    ({ environmentId, projectIds }) => ({
-      environmentId,
-      input: {
-        ...(scopedProjectId ? { projectId: scopedProjectId } : {}),
-        ...(projectIds ? { projectIds } : {}),
-        ...(search.host ? { host: search.host } : {}),
-      },
-    }),
-  );
-  const partitionsWanted =
-    search.involvement === "all" && typedQuery.length === 0;
+  const filterOptionScope = environmentQueries.map(({ environmentId, projectIds }) => ({
+    environmentId,
+    input: {
+      ...(scopedProjectId ? { projectId: scopedProjectId } : {}),
+      ...(projectIds ? { projectIds } : {}),
+      ...(search.host ? { host: search.host } : {}),
+    },
+  }));
+  const partitionsWanted = search.involvement === "all" && typedQuery.length === 0;
   const partitionTargets = (() => {
     // The main list goes first. Besides putting the visible rows on screen sooner, it proves
     // which repositories the host search indexes, so an empty partition does not trigger the
@@ -539,9 +493,9 @@ export function PullRequestsPage() {
     source: MergedPullRequestList;
     entries: ReadonlyArray<EnvironmentPullRequestEntry>;
   } | null>(null);
-  const [overrides, setOverrides] = useState<
-    ReadonlyMap<string, PullRequestListOverride>
-  >(() => new Map());
+  const [overrides, setOverrides] = useState<ReadonlyMap<string, PullRequestListOverride>>(
+    () => new Map(),
+  );
   const overrideToken = useRef(0);
   const overrideEntry = (
     entry: EnvironmentPullRequestEntry,
@@ -549,17 +503,9 @@ export function PullRequestsPage() {
     reply?: PullRequestSummary,
   ): number | null => {
     const token = ++overrideToken.current;
-    const override = pullRequestOverrideAfterAction(
-      entry,
-      action,
-      new Date(),
-      token,
-      reply,
-    );
+    const override = pullRequestOverrideAfterAction(entry, action, new Date(), token, reply);
     if (override === null) return null;
-    setOverrides((current) =>
-      new Map(current).set(pullRequestEntryKey(entry), override),
-    );
+    setOverrides((current) => new Map(current).set(pullRequestEntryKey(entry), override));
     return token;
   };
   const revertOverride = (key: string, token: number | null) => {
@@ -575,20 +521,15 @@ export function PullRequestsPage() {
   const onSpeedAction = useStableCallback(
     ({ entry, action, reply }: PullRequestSpeedActionResult) => {
       // Some hosts accept a merge before it completes. Without a reply, let the next read say so.
-      if (reply !== undefined || action !== "merge")
-        overrideEntry(entry, action, reply);
+      if (reply !== undefined || action !== "merge") overrideEntry(entry, action, reply);
     },
   );
   const onBatchClosed = useStableCallback(
-    (
-      entry: EnvironmentPullRequestEntry,
-      reply: PullRequestSummary | undefined,
-    ) => {
+    (entry: EnvironmentPullRequestEntry, reply: PullRequestSummary | undefined) => {
       onSpeedAction({ entry, action: "close", reply });
     },
   );
-  const { close: closeBatch, closingKeys } =
-    usePullRequestCloseBatch(onBatchClosed);
+  const { close: closeBatch, closingKeys } = usePullRequestCloseBatch(onBatchClosed);
   const [snapshotEnvironmentKey, setSnapshotEnvironmentKey] = useState("");
   if (environmentKey.length > 0 && snapshotEnvironmentKey !== environmentKey) {
     setSnapshotEnvironmentKey(environmentKey);
@@ -601,12 +542,8 @@ export function PullRequestsPage() {
             input: { ...target.input, involvement },
           })),
         )?.entries;
-      const authored = partitionsWanted
-        ? restoredPartition("authored")
-        : undefined;
-      const reviewing = partitionsWanted
-        ? restoredPartition("reviewing")
-        : undefined;
+      const authored = partitionsWanted ? restoredPartition("authored") : undefined;
+      const reviewing = partitionsWanted ? restoredPartition("reviewing") : undefined;
       setLoaded(
         restored === null
           ? null
@@ -623,23 +560,18 @@ export function PullRequestsPage() {
       );
     }
   }
-  const settledList =
-    listQuery.data !== null && !listQuery.isPending ? listQuery.data : null;
+  const settledList = listQuery.data !== null && !listQuery.isPending ? listQuery.data : null;
   const answeredPartitions =
     partitionsWanted && baselineEmpty
       ? EMPTY_PARTITIONS
-      : partitionsWanted &&
-          authoredQuery.data !== null &&
-          reviewingQuery.data !== null
+      : partitionsWanted && authoredQuery.data !== null && reviewingQuery.data !== null
         ? {
             authored: authoredQuery.data.entries,
             reviewing: reviewingQuery.data.entries,
           }
         : null;
   const heldPartitions =
-    loaded !== null &&
-    loaded.environmentKey === environmentKey &&
-    loaded.scope === scopeKey
+    loaded !== null && loaded.environmentKey === environmentKey && loaded.scope === scopeKey
       ? loaded.partitions
       : undefined;
   const nextPartitions = answeredPartitions ?? heldPartitions;
@@ -671,11 +603,7 @@ export function PullRequestsPage() {
     });
   }
   const narrowed = (() => {
-    if (
-      loaded === null ||
-      loaded.environmentKey !== environmentKey ||
-      loaded.scope === scopeKey
-    ) {
+    if (loaded === null || loaded.environmentKey !== environmentKey || loaded.scope === scopeKey) {
       return null;
     }
     const entries = narrowPullRequestsToFilters(loaded.data.entries, {
@@ -692,9 +620,7 @@ export function PullRequestsPage() {
     (sentQuery.length === 0 && sentCursors === null && pageSize === PAGE_SIZE
       ? baselineQuery.data
       : listQuery.data) ??
-    (loaded?.scope === scopeKey && loaded.query === sentQuery
-      ? loaded.data
-      : null);
+    (loaded?.scope === scopeKey && loaded.query === sentQuery ? loaded.data : null);
   const carried =
     (sentQuery.length === 0 ? baselineQuery.data : undefined) ??
     (loaded?.scope === scopeKey ? loaded.data : null) ??
@@ -708,9 +634,7 @@ export function PullRequestsPage() {
     answered !== null &&
     !listQuery.isPending &&
     !(listQuery.error && listQuery.data === null) &&
-    (ordered === null ||
-      ordered.key !== filterKey ||
-      ordered.source !== answered)
+    (ordered === null || ordered.key !== filterKey || ordered.source !== answered)
   ) {
     if (ordered === null || ordered.key !== filterKey) {
       setOrdered({
@@ -720,9 +644,7 @@ export function PullRequestsPage() {
       });
     } else if (sentCursors !== null) {
       const held = new Set(ordered.entries.map(pullRequestEntryKey));
-      const arrived = answered.entries.filter(
-        (entry) => !held.has(pullRequestEntryKey(entry)),
-      );
+      const arrived = answered.entries.filter((entry) => !held.has(pullRequestEntryKey(entry)));
       const appended = rankPullRequestMatches(
         arrived.toSorted(comparePullRequestsByRecency),
         sentParsed.text,
@@ -745,12 +667,7 @@ export function PullRequestsPage() {
     }
     const answeredEntries = answered.entries;
     setOverrides((current) =>
-      settlePullRequestOverrides(
-        current,
-        answeredEntries,
-        pullRequestEntryKey,
-        Date.now(),
-      ),
+      settlePullRequestOverrides(current, answeredEntries, pullRequestEntryKey, Date.now()),
     );
   }
 
@@ -766,10 +683,7 @@ export function PullRequestsPage() {
     if (canContinue) {
       setPage({
         key: filterKey,
-        size:
-          regrown.length === 0
-            ? pageSize
-            : Math.min(pageSize + PAGE_SIZE, MAX_PAGE_SIZE),
+        size: regrown.length === 0 ? pageSize : Math.min(pageSize + PAGE_SIZE, MAX_PAGE_SIZE),
         cursors: nextCursors,
         regrown,
         turn: turnRefreshToken,
@@ -787,9 +701,7 @@ export function PullRequestsPage() {
 
   const collapsedPage = () => {
     const loadedCount =
-      ordered?.key === filterKey
-        ? largestPullRequestReadCount(ordered.entries)
-        : pageSize;
+      ordered?.key === filterKey ? largestPullRequestReadCount(ordered.entries) : pageSize;
     return {
       key: filterKey,
       regrown: [],
@@ -803,13 +715,9 @@ export function PullRequestsPage() {
   };
   // Every list read refetches itself when a turn completes, but a continuation would refetch only
   // its later page and strand the rows before it, so the whole loaded list is asked for again.
-  if (sentCursors !== null && page.turn !== turnRefreshToken)
-    setPage(collapsedPage());
+  if (sentCursors !== null && page.turn !== turnRefreshToken) setPage(collapsedPage());
 
-  const refreshList = (
-    includeRelated = false,
-    actedEnvironmentId?: EnvironmentId,
-  ) => {
+  const refreshList = (includeRelated = false, actedEnvironmentId?: EnvironmentId) => {
     const related = (
       includeRelated
         ? [
@@ -821,15 +729,13 @@ export function PullRequestsPage() {
         : []
     ).filter(
       ({ environmentId }) =>
-        actedEnvironmentId === undefined ||
-        environmentId === actedEnvironmentId,
+        actedEnvironmentId === undefined || environmentId === actedEnvironmentId,
     );
     if (sentCursors === null) {
       listQuery.refresh([
         ...listTargets.filter(
           ({ environmentId }) =>
-            actedEnvironmentId === undefined ||
-            environmentId === actedEnvironmentId,
+            actedEnvironmentId === undefined || environmentId === actedEnvironmentId,
         ),
         ...related,
       ]);
@@ -846,8 +752,7 @@ export function PullRequestsPage() {
     { enabled: pullRequestsSupported },
   );
 
-  const viewers =
-    baselineQuery.data?.viewers ?? listData?.viewers ?? EMPTY_VIEWERS;
+  const viewers = baselineQuery.data?.viewers ?? listData?.viewers ?? EMPTY_VIEWERS;
   const listErrors = baselineQuery.data?.errors ?? listData?.errors ?? [];
   const facets = collectPullRequestListFacets(
     [
@@ -857,15 +762,12 @@ export function PullRequestsPage() {
     search.state,
   );
 
-  const heldEntries =
-    ordered?.key === filterKey ? ordered.entries : (listData?.entries ?? []);
+  const heldEntries = ordered?.key === filterKey ? ordered.entries : (listData?.entries ?? []);
   const overlayInput = { state: search.state, filters };
   const shownEntries = usePendingListEntries(overlayInput, heldEntries);
   const shownBaseline = usePendingListEntries(
     overlayInput,
-    typedParsed.filters.checks === undefined
-      ? baselineQuery.data?.entries
-      : undefined,
+    typedParsed.filters.checks === undefined ? baselineQuery.data?.entries : undefined,
   );
   const shownAuthored = usePendingListEntries(
     overlayInput,
@@ -875,14 +777,8 @@ export function PullRequestsPage() {
     overlayInput,
     partitionsWanted ? reviewingQuery.data?.entries : undefined,
   );
-  const shownHeldAuthored = usePendingListEntries(
-    overlayInput,
-    heldPartitions?.authored,
-  );
-  const shownHeldReviewing = usePendingListEntries(
-    overlayInput,
-    heldPartitions?.reviewing,
-  );
+  const shownHeldAuthored = usePendingListEntries(overlayInput, heldPartitions?.authored);
+  const shownHeldReviewing = usePendingListEntries(overlayInput, heldPartitions?.reviewing);
   const scrollRef = useRef<HTMLDivElement>(null);
   const {
     entries,
@@ -912,14 +808,8 @@ export function PullRequestsPage() {
             authored: shownHeldAuthored,
             reviewing: shownHeldReviewing,
           },
-    authored:
-      partitionsWanted && authoredQuery.data !== null
-        ? shownAuthored
-        : undefined,
-    reviewing:
-      partitionsWanted && reviewingQuery.data !== null
-        ? shownReviewing
-        : undefined,
+    authored: partitionsWanted && authoredQuery.data !== null ? shownAuthored : undefined,
+    reviewing: partitionsWanted && reviewingQuery.data !== null ? shownReviewing : undefined,
     partitionsWanted,
   });
 
@@ -927,9 +817,7 @@ export function PullRequestsPage() {
     key: filterKey,
     values: new Set<string>(),
   });
-  const [statsByRow, setStatsByRow] = useState<PullRequestDiffStats>(
-    () => new Map(),
-  );
+  const [statsByRow, setStatsByRow] = useState<PullRequestDiffStats>(() => new Map());
   if (
     panelEnvironmentId !== null &&
     panelSummary?.additions !== undefined &&
@@ -942,10 +830,7 @@ export function PullRequestsPage() {
       deletions: panelSummary.deletions,
     };
     const previous = statsByRow.get(pullRequestDiffStatKey(stat));
-    if (
-      previous?.additions !== stat.additions ||
-      previous.deletions !== stat.deletions
-    ) {
+    if (previous?.additions !== stat.additions || previous.deletions !== stat.deletions) {
       setStatsByRow(mergePullRequestDiffStats(statsByRow, [stat]));
     }
   }
@@ -953,8 +838,7 @@ export function PullRequestsPage() {
     readonly key: string;
     readonly batches: ReadonlyArray<PullRequestStatsBatch>;
   }>({ key: filterKey, batches: [] });
-  const statsBatches =
-    statsTargetState.key === filterKey ? statsTargetState.batches : [];
+  const statsBatches = statsTargetState.key === filterKey ? statsTargetState.batches : [];
   const statsTargets = statsBatches.map(({ environmentId, input }) => ({
     environmentId,
     input,
@@ -975,13 +859,8 @@ export function PullRequestsPage() {
     }
     setStatsTargetState((current) => {
       if (current.key !== visible.key) return current;
-      const batches = retainVisiblePullRequestStatsBatches(
-        current.batches,
-        visible.values,
-      );
-      return batches.length === current.batches.length
-        ? current
-        : { key: current.key, batches };
+      const batches = retainVisiblePullRequestStatsBatches(current.batches, visible.values);
+      return batches.length === current.batches.length ? current : { key: current.key, batches };
     });
   });
   // Every row takes this as its ref, so a new identity would detach and reattach them all.
@@ -1022,11 +901,7 @@ export function PullRequestsPage() {
   const readStatsRows = useEffectEvent(() => entriesByStatsKey);
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- IntersectionObserver on rows requests stats for rows that scroll into view
   useEffect(() => {
-    if (
-      statsPolicy !== "visible" ||
-      typeof IntersectionObserver === "undefined"
-    )
-      return;
+    if (statsPolicy !== "visible" || typeof IntersectionObserver === "undefined") return;
     visibleStatsKeys.current = { key: filterKey, values: new Set() };
     const observer = new IntersectionObserver(
       (observed) => {
@@ -1061,8 +936,7 @@ export function PullRequestsPage() {
             activeBatches: batches,
             statsByRow: progress.statsByRow,
           });
-          if (added.length === 0 && retained.length === batches.length)
-            return current;
+          if (added.length === 0 && retained.length === batches.length) return current;
           return { key: filterKey, batches: [...retained, ...added] };
         });
       },
@@ -1080,15 +954,9 @@ export function PullRequestsPage() {
     if (statsPolicy !== "visible" || statsQuery.isPending) return;
     const visible = visibleStatsKeys.current;
     setStatsTargetState((current) => {
-      if (current.key !== filterKey || visible.key !== filterKey)
-        return current;
-      const batches = retainVisiblePullRequestStatsBatches(
-        current.batches,
-        visible.values,
-      );
-      return batches.length === current.batches.length
-        ? current
-        : { key: current.key, batches };
+      if (current.key !== filterKey || visible.key !== filterKey) return current;
+      const batches = retainVisiblePullRequestStatsBatches(current.batches, visible.values);
+      return batches.length === current.batches.length ? current : { key: current.key, batches };
     });
   }, [filterKey, statsPolicy, statsQuery.isPending]);
   const [mergedStats, setMergedStats] = useState<typeof statsQuery.stats>(null);
@@ -1110,8 +978,7 @@ export function PullRequestsPage() {
         requestedScope: requestedStatsScope,
         currentScope: statsScope,
         entriesByKey: entriesByStatsKey,
-        candidateKeys:
-          visible.key === requestedStatsScope.key ? visible.values : new Set(),
+        candidateKeys: visible.key === requestedStatsScope.key ? visible.values : new Set(),
         statsByRow,
       });
       if (batches !== null) {
@@ -1119,9 +986,7 @@ export function PullRequestsPage() {
         statsQuery.refresh(
           batches
             .filter(({ environmentId }) =>
-              actedEnvironmentId === undefined
-                ? true
-                : environmentId === actedEnvironmentId,
+              actedEnvironmentId === undefined ? true : environmentId === actedEnvironmentId,
             )
             .map(({ environmentId, input }) => ({ environmentId, input })),
         );
@@ -1133,9 +998,7 @@ export function PullRequestsPage() {
     setInvalidating(true);
     // Atom commands settle into results rather than throwing.
     await Promise.all(
-      queryEnvironmentIds.map((environmentId) =>
-        invalidate({ environmentId, input: {} }),
-      ),
+      queryEnvironmentIds.map((environmentId) => invalidate({ environmentId, input: {} })),
     );
     listQuery.refresh([
       ...listTargetsFor(preferredEnvironmentQueries),
@@ -1168,9 +1031,7 @@ export function PullRequestsPage() {
     involvement: search.involvement,
   });
   const showProvider = hosts.length > 1;
-  const [closeSweepKeys, setCloseSweepKeys] = useState<ReadonlySet<string>>(
-    () => new Set(),
-  );
+  const [closeSweepKeys, setCloseSweepKeys] = useState<ReadonlySet<string>>(() => new Set());
   const closeSensorRef = useRef<SidebarPointerSensor | null>(null);
   // A sweep spans many renders; each step reads the rows on screen at that moment.
   const readCloseSweep = useStableCallback(() => ({
@@ -1214,12 +1075,7 @@ export function PullRequestsPage() {
       const sweepTo = (key: string) => {
         if (key === targetKey) return;
         targetKey = key;
-        sweptKeys = resolveSidebarSweepKeys(
-          orderedKeys,
-          originKey,
-          key,
-          canClose,
-        );
+        sweptKeys = resolveSidebarSweepKeys(orderedKeys, originKey, key, canClose);
         setCloseSweepKeys(new Set(sweptKeys));
       };
       // Only while a sweep runs: Escape ends it, ahead of any other scope that would also take it.
@@ -1242,8 +1098,7 @@ export function PullRequestsPage() {
           onAttach: () => {},
           onFinish: () => {
             releaseEscape();
-            if (closeSensorRef.current === sensor)
-              closeSensorRef.current = null;
+            if (closeSensorRef.current === sensor) closeSensorRef.current = null;
             setCloseSweepKeys(new Set());
           },
         },
@@ -1255,11 +1110,8 @@ export function PullRequestsPage() {
           const bounds = viewport.getBoundingClientRect();
           const visibleY = Math.min(Math.max(y, bounds.top), bounds.bottom - 1);
           let key: string | null = null;
-          for (const row of viewport.querySelectorAll<HTMLElement>(
-            "[data-pull-request-key]",
-          )) {
-            if (key !== null && row.getBoundingClientRect().top > visibleY)
-              break;
+          for (const row of viewport.querySelectorAll<HTMLElement>("[data-pull-request-key]")) {
+            if (key !== null && row.getBoundingClientRect().top > visibleY) break;
             key = row.dataset.pullRequestKey ?? null;
           }
           if (key !== null) sweepTo(key);
@@ -1290,15 +1142,8 @@ export function PullRequestsPage() {
   const consumeLinkedUrl = useEffectEvent(() => updateSearch({}));
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- opens the URL-linked pull request in the right panel store
   useEffect(() => {
-    if (
-      !pullRequestsSupported ||
-      rightPanelRef === null ||
-      linkedSelection === null
-    )
-      return;
-    useRightPanelStore
-      .getState()
-      .openPullRequest(rightPanelRef, linkedSelection);
+    if (!pullRequestsSupported || rightPanelRef === null || linkedSelection === null) return;
+    useRightPanelStore.getState().openPullRequest(rightPanelRef, linkedSelection);
     if (linkedSelection.revealUrl !== undefined) consumeLinkedUrl();
   }, [linkedSelection, pullRequestsSupported, rightPanelRef]);
 
@@ -1398,10 +1243,7 @@ export function PullRequestsPage() {
       onToggleThreadPanel={() => undefined}
       rightPanelAvailable={rightPanelAvailable}
       rightPanelOpen={rightPanelState.isOpen}
-      rightPanelShortcutLabel={shortcutLabelForCommand(
-        keybindings,
-        "rightPanel.toggle",
-      )}
+      rightPanelShortcutLabel={shortcutLabelForCommand(keybindings, "rightPanel.toggle")}
       rightPanelUnavailableLabel="Select a pull request first"
       onToggleTerminal={() => undefined}
       onToggleRightPanel={toggleRightPanel}
@@ -1470,10 +1312,7 @@ export function PullRequestsPage() {
             search.host !== undefined
           }
           searching={typedQuery.length > 0 && (!querySettled || showingCarried)}
-          canLoadMore={
-            listData?.truncated === true &&
-            (canContinue || pageSize < MAX_PAGE_SIZE)
-          }
+          canLoadMore={listData?.truncated === true && (canContinue || pageSize < MAX_PAGE_SIZE)}
           loadingMore={loadingMore}
           onClearQuery={() => updateListScope({ q: undefined })}
           onLoadMore={loadMore}
@@ -1481,9 +1320,7 @@ export function PullRequestsPage() {
       ) : (
         <PullRequestListGroups
           groups={displayGroups}
-          environmentLabels={
-            capableEnvironments.length > 1 ? environmentLabels : null
-          }
+          environmentLabels={capableEnvironments.length > 1 ? environmentLabels : null}
           query={typedParsed.text}
           selected={selected}
           showProvider={showProvider}
@@ -1501,17 +1338,9 @@ export function PullRequestsPage() {
       {listError && shownCount > 0 ? (
         <div className="flex items-center justify-between gap-3 rounded-lg border border-warning/30 bg-warning-surface px-3 py-2 text-xs">
           <span>
-            {listError}{" "}
-            {translateWebSource(
-              locale,
-              "Showing the last pull requests loaded.",
-            )}
+            {listError} {translateWebSource(locale, "Showing the last pull requests loaded.")}
           </span>
-          <Button
-            size="xs"
-            variant="outline"
-            onClick={() => listQuery.refresh()}
-          >
+          <Button size="xs" variant="outline" onClick={() => listQuery.refresh()}>
             {translateWebSource(locale, "Retry")}
           </Button>
         </div>
@@ -1536,10 +1365,7 @@ export function PullRequestsPage() {
             </Button>
           ) : (
             <span>
-              {translateWebSource(
-                locale,
-                "Narrow your search to find more pull requests.",
-              )}
+              {translateWebSource(locale, "Narrow your search to find more pull requests.")}
             </span>
           )}
         </div>
@@ -1559,8 +1385,7 @@ export function PullRequestsPage() {
           ? {}
           : {
               unavailable:
-                summary.detail ??
-                translateWebSource(locale, "This host could not be read."),
+                summary.detail ?? translateWebSource(locale, "This host could not be read."),
             }),
       };
     }),
@@ -1574,9 +1399,7 @@ export function PullRequestsPage() {
     ...capableEnvironments.map((environment) => ({
       value: environment.environmentId,
       label: environment.label,
-      Icon: environmentMachineIcon(
-        resolveEnvironmentMachineKind(environment.serverConfig),
-      ),
+      Icon: environmentMachineIcon(resolveEnvironmentMachineKind(environment.serverConfig)),
     })),
   ];
   const sortMenu = (
@@ -1630,19 +1453,13 @@ export function PullRequestsPage() {
       onHost={(host) => updateListScope({ host })}
       server={scopedEnvironmentId ?? undefined}
       serverOptions={serverMenuOptions}
-      onServer={(server) =>
-        updateListScope({ environmentId: server, projectId: undefined })
-      }
+      onServer={(server) => updateListScope({ environmentId: server, projectId: undefined })}
       projects={scopedProjects}
       projectId={scopedProjectId}
       projectEnvironmentId={scopedProject?.environmentId}
       unavailable={unavailableProjects}
       onProject={(projectId, environmentId) =>
-        updateListScope(
-          environmentId === undefined
-            ? { projectId }
-            : { projectId, environmentId },
-        )
+        updateListScope(environmentId === undefined ? { projectId } : { projectId, environmentId })
       }
     />
   );
@@ -1654,8 +1471,7 @@ export function PullRequestsPage() {
     state: search.state,
     host: search.host,
     hostMenuOptions,
-    onInvolvement: (involvement: PullRequestInvolvement) =>
-      updateListScope({ involvement }),
+    onInvolvement: (involvement: PullRequestInvolvement) => updateListScope({ involvement }),
     onState: (state: PullRequestListState) => updateListScope({ state }),
     onHost: (host: string | undefined) => updateListScope({ host }),
     searchInput,
@@ -1717,9 +1533,7 @@ export function PullRequestsPage() {
   };
   const closeSurfacesToRight = (surface: PullRequestSurface) => {
     if (rightPanelRef === null) return;
-    useRightPanelStore
-      .getState()
-      .closeSurfacesToRight(rightPanelRef, surface.id);
+    useRightPanelStore.getState().closeSurfacesToRight(rightPanelRef, surface.id);
     const next = selectActiveRightPanelSurface(
       useRightPanelStore.getState().byThreadKey,
       rightPanelRef,
@@ -1750,9 +1564,7 @@ export function PullRequestsPage() {
         {pullRequestsSupported && rightPanelPresent ? openPanelControls : null}
         <PullRequestsColumn {...columnProps} />
 
-        {rightPanelPresent &&
-        renderedPullRequestSurface &&
-        panelEnvironmentId !== null ? (
+        {rightPanelPresent && renderedPullRequestSurface && panelEnvironmentId !== null ? (
           <RightPanelTabs
             mode="inline"
             open={rightPanelState.isOpen}
@@ -1760,11 +1572,7 @@ export function PullRequestsPage() {
             keybindings={keybindings}
             getShortcutContext={getShortcutContext}
             widthStorageKey="t3code:pull-request-panel-width"
-            defaultWidth={
-              typeof window === "undefined"
-                ? 640
-                : Math.floor(window.innerWidth / 2)
-            }
+            defaultWidth={typeof window === "undefined" ? 640 : Math.floor(window.innerWidth / 2)}
             surfaces={renderedRightPanelSurfaces}
             environmentId={panelEnvironmentId}
             activeSurfaceId={renderedPullRequestSurface.id}
@@ -1782,15 +1590,12 @@ export function PullRequestsPage() {
               if (surface.kind === "pull-request") closeOtherSurfaces(surface);
             }}
             onCloseSurfacesToRight={(surface) => {
-              if (surface.kind === "pull-request")
-                closeSurfacesToRight(surface);
+              if (surface.kind === "pull-request") closeSurfacesToRight(surface);
             }}
             onCloseAllSurfaces={closeAllSurfaces}
             onMoveSurface={(surfaceId, toIndex) => {
               if (rightPanelRef !== null)
-                useRightPanelStore
-                  .getState()
-                  .moveSurface(rightPanelRef, surfaceId, toIndex);
+                useRightPanelStore.getState().moveSurface(rightPanelRef, surfaceId, toIndex);
             }}
             onCopyFilePath={() => undefined}
             onAddBrowser={() => undefined}
@@ -1812,20 +1617,14 @@ export function PullRequestsPage() {
           >
             <PullRequestDetailPanel
               getShortcutContext={getShortcutContext}
-              shortcutsEnabled={
-                activePullRequestSurface?.id === renderedPullRequestSurface.id
-              }
+              shortcutsEnabled={activePullRequestSurface?.id === renderedPullRequestSurface.id}
               key={renderedPullRequestSurface.id}
               revealUrl={renderedPullRequestSurface.revealUrl}
               onRevealSettled={(revealUrl) => {
                 if (rightPanelRef === null) return;
                 useRightPanelStore
                   .getState()
-                  .settlePullRequestReveal(
-                    rightPanelRef,
-                    renderedPullRequestSurface.id,
-                    revealUrl,
-                  );
+                  .settlePullRequestReveal(rightPanelRef, renderedPullRequestSurface.id, revealUrl);
               }}
               environmentId={panelEnvironmentId}
               onGuideShown={onGuideShown}
@@ -1865,47 +1664,31 @@ export function PullRequestsPage() {
                 );
                 if (reply !== undefined) {
                   if (acted !== undefined) {
-                    if (action !== undefined)
-                      overrideEntry(acted, action, reply);
-                    detailOverrideTokens.current.delete(
-                      pullRequestEntryKey(acted),
-                    );
+                    if (action !== undefined) overrideEntry(acted, action, reply);
+                    detailOverrideTokens.current.delete(pullRequestEntryKey(acted));
                   }
                   return;
                 }
                 const stateOnly =
                   action !== undefined &&
                   acted !== undefined &&
-                  pullRequestOverrideAfterAction(
-                    acted,
-                    action,
-                    new Date(),
-                    0,
-                  ) !== null;
+                  pullRequestOverrideAfterAction(acted, action, new Date(), 0) !== null;
                 if (stateOnly) {
                   const key = pullRequestEntryKey(acted);
                   if (phase === "sent" && action !== "merge") {
-                    detailOverrideTokens.current.set(
-                      key,
-                      overrideEntry(acted, action),
-                    );
+                    detailOverrideTokens.current.set(key, overrideEntry(acted, action));
                   }
                   if (phase === "failed" && action !== "merge") {
-                    revertOverride(
-                      key,
-                      detailOverrideTokens.current.get(key) ?? null,
-                    );
+                    revertOverride(key, detailOverrideTokens.current.get(key) ?? null);
                   }
-                  if (phase !== "sent")
-                    detailOverrideTokens.current.delete(key);
+                  if (phase !== "sent") detailOverrideTokens.current.delete(key);
                   if (phase === "done" && action === "merge") {
                     overrideEntry(acted, action);
                     refreshListAndStats(undefined, panelEnvironmentId);
                   }
                   return;
                 }
-                if (phase === "done")
-                  refreshListAndStats(undefined, panelEnvironmentId);
+                if (phase === "done") refreshListAndStats(undefined, panelEnvironmentId);
               }}
             />
           </RightPanelTabs>
@@ -1919,9 +1702,6 @@ function PullRequestFiltersMenuInSidebarOrder(
   props: ComponentProps<typeof PullRequestFiltersMenu>,
 ) {
   const sidebarProjectGroups = useSidebarProjectGroups();
-  const projects = sortProjectsByGroupOrder(
-    props.projects,
-    sidebarProjectGroups,
-  );
+  const projects = sortProjectsByGroupOrder(props.projects, sidebarProjectGroups);
   return <PullRequestFiltersMenu {...props} projects={projects} />;
 }

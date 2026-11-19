@@ -27,16 +27,9 @@ import { useI18n } from "~/i18n/WebI18nContext";
 import { translateWebSource } from "~/i18n/messages";
 import { getSourceControlPresentationForKind } from "~/sourceControlPresentation";
 import { useDebouncedValue } from "~/state/queries";
-import {
-  type EnvironmentQueryTarget,
-  usePullRequestFilterOptions,
-} from "~/state/pullRequests";
+import { type EnvironmentQueryTarget, usePullRequestFilterOptions } from "~/state/pullRequests";
 import { ProjectFavicon, type ProjectFaviconProject } from "../ProjectFavicon";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "../ui/input-group";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "../ui/input-group";
 import { Button } from "../ui/button";
 
 import {
@@ -131,9 +124,7 @@ export function PullRequestSearchInput({
         onChange={(event) => {
           setDraft(event.currentTarget.value);
           onChange(event.currentTarget.value);
-          if (
-            (event.nativeEvent as InputEvent).inputType === "insertFromPaste"
-          ) {
+          if ((event.nativeEvent as InputEvent).inputType === "insertFromPaste") {
             onSubmit(event.currentTarget.value);
           }
         }}
@@ -208,20 +199,14 @@ function PullRequestFilterRadioGroup<Value extends string>({
           <MenuRadioItem
             key={option.value}
             value={option.value}
-            className={
-              option.unavailable
-                ? "data-disabled:pointer-events-auto"
-                : undefined
-            }
+            className={option.unavailable ? "data-disabled:pointer-events-auto" : undefined}
             disabled={option.unavailable !== undefined}
           >
             <span className="flex min-w-0 items-center gap-2">
               <PullRequestFilterOptionIcon option={option} />
               <span className="min-w-0 flex-1 truncate">{option.label}</span>
               {option.unavailable ? (
-                <span className="shrink-0">
-                  {translateWebSource(locale, "· Unavailable")}
-                </span>
+                <span className="shrink-0">{translateWebSource(locale, "· Unavailable")}</span>
               ) : null}
               <MenuRadioItemIndicator />
             </span>
@@ -251,8 +236,7 @@ function PullRequestFilterRadioSubmenu<Value extends string>({
   onChange: (value: Value) => void;
 }) {
   const { locale } = useI18n();
-  const current =
-    options.find((option) => option.value === value) ?? options[0];
+  const current = options.find((option) => option.value === value) ?? options[0];
   if (!current) return null;
   return (
     <MenuSub>
@@ -296,9 +280,7 @@ function useHostedFilterOptions(
     })),
   );
   // Until the search catches up with the typing, the host's answers are for older text.
-  return sent === typed
-    ? hosted
-    : { labels: [], authors: [], error: null, isPending: true };
+  return sent === typed ? hosted : { labels: [], authors: [], error: null, isPending: true };
 }
 
 function PullRequestAuthorChoices({
@@ -323,8 +305,7 @@ function PullRequestAuthorChoices({
       (option) => option.actor.login.toLowerCase() !== login,
     ),
   ].slice(0, 30);
-  const select = (next: string) =>
-    next.toLowerCase() !== login && onChange(next || undefined);
+  const select = (next: string) => next.toLowerCase() !== login && onChange(next || undefined);
   return (
     <>
       <MenuSearchInput
@@ -335,10 +316,7 @@ function PullRequestAuthorChoices({
         placeholder={translateWebSource(locale, "Search authors")}
         aria-label={translateWebSource(locale, "Search authors")}
       />
-      <MenuRadioGroup
-        value={selected?.actor.login ?? value ?? ""}
-        onValueChange={select}
-      >
+      <MenuRadioGroup value={selected?.actor.login ?? value ?? ""} onValueChange={select}>
         <MenuRadioItem value="">
           <span className="flex min-w-0 items-center gap-2">
             <LayersIcon aria-hidden className="size-3.5" />
@@ -346,15 +324,10 @@ function PullRequestAuthorChoices({
           </span>
         </MenuRadioItem>
         {visible.map((option) => (
-          <MenuRadioItem
-            key={option.actor.login.toLowerCase()}
-            value={option.actor.login}
-          >
+          <MenuRadioItem key={option.actor.login.toLowerCase()} value={option.actor.login}>
             <span className="flex min-w-0 items-center gap-2">
               <PullRequestActorAvatar actor={option.actor} />
-              <span className="min-w-0 flex-1 truncate">
-                {option.actor.login}
-              </span>
+              <span className="min-w-0 flex-1 truncate">{option.actor.login}</span>
               {option.mergedCount > 0 ? (
                 <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
                   {t("pullRequests.filters.mergedLoaded", {
@@ -369,10 +342,7 @@ function PullRequestAuthorChoices({
           <MenuItem disabled>
             {hosted.error === null
               ? translateWebSource(locale, "No authors found")
-              : translateWebSource(
-                  locale,
-                  "Couldn't search authors on the host",
-                )}
+              : translateWebSource(locale, "Couldn't search authors on the host")}
           </MenuItem>
         ) : null}
       </MenuRadioGroup>
@@ -431,12 +401,7 @@ function PullRequestLabelChoices({
   const choices = pullRequestLabelChoices(options, hosted.labels, query);
   const visible = [
     ...value
-      .filter(
-        (name) =>
-          !choices.some(
-            (option) => option.name.toLowerCase() === name.toLowerCase(),
-          ),
-      )
+      .filter((name) => !choices.some((option) => option.name.toLowerCase() === name.toLowerCase()))
       .map((name) => ({ name, color: null, count: 0 })),
     ...choices,
   ];
@@ -468,10 +433,7 @@ function PullRequestLabelChoices({
               onChange(
                 next
                   ? [...value, option.name]
-                  : value.filter(
-                      (name) =>
-                        name.toLowerCase() !== option.name.toLowerCase(),
-                    ),
+                  : value.filter((name) => name.toLowerCase() !== option.name.toLowerCase()),
               )
             }
           >
@@ -560,9 +522,7 @@ export function PullRequestFiltersMenu({
   stateOptions: ReadonlyArray<PullRequestFilterOption<PullRequestListState>>;
   onState: (state: PullRequestListState) => void;
   involvement: PullRequestInvolvement;
-  involvementOptions: ReadonlyArray<
-    PullRequestFilterOption<PullRequestInvolvement>
-  >;
+  involvementOptions: ReadonlyArray<PullRequestFilterOption<PullRequestInvolvement>>;
   onInvolvement: (involvement: PullRequestInvolvement) => void;
   filters: PullRequestListFilters;
   onFilters: (filters: PullRequestListFilters) => void;
@@ -579,10 +539,7 @@ export function PullRequestFiltersMenu({
   projectId: ProjectId | undefined;
   projectEnvironmentId: EnvironmentId | undefined;
   unavailable: ReadonlyMap<string, string>;
-  onProject: (
-    projectId: ProjectId | undefined,
-    environmentId: EnvironmentId | undefined,
-  ) => void;
+  onProject: (projectId: ProjectId | undefined, environmentId: EnvironmentId | undefined) => void;
 }) {
   const { locale, t } = useI18n();
   const selectedLabels = (filters.labels ?? []).flatMap((group) => group);
@@ -601,9 +558,7 @@ export function PullRequestFiltersMenu({
   const updateFilters = (next: Partial<PullRequestListFilters>) =>
     onFilters(
       Object.fromEntries(
-        Object.entries({ ...filters, ...next }).filter(
-          ([, value]) => value !== undefined,
-        ),
+        Object.entries({ ...filters, ...next }).filter(([, value]) => value !== undefined),
       ) as PullRequestListFilters,
     );
   const updateFilter = (key: keyof PullRequestListFilters, value: string) =>
@@ -682,10 +637,7 @@ export function PullRequestFiltersMenu({
           scope={optionScope}
           onChange={(labels) =>
             updateFilters({
-              labels:
-                labels.length === 0
-                  ? undefined
-                  : labels.slice(0, 10).map((label) => [label]),
+              labels: labels.length === 0 ? undefined : labels.slice(0, 10).map((label) => [label]),
             })
           }
         />
@@ -723,9 +675,7 @@ export function PullRequestFiltersMenu({
               label={translateWebSource(locale, "Host")}
               value={host ?? ALL_HOSTS_VALUE}
               options={hostOptions}
-              onChange={(next) =>
-                onHost(next === ALL_HOSTS_VALUE ? undefined : next)
-              }
+              onChange={(next) => onHost(next === ALL_HOSTS_VALUE ? undefined : next)}
             />
           </>
         ) : null}
@@ -737,11 +687,7 @@ export function PullRequestFiltersMenu({
               value={server ?? ALL_SERVERS_VALUE}
               options={serverOptions}
               onChange={(next) =>
-                onServer(
-                  next === ALL_SERVERS_VALUE
-                    ? undefined
-                    : (next as EnvironmentId),
-                )
+                onServer(next === ALL_SERVERS_VALUE ? undefined : (next as EnvironmentId))
               }
             />
           </>
@@ -752,9 +698,7 @@ export function PullRequestFiltersMenu({
           value={projectValue}
           options={projectOptions}
           onChange={(next) => {
-            const project = projects.find(
-              (candidate) => pullRequestProjectKey(candidate) === next,
-            );
+            const project = projects.find((candidate) => pullRequestProjectKey(candidate) === next);
             if (project) onProject(project.id, project.environmentId);
             else if (projectId !== undefined) onProject(undefined, undefined);
           }}

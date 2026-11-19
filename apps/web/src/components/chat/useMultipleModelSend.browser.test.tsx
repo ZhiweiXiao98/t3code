@@ -125,8 +125,7 @@ function Probe({
       <ChatBannerLane
         environmentId={ref.environmentId}
         providerStatus={null}
-        providerStatusBannerKey={null}
-        setDismissedProviderStatusBannerKey={() => undefined}
+        providerStatusDismissalKey={null}
         onOpenProviderSetup={() => undefined}
         threadId={ref.threadId}
         threadError={entries[draftId]?.message ?? null}
@@ -215,6 +214,7 @@ it.each(["owned", "raw", "empty"] as const)(
       reviewComments: [],
       threadContexts: [],
       environmentContexts: [],
+      replyTo: null,
     });
     let reject: (reason: unknown) => void = () => undefined;
     const attachmentsPromise = new Promise<never>((_resolve, no) => {
@@ -244,6 +244,7 @@ it.each(["owned", "raw", "empty"] as const)(
       readFileBlockReason: fixture.block,
       buildOutgoingMessageContext: fixture.context,
       isCurrentSend: () => true,
+      draftChangedDuringPreparation: () => false,
     };
     const props = { routeKey, draftId, input };
     using toast = vi.spyOn(toastManager, "add");

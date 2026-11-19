@@ -5,14 +5,7 @@ import {
   type VoiceSettingsMessageKey,
 } from "../../i18n/voiceSettingsMessages";
 import { MICROPHONE_PERMISSION_ERROR } from "@t3tools/client-runtime/voice-input";
-import {
-  MicIcon,
-  PauseIcon,
-  PlayIcon,
-  RotateCcwIcon,
-  SquareIcon,
-  XIcon,
-} from "lucide-react";
+import { MicIcon, PauseIcon, PlayIcon, RotateCcwIcon, SquareIcon, XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { useStableCallback } from "~/hooks/useStableCallback";
@@ -52,11 +45,8 @@ export function MicrophoneTest({
   onMicrophoneAccess: () => void;
 }) {
   const { locale } = useI18n();
-  const t = (source: VoiceSettingsMessageKey) =>
-    translateVoiceSettingsMessage(locale, source);
-  const [phase, setPhase] = useState<
-    "idle" | "starting" | "recording" | "ready"
-  >("idle");
+  const t = (source: VoiceSettingsMessageKey) => translateVoiceSettingsMessage(locale, source);
+  const [phase, setPhase] = useState<"idle" | "starting" | "recording" | "ready">("idle");
   const [recording, setRecording] = useState<{
     url: string;
     duration: number;
@@ -75,8 +65,7 @@ export function MicrophoneTest({
     clearInterval(current.elapsedTimer);
     current.worklet?.disconnect();
     current.worklet?.port.close();
-    if (current.recorder && current.recorder.state !== "inactive")
-      current.recorder.stop();
+    if (current.recorder && current.recorder.state !== "inactive") current.recorder.stop();
     current.stream?.getTracks().forEach((track) => track.stop());
     void current.context?.close().catch(() => undefined);
   });
@@ -107,9 +96,7 @@ export function MicrophoneTest({
       typeof MediaRecorder === "undefined" ||
       typeof AudioWorkletNode === "undefined"
     ) {
-      setError(
-        "Microphone testing is unavailable in this browser. Use HTTPS or the desktop app.",
-      );
+      setError("Microphone testing is unavailable in this browser. Use HTTPS or the desktop app.");
       setPhase("idle");
       return;
     }
@@ -133,9 +120,7 @@ export function MicrophoneTest({
         if (capture.current !== current) return;
         const blob = new Blob(chunks, { type: recorder.mimeType });
         const duration =
-          current.startedAt === undefined
-            ? 0
-            : (performance.now() - current.startedAt) / 1_000;
+          current.startedAt === undefined ? 0 : (performance.now() - current.startedAt) / 1_000;
         releaseCapture();
         setLevel(0);
         if (!blob.size) {
@@ -176,8 +161,7 @@ export function MicrophoneTest({
       });
       current.worklet = worklet;
       worklet.port.onmessage = ({ data }: MessageEvent<number | "stopped">) => {
-        if (capture.current === current && typeof data === "number")
-          setLevel(data);
+        if (capture.current === current && typeof data === "number") setLevel(data);
       };
       worklet.onprocessorerror = onRecordingError;
       context.createMediaStreamSource(stream).connect(worklet);
@@ -187,12 +171,7 @@ export function MicrophoneTest({
       const startedAt = performance.now();
       current.startedAt = startedAt;
       current.elapsedTimer = setInterval(() => {
-        setElapsed(
-          Math.min(
-            LOOPBACK_SECONDS,
-            Math.floor((performance.now() - startedAt) / 1_000),
-          ),
-        );
+        setElapsed(Math.min(LOOPBACK_SECONDS, Math.floor((performance.now() - startedAt) / 1_000)));
       }, 100);
       recorder.start();
       worklet.port.postMessage("start", []);
@@ -204,11 +183,7 @@ export function MicrophoneTest({
       if (capture.current !== current) return;
       releaseCapture();
       setPhase("idle");
-      const name =
-        typeof cause === "object" &&
-        cause !== null &&
-        "name" in cause &&
-        cause.name;
+      const name = typeof cause === "object" && cause !== null && "name" in cause && cause.name;
       setError(
         name === "NotAllowedError"
           ? MICROPHONE_PERMISSION_ERROR
@@ -252,18 +227,12 @@ export function MicrophoneTest({
       {translateVoiceSettingsError(locale, error)}
     </p>
   ) : phase === "starting" ? (
-    <span
-      role="status"
-      className="min-w-0 flex-1 truncate text-xs text-muted-foreground"
-    >
+    <span role="status" className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
       {t("Opening microphone…")}
     </span>
   ) : phase === "recording" ? (
     <>
-      <span
-        aria-hidden
-        className="size-1.5 shrink-0 rounded-full bg-destructive"
-      />
+      <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-destructive" />
       <div className="flex w-24 min-w-0">
         <VoiceWaveform level={level} />
       </div>
@@ -282,20 +251,14 @@ export function MicrophoneTest({
       />
     </>
   ) : phase === "ready" && recording ? (
-    <MicrophonePlayback
-      key={recording.url}
-      src={recording.url}
-      duration={recording.duration}
-    />
+    <MicrophonePlayback key={recording.url} src={recording.url} duration={recording.duration} />
   ) : null;
 
   return (
     <SettingsRow
       {...searchableSetting("microphone-test")}
       title={t("Test microphone")}
-      description={t(
-        "Record ten seconds and play it back. The audio stays on this device.",
-      )}
+      description={t("Record ten seconds and play it back. The audio stays on this device.")}
       control={control}
     >
       {panel ? (
@@ -309,11 +272,7 @@ export function MicrophoneTest({
           <Button
             size="icon-sm"
             variant="ghost-muted"
-            aria-label={
-              phase === "ready"
-                ? t("Discard recording")
-                : t("Cancel microphone test")
-            }
+            aria-label={phase === "ready" ? t("Discard recording") : t("Cancel microphone test")}
             onClick={cancel}
           >
             <XIcon />
@@ -324,16 +283,9 @@ export function MicrophoneTest({
   );
 }
 
-function MicrophonePlayback({
-  src,
-  duration,
-}: {
-  src: string;
-  duration: number;
-}) {
+function MicrophonePlayback({ src, duration }: { src: string; duration: number }) {
   const { locale } = useI18n();
-  const t = (source: VoiceSettingsMessageKey) =>
-    translateVoiceSettingsMessage(locale, source);
+  const t = (source: VoiceSettingsMessageKey) => translateVoiceSettingsMessage(locale, source);
   const audio = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [position, setPosition] = useState(0);

@@ -5,6 +5,7 @@ import { EnvironmentId, ProviderInstanceId, ThreadId } from "@t3tools/contracts"
 import * as McpProviderSessions from "@t3tools/provider-core/server/McpProviderSessions";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import { symlinksSupported } from "@t3tools/shared/testing/symlinks";
+import * as Console from "effect/Console";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
@@ -580,7 +581,8 @@ fs.createReadStream(null, { fd: 3 }).on("end", quit).on("data", (chunk) => {
 
   it.live("keeps the page off this machine's local network", (ctx) =>
     Effect.gen(function* () {
-      const executable = (yield* HostProcess.Environment)[TEST_BROWSER_ENV];
+      const environment = yield* HostProcess.Environment;
+      const executable = environment[TEST_BROWSER_ENV];
       if (!executable) return ctx.skip(`Set ${TEST_BROWSER_ENV} to run this test.`);
       const requests: Array<string> = [];
       const server = yield* Effect.acquireRelease(
@@ -613,17 +615,32 @@ fs.createReadStream(null, { fd: 3 }).on("end", quit).on("data", (chunk) => {
       const stun = `stun:127.0.0.1:${udp.address().port}`;
       yield* Effect.gen(function* () {
         const htmlRender = yield* HtmlRender.HtmlRender;
-        yield* htmlRender.preview({
-          html: [
-            `<img src="${origin}/x.png"><iframe src="${origin}/"></iframe>`,
-            `<script type="speculationrules">{"prefetch":[{"source":"list","urls":["${origin}/prefetch"]}]}</script>`,
-            `<script>fetch("${origin}/").catch(() => {}); new WebSocket("ws${origin.slice(4)}/socket");`,
-            `try { const peer = new RTCPeerConnection({ iceServers: [{ urls: "${stun}" }] });`,
-            `peer.createDataChannel("x"); peer.createOffer().then((offer) => peer.setLocalDescription(offer));`,
-            `} catch {}`,
-            `window.open("${origin}/popup"); location.href = "${origin}/navigate";</script>`,
-          ].join(""),
-        });
+        yield* htmlRender
+          .preview({
+            html: [
+              `<img src="${origin}/x.png"><iframe src="${origin}/"></iframe>`,
+              `<script type="speculationrules">{"prefetch":[{"source":"list","urls":["${origin}/prefetch"]}]}</script>`,
+              `<script>fetch("${origin}/").catch(() => {}); new WebSocket("ws${origin.slice(4)}/socket");`,
+              `try { const peer = new RTCPeerConnection({ iceServers: [{ urls: "${stun}" }] });`,
+              `peer.createDataChannel("x"); peer.createOffer().then((offer) => peer.setLocalDescription(offer));`,
+              `} catch {}`,
+              `window.open("${origin}/popup"); location.href = "${origin}/navigate";</script>`,
+            ].join(""),
+          })
+          .pipe(
+            Effect.onExit((exit) =>
+              Exit.isFailure(exit) && environment.T3CODE_HTML_RENDER_DIAGNOSTICS === "1"
+                ? Console.info(
+                    JSON.stringify({
+                      event: "t3-html-render-local-network-diagnostic",
+                      schemaVersion: 1,
+                      httpRequestCount: requests.length,
+                      udpDatagramCount: datagrams.length,
+                    }),
+                  ).pipe(Effect.ignoreCause)
+                : Effect.void,
+            ),
+          );
       }).pipe(Effect.provide(layerHtmlRender(executable)));
       expect(requests).toEqual([]);
       expect(datagrams).toEqual([]);

@@ -44,15 +44,41 @@ export function createSidebarShiftGuard(list: HTMLElement) {
   const heldDrops = new Set<number>();
   let pressDropped = false;
   let releasedDrop: number | null = null;
+  let diagnosticCount = 0;
 
   const rowOf = (target: EventTarget | null) => {
     let node = target instanceof Node ? target : null;
     while (node !== null && node.parentNode !== list) node = node.parentNode;
     return node instanceof Element ? node : null;
   };
-  const swallow = (event: Event) => {
+  const swallow = (
+    event: Event,
+    reason: "recent-row-move" | "dropped-release" | "dropped-follow-up",
+    movedAgeMs?: number,
+  ) => {
     event.preventDefault();
     event.stopPropagation();
+    // Observe only actual suppression, with no row identity or user content.
+    if (import.meta.env.VITE_T3_MENU_TRACE !== "1" || diagnosticCount >= 32) return;
+    diagnosticCount++;
+    try {
+      console.info(
+        JSON.stringify({
+          event: "sidebar-shift-guard-suppressed",
+          reason,
+          type: event.type,
+          movedAgeMs,
+          heldCount: heldDrops.size,
+          releasedDrop: releasedDrop !== null,
+          pressDropped,
+          defaultPrevented: event.defaultPrevented,
+          propagationStopped: event.cancelBubble,
+          remaining: 32 - diagnosticCount,
+        }),
+      );
+    } catch {
+      // Diagnostics cannot change the already-applied press protection.
+    }
   };
   const onPointerDown = (event: PointerEvent) => {
     // A new press from the same pointer means its earlier release was missed.
@@ -64,7 +90,7 @@ export function createSidebarShiftGuard(list: HTMLElement) {
     if (moved !== undefined && now - moved < MOVED_ROW_PRESS_DELAY_MS) {
       heldDrops.add(event.pointerId);
       pressDropped = true;
-      swallow(event);
+      swallow(event, "recent-row-move", now - moved);
       return;
     }
     pressDropped = false;
@@ -75,7 +101,7 @@ export function createSidebarShiftGuard(list: HTMLElement) {
     releasedDrop = dropped ? event.pointerId : null;
     pressDropped = dropped;
     if (dropped) {
-      if (rowOf(event.target) !== null) swallow(event);
+      if (rowOf(event.target) !== null) swallow(event, "dropped-release");
       return;
     }
     lastInputAt = performance.now();
@@ -94,7 +120,7 @@ export function createSidebarShiftGuard(list: HTMLElement) {
       event instanceof PointerEvent && event.pointerId >= 0
         ? heldDrops.has(event.pointerId) || releasedDrop === event.pointerId
         : pressDropped;
-    if (dropped && rowOf(event.target) !== null) swallow(event);
+    if (dropped && rowOf(event.target) !== null) swallow(event, "dropped-follow-up");
   };
 
   // Window capture runs before React and dnd-kit see the press.

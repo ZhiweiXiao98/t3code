@@ -85,6 +85,7 @@ it.each([ARCHIVE_ENTRY_MAX_BYTES, ARCHIVE_ENTRY_MAX_BYTES + 1])(
           expect(result).toEqual({
             type: "error",
             message: "Entry previews are limited to 10 MB.",
+            source: "Entry previews are limited to 10 MB.",
           });
         } else {
           if (result.type !== "entry") throw new Error("Expected entry");
@@ -96,6 +97,7 @@ it.each([ARCHIVE_ENTRY_MAX_BYTES, ARCHIVE_ENTRY_MAX_BYTES + 1])(
       expect(await request({ type: "entry", path: "missing.txt" })).toEqual({
         type: "error",
         message: "This archive entry is unavailable.",
+        source: "This archive entry is unavailable.",
       });
     } finally {
       vi.unstubAllGlobals();

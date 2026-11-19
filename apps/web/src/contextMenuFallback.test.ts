@@ -1,11 +1,4 @@
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import * as webI18n from "./i18n/readWebI18n";
 import { translateWebMessage } from "./i18n/messages";
@@ -233,17 +226,12 @@ afterEach(() => {
 describe("showContextMenuFallback", () => {
   it("ignores a click from the gesture that opened the menu", async () => {
     let enablePointerSelection: ((time: number) => void) | undefined;
-    vi.stubGlobal(
-      "requestAnimationFrame",
-      (callback: (time: number) => void) => {
-        enablePointerSelection = callback;
-        return 0;
-      },
-    );
+    vi.stubGlobal("requestAnimationFrame", (callback: (time: number) => void) => {
+      enablePointerSelection = callback;
+      return 0;
+    });
 
-    const selectionPromise = showContextMenuFallback([
-      { id: "rename", label: "Rename" },
-    ]);
+    const selectionPromise = showContextMenuFallback([{ id: "rename", label: "Rename" }]);
     const renameButton = findButton("Rename");
 
     renameButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -293,9 +281,7 @@ describe("showContextMenuFallback", () => {
         locale,
         t: (key, values) => translateWebMessage(locale, key, values),
       });
-      void showContextMenuFallback([
-        { id: "snooze:hour", label: "In 1 hour", detail: "3:00 PM" },
-      ]);
+      void showContextMenuFallback([{ id: "snooze:hour", label: "In 1 hour", detail: "3:00 PM" }]);
       const button = findButton("In 1 hour");
 
       const menu = (document as unknown as FakeDocument)

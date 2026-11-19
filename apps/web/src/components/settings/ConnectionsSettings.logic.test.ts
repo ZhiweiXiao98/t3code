@@ -1,9 +1,5 @@
 import { translateWebMessage } from "../../i18n/messages";
-import {
-  type DesktopUpdateState,
-  type DesktopWslState,
-  EnvironmentId,
-} from "@t3tools/contracts";
+import { type DesktopUpdateState, type DesktopWslState, EnvironmentId } from "@t3tools/contracts";
 import { describe, expect, it, vi } from "vite-plus/test";
 import {
   resolveLocalVersionStatusLabel,
@@ -57,21 +53,16 @@ describe("togglePairingScopeSelection", () => {
       expected: ["terminal:read", "filesystem:read"],
     },
   ] as const)("$label", ({ current, scope, checked, expected }) => {
-    expect(togglePairingScopeSelection(current, scope, checked)).toEqual(
-      expected,
-    );
+    expect(togglePairingScopeSelection(current, scope, checked)).toEqual(expected);
   });
 });
 
 describe("parseManualDesktopSshTarget", () => {
-  it.each(["22.5", "1e3", "2222garbage"])(
-    "rejects explicit port %j",
-    (port) => {
-      expect(() =>
-        parseManualDesktopSshTarget({ host: "devbox", username: "", port }),
-      ).toThrow("SSH port must be between 1 and 65535.");
-    },
-  );
+  it.each(["22.5", "1e3", "2222garbage"])("rejects explicit port %j", (port) => {
+    expect(() => parseManualDesktopSshTarget({ host: "devbox", username: "", port })).toThrow(
+      "SSH port must be between 1 and 65535.",
+    );
+  });
 });
 
 describe("resolveTailscaleServeBaseUrl", () => {
@@ -79,9 +70,7 @@ describe("resolveTailscaleServeBaseUrl", () => {
     ["https://host.tail.ts.net:441/", 443, "https://host.tail.ts.net"],
     ["https://host.tail.ts.net:441/", 444, "https://host.tail.ts.net:444"],
   ] as const)("previews %s on port %i", (httpBaseUrl, port, expected) => {
-    expect(resolveTailscaleServeBaseUrl({ httpBaseUrl }, port, true)).toBe(
-      expected,
-    );
+    expect(resolveTailscaleServeBaseUrl({ httpBaseUrl }, port, true)).toBe(expected);
   });
 
   it("returns null without a pending endpoint", () => {
@@ -91,14 +80,9 @@ describe("resolveTailscaleServeBaseUrl", () => {
   it.each([
     ["https://host.tail.ts.net:441/", 0, false],
     ["not a URL", 443, true],
-  ] as const)(
-    "preserves %s when port %i cannot be previewed",
-    (httpBaseUrl, port, isPortValid) => {
-      expect(
-        resolveTailscaleServeBaseUrl({ httpBaseUrl }, port, isPortValid),
-      ).toBe(httpBaseUrl);
-    },
-  );
+  ] as const)("preserves %s when port %i cannot be previewed", (httpBaseUrl, port, isPortValid) => {
+    expect(resolveTailscaleServeBaseUrl({ httpBaseUrl }, port, isPortValid)).toBe(httpBaseUrl);
+  });
 });
 
 const baseWslState: DesktopWslState = {
@@ -142,11 +126,7 @@ describe("applyWslEnableSelection", () => {
       persistedDistro: "Ubuntu",
     });
 
-    expect(calls).toEqual([
-      "setWslOnly:false",
-      "setWslDistro:Debian",
-      "setWslBackendEnabled:true",
-    ]);
+    expect(calls).toEqual(["setWslOnly:false", "setWslDistro:Debian", "setWslBackendEnabled:true"]);
     expect(state).toMatchObject({
       enabled: true,
       distro: "Debian",
@@ -180,19 +160,15 @@ describe("selectQrEndpointOption", () => {
   ];
 
   it("resolves an explicit selection by unique endpoint id, not the shared preference key", () => {
-    expect(
-      selectQrEndpointOption(
-        options,
-        "tailscale-ip:http://100.84.12.8:4780",
-        null,
-      )?.id,
-    ).toBe("tailscale-ip:http://100.84.12.8:4780");
+    expect(selectQrEndpointOption(options, "tailscale-ip:http://100.84.12.8:4780", null)?.id).toBe(
+      "tailscale-ip:http://100.84.12.8:4780",
+    );
   });
 
   it("skips non-QR-shareable options in the fallback so the panel never opens on loopback", () => {
-    expect(
-      selectQrEndpointOption(options, "tailscale-ip:gone", "nope")?.id,
-    ).toBe("tailscale-ip:http://100.84.12.7:4780");
+    expect(selectQrEndpointOption(options, "tailscale-ip:gone", "nope")?.id).toBe(
+      "tailscale-ip:http://100.84.12.7:4780",
+    );
   });
 });
 
@@ -252,18 +228,15 @@ describe("localized local version status", () => {
       english: "Update 1.2.4 available",
       chinese: "有可用更新 1.2.4",
     },
-  ] as const)(
-    "preserves update state and version: $english",
-    ({ patch, english, chinese }) => {
-      const state = patch === null ? null : { ...baseState, ...patch };
-      expect(resolveLocalVersionStatusLabel(state)).toBe(english);
-      expect(
-        resolveLocalVersionStatusLabel(state, (key, values) =>
-          translateWebMessage("zh-CN", key, values),
-        ),
-      ).toBe(chinese);
-    },
-  );
+  ] as const)("preserves update state and version: $english", ({ patch, english, chinese }) => {
+    const state = patch === null ? null : { ...baseState, ...patch };
+    expect(resolveLocalVersionStatusLabel(state)).toBe(english);
+    expect(
+      resolveLocalVersionStatusLabel(state, (key, values) =>
+        translateWebMessage("zh-CN", key, values),
+      ),
+    ).toBe(chinese);
+  });
 });
 
 describe("resolveAccessEnvironmentId", () => {
@@ -340,16 +313,9 @@ describe("saved backend owned errors", () => {
       const owned = savedBackendFailure(null, code);
       const raw = savedBackendFailure(new Error(english), code);
       for (const locale of ["en", "zh-CN", "en"] as const) {
-        expect(formatSavedBackendError(locale, owned)).toBe(
-          locale === "en" ? english : chinese,
-        );
+        expect(formatSavedBackendError(locale, owned)).toBe(locale === "en" ? english : chinese);
         expect(formatSavedBackendError(locale, raw)).toBe(english);
-        expect(
-          formatSavedBackendError(
-            locale,
-            savedBackendFailure(new Error(""), code),
-          ),
-        ).toBe("");
+        expect(formatSavedBackendError(locale, savedBackendFailure(new Error(""), code))).toBe("");
       }
     }
   });
@@ -396,20 +362,12 @@ describe("saved backend owned errors", () => {
       expect((failure as Error).message).toBe(english);
       const value = savedBackendFailure(failure, "add");
       for (const locale of ["en", "zh-CN", "en"] as const) {
-        expect(formatSavedBackendError(locale, value)).toBe(
-          locale === "en" ? english : chinese,
-        );
+        expect(formatSavedBackendError(locale, value)).toBe(locale === "en" ? english : chinese);
         expect(
-          formatSavedBackendError(
-            locale,
-            savedBackendFailure(new Error(english), "add"),
-          ),
+          formatSavedBackendError(locale, savedBackendFailure(new Error(english), "add")),
         ).toBe(english);
         expect(
-          formatSavedBackendError(
-            locale,
-            formatDesktopSshConnectionError(new Error(english)),
-          ),
+          formatSavedBackendError(locale, formatDesktopSshConnectionError(new Error(english))),
         ).toBe(english);
       }
     }
@@ -419,18 +377,15 @@ describe("saved backend owned errors", () => {
     } catch (error) {
       emptyHost = error;
     }
-    expect(
-      formatSavedBackendError(
-        "zh-CN",
-        formatDesktopSshConnectionError(emptyHost),
-      ),
-    ).toBe("请输入 SSH 主机或别名。");
+    expect(formatSavedBackendError("zh-CN", formatDesktopSshConnectionError(emptyHost))).toBe(
+      "请输入 SSH 主机或别名。",
+    );
     const forged = Object.assign(new Error("SSH host or alias is required."), {
       code: "sshHost",
     });
-    expect(
-      formatSavedBackendError("zh-CN", savedBackendFailure(forged, "add")),
-    ).toBe(forged.message);
+    expect(formatSavedBackendError("zh-CN", savedBackendFailure(forged, "add"))).toBe(
+      forged.message,
+    );
     expect(
       parseManualDesktopSshTarget({
         host: "devbox",
@@ -454,16 +409,11 @@ describe("saved backend owned errors", () => {
     for (const input of [
       null,
       new Error("  "),
-      new Error(
-        "Error invoking remote method 'desktop:ensure-ssh-environment': SshConnectError: ",
-      ),
+      new Error("Error invoking remote method 'desktop:ensure-ssh-environment': SshConnectError: "),
     ]) {
-      expect(
-        formatSavedBackendError(
-          "zh-CN",
-          formatDesktopSshConnectionError(input),
-        ),
-      ).toBe("连接 SSH 主机失败。");
+      expect(formatSavedBackendError("zh-CN", formatDesktopSshConnectionError(input))).toBe(
+        "连接 SSH 主机失败。",
+      );
     }
     const raw = "literal/$&/{host} 外部";
     expect(
@@ -481,33 +431,16 @@ describe("saved backend owned errors", () => {
 
 it("keeps owned network mutation notices live while leaving raw and empty errors opaque", () => {
   for (const [code, english, chinese] of [
-    [
-      "exposure",
-      "Failed to update network exposure.",
-      "更新网络访问设置失败。",
-    ],
-    [
-      "tailscaleEnable",
-      "Failed to configure Tailscale HTTPS.",
-      "配置 Tailscale HTTPS 失败。",
-    ],
-    [
-      "tailscaleDisable",
-      "Failed to disable Tailscale HTTPS.",
-      "停用 Tailscale HTTPS 失败。",
-    ],
+    ["exposure", "Failed to update network exposure.", "更新网络访问设置失败。"],
+    ["tailscaleEnable", "Failed to configure Tailscale HTTPS.", "配置 Tailscale HTTPS 失败。"],
+    ["tailscaleDisable", "Failed to disable Tailscale HTTPS.", "停用 Tailscale HTTPS 失败。"],
   ] as const) {
     const owned = networkMutationFailure(null, code);
     for (const locale of ["en", "zh-CN", "en"] as const) {
-      expect(formatNetworkMutationError(locale, owned)).toBe(
-        locale === "en" ? english : chinese,
-      );
+      expect(formatNetworkMutationError(locale, owned)).toBe(locale === "en" ? english : chinese);
       for (const raw of [english, "", "opaque/$&/{host}"])
         expect(
-          formatNetworkMutationError(
-            locale,
-            networkMutationFailure(new Error(raw), code),
-          ),
+          formatNetworkMutationError(locale, networkMutationFailure(new Error(raw), code)),
         ).toBe(raw);
     }
   }
@@ -521,16 +454,11 @@ it("retains owned revocation identities and exact raw or empty failures", () => 
   ] as const) {
     const owned = accessMutationFailure(null, code);
     for (const locale of ["en", "zh-CN", "en"] as const) {
-      expect(formatAccessMutationError(locale, owned)).toBe(
-        locale === "en" ? english : chinese,
-      );
+      expect(formatAccessMutationError(locale, owned)).toBe(locale === "en" ? english : chinese);
       for (const raw of [english, "", "literal/$&/{client}"])
-        expect(
-          formatAccessMutationError(
-            locale,
-            accessMutationFailure(new Error(raw), code),
-          ),
-        ).toBe(raw);
+        expect(formatAccessMutationError(locale, accessMutationFailure(new Error(raw), code))).toBe(
+          raw,
+        );
     }
   }
 });
@@ -541,20 +469,12 @@ it("keeps only generated WSL failures owned across locale changes", () => {
     expect(formatWslMutationError(locale, owned)).toBe(
       locale === "en" ? "Failed to update WSL backend." : "更新 WSL 后端失败。",
     );
-    for (const raw of [
-      "Failed to update WSL backend.",
-      "",
-      "literal/$&/{distro}",
-    ])
-      expect(
-        formatWslMutationError(locale, wslMutationFailure(new Error(raw))),
-      ).toBe(raw);
+    for (const raw of ["Failed to update WSL backend.", "", "literal/$&/{distro}"])
+      expect(formatWslMutationError(locale, wslMutationFailure(new Error(raw)))).toBe(raw);
   }
 });
 describe("isServerNetworkAccessible", () => {
-  const served = [
-    { kind: "tailnet", httpBaseUrl: "https://host.example.ts.net:8443/" },
-  ] as const;
+  const served = [{ kind: "tailnet", httpBaseUrl: "https://host.example.ts.net:8443/" }] as const;
   it.each([
     {
       authPolicy: "remote-reachable",

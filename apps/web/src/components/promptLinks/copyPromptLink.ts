@@ -14,10 +14,7 @@ import {
   type PromptLinkRepository,
 } from "@t3tools/shared/promptLinks";
 
-import {
-  type ComposerThreadTarget,
-  useComposerDraftStore,
-} from "~/composerDraftStore";
+import { type ComposerThreadTarget, useComposerDraftStore } from "~/composerDraftStore";
 import { writeTextToClipboard } from "~/hooks/useCopyToClipboard";
 import { configuredHostedAppUrl } from "~/hostedPairing";
 import { draftModelSelectionApplies } from "~/lib/chatThreadActions";
@@ -34,8 +31,7 @@ export function promptLinkFor(
   },
 ): string | null {
   const trimmed = isAttachmentOnlyBootstrapPrompt(prompt) ? "" : prompt.trim();
-  if (trimmed.length === 0 || trimmed.length > PROMPT_LINK_MAX_PROMPT_LENGTH)
-    return null;
+  if (trimmed.length === 0 || trimmed.length > PROMPT_LINK_MAX_PROMPT_LENGTH) return null;
   return buildNewThreadLink({
     prompt: trimmed,
     ...context,
@@ -66,14 +62,12 @@ export function composerPromptLink(input: {
   if (!draft) return null;
   if (!input.withContext) return promptLinkFor(draft.prompt);
   const selection =
-    (draft.activeProvider &&
-    draftModelSelectionApplies(draft, input.threadStarted)
+    (draft.activeProvider && draftModelSelectionApplies(draft, input.threadStarted)
       ? draft.modelSelectionByProvider[draft.activeProvider]
       : undefined) ?? input.threadModelSelection;
   const provider = selection
-    ? (input.providers.find(
-        (candidate) => candidate.instanceId === selection.instanceId,
-      )?.driver ?? null)
+    ? (input.providers.find((candidate) => candidate.instanceId === selection.instanceId)?.driver ??
+      null)
     : null;
   return promptLinkFor(draft.prompt, {
     repository: promptLinkRepositoryOf(input.project),
@@ -92,9 +86,7 @@ export async function copyPromptLink(link: string): Promise<void> {
         type: "error",
         title: translateWebSource(locale, "Could not copy the prompt link"),
         description:
-          error instanceof Error
-            ? error.message
-            : translateWebSource(locale, "An error occurred."),
+          error instanceof Error ? error.message : translateWebSource(locale, "An error occurred."),
       }),
     );
   }

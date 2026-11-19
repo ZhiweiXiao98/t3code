@@ -10,12 +10,7 @@ import {
   type UsageProviderKind,
   type UsageSummaryInput,
 } from "@t3tools/contracts";
-import {
-  CircleAlertIcon,
-  ChevronDownIcon,
-  InfoIcon,
-  SlidersHorizontalIcon,
-} from "lucide-react";
+import { CircleAlertIcon, ChevronDownIcon, InfoIcon, SlidersHorizontalIcon } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { settlePromise } from "@t3tools/client-runtime/state/runtime";
 import * as AsyncResult from "effect/reactivity/AsyncResult";
@@ -42,10 +37,7 @@ import { usePrimarySettings } from "../../hooks/useSettings";
 import { resolveHour12 } from "../../timestampFormat";
 import { appAtomRegistry } from "~/rpc/atomRegistry";
 import { environmentPresentations } from "../../state/presentation";
-import {
-  primaryServerKeybindingsAtom,
-  serverEnvironment,
-} from "../../state/server";
+import { primaryServerKeybindingsAtom, serverEnvironment } from "../../state/server";
 import { isCommandPaletteOpen } from "../../commandPaletteBus";
 import { isModelPickerOpen } from "../../modelPickerVisibility";
 import { shortcutLabelForCommand } from "../../keybindings";
@@ -76,13 +68,7 @@ import {
   MenuTrigger,
 } from "../ui/menu";
 import { ScrollArea } from "../ui/scroll-area";
-import {
-  Select,
-  SelectItem,
-  SelectPopup,
-  SelectTrigger,
-  SelectValue,
-} from "../ui/select";
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
 import { AppRouteModal, AppRouteModalClose } from "../AppRouteModal";
 import { Skeleton } from "../ui/skeleton";
 import { Toggle, ToggleGroup } from "../ui/toggle-group";
@@ -128,14 +114,11 @@ function isUsageMetric(value: string | null | undefined): value is UsageMetric {
   return METRIC_OPTIONS.some((option) => option.value === value);
 }
 
-function isUsageWindowDays(
-  value: number,
-): value is UsagePagePreferences["windowDays"] {
+function isUsageWindowDays(value: number): value is UsagePagePreferences["windowDays"] {
   return WINDOW_OPTIONS.some((option) => option.days === value);
 }
 
-const providerLabel = (provider: UsageProviderKind) =>
-  PROVIDER_PRESENTATION[provider].label;
+const providerLabel = (provider: UsageProviderKind) => PROVIDER_PRESENTATION[provider].label;
 
 function usageLoading(
   showingKept: boolean,
@@ -151,9 +134,7 @@ function usageLoading(
     };
   }
   const state = usageLoadingState(selectedEnvironments, refreshingUsage);
-  const providers = new Set(
-    [...state.providers].filter((p) => !hiddenProviders.has(p)),
-  );
+  const providers = new Set([...state.providers].filter((p) => !hiddenProviders.has(p)));
   return {
     partial: state.everyProvider || providers.size > 0,
     everyProvider: state.everyProvider,
@@ -175,10 +156,7 @@ function UsageModelDialogHost({
   models,
   onSetPrice,
   ...dialogProps
-}: Omit<
-  Parameters<typeof UsageModelDialog>[0],
-  "model" | "onSetPrice" | "onClose"
-> & {
+}: Omit<Parameters<typeof UsageModelDialog>[0], "model" | "onSetPrice" | "onClose"> & {
   readonly models: MergedUsage["models"];
   readonly onSetPrice: (model: string) => void;
 }) {
@@ -188,10 +166,7 @@ function UsageModelDialogHost({
   const model =
     selectedKey === null
       ? undefined
-      : models.find(
-          (candidate) =>
-            `${candidate.provider}:${candidate.model}` === selectedKey,
-        );
+      : models.find((candidate) => `${candidate.provider}:${candidate.model}` === selectedKey);
   if (model === undefined) return null;
   return (
     <UsageModelDialog
@@ -211,9 +186,7 @@ export function UsagePage() {
   const translate = (source: string) => translateWebSource(locale, source);
   const [preferences, setPreferences] = useState(readUsagePagePreferences);
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
-  const hour12 = usePrimarySettings((settings) =>
-    resolveHour12(settings.timestampFormat),
-  );
+  const hour12 = usePrimarySettings((settings) => resolveHour12(settings.timestampFormat));
   const optionLabel = (
     option: (typeof METRIC_OPTIONS)[number] | (typeof WINDOW_OPTIONS)[number],
   ) =>
@@ -228,9 +201,7 @@ export function UsagePage() {
     const shortcut = shortcutLabelForCommand(keybindings, option.command, {
       context: { usagePageOpen: true },
     });
-    return shortcut
-      ? `${optionLabel(option)} (${shortcut})`
-      : optionLabel(option);
+    return shortcut ? `${optionLabel(option)} (${shortcut})` : optionLabel(option);
   };
   const [windowSelection, setWindowSelection] = useState(() => ({
     days: preferences.windowDays,
@@ -266,9 +237,7 @@ export function UsagePage() {
   const shownHourly = shownWindow.resolution === "hour";
   const refreshingUsage = isRefreshing && !showingLimits;
   const showingKept = shown !== null && shown.window !== window;
-  const presentations = useAtomValue(
-    environmentPresentations.presentationsAtom,
-  );
+  const presentations = useAtomValue(environmentPresentations.presentationsAtom);
   const presentationsWithProviders = useAtomValue(
     environmentPresentations.presentationsWithProvidersAtom,
   );
@@ -302,15 +271,8 @@ export function UsagePage() {
     settlePromise(() =>
       Promise.all(
         Array.from(presentations, ([environmentId, presentation]) => {
-          if (
-            selectedEnvironmentIds !== null &&
-            !selectedEnvironmentIds.has(environmentId)
-          )
-            return;
-          if (
-            presentation.connection.phase === "connected" &&
-            presentation.serverConfig !== null
-          ) {
+          if (selectedEnvironmentIds !== null && !selectedEnvironmentIds.has(environmentId)) return;
+          if (presentation.connection.phase === "connected" && presentation.serverConfig !== null) {
             return refreshUsageLimits(
               environmentId,
               () => refreshProviders({ environmentId, input: {} }),
@@ -334,12 +296,8 @@ export function UsagePage() {
       return;
 
     const command = resolveUsageShortcut(event, keybindings);
-    const metricOption = METRIC_OPTIONS.find(
-      (option) => option.command === command,
-    );
-    const periodOption = WINDOW_OPTIONS.find(
-      (option) => option.command === command,
-    );
+    const metricOption = METRIC_OPTIONS.find((option) => option.command === command);
+    const periodOption = WINDOW_OPTIONS.find((option) => option.command === command);
     if (!metricOption && !periodOption) return;
 
     event.preventDefault();
@@ -351,8 +309,7 @@ export function UsagePage() {
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- window capture keydown listener for usage metric and period shortcuts
   useEffect(() => {
     globalThis.window.addEventListener("keydown", onUsageKeyDown, true);
-    return () =>
-      globalThis.window.removeEventListener("keydown", onUsageKeyDown, true);
+    return () => globalThis.window.removeEventListener("keydown", onUsageKeyDown, true);
   }, []);
 
   const refreshWindow = () => {
@@ -367,11 +324,7 @@ export function UsagePage() {
       });
       return;
     }
-    const nextWindow = makeWindow(
-      windowDays,
-      undefined,
-      isPast24Hours ? "hour" : "day",
-    );
+    const nextWindow = makeWindow(windowDays, undefined, isPast24Hours ? "hour" : "day");
     if (
       nextWindow.sinceDay !== window.sinceDay ||
       nextWindow.untilDay !== window.untilDay ||
@@ -392,8 +345,7 @@ export function UsagePage() {
       ([environmentId, presentation]) =>
         presentation.connection.phase === "connected" &&
         presentation.serverConfig !== null &&
-        (selectedEnvironmentIds === null ||
-          selectedEnvironmentIds.has(environmentId)),
+        (selectedEnvironmentIds === null || selectedEnvironmentIds.has(environmentId)),
     )
     .map(([environmentId]) => environmentId)
     .sort()
@@ -420,17 +372,12 @@ export function UsagePage() {
     );
 
   const windowLabel =
-    shownHourly &&
-    shownWindow.sinceTime !== undefined &&
-    shownWindow.untilTime !== undefined
+    shownHourly && shownWindow.sinceTime !== undefined && shownWindow.untilTime !== undefined
       ? `${formatDateTimeShort(shownWindow.sinceTime, shownWindow.timeZone, hour12, locale)} ${t("usage.range.separator")} ${formatDateTimeShort(shownWindow.untilTime, shownWindow.timeZone, hour12, locale)}`
       : `${formatDayShort(shownWindow.sinceDay, locale)} ${t("usage.range.separator")} ${formatDayShort(shownWindow.untilDay, locale)}`;
   const topbarContent = (
     <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 py-2 @4xl/usage-header:flex">
-      <WorkspaceBreadcrumb
-        ariaLabel={t("usage.breadcrumb")}
-        className="min-w-0"
-      >
+      <WorkspaceBreadcrumb ariaLabel={t("usage.breadcrumb")} className="min-w-0">
         <WorkspaceBreadcrumbItem>
           <h1>{t("usage.title")}</h1>
         </WorkspaceBreadcrumbItem>
@@ -476,11 +423,7 @@ export function UsagePage() {
             }}
           >
             {WINDOW_OPTIONS.map((option) => (
-              <Toggle
-                key={option.days}
-                value={String(option.days)}
-                title={shortcutTitle(option)}
-              >
+              <Toggle key={option.days} value={String(option.days)} title={shortcutTitle(option)}>
                 {optionLabel(option)}
               </Toggle>
             ))}
@@ -496,20 +439,14 @@ export function UsagePage() {
           }}
         >
           {METRIC_OPTIONS.map((option) => (
-            <Toggle
-              key={option.value}
-              value={option.value}
-              title={shortcutTitle(option)}
-            >
+            <Toggle key={option.value} value={option.value} title={shortcutTitle(option)}>
               {optionLabel(option)}
             </Toggle>
           ))}
         </ToggleGroup>
         <Button
           onClick={refreshWindow}
-          aria-label={t(
-            showingLimits ? "usage.limits.refresh" : "usage.refresh",
-          )}
+          aria-label={t(showingLimits ? "usage.limits.refresh" : "usage.refresh")}
           aria-busy={isRefreshing}
           disabled={isRefreshing || (!showingLimits && !canReadDiagnostics)}
           size="icon-sm"
@@ -520,10 +457,7 @@ export function UsagePage() {
       </div>
       <div className="ms-auto flex shrink-0 items-center justify-end gap-1 @4xl/usage-header:hidden">
         {showingLimits ? null : (
-          <Select
-            value={String(windowDays)}
-            onValueChange={(value) => selectWindow(Number(value))}
-          >
+          <Select value={String(windowDays)} onValueChange={(value) => selectWindow(Number(value))}>
             <SelectTrigger
               aria-label={translate("Usage period")}
               size="compact"
@@ -565,11 +499,7 @@ export function UsagePage() {
           </SelectTrigger>
           <SelectPopup align="end" alignItemWithTrigger={false}>
             {METRIC_OPTIONS.map((option) => (
-              <SelectItem
-                key={option.value}
-                value={option.value}
-                title={shortcutTitle(option)}
-              >
+              <SelectItem key={option.value} value={option.value} title={shortcutTitle(option)}>
                 {optionLabel(option)}
               </SelectItem>
             ))}
@@ -577,9 +507,7 @@ export function UsagePage() {
         </Select>
         <Button
           onClick={refreshWindow}
-          aria-label={t(
-            showingLimits ? "usage.limits.refresh" : "usage.refresh",
-          )}
+          aria-label={t(showingLimits ? "usage.limits.refresh" : "usage.refresh")}
           aria-busy={isRefreshing}
           disabled={isRefreshing || (!showingLimits && !canReadDiagnostics)}
           size="icon-sm"
@@ -604,16 +532,8 @@ export function UsagePage() {
             {selectedEnvironments.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 {environments.length === 0
-                  ? t(
-                      showingLimits
-                        ? "audit11.connectLimits"
-                        : "audit11.connectUsage",
-                    )
-                  : t(
-                      showingLimits
-                        ? "audit11.selectLimits"
-                        : "audit11.selectUsage",
-                    )}
+                  ? t(showingLimits ? "audit11.connectLimits" : "audit11.connectUsage")
+                  : t(showingLimits ? "audit11.selectLimits" : "audit11.selectUsage")}
               </p>
             ) : showingLimits ? (
               <UsageLimitsSection
@@ -627,9 +547,7 @@ export function UsagePage() {
               <div className="space-y-2 py-12 text-center text-sm text-muted-foreground">
                 {selectedEnvironments.map((environment) => (
                   <p key={environment.environmentId}>
-                    {selectedEnvironments.length > 1
-                      ? `${environment.label}: `
-                      : null}
+                    {selectedEnvironments.length > 1 ? `${environment.label}: ` : null}
                     {localizeUsageError(locale, environment.error)}
                   </p>
                 ))}
@@ -713,26 +631,18 @@ function UsageOverview({
   const { locale: uiLocale, t } = useI18n();
   const [breakdown, setBreakdown] = useState<"model" | "time">("model");
   const shownHourly = shownWindow.resolution === "hour";
-  const loading = usageLoading(
-    showingKept,
-    selectedEnvironments,
-    refreshingUsage,
-    hiddenProviders,
-  );
+  const loading = usageLoading(showingKept, selectedEnvironments, refreshingUsage, hiddenProviders);
   // Copy the primitive; JSX reads of loading.partial would merge all derivations into one compiler cache
   // scope.
   const loadingPartial = loading.partial === true;
   const loadingProviders = new Set(
-    PROVIDER_ORDER.filter(
-      (provider) => loading.everyProvider || loading.providers.has(provider),
-    ),
+    PROVIDER_ORDER.filter((provider) => loading.everyProvider || loading.providers.has(provider)),
   );
   const providersWithData = new Set(providersWithUsage(merged.providers));
   // Only loading.providers excludes hidden providers without data. Filter a fresh array so the compiler can
   // cache independently.
   const activeProviders = [...PROVIDER_ORDER].filter(
-    (provider) =>
-      providersWithData.has(provider) || loading.providers.has(provider),
+    (provider) => providersWithData.has(provider) || loading.providers.has(provider),
   );
   const chartLoadingProviders = new Set(
     activeProviders.filter((provider) => loadingProviders.has(provider)),
@@ -754,15 +664,10 @@ function UsageOverview({
       ? sortModelsByTokens(merged.models)
       : merged.models;
   const breakdownPeak = breakdownModels.reduce(
-    (peak, model) =>
-      Math.max(peak, metric === "tokens" ? model.totalTokens : model.costUsd),
+    (peak, model) => Math.max(peak, metric === "tokens" ? model.totalTokens : model.costUsd),
     0,
   );
-  const rankedProviders = rankProvidersByMetric(
-    activeProviders,
-    merged.providers,
-    metric,
-  );
+  const rankedProviders = rankProvidersByMetric(activeProviders, merged.providers, metric);
 
   return (
     <div aria-busy={loadingPartial} className="flex flex-col gap-6">
@@ -780,28 +685,21 @@ function UsageOverview({
                 figureClass(loadingPartial),
               )}
             >
-              {metric === "cost"
-                ? formatUsd(merged.costUsd)
-                : formatTokens(merged.totalTokens)}
+              {metric === "cost" ? formatUsd(merged.costUsd) : formatTokens(merged.totalTokens)}
             </p>
             <p className="inline-flex items-center gap-1 text-xs text-muted-foreground">
               <span>
                 <span className={figureClass(loadingPartial)}>
-                  {formatCount(merged.sessions)}{" "}
-                  {translateWebSource(uiLocale, "sessions")}
+                  {formatCount(merged.sessions)} {translateWebSource(uiLocale, "sessions")}
                 </span>
-                {metric === "cost" &&
-                  ` · ${translateWebSource(uiLocale, "API estimate")}`}
+                {metric === "cost" && ` · ${translateWebSource(uiLocale, "API estimate")}`}
               </span>
               {metric === "cost" && merged.costQuality.unpricedShare > 0 && (
                 <Popover>
                   <PopoverTrigger
                     openOnHover
                     render={<InlineButton tone="muted" />}
-                    aria-label={translateWebSource(
-                      uiLocale,
-                      "Unpriced usage details",
-                    )}
+                    aria-label={translateWebSource(uiLocale, "Unpriced usage details")}
                   >
                     <InfoIcon className="size-3" aria-hidden />
                   </PopoverTrigger>
@@ -817,31 +715,20 @@ function UsageOverview({
 
           {showChatGptSharing ? (
             <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-              <span>
-                {translateWebSource(uiLocale, "ChatGPT shared usage")}
-              </span>
+              <span>{translateWebSource(uiLocale, "ChatGPT shared usage")}</span>
               <ChatGptUsageButton size="xs" />
             </div>
           ) : null}
 
           {rankedProviders.map((provider) => {
-            const totals = merged.providers.find(
-              (entry) => entry.provider === provider,
-            );
-            const share =
-              metric === "cost"
-                ? (totals?.costShare ?? 0)
-                : (totals?.tokenShare ?? 0);
+            const totals = merged.providers.find((entry) => entry.provider === provider);
+            const share = metric === "cost" ? (totals?.costShare ?? 0) : (totals?.tokenShare ?? 0);
             const providerSessions = totals?.sessions ?? 0;
-            const sessionLabel = t(
-              providerSessions === 1 ? "usage.session" : "usage.sessions",
-              {
-                count: formatCount(providerSessions),
-              },
-            );
+            const sessionLabel = t(providerSessions === 1 ? "usage.session" : "usage.sessions", {
+              count: formatCount(providerSessions),
+            });
             const providerLoading = loadingProviders.has(provider);
-            const awaitingData =
-              providerLoading && !providersWithData.has(provider);
+            const awaitingData = providerLoading && !providersWithData.has(provider);
             return (
               <div key={provider} className="flex flex-col gap-1">
                 <dl className="flex items-baseline justify-between gap-4">
@@ -855,9 +742,7 @@ function UsageOverview({
                     />
                     <ProviderMark provider={provider} className="size-4" />
                     <span className="flex min-w-0 items-baseline gap-1.5">
-                      <span className="truncate">
-                        {PROVIDER_PRESENTATION[provider].label}
-                      </span>
+                      <span className="truncate">{PROVIDER_PRESENTATION[provider].label}</span>
                       <span
                         className={cn(
                           "shrink-0 whitespace-nowrap text-2xs text-muted-foreground tabular-nums",
@@ -933,9 +818,7 @@ function UsageOverview({
       </section>
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-sm font-medium text-foreground">
-          {t("usage.totals")}
-        </h2>
+        <h2 className="text-sm font-medium text-foreground">{t("usage.totals")}</h2>
         <dl className="grid grid-cols-2 gap-x-6 gap-y-4 py-1 md:grid-cols-5">
           <Metric
             loading={loadingPartial}
@@ -967,10 +850,7 @@ function UsageOverview({
 
       {merged.totalTokens > 0 ? (
         <section
-          className={cn(
-            "grid gap-x-12 gap-y-8 lg:grid-cols-2",
-            figureClass(loadingPartial),
-          )}
+          className={cn("grid gap-x-12 gap-y-8 lg:grid-cols-2", figureClass(loadingPartial))}
         >
           {metric === "tokens" ? (
             <UsageShareBar
@@ -1000,9 +880,7 @@ function UsageOverview({
 
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-medium text-foreground">
-            {t("usage.breakdown")}
-          </h2>
+          <h2 className="text-sm font-medium text-foreground">{t("usage.breakdown")}</h2>
           <ToggleGroup
             aria-label={t("usage.breakdown.label")}
             variant="segmented"
@@ -1017,9 +895,7 @@ function UsageOverview({
                 { value: "model", label: t("usage.breakdown.model") },
                 {
                   value: "time",
-                  label: t(
-                    shownHourly ? "usage.period.hour" : "usage.period.day",
-                  ),
+                  label: t(shownHourly ? "usage.period.hour" : "usage.period.day"),
                 },
               ] as const
             ).map((option) => (
@@ -1035,51 +911,34 @@ function UsageOverview({
             <thead>
               <tr className="border-b border-border text-right text-xs text-muted-foreground">
                 <th className="py-2 pr-3 pl-2 text-left font-normal">#</th>
-                <th className="w-full py-2 text-left font-normal">
-                  {t("usage.breakdown.model")}
-                </th>
-                <th className="py-2 pl-6 font-normal">
-                  {t("usage.breakdown.cost")}
-                </th>
+                <th className="w-full py-2 text-left font-normal">{t("usage.breakdown.model")}</th>
+                <th className="py-2 pl-6 font-normal">{t("usage.breakdown.cost")}</th>
                 <th className="hidden py-2 pl-6 font-normal sm:table-cell">
                   {t("usage.breakdown.share")}
                 </th>
-                <th className="py-2 pr-2 pl-6 font-normal">
-                  {t("usage.breakdown.tokens")}
-                </th>
+                <th className="py-2 pr-2 pl-6 font-normal">{t("usage.breakdown.tokens")}</th>
               </tr>
             </thead>
             <tbody>
               {breakdownModels.length === 0 ? (
                 <tr>
-                  <td
-                    colSpan={5}
-                    className="py-6 text-center text-muted-foreground"
-                  >
+                  <td colSpan={5} className="py-6 text-center text-muted-foreground">
                     {t("usage.noActivity")}
                   </td>
                 </tr>
               ) : (
                 breakdownModels.map((model, index) => {
                   const key = `${model.provider}:${model.model}`;
-                  const value =
-                    metric === "tokens" ? model.totalTokens : model.costUsd;
+                  const value = metric === "tokens" ? model.totalTokens : model.costUsd;
                   const hasBar = value > 0 && breakdownPeak > 0;
-                  const share = modelShare(
-                    model,
-                    metric === "tokens" ? "tokens" : "cost",
-                  );
-                  const rowFigures = figureClass(
-                    loadingProviders.has(model.provider),
-                  );
+                  const share = modelShare(model, metric === "tokens" ? "tokens" : "cost");
+                  const rowFigures = figureClass(loadingProviders.has(model.provider));
                   return (
                     <tr
                       key={key}
                       className="relative border-b border-border/50 text-right whitespace-nowrap text-muted-foreground tabular-nums transition-colors hover:bg-muted/50 has-focus-visible:bg-muted/50"
                     >
-                      <td className="py-2.5 pr-3 pl-2 text-left text-xs">
-                        {index + 1}
-                      </td>
+                      <td className="py-2.5 pr-3 pl-2 text-left text-xs">{index + 1}</td>
                       <td className="py-2.5 text-left whitespace-normal">
                         <button
                           type="button"
@@ -1089,34 +948,22 @@ function UsageOverview({
                             !hasBar && "py-1",
                           )}
                         >
-                          <ProviderMark
-                            provider={model.provider}
-                            className="size-3.5"
-                          />
+                          <ProviderMark provider={model.provider} className="size-3.5" />
                           {model.model}
                         </button>
                         {hasBar ? (
-                          <div
-                            aria-hidden
-                            className={cn("mt-1.5 h-0.5 max-w-48", rowFigures)}
-                          >
+                          <div aria-hidden className={cn("mt-1.5 h-0.5 max-w-48", rowFigures)}>
                             <div
                               className="h-full rounded-full"
                               style={{
                                 width: `max(0.5rem, ${(value / breakdownPeak) * 100}%)`,
-                                backgroundColor:
-                                  PROVIDER_PRESENTATION[model.provider].color,
+                                backgroundColor: PROVIDER_PRESENTATION[model.provider].color,
                               }}
                             />
                           </div>
                         ) : null}
                       </td>
-                      <td
-                        className={cn(
-                          "py-2.5 pl-6 text-foreground",
-                          rowFigures,
-                        )}
-                      >
+                      <td className={cn("py-2.5 pl-6 text-foreground", rowFigures)}>
                         {isModelCostUnknown(model) ? (
                           <span className="text-muted-foreground">
                             {translateWebSource(uiLocale, "Unpriced")}
@@ -1125,12 +972,7 @@ function UsageOverview({
                           formatUsd(model.costUsd)
                         )}
                       </td>
-                      <td
-                        className={cn(
-                          "hidden py-2.5 pl-6 sm:table-cell",
-                          rowFigures,
-                        )}
-                      >
+                      <td className={cn("hidden py-2.5 pl-6 sm:table-cell", rowFigures)}>
                         {share === null ? "" : formatPercent(share)}
                       </td>
                       <td className={cn("py-2.5 pr-2 pl-6", rowFigures)}>
@@ -1159,10 +1001,7 @@ function UsageOverview({
                     {t(shownHourly ? "usage.period.hour" : "usage.period.day")}
                   </th>
                   {activeProviders.map((provider) => (
-                    <th
-                      key={provider}
-                      className="py-2 pl-4 text-right font-normal"
-                    >
+                    <th key={provider} className="py-2 pl-4 text-right font-normal">
                       {PROVIDER_PRESENTATION[provider].label}
                     </th>
                   ))}
@@ -1187,9 +1026,7 @@ function UsageOverview({
                 ) : (
                   breakdownPeriods.map((period) => (
                     <tr
-                      key={
-                        "hourStart" in period ? period.hourStart : period.day
-                      }
+                      key={"hourStart" in period ? period.hourStart : period.day}
                       className="border-b border-border/50 transition-colors hover:bg-muted/50"
                     >
                       <td className="py-2 pl-2 text-foreground">
@@ -1210,9 +1047,7 @@ function UsageOverview({
                             figureClass(loadingProviders.has(provider)),
                           )}
                         >
-                          {formatUsd(
-                            period.byProvider.get(provider)?.costUsd ?? 0,
-                          )}
+                          {formatUsd(period.byProvider.get(provider)?.costUsd ?? 0)}
                         </td>
                       ))}
                       <td
@@ -1277,10 +1112,7 @@ function Metric({
     <div className="flex min-w-0 flex-col gap-0.5">
       <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd
-        className={cn(
-          "text-base font-medium text-foreground tabular-nums",
-          figureClass(loading),
-        )}
+        className={cn("text-base font-medium text-foreground tabular-nums", figureClass(loading))}
       >
         {value}
       </dd>
@@ -1298,9 +1130,7 @@ function UsageCoverageNotice({
   readonly contractMismatches: MergedUsage["contractMismatches"];
 }) {
   const { locale, t } = useI18n();
-  const failed = environments.filter(
-    (environment) => environment.error !== null,
-  );
+  const failed = environments.filter((environment) => environment.error !== null);
   const mismatchByEnvironment = new Map(
     contractMismatches.map((mismatch) => [mismatch.environmentId, mismatch]),
   );
@@ -1308,11 +1138,7 @@ function UsageCoverageNotice({
     const mismatch = mismatchByEnvironment.get(environment.environmentId);
     return mismatch === undefined ? [] : [{ environment, mismatch }];
   });
-  if (
-    failed.length === 0 &&
-    incompatible.length === 0 &&
-    duplicateSources.length === 0
-  ) {
+  if (failed.length === 0 && incompatible.length === 0 && duplicateSources.length === 0) {
     return null;
   }
 
@@ -1382,10 +1208,7 @@ function UsageEnvironmentFilter({
 
   return (
     <Menu>
-      <MenuTrigger
-        render={<InlineButton />}
-        className="group/usage-environment min-w-0 max-w-full"
-      >
+      <MenuTrigger render={<InlineButton />} className="group/usage-environment min-w-0 max-w-full">
         <WorkspaceBreadcrumbText>{label}</WorkspaceBreadcrumbText>
         <span className="flex size-3.5 shrink-0 items-center justify-center text-muted-foreground">
           {showUsageStatus && hasIssue ? (
@@ -1405,9 +1228,7 @@ function UsageEnvironmentFilter({
         <MenuCheckboxItem
           checked={allSelected}
           closeOnClick={false}
-          onCheckedChange={(checked) =>
-            onSelectionChange(checked ? null : new Set())
-          }
+          onCheckedChange={(checked) => onSelectionChange(checked ? null : new Set())}
         >
           {translate("All environments")}
         </MenuCheckboxItem>
@@ -1435,10 +1256,7 @@ function UsageEnvironmentFilter({
                       : progress.phase === "partway"
                         ? locale === "zh-CN"
                           ? `正在更新 ${progress.providers.map(providerLabel).join("、")}…`
-                          : updatingProvidersLabel(
-                              progress.providers,
-                              providerLabel,
-                            )
+                          : updatingProvidersLabel(progress.providers, providerLabel)
                         : translate("Ready");
           return (
             <MenuCheckboxItem
@@ -1446,20 +1264,14 @@ function UsageEnvironmentFilter({
               checked={checked}
               closeOnClick={false}
               onCheckedChange={(nextChecked) => {
-                const next = new Set(
-                  selectedEnvironments.map((entry) => entry.environmentId),
-                );
+                const next = new Set(selectedEnvironments.map((entry) => entry.environmentId));
                 if (nextChecked) next.add(environment.environmentId);
                 else next.delete(environment.environmentId);
-                onSelectionChange(
-                  next.size === environments.length ? null : next,
-                );
+                onSelectionChange(next.size === environments.length ? null : next);
               }}
             >
               <span className="flex min-w-0 items-center gap-3">
-                <span className="min-w-0 flex-1 truncate">
-                  {environment.label}
-                </span>
+                <span className="min-w-0 flex-1 truncate">{environment.label}</span>
                 {showUsageStatus ? (
                   <span
                     className={cn(
@@ -1510,9 +1322,7 @@ function UsageProviderFilter({
 }) {
   const { locale } = useI18n();
   const translate = (source: string) => translateWebSource(locale, source);
-  const visible = PROVIDER_ORDER.filter(
-    (provider) => !hiddenProviders.has(provider),
-  );
+  const visible = PROVIDER_ORDER.filter((provider) => !hiddenProviders.has(provider));
   const label =
     visible.length === PROVIDER_ORDER.length
       ? translate("All providers")
@@ -1526,10 +1336,7 @@ function UsageProviderFilter({
 
   return (
     <Menu>
-      <MenuTrigger
-        render={<InlineButton />}
-        className="group/usage-provider min-w-0 max-w-full"
-      >
+      <MenuTrigger render={<InlineButton />} className="group/usage-provider min-w-0 max-w-full">
         <span className="min-w-0 truncate">{label}</span>
         <ChevronDownIcon
           className="size-3.5 shrink-0 text-muted-foreground opacity-60 transition-opacity group-hover/usage-provider:opacity-100 group-focus-visible/usage-provider:opacity-100 group-data-popup-open/usage-provider:opacity-100"
@@ -1560,9 +1367,7 @@ function UsageProviderFilter({
           >
             <span className="flex min-w-0 items-center gap-2">
               <ProviderMark provider={provider} className="size-3.5" />
-              <span className="truncate">
-                {PROVIDER_PRESENTATION[provider].label}
-              </span>
+              <span className="truncate">{PROVIDER_PRESENTATION[provider].label}</span>
             </span>
           </MenuCheckboxItem>
         ))}
@@ -1614,9 +1419,7 @@ function UsageSkeleton() {
       </section>
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-sm font-medium text-foreground">
-          {t("usage.totals")}
-        </h2>
+        <h2 className="text-sm font-medium text-foreground">{t("usage.totals")}</h2>
         <MetricSkeletons labels={metricLabels} />
       </section>
 
@@ -1630,9 +1433,7 @@ function UsageSkeleton() {
 
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-medium text-foreground">
-            {t("usage.breakdown")}
-          </h2>
+          <h2 className="text-sm font-medium text-foreground">{t("usage.breakdown")}</h2>
           <Skeleton shape="card" className="h-7 w-28" />
         </div>
         <Skeleton className="h-44" />

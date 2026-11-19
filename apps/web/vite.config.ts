@@ -6,10 +6,7 @@ import react from "@vitejs/plugin-react";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import compression from "compression";
 import { playwright } from "vite-plus/test/browser-playwright";
-import {
-  defineProject,
-  type TestProjectInlineConfiguration,
-} from "vite-plus/test/config";
+import { defineProject, type TestProjectInlineConfiguration } from "vite-plus/test/config";
 import "vite-plus/test/config";
 import { defineConfig, type Connect, type Plugin } from "vite-plus";
 import * as Hash from "effect/Hash";
@@ -28,10 +25,7 @@ import { tailwindPlugins } from "./vite/tailwind";
 import { warmBundledDevPlugin } from "./vite/warmBundledDev";
 import { orchestratorObservationScripts } from "./vite/orchestratorSocket";
 import { observeBrowserLifecycle } from "./vite/browserLifecycle";
-import {
-  formatAppDisplayName,
-  resolveWebAppStageLabel,
-} from "./src/branding.logic";
+import { formatAppDisplayName, resolveWebAppStageLabel } from "./src/branding.logic";
 
 const repoEnv = loadRepoEnv();
 Object.assign(process.env, repoEnv);
@@ -42,46 +36,29 @@ const isSingleOriginDev = process.env.T3CODE_SINGLE_ORIGIN_DEV === "1";
 const port = Number(process.env.PORT ?? 5733);
 const explicitHost = process.env.HOST?.trim();
 const host = explicitHost || "localhost";
-const configuredWsUrl = isSingleOriginDev
-  ? undefined
-  : process.env.VITE_WS_URL?.trim();
-const configuredHttpUrl = isSingleOriginDev
-  ? undefined
-  : process.env.VITE_HTTP_URL?.trim();
+const configuredWsUrl = isSingleOriginDev ? undefined : process.env.VITE_WS_URL?.trim();
+const configuredHttpUrl = isSingleOriginDev ? undefined : process.env.VITE_HTTP_URL?.trim();
 const configuredRelayUrl = repoEnv.VITE_T3CODE_RELAY_URL?.trim() || "";
-const configuredClerkPublishableKey =
-  repoEnv.VITE_CLERK_PUBLISHABLE_KEY?.trim() || "";
-const configuredClerkJwtTemplate =
-  repoEnv.VITE_CLERK_JWT_TEMPLATE?.trim() || "";
-const configuredClerkCliOAuthClientId =
-  repoEnv.VITE_CLERK_CLI_OAUTH_CLIENT_ID?.trim() || "";
-const configuredRelayTracingUrl =
-  repoEnv.VITE_RELAY_OTLP_TRACES_URL?.trim() || "";
-const configuredRelayTracingDataset =
-  repoEnv.VITE_RELAY_OTLP_TRACES_DATASET?.trim() || "";
-const configuredRelayTracingToken =
-  repoEnv.VITE_RELAY_OTLP_TRACES_TOKEN?.trim() || "";
-const configuredHostedAppChannel =
-  process.env.VITE_HOSTED_APP_CHANNEL?.trim() || "";
+const configuredClerkPublishableKey = repoEnv.VITE_CLERK_PUBLISHABLE_KEY?.trim() || "";
+const configuredClerkJwtTemplate = repoEnv.VITE_CLERK_JWT_TEMPLATE?.trim() || "";
+const configuredClerkCliOAuthClientId = repoEnv.VITE_CLERK_CLI_OAUTH_CLIENT_ID?.trim() || "";
+const configuredRelayTracingUrl = repoEnv.VITE_RELAY_OTLP_TRACES_URL?.trim() || "";
+const configuredRelayTracingDataset = repoEnv.VITE_RELAY_OTLP_TRACES_DATASET?.trim() || "";
+const configuredRelayTracingToken = repoEnv.VITE_RELAY_OTLP_TRACES_TOKEN?.trim() || "";
+const configuredHostedAppChannel = process.env.VITE_HOSTED_APP_CHANNEL?.trim() || "";
 const configuredReleaseChannel =
-  process.env.T3CODE_BUILT_DEV === "1"
-    ? "dev"
-    : process.env.VITE_RELEASE_CHANNEL?.trim() || "";
+  process.env.T3CODE_BUILT_DEV === "1" ? "dev" : process.env.VITE_RELEASE_CHANNEL?.trim() || "";
 const configuredDesktopUpdateRepository =
   process.env.T3CODE_DESKTOP_UPDATE_REPOSITORY?.trim() ||
   process.env.GITHUB_REPOSITORY?.trim() ||
   "";
-const configuredFeatureSecrets =
-  process.env.T3CODE_FEATURE_SECRETS?.trim() || "";
+const configuredFeatureSecrets = process.env.T3CODE_FEATURE_SECRETS?.trim() || "";
 const configuredHostedAppUrl = (() => {
   const explicitHostedAppUrl = process.env.VITE_HOSTED_APP_URL?.trim();
   if (explicitHostedAppUrl) {
     return explicitHostedAppUrl;
   }
-  if (
-    process.env.VERCEL_ENV === "production" &&
-    process.env.VERCEL_PROJECT_PRODUCTION_URL
-  ) {
+  if (process.env.VERCEL_ENV === "production" && process.env.VERCEL_PROJECT_PRODUCTION_URL) {
     return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
   }
   if (process.env.VERCEL_URL) {
@@ -127,8 +104,7 @@ const unitTestProject = {
 
 // Hash checkout paths to ports 20000-23999; Vitest's fixed port collides under inherited strictPort.
 // Stay below ephemeral ranges: Windows reserves Hyper-V/WSL blocks there and EACCES is not skipped.
-const browserTestApiPort =
-  20_000 + ((Hash.string(import.meta.dirname) >>> 0) % 4_000);
+const browserTestApiPort = 20_000 + ((Hash.string(import.meta.dirname) >>> 0) % 4_000);
 
 const browserTestProject = {
   extends: true,
@@ -194,10 +170,7 @@ const renderScenariosProject = {
     // App scenarios mount the whole app per test, which outlasts 15s on a loaded machine.
     hookTimeout: 60_000,
     testTimeout: 60_000,
-    setupFiles: [
-      "./test/renderCounter.ts",
-      ...browserTestProject.test.setupFiles,
-    ],
+    setupFiles: ["./test/renderCounter.ts", ...browserTestProject.test.setupFiles],
     browser: {
       ...browserTestProject.test.browser,
       // Vitest names each instance in place, so a shared array would clash with the browser project.
@@ -206,8 +179,7 @@ const renderScenariosProject = {
         ...browserTestProject.test.browser.commands,
         writeRenderReport: async (_context, scenario: string, json: string) => {
           const directory = process.env.T3CODE_RENDER_REPORT_DIR;
-          if (!directory)
-            throw new Error("T3CODE_RENDER_REPORT_DIR is not set");
+          if (!directory) throw new Error("T3CODE_RENDER_REPORT_DIR is not set");
           await NodeFSP.writeFile(`${directory}/${scenario}.json`, json);
         },
       },
@@ -245,10 +217,7 @@ function resolveDevProxyTarget(
   }
 }
 
-const devProxyTarget = resolveDevProxyTarget(
-  process.env.T3CODE_PORT,
-  configuredWsUrl,
-);
+const devProxyTarget = resolveDevProxyTarget(process.env.T3CODE_PORT, configuredWsUrl);
 
 // Brotli quality 5 encodes in hundreds of ms; default quality 11 would replace transfer stalls with encode stalls.
 function devCompressionPlugin(): Plugin {
@@ -277,14 +246,11 @@ function chunkCycleGuardPlugin(): Plugin {
         if (done.has(fileName)) return;
         const start = path.indexOf(fileName);
         if (start !== -1) {
-          this.error(
-            `Chunk import cycle: ${[...path.slice(start), fileName].join(" -> ")}`,
-          );
+          this.error(`Chunk import cycle: ${[...path.slice(start), fileName].join(" -> ")}`);
         }
         const chunk = bundle[fileName];
         if (chunk?.type !== "chunk") return;
-        for (const imported of chunk.imports)
-          visit(imported, [...path, fileName]);
+        for (const imported of chunk.imports) visit(imported, [...path, fileName]);
         done.add(fileName);
       };
       for (const fileName of Object.keys(bundle)) visit(fileName, []);
@@ -362,10 +328,7 @@ export default defineConfig(({ command }) => {
         ? undefined
         : thirdPartyLicensesPlugin({
             bundleName: "web",
-            configFile: new URL(
-              "../../third-party-licenses.config.json",
-              import.meta.url,
-            ),
+            configFile: new URL("../../third-party-licenses.config.json", import.meta.url),
             packageManifests: [
               {
                 bundle: "web",
@@ -404,41 +367,24 @@ export default defineConfig(({ command }) => {
       "import.meta.env.VITE_WS_URL": JSON.stringify(configuredWsUrl ?? ""),
       // Override .env URLs with empty values in single-origin dev so clients use window.location.origin.
       "import.meta.env.VITE_HTTP_URL": JSON.stringify(configuredHttpUrl ?? ""),
-      "import.meta.env.VITE_T3CODE_RELAY_URL":
-        JSON.stringify(configuredRelayUrl),
-      "import.meta.env.VITE_CLERK_PUBLISHABLE_KEY": JSON.stringify(
-        configuredClerkPublishableKey,
-      ),
-      "import.meta.env.VITE_CLERK_JWT_TEMPLATE": JSON.stringify(
-        configuredClerkJwtTemplate,
-      ),
+      "import.meta.env.VITE_T3CODE_RELAY_URL": JSON.stringify(configuredRelayUrl),
+      "import.meta.env.VITE_CLERK_PUBLISHABLE_KEY": JSON.stringify(configuredClerkPublishableKey),
+      "import.meta.env.VITE_CLERK_JWT_TEMPLATE": JSON.stringify(configuredClerkJwtTemplate),
       "import.meta.env.VITE_CLERK_CLI_OAUTH_CLIENT_ID": JSON.stringify(
         configuredClerkCliOAuthClientId,
       ),
-      "import.meta.env.VITE_RELAY_OTLP_TRACES_URL": JSON.stringify(
-        configuredRelayTracingUrl,
-      ),
+      "import.meta.env.VITE_RELAY_OTLP_TRACES_URL": JSON.stringify(configuredRelayTracingUrl),
       "import.meta.env.VITE_RELAY_OTLP_TRACES_DATASET": JSON.stringify(
         configuredRelayTracingDataset,
       ),
-      "import.meta.env.VITE_RELAY_OTLP_TRACES_TOKEN": JSON.stringify(
-        configuredRelayTracingToken,
-      ),
-      "import.meta.env.VITE_HOSTED_APP_URL": JSON.stringify(
-        configuredHostedAppUrl ?? "",
-      ),
-      "import.meta.env.VITE_HOSTED_APP_CHANNEL": JSON.stringify(
-        configuredHostedAppChannel,
-      ),
+      "import.meta.env.VITE_RELAY_OTLP_TRACES_TOKEN": JSON.stringify(configuredRelayTracingToken),
+      "import.meta.env.VITE_HOSTED_APP_URL": JSON.stringify(configuredHostedAppUrl ?? ""),
+      "import.meta.env.VITE_HOSTED_APP_CHANNEL": JSON.stringify(configuredHostedAppChannel),
       "import.meta.env.T3CODE_DESKTOP_UPDATE_REPOSITORY": JSON.stringify(
         configuredDesktopUpdateRepository,
       ),
-      "import.meta.env.T3CODE_FEATURE_SECRETS": JSON.stringify(
-        configuredFeatureSecrets,
-      ),
-      "import.meta.env.VITE_RELEASE_CHANNEL": JSON.stringify(
-        configuredReleaseChannel,
-      ),
+      "import.meta.env.T3CODE_FEATURE_SECRETS": JSON.stringify(configuredFeatureSecrets),
+      "import.meta.env.VITE_RELEASE_CHANNEL": JSON.stringify(configuredReleaseChannel),
       "import.meta.env.APP_VERSION": JSON.stringify(configuredAppVersion),
     },
     resolve: {
@@ -467,11 +413,8 @@ export default defineConfig(({ command }) => {
                 prefix,
                 {
                   target: devProxyTarget,
-                  changeOrigin:
-                    !DEV_PROXIED_ORIGIN_PRESERVING_PREFIXES.has(prefix),
-                  ...(prefix === "/ws" || prefix === "/api"
-                    ? { ws: true }
-                    : {}),
+                  changeOrigin: !DEV_PROXIED_ORIGIN_PRESERVING_PREFIXES.has(prefix),
+                  ...(prefix === "/ws" || prefix === "/api" ? { ws: true } : {}),
                 },
               ]),
             ),
@@ -502,9 +445,7 @@ export default defineConfig(({ command }) => {
         output: {
           // PDF.js resolves decoder modules and ICC data relative to wasmUrl.
           assetFileNames: (asset) =>
-            asset.originalFileNames.some((path) =>
-              /[/\\]pdfjs-dist[/\\]wasm[/\\]/.test(path),
-            )
+            asset.originalFileNames.some((path) => /[/\\]pdfjs-dist[/\\]wasm[/\\]/.test(path))
               ? `assets/pdfjs-${pdfjsPkg.version}/[name][extname]`
               : "assets/[name]-[hash][extname]",
         },

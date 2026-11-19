@@ -1,3 +1,4 @@
+import * as NodeChildProcess from "node:child_process";
 import * as NodeCrypto from "node:crypto";
 import * as NodeAssert from "node:assert/strict";
 import * as NodeFS from "node:fs";
@@ -29,7 +30,11 @@ const macProfile =
 if (macProfile) {
   NodeAssert.equal(process.env.GITHUB_ACTIONS, "true");
   NodeAssert.equal(process.env.RUNNER_OS, "macOS");
-  NodeAssert.ok(!NodeFS.existsSync(macProfile), "macOS CI runner profile must start empty");
+  NodeAssert.equal(
+    NodeFS.lstatSync(macProfile, { throwIfNoEntry: false }),
+    undefined,
+    "macOS CI runner profile must start empty",
+  );
 }
 const report = {
   schemaVersion: 2,
@@ -314,20 +319,80 @@ try {
     await page.screenshot({ path: NodePath.join(artifacts, "failure.png") }).catch(() => {});
   process.exitCode = 1;
 } finally {
+  try {
+    const logs = NodePath.join(t3Home, "userdata", "logs");
+    if (NodeFS.existsSync(logs))
+      NodeFS.cpSync(logs, NodePath.join(artifacts, "logs"), { recursive: true });
+    if (app) {
+      const child = app.process();
+      const descendants = new Set();
+      if (macProfile) {
+        const rows = NodeChildProcess.execFileSync("ps", ["-axo", "pid=,ppid="], {
+          encoding: "utf8",
+        })
+          .trim()
+          .split("\n")
+          .map((row) => row.trim().split(/\s+/).map(Number));
+        const parents = new Set([child.pid]);
+        let changed = true;
+        while (changed) {
+          changed = false;
+          for (const [pid, ppid] of rows) {
+            if (parents.has(ppid) && !parents.has(pid)) {
+              parents.add(pid);
+              descendants.add(pid);
+              changed = true;
+            }
+          }
+        }
+      }
+      const kill = setTimeout(() => child.kill("SIGKILL"), 10_000);
+      kill.unref();
+      try {
+        await app.close().catch(() => {
+          if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
+        });
+        if (macProfile) {
+          const deadline = Date.now() + 10_000;
+          const alive = (pid) => {
+            try {
+              process.kill(pid, 0);
+              return true;
+            } catch (error) {
+              if (error.code === "ESRCH") return false;
+              throw error;
+            }
+          };
+          while (
+            (child.exitCode === null && child.signalCode === null) ||
+            [...descendants].some(alive)
+          ) {
+            NodeAssert.ok(Date.now() < deadline, "macOS application processes did not exit");
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          }
+          report.processExited = true;
+          report.profileCleanup = "absent";
+          if (NodeFS.lstatSync(macProfile, { throwIfNoEntry: false })) {
+            NodeAssert.ok(!NodeFS.lstatSync(macProfile).isSymbolicLink());
+            NodeFS.renameSync(macProfile, NodePath.join(home, "retired-macos-profile"));
+            report.profileCleanup = "isolated";
+          }
+          NodeAssert.equal(NodeFS.lstatSync(macProfile, { throwIfNoEntry: false }), undefined);
+        }
+      } finally {
+        clearTimeout(kill);
+      }
+    } else if (macProfile) {
+      throw new Error("Cannot prove macOS process exit without an application handle");
+    }
+  } catch (error) {
+    report.result = "failed";
+    report.cleanupError = String(error);
+    process.exitCode = 1;
+    console.error(error);
+  }
   NodeFS.writeFileSync(
     NodePath.join(artifacts, "clean-first-start.json"),
     JSON.stringify(report, null, 2),
   );
-  const logs = NodePath.join(t3Home, "userdata", "logs");
-  if (NodeFS.existsSync(logs))
-    NodeFS.cpSync(logs, NodePath.join(artifacts, "logs"), { recursive: true });
-  if (app) {
-    const child = app.process();
-    const kill = setTimeout(() => child.kill("SIGKILL"), 10_000);
-    kill.unref();
-    await app.close().catch(() => {
-      if (child.exitCode === null) child.kill("SIGKILL");
-    });
-    clearTimeout(kill);
-  }
 }

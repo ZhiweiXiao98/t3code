@@ -10,28 +10,34 @@
 
 ## 下载中文版
 
-当前桌面版本：**[v0.1.9-zh.1](https://github.com/ZhiweiXiao98/t3code/releases/tag/v0.1.9-zh.1)**，发布于 **2026 年 11 月 12 日**，基于官方稳定版 **v0.1.9**，为正式发布。Android **[0.1.9-zh.1](https://github.com/ZhiweiXiao98/t3code/releases/tag/android-v0.1.9-zh.1)** 已于同日正式发布，面向 ARM64 手机。
+当前桌面版本：**[v0.1.10-zh.1](https://github.com/ZhiweiXiao98/t3code/releases/tag/v0.1.10-zh.1)**，发布于 **2026 年 11 月 18 日**，基于官方稳定版 **v0.1.10**。Android **[0.1.9-zh.1](https://github.com/ZhiweiXiao98/t3code/releases/tag/android-v0.1.9-zh.1)** 仍为独立已发布版本（2026 年 11 月 12 日，ARM64），不是 0.1.10。
 
 | 你的系统                     | 直接下载                                                                                                                                       |
 | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| Windows x64                  | [下载安装程序 .exe](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.9-zh.1/T3-Code-0.1.9-zh.1-x64.exe)                           |
-| Mac：Apple Silicon（M 系列） | [下载 .dmg](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.9-zh.1/T3-Code-0.1.9-zh.1-arm64.dmg)                                 |
-| Mac：Intel                   | [下载 .dmg](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.9-zh.1/T3-Code-0.1.9-zh.1-x64.dmg)                                   |
-| Linux x64：Debian / Ubuntu   | [下载 .deb](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.9-zh.1/T3-Code-0.1.9-zh.1-amd64.deb)                                 |
+| Windows x64                  | [下载安装程序 .exe](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.10-zh.1/T3-Code-0.1.10-zh.1-x64.exe)                           |
+| Mac：Apple Silicon（M 系列） | [下载 .dmg](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.10-zh.1/T3-Code-0.1.10-zh.1-arm64.dmg)                                 |
+| Mac：Intel                   | [下载 .dmg](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.10-zh.1/T3-Code-0.1.10-zh.1-x64.dmg)                                   |
+| Linux x64：Debian / Ubuntu   | [下载 .deb](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.10-zh.1/T3-Code-0.1.10-zh.1-amd64.deb)                                 |
 | Linux x64：AppImage          | 固定禁用发布；请使用上方 .deb。                                                                                                                |
 | Android ARM64                | [下载已签名 .apk](https://github.com/ZhiweiXiao98/t3code/releases/download/android-v0.1.9-zh.1/T3-Code-zh-CN-Android-0.1.9-zh.1-arm64-v8a.apk) |
 
-[桌面文件与发布说明](https://github.com/ZhiweiXiao98/t3code/releases/tag/v0.1.9-zh.1) · [SHA-256 校验值](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.9-zh.1/SHA256SUMS.txt) · [构建来源](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.9-zh.1/BUILD-PROVENANCE.json)
+[桌面文件与发布说明](https://github.com/ZhiweiXiao98/t3code/releases/tag/v0.1.10-zh.1) · [SHA-256 校验值](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.10-zh.1/SHA256SUMS.txt) · [构建来源](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.10-zh.1/BUILD-PROVENANCE.json)
+
+备用 macOS ZIP：[Apple Silicon](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.10-zh.1/T3-Code-0.1.10-zh.1-arm64.zip) · [Intel](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.10-zh.1/T3-Code-0.1.10-zh.1-x64.zip)。
+
+Windows 未做 Authenticode 签名；Mac 仅 ad-hoc 完整性签名，没有 Developer ID 或 Apple 公证，Gatekeeper 可能阻止打开。[ARM 信任报告](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.10-zh.1/MACOS-TRUST-arm64.txt) · [Intel 信任报告](https://github.com/ZhiweiXiao98/t3code/releases/download/v0.1.10-zh.1/MACOS-TRUST-x64.txt)。不要通过关闭系统安全设置或沙箱来绕过限制。
+
+English summary: Desktop **0.1.10-zh.1** is released; Android remains **0.1.9-zh.1**. Use the platform-specific assets above. Back up server userdata before upgrading; older binaries must not open migrated databases. Windows is unsigned, macOS is ad-hoc signed but not notarized. No AppImage or Android 0.1.10 APK is published.
 
 > **安装方式：** 下载对应系统的安装包并安装。当前暂不提供自动更新，请从本仓库下载安装新版本。
 
-**Android 已发布可安装的汉化 APK。** [Android 发布说明](https://github.com/ZhiweiXiao98/t3code/releases/tag/android-v0.1.9-zh.1) · [Android SHA-256 校验值](https://github.com/ZhiweiXiao98/t3code/releases/download/android-v0.1.9-zh.1/SHA256SUMS.txt)。新版沿用已完成云端恢复验证的固定社区签名，**可覆盖安装 `android-v0.1.3-zh.1` 固定签名版**；更早使用其他签名的 APK 不能直接覆盖。需要卸载异签名旧版时，请先保存配置，卸载可能丢失本地数据。已通过云端构建、原生回归及签名验证，未宣称完成实体手机上的人工安装测试。**iOS 仅有[官方原版（未汉化）](https://apps.apple.com/us/app/t3-code-remote-claude-more/id6787819824)**，入口来自[官方下载页](https://t3.codes/download)，不属于本社区安装包，版本号与社区版独立。
+**Android 已发布可安装的汉化 APK。** [Android 发布说明](https://github.com/ZhiweiXiao98/t3code/releases/tag/android-v0.1.9-zh.1) · [Android SHA-256 校验值](https://github.com/ZhiweiXiao98/t3code/releases/download/android-v0.1.9-zh.1/SHA256SUMS.txt)。新版沿用已完成云端恢复验证的固定社区签名，**可覆盖安装 `android-v0.1.3-zh.1` 固定签名版**；更早使用其他签名的 APK 不能直接覆盖。需要卸载异签名旧版时，请先保存配置，卸载可能丢失本地数据。已通过云端构建、原生回归及签名验证，未宣称完成实体手机上的人工安装测试。**iOS 仅有[官方版（语言支持以官方说明为准）](https://apps.apple.com/us/app/t3-code-remote-claude-more/id6787819824)**，入口来自[官方下载页](https://t3.codes/download)，不属于本社区安装包，版本号与社区版独立。
 
 ## 升级前必读
 
-当前 `v0.1.9-zh.1` 桌面社区版已于 2026 年 11 月 12 日正式发布，上游基线为官方稳定版 `v0.1.9`。
+当前 `v0.1.10-zh.1` 桌面社区版已于 2026 年 11 月 18 日正式发布，上游基线为官方稳定版 `v0.1.10`。
 
-- v0.1.9 包含消息搜索索引迁移（081）。升级前请备份数据；如需回退，请使用升级前的备份，不要假定旧版本可安全打开已升级的数据库。
+- 升级包含数据库迁移。请先停止实际运行的服务器并复制整个 `userdata` 目录（默认 `~/.t3/userdata`；自定义 `--base-dir` 或 `T3CODE_HOME` 对应目录下的 `userdata`），包括存在的 SQLite WAL/SHM 文件，远端/WSL 环境需在对应机器中备份。项目代码另行备份。回滚使用升级前备份，不让旧版直接打开升级后的数据库，也不要启动服务器写入唯一备份副本。
 - 请先备份数据。V2 首次启动会复制并导入 V1 数据；两个版本此后的数据不会互相同步。
 - V1 与 V2 的服务器和客户端不能互连，连接的所有机器、桌面端和移动端都需要更新。
 - V1 历史社区 Android APK 不能连接 V2 服务器。新版 Android 汉化 APK 已发布，请从上方入口下载；`android-v0.1.3-zh.1` 固定签名版可直接覆盖升级，更早异签名版本需先保存配置再卸载。
@@ -40,9 +46,11 @@
 
 ### 当前版本的验证范围
 
-桌面与 Android 二进制均来自[源码提交 `042eacb54f19c3bbc452e4ae271794f4c5fc524e`](https://github.com/ZhiweiXiao98/t3code/commit/042eacb54f19c3bbc452e4ae271794f4c5fc524e)。该精确提交的 [22 项构建与质量门禁](https://github.com/ZhiweiXiao98/t3code/actions/runs/43163372855/attempts/1)中，除 AppImage 外的 21 项通过，覆盖完整测试、规范与类型检查、原生检查、各平台构建及本次六个桌面安装包的干净首次启动（空白用户数据、正常沙箱）。另有 139 个 UI 测试文件、1791 项测试和 61 步真实界面场景全部通过；补充覆盖 166 项通过、5 项为已核验的预期条件跳过。桌面产物经校验后原样发布，没有重新构建。
+桌面发布来自[精确源码 `2ed55016b6678ca997f204d9b7af4048ce0307e6`](https://github.com/ZhiweiXiao98/t3code/commit/2ed55016b6678ca997f204d9b7af4048ce0307e6)。[正式候选 44228163780](https://github.com/ZhiweiXiao98/t3code/actions/runs/44228163780) 首次尝试的 25 项门禁全部通过，包括六个桌面安装包分别完成干净首次启动（空白用户数据、正常沙箱；ARM 两格式在独立于构建机的验收 VM 顺序执行并隔离用户数据）；Mac ARM 在 macOS 26、Intel 在 macOS 15、Linux DEB 在 Ubuntu 24.04 验收。[字节审核](https://github.com/ZhiweiXiao98/t3code/actions/runs/44235684068)核对六包哈希后，[发布器](https://github.com/ZhiweiXiao98/t3code/actions/runs/44237587651)原样发布，没有重新构建。文档提交不是二进制来源。云端验收不等于所有系统上的人工安装测试。
 
-**AppImage 固定禁用发布，后续不纳入发布门禁。** 历史 Debian 13 虚拟机验收发生渲染进程崩溃，尚未通过验收；禁用发布不代表问题已修复，也不声称该门禁通过。Linux DEB 在原生 Ubuntu 24.04 验收通过。已知快捷键加号的空白键帽显示问题来自官方 v0.1.9，本次未更改其行为。
+Android 仍单独发布 `0.1.9-zh.1`，源码为 `042eacb54f19c3bbc452e4ae271794f4c5fc524e`；其历史 22 项门禁中 21 项通过、AppImage 失败未发布，不能套用新版桌面的 25 项通过结论。没有发布 Android 0.1.10 APK。
+
+**AppImage 固定禁用发布，后续不纳入发布门禁。** 历史 Debian 13 虚拟机验收发生渲染进程崩溃，尚未通过验收；禁用发布不代表问题已修复，也不声称该门禁通过。Linux DEB 在原生 Ubuntu 24.04 验收通过。
 
 Windows 未做 Authenticode 签名；macOS 已做 ad-hoc 完整性签名并通过严格校验，但没有 Developer ID 商业签名或 Apple 公证。Gatekeeper 仍可能因未公证而阻止打开，这与安装包损坏不同；发布页附有 `MACOS-TRUST-*.txt` 实际信任检查记录。没有关闭沙箱或降低宿主系统安全设置。云端验证不是人工 Finder 操作验收，也不等于所有系统上的人工安装测试；SHA-256 和构建来源记录不等于商业代码签名。
 
@@ -92,8 +100,9 @@ Android 社区安装包固定使用简体中文；桌面版仍可在设置中切
 
 ## 开发状态
 
-- 当前稳定版汉化维护分支及仓库默认分支：[`maintenance/v0.1.9-zh-cloud`](https://github.com/ZhiweiXiao98/t3code/tree/maintenance/v0.1.9-zh-cloud)
-- 当前已发布桌面版：[`v0.1.9-zh.1`](https://github.com/ZhiweiXiao98/t3code/releases/tag/v0.1.9-zh.1)（社区正式发布）
+- 最新已验收桌面源码：[`review/v0.1.10-zh`](https://github.com/ZhiweiXiao98/t3code/tree/review/v0.1.10-zh)，已发布提交 `2ed55016`；[PR #2](https://github.com/ZhiweiXiao98/t3code/pull/2) 仍为草稿、未合并。
+- 正式维护分支为 `maintenance/v0.1.10-zh-cloud`；GitHub 当前默认分支以仓库设置为准，切换前须审查工作流影响。
+- 当前已发布桌面版：[`v0.1.10-zh.1`](https://github.com/ZhiweiXiao98/t3code/releases/tag/v0.1.10-zh.1)（社区正式发布）
 - 上游项目：[pingdotgg/t3code](https://github.com/pingdotgg/t3code)
 - 早期国际化实现记录：[Fork PR #1](https://github.com/ZhiweiXiao98/t3code/pull/1)（不是当前发布版本的完整审查记录）
 - 问题反馈：[Issues](https://github.com/ZhiweiXiao98/t3code/issues)
@@ -102,7 +111,7 @@ Android 社区安装包固定使用简体中文；桌面版仍可在设置中切
 
 ## 从源码运行
 
-请检出上面列出的维护分支，并使用该提交锁定的工具链和依赖。环境要求与命令以仓库配置及[源码开发说明](./docs/internals/overview.md)为准。
+复现已发布桌面源码请检出精确提交 `2ed55016b6678ca997f204d9b7af4048ce0307e6`；后续开发请明确使用正式维护分支 `maintenance/v0.1.10-zh-cloud`，历史验收仍保留在 `review/v0.1.10-zh`。请使用该提交锁定的工具链和依赖。环境要求与命令以仓库配置及[源码开发说明](./docs/internals/overview.md)为准。
 
 官方 `t3.codes` 安装脚本、`npx t3@latest`、Homebrew 和 winget 安装的是官方原版，不是本仓库的汉化安装包；普通使用者请直接使用本页下载表。
 
@@ -110,7 +119,7 @@ Android 社区安装包固定使用简体中文；桌面版仍可在设置中切
 
 欢迎[提交汉化或安装问题](https://github.com/ZhiweiXiao98/t3code/issues/new)，注明版本、系统和复现步骤。截图请先遮挡私人对话、令牌和密钥。
 
-维护跟进官方稳定 Release，保留既有翻译并增量完善新增、变动和遗漏的文案。未发布的 main 和 nightly 不直接作为稳定版发布。当前维护源码和仓库默认分支均为上方明确列出的 `maintenance/v0.1.9-zh-cloud`；历史分支和发布保留。
+维护跟进官方稳定 Release，保留既有翻译并增量完善新增、变动和遗漏的文案。未发布的 main 和 nightly 不直接作为稳定版发布。新版源码与维护分支说明见上方“开发状态”；后续变更通过 PR 展示，历史分支和发布保留。
 
 ## 许可证
 

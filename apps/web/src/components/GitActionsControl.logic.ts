@@ -58,8 +58,7 @@ export function resolveGitActionResultToastTiming(
 ): GitActionResultToastTiming {
   return {
     timeout: 0,
-    dismissAfterVisibleMs:
-      type === "success" ? GIT_ACTION_SUCCESS_VISIBLE_MS : null,
+    dismissAfterVisibleMs: type === "success" ? GIT_ACTION_SUCCESS_VISIBLE_MS : null,
   };
 }
 
@@ -139,8 +138,7 @@ export function buildMenuItems(
   const hasChanges = gitStatus.hasWorkingTreeChanges;
   const hasOpenPr = gitStatus.pr?.state === "open";
   const isBehind = gitStatus.behindCount > 0;
-  const hasDefaultBranchDelta =
-    (gitStatus.aheadOfDefaultCount ?? gitStatus.aheadCount) > 0;
+  const hasDefaultBranchDelta = (gitStatus.aheadOfDefaultCount ?? gitStatus.aheadCount) > 0;
   const canPushWithoutUpstream = hasPrimaryRemote && !gitStatus.hasUpstream;
   const canCommit = !isBusy && hasChanges;
   const canPush =
@@ -216,8 +214,7 @@ export function getMenuActionDisabledReason({
 }): string | null {
   if (!item.disabled) return null;
   if (isBusy) return translateWebSource(locale, "Git action in progress.");
-  if (!gitStatus)
-    return translateWebSource(locale, "Git status is unavailable.");
+  if (!gitStatus) return translateWebSource(locale, "Git status is unavailable.");
 
   const hasBranch = gitStatus.refName !== null;
   const hasChanges = gitStatus.hasWorkingTreeChanges;
@@ -227,32 +224,20 @@ export function getMenuActionDisabledReason({
 
   if (item.id === "commit") {
     if (!hasChanges) {
-      return translateWebSource(
-        locale,
-        "Worktree is clean. Make changes before committing.",
-      );
+      return translateWebSource(locale, "Worktree is clean. Make changes before committing.");
     }
     return translateWebSource(locale, "Commit is currently unavailable.");
   }
 
   if (item.id === "push") {
     if (!hasBranch) {
-      return translateWebSource(
-        locale,
-        "Detached HEAD: check out a branch before pushing.",
-      );
+      return translateWebSource(locale, "Detached HEAD: check out a branch before pushing.");
     }
     if (isBehind) {
-      return translateWebSource(
-        locale,
-        "Branch is behind upstream. Pull/rebase before pushing.",
-      );
+      return translateWebSource(locale, "Branch is behind upstream. Pull/rebase before pushing.");
     }
     if (!gitStatus.hasUpstream && !hasPrimaryRemote) {
-      return translateWebSource(
-        locale,
-        'Add an "origin" remote before pushing.',
-      );
+      return translateWebSource(locale, 'Add an "origin" remote before pushing.');
     }
     if (!isAhead) {
       return translateWebSource(locale, "No local commits to push.");
@@ -294,8 +279,7 @@ export function hasUsableGitMenuContent(input: {
   return (
     input.canPublishRepository ||
     input.hasNotice ||
-    (input.canWriteSourceControl &&
-      input.menuItems.some((item) => !item.disabled))
+    (input.canWriteSourceControl && input.menuItems.some((item) => !item.disabled))
   );
 }
 
@@ -328,8 +312,7 @@ export function resolveQuickAction(
   const hasChanges = gitStatus.hasWorkingTreeChanges;
   const hasOpenPr = gitStatus.pr?.state === "open";
   const isAhead = gitStatus.aheadCount > 0;
-  const hasDefaultBranchDelta =
-    (gitStatus.aheadOfDefaultCount ?? gitStatus.aheadCount) > 0;
+  const hasDefaultBranchDelta = (gitStatus.aheadOfDefaultCount ?? gitStatus.aheadCount) > 0;
   const isBehind = gitStatus.behindCount > 0;
   const isDiverged = isAhead && isBehind;
   const terminology = changeRequestTerminologyFor(gitStatus);
@@ -386,10 +369,7 @@ export function resolveQuickAction(
           label: translateWebSource(locale, "Commit"),
           disabled: true,
           kind: "show_hint",
-          hint: translateWebSource(
-            locale,
-            "Branch is up to date. No action needed.",
-          ),
+          hint: translateWebSource(locale, "Branch is up to date. No action needed."),
         };
       }
       return {
@@ -422,10 +402,7 @@ export function resolveQuickAction(
       label: translateWebSource(locale, "Sync ref"),
       disabled: true,
       kind: "show_hint",
-      hint: translateWebSource(
-        locale,
-        "Branch has diverged from upstream. Rebase/merge first.",
-      ),
+      hint: translateWebSource(locale, "Branch has diverged from upstream. Rebase/merge first."),
     };
   }
 
@@ -461,10 +438,7 @@ export function resolveQuickAction(
       label: translateWebSource(locale, "Commit"),
       disabled: true,
       kind: "show_hint",
-      hint: translateWebSource(
-        locale,
-        "Branch is up to date. No action needed.",
-      ),
+      hint: translateWebSource(locale, "Branch is up to date. No action needed."),
     };
   }
 
@@ -549,18 +523,14 @@ export function resolveFeatureBranchUnavailableReason(input: {
   locale?: ResolvedAppLocale;
 }): string | null {
   if (!input.hasWorkingTreeChanges) {
-    return translateWebMessage(
-      input.locale ?? "en",
-      "gitActions.featureBranchUnavailable",
-      { branch: input.branchName },
-    );
+    return translateWebMessage(input.locale ?? "en", "gitActions.featureBranchUnavailable", {
+      branch: input.branchName,
+    });
   }
   if (input.action === "push" || input.action === "create_pr") {
-    return translateWebMessage(
-      input.locale ?? "en",
-      "gitActions.featureBranchNoCommit",
-      { branch: input.branchName },
-    );
+    return translateWebMessage(input.locale ?? "en", "gitActions.featureBranchNoCommit", {
+      branch: input.branchName,
+    });
   }
   return null;
 }
@@ -658,10 +628,7 @@ export function resolveChangesTotals(
 }
 
 /** A base ref is opaque repository data, not translatable UI copy. */
-export function changesBaseLabel(
-  baseRef: string | null,
-  locale: ResolvedAppLocale,
-): string {
+export function changesBaseLabel(baseRef: string | null, locale: ResolvedAppLocale): string {
   return baseRef === null
     ? translateWebSource(locale, "Uncommitted")
     : locale === "zh-CN"

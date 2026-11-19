@@ -101,8 +101,7 @@ function ResumeButton(props: {
         <ChatBannerLane
           environmentId={ref.environmentId}
           providerStatus={null}
-          providerStatusBannerKey={null}
-          setDismissedProviderStatusBannerKey={() => undefined}
+          providerStatusDismissalKey={null}
           onOpenProviderSetup={() => undefined}
           threadId={threadA}
           threadError={entries.resume?.message ?? null}

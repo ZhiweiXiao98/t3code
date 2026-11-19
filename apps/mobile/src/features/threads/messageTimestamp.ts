@@ -30,16 +30,24 @@ export function formatMessageTimestamp(
   if (Number.isNaN(timestamp)) return "";
   const date = new Date(timestamp);
   const now = new Date(nowMs);
-  const locale = typeof localeOrFormatter === "string" ? localeOrFormatter : localeOrFormatter.resolvedOptions().locale;
+  const locale =
+    typeof localeOrFormatter === "string"
+      ? localeOrFormatter
+      : localeOrFormatter.resolvedOptions().locale;
   const formats = dateFormatters(locale);
-  const time = (typeof localeOrFormatter === "string" ? formats.time : localeOrFormatter).format(date);
+  const time = (typeof localeOrFormatter === "string" ? formats.time : localeOrFormatter).format(
+    date,
+  );
   if (date.toDateString() === now.toDateString()) return time;
   const sameYear = date.getFullYear() === now.getFullYear();
   return `${(sameYear ? formats.date : formats.year).format(date)} ${time}`;
 }
 
 /** `is24Hour` overrides the locale's hour cycle with the system clock preference when known. */
-export function createMessageTimeFormatter(is24Hour: boolean | undefined, locale: string = MOBILE_LOCALE) {
+export function createMessageTimeFormatter(
+  is24Hour: boolean | undefined,
+  locale: string = MOBILE_LOCALE,
+) {
   const timeFormatter = new Intl.DateTimeFormat(locale, {
     hour: "numeric",
     minute: "2-digit",

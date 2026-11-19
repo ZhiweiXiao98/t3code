@@ -22,17 +22,13 @@ import { expect, it, vi } from "vite-plus/test";
 import { act, render } from "../../../test/render";
 import { DraftId, useComposerDraftStore } from "../../composerDraftStore";
 import { useDraftEnvironmentRouting } from "./useDraftEnvironmentRouting";
-import {
-  appAtomRegistry,
-  AppAtomRegistryProvider,
-} from "../../rpc/atomRegistry";
+import { appAtomRegistry, AppAtomRegistryProvider } from "../../rpc/atomRegistry";
 import { draftFanoutSelectionsAtom } from "./chatViewSend";
 
 const resources = vi.hoisted(() => ({
   projects: [] as EnvironmentProject[],
   pickedEnvironmentId: null as EnvironmentId | null,
-  refreshSelection:
-    vi.fn<(ids: readonly EnvironmentId[]) => Promise<EnvironmentId | null>>(),
+  refreshSelection: vi.fn<(ids: readonly EnvironmentId[]) => Promise<EnvironmentId | null>>(),
 }));
 vi.mock("../../hooks/useLoadBalancedEnvironment", () => ({
   useLoadBalancedEnvironment: () => ({
@@ -47,9 +43,7 @@ vi.mock("../../state/entities", () => ({
   useProjects: () => resources.projects,
   readProject: (ref: { environmentId: EnvironmentId; projectId: ProjectId }) =>
     resources.projects.find(
-      (project) =>
-        project.environmentId === ref.environmentId &&
-        project.id === ref.projectId,
+      (project) => project.environmentId === ref.environmentId && project.id === ref.projectId,
     ) ?? null,
 }));
 vi.mock("../../hooks/useScratchProject", () => ({
@@ -131,9 +125,7 @@ function setup() {
     projectGroupingSettings: DEFAULT_UNIFIED_SETTINGS,
     sendInFlightRef: { current: false },
   };
-  resources.refreshSelection.mockImplementation(async (ids) =>
-    ids.includes(b) ? b : null,
-  );
+  resources.refreshSelection.mockImplementation(async (ids) => (ids.includes(b) ? b : null));
   return { a, b, draftId, input, store };
 }
 
@@ -152,9 +144,7 @@ function Harness(props: HarnessProps) {
 
 function RoutingProbe({ input, onPrepared }: HarnessProps) {
   const routing = useDraftEnvironmentRouting(input);
-  const draft = useComposerDraftStore((state) =>
-    state.getDraftSession(input.draftId!),
-  );
+  const draft = useComposerDraftStore((state) => state.getDraftSession(input.draftId!));
   const selections = useAtomValue(
     draftFanoutSelectionsAtom(
       scopedThreadKey(scopeThreadRef(draft!.environmentId, draft!.threadId)),
@@ -163,8 +153,7 @@ function RoutingProbe({ input, onPrepared }: HarnessProps) {
   return (
     <>
       <output>
-        {selections?.map((selection) => selection.model).join(", ") ??
-          "single model"}
+        {selections?.map((selection) => selection.model).join(", ") ?? "single model"}
       </output>
       {input.logicalProjectEnvironments.map(({ environmentId }) => (
         <button
@@ -207,9 +196,7 @@ it("refreshes a stored automatic choice before sending an unsent draft", async (
     environmentSelection: "auto",
   });
   await using screen = await render(
-    <Harness
-      input={{ ...input, draftThread: store.getDraftSession(draftId) }}
-    />,
+    <Harness input={{ ...input, draftThread: store.getDraftSession(draftId) }} />,
   );
   await expect.element(screen.getByText(a)).toBeInTheDocument();
   await screen.getByRole("button", { name: "Send" }).click();
@@ -228,8 +215,7 @@ it.each(["manual", "attachments", "promoted"] as const)(
   "keeps the machine for %s drafts",
   async (kind) => {
     const { a, draftId, input, store } = setup();
-    if (kind === "manual")
-      store.setDraftThreadContext(draftId, { environmentSelection: "manual" });
+    if (kind === "manual") store.setDraftThreadContext(draftId, { environmentSelection: "manual" });
     const guardedInput = {
       ...input,
       automaticEnvironment: kind !== "manual",
@@ -256,9 +242,7 @@ it("does not reuse a stored choice when refreshed resources have no winner", asy
   const { a, input } = setup();
   resources.refreshSelection.mockResolvedValue(null);
   const onPrepared = vi.fn();
-  await using screen = await render(
-    <Harness input={input} onPrepared={onPrepared} />,
-  );
+  await using screen = await render(<Harness input={input} onPrepared={onPrepared} />);
   await screen.getByRole("button", { name: "Send" }).click();
   await expect.element(screen.getByText(a)).toBeInTheDocument();
   await vi.waitFor(() => expect(onPrepared).toHaveBeenCalledWith(false));
@@ -297,13 +281,9 @@ function fanoutSetup() {
   }));
   const threadId = input.draftThread!.threadId;
   const selectionsOn = (environmentId: EnvironmentId) =>
-    draftFanoutSelectionsAtom(
-      scopedThreadKey(scopeThreadRef(environmentId, threadId)),
-    );
+    draftFanoutSelectionsAtom(scopedThreadKey(scopeThreadRef(environmentId, threadId)));
   const models = (...names: string[]) =>
-    names.map((model) =>
-      createModelSelection(ProviderInstanceId.make("codex"), model),
-    );
+    names.map((model) => createModelSelection(ProviderInstanceId.make("codex"), model));
   appAtomRegistry.set(selectionsOn(b), null);
   appAtomRegistry.set(selectionsOn(a), models("gpt-6.1-sol", "gpt-6.1-luna"));
   store.setDraftThreadContext(draftId, {
@@ -326,25 +306,17 @@ it("keeps the selected models when the draft switches machine by hand", async ()
       }}
     />,
   );
-  await expect
-    .element(screen.getByText("gpt-6.1-sol, gpt-6.1-luna"))
-    .toBeInTheDocument();
+  await expect.element(screen.getByText("gpt-6.1-sol, gpt-6.1-luna")).toBeInTheDocument();
   await screen.getByRole("button", { name: `Switch to ${b}` }).click();
   await expect.element(screen.getByText(b)).toBeInTheDocument();
-  await expect
-    .element(screen.getByText("gpt-6.1-sol, gpt-6.1-luna"))
-    .toBeInTheDocument();
+  await expect.element(screen.getByText("gpt-6.1-sol, gpt-6.1-luna")).toBeInTheDocument();
   expect(store.getComposerDraft(draftId)?.prompt).toBe("Keep this prompt");
 
   // Changes made on the new machine come back with the draft.
-  await act(async () =>
-    appAtomRegistry.set(selectionsOn(b), models("gpt-6.1-sol")),
-  );
+  await act(async () => appAtomRegistry.set(selectionsOn(b), models("gpt-6.1-sol")));
   await screen.getByRole("button", { name: `Switch to ${a}` }).click();
   await expect.element(screen.getByText(a)).toBeInTheDocument();
-  await expect
-    .element(screen.getByText("gpt-6.1-sol", { exact: true }))
-    .toBeInTheDocument();
+  await expect.element(screen.getByText("gpt-6.1-sol", { exact: true })).toBeInTheDocument();
 });
 
 it("keeps the selected models when automatic routing picks another machine", async () => {
@@ -352,14 +324,10 @@ it("keeps the selected models when automatic routing picks another machine", asy
   store.setDraftThreadContext(draftId, { environmentSelection: "auto" });
   resources.pickedEnvironmentId = b;
   await using screen = await render(
-    <Harness
-      input={{ ...input, draftThread: store.getDraftSession(draftId) }}
-    />,
+    <Harness input={{ ...input, draftThread: store.getDraftSession(draftId) }} />,
   );
   await expect.element(screen.getByText(b)).toBeInTheDocument();
-  await expect
-    .element(screen.getByText("gpt-6.1-sol, gpt-6.1-luna"))
-    .toBeInTheDocument();
+  await expect.element(screen.getByText("gpt-6.1-sol, gpt-6.1-luna")).toBeInTheDocument();
 });
 
 it.each([
@@ -381,37 +349,34 @@ it.each([
     remoteDefault: false,
     model: "sol",
   },
-])(
-  "$name when the draft switches machine by hand",
-  async ({ explicit, remoteDefault, model }) => {
-    const { b, draftId, input, store } = fanoutSetup();
-    const codex = ProviderInstanceId.make("codex");
-    resources.projects = resources.projects.map((project) =>
-      project.environmentId === b && remoteDefault
-        ? {
-            ...project,
-            defaultModelSelection: createModelSelection(codex, "luna"),
-          }
-        : project,
-    );
-    store.setStickyModelSelection(createModelSelection(codex, "sol"));
-    store.setModelSelection(draftId, createModelSelection(codex, "sol"), {
-      explicit,
-    });
-    await using screen = await render(
-      <Harness
-        input={{
-          ...input,
-          automaticEnvironment: false,
-          draftThread: store.getDraftSession(draftId),
-        }}
-      />,
-    );
-    await screen.getByRole("button", { name: `Switch to ${b}` }).click();
-    await expect.element(screen.getByText(b)).toBeInTheDocument();
-    const draft = store.getComposerDraft(draftId);
-    expect(draft?.activeProvider).toBe(codex);
-    expect(draft?.modelSelectionByProvider[codex]?.model).toBe(model);
-    expect(draft?.modelSelectionExplicit === true).toBe(explicit);
-  },
-);
+])("$name when the draft switches machine by hand", async ({ explicit, remoteDefault, model }) => {
+  const { b, draftId, input, store } = fanoutSetup();
+  const codex = ProviderInstanceId.make("codex");
+  resources.projects = resources.projects.map((project) =>
+    project.environmentId === b && remoteDefault
+      ? {
+          ...project,
+          defaultModelSelection: createModelSelection(codex, "luna"),
+        }
+      : project,
+  );
+  store.setStickyModelSelection(createModelSelection(codex, "sol"));
+  store.setModelSelection(draftId, createModelSelection(codex, "sol"), {
+    explicit,
+  });
+  await using screen = await render(
+    <Harness
+      input={{
+        ...input,
+        automaticEnvironment: false,
+        draftThread: store.getDraftSession(draftId),
+      }}
+    />,
+  );
+  await screen.getByRole("button", { name: `Switch to ${b}` }).click();
+  await expect.element(screen.getByText(b)).toBeInTheDocument();
+  const draft = store.getComposerDraft(draftId);
+  expect(draft?.activeProvider).toBe(codex);
+  expect(draft?.modelSelectionByProvider[codex]?.model).toBe(model);
+  expect(draft?.modelSelectionExplicit === true).toBe(explicit);
+});

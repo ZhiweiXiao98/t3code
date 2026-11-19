@@ -21,10 +21,7 @@ import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
 } from "@t3tools/client-runtime/state/runtime";
-import {
-  isTriagePrompt,
-  replaceTriagePlaybookLink,
-} from "@t3tools/shared/triagePrompt";
+import { isTriagePrompt, replaceTriagePlaybookLink } from "@t3tools/shared/triagePrompt";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { stackedThreadToast, toastManager } from "../ui/toast";
@@ -33,10 +30,7 @@ import {
   selectProjectGroupingSettings,
 } from "@t3tools/client-runtime/state/project-grouping";
 import { useComposerDraftStore, DraftId } from "../../composerDraftStore";
-import {
-  type EnvironmentPresentation,
-  useEnvironmentProviders,
-} from "../../state/environments";
+import { type EnvironmentPresentation, useEnvironmentProviders } from "../../state/environments";
 import { currentClientMetadata } from "../../connection/platform";
 import { useProjects } from "../../state/entities";
 import { serverEnvironment } from "../../state/server";
@@ -52,9 +46,7 @@ interface DraftEnvironmentRoutingInput {
   readonly draftThread: DraftSessionState | null;
   readonly envLocked: boolean;
   readonly automaticEnvironment: boolean;
-  readonly logicalProjectEnvironments: ReturnType<
-    typeof useLogicalProjectEnvironments
-  >;
+  readonly logicalProjectEnvironments: ReturnType<typeof useLogicalProjectEnvironments>;
   readonly environmentById: ReadonlyMap<EnvironmentId, EnvironmentPresentation>;
   readonly providersByEnvironment: ReturnType<typeof useEnvironmentProviders>;
   readonly loadBalancingSettings: {
@@ -66,9 +58,7 @@ interface DraftEnvironmentRoutingInput {
   readonly composerHasAttachments: boolean;
   readonly activeProjectKey: string | null;
   readonly activeProjectIsScratch: boolean;
-  readonly projectGroupingSettings: ReturnType<
-    typeof selectProjectGroupingSettings
-  >;
+  readonly projectGroupingSettings: ReturnType<typeof selectProjectGroupingSettings>;
   readonly sendInFlightRef: { readonly current: boolean };
 }
 
@@ -79,9 +69,7 @@ function carryFanoutSelections(
 ) {
   if (draft.environmentId === environmentId) return;
   const selectionsOn = (id: EnvironmentId) =>
-    draftFanoutSelectionsAtom(
-      scopedThreadKey(scopeThreadRef(id, draft.threadId)),
-    );
+    draftFanoutSelectionsAtom(scopedThreadKey(scopeThreadRef(id, draft.threadId)));
   appAtomRegistry.set(
     selectionsOn(environmentId),
     appAtomRegistry.get(selectionsOn(draft.environmentId)),
@@ -94,9 +82,7 @@ function carryFanoutSelections(
  * project on the target machine. A triage draft takes its session along: the
  * target machine prepares one, and the playbook link follows.
  */
-export function useDraftEnvironmentRouting(
-  input: DraftEnvironmentRoutingInput,
-) {
+export function useDraftEnvironmentRouting(input: DraftEnvironmentRoutingInput) {
   const { locale: uiLocale } = useI18n();
 
   const {
@@ -117,15 +103,9 @@ export function useDraftEnvironmentRouting(
     projectGroupingSettings,
     sendInFlightRef,
   } = input;
-  const setDraftThreadContext = useComposerDraftStore(
-    (store) => store.setDraftThreadContext,
-  );
-  const getDraftSession = useComposerDraftStore(
-    (store) => store.getDraftSession,
-  );
-  const getComposerDraft = useComposerDraftStore(
-    (store) => store.getComposerDraft,
-  );
+  const setDraftThreadContext = useComposerDraftStore((store) => store.setDraftThreadContext);
+  const getDraftSession = useComposerDraftStore((store) => store.getDraftSession);
+  const getComposerDraft = useComposerDraftStore((store) => store.getComposerDraft);
   const setPrompt = useComposerDraftStore((store) => store.setPrompt);
   const prepareTriage = useAtomCommand(serverEnvironment.prepareTriage, {
     reportFailure: false,
@@ -135,17 +115,14 @@ export function useDraftEnvironmentRouting(
   );
   const allProjects = useProjects();
   const { openScratchProject } = useScratchProject();
-  const needsLoadBalancing =
-    automaticEnvironment && !draftThread?.loadBalancedEnvironmentId;
+  const needsLoadBalancing = automaticEnvironment && !draftThread?.loadBalancedEnvironmentId;
   const loadBalancingCandidates = automaticEnvironment
     ? logicalProjectEnvironments
         .filter((candidate) => {
           const environment = environmentById.get(candidate.environmentId);
           return (
             environment?.connection.phase === "connected" &&
-            (loadBalancingSettings.loadBalancingWeights[
-              candidate.environmentId
-            ] ?? 50) > 0 &&
+            (loadBalancingSettings.loadBalancingWeights[candidate.environmentId] ?? 50) > 0 &&
             referencedThreadContexts.every(
               (record) => record.environmentId === candidate.environmentId,
             ) &&
@@ -190,73 +167,56 @@ export function useDraftEnvironmentRouting(
     )
       return null;
     const originalDraft = getDraftSession(draftId);
-    const composerDraft = useComposerDraftStore
-      .getState()
-      .getComposerDraft(draftId);
-    return loadBalancing
-      .refreshSelection(loadBalancingCandidates)
-      .then((environmentId) => {
-        const current = readRouting();
-        if (
-          current.input.draftId !== draftId ||
-          !current.input.automaticEnvironment ||
-          current.input.composerHasAttachments ||
-          current.input.activeProjectKey !== activeProjectKey ||
-          current.input.selectedProvider !== selectedProvider ||
-          current.input.activeProviderInstanceId !== activeProviderInstanceId ||
-          current.input.loadBalancingSettings.loadBalancingWeights !==
-            loadBalancingSettings.loadBalancingWeights ||
-          current.loadBalancingCandidates.join("\n") !==
-            loadBalancingCandidates.join("\n") ||
-          getDraftSession(draftId) !== originalDraft ||
-          useComposerDraftStore.getState().getComposerDraft(draftId) !==
-            composerDraft
-        )
-          return false;
-        const target = current.input.logicalProjectEnvironments.find(
-          (candidate) => candidate.environmentId === environmentId,
-        );
-        if (!target?.projectId) {
-          toastManager.add({
-            type: "warning",
-            ...loadBalancingSendWarning({
-              pending: false,
-              threadContexts: referencedThreadContexts,
-              candidateEnvironmentIds: loadBalancingCandidates,
-            }),
-          });
-          return false;
-        }
-        const projectRef = scopeProjectRef(
-          target.environmentId,
-          target.projectId,
-        );
-        if (originalDraft)
-          carryFanoutSelections(originalDraft, target.environmentId);
-        // The send must read the target project's composer and provider context after retargeting.
-        flushSync(() =>
-          setDraftThreadContext(draftId, {
-            projectRef,
-            environmentSelection: "auto",
-            loadBalancedEnvironmentId: target.environmentId,
-            branch: originalDraft?.branch ?? null,
+    const composerDraft = useComposerDraftStore.getState().getComposerDraft(draftId);
+    return loadBalancing.refreshSelection(loadBalancingCandidates).then((environmentId) => {
+      const current = readRouting();
+      if (
+        current.input.draftId !== draftId ||
+        !current.input.automaticEnvironment ||
+        current.input.composerHasAttachments ||
+        current.input.activeProjectKey !== activeProjectKey ||
+        current.input.selectedProvider !== selectedProvider ||
+        current.input.activeProviderInstanceId !== activeProviderInstanceId ||
+        current.input.loadBalancingSettings.loadBalancingWeights !==
+          loadBalancingSettings.loadBalancingWeights ||
+        current.loadBalancingCandidates.join("\n") !== loadBalancingCandidates.join("\n") ||
+        getDraftSession(draftId) !== originalDraft ||
+        useComposerDraftStore.getState().getComposerDraft(draftId) !== composerDraft
+      )
+        return false;
+      const target = current.input.logicalProjectEnvironments.find(
+        (candidate) => candidate.environmentId === environmentId,
+      );
+      if (!target?.projectId) {
+        toastManager.add({
+          type: "warning",
+          ...loadBalancingSendWarning({
+            pending: false,
+            threadContexts: referencedThreadContexts,
+            candidateEnvironmentIds: loadBalancingCandidates,
           }),
-        );
-        return true;
-      });
+        });
+        return false;
+      }
+      const projectRef = scopeProjectRef(target.environmentId, target.projectId);
+      if (originalDraft) carryFanoutSelections(originalDraft, target.environmentId);
+      // The send must read the target project's composer and provider context after retargeting.
+      flushSync(() =>
+        setDraftThreadContext(draftId, {
+          projectRef,
+          environmentSelection: "auto",
+          loadBalancedEnvironmentId: target.environmentId,
+          branch: originalDraft?.branch ?? null,
+        }),
+      );
+      return true;
+    });
   };
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- writes the resolved load-balanced environment into the draft store once the async pick settles
   useEffect(() => {
-    if (
-      !needsLoadBalancing ||
-      loadBalancing.pending ||
-      !draftId ||
-      sendInFlightRef.current
-    )
-      return;
+    if (!needsLoadBalancing || loadBalancing.pending || !draftId || sendInFlightRef.current) return;
     const target = logicalProjectEnvironments.find(
-      (environment) =>
-        environment.environmentId === loadBalancing.environmentId,
+      (environment) => environment.environmentId === loadBalancing.environmentId,
     );
     if (!target?.projectId) return;
     const draft = getDraftSession(draftId);
@@ -291,9 +251,7 @@ export function useDraftEnvironmentRouting(
       return;
     }
     loadBalancing.refresh(
-      logicalProjectEnvironments.map(
-        (environment) => environment.environmentId,
-      ),
+      logicalProjectEnvironments.map((environment) => environment.environmentId),
     );
     setDraftThreadContext(draftId, {
       environmentSelection: "auto",
@@ -336,10 +294,7 @@ export function useDraftEnvironmentRouting(
   );
   const readPendingEnvironmentChange = () => {
     const pending = environmentChangeRef.current;
-    return pending !== null &&
-      pending.scope === environmentChangeScopeRef.current
-      ? pending
-      : null;
+    return pending !== null && pending.scope === environmentChangeScopeRef.current ? pending : null;
   };
   // The busy state belongs to the request that set it, so an older request settling late
   // (abandoned, or superseded by a newer switch) can never clear a newer one's.
@@ -347,8 +302,7 @@ export function useDraftEnvironmentRouting(
     readonly environmentId: EnvironmentId;
     readonly scope: string;
   } | null>(null);
-  const isEnvironmentChanging =
-    busyEnvironmentChange?.scope === environmentChangeScope;
+  const isEnvironmentChanging = busyEnvironmentChange?.scope === environmentChangeScope;
 
   const onEnvironmentChange = (nextEnvironmentId: EnvironmentId) => {
     if (envLocked || !draftId || sendInFlightRef.current) return;
@@ -365,10 +319,7 @@ export function useDraftEnvironmentRouting(
     environmentChangeRef.current = request;
     setBusyEnvironmentChange(null);
     // `triagePrompt` is the prompt the target machine prepared for a triage draft.
-    const retarget = (
-      project: (typeof allProjects)[number],
-      triagePrompt?: string,
-    ) => {
+    const retarget = (project: (typeof allProjects)[number], triagePrompt?: string) => {
       const currentDraft = getDraftSession(draftId);
       if (
         environmentChangeRef.current !== request ||
@@ -405,19 +356,15 @@ export function useDraftEnvironmentRouting(
       seedDraftModelSelection(draftId, projectRef);
     };
     const finish = () => {
-      if (environmentChangeRef.current === request)
-        environmentChangeRef.current = null;
+      if (environmentChangeRef.current === request) environmentChangeRef.current = null;
       setBusyEnvironmentChange((busy) => (busy === request ? null : busy));
     };
     const knownProject = allProjects.find(
       (project) =>
-        project.environmentId === target.environmentId &&
-        project.id === target.projectId,
+        project.environmentId === target.environmentId && project.id === target.projectId,
     );
     // The playbook and context files exist only on the machine that prepared them.
-    const followsTriage = isTriagePrompt(
-      getComposerDraft(draftId)?.prompt ?? "",
-    );
+    const followsTriage = isTriagePrompt(getComposerDraft(draftId)?.prompt ?? "");
     if (target.projectId !== null && !(knownProject && followsTriage)) {
       if (knownProject) retarget(knownProject);
       finish();
@@ -434,28 +381,20 @@ export function useDraftEnvironmentRouting(
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title:
-              readWebI18n().locale === "zh-CN"
-                ? "无法切换机器"
-                : "Could not switch machine",
-            description:
-              error instanceof Error ? error.message : "An error occurred.",
+            title: readWebI18n().locale === "zh-CN" ? "无法切换机器" : "Could not switch machine",
+            description: error instanceof Error ? error.message : "An error occurred.",
           }),
         );
       }
       return null;
     };
     const switchMachine = async () => {
-      const triagePrompt = followsTriage
-        ? await prepareTriagePrompt()
-        : undefined;
+      const triagePrompt = followsTriage ? await prepareTriagePrompt() : undefined;
       if (triagePrompt === null) return;
       const project =
         knownProject ??
         (await openScratchProject(target.environmentId, () =>
-          readWebI18n().locale === "zh-CN"
-            ? "无法切换机器"
-            : "Could not switch machine",
+          readWebI18n().locale === "zh-CN" ? "无法切换机器" : "Could not switch machine",
         ));
       if (project) retarget(project, triagePrompt);
     };

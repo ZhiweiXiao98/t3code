@@ -1,3 +1,6 @@
+import * as HostProcess from "@t3tools/shared/HostProcess";
+import * as Console from "effect/Console";
+import * as Exit from "effect/Exit";
 import type { ThemeAppearance } from "@t3tools/shared/themePalettes";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
@@ -11,6 +14,7 @@ import * as Stream from "effect/Stream";
 import * as ChildProcess from "effect/process/ChildProcess";
 import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
 
+import { createCaptureDiagnostics } from "./captureDiagnostics.ts";
 import { publicProxy } from "./publicProxy.ts";
 
 export class HtmlRenderBrowserError extends Schema.TaggedError<HtmlRenderBrowserError>()(
@@ -66,7 +70,9 @@ const CdpMessage = Schema.fromJsonString(
     sessionId: Schema.optional(Schema.String),
     params: Schema.optional(Schema.Unknown),
     result: Schema.optional(Schema.Unknown),
-    error: Schema.optional(Schema.Struct({ message: Schema.String })),
+    error: Schema.optional(
+      Schema.Struct({ message: Schema.String, code: Schema.optional(Schema.Unknown) }),
+    ),
   }),
 );
 const decodeCdpMessage = Schema.decodeUnknownOption(CdpMessage);
@@ -180,7 +186,9 @@ const launchBrowser = Effect.fnUntraced(function* (input: {
   readonly executable: string;
   readonly noSandbox: boolean;
   readonly profileDirectory: string;
+  readonly diagnostics?: ReturnType<typeof createCaptureDiagnostics>;
 }) {
+  const diagnostics = input.diagnostics;
   const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
   const proxy = yield* publicProxy.pipe(
     Effect.mapError(
@@ -256,28 +264,33 @@ const launchBrowser = Effect.fnUntraced(function* (input: {
   let disconnected: BrowserFailure | undefined;
   let nextId = 0;
 
-  const post = (method: string, params: Record<string, unknown>, sessionId?: string) =>
-    Queue.offer(
+  const post = (method: string, params: Record<string, unknown>, sessionId?: string) => {
+    const id = ++nextId;
+    diagnostics?.sent(id, method);
+    return Queue.offer(
       outgoing,
-      new TextEncoder().encode(
-        `${encodeCdpCommand({ id: ++nextId, method, params, sessionId })}\0`,
-      ),
+      new TextEncoder().encode(`${encodeCdpCommand({ id, method, params, sessionId })}\0`),
     ).pipe(Effect.asVoid);
+  };
 
   // Queue shared body bytes between JSON halves to avoid copies across capture widths.
-  const fulfillPage = (sessionId: string, requestId: string, body: Uint8Array) =>
-    Queue.offerAll(outgoing, [
+  const fulfillPage = (sessionId: string, requestId: string, body: Uint8Array) => {
+    const id = ++nextId;
+    diagnostics?.sent(id, "Fetch.fulfillRequest");
+    return Queue.offerAll(outgoing, [
       textEncoder.encode(
-        `{"id":${++nextId},"sessionId":${JSON.stringify(sessionId)},"method":"Fetch.fulfillRequest","params":{"requestId":${JSON.stringify(requestId)},"responseCode":200,"responseHeaders":[{"name":"Content-Type","value":"text/html; charset=utf-8"}],"body":"`,
+        `{"id":${id},"sessionId":${JSON.stringify(sessionId)},"method":"Fetch.fulfillRequest","params":{"requestId":${JSON.stringify(requestId)},"responseCode":200,"responseHeaders":[{"name":"Content-Type","value":"text/html; charset=utf-8"}],"body":"`,
       ),
       body,
       textEncoder.encode('"}}\0'),
     ]).pipe(Effect.asVoid);
+  };
 
   // Incoming messages share the session span; frame acknowledgements are frequent.
   const receive = Effect.fnUntraced(function* (raw: string) {
     const message = Option.getOrUndefined(decodeCdpMessage(raw));
     if (message?.id !== undefined) {
+      diagnostics?.reply(message.id, message.error !== undefined, message.error?.code);
       const waiter = pending.get(message.id);
       pending.delete(message.id);
       if (!waiter) return yield* Effect.void;
@@ -295,6 +308,7 @@ const launchBrowser = Effect.fnUntraced(function* (input: {
     const page = sessionId === undefined ? undefined : pages.get(sessionId);
     if (sessionId === undefined || !page || !message?.method) return yield* Effect.void;
     if (message.method === "Page.loadEventFired") {
+      diagnostics?.event("load-fired");
       return yield* page.loaded ? Deferred.succeed(page.loaded, undefined) : Effect.void;
     }
     if (message.method === "Fetch.requestPaused") {
@@ -303,6 +317,7 @@ const launchBrowser = Effect.fnUntraced(function* (input: {
       const body = page.body;
       const url = paused.request.url.split("#", 1)[0]!;
       if (url === PAGE_URL && body !== undefined) {
+        diagnostics?.event("fetch-fulfill");
         return yield* fulfillPage(sessionId, paused.requestId, body);
       }
       // Subframes may show other sites covered by Local Network Access; the main frame stays on T3's page.
@@ -310,6 +325,13 @@ const launchBrowser = Effect.fnUntraced(function* (input: {
         paused.resourceType === "Document" &&
         paused.frameId !== page.mainFrameId &&
         !url.startsWith(`${PAGE_ORIGIN}/`);
+      diagnostics?.event(
+        otherSiteFrame
+          ? "fetch-subframe-allow"
+          : paused.frameId === page.mainFrameId
+            ? "fetch-main-deny"
+            : "fetch-other-deny",
+      );
       return yield* otherSiteFrame
         ? post("Fetch.continueRequest", { requestId: paused.requestId }, sessionId)
         : post(
@@ -333,6 +355,7 @@ const launchBrowser = Effect.fnUntraced(function* (input: {
 
   // Startup aborts close the pipe; let stderr drain to recover the reason.
   const disconnect = Effect.gen(function* () {
+    diagnostics?.event("disconnected");
     yield* Fiber.await(stderrReader).pipe(Effect.timeout("1 second"), Effect.ignore);
     const exit = yield* child.exitCode.pipe(
       Effect.map((code): { exitCode?: number; signal?: string; cause?: unknown } => ({
@@ -383,15 +406,16 @@ const launchBrowser = Effect.fnUntraced(function* (input: {
 
   // Signals can miss a confined browser (AppArmor in LXC), so ask it to quit first.
   // Runs before the spawn's release, which still signals a browser that stays up.
-  yield* Effect.addFinalizer(() =>
-    disconnected
+  yield* Effect.addFinalizer(() => {
+    diagnostics?.phase("cleanup");
+    return disconnected
       ? Effect.void
       : post("Browser.close", {}).pipe(
           Effect.andThen(child.exitCode),
           Effect.timeout("2 seconds"),
           Effect.ignore,
-        ),
-  );
+        );
+  });
 
   const send = Effect.fn("headlessChrome.send")(function* <A>(
     method: string,
@@ -403,6 +427,7 @@ const launchBrowser = Effect.fnUntraced(function* (input: {
     const id = ++nextId;
     const reply = yield* Deferred.make<unknown, BrowserFailure>();
     pending.set(id, { method, reply });
+    diagnostics?.sent(id, method);
     const message = encodeCdpCommand({ id, method, params, ...(sessionId ? { sessionId } : {}) });
     yield* Queue.offer(outgoing, new TextEncoder().encode(`${message}\0`));
     return yield* Deferred.await(reply).pipe(
@@ -485,6 +510,7 @@ const launchBrowser = Effect.fnUntraced(function* (input: {
     );
 
     const load = Effect.fnUntraced(function* (body: Uint8Array, urlFragment: string) {
+      diagnostics?.phase("load");
       const loaded = yield* Deferred.make<void, BrowserFailure>();
       events.body = body;
       events.loaded = loaded;
@@ -498,12 +524,14 @@ const launchBrowser = Effect.fnUntraced(function* (input: {
         return yield* new HtmlRenderBrowserError({ reason: "the page could not be opened" });
       }
       yield* Deferred.await(loaded);
+      diagnostics?.phase("settle");
       yield* send(
         "Runtime.evaluate",
         { expression: SETTLE_EXPRESSION, awaitPromise: true },
         Ignored,
         sessionId,
       );
+      diagnostics?.phase("measure");
       const measured = yield* send(
         "Runtime.evaluate",
         { expression: MEASURE_EXPRESSION, returnByValue: true },
@@ -578,34 +606,50 @@ export const captureHtmlScreenshot = Effect.fn("headlessChrome.captureHtmlScreen
     readonly urlFragment: string;
     readonly appearance: ThemeAppearance;
   }) {
-    const path = yield* Path.Path;
-    const directory = yield* scratchDirectory;
-    const browser = yield* launchBrowser({
-      executable: input.executable,
-      noSandbox: input.noSandbox,
-      profileDirectory: path.join(directory, "profile"),
-    });
-    const page = yield* browser.openPage(input.width, input.appearance);
-    const contentHeight = yield* page.load(pageBody(input.html), input.urlFragment);
-    const capturedHeight = Math.max(1, Math.min(contentHeight, MAX_CAPTURE_HEIGHT));
-    const png = yield* page.screenshot(capturedHeight);
-    return {
-      png,
-      contentHeight,
-      capturedHeight,
-      consoleMessages: [...page.consoleMessages(), ...browser.fakeIpNote()],
-    };
-  },
-  Effect.scoped,
-  Effect.timeoutOrElse({
-    duration: CAPTURE_TIMEOUT,
-    orElse: () =>
-      Effect.fail(
-        new HtmlRenderBrowserError({
-          reason: `the page did not finish loading within ${CAPTURE_TIMEOUT}`,
-        }),
+    const environment = yield* HostProcess.Environment;
+    const diagnostics = createCaptureDiagnostics(
+      environment.T3CODE_HTML_RENDER_DIAGNOSTICS === "1",
+    );
+    return yield* Effect.gen(function* () {
+      const path = yield* Path.Path;
+      const directory = yield* scratchDirectory;
+      diagnostics.phase("launch");
+      const browser = yield* launchBrowser({
+        diagnostics,
+        executable: input.executable,
+        noSandbox: input.noSandbox,
+        profileDirectory: path.join(directory, "profile"),
+      });
+      diagnostics.phase("setup");
+      const page = yield* browser.openPage(input.width, input.appearance);
+      const contentHeight = yield* page.load(pageBody(input.html), input.urlFragment);
+      const capturedHeight = Math.max(1, Math.min(contentHeight, MAX_CAPTURE_HEIGHT));
+      diagnostics.phase("screenshot");
+      const png = yield* page.screenshot(capturedHeight);
+      return {
+        png,
+        contentHeight,
+        capturedHeight,
+        consoleMessages: [...page.consoleMessages(), ...browser.fakeIpNote()],
+      };
+    }).pipe(
+      Effect.scoped,
+      Effect.timeoutOrElse({
+        duration: CAPTURE_TIMEOUT,
+        orElse: () =>
+          Effect.fail(
+            new HtmlRenderBrowserError({
+              reason: `the page did not finish loading within ${CAPTURE_TIMEOUT}`,
+            }),
+          ),
+      }),
+      Effect.onExit((exit) =>
+        environment.T3CODE_HTML_RENDER_DIAGNOSTICS === "1" && Exit.isFailure(exit)
+          ? Console.error(JSON.stringify(diagnostics.report())).pipe(Effect.ignoreCause)
+          : Effect.void,
       ),
-  }),
+    );
+  },
 );
 
 /** Fresh load per width, since pages may lay out only at load. */

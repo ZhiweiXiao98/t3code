@@ -1,16 +1,8 @@
-import {
-  PermissionChecklist,
-  PermissionContinueButton,
-} from "../permissions/PermissionChecklist";
+import { PermissionChecklist, PermissionContinueButton } from "../permissions/PermissionChecklist";
 import { usePermissionStatus } from "../permissions/usePermissionStatus";
 import type { BrowserImportSource } from "@t3tools/contracts";
 import { BROWSER_IMPORT_FAILURE_COPY } from "@t3tools/contracts";
-import {
-  ArrowDownIcon,
-  ArrowRightIcon,
-  CheckIcon,
-  HardDriveIcon,
-} from "lucide-react";
+import { ArrowDownIcon, ArrowRightIcon, CheckIcon, HardDriveIcon } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { cn, randomUUID } from "~/lib/utils";
@@ -78,9 +70,7 @@ export function BrowserImportWizard({
 }: BrowserImportWizardProps) {
   const { t } = useI18n();
   const [source, setSource] = useState(initialSource);
-  const [step, setStep] = useState<WizardStep>(() =>
-    initialWizardStep(initialSource),
-  );
+  const [step, setStep] = useState<WizardStep>(() => initialWizardStep(initialSource));
   const [sourceProfileDirectory, setSourceProfileDirectory] = useState(
     () => initialSource.profiles[0]?.directory ?? "",
   );
@@ -94,11 +84,7 @@ export function BrowserImportWizard({
 
   const runImport = () => {
     if (importInFlight.current) return;
-    const chosen = resolveWizardTarget(
-      target,
-      newProfileId.current,
-      targetProfiles,
-    );
+    const chosen = resolveWizardTarget(target, newProfileId.current, targetProfiles);
     if (chosen === undefined) {
       setTargetError(true);
       setStep({ step: "configure" });
@@ -133,23 +119,13 @@ export function BrowserImportWizard({
       .catch(() => setStep({ step: "blocked", reason: "readFailed" }));
   };
   const recheckAfterQuit = () => recheckSource("browser", refreshedSourceStep);
-  const recheckFullDiskAccess = () =>
-    recheckSource("fullDiskAccess", fullDiskAccessRecheckStep);
+  const recheckFullDiskAccess = () => recheckSource("fullDiskAccess", fullDiskAccessRecheckStep);
 
   return (
-    <Dialog
-      open
-      onOpenChange={(open) =>
-        open || !canCloseWizard(step) ? undefined : onClose()
-      }
-    >
+    <Dialog open onOpenChange={(open) => (open || !canCloseWizard(step) ? undefined : onClose())}>
       <DialogPopup className="max-w-lg" showCloseButton={canCloseWizard(step)}>
         {step.step === "quit" ? (
-          <QuitStep
-            source={source}
-            onCancel={onClose}
-            onRechecked={recheckAfterQuit}
-          />
+          <QuitStep source={source} onCancel={onClose} onRechecked={recheckAfterQuit} />
         ) : step.step === "fullDiskAccess" ? (
           <FullDiskAccessStep
             source={source}
@@ -159,14 +135,10 @@ export function BrowserImportWizard({
               onCheckFullDiskAccess ??
               (async () => {
                 const refreshed = await onRefreshSource();
-                return (
-                  refreshed !== undefined && refreshed.unavailable === undefined
-                );
+                return refreshed !== undefined && refreshed.unavailable === undefined;
               })
             }
-            onGranted={
-              step.resume === "import" ? runImport : recheckFullDiskAccess
-            }
+            onGranted={step.resume === "import" ? runImport : recheckFullDiskAccess}
             stillRequired={step.checked === true}
           />
         ) : step.step === "importing" ? (
@@ -186,9 +158,7 @@ export function BrowserImportWizard({
             message={step.message}
             onClose={onClose}
             onRetry={
-              step.message === undefined && isRetryableReason(step.reason)
-                ? runImport
-                : undefined
+              step.message === undefined && isRetryableReason(step.reason) ? runImport : undefined
             }
           />
         ) : (
@@ -204,9 +174,7 @@ export function BrowserImportWizard({
               setTarget(selection);
               setTargetError(false);
             }}
-            targetError={
-              targetError ? t("browserImport.targetUnavailable") : undefined
-            }
+            targetError={targetError ? t("browserImport.targetUnavailable") : undefined}
             onCancel={onClose}
             onImport={runImport}
           />
@@ -229,9 +197,7 @@ function QuitStep({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>
-          {t("browserImport.quit.title", { browser: source.name })}
-        </DialogTitle>
+        <DialogTitle>{t("browserImport.quit.title", { browser: source.name })}</DialogTitle>
         <DialogDescription>
           {t("browserImport.quit.description", { browser: source.name })}
         </DialogDescription>
@@ -240,35 +206,24 @@ function QuitStep({
         <Button variant="outline" onClick={onCancel}>
           {t("common.cancel")}
         </Button>
-        <DialogAction onClick={onRechecked}>
-          {t("browserImport.quit.confirm")}
-        </DialogAction>
+        <DialogAction onClick={onRechecked}>{t("browserImport.quit.confirm")}</DialogAction>
       </DialogFooter>
     </>
   );
 }
 
-function cookieCountLabel(
-  t: WebTranslate,
-  count: number | undefined,
-): string | undefined {
+function cookieCountLabel(t: WebTranslate, count: number | undefined): string | undefined {
   if (count === undefined) return undefined;
   if (count === 0) return t("browserImport.cookies.none");
-  return t(
-    count === 1 ? "browserImport.cookies.one" : "browserImport.cookies.many",
-    {
-      count: count.toLocaleString(),
-    },
-  );
+  return t(count === 1 ? "browserImport.cookies.one" : "browserImport.cookies.many", {
+    count: count.toLocaleString(),
+  });
 }
 
 function cookieResultCount(t: WebTranslate, count: number): string {
-  return t(
-    count === 1 ? "browserImport.cookies.one" : "browserImport.cookies.many",
-    {
-      count: count.toLocaleString(),
-    },
-  );
+  return t(count === 1 ? "browserImport.cookies.one" : "browserImport.cookies.many", {
+    count: count.toLocaleString(),
+  });
 }
 
 type ConfigureStepProps = {
@@ -304,17 +259,11 @@ function FullDiskAccessStep({
   const [opening, setOpening] = useState(false);
   const [openingFailed, setOpeningFailed] = useState(false);
   const openingError = openingFailed
-    ? translateWebSource(
-        locale,
-        "Could not open System Settings. Try Allow again.",
-      )
+    ? translateWebSource(locale, "Could not open System Settings. Try Allow again.")
     : null;
-  const permission = usePermissionStatus(
-    async () => ({ fullDiskAccess: await onCheck() }),
-    {
-      fullDiskAccess: false,
-    },
-  );
+  const permission = usePermissionStatus(async () => ({ fullDiskAccess: await onCheck() }), {
+    fullDiskAccess: false,
+  });
   const allow = () => {
     if (opening) return;
     setOpening(true);
@@ -419,9 +368,7 @@ function ConfigureStep({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>
-          {t("browserImport.configure.title", { browser: source.name })}
-        </DialogTitle>
+        <DialogTitle>{t("browserImport.configure.title", { browser: source.name })}</DialogTitle>
         <DialogDescription>
           {t("browserImport.configure.description", {
             environment: destinationEnvironmentName,
@@ -463,14 +410,10 @@ function ConfigureStep({
             {targetProfiles.map((profile) => (
               <SelectableTile
                 key={profile.id}
-                selected={
-                  target.kind === "existing" && target.profileId === profile.id
-                }
+                selected={target.kind === "existing" && target.profileId === profile.id}
                 title={profile.name}
                 subtitle={t("browserImport.existingProfile")}
-                onSelect={() =>
-                  onTargetChange({ kind: "existing", profileId: profile.id })
-                }
+                onSelect={() => onTargetChange({ kind: "existing", profileId: profile.id })}
               />
             ))}
           </section>
@@ -486,9 +429,7 @@ function ConfigureStep({
           {t("common.cancel")}
         </Button>
         <Button
-          disabled={
-            sourceProfileDirectory === "" || targetMissing || targetUncreatable
-          }
+          disabled={sourceProfileDirectory === "" || targetMissing || targetUncreatable}
           onClick={onImport}
         >
           {t("browserImport.import")}
@@ -522,9 +463,7 @@ function SelectableTile({
       )}
     >
       <span className="min-w-0">
-        <span className="block truncate text-sm font-medium text-foreground">
-          {title}
-        </span>
+        <span className="block truncate text-sm font-medium text-foreground">{title}</span>
         {subtitle ? (
           <span className="block truncate text-xs tabular-nums text-muted-foreground">
             {subtitle}
@@ -534,9 +473,7 @@ function SelectableTile({
       <span
         className={cn(
           "grid size-4 shrink-0 place-items-center rounded-full border",
-          selected
-            ? "border-primary bg-primary text-primary-foreground"
-            : "border-input",
+          selected ? "border-primary bg-primary text-primary-foreground" : "border-input",
         )}
       >
         {selected ? <CheckIcon className="size-2.5" /> : null}
@@ -551,9 +488,7 @@ function ImportingStep() {
     <>
       <DialogHeader>
         <DialogTitle>{t("browserImport.importing.title")}</DialogTitle>
-        <DialogDescription>
-          {t("browserImport.importing.description")}
-        </DialogDescription>
+        <DialogDescription>{t("browserImport.importing.description")}</DialogDescription>
       </DialogHeader>
       <DialogPanel>
         <div className="flex items-center gap-3 py-2">
@@ -578,16 +513,11 @@ function CheckingStep({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>
-          {t("settingsResidual.checkingBrowser", { name: sourceName })}
-        </DialogTitle>
+        <DialogTitle>{t("settingsResidual.checkingBrowser", { name: sourceName })}</DialogTitle>
         <DialogDescription>
           {check === "fullDiskAccess"
             ? translateWebSource(locale, "Checking Full Disk Access.")
-            : translateWebSource(
-                locale,
-                "Checking whether the browser has closed.",
-              )}
+            : translateWebSource(locale, "Checking whether the browser has closed.")}
         </DialogDescription>
       </DialogHeader>
       <DialogPanel>
@@ -658,9 +588,7 @@ function DoneStep({
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             {t("browserImport.done.skipped")}
           </p>
-          <p className="mt-1 text-sm text-foreground">
-            {formatSkippedDomains(skippedDomains)}
-          </p>
+          <p className="mt-1 text-sm text-foreground">{formatSkippedDomains(skippedDomains)}</p>
         </DialogPanel>
       ) : null}
       <DialogFooter>
@@ -689,21 +617,16 @@ function BlockedStep({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>
-          {t("browserImport.blocked.title", { browser: source.name })}
-        </DialogTitle>
+        <DialogTitle>{t("browserImport.blocked.title", { browser: source.name })}</DialogTitle>
         <DialogDescription>
-          {message ??
-            translateWebSource(locale, BROWSER_IMPORT_FAILURE_COPY[reason])}
+          {message ?? translateWebSource(locale, BROWSER_IMPORT_FAILURE_COPY[reason])}
         </DialogDescription>
       </DialogHeader>
       <DialogFooter>
         <Button variant="outline" onClick={onClose}>
           {t("common.close")}
         </Button>
-        {onRetry ? (
-          <DialogAction onClick={onRetry}>{t("common.retry")}</DialogAction>
-        ) : null}
+        {onRetry ? <DialogAction onClick={onRetry}>{t("common.retry")}</DialogAction> : null}
       </DialogFooter>
     </>
   );

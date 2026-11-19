@@ -25,6 +25,7 @@ const base = {
   hasAudioConsent: () => false,
   getTranscriptionOptions: () => DEFAULT_SPEECH_TRANSCRIPTION_OPTIONS,
   getMicrophoneId: () => "",
+  getStreamingEnabled: () => false,
   onLevel: () => {},
   onDurationLimit: () => {},
   onText: () => {},

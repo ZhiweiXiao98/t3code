@@ -2,10 +2,7 @@ import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 import { translateWebSource } from "~/i18n/messages";
 import { appAtomRegistry, subscribeAtomChanges } from "../rpc/atomRegistry";
 import { primaryEnvironmentIdAtom } from "../state/primaryEnvironment";
-import {
-  primaryServerConfigAtom,
-  primaryServerConfigEventAtom,
-} from "../state/server";
+import { primaryServerConfigAtom, primaryServerConfigEventAtom } from "../state/server";
 import { KeybindingsConfigWarning } from "./KeybindingsConfigWarning";
 import { createKeybindingsUpdateToastController } from "./KeybindingsUpdateToast.logic";
 import { stackedThreadToast, toastManager } from "./ui/toast";

@@ -2,11 +2,7 @@ import { useI18n } from "~/i18n/WebI18nContext";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { ChevronDownIcon, ChevronUpIcon, XIcon } from "lucide-react";
 import { Button } from "../ui/button";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "../ui/input-group";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "../ui/input-group";
 import { cn } from "~/lib/utils";
 import {
   formatThreadFindCount,
@@ -55,14 +51,11 @@ export function ThreadFindBar(props: ThreadFindBarProps) {
   const noResults = hasQuery && !props.status && props.matchCount === 0;
   let label = "";
   if (hasQuery) {
-    label = props.counting
-      ? "1/…"
-      : formatThreadFindCount(props.activeIndex, props.matchCount);
+    label = props.counting ? "1/…" : formatThreadFindCount(props.activeIndex, props.matchCount);
   }
   if (props.status === "loading") label = controlsT("chatControls.searching");
   if (props.status === "error") label = controlsT("chatControls.searchFailed");
-  const [storedAnnouncement, setAnnouncement] =
-    useState<ThreadFindAnnouncement | null>(null);
+  const [storedAnnouncement, setAnnouncement] = useState<ThreadFindAnnouncement | null>(null);
   const announcement = nextThreadFindAnnouncement(storedAnnouncement, {
     navigationId: props.navigationId,
     text: label,
@@ -74,12 +67,9 @@ export function ThreadFindBar(props: ThreadFindBarProps) {
   if (!props.open) return null;
 
   const navigationDisabled =
-    props.matchCount === 0 ||
-    props.status === "loading" ||
-    props.counting === true;
+    props.matchCount === 0 || props.status === "loading" || props.counting === true;
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229)
-      return;
+    if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
     if (event.key === "Enter") {
       event.preventDefault();
       event.stopPropagation();

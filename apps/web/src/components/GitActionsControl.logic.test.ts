@@ -1,7 +1,4 @@
-import {
-  SourceControlProviderKind,
-  type VcsStatusResult,
-} from "@t3tools/contracts";
+import { SourceControlProviderKind, type VcsStatusResult } from "@t3tools/contracts";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
 import { resolveAutoFeatureBranchName } from "@t3tools/shared/git";
 import { assert, describe, it } from "vite-plus/test";
@@ -41,9 +38,7 @@ function status(overrides: Partial<VcsStatusResult> = {}): VcsStatusResult {
 }
 
 function pushDisabledReason(gitStatus: VcsStatusResult): string | null {
-  const item = buildMenuItems(gitStatus, false).find(
-    (menuItem) => menuItem.id === "push",
-  );
+  const item = buildMenuItems(gitStatus, false).find((menuItem) => menuItem.id === "push");
   assert.isDefined(item);
   return getMenuActionDisabledReason({
     item,
@@ -99,8 +94,7 @@ describe("when: ref is clean, up to date, and has no open PR", () => {
 
     const dirtyFeature = { ...syncedFeature, hasWorkingTreeChanges: true };
     assert.equal(
-      buildMenuItems(dirtyFeature, false).find((item) => item.id === "pr")
-        ?.disabled,
+      buildMenuItems(dirtyFeature, false).find((item) => item.id === "pr")?.disabled,
       false,
     );
     assert.equal(pushDisabledReason(dirtyFeature), "No local commits to push.");
@@ -150,10 +144,7 @@ describe("when: on default ref without open PR", () => {
   });
 
   it("offers a feature branch only to actions that commit the changes", () => {
-    const reason = (
-      action: DefaultBranchConfirmableAction,
-      hasWorkingTreeChanges: boolean,
-    ) =>
+    const reason = (action: DefaultBranchConfirmableAction, hasWorkingTreeChanges: boolean) =>
       resolveFeatureBranchUnavailableReason({
         action,
         branchName: "main",
@@ -251,16 +242,10 @@ describe("when: the ref is on GitLab", () => {
     const ahead = status({ ...gitLab, hasUpstream: false, aheadCount: 2 });
     assert.equal(resolveQuickAction(ahead, false).label, "Push & create MR");
     assert.equal(
-      resolveQuickAction(
-        status({ ...gitLab, hasWorkingTreeChanges: true }),
-        false,
-      ).label,
+      resolveQuickAction(status({ ...gitLab, hasWorkingTreeChanges: true }), false).label,
       "Commit, push & MR",
     );
-    assert.equal(
-      buildMenuItems(ahead, false).find((item) => item.id === "pr")?.label,
-      "Create MR",
-    );
+    assert.equal(buildMenuItems(ahead, false).find((item) => item.id === "pr")?.label, "Create MR");
 
     const copy = resolveDefaultBranchActionDialogCopy({
       action: "create_pr",
@@ -271,14 +256,9 @@ describe("when: the ref is on GitLab", () => {
     assert.equal(copy.title, "Push & create MR from default ref?");
     assert.include(copy.description, "create a merge request on");
 
+    assert.equal(resolveQuickAction(ahead, false, false, true, "zh-CN").label, "推送并创建 MR");
     assert.equal(
-      resolveQuickAction(ahead, false, false, true, "zh-CN").label,
-      "推送并创建 MR",
-    );
-    assert.equal(
-      buildMenuItems(ahead, false, true, "zh-CN").find(
-        (item) => item.id === "pr",
-      )?.label,
+      buildMenuItems(ahead, false, true, "zh-CN").find((item) => item.id === "pr")?.label,
       "创建 MR",
     );
     const translated = resolveDefaultBranchActionDialogCopy({
@@ -348,10 +328,7 @@ describe("resolveAutoFeatureBranchName", () => {
   });
 
   it("treats existing ref names as case-insensitive for collision checks", () => {
-    const ref = resolveAutoFeatureBranchName(
-      ["Feature/Ticket-1"],
-      "feature/ticket-1",
-    );
+    const ref = resolveAutoFeatureBranchName(["Feature/Ticket-1"], "feature/ticket-1");
     assert.equal(ref, "feature/ticket-1-2");
   });
 });
@@ -367,10 +344,7 @@ describe("localized Git action progress", () => {
       phaseStartedAtMs: 0,
       hookStartedAtMs: 1,
     };
-    assert.equal(
-      resolveGitActionProgressPresentation(progress)?.status,
-      "Running pre-commit...",
-    );
+    assert.equal(resolveGitActionProgressPresentation(progress)?.status, "Running pre-commit...");
     assert.deepEqual(resolveGitActionProgressPresentation(progress, "zh-CN"), {
       status: "正在运行 pre-commit…",
       output: "test --run path/file.ts",
@@ -380,6 +354,7 @@ describe("localized Git action progress", () => {
     assert.equal(formatGitActionElapsed(0, 65000, "zh-CN"), "1 分 5 秒");
     assert.include(
       resolveFeatureBranchUnavailableReason({
+        action: "commit_push",
         branchName: "feature/do-not-translate",
         hasWorkingTreeChanges: false,
         locale: "zh-CN",

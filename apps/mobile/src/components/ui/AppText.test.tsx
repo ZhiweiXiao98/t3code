@@ -1,9 +1,19 @@
+import { renderToStaticMarkup } from "react-dom/server";
+import type { ReactNode } from "react";
+import type { TextInputProps } from "react-native";
 import { expect, it, vi } from "vite-plus/test";
 
+const state = vi.hoisted(() => ({ input: undefined as TextInputProps | undefined }));
+
+vi.mock("./SecretRevealButton", () => ({ SecretRevealButton: () => null }));
 vi.mock("react-native", () => ({
   Platform: { OS: "ios" },
   Text: () => null,
-  TextInput: () => null,
+  View: ({ children }: { children?: ReactNode }) => children,
+  TextInput: (props: TextInputProps) => {
+    state.input = props;
+    return null;
+  },
 }));
 vi.mock("../../i18n/mobileStrings", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../i18n/mobileStrings")>();
@@ -12,6 +22,11 @@ vi.mock("../../i18n/mobileStrings", async (importOriginal) => {
 import { localizeMobileString } from "../../i18n/mobileStrings";
 import { AppTextInput } from "./AppText";
 import { SecretTextInput } from "./SecretTextInput";
+
+function renderedInput() {
+  if (!state.input) throw new Error("Expected the secret field to render a native text input");
+  return { props: state.input };
+}
 
 it("preserves projected secret labels and placeholders but translates the explicit application fallback", async () => {
   const actual = await vi.importActual<typeof import("../../i18n/mobileStrings")>(
@@ -27,22 +42,27 @@ it("preserves projected secret labels and placeholders but translates the explic
     ]) {
       const onChangeText = vi.fn();
       const onSubmitEditing = vi.fn();
-      const secret = SecretTextInput({
-        accessibilityLabel: "Open",
-        placeholder,
-        value: "test-value",
-        editable: true,
-        onChangeText,
-        onSubmitEditing,
-      });
-      const input = AppTextInput(secret.props);
+      state.input = undefined;
+      renderToStaticMarkup(
+        <SecretTextInput
+          accessibilityLabel="Open"
+          placeholder={placeholder}
+          value="test-value"
+          editable
+          onChangeText={onChangeText}
+          onSubmitEditing={onSubmitEditing}
+        />,
+      );
+      const input = renderedInput();
       expect(input.props.accessibilityLabel).toBe("Open");
       expect(input.props.placeholder).toBe(placeholder);
       expect(input.props.secureTextEntry).toBe(true);
       expect(input.props.autoComplete).toBe("off");
       expect(input.props.importantForAutofill).toBe("no");
-      input.props.onChangeText("replacement");
-      input.props.onSubmitEditing({ nativeEvent: { text: "replacement" } });
+      input.props.onChangeText!("replacement");
+      input.props.onSubmitEditing!({ nativeEvent: { text: "replacement" } } as Parameters<
+        NonNullable<TextInputProps["onSubmitEditing"]>
+      >[0]);
       expect(onChangeText).toHaveBeenCalledWith("replacement");
       expect(onSubmitEditing).toHaveBeenCalledWith("replacement");
     }

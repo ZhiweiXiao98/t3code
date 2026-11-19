@@ -1,9 +1,6 @@
 import type { WebTranslate } from "../../i18n/WebI18nContext";
 import { translateWebMessage } from "../../i18n/messages";
-import {
-  EnvironmentId,
-  type ServerSelfUpdateCapability,
-} from "@t3tools/contracts";
+import { EnvironmentId, type ServerSelfUpdateCapability } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
@@ -21,8 +18,7 @@ import {
   type UpdateEverythingMachine,
 } from "./updateEverything.logic";
 
-const zh: WebTranslate = (key, values) =>
-  translateWebMessage("zh-CN", key, values);
+const zh: WebTranslate = (key, values) => translateWebMessage("zh-CN", key, values);
 
 function machine(
   id: string,
@@ -66,11 +62,7 @@ describe("collectServerUpdateTargets", () => {
         }),
         machine("service", "0.0.40", "boot-service"),
         machine("nightly-service", "0.0.49-nightly.20261001.3", "boot-service"),
-        machine(
-          "other-desktop",
-          "0.0.49-nightly.20261001.3",
-          "desktop-managed",
-        ),
+        machine("other-desktop", "0.0.49-nightly.20261001.3", "desktop-managed"),
         machine("offline", "0.0.40", "boot-service", { connected: false }),
         machine("never-connected", "0.0.40", "boot-service", {
           serverConfig: null,
@@ -93,9 +85,7 @@ describe("collectServerUpdateTargets", () => {
       "0.0.50",
     );
 
-    expect(
-      targets.map((target) => [target.serverLabel, target.targetVersion]),
-    ).toEqual([
+    expect(targets.map((target) => [target.serverLabel, target.targetVersion])).toEqual([
       ["service", "0.0.50"],
       ["other-desktop", "0.0.50"],
     ]);
@@ -144,11 +134,7 @@ describe("collectServerUpdateTargets", () => {
       managed("off", { mode: "off" }),
       managed("no-nightly", { mode: "auto", allowNightly: false }),
       // A desktop app updates from its own feed, whatever track this app is on.
-      managed(
-        "desktop-no-nightly",
-        { mode: "auto", allowNightly: false },
-        "desktop-managed",
-      ),
+      managed("desktop-no-nightly", { mode: "auto", allowNightly: false }, "desktop-managed"),
     ];
 
     expect(
@@ -215,27 +201,13 @@ describe("collectChannelSwitchTargets", () => {
         host(machine("newer-service", NEWER_NIGHTLY, "boot-service"), 69),
         host(machine("linux-desktop", OLD_NIGHTLY, "desktop-managed"), 69),
         host(machine("new-service", NIGHTLY, "boot-service"), 72),
-        host(
-          machine("old-server", "0.1.2-nightly.20260901.3000", "boot-service"),
-          undefined,
-        ),
-        host(
-          machine("mac-desktop", OLD_NIGHTLY, "desktop-managed"),
-          69,
-          "darwin",
-        ),
-        host(
-          machine("preview", "0.1.3-preview.20261026.3702", "boot-service"),
-          69,
-        ),
+        host(machine("old-server", "0.1.2-nightly.20260901.3000", "boot-service"), undefined),
+        host(machine("mac-desktop", OLD_NIGHTLY, "desktop-managed"), 69, "darwin"),
+        host(machine("preview", "0.1.3-preview.20261026.3702", "boot-service"), 69),
         host(machine("stable", "0.1.3", "boot-service"), 69),
         host(machine("stable-desktop", "0.1.2", "desktop-managed"), 68),
         // Already current, but its saved track may still say Nightly.
-        host(
-          machine("current-desktop", "0.1.3", "desktop-managed"),
-          69,
-          "darwin",
-        ),
+        host(machine("current-desktop", "0.1.3", "desktop-managed"), 69, "darwin"),
       ],
       stable,
     );
@@ -253,30 +225,20 @@ describe("collectChannelSwitchTargets", () => {
       ["stable-desktop", "0.1.3", "latest", false],
       ["current-desktop", "0.1.3", "latest", true],
     ]);
-    expect(
-      targets.every((target) => target.targetDatabaseMigration === 69),
-    ).toBe(true);
+    expect(targets.every((target) => target.targetDatabaseMigration === 69)).toBe(true);
     expect(skipped.map((entry) => [entry.label, entry.reason])).toEqual([
-      [
-        "newer-service",
-        "run `t3 update --channel stable --allow-downgrade` there",
-      ],
+      ["newer-service", "run `t3 update --channel stable --allow-downgrade` there"],
       [
         "new-service",
         "its database has changes 0.1.3 does not support yet; stay on Nightly until Stable has them",
       ],
-      [
-        "old-server",
-        "its server predates database checks; update it on Nightly first",
-      ],
+      ["old-server", "its server predates database checks; update it on Nightly first"],
       ["mac-desktop", "switch the Mac app on that Mac"],
       ["preview", "runs a preview build"],
     ]);
   });
 
-  const managedHost = (
-    base: UpdateEverythingMachine,
-  ): UpdateEverythingMachine => ({
+  const managedHost = (base: UpdateEverythingMachine): UpdateEverythingMachine => ({
     ...base,
     serverConfig: {
       ...base.serverConfig!,
@@ -303,8 +265,7 @@ describe("collectChannelSwitchTargets", () => {
           serverConfig: {
             ...machine("old-desktop", "0.1.2", "desktop-managed").serverConfig!,
             environment: {
-              ...machine("old-desktop", "0.1.2", "desktop-managed")
-                .serverConfig!.environment,
+              ...machine("old-desktop", "0.1.2", "desktop-managed").serverConfig!.environment,
               capabilities: {
                 repositoryIdentity: true,
                 serverSelfUpdate: "desktop-managed",
@@ -319,9 +280,9 @@ describe("collectChannelSwitchTargets", () => {
       nightly,
     );
 
-    expect(
-      targets.map((target) => [target.serverLabel, target.targetVersion]),
-    ).toEqual([["service", NIGHTLY]]);
+    expect(targets.map((target) => [target.serverLabel, target.targetVersion])).toEqual([
+      ["service", NIGHTLY],
+    ]);
     expect(skipped.map((entry) => [entry.label, entry.reason])).toEqual([
       [
         "ahead",
@@ -346,9 +307,7 @@ describe("localSwitchBlockReason", () => {
     const nightly = "0.1.4-nightly.20261027.3796";
 
     const windows = { connected: true, databaseMigration: 69 };
-    expect(
-      localSwitchBlockReason(nightly, stable, [windows], 1, true),
-    ).toBeNull();
+    expect(localSwitchBlockReason(nightly, stable, [windows], 1, true)).toBeNull();
     // A WSL server's newer migration blocks the reinstall that would restart it.
     expect(
       localSwitchBlockReason(
@@ -378,16 +337,8 @@ describe("localSwitchBlockReason", () => {
       "服务器未连接，无法检查其数据库",
     );
     expect(
-      localSwitchBlockReason(
-        nightly,
-        stable,
-        [{ connected: true, databaseMigration: 72 }],
-        1,
-        zh,
-      ),
-    ).toBe(
-      "其数据库包含 0.1.3 尚不支持的更改；请继续使用 Nightly，直到 Stable 支持这些更改",
-    );
+      localSwitchBlockReason(nightly, stable, [{ connected: true, databaseMigration: 72 }], 1, zh),
+    ).toBe("其数据库包含 0.1.3 尚不支持的更改；请继续使用 Nightly，直到 Stable 支持这些更改");
     expect(localSwitchBlockReason("0.1.3", stable, [], 1, zh)).toBeNull();
     expect(localSwitchBlockReason("0.1.3", stable, [], 1, true)).toBeNull();
     // A primary backend still starting has no entry or bootstrap yet, unless Local environment is off.
@@ -432,9 +383,7 @@ describe("collectRestartingMachines", () => {
       { environmentId: "old", continuesThreads: false },
     ]);
     expect(
-      collectRestartingMachines(machines, servers, false).map(
-        (entry) => entry.environmentId,
-      ),
+      collectRestartingMachines(machines, servers, false).map((entry) => entry.environmentId),
     ).toEqual(["alvin", "opted-out", "old"]);
   });
 });
@@ -458,15 +407,10 @@ describe("runUpdateEverything", () => {
 
   it("stages servers while providers install and updates each once its own stage settles", async () => {
     const calls: string[] = [];
-    const [slow, fast] = [
-      EnvironmentId.make("slow"),
-      EnvironmentId.make("fast"),
-    ];
+    const [slow, fast] = [EnvironmentId.make("slow"), EnvironmentId.make("fast")];
     let finishProviders = () => {};
     let failSlowStage = () => {};
-    const providers = new Promise<void>(
-      (resolve) => (finishProviders = resolve),
-    );
+    const providers = new Promise<void>((resolve) => (finishProviders = resolve));
     const run = runUpdateEverything({
       updateProviders: () => {
         calls.push("providers");
@@ -477,13 +421,7 @@ describe("runUpdateEverything", () => {
       stageServers: () => {
         calls.push("stage");
         return new Map([
-          [
-            slow,
-            new Promise(
-              (_, reject) =>
-                (failSlowStage = () => reject(new Error("failed"))),
-            ),
-          ],
+          [slow, new Promise((_, reject) => (failSlowStage = () => reject(new Error("failed"))))],
           [fast, Promise.resolve()],
         ]);
       },
@@ -553,12 +491,7 @@ describe("describeUpdateEverything", () => {
     });
 
     expect(
-      rows.map(({ label, app, skipped, providers }) => [
-        label,
-        app,
-        skipped,
-        providers,
-      ]),
+      rows.map(({ label, app, skipped, providers }) => [label, app, skipped, providers]),
     ).toEqual([
       ["Mainbook", "this-app", null, ["Codex"]],
       ["Mainbook WSL", "this-app", null, []],
@@ -602,57 +535,27 @@ describe("describeUpdateCapsule", () => {
       label: "remote 更新失败",
       action: "retry",
     });
+    expect(describeUpdateCapsule(run, [failed, failed], null, 0, zh).label).toBe(
+      "2 台设备更新失败",
+    );
+    expect(describeUpdateCapsule({ ...run, trackSwitch: true }, [failed], null, 0, zh).action).toBe(
+      "dismiss",
+    );
     expect(
-      describeUpdateCapsule(run, [failed, failed], null, 0, zh).label,
-    ).toBe("2 台设备更新失败");
-    expect(
-      describeUpdateCapsule(
-        { ...run, trackSwitch: true },
-        [failed],
-        null,
-        0,
-        zh,
-      ).action,
-    ).toBe("dismiss");
-    expect(
-      describeUpdateCapsule(
-        { ...run, phase: "countdown", restartAt: 1_001 },
-        [],
-        null,
-        0,
-        zh,
-      ).label,
-    ).toBe("2 秒后重启");
-    expect(
-      describeUpdateCapsule({ ...run, phase: "installing" }, [], null, 0, zh)
+      describeUpdateCapsule({ ...run, phase: "countdown", restartAt: 1_001 }, [], null, 0, zh)
         .label,
-    ).toBe("正在重启…");
+    ).toBe("2 秒后重启");
+    expect(describeUpdateCapsule({ ...run, phase: "installing" }, [], null, 0, zh).label).toBe(
+      "正在重启…",
+    );
     expect(
-      describeUpdateCapsule(
-        run,
-        [],
-        { status: "downloading", percent: 27.9 },
-        0,
-        zh,
-      ).label,
+      describeUpdateCapsule(run, [], { status: "downloading", percent: 27.9 }, 0, zh).label,
     ).toBe("正在下载 27%");
     expect(
-      describeUpdateCapsule(
-        run,
-        [],
-        { status: "downloading", percent: null },
-        0,
-        zh,
-      ).label,
+      describeUpdateCapsule(run, [], { status: "downloading", percent: null }, 0, zh).label,
     ).toBe("正在下载");
     expect(
-      describeUpdateCapsule(
-        run,
-        [{ ...failed, status: "downloading" }],
-        null,
-        180_000,
-        zh,
-      ).slow,
+      describeUpdateCapsule(run, [{ ...failed, status: "downloading" }], null, 180_000, zh).slow,
     ).toEqual({ status: "正在下载", elapsed: "3 分钟" });
     expect(
       describeUpdateCapsule(
@@ -669,77 +572,68 @@ describe("describeUpdateCapsule", () => {
     expect(formatUpdateElapsed(0, zh)).toBe("不到 1 分钟");
     expect(formatUpdateElapsed(3_660_000, zh)).toBe("1 小时 1 分钟");
     expect(getUpdateRunStatusLabel("providers", zh)).toBe("正在更新服务提供方");
-    expect(
-      describeUpdateCapsule({ ...run, trackSwitch: true }, [failed], null, 0)
-        .action,
-    ).toBe("dismiss");
+    expect(describeUpdateCapsule({ ...run, trackSwitch: true }, [failed], null, 0).action).toBe(
+      "dismiss",
+    );
   });
 });
 
 describe("localized update summaries", () => {
-  it.each([1, 2])(
-    "keeps counts, machine identities and result flags with %s updates",
-    (count) => {
-      const plan = {
-        localVersion: "1.1.0",
-        localMachines: [],
-        servers: Array.from({ length: count }, (_, i) => ({
-          environmentId: EnvironmentId.make(`server-${i}`),
-          serverLabel: `server-${i}`,
-          selfUpdate: "respawn" as const,
-          targetVersion: "1.1.0",
-        })),
-        providerMachines: [
-          {
-            environmentId: EnvironmentId.make("providers"),
-            label: "provider-machine",
-            providers: Array.from({ length: count }, () => "Codex"),
-          },
-        ],
-        skipped: [],
-      };
-      const english = describeUpdateEverything(plan);
-      const chinese = describeUpdateEverything(plan, zh);
-      expect(english.summary).toBe(
-        `Update this app, ${count} server${count === 1 ? "" : "s"}, and ${count} provider${count === 1 ? "" : "s"}`,
-      );
-      expect(chinese.summary).toBe(
-        `更新此应用、${count} 台服务器和${count} 个服务提供方`,
-      );
-      expect(chinese.rows[0]?.label).toBe("此应用");
-      expect(chinese.rows.slice(1)).toEqual(english.rows.slice(1));
-      const result = {
-        localVersion: "1.1.0",
-        updatedServers: count,
-        updatedProviders: count,
-        failures: [],
-        restarting: count === 1 ? ["remote"] : ["remote", "other"],
-      };
-      expect(getUpdateEverythingToastView(result, "1.1.0", zh)).toEqual({
-        type: "success",
-        title: `已更新此应用、${count} 台服务器和${count} 个服务提供方`,
-        description: `${count === 1 ? "remote" : "remote和other"} 仍在重启。`,
-      });
-      expect(
-        getUpdateEverythingToastView(
-          { ...result, failures: ["original server error"] },
-          "1.1.0",
-          zh,
-        )?.description,
-      ).toContain("original server error");
-      expect(
-        collectUpdateEverythingResult(
-          {
-            localVersion: null,
-            localFailures: ["original error"],
-            servers: [],
-            providers: [],
-          },
-          zh,
-        ).failures,
-      ).toEqual(["此应用：original error"]);
-    },
-  );
+  it.each([1, 2])("keeps counts, machine identities and result flags with %s updates", (count) => {
+    const plan = {
+      localVersion: "1.1.0",
+      localMachines: [],
+      servers: Array.from({ length: count }, (_, i) => ({
+        environmentId: EnvironmentId.make(`server-${i}`),
+        serverLabel: `server-${i}`,
+        selfUpdate: "respawn" as const,
+        targetVersion: "1.1.0",
+      })),
+      providerMachines: [
+        {
+          environmentId: EnvironmentId.make("providers"),
+          label: "provider-machine",
+          providers: Array.from({ length: count }, () => "Codex"),
+        },
+      ],
+      skipped: [],
+    };
+    const english = describeUpdateEverything(plan);
+    const chinese = describeUpdateEverything(plan, zh);
+    expect(english.summary).toBe(
+      `Update this app, ${count} server${count === 1 ? "" : "s"}, and ${count} provider${count === 1 ? "" : "s"}`,
+    );
+    expect(chinese.summary).toBe(`更新此应用、${count} 台服务器和${count} 个服务提供方`);
+    expect(chinese.rows[0]?.label).toBe("此应用");
+    expect(chinese.rows.slice(1)).toEqual(english.rows.slice(1));
+    const result = {
+      localVersion: "1.1.0",
+      updatedServers: count,
+      updatedProviders: count,
+      failures: [],
+      restarting: count === 1 ? ["remote"] : ["remote", "other"],
+    };
+    expect(getUpdateEverythingToastView(result, "1.1.0", zh)).toEqual({
+      type: "success",
+      title: `已更新此应用、${count} 台服务器和${count} 个服务提供方`,
+      description: `${count === 1 ? "remote" : "remote和other"} 仍在重启。`,
+    });
+    expect(
+      getUpdateEverythingToastView({ ...result, failures: ["original server error"] }, "1.1.0", zh)
+        ?.description,
+    ).toContain("original server error");
+    expect(
+      collectUpdateEverythingResult(
+        {
+          localVersion: null,
+          localFailures: ["original error"],
+          servers: [],
+          providers: [],
+        },
+        zh,
+      ).failures,
+    ).toEqual(["此应用：original error"]);
+  });
 
   it("translates skip reasons without changing update eligibility or commands", () => {
     const machines = [
@@ -758,11 +652,7 @@ describe("localized update summaries", () => {
       "需要手动更新",
       "使用 nightly 渠道",
     ]);
-    const newer = machine(
-      "newer",
-      "0.1.4-nightly.20261020.3700",
-      "boot-service",
-    );
+    const newer = machine("newer", "0.1.4-nightly.20261020.3700", "boot-service");
     const host = {
       ...newer,
       serverConfig: {
@@ -782,8 +672,7 @@ describe("localized update summaries", () => {
       targets: [],
       skipped: [
         {
-          reason:
-            "请在该设备上运行 `t3 update --channel stable --allow-downgrade`",
+          reason: "请在该设备上运行 `t3 update --channel stable --allow-downgrade`",
         },
       ],
     });

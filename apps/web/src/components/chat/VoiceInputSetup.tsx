@@ -1,4 +1,3 @@
-import { translateWebSource } from "~/i18n/messages";
 import { useI18n } from "~/i18n/WebI18nContext";
 import { useChatUpdateTranslation } from "./v018Messages";
 import { useStableCallback } from "~/hooks/useStableCallback";
@@ -30,19 +29,8 @@ import { useEnvironmentScope } from "../../state/session";
 import { languageLabel } from "../settings/SpeechLanguageSelect";
 import { Button } from "../ui/button";
 import { Dialog } from "../ui/dialog";
-import {
-  Select,
-  SelectItem,
-  SelectPopup,
-  SelectTrigger,
-  SelectValue,
-} from "../ui/select";
-import {
-  WizardFooter,
-  WizardHeader,
-  WizardPanel,
-  WizardPopup,
-} from "../ui/wizard";
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
+import { WizardFooter, WizardHeader, WizardPanel, WizardPopup } from "../ui/wizard";
 
 export function VoiceInputSetup(props: {
   environmentId: EnvironmentId | null;
@@ -64,10 +52,7 @@ export function VoiceInputSetup(props: {
   const tx = useChatUpdateTranslation();
   const navigate = useNavigate();
   const environment = useEnvironment(props.environmentId);
-  const canManage = useEnvironmentScope(
-    props.environmentId,
-    AuthSettingsWriteScope,
-  );
+  const canManage = useEnvironmentScope(props.environmentId, AuthSettingsWriteScope);
   const order = useClientSettings(microphoneOrder);
   const [microphones, setMicrophones] = useState<BrowserMicrophone[]>([]);
   const selectedMicrophone = preferredMicrophoneId(order, microphones);
@@ -80,9 +65,7 @@ export function VoiceInputSetup(props: {
       setMicrophones(await listBrowserMicrophones());
       setMicrophoneError(null);
     } catch {
-      setMicrophoneError(
-        "Could not list microphones. You can still use the system default.",
-      );
+      setMicrophoneError("Could not list microphones. You can still use the system default.");
     }
     setLoadingMicrophones(false);
   });
@@ -92,16 +75,12 @@ export function VoiceInputSetup(props: {
     queueMicrotask(() => void refreshMicrophones());
     const mediaDevices = navigator.mediaDevices;
     mediaDevices?.addEventListener?.("devicechange", refreshMicrophones);
-    return () =>
-      mediaDevices?.removeEventListener?.("devicechange", refreshMicrophones);
+    return () => mediaDevices?.removeEventListener?.("devicechange", refreshMicrophones);
   }, [props.open, props.step, refreshMicrophones]);
   const selectedIsUnavailable = Boolean(
-    selectedMicrophone &&
-    !microphones.some((device) => device.deviceId === selectedMicrophone),
+    selectedMicrophone && !microphones.some((device) => device.deviceId === selectedMicrophone),
   );
-  const selectedDevice = microphones.find(
-    (device) => device.deviceId === selectedMicrophone,
-  );
+  const selectedDevice = microphones.find((device) => device.deviceId === selectedMicrophone);
   const selectedMicrophoneLabel = selectedMicrophone
     ? selectedDevice
       ? browserMicrophoneLabel(selectedDevice, locale)
@@ -110,9 +89,7 @@ export function VoiceInputSetup(props: {
   const status = props.status?.supported ? props.status : null;
   const model = props.model;
   const progress =
-    model?.downloaded === undefined
-      ? null
-      : Math.round((model.downloaded / model.size) * 100);
+    model?.downloaded === undefined ? null : Math.round((model.downloaded / model.size) * 100);
   const openSettings = (hash: string) => {
     props.onOpenChange(false);
     void navigate({ to: "/settings/voice", hash });
@@ -124,11 +101,7 @@ export function VoiceInputSetup(props: {
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
       <WizardPopup>
         <WizardHeader
-          title={
-            props.step === 0
-              ? tx("Set up voice input")
-              : tx("Voice input is ready")
-          }
+          title={props.step === 0 ? tx("Set up voice input") : tx("Voice input is ready")}
           description={
             props.step === 0
               ? locale === "zh-CN"
@@ -143,9 +116,7 @@ export function VoiceInputSetup(props: {
               {model ? (
                 <div className="space-y-3 rounded-lg border border-border/70 bg-card/60 p-3">
                   <div className="flex items-baseline justify-between gap-3">
-                    <h3 className="min-w-0 truncate font-medium">
-                      {model.name}
-                    </h3>
+                    <h3 className="min-w-0 truncate font-medium">{model.name}</h3>
                     <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
                       {Math.round(model.size / 1024 / 1024)} MB
                     </span>
@@ -191,14 +162,8 @@ export function VoiceInputSetup(props: {
                 </p>
               ) : null}
               {props.error ? (
-                <p
-                  role="alert"
-                  className="flex items-start gap-1.5 text-destructive"
-                >
-                  <CircleAlertIcon
-                    aria-hidden
-                    className="mt-0.5 size-3.5 shrink-0"
-                  />
+                <p role="alert" className="flex items-start gap-1.5 text-destructive">
+                  <CircleAlertIcon aria-hidden className="mt-0.5 size-3.5 shrink-0" />
                   {props.error}
                 </p>
               ) : null}
@@ -210,23 +175,17 @@ export function VoiceInputSetup(props: {
               </label>
               <div className="flex items-center gap-2">
                 <Select
-                  value={
-                    selectedMicrophone
-                      ? `device:${selectedMicrophone}`
-                      : "system-default"
-                  }
+                  value={selectedMicrophone ? `device:${selectedMicrophone}` : "system-default"}
                   disabled={loadingMicrophones}
                   onValueChange={(value) => {
                     if (!value) return;
                     const deviceId = value.slice("device:".length);
                     const label =
-                      microphones.find((device) => device.deviceId === deviceId)
-                        ?.label ?? "";
+                      microphones.find((device) => device.deviceId === deviceId)?.label ?? "";
                     updateMicrophoneOrder((order) =>
                       preferMicrophone(
                         order,
-                        value === "system-default" ||
-                          isSystemDefaultDeviceId(deviceId)
+                        value === "system-default" || isSystemDefaultDeviceId(deviceId)
                           ? { kind: "default" }
                           : { kind: "device", deviceId, label },
                       ),
@@ -239,26 +198,18 @@ export function VoiceInputSetup(props: {
                     aria-label={tx("Microphone")}
                     className="min-w-0 flex-1"
                   >
-                    <MicIcon
-                      aria-hidden
-                      className="size-3.5 shrink-0 text-muted-foreground"
-                    />
+                    <MicIcon aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
                     <SelectValue>{selectedMicrophoneLabel}</SelectValue>
                   </SelectTrigger>
                   <SelectPopup align="end" alignItemWithTrigger={false}>
-                    <SelectItem value="system-default">
-                      {tx("System default")}
-                    </SelectItem>
+                    <SelectItem value="system-default">{tx("System default")}</SelectItem>
                     {selectedIsUnavailable ? (
                       <SelectItem value={`device:${selectedMicrophone}`}>
                         {tx("Selected microphone (Unavailable)")}
                       </SelectItem>
                     ) : null}
                     {microphones.map((device) => (
-                      <SelectItem
-                        key={device.deviceId}
-                        value={`device:${device.deviceId}`}
-                      >
+                      <SelectItem key={device.deviceId} value={`device:${device.deviceId}`}>
                         {browserMicrophoneLabel(device, locale)}
                       </SelectItem>
                     ))}
@@ -291,25 +242,16 @@ export function VoiceInputSetup(props: {
         {props.step === 0 ? (
           <WizardFooter
             leading={
-              <Button
-                variant="ghost"
-                onClick={() => openSettings("speech-models")}
-              >
+              <Button variant="ghost" onClick={() => openSettings("speech-models")}>
                 {model ? tx("Other models") : tx("Choose a model")}
               </Button>
             }
           >
             {props.onRetryCatalog ? (
-              <Button onClick={props.onRetryCatalog}>
-                {tx("Retry loading models")}
-              </Button>
+              <Button onClick={props.onRetryCatalog}>{tx("Retry loading models")}</Button>
             ) : null}
             {props.downloading ? (
-              <Button
-                variant="outline"
-                disabled={!canManage}
-                onClick={props.onCancelDownload}
-              >
+              <Button variant="outline" disabled={!canManage} onClick={props.onCancelDownload}>
                 {tx("Cancel download")}
               </Button>
             ) : null}

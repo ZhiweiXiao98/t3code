@@ -31,10 +31,7 @@ import { PullRequestCandidatePicker } from "./PullRequestCandidatePicker";
 import { PullRequestActorLabel } from "./pullRequestPresentation";
 import { readableFailure } from "./pullRequestDetail.logic";
 
-const TRUNCATED_LABELS: Record<
-  ReviewerTruncation,
-  Parameters<WebTranslate>[0]
-> = {
+const TRUNCATED_LABELS: Record<ReviewerTruncation, Parameters<WebTranslate>[0]> = {
   unsearchable: "pullRequests.reviewers.truncated",
   searchable: "pullRequests.reviewers.truncatedSearchable",
   "search-failed": "pullRequests.reviewers.truncatedSearchFailed",
@@ -55,9 +52,7 @@ export function PullRequestReviewerPicker({
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [draft, setDraft] = useState(
-    emptySelection<PullRequestReviewerCandidate>,
-  );
+  const [draft, setDraft] = useState(emptySelection<PullRequestReviewerCandidate>);
 
   const candidatesQuery = useEnvironmentQuery(
     open
@@ -84,25 +79,17 @@ export function PullRequestReviewerPicker({
         })
       : null,
   );
-  const requestReviewers = useAtomCommand(
-    pullRequestEnvironment.requestReviewers,
-    {
-      reportFailure: false,
-    },
-  );
+  const requestReviewers = useAtomCommand(pullRequestEnvironment.requestReviewers, {
+    reportFailure: false,
+  });
 
-  const { candidates, searchPending, searchError, truncation } =
-    reviewerCandidateView({
-      ...searchInput,
-      search: searchResult,
-    });
+  const { candidates, searchPending, searchError, truncation } = reviewerCandidateView({
+    ...searchInput,
+    search: searchResult,
+  });
 
-  const send = async (
-    people: ReadonlyArray<PullRequestReviewerCandidate>,
-    requested: boolean,
-  ) => {
-    for (const batch of changeBatches(people))
-      await sendBatch(batch, requested);
+  const send = async (people: ReadonlyArray<PullRequestReviewerCandidate>, requested: boolean) => {
+    for (const batch of changeBatches(people)) await sendBatch(batch, requested);
   };
   const sendBatch = async (
     people: ReadonlyArray<PullRequestReviewerCandidate>,
@@ -116,9 +103,17 @@ export function PullRequestReviewerPicker({
         requested,
       },
     });
-    if (result._tag === "Success") return;
     const { t } = readWebI18n();
     const logins = people.map((person) => person.login).join(", ");
+    if (result._tag === "Success") {
+      toastManager.add({
+        type: "success",
+        title: requested
+          ? t("pullRequests.reviewers.requested", { reviewer: logins })
+          : t("pullRequests.reviewers.withdrawn", { reviewer: logins }),
+      });
+      return;
+    }
     toastManager.add({
       type: "error",
       title: requested
@@ -142,15 +137,13 @@ export function PullRequestReviewerPicker({
     const { add, remove } = selectionChanges(
       draft,
       (key, person) =>
-        latest.find((entry) => `${entry.kind}:${entry.id}` === key)
-          ?.isRequested ?? person.isRequested,
+        latest.find((entry) => `${entry.kind}:${entry.id}` === key)?.isRequested ??
+        person.isRequested,
     );
     setDraft(emptySelection());
     // A search result is keyed by what was typed, so the writes do not reach it on their own.
     const refreshSearch =
-      hostQuery !== null && add.length + remove.length > 0
-        ? searchResult.refresh
-        : null;
+      hostQuery !== null && add.length + remove.length > 0 ? searchResult.refresh : null;
     // Removing first lets a host that keeps one reviewer take the new one.
     void send(remove, false)
       .then(() => send(add, true))
@@ -168,10 +161,7 @@ export function PullRequestReviewerPicker({
       query={query}
       onQueryChange={setQuery}
       searchLabel={t("pullRequests.reviewers.search")}
-      isPending={
-        (candidatesQuery.isPending && candidatesQuery.data === null) ||
-        searchPending
-      }
+      isPending={(candidatesQuery.isPending && candidatesQuery.data === null) || searchPending}
       error={
         candidatesQuery.data === null
           ? candidatesQuery.error
@@ -185,9 +175,7 @@ export function PullRequestReviewerPicker({
       errorLabel={t("pullRequests.reviewers.readFailed")}
       truncated={truncation !== null}
       truncatedLabel={
-        truncation === null
-          ? ""
-          : t(TRUNCATED_LABELS[truncation], { error: searchError ?? "" })
+        truncation === null ? "" : t(TRUNCATED_LABELS[truncation], { error: searchError ?? "" })
       }
       candidateKey={(candidate) => `${candidate.kind}:${candidate.id}`}
       onSelect={(candidate) =>
@@ -209,11 +197,7 @@ export function PullRequestReviewerPicker({
               {t("pullRequests.reviewers.team")}
             </span>
           ) : null}
-          {isSelected(
-            draft,
-            `${candidate.kind}:${candidate.id}`,
-            candidate.isRequested,
-          ) ? (
+          {isSelected(draft, `${candidate.kind}:${candidate.id}`, candidate.isRequested) ? (
             <CheckIcon
               aria-label={t("pullRequests.reviewers.alreadyAsked")}
               className="size-3.5 shrink-0"

@@ -295,6 +295,7 @@ it.each(["owned", "raw", "empty", "cancel"] as const)(
     await install.click();
     expect(confirm).toHaveBeenCalledExactlyOnceWith(
       "Install update 1.1.0 and restart T3 Code?\n\nAny running tasks will be interrupted. Make sure you're ready before continuing.",
+      { initialFocus: "confirm" },
     );
     await expect.element(install).toBeDisabled();
     await act(async () => {
@@ -409,6 +410,7 @@ it.each(["owned", "raw", "empty", "resolved"] as const)(
     await install.click();
     expect(confirm).toHaveBeenCalledExactlyOnceWith(
       "Install update 1.1.0 and restart T3 Code?\n\nAny running tasks will be interrupted. Make sure you're ready before continuing.",
+      { initialFocus: "confirm" },
     );
     await expect.poll(() => fixture.install.mock.calls.length).toBe(1);
     expect(fixture.install).toHaveBeenCalledExactlyOnceWith();

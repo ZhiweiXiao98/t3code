@@ -41,10 +41,7 @@ export default function WordDocument(props: {
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Own the document worker and cancel its layout and painting requests when the document changes or unmounts.
   useEffect(() => {
     const controller = new AbortController();
-    const worker = new Worker(
-      new URL("./document.worker.ts", import.meta.url),
-      { type: "module" },
-    );
+    const worker = new Worker(new URL("./document.worker.ts", import.meta.url), { type: "module" });
     const engine = createWorkerClient<WordMethods>(worker);
     const fail = (error: unknown) => {
       if (!controller.signal.aborted) onError(error);
@@ -83,19 +80,13 @@ export default function WordDocument(props: {
         return;
       }
       await engine.call("vectors", bitmaps, {
-        transfer: bitmaps.flatMap((value) =>
-          value.bitmap ? [value.bitmap] : [],
-        ),
+        transfer: bitmaps.flatMap((value) => (value.bitmap ? [value.bitmap] : [])),
         signal,
       });
       if (!signal.aborted) await paint(index, canvas, scale, signal, true);
     };
     void engine
-      .call(
-        "open",
-        { bytes: buffer },
-        { transfer: [buffer], signal: controller.signal },
-      )
+      .call("open", { bytes: buffer }, { transfer: [buffer], signal: controller.signal })
       .then(async (first) => {
         if (controller.signal.aborted) return;
         setOpened({
@@ -104,13 +95,9 @@ export default function WordDocument(props: {
           paint,
           engine,
         });
-        onDetails(
-          translateCount(`${first.pages.length}${first.loading ? "+" : ""}`),
-        );
+        onDetails(translateCount(`${first.pages.length}${first.loading ? "+" : ""}`));
         if (!first.loading) return;
-        await new Promise((resolve) =>
-          requestAnimationFrame(() => requestAnimationFrame(resolve)),
-        );
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         while (!controller.signal.aborted) {
           const step = await engine.call("layout", undefined, {
             signal: controller.signal,
@@ -214,11 +201,7 @@ function WordTextLayer(props: {
               cursor: span.link ? "pointer" : "text",
             }}
             onClick={(event) => {
-              if (
-                span.link &&
-                event.button === 0 &&
-                (getSelection()?.isCollapsed ?? true)
-              )
+              if (span.link && event.button === 0 && (getSelection()?.isCollapsed ?? true))
                 follow(span.link);
             }}
             onKeyDown={(event) => {

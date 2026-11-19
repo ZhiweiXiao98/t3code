@@ -13,10 +13,7 @@ import {
   type MediaReference,
 } from "@t3tools/client-runtime/media-reference";
 import { resolveAssetUrl } from "@t3tools/client-runtime/state/assets";
-import {
-  settlePromise,
-  squashAtomCommandFailure,
-} from "@t3tools/client-runtime/state/runtime";
+import { settlePromise, squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
 import {
   AuthFilesystemReadScope,
   type AssetResource,
@@ -33,10 +30,7 @@ import { readLocalApi } from "../../localApi";
 import { appAtomRegistry } from "../../rpc/atomRegistry";
 import { assetEnvironment } from "../../state/assets";
 import { useEnvironmentQuery } from "../../state/query";
-import {
-  environmentSession,
-  readPreparedConnection,
-} from "../../state/session";
+import { environmentSession, readPreparedConnection } from "../../state/session";
 import { useAtomQueryRunner } from "../../state/use-atom-query-runner";
 import { stackedThreadToast, toastManager } from "../ui/toast";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
@@ -56,46 +50,32 @@ export interface MediaActionSource {
 
 function mediaFileName(source: MediaActionSource): string {
   return (
-    (source.reference && mediaReferenceFileName(source.reference)) ||
-    source.name ||
-    source.kind
+    (source.reference && mediaReferenceFileName(source.reference)) || source.name || source.kind
   );
 }
 
 function allowsHostMedia(session: SessionGrantInput | null) {
-  return (
-    session === null || sessionGrantsScope(session, AuthFilesystemReadScope)
-  );
+  return session === null || sessionGrantsScope(session, AuthFilesystemReadScope);
 }
 
 function canReadHostMedia(environmentId: EnvironmentId | null): boolean {
   if (environmentId === null) return true;
-  const result = appAtomRegistry.get(
-    environmentSession.sessionStateAtom(environmentId),
-  );
-  return (
-    result._tag !== "Failure" &&
-    allowsHostMedia(AsyncResult.getOrElse(result, () => null))
-  );
+  const result = appAtomRegistry.get(environmentSession.sessionStateAtom(environmentId));
+  return result._tag !== "Failure" && allowsHostMedia(AsyncResult.getOrElse(result, () => null));
 }
 
 export function useMediaActions(source: MediaActionSource) {
   const hostEnvironmentId =
     source.asset &&
-    (source.asset.resource._tag === "workspace-file" ||
-      source.asset.resource._tag === "media-file")
+    (source.asset.resource._tag === "workspace-file" || source.asset.resource._tag === "media-file")
       ? source.asset.environmentId
       : null;
   const fileSession = useEnvironmentQuery(
-    hostEnvironmentId === null
-      ? null
-      : environmentSession.sessionStateAtom(hostEnvironmentId),
+    hostEnvironmentId === null ? null : environmentSession.sessionStateAtom(hostEnvironmentId),
   );
   const canReadMedia =
     hostEnvironmentId === null ||
-    (fileSession.error === null &&
-      fileSession.data !== null &&
-      allowsHostMedia(fileSession.data));
+    (fileSession.error === null && fileSession.data !== null && allowsHostMedia(fileSession.data));
   const assertCanReadMedia = () => {
     if (!canReadHostMedia(hostEnvironmentId)) {
       throw new MediaActionError({
@@ -125,10 +105,7 @@ export function useMediaActions(source: MediaActionSource) {
     const result = await createAssetUrl({ environmentId, input: { resource } });
     if (result._tag === "Failure") throw squashAtomCommandFailure(result);
     assertCanReadMedia();
-    const url = resolveAssetUrl(
-      connection.httpBaseUrl,
-      result.value.relativeUrl,
-    );
+    const url = resolveAssetUrl(connection.httpBaseUrl, result.value.relativeUrl);
     if (!url)
       throw new MediaActionError({
         source: "The environment returned an invalid media URL.",
@@ -142,8 +119,7 @@ export function useMediaActions(source: MediaActionSource) {
     assertCanReadMedia();
     if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") {
       throw new MediaActionError({
-        source:
-          "Image copying is unavailable. Use a secure browser connection or save the image.",
+        source: "Image copying is unavailable. Use a secure browser connection or save the image.",
       });
     }
     // Start the clipboard write in the user gesture; fetching/decoding may finish later.
@@ -163,15 +139,11 @@ export function MediaActions({
   children: ReactElement;
   showTooltip?: boolean;
 }) {
-  const { save, copyImage, canReadMedia, assertCanReadMedia } =
-    useMediaActions(source);
+  const { save, copyImage, canReadMedia, assertCanReadMedia } = useMediaActions(source);
   const [tooltipOpen, setTooltipOpen] = useState(false);
   const menuOpen = useRef(false);
   const reference = source.reference;
-  const tooltip =
-    reference?.kind === "file"
-      ? reference.path
-      : (reference?.url ?? source.name);
+  const tooltip = reference?.kind === "file" ? reference.path : (reference?.url ?? source.name);
 
   const showMenu = async (position: { x: number; y: number }) => {
     const api = readLocalApi();
@@ -182,8 +154,7 @@ export function MediaActions({
     let failureAction: MediaActionId | null = null;
     let progressToast: ReturnType<typeof toastManager.add> | undefined;
     const result = await settlePromise(async () => {
-      const unavailable =
-        !canReadMedia || (source.src === null && source.asset === undefined);
+      const unavailable = !canReadMedia || (source.src === null && source.asset === undefined);
       const canCopyImage =
         typeof navigator !== "undefined" &&
         Boolean(navigator.clipboard?.write) &&
@@ -210,11 +181,7 @@ export function MediaActions({
         });
       items.push({
         id: "save",
-        label: t(
-          source.kind === "image"
-            ? "audit12.media.saveImage"
-            : "audit12.media.saveVideo",
-        ),
+        label: t(source.kind === "image" ? "audit12.media.saveImage" : "audit12.media.saveVideo"),
         disabled: unavailable,
       });
       if (source.kind === "image") {
@@ -238,19 +205,12 @@ export function MediaActions({
               : undefined;
       if (text !== undefined) {
         const clipboardText =
-          reference?.kind === "file"
-            ? formatFilePathForClipboard(text, reference.path)
-            : text;
-        await writeTextToClipboard(
-          clipboardText,
-          reference?.kind === "file" ? "file path" : "URL",
-        );
+          reference?.kind === "file" ? formatFilePathForClipboard(text, reference.path) : text;
+        await writeTextToClipboard(clipboardText, reference?.kind === "file" ? "file path" : "URL");
         toastManager.add({
           type: "success",
           title: readWebI18n().t(
-            action === "copy-url"
-              ? "audit12.media.urlCopied"
-              : "audit12.media.pathCopied",
+            action === "copy-url" ? "audit12.media.urlCopied" : "audit12.media.pathCopied",
           ),
         });
       } else if (action === "open-file") {
@@ -271,9 +231,7 @@ export function MediaActions({
         toastManager.update(progressToast, {
           type: "success",
           title: readWebI18n().t(
-            action === "save"
-              ? "audit12.media.downloadStarted"
-              : "audit12.media.imageCopied",
+            action === "save" ? "audit12.media.downloadStarted" : "audit12.media.imageCopied",
           ),
         });
       }
@@ -282,16 +240,10 @@ export function MediaActions({
       const error = squashAtomCommandFailure(result);
       const toast = stackedThreadToast({
         type: "error",
-        title: mediaActionFailureTitle(
-          readWebI18n().locale,
-          failureAction,
-          source.kind,
-        ),
+        title: mediaActionFailureTitle(readWebI18n().locale, failureAction, source.kind),
         description:
           mediaActionErrorMessage(readWebI18n().locale, error) ??
-          (error instanceof Error
-            ? error.message
-            : readWebI18n().t("audit12.media.failed")),
+          (error instanceof Error ? error.message : readWebI18n().t("audit12.media.failed")),
       });
       if (progressToast) toastManager.update(progressToast, toast);
       else toastManager.add(toast);
@@ -300,11 +252,7 @@ export function MediaActions({
   };
 
   return (
-    <Tooltip
-      disabled={!showTooltip}
-      open={tooltipOpen}
-      onOpenChange={setTooltipOpen}
-    >
+    <Tooltip disabled={!showTooltip} open={tooltipOpen} onOpenChange={setTooltipOpen}>
       <TooltipTrigger
         render={children}
         tabIndex={0}
@@ -322,10 +270,7 @@ export function MediaActions({
         onKeyDown={(event) => {
           if (
             event.defaultPrevented ||
-            !(
-              event.key === "ContextMenu" ||
-              (event.shiftKey && event.key === "F10")
-            )
+            !(event.key === "ContextMenu" || (event.shiftKey && event.key === "F10"))
           )
             return;
           event.preventDefault();

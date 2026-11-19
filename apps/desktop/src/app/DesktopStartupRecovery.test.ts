@@ -291,6 +291,7 @@ it.effect("installs the build the update action downloaded, not the one it offer
       yield* listen.pipe(
         Effect.provide(
           Layer.mergeAll(
+            DesktopClientSettings.layerTest(),
             FileSystem.layerNoop({ readFileString: () => Effect.succeed("0.1.3") }),
             Layer.succeed(DesktopEnvironment.DesktopEnvironment, {
               appVersion: "0.1.3",
@@ -299,6 +300,7 @@ it.effect("installs the build the update action downloaded, not the one it offer
               path: { join: (...parts: string[]) => parts.join("/") },
             } as unknown as DesktopEnvironment.DesktopEnvironment["Service"]),
             Layer.succeed(ElectronApp.ElectronApp, {
+              systemLocale: Effect.succeed("en-US"),
               on: () => Effect.void,
             } as unknown as ElectronApp.ElectronApp["Service"]),
             Layer.succeed(

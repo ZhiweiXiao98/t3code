@@ -2,26 +2,21 @@ import { DEFAULT_RESOLVED_KEYBINDINGS } from "@t3tools/shared/keybindings";
 import { createRef, type RefObject } from "react";
 import { expect, it, vi } from "vite-plus/test";
 import { render } from "../../test/render";
-import {
-  useDictationShortcut,
-  type DictationKeyHandlers,
-} from "./useDictationShortcut";
+import { useDictationShortcut, type DictationKeyHandlers } from "./useDictationShortcut";
 
 const settings = vi.hoisted(() => ({
   mode: "hold" as "hold" | "auto" | "toggle",
 }));
 vi.mock("../hooks/useSettings", async () => {
-  const { DEFAULT_CLIENT_SETTINGS } =
-    await import("@t3tools/contracts/settings");
+  const { DEFAULT_CLIENT_SETTINGS } = await import("@t3tools/contracts/settings");
   const current = () => ({
     ...DEFAULT_CLIENT_SETTINGS,
     voiceShortcutMode: settings.mode,
   });
   return {
     getClientSettings: current,
-    useClientSettings: <T,>(
-      select: (settings: typeof DEFAULT_CLIENT_SETTINGS) => T,
-    ) => select(current()),
+    useClientSettings: <T,>(select: (settings: typeof DEFAULT_CLIENT_SETTINGS) => T) =>
+      select(current()),
   };
 });
 
@@ -85,9 +80,7 @@ it("stops on a new press when the OS omitted keyup, but ignores autorepeat", asy
   expect(press()).toBe(false);
   expect(speech.start).toHaveBeenCalledOnce();
   await screen.rerender(
-    <Probe
-      speech={{ ...speech, state: { ...speech.state, phase: "recording" } }}
-    />,
+    <Probe speech={{ ...speech, state: { ...speech.state, phase: "recording" } }} />,
   );
   press(true);
   expect(speech.stop).not.toHaveBeenCalled();
@@ -105,9 +98,7 @@ it("finishes a released hold after startup even if the chord was pressed again w
   await using screen = await render(<Probe speech={speech} />);
   press();
   await screen.rerender(
-    <Probe
-      speech={{ ...speech, state: { ...speech.state, phase: "preparing" } }}
-    />,
+    <Probe speech={{ ...speech, state: { ...speech.state, phase: "preparing" } }} />,
   );
   window.dispatchEvent(new KeyboardEvent("keyup", { code: "KeyD" }));
   press();
@@ -126,21 +117,15 @@ it.each([
   "ends a $mode press held $heldMs ms when a chord modifier is released without the letter keyup",
   async ({ mode, heldMs, stops }) => {
     const speech = actions(true, mode);
-    using _platform = vi
-      .spyOn(navigator, "platform", "get")
-      .mockReturnValue("MacIntel");
+    using _platform = vi.spyOn(navigator, "platform", "get").mockReturnValue("MacIntel");
     await using _screen = await render(<Probe speech={speech} />);
     using clock = vi.spyOn(performance, "now").mockReturnValue(0);
     press();
     clock.mockReturnValue(heldMs);
-    window.dispatchEvent(
-      new KeyboardEvent("keyup", { key: "Alt", code: "AltLeft" }),
-    );
+    window.dispatchEvent(new KeyboardEvent("keyup", { key: "Alt", code: "AltLeft" }));
     await speech.start.mock.results[0]?.value;
     expect(speech.stop).not.toHaveBeenCalled();
-    window.dispatchEvent(
-      new KeyboardEvent("keyup", { key: "Meta", code: "MetaLeft" }),
-    );
+    window.dispatchEvent(new KeyboardEvent("keyup", { key: "Meta", code: "MetaLeft" }));
     await speech.start.mock.results[0]?.value;
     expect(speech.stop).toHaveBeenCalledTimes(stops);
   },
@@ -183,8 +168,7 @@ it("lets Escape in another dictation editor reach that editor instead of canceli
     screen.getByRole("textbox", { name: "Comment" }).element(),
     screen.getByRole("button", { name: "Cancel" }).element(),
   ]) {
-    if (!(control instanceof HTMLElement))
-      throw new Error("expected a comment editor control");
+    if (!(control instanceof HTMLElement)) throw new Error("expected a comment editor control");
     control.focus();
     control.dispatchEvent(escape());
   }
@@ -207,8 +191,7 @@ it("lets Escape in another editor of the recording editor's dialog reach that ed
     </>,
   );
   const other = screen.getByRole("textbox", { name: "Reply B" }).element();
-  if (!(other instanceof HTMLElement))
-    throw new Error("expected a reply editor");
+  if (!(other instanceof HTMLElement)) throw new Error("expected a reply editor");
   other.focus();
   other.dispatchEvent(escape());
   expect(speech.cancel).not.toHaveBeenCalled();
@@ -236,8 +219,7 @@ it("cancels the recording on Escape outside other shown dictation editors", asyn
     screen.getByRole("textbox", { name: "Search" }).element(),
     screen.getByRole("button", { name: "Submit" }).element(),
   ]) {
-    if (!(control instanceof HTMLElement))
-      throw new Error("expected a focusable control");
+    if (!(control instanceof HTMLElement)) throw new Error("expected a focusable control");
     control.focus();
     control.dispatchEvent(escape());
   }

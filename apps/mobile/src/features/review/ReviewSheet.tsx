@@ -557,7 +557,9 @@ export function ReviewSheet(props: ReviewSheetProps) {
       children.push(
         <ContentBand key="review-error">
           <Text className="text-sm font-t3-bold text-foreground">Review unavailable</Text>
-          <Text localize={false} className="text-xs leading-normal text-foreground-muted">{error}</Text>
+          <Text localize={false} className="text-xs leading-normal text-foreground-muted">
+            {error}
+          </Text>
         </ContentBand>,
       );
     }

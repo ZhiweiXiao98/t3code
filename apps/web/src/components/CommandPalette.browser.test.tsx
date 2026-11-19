@@ -8,7 +8,7 @@ import { act, render } from "../../test/render";
 import { openCommandPalette } from "../commandPaletteBus";
 import { useCommandPaletteStore } from "../commandPaletteStore";
 import { LAST_USED_PROJECT_STORAGE_KEY } from "../hooks/useHandleNewThread";
-import { removeLocalStorageItem } from "../hooks/useLocalStorage";
+
 import { makeThreadFixture } from "../test-fixtures";
 import type { Project, Thread } from "../types";
 import { CommandPalette } from "./CommandPalette";
@@ -47,16 +47,12 @@ function setup(state: Partial<typeof entities> = {}) {
   using stack = new DisposableStack();
   const previousProject = localStorage.getItem(LAST_USED_PROJECT_STORAGE_KEY);
   stack.defer(() => {
-    if (previousProject === null)
-      localStorage.removeItem(LAST_USED_PROJECT_STORAGE_KEY);
+    if (previousProject === null) localStorage.removeItem(LAST_USED_PROJECT_STORAGE_KEY);
     else localStorage.setItem(LAST_USED_PROJECT_STORAGE_KEY, previousProject);
   });
   localStorage.removeItem(LAST_USED_PROJECT_STORAGE_KEY);
 
-  useCommandPaletteStore.setState(
-    useCommandPaletteStore.getInitialState(),
-    true,
-  );
+  useCommandPaletteStore.setState(useCommandPaletteStore.getInitialState(), true);
   entities.projects = state.projects ?? [];
   entities.threads = state.threads ?? [];
   entities.delegatedUnderParent = state.delegatedUnderParent ?? new Set();
@@ -107,18 +103,12 @@ describe("CommandPalette open intents", () => {
         clientY: y,
       });
     await act(() => {
-      row
-        .element()
-        .dispatchEvent(pointer("pointerdown", bounds.x + 20, bounds.y + 10));
-      document.dispatchEvent(
-        pointer("pointermove", bounds.x + 30, bounds.y + 20),
-      );
+      row.element().dispatchEvent(pointer("pointerdown", bounds.x + 20, bounds.y + 10));
+      document.dispatchEvent(pointer("pointermove", bounds.x + 30, bounds.y + 20));
     });
     expect(useCommandPaletteStore.getState().open).toBe(false);
     await act(() => {
-      document.dispatchEvent(
-        pointer("pointermove", 50, window.innerHeight - 30),
-      );
+      document.dispatchEvent(pointer("pointermove", 50, window.innerHeight - 30));
       document.dispatchEvent(pointer("pointerup", 50, window.innerHeight - 30));
     });
     expect(onDrop).toHaveBeenCalledOnce();
@@ -153,8 +143,7 @@ describe("CommandPalette open intents", () => {
     using storage = new DisposableStack();
     const previousProject = localStorage.getItem(LAST_USED_PROJECT_STORAGE_KEY);
     storage.defer(() => {
-      if (previousProject === null)
-        localStorage.removeItem(LAST_USED_PROJECT_STORAGE_KEY);
+      if (previousProject === null) localStorage.removeItem(LAST_USED_PROJECT_STORAGE_KEY);
       else localStorage.setItem(LAST_USED_PROJECT_STORAGE_KEY, previousProject);
     });
     const staleProject = JSON.stringify("environment-render:project-render");
@@ -162,21 +151,13 @@ describe("CommandPalette open intents", () => {
 
     {
       using _fixture = setup({
-        projects: [
-          project("acme", "Acme"),
-          project("beta", "Beta"),
-          project("gamma", "Gamma"),
-        ],
+        projects: [project("acme", "Acme"), project("beta", "Beta"), project("gamma", "Gamma")],
       });
-      await using _screen = await render(
-        <CommandPalette>{null}</CommandPalette>,
-      );
+      await using _screen = await render(<CommandPalette>{null}</CommandPalette>);
 
       openCommandPalette({});
       await expect
-        .element(
-          page.getByPlaceholder("Search commands, projects, and threads..."),
-        )
+        .element(page.getByPlaceholder("Search commands, projects, and threads..."))
         .toHaveFocus();
       await userEvent.keyboard("{ArrowDown}");
       await expect
@@ -185,16 +166,10 @@ describe("CommandPalette open intents", () => {
       await userEvent.keyboard("{Enter}");
 
       await expect.element(page.getByPlaceholder("Search...")).toHaveFocus();
-      await expect
-        .element(page.getByRole("option").first())
-        .toHaveAttribute("data-highlighted");
-      await expect
-        .element(page.getByRole("option").nth(1))
-        .not.toHaveAttribute("data-highlighted");
+      await expect.element(page.getByRole("option").first()).toHaveAttribute("data-highlighted");
+      await expect.element(page.getByRole("option").nth(1)).not.toHaveAttribute("data-highlighted");
     }
-    expect(localStorage.getItem(LAST_USED_PROJECT_STORAGE_KEY)).toBe(
-      staleProject,
-    );
+    expect(localStorage.getItem(LAST_USED_PROJECT_STORAGE_KEY)).toBe(staleProject);
   });
 
   it("opens a search intent with its query in the focused input", async () => {
@@ -203,9 +178,7 @@ describe("CommandPalette open intents", () => {
 
     openCommandPalette({ query: "acme" });
 
-    const input = page.getByPlaceholder(
-      "Search commands, projects, and threads...",
-    );
+    const input = page.getByPlaceholder("Search commands, projects, and threads...");
     await expect.element(input).toHaveFocus();
     await expect.element(input).toHaveValue("acme");
   });
@@ -216,9 +189,7 @@ describe("CommandPalette open intents", () => {
     const parentId = ThreadId.make("parent");
     const delegatedId = ThreadId.make("delegated");
     using _fixture = setup({
-      delegatedUnderParent: new Set([
-        threadKey({ environmentId, threadId: delegatedId }),
-      ]),
+      delegatedUnderParent: new Set([threadKey({ environmentId, threadId: delegatedId })]),
       projects: [
         {
           id: projectId,
@@ -277,9 +248,7 @@ describe("CommandPalette open intents", () => {
     openCommandPalette({ query: "Acme" });
     await page.getByRole("option", { name: /Acme/ }).first().click();
 
-    await vi.waitFor(() =>
-      expect(screen.router?.state.location.pathname).toBe("/local/parent"),
-    );
+    await vi.waitFor(() => expect(screen.router?.state.location.pathname).toBe("/local/parent"));
   });
 });
 
@@ -300,15 +269,11 @@ it("keeps the MCP action searchable as its displayed title follows the current l
   await using screen = await render(palette("zh-CN"));
   openCommandPalette({ query: "MCP" });
   await expect
-    .element(
-      page.getByRole("option", { name: /在其他应用中使用 T3 Code（MCP）/ }),
-    )
+    .element(page.getByRole("option", { name: /在其他应用中使用 T3 Code（MCP）/ }))
     .toBeVisible();
   await screen.rerender(palette("en"));
   await expect
-    .element(
-      page.getByRole("option", { name: /Use T3 Code in another app \(MCP\)/ }),
-    )
+    .element(page.getByRole("option", { name: /Use T3 Code in another app \(MCP\)/ }))
     .toBeVisible();
   await userEvent.keyboard("{Escape}");
   expect(useCommandPaletteStore.getState().open).toBe(false);

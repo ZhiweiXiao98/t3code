@@ -16,10 +16,7 @@ import "~/index.css";
 import { act, render } from "../../../test/render";
 import { WebI18nContext } from "../../i18n/WebI18nContext";
 import { translateWebMessage } from "../../i18n/messages";
-import {
-  ScheduledTasksSettings,
-  scheduleLabel,
-} from "./ScheduledTasksSettings";
+import { ScheduledTasksSettings, scheduleLabel } from "./ScheduledTasksSettings";
 import { ConfirmDialogHost } from "../ConfirmDialogHost";
 
 const environmentId = EnvironmentId.make("laptop");
@@ -79,9 +76,7 @@ const permissions = new Map<string, Atom.Writable<boolean>>();
 function setup() {
   state.connected = true;
   state.tasksLoaded = true;
-  state.remove
-    .mockReset()
-    .mockResolvedValue({ _tag: "Success", value: { id: task.id } });
+  state.remove.mockReset().mockResolvedValue({ _tag: "Success", value: { id: task.id } });
   state.secondary = false;
   state.taskTitle = "Review issues";
   state.environmentLabel = "Laptop";
@@ -178,9 +173,7 @@ vi.mock(import("../../state/query"), async (original) => ({
       request === null || request === threadFamilyRead
         ? request
         : {
-            tasks: state.tasksLoaded
-              ? [{ ...task, title: state.taskTitle }]
-              : [],
+            tasks: state.tasksLoaded ? [{ ...task, title: state.taskTitle }] : [],
           },
     error: null,
     isPending: false,
@@ -194,9 +187,7 @@ vi.mock(import("../../state/environments"), async (original) => ({
 }));
 vi.mock(import("../../state/entities"), async (original) => ({
   ...(await original()),
-  useProjects: (() => [
-    { id: projectId, environmentId, title: "Project" },
-  ]) as never,
+  useProjects: (() => [{ id: projectId, environmentId, title: "Project" }]) as never,
 }));
 vi.mock(import("../../hooks/useSettings"), async (original) => ({
   ...(await original()),
@@ -238,9 +229,7 @@ describe("ScheduledTasksSettings", () => {
         }),
       )
       .toBeInTheDocument();
-    await expect
-      .element(screen.getByRole("button", { name: "新建任务" }))
-      .toBeEnabled();
+    await expect.element(screen.getByRole("button", { name: "新建任务" })).toBeEnabled();
   });
 
   it("only deletes a scheduled task after confirmation, including after cancelling", async () => {
@@ -251,32 +240,18 @@ describe("ScheduledTasksSettings", () => {
         <ConfirmDialogHost />
       </>,
     );
-    await userEvent.click(
-      screen.getByRole("button", { name: "Actions for Review issues" }),
-    );
-    await userEvent.click(
-      page.getByRole("menuitem", { name: "Delete", exact: true }),
-    );
+    await userEvent.click(screen.getByRole("button", { name: "Actions for Review issues" }));
+    await userEvent.click(page.getByRole("menuitem", { name: "Delete", exact: true }));
     await expect.element(page.getByRole("alertdialog")).toBeVisible();
     expect(state.remove).not.toHaveBeenCalled();
-    await userEvent.click(
-      page.getByRole("button", { name: "Cancel", exact: true }),
-    );
+    await userEvent.click(page.getByRole("button", { name: "Cancel", exact: true }));
     expect(state.remove).not.toHaveBeenCalled();
     await expect
-      .element(
-        screen.getByRole("button", { name: "Actions for Review issues" }),
-      )
+      .element(screen.getByRole("button", { name: "Actions for Review issues" }))
       .toBeVisible();
-    await userEvent.click(
-      screen.getByRole("button", { name: "Actions for Review issues" }),
-    );
-    await userEvent.click(
-      page.getByRole("menuitem", { name: "Delete", exact: true }),
-    );
-    await userEvent.click(
-      page.getByRole("button", { name: "Confirm", exact: true }),
-    );
+    await userEvent.click(screen.getByRole("button", { name: "Actions for Review issues" }));
+    await userEvent.click(page.getByRole("menuitem", { name: "Delete", exact: true }));
+    await userEvent.click(page.getByRole("button", { name: "Confirm", exact: true }));
     await vi.waitFor(() =>
       expect(state.remove).toHaveBeenCalledExactlyOnceWith(expect.anything(), {
         environmentId,
@@ -303,9 +278,7 @@ describe("ScheduledTasksSettings", () => {
     await act(() => registry.set(permissions.get(secondaryId)!, true));
     await expect.element(create).toBeEnabled();
     await create.click();
-    await expect
-      .element(page.getByLabelText("Runs on"))
-      .toHaveTextContent("Secondary");
+    await expect.element(page.getByLabelText("Runs on")).toHaveTextContent("Secondary");
   });
 
   it("keeps the permitted representative as the creation target", async () => {
@@ -313,31 +286,21 @@ describe("ScheduledTasksSettings", () => {
     state.secondary = true;
     await using screen = await render(<ScheduledTasksSettings />);
     await screen.getByRole("button", { name: "New task" }).click();
-    await expect
-      .element(page.getByLabelText("Runs on"))
-      .toHaveTextContent("Laptop");
+    await expect.element(page.getByLabelText("Runs on")).toHaveTextContent("Laptop");
   });
 
   it("disables creation without a connected target", async () => {
     setup();
     state.connected = false;
     await using screen = await render(<ScheduledTasksSettings />);
-    await expect
-      .element(screen.getByRole("button", { name: "New task" }))
-      .toBeDisabled();
+    await expect.element(screen.getByRole("button", { name: "New task" })).toBeDisabled();
   });
 
   it("keeps a linked task's unsaved edits across a disconnect and reconnect", async () => {
     setup();
-    await using screen = await render(
-      <ScheduledTasksSettings taskId={task.id} />,
-    );
-    await expect
-      .element(page.getByRole("dialog").getByText("Fix login bug"))
-      .toBeVisible();
-    const name = page
-      .getByRole("dialog")
-      .getByRole("textbox", { name: "Name" });
+    await using screen = await render(<ScheduledTasksSettings taskId={task.id} />);
+    await expect.element(page.getByRole("dialog").getByText("Fix login bug")).toBeVisible();
+    const name = page.getByRole("dialog").getByRole("textbox", { name: "Name" });
     await expect.element(name).toHaveValue("Review issues");
     await userEvent.fill(name, "Review stale issues");
 
@@ -353,31 +316,21 @@ describe("ScheduledTasksSettings", () => {
 
   it("offers no model choice for a task bound to a thread, whose runs use the thread's model", async () => {
     setup();
-    await using _screen = await render(
-      <ScheduledTasksSettings taskId={task.id} />,
-    );
-    await expect
-      .element(page.getByRole("dialog").getByText("Fix login bug"))
-      .toBeVisible();
+    await using _screen = await render(<ScheduledTasksSettings taskId={task.id} />);
+    await expect.element(page.getByRole("dialog").getByText("Fix login bug")).toBeVisible();
     const enabledPicker = document.querySelector(
       '[role="dialog"] [data-chat-provider-model-picker]:not(:disabled)',
     );
     expect(enabledPicker).toBeNull();
     await expect
-      .element(
-        page
-          .getByRole("dialog")
-          .getByRole("button", { name: "gpt-5.5", exact: true }),
-      )
+      .element(page.getByRole("dialog").getByRole("button", { name: "gpt-5.5", exact: true }))
       .toBeDisabled();
   });
 
   it("keeps an editor the user opened when the linked task loads later", async () => {
     setup();
     state.tasksLoaded = false;
-    await using screen = await render(
-      <ScheduledTasksSettings taskId={task.id} />,
-    );
+    await using screen = await render(<ScheduledTasksSettings taskId={task.id} />);
     await userEvent.click(page.getByRole("button", { name: "New task" }));
     const dialog = page.getByRole("dialog");
     const name = dialog.getByRole("textbox", { name: "Name" });
@@ -386,9 +339,7 @@ describe("ScheduledTasksSettings", () => {
     state.tasksLoaded = true;
     await screen.rerender(<ScheduledTasksSettings taskId={task.id} />);
 
-    await expect
-      .element(dialog.getByRole("heading", { name: "New task" }))
-      .toBeInTheDocument();
+    await expect.element(dialog.getByRole("heading", { name: "New task" })).toBeInTheDocument();
     await expect.element(name).toHaveValue("My draft");
   });
 });
@@ -420,9 +371,7 @@ it("localizes the destination picker and deletion consequence while preserving t
       activeSlot: active?.getAttribute("data-slot")?.slice(0, 80) ?? null,
       expanded: trigger?.getAttribute("aria-expanded")?.slice(0, 10) ?? null,
       dialogCount: document.querySelectorAll('[role="dialog"]').length,
-      popupStates: Array.from(
-        document.querySelectorAll('[data-slot="combobox-popup"]'),
-      )
+      popupStates: Array.from(document.querySelectorAll('[data-slot="combobox-popup"]'))
         .slice(0, 4)
         .map((popup) => ({
           open: popup.hasAttribute("data-open"),
@@ -431,20 +380,13 @@ it("localizes the destination picker and deletion consequence while preserving t
         })),
     });
   };
-  await expect
-    .element(dialog.getByText("Fix login bug", { exact: true }))
-    .toBeVisible();
-  const destinationElement = document.getElementById(
-    "scheduled-task-destination",
-  );
-  if (!destinationElement)
-    throw new Error("Scheduled task destination trigger is missing");
+  await expect.element(dialog.getByText("Fix login bug", { exact: true })).toBeVisible();
+  const destinationElement = document.getElementById("scheduled-task-destination");
+  if (!destinationElement) throw new Error("Scheduled task destination trigger is missing");
   const destination = page.elementLocator(destinationElement);
   logDestinationState("initial-editor");
   await expect
-    .element(
-      dialog.getByText("删除此会话也会删除该定时任务。", { exact: true }),
-    )
+    .element(dialog.getByText("删除此会话也会删除该定时任务。", { exact: true }))
     .toBeVisible();
   await userEvent.click(dialog.getByText("Fix login bug", { exact: true }));
   const search = page.getByPlaceholder("搜索所有会话...");
@@ -452,25 +394,17 @@ it("localizes the destination picker and deletion consequence while preserving t
   await expect.element(destination).toHaveAttribute("aria-expanded", "true");
   logDestinationState("first-open");
   await userEvent.fill(search, "no matching thread");
-  await expect
-    .element(page.getByText("未找到会话。", { exact: true }))
-    .toBeVisible();
+  await expect.element(page.getByText("未找到会话。", { exact: true })).toBeVisible();
   logDestinationState("before-first-escape");
   await userEvent.keyboard("{Escape}");
   logDestinationState("after-first-escape");
   await expect.element(destination).toHaveAttribute("aria-expanded", "false");
   await expect.element(search).not.toBeInTheDocument();
-  await expect
-    .element(dialog.getByText("Fix login bug", { exact: true }))
-    .toBeVisible();
+  await expect.element(dialog.getByText("Fix login bug", { exact: true })).toBeVisible();
   await userEvent.click(dialog.getByText("Fix login bug", { exact: true }));
+  await expect.element(page.getByPlaceholder("搜索所有会话...")).toHaveValue("");
   await expect
-    .element(page.getByPlaceholder("搜索所有会话..."))
-    .toHaveValue("");
-  await expect
-    .element(
-      page.getByRole("option", { name: "每次运行新建会话", exact: true }),
-    )
+    .element(page.getByRole("option", { name: "每次运行新建会话", exact: true }))
     .toBeVisible();
   await expect.element(destination).toHaveAttribute("aria-expanded", "true");
   logDestinationState("before-second-escape");
@@ -478,15 +412,11 @@ it("localizes the destination picker and deletion consequence while preserving t
   logDestinationState("after-second-escape");
   await expect.element(destination).toHaveAttribute("aria-expanded", "false");
   await expect.element(search).not.toBeInTheDocument();
-  await expect
-    .element(dialog.getByText("Fix login bug", { exact: true }))
-    .toBeVisible();
+  await expect.element(dialog.getByText("Fix login bug", { exact: true })).toBeVisible();
   logDestinationState("before-locale-rerender");
   await screen.rerender(settings("en"));
   logDestinationState("after-locale-rerender");
-  await expect
-    .element(dialog.getByText("Fix login bug", { exact: true }))
-    .toBeVisible();
+  await expect.element(dialog.getByText("Fix login bug", { exact: true })).toBeVisible();
   await expect
     .element(
       dialog.getByText("Deleting the thread also deletes this task.", {
@@ -502,9 +432,7 @@ it.each(["first open", "reopen"] as const)(
   "keeps the task editor when Escape targets the destination trigger on %s",
   async (opening) => {
     setup();
-    await using _screen = await render(
-      <ScheduledTasksSettings taskId={task.id} />,
-    );
+    await using _screen = await render(<ScheduledTasksSettings taskId={task.id} />);
     const dialog = page.getByRole("dialog");
     const name = dialog.getByRole("textbox", { name: "Name" });
     await expect.element(name).toHaveValue("Review issues");
@@ -522,12 +450,9 @@ it.each(["first open", "reopen"] as const)(
       await expect.element(search).toHaveValue("");
     }
     await userEvent.fill(search, "no matching thread");
-    await expect
-      .element(page.getByText("No threads found.", { exact: true }))
-      .toBeVisible();
+    await expect.element(page.getByText("No threads found.", { exact: true })).toBeVisible();
     const trigger = document.getElementById("scheduled-task-destination");
-    if (!trigger)
-      throw new Error("Scheduled task destination trigger is missing");
+    if (!trigger) throw new Error("Scheduled task destination trigger is missing");
     const destination = page.elementLocator(trigger);
     await expect.element(destination).toHaveAttribute("aria-expanded", "true");
     // Reproduce the adverse trigger target independently of autofocus timing, rather than
@@ -535,10 +460,7 @@ it.each(["first open", "reopen"] as const)(
     await act(() => trigger.focus());
     await expect.element(destination).toHaveFocus();
     await userEvent.keyboard("{Escape}");
-    expect(
-      trigger.isConnected,
-      "Destination Escape must preserve the task editor",
-    ).toBe(true);
+    expect(trigger.isConnected, "Destination Escape must preserve the task editor").toBe(true);
     await expect.element(destination).toHaveAttribute("aria-expanded", "false");
     await expect.element(search).not.toBeInTheDocument();
     await expect.element(selectedThread).toBeVisible();
@@ -562,12 +484,8 @@ it("localizes all schedule display modes without changing the scheduled time or 
   const interval = { type: "interval", everyMs: 120_000 } as const;
   expect(scheduleLabel(interval)).toBe("Every 2 min");
   expect(scheduleLabel(interval, true)).toBe("每 2 分钟");
-  expect(scheduleLabel({ type: "interval", everyMs: 90_000 }, true)).toBe(
-    "每 90 秒",
-  );
-  expect(scheduleLabel({ type: "webhook", signature: null }, true)).toBe(
-    "收到 Webhook 时",
-  );
+  expect(scheduleLabel({ type: "interval", everyMs: 90_000 }, true)).toBe("每 90 秒");
+  expect(scheduleLabel({ type: "webhook", signature: null }, true)).toBe("收到 Webhook 时");
   const calendar = {
     type: "fixed_time",
     timeOfDay: "09:37",

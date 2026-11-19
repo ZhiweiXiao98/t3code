@@ -24,10 +24,7 @@ import {
   setLocalStorageItem,
   writeLocalStorageValue,
 } from "~/hooks/useLocalStorage";
-import {
-  resolveSidebarState,
-  type ResponsiveSidebarState,
-} from "./sidebarState";
+import { resolveSidebarState, type ResponsiveSidebarState } from "./sidebarState";
 import * as Schema from "effect/Schema";
 import { announceSidebarVisibility } from "~/lib/accessibilityAnnouncements";
 
@@ -35,8 +32,7 @@ const SIDEBAR_WIDTH = "16rem";
 const SIDEBAR_WIDTH_MOBILE = "calc(100vw - var(--spacing) * 3)";
 const SIDEBAR_WIDTH_ICON = "3rem";
 const SIDEBAR_RESIZE_DEFAULT_MIN_WIDTH = 16 * 16;
-const SIDEBAR_TITLEBAR_CONTROL_SIZE =
-  "max-sm:[--workspace-titlebar-control-size:--spacing(8)]";
+const SIDEBAR_TITLEBAR_CONTROL_SIZE = "max-sm:[--workspace-titlebar-control-size:--spacing(8)]";
 
 type SidebarContextProps = {
   state: ResponsiveSidebarState;
@@ -88,8 +84,7 @@ type SidebarInstanceContextProps = {
 };
 
 const SidebarContext = React.createContext<SidebarContextProps | null>(null);
-const SidebarInstanceContext =
-  React.createContext<SidebarInstanceContextProps | null>(null);
+const SidebarInstanceContext = React.createContext<SidebarInstanceContextProps | null>(null);
 
 function useSidebar() {
   const context = React.use(SidebarContext);
@@ -115,10 +110,7 @@ function useMobileSidebarSheetMounted() {
 const SIDEBAR_MOBILE_QUERY = "(max-width: 767px)";
 
 function isMobileViewport(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    window.matchMedia(SIDEBAR_MOBILE_QUERY).matches
-  );
+  return typeof window !== "undefined" && window.matchMedia(SIDEBAR_MOBILE_QUERY).matches;
 }
 
 function readStoredSidebarOpen(storageKey: string | undefined): boolean | null {
@@ -136,9 +128,7 @@ function moveFocusOutOfCollapsingSidebar() {
   const sidebar = document.activeElement?.closest<HTMLElement>(
     '[data-slot="sidebar"][data-collapsible-mode="offcanvas"]',
   );
-  const wrapper = sidebar?.closest<HTMLElement>(
-    '[data-slot="sidebar-wrapper"]',
-  );
+  const wrapper = sidebar?.closest<HTMLElement>('[data-slot="sidebar-wrapper"]');
   if (!sidebar || !wrapper) return;
   const trigger = Array.from(
     wrapper.querySelectorAll<HTMLElement>('[data-sidebar="trigger"]'),
@@ -152,10 +142,7 @@ interface SidebarOpenState {
 }
 
 /** Per-provider open state, kept outside React so shortcuts can toggle it at event time. */
-function createSidebarOpenStore(
-  defaultOpen: boolean,
-  storageKey: string | undefined,
-) {
+function createSidebarOpenStore(defaultOpen: boolean, storageKey: string | undefined) {
   let state: SidebarOpenState = {
     open: readStoredSidebarOpen(storageKey) ?? defaultOpen,
     openMobile: false,
@@ -175,8 +162,7 @@ function createSidebarOpenStore(
       if (!isMobileViewport()) announceSidebarVisibility(open);
       publish({ ...state, open });
     }
-    if (storageKey)
-      writeLocalStorageValue(storageKey, open, defaultOpen, Schema.Boolean);
+    if (storageKey) writeLocalStorageValue(storageKey, open, defaultOpen, Schema.Boolean);
   };
   const setOpenMobile = (openMobile: boolean) => {
     if (openMobile !== state.openMobile) publish({ ...state, openMobile });
@@ -191,10 +177,7 @@ function createSidebarOpenStore(
     getSnapshot: () => state,
     setOpen,
     setOpenMobile,
-    toggle: () =>
-      isMobileViewport()
-        ? setOpenMobile(!state.openMobile)
-        : setOpen(!state.open),
+    toggle: () => (isMobileViewport() ? setOpenMobile(!state.openMobile) : setOpen(!state.open)),
     onCollapse: (listener: () => void) => {
       collapseListeners.add(listener);
       return () => {
@@ -216,9 +199,7 @@ function SidebarProvider({
   storageKey?: string;
 }) {
   const isMobile = useMediaQuery(SIDEBAR_MOBILE_QUERY);
-  const [store] = React.useState(() =>
-    createSidebarOpenStore(defaultOpen, storageKey),
-  );
+  const [store] = React.useState(() => createSidebarOpenStore(defaultOpen, storageKey));
   const { open, openMobile } = React.useSyncExternalStore(
     store.subscribe,
     store.getSnapshot,
@@ -294,9 +275,7 @@ function resolveSidebarResizable({
     minWidth: options.minWidth ?? SIDEBAR_RESIZE_DEFAULT_MIN_WIDTH,
     storageKey: options.storageKey ?? null,
     ...(options.onResize ? { onResize: options.onResize } : {}),
-    ...(options.shouldAcceptWidth
-      ? { shouldAcceptWidth: options.shouldAcceptWidth }
-      : {}),
+    ...(options.shouldAcceptWidth ? { shouldAcceptWidth: options.shouldAcceptWidth } : {}),
   };
 }
 
@@ -315,19 +294,14 @@ function Sidebar({
   resizable?: boolean | SidebarResizableOptions;
 }) {
   const { t } = useI18n();
-  const { isMobile, state, openMobile, setOpenMobile, setMobileSheetMounted } =
-    useSidebar();
+  const { isMobile, state, openMobile, setOpenMobile, setMobileSheetMounted } = useSidebar();
   // Not usePanelAnimationSettings: its navigation suppression would snap the sheet shut mid-exit when an item navigates.
   const panelAnimationDurationMs = useClientSettings(
     (settings) => settings.panelAnimationDurationMs,
   );
-  const prefersReducedMotion = useMediaQuery(
-    "(prefers-reduced-motion: reduce)",
-  );
-  const panelAnimationsActive =
-    panelAnimationDurationMs > 0 && !prefersReducedMotion;
-  const offcanvasCollapsed =
-    !isMobile && collapsible === "offcanvas" && state === "collapsed";
+  const prefersReducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
+  const panelAnimationsActive = panelAnimationDurationMs > 0 && !prefersReducedMotion;
+  const offcanvasCollapsed = !isMobile && collapsible === "offcanvas" && state === "collapsed";
 
   const resolvedResizable = resolveSidebarResizable({
     collapsible,
@@ -386,12 +360,8 @@ function Sidebar({
             }
           >
             <SheetHeader className="sr-only">
-              <SheetTitle>
-                {props["aria-label"] ?? t("common.sidebar.mobileTitle")}
-              </SheetTitle>
-              <SheetDescription>
-                {t("common.sidebar.mobileDescription")}
-              </SheetDescription>
+              <SheetTitle>{props["aria-label"] ?? t("common.sidebar.mobileTitle")}</SheetTitle>
+              <SheetDescription>{t("common.sidebar.mobileDescription")}</SheetDescription>
             </SheetHeader>
             <div
               className={cn(
@@ -461,11 +431,7 @@ function Sidebar({
   );
 }
 
-function SidebarTrigger({
-  className,
-  onClick,
-  ...props
-}: React.ComponentProps<typeof Button>) {
+function SidebarTrigger({ className, onClick, ...props }: React.ComponentProps<typeof Button>) {
   const { t } = useI18n();
   const { toggleSidebar } = useSidebar();
   const isOpen = useSidebarVisibility();
@@ -487,20 +453,13 @@ function SidebarTrigger({
       variant="ghost"
       {...props}
     >
-      {isOpen ? (
-        <PanelLeftCloseIcon className="size-4" />
-      ) : (
-        <PanelLeftIcon className="size-4" />
-      )}
+      {isOpen ? <PanelLeftCloseIcon className="size-4" /> : <PanelLeftIcon className="size-4" />}
       <span className="sr-only">{t("common.sidebar.toggle")}</span>
     </Button>
   );
 }
 
-function clampSidebarWidth(
-  width: number,
-  options: SidebarResolvedResizableOptions,
-): number {
+function clampSidebarWidth(width: number, options: SidebarResolvedResizableOptions): number {
   return Math.max(options.minWidth, Math.min(width, options.maxWidth));
 }
 
@@ -520,12 +479,8 @@ function SidebarRail({
   const suppressClickRef = React.useRef(false);
   const resolvedResizable = sidebarInstance?.resizable ?? null;
   const canResize = resolvedResizable !== null && open;
-  const railLabel = canResize
-    ? t("common.sidebar.resize")
-    : t("common.sidebar.toggle");
-  const railTitle = canResize
-    ? t("common.sidebar.resizeHint")
-    : t("common.sidebar.toggle");
+  const railLabel = canResize ? t("common.sidebar.resize") : t("common.sidebar.toggle");
+  const railTitle = canResize ? t("common.sidebar.resizeHint") : t("common.sidebar.toggle");
   const resize = useResizeDrag<HTMLButtonElement>((event) => {
     const options = resolvedResizable;
     if (!options || !open) return null;
@@ -538,10 +493,7 @@ function SidebarRail({
     if (!wrapper || !sidebarRoot || !sidebarContainer) return null;
 
     const side = sidebarInstance?.side ?? "left";
-    let width = clampSidebarWidth(
-      sidebarContainer.getBoundingClientRect().width,
-      options,
-    );
+    let width = clampSidebarWidth(sidebarContainer.getBoundingClientRect().width, options);
     // Write width only to gap/container during drag; inherited --sidebar-width restyles the whole app, so
     // update it at commit.
     const widthTargets = [
@@ -682,10 +634,7 @@ function SidebarRail({
   );
 }
 
-function SidebarInput({
-  className,
-  ...props
-}: Omit<InputProps, "unstyled" | "variant">) {
+function SidebarInput({ className, ...props }: Omit<InputProps, "unstyled" | "variant">) {
   return (
     <Input
       className={cn(
@@ -746,9 +695,7 @@ function SidebarContent({
 }) {
   return (
     <>
-      {fixedHeader ? (
-        <div className="w-full shrink-0">{fixedHeader}</div>
-      ) : null}
+      {fixedHeader ? <div className="w-full shrink-0">{fixedHeader}</div> : null}
       <ScrollArea
         hideScrollbars
         scrollFade
@@ -874,9 +821,7 @@ function SidebarMenuButton({
 
   return (
     <Tooltip>
-      <TooltipTrigger
-        render={buttonElement as React.ReactElement<Record<string, unknown>>}
-      />
+      <TooltipTrigger render={buttonElement as React.ReactElement<Record<string, unknown>>} />
       <TooltipPopup
         align="center"
         hidden={state !== "collapsed" || isMobile}
@@ -902,10 +847,7 @@ function SidebarMenuSub({ className, ...props }: React.ComponentProps<"ul">) {
   );
 }
 
-function SidebarMenuSubItem({
-  className,
-  ...props
-}: React.ComponentProps<"li">) {
+function SidebarMenuSubItem({ className, ...props }: React.ComponentProps<"li">) {
   return (
     <li
       className={cn("group/menu-sub-item relative", className)}

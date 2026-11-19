@@ -35,7 +35,7 @@ import {
 } from "lucide-react";
 import { resolveEventKeys } from "@t3tools/shared/keybindings";
 import { useLocation, useNavigate } from "@tanstack/react-router";
-import { T, useGT, useMessages } from "gt-react";
+import { useGT, useMessages } from "gt-react";
 
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
@@ -73,10 +73,7 @@ const SnapShotIcon = createLucideIcon("snap-shot", [
       key: "capture-frame",
     },
   ],
-  [
-    "rect",
-    { width: "10", height: "8", x: "7", y: "8", rx: "2", key: "window" },
-  ],
+  ["rect", { width: "10", height: "8", x: "7", y: "8", rx: "2", key: "window" }],
   ["circle", { cx: "12", cy: "12", r: "1.5", key: "lens" }],
 ]);
 
@@ -141,9 +138,11 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
   const upstreamMessages = useMessages();
   const m = (message: Parameters<typeof upstreamMessages>[0]) => {
     const text = upstreamMessages(message);
-    return text === "Agents"
-      ? t("settings.group.agents")
-      : translateWebSource(locale, text);
+    return text == null
+      ? text
+      : text === "Agents"
+        ? t("settings.group.agents")
+        : translateWebSource(locale, text);
   };
   const navArea = workspaceAreaProps(
     "settings-nav",
@@ -169,7 +168,11 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
       translateWebSource(locale, SETTINGS_SECTION_LABELS[item.to]),
     ],
   }));
-  const results = searchSettings(query, localizedSearchableItems, m);
+  const results = searchSettings(
+    query,
+    localizedSearchableItems,
+    (message) => m(message) ?? message,
+  );
   const isSearching = query.trim().length > 0;
   const hasResults = results.length > 0;
   const maxResultIndex = Math.max(results.length - 1, 0);
@@ -184,10 +187,7 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
       if (event.defaultPrevented || event.isComposing) return;
       const eventKeys = resolveEventKeys(event);
       const isFindShortcut =
-        eventKeys.has("f") &&
-        (event.metaKey || event.ctrlKey) &&
-        !event.altKey &&
-        !event.shiftKey;
+        eventKeys.has("f") && (event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey;
       // Shift is allowed only when the layout types "/" with it (German Shift+7); Shift on
       // the physical Slash key types "?" or "," instead.
       const isSlashShortcut =
@@ -273,9 +273,7 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
     }
     if (event.key === "ArrowUp") {
       event.preventDefault();
-      setActiveResultIndex(
-        (activeResultIndex - 1 + results.length) % results.length,
-      );
+      setActiveResultIndex((activeResultIndex - 1 + results.length) % results.length);
       return;
     }
     if (event.key === "Enter") {
@@ -325,11 +323,7 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
                 role="combobox"
                 aria-autocomplete="list"
                 aria-expanded={isSearching && hasResults}
-                aria-controls={
-                  isSearching && hasResults
-                    ? "settings-search-results"
-                    : undefined
-                }
+                aria-controls={isSearching && hasResults ? "settings-search-results" : undefined}
                 aria-activedescendant={
                   isSearching && results[activeResultIndex]
                     ? `settings-search-result-${results[activeResultIndex].id}`
@@ -367,19 +361,13 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
               <SidebarMenu
                 id={hasResults ? "settings-search-results" : undefined}
                 role={hasResults ? "listbox" : undefined}
-                aria-label={
-                  hasResults ? t("settings.search.results") : undefined
-                }
+                aria-label={hasResults ? t("settings.search.results") : undefined}
               >
                 {results.map((item, index) => (
                   <SidebarMenuItem
                     key={item.id}
                     role="presentation"
-                    ref={
-                      index === activeResultIndex
-                        ? scrollResultIntoView
-                        : undefined
-                    }
+                    ref={index === activeResultIndex ? scrollResultIntoView : undefined}
                   >
                     <SidebarMenuButton
                       id={`settings-search-result-${item.id}`}
@@ -419,10 +407,7 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
                     </SidebarMenuItem>
                   </SidebarMenu>
                 )}
-                <div
-                  onKeyDown={handleSettingsSectionKeyDown}
-                  className="flex flex-col gap-4"
-                >
+                <div onKeyDown={handleSettingsSectionKeyDown} className="flex flex-col gap-4">
                   {SETTINGS_NAV_GROUPS.map((group, index) => (
                     <div
                       key={group.heading}
@@ -432,24 +417,17 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
                         id={`settings-nav-group-${index}`}
                         className={cn(
                           "px-2 text-xs font-medium text-sidebar-muted-foreground/80",
-                          group.headingHidden
-                            ? "sr-only"
-                            : !compactSearchOpen && "max-md:sr-only",
+                          group.headingHidden ? "sr-only" : !compactSearchOpen && "max-md:sr-only",
                         )}
                       >
                         {m(group.heading)}
                       </h3>
                       {/* The heading stays outside the group it names so NVDA does not read the name twice. */}
-                      <div
-                        role="group"
-                        aria-labelledby={`settings-nav-group-${index}`}
-                      >
+                      <div role="group" aria-labelledby={`settings-nav-group-${index}`}>
                         <SidebarMenu>
                           {group.paths.map((to) => {
                             const Icon = SETTINGS_SECTION_ICONS[to];
-                            const isActive =
-                              activePath === to ||
-                              activePath.startsWith(`${to}/`);
+                            const isActive = activePath === to || activePath.startsWith(`${to}/`);
                             return (
                               <SidebarMenuItem key={to}>
                                 <SidebarMenuButton

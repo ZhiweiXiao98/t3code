@@ -212,7 +212,11 @@ function Discussion({ params }: { params: PullRequestParams & { readonly discuss
             {thread ? (
               <View className="gap-2 pb-4">
                 {thread.path === null ? null : (
-                  <Text localize={false} selectable className="font-mono text-xs text-foreground-muted">
+                  <Text
+                    localize={false}
+                    selectable
+                    className="font-mono text-xs text-foreground-muted"
+                  >
                     {thread.path}
                     {thread.line ? `:${thread.line}` : ""}
                   </Text>

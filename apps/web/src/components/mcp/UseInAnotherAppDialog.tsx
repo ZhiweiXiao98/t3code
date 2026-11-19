@@ -1,9 +1,6 @@
 import { useI18n } from "~/i18n/WebI18nContext";
 import { translateConnectAgentSource } from "~/i18n/connectAgentMessages";
-import {
-  managedCapabilityDenial,
-  managedRuntimeModeDenial,
-} from "~/i18n/managedPolicyMessages";
+import { managedCapabilityDenial, managedRuntimeModeDenial } from "~/i18n/managedPolicyMessages";
 import type { ResolvedAppLocale } from "@t3tools/shared/appLocale";
 import type { WebMessageValues } from "~/i18n/messages";
 import { useAuth } from "@clerk/react";
@@ -33,10 +30,7 @@ import { useCloudLinkController } from "~/cloud/useCloudLinkController";
 import { isDesktopLocalConnectionTarget } from "~/connection/desktopLocal";
 import { isElectron } from "~/env";
 import { useT3ConnectTurnOn } from "~/cloud/useT3ConnectTurnOn";
-import {
-  useCopyToClipboard,
-  writeTextToClipboard,
-} from "~/hooks/useCopyToClipboard";
+import { useCopyToClipboard, writeTextToClipboard } from "~/hooks/useCopyToClipboard";
 import { useNowSecond } from "~/hooks/useNowSecond";
 import { readLocalApi } from "~/localApi";
 import { appAtomRegistry } from "~/rpc/atomRegistry";
@@ -50,10 +44,7 @@ import { mintMcpApprovalCodeOn } from "~/state/peerPairingCode";
 import { peerLinkEnvironment } from "~/state/peerLinks";
 import { useEnvironmentQuery } from "~/state/query";
 import { relayEnvironmentDiscovery } from "~/state/relay";
-import {
-  useEnvironmentScope,
-  useEnvironmentSessionState,
-} from "~/state/session";
+import { useEnvironmentScope, useEnvironmentSessionState } from "~/state/session";
 import { useAtomCommand } from "~/state/use-atom-command";
 import { useT3ConnectAuthPrompt } from "../clerk/useT3ConnectAuthPrompt";
 import { CommandBlock } from "../CommandBlock";
@@ -64,20 +55,9 @@ import { Dialog } from "../ui/dialog";
 import { RadioGroup } from "../ui/radio-group";
 import { Spinner } from "../ui/spinner";
 import { toastManager } from "../ui/toast";
-import {
-  WizardFooter,
-  WizardHeader,
-  WizardPanel,
-  WizardPopup,
-  WizardSteps,
-} from "../ui/wizard";
+import { WizardFooter, WizardHeader, WizardPanel, WizardPopup, WizardSteps } from "../ui/wizard";
 import { afterFailedCheck, resolveMcpGate } from "./mcpGate";
-import {
-  MCP_APPS,
-  type McpApp,
-  mcpHandoffAction,
-  OTHER_MCP_APP_STEPS,
-} from "./mcpApps";
+import { MCP_APPS, type McpApp, mcpHandoffAction, OTHER_MCP_APP_STEPS } from "./mcpApps";
 
 const requestAtom = Atom.make<{
   readonly environmentId: EnvironmentId | null;
@@ -93,16 +73,10 @@ const close = () => appAtomRegistry.set(requestAtom, null);
 /** Hosted once at the root, so Cmd-K and Settings can open it from anywhere. */
 export function UseInAnotherAppDialogHost() {
   const request = useAtomValue(requestAtom);
-  return request === null ? null : (
-    <UseInAnotherAppDialog requested={request.environmentId} />
-  );
+  return request === null ? null : <UseInAnotherAppDialog requested={request.environmentId} />;
 }
 
-function UseInAnotherAppDialog({
-  requested,
-}: {
-  readonly requested: EnvironmentId | null;
-}) {
+function UseInAnotherAppDialog({ requested }: { readonly requested: EnvironmentId | null }) {
   const { locale } = useI18n();
   const tx = (source: string, values?: WebMessageValues) =>
     translateConnectAgentSource(locale, source, values);
@@ -114,11 +88,7 @@ function UseInAnotherAppDialog({
     <Dialog open onOpenChange={(open) => (open ? undefined : close())}>
       <WizardPopup>
         {environment !== null && hasCloudPublicConfig() ? (
-          <Wizard
-            key={environment.environmentId}
-            environment={environment}
-            title={title}
-          />
+          <Wizard key={environment.environmentId} environment={environment} title={title} />
         ) : (
           <>
             <WizardHeader title={title} />
@@ -158,20 +128,15 @@ function Wizard({
   const [step, setStep] = useState<Step>(0);
   const [choice, setChoice] = useState<Choice | null>(null);
   const [picked, setPicked] = useState<AuthMcpClientAccess | null>(null);
-  const access =
-    picked ??
-    DEFAULT_LEVELS.find((level) => levels.get(level) === undefined) ??
-    null;
+  const access = picked ?? DEFAULT_LEVELS.find((level) => levels.get(level) === undefined) ?? null;
   const open = gate.gate.kind === "open";
   // The level is picked on the sign-in page, so the wizard neither asks for it nor needs a code.
   const hostedApproval =
-    environment.serverConfig?.environment.capabilities.mcpHostedApproval ===
-    true;
+    environment.serverConfig?.environment.capabilities.mcpHostedApproval === true;
   const steps = hostedApproval ? HOSTED_APPROVAL_STEPS : STEPS;
   const shownStep = hostedApproval && step === 2 ? 1 : step;
   const next = () => setStep(step === 0 ? (hostedApproval ? 2 : 1) : 2);
-  const appName =
-    choice === null || choice === "other" ? tx("the app") : choice.name;
+  const appName = choice === null || choice === "other" ? tx("the app") : choice.name;
   return (
     <>
       <WizardHeader title={title}>
@@ -180,9 +145,7 @@ function Wizard({
             steps={steps.map((label) => tx(label))}
             currentStep={shownStep}
             isStepDisabled={(index) => index > shownStep}
-            onStepChange={(index) =>
-              setStep(hostedApproval && index === 1 ? 2 : (index as Step))
-            }
+            onStepChange={(index) => setStep(hostedApproval && index === 1 ? 2 : (index as Step))}
           />
         ) : null}
       </WizardHeader>
@@ -193,9 +156,7 @@ function Wizard({
           <AppStep choice={choice} onChoose={setChoice} />
         ) : step === 1 ? (
           <section className="space-y-3">
-            <h3 className="text-sm font-medium">
-              {tx("What can {app} do?", { app: appName })}
-            </h3>
+            <h3 className="text-sm font-medium">{tx("What can {app} do?", { app: appName })}</h3>
             <RadioGroup
               aria-label={tx("What can {app} do?", { app: appName })}
               value={access}
@@ -208,9 +169,7 @@ function Wizard({
                   selected={level === access}
                   disabledReason={levels.get(level)}
                   description={
-                    level === "full-access"
-                      ? "Runs commands and edits files without asking"
-                      : null
+                    level === "full-access" ? "Runs commands and edits files without asking" : null
                   }
                 />
               ))}
@@ -227,11 +186,7 @@ function Wizard({
       </WizardPanel>
       {open ? (
         <WizardFooter
-          leading={
-            step === 2 ? (
-              <ManageAccessButton environment={environment} />
-            ) : undefined
-          }
+          leading={step === 2 ? <ManageAccessButton environment={environment} /> : undefined}
         >
           {step === 1 ? (
             <Button variant="outline" onClick={() => setStep(0)}>
@@ -241,10 +196,7 @@ function Wizard({
           {step === 2 ? (
             <Button onClick={close}>{tx("Done")}</Button>
           ) : (
-            <Button
-              disabled={step === 0 ? choice === null : access === null}
-              onClick={next}
-            >
+            <Button disabled={step === 0 ? choice === null : access === null} onClick={next}>
               {tx("Next")}
             </Button>
           )}
@@ -282,9 +234,7 @@ function useGrantableLevels(environment: EnvironmentPresentation) {
               name: environment.label,
             })
           : session === null ||
-              !mcpClientScopes(level).every((scope) =>
-                sessionGrantsScope(session, scope),
-              )
+              !mcpClientScopes(level).every((scope) => sessionGrantsScope(session, scope))
             ? tx("This device cannot grant this on {name}.", {
                 name: environment.label,
               })
@@ -338,8 +288,7 @@ function useGate(environment: EnvironmentPresentation) {
     linkStateError: controller.linkState.error,
     thisMachine,
     relay:
-      !discovery.refreshing &&
-      (discovery.offline || Option.isSome(discovery.error))
+      !discovery.refreshing && (discovery.offline || Option.isSome(discovery.error))
         ? { status: "failed" }
         : discovery.listed
           ? {
@@ -351,9 +300,7 @@ function useGate(environment: EnvironmentPresentation) {
     reachability:
       typeof check === "string"
         ? "checking"
-        : reported !== undefined &&
-            check.since !== null &&
-            reported.checkedAt > check.since
+        : reported !== undefined && check.since !== null && reported.checkedAt > check.since
           ? reported
           : check.result,
   });
@@ -369,9 +316,7 @@ function useGate(environment: EnvironmentPresentation) {
       return;
     }
     const latest = await readState({ target: { environmentId } });
-    setCheck(
-      afterFailedCheck(prior, latest._tag === "Success" ? latest.value : null),
-    );
+    setCheck(afterFailedCheck(prior, latest._tag === "Success" ? latest.value : null));
   };
   const turnOn = async () => {
     setConnecting(true);
@@ -383,10 +328,7 @@ function useGate(environment: EnvironmentPresentation) {
   };
   // A cached link state can name a tunnel on a disconnected machine; checking it would fail and
   // spend the one automatic check.
-  const canCheck =
-    connected &&
-    linkState !== null &&
-    isManagedTunnelActive(linkState, undefined);
+  const canCheck = connected && linkState !== null && isManagedTunnelActive(linkState, undefined);
   const checkOnce = useEffectEvent(() => {
     if (check === "idle") void runReachabilityCheck();
   });
@@ -396,15 +338,13 @@ function useGate(environment: EnvironmentPresentation) {
   }, [canCheck]);
   // T3 Connect lists machines only once something asks, and a saved machine's gate reads that list.
   const discoverIfUnasked = useEffectEvent(() => {
-    if (!thisMachine && !discovery.listed && !discovery.refreshing)
-      void refreshDiscovery();
+    if (!thisMachine && !discovery.listed && !discovery.refreshing) void refreshDiscovery();
   });
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- asks T3 Connect for its machine list once the wizard opens signed in
   useEffect(() => {
     if (isSignedIn) discoverIfUnasked();
   }, [isSignedIn]);
-  const waiting =
-    gate.kind === "offline" || (connecting && gate.kind === "turn-on");
+  const waiting = gate.kind === "offline" || (connecting && gate.kind === "turn-on");
   const refreshLinkState = useEffectEvent(() => controller.linkState.refresh());
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- polls the server's link state while the tunnel starts; the server has no push for it
   useEffect(() => {
@@ -434,15 +374,7 @@ type Gate = ReturnType<typeof useGate>;
 
 function GateScreen({
   environment,
-  gate: {
-    gate,
-    connecting,
-    check,
-    refreshList,
-    turnOn,
-    operationError,
-    tunnelLimit,
-  },
+  gate: { gate, connecting, check, refreshList, turnOn, operationError, tunnelLimit },
 }: {
   readonly environment: EnvironmentPresentation;
   readonly gate: Gate;
@@ -462,10 +394,7 @@ function GateScreen({
   switch (gate.kind) {
     case "checking":
       return (
-        <p
-          role="status"
-          className="flex items-center gap-2 text-sm text-muted-foreground"
-        >
+        <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
           <Spinner size="sm" tone="muted" />
           {tx("Checking T3 Connect…")}
         </p>
@@ -479,12 +408,9 @@ function GateScreen({
               "Apps like Poke and Claude run in the cloud. They need a public address to reach {name}.",
               { name },
             ),
-            tx(
-              "T3 Connect gives {name} that address. Each app still needs your approval.",
-              {
-                name,
-              },
-            ),
+            tx("T3 Connect gives {name} that address. Each app still needs your approval.", {
+              name,
+            }),
           ]}
         >
           {/* Clerk's sign-in is its own modal, so this dialog closes first. */}
@@ -546,12 +472,7 @@ function GateScreen({
                 : tx("Can't check T3 Connect on {name}", { name })
             }
             lines={
-              reachability
-                ? [
-                    reachability.reason,
-                    tx("Fix: {fix}", { fix: reachability.fix }),
-                  ]
-                : []
+              reachability ? [reachability.reason, tx("Fix: {fix}", { fix: reachability.fix })] : []
             }
           >
             {checkAgain}
@@ -565,9 +486,7 @@ function GateScreen({
             tx("{name} gets a public https address, with no router setup.", {
               name,
             }),
-            tx(
-              "Only apps you approve can use it. You can turn it off in Settings.",
-            ),
+            tx("Only apps you approve can use it. You can turn it off in Settings."),
           ]}
         >
           {turnOnHere.kind === "here" ? (
@@ -576,19 +495,14 @@ function GateScreen({
                 {tx(connecting ? "Connecting…" : "Turn on")}
               </Button>
               {operationError ? (
-                <p className="text-xs text-destructive-foreground">
-                  {operationError}
-                </p>
+                <p className="text-xs text-destructive-foreground">{operationError}</p>
               ) : null}
               {tunnelLimit !== null ? (
                 <>
                   <p className="text-sm text-destructive-foreground">
                     {tx("Your T3 Connect account is out of tunnels.")}
                   </p>
-                  <ManageAccessButton
-                    environment={environment}
-                    label="Manage tunnels"
-                  />
+                  <ManageAccessButton environment={environment} label="Manage tunnels" />
                 </>
               ) : null}
             </div>
@@ -712,8 +626,7 @@ function ConnectStep({
       />
     );
   if (anotherWay || app === null) {
-    const message =
-      app?.handoff.kind === "copy-message" ? app.handoff.message(mcpUrl) : null;
+    const message = app?.handoff.kind === "copy-message" ? app.handoff.message(mcpUrl) : null;
     return (
       <section className="space-y-4">
         <CopyRow label="URL" value={mcpUrl} />
@@ -735,11 +648,7 @@ function ConnectStep({
         {code}
         {app === null ? null : (
           <TextButton onClick={() => setAnotherWay(false)}>
-            {tx(
-              app.handoff.kind === "commands"
-                ? "Back to commands"
-                : "Back to one click",
-            )}
+            {tx(app.handoff.kind === "commands" ? "Back to commands" : "Back to one click")}
           </TextButton>
         )}
         <LinkedLine environment={environment} access={access} />
@@ -751,9 +660,7 @@ function ConnectStep({
       <PrimaryAction app={app} mcpUrl={mcpUrl} />
       <CopyRow label="URL" value={mcpUrl} />
       {code}
-      <TextButton onClick={() => setAnotherWay(true)}>
-        {tx("Set up another way")}
-      </TextButton>
+      <TextButton onClick={() => setAnotherWay(true)}>{tx("Set up another way")}</TextButton>
       <LinkedLine environment={environment} access={access} />
     </section>
   );
@@ -789,29 +696,19 @@ function openLink(url: string, locale: ResolvedAppLocale) {
     );
 }
 
-function PrimaryAction({
-  app,
-  mcpUrl,
-}: {
-  readonly app: McpApp;
-  readonly mcpUrl: string;
-}) {
+function PrimaryAction({ app, mcpUrl }: { readonly app: McpApp; readonly mcpUrl: string }) {
   const { locale } = useI18n();
   const tx = (source: string, values?: WebMessageValues) =>
     translateConnectAgentSource(locale, source, values);
   const action = mcpHandoffAction(app, mcpUrl);
-  const note = app.note ? (
-    <p className="text-xs text-muted-foreground">{tx(app.note)}</p>
-  ) : null;
+  const note = app.note ? <p className="text-xs text-muted-foreground">{tx(app.note)}</p> : null;
   if (action === null) {
     return (
       <div className="space-y-2">
         {app.handoff.kind === "commands"
           ? app.handoff
               .commands(mcpUrl)
-              .map((command) => (
-                <CommandBlock key={command} command={command} />
-              ))
+              .map((command) => <CommandBlock key={command} command={command} />)
           : null}
         <p className="text-xs text-muted-foreground">
           {tx("Run these where {app} runs.", { app: app.name })}
@@ -833,10 +730,7 @@ function PrimaryAction({
   const handOff = async () => {
     if (copy !== null) {
       // The app opens only once the copy lands, so it never gets an older clipboard.
-      const copied = await writeTextToClipboard(
-        copy.text,
-        tx(copy.title),
-      ).catch(() => false);
+      const copied = await writeTextToClipboard(copy.text, tx(copy.title)).catch(() => false);
       if (!copied) {
         toastManager.add({
           type: "error",
@@ -919,8 +813,7 @@ function ApprovalCode({
   const [beforeAccess, afterAccess] = tx("Code to approve {access}", {
     access: "\u0000",
   }).split("\u0000");
-  const left =
-    code === null ? 0 : Math.max(0, Math.floor((code.expiresAt - now) / 1000));
+  const left = code === null ? 0 : Math.max(0, Math.floor((code.expiresAt - now) / 1000));
   return (
     <div className="space-y-1.5">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -930,19 +823,8 @@ function ApprovalCode({
           {afterAccess}
         </span>
         {live ? null : (
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={pending}
-            onClick={() => void mint()}
-          >
-            {tx(
-              pending
-                ? "Getting code…"
-                : code === null
-                  ? "Get code"
-                  : "New code",
-            )}
+          <Button size="sm" variant="outline" disabled={pending} onClick={() => void mint()}>
+            {tx(pending ? "Getting code…" : code === null ? "Get code" : "New code")}
           </Button>
         )}
       </div>
@@ -957,25 +839,15 @@ function ApprovalCode({
             </p>
           </>
         ) : (
-          <p className="text-xs text-muted-foreground">
-            {tx("The code expired.")}
-          </p>
+          <p className="text-xs text-muted-foreground">{tx("The code expired.")}</p>
         )
       ) : null}
-      {error ? (
-        <p className="text-xs text-destructive-foreground">{error}</p>
-      ) : null}
+      {error ? <p className="text-xs text-destructive-foreground">{error}</p> : null}
     </div>
   );
 }
 
-function CopyRow({
-  label,
-  value,
-}: {
-  readonly label: string;
-  readonly value: string;
-}) {
+function CopyRow({ label, value }: { readonly label: string; readonly value: string }) {
   const { locale } = useI18n();
   const tx = (source: string, values?: WebMessageValues) =>
     translateConnectAgentSource(locale, source, values);
@@ -985,9 +857,7 @@ function CopyRow({
   });
   return (
     <div className="flex min-w-0 items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2">
-      <span className="shrink-0 text-xs text-muted-foreground">
-        {tx(label)}
-      </span>
+      <span className="shrink-0 text-xs text-muted-foreground">{tx(label)}</span>
       <span className="min-w-0 flex-1 truncate font-mono text-sm">{value}</span>
       <Button
         size="icon-xs"
@@ -995,18 +865,13 @@ function CopyRow({
         aria-label={tx("Copy {label}", { label: tx(label) })}
         onClick={() => copyToClipboard(value, undefined)}
       >
-        {isCopied ? (
-          <CheckIcon className="size-3.5" />
-        ) : (
-          <CopyIcon className="size-3.5" />
-        )}
+        {isCopied ? <CheckIcon className="size-3.5" /> : <CopyIcon className="size-3.5" />}
       </Button>
     </div>
   );
 }
 
-const levelRank = (level: AuthMcpClientAccess) =>
-  AuthMcpClientAccess.literals.indexOf(level);
+const levelRank = (level: AuthMcpClientAccess) => AuthMcpClientAccess.literals.indexOf(level);
 
 /** Machines this environment links to, at the level a call forwarded there gets. */
 function LinkedLine({
@@ -1033,14 +898,11 @@ function LinkedLine({
   if (!offered || links === undefined || links.length === 0) return null;
   const named = links.map((link) => {
     const name =
-      identities.find(
-        (identity) => identity.environmentId === link.environmentId,
-      )?.label ?? link.label;
+      identities.find((identity) => identity.environmentId === link.environmentId)?.label ??
+      link.label;
     // A forwarded call keeps the lower of the app's level and the link's own.
     const level =
-      access === null || levelRank(link.access) < levelRank(access)
-        ? link.access
-        : access;
+      access === null || levelRank(link.access) < levelRank(access) ? link.access : access;
     return `${name} · ${tx(link.status === "expired" ? "Expired" : accessConfig[level].label)}`;
   });
   return (

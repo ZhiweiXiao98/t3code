@@ -10,20 +10,10 @@ import {
   type CSSProperties,
 } from "react";
 import { TextLayer, type PDFDocumentProxy } from "pdfjs-dist";
-import {
-  ChevronDownIcon,
-  ChevronUpIcon,
-  MinusIcon,
-  PlusIcon,
-  ScanIcon,
-} from "lucide-react";
+import { ChevronDownIcon, ChevronUpIcon, MinusIcon, PlusIcon, ScanIcon } from "lucide-react";
 import { Input } from "~/components/ui/input";
 import { observeResize } from "~/lib/observeResize";
-import {
-  FileSurfaceAction,
-  FileSurfaceFailure,
-  FileSurfaceLoading,
-} from "./fileSurfaceChrome";
+import { FileSurfaceAction, FileSurfaceFailure, FileSurfaceLoading } from "./fileSurfaceChrome";
 import { readBoundedDocument } from "./readBoundedDocument";
 import { openPdf } from "./pdfDocument";
 import {
@@ -75,13 +65,9 @@ function PdfPage(props: {
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Render the PDF page canvas and text layer, cancelling tasks and releasing pdf.js page resources on cleanup.
   useEffect(() => {
     let cancelled = false;
-    let paint:
-      | ReturnType<Awaited<ReturnType<PDFDocumentProxy["getPage"]>>["render"]>
-      | undefined;
+    let paint: ReturnType<Awaited<ReturnType<PDFDocumentProxy["getPage"]>>["render"]> | undefined;
     let layer: TextLayer | undefined;
-    let loadedPage:
-      | Awaited<ReturnType<PDFDocumentProxy["getPage"]>>
-      | undefined;
+    let loadedPage: Awaited<ReturnType<PDFDocumentProxy["getPage"]>> | undefined;
     void (async () => {
       const page = await pdf.getPage(index + 1);
       loadedPage = page;
@@ -106,10 +92,7 @@ function PdfPage(props: {
         background: "white",
       });
       text.current.replaceChildren();
-      text.current.style.setProperty(
-        "--total-scale-factor",
-        String(viewport.scale),
-      );
+      text.current.style.setProperty("--total-scale-factor", String(viewport.scale));
       layer = new TextLayer({
         container: text.current,
         viewport,
@@ -117,17 +100,14 @@ function PdfPage(props: {
       });
       await Promise.all([paint.promise, layer.render()]);
     })().catch((cause: unknown) => {
-      if (!cancelled)
-        onError(cause instanceof Error ? cause.message : pageFailure());
+      if (!cancelled) onError(cause instanceof Error ? cause.message : pageFailure());
     });
     return () => {
       cancelled = true;
       paint?.cancel();
       layer?.cancel();
       // Release operator lists when virtual pages leave the viewport.
-      void Promise.allSettled([paint?.promise]).then(() =>
-        loadedPage?.cleanup(),
-      );
+      void Promise.allSettled([paint?.promise]).then(() => loadedPage?.cleanup());
     };
   }, [pdf, index, width, onSize, onError]);
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Highlight pdf.js-owned text nodes and observe asynchronous text layer mutations for the current search query.
@@ -135,18 +115,12 @@ function PdfPage(props: {
     const node = text.current;
     if (!node) return;
     const mark = () => {
-      const elements = Array.from(
-        node.querySelectorAll('span[role="presentation"], br'),
-      );
+      const elements = Array.from(node.querySelectorAll('span[role="presentation"], br'));
       const hits = pdfFindMatchRuns(
-        elements.map((element) =>
-          element.tagName === "BR" ? "\n" : (element.textContent ?? ""),
-        ),
+        elements.map((element) => (element.tagName === "BR" ? "\n" : (element.textContent ?? ""))),
         props.query,
       );
-      elements.forEach((element, index) =>
-        element.classList.toggle("pdf-find-match", hits[index]),
-      );
+      elements.forEach((element, index) => element.classList.toggle("pdf-find-match", hits[index]));
     };
     mark();
     const observer = new MutationObserver(mark);
@@ -173,14 +147,10 @@ export default function PdfViewer(props: {
   onViewChange?: (view: PdfViewState) => void;
 }) {
   const [savedPosition] = useState(() =>
-    props.positionKey === undefined
-      ? undefined
-      : positions.get(props.positionKey),
+    props.positionKey === undefined ? undefined : positions.get(props.positionKey),
   );
   const [initialView] = useState<PdfViewState>(
-    () =>
-      savedPosition ??
-      props.initialView ?? { page: 0, offset: 0, zoom: null, left: 0 },
+    () => savedPosition ?? props.initialView ?? { page: 0, offset: 0, zoom: null, left: 0 },
   );
   const { locale: previewLocale, t } = useI18n();
   const translatePreviewSource = useEffectEvent((source: string) =>
@@ -213,9 +183,7 @@ export default function PdfViewer(props: {
     let disposed = false;
     let task: ReturnType<typeof openPdf> | undefined;
     const timeout = setTimeout(() => {
-      setError(
-        translatePreviewSource("This PDF took too long to load. Try again."),
-      );
+      setError(translatePreviewSource("This PDF took too long to load. Try again."));
       controller.abort();
       void task?.destroy();
     }, 30_000);
@@ -237,15 +205,12 @@ export default function PdfViewer(props: {
           );
         const first = (await document.getPage(1)).getViewport({ scale: 1 });
         const sizes = await Promise.all(
-          Array.from(
-            { length: Math.min(initialPage + 1, document.numPages) },
-            async (_, index) => {
-              const size = (await document.getPage(index + 1)).getViewport({
-                scale: 1,
-              });
-              return size.height / size.width;
-            },
-          ),
+          Array.from({ length: Math.min(initialPage + 1, document.numPages) }, async (_, index) => {
+            const size = (await document.getPage(index + 1)).getViewport({
+              scale: 1,
+            });
+            return size.height / size.width;
+          }),
         );
         if (controller.signal.aborted) return;
         setPageWidth(first.width);
@@ -262,9 +227,7 @@ export default function PdfViewer(props: {
       .catch((cause: unknown) => {
         if (!disposed && !controller.signal.aborted)
           setError(
-            cause instanceof Error
-              ? cause.message
-              : translatePreviewSource("Unable to open PDF."),
+            cause instanceof Error ? cause.message : translatePreviewSource("Unable to open PDF."),
           );
       })
       .finally(() => clearTimeout(timeout));
@@ -279,8 +242,7 @@ export default function PdfViewer(props: {
   useLayoutEffect(() => {
     const node = scroll.current;
     if (!node) return;
-    const update = () =>
-      setViewport({ width: node.clientWidth, height: node.clientHeight });
+    const update = () => setViewport({ width: node.clientWidth, height: node.clientHeight });
     update();
     return observeResize(node, update);
   }, []);
@@ -292,9 +254,7 @@ export default function PdfViewer(props: {
   const [onSize] = useState(
     () => (index: number, ratio: number) =>
       setRatios((old) =>
-        old[index] === ratio
-          ? old
-          : old.map((value, i) => (i === index ? ratio : value)),
+        old[index] === ratio ? old : old.map((value, i) => (i === index ? ratio : value)),
       ),
   );
   const jumpToPage = useEffectEvent((index: number) => {
@@ -314,20 +274,14 @@ export default function PdfViewer(props: {
       positions.delete(props.positionKey);
       positions.set(props.positionKey, { ...view, width, ratios });
       const oldest = positions.keys().next();
-      if (positions.size > MAX_POSITIONS && !oldest.done)
-        positions.delete(oldest.value);
+      if (positions.size > MAX_POSITIONS && !oldest.done) positions.delete(oldest.value);
     }
   };
   const restoreView = useEffectEvent(() => {
     const node = scroll.current;
     if (!pdf || !node) return;
     node.scrollTo({
-      top: pdfRestoredScrollTop(
-        ratios,
-        width,
-        initialView,
-        savedPosition?.width,
-      ),
+      top: pdfRestoredScrollTop(ratios, width, initialView, savedPosition?.width),
       left: initialView.left,
     });
     setScrollTop(node.scrollTop);
@@ -356,8 +310,7 @@ export default function PdfViewer(props: {
     if (!node || !pdf) return;
     if (anchor && anchor.width !== width) {
       node.scrollTo({
-        top:
-          offsets[anchor.page]! - 16 + (anchor.offset * width) / anchor.width,
+        top: offsets[anchor.page]! - 16 + (anchor.offset * width) / anchor.width,
       });
     }
     saveView(node, anchor !== null);
@@ -499,8 +452,7 @@ export default function PdfViewer(props: {
             <span role="status">
               {finding
                 ? translateWebSource(previewLocale, "Searching…")
-                : (findError ??
-                  `${matches.length ? match + 1 : 0}/${matches.length}`)}
+                : (findError ?? `${matches.length ? match + 1 : 0}/${matches.length}`)}
             </span>
             <FileSurfaceAction
               label={translateWebSource(previewLocale, "Next matching page")}

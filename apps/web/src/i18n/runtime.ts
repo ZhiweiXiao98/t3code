@@ -7,7 +7,7 @@ import {
   updateClientSettings,
 } from "../hooks/useSettings";
 import { initializeI18n } from "./initializeI18n";
-import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from "./locales";
+import { DEFAULT_LOCALE } from "./locales";
 
 type LocaleTranslations = Awaited<ReturnType<typeof getTranslationsSnapshot>>;
 
@@ -45,10 +45,7 @@ function loadLocale(locale: string): Promise<void> {
 
 function activateLocale(locale: string): void {
   if (requestedLocale !== locale) return;
-  if (
-    snapshot.locale === locale &&
-    snapshot.translations[locale] === loadedTranslations[locale]
-  ) {
+  if (snapshot.locale === locale && snapshot.translations[locale] === loadedTranslations[locale]) {
     return;
   }
   snapshot = { locale, translations: { ...loadedTranslations } };

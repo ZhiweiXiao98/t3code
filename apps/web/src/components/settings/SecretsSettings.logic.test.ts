@@ -74,7 +74,7 @@ it("formats owned secret-use labels without translating owner, variable, host or
     "Codex · CODEX_TOKEN",
     "GitHub · github.com",
     "https://hub.test · 管理密钥",
-    "EAS Simulator · 访问令牌",
+    "Expo Simulators · 访问令牌",
     "Simlock Pool · 智能体令牌",
     "语音 · OpenAI",
   ]);

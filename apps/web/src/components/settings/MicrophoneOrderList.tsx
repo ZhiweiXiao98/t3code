@@ -1,3 +1,6 @@
+import { useGT } from "gt-react";
+import { useI18n } from "../../i18n/WebI18nContext";
+import { translateWebSource } from "../../i18n/messages";
 import {
   DndContext,
   type DragEndEvent,
@@ -27,6 +30,7 @@ export function MicrophoneOrderList(props: {
   readonly order: ReadonlyArray<MicrophoneEntry>;
   readonly devices: ReadonlyArray<BrowserMicrophone>;
 }) {
+  const gt = useGT();
   const { order, devices } = props;
   const keys = order.map(microphoneEntryKey);
   const inUse = microphoneEntryKey(preferredMicrophone(order, devices));
@@ -66,7 +70,7 @@ export function MicrophoneOrderList(props: {
                 id={key}
                 name={
                   entry.kind === "default"
-                    ? "System default"
+                    ? gt("System default")
                     : entry.label || device?.label || "Saved microphone"
                 }
                 position={index + 1}
@@ -98,6 +102,7 @@ function MicrophoneRow(props: {
   readonly onMove: (steps: number) => void;
   readonly onForget: (() => void) | undefined;
 }) {
+  const { locale } = useI18n();
   const { name } = props;
   const { listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
     useSortable({ id: props.id });
@@ -118,7 +123,7 @@ function MicrophoneRow(props: {
       <span className="col-start-2 flex @min-[32rem]/settings-row:col-start-auto">
         {props.inUse ? (
           <span className="rounded-sm bg-success/12 px-1 text-2xs text-success-foreground">
-            In use
+            {translateWebSource(locale, "In use")}
           </span>
         ) : props.notConnected ? (
           <span className="text-2xs text-muted-foreground">Not connected</span>

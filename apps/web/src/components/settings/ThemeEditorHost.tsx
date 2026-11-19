@@ -28,19 +28,14 @@ function useThemeDefinition(id: string | null | undefined) {
 export function ThemeEditorHost() {
   const { t } = useI18n();
   const session = useThemeEditorStore((store) => store.session);
-  const closeThemeEditor = useThemeEditorStore(
-    (store) => store.closeThemeEditor,
-  );
+  const closeThemeEditor = useThemeEditorStore((store) => store.closeThemeEditor);
   const { theme, setTheme, themeHalves, refreshTheme } = useTheme();
   const editingTheme = useThemeDefinition(session?.editingThemeId);
   const seedTheme = useThemeDefinition(session?.seedThemeId);
 
   const handleSaved = (
     savedTheme: ThemeDefinition,
-    {
-      created,
-      mergedAppearance,
-    }: { created: boolean; mergedAppearance?: ThemeAppearance },
+    { created, mergedAppearance }: { created: boolean; mergedAppearance?: ThemeAppearance },
   ) => {
     if (mergedAppearance) {
       if (!setTheme(savedTheme.id)) {
