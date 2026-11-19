@@ -1,6 +1,6 @@
 # Android v0.1.10 签名预检草案（不可执行、不可发布）
 
-本目录只保存公开元数据与后续审查计划。`enabled: false`；尚未实现新版验证器或签名器。示例不是可激活的 Actions 配方，不得移入 `.github/workflows`。没有签名环境、秘密引用、密钥或凭据附件，不运行、安装 APK，不发布、不合并。
+本目录只保存公开元数据与后续审查计划。`enabled: false`；已实现只读验证器和一次性测试身份的签名演示；原社区身份签名器及激活工作流仍未实现。示例不是可激活的 Actions 配方，不得移入 `.github/workflows`。没有签名环境、秘密引用、密钥或凭据附件，不运行、安装 APK，不发布、不合并。
 
 ## 已知输入
 
@@ -17,7 +17,7 @@ ZIP 和两个成员的大小、SHA256 来自本次实际下载核验结果。APK
 5. 复用 `signing/android-bootstrap` 已审 `sign_reviewed.py` / `recovery.py` 的固定身份、恢复证据、受限下载和临时密钥清理机制，不另写秘密处理方案。现有程序硬锁旧 74039745、0.1.9-zh.2/1000417 与旧 receipts，必须在隔离分支改成上述新版合同，并通过真实正例和所有身份/哈希/版本/门禁负例测试；不能仅替换 input 后启用。
 6. 独立复核固定证书及 run `40649758501` 的公开恢复证据。不得重新初始化密钥、替换身份或更改签名环境权限。若恢复 artifact 过期，停止并提出新的受审恢复步骤，不能把历史记录当实时下载成功。
 7. 单独审核未来准确 workflow commit/blob、工具代码及环境范围后，才讨论激活。未来仅单步使用现有固定身份签名，禁止执行候选代码；验证签名后证书必须精确匹配 pins，输出 APK 需再核 package/version/ABI 和签名证书。始终清理临时密钥，不输出环境或密钥材料。
-8. 未来仅上传签名 APK、公开来源证明和 SHA256SUMS 的明确 allowlist，记录原 ZIP/原 APK/签名 APK 哈希和两种源码身份；不上传工作目录、加密密钥备份、支持/凭据附件。无 production publisher、tag、release、OTA、default 分支修改。签名 artifact 成功也不授权发布。
+8. 公共仓库 Actions artifact 不能作为私有暂存。原社区身份签名 APK 在 ARM 安装及覆盖升级验收前不得明文上传。优先同一隔离环境内完成签名与验收，仅保存不含 APK 的结果摘要；跨环境传输如需单次接收方公钥加密，须另审方案与授权，当前未实现。不得上传工作目录、密钥备份或凭据附件。无 publisher、tag、release、OTA 修改。
 
 ## 防止误触发与验收限制
 
@@ -31,3 +31,17 @@ ZIP 和两个成员的大小、SHA256 来自本次实际下载核验结果。APK
 - [旧已发布 Android 0.1.9-zh.1](https://github.com/ZhiweiXiao98/t3code/releases/tag/android-v0.1.9-zh.1) 与 [签名发布证据](https://github.com/ZhiweiXiao98/t3code/actions/runs/43194813528)。升级验证必须是实际发布的 1000416 → 本候选签名后的 1000418，不以未发布 1000417 替代。
 - [固定身份恢复记录](https://github.com/ZhiweiXiao98/t3code/actions/runs/40649758501)。公开恢复 artifact 12799615493 到期 2027-01-26 07:23:28 UTC；历史成功不等于当前秘密仍有效。
 - [旧 sign-only 配方固定快照](https://github.com/ZhiweiXiao98/t3code/blob/5b48c3abd7c38618d63a899059fdb852d66a34d7/.github/workflows/android-sign-reviewed.yml)。仅参考，不运行。
+
+## 本地可执行验证与实际结果（2026-11-19）
+
+- `python3 -m unittest discover -s . -p 'test_*.py' -v`：运行严格元数据和归档正负例（不含真实密钥）。
+- `python3 verify_live.py --archive /path/to/original-artifact.zip`：官方公共 GitHub GET，拒绝重定向，核对前后快照及原字节；不需要token，不签名。
+- `python3 synthetic_sign_test.py --archive /path/to/original-artifact.zip --sdk-tools /path/to/reviewed/build-tools/36.0.0`：仅临时生成一次性合成身份，不能接受社区原钥，不安装或保存已签APK；所有临时输出在返回前删除。
+
+本次真实原ZIP/成员校验通过；官方 aapt2 确认包名/1000418/ARM64，原APK apksigner不验证；临时测试身份签名后 apksigner 验签、16KB对齐、包名版本ABI复查均通过。注入生成临时密钥后的异常，目录清理验证通过。**这不是同社区证书签名或1000416→1000418安装验收。**
+
+使用官方 `https://dl.google.com/android/repository/repository2-1.xml` 公布的 build-tools36 Linux包：63737259字节，SHA1 `b0b6376977657e8ad9b969bacf4093601da2c6fb`；实算SDK ZIP SHA256 `5d9ac77fb6ff43d9da518a337b4fcf8f9097113df531d99ccefe80ef7ce8250b`。演示程序不自动下载SDK，调用方须先验证SDK来源与字节。
+
+原钥执行路径仍需：审查移植既有 signer/recovery → 固定新工作流/工具身份 → 即时复查公开恢复证据 → 在受控环境使用既有原身份 → 同证书输出验证 → 隔离ARM覆盖升级；在这些边界明确前不激活工作流或读取签名环境。
+
+最新验证：9 个 unittest 方法（含门禁/归档及新增上传区间负例）通过；最终验证器对本次实际 GitHub 快照与原 ZIP 复跑通过。较早版本 live helper 前后实时快照通过；追加拒绝重定向与上传步骤严格检查后，最终 live helper 再请求遭 GitHub 未认证 API 配额耗尽（HTTP 403，remaining=0），已失败关闭，未把这次受限运行写成通过。激活前必须再完成最终版本的实时复验；不通过换凭据或绕过限额重试。
