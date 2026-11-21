@@ -1,0 +1,221 @@
+{
+  "schemaVersion": 1,
+  "enabled": false,
+  "readiness": "DRAFT_NOT_EXECUTABLE_NOT_AUTHORIZED_FOR_SIGNING",
+  "repository": "ZhiweiXiao98/t3code",
+  "candidate": {
+    "sourceSha": "2ed55016b6678ca997f204d9b7af4048ce0307e6",
+    "sourceTree": "94623d881a1c9939338b8479f07c7d28283203c4",
+    "branch": "review/v0.1.10-zh",
+    "runId": 44228163780,
+    "attempt": 1,
+    "workflowId": 371287124,
+    "workflowPath": ".github/workflows/client-release.yml",
+    "workflowBlobSha": "31cc4b10bdc352b521585f62f772876797d7ed2b",
+    "runStartedAt": "2026-11-18T03:07:29Z",
+    "requiredStatus": "completed",
+    "requiredConclusion": "success"
+  },
+  "artifact": {
+    "id": 14395695421,
+    "name": "android-UNSIGNED-NOT-INSTALLABLE",
+    "zipSha256": "a76c289908aef9a7b46a284b73f0cfb284337ec6e874d6d42e679b8ecee98414",
+    "zipBytes": 47480291,
+    "expiresAt": "2026-12-02T03:35:06Z",
+    "producerJobId": 134547189421,
+    "producerAttempt": 1,
+    "producerStartedAt": "2026-11-18T03:09:37Z",
+    "producerCompletedAt": "2026-11-18T03:35:12Z",
+    "members": [
+      {
+        "name": "T3-Code-zh-CN-Android-0.1.10-zh.1-arm64-UNSIGNED-NOT-INSTALLABLE.apk",
+        "bytes": 101730516,
+        "sha256": "478e905f6a8cf5bbc5194d47f678a36d24b93d3e06c0dfe15e88fd007aba8724"
+      },
+      {
+        "name": "SIGNING-BLOCKER.txt",
+        "bytes": 193,
+        "sha256": "3090148d23a8de72201ab044f4c5daa9936d9dbe10dea570ee6484b507d19f06"
+      }
+    ]
+  },
+  "identity": {
+    "packageName": "com.zhiweixiao.t3code.zhcn",
+    "certificateSha256": "82f2437cbceb94fe6fe4a60a1c0de99f643124c64a648a27de9ce92bd39ecd88",
+    "previousPublishedTag": "android-v0.1.9-zh.1",
+    "previousPublishedVersionCode": 1000416,
+    "expectedVersionName": "0.1.10-zh.1",
+    "expectedVersionCode": 1000418,
+    "expectedNativeAbis": [
+      "arm64-v8a"
+    ],
+    "recoveryRunId": 40649758501,
+    "recoveryAttempt": 1,
+    "recoveryArtifactId": 12799615493,
+    "recoveryArtifactZipSha256": "b2c345e3b7566e2c6cd3efa8be8213b464f1c3a04497967c96228d3797769fdd"
+  },
+  "requiredJobs": [
+    {
+      "id": 134546360364,
+      "name": "Validate exact source",
+      "requiredStatus": "completed",
+      "requiredConclusion": "success"
+    },
+    {
+      "id": 134546400891,
+      "name": "Build validated desktop bundle",
+      "requiredStatus": "completed",
+      "requiredConclusion": "success"
+    },
+    {
+      "id": 134547189331,
+      "name": "Linux x64 and embedded Windows WSL runtime",
+      "requiredStatus": "completed",
+      "requiredConclusion": "success"
+    },
+    {
+      "id": 134547189421,
+      "name": "Android arm64 unsigned candidate (NOT installable)",
+      "requiredStatus": "completed",
+      "requiredConclusion": "success"
+    },
+    {
+      "id": 134549518262,
+      "name": "Clean desktop deb first start",
+      "requiredStatus": "completed",
+      "requiredConclusion": "success"
+    },
+    {
+      "id": 134549518269,
+      "name": "Desktop mac x64 (integrity checked)",
+      "requiredStatus": "completed",
+      "requiredConclusion": "success"
+    },
+    {
+      "id": 134549518350,
+      "name": "Desktop mac arm64 (integrity checked)",
+      "requiredStatus": "completed",
+      "requiredConclusion": "success"
+    },
+    {
+      "id": 134549518581,
+      "name": "Desktop win x64 (integrity checked)",
+      "requiredStatus": "completed",
+      "requiredConclusion": "success"
+    },
+    {
+      "id": 134557254973,
+      "name": "Mobile native static analysis",
+      "requiredStatus": "completed",
+      "requiredConclusion": "success"
+    },
+    {
+      "id": 134557255000,
+      "name": "Rust native formatting and tests",
+      "requiredStatus": "completed",
+      "requiredConclusion": "success"
+    },
+    {
+      "id": 134557255006,
+      "name": "Tests (server-2)",
+      "requiredStatus": "completed",
+      "requiredConclusion": "success"
+    },
+    {
+      "id": 134557255008,
+      "name": "Tests (server-3)",
+      "requiredStatus": "completed",
+      "requiredConclusion": "success"
+    },
+    {
+      "id": 134557255040,
+      "name": "Tests (server-1)",
+      "requiredStatus": "completed",
+      "requiredConclusion": "success"
+    },
+    {
+      "id": 134557255044,
+      "name": "Web full coverage shard 3/4",
+      "requiredStatus": "completed",
+      "requiredConclusion": "success"
+    },
+    {
+      "id": 134557255045,
+      "name": "Web full coverage shard 2/4",
+      "requiredStatus": "completed",
+      "requiredConclusion": "success"
+    },
+    {
+      "id": 134557255090,
+      "name": "Tests (clients)",
+      "requiredStatus": "completed",
+      "requiredConclusion": "success"
+    },
+    {
+      "id": 134557255101,
+      "name": "Web full coverage shard 4/4",
+      "requiredStatus": "completed",
+      "requiredConclusion": "success"
+    },
+    {
+      "id": 134557255168,
+      "name": "Web full coverage shard 1/4",
+      "requiredStatus": "completed",
+      "requiredConclusion": "success"
+    },
+    {
+      "id": 134561339367,
+      "name": "Require complete Web assertion coverage",
+      "requiredStatus": "completed",
+      "requiredConclusion": "success"
+    },
+    {
+      "id": 134561541071,
+      "name": "Build and boot validated Web client",
+      "requiredStatus": "completed",
+      "requiredConclusion": "success"
+    },
+    {
+      "id": 134562348728,
+      "name": "Lint and typecheck",
+      "requiredStatus": "completed",
+      "requiredConclusion": "success"
+    },
+    {
+      "id": 134563575845,
+      "name": "Clean macOS x64 dmg first start",
+      "requiredStatus": "completed",
+      "requiredConclusion": "success"
+    },
+    {
+      "id": 134563575887,
+      "name": "Clean macOS arm64 dmg+zip first start",
+      "requiredStatus": "completed",
+      "requiredConclusion": "success"
+    },
+    {
+      "id": 134563575910,
+      "name": "Clean macOS x64 zip first start",
+      "requiredStatus": "completed",
+      "requiredConclusion": "success"
+    },
+    {
+      "id": 134563575940,
+      "name": "Clean desktop nsis first start",
+      "requiredStatus": "completed",
+      "requiredConclusion": "success"
+    }
+  ],
+  "futureSigning": {
+    "reviewedWorkflowCommitSha": null,
+    "reviewedWorkflowBlobSha": null,
+    "publicationAllowed": false,
+    "activationAllowed": false,
+    "realDeviceUploadAllowed": false
+  },
+  "evidenceNotes": {
+    "jobs": "Independently fetched exact attempt-1 jobs through GitHub REST; all 25 completed/success.",
+    "zipAndMemberHashes": "Cloud read-only byte audit on 2026-11-19; recheck before activation",
+    "apkMetadata": "Expected values only until Android tooling verifies manifest, unsigned status and ABI; no readiness claim."
+  }
+}

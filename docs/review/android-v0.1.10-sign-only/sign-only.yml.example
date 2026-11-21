@@ -1,0 +1,22 @@
+# INERT REVIEW DOCUMENT. Never copy into .github/workflows as an activation.
+# No signer is implemented. No environment, secret reference, checkout or upload.
+name: Android v0.1.10 signing design only - blocked
+on: {}
+permissions: {}
+jobs:
+  blocked:
+    if: ${{ false }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 1
+    steps:
+      - name: Unconditional stop even if this example is accidentally enabled
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          raise RuntimeError("NOT IMPLEMENTED: independently reviewed exact workflow/tool identity and all candidate checks required; no real signing or publication")
+          PY
+# Future reviewed implementation order:
+# exact immutable source/run/attempt/25-job checks -> bounded byte verification
+# -> Android package/version/ABI/unsigned checks -> fixed-identity recovery checks
+# -> separately reviewed signing-only step -> verify same certificate
+# -> allowlisted signed artifact + public provenance only. No publisher.

@@ -1,0 +1,121 @@
+# INERT REVIEW FILE. Replace .github/workflows/android-sign-reviewed.yml only after
+# exact independent review + root activation approval. Never push this as-is.
+name: Sign exact reviewed Android candidate into recipient ciphertext only
+on:
+  workflow_dispatch:
+    inputs:
+      operation_sha:
+        required: true
+        type: string
+      candidate_run:
+        required: true
+        type: string
+      candidate_attempt:
+        required: true
+        type: string
+      artifact_id:
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: reviewed-android-sign-only-one-shot
+  cancel-in-progress: false
+jobs:
+  sign:
+    if: >-
+      github.repository == 'ZhiweiXiao98/t3code' &&
+      github.event_name == 'workflow_dispatch' &&
+      github.actor == 'ZhiweiXiao98' && github.actor_id == '99611261' &&
+      github.triggering_actor == 'ZhiweiXiao98' &&
+      github.ref == 'refs/heads/signing/android-bootstrap' &&
+      github.sha == inputs.operation_sha && github.run_attempt == 1 &&
+      inputs.candidate_run == '44228163780' &&
+      inputs.candidate_attempt == '1' && inputs.artifact_id == '14395695421'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: android-signing
+    env:
+      T3_SIGNING_ENVIRONMENT: android-signing
+      OPERATION_SHA: ${{ inputs.operation_sha }}
+      TOOL_DIR: docs/review/android-v0.1.10-sign-only
+    steps:
+      - name: Fetch exact reviewed operations only, never candidate source
+        env:
+          GIT_TERMINAL_PROMPT: '0'
+        run: |
+          set -euo pipefail
+          umask 077
+          test "$GITHUB_SHA" = "$OPERATION_SHA"
+          git init .
+          git remote add origin https://github.com/ZhiweiXiao98/t3code.git
+          git sparse-checkout init --cone
+          git sparse-checkout set "$TOOL_DIR"
+          git fetch --no-tags --depth=1 origin "$OPERATION_SHA"
+          git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$OPERATION_SHA"
+          test "$(git ls-remote origin refs/heads/signing/android-bootstrap | cut -f1)" = "$OPERATION_SHA"
+      - name: Verify trusted dependency and run synthetic safety tests without Secrets
+        run: |
+          set -euo pipefail
+          python3.12 -m venv "$RUNNER_TEMP/sign-venv"
+          "$RUNNER_TEMP/sign-venv/bin/python" -m pip --isolated install \
+            --index-url https://pypi.org/simple --only-binary=:all: --require-hashes \
+            -r "$TOOL_DIR/requirements-signing.lock"
+          "$RUNNER_TEMP/sign-venv/bin/python" -c 'import cryptography; assert cryptography.__version__ == "50.0.0"'
+          "$RUNNER_TEMP/sign-venv/bin/python" -m unittest discover -s "$TOOL_DIR" -p 'test_*.py' -v
+      - name: Fetch and authenticate exact official Android SDK before Secrets
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir "$RUNNER_TEMP/sign-sdk"
+          curl --fail --silent --show-error --proto '=https' --tlsv1.2 \
+            https://dl.google.com/android/repository/build-tools_r36_linux.zip \
+            -o "$RUNNER_TEMP/sign-sdk/build-tools.zip"
+          echo '5d9ac77fb6ff43d9da518a337b4fcf8f9097113df531d99ccefe80ef7ce8250b  '"$RUNNER_TEMP/sign-sdk/build-tools.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/sign-sdk/build-tools.zip" -d "$RUNNER_TEMP/sign-sdk"
+      - name: Prepare exact candidate, live 25 gates and original recovery evidence
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          umask 077
+          "$RUNNER_TEMP/sign-venv/bin/python" "$TOOL_DIR/signing_orchestrator.py" prepare \
+            --operation "$TOOL_DIR/operation-binding.json" \
+            --recipient "$TOOL_DIR/approved-recipient-public.pem" \
+            --operation-sha "$OPERATION_SHA" --workspace "$RUNNER_TEMP/reviewed-android"
+      - name: Fixed original identity to ciphertext, no raw signed APK output
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          umask 077
+          export JAVA_HOME="$JAVA_HOME_21_X64"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          "$RUNNER_TEMP/sign-venv/bin/python" "$TOOL_DIR/signing_orchestrator.py" sign \
+            --operation "$TOOL_DIR/operation-binding.json" \
+            --recipient "$TOOL_DIR/approved-recipient-public.pem" \
+            --operation-sha "$OPERATION_SHA" --workspace "$RUNNER_TEMP/reviewed-android" \
+            --sdk-tools "$RUNNER_TEMP/sign-sdk/android-16" --output "$RUNNER_TEMP/encrypted-android"
+      - name: Upload explicit ciphertext and public allowlist manifest only
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: android-encrypted-reviewed-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/encrypted-android/handoff.json
+            ${{ runner.temp }}/encrypted-android/public-manifest.json
+          if-no-files-found: error
+          retention-days: 3
+      - name: Remove only this run's temporary directories
+        if: ${{ always() }}
+        run: |
+          python - <<'PY'
+          import os,pathlib,shutil
+          root=pathlib.Path(os.environ['RUNNER_TEMP']).resolve()
+          for name in ('reviewed-android','encrypted-android','sign-sdk','sign-venv'):
+              target=root/name
+              if target.is_symlink():target.unlink()
+              elif target.exists():shutil.rmtree(target)
+          PY
